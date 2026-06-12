@@ -1,0 +1,87 @@
+import type {
+  ConsoleNavigationMetadata,
+  ConsoleSurfaceArea,
+  ConsoleSurfaceIcon,
+} from "../../../src/app/console-module-api";
+import type { ConsolePackageRegistrySource } from "../../../src/app/console-package-registry";
+
+export {
+  defineConsoleModule,
+  type ConsoleModule,
+  type ConsoleModuleSurface,
+  type ConsoleNavigationGroup,
+  type ConsoleNavigationItem,
+  type ConsoleNavigationMetadata,
+  type ConsoleRouteContribution,
+  type ConsoleSurfaceArea,
+  type ConsoleSurfaceIcon,
+  type ConsoleWorkspaceRef,
+} from "../../../src/app/console-module-api";
+export {
+  runtimeConsoleHostApi,
+  type RuntimeConsoleHostApi,
+  type ConsoleAdminListResponse,
+  type ConsoleAdminRecord,
+  type ExecutionInspectorTab,
+  type ExecutionNode,
+  type RuntimeStory,
+  type StoryViewMode,
+} from "../../../src/app/console-host-api";
+
+export interface ConsolePackageManifest {
+  id: string;
+  packageName: string;
+  exportName: string;
+  surfaceName: string;
+  label: string;
+  area: ConsoleSurfaceArea;
+  route: string;
+  requiredCapabilities: readonly string[];
+  source: ConsolePackageRegistrySource;
+  version?: string;
+  icon?: ConsoleSurfaceIcon;
+  navigation?: ConsoleNavigationMetadata;
+}
+
+export interface ConsoleSurfaceManifest {
+  name: string;
+  label: string;
+  area: ConsoleSurfaceArea;
+  route: string;
+  package: {
+    name: string;
+    export: string;
+  };
+  required_capabilities: readonly string[];
+  icon?: ConsoleSurfaceIcon;
+  navigation?: ConsoleNavigationMetadata;
+}
+
+export const defineConsolePackageManifest = <
+  Manifest extends ConsolePackageManifest,
+>(
+  manifest: Manifest
+): Manifest => manifest;
+
+export const consoleSurfaceFromPackageManifest = (
+  manifest: ConsolePackageManifest
+): ConsoleSurfaceManifest => {
+  const surface: ConsoleSurfaceManifest = {
+    area: manifest.area,
+    label: manifest.label,
+    name: manifest.surfaceName,
+    package: {
+      export: manifest.exportName,
+      name: manifest.packageName,
+    },
+    required_capabilities: manifest.requiredCapabilities,
+    route: manifest.route,
+  };
+  if (manifest.icon) {
+    surface.icon = manifest.icon;
+  }
+  if (manifest.navigation) {
+    surface.navigation = manifest.navigation;
+  }
+  return surface;
+};

@@ -1,0 +1,16 @@
+{
+  "name": "@lenso/console-package-cli",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "lenso": "./src/index.mjs",
+    "lenso-console-package": "./src/index.mjs"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "dependencies": {
+    "commander": "^15.0.0"
+  }
+}

@@ -1,0 +1,327 @@
+# Console Package Template
+
+Use this checklist when adding a Runtime Console frontend package.
+
+Console packages let a module contribute a frontend surface without deep-importing
+Runtime Console internals. The package can live in this monorepo today and move
+to an external repository later if `@lenso/runtime-console-api` is published.
+
+## Package Shape
+
+When starting from a new linked Rust module, generate the module scaffold first:
+
+```sh
+pnpm create:module billing
+```
+
+That command creates `modules/billing`, adds it to the Rust workspace, and
+registers it in `crates/app-bootstrap`.
+
+To create the linked module and matching Runtime Console package together, run:
+
+```sh
+pnpm create:module billing --with-console
+```
+
+Generate the standard frontend package skeleton and host registration next:
+
+```sh
+pnpm create:console-package billing
+```
+
+The CLI also exposes `pnpm exec lenso-console-package module create billing`,
+`pnpm exec lenso module create billing`, and
+`pnpm exec lenso-console-package create billing` for command-style usage.
+
+Use `--dry-run` to preview file changes, and pass options such as
+`--label "Billing"` or `--route /data/billing` when defaults are not enough.
+
+Create a package under:
+
+```text
+packages/<package-name>
+```
+
+Minimal files:
+
+```text
+packages/<package-name>/
+  console-surface.json
+  console-surface.rs
+  package.json
+  src/
+    index.tsx
+    manifest.ts
+    page.tsx
+    index.test.tsx
+```
+
+`package.json`:
+
+```json
+{
+  "name": "@lenso/<package-name>",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "peerDependencies": {
+    "@lenso/runtime-console-api": "workspace:*",
+    "react": "^19.1.0"
+  }
+}
+```
+
+Add package-specific peer dependencies only when the package imports them
+directly.
+
+## Manifest
+
+Define the package surface once in `console-surface.json`; generated packages
+then import that contract from `src/manifest.ts` and pass it through the host
+API:
+
+```json
+{
+  "area": "data",
+  "exportName": "billingConsoleModule",
+  "icon": "database",
+  "id": "billing",
+  "label": "Billing",
+  "navigation": {
+    "order": 10,
+    "workspace": {
+      "icon": "database",
+      "id": "billing",
+      "label": "Billing"
+    }
+  },
+  "packageName": "@lenso/billing-console",
+  "requiredCapabilities": ["billing.read"],
+  "route": "/data/billing",
+  "source": "installed",
+  "surfaceName": "billing",
+  "version": "workspace"
+}
+```
+
+```ts
+import { defineConsolePackageManifest } from "@lenso/runtime-console-api";
+
+import consoleSurface from "../console-surface.json";
+
+const consoleSurfaceContract = consoleSurface as unknown as {
+  readonly area: "data";
+  readonly exportName: "billingConsoleModule";
+  readonly icon: "database";
+  readonly id: "billing";
+  readonly label: "Billing";
+  readonly navigation: {
+    readonly order: 10;
+    readonly workspace: {
+      readonly icon: "database";
+      readonly id: "billing";
+      readonly label: "Billing";
+    };
+  };
+  readonly packageName: "@lenso/billing-console";
+  readonly requiredCapabilities: readonly ["billing.read"];
+  readonly route: "/data/billing";
+  readonly source: "installed";
+  readonly surfaceName: "billing";
+  readonly version: "workspace";
+};
+
+export const billingConsoleManifest = defineConsolePackageManifest(
+  consoleSurfaceContract
+);
+```
+
+Use `source: "first_party"` only for platform-owned packages that should be
+treated as built-in. Most module packages should use `source: "installed"`.
+
+## Workspace Ownership
+
+Every module decides whether its console surface should create a module-owned
+workspace or fall back to the host `System` workspace:
+
+- Declare `navigation.workspace` when the module owns a product workspace such as
+  `Billing`, `CRM`, or `Support`.
+- Omit `navigation` when the surface is really host/platform UI and should stay
+  in `System`.
+- Do not declare `workspace.id = "system"` from a module. `system` is reserved
+  for the host fallback.
+- Keep the workspace id path-safe and stable. A good default is the module id:
+  `billing`, `crm`, or `support`.
+- Use `navigation.group` only for one level of organization inside the module's
+  workspace. The first slice intentionally avoids recursive menus.
+
+The generated `--with-console` scaffold creates a module-owned workspace by
+default so a new business module appears as its own switcher entry instead of
+being flattened into a generic Modules bucket.
+
+The host maps manifest fields to Rust `ConsoleSurface` metadata before resolving
+installed packages: `surfaceName` becomes `name`, `packageName` becomes
+`package.name`, `exportName` becomes `package.export`, and
+`requiredCapabilities` becomes `required_capabilities`. `navigation` keeps the
+same workspace/group/order shape on both sides for module-owned workspaces.
+Omit Rust `navigation` when a surface belongs in the host-owned System
+workspace. `id`, `source`, and `version` stay on the frontend install manifest
+and are not sent as console surface fields.
+
+## Business Module Wiring
+
+For a project-owned module frontend, declare the same package reference in the
+Rust `ModuleManifest.console` surface. The backend declaration is what API mode
+uses to decide whether an installed frontend package should appear in Runtime
+Console navigation.
+
+Generated packages include `console-surface.rs` with the matching
+`ConsoleSurface` snippet. Copy it into the module manifest and keep the module's
+capabilities aligned with `required_capabilities`.
+
+```rust
+use platform_module::{
+    ConsoleArea, ConsoleNavigation, ConsolePackage, ConsoleSurface, ConsoleWorkspaceRef,
+    ModuleManifest,
+};
+
+ModuleManifest::builder("billing")
+    .capabilities(vec!["billing.read".to_owned()])
+    .console(vec![ConsoleSurface {
+        name: "billing".to_owned(),
+        label: "Billing".to_owned(),
+        area: ConsoleArea::Data,
+        route: "/data/billing".to_owned(),
+        package: ConsolePackage {
+            name: "@lenso/billing-console".to_owned(),
+            export: "billingConsoleModule".to_owned(),
+        },
+        icon: Some("database".to_owned()),
+        required_capabilities: vec!["billing.read".to_owned()],
+        navigation: Some(ConsoleNavigation {
+            workspace: ConsoleWorkspaceRef {
+                id: "billing".to_owned(),
+                label: "Billing".to_owned(),
+                icon: Some("database".to_owned()),
+            },
+            group: None,
+            order: Some(10),
+        }),
+    }])
+```
+
+Keep these values aligned with the frontend manifest:
+
+- Rust `ConsoleSurface.name` = frontend `surfaceName`
+- Rust `ConsoleSurface.package.name` = frontend `packageName`
+- Rust `ConsoleSurface.package.export` = frontend `exportName`
+- Rust `ConsoleSurface.required_capabilities` = frontend `requiredCapabilities`
+- Rust `ConsoleSurface.route` = frontend `route`
+- Rust `ConsoleSurface.navigation` = frontend `navigation` for module-owned
+  workspaces; omit it for host System fallback.
+
+Add a module test that asserts the manifest declares the surface and passes
+manifest linting. Use `modules/identity/src/module.rs` and
+`packages/identity-console` as the reference
+implementation.
+
+## Module Export
+
+Export a console module from the package entrypoint:
+
+```tsx
+import { defineConsoleModule } from "@lenso/runtime-console-api";
+
+import { billingConsoleManifest } from "./manifest";
+import { BillingConsolePage } from "./page";
+
+export const billingConsoleModule = defineConsoleModule({
+  id: billingConsoleManifest.id,
+  surfaces: [
+    {
+      area: billingConsoleManifest.area,
+      component: BillingConsolePage,
+      icon: billingConsoleManifest.icon,
+      label: billingConsoleManifest.label,
+      navigation: billingConsoleManifest.navigation,
+      path: billingConsoleManifest.route,
+    },
+  ],
+});
+
+export { billingConsoleManifest } from "./manifest";
+export { BillingConsolePage } from "./page";
+```
+
+## Host Registration
+
+Update these host files:
+
+- `package.json`
+  - Add `"@lenso/<package-name>": "workspace:*"`.
+  - Add `packages/<package-name>/src` to the `test` script.
+- `tsconfig.json`
+  - Add a `paths` alias for the package entrypoint.
+  - Add `packages/<package-name>/src` to `include`.
+- `vite.config.ts`
+  - Add a `resolve.alias` entry for the package.
+- `oxlint.config.ts`
+  - Add `packages/<package-name>/src/**/*.{ts,tsx}` to the app override.
+- `src/console-package-manifest-exports.ts`
+  - Import and append the package manifest.
+- `src/console-package-module-exports.ts`
+  - Import the manifest and module export.
+  - Add `[consolePackageKey(manifest)]: module`.
+
+Then update the lockfile:
+
+```sh
+pnpm install --lockfile-only
+```
+
+The host still has to import installed packages at build time. A backend module
+can declare any package, but Runtime Console can only mount it after the package
+has been added to `package.json`, the Vite/TypeScript aliases, and
+`console-package-module-exports.ts`. Missing declarations appear in the module
+registry as install-plan rows.
+
+## Boundary Rules
+
+Console packages must not import Runtime Console internals directly.
+
+Allowed:
+
+- `@lenso/runtime-console-api`
+- Local package files such as `./manifest`, `./page`, and `./layout`
+- Declared package peer dependencies
+
+Forbidden:
+
+- `src/app/*`
+- `src/components/*`
+- `src/hooks/*`
+- `src/data/*`
+- Other package internals
+
+The boundary test lives in:
+
+```text
+src/app/console-module-boundary.test.ts
+```
+
+If a package needs a new host capability, add it to
+`@lenso/runtime-console-api` instead of importing host internals.
+
+## Verification
+
+Run:
+
+```sh
+pnpm check
+```
+
+This covers formatting, linting, Runtime Console tests, package tests,
+TypeScript, and production build.

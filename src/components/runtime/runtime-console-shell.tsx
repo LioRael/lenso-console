@@ -1,0 +1,504 @@
+import { useGSAP } from "@gsap/react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import gsap from "gsap";
+import {
+  Activity,
+  Boxes,
+  BriefcaseBusiness,
+  Command,
+  Database,
+  Moon,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  Sun,
+  Users,
+  Workflow,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { ComponentType, CSSProperties, PropsWithChildren } from "react";
+
+import { useConsoleNavigation } from "../../app/console-module-metadata";
+import type {
+  ConsoleNavigationItem,
+  ConsoleSurfaceIcon,
+} from "../../app/console-modules";
+import {
+  buildWorkspaceNavigation,
+  type ConsoleWorkspaceNavigation,
+  matchedWorkspaceIdForPath,
+  selectedWorkspaceForId,
+  SYSTEM_WORKSPACE,
+} from "../../app/console-workspace-navigation";
+import { usePersistedLayout } from "../../hooks/use-persisted-layout";
+import { runtimeConsoleDataSource } from "../../lib/http-client";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { CommandPalette } from "./command-palette";
+import { RetryDialog } from "./retry-dialog";
+import { useRuntimeConsole } from "./runtime-console-context";
+import { RuntimeSearch } from "./runtime-search";
+
+gsap.registerPlugin(useGSAP);
+
+type ShellIcon = ComponentType<{ size?: number; strokeWidth?: number }>;
+
+const iconRegistry = {
+  activity: Activity,
+  boxes: Boxes,
+  database: Database,
+  network: Network,
+  settings: Settings,
+  workflow: Workflow,
+} satisfies Record<ConsoleSurfaceIcon, ShellIcon>;
+
+const namedIconRegistry: Record<string, ShellIcon> = {
+  ...iconRegistry,
+  briefcase: BriefcaseBusiness,
+  "briefcase-business": BriefcaseBusiness,
+  briefcasebusiness: BriefcaseBusiness,
+  users: Users,
+};
+
+const hostPrimaryNavItems = [
+  {
+    icon: "activity",
+    label: "Overview",
+    moduleId: "host",
+    navigation: {
+      order: 0,
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/overview",
+  },
+  {
+    icon: "network",
+    label: "Operations",
+    moduleId: "host",
+    navigation: {
+      order: 80,
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/operations",
+  },
+  {
+    icon: "boxes",
+    label: "Modules",
+    moduleId: "host",
+    navigation: {
+      order: 90,
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/modules",
+  },
+  {
+    icon: "database",
+    label: "Data",
+    moduleId: "host",
+    navigation: {
+      order: 100,
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/data",
+  },
+  {
+    icon: "settings",
+    label: "Configuration",
+    moduleId: "host",
+    navigation: {
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/config",
+  },
+] satisfies ConsoleNavigationItem[];
+
+export function RuntimeConsoleShell({ children }: PropsWithChildren) {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const { focusGlobalSearch, openCommandPalette } = useRuntimeConsole();
+  const consoleNavigation = useConsoleNavigation();
+  const currentPath = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const primaryNavItems = useMemo(
+    () => [...hostPrimaryNavItems, ...consoleNavigation],
+    [consoleNavigation]
+  );
+  const workspaceNavigation = useMemo(
+    () => buildWorkspaceNavigation(primaryNavItems),
+    [primaryNavItems]
+  );
+  const routeWorkspaceId = useMemo(
+    () => matchedWorkspaceIdForPath(workspaceNavigation, currentPath),
+    [currentPath, workspaceNavigation]
+  );
+  const [selectedWorkspaceId, setSelectedWorkspaceId] =
+    usePersistedLayout<string>(
+      "runtime-console:selected-workspace",
+      SYSTEM_WORKSPACE.id
+    );
+  const activeWorkspace = useMemo(
+    () => selectedWorkspaceForId(workspaceNavigation, selectedWorkspaceId),
+    [selectedWorkspaceId, workspaceNavigation]
+  );
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistedLayout(
+    "runtime-console:sidebar-collapsed",
+    false
+  );
+  const [theme, setTheme] = usePersistedLayout<"dark" | "light">(
+    "runtime-console:theme",
+    "dark"
+  );
+  const initialCollapseRef = useRef(sidebarCollapsed ? 1 : 0);
+  const animateSidebarRef = useRef(false);
+  const previousSidebarCollapsedRef = useRef(sidebarCollapsed);
+
+  const toggleSidebar = useCallback(() => {
+    animateSidebarRef.current = true;
+    setSidebarCollapsed((current) => !current);
+  }, [setSidebarCollapsed]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }, [setTheme]);
+
+  const selectWorkspace = useCallback(
+    (workspaceId: string) => {
+      setSelectedWorkspaceId(workspaceId);
+    },
+    [setSelectedWorkspaceId]
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    if (!routeWorkspaceId) {
+      return;
+    }
+    setSelectedWorkspaceId((current) =>
+      current === routeWorkspaceId ? current : routeWorkspaceId
+    );
+  }, [routeWorkspaceId, setSelectedWorkspaceId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openCommandPalette();
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        toggleSidebar();
+        return;
+      }
+
+      if (event.key === "/" && !isTyping) {
+        event.preventDefault();
+        focusGlobalSearch();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusGlobalSearch, openCommandPalette, toggleSidebar]);
+
+  useGSAP(
+    () => {
+      const shell = shellRef.current;
+
+      if (!shell) {
+        return;
+      }
+
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      const collapse = sidebarCollapsed ? 1 : 0;
+      const hasCollapsedChanged =
+        previousSidebarCollapsedRef.current !== sidebarCollapsed;
+      const shouldAnimate = animateSidebarRef.current && !reduceMotion;
+      animateSidebarRef.current = false;
+      previousSidebarCollapsedRef.current = sidebarCollapsed;
+      gsap.killTweensOf(shell);
+
+      if (!hasCollapsedChanged) {
+        return;
+      }
+
+      if (!shouldAnimate) {
+        gsap.set(shell, {
+          "--sidebar-collapse": collapse,
+        });
+        return;
+      }
+
+      gsap.to(shell, {
+        "--sidebar-collapse": collapse,
+        duration: 0.28,
+        ease: "power3.out",
+      });
+    },
+    { dependencies: [sidebarCollapsed], scope: shellRef }
+  );
+
+  return (
+    <div
+      ref={shellRef}
+      className="runtime-shell min-h-screen bg-(--background) text-(--foreground) lg:grid"
+      style={
+        {
+          "--sidebar-collapse": initialCollapseRef.current,
+          gridTemplateColumns: "var(--sidebar-width) minmax(0,1fr)",
+        } as CSSProperties
+      }
+    >
+      <aside
+        aria-label="Runtime Console navigation"
+        className="relative overflow-hidden border-(--border) bg-[color-mix(in_srgb,var(--sidebar)_92%,transparent)] lg:sticky lg:top-0 lg:h-screen lg:border-r max-lg:border-b"
+      >
+        <div className="h-11 border-b border-(--border) bg-(--chrome) max-lg:hidden">
+          <div className="sidebar-header flex h-full items-center">
+            <div
+              aria-hidden={sidebarCollapsed}
+              className="sidebar-copy flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap"
+            >
+              <div className="grid h-5 min-w-11 place-items-center border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] bg-(--accent-soft) px-1.5 text-(--accent) shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_14%,transparent)]">
+                <span className="font-mono text-[11px] font-semibold uppercase leading-none">
+                  lenso
+                </span>
+              </div>
+              <div
+                aria-hidden={sidebarCollapsed}
+                className="min-w-0 overflow-hidden whitespace-nowrap leading-tight"
+              >
+                <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-(--secondary)">
+                  Runtime
+                </div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-(--muted)">
+                  Console
+                </div>
+              </div>
+            </div>
+            <button
+              aria-label={
+                sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+              }
+              className="grid size-6 shrink-0 place-items-center border border-(--border-subtle) bg-(--elevated) text-(--muted) transition hover:border-(--border) hover:text-(--foreground)"
+              onClick={toggleSidebar}
+              title={
+                sidebarCollapsed
+                  ? "Expand sidebar (Cmd/Ctrl+B)"
+                  : "Collapse sidebar (Cmd/Ctrl+B)"
+              }
+              type="button"
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen size={13} />
+              ) : (
+                <PanelLeftClose size={13} />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <nav className="p-2 max-lg:overflow-x-auto">
+          <div className="max-lg:flex max-lg:min-w-max max-lg:items-start max-lg:gap-2">
+            <WorkspaceSwitcher
+              activeWorkspaceId={activeWorkspace.id}
+              onSelectWorkspace={selectWorkspace}
+              workspaces={workspaceNavigation}
+            />
+            <div className="my-2 h-px bg-(--border-subtle) max-lg:hidden" />
+            <WorkspaceMenu workspace={activeWorkspace} />
+          </div>
+        </nav>
+
+        <div className="absolute right-0 bottom-0 left-0 border-t border-(--border-subtle) bg-[color-mix(in_srgb,var(--sidebar)_92%,transparent)] p-2 max-lg:hidden">
+          <div className="sidebar-status-item flex w-full items-center gap-2 border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_55%,transparent)] px-2">
+            <div className="size-1.5 shrink-0 rounded-full bg-(--success) shadow-[0_0_7px_var(--success)]" />
+            <span
+              aria-hidden={sidebarCollapsed}
+              className="sidebar-copy overflow-hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.04em] text-(--foreground)"
+            >
+              Online
+            </span>
+            <span
+              aria-hidden={sidebarCollapsed}
+              className="sidebar-copy ml-auto overflow-hidden whitespace-nowrap font-mono text-[11px] text-(--muted)"
+            >
+              {runtimeConsoleDataSource()}
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      <main className="min-w-0">
+        <header className="sticky top-0 z-20 grid min-h-11 grid-cols-[minmax(220px,520px)_1fr_auto_auto_auto_auto] items-center gap-2 border-b border-(--border) bg-(--chrome) px-3 shadow-[0_10px_32px_var(--shadow-soft)] backdrop-blur max-lg:grid-cols-[1fr_auto] max-lg:px-2 max-sm:block max-sm:space-y-2 max-sm:py-2">
+          <RuntimeSearch />
+          <div />
+          <Button
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            className="theme-toggle-button border-(--border-subtle) bg-(--elevated) text-(--secondary) hover:border-(--border)"
+            onClick={toggleTheme}
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            variant="ghost"
+          >
+            {theme === "dark" ? (
+              <Sun strokeWidth={1.9} />
+            ) : (
+              <Moon strokeWidth={1.9} />
+            )}
+          </Button>
+          <Button
+            className="max-sm:hidden"
+            onClick={openCommandPalette}
+            variant="ghost"
+          >
+            <Command size={13} />
+            Command
+            <span className="border border-(--border-subtle) px-1.5 py-0.5 font-mono text-[11px] text-(--muted)">
+              ⌘K
+            </span>
+          </Button>
+          <Badge className="h-7 rounded-none border-(--border) bg-(--elevated) font-mono text-[11px] text-(--secondary) max-lg:hidden">
+            <Activity size={13} />
+            local
+          </Badge>
+          <Badge className="h-7 rounded-none border-(--border) bg-(--elevated) font-mono text-[11px] text-(--secondary) max-lg:hidden">
+            <Command size={13} />
+            service:admin
+          </Badge>
+        </header>
+        <div className="h-[calc(100vh-44px)] overflow-hidden">{children}</div>
+      </main>
+      <RetryDialog />
+      <CommandPalette onToggleTheme={toggleTheme} theme={theme} />
+    </div>
+  );
+}
+
+function WorkspaceSwitcher({
+  activeWorkspaceId,
+  onSelectWorkspace,
+  workspaces,
+}: {
+  activeWorkspaceId: string;
+  onSelectWorkspace: (workspaceId: string) => void;
+  workspaces: ConsoleWorkspaceNavigation[];
+}) {
+  return (
+    <div
+      aria-label="Console workspaces"
+      className="grid gap-px max-lg:flex max-lg:min-w-max"
+    >
+      {workspaces.map((workspace) => {
+        const Icon = iconForWorkspace(workspace);
+        const active = workspace.id === activeWorkspaceId;
+
+        return (
+          <button
+            aria-pressed={active}
+            className={`sidebar-nav-item flex h-7 w-full items-center gap-2 px-2 font-mono text-xs transition-colors max-lg:min-w-8 max-lg:justify-center max-lg:px-2 ${
+              active
+                ? "bg-(--accent-soft) text-(--foreground) shadow-[inset_16px_0_24px_color-mix(in_srgb,var(--accent)_6%,transparent)]"
+                : "text-(--secondary) hover:bg-(--hover) hover:text-(--foreground)"
+            }`}
+            key={workspace.id}
+            onClick={() => onSelectWorkspace(workspace.id)}
+            title={workspace.label}
+            type="button"
+          >
+            <Icon size={13} strokeWidth={1.5} />
+            <span className="sidebar-copy min-w-0 overflow-hidden whitespace-nowrap max-lg:hidden">
+              {workspace.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function WorkspaceMenu({
+  workspace,
+}: {
+  workspace: ConsoleWorkspaceNavigation;
+}) {
+  return (
+    <div className="grid gap-px max-lg:flex max-lg:min-w-max">
+      {workspace.items.map((item) => (
+        <NavLink item={item} key={item.path} />
+      ))}
+      {workspace.groups.map((group) => {
+        const GroupIcon = iconForName(group.icon);
+
+        return (
+          <div className="contents" key={group.id}>
+            <div className="sidebar-copy mt-[var(--sidebar-group-label-margin)] flex h-[var(--sidebar-group-label-height)] items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 font-mono text-[10px] uppercase tracking-[0.06em] text-(--muted) max-lg:hidden">
+              {GroupIcon ? <GroupIcon size={11} strokeWidth={1.5} /> : null}
+              <span className="min-w-0 truncate">{group.label}</span>
+            </div>
+            {group.items.map((item) => (
+              <NavLink item={item} key={item.path} />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NavLink({ item }: { item: ConsoleNavigationItem }) {
+  const Icon = iconForName(item.icon) ?? Activity;
+
+  return (
+    <Link
+      activeProps={{
+        className:
+          "bg-(--accent-soft) text-(--foreground) shadow-[inset_16px_0_24px_color-mix(in_srgb,var(--accent)_6%,transparent)]",
+      }}
+      aria-label={item.label}
+      className="sidebar-nav-item flex h-7 w-full items-center gap-2 px-2 font-mono text-xs text-(--secondary) transition-colors hover:bg-(--hover) hover:text-(--foreground) max-lg:min-w-8 max-lg:justify-center max-lg:px-2"
+      title={item.label}
+      to={item.path}
+    >
+      <Icon size={13} strokeWidth={1.5} />
+      <span className="sidebar-copy min-w-0 overflow-hidden whitespace-nowrap max-lg:hidden">
+        {item.label}
+      </span>
+    </Link>
+  );
+}
+
+function iconForWorkspace(workspace: ConsoleWorkspaceNavigation): ShellIcon {
+  return iconForName(workspace.icon) ?? Settings;
+}
+
+function iconForName(icon: string | undefined): ShellIcon | undefined {
+  if (!icon) {
+    return;
+  }
+  return namedIconRegistry[normalizedIconName(icon)];
+}
+
+function normalizedIconName(icon: string): string {
+  return icon
+    .trim()
+    .replaceAll(/([a-z])([A-Z])/g, "$1-$2")
+    .replaceAll(/[\s_]+/g, "-")
+    .toLowerCase();
+}

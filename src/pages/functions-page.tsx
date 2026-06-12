@@ -1,0 +1,722 @@
+import { Braces, ExternalLink, RefreshCcw, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { JsonViewer } from "../components/runtime/json-viewer";
+import { ResizeHandle } from "../components/runtime/resize-handle";
+import { useRuntimeConsole } from "../components/runtime/runtime-console-context";
+import {
+  buildTechnicalOperationGroups,
+  technicalOperationOperationsTarget,
+  technicalOperationsStateLabel,
+  type TechnicalOperationView,
+} from "../components/runtime/technical-operations-model";
+import { Button } from "../components/ui/button";
+import { retryTargetFor, type FunctionRun } from "../data/mock-runtime";
+import { useListKeyboard } from "../hooks/use-list-keyboard";
+import {
+  useRuntimeFunctionDetail,
+  useRuntimeFunctions,
+  useExecutionTechnicalOperations,
+} from "../hooks/use-runtime-queries";
+import { cn } from "../lib/cn";
+import { actorLabel, time } from "../lib/format";
+import { runtimeConsoleDataSource } from "../lib/http-client";
+import { formatRuntimeDuration } from "../lib/runtime-style";
+import {
+  aggregateFunctionRuns,
+  distinctFunctionMetadata,
+  filterFunctionRuns,
+  formatFunctionDuration,
+  functionInspectorDetails,
+  functionStatusFilters,
+  runDurationMs,
+  summarizeFunctionRuns,
+  type FunctionRunAggregate,
+  type FunctionStatusFilter,
+} from "./functions-model";
+import {
+  OperationsFilterBar,
+  OperationsFilterChip,
+  OperationsSearchInput,
+} from "./operations-filter";
+import {
+  OperationsInspectorHeader,
+  OperationsSectionTitle,
+  OperationsStatusBanner,
+} from "./operations-inspector";
+import { useOperationsInspectorLayout } from "./operations-layout";
+import { useOperationsSelection } from "./operations-selection";
+import {
+  OperationsLoadingRows,
+  OperationsMessageRow,
+} from "./operations-state";
+import {
+  OperationsAggregateRow,
+  OperationsKeyValueRows,
+  OperationsSelectableRow,
+  OperationsTableHeader,
+} from "./operations-table";
+import { functionsPath, pushOperationsUrl } from "./operations-url-model";
+import {
+  readOperationsParamValue,
+  useOperationsUrlPopState,
+} from "./operations-url-state";
+
+export function FunctionsPage() {
+  const { openRetry, openStoryTarget } = useRuntimeConsole();
+  const [query, setQuery] = useState(() => readOperationsParamValue("q"));
+  const [status, setStatus] = useState<FunctionStatusFilter>(() =>
+    readOperationsParamValue("status", readFunctionStatus)
+  );
+  const [moduleName, setModuleName] = useState(() =>
+    readOperationsParamValue("module")
+  );
+  const [queue, setQueue] = useState(() => readOperationsParamValue("queue"));
+  const [selectedId, setSelectedId] = useState(() =>
+    readOperationsParamValue("selected")
+  );
+  const { inspectorWidth, resetLayout, resizeInspector } =
+    useOperationsInspectorLayout({
+      defaultWidth: 408,
+      maxWidth: 620,
+      minWidth: 340,
+      storageKey: "runtime-console:functions-layout",
+    });
+  const functionsQuery = useRuntimeFunctions();
+  const runs = useMemo(() => functionsQuery.data ?? [], [functionsQuery.data]);
+  const visible = useMemo(
+    () => filterFunctionRuns(runs, { moduleName, query, queue, status }),
+    [moduleName, query, queue, status, runs]
+  );
+  const modules = useMemo(
+    () => distinctFunctionMetadata(runs, "module"),
+    [runs]
+  );
+  const queues = useMemo(() => distinctFunctionMetadata(runs, "queue"), [runs]);
+  const summary = useMemo(() => summarizeFunctionRuns(runs), [runs]);
+  const moduleAggregates = useMemo(
+    () => aggregateFunctionRuns(runs, "module", 5),
+    [runs]
+  );
+  const queueAggregates = useMemo(
+    () => aggregateFunctionRuns(runs, "queue", 5),
+    [runs]
+  );
+  const statusAggregates = useMemo(
+    () => aggregateFunctionRuns(runs, "status", 5),
+    [runs]
+  );
+
+  useOperationsUrlPopState([
+    { name: "q", setValue: setQuery },
+    { name: "status", parse: readFunctionStatus, setValue: setStatus },
+    { name: "module", setValue: setModuleName },
+    { name: "queue", setValue: setQueue },
+    { name: "selected", setValue: setSelectedId },
+  ]);
+
+  const functionUrl = (
+    overrides: Partial<{
+      moduleName: string;
+      query: string;
+      queue: string;
+      selectedId: string;
+      status: FunctionStatusFilter;
+    }> = {}
+  ) =>
+    functionsPath({
+      moduleName: overrides.moduleName ?? moduleName,
+      query: overrides.query ?? query,
+      queue: overrides.queue ?? queue,
+      selectedId: overrides.selectedId ?? selectedId,
+      status: overrides.status ?? status,
+    });
+
+  const pushFunctionUrl = (overrides: Parameters<typeof functionUrl>[0] = {}) =>
+    pushOperationsUrl(functionUrl(overrides));
+
+  const { selected, selectedIndex, selectIndex, selectItem } =
+    useOperationsSelection({
+      currentPath: functionsPath({
+        moduleName,
+        query,
+        queue,
+        selectedId,
+        status,
+      }),
+      getId: (run) => run.id,
+      items: visible,
+      pathForSelectedId: (nextSelectedId) =>
+        functionUrl({ selectedId: nextSelectedId }),
+      selectedId,
+      setSelectedId,
+    });
+  const retryRun = (run: FunctionRun) => {
+    const retryTarget = retryTargetFor({ kind: "function", item: run });
+    if (retryTarget) {
+      openRetry(retryTarget);
+    }
+  };
+
+  useListKeyboard({
+    items: visible,
+    selectedIndex,
+    setSelectedIndex: selectIndex,
+    onOpen: selectItem,
+    onRetry: retryRun,
+  });
+
+  return (
+    <section
+      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--background) text-(--foreground)"
+      style={{
+        gridTemplateColumns: `minmax(0,1fr) 1px ${inspectorWidth}px`,
+      }}
+    >
+      <main className="grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--border-subtle)">
+        <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Braces className="text-(--accent)" size={14} />
+            <h1 className="font-mono text-[13px] font-semibold">Functions</h1>
+            <span className="ml-auto font-mono text-[10px] text-(--muted)">
+              {visible.length} runs / {runtimeConsoleDataSource()}
+            </span>
+          </div>
+        </header>
+
+        <div className="grid border-b border-(--border-subtle) bg-(--surface) md:grid-cols-6">
+          {[
+            ["total", summary.total],
+            ["pending", summary.pending],
+            ["running", summary.running],
+            ["completed", summary.completed],
+            ["failed", summary.failed],
+            ["dead", summary.dead],
+          ].map(([label, value]) => (
+            <div
+              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--border-subtle) px-3 py-2 font-mono text-[10px] last:border-r-0"
+              key={label}
+            >
+              <span className="text-(--muted)">{label}</span>
+              <span
+                className={cn(
+                  "text-[13px] font-semibold text-(--foreground)",
+                  (label === "failed" || label === "dead") &&
+                    Number(value) > 0 &&
+                    "text-[#ef4444]"
+                )}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid border-b border-(--border-subtle) bg-(--background) lg:grid-cols-3">
+          <AggregatePanel
+            onSelect={(key) => {
+              const next = key === "undeclared" ? "" : key;
+              pushFunctionUrl({ moduleName: next, selectedId: "" });
+              setModuleName(next);
+            }}
+            rows={moduleAggregates}
+            title="module"
+          />
+          <AggregatePanel
+            onSelect={(key) => {
+              const next = key === "undeclared" ? "" : key;
+              pushFunctionUrl({ queue: next, selectedId: "" });
+              setQueue(next);
+            }}
+            rows={queueAggregates}
+            title="queue"
+          />
+          <AggregatePanel
+            onSelect={(key) => {
+              const next = readFunctionStatus(key);
+              pushFunctionUrl({ selectedId: "", status: next });
+              setStatus(next);
+            }}
+            rows={statusAggregates}
+            title="status"
+          />
+        </div>
+
+        <OperationsFilterBar>
+          {functionStatusFilters.map((item) => (
+            <OperationsFilterChip
+              active={status === item}
+              key={item}
+              onClick={() => {
+                pushFunctionUrl({ selectedId: "", status: item });
+                setStatus(item);
+              }}
+            >
+              {item}
+            </OperationsFilterChip>
+          ))}
+          <label className="flex h-6 min-w-[150px] items-center border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)">
+            <input
+              aria-label="Filter functions by module"
+              className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+              list="function-run-modules"
+              onChange={(event) => setModuleName(event.target.value)}
+              placeholder="module"
+              value={moduleName}
+            />
+            <datalist id="function-run-modules">
+              {modules.map((module) => (
+                <option key={module} value={module}>
+                  {module}
+                </option>
+              ))}
+            </datalist>
+          </label>
+          <label className="flex h-6 min-w-[140px] items-center border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)">
+            <input
+              aria-label="Filter functions by queue"
+              className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+              list="function-run-queues"
+              onChange={(event) => setQueue(event.target.value)}
+              placeholder="queue"
+              value={queue}
+            />
+            <datalist id="function-run-queues">
+              {queues.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </datalist>
+          </label>
+          <OperationsSearchInput
+            ariaLabel="Search functions"
+            className="w-[min(380px,36vw)]"
+            onChange={setQuery}
+            placeholder="function / id / schema / correlation"
+            value={query}
+          />
+        </OperationsFilterBar>
+
+        <div className="min-h-0 overflow-auto">
+          <OperationsTableHeader className="grid-cols-[94px_minmax(240px,1.35fr)_minmax(150px,0.8fr)_minmax(132px,0.7fr)_86px_160px_88px] gap-3">
+            <span>status</span>
+            <span>function</span>
+            <span>module</span>
+            <span>queue</span>
+            <span>attempts</span>
+            <span>correlation</span>
+            <span>created</span>
+          </OperationsTableHeader>
+          {functionsQuery.isLoading ? (
+            <OperationsLoadingRows />
+          ) : functionsQuery.isError ? (
+            <OperationsMessageRow
+              message={errorMessage(functionsQuery.error)}
+              tone="error"
+            />
+          ) : visible.length === 0 ? (
+            <OperationsMessageRow message="no function runs matched" />
+          ) : (
+            visible.map((run) => {
+              const isSelected = selected?.id === run.id;
+              return (
+                <OperationsSelectableRow
+                  className="min-h-14 grid-cols-[94px_minmax(240px,1.35fr)_minmax(150px,0.8fr)_minmax(132px,0.7fr)_86px_160px_88px] gap-3"
+                  isSelected={isSelected}
+                  key={run.id}
+                  onClick={() => selectItem(run)}
+                >
+                  <FunctionStatusPill status={run.status} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-(--foreground)">
+                      {run.functionName}
+                    </span>
+                    <span className="block truncate text-[10px] text-(--muted)">
+                      {run.id}
+                    </span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-(--foreground)">
+                      {run.runtimeDeclaration?.moduleName ?? "-"}
+                    </span>
+                    <span className="block truncate text-[10px] text-(--muted)">
+                      {run.runtimeDeclaration?.moduleSource ?? "undeclared"}
+                    </span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-(--foreground)">
+                      {run.runtimeDeclaration?.queue ?? "-"}
+                    </span>
+                    <span className="block truncate text-[10px] text-(--muted)">
+                      {run.runtimeDeclaration?.inputSchema ?? "-"}
+                    </span>
+                  </span>
+                  <span className="text-(--secondary)">
+                    {run.attempts}/{run.maxAttempts}
+                  </span>
+                  <span className="truncate text-[10px] text-(--muted)">
+                    {run.correlationId}
+                  </span>
+                  <span className="text-right text-[10px] text-(--muted)">
+                    {time(run.createdAt)}
+                  </span>
+                </OperationsSelectableRow>
+              );
+            })
+          )}
+        </div>
+      </main>
+
+      <ResizeHandle
+        ariaLabel="Resize function inspector panel"
+        onReset={resetLayout}
+        onResize={resizeInspector}
+      />
+
+      <aside className="relative z-0 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--sidebar)">
+        <InspectorHeader run={selected} />
+        <div className="min-h-0 overflow-auto">
+          {selected ? (
+            <FunctionInspector run={selected} />
+          ) : (
+            <OperationsMessageRow message="select a function run" />
+          )}
+        </div>
+        <div className="flex gap-2 border-t border-(--border-subtle) bg-(--surface) p-2">
+          <Button
+            disabled={!selected}
+            onClick={() =>
+              selected &&
+              openStoryTarget({
+                correlationId: selected.correlationId,
+                nodeIdCandidates: [selected.id],
+              })
+            }
+            variant="ghost"
+          >
+            <ExternalLink size={13} />
+            Story
+          </Button>
+          <Button
+            disabled={!selected}
+            onClick={() => selected && retryRun(selected)}
+            variant="danger"
+          >
+            <RotateCcw size={13} />
+            Retry
+          </Button>
+          <Button
+            disabled={functionsQuery.isRefetching}
+            onClick={() => functionsQuery.refetch()}
+            variant="ghost"
+          >
+            <RefreshCcw size={13} />
+            Refresh
+          </Button>
+        </div>
+      </aside>
+    </section>
+  );
+}
+
+function AggregatePanel({
+  onSelect,
+  rows,
+  title,
+}: {
+  onSelect: (key: string) => void;
+  rows: FunctionRunAggregate[];
+  title: string;
+}) {
+  return (
+    <section className="min-w-0 border-r border-(--border-subtle) last:border-r-0">
+      <OperationsTableHeader className="grid-cols-[minmax(0,1fr)_52px_52px_72px] gap-2">
+        <span>{title}</span>
+        <span>fail</span>
+        <span>dead</span>
+        <span>avg</span>
+      </OperationsTableHeader>
+      <div>
+        {rows.length === 0 ? (
+          <div className="px-3 py-2 font-mono text-[10px] text-(--muted)">
+            empty
+          </div>
+        ) : (
+          rows.map((row) => (
+            <OperationsAggregateRow
+              className="grid-cols-[minmax(0,1fr)_52px_52px_72px] gap-2"
+              key={row.key}
+              onClick={() => onSelect(row.key)}
+            >
+              <span className="min-w-0 truncate text-(--foreground)">
+                {row.key}
+              </span>
+              <span
+                className={row.failed > 0 ? "text-[#ef4444]" : "text-(--muted)"}
+              >
+                {row.failed}/{row.total}
+              </span>
+              <span
+                className={row.dead > 0 ? "text-[#ef4444]" : "text-(--muted)"}
+              >
+                {row.dead}
+              </span>
+              <span className="text-(--muted)">
+                {formatFunctionDuration(row.avgDurationMs)}
+              </span>
+            </OperationsAggregateRow>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function InspectorHeader({ run }: { run: FunctionRun | null }) {
+  return (
+    <OperationsInspectorHeader
+      eyebrow={run?.runtimeDeclaration?.moduleName ?? "Function"}
+      meta={
+        run ? (
+          <>
+            <span className="truncate">{run.id}</span>
+            <span>{formatFunctionDuration(runDurationMs(run))}</span>
+            <span>{run.status}</span>
+          </>
+        ) : null
+      }
+      title={run ? run.functionName : "No run selected"}
+    />
+  );
+}
+
+function FunctionStatusPill({ status }: { status: FunctionRun["status"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-5 w-[76px] items-center justify-center border px-1.5 font-mono text-[10px] font-semibold",
+        status === "completed" &&
+          "border-[color-mix(in_srgb,#22c55e_34%,transparent)] bg-[color-mix(in_srgb,#22c55e_10%,transparent)] text-[#22c55e]",
+        (status === "pending" ||
+          status === "processing" ||
+          status === "published" ||
+          status === "running") &&
+          "border-[color-mix(in_srgb,var(--accent)_34%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-(--accent)",
+        status === "failed" &&
+          "border-[color-mix(in_srgb,#f59e0b_34%,transparent)] bg-[color-mix(in_srgb,#f59e0b_10%,transparent)] text-[#f59e0b]",
+        status === "dead" &&
+          "border-[color-mix(in_srgb,var(--error)_35%,transparent)] bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-[#ef4444]"
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function FunctionInspector({ run }: { run: FunctionRun }) {
+  const detailQuery = useRuntimeFunctionDetail(run);
+  const operationsQuery = useExecutionTechnicalOperations(run.id);
+  const displayRun = detailQuery.data ?? run;
+  const operationGroups = useMemo(
+    () =>
+      buildTechnicalOperationGroups({
+        executionOperations: operationsQuery.data ?? [],
+        selectedNodeId: displayRun.id,
+        storyOperations: [],
+        storyTimestamp: displayRun.startedAt ?? displayRun.createdAt,
+      }),
+    [
+      displayRun.createdAt,
+      displayRun.id,
+      displayRun.startedAt,
+      operationsQuery.data,
+    ]
+  );
+  const details = functionInspectorDetails(displayRun, {
+    actor: actorLabel(displayRun.actor),
+    duration: formatFunctionDuration(runDurationMs(displayRun)),
+  });
+  return (
+    <div className="grid">
+      {detailQuery.isFetching ? (
+        <OperationsMessageRow message="loading detail" />
+      ) : detailQuery.isError ? (
+        <OperationsMessageRow
+          message={errorMessage(detailQuery.error)}
+          tone="error"
+        />
+      ) : null}
+      <OperationsStatusBanner
+        label={displayRun.status}
+        summary={details.primarySummary}
+        tone={details.statusTone}
+      />
+      <OperationsSectionTitle>run</OperationsSectionTitle>
+      <OperationsKeyValueRows rows={details.runRows} />
+      <OperationsSectionTitle>lineage</OperationsSectionTitle>
+      <OperationsKeyValueRows rows={details.lineageRows} />
+      <FunctionTechnicalOperations
+        error={operationsQuery.error}
+        groups={operationGroups}
+        isError={operationsQuery.isError}
+        isLoading={operationsQuery.isLoading}
+      />
+      <OperationsSectionTitle>payload</OperationsSectionTitle>
+      <JsonViewer defaultExpanded title="input" value={displayRun.input} />
+      {displayRun.output ? (
+        <JsonViewer title="output" value={displayRun.output} />
+      ) : null}
+      {displayRun.runtimeDeclaration?.retryPolicy ? (
+        <JsonViewer
+          title="retry policy"
+          value={displayRun.runtimeDeclaration.retryPolicy}
+        />
+      ) : null}
+      <JsonViewer title="logs" value={displayRun.logs} />
+    </div>
+  );
+}
+
+function FunctionTechnicalOperations({
+  error,
+  groups,
+  isError,
+  isLoading,
+}: {
+  error: unknown;
+  groups: ReturnType<typeof buildTechnicalOperationGroups>;
+  isError: boolean;
+  isLoading: boolean;
+}) {
+  if (groups.length === 0 || isLoading || isError) {
+    return (
+      <section className="border-b border-(--border-subtle)">
+        <OperationsSectionTitle>operations</OperationsSectionTitle>
+        <div className="px-3 py-2 font-mono text-[10px] text-(--muted)">
+          {technicalOperationsStateLabel({ error, isError, isLoading })}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="border-b border-(--border-subtle)">
+      <div className="flex items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_52%,transparent)] px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-(--muted)">
+        <span>operations</span>
+        <span className="rounded-xs border border-(--border-subtle) bg-(--background) px-1.5 py-0.5 text-[10px] text-(--muted)">
+          {groups.reduce((total, group) => total + group.operations.length, 0)}
+        </span>
+      </div>
+      {groups.map((group) => (
+        <div className="grid" key={group.id}>
+          <div className="border-t border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_82%,var(--background))] px-3 py-1.5 font-mono text-[10px] font-semibold uppercase text-(--muted)">
+            {group.label}
+          </div>
+          {group.operations.map((operation) => (
+            <FunctionTechnicalOperationRow
+              key={operation.id}
+              operation={operation}
+            />
+          ))}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function FunctionTechnicalOperationRow({
+  operation,
+}: {
+  operation: TechnicalOperationView;
+}) {
+  const { openAdminActions, openRemoteCalls } = useRuntimeConsole();
+  const operationsTarget = technicalOperationOperationsTarget(operation);
+  return (
+    <div className="border-t border-(--border-subtle) px-3 py-2 font-mono text-xs">
+      <div className="flex min-w-0 items-start gap-2">
+        <span
+          className={cn(
+            "shrink-0 rounded-xs border px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+            operation.source === "remote_proxy" &&
+              "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#d97706]",
+            operation.source === "remote_runtime" &&
+              "border-[#14b8a6]/40 bg-[#14b8a6]/10 text-[#0f9488]",
+            operation.source === "admin_action" &&
+              "border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#7c3aed]",
+            operation.source === "otel" &&
+              "border-(--border-subtle) bg-(--elevated) text-(--muted)"
+          )}
+        >
+          {operation.sourceLabel}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="truncate text-(--foreground)"
+              title={operation.name}
+            >
+              {operation.name}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 text-[10px]",
+                operation.status === "error"
+                  ? "text-[#ef4444]"
+                  : "text-(--muted)"
+              )}
+            >
+              {operation.status}
+            </span>
+          </div>
+          {operation.summary ? (
+            <div
+              className="mt-1 truncate text-[10px] text-(--muted)"
+              title={operation.summary}
+            >
+              {operation.summary}
+            </div>
+          ) : null}
+          <div className="mt-1 flex min-w-0 gap-2 text-[10px] text-(--muted-deep)">
+            <span>{operation.category}</span>
+            <span>{formatRuntimeDuration(operation.durationMs)}</span>
+            <span>+{formatRuntimeDuration(operation.relativeStartMs)}</span>
+          </div>
+        </div>
+        {operationsTarget ? (
+          <button
+            aria-label={`Open ${operation.sourceLabel} operations`}
+            className="grid size-6 shrink-0 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--muted) hover:text-(--foreground)"
+            onClick={() => {
+              if (operationsTarget.kind === "remote_calls") {
+                openRemoteCalls(
+                  operationsTarget.correlationId,
+                  operationsTarget.selectedId
+                );
+                return;
+              }
+              openAdminActions(
+                operationsTarget.correlationId,
+                operationsTarget.selectedId
+              );
+            }}
+            title={`Open ${operation.sourceLabel} operations`}
+            type="button"
+          >
+            <ExternalLink size={12} />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Function runs unavailable";
+}
+
+function readFunctionStatus(value: string): FunctionStatusFilter {
+  return functionStatusFilters.includes(value as FunctionStatusFilter)
+    ? (value as FunctionStatusFilter)
+    : "all";
+}
