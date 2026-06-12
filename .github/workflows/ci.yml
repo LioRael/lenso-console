@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lenso-runtime-console
+    steps:
+      - name: Checkout Runtime Console
+        uses: actions/checkout@v4
+        with:
+          path: lenso-runtime-console
+      - name: Checkout Lenso backend SDK
+        uses: actions/checkout@v4
+        with:
+          path: lenso
+          repository: LioRael/lenso
+          ssh-key: ${{ secrets.LENSO_REPO_DEPLOY_KEY }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: lenso-runtime-console/package.json
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          cache-dependency-path: lenso-runtime-console/pnpm-lock.yaml
+          node-version: 24
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run quality gates
+        run: pnpm check
