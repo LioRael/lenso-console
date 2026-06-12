@@ -1,9 +1,24 @@
-# Runtime Console
+# Lenso Runtime Console
+
+[![CI](https://github.com/LioRael/lenso-runtime-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-runtime-console/actions/workflows/ci.yml)
 
 Frontend workspace for the Lenso Runtime Console.
 
 The console runs with seeded data by default, and switches core runtime views to the
 local backend when `VITE_RUNTIME_CONSOLE_MODE=api` and `VITE_API_BASE_URL` are set.
+
+## Repository Pair
+
+- Runtime Console: this repository owns the React/Vite frontend, console package host, module console package fixtures, and Runtime Console quality gate.
+- Backend platform: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the admin APIs, module manifests, contracts, and generated TypeScript SDK consumed here.
+
+Keep both repositories checked out as siblings for backend-backed Console work:
+
+```text
+framework/
+  lenso/
+  lenso-runtime-console/
+```
 
 Local API calls use the development service token:
 
