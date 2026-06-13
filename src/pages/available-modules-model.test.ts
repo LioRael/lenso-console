@@ -256,6 +256,7 @@ describe("available modules model", () => {
       modules: [
         {
           baseUrl: "https://example.com/lenso/module/v1",
+          capabilities: ["billing.read", "billing.write"],
           catalogVersion: "0.1.0",
           consolePackageHints: 1,
           compatibility: {
@@ -274,6 +275,7 @@ describe("available modules model", () => {
           name: "billing",
           source: "remote",
           status: "needs_attention",
+          summary: "Billing workspace and operations",
         },
         {
           baseUrl: null,
@@ -295,7 +297,7 @@ describe("available modules model", () => {
     expect(availableModuleRowsFromResponse(response)).toEqual([
       {
         baseUrl: "https://example.com/lenso/module/v1",
-        capabilityCount: 0,
+        capabilityCount: 2,
         consolePackageHintCount: 1,
         key: "billing:0.1.0:https://example.com/lenso/module/v1/manifest",
         manifestReference: "https://example.com/lenso/module/v1/manifest",
@@ -306,7 +308,7 @@ describe("available modules model", () => {
         preflightReason: "billing requires Lenso >= 0.2.0; host is 0.1.0",
         preflightStatus: "compatibility_blocked",
         source: "remote",
-        summary: "-",
+        summary: "Billing workspace and operations",
         version: "0.1.0",
       },
       {

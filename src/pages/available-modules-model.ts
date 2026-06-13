@@ -66,16 +66,18 @@ export type AvailableModulesResponseModule = {
   source: "remote" | string;
   catalogVersion: string;
   manifestReference: string;
+  summary?: string | null;
   archivedAt?: string;
   archiveReason?: string;
   baseUrl: string | null;
+  capabilities?: string[];
   consolePackageHints: number;
-  compatibility?: AvailableModuleCompatibility;
+  compatibility?: AvailableModuleCompatibility | null;
   hostCompatibility?: AvailableModuleHostCompatibility;
   manifestName: string | null;
-  manifestStatus: "ok" | "invalid" | "unreadable" | string;
+  manifestStatus: "ok" | "invalid" | "unreadable" | "archived" | string;
   manifestVersion: string | null;
-  status: "ready" | "needs_attention" | string;
+  status: "ready" | "needs_attention" | "archived" | string;
 };
 
 export type AvailableModulePreflightStatus =
@@ -191,7 +193,7 @@ export function availableModuleRowsFromResponse(
     });
     return {
       baseUrl: module.baseUrl ?? "-",
-      capabilityCount: 0,
+      capabilityCount: module.capabilities?.length ?? 0,
       consolePackageHintCount: module.consolePackageHints,
       key: `${module.name}:${module.catalogVersion}:${module.manifestReference}`,
       manifestReference: module.manifestReference,
@@ -201,7 +203,7 @@ export function availableModuleRowsFromResponse(
       preflightReason: preflight.reason,
       preflightStatus: preflight.status,
       source: module.source,
-      summary: "-",
+      summary: module.summary ?? "-",
       version: module.catalogVersion,
     };
   });
@@ -362,6 +364,18 @@ function availableModulePreflightFromResponse({
     return {
       ...(compatibilityIssue.fix ? { fix: compatibilityIssue.fix } : {}),
       reason: compatibilityIssue.message,
+      status: "compatibility_blocked",
+    };
+  }
+
+  const inlineCompatibilityIssue = availableModuleCompatibilityIssue({
+    compatibility: module.compatibility ?? undefined,
+    hostCompatibility: module.hostCompatibility ?? defaultHostCompatibility,
+    moduleName: module.name,
+  });
+  if (inlineCompatibilityIssue) {
+    return {
+      reason: inlineCompatibilityIssue,
       status: "compatibility_blocked",
     };
   }
