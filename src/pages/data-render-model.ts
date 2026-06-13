@@ -1456,6 +1456,14 @@ export function declarativeEntitySection(
     : { entity: null, reason: `fallback schema has no entity '${entityName}'` };
 }
 
+export function moduleAdminActions(
+  module: AdminModuleMetadata
+): DeclarativeAction[] {
+  return module.admin?.kind === "declarative_custom"
+    ? (module.admin.actions ?? [])
+    : [];
+}
+
 export function adminActionDangerLevel(
   action: DeclarativeAction
 ): AdminActionDangerLevel {

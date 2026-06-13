@@ -35,6 +35,7 @@ import {
   isApiMode,
   runtimeConsoleDataSource,
 } from "../lib/http-client";
+import { AdminActionWorkbench } from "./admin-action-workbench";
 import {
   type AvailableModuleDoctorCheck,
   type AvailableModuleDoctorCheckStatus,
@@ -63,6 +64,7 @@ import {
   moduleErrorMessage,
   moduleGovernanceRows,
   moduleHttpRouteRows,
+  moduleAdminActions,
   moduleIsLoaded,
   moduleLifecycleCheckRows,
   moduleLifecycleJobRows,
@@ -998,6 +1000,7 @@ function ModuleRegistryDetail({
         history={history}
         module={module}
       />
+      <ModuleActionsPanel module={module} />
       <ModuleGovernancePanel module={module} />
       <ModuleCapabilitiesList capabilities={module.capabilities} />
       <ModuleConsoleSurfacesTable rows={consoleRows} />
@@ -1409,6 +1412,32 @@ function ModuleOperationsPanel({
           },
         ]}
       />
+    </section>
+  );
+}
+
+function ModuleActionsPanel({ module }: { module: AdminModuleMetadata }) {
+  const actions = moduleAdminActions(module);
+  if (!moduleIsLoaded(module) || actions.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
+      <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2 font-semibold">
+        <Zap className="text-(--accent)" size={14} />
+        <span>Module Actions</span>
+        <span className="ml-auto border border-(--border-subtle) px-1.5 py-0.5 text-[10px] text-(--secondary)">
+          {actions.length}
+        </span>
+      </header>
+      <div className="p-2">
+        <AdminActionWorkbench
+          actions={actions}
+          className="border-0 bg-transparent p-0"
+          moduleName={module.module_name}
+        />
+      </div>
     </section>
   );
 }
