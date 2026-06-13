@@ -183,6 +183,10 @@ describe("available modules model", () => {
     expect(
       availableModuleInstallSteps({
         commands: installCommands,
+        evidence: {
+          catalogSource: ".lenso/module-catalog.json",
+          moduleRegistered: false,
+        },
         handoff: available,
         row: row!,
       }).map((step) => [step.key, step.status, step.command ?? null])
@@ -193,6 +197,20 @@ describe("available modules model", () => {
       ["restart", "pending", null],
       ["open", "pending", null],
     ]);
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        evidence: {
+          catalogSource: ".lenso/module-catalog.json",
+          moduleRegistered: false,
+        },
+        handoff: available,
+        row: row!,
+      })[0]
+    ).toMatchObject({
+      detail: "manifest will be read from the manifest URL during install",
+      evidence: "catalog source: .lenso/module-catalog.json",
+    });
 
     const packageInstall = availableModuleHandoffState({
       installed: {
@@ -206,6 +224,11 @@ describe("available modules model", () => {
     expect(
       availableModuleInstallSteps({
         commands: installCommands,
+        evidence: {
+          consoleInstallPlanCount: 1,
+          missingConsolePackageCount: 1,
+          moduleRegistered: true,
+        },
         handoff: packageInstall,
         row: row!,
       }).map((step) => [step.key, step.status, step.command ?? null])
@@ -216,6 +239,21 @@ describe("available modules model", () => {
       ["restart", "pending", null],
       ["open", "pending", null],
     ]);
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        evidence: {
+          consoleInstallPlanCount: 1,
+          missingConsolePackageCount: 1,
+          moduleRegistered: true,
+        },
+        handoff: packageInstall,
+        row: row!,
+      })[1]
+    ).toMatchObject({
+      evidence:
+        "1 missing console package; 1 plan item derived from backend metadata",
+    });
 
     const restart = availableModuleHandoffState({
       installed: {
@@ -229,6 +267,12 @@ describe("available modules model", () => {
     expect(
       availableModuleInstallSteps({
         commands: installCommands,
+        evidence: {
+          desiredEnabled: true,
+          moduleRegistered: true,
+          restartPending: true,
+          runningEnabled: false,
+        },
         handoff: restart,
         row: row!,
       }).map((step) => [step.key, step.status, step.path ?? null])
@@ -239,6 +283,21 @@ describe("available modules model", () => {
       ["restart", "current", "/modules?module=billing"],
       ["open", "pending", null],
     ]);
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        evidence: {
+          desiredEnabled: true,
+          moduleRegistered: true,
+          restartPending: true,
+          runningEnabled: false,
+        },
+        handoff: restart,
+        row: row!,
+      })[3]
+    ).toMatchObject({
+      evidence: "runtime config desired=true running=false",
+    });
 
     const installed = availableModuleHandoffState({
       installed: {

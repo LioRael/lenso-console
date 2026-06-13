@@ -179,7 +179,18 @@ export type AvailableModuleInstallStep = {
   status: AvailableModuleInstallStepStatus;
   detail: string;
   command?: string;
+  evidence?: string;
   path?: string;
+};
+
+export type AvailableModuleInstallEvidence = {
+  catalogSource?: string;
+  consoleInstallPlanCount?: number;
+  desiredEnabled?: boolean | null;
+  missingConsolePackageCount?: number;
+  moduleRegistered?: boolean;
+  restartPending?: boolean;
+  runningEnabled?: boolean | null;
 };
 
 export type AvailableModuleManifestSnapshots = Record<
@@ -317,10 +328,12 @@ export function availableModuleHandoffState({
 
 export function availableModuleInstallSteps({
   commands,
+  evidence = {},
   handoff,
   row,
 }: {
   commands: AvailableModuleInstallCommand[];
+  evidence?: AvailableModuleInstallEvidence;
   handoff: AvailableModuleHandoffState;
   row: AvailableModuleRow;
 }): AvailableModuleInstallStep[] {
@@ -345,71 +358,170 @@ export function availableModuleInstallSteps({
           label: "add",
           status: "blocked",
         },
-        installStep("apply-plan", "plan", "pending", "add module first"),
+        installStep(
+          "apply-plan",
+          "plan",
+          "pending",
+          "add module first",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module registry is not ready")
+        ),
         installStep(
           "install-packages",
           "packages",
           packagePendingStatus,
-          "apply console package plan first"
+          "apply console package plan first",
+          undefined,
+          undefined,
+          packageEvidence(evidence, row)
         ),
-        installStep("restart", "restart", "pending", "install module first"),
-        installStep("open", "open", "pending", "install module first"),
+        installStep(
+          "restart",
+          "restart",
+          "pending",
+          "install module first",
+          undefined,
+          undefined,
+          restartEvidence(evidence)
+        ),
+        installStep(
+          "open",
+          "open",
+          "pending",
+          "install module first",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module is not installed")
+        ),
       ];
     }
     case "available": {
       return [
-        installStep("add", "add", "current", handoff.detail, addCommand),
+        installStep(
+          "add",
+          "add",
+          "current",
+          handoff.detail,
+          addCommand,
+          undefined,
+          catalogEvidence(evidence)
+        ),
         installStep(
           "apply-plan",
           "plan",
           packagePendingStatus,
-          "add module first"
+          "add module first",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module source not registered yet")
         ),
         installStep(
           "install-packages",
           "packages",
           packagePendingStatus,
-          "apply console package plan first"
+          "apply console package plan first",
+          undefined,
+          undefined,
+          packageEvidence(evidence, row)
         ),
-        installStep("restart", "restart", "pending", "install module first"),
-        installStep("open", "open", "pending", "install module first"),
+        installStep(
+          "restart",
+          "restart",
+          "pending",
+          "install module first",
+          undefined,
+          undefined,
+          restartEvidence(evidence)
+        ),
+        installStep(
+          "open",
+          "open",
+          "pending",
+          "install module first",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module is not installed")
+        ),
       ];
     }
     case "package_install_needed": {
       return [
-        installStep("add", "add", "done", "module source is registered"),
+        installStep(
+          "add",
+          "add",
+          "done",
+          "module source is registered",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module appears in /admin/data/modules")
+        ),
         installStep(
           "apply-plan",
           "plan",
           "current",
           handoff.detail,
-          applyPlanCommand
+          applyPlanCommand,
+          undefined,
+          packageEvidence(evidence, row)
         ),
         installStep(
           "install-packages",
           "packages",
           "pending",
           "run after applying the console package plan",
-          installPackagesCommand
+          installPackagesCommand,
+          undefined,
+          packageEvidence(evidence, row)
         ),
-        installStep("restart", "restart", "pending", "install package first"),
-        installStep("open", "open", "pending", "restart first"),
+        installStep(
+          "restart",
+          "restart",
+          "pending",
+          "install package first",
+          undefined,
+          undefined,
+          restartEvidence(evidence)
+        ),
+        installStep(
+          "open",
+          "open",
+          "pending",
+          "restart first",
+          undefined,
+          undefined,
+          installEvidence(evidence, "console package still missing")
+        ),
       ];
     }
     case "restart_pending": {
       return [
-        installStep("add", "add", "done", "module source is registered"),
+        installStep(
+          "add",
+          "add",
+          "done",
+          "module source is registered",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module appears in /admin/data/modules")
+        ),
         installStep(
           "apply-plan",
           "plan",
           packageDoneStatus,
-          "console plan ready"
+          "console plan ready",
+          undefined,
+          undefined,
+          packageEvidence(evidence, row)
         ),
         installStep(
           "install-packages",
           "packages",
           packageDoneStatus,
-          "console dependencies are ready"
+          "console dependencies are ready",
+          undefined,
+          undefined,
+          packageEvidence(evidence, row)
         ),
         installStep(
           "restart",
@@ -417,34 +529,66 @@ export function availableModuleInstallSteps({
           "current",
           handoff.detail,
           undefined,
-          handoff.path
+          handoff.path,
+          restartEvidence(evidence)
         ),
-        installStep("open", "open", "pending", "restart first"),
+        installStep(
+          "open",
+          "open",
+          "pending",
+          "restart first",
+          undefined,
+          undefined,
+          installEvidence(evidence, "runtime restart pending")
+        ),
       ];
     }
     case "installed": {
       return [
-        installStep("add", "add", "done", "module source is registered"),
+        installStep(
+          "add",
+          "add",
+          "done",
+          "module source is registered",
+          undefined,
+          undefined,
+          installEvidence(evidence, "module appears in /admin/data/modules")
+        ),
         installStep(
           "apply-plan",
           "plan",
           packageDoneStatus,
-          "console plan ready"
+          "console plan ready",
+          undefined,
+          undefined,
+          packageEvidence(evidence, row)
         ),
         installStep(
           "install-packages",
           "packages",
           packageDoneStatus,
-          "console dependencies are ready"
+          "console dependencies are ready",
+          undefined,
+          undefined,
+          packageEvidence(evidence, row)
         ),
-        installStep("restart", "restart", "done", "runtime is current"),
+        installStep(
+          "restart",
+          "restart",
+          "done",
+          "runtime is current",
+          undefined,
+          undefined,
+          restartEvidence(evidence)
+        ),
         installStep(
           "open",
           "open",
           "current",
           handoff.detail,
           undefined,
-          handoff.path
+          handoff.path,
+          installEvidence(evidence, "no install blockers remain")
         ),
       ];
     }
@@ -477,16 +621,71 @@ function installStep(
   status: AvailableModuleInstallStepStatus,
   detail: string,
   command?: AvailableModuleInstallCommand,
-  path?: string
+  path?: string,
+  evidence?: string
 ): AvailableModuleInstallStep {
   return {
     ...(command ? { command: command.command } : {}),
     detail,
+    ...(evidence ? { evidence } : {}),
     key,
     label,
     ...(path ? { path } : {}),
     status,
   };
+}
+
+function catalogEvidence(evidence: AvailableModuleInstallEvidence): string {
+  return evidence.catalogSource
+    ? `catalog source: ${evidence.catalogSource}`
+    : "available module catalog row";
+}
+
+function installEvidence(
+  evidence: AvailableModuleInstallEvidence,
+  fallback: string
+): string {
+  if (evidence.moduleRegistered === true) {
+    return "module registered in /admin/data/modules";
+  }
+  if (evidence.moduleRegistered === false) {
+    return "module not registered in /admin/data/modules";
+  }
+  return fallback;
+}
+
+function packageEvidence(
+  evidence: AvailableModuleInstallEvidence,
+  row: AvailableModuleRow
+): string {
+  if (row.consolePackageHintCount === 0) {
+    return "catalog declares no console package hints";
+  }
+  const missingCount = evidence.missingConsolePackageCount ?? null;
+  const planCount = evidence.consoleInstallPlanCount ?? null;
+  if (missingCount !== null && planCount !== null) {
+    return `${missingCount} missing console package${missingCount === 1 ? "" : "s"}; ${planCount} plan item${planCount === 1 ? "" : "s"} derived from backend metadata`;
+  }
+  if (missingCount !== null) {
+    return `${missingCount} missing console package${missingCount === 1 ? "" : "s"} from backend metadata`;
+  }
+  return `${row.consolePackageHintCount} console package hint${row.consolePackageHintCount === 1 ? "" : "s"} in catalog`;
+}
+
+function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
+  if (
+    evidence.desiredEnabled !== undefined &&
+    evidence.runningEnabled !== undefined
+  ) {
+    return `runtime config desired=${String(evidence.desiredEnabled)} running=${String(evidence.runningEnabled)}`;
+  }
+  if (evidence.restartPending === true) {
+    return "runtime config differs from running module state";
+  }
+  if (evidence.restartPending === false) {
+    return "runtime config matches running module state";
+  }
+  return "runtime restart state unavailable";
 }
 
 function availableModulePreflight(
