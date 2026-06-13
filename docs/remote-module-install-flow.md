@@ -119,9 +119,10 @@ GET /admin/data/available-modules
 ```
 
 The Available Modules panel keeps that view lightweight: it shows module name,
-version, source, capability count, console package count, and copyable install
-commands. Installing from a manifest URL writes local module configuration and
-the console package install plan.
+version, source, summary, capability count, console package count, compatibility
+preflight status, archived catalog entries, and copyable install commands.
+Installing from a manifest URL writes local module configuration and the console
+package install plan.
 
 The repository's `remote-crm` fixture demonstrates the installed-console
 surface path. Its manifest declares `@lenso/remote-crm-console` /

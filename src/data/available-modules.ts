@@ -21,8 +21,19 @@ export const sampleAvailableModulesResponse = {
   modules: [
     {
       baseUrl: "https://example.com/lenso/module/v1",
+      capabilities: ["billing.read", "billing.write"],
       catalogVersion: "0.1.0",
+      compatibility: {
+        consolePackageApi: "1",
+        lenso: {
+          minVersion: "0.1.0",
+        },
+      },
       consolePackageHints: 1,
+      hostCompatibility: {
+        consolePackageApi: "1",
+        lensoVersion: "0.1.0",
+      },
       manifestName: "billing",
       manifestReference: "https://example.com/lenso/module/v1/manifest",
       manifestStatus: "ok",
@@ -30,11 +41,17 @@ export const sampleAvailableModulesResponse = {
       name: "billing",
       source: "remote",
       status: "ready",
+      summary: "Billing workspace and operations",
     },
     {
       baseUrl: null,
+      capabilities: ["crm.contacts.read"],
       catalogVersion: "0.1.0",
       consolePackageHints: 0,
+      hostCompatibility: {
+        consolePackageApi: "1",
+        lensoVersion: "0.1.0",
+      },
       manifestName: "local-crm",
       manifestReference: "./lenso.module.json",
       manifestStatus: "ok",
@@ -42,6 +59,7 @@ export const sampleAvailableModulesResponse = {
       name: "local-crm",
       source: "remote",
       status: "needs_attention",
+      summary: "Local CRM manifest awaiting runtime base URL",
     },
   ],
   status: "failed",
