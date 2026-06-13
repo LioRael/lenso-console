@@ -416,18 +416,28 @@ function ModuleRegistryCatalogPanel({
             const installedModule = modules.find(
               (module) => module.module_name === row.name
             );
-            const packageInstallNeeded = installedModule
-              ? missingConsolePackagesFromMetadata([installedModule]).length > 0
+            const missingConsolePackages = installedModule
+              ? missingConsolePackagesFromMetadata([installedModule])
+              : [];
+            const consolePackageInstallPlan = installedModule
+              ? consolePackageInstallPlanFromMetadata([installedModule])
+              : [];
+            const packageInstallNeeded = missingConsolePackages.length > 0;
+            const restartPending = installedModule
+              ? moduleRestartPending(installedModule, configValues)
               : false;
+            const desiredEnabled = installedModule
+              ? moduleDesiredEnabled(installedModule, configValues)
+              : null;
+            const runningEnabled = installedModule
+              ? moduleRunningEnabled(installedModule)
+              : null;
             const handoff = availableModuleHandoffState({
               installed: installedModule
                 ? {
                     moduleName: installedModule.module_name,
                     packageInstallNeeded,
-                    restartPending: moduleRestartPending(
-                      installedModule,
-                      configValues
-                    ),
+                    restartPending,
                   }
                 : null,
               installCommand: installCommand?.command ?? "",
@@ -435,6 +445,15 @@ function ModuleRegistryCatalogPanel({
             });
             const installSteps = availableModuleInstallSteps({
               commands: handoffCommands,
+              evidence: {
+                catalogSource: panelState.source,
+                consoleInstallPlanCount: consolePackageInstallPlan.length,
+                desiredEnabled,
+                missingConsolePackageCount: missingConsolePackages.length,
+                moduleRegistered: Boolean(installedModule),
+                restartPending,
+                runningEnabled,
+              },
               handoff,
               row,
             });
@@ -495,6 +514,14 @@ function AvailableModuleInstallStepper({
     (step) => step.status === "current" && (step.command || step.path)
   );
   const actionKey = actionStep ? `${moduleKey}:${actionStep.key}` : moduleKey;
+  const noteStep =
+    actionStep ??
+    steps.find((step) => step.status === "blocked") ??
+    steps.find((step) => step.status === "current") ??
+    steps[0];
+  const note = [noteStep?.detail, noteStep?.evidence]
+    .filter(Boolean)
+    .join(" / ");
 
   return (
     <div className="grid gap-1">
@@ -568,6 +595,11 @@ function AvailableModuleInstallStepper({
             "waiting for the previous step"}
         </div>
       )}
+      {note ? (
+        <div className="truncate text-[9px] text-(--muted)" title={note}>
+          {note}
+        </div>
+      ) : null}
     </div>
   );
 }
