@@ -23,6 +23,7 @@ import {
   manifestLintCategory,
   moduleActivationLabel,
   moduleActivationReasons,
+  moduleAdminActions,
   moduleConsoleSurfaceRows,
   moduleDisabledByConfig,
   moduleDesiredEnabled,
@@ -1568,6 +1569,41 @@ describe("declarative admin helpers", () => {
     expect(adminActionHasInput(action)).toBe(true);
     expect(adminActionRequiredConfirmationPhrase(action)).toBe("SYNC");
     expect(adminActionInitialInputValues(action)).toEqual({ dry_run: false });
+  });
+
+  test("selects module-declared admin actions from declarative surfaces", () => {
+    const action = {
+      name: "sync_contacts",
+      label: "Sync contacts",
+      capability: "remote_crm.contacts.sync",
+    };
+    const declarativeModule = moduleMetadata({
+      module_name: "remote-crm",
+      source: "remote",
+      status: "loaded",
+      error: null,
+      http_routes: [],
+      admin: {
+        kind: "declarative_custom",
+        pages: [],
+        actions: [action],
+        fallback_schema: { entities: [] },
+      },
+    });
+    const schemaModule = moduleMetadata({
+      module_name: "identity",
+      source: "linked",
+      status: "loaded",
+      error: null,
+      http_routes: [],
+      admin: {
+        kind: "schema",
+        entities: [entity],
+      },
+    });
+
+    expect(moduleAdminActions(declarativeModule)).toEqual([action]);
+    expect(moduleAdminActions(schemaModule)).toEqual([]);
   });
 
   test("builds typed action input payloads", () => {
