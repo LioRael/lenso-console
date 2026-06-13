@@ -161,7 +161,7 @@ See `docs/console-package-template.md` before adding a package. The short path i
 1. Add `packages/<name>/package.json`.
 2. Define `src/manifest.ts` with `defineConsolePackageManifest`.
 3. Export `<name>ConsoleModule` from `src/index.tsx`.
-4. Register the package in host dependencies, aliases, test includes, manifest exports, and module export mapping.
+4. Register the package in host dependencies, test includes, manifest exports, and module export mapping.
 5. Run `pnpm check:console-packages`, `pnpm install --lockfile-only`, and `pnpm check`.
 
 For the standard workspace package shape, generate the frontend skeleton and host

@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@lenso/console-package-cli": "workspace:*",
+    "@lenso/remote-module-kit": "workspace:*",
     "@lenso/ts-sdk": "file:../lenso/packages/ts-sdk",
     "@types/node": "^25.9.2",
     "@types/react": "^19.1.0",

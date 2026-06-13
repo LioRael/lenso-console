@@ -264,10 +264,7 @@ Update these host files:
   - Add `"@lenso/<package-name>": "workspace:*"`.
   - Add `packages/<package-name>/src` to the `test` script.
 - `tsconfig.json`
-  - Add a `paths` alias for the package entrypoint.
   - Add `packages/<package-name>/src` to `include`.
-- `vite.config.ts`
-  - Add a `resolve.alias` entry for the package.
 - `oxlint.config.ts`
   - Add `packages/<package-name>/src/**/*.{ts,tsx}` to the app override.
 - `src/console-package-manifest-exports.ts`
@@ -284,9 +281,10 @@ pnpm install --lockfile-only
 
 The host still has to import installed packages at build time. A backend module
 can declare any package, but Runtime Console can only mount it after the package
-has been added to `package.json`, the Vite/TypeScript aliases, and
-`console-package-module-exports.ts`. Missing declarations appear in the module
-registry as install-plan rows.
+has been added to `package.json` and `console-package-module-exports.ts`.
+Package entrypoints are resolved through pnpm workspace links and each package's
+`exports` field. Missing declarations appear in the module registry as
+install-plan rows.
 
 ## Boundary Rules
 

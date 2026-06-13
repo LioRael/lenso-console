@@ -293,17 +293,8 @@ const updateRuntimeConsoleDependency = ({
   });
 };
 
-const updateTsconfig = async ({
-  packageName,
-  packageSlug,
-  paths,
-  pendingWrites,
-}) => {
+const updateTsconfig = async ({ packageSlug, paths, pendingWrites }) => {
   const tsconfig = await readJson(paths.tsconfigPath);
-  tsconfig.compilerOptions.paths = sortObject({
-    ...tsconfig.compilerOptions.paths,
-    [packageName]: [`./packages/${packageSlug}/src/index.tsx`],
-  });
   tsconfig.include = appendListItem(
     tsconfig.include,
     `packages/${packageSlug}/src`
@@ -312,24 +303,6 @@ const updateTsconfig = async ({
     pendingWrites,
     paths.tsconfigPath,
     `${JSON.stringify(tsconfig, null, 2)}\n`
-  );
-};
-
-const updateViteConfig = async ({
-  packageName,
-  packageSlug,
-  paths,
-  pendingWrites,
-}) => {
-  const fileSource = await readFile(paths.viteConfigPath, "utf-8");
-  const entry = `      "${packageName}": fileURLToPath(
-        new URL("packages/${packageSlug}/src/index.tsx", import.meta.url)
-      ),
-`;
-  queueWrite(
-    pendingWrites,
-    paths.viteConfigPath,
-    insertBeforeNeedle(fileSource, entry, '      "@lenso/runtime-console-api":')
   );
 };
 
@@ -1875,7 +1848,6 @@ const createConsolePackage = async ({ defaultRuntimeConsoleRoot, options }) => {
   queuePackageFiles(packageContext);
   await updatePackageJson(packageContext);
   await updateTsconfig(packageContext);
-  await updateViteConfig(packageContext);
   await updateOxlintConfig(packageContext);
   await updateManifestExports(packageContext);
   await updateModuleExports(packageContext);

@@ -108,11 +108,7 @@ const createRuntimeConsoleFixture = async (repoRoot) => {
     JSON.stringify(
       {
         compilerOptions: {
-          paths: {
-            "@lenso/runtime-console-api": [
-              "./packages/console-package-api/src/index.ts",
-            ],
-          },
+          moduleResolution: "Bundler",
         },
         include: ["src", "packages/console-package-api/src"],
       },
@@ -123,16 +119,7 @@ const createRuntimeConsoleFixture = async (repoRoot) => {
   await writeFixture(
     repoRoot,
     "apps/runtime-console/vite.config.ts",
-    `export default {
-  resolve: {
-    alias: {
-      "@lenso/runtime-console-api": fileURLToPath(
-        new URL("packages/console-package-api/src/index.ts", import.meta.url)
-      ),
-    },
-  },
-};
-`
+    "export default {};\n"
   );
   await writeFixture(
     repoRoot,
