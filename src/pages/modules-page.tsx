@@ -36,7 +36,11 @@ import {
   runtimeConsoleDataSource,
 } from "../lib/http-client";
 import {
+  type AvailableModuleInstallStep,
+  type AvailableModuleInstallStepKey,
+  type AvailableModuleInstallStepStatus,
   availableModuleHandoffState,
+  availableModuleInstallSteps,
   availableModuleRowsFromResponse,
 } from "./available-modules-model";
 import {
@@ -405,9 +409,10 @@ function ModuleRegistryCatalogPanel({
           </div>
         ) : (
           rows.map((row) => {
-            const [installCommand] = moduleRegistryHandoffCommands({
+            const handoffCommands = moduleRegistryHandoffCommands({
               manifestReference: row.manifestReference,
             });
+            const [installCommand] = handoffCommands;
             const installedModule = modules.find(
               (module) => module.module_name === row.name
             );
@@ -426,6 +431,11 @@ function ModuleRegistryCatalogPanel({
                   }
                 : null,
               installCommand: installCommand?.command ?? "",
+              row,
+            });
+            const installSteps = availableModuleInstallSteps({
+              commands: handoffCommands,
+              handoff,
               row,
             });
             const commandKey = `install:${row.key}`;
@@ -455,61 +465,12 @@ function ModuleRegistryCatalogPanel({
                 <div className="truncate text-[9px] text-(--muted)">
                   base {row.baseUrl}
                 </div>
-                {handoff.kind === "installed" ||
-                handoff.kind === "package_install_needed" ||
-                handoff.kind === "restart_pending" ? (
-                  <button
-                    className="border border-(--border-subtle) bg-(--surface) px-2 py-1 text-left text-[10px] text-(--secondary) hover:bg-(--sidebar) hover:text-(--foreground)"
-                    onClick={() => window.location.assign(handoff.path)}
-                    title={handoff.detail}
-                    type="button"
-                  >
-                    <span className="block truncate">
-                      {handoff.kind === "installed"
-                        ? "Open Module"
-                        : handoff.kind === "package_install_needed"
-                          ? "Open Package Step"
-                          : "Open Restart Step"}
-                    </span>
-                    <span className="block truncate pt-0.5 text-[9px] text-(--muted)">
-                      {handoff.detail}
-                    </span>
-                  </button>
-                ) : installCommand ? (
-                  <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
-                    <code
-                      className="truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[9px] text-(--secondary)"
-                      title={installCommand.command}
-                    >
-                      {installCommand.command}
-                    </code>
-                    <button
-                      aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, commandKey)} install command`}
-                      className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
-                      onClick={() =>
-                        copyCommand(commandKey, installCommand.command)
-                      }
-                      title={moduleRegistryHandoffCopyLabel(
-                        copiedCommandKey,
-                        commandKey
-                      )}
-                      type="button"
-                    >
-                      {copiedCommandKey === commandKey ? (
-                        <Check size={11} />
-                      ) : (
-                        <Copy size={11} />
-                      )}
-                    </button>
-                  </div>
-                ) : null}
-                {handoff.kind === "available" ? (
-                  <div className="truncate text-[9px] text-(--muted)">
-                    {row.consolePackageHintCount > 0
-                      ? "then install console package and restart"
-                      : "then restart API and worker"}
-                  </div>
-                ) : null}
+                <AvailableModuleInstallStepper
+                  copiedCommandKey={copiedCommandKey}
+                  copyCommand={copyCommand}
+                  moduleKey={commandKey}
+                  steps={installSteps}
+                />
               </article>
             );
           })
@@ -518,6 +479,120 @@ function ModuleRegistryCatalogPanel({
     </section>
   );
 }
+
+function AvailableModuleInstallStepper({
+  copiedCommandKey,
+  copyCommand,
+  moduleKey,
+  steps,
+}: {
+  copiedCommandKey: string | null;
+  copyCommand: (key: string, command: string) => void;
+  moduleKey: string;
+  steps: AvailableModuleInstallStep[];
+}) {
+  const actionStep = steps.find(
+    (step) => step.status === "current" && (step.command || step.path)
+  );
+  const actionKey = actionStep ? `${moduleKey}:${actionStep.key}` : moduleKey;
+
+  return (
+    <div className="grid gap-1">
+      <div className="grid grid-cols-5 gap-0.5">
+        {steps.map((step) => (
+          <div
+            className={cn(
+              "min-w-0 border px-1 py-1",
+              step.status === "done" &&
+                "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
+              step.status === "current" &&
+                "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-(--info)",
+              step.status === "blocked" &&
+                "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
+              step.status === "pending" &&
+                "border-(--border-subtle) text-(--muted)",
+              step.status === "skipped" &&
+                "border-(--border-subtle) text-[color-mix(in_srgb,var(--muted)_65%,transparent)]"
+            )}
+            key={step.key}
+            title={step.detail}
+          >
+            <span className="block truncate text-[8px] uppercase">
+              {availableModuleInstallStatusLabel[step.status]}
+            </span>
+            <span className="block truncate text-[9px]">
+              {availableModuleInstallStepLabel[step.key]}
+            </span>
+          </div>
+        ))}
+      </div>
+      {actionStep?.command ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
+          <code
+            className="truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[9px] text-(--secondary)"
+            title={actionStep.command}
+          >
+            {actionStep.command}
+          </code>
+          <button
+            aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, actionKey)} ${actionStep.label} command`}
+            className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
+            onClick={() => copyCommand(actionKey, actionStep.command ?? "")}
+            title={moduleRegistryHandoffCopyLabel(copiedCommandKey, actionKey)}
+            type="button"
+          >
+            {copiedCommandKey === actionKey ? (
+              <Check size={11} />
+            ) : (
+              <Copy size={11} />
+            )}
+          </button>
+        </div>
+      ) : actionStep?.path ? (
+        <button
+          className="border border-(--border-subtle) bg-(--surface) px-2 py-1 text-left text-[10px] text-(--secondary) hover:bg-(--sidebar) hover:text-(--foreground)"
+          onClick={() => window.location.assign(actionStep.path ?? "")}
+          title={actionStep.detail}
+          type="button"
+        >
+          <span className="block truncate">
+            {actionStep.key === "open" ? "Open Module" : "Open Restart Step"}
+          </span>
+          <span className="block truncate pt-0.5 text-[9px] text-(--muted)">
+            {actionStep.detail}
+          </span>
+        </button>
+      ) : (
+        <div className="truncate text-[9px] text-(--muted)">
+          {steps.find((step) => step.status === "blocked")?.detail ??
+            "waiting for the previous step"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const availableModuleInstallStatusLabel: Record<
+  AvailableModuleInstallStepStatus,
+  string
+> = {
+  blocked: "hold",
+  current: "now",
+  done: "done",
+  pending: "next",
+  skipped: "skip",
+};
+
+const availableModuleInstallStepLabel: Record<
+  AvailableModuleInstallStepKey,
+  string
+> = {
+  add: "add",
+  "apply-plan": "plan",
+  "install-packages": "pkg",
+  open: "open",
+  restart: "boot",
+};
 
 function initialSelectedModuleName(): string | null {
   if (typeof window === "undefined") {
