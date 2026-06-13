@@ -74,10 +74,47 @@ export type AvailableModulesResponseModule = {
   consolePackageHints: number;
   compatibility?: AvailableModuleCompatibility | null;
   hostCompatibility?: AvailableModuleHostCompatibility;
+  installState?: AvailableModuleInstallState;
   manifestName: string | null;
   manifestStatus: "ok" | "invalid" | "unreadable" | "archived" | string;
   manifestVersion: string | null;
   status: "ready" | "needs_attention" | "archived" | string;
+};
+
+export type AvailableModuleInstallState = {
+  moduleRegistered: boolean;
+  remoteSource: AvailableModuleRemoteSourceInstallState;
+  consolePlan: AvailableModuleConsolePackagePlanState;
+};
+
+export type AvailableModuleRemoteSourceInstallState = {
+  envFile: string;
+  configured: boolean;
+  desiredBaseUrl?: string | null;
+  runningBaseUrl?: string | null;
+  restartPending: boolean;
+  restartReason?: string | null;
+  error?: string | null;
+};
+
+export type AvailableModuleConsolePackagePlanState = {
+  planFile: string;
+  exists: boolean;
+  readable: boolean;
+  error?: string | null;
+  moduleEntryPresent: boolean;
+  packageCount: number;
+  restartRequired?: boolean | null;
+  packages: AvailableModuleConsolePackagePlanPackage[];
+};
+
+export type AvailableModuleConsolePackagePlanPackage = {
+  key?: string | null;
+  packageName: string;
+  exportName: string;
+  command?: string | null;
+  route?: string | null;
+  status?: string | null;
 };
 
 export type AvailableModulePreflightStatus =
@@ -98,6 +135,7 @@ export type AvailableModuleRow = {
   baseUrl: string;
   capabilityCount: number;
   consolePackageHintCount: number;
+  installState?: AvailableModuleInstallState;
   preflightStatus: AvailableModulePreflightStatus;
   preflightLabel: string;
   preflightFix?: string;
@@ -187,6 +225,7 @@ export type AvailableModuleInstallEvidence = {
   catalogSource?: string;
   consoleInstallPlanCount?: number;
   desiredEnabled?: boolean | null;
+  installState?: AvailableModuleInstallState;
   missingConsolePackageCount?: number;
   moduleRegistered?: boolean;
   restartPending?: boolean;
@@ -245,6 +284,7 @@ export function availableModuleRowsFromResponse(
       baseUrl: module.baseUrl ?? "-",
       capabilityCount: module.capabilities?.length ?? 0,
       consolePackageHintCount: module.consolePackageHints,
+      ...(module.installState ? { installState: module.installState } : {}),
       key: `${module.name}:${module.catalogVersion}:${module.manifestReference}`,
       manifestReference: module.manifestReference,
       name: module.name,
@@ -302,6 +342,32 @@ export function availableModuleHandoffState({
       label: "installed",
       moduleName: installed.moduleName,
       path: `/modules?module=${encodeURIComponent(installed.moduleName)}`,
+    };
+  }
+
+  if (
+    row.installState?.consolePlan.moduleEntryPresent &&
+    row.installState.consolePlan.packageCount > 0
+  ) {
+    return {
+      action: "install_package",
+      detail: "apply console package plan and install packages",
+      kind: "package_install_needed",
+      label: "package install needed",
+      moduleName: row.name,
+      path: `/modules?module=${encodeURIComponent(row.name)}`,
+    };
+  }
+
+  if (row.installState?.remoteSource.restartPending) {
+    return {
+      action: "restart",
+      detail:
+        row.installState.remoteSource.restartReason ?? "restart API and worker",
+      kind: "restart_pending",
+      label: "restart pending",
+      moduleName: row.name,
+      path: `/modules?module=${encodeURIComponent(row.name)}`,
     };
   }
 
@@ -645,10 +711,16 @@ function installEvidence(
   evidence: AvailableModuleInstallEvidence,
   fallback: string
 ): string {
-  if (evidence.moduleRegistered === true) {
+  const moduleRegistered =
+    evidence.installState?.moduleRegistered ?? evidence.moduleRegistered;
+  const remoteSource = evidence.installState?.remoteSource;
+  if (moduleRegistered === true) {
     return "module registered in /admin/data/modules";
   }
-  if (evidence.moduleRegistered === false) {
+  if (remoteSource?.configured) {
+    return `remote source configured in ${remoteSource.envFile}`;
+  }
+  if (moduleRegistered === false) {
     return "module not registered in /admin/data/modules";
   }
   return fallback;
@@ -658,6 +730,16 @@ function packageEvidence(
   evidence: AvailableModuleInstallEvidence,
   row: AvailableModuleRow
 ): string {
+  const consolePlan = evidence.installState?.consolePlan;
+  if (consolePlan?.error) {
+    return consolePlan.error;
+  }
+  if (consolePlan?.moduleEntryPresent) {
+    return `${consolePlan.packageCount} package plan item${consolePlan.packageCount === 1 ? "" : "s"} in ${consolePlan.planFile}`;
+  }
+  if (consolePlan?.exists) {
+    return `plan exists at ${consolePlan.planFile}; no ${row.name} entry`;
+  }
   if (row.consolePackageHintCount === 0) {
     return "catalog declares no console package hints";
   }
@@ -673,6 +755,23 @@ function packageEvidence(
 }
 
 function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
+  const remoteSource = evidence.installState?.remoteSource;
+  if (remoteSource?.restartPending) {
+    return (
+      remoteSource.restartReason ??
+      "remote source differs from running module metadata"
+    );
+  }
+  if (remoteSource?.configured && remoteSource.runningBaseUrl) {
+    return `REMOTE_MODULES matches running source in ${remoteSource.envFile}`;
+  }
+  if (
+    remoteSource &&
+    !remoteSource.configured &&
+    !remoteSource.runningBaseUrl
+  ) {
+    return `remote source not present in ${remoteSource.envFile}`;
+  }
   if (
     evidence.desiredEnabled !== undefined &&
     evidence.runningEnabled !== undefined

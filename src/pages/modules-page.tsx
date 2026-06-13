@@ -449,6 +449,7 @@ function ModuleRegistryCatalogPanel({
                 catalogSource: panelState.source,
                 consoleInstallPlanCount: consolePackageInstallPlan.length,
                 desiredEnabled,
+                ...(row.installState ? { installState: row.installState } : {}),
                 missingConsolePackageCount: missingConsolePackages.length,
                 moduleRegistered: Boolean(installedModule),
                 restartPending,

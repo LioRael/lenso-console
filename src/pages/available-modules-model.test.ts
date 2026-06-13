@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  type AvailableModuleInstallState,
   type AvailableModulesResponse,
   type AvailableModulesCatalog,
   availableModuleHandoffState,
@@ -48,6 +49,29 @@ const installCommands = [
     label: "packages",
   },
 ];
+
+const baseInstallState: AvailableModuleInstallState = {
+  consolePlan: {
+    error: null,
+    exists: false,
+    moduleEntryPresent: false,
+    packageCount: 0,
+    packages: [],
+    planFile: ".lenso/console-package-install-plan.json",
+    readable: false,
+    restartRequired: null,
+  },
+  moduleRegistered: false,
+  remoteSource: {
+    configured: false,
+    desiredBaseUrl: null,
+    envFile: ".env",
+    error: null,
+    restartPending: false,
+    restartReason: null,
+    runningBaseUrl: null,
+  },
+};
 
 describe("available modules model", () => {
   test("builds rows from available module catalog entries", () => {
@@ -169,6 +193,107 @@ describe("available modules model", () => {
       label: "restart pending",
       moduleName: "billing",
       path: "/modules?module=billing",
+    });
+  });
+
+  test("uses backend install state to advance local install handoff", () => {
+    const [baseRow] = availableModuleRows(catalog);
+    expect(baseRow).toBeDefined();
+    const row = {
+      ...baseRow!,
+      installState: {
+        ...baseInstallState,
+        consolePlan: {
+          ...baseInstallState.consolePlan,
+          exists: true,
+          moduleEntryPresent: true,
+          packageCount: 1,
+          packages: [
+            {
+              command: "pnpm add @vendor/lenso-billing-console",
+              exportName: "billingConsoleModule",
+              key: "@vendor/lenso-billing-console#billingConsoleModule",
+              packageName: "@vendor/lenso-billing-console",
+              route: "/data/billing",
+              status: "requires_manual_install",
+            },
+          ],
+          readable: true,
+          restartRequired: true,
+        },
+        remoteSource: {
+          ...baseInstallState.remoteSource,
+          configured: true,
+          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          restartPending: true,
+          restartReason: "remote source configured in .env but not loaded",
+        },
+      },
+    };
+
+    const handoff = availableModuleHandoffState({
+      installCommand: installCommands[0]!.command,
+      row,
+    });
+    expect(handoff).toMatchObject({
+      detail: "apply console package plan and install packages",
+      kind: "package_install_needed",
+    });
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        evidence: {
+          catalogSource: ".lenso/module-catalog.json",
+          installState: row.installState,
+        },
+        handoff,
+        row,
+      })[1]
+    ).toMatchObject({
+      command: "lenso console-package apply-plan",
+      evidence:
+        "1 package plan item in .lenso/console-package-install-plan.json",
+      status: "current",
+    });
+  });
+
+  test("uses backend remote source evidence for restart pending state", () => {
+    const [baseRow] = availableModuleRows(catalog);
+    expect(baseRow).toBeDefined();
+    const row = {
+      ...baseRow!,
+      installState: {
+        ...baseInstallState,
+        remoteSource: {
+          ...baseInstallState.remoteSource,
+          configured: true,
+          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          restartPending: true,
+          restartReason: "remote source configured in .env but not loaded",
+        },
+      },
+    };
+    const handoff = availableModuleHandoffState({
+      installCommand: installCommands[0]!.command,
+      row,
+    });
+
+    expect(handoff).toMatchObject({
+      detail: "remote source configured in .env but not loaded",
+      kind: "restart_pending",
+    });
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        evidence: {
+          installState: row.installState,
+        },
+        handoff,
+        row,
+      })[3]
+    ).toMatchObject({
+      evidence: "remote source configured in .env but not loaded",
+      status: "current",
     });
   });
 
