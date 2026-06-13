@@ -4,6 +4,7 @@ import {
   type AvailableModuleInstallState,
   type AvailableModulesResponse,
   type AvailableModulesCatalog,
+  availableModuleDoctorChecks,
   availableModuleHandoffState,
   availableModuleInstallSteps,
   availableModuleRowsFromResponse,
@@ -295,6 +296,91 @@ describe("available modules model", () => {
       evidence: "remote source configured in .env but not loaded",
       status: "current",
     });
+  });
+
+  test("builds doctor checks for pending remote module install work", () => {
+    const [baseRow] = availableModuleRows(catalog);
+    expect(baseRow).toBeDefined();
+    const row = {
+      ...baseRow!,
+      installState: {
+        ...baseInstallState,
+        consolePlan: {
+          ...baseInstallState.consolePlan,
+          exists: true,
+          moduleEntryPresent: true,
+          packageCount: 1,
+          packages: [
+            {
+              command: "pnpm add @vendor/lenso-billing-console",
+              exportName: "billingConsoleModule",
+              key: "@vendor/lenso-billing-console#billingConsoleModule",
+              packageName: "@vendor/lenso-billing-console",
+              route: "/data/billing",
+              status: "requires_manual_install",
+            },
+          ],
+          readable: true,
+          restartRequired: true,
+        },
+        remoteSource: {
+          ...baseInstallState.remoteSource,
+          configured: true,
+          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          restartPending: true,
+          restartReason: "remote source configured in .env but not loaded",
+        },
+      },
+    };
+
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        missingConsolePackageCount: 1,
+        restartPending: true,
+        row,
+      }).map((check) => [check.key, check.status, check.command ?? null])
+    ).toEqual([
+      ["source", "ok", null],
+      ["plan", "fix", "lenso console-package apply-plan"],
+      ["package", "fix", "pnpm add @vendor/lenso-billing-console"],
+      ["runtime", "fix", null],
+      ["restart", "fix", null],
+      ["doctor", "ok", "lenso module doctor"],
+    ]);
+  });
+
+  test("builds clean doctor checks for installed remote modules", () => {
+    const [baseRow] = availableModuleRows(catalog);
+    expect(baseRow).toBeDefined();
+    const row = {
+      ...baseRow!,
+      installState: {
+        ...baseInstallState,
+        moduleRegistered: true,
+        remoteSource: {
+          ...baseInstallState.remoteSource,
+          configured: true,
+          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          runningBaseUrl: "https://example.com/lenso/module/v1",
+        },
+      },
+    };
+
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        moduleRegistered: true,
+        row,
+      }).map((check) => [check.key, check.status, check.command ?? null])
+    ).toEqual([
+      ["source", "ok", null],
+      ["plan", "skip", null],
+      ["package", "ok", null],
+      ["runtime", "ok", null],
+      ["restart", "ok", null],
+      ["doctor", "ok", "lenso module doctor"],
+    ]);
   });
 
   test("builds install wizard steps from handoff states", () => {
