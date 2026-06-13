@@ -20,6 +20,9 @@ framework/
   lenso-runtime-console/
 ```
 
+Repository operations notes, including branch protection and backend checkout
+secrets, live in [docs/repository-operations.md](docs/repository-operations.md).
+
 Local API calls use the development service token:
 
 ```text
