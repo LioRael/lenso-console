@@ -36,9 +36,12 @@ import {
   runtimeConsoleDataSource,
 } from "../lib/http-client";
 import {
+  type AvailableModuleDoctorCheck,
+  type AvailableModuleDoctorCheckStatus,
   type AvailableModuleInstallStep,
   type AvailableModuleInstallStepKey,
   type AvailableModuleInstallStepStatus,
+  availableModuleDoctorChecks,
   availableModuleHandoffState,
   availableModuleInstallSteps,
   availableModuleRowsFromResponse,
@@ -458,6 +461,13 @@ function ModuleRegistryCatalogPanel({
               handoff,
               row,
             });
+            const doctorChecks = availableModuleDoctorChecks({
+              commands: handoffCommands,
+              missingConsolePackageCount: missingConsolePackages.length,
+              moduleRegistered: Boolean(installedModule),
+              restartPending,
+              row,
+            });
             const commandKey = `install:${row.key}`;
             return (
               <article
@@ -491,12 +501,86 @@ function ModuleRegistryCatalogPanel({
                   moduleKey={commandKey}
                   steps={installSteps}
                 />
+                <AvailableModuleDoctorChecklist
+                  checks={doctorChecks}
+                  copiedCommandKey={copiedCommandKey}
+                  copyCommand={copyCommand}
+                  moduleKey={commandKey}
+                />
               </article>
             );
           })
         )}
       </div>
     </section>
+  );
+}
+
+function AvailableModuleDoctorChecklist({
+  checks,
+  copiedCommandKey,
+  copyCommand,
+  moduleKey,
+}: {
+  checks: AvailableModuleDoctorCheck[];
+  copiedCommandKey: string | null;
+  copyCommand: (key: string, command: string) => void;
+  moduleKey: string;
+}) {
+  return (
+    <div className="grid gap-0.5">
+      {checks.map((check) => {
+        const commandKey = `${moduleKey}:doctor:${check.key}`;
+        const title = check.command
+          ? `${check.detail}\n${check.command}`
+          : check.detail;
+        return (
+          <div
+            className="grid grid-cols-[44px_32px_minmax(0,1fr)_24px] items-center gap-1 text-[9px]"
+            key={check.key}
+          >
+            <span className="truncate text-(--muted)">{check.label}</span>
+            <span
+              className={cn(
+                "border px-1 py-0.5 text-center uppercase",
+                doctorStatusTone[check.status]
+              )}
+            >
+              {doctorStatusLabel[check.status]}
+            </span>
+            <code
+              className={cn(
+                "truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1",
+                check.command ? "text-(--secondary)" : "text-(--muted)"
+              )}
+              title={title}
+            >
+              {check.command ?? check.detail}
+            </code>
+            {check.command ? (
+              <button
+                aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, commandKey)} ${check.label} command`}
+                className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
+                onClick={() => copyCommand(commandKey, check.command ?? "")}
+                title={moduleRegistryHandoffCopyLabel(
+                  copiedCommandKey,
+                  commandKey
+                )}
+                type="button"
+              >
+                {copiedCommandKey === commandKey ? (
+                  <Check size={11} />
+                ) : (
+                  <Copy size={11} />
+                )}
+              </button>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -625,6 +709,20 @@ const availableModuleInstallStepLabel: Record<
   "install-packages": "pkg",
   open: "open",
   restart: "boot",
+};
+
+const doctorStatusLabel: Record<AvailableModuleDoctorCheckStatus, string> = {
+  fix: "fix",
+  hold: "hold",
+  ok: "ok",
+  skip: "skip",
+};
+
+const doctorStatusTone: Record<AvailableModuleDoctorCheckStatus, string> = {
+  fix: "border-[color-mix(in_srgb,var(--warning)_55%,transparent)] text-(--warning)",
+  hold: "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
+  ok: "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
+  skip: "border-(--border-subtle) text-[color-mix(in_srgb,var(--muted)_65%,transparent)]",
 };
 
 function initialSelectedModuleName(): string | null {

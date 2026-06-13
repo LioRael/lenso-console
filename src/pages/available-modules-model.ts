@@ -232,6 +232,24 @@ export type AvailableModuleInstallEvidence = {
   runningEnabled?: boolean | null;
 };
 
+export type AvailableModuleDoctorCheckStatus = "fix" | "hold" | "ok" | "skip";
+
+export type AvailableModuleDoctorCheckKey =
+  | "doctor"
+  | "package"
+  | "plan"
+  | "restart"
+  | "runtime"
+  | "source";
+
+export type AvailableModuleDoctorCheck = {
+  key: AvailableModuleDoctorCheckKey;
+  label: string;
+  status: AvailableModuleDoctorCheckStatus;
+  detail: string;
+  command?: string;
+};
+
 export type AvailableModuleManifestSnapshots = Record<
   string,
   AvailableModuleManifestSnapshot | undefined
@@ -665,6 +683,84 @@ export function availableModuleInstallSteps({
   }
 }
 
+export function availableModuleDoctorChecks({
+  commands,
+  missingConsolePackageCount = 0,
+  moduleRegistered,
+  restartPending,
+  row,
+}: {
+  commands: AvailableModuleInstallCommand[];
+  missingConsolePackageCount?: number;
+  moduleRegistered?: boolean;
+  restartPending?: boolean;
+  row: AvailableModuleRow;
+}): AvailableModuleDoctorCheck[] {
+  const addCommand =
+    commandByKey(commands, "add") ??
+    `lenso module add ${row.manifestReference}`;
+  const applyPlanCommand =
+    commandByKey(commands, "apply-plan") ?? "lenso console-package apply-plan";
+  const installPackagesCommand =
+    commandByKey(commands, "install-packages") ??
+    "pnpm --dir apps/runtime-console install";
+  const consolePlan = row.installState?.consolePlan;
+  const remoteSource = row.installState?.remoteSource;
+  const isModuleRegistered =
+    moduleRegistered ?? row.installState?.moduleRegistered ?? false;
+  const isRestartPending = Boolean(
+    restartPending || remoteSource?.restartPending
+  );
+  const packageCommand =
+    consolePlan?.packages.find((planPackage) => planPackage.command)?.command ??
+    installPackagesCommand;
+  const checks: AvailableModuleDoctorCheck[] = [
+    sourceDoctorCheck({
+      addCommand,
+      isModuleRegistered,
+      remoteSource,
+      row,
+    }),
+    planDoctorCheck({
+      addCommand,
+      applyPlanCommand,
+      isModuleRegistered,
+      row,
+    }),
+    packageDoctorCheck({
+      consolePlan,
+      isModuleRegistered,
+      missingConsolePackageCount,
+      packageCommand,
+      row,
+    }),
+    runtimeDoctorCheck({
+      addCommand,
+      isModuleRegistered,
+      remoteSource,
+      row,
+    }),
+    restartDoctorCheck({
+      isModuleRegistered,
+      isRestartPending,
+      remoteSource,
+    }),
+  ];
+  const hasKnownWork = checks.some(
+    (check) => check.status === "fix" || check.status === "hold"
+  );
+  return [
+    ...checks,
+    doctorCheck(
+      "doctor",
+      "doctor",
+      "ok",
+      hasKnownWork ? "verify after fixes" : "verify install state",
+      "lenso module doctor"
+    ),
+  ];
+}
+
 function availableModuleCanInstall(row: AvailableModuleRow): boolean {
   return row.preflightStatus === "ready" || row.preflightStatus === "unknown";
 }
@@ -785,6 +881,258 @@ function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
     return "runtime config matches running module state";
   }
   return "runtime restart state unavailable";
+}
+
+function commandByKey(
+  commands: AvailableModuleInstallCommand[],
+  key: string
+): string | undefined {
+  return commands.find((command) => command.key === key)?.command;
+}
+
+function sourceDoctorCheck({
+  addCommand,
+  isModuleRegistered,
+  remoteSource,
+  row,
+}: {
+  addCommand: string;
+  isModuleRegistered: boolean;
+  remoteSource: AvailableModuleRemoteSourceInstallState | undefined;
+  row: AvailableModuleRow;
+}): AvailableModuleDoctorCheck {
+  if (remoteSource?.error) {
+    return doctorCheck("source", "source", "hold", remoteSource.error);
+  }
+  if (isModuleRegistered || remoteSource?.configured) {
+    return doctorCheck(
+      "source",
+      "source",
+      "ok",
+      remoteSource?.desiredBaseUrl
+        ? `REMOTE_MODULES -> ${remoteSource.desiredBaseUrl}`
+        : "module source registered"
+    );
+  }
+  if (!availableModuleCanInstall(row)) {
+    return doctorCheck(
+      "source",
+      "source",
+      "hold",
+      row.preflightFix
+        ? `${row.preflightReason}; ${row.preflightFix}`
+        : row.preflightReason
+    );
+  }
+  return doctorCheck(
+    "source",
+    "source",
+    "fix",
+    `register source in ${remoteSource?.envFile ?? ".env"}`,
+    addCommand
+  );
+}
+
+function planDoctorCheck({
+  addCommand,
+  applyPlanCommand,
+  isModuleRegistered,
+  row,
+}: {
+  addCommand: string;
+  applyPlanCommand: string;
+  isModuleRegistered: boolean;
+  row: AvailableModuleRow;
+}): AvailableModuleDoctorCheck {
+  const consolePlan = row.installState?.consolePlan;
+  const remoteSource = row.installState?.remoteSource;
+  if (row.consolePackageHintCount === 0) {
+    return doctorCheck("plan", "plan", "skip", "no console package hints");
+  }
+  if (consolePlan?.error) {
+    return doctorCheck("plan", "plan", "hold", consolePlan.error);
+  }
+  if (consolePlan?.moduleEntryPresent) {
+    return doctorCheck(
+      "plan",
+      "plan",
+      "fix",
+      `${consolePlan.packageCount} item${consolePlan.packageCount === 1 ? "" : "s"} pending in ${consolePlan.planFile}`,
+      applyPlanCommand
+    );
+  }
+  if (isModuleRegistered) {
+    return doctorCheck("plan", "plan", "skip", "no pending console plan");
+  }
+  if (consolePlan?.exists) {
+    return doctorCheck(
+      "plan",
+      "plan",
+      "fix",
+      `no ${row.name} entry in ${consolePlan.planFile}`,
+      addCommand
+    );
+  }
+  if (remoteSource?.configured) {
+    return doctorCheck(
+      "plan",
+      "plan",
+      "fix",
+      `write console plan for ${row.name}`,
+      addCommand
+    );
+  }
+  return doctorCheck("plan", "plan", "skip", "add source first");
+}
+
+function packageDoctorCheck({
+  consolePlan,
+  isModuleRegistered,
+  missingConsolePackageCount,
+  packageCommand,
+  row,
+}: {
+  consolePlan: AvailableModuleConsolePackagePlanState | undefined;
+  isModuleRegistered: boolean;
+  missingConsolePackageCount: number;
+  packageCommand: string;
+  row: AvailableModuleRow;
+}): AvailableModuleDoctorCheck {
+  if (row.consolePackageHintCount === 0) {
+    return doctorCheck(
+      "package",
+      "package",
+      "skip",
+      "no console package hints"
+    );
+  }
+  if (consolePlan?.error) {
+    return doctorCheck("package", "package", "hold", consolePlan.error);
+  }
+  if (missingConsolePackageCount > 0) {
+    return doctorCheck(
+      "package",
+      "package",
+      "fix",
+      `${missingConsolePackageCount} console package export${missingConsolePackageCount === 1 ? "" : "s"} missing`,
+      packageCommand
+    );
+  }
+  if (consolePlan?.moduleEntryPresent && consolePlan.packageCount > 0) {
+    return doctorCheck(
+      "package",
+      "package",
+      "fix",
+      `${consolePlan.packageCount} package${consolePlan.packageCount === 1 ? "" : "s"} listed in plan`,
+      packageCommand
+    );
+  }
+  if (isModuleRegistered) {
+    return doctorCheck(
+      "package",
+      "package",
+      "ok",
+      "console package registry current"
+    );
+  }
+  return doctorCheck("package", "package", "skip", "waiting for console plan");
+}
+
+function runtimeDoctorCheck({
+  addCommand,
+  isModuleRegistered,
+  remoteSource,
+  row,
+}: {
+  addCommand: string;
+  isModuleRegistered: boolean;
+  remoteSource: AvailableModuleRemoteSourceInstallState | undefined;
+  row: AvailableModuleRow;
+}): AvailableModuleDoctorCheck {
+  if (isModuleRegistered) {
+    return doctorCheck(
+      "runtime",
+      "runtime",
+      "ok",
+      "module registered in /admin/data/modules"
+    );
+  }
+  if (remoteSource?.restartPending) {
+    return doctorCheck(
+      "runtime",
+      "runtime",
+      "fix",
+      remoteSource.restartReason ?? "restart to load configured source"
+    );
+  }
+  if (remoteSource?.configured) {
+    return doctorCheck(
+      "runtime",
+      "runtime",
+      "hold",
+      "source configured but module is not registered"
+    );
+  }
+  if (!availableModuleCanInstall(row)) {
+    return doctorCheck("runtime", "runtime", "hold", row.preflightReason);
+  }
+  return doctorCheck(
+    "runtime",
+    "runtime",
+    "fix",
+    "module not registered in /admin/data/modules",
+    addCommand
+  );
+}
+
+function restartDoctorCheck({
+  isModuleRegistered,
+  isRestartPending,
+  remoteSource,
+}: {
+  isModuleRegistered: boolean;
+  isRestartPending: boolean;
+  remoteSource: AvailableModuleRemoteSourceInstallState | undefined;
+}): AvailableModuleDoctorCheck {
+  if (isRestartPending) {
+    return doctorCheck(
+      "restart",
+      "restart",
+      "fix",
+      remoteSource?.restartReason ?? "restart API and worker"
+    );
+  }
+  if (remoteSource?.configured && remoteSource.runningBaseUrl) {
+    return doctorCheck(
+      "restart",
+      "restart",
+      "ok",
+      `running ${remoteSource.runningBaseUrl}`
+    );
+  }
+  if (isModuleRegistered) {
+    return doctorCheck("restart", "restart", "ok", "runtime config current");
+  }
+  if (remoteSource?.configured) {
+    return doctorCheck("restart", "restart", "skip", "restart state unknown");
+  }
+  return doctorCheck("restart", "restart", "skip", "source not configured");
+}
+
+function doctorCheck(
+  key: AvailableModuleDoctorCheckKey,
+  label: string,
+  status: AvailableModuleDoctorCheckStatus,
+  detail: string,
+  command?: string
+): AvailableModuleDoctorCheck {
+  return {
+    ...(command ? { command } : {}),
+    detail,
+    key,
+    label,
+    status,
+  };
 }
 
 function availableModulePreflight(
