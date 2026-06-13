@@ -4,6 +4,7 @@ import {
   type AvailableModulesResponse,
   type AvailableModulesCatalog,
   availableModuleHandoffState,
+  availableModuleInstallSteps,
   availableModuleRowsFromResponse,
   availableModuleRows,
 } from "./available-modules-model";
@@ -29,6 +30,24 @@ const catalog: AvailableModulesCatalog = {
   ],
   version: 1,
 };
+
+const installCommands = [
+  {
+    command: "lenso module add https://example.com/lenso/module/v1/manifest",
+    key: "add",
+    label: "install",
+  },
+  {
+    command: "lenso console-package apply-plan",
+    key: "apply-plan",
+    label: "console",
+  },
+  {
+    command: "pnpm --dir apps/runtime-console install",
+    key: "install-packages",
+    label: "packages",
+  },
+];
 
 describe("available modules model", () => {
   test("builds rows from available module catalog entries", () => {
@@ -153,6 +172,98 @@ describe("available modules model", () => {
     });
   });
 
+  test("builds install wizard steps from handoff states", () => {
+    const [row] = availableModuleRows(catalog);
+    expect(row).toBeDefined();
+    const available = availableModuleHandoffState({
+      installCommand: installCommands[0]!.command,
+      row: row!,
+    });
+
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        handoff: available,
+        row: row!,
+      }).map((step) => [step.key, step.status, step.command ?? null])
+    ).toEqual([
+      ["add", "current", installCommands[0]!.command],
+      ["apply-plan", "pending", null],
+      ["install-packages", "pending", null],
+      ["restart", "pending", null],
+      ["open", "pending", null],
+    ]);
+
+    const packageInstall = availableModuleHandoffState({
+      installed: {
+        moduleName: "billing",
+        packageInstallNeeded: true,
+        restartPending: false,
+      },
+      installCommand: installCommands[0]!.command,
+      row: row!,
+    });
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        handoff: packageInstall,
+        row: row!,
+      }).map((step) => [step.key, step.status, step.command ?? null])
+    ).toEqual([
+      ["add", "done", null],
+      ["apply-plan", "current", installCommands[1]!.command],
+      ["install-packages", "pending", installCommands[2]!.command],
+      ["restart", "pending", null],
+      ["open", "pending", null],
+    ]);
+
+    const restart = availableModuleHandoffState({
+      installed: {
+        moduleName: "billing",
+        packageInstallNeeded: false,
+        restartPending: true,
+      },
+      installCommand: installCommands[0]!.command,
+      row: row!,
+    });
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        handoff: restart,
+        row: row!,
+      }).map((step) => [step.key, step.status, step.path ?? null])
+    ).toEqual([
+      ["add", "done", null],
+      ["apply-plan", "done", null],
+      ["install-packages", "done", null],
+      ["restart", "current", "/modules?module=billing"],
+      ["open", "pending", null],
+    ]);
+
+    const installed = availableModuleHandoffState({
+      installed: {
+        moduleName: "billing",
+        packageInstallNeeded: false,
+        restartPending: false,
+      },
+      installCommand: installCommands[0]!.command,
+      row: row!,
+    });
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        handoff: installed,
+        row: row!,
+      }).map((step) => [step.key, step.status, step.path ?? null])
+    ).toEqual([
+      ["add", "done", null],
+      ["apply-plan", "done", null],
+      ["install-packages", "done", null],
+      ["restart", "done", null],
+      ["open", "current", "/modules?module=billing"],
+    ]);
+  });
+
   test("flags missing base url for local manifest references", () => {
     expect(
       availableModuleRows({
@@ -170,6 +281,44 @@ describe("available modules model", () => {
       preflightLabel: "needs base URL",
       preflightStatus: "needs_base_url",
     });
+  });
+
+  test("blocks install wizard steps for unresolved catalog entries", () => {
+    const [row] = availableModuleRows({
+      modules: [
+        {
+          manifestReference: "./lenso.module.json",
+          name: "billing",
+          source: "remote",
+          version: "0.1.0",
+        },
+      ],
+      version: 1,
+    });
+    expect(row).toBeDefined();
+
+    const handoff = availableModuleHandoffState({
+      installCommand: "lenso module add ./lenso.module.json",
+      row: row!,
+    });
+    expect(handoff).toMatchObject({
+      action: "resolve",
+      kind: "blocked",
+      label: "needs base URL",
+    });
+    expect(
+      availableModuleInstallSteps({
+        commands: installCommands,
+        handoff,
+        row: row!,
+      }).map((step) => [step.key, step.status, step.command ?? null])
+    ).toEqual([
+      ["add", "blocked", null],
+      ["apply-plan", "pending", null],
+      ["install-packages", "skipped", null],
+      ["restart", "pending", null],
+      ["open", "pending", null],
+    ]);
   });
 
   test("flags incompatible catalog entries before manifest checks", () => {

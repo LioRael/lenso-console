@@ -116,6 +116,16 @@ export type AvailableModuleHandoffState =
       path?: undefined;
     }
   | {
+      kind: "blocked";
+      label: string;
+      action: "resolve";
+      detail: string;
+      fix?: string;
+      moduleName: string;
+      command?: undefined;
+      path?: undefined;
+    }
+  | {
       kind: "installed";
       label: "installed";
       action: "open";
@@ -142,6 +152,35 @@ export type AvailableModuleHandoffState =
       command?: undefined;
       path: string;
     };
+
+export type AvailableModuleInstallCommand = {
+  key: string;
+  label: string;
+  command: string;
+};
+
+export type AvailableModuleInstallStepStatus =
+  | "blocked"
+  | "current"
+  | "done"
+  | "pending"
+  | "skipped";
+
+export type AvailableModuleInstallStepKey =
+  | "add"
+  | "apply-plan"
+  | "install-packages"
+  | "restart"
+  | "open";
+
+export type AvailableModuleInstallStep = {
+  key: AvailableModuleInstallStepKey;
+  label: string;
+  status: AvailableModuleInstallStepStatus;
+  detail: string;
+  command?: string;
+  path?: string;
+};
 
 export type AvailableModuleManifestSnapshots = Record<
   string,
@@ -255,6 +294,17 @@ export function availableModuleHandoffState({
     };
   }
 
+  if (!availableModuleCanInstall(row)) {
+    return {
+      action: "resolve",
+      detail: row.preflightReason,
+      ...(row.preflightFix ? { fix: row.preflightFix } : {}),
+      kind: "blocked",
+      label: row.preflightLabel,
+      moduleName: row.name,
+    };
+  }
+
   return {
     action: "install",
     command: installCommand,
@@ -262,6 +312,180 @@ export function availableModuleHandoffState({
     kind: "available",
     label: "available",
     moduleName: row.name,
+  };
+}
+
+export function availableModuleInstallSteps({
+  commands,
+  handoff,
+  row,
+}: {
+  commands: AvailableModuleInstallCommand[];
+  handoff: AvailableModuleHandoffState;
+  row: AvailableModuleRow;
+}): AvailableModuleInstallStep[] {
+  const addCommand = commands.find((command) => command.key === "add");
+  const applyPlanCommand = commands.find(
+    (command) => command.key === "apply-plan"
+  );
+  const installPackagesCommand = commands.find(
+    (command) => command.key === "install-packages"
+  );
+  const packageDoneStatus = packageStepDoneStatus(row);
+  const packagePendingStatus = packageStepPendingStatus(row);
+
+  switch (handoff.kind) {
+    case "blocked": {
+      return [
+        {
+          detail: handoff.fix
+            ? `${handoff.detail}; ${handoff.fix}`
+            : handoff.detail,
+          key: "add",
+          label: "add",
+          status: "blocked",
+        },
+        installStep("apply-plan", "plan", "pending", "add module first"),
+        installStep(
+          "install-packages",
+          "packages",
+          packagePendingStatus,
+          "apply console package plan first"
+        ),
+        installStep("restart", "restart", "pending", "install module first"),
+        installStep("open", "open", "pending", "install module first"),
+      ];
+    }
+    case "available": {
+      return [
+        installStep("add", "add", "current", handoff.detail, addCommand),
+        installStep(
+          "apply-plan",
+          "plan",
+          packagePendingStatus,
+          "add module first"
+        ),
+        installStep(
+          "install-packages",
+          "packages",
+          packagePendingStatus,
+          "apply console package plan first"
+        ),
+        installStep("restart", "restart", "pending", "install module first"),
+        installStep("open", "open", "pending", "install module first"),
+      ];
+    }
+    case "package_install_needed": {
+      return [
+        installStep("add", "add", "done", "module source is registered"),
+        installStep(
+          "apply-plan",
+          "plan",
+          "current",
+          handoff.detail,
+          applyPlanCommand
+        ),
+        installStep(
+          "install-packages",
+          "packages",
+          "pending",
+          "run after applying the console package plan",
+          installPackagesCommand
+        ),
+        installStep("restart", "restart", "pending", "install package first"),
+        installStep("open", "open", "pending", "restart first"),
+      ];
+    }
+    case "restart_pending": {
+      return [
+        installStep("add", "add", "done", "module source is registered"),
+        installStep(
+          "apply-plan",
+          "plan",
+          packageDoneStatus,
+          "console plan ready"
+        ),
+        installStep(
+          "install-packages",
+          "packages",
+          packageDoneStatus,
+          "console dependencies are ready"
+        ),
+        installStep(
+          "restart",
+          "restart",
+          "current",
+          handoff.detail,
+          undefined,
+          handoff.path
+        ),
+        installStep("open", "open", "pending", "restart first"),
+      ];
+    }
+    case "installed": {
+      return [
+        installStep("add", "add", "done", "module source is registered"),
+        installStep(
+          "apply-plan",
+          "plan",
+          packageDoneStatus,
+          "console plan ready"
+        ),
+        installStep(
+          "install-packages",
+          "packages",
+          packageDoneStatus,
+          "console dependencies are ready"
+        ),
+        installStep("restart", "restart", "done", "runtime is current"),
+        installStep(
+          "open",
+          "open",
+          "current",
+          handoff.detail,
+          undefined,
+          handoff.path
+        ),
+      ];
+    }
+    default: {
+      const exhaustive: never = handoff;
+      return exhaustive;
+    }
+  }
+}
+
+function availableModuleCanInstall(row: AvailableModuleRow): boolean {
+  return row.preflightStatus === "ready" || row.preflightStatus === "unknown";
+}
+
+function packageStepDoneStatus(
+  row: AvailableModuleRow
+): Extract<AvailableModuleInstallStepStatus, "done" | "skipped"> {
+  return row.consolePackageHintCount > 0 ? "done" : "skipped";
+}
+
+function packageStepPendingStatus(
+  row: AvailableModuleRow
+): Extract<AvailableModuleInstallStepStatus, "pending" | "skipped"> {
+  return row.consolePackageHintCount > 0 ? "pending" : "skipped";
+}
+
+function installStep(
+  key: AvailableModuleInstallStepKey,
+  label: string,
+  status: AvailableModuleInstallStepStatus,
+  detail: string,
+  command?: AvailableModuleInstallCommand,
+  path?: string
+): AvailableModuleInstallStep {
+  return {
+    ...(command ? { command: command.command } : {}),
+    detail,
+    key,
+    label,
+    ...(path ? { path } : {}),
+    status,
   };
 }
 
