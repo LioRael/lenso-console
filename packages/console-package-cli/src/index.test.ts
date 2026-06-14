@@ -1,22 +1,41 @@
 import { execFile, spawn } from "node:child_process";
+import type { ChildProcessByStdio } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import type { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { runConsolePackageCli } from "./index.mjs";
+import { runConsolePackageCli } from "./index";
 
-const tempRoots = [];
-const tempServers = [];
-const tempProcesses = [];
+const tempRoots: string[] = [];
+const tempServers: Server[] = [];
+type BackendProcess = ChildProcessByStdio<null, Readable, Readable>;
+const tempProcesses: BackendProcess[] = [];
 const execFileAsync = promisify(execFile);
 
-const readManifestUrlFromProcess = async (childProcess) => {
+const writeFixture = async (
+  repoRoot: string,
+  relativePath: string,
+  contents: string
+) => {
+  const { mkdir, writeFile: writeFixtureFile } =
+    await import("node:fs/promises");
+  const filePath = path.join(repoRoot, relativePath);
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFixtureFile(filePath, contents);
+};
+
+const readManifestUrlFromProcess = async (
+  childProcess: BackendProcess
+): Promise<string> => {
   const timeout = setTimeout(() => childProcess.kill(), 3000);
   try {
     for await (const chunk of childProcess.stdout) {
@@ -85,7 +104,7 @@ app-bootstrap = { path = "crates/app-bootstrap" }
   return repoRoot;
 };
 
-const createRuntimeConsoleFixture = async (repoRoot) => {
+const createRuntimeConsoleFixture = async (repoRoot: string) => {
   await writeFixture(
     repoRoot,
     "apps/runtime-console/package.json",
@@ -148,20 +167,12 @@ const createRuntimeConsoleFixture = async (repoRoot) => {
     `import {
   consolePackageKey,
   type ConsolePackageModuleExportsByKey,
-} from "./app/console-package-registry";
+} from "${"./app"}/console-package-registry";
 
 export const consolePackageModuleExportsByKey = {
 } satisfies ConsolePackageModuleExportsByKey;
 `
   );
-};
-
-const writeFixture = async (repoRoot, relativePath, contents) => {
-  const { mkdir, writeFile: writeFixtureFile } =
-    await import("node:fs/promises");
-  const filePath = path.join(repoRoot, relativePath);
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFixtureFile(filePath, contents);
 };
 
 afterEach(async () => {
@@ -184,7 +195,7 @@ afterEach(async () => {
   );
 });
 
-const serveManifest = async (manifest) => {
+const serveManifest = async (manifest: Record<string, unknown>) => {
   const server = createServer((request, response) => {
     if (request.url === "/lenso/module/v1/manifest") {
       response.setHeader("Content-Type", "application/json");
@@ -197,7 +208,11 @@ const serveManifest = async (manifest) => {
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   tempServers.push(server);
-  const { port } = server.address();
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("test manifest server did not bind to a TCP port");
+  }
+  const { port } = address as AddressInfo;
   return `http://127.0.0.1:${port}/lenso/module/v1/manifest`;
 };
 
@@ -208,6 +223,40 @@ describe("module scaffold CLI", () => {
     );
 
     expect(packageJson.dependencies).toHaveProperty("commander");
+  });
+
+  test("keeps the CLI entrypoint focused on command wiring", async () => {
+    const source = await readFile(
+      new URL("index.ts", import.meta.url),
+      "utf-8"
+    );
+
+    expect(source.split("\n").length).toBeLessThanOrEqual(220);
+    expect(source).not.toContain("remoteBackendServer");
+    expect(source).not.toContain("queuePackageFiles");
+    expect(source).not.toContain("moduleCargoToml");
+  });
+
+  test("exposes the compiled CLI output", async () => {
+    const packageJson = JSON.parse(
+      await readFile(new URL("../package.json", import.meta.url), "utf-8")
+    );
+
+    expect(packageJson.bin).toEqual({
+      lenso: "./dist/index.mjs",
+      "lenso-console-package": "./dist/index.mjs",
+    });
+    expect(packageJson.exports).toEqual({
+      ".": {
+        default: "./dist/index.mjs",
+        types: "./dist/index.d.mts",
+      },
+    });
+    expect(packageJson.scripts).toMatchObject({
+      build:
+        "tsdown src/index.ts --format esm --platform node --target node24 --dts --clean --out-dir dist",
+    });
+    expect(packageJson.devDependencies).toHaveProperty("tsdown");
   });
 
   test("accepts pnpm forwarded arguments after a separator", async () => {
@@ -296,7 +345,7 @@ describe("module scaffold CLI", () => {
   test("creates a linked module with a registered console package", async () => {
     const repoRoot = await createRepoFixture();
     await createRuntimeConsoleFixture(repoRoot);
-    const logs = [];
+    const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
       logs.push(args.join(" "));
     });
@@ -508,12 +557,24 @@ describe("module scaffold CLI", () => {
     expect(flowDoc).not.toContain("module doctor diagnostics");
   });
 
-  test("shows the third-party remote module flow in CLI help", async () => {
+  test("shows the third-party remote module flow in compiled CLI help", async () => {
+    await execFileAsync("pnpm", [
+      "--filter",
+      "@lenso/console-package-cli",
+      "build",
+    ]);
+
     const { stdout } = await execFileAsync(process.execPath, [
-      path.join(import.meta.dirname, "index.mjs"),
+      path.resolve(import.meta.dirname, "../dist/index.mjs"),
       "module",
       "--help",
     ]);
+    await expect(
+      readFile(
+        path.resolve(import.meta.dirname, "../dist/index.d.mts"),
+        "utf-8"
+      )
+    ).resolves.toContain("runConsolePackageCli");
 
     expect(stdout).toContain("Remote module install");
     expect(stdout).toContain("lenso module add <manifest-url>");
@@ -873,7 +934,7 @@ describe("module scaffold CLI", () => {
       "APP_ENV=local\nREMOTE_MODULES=remote-crm=http://127.0.0.1:4100/lenso/module/v1\nRUST_LOG=info\n"
     );
 
-    const logs = [];
+    const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((message) => {
       logs.push(String(message));
     });
@@ -953,7 +1014,7 @@ describe("module scaffold CLI", () => {
       source: "remote",
       version: "0.1.0",
     });
-    const logs = [];
+    const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((message) => {
       logs.push(String(message));
     });
@@ -1027,7 +1088,7 @@ describe("module scaffold CLI", () => {
       source: "remote",
       version: "0.1.0",
     });
-    const logs = [];
+    const logs: string[] = [];
     const logSpy = vi.spyOn(console, "log").mockImplementation((message) => {
       logs.push(String(message));
     });
