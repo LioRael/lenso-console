@@ -31,6 +31,7 @@ const assertRemoteModuleKitMetadata = async () => {
   const manifest = await readJson(kitPackageJsonPath);
 
   assert(manifest.private !== true, "remote-module-kit must not be private");
+  assert(manifest.license === "MIT", "remote-module-kit license must be MIT");
   assert(
     manifest.publishConfig?.access === "public",
     "remote-module-kit publishConfig.access must be public"
@@ -65,6 +66,7 @@ const assertPackContents = (packOutput) => {
   const [pack] = JSON.parse(packOutput);
   const files = pack.files.map((entry) => entry.path).toSorted();
   const required = [
+    "LICENSE",
     "README.md",
     "dist/index.d.ts",
     "dist/index.js",
