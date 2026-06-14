@@ -28,7 +28,10 @@ import {
   fetchAvailableModules,
   moduleRefreshInvalidationQueryKeys,
 } from "../data/available-modules";
-import { useRemoteProxyCalls } from "../hooks/use-runtime-queries";
+import {
+  useAdminActionInvocations,
+  useRemoteProxyCalls,
+} from "../hooks/use-runtime-queries";
 import { cn } from "../lib/cn";
 import {
   httpClient,
@@ -36,6 +39,10 @@ import {
   runtimeConsoleDataSource,
 } from "../lib/http-client";
 import { AdminActionWorkbench } from "./admin-action-workbench";
+import {
+  flattenAdminActionInvocationPages,
+  moduleActionEvidenceRows,
+} from "./admin-actions-model";
 import {
   type AvailableModuleDoctorCheck,
   type AvailableModuleDoctorCheckStatus,
@@ -1423,6 +1430,29 @@ function ModuleActionsPanel({ module }: { module: AdminModuleMetadata }) {
   }
 
   return (
+    <LoadedModuleActionsPanel
+      actions={actions}
+      moduleName={module.module_name}
+    />
+  );
+}
+
+function LoadedModuleActionsPanel({
+  actions,
+  moduleName,
+}: {
+  actions: ReturnType<typeof moduleAdminActions>;
+  moduleName: string;
+}) {
+  const invocationsQuery = useAdminActionInvocations({
+    limit: 5,
+    moduleName,
+  });
+  const evidenceRows = moduleActionEvidenceRows(
+    flattenAdminActionInvocationPages(invocationsQuery.data?.pages)
+  );
+
+  return (
     <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
       <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2 font-semibold">
         <Zap className="text-(--accent)" size={14} />
@@ -1435,10 +1465,120 @@ function ModuleActionsPanel({ module }: { module: AdminModuleMetadata }) {
         <AdminActionWorkbench
           actions={actions}
           className="border-0 bg-transparent p-0"
-          moduleName={module.module_name}
+          moduleName={moduleName}
+          onActionSettled={async () => {
+            await invocationsQuery.refetch();
+          }}
         />
       </div>
+      <ModuleActionEvidencePanel
+        isError={invocationsQuery.isError}
+        isFetching={invocationsQuery.isFetching}
+        isLoading={invocationsQuery.isLoading}
+        onRefresh={() => {
+          void invocationsQuery.refetch();
+        }}
+        rows={evidenceRows}
+      />
     </section>
+  );
+}
+
+function ModuleActionEvidencePanel({
+  isError,
+  isFetching,
+  isLoading,
+  onRefresh,
+  rows,
+}: {
+  isError: boolean;
+  isFetching: boolean;
+  isLoading: boolean;
+  onRefresh: () => void;
+  rows: ReturnType<typeof moduleActionEvidenceRows>;
+}) {
+  return (
+    <div className="border-t border-(--border-subtle) p-2">
+      <div className="flex min-w-0 items-center gap-2 px-1 pb-1.5">
+        <span className="truncate text-[10px] font-semibold uppercase text-(--secondary)">
+          Recent Evidence
+        </span>
+        <span className="border border-(--border-subtle) px-1.5 py-0.5 text-[9px] text-(--muted)">
+          {rows.length}
+        </span>
+        <Button
+          aria-label="Refresh action evidence"
+          className="ml-auto min-h-6 px-2"
+          disabled={isFetching}
+          onClick={onRefresh}
+          title="Refresh action evidence"
+          type="button"
+          variant="ghost"
+        >
+          <RefreshCw className={cn(isFetching && "animate-spin")} size={12} />
+          Refresh
+        </Button>
+      </div>
+      <div className="overflow-hidden border border-(--border-subtle) bg-(--background)">
+        {isLoading ? (
+          <p className="px-2 py-1.5 text-[11px] text-(--muted)">
+            Loading action evidence...
+          </p>
+        ) : isError ? (
+          <p className="px-2 py-1.5 text-[11px] text-(--error)">
+            Failed to load action evidence.
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="px-2 py-1.5 text-[11px] text-(--muted)">
+            No action evidence yet.
+          </p>
+        ) : (
+          <div className="grid">
+            {rows.map((row) => (
+              <div
+                className="grid min-w-0 grid-cols-[58px_minmax(0,1fr)_54px] items-center gap-2 border-t border-(--border-subtle) px-2 py-1.5 text-[11px] first:border-t-0 md:grid-cols-[64px_minmax(0,140px)_minmax(0,1fr)_104px_54px]"
+                key={row.key}
+                title={`${row.label} / ${row.correlationId}`}
+              >
+                <span
+                  className={cn(
+                    "truncate",
+                    row.success ? "text-(--success)" : "text-(--error)"
+                  )}
+                >
+                  {row.result}
+                </span>
+                <span className="truncate text-(--foreground)">
+                  {row.actionName}
+                </span>
+                <span
+                  className="hidden truncate text-(--muted) md:block"
+                  title={row.summary}
+                >
+                  {row.summary}
+                </span>
+                <span
+                  className="hidden truncate text-(--muted) md:block"
+                  title={`${row.requestId} / ${row.occurredAt}`}
+                >
+                  {row.durationLabel} / {row.requestId}
+                </span>
+                <button
+                  aria-label={`Open ${row.label} evidence`}
+                  className="inline-flex h-6 items-center justify-center gap-1 border border-(--border-subtle) bg-(--elevated) px-1 text-[10px] text-(--muted) hover:text-(--foreground)"
+                  onClick={() => pushOperationsUrl(row.operationsPath)}
+                  title={row.operationsPath}
+                  type="button"
+                >
+                  <Route size={11} />
+                  Open
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

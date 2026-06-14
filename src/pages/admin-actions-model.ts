@@ -33,6 +33,20 @@ export type AdminActionInspectorDetails = {
   } | null;
 };
 
+export type ModuleActionEvidenceRow = {
+  key: string;
+  actionName: string;
+  correlationId: string;
+  durationLabel: string;
+  label: string;
+  occurredAt: string;
+  operationsPath: string;
+  requestId: string;
+  result: "failed" | "success";
+  success: boolean;
+  summary: string;
+};
+
 export function adminActionsPath(
   filters: {
     actionName?: string;
@@ -53,6 +67,34 @@ export function adminActionsPath(
     result: filters.result === "all" ? undefined : filters.result,
     selected: filters.selectedId,
   });
+}
+
+export function moduleActionEvidenceRows(
+  actions: RuntimeAdminActionInvocation[],
+  limit = 5
+): ModuleActionEvidenceRow[] {
+  return [...actions]
+    .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
+    .slice(0, limit)
+    .map((action) => ({
+      actionName: action.action_name,
+      correlationId: action.correlation_id,
+      durationLabel: `${action.duration_ms}ms`,
+      key: action.id,
+      label: action.label,
+      occurredAt: action.occurred_at,
+      operationsPath: adminActionsPath({
+        actionName: action.action_name,
+        ...(action.capability ? { capability: action.capability } : {}),
+        correlationId: action.correlation_id,
+        moduleName: action.module_name,
+        selectedId: action.id,
+      }),
+      requestId: action.request_id ?? "-",
+      result: adminActionResultLabel(action),
+      success: action.success,
+      summary: adminActionPrimarySummary(action),
+    }));
 }
 
 export function flattenAdminActionInvocationPages(

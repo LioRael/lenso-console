@@ -9,6 +9,7 @@ import {
   aggregateAdminActionInvocations,
   filterAdminActionInvocations,
   flattenAdminActionInvocationPages,
+  moduleActionEvidenceRows,
   nextAdminActionInvocationCursor,
   summarizeAdminActionInvocations,
 } from "./admin-actions-model";
@@ -136,6 +137,33 @@ describe("admin actions model", () => {
     ).toBe("2026-06-03T10:00:00.000Z");
 
     expect(nextAdminActionInvocationCursor(undefined)).toBeNull();
+  });
+
+  test("builds compact module action evidence rows", () => {
+    const rows = moduleActionEvidenceRows(actions, 2);
+
+    expect(rows.map((row) => row.key)).toEqual(["admin_b", "admin_a"]);
+    expect(rows[0]).toEqual({
+      actionName: "rebuild_index",
+      correlationId: "corr_admin",
+      durationLabel: "500ms",
+      key: "admin_b",
+      label: "Rebuild user index",
+      occurredAt: "2026-06-03T10:05:00.000Z",
+      operationsPath:
+        "/operations/admin-actions?action=rebuild_index&capability=identity.users.maintain&correlation_id=corr_admin&module=identity&selected=admin_b",
+      requestId: "req_admin",
+      result: "failed",
+      success: false,
+      summary: "window too wide",
+    });
+    expect(rows[1]).toMatchObject({
+      durationLabel: "100ms",
+      operationsPath:
+        "/operations/admin-actions?action=sync_contacts&capability=remote_crm.contacts.sync&correlation_id=corr_admin&module=remote-crm&selected=admin_a",
+      result: "success",
+      summary: "ok",
+    });
   });
 
   test("labels results", () => {

@@ -47,15 +47,19 @@ type ActionActivityItem = {
   operationsPath?: string;
 };
 
+type AdminActionWorkbenchProps = {
+  actions: DeclarativeAction[];
+  className?: string;
+  moduleName: string;
+  onActionSettled?: () => Promise<void> | void;
+};
+
 export function AdminActionWorkbench({
   actions,
   className,
   moduleName,
-}: {
-  actions: DeclarativeAction[];
-  className?: string;
-  moduleName: string;
-}) {
+  onActionSettled,
+}: AdminActionWorkbenchProps) {
   const queryClient = useQueryClient();
   const [actionStatus, setActionStatus] = useState<{
     kind: "error" | "success";
@@ -121,6 +125,12 @@ export function AdminActionWorkbench({
       await queryClient.invalidateQueries({
         queryKey: ["admin-data", "detail", moduleName],
       });
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["runtime", "admin-actions"],
+      });
+      await onActionSettled?.();
     },
   });
 
