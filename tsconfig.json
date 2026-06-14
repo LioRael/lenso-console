@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -25,7 +25,8 @@
     "packages/identity-console/src",
     "packages/remote-crm-console/src",
     "packages/console-package-api/src",
-    "packages/remote-module-kit/src"
+    "packages/remote-module-kit/src",
+    "packages/console-package-cli/src"
   ],
   "references": []
 }
