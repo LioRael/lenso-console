@@ -3,6 +3,10 @@
 Use this flow when a third-party module should stay outside the host workspace
 but still contribute a Runtime Console frontend package.
 
+For a runnable remote module that depends on published `@lenso/*` packages
+instead of workspace paths, see
+[LioRael/lenso-examples](https://github.com/LioRael/lenso-examples).
+
 ## Module Author
 
 Create the standalone remote package:
