@@ -1383,6 +1383,9 @@ describe("module status helpers", () => {
     expect(manifestLintCategory("runtime.function.remote_crm.sync.v1")).toBe(
       "runtime"
     );
+    expect(
+      manifestLintCategory("events.handler.sync_contact_on_user_registered")
+    ).toBe("events");
     expect(manifestLintCategory("lifecycle")).toBe("lifecycle");
     expect(
       manifestLintCategory("lifecycle.activation_job.warm contact cache")
