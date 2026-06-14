@@ -14,7 +14,7 @@ import type {
   AdminRuntimeSummaryItem as ApiRuntimeSummaryItem,
   AdminRuntimeSummaryResponse as ApiRuntimeSummaryResponse,
   AdminOutboxListResponse,
-} from "@lenso/ts-sdk/src/generated/types";
+} from "@lenso/ts-sdk";
 import {
   useInfiniteQuery,
   useMutation,

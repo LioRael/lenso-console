@@ -13,7 +13,7 @@ import type {
   AdminRuntimeTechnicalOperationListResponse,
   AdminRuntimeTimelineItem,
   PageInfo as ApiPageInfo,
-} from "@lenso/ts-sdk/src/generated/types";
+} from "@lenso/ts-sdk";
 
 import type {
   ExecutionEdge,

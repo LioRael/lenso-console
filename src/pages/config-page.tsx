@@ -6,7 +6,7 @@ import type {
   ConfigValueDto,
   ConfigValueListResponse,
   ConfigWriteResponse,
-} from "@lenso/ts-sdk/src/generated/types";
+} from "@lenso/ts-sdk";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";

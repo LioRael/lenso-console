@@ -593,19 +593,21 @@ describe("module scaffold CLI", () => {
     const packageJson = JSON.parse(
       await readFile(path.join(runtimeConsoleRoot, "package.json"), "utf-8")
     );
+    const buildRemoteModuleKit =
+      "pnpm --filter @lenso/remote-module-kit build && ";
     expect(packageJson.scripts["demo:remote-module-install"]).toBe(
-      "node scripts/remote-module-install-demo.mjs"
+      `${buildRemoteModuleKit}node scripts/remote-module-install-demo.mjs`
     );
     expect(packageJson.scripts["demo:remote-module-package"]).toBe(
-      "node scripts/remote-module-package-demo.mjs"
+      `${buildRemoteModuleKit}node scripts/remote-module-package-demo.mjs`
     );
     expect(packageJson.scripts["demo:remote-module-run"]).toBe(
-      "node scripts/remote-module-run-demo.mjs"
+      `${buildRemoteModuleKit}node scripts/remote-module-run-demo.mjs`
     );
 
-    const { stdout } = await execFileAsync(process.execPath, [
-      path.join(runtimeConsoleRoot, "scripts/remote-module-run-demo.mjs"),
-    ]);
+    const { stdout } = await execFileAsync("pnpm", ["demo:remote-module-run"], {
+      cwd: runtimeConsoleRoot,
+    });
 
     expect(stdout).toContain("Remote module package demo passed");
     expect(stdout).toContain("Remote module install-to-run demo passed");
