@@ -13,7 +13,7 @@
   "bugs": {
     "url": "https://github.com/LioRael/lenso-runtime-console/issues"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LioRael/lenso-runtime-console.git",
