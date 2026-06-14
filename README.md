@@ -23,7 +23,9 @@ framework/
 Repository operations notes, including branch protection and backend checkout
 secrets, live in [docs/repository-operations.md](docs/repository-operations.md).
 
-Local API calls use the development service token:
+Local API calls use a development service token. The backend accepts this token
+only in local/development environments; configured API deployments should provide
+their own `VITE_API_AUTH_TOKEN`.
 
 ```text
 Authorization: Bearer dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync

@@ -21,17 +21,22 @@ export function parseDevAuthTokenScopes(token: string): string[] {
   return rawScopes.split(",").filter((scope) => scope.length > 0);
 }
 
-export function consoleCapabilityProvider({
-  apiMode = isApiMode(),
-  authToken = apiAuthToken,
-}: {
-  apiMode?: boolean;
-  authToken?: string;
-} = {}): readonly string[] {
-  if (!apiMode) {
+export function consoleCapabilityProvider(
+  options: {
+    apiMode?: boolean;
+    authToken?: string | undefined;
+  } = {}
+): readonly string[] {
+  const resolvedApiMode = options.apiMode ?? isApiMode();
+  const resolvedAuthToken =
+    "authToken" in options ? options.authToken : apiAuthToken;
+  if (!resolvedApiMode) {
     return localConsoleCapabilities;
   }
-  return parseDevAuthTokenScopes(authToken);
+  if (!resolvedAuthToken) {
+    return [];
+  }
+  return parseDevAuthTokenScopes(resolvedAuthToken);
 }
 
 export function useConsoleCapabilities(): readonly string[] {

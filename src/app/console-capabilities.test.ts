@@ -26,6 +26,15 @@ describe("console capabilities", () => {
     ).toEqual(["runtime.stories.read", "identity.users.read"]);
   });
 
+  test("has no API-mode capabilities when no auth token is configured", () => {
+    expect(
+      consoleCapabilityProvider({
+        apiMode: true,
+        authToken: undefined,
+      })
+    ).toEqual([]);
+  });
+
   test("keeps local fallback capabilities outside API mode", () => {
     expect(
       consoleCapabilityProvider({
