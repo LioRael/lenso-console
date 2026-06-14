@@ -1308,6 +1308,9 @@ export function manifestLintCategory(subject: string): string {
   if (subject.startsWith("runtime.")) {
     return "runtime";
   }
+  if (subject === "events" || subject.startsWith("events.")) {
+    return "events";
+  }
   if (subject === "lifecycle" || subject.startsWith("lifecycle.")) {
     return "lifecycle";
   }
