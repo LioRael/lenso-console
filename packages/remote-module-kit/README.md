@@ -4,6 +4,8 @@ Helpers for building out-of-process Lenso remote modules.
 
 ```js
 import {
+  adminAction,
+  declarativeCustom,
   defineRemoteModule,
   getRoute,
   runtimeFunction,
@@ -11,13 +13,26 @@ import {
 } from "@lenso/remote-module-kit";
 
 const manifest = defineRemoteModule({
+  admin: declarativeCustom({
+    actions: [
+      adminAction("sync_contacts", {
+        capability: "crm.contacts.sync",
+        label: "Sync contacts",
+      }),
+    ],
+  }),
   capabilities: ["crm.contacts.read"],
   httpRoutes: [getRoute("/contacts/{id}")],
   name: "crm",
   runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
 });
 
-const server = await serveRemoteModule(manifest, { port: 4100 });
+const server = await serveRemoteModule(manifest, {
+  actions: {
+    sync_contacts: ({ input }) => ({ input, synced: true }),
+  },
+  port: 4100,
+});
 
 console.log(server.manifestUrl);
 ```
