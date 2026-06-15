@@ -28,7 +28,7 @@ only in local/development environments; configured API deployments should provid
 their own `VITE_API_AUTH_TOKEN`.
 
 ```text
-Authorization: Bearer dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync
+Authorization: Bearer dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write
 ```
 
 ## Run
@@ -66,7 +66,7 @@ VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
 Override the development service token when needed:
 
 ```bash
-VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync pnpm dev
+VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write pnpm dev
 ```
 
 ## Remote Module API QA

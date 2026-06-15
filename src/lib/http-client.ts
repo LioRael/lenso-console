@@ -5,8 +5,14 @@ const runtimeConsoleMode = import.meta.env.VITE_RUNTIME_CONSOLE_MODE as
   | "api"
   | "mock"
   | undefined;
-const developmentApiAuthToken =
-  "dev-service:admin:runtime.stories.read,identity.users.read,remote_crm.contacts.read,remote_crm.contacts.sync";
+const developmentApiAuthScopes = [
+  "runtime.stories.read",
+  "identity.users.read",
+  "remote_crm.contacts.read",
+  "remote_crm.contacts.sync",
+  "hello-action:greetings:write",
+] as const;
+const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =
   (import.meta.env.VITE_API_AUTH_TOKEN as string | undefined) ??
   (import.meta.env.DEV ? developmentApiAuthToken : undefined);
