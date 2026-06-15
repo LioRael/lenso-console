@@ -45,12 +45,20 @@ console.log(server.manifestUrl);
 
 ## Publishing
 
-This package is prepared for publication as a public scoped npm package. From
-the repository root, run the package preflight before publishing:
+This package is published through the `publish remote-module-kit` GitHub Actions
+workflow. The npm package should be configured for trusted publishing with:
+
+- repository: `LioRael/lenso-runtime-console`
+- workflow: `publish-remote-module-kit.yml`
+
+From the repository root, run the package preflight before opening a release
+PR:
 
 ```sh
 pnpm package-readiness
 ```
 
-Publishing is intentionally manual for now. The preflight only builds and
-dry-runs the npm package; it does not upload to the registry.
+After the release PR is merged, run the workflow from `main` with the package
+version from `packages/remote-module-kit/package.json`. The workflow verifies
+the version is not already published, runs `pnpm package-readiness`, and then
+publishes from `packages/remote-module-kit`.

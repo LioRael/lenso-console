@@ -1,0 +1,93 @@
+name: publish remote-module-kit
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version from packages/remote-module-kit/package.json
+        required: true
+        type: string
+      dry_run:
+        default: false
+        description: Run every publish check without uploading to npm
+        required: true
+        type: boolean
+
+concurrency:
+  cancel-in-progress: false
+  group: publish-remote-module-kit
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lenso-runtime-console
+    steps:
+      - name: Checkout Runtime Console
+        uses: actions/checkout@v6
+        with:
+          path: lenso-runtime-console
+
+      - name: Checkout Lenso backend SDK
+        uses: actions/checkout@v6
+        with:
+          path: lenso
+          repository: LioRael/lenso
+          ssh-key: ${{ secrets.LENSO_REPO_DEPLOY_KEY }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: lenso-runtime-console/package.json
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure npm supports trusted publishing
+        run: |
+          npm install --global npm@^11.5.1
+          npm --version
+
+      - name: Verify publish input
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Publish workflow must run from main, got ${GITHUB_REF}."
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./packages/remote-module-kit/package.json').version")"
+          if [ "${package_version}" != "${{ inputs.version }}" ]; then
+            echo "Input version ${{ inputs.version }} does not match package.json version ${package_version}."
+            exit 1
+          fi
+
+          if npm view "@lenso/remote-module-kit@${package_version}" version >/dev/null 2>&1; then
+            echo "@lenso/remote-module-kit@${package_version} is already published."
+            exit 1
+          fi
+
+          echo "PACKAGE_VERSION=${package_version}" >> "${GITHUB_ENV}"
+
+      - name: Run package readiness
+        run: pnpm package-readiness
+
+      - name: Dry-run npm publish
+        if: ${{ inputs.dry_run }}
+        working-directory: lenso-runtime-console/packages/remote-module-kit
+        run: npm publish --access public --dry-run
+
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        working-directory: lenso-runtime-console/packages/remote-module-kit
+        run: npm publish --access public
