@@ -1,3 +1,4 @@
+import type { AdminActionInvokeResponse } from "@lenso/ts-sdk";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ExternalLink, Play } from "lucide-react";
 import { useState } from "react";
@@ -5,6 +6,10 @@ import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/cn";
 import { httpClient } from "../lib/http-client";
+import {
+  adminActionInvokePath,
+  adminActionInvokeRequest,
+} from "./admin-action-workbench-model";
 import { adminActionsPath } from "./admin-actions-model";
 import {
   type AdminActionInputField,
@@ -18,14 +23,7 @@ import {
   buildAdminActionInput,
 } from "./data-render-model";
 
-type ActionResponse = {
-  data: unknown;
-  invocation?: {
-    correlation_id: string;
-    request_id: string;
-    story_node_id: string;
-  };
-};
+type ActionResponse = AdminActionInvokeResponse;
 
 type ActionInputState = Record<string, AdminActionInputValues>;
 
@@ -262,17 +260,9 @@ function invokeAdminAction(
   confirmationPhrase?: string
 ) {
   return httpClient
-    .post(
-      `admin/data/${encodeURIComponent(moduleName)}/actions/${encodeURIComponent(actionName)}`,
-      {
-        json: {
-          input,
-          ...(confirmationPhrase
-            ? { confirmation_phrase: confirmationPhrase }
-            : {}),
-        },
-      }
-    )
+    .post(adminActionInvokePath(moduleName, actionName), {
+      json: adminActionInvokeRequest(input, confirmationPhrase),
+    })
     .json<ActionResponse>();
 }
 

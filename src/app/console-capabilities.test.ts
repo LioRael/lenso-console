@@ -17,6 +17,14 @@ describe("console capabilities", () => {
     ).toEqual(["runtime.stories.read"]);
   });
 
+  test("keeps colons inside capability scope names", () => {
+    expect(
+      parseDevAuthTokenScopes(
+        "dev-service:admin:runtime.stories.read,hello-action:greetings:write"
+      )
+    ).toEqual(["runtime.stories.read", "hello-action:greetings:write"]);
+  });
+
   test("uses token scopes in API mode", () => {
     expect(
       consoleCapabilityProvider({

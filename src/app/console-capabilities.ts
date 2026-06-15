@@ -14,10 +14,11 @@ export function parseDevAuthTokenScopes(token: string): string[] {
     : normalized.startsWith("dev-user:")
       ? normalized.slice("dev-user:".length)
       : normalized;
-  const [, rawScopes] = serviceToken.split(":", 2);
-  if (!rawScopes) {
+  const scopeSeparator = serviceToken.indexOf(":");
+  if (scopeSeparator === -1) {
     return [];
   }
+  const rawScopes = serviceToken.slice(scopeSeparator + 1);
   return rawScopes.split(",").filter((scope) => scope.length > 0);
 }
 
