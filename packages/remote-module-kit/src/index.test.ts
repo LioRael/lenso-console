@@ -1,14 +1,24 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  actionBooleanField,
+  actionConfirmation,
+  adminAction,
+  adminSchema,
   booleanField,
+  declarativeCustom,
+  declarativePage,
+  declarativeSection,
   defineRemoteModule,
   defineSchemaEntity,
+  entityTable,
   everyStartup,
   getRoute,
   integerField,
   jsonField,
   lifecycle,
+  metricBinding,
+  metricStrip,
   postRoute,
   runtimeFunction,
   schemaAdmin,
@@ -271,6 +281,125 @@ describe("@lenso/remote-module-kit", () => {
     }
   });
 
+  test("defines declarative admin actions", () => {
+    const contacts = defineSchemaEntity({
+      fields: [textField("email")],
+      label: "Contacts",
+      name: "contacts",
+      readCapability: "crm.contacts.read",
+    });
+    const manifest = defineRemoteModule({
+      admin: declarativeCustom({
+        actions: [
+          adminAction("sync_contacts", {
+            capability: "crm.contacts.sync",
+            confirmation: actionConfirmation("Sync remote contacts now?", {
+              requiredPhrase: "SYNC",
+            }),
+            dangerLevel: "medium",
+            inputFields: [
+              actionBooleanField("dry_run", {
+                description: "Preview the sync without writing remote data",
+                label: "Dry run",
+              }),
+            ],
+            label: "Sync contacts",
+          }),
+        ],
+        fallbackSchema: adminSchema([contacts]),
+        pages: [
+          declarativePage("dashboard", {
+            sections: [
+              declarativeSection("contacts", {
+                component: entityTable("contacts"),
+              }),
+              declarativeSection("metrics", {
+                component: metricStrip([
+                  metricBinding("Pending contacts", "$.pending_contacts"),
+                ]),
+              }),
+            ],
+          }),
+        ],
+      }),
+      capabilities: ["crm.contacts.read", "crm.contacts.sync"],
+      name: "crm",
+    });
+
+    expect(manifest.admin).toEqual({
+      actions: [
+        {
+          capability: "crm.contacts.sync",
+          confirmation: {
+            message: "Sync remote contacts now?",
+            required_phrase: "SYNC",
+          },
+          danger_level: "medium",
+          input_schema: {
+            fields: [
+              {
+                description: "Preview the sync without writing remote data",
+                field_type: { kind: "boolean" },
+                label: "Dry run",
+                name: "dry_run",
+                required: false,
+              },
+            ],
+          },
+          label: "Sync contacts",
+          name: "sync_contacts",
+        },
+      ],
+      fallback_schema: {
+        entities: [
+          {
+            fields: [
+              {
+                field_type: { kind: "string" },
+                label: "Email",
+                name: "email",
+                nullable: false,
+              },
+            ],
+            label: "Contacts",
+            name: "contacts",
+            read_capability: "crm.contacts.read",
+          },
+        ],
+      },
+      kind: "declarative_custom",
+      pages: [
+        {
+          label: "Dashboard",
+          name: "dashboard",
+          sections: [
+            {
+              component: {
+                entity: "contacts",
+                kind: "entity_table",
+              },
+              label: "Contacts",
+              name: "contacts",
+            },
+            {
+              component: {
+                kind: "metric_strip",
+                metrics: [
+                  {
+                    label: "Pending contacts",
+                    value_path: "$.pending_contacts",
+                  },
+                ],
+              },
+              label: "Metrics",
+              name: "metrics",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   test("serves declared HTTP routes with params and request body", async () => {
     const manifest = defineRemoteModule({
       httpRoutes: [
@@ -309,6 +438,68 @@ describe("@lenso/remote-module-kit", () => {
       expect(createResponse.status).toBe(201);
       await expect(createResponse.json()).resolves.toEqual({
         contact: { email: "grace@example.com" },
+      });
+    } finally {
+      await served.close();
+    }
+  });
+
+  test("serves admin action invocations", async () => {
+    const manifest = defineRemoteModule({
+      admin: declarativeCustom({
+        actions: [
+          adminAction("sync_contacts", {
+            capability: "crm.contacts.sync",
+            label: "Sync contacts",
+          }),
+        ],
+      }),
+      name: "crm",
+    });
+    const served = await serveRemoteModule(manifest, {
+      actions: {
+        sync_contacts: ({ action, input }) => ({
+          action,
+          dry_run:
+            typeof input === "object" && input !== null && "dry_run" in input
+              ? input.dry_run
+              : false,
+          synced: true,
+        }),
+      },
+      port: 0,
+    });
+    try {
+      const invokeResponse = await fetch(
+        `${served.baseUrl}/admin/actions/sync_contacts`,
+        {
+          body: JSON.stringify({ dry_run: true }),
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        }
+      );
+      expect(invokeResponse.status).toBe(200);
+      await expect(invokeResponse.json()).resolves.toEqual({
+        result: {
+          action: "sync_contacts",
+          dry_run: true,
+          synced: true,
+        },
+      });
+
+      const missingResponse = await fetch(
+        `${served.baseUrl}/admin/actions/missing`,
+        {
+          body: JSON.stringify({}),
+          headers: { "content-type": "application/json" },
+          method: "POST",
+        }
+      );
+      expect(missingResponse.status).toBe(404);
+      await expect(missingResponse.json()).resolves.toMatchObject({
+        error: {
+          code: "not_found",
+        },
       });
     } finally {
       await served.close();

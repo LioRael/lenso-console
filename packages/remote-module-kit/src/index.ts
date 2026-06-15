@@ -165,9 +165,78 @@ export interface SchemaEntity {
   read_capability: string;
 }
 
-export interface SchemaAdminSurface {
-  kind: "schema";
+export interface AdminSchema {
   entities: readonly SchemaEntity[];
+}
+
+export interface SchemaAdminSurface extends AdminSchema {
+  kind: "schema";
+}
+
+export type AdminActionDangerLevel = "low" | "medium" | "high";
+
+export interface AdminActionInputField {
+  name: string;
+  label: string;
+  field_type: SchemaFieldType;
+  required: boolean;
+  description?: string;
+}
+
+export interface AdminActionInputSchema {
+  fields: readonly AdminActionInputField[];
+}
+
+export interface AdminActionConfirmation {
+  message: string;
+  required_phrase?: string;
+}
+
+export interface AdminAction {
+  name: string;
+  label: string;
+  capability: string;
+  input_schema?: AdminActionInputSchema;
+  confirmation?: AdminActionConfirmation;
+  danger_level?: AdminActionDangerLevel;
+}
+
+export interface AdminMetricBinding {
+  label: string;
+  value_path: string;
+}
+
+export type AdminDeclarativeComponent =
+  | {
+      kind: "metric_strip";
+      metrics: readonly AdminMetricBinding[];
+    }
+  | {
+      kind: "entity_table";
+      entity: string;
+    }
+  | {
+      kind: "entity_detail";
+      entity: string;
+    };
+
+export interface AdminDeclarativeSection {
+  name: string;
+  label: string;
+  component: AdminDeclarativeComponent;
+}
+
+export interface AdminDeclarativePage {
+  name: string;
+  label: string;
+  sections: readonly AdminDeclarativeSection[];
+}
+
+export interface AdminDeclarativeSurface {
+  kind: "declarative_custom";
+  pages: readonly AdminDeclarativePage[];
+  actions: readonly AdminAction[];
+  fallback_schema?: AdminSchema;
 }
 
 export interface RemoteModuleDefinition {
@@ -196,6 +265,16 @@ export interface RemoteAdminDataSource {
   ) => unknown | null | undefined | Promise<unknown | null | undefined>;
 }
 
+export interface RemoteAdminActionHandlerContext {
+  action: string;
+  input: unknown;
+  request: IncomingMessage;
+}
+
+export type RemoteAdminActionHandler = (
+  context: RemoteAdminActionHandlerContext
+) => unknown | Promise<unknown>;
+
 export interface ServedRemoteModule {
   baseUrl: string;
   manifestUrl: string;
@@ -208,6 +287,7 @@ export interface ServeRemoteModuleOptions {
   port?: number;
   basePath?: string;
   data?: Record<string, RemoteAdminDataSource>;
+  actions?: Record<string, RemoteAdminActionHandler>;
   http?: Record<string, RemoteHttpHandler>;
   runtime?: Record<string, RemoteRuntimeHandler>;
   onReady?: (server: ServedRemoteModule) => void;
@@ -425,9 +505,96 @@ const handleRuntimeFunctionRequest = async ({
   };
 };
 
+const handleAdminActionRequest = async ({
+  basePath,
+  handlers,
+  request,
+}: {
+  basePath: string;
+  handlers: Record<string, RemoteAdminActionHandler>;
+  request: IncomingMessage;
+}): Promise<{ body: unknown; statusCode: number } | null> => {
+  if (request.method !== "POST") {
+    return null;
+  }
+  const url = new URL(request.url ?? "", "http://127.0.0.1");
+  const prefix = `${basePath}/admin/actions/`;
+  if (!url.pathname.startsWith(prefix)) {
+    return null;
+  }
+  const action = decodeURIComponent(url.pathname.slice(prefix.length));
+  if (!action || action.includes("/")) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: "admin action endpoint not found",
+        },
+      },
+      statusCode: 404,
+    };
+  }
+  const handler = handlers[action];
+  if (!handler) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: `${action} admin action handler not found`,
+        },
+      },
+      statusCode: 404,
+    };
+  }
+  const input = await readBody(request);
+  const result = await handler({
+    action,
+    input,
+    request,
+  });
+  return {
+    body: { result: result ?? null },
+    statusCode: 200,
+  };
+};
+
 interface FieldOptions {
   label?: string;
   nullable?: boolean;
+}
+
+export interface ActionFieldOptions {
+  label?: string;
+  required?: boolean;
+  description?: string;
+}
+
+export interface AdminActionOptions {
+  label?: string;
+  capability: string;
+  inputFields?: readonly AdminActionInputField[];
+  confirmation?: AdminActionConfirmation;
+  dangerLevel?: AdminActionDangerLevel;
+}
+
+export interface AdminConfirmationOptions {
+  requiredPhrase?: string;
+}
+
+export interface AdminDeclarativePageOptions {
+  label?: string;
+  sections?: readonly AdminDeclarativeSection[];
+}
+
+export interface AdminDeclarativeSectionOptions {
+  label?: string;
+  component: AdminDeclarativeComponent;
+}
+
+export interface AdminDeclarativeSurfaceOptions {
+  pages?: readonly AdminDeclarativePage[];
+  actions?: readonly AdminAction[];
+  fallbackSchema?: AdminSchema;
 }
 
 const titleCase = (value: string) =>
@@ -446,6 +613,18 @@ const field = (
   label: options.label ?? titleCase(name),
   name,
   nullable: options.nullable ?? false,
+});
+
+const actionField = (
+  name: string,
+  fieldType: SchemaFieldType,
+  options: ActionFieldOptions
+): AdminActionInputField => ({
+  ...(options.description ? { description: options.description } : {}),
+  field_type: fieldType,
+  label: options.label ?? titleCase(name),
+  name,
+  required: options.required ?? false,
 });
 
 const handleAdminDataRequest = async ({
@@ -589,6 +768,100 @@ export const timestampField = (name: string, options: FieldOptions = {}) =>
 export const jsonField = (name: string, options: FieldOptions = {}) =>
   field(name, { kind: "json" }, options);
 
+export const actionTextField = (
+  name: string,
+  options: ActionFieldOptions = {}
+) => actionField(name, { kind: "string" }, options);
+
+export const actionIntegerField = (
+  name: string,
+  options: ActionFieldOptions = {}
+) => actionField(name, { kind: "integer" }, options);
+
+export const actionBooleanField = (
+  name: string,
+  options: ActionFieldOptions = {}
+) => actionField(name, { kind: "boolean" }, options);
+
+export const actionTimestampField = (
+  name: string,
+  options: ActionFieldOptions = {}
+) => actionField(name, { kind: "timestamp" }, options);
+
+export const actionJsonField = (
+  name: string,
+  options: ActionFieldOptions = {}
+) => actionField(name, { kind: "json" }, options);
+
+export const actionConfirmation = (
+  message: string,
+  options: AdminConfirmationOptions = {}
+): AdminActionConfirmation => ({
+  message,
+  ...(options.requiredPhrase
+    ? { required_phrase: options.requiredPhrase }
+    : {}),
+});
+
+export const adminAction = (
+  name: string,
+  options: AdminActionOptions
+): AdminAction => ({
+  capability: options.capability,
+  ...(options.confirmation ? { confirmation: options.confirmation } : {}),
+  ...(options.dangerLevel && options.dangerLevel !== "low"
+    ? { danger_level: options.dangerLevel }
+    : {}),
+  ...(options.inputFields?.length
+    ? { input_schema: { fields: options.inputFields } }
+    : {}),
+  label: options.label ?? titleCase(name),
+  name,
+});
+
+export const metricBinding = (
+  label: string,
+  valuePath: string
+): AdminMetricBinding => ({
+  label,
+  value_path: valuePath,
+});
+
+export const metricStrip = (
+  metrics: readonly AdminMetricBinding[]
+): AdminDeclarativeComponent => ({
+  kind: "metric_strip",
+  metrics,
+});
+
+export const entityTable = (entity: string): AdminDeclarativeComponent => ({
+  entity,
+  kind: "entity_table",
+});
+
+export const entityDetail = (entity: string): AdminDeclarativeComponent => ({
+  entity,
+  kind: "entity_detail",
+});
+
+export const declarativeSection = (
+  name: string,
+  options: AdminDeclarativeSectionOptions
+): AdminDeclarativeSection => ({
+  component: options.component,
+  label: options.label ?? titleCase(name),
+  name,
+});
+
+export const declarativePage = (
+  name: string,
+  options: AdminDeclarativePageOptions = {}
+): AdminDeclarativePage => ({
+  label: options.label ?? titleCase(name),
+  name,
+  sections: options.sections ?? [],
+});
+
 export const defineSchemaEntity = ({
   fields,
   label,
@@ -606,11 +879,28 @@ export const defineSchemaEntity = ({
   read_capability: readCapability,
 });
 
+export const adminSchema = (
+  entities: readonly SchemaEntity[]
+): AdminSchema => ({
+  entities,
+});
+
 export const schemaAdmin = (
   entities: readonly SchemaEntity[]
 ): SchemaAdminSurface => ({
-  entities,
+  ...adminSchema(entities),
   kind: "schema",
+});
+
+export const declarativeCustom = (
+  options: AdminDeclarativeSurfaceOptions = {}
+): AdminDeclarativeSurface => ({
+  actions: options.actions ?? [],
+  ...(options.fallbackSchema
+    ? { fallback_schema: options.fallbackSchema }
+    : {}),
+  kind: "declarative_custom",
+  pages: options.pages ?? [],
 });
 
 export const serveRemoteModule = async (
@@ -637,6 +927,15 @@ export const serveRemoteModule = async (
         sendJson(response, adminResult.statusCode, adminResult.body);
         return;
       }
+    }
+    const actionResult = await handleAdminActionRequest({
+      basePath,
+      handlers: options.actions ?? {},
+      request,
+    });
+    if (actionResult) {
+      sendJson(response, actionResult.statusCode, actionResult.body);
+      return;
     }
     const runtimeResult = await handleRuntimeFunctionRequest({
       basePath,
