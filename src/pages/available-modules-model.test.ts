@@ -225,7 +225,7 @@ describe("available modules model", () => {
         remoteSource: {
           ...baseInstallState.remoteSource,
           configured: true,
-          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason: "remote source configured in .env but not loaded",
         },
@@ -268,7 +268,7 @@ describe("available modules model", () => {
         remoteSource: {
           ...baseInstallState.remoteSource,
           configured: true,
-          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason: "remote source configured in .env but not loaded",
         },
@@ -326,7 +326,7 @@ describe("available modules model", () => {
         remoteSource: {
           ...baseInstallState.remoteSource,
           configured: true,
-          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason: "remote source configured in .env but not loaded",
         },
@@ -348,6 +348,12 @@ describe("available modules model", () => {
       ["restart", "fix", null],
       ["doctor", "ok", "lenso module doctor"],
     ]);
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        row,
+      })[0]?.detail
+    ).toBe("REMOTE_MODULES -> grpc://example.com:50051 (grpc)");
   });
 
   test("builds clean doctor checks for installed remote modules", () => {

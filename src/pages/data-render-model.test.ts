@@ -46,6 +46,7 @@ import {
   moduleManifestHealth,
   moduleRestartPending,
   moduleRunningEnabled,
+  moduleSourceLabel,
   remoteModuleReadiness,
   moduleStatusLabel,
   recordId,
@@ -233,6 +234,27 @@ describe("moduleStatusLabel", () => {
 
   test("uses backend loaded status verbatim", () => {
     expect(moduleStatusLabel(moduleSchema)).toBe("loaded");
+  });
+
+  test("labels remote module transport when diagnostics include it", () => {
+    const module = moduleMetadata({
+      ...moduleSchema,
+      source_diagnostics: {
+        auth_configured: false,
+        base_url: "http://127.0.0.1:50051",
+        kind: "remote",
+        manifest_url:
+          "http://127.0.0.1:50051#lenso.remote.v1.RemoteModule/GetManifest",
+        timeout_ms: 5000,
+        transport: "grpc",
+      },
+    });
+
+    expect(moduleSourceLabel(module)).toBe("remote:grpc");
+    expect(adminSurfaceMetadataRows(module)).toContainEqual({
+      label: "transport",
+      value: "grpc",
+    });
   });
 
   test("maps backend error status objects to error", () => {
