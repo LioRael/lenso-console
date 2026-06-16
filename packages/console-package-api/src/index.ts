@@ -72,6 +72,15 @@ export const defineConsolePackageManifest = <
   manifest: Manifest
 ): Manifest => manifest;
 
+const packageManifestSurfaces = (
+  manifest: ConsolePackageManifest
+): readonly ConsolePackageSurfaceManifest[] => {
+  if ("surfaces" in manifest) {
+    return manifest.surfaces;
+  }
+  return [manifest];
+};
+
 export const consoleSurfacesFromPackageManifest = (
   manifest: ConsolePackageManifest
 ): ConsoleSurfaceManifest[] =>
@@ -107,12 +116,3 @@ export const consoleSurfaceFromPackageManifest = (
   }
   return surface;
 };
-
-function packageManifestSurfaces(
-  manifest: ConsolePackageManifest
-): readonly ConsolePackageSurfaceManifest[] {
-  if ("surfaces" in manifest) {
-    return manifest.surfaces;
-  }
-  return [manifest];
-}
