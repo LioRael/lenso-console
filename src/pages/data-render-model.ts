@@ -189,6 +189,7 @@ export type ModuleSourceDiagnostics = RemoteModuleSourceDiagnostics;
 
 export type RemoteModuleSourceDiagnostics = {
   kind: "remote";
+  transport?: string | null;
   base_url: string;
   manifest_url: string;
   timeout_ms: number;
@@ -511,6 +512,16 @@ export function moduleStatusLabel(module: AdminModuleMetadata): ModuleStatus {
   return module.status;
 }
 
+export function moduleSourceLabel(module: AdminModuleMetadata): string {
+  const transport =
+    module.source_diagnostics?.kind === "remote"
+      ? module.source_diagnostics.transport
+      : null;
+  return module.source === "remote" && transport
+    ? `remote:${transport.replace("_", "/")}`
+    : module.source;
+}
+
 export function moduleIsLoaded(module: AdminModuleMetadata): boolean {
   return module.status === "loaded";
 }
@@ -619,7 +630,7 @@ export function moduleNavItems(
   return modules.flatMap((module) => {
     const schema = schemaFromModule(module);
     const surfaceKind = adminSurfaceKind(module.admin);
-    const sublabel = `${module.source} / ${adminSurfaceLabel(module.admin)} / ${moduleStatusLabel(module)}`;
+    const sublabel = `${moduleSourceLabel(module)} / ${adminSurfaceLabel(module.admin)} / ${moduleStatusLabel(module)}`;
 
     if (!schema || schema.entities.length === 0) {
       return [
@@ -950,13 +961,21 @@ function defaultModuleGovernance(status: ModuleStatus): ModuleGovernance {
 export function adminSurfaceMetadataRows(
   module: AdminModuleMetadata
 ): MetadataRow[] {
+  const transport =
+    module.source_diagnostics?.kind === "remote"
+      ? module.source_diagnostics.transport?.replace("_", "/")
+      : null;
   const surface = module.admin;
   if (!surface) {
-    return [
+    const rows = [
       { label: "module", value: module.module_name },
       { label: "source", value: module.source },
       { label: "status", value: moduleStatusLabel(module) },
     ];
+    if (transport) {
+      rows.splice(2, 0, { label: "transport", value: transport });
+    }
+    return rows;
   }
 
   const rows: MetadataRow[] = [
@@ -965,6 +984,9 @@ export function adminSurfaceMetadataRows(
     { label: "surface", value: adminSurfaceLabel(surface) },
     { label: "status", value: moduleStatusLabel(module) },
   ];
+  if (transport) {
+    rows.splice(2, 0, { label: "transport", value: transport });
+  }
 
   if (surface.kind === "declarative_custom") {
     rows.push(

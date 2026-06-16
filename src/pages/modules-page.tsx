@@ -85,6 +85,7 @@ import {
   moduleRuntimeFunctionRows,
   moduleManifestChecks,
   moduleManifestHealth,
+  moduleSourceLabel,
   remoteModuleReadiness,
   moduleStatusLabel,
   storyDisplayRows,
@@ -311,7 +312,8 @@ function ModulesContent() {
                     </span>
                   </span>
                   <span className="block truncate text-[10px] text-(--muted)">
-                    {module.source} / {adminSurfaceLabel(module.admin)} /{" "}
+                    {moduleSourceLabel(module)} /{" "}
+                    {adminSurfaceLabel(module.admin)} /{" "}
                     {moduleStatusLabel(module)} /{" "}
                     {moduleActivationLabel(module)}
                   </span>
@@ -994,7 +996,7 @@ function ModuleRegistryDetail({
           <Boxes className="text-(--info)" size={14} />
           <span>{module.module_name}</span>
           <span className="ml-auto border border-(--border-subtle) px-2 py-0.5 text-[10px] text-(--secondary)">
-            {module.source} / {moduleStatusLabel(module)} /{" "}
+            {moduleSourceLabel(module)} / {moduleStatusLabel(module)} /{" "}
             {moduleActivationLabel(module)}
           </span>
         </header>

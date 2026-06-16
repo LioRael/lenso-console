@@ -810,11 +810,12 @@ function installEvidence(
   const moduleRegistered =
     evidence.installState?.moduleRegistered ?? evidence.moduleRegistered;
   const remoteSource = evidence.installState?.remoteSource;
+  const transport = remoteSourceTransportLabel(remoteSource);
   if (moduleRegistered === true) {
     return "module registered in /admin/data/modules";
   }
   if (remoteSource?.configured) {
-    return `remote source configured in ${remoteSource.envFile}`;
+    return `remote source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
   }
   if (moduleRegistered === false) {
     return "module not registered in /admin/data/modules";
@@ -905,12 +906,13 @@ function sourceDoctorCheck({
     return doctorCheck("source", "source", "hold", remoteSource.error);
   }
   if (isModuleRegistered || remoteSource?.configured) {
+    const transport = remoteSourceTransportLabel(remoteSource);
     return doctorCheck(
       "source",
       "source",
       "ok",
       remoteSource?.desiredBaseUrl
-        ? `REMOTE_MODULES -> ${remoteSource.desiredBaseUrl}`
+        ? `REMOTE_MODULES -> ${remoteSource.desiredBaseUrl}${transport ? ` (${transport})` : ""}`
         : "module source registered"
     );
   }
@@ -931,6 +933,23 @@ function sourceDoctorCheck({
     `register source in ${remoteSource?.envFile ?? ".env"}`,
     addCommand
   );
+}
+
+function remoteSourceTransportLabel(
+  remoteSource: AvailableModuleRemoteSourceInstallState | undefined
+): string | null {
+  const url =
+    remoteSource?.desiredBaseUrl ?? remoteSource?.runningBaseUrl ?? "";
+  if (url.startsWith("grpcs://")) {
+    return "grpcs";
+  }
+  if (url.startsWith("grpc://")) {
+    return "grpc";
+  }
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return "http/json";
+  }
+  return null;
 }
 
 function planDoctorCheck({
