@@ -9,7 +9,7 @@ function CardRoot({
   return (
     <article
       className={cn(
-        "rounded-lg border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] shadow-(--elevation-card)",
+        "rounded-lg border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] shadow-(--elevation-card)",
         className
       )}
     >
@@ -24,7 +24,10 @@ function CardHeader({
 }: PropsWithChildren<{ className?: string }>) {
   return (
     <header
-      className={cn("border-b border-(--border-subtle) p-3.5", className)}
+      className={cn(
+        "border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_54%,transparent)] px-3 py-2.5",
+        className
+      )}
     >
       {children}
     </header>

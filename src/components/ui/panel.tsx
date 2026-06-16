@@ -9,7 +9,7 @@ function PanelRoot({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-lg border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] shadow-(--elevation-card)",
+        "overflow-hidden rounded-lg border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] shadow-(--elevation-card)",
         className
       )}
     >
@@ -25,7 +25,7 @@ function PanelHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-4 border-b border-(--border-subtle) p-3.5",
+        "flex items-center justify-between gap-4 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_54%,transparent)] px-3 py-2.5",
         className
       )}
     >

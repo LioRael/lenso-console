@@ -264,28 +264,28 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
     >
       <aside
         aria-label="Runtime Console navigation"
-        className="relative overflow-hidden border-(--border) bg-[color-mix(in_srgb,var(--sidebar)_92%,transparent)] lg:sticky lg:top-0 lg:h-screen lg:border-r max-lg:border-b"
+        className="relative overflow-hidden border-(--border-subtle) bg-[color-mix(in_srgb,var(--sidebar)_88%,transparent)] backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:border-r max-lg:border-b"
       >
-        <div className="h-11 border-b border-(--border) bg-(--chrome) max-lg:hidden">
+        <div className="h-11 border-b border-(--border-subtle) bg-(--chrome) max-lg:hidden">
           <div className="sidebar-header flex h-full items-center">
             <div
               aria-hidden={sidebarCollapsed}
               className="sidebar-copy flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap"
             >
-              <div className="grid h-5 min-w-11 place-items-center border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] bg-(--accent-soft) px-1.5 text-(--accent) shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_14%,transparent)]">
-                <span className="font-mono text-[11px] font-semibold uppercase leading-none">
-                  lenso
+              <div className="grid h-6 min-w-6 place-items-center rounded-md border border-(--border-subtle) bg-(--surface) px-1.5 text-(--foreground) shadow-[inset_0_1px_0_var(--panel-gloss)]">
+                <span className="text-[11px] font-semibold leading-none">
+                  L
                 </span>
               </div>
               <div
                 aria-hidden={sidebarCollapsed}
                 className="min-w-0 overflow-hidden whitespace-nowrap leading-tight"
               >
-                <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-(--secondary)">
-                  Runtime
+                <div className="text-xs font-semibold text-(--foreground)">
+                  Lenso
                 </div>
-                <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-(--muted)">
-                  Console
+                <div className="text-[11px] text-(--muted)">
+                  Runtime Console
                 </div>
               </div>
             </div>
@@ -293,7 +293,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
               aria-label={
                 sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
               }
-              className="grid size-6 shrink-0 place-items-center border border-(--border-subtle) bg-(--elevated) text-(--muted) transition hover:border-(--border) hover:text-(--foreground)"
+              className="grid size-6 shrink-0 place-items-center rounded-md border border-transparent bg-transparent text-(--muted) transition-colors hover:bg-(--hover) hover:text-(--foreground)"
               onClick={toggleSidebar}
               title={
                 sidebarCollapsed
@@ -323,18 +323,18 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
           </div>
         </nav>
 
-        <div className="absolute right-0 bottom-0 left-0 border-t border-(--border-subtle) bg-[color-mix(in_srgb,var(--sidebar)_92%,transparent)] p-2 max-lg:hidden">
-          <div className="sidebar-status-item flex w-full items-center gap-2 border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_55%,transparent)] px-2">
-            <div className="size-1.5 shrink-0 rounded-full bg-(--success) shadow-[0_0_7px_var(--success)]" />
+        <div className="absolute right-0 bottom-0 left-0 border-t border-(--border-subtle) bg-[color-mix(in_srgb,var(--sidebar)_86%,transparent)] p-2 max-lg:hidden">
+          <div className="sidebar-status-item flex w-full items-center gap-2 rounded-md border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_54%,transparent)] px-2">
+            <div className="size-1.5 shrink-0 rounded-full bg-(--success)" />
             <span
               aria-hidden={sidebarCollapsed}
-              className="sidebar-copy overflow-hidden whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.04em] text-(--foreground)"
+              className="sidebar-copy overflow-hidden whitespace-nowrap text-[11px] font-medium text-(--foreground)"
             >
               Online
             </span>
             <span
               aria-hidden={sidebarCollapsed}
-              className="sidebar-copy ml-auto overflow-hidden whitespace-nowrap font-mono text-[11px] text-(--muted)"
+              className="sidebar-copy ml-auto overflow-hidden whitespace-nowrap text-[11px] text-(--muted)"
             >
               {runtimeConsoleDataSource()}
             </span>
@@ -343,14 +343,14 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
       </aside>
 
       <main className="min-w-0">
-        <header className="sticky top-0 z-20 grid min-h-11 grid-cols-[minmax(220px,520px)_1fr_auto_auto_auto_auto] items-center gap-2 border-b border-(--border) bg-(--chrome) px-3 shadow-[0_10px_32px_var(--shadow-soft)] backdrop-blur max-lg:grid-cols-[1fr_auto] max-lg:px-2 max-sm:block max-sm:space-y-2 max-sm:py-2">
+        <header className="sticky top-0 z-20 grid min-h-11 grid-cols-[minmax(220px,520px)_1fr_auto_auto_auto_auto] items-center gap-2 border-b border-(--border-subtle) bg-(--chrome) px-3 backdrop-blur-xl max-lg:grid-cols-[1fr_auto] max-lg:px-2 max-sm:block max-sm:space-y-2 max-sm:py-2">
           <RuntimeSearch />
           <div />
           <Button
             aria-label={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
             }
-            className="theme-toggle-button border-(--border-subtle) bg-(--elevated) text-(--secondary) hover:border-(--border)"
+            className="theme-toggle-button text-(--secondary)"
             onClick={toggleTheme}
             title={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
@@ -370,15 +370,15 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
           >
             <Command size={13} />
             Command
-            <span className="border border-(--border-subtle) px-1.5 py-0.5 font-mono text-[11px] text-(--muted)">
+            <span className="rounded border border-(--border-subtle) px-1.5 py-0.5 text-[11px] text-(--muted)">
               ⌘K
             </span>
           </Button>
-          <Badge className="h-7 rounded-none border-(--border) bg-(--elevated) font-mono text-[11px] text-(--secondary) max-lg:hidden">
+          <Badge className="h-7 border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] text-[11px] text-(--secondary) max-lg:hidden">
             <Activity size={13} />
             local
           </Badge>
-          <Badge className="h-7 rounded-none border-(--border) bg-(--elevated) font-mono text-[11px] text-(--secondary) max-lg:hidden">
+          <Badge className="h-7 border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] text-[11px] text-(--secondary) max-lg:hidden">
             <Command size={13} />
             service:admin
           </Badge>
@@ -412,9 +412,9 @@ function WorkspaceSwitcher({
         return (
           <button
             aria-pressed={active}
-            className={`sidebar-nav-item flex h-7 w-full items-center gap-2 px-2 font-mono text-xs transition-colors max-lg:min-w-8 max-lg:justify-center max-lg:px-2 ${
+            className={`sidebar-nav-item flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs transition-colors max-lg:min-w-8 max-lg:justify-center max-lg:px-2 ${
               active
-                ? "bg-(--accent-soft) text-(--foreground) shadow-[inset_16px_0_24px_color-mix(in_srgb,var(--accent)_6%,transparent)]"
+                ? "bg-(--accent-soft) text-(--foreground)"
                 : "text-(--secondary) hover:bg-(--hover) hover:text-(--foreground)"
             }`}
             key={workspace.id}
@@ -448,7 +448,7 @@ function WorkspaceMenu({
 
         return (
           <div className="contents" key={group.id}>
-            <div className="sidebar-copy mt-[var(--sidebar-group-label-margin)] flex h-[var(--sidebar-group-label-height)] items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 font-mono text-[10px] uppercase tracking-[0.06em] text-(--muted) max-lg:hidden">
+            <div className="sidebar-copy mt-[var(--sidebar-group-label-margin)] flex h-[var(--sidebar-group-label-height)] items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 text-[10px] font-semibold uppercase text-(--muted) max-lg:hidden">
               {GroupIcon ? <GroupIcon size={11} strokeWidth={1.5} /> : null}
               <span className="min-w-0 truncate">{group.label}</span>
             </div>
@@ -468,11 +468,10 @@ function NavLink({ item }: { item: ConsoleNavigationItem }) {
   return (
     <Link
       activeProps={{
-        className:
-          "bg-(--accent-soft) text-(--foreground) shadow-[inset_16px_0_24px_color-mix(in_srgb,var(--accent)_6%,transparent)]",
+        className: "bg-(--accent-soft) text-(--foreground)",
       }}
       aria-label={item.label}
-      className="sidebar-nav-item flex h-7 w-full items-center gap-2 px-2 font-mono text-xs text-(--secondary) transition-colors hover:bg-(--hover) hover:text-(--foreground) max-lg:min-w-8 max-lg:justify-center max-lg:px-2"
+      className="sidebar-nav-item flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs text-(--secondary) transition-colors hover:bg-(--hover) hover:text-(--foreground) max-lg:min-w-8 max-lg:justify-center max-lg:px-2"
       title={item.label}
       to={item.path}
     >

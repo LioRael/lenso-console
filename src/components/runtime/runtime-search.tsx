@@ -13,7 +13,7 @@ export function RuntimeSearch() {
 
   return (
     <div className="relative">
-      <label className="flex h-7 items-center gap-2 border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted) shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:border-(--border)">
+      <label className="flex h-7 items-center gap-2 rounded-md border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 text-(--muted) shadow-[inset_0_1px_0_var(--panel-gloss)] transition-colors focus-within:border-(--accent)">
         <Search size={13} />
         <input
           ref={searchInputRef}
@@ -33,20 +33,20 @@ export function RuntimeSearch() {
           placeholder="story / node / correlation / outbox / function"
           value={query}
         />
-        <span className="border border-(--border) px-1 py-0.5 text-[11px] leading-none text-(--muted)">
+        <span className="rounded border border-(--border-subtle) px-1 py-0.5 text-[11px] leading-none text-(--muted)">
           /
         </span>
       </label>
       {open && query.trim() ? (
-        <div className="absolute left-0 top-9 z-30 w-[min(620px,calc(100vw-64px))] overflow-hidden border border-(--border) bg-(--elevated) shadow-(--elevation-overlay)">
+        <div className="absolute left-0 top-9 z-30 w-[min(620px,calc(100vw-64px))] overflow-hidden rounded-lg border border-(--border-subtle) bg-(--elevated) shadow-(--elevation-overlay)">
           {results.length === 0 ? (
-            <div className="p-3 font-mono text-xs text-(--muted)">
+            <div className="p-3 text-xs text-(--muted)">
               No runtime objects found
             </div>
           ) : (
             results.map((result) => (
               <button
-                className="grid w-full grid-cols-[86px_minmax(0,1fr)] gap-3 border-b border-(--border-subtle) bg-transparent px-2.5 py-2 text-left font-mono text-(--foreground) last:border-b-0 hover:bg-(--hover)"
+                className="grid w-full grid-cols-[86px_minmax(0,1fr)] gap-3 border-b border-(--border-subtle) bg-transparent px-2.5 py-2 text-left text-(--foreground) last:border-b-0 hover:bg-(--hover)"
                 key={`${result.kind}:${result.id}`}
                 onClick={() => {
                   selectSearchResult(result);
