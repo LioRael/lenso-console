@@ -391,14 +391,18 @@ describe("module scaffold CLI", () => {
       )
     );
     expect(consoleSurface).toMatchObject({
-      navigation: {
-        order: 10,
-        workspace: {
-          icon: "database",
-          id: "billing",
-          label: "Billing",
+      surfaces: [
+        {
+          navigation: {
+            order: 10,
+            workspace: {
+              icon: "database",
+              id: "billing",
+              label: "Billing",
+            },
+          },
         },
-      },
+      ],
     });
 
     const packageSource = await readFile(
@@ -409,9 +413,7 @@ describe("module scaffold CLI", () => {
       "utf-8"
     );
     expect(packageSource).toContain("billingConsoleModule");
-    expect(packageSource).toContain(
-      "navigation: billingConsoleManifest.navigation"
-    );
+    expect(packageSource).toContain("navigation: consoleSurface.navigation");
     await expect(
       readFile(
         path.join(repoRoot, "apps/runtime-console/package.json"),
@@ -750,14 +752,18 @@ describe("module scaffold CLI", () => {
       )
     );
     expect(consoleSurface).toMatchObject({
-      navigation: {
-        order: 10,
-        workspace: {
-          icon: "database",
-          id: "billing",
-          label: "Billing",
+      surfaces: [
+        {
+          navigation: {
+            order: 10,
+            workspace: {
+              icon: "database",
+              id: "billing",
+              label: "Billing",
+            },
+          },
         },
-      },
+      ],
     });
 
     await expect(
@@ -893,9 +899,7 @@ describe("module scaffold CLI", () => {
       "utf-8"
     );
     expect(consoleSource).toContain("billingConsoleModule");
-    expect(consoleSource).toContain(
-      "navigation: billingConsoleManifest.navigation"
-    );
+    expect(consoleSource).toContain("navigation: consoleSurface.navigation");
     await expect(
       readFile(path.join(packageRoot, "contracts/README.md"), "utf-8")
     ).resolves.toContain("Module-owned contracts");
