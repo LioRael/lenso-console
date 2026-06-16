@@ -237,7 +237,9 @@ export type MetadataRow = {
 };
 
 export type ConfigValueMetadata = {
+  desired_value?: unknown;
   key: string;
+  pending_restart?: boolean;
   value: unknown;
 };
 
@@ -554,7 +556,8 @@ export function moduleDesiredEnabled(
   const match = values.find(
     (value) => value.key === moduleEnabledConfigKey(module.module_name)
   );
-  return typeof match?.value === "boolean" ? match.value : true;
+  const desired = match?.desired_value ?? match?.value;
+  return typeof desired === "boolean" ? desired : true;
 }
 
 export function moduleRestartPending(

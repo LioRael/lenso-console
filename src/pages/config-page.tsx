@@ -1,11 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, History, RotateCcw, Search } from "lucide-react";
+import {
+  ChevronRight,
+  History,
+  RefreshCw,
+  RotateCcw,
+  Search,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Drawer } from "../components/ui/drawer";
 import type {
+  AdminServiceRestartResponse,
   ConfigAuditDto,
   ConfigAuditListResponse,
   ConfigDescriptorDto,
@@ -32,6 +39,7 @@ export type ValueType =
 
 export type ConfigRow = {
   descriptor: ConfigDescriptorDto;
+  pendingRestart: boolean;
   valueType: ValueType;
   value: unknown;
   source: ConfigValueDto["source"];
@@ -129,6 +137,7 @@ function ConfigContent() {
   const descriptorsQuery = useConfigDescriptors();
   const valuesQuery = useConfigValues();
   const [auditTarget, setAuditTarget] = useState<ConfigRow | null>(null);
+  const [restartStatus, setRestartStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const rows = useMemo<ConfigRow[]>(() => {
@@ -140,8 +149,9 @@ function ConfigContent() {
         const match = valueByKey.get(descriptor.key);
         return {
           descriptor,
+          pendingRestart: match?.pending_restart ?? false,
           valueType: parseValueType(descriptor.value_type),
-          value: match ? match.value : descriptor.default,
+          value: match ? match.desired_value : descriptor.default,
           source: match ? match.source : "default",
         };
       })
@@ -169,16 +179,48 @@ function ConfigContent() {
   const isLoading = descriptorsQuery.isLoading || valuesQuery.isLoading;
   const error = descriptorsQuery.error ?? valuesQuery.error;
   const hasSearch = searchQuery.trim().length > 0;
+  const hasPendingRestart = rows.some((row) => row.pendingRestart);
+  const restartMutation = useMutation({
+    mutationFn: () =>
+      httpClient
+        .post("admin/system/restart")
+        .json<AdminServiceRestartResponse>(),
+    onSuccess: (response) =>
+      setRestartStatus(
+        response.requires_supervisor
+          ? "shutdown requested"
+          : "restart scheduled"
+      ),
+    onError: (restartError: unknown) =>
+      setRestartStatus(errorMessage(restartError)),
+  });
 
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
       <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-[13px] font-semibold">Configuration</h1>
-          <span className="ml-auto font-mono text-[10px] text-(--muted)">
-            {hasSearch ? `${visibleRows.length}/${rows.length}` : rows.length}{" "}
-            keys / {runtimeConsoleDataSource()}
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {restartStatus ? (
+              <span className="font-mono text-[10px] text-(--muted)">
+                {restartStatus}
+              </span>
+            ) : null}
+            <span className="font-mono text-[10px] text-(--muted)">
+              {hasSearch ? `${visibleRows.length}/${rows.length}` : rows.length}{" "}
+              keys / {runtimeConsoleDataSource()}
+            </span>
+            <Button
+              className="min-h-6 px-2 text-[10px]"
+              disabled={restartMutation.isPending}
+              onClick={() => restartMutation.mutate()}
+              title="Restart the API process"
+              variant={hasPendingRestart ? "default" : "ghost"}
+            >
+              <RefreshCw size={11} />
+              {restartMutation.isPending ? "Restarting" : "Restart API"}
+            </Button>
+          </div>
         </div>
       </header>
       <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
@@ -449,6 +491,7 @@ function ConfigRowEditor({
         {descriptor.restart_only ? (
           <Tag tone="warn">applies on restart</Tag>
         ) : null}
+        {row.pendingRestart ? <Tag tone="warn">pending restart</Tag> : null}
         <button
           aria-label="View audit history"
           className="ml-auto inline-flex h-6 items-center gap-1 border border-(--border-subtle) px-1.5 text-[10px] text-(--muted) hover:text-(--foreground)"

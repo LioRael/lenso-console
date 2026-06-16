@@ -382,7 +382,10 @@ export type ConfigDescriptorListResponse = {
 };
 
 export type ConfigValueDto = {
+  desired_value: unknown;
+  effective_value: unknown;
   key: string;
+  pending_restart: boolean;
   source: string;
   value: unknown;
 };
@@ -398,4 +401,10 @@ export type ConfigWriteResponse = {
   updated_at: string;
   updated_by?: string | null;
   value: unknown;
+};
+
+export type AdminServiceRestartResponse = {
+  requires_supervisor: boolean;
+  service: string;
+  status: string;
 };

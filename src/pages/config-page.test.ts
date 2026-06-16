@@ -138,6 +138,7 @@ function row(overrides: Partial<ConfigDescriptorDto>): ConfigRow {
       visible_when: null,
       ...overrides,
     },
+    pendingRestart: false,
     source: "default",
     value: null,
     valueType: { kind: "string" },
