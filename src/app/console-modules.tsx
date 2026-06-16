@@ -1,7 +1,7 @@
 import { identityConsoleManifest } from "@lenso/identity-console";
 import { remoteCrmConsoleManifest } from "@lenso/remote-crm-console";
 import {
-  consoleSurfaceFromPackageManifest,
+  consoleSurfacesFromPackageManifest,
   type ConsolePackageManifest,
 } from "@lenso/runtime-console-api";
 import { storyConsoleManifest } from "@lenso/story-console";
@@ -124,7 +124,7 @@ export function consoleModuleMetadataFromManifest(
   manifest: ConsolePackageManifest
 ): ConsoleModuleMetadata {
   return {
-    console: [consoleSurfaceFromPackageManifest(manifest)],
+    console: consoleSurfacesFromPackageManifest(manifest),
     module_name: manifest.id,
   };
 }

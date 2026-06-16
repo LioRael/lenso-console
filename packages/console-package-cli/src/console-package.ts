@@ -315,24 +315,28 @@ const queuePackageFiles = ({
   surfaceName,
 }: ConsolePackageContextWithWrites) => {
   const consoleSurfaceContract = {
-    area,
     exportName: moduleName,
-    icon,
     id: moduleId,
-    label,
-    navigation: {
-      order: 10,
-      workspace: {
-        icon,
-        id: moduleId,
-        label,
-      },
-    },
     packageName,
-    requiredCapabilities: [capability],
-    route,
     source: registrySource,
-    surfaceName,
+    surfaces: [
+      {
+        area,
+        icon,
+        label,
+        navigation: {
+          order: 10,
+          workspace: {
+            icon,
+            id: moduleId,
+            label,
+          },
+        },
+        requiredCapabilities: [capability],
+        route,
+        surfaceName,
+      },
+    ],
     version: "workspace",
   };
 
@@ -406,24 +410,28 @@ ConsoleSurface {
 import consoleSurface from "../console-surface.json";
 
 const consoleSurfaceContract = consoleSurface as unknown as {
-  readonly area: "${area}";
   readonly exportName: "${moduleName}";
-  readonly icon: "${icon}";
   readonly id: "${moduleId}";
-  readonly label: "${label}";
-  readonly navigation: {
-    readonly order: 10;
-    readonly workspace: {
-      readonly icon: "${icon}";
-      readonly id: "${moduleId}";
-      readonly label: "${label}";
-    };
-  };
   readonly packageName: "${packageName}";
-  readonly requiredCapabilities: readonly ["${capability}"];
-  readonly route: "${route}";
   readonly source: "${registrySource}";
-  readonly surfaceName: "${surfaceName}";
+  readonly surfaces: readonly [
+    {
+      readonly area: "${area}";
+      readonly icon: "${icon}";
+      readonly label: "${label}";
+      readonly navigation: {
+        readonly order: 10;
+        readonly workspace: {
+          readonly icon: "${icon}";
+          readonly id: "${moduleId}";
+          readonly label: "${label}";
+        };
+      };
+      readonly requiredCapabilities: readonly ["${capability}"];
+      readonly route: "${route}";
+      readonly surfaceName: "${surfaceName}";
+    };
+  ];
   readonly version: "workspace";
 };
 
@@ -459,16 +467,18 @@ export const ${manifestName} = defineConsolePackageManifest(
 import { ${manifestName} } from "./manifest";
 import { ${componentName} } from "./page";
 
+const [consoleSurface] = ${manifestName}.surfaces;
+
 export const ${moduleName} = defineConsoleModule({
   id: ${manifestName}.id,
   surfaces: [
     {
-      area: ${manifestName}.area,
+      area: consoleSurface.area,
       component: ${componentName},
-      icon: ${manifestName}.icon,
-      label: ${manifestName}.label,
-      navigation: ${manifestName}.navigation,
-      path: ${manifestName}.route,
+      icon: consoleSurface.icon,
+      label: consoleSurface.label,
+      navigation: consoleSurface.navigation,
+      path: consoleSurface.route,
     },
   ],
 });
@@ -485,22 +495,24 @@ export { ${componentName} } from "./page";
 
 import { ${componentName}, ${manifestName}, ${moduleName} } from ".";
 
+const [consoleSurface] = ${manifestName}.surfaces;
+
 describe("${packageName}", () => {
   test("exports a console module manifest and route", () => {
     expect(${manifestName}).toMatchObject({
       exportName: "${moduleName}",
       id: "${moduleId}",
       packageName: "${packageName}",
-      route: "${route}",
+      surfaces: [{ route: "${route}" }],
     });
     expect(${moduleName}).toMatchObject({
       id: ${manifestName}.id,
       surfaces: [
         {
-          area: ${manifestName}.area,
-          icon: ${manifestName}.icon,
-          label: ${manifestName}.label,
-          path: ${manifestName}.route,
+          area: consoleSurface.area,
+          icon: consoleSurface.icon,
+          label: consoleSurface.label,
+          path: consoleSurface.route,
         },
       ],
     });

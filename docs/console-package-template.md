@@ -79,30 +79,34 @@ directly.
 
 ## Manifest
 
-Define the package surface once in `console-surface.json`; generated packages
+Define the package surfaces once in `console-surface.json`; generated packages
 then import that contract from `src/manifest.ts` and pass it through the host
 API:
 
 ```json
 {
-  "area": "data",
   "exportName": "billingConsoleModule",
-  "icon": "database",
   "id": "billing",
-  "label": "Billing",
-  "navigation": {
-    "order": 10,
-    "workspace": {
-      "icon": "database",
-      "id": "billing",
-      "label": "Billing"
-    }
-  },
   "packageName": "@lenso/billing-console",
-  "requiredCapabilities": ["billing.read"],
-  "route": "/data/billing",
   "source": "installed",
-  "surfaceName": "billing",
+  "surfaces": [
+    {
+      "area": "data",
+      "icon": "database",
+      "label": "Billing",
+      "navigation": {
+        "order": 10,
+        "workspace": {
+          "icon": "database",
+          "id": "billing",
+          "label": "Billing"
+        }
+      },
+      "requiredCapabilities": ["billing.read"],
+      "route": "/data/billing",
+      "surfaceName": "billing"
+    }
+  ],
   "version": "workspace"
 }
 ```
@@ -113,24 +117,28 @@ import { defineConsolePackageManifest } from "@lenso/runtime-console-api";
 import consoleSurface from "../console-surface.json";
 
 const consoleSurfaceContract = consoleSurface as unknown as {
-  readonly area: "data";
   readonly exportName: "billingConsoleModule";
-  readonly icon: "database";
   readonly id: "billing";
-  readonly label: "Billing";
-  readonly navigation: {
-    readonly order: 10;
-    readonly workspace: {
-      readonly icon: "database";
-      readonly id: "billing";
-      readonly label: "Billing";
-    };
-  };
   readonly packageName: "@lenso/billing-console";
-  readonly requiredCapabilities: readonly ["billing.read"];
-  readonly route: "/data/billing";
   readonly source: "installed";
-  readonly surfaceName: "billing";
+  readonly surfaces: readonly [
+    {
+      readonly area: "data";
+      readonly icon: "database";
+      readonly label: "Billing";
+      readonly navigation: {
+        readonly order: 10;
+        readonly workspace: {
+          readonly icon: "database";
+          readonly id: "billing";
+          readonly label: "Billing";
+        };
+      };
+      readonly requiredCapabilities: readonly ["billing.read"];
+      readonly route: "/data/billing";
+      readonly surfaceName: "billing";
+    };
+  ];
   readonly version: "workspace";
 };
 
@@ -162,9 +170,9 @@ The generated `--with-console` scaffold creates a module-owned workspace by
 default so a new business module appears as its own switcher entry instead of
 being flattened into a generic Modules bucket.
 
-The host maps manifest fields to Rust `ConsoleSurface` metadata before resolving
-installed packages: `surfaceName` becomes `name`, `packageName` becomes
-`package.name`, `exportName` becomes `package.export`, and
+The host maps each `surfaces[]` item to Rust `ConsoleSurface` metadata before
+resolving installed packages: `surfaceName` becomes `name`, `packageName`
+becomes `package.name`, `exportName` becomes `package.export`, and
 `requiredCapabilities` becomes `required_capabilities`. `navigation` keeps the
 same workspace/group/order shape on both sides for module-owned workspaces.
 Omit Rust `navigation` when a surface belongs in the host-owned System
@@ -238,16 +246,18 @@ import { defineConsoleModule } from "@lenso/runtime-console-api";
 import { billingConsoleManifest } from "./manifest";
 import { BillingConsolePage } from "./page";
 
+const [billingSurface] = billingConsoleManifest.surfaces;
+
 export const billingConsoleModule = defineConsoleModule({
   id: billingConsoleManifest.id,
   surfaces: [
     {
-      area: billingConsoleManifest.area,
+      area: billingSurface.area,
       component: BillingConsolePage,
-      icon: billingConsoleManifest.icon,
-      label: billingConsoleManifest.label,
-      navigation: billingConsoleManifest.navigation,
-      path: billingConsoleManifest.route,
+      icon: billingSurface.icon,
+      label: billingSurface.label,
+      navigation: billingSurface.navigation,
+      path: billingSurface.route,
     },
   ],
 });

@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   consoleSurfaceFromPackageManifest,
+  consoleSurfacesFromPackageManifest,
   defineConsolePackageManifest,
 } from ".";
 
@@ -63,6 +64,59 @@ describe("runtime console package API", () => {
       required_capabilities: ["billing.read"],
       route: "/data/billing",
     });
+  });
+
+  test("maps multi-surface package manifests to Rust console surface metadata", () => {
+    const manifest = defineConsolePackageManifest({
+      exportName: "billingConsoleModule",
+      id: "billing",
+      packageName: "@lenso/billing-console",
+      source: "installed",
+      surfaces: [
+        {
+          area: "data",
+          icon: "database",
+          label: "Invoices",
+          requiredCapabilities: ["billing.invoices.read"],
+          route: "/billing/invoices",
+          surfaceName: "invoices",
+        },
+        {
+          area: "configuration",
+          label: "Billing Settings",
+          requiredCapabilities: ["billing.settings.read"],
+          route: "/billing/settings",
+          surfaceName: "settings",
+        },
+      ],
+      version: "workspace",
+    } as const);
+
+    expect(consoleSurfacesFromPackageManifest(manifest)).toEqual([
+      {
+        area: "data",
+        icon: "database",
+        label: "Invoices",
+        name: "invoices",
+        package: {
+          export: "billingConsoleModule",
+          name: "@lenso/billing-console",
+        },
+        required_capabilities: ["billing.invoices.read"],
+        route: "/billing/invoices",
+      },
+      {
+        area: "configuration",
+        label: "Billing Settings",
+        name: "settings",
+        package: {
+          export: "billingConsoleModule",
+          name: "@lenso/billing-console",
+        },
+        required_capabilities: ["billing.settings.read"],
+        route: "/billing/settings",
+      },
+    ]);
   });
 
   test("maps package manifest navigation to Rust console surface metadata", () => {
