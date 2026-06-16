@@ -348,6 +348,13 @@ export type ConfigAuditListResponse = {
   data: ConfigAuditDto[];
 };
 
+export type ConfigVisibilityConditionDto = {
+  kind: "equals";
+  service: string;
+  key: string;
+  value: unknown;
+};
+
 export type ConfigDescriptorDto = {
   default: unknown;
   description: string;
@@ -356,8 +363,10 @@ export type ConfigDescriptorDto = {
   key: string;
   order: number;
   restart_only: boolean;
+  section?: string | null;
   service: string;
   value_type: unknown;
+  visible_when?: ConfigVisibilityConditionDto | null;
 };
 
 export type ConfigGroupDto = {

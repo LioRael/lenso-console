@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, RotateCcw } from "lucide-react";
+import { ChevronRight, History, RotateCcw, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "../components/ui/badge";
@@ -10,6 +10,7 @@ import type {
   ConfigAuditListResponse,
   ConfigDescriptorDto,
   ConfigDescriptorListResponse,
+  ConfigGroupDto,
   ConfigValueDto,
   ConfigValueListResponse,
   ConfigWriteResponse,
@@ -21,7 +22,7 @@ import {
   runtimeConsoleDataSource,
 } from "../lib/http-client";
 
-type ValueType =
+export type ValueType =
   | { kind: "bool" }
   | { kind: "int"; min?: number; max?: number }
   | { kind: "float"; min?: number; max?: number }
@@ -29,7 +30,7 @@ type ValueType =
   | { kind: "enum"; values: string[] }
   | { kind: "json" };
 
-type ConfigRow = {
+export type ConfigRow = {
   descriptor: ConfigDescriptorDto;
   valueType: ValueType;
   value: unknown;
@@ -44,9 +45,9 @@ type ConfigGroup = {
   rows: ConfigRow[];
 };
 
-type ServiceGroup = {
-  groups: ConfigGroup[];
-  service: string;
+type ConfigSection = {
+  label: string | null;
+  rows: ConfigRow[];
 };
 
 const configQueryKeys = {
@@ -128,6 +129,7 @@ function ConfigContent() {
   const descriptorsQuery = useConfigDescriptors();
   const valuesQuery = useConfigValues();
   const [auditTarget, setAuditTarget] = useState<ConfigRow | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const rows = useMemo<ConfigRow[]>(() => {
     const descriptors = descriptorsQuery.data?.data ?? [];
@@ -150,58 +152,48 @@ function ConfigContent() {
       );
   }, [descriptorsQuery.data, valuesQuery.data]);
 
-  const grouped = useMemo<ServiceGroup[]>(() => {
-    const groupById = new Map(
-      (descriptorsQuery.data?.groups ?? []).map((group) => [group.id, group])
-    );
-    const map = new Map<string, Map<string, ConfigRow[]>>();
-    for (const row of rows) {
-      const groupId =
-        row.descriptor.group ?? `${row.descriptor.service}:ungrouped`;
-      const serviceMap =
-        map.get(row.descriptor.service) ?? new Map<string, ConfigRow[]>();
-      const bucket = serviceMap.get(groupId) ?? [];
-      bucket.push(row);
-      serviceMap.set(groupId, bucket);
-      map.set(row.descriptor.service, serviceMap);
-    }
-    return [...map.entries()]
-      .map(([service, serviceMap]) => ({
-        service,
-        groups: [...serviceMap.entries()]
-          .map(([groupId, groupRows]) => {
-            const group = groupById.get(groupId);
-            return {
-              description: group?.description ?? "",
-              id: groupId,
-              label: group?.label ?? labelFromGroupId(groupId),
-              order: group?.order ?? 999,
-              rows: [...groupRows].sort(compareConfigRows),
-            };
-          })
-          .sort(
-            (a, b) =>
-              a.order - b.order ||
-              a.label.localeCompare(b.label) ||
-              a.id.localeCompare(b.id)
-          ),
-      }))
-      .sort((a, b) => a.service.localeCompare(b.service));
-  }, [descriptorsQuery.data?.groups, rows]);
+  const groups = descriptorsQuery.data?.groups ?? [];
+  const conditionVisibleRows = useMemo(
+    () => filterVisibleConfigRows(rows),
+    [rows]
+  );
+  const visibleRows = useMemo(
+    () => filterConfigRows(conditionVisibleRows, searchQuery, groups),
+    [conditionVisibleRows, groups, searchQuery]
+  );
+  const grouped = useMemo(
+    () => groupConfigRows(visibleRows, groups),
+    [groups, visibleRows]
+  );
 
   const isLoading = descriptorsQuery.isLoading || valuesQuery.isLoading;
   const error = descriptorsQuery.error ?? valuesQuery.error;
+  const hasSearch = searchQuery.trim().length > 0;
 
   return (
-    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
+    <section className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
       <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
         <div className="flex items-center gap-2">
           <h1 className="font-mono text-[13px] font-semibold">Configuration</h1>
           <span className="ml-auto font-mono text-[10px] text-(--muted)">
-            {rows.length} keys / {runtimeConsoleDataSource()}
+            {hasSearch ? `${visibleRows.length}/${rows.length}` : rows.length}{" "}
+            keys / {runtimeConsoleDataSource()}
           </span>
         </div>
       </header>
+      <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+        <label className="flex h-7 w-full items-center gap-2 text-(--muted)">
+          <Search size={14} />
+          <input
+            aria-label="Search configuration"
+            className="min-w-0 flex-1 bg-transparent font-mono text-[13px] text-(--foreground) outline-none placeholder:text-(--muted)"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="search key / description / group"
+            type="search"
+            value={searchQuery}
+          />
+        </label>
+      </div>
 
       <div className="min-h-0 overflow-auto">
         {isLoading ? (
@@ -210,30 +202,40 @@ function ConfigContent() {
           <MessageRow message={errorMessage(error)} tone="error" />
         ) : rows.length === 0 ? (
           <MessageRow message="no configuration descriptors registered" />
+        ) : grouped.length === 0 ? (
+          <MessageRow message="no configuration matches search" />
         ) : (
-          grouped.map(({ groups: configGroups, service }) => (
-            <div key={service}>
-              <div className="sticky top-0 z-10 border-b border-(--border-subtle) bg-(--sidebar) px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-(--accent)">
-                {service === "*" ? "shared" : service}
-              </div>
-              {configGroups.map((group) => (
-                <div key={`${service}:${group.id}`}>
-                  <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-1.5 font-mono">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold text-(--foreground)">
-                        {group.label}
-                      </span>
-                      <span className="ml-auto text-[10px] text-(--muted)">
-                        {group.rows.length} keys
-                      </span>
-                    </div>
-                    {group.description ? (
-                      <div className="mt-0.5 text-[10px] text-(--muted)">
-                        {group.description}
-                      </div>
-                    ) : null}
+          grouped.map((group) => (
+            <details className="group" key={group.id}>
+              <summary className="sticky top-0 z-10 flex cursor-pointer list-none items-center gap-2 border-b border-(--border-subtle) bg-(--sidebar) px-3 py-1.5 font-mono [&::-webkit-details-marker]:hidden">
+                <ChevronRight
+                  className="shrink-0 text-(--muted) transition-transform group-open:rotate-90"
+                  size={13}
+                />
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-[11px] font-semibold text-(--foreground)">
+                      {group.label}
+                    </span>
+                    <span className="text-[10px] text-(--muted)">
+                      {group.rows.length} keys
+                    </span>
                   </div>
-                  {group.rows.map((row) => (
+                  {group.description ? (
+                    <div className="mt-0.5 truncate text-[10px] text-(--muted)">
+                      {group.description}
+                    </div>
+                  ) : null}
+                </div>
+              </summary>
+              {sectionConfigRows(group.rows).map((section) => (
+                <div key={section.label ?? "default"}>
+                  {section.label ? (
+                    <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--muted)">
+                      {section.label}
+                    </div>
+                  ) : null}
+                  {section.rows.map((row) => (
                     <ConfigRowEditor
                       key={`${row.descriptor.service}:${row.descriptor.key}`}
                       onOpenAudit={() => setAuditTarget(row)}
@@ -242,7 +244,7 @@ function ConfigContent() {
                   ))}
                 </div>
               ))}
-            </div>
+            </details>
           ))
         )}
       </div>
@@ -252,14 +254,124 @@ function ConfigContent() {
   );
 }
 
-function compareConfigRows(a: ConfigRow, b: ConfigRow) {
+export function filterVisibleConfigRows(rows: ConfigRow[]) {
+  const values = new Map<string, unknown>();
+  for (const row of rows) {
+    values.set(
+      configValueKey(row.descriptor.service, row.descriptor.key),
+      row.value
+    );
+    values.set(row.descriptor.key, row.value);
+  }
+  return rows.filter((row) => {
+    const condition = row.descriptor.visible_when;
+    if (!condition) {
+      return true;
+    }
+    if (condition.kind === "equals") {
+      const value =
+        values.get(configValueKey(condition.service, condition.key)) ??
+        values.get(condition.key);
+      return jsonEqual(value, condition.value);
+    }
+    return true;
+  });
+}
+
+export function filterConfigRows(
+  rows: ConfigRow[],
+  query: string,
+  groups: ConfigGroupDto[]
+) {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) {
+    return rows;
+  }
+  const groupById = new Map(groups.map((group) => [group.id, group]));
+  return rows.filter((row) => {
+    const groupId = configGroupId(row.descriptor);
+    const group = groupById.get(groupId);
+    const text = [
+      row.descriptor.key,
+      row.descriptor.description,
+      row.descriptor.service,
+      groupId,
+      group?.label ?? labelFromGroupId(groupId),
+      group?.description ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+    return terms.every((term) => text.includes(term));
+  });
+}
+
+export function groupConfigRows(
+  rows: ConfigRow[],
+  groups: ConfigGroupDto[]
+): ConfigGroup[] {
+  const groupById = new Map(groups.map((group) => [group.id, group]));
+  const map = new Map<string, ConfigRow[]>();
+  for (const row of rows) {
+    const groupId = configGroupId(row.descriptor);
+    map.set(groupId, [...(map.get(groupId) ?? []), row]);
+  }
+  return [...map.entries()]
+    .map(([groupId, groupRows]) => {
+      const group = groupById.get(groupId);
+      return {
+        description: group?.description ?? "",
+        id: groupId,
+        label: group?.label ?? labelFromGroupId(groupId),
+        order: group?.order ?? 999,
+        rows: [...groupRows].sort(compareConfigRows),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.order - b.order ||
+        a.label.localeCompare(b.label) ||
+        a.id.localeCompare(b.id)
+    );
+}
+
+export function sectionConfigRows(rows: ConfigRow[]): ConfigSection[] {
+  const map = new Map<string, ConfigSection>();
+  for (const row of rows) {
+    const label = row.descriptor.section?.trim() || null;
+    const key = label ?? "";
+    const section = map.get(key) ?? { label, rows: [] };
+    section.rows.push(row);
+    map.set(key, section);
+  }
+  return [...map.values()];
+}
+
+function configGroupId(descriptor: ConfigDescriptorDto) {
+  return (
+    descriptor.group ??
+    (descriptor.service === "*" ? "shared" : descriptor.service)
+  );
+}
+
+function configValueKey(service: string, key: string) {
+  return `${service}:${key}`;
+}
+
+function jsonEqual(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function compareConfigRows(a: ConfigRow, b: ConfigRow) {
   return (
     (a.descriptor.order ?? 0) - (b.descriptor.order ?? 0) ||
     a.descriptor.key.localeCompare(b.descriptor.key)
   );
 }
 
-function labelFromGroupId(groupId: string) {
+export function labelFromGroupId(groupId: string) {
+  if (groupId === "shared") {
+    return "Shared";
+  }
   const lastSegment = groupId.split(".").at(-1) ?? groupId;
   return lastSegment
     .split(/[-_]/)
