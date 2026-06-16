@@ -81,20 +81,20 @@ describe("config page model", () => {
 });
 
 const rows: ConfigRow[] = [
-  row({
+  configRow({
     group: "modules",
     key: "modules.identity.enabled",
     order: 10,
     service: "*",
   }),
-  row({
+  configRow({
     description: "Password hash algorithm.",
     group: "auth-password.hashing",
     key: "hash_algorithm",
     order: 10,
     service: "auth-password",
   }),
-  row({
+  configRow({
     group: "auth-password.tokens",
     key: "token_strategy",
     order: 10,
@@ -102,7 +102,7 @@ const rows: ConfigRow[] = [
     service: "auth-password",
     value_type: { kind: "enum", values: ["session", "jwt"] },
   }),
-  row({
+  configRow({
     group: "auth-password.tokens",
     key: "jwt_secret",
     order: 20,
@@ -115,14 +115,14 @@ const rows: ConfigRow[] = [
       value: "jwt",
     },
   }),
-  row({
+  configRow({
     group: null,
     key: "profile_visibility",
     service: "identity",
   }),
 ];
 
-function row(overrides: Partial<ConfigDescriptorDto>): ConfigRow {
+function configRow(overrides: Partial<ConfigDescriptorDto>): ConfigRow {
   return {
     descriptor: {
       default: null,

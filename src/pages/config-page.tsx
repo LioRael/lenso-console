@@ -45,6 +45,8 @@ export type ConfigRow = {
   source: ConfigValueDto["source"];
 };
 
+const EMPTY_GROUPS: ConfigGroupDto[] = [];
+
 type ConfigGroup = {
   description: string;
   id: string;
@@ -162,7 +164,7 @@ function ConfigContent() {
       );
   }, [descriptorsQuery.data, valuesQuery.data]);
 
-  const groups = descriptorsQuery.data?.groups ?? [];
+  const groups = descriptorsQuery.data?.groups ?? EMPTY_GROUPS;
   const conditionVisibleRows = useMemo(
     () => filterVisibleConfigRows(rows),
     [rows]
