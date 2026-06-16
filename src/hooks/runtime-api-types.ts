@@ -352,13 +352,23 @@ export type ConfigDescriptorDto = {
   default: unknown;
   description: string;
   editable: boolean;
+  group?: string | null;
   key: string;
+  order: number;
   restart_only: boolean;
   service: string;
   value_type: unknown;
 };
 
+export type ConfigGroupDto = {
+  description: string;
+  id: string;
+  label: string;
+  order: number;
+};
+
 export type ConfigDescriptorListResponse = {
+  groups: ConfigGroupDto[];
   data: ConfigDescriptorDto[];
 };
 

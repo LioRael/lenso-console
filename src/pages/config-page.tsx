@@ -36,6 +36,19 @@ type ConfigRow = {
   source: ConfigValueDto["source"];
 };
 
+type ConfigGroup = {
+  description: string;
+  id: string;
+  label: string;
+  order: number;
+  rows: ConfigRow[];
+};
+
+type ServiceGroup = {
+  groups: ConfigGroup[];
+  service: string;
+};
+
 const configQueryKeys = {
   descriptors: ["config", "descriptors"] as const,
   values: ["config", "values"] as const,
@@ -137,15 +150,44 @@ function ConfigContent() {
       );
   }, [descriptorsQuery.data, valuesQuery.data]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, ConfigRow[]>();
+  const grouped = useMemo<ServiceGroup[]>(() => {
+    const groupById = new Map(
+      (descriptorsQuery.data?.groups ?? []).map((group) => [group.id, group])
+    );
+    const map = new Map<string, Map<string, ConfigRow[]>>();
     for (const row of rows) {
-      const bucket = map.get(row.descriptor.service) ?? [];
+      const groupId =
+        row.descriptor.group ?? `${row.descriptor.service}:ungrouped`;
+      const serviceMap =
+        map.get(row.descriptor.service) ?? new Map<string, ConfigRow[]>();
+      const bucket = serviceMap.get(groupId) ?? [];
       bucket.push(row);
-      map.set(row.descriptor.service, bucket);
+      serviceMap.set(groupId, bucket);
+      map.set(row.descriptor.service, serviceMap);
     }
-    return [...map.entries()];
-  }, [rows]);
+    return [...map.entries()]
+      .map(([service, serviceMap]) => ({
+        service,
+        groups: [...serviceMap.entries()]
+          .map(([groupId, groupRows]) => {
+            const group = groupById.get(groupId);
+            return {
+              description: group?.description ?? "",
+              id: groupId,
+              label: group?.label ?? labelFromGroupId(groupId),
+              order: group?.order ?? 999,
+              rows: [...groupRows].sort(compareConfigRows),
+            };
+          })
+          .sort(
+            (a, b) =>
+              a.order - b.order ||
+              a.label.localeCompare(b.label) ||
+              a.id.localeCompare(b.id)
+          ),
+      }))
+      .sort((a, b) => a.service.localeCompare(b.service));
+  }, [descriptorsQuery.data?.groups, rows]);
 
   const isLoading = descriptorsQuery.isLoading || valuesQuery.isLoading;
   const error = descriptorsQuery.error ?? valuesQuery.error;
@@ -169,17 +211,36 @@ function ConfigContent() {
         ) : rows.length === 0 ? (
           <MessageRow message="no configuration descriptors registered" />
         ) : (
-          grouped.map(([service, serviceRows]) => (
+          grouped.map(({ groups: configGroups, service }) => (
             <div key={service}>
               <div className="sticky top-0 z-10 border-b border-(--border-subtle) bg-(--sidebar) px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-(--accent)">
                 {service === "*" ? "shared" : service}
               </div>
-              {serviceRows.map((row) => (
-                <ConfigRowEditor
-                  key={`${row.descriptor.service}:${row.descriptor.key}`}
-                  onOpenAudit={() => setAuditTarget(row)}
-                  row={row}
-                />
+              {configGroups.map((group) => (
+                <div key={`${service}:${group.id}`}>
+                  <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-1.5 font-mono">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-(--foreground)">
+                        {group.label}
+                      </span>
+                      <span className="ml-auto text-[10px] text-(--muted)">
+                        {group.rows.length} keys
+                      </span>
+                    </div>
+                    {group.description ? (
+                      <div className="mt-0.5 text-[10px] text-(--muted)">
+                        {group.description}
+                      </div>
+                    ) : null}
+                  </div>
+                  {group.rows.map((row) => (
+                    <ConfigRowEditor
+                      key={`${row.descriptor.service}:${row.descriptor.key}`}
+                      onOpenAudit={() => setAuditTarget(row)}
+                      row={row}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
           ))
@@ -189,6 +250,22 @@ function ConfigContent() {
       <AuditDrawer onClose={() => setAuditTarget(null)} target={auditTarget} />
     </section>
   );
+}
+
+function compareConfigRows(a: ConfigRow, b: ConfigRow) {
+  return (
+    (a.descriptor.order ?? 0) - (b.descriptor.order ?? 0) ||
+    a.descriptor.key.localeCompare(b.descriptor.key)
+  );
+}
+
+function labelFromGroupId(groupId: string) {
+  const lastSegment = groupId.split(".").at(-1) ?? groupId;
+  return lastSegment
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function ConfigRowEditor({
