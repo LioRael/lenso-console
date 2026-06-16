@@ -388,7 +388,7 @@ export function FlowView({
                   className={cn(
                     "absolute h-18 w-60 cursor-pointer rounded-sm border bg-(--bg-control) text-left transition hover:bg-(--bg-row-hover)",
                     isSelected &&
-                      "border-(--accent) shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_22%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--accent)_30%,transparent)]",
+                      "border-(--line-strong) ring-1 ring-(--line-strong)",
                     !isSelected &&
                       isError &&
                       "border-[color-mix(in_srgb,var(--error)_45%,transparent)]",
@@ -422,7 +422,7 @@ export function FlowView({
                           "rounded-xs px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em]",
                           isError
                             ? "bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-(--error)"
-                            : "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-(--accent)"
+                            : "bg-(--bg-row-hover) text-(--fg-secondary)"
                         )}
                       >
                         {flowNodeKindLabel(node)}
@@ -484,7 +484,7 @@ export function FlowView({
         </button>
       </div>
 
-      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_90%,transparent)]">
+      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-(--bg-panel)">
         <div
           className="absolute top-2 left-2"
           style={{
@@ -509,7 +509,7 @@ export function FlowView({
         </div>
       </div>
 
-      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
+      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-(--bg-panel) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
         <span>Select nodes</span>
         <span>{Math.round(zoom * 100)}%</span>
         <span>Ctrl wheel zoom</span>

@@ -283,9 +283,7 @@ function ModulesContent() {
                 <button
                   className={cn(
                     "block w-full border-l-2 px-2 py-1 text-left",
-                    selected
-                      ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
-                      : "hover:bg-(--sidebar)",
+                    selected ? "bg-(--bg-row-hover)" : "hover:bg-(--sidebar)",
                     lintHealth === "ok" && "border-l-(--success)",
                     lintHealth === "warning" && "border-l-(--warning)",
                     lintHealth === "error" && "border-l-(--error)",
@@ -896,7 +894,7 @@ function SegmentedFilter({
             className={cn(
               "h-6 min-w-0 truncate border border-(--border-subtle) px-1 text-[10px] text-(--muted)",
               value === option
-                ? "bg-(--accent-soft) text-(--foreground)"
+                ? "border-(--line-strong) bg-(--bg-row-hover) text-(--foreground)"
                 : "bg-(--background) hover:bg-(--sidebar)"
             )}
             key={option}

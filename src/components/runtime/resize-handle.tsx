@@ -101,9 +101,9 @@ export function ResizeHandle({
       <span
         className={`absolute inset-0 transition ${
           isDragging
-            ? "bg-[color-mix(in_srgb,var(--accent)_78%,transparent)]"
+            ? "bg-(--fg-tertiary)"
             : isActive
-              ? "bg-[color-mix(in_srgb,var(--accent)_56%,transparent)]"
+              ? "bg-(--line-strong)"
               : "bg-(--border-subtle)"
         }`}
       />

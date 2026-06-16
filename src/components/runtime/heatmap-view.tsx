@@ -137,8 +137,7 @@ export function HeatmapView({
                   className={cn(
                     "relative aspect-5/4 rounded-[1px] border border-(--line) transition hover:z-1 hover:border-(--fg-secondary) focus-visible:z-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--accent)",
                     heatmapCellColor(cell),
-                    selected &&
-                      "border-(--accent) shadow-[0_0_0_1px_var(--accent)]",
+                    selected && "border-(--line-strong)",
                     drilldownEnabled ? "cursor-pointer" : "cursor-default"
                   )}
                   disabled={!drilldownEnabled}
@@ -234,8 +233,7 @@ function HeatmapCellInspector({
               aria-label={`Open heatmap node ${node.name}`}
               className={cn(
                 "grid w-full min-w-0 gap-1 border-b border-(--line) px-3 py-2 text-left transition hover:bg-(--bg-row-hover)",
-                selectedNodeId === node.id &&
-                  "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
+                selectedNodeId === node.id && "bg-(--bg-row-hover)"
               )}
               key={node.id}
               onClick={() => onSelectNode(node)}

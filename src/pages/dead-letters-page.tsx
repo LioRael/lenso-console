@@ -223,9 +223,7 @@ export function DeadLettersPage() {
               return (
                 <button
                   className={`grid w-full grid-cols-[104px_minmax(0,1fr)_116px] items-center gap-3 border-b border-(--border-subtle) px-3 py-2 text-left font-mono text-[11px] ${
-                    isSelected
-                      ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
-                      : "hover:bg-(--elevated)"
+                    isSelected ? "bg-(--bg-row-hover)" : "hover:bg-(--elevated)"
                   }`}
                   key={item.id}
                   onClick={() => selectItem(failure)}

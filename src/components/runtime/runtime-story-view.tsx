@@ -96,7 +96,7 @@ function GraphNode({
           className={cn(
             "relative z-10 mt-1 grid size-9 place-items-center border bg-(--bg-panel)",
             type.iconClass,
-            selected && "ring-2 ring-(--accent)"
+            selected && "ring-1 ring-(--line-strong)"
           )}
         >
           <Icon size={16} strokeWidth={1.8} />
@@ -119,15 +119,14 @@ function GraphNode({
         className={cn(
           "group relative min-w-0 border bg-(--bg-panel) px-3 py-2.5 text-left shadow-(--elevation-raised) transition hover:border-(--line) hover:bg-(--bg-control)",
           type.cardClass,
-          selected &&
-            "border-(--accent) bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent),var(--elevation-raised)]",
+          selected && "border-(--line-strong) bg-(--bg-row-hover)",
           (node.status === "failed" || node.status === "dead") &&
             "shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--error)_20%,transparent),var(--elevation-raised)]"
         )}
       >
         <button
           aria-label={`Select ${node.typeLabel} ${node.name}`}
-          className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+          className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
           onClick={onSelect}
           type="button"
         />
@@ -209,8 +208,7 @@ const nodeStyle: Record<
   external: {
     cardClass: "tint-border tint-error",
     icon: Cloud,
-    iconClass:
-      "tint-border tint-text tint-error shadow-[0_0_18px_rgba(244,63,94,0.12)]",
+    iconClass: "tint-border tint-text tint-error",
     labelClass: "tint tint-error",
   },
   function: {
@@ -226,8 +224,7 @@ const nodeStyle: Record<
     labelClass: "tint tint-info",
   },
   worker: {
-    cardClass:
-      "tint-border tint-warning shadow-[inset_0_0_0_1px_rgba(251,191,36,0.06)]",
+    cardClass: "tint-border tint-warning",
     icon: ServerCog,
     iconClass: "border-double tint-border tint-text tint-warning",
     labelClass: "tint tint-warning",

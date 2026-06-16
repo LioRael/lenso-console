@@ -140,7 +140,7 @@ function TimelineRow({
         className={cn(
           "relative min-w-0 border bg-(--bg-panel) px-3 py-2.5 shadow-(--elevation-raised) transition group-hover:border-(--line)",
           tone.card,
-          selected && "border-(--accent) shadow-[inset_2px_0_0_var(--accent)]"
+          selected && "border-(--line-strong) bg-(--bg-row-hover)"
         )}
       >
         {index > 0 ? (
@@ -201,7 +201,7 @@ function TimelineRow({
           <span
             className={cn(
               "absolute top-2 h-5 min-w-1 transition",
-              errored && "shadow-[0_0_16px_rgba(239,68,68,0.3)]"
+              errored && "opacity-90"
             )}
             style={{
               backgroundColor: errored

@@ -24,7 +24,7 @@ export function OperationsFilterChip({
       className={cn(
         "h-6 rounded-[var(--radius-control)] border px-2 text-[11px] font-medium transition-colors",
         active
-          ? "native-selection border-(--accent)"
+          ? "native-selection border-(--line-strong)"
           : "border-(--line) bg-(--bg-control) text-(--fg-tertiary) shadow-(--elevation-control) hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
       )}
       onClick={onClick}

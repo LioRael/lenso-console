@@ -45,7 +45,7 @@ export function FlameView({
                   className={cn(
                     "absolute top-1 h-7 overflow-hidden rounded-xs border px-2 text-left font-mono text-[12px] text-(--fg-primary) transition hover:brightness-125",
                     selectedNodeId === node.id &&
-                      "shadow-[0_0_0_1px_var(--accent),0_0_8px_color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                      "shadow-[0_0_0_1px_var(--line-strong)]"
                   )}
                   key={node.id}
                   onClick={() => onSelectNode(node)}
