@@ -271,6 +271,7 @@ function ModulesContent() {
               const selected =
                 selectedModule?.module_name === module.module_name;
               const lintHealth = moduleManifestHealth(module);
+              const moduleError = moduleErrorMessage(module);
               return (
                 <button
                   className={cn(
@@ -314,6 +315,11 @@ function ModulesContent() {
                     {moduleStatusLabel(module)} /{" "}
                     {moduleActivationLabel(module)}
                   </span>
+                  {moduleError ? (
+                    <span className="block truncate text-[10px] text-(--error)">
+                      {moduleError}
+                    </span>
+                  ) : null}
                 </button>
               );
             })
@@ -816,7 +822,7 @@ function ModuleRegistryControls({
         onChange={(event) =>
           onChange({ ...filters, query: event.currentTarget.value })
         }
-        placeholder="search modules, routes, capabilities"
+        placeholder="search modules, routes, dependencies"
         type="search"
         value={filters.query}
       />
@@ -1009,6 +1015,7 @@ function ModuleRegistryDetail({
       />
       <ModuleActionsPanel module={module} />
       <ModuleGovernancePanel module={module} />
+      <ModuleDependenciesList dependencies={module.dependencies} />
       <ModuleCapabilitiesList capabilities={module.capabilities} />
       <ModuleConsoleSurfacesTable rows={consoleRows} />
       <MissingConsolePackagesTable
@@ -1681,6 +1688,39 @@ function ModuleCapabilitiesList({ capabilities }: { capabilities: string[] }) {
             title={capability}
           >
             {capability}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ModuleDependenciesList({ dependencies }: { dependencies: string[] }) {
+  if (dependencies.length === 0) {
+    return (
+      <section className="border border-(--border-subtle) bg-(--surface) px-3 py-2 text-(--muted)">
+        No dependencies declared.
+      </section>
+    );
+  }
+
+  return (
+    <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
+      <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2 font-semibold">
+        <Network className="text-(--info)" size={14} />
+        <span>Dependencies</span>
+        <span className="ml-auto border border-(--border-subtle) px-1.5 py-0.5 text-[10px] text-(--secondary)">
+          {dependencies.length}
+        </span>
+      </header>
+      <div className="flex flex-wrap gap-1.5 p-2">
+        {dependencies.map((dependency) => (
+          <span
+            className="max-w-full truncate border border-(--border-subtle) bg-(--sidebar) px-2 py-1 text-[11px] text-(--secondary)"
+            key={dependency}
+            title={dependency}
+          >
+            {dependency}
           </span>
         ))}
       </div>

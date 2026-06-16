@@ -92,6 +92,7 @@ function moduleMetadata(
     AdminModuleMetadata,
     | "capabilities"
     | "console"
+    | "dependencies"
     | "lifecycle"
     | "manifest_lints"
     | "governance"
@@ -103,6 +104,7 @@ function moduleMetadata(
         AdminModuleMetadata,
         | "capabilities"
         | "console"
+        | "dependencies"
         | "lifecycle"
         | "manifest_lints"
         | "governance"
@@ -114,6 +116,7 @@ function moduleMetadata(
   return {
     capabilities: [],
     console: [],
+    dependencies: [],
     lifecycle: null,
     governance: {
       activation_state: "active",
@@ -461,6 +464,7 @@ describe("module status helpers", () => {
       })
     ).toEqual([
       { label: "activation", value: "needs attention" },
+      { label: "dependencies", value: "0" },
       { label: "declared capabilities", value: "1" },
       { label: "referenced capabilities", value: "1" },
       { label: "missing references", value: "1" },
@@ -679,6 +683,7 @@ describe("module status helpers", () => {
         },
         story_display: [],
         capabilities: [],
+        dependencies: [],
         admin: { kind: "schema", entities: [entity] },
       },
     ]);
@@ -703,6 +708,7 @@ describe("module status helpers", () => {
       status: "loaded",
       error: null,
       capabilities: ["remote_crm.contacts.read"],
+      dependencies: ["auth"],
       http_routes: [
         {
           capability: "remote_crm.contacts.read",
@@ -746,6 +752,15 @@ describe("module status helpers", () => {
         lint: "all",
         source: "remote",
         status: "loaded",
+      }).map((module) => module.module_name)
+    ).toEqual(["remote-crm"]);
+
+    expect(
+      filterModuleRegistry([loadedModule, errorModule, crmModule], {
+        query: "auth",
+        lint: "all",
+        source: "all",
+        status: "all",
       }).map((module) => module.module_name)
     ).toEqual(["remote-crm"]);
 

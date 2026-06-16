@@ -181,6 +181,7 @@ export type AdminModuleMetadata = {
   manifest_lints: ModuleManifestLint[];
   story_display: StoryDisplayDescriptor[];
   capabilities: string[];
+  dependencies: string[];
   admin: AdminSurface | null;
 };
 
@@ -597,6 +598,7 @@ export function schemaModulesToAdminMetadata(
   return modules.map((module) => ({
     admin: { kind: "schema", entities: module.schema.entities },
     capabilities: [],
+    dependencies: [],
     error: module.error,
     governance: defaultModuleGovernance(module.status),
     http_routes: [],
@@ -741,6 +743,7 @@ function moduleRegistrySearchText(module: AdminModuleMetadata): string {
     adminSurfaceLabel(module.admin),
     module.error ?? "",
     ...module.capabilities,
+    ...module.dependencies,
     String(governance.capability_summary.declared_count),
     String(governance.capability_summary.referenced_count),
     String(governance.capability_summary.missing_count),
@@ -833,6 +836,7 @@ export function moduleGovernanceRows(
   const governance = moduleGovernance(module);
   return [
     { label: "activation", value: moduleActivationLabel(module) },
+    { label: "dependencies", value: String(module.dependencies.length) },
     {
       label: "declared capabilities",
       value: String(governance.capability_summary.declared_count),
