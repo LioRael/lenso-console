@@ -265,7 +265,7 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
         <Dialog.Backdrop className="z-60 bg-transparent" />
         <Dialog.Popup
           aria-label="Command palette"
-          className="z-70 top-[10vh] flex h-[min(480px,calc(100vh-56px))] w-[min(720px,calc(100vw-40px))] flex-col overflow-hidden rounded-[26px] border border-[color-mix(in_srgb,var(--border)_72%,transparent)] bg-[color-mix(in_srgb,var(--elevated)_96%,transparent)] p-0 shadow-[0_20px_54px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.42)_inset] backdrop-blur-2xl max-sm:top-3 max-sm:h-[min(500px,calc(100vh-24px))] max-sm:w-[calc(100vw-20px)] max-sm:rounded-[24px]"
+          className="glass-panel z-70 top-[10vh] flex h-[min(480px,calc(100vh-56px))] w-[min(720px,calc(100vw-40px))] flex-col overflow-hidden rounded-[26px] border p-0 max-sm:top-3 max-sm:h-[min(500px,calc(100vh-24px))] max-sm:w-[calc(100vw-20px)] max-sm:rounded-[24px]"
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               closeCommandPalette();
@@ -293,7 +293,7 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             {listScrolled ? (
               <div
                 aria-hidden="true"
-                className="absolute inset-0 -z-10 bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--elevated)_30%,transparent)_0%,color-mix(in_srgb,var(--elevated)_10%,transparent)_44%,transparent_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,black_0%,black_56%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_56%,transparent_100%)]"
+                className="glass-progressive-top absolute inset-0 -z-10"
               />
             ) : null}
             <CommandMark />
@@ -374,12 +374,12 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 px-3 pb-3 max-sm:px-3">
             <button
               aria-label="Command options"
-              className="pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] text-(--muted) shadow-[0_10px_28px_rgba(0,0,0,0.12),0_1px_0_rgba(255,255,255,0.58)_inset] backdrop-blur-xl transition-colors hover:bg-[color-mix(in_srgb,var(--muted)_10%,transparent)]"
+              className="glass-control pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full border text-(--muted) transition-colors hover:bg-[color-mix(in_srgb,var(--muted)_10%,transparent)]"
               type="button"
             >
               <Menu size={20} strokeWidth={1.8} />
             </button>
-            <div className="pointer-events-auto flex min-h-10 items-center gap-3 rounded-full border border-[color-mix(in_srgb,var(--border)_82%,transparent)] bg-[color-mix(in_srgb,var(--surface)_90%,transparent)] px-4 text-[13px] font-semibold text-(--muted) shadow-[0_12px_36px_rgba(0,0,0,0.13),0_1px_0_rgba(255,255,255,0.62)_inset] backdrop-blur-xl">
+            <div className="glass-control pointer-events-auto flex min-h-10 items-center gap-3 rounded-full border px-4 text-[13px] font-semibold text-(--muted)">
               <span className="text-(--foreground)">Open Command</span>
               <Keycap>
                 <CornerDownLeft size={16} strokeWidth={2.4} />
@@ -419,7 +419,7 @@ function BottomProgressiveCommandBlur() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-[9] h-16 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--elevated)_30%,transparent)_0%,color-mix(in_srgb,var(--elevated)_10%,transparent)_44%,transparent_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_top,black_0%,black_44%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_top,black_0%,black_44%,transparent_100%)]"
+      className="glass-progressive-bottom pointer-events-none absolute inset-x-0 bottom-0 z-[9] h-16"
     />
   );
 }
