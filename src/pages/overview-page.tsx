@@ -23,10 +23,8 @@ export function OverviewPage() {
       <header className="soft-panel border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <Activity className="text-(--accent)" size={14} />
-          <h1 className="font-mono text-[13px] font-semibold">
-            Runtime Overview
-          </h1>
-          <span className="ml-auto font-mono text-[10px] text-(--muted)">
+          <h1 className="text-[13px] font-semibold">Runtime Overview</h1>
+          <span className="ml-auto text-[11px] text-(--muted)">
             status{" "}
             {summaryQuery.isError ? "degraded" : (summary?.status ?? "loading")}{" "}
             / {runtimeConsoleDataSource()}
@@ -58,7 +56,7 @@ export function OverviewPage() {
             ) : (
               activity.map((item) => (
                 <div
-                  className="grid min-h-11 grid-cols-[108px_minmax(0,1fr)_96px_120px] items-center gap-3 border-b border-(--border-subtle) px-3 font-mono text-[11px] transition hover:bg-(--hover)"
+                  className="grid min-h-11 grid-cols-[108px_minmax(0,1fr)_96px_120px] items-center gap-3 border-b border-(--border-subtle) px-3 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]"
                   key={item.id}
                 >
                   <RuntimeStatusBadge
@@ -94,7 +92,7 @@ export function OverviewPage() {
             ) : (
               failures.map((failure) => (
                 <div
-                  className="border-b border-(--border-subtle) px-3 py-2 font-mono text-[11px] transition hover:bg-(--hover)"
+                  className="border-b border-(--border-subtle) px-3 py-2 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]"
                   key={failure.id}
                 >
                   <div className="mb-1 flex items-center gap-2">
@@ -140,10 +138,10 @@ function RuntimeHeatmapStrip({
   return (
     <div className="border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_86%,transparent)] px-3 py-2">
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--secondary)">
+        <span className="text-[10px] font-semibold uppercase text-(--secondary)">
           Runtime Heatmap
         </span>
-        <span className="ml-auto font-mono text-[10px] text-(--muted)">
+        <span className="ml-auto text-[11px] text-(--muted)">
           {heatmap ? `${heatmap.bucketSeconds}s buckets` : "loading"}
         </span>
       </div>
@@ -151,13 +149,13 @@ function RuntimeHeatmapStrip({
         {loading && cells.length === 0
           ? Array.from({ length: 18 }, (_, index) => (
               <span
-                className="h-7 animate-pulse border border-(--border-subtle) bg-(--elevated)"
+                className="h-7 animate-pulse rounded-sm border border-(--border-subtle) bg-(--elevated)"
                 key={index}
               />
             ))
           : cells.map((cell, index) => (
               <span
-                className="h-7 border border-(--border-subtle)"
+                className="h-7 rounded-sm border border-(--border-subtle)"
                 key={`${cell.bucketStart}-${cell.service}-${cell.nodeType}-${index}`}
                 style={{
                   backgroundColor: heatmapColor(cell),
@@ -167,7 +165,7 @@ function RuntimeHeatmapStrip({
             ))}
         {!loading && cells.length === 0 ? (
           <span
-            className="font-mono text-[11px] text-(--muted)"
+            className="text-[12px] text-(--muted)"
             style={{ gridColumn: "1 / -1" }}
           >
             No runtime heatmap data
@@ -231,7 +229,7 @@ function SummaryStrip({ summary }: { summary: RuntimeSummary | undefined }) {
       ) : (
         rows.map((row) => (
           <div
-            className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-r border-(--border-subtle) px-3 py-2 font-mono text-[10px] last:border-r-0"
+            className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-r border-(--border-subtle) px-3 py-2 text-[11px] last:border-r-0"
             key={row.label}
           >
             <span className="text-(--muted)">{row.icon}</span>
@@ -254,12 +252,10 @@ function SummaryStrip({ summary }: { summary: RuntimeSummary | undefined }) {
 function SectionHeader({ title, meta }: { title: string; meta: string }) {
   return (
     <div className="flex h-8 items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-3">
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--secondary)">
+      <span className="text-[10px] font-semibold uppercase text-(--secondary)">
         {title}
       </span>
-      <span className="ml-auto font-mono text-[10px] text-(--muted)">
-        {meta}
-      </span>
+      <span className="ml-auto text-[11px] text-(--muted)">{meta}</span>
     </div>
   );
 }
@@ -283,7 +279,7 @@ function MessageRow({
 }) {
   return (
     <div
-      className={`border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_42%,transparent)] px-3 py-3 font-mono text-[11px] ${
+      className={`border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_42%,transparent)] px-3 py-3 text-[12px] ${
         tone === "error" ? "text-(--error)" : "text-(--muted)"
       }`}
     >

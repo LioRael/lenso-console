@@ -20,7 +20,7 @@ export function OperationsMessageRow({
   return (
     <div
       className={cn(
-        "border-b border-(--border-subtle) px-3 py-3 font-mono text-[11px]",
+        "border-b border-(--border-subtle) px-3 py-3 text-[12px]",
         tone === "error" ? "text-[#ef4444]" : "text-(--muted)"
       )}
     >

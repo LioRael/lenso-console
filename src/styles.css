@@ -22,6 +22,7 @@
   --secondary: #c7c7cc;
   --accent: #0a84ff;
   --accent-soft: rgba(10, 132, 255, 0.16);
+  --accent-foreground: #ffffff;
   --ambient: color-mix(in srgb, var(--accent) 5%, transparent);
   --chrome: rgba(40, 40, 43, 0.78);
   --inverse: #000000;
@@ -58,6 +59,7 @@
   --secondary: #3a3a3c;
   --accent: #007aff;
   --accent-soft: rgba(0, 122, 255, 0.12);
+  --accent-foreground: #ffffff;
   --ambient: rgba(0, 122, 255, 0.035);
   --chrome: rgba(246, 246, 248, 0.82);
   --inverse: #ffffff;
@@ -256,11 +258,19 @@ code,
   margin-bottom: var(--sidebar-group-label-margin);
 }
 
+.native-selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.native-selection * {
+  color: inherit;
+}
+
 .status-pill {
   background: var(--status-bg);
   border-color: var(--status-border);
   color: var(--status-text);
-  letter-spacing: 0.01em;
 }
 
 .status-pill-dot {
@@ -374,31 +384,22 @@ code,
 }
 
 .runtime-status-badge {
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--runtime-status) 9%, transparent),
-      transparent
-    ),
-    color-mix(in srgb, var(--runtime-status) 7%, var(--surface));
+  background: color-mix(in srgb, var(--runtime-status) 10%, var(--surface));
   border-color: color-mix(
     in srgb,
-    var(--runtime-status) 34%,
+    var(--runtime-status) 26%,
     var(--border-subtle)
   );
-  box-shadow: inset 2px 0 0
-    color-mix(in srgb, var(--runtime-status) 72%, transparent);
   color: var(--runtime-status-text);
 }
 
 .runtime-status-label {
-  background: color-mix(in srgb, var(--runtime-status) 9%, var(--elevated));
+  background: color-mix(in srgb, var(--runtime-status) 8%, var(--elevated));
   border-color: color-mix(
     in srgb,
-    var(--runtime-status) 30%,
+    var(--runtime-status) 24%,
     var(--border-subtle)
   );
-  box-shadow: none;
 }
 
 .runtime-status-pending {

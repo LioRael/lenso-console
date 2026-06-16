@@ -5,7 +5,7 @@ import { cn } from "../lib/cn";
 
 export function OperationsFilterBar({ children }: PropsWithChildren) {
   return (
-    <div className="flex h-9 items-center gap-2 border-b border-(--border-subtle) bg-(--background) px-3">
+    <div className="flex h-9 items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_42%,var(--background))] px-3">
       {children}
     </div>
   );
@@ -22,10 +22,10 @@ export function OperationsFilterChip({
   return (
     <button
       className={cn(
-        "h-6 border px-2 font-mono text-[10px]",
+        "h-6 rounded-md border px-2 text-[11px] font-medium transition-colors",
         active
-          ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-(--accent-soft) text-(--accent)"
-          : "border-(--border-subtle) text-(--muted) hover:text-(--foreground)"
+          ? "native-selection border-(--accent)"
+          : "border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] text-(--muted) hover:text-(--foreground)"
       )}
       onClick={onClick}
       type="button"
@@ -51,7 +51,7 @@ export function OperationsSearchInput({
   return (
     <label
       className={cn(
-        "ml-auto flex h-6 items-center gap-2 border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)",
+        "ml-auto flex h-6 items-center gap-2 rounded-md border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 text-(--muted) focus-within:border-(--accent)",
         className ?? "w-[min(360px,45vw)]"
       )}
     >

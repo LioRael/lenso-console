@@ -43,18 +43,18 @@ export function OperationsPage({
 }) {
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
-      <header className="flex min-h-9 items-center gap-2 overflow-hidden border-b border-(--border-subtle) bg-(--chrome) px-2">
+      <header className="flex min-h-10 items-center gap-2 overflow-hidden border-b border-(--border-subtle) bg-(--chrome) px-2">
         <nav
           aria-label="Operations sections"
-          className="flex min-w-0 flex-wrap items-center gap-1 overflow-hidden py-1"
+          className="flex min-w-0 flex-wrap items-center gap-1 overflow-hidden rounded-lg border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_58%,transparent)] p-0.5"
         >
           {operationTabs.map((tab) => (
             <Link
               className={cn(
-                "h-6 shrink-0 border px-2.5 font-mono text-[10px] leading-6 transition-colors",
+                "h-6 shrink-0 rounded-md px-2.5 text-[11px] font-medium leading-6 transition-colors",
                 active === tab.key
-                  ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-(--accent-soft) text-(--accent)"
-                  : "border-(--border-subtle) text-(--muted) hover:text-(--foreground)"
+                  ? "native-selection"
+                  : "text-(--muted) hover:bg-(--hover) hover:text-(--foreground)"
               )}
               key={tab.key}
               to={tab.to}

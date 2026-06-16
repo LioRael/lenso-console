@@ -13,8 +13,8 @@ export function OperationsInspectorHeader({
   meta?: ReactNode;
 }) {
   return (
-    <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2 font-mono">
-      <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-(--accent)">
+    <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+      <div className="mb-1 text-[10px] font-semibold uppercase text-(--accent)">
         {eyebrow}
       </div>
       <div className="truncate text-[13px] font-semibold text-(--foreground)">
@@ -41,7 +41,7 @@ export function OperationsStatusBanner({
   return (
     <div
       className={cn(
-        "grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-b px-3 py-2 font-mono",
+        "grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-b px-3 py-2",
         tone === "success" &&
           "border-[color-mix(in_srgb,var(--success)_32%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)]",
         tone === "warning" &&
@@ -82,7 +82,7 @@ export function OperationsStatusBanner({
 
 export function OperationsSectionTitle({ children }: { children: string }) {
   return (
-    <div className="border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_52%,transparent)] px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-(--muted)">
+    <div className="border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_46%,transparent)] px-3 py-1.5 text-[10px] font-semibold uppercase text-(--muted)">
       {children}
     </div>
   );

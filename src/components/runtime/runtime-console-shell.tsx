@@ -16,7 +16,14 @@ import {
   Users,
   Workflow,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ComponentType, CSSProperties, PropsWithChildren } from "react";
 
 import { useConsoleNavigation } from "../../app/console-module-metadata";
@@ -43,6 +50,8 @@ import { RuntimeSearch } from "./runtime-search";
 gsap.registerPlugin(useGSAP);
 
 type ShellIcon = ComponentType<{ size?: number; strokeWidth?: number }>;
+type Theme = "dark" | "light";
+type ThemePreference = Theme | "system";
 
 const iconRegistry = {
   activity: Activity,
@@ -145,10 +154,13 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
     "runtime-console:sidebar-collapsed",
     false
   );
-  const [theme, setTheme] = usePersistedLayout<"dark" | "light">(
-    "runtime-console:theme",
-    "dark"
-  );
+  const [themePreference, setThemePreference] =
+    usePersistedLayout<ThemePreference>(
+      "runtime-console:theme-preference",
+      "system"
+    );
+  const [systemTheme, setSystemTheme] = useState<Theme>(systemAppearanceTheme);
+  const theme = themePreference === "system" ? systemTheme : themePreference;
   const initialCollapseRef = useRef(sidebarCollapsed ? 1 : 0);
   const animateSidebarRef = useRef(false);
   const previousSidebarCollapsedRef = useRef(sidebarCollapsed);
@@ -159,8 +171,8 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
   }, [setSidebarCollapsed]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
-  }, [setTheme]);
+    setThemePreference(theme === "dark" ? "light" : "dark");
+  }, [setThemePreference, theme]);
 
   const selectWorkspace = useCallback(
     (workspaceId: string) => {
@@ -170,8 +182,18 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
   );
 
   useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const updateSystemTheme = () => {
+      setSystemTheme(query.matches ? "dark" : "light");
+    };
+    query.addEventListener("change", updateSystemTheme);
+    return () => query.removeEventListener("change", updateSystemTheme);
+  }, []);
+
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    document.documentElement.dataset.themePreference = themePreference;
+  }, [theme, themePreference]);
 
   useEffect(() => {
     if (!routeWorkspaceId) {
@@ -198,7 +220,8 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
-        toggleSidebar();
+        animateSidebarRef.current = true;
+        setSidebarCollapsed((current) => !current);
         return;
       }
 
@@ -210,7 +233,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focusGlobalSearch, openCommandPalette, toggleSidebar]);
+  }, [focusGlobalSearch, openCommandPalette, setSidebarCollapsed]);
 
   useGSAP(
     () => {
@@ -414,7 +437,7 @@ function WorkspaceSwitcher({
             aria-pressed={active}
             className={`sidebar-nav-item flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs transition-colors max-lg:min-w-8 max-lg:justify-center max-lg:px-2 ${
               active
-                ? "bg-(--accent-soft) text-(--foreground)"
+                ? "native-selection"
                 : "text-(--secondary) hover:bg-(--hover) hover:text-(--foreground)"
             }`}
             key={workspace.id}
@@ -468,7 +491,7 @@ function NavLink({ item }: { item: ConsoleNavigationItem }) {
   return (
     <Link
       activeProps={{
-        className: "bg-(--accent-soft) text-(--foreground)",
+        className: "native-selection",
       }}
       aria-label={item.label}
       className="sidebar-nav-item flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs text-(--secondary) transition-colors hover:bg-(--hover) hover:text-(--foreground) max-lg:min-w-8 max-lg:justify-center max-lg:px-2"
@@ -500,4 +523,13 @@ function normalizedIconName(icon: string): string {
     .replaceAll(/([a-z])([A-Z])/g, "$1-$2")
     .replaceAll(/[\s_]+/g, "-")
     .toLowerCase();
+}
+
+function systemAppearanceTheme(): Theme {
+  if (typeof window === "undefined") {
+    return "dark";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }

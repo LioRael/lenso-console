@@ -9,7 +9,7 @@ export function OperationsTableHeader({
   return (
     <div
       className={cn(
-        "grid h-7 items-center border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_52%,transparent)] px-3 font-mono text-[9px] uppercase tracking-[0.08em] text-(--muted)",
+        "grid h-7 items-center border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_46%,transparent)] px-3 text-[10px] font-semibold uppercase text-(--muted)",
         className
       )}
     >
@@ -31,10 +31,10 @@ export function OperationsSelectableRow({
   return (
     <button
       className={cn(
-        "grid w-full items-center border-b border-(--border-subtle) px-3 text-left font-mono text-[11px]",
+        "grid w-full items-center border-b border-(--border-subtle) px-3 text-left text-[12px] transition-colors",
         isSelected
-          ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
-          : "hover:bg-(--elevated)",
+          ? "native-selection"
+          : "hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]",
         className
       )}
       onClick={onClick}
@@ -56,7 +56,7 @@ export function OperationsAggregateRow({
   return (
     <button
       className={cn(
-        "grid h-8 w-full items-center border-b border-(--border-subtle) px-3 text-left font-mono text-[10px] hover:bg-(--elevated)",
+        "grid h-8 w-full items-center border-b border-(--border-subtle) px-3 text-left text-[11px] hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]",
         className
       )}
       onClick={onClick}
@@ -77,7 +77,7 @@ export function OperationsKeyValueRows({
   valueClassName?: string;
 }) {
   return (
-    <div className="w-max min-w-full border-b border-(--border-subtle) font-mono text-xs">
+    <div className="w-max min-w-full border-b border-(--border-subtle) text-xs">
       {rows.map(([key, value]) => (
         <div
           className={cn(

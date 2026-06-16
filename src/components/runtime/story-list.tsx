@@ -22,10 +22,10 @@ export function StoryList({
     <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background)">
       <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
         <div>
-          <h2 className="font-mono text-sm font-semibold tracking-tight text-(--foreground)">
+          <h2 className="text-sm font-semibold tracking-tight text-(--foreground)">
             Stories
           </h2>
-          <p className="font-mono text-xs text-(--muted)">
+          <p className="text-xs text-(--muted)">
             {stories.length} correlations
           </p>
         </div>
@@ -40,14 +40,14 @@ export function StoryList({
           value={query}
         />
       </div>
-      <div className="grid h-6 grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--border-subtle) px-3 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-(--muted)">
+      <div className="grid h-6 grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_46%,transparent)] px-3 text-[10px] font-semibold uppercase text-(--muted)">
         <span />
         <span>story</span>
         <span className="text-right">state</span>
       </div>
       <div className="min-h-0 overflow-auto">
         {stories.length === 0 ? (
-          <div className="p-4 font-mono text-[11px] leading-5 text-(--muted)">
+          <div className="p-4 text-[12px] leading-5 text-(--muted)">
             No stories match the current filter.
           </div>
         ) : null}
@@ -64,8 +64,8 @@ export function StoryList({
                 isError &&
                   "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#ef4444]",
                 isSelected
-                  ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
-                  : "hover:bg-(--elevated)"
+                  ? "native-selection"
+                  : "hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]"
               )}
               key={story.id}
               onClick={() => onSelect(story)}
@@ -81,7 +81,7 @@ export function StoryList({
                 </span>
                 <span
                   className={cn(
-                    "font-mono text-[10px] uppercase tracking-wide",
+                    "text-[10px] font-medium",
                     isError ? "text-[#ff8b86]" : "text-(--muted)"
                   )}
                 >
@@ -89,7 +89,7 @@ export function StoryList({
                 </span>
               </div>
 
-              <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-(--secondary)">
+              <div className="mt-1.5 flex items-center gap-2 text-[11px] text-(--secondary)">
                 <Metric icon={<Clock size={10} />}>
                   {formatRuntimeDuration(storySummary.duration)}
                 </Metric>
@@ -117,11 +117,11 @@ export function StoryList({
               </div>
 
               {isError && storySummary.rootError ? (
-                <div className="mt-1.5 truncate font-mono text-[10px] leading-4 text-[#ff8b86]">
+                <div className="mt-1.5 truncate text-[11px] leading-4 text-[#ff8b86]">
                   {storySummary.rootError}
                 </div>
               ) : (
-                <div className="mt-1.5 truncate font-mono text-[10px] leading-4 text-(--secondary)">
+                <div className="mt-1.5 truncate text-[11px] leading-4 text-(--secondary)">
                   {storySummary.patternLabel || "No execution pattern"}
                 </div>
               )}
@@ -129,14 +129,14 @@ export function StoryList({
               <div className="mt-1.5 flex min-w-0 flex-wrap gap-1">
                 {storySummary.services.slice(0, 4).map((service) => (
                   <span
-                    className="max-w-24 truncate border border-(--border-subtle) bg-(--elevated) px-1 py-0.5 font-mono text-[9px] text-(--muted)"
+                    className="max-w-24 truncate rounded border border-(--border-subtle) bg-(--elevated) px-1.5 py-0.5 text-[10px] text-(--muted)"
                     key={service}
                   >
                     {service}
                   </span>
                 ))}
                 {storySummary.services.length > 4 ? (
-                  <span className="border border-(--border-subtle) bg-(--elevated) px-1 py-0.5 font-mono text-[9px] text-(--muted)">
+                  <span className="rounded border border-(--border-subtle) bg-(--elevated) px-1.5 py-0.5 text-[10px] text-(--muted)">
                     +{storySummary.services.length - 4}
                   </span>
                 ) : null}
