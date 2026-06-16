@@ -1,20 +1,3 @@
-import type {
-  AdminActionInvocationItem,
-  AdminActionInvocationListResponse,
-  AdminFunctionRunDetail,
-  AdminFunctionRunListResponse,
-  AdminFunctionRunResponse,
-  AdminOutboxEventDetail,
-  AdminOutboxEventDetailResponse,
-  AdminRemoteProxyCallItem,
-  AdminRemoteProxyCallListResponse,
-  AdminRuntimeFunctionDeclarationMetadata,
-  AdminRuntimeFunctionRunItem,
-  AdminRuntimeOutboxItem,
-  AdminRuntimeSummaryItem as ApiRuntimeSummaryItem,
-  AdminRuntimeSummaryResponse as ApiRuntimeSummaryResponse,
-  AdminOutboxListResponse,
-} from "@lenso/ts-sdk";
 import {
   useInfiniteQuery,
   useMutation,
@@ -55,6 +38,23 @@ import {
   type RuntimeHeatmap,
   type RuntimeHeatmapCell,
 } from "./runtime-api-model";
+import type {
+  AdminActionInvocationItem,
+  AdminActionInvocationListResponse,
+  AdminFunctionRunDetail,
+  AdminFunctionRunListResponse,
+  AdminFunctionRunResponse,
+  AdminOutboxEventDetail,
+  AdminOutboxEventDetailResponse,
+  AdminRemoteProxyCallItem,
+  AdminRemoteProxyCallListResponse,
+  AdminRuntimeFunctionDeclarationMetadata,
+  AdminRuntimeFunctionRunItem,
+  AdminRuntimeOutboxItem,
+  AdminRuntimeSummaryItem as ApiRuntimeSummaryItem,
+  AdminRuntimeSummaryResponse as ApiRuntimeSummaryResponse,
+  AdminOutboxListResponse,
+} from "./runtime-api-types";
 
 export const runtimeQueryKeys = {
   summary: ["runtime", "summary"] as const,

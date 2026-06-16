@@ -69,9 +69,6 @@ importers:
       '@lenso/remote-module-kit':
         specifier: workspace:*
         version: link:packages/remote-module-kit
-      '@lenso/ts-sdk':
-        specifier: link:../lenso/packages/ts-sdk
-        version: link:../lenso/packages/ts-sdk
       '@types/node':
         specifier: ^25.9.2
         version: 25.9.2

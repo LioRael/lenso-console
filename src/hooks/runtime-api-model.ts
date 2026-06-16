@@ -1,4 +1,15 @@
 import type {
+  ExecutionEdge,
+  ExecutionLogEntry,
+  ExecutionPayload,
+  ExecutionNode,
+  RuntimeStatus,
+  RuntimeStory,
+  TechnicalOperation,
+  TimelineItem,
+} from "../data/mock-runtime";
+import { isRetryable } from "../data/mock-runtime";
+import type {
   AdminRuntimeHeatmapCell,
   AdminRuntimeHeatmapResponse,
   AdminRuntimeExecutionLog,
@@ -13,19 +24,7 @@ import type {
   AdminRuntimeTechnicalOperationListResponse,
   AdminRuntimeTimelineItem,
   PageInfo as ApiPageInfo,
-} from "@lenso/ts-sdk";
-
-import type {
-  ExecutionEdge,
-  ExecutionLogEntry,
-  ExecutionPayload,
-  ExecutionNode,
-  RuntimeStatus,
-  RuntimeStory,
-  TechnicalOperation,
-  TimelineItem,
-} from "../data/mock-runtime";
-import { isRetryable } from "../data/mock-runtime";
+} from "./runtime-api-types";
 
 export type RuntimeHeatmapCell = {
   bucketStart: string;

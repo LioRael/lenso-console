@@ -1,3 +1,10 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { History, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Drawer } from "../components/ui/drawer";
 import type {
   ConfigAuditDto,
   ConfigAuditListResponse,
@@ -6,14 +13,7 @@ import type {
   ConfigValueDto,
   ConfigValueListResponse,
   ConfigWriteResponse,
-} from "@lenso/ts-sdk";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
-
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
-import { Drawer } from "../components/ui/drawer";
+} from "../hooks/runtime-api-types";
 import { time } from "../lib/format";
 import {
   httpClient,

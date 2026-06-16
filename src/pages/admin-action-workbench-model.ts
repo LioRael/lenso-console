@@ -1,4 +1,4 @@
-import type { AdminActionInvokeRequest } from "@lenso/ts-sdk";
+import type { AdminActionInvokeRequest } from "../hooks/runtime-api-types";
 
 export function adminActionInvokePath(
   moduleName: string,
