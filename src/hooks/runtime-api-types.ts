@@ -348,22 +348,44 @@ export type ConfigAuditListResponse = {
   data: ConfigAuditDto[];
 };
 
+export type ConfigVisibilityConditionDto = {
+  kind: "equals";
+  service: string;
+  key: string;
+  value: unknown;
+};
+
 export type ConfigDescriptorDto = {
   default: unknown;
   description: string;
   editable: boolean;
+  group?: string | null;
   key: string;
+  order: number;
   restart_only: boolean;
+  section?: string | null;
   service: string;
   value_type: unknown;
+  visible_when?: ConfigVisibilityConditionDto | null;
+};
+
+export type ConfigGroupDto = {
+  description: string;
+  id: string;
+  label: string;
+  order: number;
 };
 
 export type ConfigDescriptorListResponse = {
+  groups: ConfigGroupDto[];
   data: ConfigDescriptorDto[];
 };
 
 export type ConfigValueDto = {
+  desired_value: unknown;
+  effective_value: unknown;
   key: string;
+  pending_restart: boolean;
   source: string;
   value: unknown;
 };
@@ -379,4 +401,10 @@ export type ConfigWriteResponse = {
   updated_at: string;
   updated_by?: string | null;
   value: unknown;
+};
+
+export type AdminServiceRestartResponse = {
+  requires_supervisor: boolean;
+  service: string;
+  status: string;
 };
