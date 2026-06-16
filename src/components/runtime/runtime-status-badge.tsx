@@ -53,15 +53,16 @@ export function RuntimeStatusBadge({
 }
 
 export const runtimeStatusBadgeBaseClassName =
-  "runtime-status-badge inline-flex min-h-5 w-fit max-w-full items-center gap-1 rounded-xs border px-1.5 font-mono text-[10px] font-semibold uppercase leading-none tracking-[0.06em]";
+  "runtime-status-badge inline-flex min-h-5 w-fit max-w-full items-center gap-1 rounded-full border px-2 text-[11px] font-medium leading-none";
 
-export const runtimeStatusBadgeCompactClassName = "min-h-4.5 px-1 text-[9px]";
+export const runtimeStatusBadgeCompactClassName =
+  "min-h-4.5 px-1.5 text-[10px]";
 
 export const runtimeStatusBadgeLabelClassName =
-  "runtime-status-label py-0.5 text-[10px] tracking-[0.08em]";
+  "runtime-status-label py-0.5 text-[11px]";
 
 export const runtimeStatusBadgeTableClassName =
-  "min-h-4.5 w-[72px] justify-center px-1 text-[9px] tracking-[0.08em]";
+  "min-h-4.5 w-[72px] justify-center px-1 text-[10px]";
 
 const runtimeStatusTone: Record<
   RuntimeStatus,

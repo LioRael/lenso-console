@@ -168,23 +168,23 @@ export function FunctionsPage() {
 
   return (
     <section
-      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--background) text-(--foreground)"
+      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--bg-canvas) text-(--fg-primary)"
       style={{
         gridTemplateColumns: `minmax(0,1fr) 1px ${inspectorWidth}px`,
       }}
     >
-      <main className="grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--border-subtle)">
-        <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+      <main className="grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--line)">
+        <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
           <div className="flex items-center gap-2">
             <Braces className="text-(--accent)" size={14} />
             <h1 className="font-mono text-[13px] font-semibold">Functions</h1>
-            <span className="ml-auto font-mono text-[10px] text-(--muted)">
+            <span className="ml-auto font-mono text-[10px] text-(--fg-tertiary)">
               {visible.length} runs / {runtimeConsoleDataSource()}
             </span>
           </div>
         </header>
 
-        <div className="grid border-b border-(--border-subtle) bg-(--surface) md:grid-cols-6">
+        <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-6">
           {[
             ["total", summary.total],
             ["pending", summary.pending],
@@ -194,16 +194,16 @@ export function FunctionsPage() {
             ["dead", summary.dead],
           ].map(([label, value]) => (
             <div
-              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--border-subtle) px-3 py-2 font-mono text-[10px] last:border-r-0"
+              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--line) px-3 py-2 font-mono text-[10px] last:border-r-0"
               key={label}
             >
-              <span className="text-(--muted)">{label}</span>
+              <span className="text-(--fg-tertiary)">{label}</span>
               <span
                 className={cn(
-                  "text-[13px] font-semibold text-(--foreground)",
+                  "text-[13px] font-semibold text-(--fg-primary)",
                   (label === "failed" || label === "dead") &&
                     Number(value) > 0 &&
-                    "text-[#ef4444]"
+                    "text-(--tone-error-fg)"
                 )}
               >
                 {value}
@@ -212,7 +212,7 @@ export function FunctionsPage() {
           ))}
         </div>
 
-        <div className="grid border-b border-(--border-subtle) bg-(--background) lg:grid-cols-3">
+        <div className="grid border-b border-(--line) bg-(--bg-canvas) lg:grid-cols-3">
           <AggregatePanel
             onSelect={(key) => {
               const next = key === "undeclared" ? "" : key;
@@ -255,10 +255,10 @@ export function FunctionsPage() {
               {item}
             </OperationsFilterChip>
           ))}
-          <label className="flex h-6 min-w-[150px] items-center border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)">
+          <label className="flex h-6 min-w-[150px] items-center border border-(--line) bg-(--bg-control) px-2 font-mono text-(--fg-tertiary)">
             <input
               aria-label="Filter functions by module"
-              className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+              className="w-full bg-transparent text-[10px] text-(--fg-primary) outline-hidden placeholder:text-(--fg-tertiary)"
               list="function-run-modules"
               onChange={(event) => setModuleName(event.target.value)}
               placeholder="module"
@@ -272,10 +272,10 @@ export function FunctionsPage() {
               ))}
             </datalist>
           </label>
-          <label className="flex h-6 min-w-[140px] items-center border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)">
+          <label className="flex h-6 min-w-[140px] items-center border border-(--line) bg-(--bg-control) px-2 font-mono text-(--fg-tertiary)">
             <input
               aria-label="Filter functions by queue"
-              className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+              className="w-full bg-transparent text-[10px] text-(--fg-primary) outline-hidden placeholder:text-(--fg-tertiary)"
               list="function-run-queues"
               onChange={(event) => setQueue(event.target.value)}
               placeholder="queue"
@@ -329,36 +329,36 @@ export function FunctionsPage() {
                 >
                   <FunctionStatusPill status={run.status} />
                   <span className="min-w-0">
-                    <span className="block truncate text-(--foreground)">
+                    <span className="block truncate text-(--fg-primary)">
                       {run.functionName}
                     </span>
-                    <span className="block truncate text-[10px] text-(--muted)">
+                    <span className="block truncate text-[10px] text-(--fg-tertiary)">
                       {run.id}
                     </span>
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-(--foreground)">
+                    <span className="block truncate text-(--fg-primary)">
                       {run.runtimeDeclaration?.moduleName ?? "-"}
                     </span>
-                    <span className="block truncate text-[10px] text-(--muted)">
+                    <span className="block truncate text-[10px] text-(--fg-tertiary)">
                       {run.runtimeDeclaration?.moduleSource ?? "undeclared"}
                     </span>
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-(--foreground)">
+                    <span className="block truncate text-(--fg-primary)">
                       {run.runtimeDeclaration?.queue ?? "-"}
                     </span>
-                    <span className="block truncate text-[10px] text-(--muted)">
+                    <span className="block truncate text-[10px] text-(--fg-tertiary)">
                       {run.runtimeDeclaration?.inputSchema ?? "-"}
                     </span>
                   </span>
-                  <span className="text-(--secondary)">
+                  <span className="text-(--fg-secondary)">
                     {run.attempts}/{run.maxAttempts}
                   </span>
-                  <span className="truncate text-[10px] text-(--muted)">
+                  <span className="truncate text-[10px] text-(--fg-tertiary)">
                     {run.correlationId}
                   </span>
-                  <span className="text-right text-[10px] text-(--muted)">
+                  <span className="text-right text-[10px] text-(--fg-tertiary)">
                     {time(run.createdAt)}
                   </span>
                 </OperationsSelectableRow>
@@ -374,7 +374,7 @@ export function FunctionsPage() {
         onResize={resizeInspector}
       />
 
-      <aside className="relative z-0 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--sidebar)">
+      <aside className="relative z-0 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--bg-sidebar)">
         <InspectorHeader run={selected} />
         <div className="min-h-0 overflow-auto">
           {selected ? (
@@ -383,7 +383,7 @@ export function FunctionsPage() {
             <OperationsMessageRow message="select a function run" />
           )}
         </div>
-        <div className="flex gap-2 border-t border-(--border-subtle) bg-(--surface) p-2">
+        <div className="flex gap-2 border-t border-(--line) bg-(--bg-panel) p-2">
           <Button
             disabled={!selected}
             onClick={() =>
@@ -430,7 +430,7 @@ function AggregatePanel({
   title: string;
 }) {
   return (
-    <section className="min-w-0 border-r border-(--border-subtle) last:border-r-0">
+    <section className="min-w-0 border-r border-(--line) last:border-r-0">
       <OperationsTableHeader className="grid-cols-[minmax(0,1fr)_52px_52px_72px] gap-2">
         <span>{title}</span>
         <span>fail</span>
@@ -439,7 +439,7 @@ function AggregatePanel({
       </OperationsTableHeader>
       <div>
         {rows.length === 0 ? (
-          <div className="px-3 py-2 font-mono text-[10px] text-(--muted)">
+          <div className="px-3 py-2 font-mono text-[10px] text-(--fg-tertiary)">
             empty
           </div>
         ) : (
@@ -449,20 +449,28 @@ function AggregatePanel({
               key={row.key}
               onClick={() => onSelect(row.key)}
             >
-              <span className="min-w-0 truncate text-(--foreground)">
+              <span className="min-w-0 truncate text-(--fg-primary)">
                 {row.key}
               </span>
               <span
-                className={row.failed > 0 ? "text-[#ef4444]" : "text-(--muted)"}
+                className={
+                  row.failed > 0
+                    ? "text-(--tone-error-fg)"
+                    : "text-(--fg-tertiary)"
+                }
               >
                 {row.failed}/{row.total}
               </span>
               <span
-                className={row.dead > 0 ? "text-[#ef4444]" : "text-(--muted)"}
+                className={
+                  row.dead > 0
+                    ? "text-(--tone-error-fg)"
+                    : "text-(--fg-tertiary)"
+                }
               >
                 {row.dead}
               </span>
-              <span className="text-(--muted)">
+              <span className="text-(--fg-tertiary)">
                 {formatFunctionDuration(row.avgDurationMs)}
               </span>
             </OperationsAggregateRow>
@@ -497,16 +505,16 @@ function FunctionStatusPill({ status }: { status: FunctionRun["status"] }) {
       className={cn(
         "inline-flex h-5 w-[76px] items-center justify-center border px-1.5 font-mono text-[10px] font-semibold",
         status === "completed" &&
-          "border-[color-mix(in_srgb,#22c55e_34%,transparent)] bg-[color-mix(in_srgb,#22c55e_10%,transparent)] text-[#22c55e]",
+          "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-(--tone-success-fg)",
         (status === "pending" ||
           status === "processing" ||
           status === "published" ||
           status === "running") &&
-          "border-[color-mix(in_srgb,var(--accent)_34%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-(--accent)",
+          "border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] text-(--tone-info-fg)",
         status === "failed" &&
-          "border-[color-mix(in_srgb,#f59e0b_34%,transparent)] bg-[color-mix(in_srgb,#f59e0b_10%,transparent)] text-[#f59e0b]",
+          "border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)] text-(--tone-warning-fg)",
         status === "dead" &&
-          "border-[color-mix(in_srgb,var(--error)_35%,transparent)] bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-[#ef4444]"
+          "border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] text-(--tone-error-fg)"
       )}
     >
       {status}
@@ -591,9 +599,9 @@ function FunctionTechnicalOperations({
 }) {
   if (groups.length === 0 || isLoading || isError) {
     return (
-      <section className="border-b border-(--border-subtle)">
+      <section className="border-b border-(--line)">
         <OperationsSectionTitle>operations</OperationsSectionTitle>
-        <div className="px-3 py-2 font-mono text-[10px] text-(--muted)">
+        <div className="px-3 py-2 font-mono text-[10px] text-(--fg-tertiary)">
           {technicalOperationsStateLabel({ error, isError, isLoading })}
         </div>
       </section>
@@ -601,16 +609,16 @@ function FunctionTechnicalOperations({
   }
 
   return (
-    <section className="border-b border-(--border-subtle)">
-      <div className="flex items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_52%,transparent)] px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-(--muted)">
+    <section className="border-b border-(--line)">
+      <div className="flex items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-(--fg-tertiary)">
         <span>operations</span>
-        <span className="rounded-xs border border-(--border-subtle) bg-(--background) px-1.5 py-0.5 text-[10px] text-(--muted)">
+        <span className="rounded-xs border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)">
           {groups.reduce((total, group) => total + group.operations.length, 0)}
         </span>
       </div>
       {groups.map((group) => (
         <div className="grid" key={group.id}>
-          <div className="border-t border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_82%,var(--background))] px-3 py-1.5 font-mono text-[10px] font-semibold uppercase text-(--muted)">
+          <div className="border-t border-(--line) bg-(--bg-panel-muted) px-3 py-1.5 font-mono text-[10px] font-semibold uppercase text-(--fg-tertiary)">
             {group.label}
           </div>
           {group.operations.map((operation) => (
@@ -633,19 +641,16 @@ function FunctionTechnicalOperationRow({
   const { openAdminActions, openRemoteCalls } = useRuntimeConsole();
   const operationsTarget = technicalOperationOperationsTarget(operation);
   return (
-    <div className="border-t border-(--border-subtle) px-3 py-2 font-mono text-xs">
+    <div className="border-t border-(--line) px-3 py-2 font-mono text-xs">
       <div className="flex min-w-0 items-start gap-2">
         <span
           className={cn(
             "shrink-0 rounded-xs border px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-            operation.source === "remote_proxy" &&
-              "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#d97706]",
-            operation.source === "remote_runtime" &&
-              "border-[#14b8a6]/40 bg-[#14b8a6]/10 text-[#0f9488]",
-            operation.source === "admin_action" &&
-              "border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#7c3aed]",
+            operation.source === "remote_proxy" && "tint tint-warning",
+            operation.source === "remote_runtime" && "tint tint-info",
+            operation.source === "admin_action" && "tint tint-info",
             operation.source === "otel" &&
-              "border-(--border-subtle) bg-(--elevated) text-(--muted)"
+              "border-(--line) bg-(--bg-control) text-(--fg-tertiary)"
           )}
         >
           {operation.sourceLabel}
@@ -653,7 +658,7 @@ function FunctionTechnicalOperationRow({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <span
-              className="truncate text-(--foreground)"
+              className="truncate text-(--fg-primary)"
               title={operation.name}
             >
               {operation.name}
@@ -662,8 +667,8 @@ function FunctionTechnicalOperationRow({
               className={cn(
                 "shrink-0 text-[10px]",
                 operation.status === "error"
-                  ? "text-[#ef4444]"
-                  : "text-(--muted)"
+                  ? "text-(--tone-error-fg)"
+                  : "text-(--fg-tertiary)"
               )}
             >
               {operation.status}
@@ -671,7 +676,7 @@ function FunctionTechnicalOperationRow({
           </div>
           {operation.summary ? (
             <div
-              className="mt-1 truncate text-[10px] text-(--muted)"
+              className="mt-1 truncate text-[10px] text-(--fg-tertiary)"
               title={operation.summary}
             >
               {operation.summary}
@@ -686,7 +691,7 @@ function FunctionTechnicalOperationRow({
         {operationsTarget ? (
           <button
             aria-label={`Open ${operation.sourceLabel} operations`}
-            className="grid size-6 shrink-0 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--muted) hover:text-(--foreground)"
+            className="grid size-6 shrink-0 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-tertiary) hover:text-(--fg-primary)"
             onClick={() => {
               if (operationsTarget.kind === "remote_calls") {
                 openRemoteCalls(

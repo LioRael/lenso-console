@@ -39,7 +39,7 @@ export function RuntimeStoryView({
   const storySummary = buildRuntimeStory(story);
 
   return (
-    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background)">
+    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
       <RuntimeViewHeader
         meta={`${storySummary.nodeCount} nodes · ${formatRuntimeDuration(storySummary.duration)}`}
         summary={storySummary.patternLabel || "No execution pattern"}
@@ -49,7 +49,7 @@ export function RuntimeStoryView({
       <div className="min-h-0 overflow-auto px-4 py-4">
         <div className="mx-auto grid w-full max-w-4xl gap-2">
           {storySummary.nodes.length === 0 ? (
-            <div className="border border-(--border-subtle) bg-(--surface) p-4 font-mono text-xs text-(--muted)">
+            <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
               No runtime story nodes were derived for this story.
             </div>
           ) : null}
@@ -94,15 +94,15 @@ function GraphNode({
       <div className="relative flex justify-center">
         <span
           className={cn(
-            "relative z-10 mt-1 grid size-9 place-items-center border bg-(--surface)",
+            "relative z-10 mt-1 grid size-9 place-items-center border bg-(--bg-panel)",
             type.iconClass,
-            selected && "ring-2 ring-(--accent)"
+            selected && "ring-1 ring-(--line-strong)"
           )}
         >
           <Icon size={16} strokeWidth={1.8} />
           <span
             className={cn(
-              "-right-1 -bottom-1 absolute grid size-4 place-items-center rounded-full border border-(--background)",
+              "-right-1 -bottom-1 absolute grid size-4 place-items-center rounded-full border border-(--bg-canvas)",
               status.badgeClass
             )}
             title={status.label}
@@ -111,23 +111,22 @@ function GraphNode({
           </span>
         </span>
         {showConnector ? (
-          <span className="absolute top-11 bottom-[-0.5rem] w-px bg-[linear-gradient(180deg,var(--border)_0%,var(--border-subtle)_100%)]" />
+          <span className="absolute top-11 bottom-[-0.5rem] w-px bg-[linear-gradient(180deg,var(--line)_0%,var(--line)_100%)]" />
         ) : null}
       </div>
 
       <div
         className={cn(
-          "group relative min-w-0 border bg-(--surface) px-3 py-2.5 text-left shadow-(--elevation-raised) transition hover:-translate-y-px hover:border-(--border) hover:bg-(--elevated)",
+          "group relative min-w-0 border bg-(--bg-panel) px-3 py-2.5 text-left shadow-(--elevation-raised) transition hover:border-(--line) hover:bg-(--bg-control)",
           type.cardClass,
-          selected &&
-            "border-(--accent) bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent),var(--elevation-raised)]",
+          selected && "border-(--line-strong) bg-(--bg-row-hover)",
           (node.status === "failed" || node.status === "dead") &&
             "shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--error)_20%,transparent),var(--elevation-raised)]"
         )}
       >
         <button
           aria-label={`Select ${node.typeLabel} ${node.name}`}
-          className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+          className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
           onClick={onSelect}
           type="button"
         />
@@ -145,22 +144,22 @@ function GraphNode({
               <span className={cn("font-mono text-[10px]", status.textClass)}>
                 {status.label}
               </span>
-              <span className="ml-auto shrink-0 font-mono text-[10px] text-(--muted)">
+              <span className="ml-auto shrink-0 font-mono text-[10px] text-(--fg-tertiary)">
                 {formatRuntimeDuration(node.duration)}
               </span>
             </span>
-            <span className="mt-1.5 block truncate text-[14px] font-semibold text-(--foreground)">
+            <span className="mt-1.5 block truncate text-[14px] font-semibold text-(--fg-primary)">
               {node.name}
             </span>
-            <span className="mt-1 flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--muted)">
+            <span className="mt-1 flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)">
               <span className="truncate">{node.service}</span>
-              <span className="text-(--muted-deep)">·</span>
+              <span className="text-(--fg-quaternary)">·</span>
               <span className="shrink-0" title={node.id}>
                 {shortId(node.id)}
               </span>
             </span>
             {node.error ? (
-              <span className="mt-2 block truncate font-mono text-[11px] text-[#ff8b86]">
+              <span className="mt-2 block truncate font-mono text-[11px] text-[var(--tone-error-fg)]">
                 {node.error}
               </span>
             ) : null}
@@ -209,8 +208,7 @@ const nodeStyle: Record<
   external: {
     cardClass: "tint-border tint-error",
     icon: Cloud,
-    iconClass:
-      "tint-border tint-text tint-error shadow-[0_0_18px_rgba(244,63,94,0.12)]",
+    iconClass: "tint-border tint-text tint-error",
     labelClass: "tint tint-error",
   },
   function: {
@@ -220,16 +218,13 @@ const nodeStyle: Record<
     labelClass: "tint tint-success",
   },
   request: {
-    cardClass: "border-[color-mix(in_srgb,var(--accent)_24%,transparent)]",
+    cardClass: "tint-border tint-info",
     icon: Route,
-    iconClass:
-      "border-[color-mix(in_srgb,var(--accent)_48%,transparent)] text-(--accent)",
-    labelClass:
-      "border-[color-mix(in_srgb,var(--accent)_34%,transparent)] bg-(--accent-soft) text-(--accent)",
+    iconClass: "tint-border tint-text tint-info",
+    labelClass: "tint tint-info",
   },
   worker: {
-    cardClass:
-      "tint-border tint-warning shadow-[inset_0_0_0_1px_rgba(251,191,36,0.06)]",
+    cardClass: "tint-border tint-warning",
     icon: ServerCog,
     iconClass: "border-double tint-border tint-text tint-warning",
     labelClass: "tint tint-warning",
@@ -246,32 +241,31 @@ const statusStyle: Record<
   }
 > = {
   dead: {
-    badgeClass: "bg-[#ef4444] text-white",
+    badgeClass: "bg-(--error) text-white",
     icon: XCircle,
     label: "dead",
-    textClass: "text-[#ff8b86]",
+    textClass: "text-[var(--tone-error-fg)]",
   },
   failed: {
-    badgeClass: "bg-amber-400 text-black",
+    badgeClass: "bg-(--warning) text-white",
     icon: AlertTriangle,
     label: "failed",
     textClass: "tint-text tint-warning",
   },
   retrying: {
-    badgeClass: "bg-blue-300 text-black",
+    badgeClass: "bg-(--info) text-white",
     icon: RefreshCcw,
     label: "retrying",
     textClass: "tint-text tint-info",
   },
   running: {
-    badgeClass:
-      "animate-pulse bg-cyan-300 text-black shadow-[0_0_14px_rgba(103,232,249,0.5)]",
+    badgeClass: "bg-(--info) text-white",
     icon: Play,
     label: "running",
     textClass: "tint-text tint-info",
   },
   success: {
-    badgeClass: "bg-emerald-400 text-black",
+    badgeClass: "bg-(--success) text-white",
     icon: Check,
     label: "success",
     textClass: "tint-text tint-success",

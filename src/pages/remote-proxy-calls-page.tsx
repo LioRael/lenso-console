@@ -162,32 +162,32 @@ export function RemoteProxyCallsPage() {
 
   return (
     <section
-      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--background) text-(--foreground)"
+      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--bg-canvas) text-(--fg-primary)"
       style={{
         gridTemplateColumns: `minmax(0,1fr) 1px ${inspectorWidth}px`,
       }}
     >
       <main
-        className="grid min-h-0 min-w-0 overflow-hidden border-r border-(--border-subtle)"
+        className="grid min-h-0 min-w-0 overflow-hidden border-r border-(--line)"
         style={{
           gridTemplateRows: correlationId
             ? "auto auto auto auto auto minmax(0,1fr)"
             : "auto auto auto auto minmax(0,1fr)",
         }}
       >
-        <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+        <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
           <div className="flex items-center gap-2">
             <Network className="text-(--accent)" size={14} />
             <h1 className="font-mono text-[13px] font-semibold">
               Remote Calls
             </h1>
-            <span className="ml-auto font-mono text-[10px] text-(--muted)">
+            <span className="ml-auto font-mono text-[10px] text-(--fg-tertiary)">
               {visible.length} calls / {runtimeConsoleDataSource()}
             </span>
           </div>
         </header>
 
-        <div className="grid border-b border-(--border-subtle) bg-(--surface) md:grid-cols-5">
+        <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
           {[
             ["total", summary.total],
             ["success", summary.success],
@@ -196,14 +196,16 @@ export function RemoteProxyCallsPage() {
             ["p95", formatDuration(summary.p95DurationMs)],
           ].map(([label, value]) => (
             <div
-              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--border-subtle) px-3 py-2 font-mono text-[10px] last:border-r-0"
+              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--line) px-3 py-2 font-mono text-[10px] last:border-r-0"
               key={label}
             >
-              <span className="text-(--muted)">{label}</span>
+              <span className="text-(--fg-tertiary)">{label}</span>
               <span
                 className={cn(
-                  "text-[13px] font-semibold text-(--foreground)",
-                  label === "failed" && summary.failed > 0 && "text-[#ef4444]"
+                  "text-[13px] font-semibold text-(--fg-primary)",
+                  label === "failed" &&
+                    summary.failed > 0 &&
+                    "text-(--tone-error-fg)"
                 )}
               >
                 {value}
@@ -212,7 +214,7 @@ export function RemoteProxyCallsPage() {
           ))}
         </div>
 
-        <div className="grid border-b border-(--border-subtle) bg-(--background) lg:grid-cols-3">
+        <div className="grid border-b border-(--line) bg-(--bg-canvas) lg:grid-cols-3">
           <AggregatePanel
             onSelect={(key) => {
               pushRemoteCallsUrl({ moduleName: key, selectedId: "" });
@@ -241,13 +243,13 @@ export function RemoteProxyCallsPage() {
         </div>
 
         {correlationId ? (
-          <div className="flex h-8 items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--accent)_6%,var(--background))] px-3 font-mono text-[10px]">
-            <span className="text-(--muted)">correlation</span>
-            <span className="min-w-0 truncate text-(--foreground)">
+          <div className="flex h-8 items-center gap-2 border-b border-(--line) bg-[var(--tone-info-bg)] px-3 font-mono text-[10px]">
+            <span className="text-(--fg-tertiary)">correlation</span>
+            <span className="min-w-0 truncate text-(--fg-primary)">
               {correlationId}
             </span>
             <button
-              className="ml-auto flex h-5 items-center gap-1 border border-(--border-subtle) bg-(--elevated) px-1.5 text-(--secondary) hover:text-(--foreground)"
+              className="ml-auto flex h-5 items-center gap-1 border border-(--line) bg-(--bg-control) px-1.5 text-(--fg-secondary) hover:text-(--fg-primary)"
               onClick={() => openStory(correlationId)}
               type="button"
             >
@@ -256,7 +258,7 @@ export function RemoteProxyCallsPage() {
             </button>
             <button
               aria-label="Clear correlation filter"
-              className="grid size-5 place-items-center border border-(--border-subtle) bg-(--elevated) text-(--muted) hover:text-(--foreground)"
+              className="grid size-5 place-items-center border border-(--line) bg-(--bg-control) text-(--fg-tertiary) hover:text-(--fg-primary)"
               onClick={() => {
                 pushRemoteCallsUrl({ correlationId: "", selectedId: "" });
                 setCorrelationId("");
@@ -281,10 +283,10 @@ export function RemoteProxyCallsPage() {
               {item}
             </OperationsFilterChip>
           ))}
-          <label className="flex h-6 min-w-[160px] items-center border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)">
+          <label className="flex h-6 min-w-[160px] items-center border border-(--line) bg-(--bg-control) px-2 font-mono text-(--fg-tertiary)">
             <input
               aria-label="Filter remote calls by module"
-              className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+              className="w-full bg-transparent text-[10px] text-(--fg-primary) outline-hidden placeholder:text-(--fg-tertiary)"
               list="remote-proxy-call-modules"
               onChange={(event) => setModuleName(event.target.value)}
               placeholder="module"
@@ -298,10 +300,10 @@ export function RemoteProxyCallsPage() {
               ))}
             </datalist>
           </label>
-          <label className="flex h-6 min-w-[200px] items-center border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)">
+          <label className="flex h-6 min-w-[200px] items-center border border-(--line) bg-(--bg-control) px-2 font-mono text-(--fg-tertiary)">
             <input
               aria-label="Filter remote calls by correlation"
-              className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+              className="w-full bg-transparent text-[10px] text-(--fg-primary) outline-hidden placeholder:text-(--fg-tertiary)"
               onChange={(event) => setCorrelationId(event.target.value)}
               placeholder="correlation"
               value={correlationId}
@@ -347,37 +349,37 @@ export function RemoteProxyCallsPage() {
                 >
                   <ResultPill call={call} />
                   <span className="min-w-0">
-                    <span className="block truncate text-(--foreground)">
+                    <span className="block truncate text-(--fg-primary)">
                       {call.module_name}
                     </span>
-                    <span className="block truncate text-[10px] text-(--muted)">
+                    <span className="block truncate text-[10px] text-(--fg-tertiary)">
                       {call.capability ?? "-"}
                     </span>
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-(--foreground)">
+                    <span className="block truncate text-(--fg-primary)">
                       {call.method} {call.declared_path}
                     </span>
-                    <span className="block truncate text-[10px] text-(--muted)">
+                    <span className="block truncate text-[10px] text-(--fg-tertiary)">
                       {call.request_id}
                     </span>
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-(--foreground)">
+                    <span className="block truncate text-(--fg-primary)">
                       {formatRemoteStatus(call.remote_status)}{" "}
                       {call.remote_path}
                     </span>
-                    <span className="block truncate text-[10px] text-(--muted)">
+                    <span className="block truncate text-[10px] text-(--fg-tertiary)">
                       {call.error_code ?? "-"}
                     </span>
                   </span>
-                  <span className="text-(--secondary)">
+                  <span className="text-(--fg-secondary)">
                     {formatDuration(call.duration_ms)}
                   </span>
-                  <span className="truncate text-[10px] text-(--muted)">
+                  <span className="truncate text-[10px] text-(--fg-tertiary)">
                     {call.correlation_id}
                   </span>
-                  <span className="text-right text-[10px] text-(--muted)">
+                  <span className="text-right text-[10px] text-(--fg-tertiary)">
                     {time(call.occurred_at)}
                   </span>
                 </OperationsSelectableRow>
@@ -385,7 +387,7 @@ export function RemoteProxyCallsPage() {
             })
           )}
           {visible.length > 0 ? (
-            <div className="flex items-center gap-3 border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+            <div className="flex items-center gap-3 border-b border-(--line) bg-(--bg-panel) px-3 py-2">
               <Button
                 disabled={
                   !remoteProxyCallsQuery.hasNextPage ||
@@ -400,7 +402,7 @@ export function RemoteProxyCallsPage() {
                     ? "Load More"
                     : "End"}
               </Button>
-              <span className="truncate font-mono text-[10px] text-(--muted)">
+              <span className="truncate font-mono text-[10px] text-(--fg-tertiary)">
                 loaded {calls.length}
                 {nextCursor ? ` / before ${nextCursor}` : " / complete"}
               </span>
@@ -415,7 +417,7 @@ export function RemoteProxyCallsPage() {
         onResize={resizeInspector}
       />
 
-      <aside className="relative z-0 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--sidebar)">
+      <aside className="relative z-0 grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--bg-sidebar)">
         <InspectorHeader call={selected} />
         <div className="min-h-0 overflow-auto">
           {selected ? (
@@ -424,7 +426,7 @@ export function RemoteProxyCallsPage() {
             <OperationsMessageRow message="select a remote call" />
           )}
         </div>
-        <div className="flex gap-2 border-t border-(--border-subtle) bg-(--surface) p-2">
+        <div className="flex gap-2 border-t border-(--line) bg-(--bg-panel) p-2">
           <Button
             disabled={!selected}
             onClick={() =>
@@ -469,7 +471,7 @@ function AggregatePanel({
   title: string;
 }) {
   return (
-    <section className="min-w-0 border-r border-(--border-subtle) last:border-r-0">
+    <section className="min-w-0 border-r border-(--line) last:border-r-0">
       <OperationsTableHeader className="grid-cols-[minmax(0,1fr)_48px_56px_64px] gap-2">
         <span>{title}</span>
         <span>fail</span>
@@ -478,7 +480,7 @@ function AggregatePanel({
       </OperationsTableHeader>
       <div>
         {rows.length === 0 ? (
-          <div className="px-3 py-2 font-mono text-[10px] text-(--muted)">
+          <div className="px-3 py-2 font-mono text-[10px] text-(--fg-tertiary)">
             empty
           </div>
         ) : (
@@ -488,18 +490,22 @@ function AggregatePanel({
               key={row.key}
               onClick={() => onSelect(row.key)}
             >
-              <span className="min-w-0 truncate text-(--foreground)">
+              <span className="min-w-0 truncate text-(--fg-primary)">
                 {row.key}
               </span>
               <span
-                className={row.failed > 0 ? "text-[#ef4444]" : "text-(--muted)"}
+                className={
+                  row.failed > 0
+                    ? "text-(--tone-error-fg)"
+                    : "text-(--fg-tertiary)"
+                }
               >
                 {row.failed}/{row.total}
               </span>
-              <span className="text-(--secondary)">
+              <span className="text-(--fg-secondary)">
                 {formatPercent(row.failureRate)}
               </span>
-              <span className="text-(--muted)">
+              <span className="text-(--fg-tertiary)">
                 {formatDuration(row.p95DurationMs)}
               </span>
             </OperationsAggregateRow>
@@ -588,13 +594,13 @@ function ResultPill({ call }: { call: RuntimeRemoteProxyCall }) {
       className={cn(
         "inline-flex h-5 w-[76px] items-center justify-center border px-1.5 font-mono text-[10px] font-semibold",
         call.success &&
-          "border-[color-mix(in_srgb,#22c55e_34%,transparent)] bg-[color-mix(in_srgb,#22c55e_10%,transparent)] text-[#22c55e]",
+          "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-(--tone-success-fg)",
         !call.success &&
           call.retryable &&
-          "border-[color-mix(in_srgb,#f59e0b_34%,transparent)] bg-[color-mix(in_srgb,#f59e0b_10%,transparent)] text-[#f59e0b]",
+          "border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)] text-(--tone-warning-fg)",
         !call.success &&
           !call.retryable &&
-          "border-[color-mix(in_srgb,var(--error)_35%,transparent)] bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-[#ef4444]"
+          "border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] text-(--tone-error-fg)"
       )}
     >
       {label}

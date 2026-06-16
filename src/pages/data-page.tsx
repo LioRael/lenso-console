@@ -170,7 +170,7 @@ export function DataPage() {
                     className={cn(
                       "block w-full px-2 py-1 text-left disabled:cursor-default",
                       isSelected
-                        ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
+                        ? "bg-(--bg-row-hover)"
                         : "hover:bg-(--sidebar)",
                       moduleIsLoaded(item.module)
                         ? null
@@ -326,7 +326,7 @@ function RecordsTable({
               <tr
                 className={cn(
                   "border-t border-(--border-subtle)",
-                  isSelected && "bg-(--accent-soft)"
+                  isSelected && "bg-(--bg-row-hover)"
                 )}
                 key={id ?? index}
               >

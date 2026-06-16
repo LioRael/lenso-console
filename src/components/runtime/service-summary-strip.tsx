@@ -209,7 +209,7 @@ export function ServiceSummaryStrip({
                 <span
                   className={
                     item.errors > 0
-                      ? "w-10 text-[#ef4444]"
+                      ? "w-10 text-(--error)"
                       : "w-10 text-(--muted)"
                   }
                 >

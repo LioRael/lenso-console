@@ -38,7 +38,7 @@ export function StoryTimelineView({
     story.timelineItems === undefined ? "execution nodes" : "backend timeline";
 
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
       <RuntimeViewHeader
         meta={`total ${formatRuntimeDuration(timelineEnd)}`}
         summary={`${rows.length} rows from ${rowSource}`}
@@ -59,7 +59,7 @@ export function StoryTimelineView({
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <div className="mx-auto w-full max-w-5xl">
           {rows.length === 0 ? (
-            <div className="border border-(--border-subtle) bg-(--surface) p-4 font-mono text-xs text-(--muted)">
+            <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
               No timeline items were returned for this story.
             </div>
           ) : (
@@ -138,13 +138,13 @@ function TimelineRow({
     >
       <span
         className={cn(
-          "relative min-w-0 border bg-(--surface) px-3 py-2.5 shadow-(--elevation-raised) transition group-hover:border-(--border)",
+          "relative min-w-0 border bg-(--bg-panel) px-3 py-2.5 shadow-(--elevation-raised) transition group-hover:border-(--line)",
           tone.card,
-          selected && "border-(--accent) shadow-[inset_2px_0_0_var(--accent)]"
+          selected && "border-(--line-strong) bg-(--bg-row-hover)"
         )}
       >
         {index > 0 ? (
-          <span className="-top-3.5 absolute left-6 h-3.5 w-px bg-(--border)" />
+          <span className="-top-3.5 absolute left-6 h-3.5 w-px bg-(--line)" />
         ) : null}
         <span className="flex min-w-0 items-start gap-2">
           <span
@@ -167,10 +167,10 @@ function TimelineRow({
                 }}
               />
             </span>
-            <span className="mt-1 block truncate text-[13px] font-semibold text-(--foreground)">
+            <span className="mt-1 block truncate text-[13px] font-semibold text-(--fg-primary)">
               {row.name}
             </span>
-            <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-(--muted)">
+            <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-(--fg-tertiary)">
               {row.metaParts.map((part, partIndex) => (
                 <span
                   className={cn(
@@ -190,21 +190,23 @@ function TimelineRow({
           </span>
         </span>
         {row.error ? (
-          <span className="mt-2 block truncate border-l-2 border-[#ef4444] pl-2 font-mono text-[11px] text-[#ff8b86]">
+          <span className="mt-2 block truncate border-l-2 border-[var(--error)] pl-2 font-mono text-[11px] text-[var(--tone-error-fg)]">
             {row.error}
           </span>
         ) : null}
       </span>
 
       <span className="grid min-h-18 min-w-0 items-center max-md:hidden">
-        <span className="relative h-9 min-w-0 overflow-hidden border border-(--border-subtle) bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--border-subtle)_25%,transparent_25.2%,transparent_49.8%,var(--border-subtle)_50%,transparent_50.2%,transparent_74.8%,var(--border-subtle)_75%,transparent_75.2%)]">
+        <span className="relative h-9 min-w-0 overflow-hidden border border-(--line) bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line)_25%,transparent_25.2%,transparent_49.8%,var(--line)_50%,transparent_50.2%,transparent_74.8%,var(--line)_75%,transparent_75.2%)]">
           <span
             className={cn(
               "absolute top-2 h-5 min-w-1 transition",
-              errored && "shadow-[0_0_16px_rgba(239,68,68,0.3)]"
+              errored && "opacity-90"
             )}
             style={{
-              backgroundColor: errored ? "#ef4444" : serviceColor(row.service),
+              backgroundColor: errored
+                ? "var(--error)"
+                : serviceColor(row.service),
               left: `${segment.left}%`,
               opacity: selected ? 1 : 0.82,
               transform: selected ? "scaleY(1.22)" : undefined,
@@ -244,8 +246,8 @@ const rowToneByKind = {
     icon: "tint tint-success",
   },
   request: {
-    card: "border-[color-mix(in_srgb,var(--accent)_26%,transparent)] text-(--accent)",
-    icon: "border-[color-mix(in_srgb,var(--accent)_34%,transparent)] bg-(--accent-soft) text-(--accent)",
+    card: "tint-border tint-text tint-info",
+    icon: "tint tint-info",
   },
   worker: {
     card: "tint-border tint-text tint-warning",

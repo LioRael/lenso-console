@@ -73,15 +73,15 @@ export function ExecutionInspector({
   const tabCounts = getExecutionInspectorTabCounts(story, node);
 
   return (
-    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--sidebar)">
-      <div className="min-w-0 overflow-hidden border-b border-(--border-subtle) bg-(--surface)">
+    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-panel-header)">
+      <div className="min-w-0 overflow-hidden border-b border-(--line) bg-(--bg-panel)">
         <div className="flex min-w-0 items-start gap-2 px-3 py-2">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span
                 className={cn(
                   "shrink-0 rounded-xs border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em]",
-                  "border-(--border-subtle) bg-(--elevated) text-(--accent)"
+                  "border-(--line) bg-(--bg-control) text-(--accent)"
                 )}
               >
                 {typeLabel(node)}
@@ -97,13 +97,13 @@ export function ExecutionInspector({
                 {node.service}
               </span>
             </div>
-            <h2 className="truncate font-mono text-sm font-semibold leading-tight text-(--foreground)">
+            <h2 className="truncate font-mono text-sm font-semibold leading-tight text-(--fg-primary)">
               {node.name}
             </h2>
           </div>
           <button
             aria-label="Clear inspector selection"
-            className="grid size-6 shrink-0 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--muted) transition hover:text-(--foreground)"
+            className="grid size-6 shrink-0 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-tertiary) transition hover:text-(--fg-primary)"
             onClick={onClearSelection}
             type="button"
           >
@@ -111,9 +111,9 @@ export function ExecutionInspector({
           </button>
         </div>
 
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden border-t border-(--border-subtle) px-3 py-1.5 font-mono text-[11px] text-(--muted)">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden border-t border-(--line) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
           <button
-            className="group flex min-w-10.5 flex-1 items-center gap-1 overflow-hidden text-left transition hover:text-(--secondary)"
+            className="group flex min-w-10.5 flex-1 items-center gap-1 overflow-hidden text-left transition hover:text-(--fg-secondary)"
             type="button"
           >
             <span className="truncate">{node.id.slice(0, 16)}</span>
@@ -131,28 +131,28 @@ export function ExecutionInspector({
         </div>
       </div>
 
-      <div className="min-w-0 overflow-hidden border-b border-(--border-subtle) bg-(--background) px-3 py-1.5">
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 font-mono text-[11px] text-(--muted)">
+      <div className="min-w-0 overflow-hidden border-b border-(--line) bg-(--bg-canvas) px-3 py-1.5">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 font-mono text-[11px] text-(--fg-tertiary)">
           <HorizontalScrollArea
             className="h-5"
             contentClassName="h-full"
             viewportClassName="h-full"
           >
             <div className="flex h-full w-max min-w-full items-center gap-1.5">
-              <span className="shrink-0 text-(--muted-deep)">path</span>
+              <span className="shrink-0 text-(--fg-quaternary)">path</span>
               {breadcrumb.map((item, index) => (
                 <span
                   className="flex shrink-0 items-center gap-1.5"
                   key={item.id}
                 >
                   {index > 0 ? (
-                    <ArrowRight className="size-3 shrink-0 text-(--muted-deep)" />
+                    <ArrowRight className="size-3 shrink-0 text-(--fg-quaternary)" />
                   ) : null}
                   <span
                     className={cn(
                       item.id === node.id
-                        ? "text-(--foreground)"
-                        : "text-(--secondary)"
+                        ? "text-(--fg-primary)"
+                        : "text-(--fg-secondary)"
                     )}
                     title={item.name}
                   >
@@ -163,22 +163,22 @@ export function ExecutionInspector({
             </div>
           </HorizontalScrollArea>
           {parent ? (
-            <span className="shrink-0 text-(--muted)">
+            <span className="shrink-0 text-(--fg-tertiary)">
               {formatRuntimeDuration(parent.durationMs)}
             </span>
           ) : null}
         </div>
       </div>
 
-      <div className="min-w-0 overflow-hidden border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_82%,var(--background))]">
+      <div className="min-w-0 overflow-hidden border-b border-(--line) bg-(--bg-panel-muted)">
         <HorizontalTabScroll>
           <div className="flex h-full w-max min-w-full items-stretch pr-10">
             {executionInspectorTabs.map((tab) => (
               <button
                 className={cn(
-                  "inline-flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap border-b border-transparent px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-(--muted) transition hover:border-(--border) hover:text-(--secondary) disabled:text-(--muted-deep)",
+                  "inline-flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap border-b border-transparent px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-(--fg-tertiary) transition hover:border-(--border) hover:text-(--fg-secondary) disabled:text-(--fg-quaternary)",
                   activeTab === tab.id &&
-                    "border-(--accent) bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-(--foreground)"
+                    "border-(--line-strong) bg-(--bg-row-hover) text-(--fg-primary)"
                 )}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -190,8 +190,8 @@ export function ExecutionInspector({
                     className={cn(
                       "grid h-4.5 min-w-4.5 place-items-center border px-1 font-mono text-[10px] leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
                       activeTab === tab.id
-                        ? "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-(--accent)"
-                        : "border-(--border-subtle) bg-(--background) text-(--muted)"
+                        ? "border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] text-(--tone-info-fg)"
+                        : "border-(--line) bg-(--bg-canvas) text-(--fg-tertiary)"
                     )}
                   >
                     {tabCounts[tab.id]}
@@ -203,7 +203,7 @@ export function ExecutionInspector({
         </HorizontalTabScroll>
       </div>
 
-      <div className="min-h-0 min-w-0 overflow-auto bg-(--background)">
+      <div className="min-h-0 min-w-0 overflow-auto bg-(--bg-canvas)">
         <InspectorBody activeTab={activeTab} node={node} story={story} />
       </div>
     </aside>
@@ -261,9 +261,9 @@ function InspectorBody({
           />
         ) : null}
         {retryTarget ? (
-          <div className="border-b border-(--border-subtle) px-3 py-2">
+          <div className="border-b border-(--line) px-3 py-2">
             <button
-              className="inline-flex h-8 w-fit items-center gap-2 rounded-xs border border-[color-mix(in_srgb,var(--error)_35%,transparent)] bg-[color-mix(in_srgb,var(--error)_10%,transparent)] px-2 font-mono text-[11px] text-(--foreground) hover:bg-[color-mix(in_srgb,var(--error)_15%,transparent)]"
+              className="inline-flex h-8 w-fit items-center gap-2 rounded-xs border border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] px-2 font-mono text-[11px] text-(--tone-error-fg)"
               onClick={() => openRetry(retryTarget)}
               type="button"
             >
@@ -355,24 +355,24 @@ function SummaryCard({
   node: ExecutionNode;
 }) {
   return (
-    <div className="border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_82%,var(--background))] p-3">
+    <div className="border-b border-(--line) bg-(--bg-panel-muted) p-3">
       <div className="flex min-w-0 items-start gap-2">
         <span
           className="mt-1 size-2 shrink-0 rounded-xs"
           style={{ backgroundColor: serviceColor(node.service) }}
         />
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-(--foreground)">
+          <div className="truncate text-[13px] font-semibold text-(--fg-primary)">
             {node.name}
           </div>
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-(--muted)">
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] text-(--fg-tertiary)">
             <span>{typeLabel(node)}</span>
             <span>·</span>
             <span>{node.status}</span>
             <span>·</span>
             <span>{formatRuntimeDuration(node.durationMs)}</span>
           </div>
-          <div className="mt-2 truncate text-[11px] text-(--muted-deep)">
+          <div className="mt-2 truncate text-[11px] text-(--fg-quaternary)">
             {story.correlationId}
           </div>
         </div>
@@ -393,11 +393,11 @@ function RemoteProxyDetail({
   }
 
   return (
-    <section className="grid min-w-full border-b border-(--border-subtle)">
-      <div className="flex items-center gap-2 bg-(--sidebar) px-3 py-1.5 font-mono text-[11px] text-(--muted)">
+    <section className="grid min-w-full border-b border-(--line)">
+      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
         <span>remote proxy</span>
         <button
-          className="ml-auto inline-flex h-5 items-center gap-1 border border-(--border-subtle) bg-(--elevated) px-1.5 text-[10px] text-(--secondary) hover:text-(--foreground)"
+          className="ml-auto inline-flex h-5 items-center gap-1 border border-(--line) bg-(--bg-control) px-1.5 text-[10px] text-(--fg-secondary) hover:text-(--fg-primary)"
           onClick={onOpenRemoteCalls}
           type="button"
         >
@@ -464,10 +464,10 @@ function TechnicalOperationGroupView({
   group: TechnicalOperationGroup;
 }) {
   return (
-    <section className="border-b border-(--border-subtle)">
-      <div className="flex items-center gap-2 bg-(--sidebar) px-3 py-1.5 font-mono text-[11px] text-(--muted)">
+    <section className="border-b border-(--line)">
+      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
         <span>{group.label}</span>
-        <span className="rounded-xs border border-(--border-subtle) bg-(--background) px-1.5 py-0.5 text-[10px] text-(--muted)">
+        <span className="rounded-xs border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)">
           {group.operations.length}
         </span>
       </div>
@@ -486,9 +486,9 @@ function TechnicalOperationRow({
   const { openAdminActions, openRemoteCalls } = useRuntimeConsole();
   const operationsTarget = technicalOperationOperationsTarget(operation);
   return (
-    <div className="border-t border-(--border-subtle) bg-(--background)">
+    <div className="border-t border-(--line) bg-(--bg-canvas)">
       <div className="grid min-w-full grid-cols-[72px_82px_minmax(180px,1fr)_72px_64px_58px_24px] items-start gap-2 px-3 py-2 font-mono text-xs">
-        <span className="w-fit rounded-xs border border-(--border-subtle) bg-(--elevated) px-1.5 py-0.5 text-[10px] font-semibold uppercase text-(--accent)">
+        <span className="w-fit rounded-xs border border-(--line) bg-(--bg-control) px-1.5 py-0.5 text-[10px] font-semibold uppercase text-(--accent)">
           {operation.category}
         </span>
         <span
@@ -500,12 +500,12 @@ function TechnicalOperationRow({
           {operation.sourceLabel}
         </span>
         <div className="min-w-0">
-          <div className="truncate text-(--foreground)" title={operation.name}>
+          <div className="truncate text-(--fg-primary)" title={operation.name}>
             {operation.name}
           </div>
           {operation.summary ? (
             <div
-              className="mt-1 truncate text-[11px] text-(--muted)"
+              className="mt-1 truncate text-[11px] text-(--fg-tertiary)"
               title={operation.summary}
             >
               {operation.summary}
@@ -515,21 +515,23 @@ function TechnicalOperationRow({
         <span
           className={cn(
             "text-[11px] leading-5",
-            operation.status === "error" ? "text-[#ef4444]" : "text-(--muted)"
+            operation.status === "error"
+              ? "text-(--tone-error-fg)"
+              : "text-(--fg-tertiary)"
           )}
         >
           {operation.status}
         </span>
-        <span className="text-right text-[11px] leading-5 text-(--muted)">
+        <span className="text-right text-[11px] leading-5 text-(--fg-tertiary)">
           {formatRuntimeDuration(operation.durationMs)}
         </span>
-        <span className="text-right text-[11px] leading-5 text-(--muted)">
+        <span className="text-right text-[11px] leading-5 text-(--fg-tertiary)">
           +{formatRuntimeDuration(operation.relativeStartMs)}
         </span>
         {operationsTarget ? (
           <button
             aria-label={`Open ${operation.sourceLabel} operations`}
-            className="grid size-5 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--muted) hover:text-(--foreground)"
+            className="grid size-5 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-tertiary) hover:text-(--fg-primary)"
             onClick={() => {
               if (operationsTarget.kind === "remote_calls") {
                 openRemoteCalls(
@@ -559,15 +561,15 @@ function TechnicalOperationRow({
 
 function operationSourceTone(operation: TechnicalOperationView) {
   if (operation.source === "remote_proxy") {
-    return "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#d97706]";
+    return "tint tint-warning";
   }
   if (operation.source === "remote_runtime") {
-    return "border-[#14b8a6]/40 bg-[#14b8a6]/10 text-[#0f9488]";
+    return "tint tint-info";
   }
   if (operation.source === "admin_action") {
-    return "border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#7c3aed]";
+    return "tint tint-info";
   }
-  return "border-(--border-subtle) bg-(--elevated) text-(--muted)";
+  return "border-(--line) bg-(--bg-control) text-(--fg-tertiary)";
 }
 
 function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
@@ -576,14 +578,16 @@ function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
   }
 
   return (
-    <div className="w-max min-w-full border-b border-(--border-subtle) font-mono text-xs">
+    <div className="w-max min-w-full border-b border-(--line) font-mono text-xs">
       {rows.map(([key, value]) => (
         <div
-          className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-b border-(--border-subtle) last:border-b-0"
+          className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-b border-(--line) last:border-b-0"
           key={key}
         >
-          <div className="bg-(--sidebar) px-3 py-1.5 text-(--muted)">{key}</div>
-          <div className="whitespace-pre-wrap px-3 py-1.5 text-(--secondary)">
+          <div className="bg-(--bg-panel-header) px-3 py-1.5 text-(--fg-tertiary)">
+            {key}
+          </div>
+          <div className="whitespace-pre-wrap px-3 py-1.5 text-(--fg-secondary)">
             {formatCell(value)}
           </div>
         </div>
@@ -600,17 +604,17 @@ function ActivityList({ activity }: { activity: ExecutionActivityItem[] }) {
     <div className="w-max min-w-full font-mono text-xs">
       {activity.map((item) => (
         <div
-          className="grid w-max min-w-full grid-cols-[58px_minmax(220px,max-content)] gap-2 border-b border-(--border-subtle) px-3 py-2"
+          className="grid w-max min-w-full grid-cols-[58px_minmax(220px,max-content)] gap-2 border-b border-(--line) px-3 py-2"
           key={item.id}
         >
-          <span className="whitespace-nowrap text-(--muted)">
+          <span className="whitespace-nowrap text-(--fg-tertiary)">
             +{formatRuntimeDuration(item.timestampMs)}
           </span>
           <div>
-            <div className="whitespace-nowrap text-(--foreground)">
+            <div className="whitespace-nowrap text-(--fg-primary)">
               {item.label}
             </div>
-            <div className="whitespace-nowrap text-[11px] text-(--muted)">
+            <div className="whitespace-nowrap text-[11px] text-(--fg-tertiary)">
               {item.detail ?? `${item.kind} · ${item.status}`}
             </div>
           </div>
@@ -685,7 +689,7 @@ function PayloadPanel({
   return (
     <div className="grid min-w-full">
       {payload && payload.redactedFields.length > 0 ? (
-        <div className="border-b border-(--border-subtle) tint-soft tint-warning px-3 py-2 font-mono text-[11px] leading-5 tint-text">
+        <div className="border-b border-(--line) tint-soft tint-warning px-3 py-2 font-mono text-[11px] leading-5 tint-text">
           Redacted {payload.redactedFields.length} sensitive field
           {payload.redactedFields.length === 1 ? "" : "s"}:{" "}
           {payload.redactedFields.join(", ")}
@@ -735,10 +739,10 @@ function LogList({
     <div className="w-max min-w-full font-mono text-xs">
       {logs.map((log) => (
         <div
-          className="grid w-max min-w-full grid-cols-[58px_58px_minmax(220px,max-content)_minmax(180px,max-content)] gap-2 border-b border-(--border-subtle) px-3 py-1.5"
+          className="grid w-max min-w-full grid-cols-[58px_58px_minmax(220px,max-content)_minmax(180px,max-content)] gap-2 border-b border-(--line) px-3 py-1.5"
           key={log.id}
         >
-          <span className="whitespace-nowrap text-(--muted)">
+          <span className="whitespace-nowrap text-(--fg-tertiary)">
             +
             {formatRuntimeDuration(
               logOffsetMs(story.timestamp, log.occurredAt)
@@ -747,16 +751,16 @@ function LogList({
           <span className={cn("uppercase", logSeverityClass(log.severity))}>
             {log.severity}
           </span>
-          <span className="whitespace-nowrap text-(--secondary)">
+          <span className="whitespace-nowrap text-(--fg-secondary)">
             {log.body || "-"}
           </span>
-          <span className="whitespace-nowrap text-[11px] text-(--muted)">
+          <span className="whitespace-nowrap text-[11px] text-(--fg-tertiary)">
             {log.serviceName}
             {log.traceId ? ` · trace ${log.traceId.slice(0, 12)}` : ""}
           </span>
           {Object.keys(log.attributes).length > 0 ||
           log.redactedFields.length > 0 ? (
-            <div className="col-span-4 -mx-3 mt-1 border-t border-(--border-subtle)">
+            <div className="col-span-4 -mx-3 mt-1 border-t border-(--line)">
               <JsonViewer
                 title={
                   log.redactedFields.length > 0
@@ -791,23 +795,25 @@ function logOffsetMs(baseTimestamp: string, occurredAt: string) {
 function logSeverityClass(severity: string) {
   switch (severity) {
     case "error": {
-      return "text-[#ef4444]";
+      return "text-(--tone-error-fg)";
     }
     case "warn": {
       return "tint-text tint-warning";
     }
     case "debug":
     case "trace": {
-      return "text-(--muted)";
+      return "text-(--fg-tertiary)";
     }
     default: {
-      return "text-[#22c55e]";
+      return "text-(--tone-success-fg)";
     }
   }
 }
 
 function EmptyRows({ label }: { label: string }) {
-  return <div className="p-4 font-mono text-xs text-(--muted)">{label}</div>;
+  return (
+    <div className="p-4 font-mono text-xs text-(--fg-tertiary)">{label}</div>
+  );
 }
 
 function errorMessage(error: unknown) {
@@ -835,20 +841,24 @@ function RelatedExecutionList({
   nodes: ExecutionNode[];
 }) {
   return (
-    <div className="w-max min-w-full border-b border-(--border-subtle) font-mono text-xs">
-      <div className="bg-(--sidebar) px-3 py-1.5 text-(--muted)">{label}</div>
+    <div className="w-max min-w-full border-b border-(--line) font-mono text-xs">
+      <div className="bg-(--bg-panel-header) px-3 py-1.5 text-(--fg-tertiary)">
+        {label}
+      </div>
       {nodes.length === 0 ? (
-        <div className="border-t border-(--border-subtle) px-3 py-1.5 text-(--muted)">
+        <div className="border-t border-(--line) px-3 py-1.5 text-(--fg-tertiary)">
           None
         </div>
       ) : (
         nodes.map((node) => (
           <div
-            className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-t border-(--border-subtle)"
+            className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-t border-(--line)"
             key={node.id}
           >
-            <div className="px-3 py-1.5 text-(--muted)">{typeLabel(node)}</div>
-            <div className="whitespace-pre-wrap px-3 py-1.5 text-(--secondary)">
+            <div className="px-3 py-1.5 text-(--fg-tertiary)">
+              {typeLabel(node)}
+            </div>
+            <div className="whitespace-pre-wrap px-3 py-1.5 text-(--fg-secondary)">
               {node.name}
             </div>
           </div>

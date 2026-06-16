@@ -102,8 +102,8 @@ function WaterfallRowButton({
     <button
       aria-label={`Select row ${row.name}`}
       className={cn(
-        "grid w-full min-w-0 grid-cols-[minmax(260px,340px)_minmax(0,1fr)] items-center gap-4 px-3 py-1.5 text-left transition hover:bg-[color-mix(in_srgb,var(--hover)_64%,transparent)] disabled:cursor-default",
-        selected && "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]",
+        "grid w-full min-w-0 grid-cols-[minmax(260px,340px)_minmax(0,1fr)] items-center gap-4 px-3 py-1.5 text-left transition hover:bg-(--bg-row-hover) disabled:cursor-default",
+        selected && "bg-(--bg-row-hover)",
         row.group === "unlinked" && "opacity-82"
       )}
       disabled={!node}
@@ -164,7 +164,7 @@ function WaterfallRowButton({
           style={{
             backgroundColor:
               row.status === "failed" || row.status === "dead"
-                ? "#ef4444"
+                ? "var(--error)"
                 : color,
             left: `${segment.left}%`,
             opacity: selected ? 1 : 0.82,
@@ -214,7 +214,7 @@ function TimelineMarker({
     <span
       className={cn(
         "absolute top-1 h-1.5 rounded-xs bg-(--foreground)",
-        errored && "shadow-[0_0_10px_rgba(239,68,68,0.32)]"
+        errored && "bg-(--error)"
       )}
       style={{
         left: `${segment.left}%`,

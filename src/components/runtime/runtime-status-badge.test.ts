@@ -8,11 +8,10 @@ import {
 
 describe("runtime status badge style contract", () => {
   test("keeps the label variant aligned with inspector header labels", () => {
-    expect(runtimeStatusBadgeBaseClassName).toContain("rounded-xs");
-    expect(runtimeStatusBadgeBaseClassName).toContain("font-mono");
-    expect(runtimeStatusBadgeBaseClassName).toContain("uppercase");
+    expect(runtimeStatusBadgeBaseClassName).toContain("rounded-full");
+    expect(runtimeStatusBadgeBaseClassName).toContain("font-medium");
     expect(runtimeStatusBadgeLabelClassName).toContain("py-0.5");
-    expect(runtimeStatusBadgeLabelClassName).toContain("tracking-[0.08em]");
+    expect(runtimeStatusBadgeLabelClassName).not.toContain("uppercase");
     expect(runtimeStatusBadgeLabelClassName).not.toContain("shadow");
     expect(runtimeStatusBadgeTableClassName).toContain("w-[72px]");
   });

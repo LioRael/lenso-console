@@ -5,7 +5,7 @@ import { cn } from "../lib/cn";
 
 export function OperationsFilterBar({ children }: PropsWithChildren) {
   return (
-    <div className="flex h-9 items-center gap-2 border-b border-(--border-subtle) bg-(--background) px-3">
+    <div className="flex h-9 items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3">
       {children}
     </div>
   );
@@ -22,10 +22,10 @@ export function OperationsFilterChip({
   return (
     <button
       className={cn(
-        "h-6 border px-2 font-mono text-[10px]",
+        "h-6 rounded-[var(--radius-control)] border px-2 text-[11px] font-medium transition-colors",
         active
-          ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-(--accent-soft) text-(--accent)"
-          : "border-(--border-subtle) text-(--muted) hover:text-(--foreground)"
+          ? "native-selection border-(--line-strong)"
+          : "border-(--line) bg-(--bg-control) text-(--fg-tertiary) shadow-(--elevation-control) hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
       )}
       onClick={onClick}
       type="button"
@@ -51,14 +51,14 @@ export function OperationsSearchInput({
   return (
     <label
       className={cn(
-        "ml-auto flex h-6 items-center gap-2 border border-(--border-subtle) bg-(--elevated) px-2 font-mono text-(--muted)",
+        "ml-auto flex h-6 items-center gap-2 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2 text-(--fg-tertiary) shadow-(--elevation-control) focus-within:border-(--accent)",
         className ?? "w-[min(360px,45vw)]"
       )}
     >
       <Search size={12} />
       <input
         aria-label={ariaLabel}
-        className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+        className="w-full bg-transparent text-[10px] text-(--fg-primary) outline-hidden placeholder:text-(--fg-tertiary)"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         value={value}

@@ -21,7 +21,7 @@ export function FlameView({
   const levels = buildFlameLevels(story.nodes);
   const timelineEnd = runtimeTimelineEnd(story);
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
       <RuntimeViewHeader
         meta={formatRuntimeDuration(timelineEnd)}
         summary="color by service and status"
@@ -30,7 +30,7 @@ export function FlameView({
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {levels.map((level) => (
           <div
-            className="relative isolate h-9 overflow-hidden border-b border-[color-mix(in_srgb,var(--border-subtle)_60%,transparent)]"
+            className="relative isolate h-9 overflow-hidden border-b border-[color-mix(in_srgb,var(--line)_60%,transparent)]"
             key={level.map((node) => node.id).join(":")}
           >
             {level.map((node) => {
@@ -43,20 +43,20 @@ export function FlameView({
               return (
                 <button
                   className={cn(
-                    "absolute top-1 h-7 overflow-hidden rounded-xs border px-2 text-left font-mono text-[12px] text-(--foreground) transition hover:brightness-125",
+                    "absolute top-1 h-7 overflow-hidden rounded-xs border px-2 text-left font-mono text-[12px] text-(--fg-primary) transition hover:brightness-125",
                     selectedNodeId === node.id &&
-                      "shadow-[0_0_0_1px_var(--accent),0_0_8px_color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                      "shadow-[0_0_0_1px_var(--line-strong)]"
                   )}
                   key={node.id}
                   onClick={() => onSelectNode(node)}
                   style={{
                     backgroundColor:
                       node.status === "failed" || node.status === "dead"
-                        ? "#ef4444"
+                        ? "var(--error)"
                         : `${serviceColor(node.service)}cc`,
                     borderColor:
                       node.status === "failed" || node.status === "dead"
-                        ? "#ef4444"
+                        ? "var(--error)"
                         : `${serviceColor(node.service)}99`,
                     left: `${segment.left}%`,
                     width: `${segment.width}%`,

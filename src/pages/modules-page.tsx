@@ -150,18 +150,26 @@ export function ModulesPage() {
 
 function ModulesContent() {
   const queryClient = useQueryClient();
-  const modulesQuery = useQuery({
+  const {
+    data: modulesData,
+    isError: modulesIsError,
+    isLoading: modulesIsLoading,
+  } = useQuery({
     enabled: isApiMode(),
     queryKey: modulesQueryKey,
     queryFn: () => httpClient.get("admin/data/modules").json<ModulesResponse>(),
   });
-  const configValuesQuery = useQuery({
+  const { data: configValuesData } = useQuery({
     enabled: isApiMode(),
     queryKey: configValuesQueryKey,
     queryFn: () =>
       httpClient.get("admin/config/values").json<ConfigValueListResponse>(),
   });
-  const availableModulesQuery = useQuery({
+  const {
+    data: availableModulesData,
+    isError: availableModulesIsError,
+    isLoading: availableModulesIsLoading,
+  } = useQuery({
     enabled: isApiMode(),
     queryKey: availableModulesQueryKey,
     queryFn: () => fetchAvailableModules(),
@@ -177,15 +185,15 @@ function ModulesContent() {
       );
     },
   });
-  const modules = modulesQuery.data?.modules ?? emptyModules;
-  const configValues = configValuesQuery.data?.data ?? emptyConfigValues;
-  const availableModuleRows = availableModulesQuery.data
-    ? availableModuleRowsFromResponse(availableModulesQuery.data)
+  const modules = modulesData?.modules ?? emptyModules;
+  const configValues = configValuesData?.data ?? emptyConfigValues;
+  const availableModuleRows = availableModulesData
+    ? availableModuleRowsFromResponse(availableModulesData)
     : availableModulesRows();
   const availableModulePanelState = availableModulesPanelState({
-    isError: availableModulesQuery.isError,
-    isLoading: availableModulesQuery.isLoading,
-    response: availableModulesQuery.data ?? null,
+    isError: availableModulesIsError,
+    isLoading: availableModulesIsLoading,
+    response: availableModulesData ?? null,
     rows: availableModuleRows,
   });
   const [selectedModuleName, setSelectedModuleName] = useState<string | null>(
@@ -214,7 +222,7 @@ function ModulesContent() {
           <h1 className="font-mono text-[13px] font-semibold">Modules</h1>
           <span className="ml-auto font-mono text-[10px] text-(--muted)">
             {modules.length} modules / {runtimeConsoleDataSource()} /{" "}
-            {registrySnapshotLabel(modulesQuery.data?.refreshed_at ?? null)}
+            {registrySnapshotLabel(modulesData?.refreshed_at ?? null)}
           </span>
           <Button
             aria-label="Refresh module registry"
@@ -232,18 +240,16 @@ function ModulesContent() {
             Refresh
           </Button>
         </div>
-        {modulesQuery.data?.refresh_error ? (
+        {modulesData?.refresh_error ? (
           <p className="mt-1 font-mono text-[10px] text-(--error)">
-            Registry refresh error: {modulesQuery.data.refresh_error}
+            Registry refresh error: {modulesData.refresh_error}
           </p>
         ) : refreshMutation.isError ? (
           <p className="mt-1 font-mono text-[10px] text-(--error)">
             Refresh failed: {String(refreshMutation.error.message)}
           </p>
         ) : null}
-        <ModuleRefreshHistory
-          history={modulesQuery.data?.refresh_history ?? []}
-        />
+        <ModuleRefreshHistory history={modulesData?.refresh_history ?? []} />
       </header>
 
       <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden">
@@ -259,9 +265,9 @@ function ModulesContent() {
             onChange={setFilters}
             summary={summary}
           />
-          {modulesQuery.isLoading ? (
+          {modulesIsLoading ? (
             <p className="px-2 py-1 text-(--muted)">Loading...</p>
-          ) : modulesQuery.isError ? (
+          ) : modulesIsError ? (
             <p className="px-2 py-1 text-(--error)">Failed to load modules.</p>
           ) : modules.length === 0 ? (
             <p className="px-2 py-1 text-(--muted)">No modules registered.</p>
@@ -277,9 +283,7 @@ function ModulesContent() {
                 <button
                   className={cn(
                     "block w-full border-l-2 px-2 py-1 text-left",
-                    selected
-                      ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
-                      : "hover:bg-(--sidebar)",
+                    selected ? "bg-(--bg-row-hover)" : "hover:bg-(--sidebar)",
                     lintHealth === "ok" && "border-l-(--success)",
                     lintHealth === "warning" && "border-l-(--warning)",
                     lintHealth === "error" && "border-l-(--error)",
@@ -332,7 +336,7 @@ function ModulesContent() {
           {selectedModule ? (
             <ModuleRegistryDetail
               configValues={configValues}
-              history={modulesQuery.data?.refresh_history ?? []}
+              history={modulesData?.refresh_history ?? []}
               module={selectedModule}
             />
           ) : (
@@ -890,7 +894,7 @@ function SegmentedFilter({
             className={cn(
               "h-6 min-w-0 truncate border border-(--border-subtle) px-1 text-[10px] text-(--muted)",
               value === option
-                ? "bg-(--accent-soft) text-(--foreground)"
+                ? "border-(--line-strong) bg-(--bg-row-hover) text-(--foreground)"
                 : "bg-(--background) hover:bg-(--sidebar)"
             )}
             key={option}

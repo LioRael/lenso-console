@@ -36,19 +36,20 @@ export function StoryTabs({
   onChange: (mode: StoryViewMode) => void;
 }) {
   return (
-    <div className="min-w-0 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_76%,var(--background))]">
+    <div className="min-w-0 border-b border-(--line) bg-(--bg-panel-header)">
       <HorizontalTabScroll>
-        <div className="flex h-full w-max min-w-full items-end gap-3 pl-3 pr-8">
+        <div className="flex h-full w-max min-w-full items-center gap-1 px-2">
           {labels.map(({ icon: Icon, id, label }) => (
             <button
               className={cn(
-                "relative flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap border-b border-transparent px-0.5 font-mono text-[11px] transition",
+                "relative flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-control)] px-2 text-[11px] font-medium transition-colors",
                 mode === id
-                  ? "font-semibold text-(--foreground) shadow-[inset_0_-1px_0_var(--accent)]"
-                  : "text-(--muted) hover:border-(--border) hover:text-(--secondary)"
+                  ? "native-selection"
+                  : "text-(--fg-tertiary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
               )}
               key={id}
               onClick={() => onChange(id)}
+              type="button"
             >
               <Icon
                 {...(mode === id ? { className: "text-(--accent)" } : {})}

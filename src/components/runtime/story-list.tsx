@@ -19,35 +19,35 @@ export function StoryList({
   onSelect: (story: RuntimeStory) => void;
 }) {
   return (
-    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background)">
-      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-panel)">
+      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--line) bg-(--bg-panel) px-3 py-2">
         <div>
-          <h2 className="font-mono text-sm font-semibold tracking-tight text-(--foreground)">
+          <h2 className="text-sm font-semibold tracking-tight text-(--fg-primary)">
             Stories
           </h2>
-          <p className="font-mono text-xs text-(--muted)">
+          <p className="text-xs text-(--fg-tertiary)">
             {stories.length} correlations
           </p>
         </div>
       </div>
-      <div className="flex h-8 items-center gap-2 border-b border-(--border-subtle) px-3 text-(--muted)">
+      <div className="flex h-8 items-center gap-2 border-b border-(--line) px-3 text-(--fg-tertiary)">
         <Search size={12} />
         <input
           aria-label="Search stories"
-          className="mono w-full bg-transparent text-xs text-(--foreground) outline-hidden placeholder:text-(--muted)"
+          className="mono w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="filter story / service / correlation..."
           value={query}
         />
       </div>
-      <div className="grid h-6 grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--border-subtle) px-3 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-(--muted)">
+      <div className="grid h-6 grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-semibold uppercase text-(--fg-tertiary)">
         <span />
         <span>story</span>
         <span className="text-right">state</span>
       </div>
       <div className="min-h-0 overflow-auto">
         {stories.length === 0 ? (
-          <div className="p-4 font-mono text-[11px] leading-5 text-(--muted)">
+          <div className="p-4 text-[12px] leading-5 text-(--fg-tertiary)">
             No stories match the current filter.
           </div>
         ) : null}
@@ -60,12 +60,10 @@ export function StoryList({
           return (
             <button
               className={cn(
-                "relative w-full border-b border-(--border-subtle) py-2.5 pr-3 pl-4 text-left transition",
+                "relative w-full border-b border-(--line) py-2.5 pr-3 pl-4 text-left transition",
                 isError &&
-                  "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-[#ef4444]",
-                isSelected
-                  ? "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
-                  : "hover:bg-(--elevated)"
+                  "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-(--error)",
+                isSelected ? "native-selection" : "hover:bg-(--bg-row-hover)"
               )}
               key={story.id}
               onClick={() => onSelect(story)}
@@ -76,32 +74,32 @@ export function StoryList({
                   className="size-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: statusColor(storySummary.status) }}
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-(--foreground)">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-(--fg-primary)">
                   {storySummary.title}
                 </span>
                 <span
                   className={cn(
-                    "font-mono text-[10px] uppercase tracking-wide",
-                    isError ? "text-[#ff8b86]" : "text-(--muted)"
+                    "text-[10px] font-medium",
+                    isError ? "text-(--tone-error-fg)" : "text-(--fg-tertiary)"
                   )}
                 >
                   {storySummary.status}
                 </span>
               </div>
 
-              <div className="mt-1.5 flex items-center gap-2 font-mono text-[10px] text-(--secondary)">
+              <div className="mt-1.5 flex items-center gap-2 text-[11px] text-(--fg-secondary)">
                 <Metric icon={<Clock size={10} />}>
                   {formatRuntimeDuration(storySummary.duration)}
                 </Metric>
-                <span className="text-(--border-subtle)">·</span>
+                <span className="text-(--line)">·</span>
                 <Metric icon={<Boxes size={10} />}>
                   {storySummary.nodeCount}
                 </Metric>
                 {storySummary.errorCount > 0 ? (
                   <>
-                    <span className="text-(--border-subtle)">·</span>
+                    <span className="text-(--line)">·</span>
                     <Metric
-                      className="text-[#ff8b86]"
+                      className="text-(--tone-error-fg)"
                       icon={<AlertCircle size={10} />}
                     >
                       {storySummary.errorCount}
@@ -109,7 +107,7 @@ export function StoryList({
                   </>
                 ) : null}
                 <span
-                  className="ml-auto truncate text-[10px] text-(--muted)"
+                  className="ml-auto truncate text-[10px] text-(--fg-tertiary)"
                   title={storySummary.correlationId}
                 >
                   {shortCorrelation(storySummary.correlationId)}
@@ -117,11 +115,11 @@ export function StoryList({
               </div>
 
               {isError && storySummary.rootError ? (
-                <div className="mt-1.5 truncate font-mono text-[10px] leading-4 text-[#ff8b86]">
+                <div className="mt-1.5 truncate text-[11px] leading-4 text-(--tone-error-fg)">
                   {storySummary.rootError}
                 </div>
               ) : (
-                <div className="mt-1.5 truncate font-mono text-[10px] leading-4 text-(--secondary)">
+                <div className="mt-1.5 truncate text-[11px] leading-4 text-(--fg-secondary)">
                   {storySummary.patternLabel || "No execution pattern"}
                 </div>
               )}
@@ -129,14 +127,14 @@ export function StoryList({
               <div className="mt-1.5 flex min-w-0 flex-wrap gap-1">
                 {storySummary.services.slice(0, 4).map((service) => (
                   <span
-                    className="max-w-24 truncate border border-(--border-subtle) bg-(--elevated) px-1 py-0.5 font-mono text-[9px] text-(--muted)"
+                    className="max-w-24 truncate rounded border border-(--line) bg-(--bg-control) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)"
                     key={service}
                   >
                     {service}
                   </span>
                 ))}
                 {storySummary.services.length > 4 ? (
-                  <span className="border border-(--border-subtle) bg-(--elevated) px-1 py-0.5 font-mono text-[9px] text-(--muted)">
+                  <span className="rounded border border-(--line) bg-(--bg-control) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)">
                     +{storySummary.services.length - 4}
                   </span>
                 ) : null}

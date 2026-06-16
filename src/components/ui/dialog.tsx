@@ -25,10 +25,7 @@ function DialogPortal({ children }: PropsWithChildren) {
 function DialogBackdrop({ className }: { className?: string }) {
   return (
     <BaseDialog.Backdrop
-      className={cn(
-        "fixed inset-0 z-40 bg-[color-mix(in_srgb,var(--background)_60%,transparent)] backdrop-blur-sm",
-        className
-      )}
+      className={cn("fixed inset-0 z-40 bg-(--bg-scrim)", className)}
     />
   );
 }
@@ -41,7 +38,7 @@ function DialogPopup({
   return (
     <BaseDialog.Popup
       className={cn(
-        "fixed left-1/2 top-[12vh] z-50 w-[min(560px,calc(100vw-28px))] -translate-x-1/2 overflow-hidden border border-(--border-subtle) bg-(--surface) shadow-(--elevation-overlay) transition duration-150 data-[starting-style]:-translate-y-2 data-[starting-style]:scale-[0.985] data-[starting-style]:opacity-0",
+        "fixed left-1/2 top-[12vh] z-50 w-[min(560px,calc(100vw-28px))] -translate-x-1/2 overflow-hidden rounded-[var(--radius-overlay)] border border-(--line) bg-(--bg-overlay) shadow-(--elevation-overlay) transition duration-150 data-[starting-style]:-translate-y-1 data-[starting-style]:opacity-0",
         className
       )}
       {...props}

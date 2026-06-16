@@ -1,14 +1,16 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
+  Command as CommandGlyph,
   Copy,
   CornerDownLeft,
   GitBranch,
+  Menu,
   Moon,
   RotateCcw,
   Search,
   Sun,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { useConsoleNavigation } from "../../app/console-module-metadata";
 import type { ConsoleNavigationItem } from "../../app/console-modules";
@@ -32,6 +34,11 @@ type CommandPaletteProps = {
 
 type CommandNavigationItem = ConsoleNavigationItem & {
   keywords?: string;
+};
+
+type CommandEntry = {
+  command: CommandItem;
+  index: number;
 };
 
 const systemCommandNavigationItems = [
@@ -134,6 +141,7 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
   const consoleNavigation = useConsoleNavigation();
   const storiesQuery = useRuntimeStories();
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -212,6 +220,23 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
   const visible = commands.filter((command) =>
     command.searchText.includes(query.trim().toLowerCase())
   );
+  const visibleEntries = useMemo<CommandEntry[]>(
+    () => visible.map((command, index) => ({ command, index })),
+    [visible]
+  );
+  const groupedCommands = useMemo(
+    () => [
+      {
+        items: visibleEntries.slice(0, 5),
+        label: "Suggestions",
+      },
+      {
+        items: visibleEntries.slice(5),
+        label: "Commands",
+      },
+    ],
+    [visibleEntries]
+  );
 
   useEffect(() => {
     if (commandOpen) {
@@ -235,10 +260,10 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
       open={commandOpen}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="z-60" />
+        <Dialog.Backdrop className="z-[60] bg-(--bg-scrim)" />
         <Dialog.Popup
           aria-label="Command palette"
-          className="z-70 w-[min(640px,calc(100vw-28px))]"
+          className="z-[70] top-[12vh] flex h-[min(560px,calc(100vh-72px))] w-[min(760px,calc(100vw-40px))] flex-col overflow-hidden rounded-[var(--radius-overlay)] border border-(--line) bg-(--bg-overlay) p-0 shadow-(--elevation-overlay) max-sm:top-3 max-sm:h-[min(520px,calc(100vh-24px))] max-sm:w-[calc(100vw-20px)]"
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               closeCommandPalette();
@@ -262,44 +287,90 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             }
           }}
         >
-          <div className="flex items-center gap-2.5 border-b border-(--border-subtle) px-3 py-2.5 text-(--secondary)">
-            <Search size={16} />
+          <div className="flex h-12 items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-(--fg-secondary)">
+            <CommandMark />
             <input
               aria-label="Command search"
-              className="w-full bg-transparent font-mono text-xs text-(--foreground) outline-hidden placeholder:text-(--muted-deep)"
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium leading-none text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setActiveIndex(0);
+                listRef.current?.scrollTo({ top: 0 });
               }}
-              placeholder="Type a command..."
+              placeholder="Search commands, stories, modules..."
               ref={inputRef}
               value={query}
             />
+            <div className="flex shrink-0 items-center gap-2 text-[11px] font-medium text-(--fg-tertiary) max-sm:hidden">
+              <span>Command</span>
+              <Keycap>
+                <CornerDownLeft size={13} strokeWidth={2.2} />
+              </Keycap>
+            </div>
           </div>
-          <div className="max-h-105 overflow-auto p-1">
-            {visible.map((command, index) => (
-              <button
-                className={`grid w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 border border-transparent p-2 text-left font-mono text-(--foreground) ${
-                  index === activeIndex
-                    ? "border-[color-mix(in_srgb,var(--accent)_32%,transparent)] bg-(--accent-soft)"
-                    : "hover:bg-(--hover)"
-                }`}
-                key={command.id}
-                onClick={() => runCommand(command)}
-                type="button"
-              >
-                <CommandIcon id={command.id} />
-                <span className="min-w-0">
-                  <strong className="block truncate text-[11px] font-semibold">
-                    {command.title}
-                  </strong>
-                  <small className="mt-0.5 block truncate text-[10px] text-(--muted)">
-                    {command.subtitle}
-                  </small>
-                </span>
-                <CornerDownLeft className="text-(--muted)" size={14} />
-              </button>
-            ))}
+          <div className="min-h-0 flex-1 overflow-auto p-2" ref={listRef}>
+            {visible.length === 0 ? (
+              <div className="grid h-full place-items-center text-sm font-medium text-(--fg-tertiary)">
+                No commands found
+              </div>
+            ) : (
+              groupedCommands.map((group) =>
+                group.items.length > 0 ? (
+                  <section className="mt-2 first:mt-0" key={group.label}>
+                    <h2 className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.04em] text-(--fg-tertiary)">
+                      {group.label}
+                    </h2>
+                    <div className="grid gap-px">
+                      {group.items.map(({ command, index }) => (
+                        <button
+                          className={`grid h-10 w-full grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-control)] border px-2 text-left transition-colors max-sm:grid-cols-[28px_minmax(0,1fr)] ${
+                            index === activeIndex
+                              ? "border-(--line-strong) bg-(--bg-row-hover)"
+                              : "border-transparent hover:bg-(--bg-row-hover)"
+                          }`}
+                          key={command.id}
+                          onClick={() => runCommand(command)}
+                          type="button"
+                        >
+                          <CommandIcon id={command.id} />
+                          <span className="flex min-w-0 items-baseline gap-3 max-sm:block">
+                            <strong className="truncate text-xs font-semibold leading-none text-(--fg-primary) max-sm:block">
+                              {command.title}
+                            </strong>
+                            <small className="truncate text-xs font-medium leading-none text-(--fg-tertiary) max-sm:mt-1 max-sm:block">
+                              {command.subtitle}
+                            </small>
+                          </span>
+                          <span className="text-[11px] font-medium text-(--fg-tertiary) max-sm:hidden">
+                            {commandKind(command.id)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null
+              )
+            )}
+          </div>
+          <div className="flex h-10 items-center justify-between gap-3 border-t border-(--line) bg-(--bg-panel-header) px-3">
+            <button
+              aria-label="Command options"
+              className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-tertiary) transition-colors hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
+              type="button"
+            >
+              <Menu size={14} strokeWidth={1.8} />
+            </button>
+            <div className="flex items-center gap-2 text-[11px] font-medium text-(--fg-tertiary)">
+              <span className="text-(--fg-secondary)">Open Command</span>
+              <Keycap>
+                <CornerDownLeft size={13} strokeWidth={2.2} />
+              </Keycap>
+              <span>Actions</span>
+              <span className="flex items-center gap-1.5">
+                <Keycap>⌘</Keycap>
+                <Keycap>K</Keycap>
+              </span>
+            </div>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
@@ -316,23 +387,62 @@ function copyCurrentLink() {
 }
 
 function CommandIcon({ id }: { id: string }) {
+  const icon = iconForCommand(id);
+
+  return (
+    <span className="grid size-7 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-secondary)">
+      {icon}
+    </span>
+  );
+}
+
+function iconForCommand(id: string) {
   if (id === "theme-toggle") {
     return <ThemeCommandIcon />;
   }
+  if (id === "search") {
+    return <Search size={18} />;
+  }
   if (id.includes("retry")) {
-    return <RotateCcw size={15} />;
+    return <RotateCcw size={18} />;
   }
   if (id.includes("copy")) {
-    return <Copy size={15} />;
+    return <Copy size={18} />;
   }
-  return <GitBranch size={15} />;
+  return <GitBranch size={18} />;
 }
 
 function ThemeCommandIcon() {
   return (
-    <span className="grid size-3.75 place-items-center">
-      <Sun className="hidden [[data-theme=dark]_&]:block" size={15} />
-      <Moon className="block [[data-theme=dark]_&]:hidden" size={15} />
+    <span className="grid size-4.5 place-items-center">
+      <Sun className="hidden [[data-theme=dark]_&]:block" size={18} />
+      <Moon className="block [[data-theme=dark]_&]:hidden" size={18} />
     </span>
+  );
+}
+
+function commandKind(id: string) {
+  if (id.startsWith("console:")) {
+    return "Application";
+  }
+  if (id.startsWith("story:")) {
+    return "Story";
+  }
+  return "Command";
+}
+
+function CommandMark() {
+  return (
+    <span className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-tertiary)">
+      <CommandGlyph size={15} strokeWidth={1.9} />
+    </span>
+  );
+}
+
+function Keycap({ children }: { children: ReactNode }) {
+  return (
+    <kbd className="grid min-h-5 min-w-5 place-items-center rounded-[4px] border border-(--line) bg-(--bg-control) px-1 font-sans text-[11px] font-semibold leading-none text-(--fg-tertiary)">
+      {children}
+    </kbd>
   );
 }

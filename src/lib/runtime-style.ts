@@ -5,14 +5,14 @@ import type {
 } from "../data/mock-runtime";
 
 const serviceColors = [
-  "#f3f724",
-  "#22c55e",
-  "#3b82f6",
-  "#a855f7",
-  "#f97316",
-  "#14b8a6",
-  "#ec4899",
-  "#94a3b8",
+  "#737373",
+  "#525252",
+  "#8a8a8a",
+  "#6b7280",
+  "#4b5563",
+  "#71717a",
+  "#3f3f46",
+  "#a1a1aa",
 ] as const;
 
 export function formatRuntimeDuration(ms: number) {
@@ -27,12 +27,12 @@ export function formatRuntimeDuration(ms: number) {
 
 export function statusColor(status: RuntimeStatus) {
   if (status === "failed" || status === "dead") {
-    return "#ef4444";
+    return "var(--error)";
   }
   if (status === "pending" || status === "processing" || status === "running") {
-    return "#f3f724";
+    return "var(--warning)";
   }
-  return "#22c55e";
+  return "var(--success)";
 }
 
 export function serviceColor(service: string) {
