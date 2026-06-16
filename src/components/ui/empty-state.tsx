@@ -9,7 +9,7 @@ function EmptyStateRoot({
   return (
     <div
       className={cn(
-        "grid place-items-center gap-2 p-12 text-center text-(--muted)",
+        "grid place-items-center gap-2 p-12 text-center text-(--fg-tertiary)",
         className
       )}
     >
@@ -19,18 +19,20 @@ function EmptyStateRoot({
 }
 
 function EmptyStateIcon({ children }: { children: ReactNode }) {
-  return <div className="text-(--muted)">{children}</div>;
+  return <div className="text-(--fg-tertiary)">{children}</div>;
 }
 
 function EmptyStateTitle({ children }: PropsWithChildren) {
   return (
-    <h2 className="text-base font-semibold text-(--foreground)">{children}</h2>
+    <h2 className="text-base font-semibold text-(--fg-primary)">{children}</h2>
   );
 }
 
 function EmptyStateDescription({ children }: PropsWithChildren) {
   return (
-    <p className="max-w-md text-sm leading-6 text-(--muted)">{children}</p>
+    <p className="max-w-md text-sm leading-6 text-(--fg-tertiary)">
+      {children}
+    </p>
   );
 }
 

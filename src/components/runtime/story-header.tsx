@@ -102,7 +102,7 @@ export function StoryHeader({
             <span className="text-(--muted-deep)">·</span>
             <button
               className={cn(
-                "min-w-0 truncate text-left text-[#ff8b86] transition hover:text-[#ffd0cd]",
+                "min-w-0 truncate text-left text-(--tone-error-fg) transition hover:text-(--error)",
                 isError && "font-semibold"
               )}
               onClick={() => {
@@ -144,7 +144,7 @@ function Metric({
 }) {
   const toneClass = {
     accent: "text-(--accent)",
-    error: "text-[#ff8b86]",
+    error: "text-(--tone-error-fg)",
     muted: "text-(--secondary)",
   }[tone];
 

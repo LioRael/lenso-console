@@ -144,7 +144,6 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [listScrolled, setListScrolled] = useState(false);
 
   const commands = useMemo<CommandItem[]>(() => {
     const stories = queryDataWithMockFallback({
@@ -243,7 +242,6 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
     if (commandOpen) {
       setQuery("");
       setActiveIndex(0);
-      setListScrolled(false);
       window.setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [commandOpen]);
@@ -262,10 +260,10 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
       open={commandOpen}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="z-60 bg-transparent" />
+        <Dialog.Backdrop className="z-[60] bg-(--bg-scrim)" />
         <Dialog.Popup
           aria-label="Command palette"
-          className="glass-panel z-70 top-[10vh] flex h-[min(480px,calc(100vh-56px))] w-[min(720px,calc(100vw-40px))] flex-col overflow-hidden rounded-[26px] border p-0 max-sm:top-3 max-sm:h-[min(500px,calc(100vh-24px))] max-sm:w-[calc(100vw-20px)] max-sm:rounded-[24px]"
+          className="z-[70] top-[12vh] flex h-[min(560px,calc(100vh-72px))] w-[min(760px,calc(100vw-40px))] flex-col overflow-hidden rounded-[var(--radius-overlay)] border border-(--line) bg-(--bg-overlay) p-0 shadow-(--elevation-overlay) max-sm:top-3 max-sm:h-[min(520px,calc(100vh-24px))] max-sm:w-[calc(100vw-20px)]"
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               closeCommandPalette();
@@ -289,77 +287,61 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             }
           }}
         >
-          <div className="absolute inset-x-0 top-0 z-10 isolate flex min-h-16 items-center gap-3 px-5 pt-1 text-(--secondary) max-sm:min-h-18 max-sm:gap-3 max-sm:px-4">
-            {listScrolled ? (
-              <div
-                aria-hidden="true"
-                className="glass-progressive-top absolute inset-0 -z-10"
-              />
-            ) : null}
+          <div className="flex h-12 items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-(--fg-secondary)">
             <CommandMark />
             <input
               aria-label="Command search"
-              className="min-w-0 flex-1 bg-transparent text-[22px] font-medium leading-none text-(--foreground) outline-hidden placeholder:text-(--muted-deep) max-sm:text-xl"
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium leading-none text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setActiveIndex(0);
-                setListScrolled(false);
                 listRef.current?.scrollTo({ top: 0 });
               }}
-              placeholder="Search for apps and commands..."
+              placeholder="Search commands, stories, modules..."
               ref={inputRef}
               value={query}
             />
-            <div className="flex shrink-0 items-center gap-2 text-sm font-semibold text-(--muted-deep) max-sm:hidden">
-              <span>Quick AI</span>
+            <div className="flex shrink-0 items-center gap-2 text-[11px] font-medium text-(--fg-tertiary) max-sm:hidden">
+              <span>Command</span>
               <Keycap>
-                <CornerDownLeft size={16} strokeWidth={2.4} />
+                <CornerDownLeft size={13} strokeWidth={2.2} />
               </Keycap>
             </div>
           </div>
-          <div
-            className="min-h-0 flex-1 overflow-auto px-2.5 pt-16 pb-2.5 max-sm:px-2 max-sm:pt-18"
-            onScroll={(event) => {
-              const scrolled = event.currentTarget.scrollTop > 2;
-              setListScrolled((current) =>
-                current === scrolled ? current : scrolled
-              );
-            }}
-            ref={listRef}
-          >
+          <div className="min-h-0 flex-1 overflow-auto p-2" ref={listRef}>
             {visible.length === 0 ? (
-              <div className="grid h-full place-items-center text-[18px] font-medium text-(--muted)">
+              <div className="grid h-full place-items-center text-sm font-medium text-(--fg-tertiary)">
                 No commands found
               </div>
             ) : (
               groupedCommands.map((group) =>
                 group.items.length > 0 ? (
-                  <section className="mt-3 first:mt-1" key={group.label}>
-                    <h2 className="mb-1.5 px-4 text-[13px] font-semibold text-(--muted) max-sm:text-xs">
+                  <section className="mt-2 first:mt-0" key={group.label}>
+                    <h2 className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.04em] text-(--fg-tertiary)">
                       {group.label}
                     </h2>
-                    <div className="space-y-1">
+                    <div className="grid gap-px">
                       {group.items.map(({ command, index }) => (
                         <button
-                          className={`grid h-12 w-full grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-transparent px-4 text-left text-(--foreground) transition-colors max-sm:h-13 max-sm:grid-cols-[38px_minmax(0,1fr)] max-sm:gap-3 max-sm:px-3 ${
+                          className={`grid h-10 w-full grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-control)] border px-2 text-left transition-colors max-sm:grid-cols-[28px_minmax(0,1fr)] ${
                             index === activeIndex
-                              ? "bg-[color-mix(in_srgb,var(--muted)_18%,transparent)] shadow-[0_1px_0_rgba(255,255,255,0.34)_inset]"
-                              : "hover:bg-[color-mix(in_srgb,var(--muted)_9%,transparent)]"
+                              ? "border-(--accent) bg-(--accent-muted)"
+                              : "border-transparent hover:bg-(--bg-row-hover)"
                           }`}
                           key={command.id}
                           onClick={() => runCommand(command)}
                           type="button"
                         >
                           <CommandIcon id={command.id} />
-                          <span className="flex min-w-0 items-baseline gap-4 max-sm:block">
-                            <strong className="truncate text-[15px] font-semibold leading-none tracking-normal text-(--foreground) max-sm:block max-sm:text-sm">
+                          <span className="flex min-w-0 items-baseline gap-3 max-sm:block">
+                            <strong className="truncate text-xs font-semibold leading-none text-(--fg-primary) max-sm:block">
                               {command.title}
                             </strong>
-                            <small className="truncate text-[15px] font-medium leading-none text-(--muted) max-sm:mt-1 max-sm:block max-sm:text-xs">
+                            <small className="truncate text-xs font-medium leading-none text-(--fg-tertiary) max-sm:mt-1 max-sm:block">
                               {command.subtitle}
                             </small>
                           </span>
-                          <span className="text-[15px] font-semibold text-(--muted) max-sm:hidden">
+                          <span className="text-[11px] font-medium text-(--fg-tertiary) max-sm:hidden">
                             {commandKind(command.id)}
                           </span>
                         </button>
@@ -370,19 +352,18 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
               )
             )}
           </div>
-          <BottomProgressiveCommandBlur />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 px-3 pb-3 max-sm:px-3">
+          <div className="flex h-10 items-center justify-between gap-3 border-t border-(--line) bg-(--bg-panel-header) px-3">
             <button
               aria-label="Command options"
-              className="glass-control pointer-events-auto grid size-10 shrink-0 place-items-center rounded-full border text-(--muted) transition-colors hover:bg-[color-mix(in_srgb,var(--muted)_10%,transparent)]"
+              className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-tertiary) transition-colors hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
               type="button"
             >
-              <Menu size={20} strokeWidth={1.8} />
+              <Menu size={14} strokeWidth={1.8} />
             </button>
-            <div className="glass-control pointer-events-auto flex min-h-10 items-center gap-3 rounded-full border px-4 text-[13px] font-semibold text-(--muted)">
-              <span className="text-(--foreground)">Open Command</span>
+            <div className="flex items-center gap-2 text-[11px] font-medium text-(--fg-tertiary)">
+              <span className="text-(--fg-secondary)">Open Command</span>
               <Keycap>
-                <CornerDownLeft size={16} strokeWidth={2.4} />
+                <CornerDownLeft size={13} strokeWidth={2.2} />
               </Keycap>
               <span>Actions</span>
               <span className="flex items-center gap-1.5">
@@ -409,18 +390,9 @@ function CommandIcon({ id }: { id: string }) {
   const icon = iconForCommand(id);
 
   return (
-    <span className="grid size-9 place-items-center rounded-[10px] border border-[color-mix(in_srgb,var(--border)_62%,transparent)] bg-[color-mix(in_srgb,var(--surface)_88%,transparent)] text-(--secondary) shadow-[0_1px_0_rgba(255,255,255,0.52)_inset,0_8px_18px_rgba(0,0,0,0.08)]">
+    <span className="grid size-7 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-secondary)">
       {icon}
     </span>
-  );
-}
-
-function BottomProgressiveCommandBlur() {
-  return (
-    <div
-      aria-hidden="true"
-      className="glass-progressive-bottom pointer-events-none absolute inset-x-0 bottom-0 z-[9] h-16"
-    />
   );
 }
 
@@ -461,15 +433,15 @@ function commandKind(id: string) {
 
 function CommandMark() {
   return (
-    <span className="grid size-9 shrink-0 place-items-center text-(--muted-deep) max-sm:size-8">
-      <CommandGlyph size={28} strokeWidth={1.8} />
+    <span className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-tertiary)">
+      <CommandGlyph size={15} strokeWidth={1.9} />
     </span>
   );
 }
 
 function Keycap({ children }: { children: ReactNode }) {
   return (
-    <kbd className="grid min-h-7 min-w-7 place-items-center rounded-lg border border-[color-mix(in_srgb,var(--border)_78%,transparent)] bg-[color-mix(in_srgb,var(--surface)_82%,transparent)] px-1.5 font-sans text-xs font-semibold leading-none text-(--muted) shadow-[0_1px_0_rgba(255,255,255,0.58)_inset]">
+    <kbd className="grid min-h-5 min-w-5 place-items-center rounded-[4px] border border-(--line) bg-(--bg-control) px-1 font-sans text-[11px] font-semibold leading-none text-(--fg-tertiary)">
       {children}
     </kbd>
   );

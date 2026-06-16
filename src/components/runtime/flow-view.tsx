@@ -292,7 +292,7 @@ export function FlowView({
           title="Execution Graph"
         >
           <button
-            className="flex items-center gap-1.5 transition hover:text-(--foreground)"
+            className="flex items-center gap-1.5 transition hover:text-(--fg-primary)"
             onClick={frameCanvas}
             type="button"
           >
@@ -303,7 +303,7 @@ export function FlowView({
       </div>
 
       {graphModel.state === "missing-edges" ? (
-        <div className="absolute top-12 left-1/2 z-3 w-[min(520px,calc(100%-32px))] -translate-x-1/2 border tint-border tint-warning bg-[color-mix(in_srgb,var(--background)_92%,transparent)] p-3 font-mono text-[11px] tint-text shadow-(--elevation-overlay)">
+        <div className="absolute top-12 left-1/2 z-3 w-[min(520px,calc(100%-32px))] -translate-x-1/2 border tint-border tint-warning bg-[color-mix(in_srgb,var(--bg-canvas)_92%,transparent)] p-3 font-mono text-[11px] tint-text shadow-(--elevation-overlay)">
           This story includes execution nodes, but the backend did not return
           graph edges.
         </div>
@@ -311,7 +311,7 @@ export function FlowView({
 
       {graphModel.state === "empty-nodes" ? (
         <div className="absolute inset-0 z-3 grid place-items-center p-4">
-          <div className="border border-(--border-subtle) bg-(--surface) p-4 font-mono text-xs text-(--muted)">
+          <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
             This story does not include execution nodes yet.
           </div>
         </div>
@@ -369,7 +369,7 @@ export function FlowView({
                     fill="none"
                     key={edge.id}
                     opacity="0.72"
-                    stroke="var(--muted-deep)"
+                    stroke="var(--fg-quaternary)"
                     strokeDasharray={edge.type === "causation" ? "none" : "6 4"}
                     strokeWidth="1.5"
                   />
@@ -386,7 +386,7 @@ export function FlowView({
                 <button
                   aria-label={`Select graph node ${node.name}`}
                   className={cn(
-                    "absolute h-18 w-60 cursor-pointer rounded-sm border bg-(--elevated) text-left transition hover:bg-(--hover)",
+                    "absolute h-18 w-60 cursor-pointer rounded-sm border bg-(--bg-control) text-left transition hover:bg-(--bg-row-hover)",
                     isSelected &&
                       "border-(--accent) shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_22%,transparent)] ring-1 ring-[color-mix(in_srgb,var(--accent)_30%,transparent)]",
                     !isSelected &&
@@ -394,7 +394,7 @@ export function FlowView({
                       "border-[color-mix(in_srgb,var(--error)_45%,transparent)]",
                     !isSelected &&
                       !isError &&
-                      "border-(--border-subtle) hover:border-(--muted-deep)"
+                      "border-(--line) hover:border-(--fg-quaternary)"
                   )}
                   key={node.id}
                   onClick={() => onSelectNode(node)}
@@ -429,10 +429,10 @@ export function FlowView({
                       </span>
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate font-mono text-[13px] text-(--foreground)">
+                      <span className="block truncate font-mono text-[13px] text-(--fg-primary)">
                         {node.name}
                       </span>
-                      <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-(--muted)">
+                      <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-(--fg-tertiary)">
                         <span>{formatRuntimeDuration(node.durationMs)}</span>
                         {fanoutGroup ? (
                           <span className="shrink-0 rounded-xs px-1 py-0 text-[10px] tint tint-info">
@@ -448,7 +448,7 @@ export function FlowView({
                     </span>
                   </span>
                   {isError ? (
-                    <span className="absolute -top-1 -right-1 size-2.5 rounded-full border border-(--elevated) bg-[#ef4444]" />
+                    <span className="absolute -top-1 -right-1 size-2.5 rounded-full border border-(--bg-control) bg-[var(--error)]" />
                   ) : null}
                 </button>
               );
@@ -460,7 +460,7 @@ export function FlowView({
       <div className="absolute bottom-10 left-4 z-2 flex flex-col gap-1">
         <button
           aria-label="Zoom graph in"
-          className="grid size-7 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--secondary) transition hover:border-(--muted-deep) hover:text-(--foreground)"
+          className="grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
           onClick={() => zoomBy(flowViewDefaults.zoomStep)}
           type="button"
         >
@@ -468,7 +468,7 @@ export function FlowView({
         </button>
         <button
           aria-label="Zoom graph out"
-          className="grid size-7 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--secondary) transition hover:border-(--muted-deep) hover:text-(--foreground)"
+          className="grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
           onClick={() => zoomBy(-flowViewDefaults.zoomStep)}
           type="button"
         >
@@ -476,7 +476,7 @@ export function FlowView({
         </button>
         <button
           aria-label="Frame graph"
-          className="grid size-7 place-items-center rounded-xs border border-(--border-subtle) bg-(--elevated) text-(--secondary) transition hover:border-(--muted-deep) hover:text-(--foreground)"
+          className="grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
           onClick={frameCanvas}
           type="button"
         >
@@ -484,7 +484,7 @@ export function FlowView({
         </button>
       </div>
 
-      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--border-subtle) bg-[color-mix(in_srgb,var(--background)_90%,transparent)]">
+      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_90%,transparent)]">
         <div
           className="absolute top-2 left-2"
           style={{
@@ -509,7 +509,7 @@ export function FlowView({
         </div>
       </div>
 
-      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--border-subtle) bg-[color-mix(in_srgb,var(--background)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--muted)">
+      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
         <span>Select nodes</span>
         <span>{Math.round(zoom * 100)}%</span>
         <span>Ctrl wheel zoom</span>

@@ -241,7 +241,7 @@ export function DeadLettersPage() {
                       {item.correlationId}
                     </span>
                     {item.lastError ? (
-                      <span className="mt-1 block truncate text-[10px] text-[#ef4444]">
+                      <span className="mt-1 block truncate text-[10px] text-(--error)">
                         {item.lastError}
                       </span>
                     ) : null}

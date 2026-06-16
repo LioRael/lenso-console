@@ -13,15 +13,15 @@ export function OperationsInspectorHeader({
   meta?: ReactNode;
 }) {
   return (
-    <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+    <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
       <div className="mb-1 text-[10px] font-semibold uppercase text-(--accent)">
         {eyebrow}
       </div>
-      <div className="truncate text-[13px] font-semibold text-(--foreground)">
+      <div className="truncate text-[13px] font-semibold text-(--fg-primary)">
         {title}
       </div>
       {meta ? (
-        <div className="mt-1 flex items-center gap-2 text-[10px] text-(--muted)">
+        <div className="mt-1 flex items-center gap-2 text-[10px] text-(--fg-tertiary)">
           {meta}
         </div>
       ) : null}
@@ -43,20 +43,22 @@ export function OperationsStatusBanner({
       className={cn(
         "grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-b px-3 py-2",
         tone === "success" &&
-          "border-[color-mix(in_srgb,var(--success)_32%,transparent)] bg-[color-mix(in_srgb,var(--success)_8%,transparent)]",
+          "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)]",
         tone === "warning" &&
-          "border-[color-mix(in_srgb,#f59e0b_34%,transparent)] bg-[color-mix(in_srgb,#f59e0b_9%,transparent)]",
+          "border-[var(--tone-warning-border)] bg-[var(--tone-warning-bg)]",
         tone === "error" &&
-          "border-[color-mix(in_srgb,var(--error)_34%,transparent)] bg-[color-mix(in_srgb,var(--error)_9%,transparent)]"
+          "border-[var(--tone-error-border)] bg-[var(--tone-error-bg)]"
       )}
     >
       {tone === "success" ? (
-        <CheckCircle2 className="mt-0.5 text-(--success)" size={14} />
+        <CheckCircle2 className="mt-0.5 text-(--tone-success-fg)" size={14} />
       ) : (
         <AlertTriangle
           className={cn(
             "mt-0.5",
-            tone === "warning" ? "text-[#f59e0b]" : "text-(--error)"
+            tone === "warning"
+              ? "text-(--tone-warning-fg)"
+              : "text-(--tone-error-fg)"
           )}
           size={14}
         />
@@ -65,14 +67,14 @@ export function OperationsStatusBanner({
         <div
           className={cn(
             "text-[11px] font-semibold",
-            tone === "success" && "text-(--success)",
-            tone === "warning" && "text-[#f59e0b]",
-            tone === "error" && "text-(--error)"
+            tone === "success" && "text-(--tone-success-fg)",
+            tone === "warning" && "text-(--tone-warning-fg)",
+            tone === "error" && "text-(--tone-error-fg)"
           )}
         >
           {label}
         </div>
-        <div className="mt-0.5 truncate text-[10px] text-(--secondary)">
+        <div className="mt-0.5 truncate text-[10px] text-(--fg-secondary)">
           {summary}
         </div>
       </div>
@@ -82,7 +84,7 @@ export function OperationsStatusBanner({
 
 export function OperationsSectionTitle({ children }: { children: string }) {
   return (
-    <div className="border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_46%,transparent)] px-3 py-1.5 text-[10px] font-semibold uppercase text-(--muted)">
+    <div className="border-b border-(--line) bg-(--bg-panel-header) px-3 py-1.5 text-[10px] font-semibold uppercase text-(--fg-tertiary)">
       {children}
     </div>
   );

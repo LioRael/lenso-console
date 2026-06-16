@@ -102,7 +102,7 @@ function WaterfallRowButton({
     <button
       aria-label={`Select row ${row.name}`}
       className={cn(
-        "grid w-full min-w-0 grid-cols-[minmax(260px,340px)_minmax(0,1fr)] items-center gap-4 px-3 py-1.5 text-left transition hover:bg-[color-mix(in_srgb,var(--hover)_64%,transparent)] disabled:cursor-default",
+        "grid w-full min-w-0 grid-cols-[minmax(260px,340px)_minmax(0,1fr)] items-center gap-4 px-3 py-1.5 text-left transition hover:bg-(--bg-row-hover) disabled:cursor-default",
         selected && "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]",
         row.group === "unlinked" && "opacity-82"
       )}
@@ -164,7 +164,7 @@ function WaterfallRowButton({
           style={{
             backgroundColor:
               row.status === "failed" || row.status === "dead"
-                ? "#ef4444"
+                ? "var(--error)"
                 : color,
             left: `${segment.left}%`,
             opacity: selected ? 1 : 0.82,

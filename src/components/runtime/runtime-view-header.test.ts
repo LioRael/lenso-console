@@ -11,7 +11,7 @@ import {
 describe("runtime view header style contract", () => {
   test("uses one shared style contract for runtime tab titles", () => {
     expect(runtimeViewHeaderClassName).toContain("border-b");
-    expect(runtimeViewHeaderClassName).toContain("bg-[color-mix");
+    expect(runtimeViewHeaderClassName).toContain("bg-(--bg-panel-header)");
     expect(runtimeViewHeaderContentClassName).toContain("overflow-hidden");
     expect(runtimeViewHeaderLabelClassName).toContain("uppercase");
     expect(runtimeViewHeaderSummaryClassName).toContain("truncate");

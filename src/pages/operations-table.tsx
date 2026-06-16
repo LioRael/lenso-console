@@ -9,7 +9,7 @@ export function OperationsTableHeader({
   return (
     <div
       className={cn(
-        "grid h-7 items-center border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--elevated)_46%,transparent)] px-3 text-[10px] font-semibold uppercase text-(--muted)",
+        "grid h-7 items-center border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-semibold uppercase text-(--fg-tertiary)",
         className
       )}
     >
@@ -31,10 +31,8 @@ export function OperationsSelectableRow({
   return (
     <button
       className={cn(
-        "grid w-full items-center border-b border-(--border-subtle) px-3 text-left text-[12px] transition-colors",
-        isSelected
-          ? "native-selection"
-          : "hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]",
+        "grid w-full items-center border-b border-(--line) px-3 text-left text-[12px] transition-colors",
+        isSelected ? "native-selection" : "hover:bg-(--bg-row-hover)",
         className
       )}
       onClick={onClick}
@@ -56,7 +54,7 @@ export function OperationsAggregateRow({
   return (
     <button
       className={cn(
-        "grid h-8 w-full items-center border-b border-(--border-subtle) px-3 text-left text-[11px] hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]",
+        "grid h-8 w-full items-center border-b border-(--line) px-3 text-left text-[11px] hover:bg-(--bg-row-hover)",
         className
       )}
       onClick={onClick}
@@ -77,19 +75,21 @@ export function OperationsKeyValueRows({
   valueClassName?: string;
 }) {
   return (
-    <div className="w-max min-w-full border-b border-(--border-subtle) text-xs">
+    <div className="w-max min-w-full border-b border-(--line) text-xs">
       {rows.map(([key, value]) => (
         <div
           className={cn(
-            "grid w-max min-w-full border-b border-(--border-subtle) last:border-b-0",
+            "grid w-max min-w-full border-b border-(--line) last:border-b-0",
             rowClassName ?? "grid-cols-[124px_minmax(220px,max-content)]"
           )}
           key={key}
         >
-          <div className="bg-(--sidebar) px-3 py-1.5 text-(--muted)">{key}</div>
+          <div className="bg-(--bg-panel-header) px-3 py-1.5 text-(--fg-tertiary)">
+            {key}
+          </div>
           <div
             className={cn(
-              "px-3 py-1.5 text-(--secondary)",
+              "px-3 py-1.5 text-(--fg-secondary)",
               valueClassName ?? "whitespace-pre-wrap"
             )}
           >

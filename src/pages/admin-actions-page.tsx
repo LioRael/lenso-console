@@ -211,7 +211,7 @@ export function AdminActionsPage() {
               <span
                 className={cn(
                   "text-[13px] font-semibold text-(--foreground)",
-                  label === "failed" && summary.failed > 0 && "text-[#ef4444]"
+                  label === "failed" && summary.failed > 0 && "text-(--error)"
                 )}
               >
                 {value}
@@ -493,7 +493,7 @@ function AggregatePanel({
                 {row.key}
               </span>
               <span
-                className={row.failed > 0 ? "text-[#ef4444]" : "text-(--muted)"}
+                className={row.failed > 0 ? "text-(--error)" : "text-(--muted)"}
               >
                 {row.failed}/{row.total}
               </span>

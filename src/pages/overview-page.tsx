@@ -19,12 +19,12 @@ export function OverviewPage() {
   const failures = summary?.recentFailures.slice(0, 6) ?? [];
 
   return (
-    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
+    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas) text-(--fg-primary)">
       <header className="soft-panel border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <Activity className="text-(--accent)" size={14} />
           <h1 className="text-[13px] font-semibold">Runtime Overview</h1>
-          <span className="ml-auto text-[11px] text-(--muted)">
+          <span className="ml-auto text-[11px] text-(--fg-tertiary)">
             status{" "}
             {summaryQuery.isError ? "degraded" : (summary?.status ?? "loading")}{" "}
             / {runtimeConsoleDataSource()}
@@ -33,7 +33,7 @@ export function OverviewPage() {
       </header>
 
       <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_360px] overflow-hidden max-xl:grid-cols-1">
-        <main className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_72%,var(--background))] max-xl:border-r-0">
+        <main className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--line) bg-(--bg-panel-muted) max-xl:border-r-0">
           <SummaryStrip summary={summary} />
           <RuntimeHeatmapStrip
             heatmap={heatmap}
@@ -56,7 +56,7 @@ export function OverviewPage() {
             ) : (
               activity.map((item) => (
                 <div
-                  className="grid min-h-11 grid-cols-[108px_minmax(0,1fr)_96px_120px] items-center gap-3 border-b border-(--border-subtle) px-3 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]"
+                  className="grid min-h-11 grid-cols-[108px_minmax(0,1fr)_96px_120px] items-center gap-3 border-b border-(--line) px-3 text-[12px] transition-colors hover:bg-(--bg-row-hover)"
                   key={item.id}
                 >
                   <RuntimeStatusBadge
@@ -65,17 +65,17 @@ export function OverviewPage() {
                     variant="label"
                   />
                   <div className="min-w-0">
-                    <div className="truncate text-(--foreground)">
+                    <div className="truncate text-(--fg-primary)">
                       {item.name}
                     </div>
-                    <div className="truncate text-[10px] text-(--muted)">
+                    <div className="truncate text-[10px] text-(--fg-tertiary)">
                       {item.id}
                     </div>
                   </div>
-                  <span className="text-(--muted)">
+                  <span className="text-(--fg-tertiary)">
                     {item.attempts}/{item.maxAttempts}
                   </span>
-                  <span className="truncate text-right text-(--muted)">
+                  <span className="truncate text-right text-(--fg-tertiary)">
                     {time(item.createdAt)}
                   </span>
                 </div>
@@ -84,7 +84,7 @@ export function OverviewPage() {
           </div>
         </main>
 
-        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-[color-mix(in_srgb,var(--surface)_94%,var(--background))] max-xl:hidden">
+        <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-panel) max-xl:hidden">
           <SectionHeader title="Failure Stream" meta="operator attention" />
           <div className="min-h-0 overflow-auto">
             {failures.length === 0 ? (
@@ -92,7 +92,7 @@ export function OverviewPage() {
             ) : (
               failures.map((failure) => (
                 <div
-                  className="border-b border-(--border-subtle) px-3 py-2 text-[12px] transition-colors hover:bg-[color-mix(in_srgb,var(--hover)_72%,transparent)]"
+                  className="border-b border-(--line) px-3 py-2 text-[12px] transition-colors hover:bg-(--bg-row-hover)"
                   key={failure.id}
                 >
                   <div className="mb-1 flex items-center gap-2">
@@ -101,18 +101,18 @@ export function OverviewPage() {
                       status={failure.status}
                       variant="label"
                     />
-                    <span className="ml-auto text-[10px] text-(--muted)">
+                    <span className="ml-auto text-[10px] text-(--fg-tertiary)">
                       {relativeAge(failure.createdAt)}
                     </span>
                   </div>
-                  <div className="truncate text-(--foreground)">
+                  <div className="truncate text-(--fg-primary)">
                     {failure.name}
                   </div>
-                  <div className="truncate text-[10px] text-(--muted)">
+                  <div className="truncate text-[10px] text-(--fg-tertiary)">
                     {failure.correlationId}
                   </div>
                   {failure.lastError ? (
-                    <div className="mt-1 text-[10px] leading-4 text-(--error)">
+                    <div className="mt-1 text-[10px] leading-4 text-(--tone-error-fg)">
                       {failure.lastError}
                     </div>
                   ) : null}
@@ -136,12 +136,12 @@ function RuntimeHeatmapStrip({
   const cells = heatmap?.cells.slice(0, 18) ?? [];
 
   return (
-    <div className="border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_86%,transparent)] px-3 py-2">
+    <div className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase text-(--secondary)">
+        <span className="text-[10px] font-semibold uppercase text-(--fg-secondary)">
           Runtime Heatmap
         </span>
-        <span className="ml-auto text-[11px] text-(--muted)">
+        <span className="ml-auto text-[11px] text-(--fg-tertiary)">
           {heatmap ? `${heatmap.bucketSeconds}s buckets` : "loading"}
         </span>
       </div>
@@ -149,13 +149,13 @@ function RuntimeHeatmapStrip({
         {loading && cells.length === 0
           ? Array.from({ length: 18 }, (_, index) => (
               <span
-                className="h-7 animate-pulse rounded-sm border border-(--border-subtle) bg-(--elevated)"
+                className="h-7 animate-pulse rounded-sm border border-(--line) bg-(--bg-panel-muted)"
                 key={index}
               />
             ))
           : cells.map((cell, index) => (
               <span
-                className="h-7 rounded-sm border border-(--border-subtle)"
+                className="h-7 rounded-sm border border-(--line)"
                 key={`${cell.bucketStart}-${cell.service}-${cell.nodeType}-${index}`}
                 style={{
                   backgroundColor: heatmapColor(cell),
@@ -165,7 +165,7 @@ function RuntimeHeatmapStrip({
             ))}
         {!loading && cells.length === 0 ? (
           <span
-            className="text-[12px] text-(--muted)"
+            className="text-[12px] text-(--fg-tertiary)"
             style={{ gridColumn: "1 / -1" }}
           >
             No runtime heatmap data
@@ -178,18 +178,18 @@ function RuntimeHeatmapStrip({
 
 function heatmapColor(cell: RuntimeHeatmap["cells"][number]) {
   if (cell.deadCount > 0) {
-    return "rgba(239,68,68,0.82)";
+    return "var(--data-error)";
   }
   if (cell.errorCount > 0) {
-    return "rgba(251,191,36,0.72)";
+    return "var(--data-warning)";
   }
   if ((cell.maxDurationMs ?? 0) > 30_000) {
-    return "color-mix(in srgb, var(--accent) 70%, transparent)";
+    return "var(--data-info)";
   }
   if (cell.totalCount > 1) {
-    return "rgba(34,197,94,0.48)";
+    return "var(--data-success)";
   }
-  return "rgba(59,130,246,0.32)";
+  return "var(--data-accent)";
 }
 
 function SummaryStrip({ summary }: { summary: RuntimeSummary | undefined }) {
@@ -223,23 +223,23 @@ function SummaryStrip({ summary }: { summary: RuntimeSummary | undefined }) {
     : [];
 
   return (
-    <div className="grid border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] md:grid-cols-4">
+    <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-4">
       {rows.length === 0 ? (
         <MessageRow message="Runtime summary unavailable" />
       ) : (
         rows.map((row) => (
           <div
-            className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-r border-(--border-subtle) px-3 py-2 text-[11px] last:border-r-0"
+            className="grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-2 border-r border-(--line) px-3 py-2 text-[11px] last:border-r-0"
             key={row.label}
           >
-            <span className="text-(--muted)">{row.icon}</span>
-            <span className="min-w-0 truncate text-(--secondary)">
+            <span className="text-(--fg-tertiary)">{row.icon}</span>
+            <span className="min-w-0 truncate text-(--fg-secondary)">
               {row.label}
             </span>
-            <span className="text-[13px] font-semibold text-(--foreground)">
+            <span className="text-[13px] font-semibold text-(--fg-primary)">
               {row.value}
             </span>
-            <span className="col-span-3 truncate text-(--muted)">
+            <span className="col-span-3 truncate text-(--fg-tertiary)">
               {row.note}
             </span>
           </div>
@@ -251,11 +251,11 @@ function SummaryStrip({ summary }: { summary: RuntimeSummary | undefined }) {
 
 function SectionHeader({ title, meta }: { title: string; meta: string }) {
   return (
-    <div className="flex h-8 items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] px-3">
-      <span className="text-[10px] font-semibold uppercase text-(--secondary)">
+    <div className="flex h-8 items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3">
+      <span className="text-[10px] font-semibold uppercase text-(--fg-secondary)">
         {title}
       </span>
-      <span className="ml-auto text-[11px] text-(--muted)">{meta}</span>
+      <span className="ml-auto text-[11px] text-(--fg-tertiary)">{meta}</span>
     </div>
   );
 }
@@ -263,9 +263,9 @@ function SectionHeader({ title, meta }: { title: string; meta: string }) {
 function LoadingRows() {
   return (
     <>
-      <div className="h-11 animate-pulse border-b border-(--border-subtle) bg-(--elevated)" />
-      <div className="h-11 animate-pulse border-b border-(--border-subtle) bg-(--elevated)" />
-      <div className="h-11 animate-pulse border-b border-(--border-subtle) bg-(--elevated)" />
+      <div className="h-11 animate-pulse border-b border-(--line) bg-(--bg-panel-muted)" />
+      <div className="h-11 animate-pulse border-b border-(--line) bg-(--bg-panel-muted)" />
+      <div className="h-11 animate-pulse border-b border-(--line) bg-(--bg-panel-muted)" />
     </>
   );
 }
@@ -279,8 +279,8 @@ function MessageRow({
 }) {
   return (
     <div
-      className={`border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_42%,transparent)] px-3 py-3 text-[12px] ${
-        tone === "error" ? "text-(--error)" : "text-(--muted)"
+      className={`border-b border-(--line) bg-(--bg-panel-muted) px-3 py-3 text-[12px] ${
+        tone === "error" ? "text-(--tone-error-fg)" : "text-(--fg-tertiary)"
       }`}
     >
       {message}

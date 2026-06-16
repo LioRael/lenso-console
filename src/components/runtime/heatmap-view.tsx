@@ -49,7 +49,7 @@ export function HeatmapView({
 
   if (loading) {
     return (
-      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
         <RuntimeViewHeader
           meta="loading"
           summary="Backend runtime heatmap"
@@ -58,7 +58,7 @@ export function HeatmapView({
         <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 p-3">
           {Array.from({ length: 120 }, (_, index) => (
             <div
-              className="aspect-5/4 rounded-[1px] border border-(--border-subtle) bg-(--elevated)"
+              className="aspect-5/4 rounded-[1px] border border-(--line) bg-(--bg-control)"
               key={index}
             />
           ))}
@@ -69,13 +69,13 @@ export function HeatmapView({
 
   if (queryError) {
     return (
-      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
         <RuntimeViewHeader
           meta="error"
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <EmptyState className="h-full bg-(--surface)">
+        <EmptyState className="h-full bg-(--bg-panel)">
           <EmptyState.Title>Heatmap unavailable</EmptyState.Title>
           <EmptyState.Description>{queryError.message}</EmptyState.Description>
         </EmptyState>
@@ -85,13 +85,13 @@ export function HeatmapView({
 
   if (!heatmap || heatmap.cells.length === 0) {
     return (
-      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
         <RuntimeViewHeader
           meta={heatmap ? `${heatmap.bucketSeconds}s buckets` : "no data"}
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <EmptyState className="h-full bg-(--surface)">
+        <EmptyState className="h-full bg-(--bg-panel)">
           <EmptyState.Title>No runtime heatmap data</EmptyState.Title>
           <EmptyState.Description>
             The backend returned an empty heatmap for the current runtime
@@ -105,7 +105,7 @@ export function HeatmapView({
   const maxCount = Math.max(1, ...heatmap.cells.map((cell) => cell.totalCount));
 
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
       <RuntimeViewHeader
         meta={`${heatmap.bucketSeconds}s buckets`}
         summary={`${heatmap.cells.length} backend cells`}
@@ -119,7 +119,7 @@ export function HeatmapView({
             : "grid-cols-1"
         )}
       >
-        <div className="min-h-0 overflow-auto bg-(--background) p-3">
+        <div className="min-h-0 overflow-auto bg-(--bg-canvas) p-3">
           <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5">
             {heatmap.cells.map((cell, index) => {
               const key = heatmapCellKey(cell, index);
@@ -135,7 +135,7 @@ export function HeatmapView({
                 <button
                   aria-label={`${cell.service} ${cell.nodeType} heatmap cell with ${cell.totalCount} executions`}
                   className={cn(
-                    "relative aspect-5/4 rounded-[1px] border border-(--border-subtle) transition hover:z-1 hover:border-(--secondary) focus-visible:z-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--accent)",
+                    "relative aspect-5/4 rounded-[1px] border border-(--line) transition hover:z-1 hover:border-(--fg-secondary) focus-visible:z-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--accent)",
                     heatmapCellColor(cell),
                     selected &&
                       "border-(--accent) shadow-[0_0_0_1px_var(--accent)]",
@@ -161,14 +161,14 @@ export function HeatmapView({
                   type="button"
                 >
                   {aggregateSelectable ? (
-                    <span className="absolute right-0.5 bottom-0.5 rounded-[1px] bg-(--background)/80 px-1 font-mono text-[9px] text-(--foreground)">
+                    <span className="absolute right-0.5 bottom-0.5 rounded-[1px] bg-(--bg-canvas)/80 px-1 font-mono text-[9px] text-(--fg-primary)">
                       {nodes.length}
                     </span>
                   ) : null}
                   {directlySelectable &&
                   selectedNodeId &&
                   selectedNodeId === nodes[0]?.id ? (
-                    <span className="absolute inset-1 border border-(--background)" />
+                    <span className="absolute inset-1 border border-(--bg-canvas)" />
                   ) : null}
                 </button>
               );
@@ -204,13 +204,13 @@ function HeatmapCellInspector({
   onSelectNode: (node: ExecutionNode) => void;
 }) {
   return (
-    <aside className="min-h-0 overflow-hidden border-l border-(--border-subtle) bg-(--surface)">
-      <div className="flex min-w-0 items-start gap-2 border-b border-(--border-subtle) px-3 py-2">
+    <aside className="min-h-0 overflow-hidden border-l border-(--line) bg-(--bg-panel)">
+      <div className="flex min-w-0 items-start gap-2 border-b border-(--line) px-3 py-2">
         <div className="min-w-0 flex-1">
-          <div className="truncate font-mono text-[11px] font-semibold text-(--foreground)">
+          <div className="truncate font-mono text-[11px] font-semibold text-(--fg-primary)">
             {selected.cell.service} · {selected.cell.nodeType}
           </div>
-          <div className="mt-0.5 truncate font-mono text-[10px] text-(--muted)">
+          <div className="mt-0.5 truncate font-mono text-[10px] text-(--fg-tertiary)">
             {selected.cell.totalCount} total · {selected.cell.errorCount} errors
           </div>
         </div>
@@ -225,7 +225,7 @@ function HeatmapCellInspector({
       </div>
       <div className="min-h-0 overflow-auto">
         {selected.nodes.length === 0 ? (
-          <div className="p-3 font-mono text-[11px] text-(--muted)">
+          <div className="p-3 font-mono text-[11px] text-(--fg-tertiary)">
             No matching story nodes were found for this cell.
           </div>
         ) : (
@@ -233,7 +233,7 @@ function HeatmapCellInspector({
             <button
               aria-label={`Open heatmap node ${node.name}`}
               className={cn(
-                "grid w-full min-w-0 gap-1 border-b border-(--border-subtle) px-3 py-2 text-left transition hover:bg-(--hover)",
+                "grid w-full min-w-0 gap-1 border-b border-(--line) px-3 py-2 text-left transition hover:bg-(--bg-row-hover)",
                 selectedNodeId === node.id &&
                   "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
               )}
@@ -246,11 +246,11 @@ function HeatmapCellInspector({
                   className="size-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: statusColor(node.status) }}
                 />
-                <span className="truncate text-[12px] font-semibold text-(--foreground)">
+                <span className="truncate text-[12px] font-semibold text-(--fg-primary)">
                   {node.name}
                 </span>
               </span>
-              <span className="flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--muted)">
+              <span className="flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)">
                 <span className="truncate">{node.service}</span>
                 <span className="ml-auto shrink-0">
                   {formatRuntimeDuration(node.durationMs)}
@@ -266,13 +266,13 @@ function HeatmapCellInspector({
 
 function heatmapCellColor(cell: RuntimeHeatmap["cells"][number]) {
   if (cell.errorCount > 0 || cell.deadCount > 0) {
-    return "bg-[#ef4444]/85";
+    return "bg-(--error)";
   }
   if (cell.avgDurationMs && cell.avgDurationMs > 1000) {
-    return "bg-[color-mix(in_srgb,var(--accent)_75%,transparent)]";
+    return "bg-(--data-accent)";
   }
   if (cell.avgDurationMs && cell.avgDurationMs > 200) {
-    return "bg-[#22c55e]/55";
+    return "bg-(--data-success)";
   }
-  return "bg-[#3b82f6]/35";
+  return "bg-(--data-info)";
 }

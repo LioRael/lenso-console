@@ -5,7 +5,7 @@ import { cn } from "../lib/cn";
 
 export function OperationsFilterBar({ children }: PropsWithChildren) {
   return (
-    <div className="flex h-9 items-center gap-2 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_42%,var(--background))] px-3">
+    <div className="flex h-9 items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3">
       {children}
     </div>
   );
@@ -22,10 +22,10 @@ export function OperationsFilterChip({
   return (
     <button
       className={cn(
-        "h-6 rounded-md border px-2 text-[11px] font-medium transition-colors",
+        "h-6 rounded-[var(--radius-control)] border px-2 text-[11px] font-medium transition-colors",
         active
           ? "native-selection border-(--accent)"
-          : "border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] text-(--muted) hover:text-(--foreground)"
+          : "border-(--line) bg-(--bg-control) text-(--fg-tertiary) shadow-(--elevation-control) hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
       )}
       onClick={onClick}
       type="button"
@@ -51,14 +51,14 @@ export function OperationsSearchInput({
   return (
     <label
       className={cn(
-        "ml-auto flex h-6 items-center gap-2 rounded-md border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 text-(--muted) focus-within:border-(--accent)",
+        "ml-auto flex h-6 items-center gap-2 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2 text-(--fg-tertiary) shadow-(--elevation-control) focus-within:border-(--accent)",
         className ?? "w-[min(360px,45vw)]"
       )}
     >
       <Search size={12} />
       <input
         aria-label={ariaLabel}
-        className="w-full bg-transparent text-[10px] text-(--foreground) outline-hidden placeholder:text-(--muted)"
+        className="w-full bg-transparent text-[10px] text-(--fg-primary) outline-hidden placeholder:text-(--fg-tertiary)"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         value={value}

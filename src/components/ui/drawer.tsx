@@ -25,10 +25,10 @@ function DrawerContent({
 }: PropsWithChildren<HTMLAttributes<HTMLDivElement> & { className?: string }>) {
   return (
     <BaseDialog.Portal>
-      <BaseDialog.Backdrop className="fixed inset-0 z-30 bg-[color-mix(in_srgb,var(--background)_35%,transparent)]" />
+      <BaseDialog.Backdrop className="fixed inset-0 z-30 bg-(--bg-scrim)" />
       <BaseDialog.Popup
         className={cn(
-          "fixed right-2 top-2 z-40 h-[calc(100vh-16px)] w-[min(540px,calc(100vw-16px))] overflow-auto rounded-lg border border-(--border-subtle) bg-(--surface) shadow-(--elevation-overlay) transition duration-200 data-[starting-style]:translate-x-2 data-[starting-style]:opacity-0",
+          "fixed right-2 top-2 z-40 h-[calc(100vh-16px)] w-[min(540px,calc(100vw-16px))] overflow-auto rounded-[var(--radius-overlay)] border border-(--line) bg-(--bg-overlay) shadow-(--elevation-overlay) transition duration-200 data-[starting-style]:translate-x-2 data-[starting-style]:opacity-0",
           className
         )}
         {...props}

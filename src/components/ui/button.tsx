@@ -20,13 +20,13 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex min-h-7 items-center justify-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent) disabled:opacity-45",
+        "inline-flex min-h-7 items-center justify-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent) disabled:opacity-45",
         variant === "default" &&
-          "border-(--border-subtle) bg-(--elevated) text-(--foreground) shadow-[inset_0_1px_0_var(--panel-gloss)] active:bg-(--hover)",
+          "border-(--line) bg-(--bg-control) text-(--fg-primary) shadow-(--elevation-control) hover:bg-(--bg-control-hover) active:bg-(--bg-control-active)",
         variant === "ghost" &&
-          "border-transparent bg-transparent text-(--secondary) hover:bg-(--hover) hover:text-(--foreground) active:bg-[color-mix(in_srgb,var(--hover)_78%,var(--surface))]",
+          "border-transparent bg-transparent text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) active:bg-(--bg-control-active)",
         variant === "danger" &&
-          "border-[color-mix(in_srgb,var(--error)_35%,transparent)] bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-(--foreground) active:bg-[color-mix(in_srgb,var(--error)_15%,transparent)]",
+          "border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] text-(--tone-error-fg) hover:bg-[var(--tone-error-bg)] active:bg-[var(--tone-error-bg)]",
         className
       )}
       type={type}

@@ -36,16 +36,16 @@ export function StoryTabs({
   onChange: (mode: StoryViewMode) => void;
 }) {
   return (
-    <div className="min-w-0 border-b border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_76%,var(--background))]">
+    <div className="min-w-0 border-b border-(--line) bg-(--bg-panel-header)">
       <HorizontalTabScroll>
         <div className="flex h-full w-max min-w-full items-center gap-1 px-2">
           {labels.map(({ icon: Icon, id, label }) => (
             <button
               className={cn(
-                "relative flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[11px] font-medium transition-colors",
+                "relative flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-control)] px-2 text-[11px] font-medium transition-colors",
                 mode === id
                   ? "native-selection"
-                  : "text-(--muted) hover:bg-(--hover) hover:text-(--secondary)"
+                  : "text-(--fg-tertiary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
               )}
               key={id}
               onClick={() => onChange(id)}

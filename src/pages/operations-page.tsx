@@ -42,19 +42,19 @@ export function OperationsPage({
   children: ReactNode;
 }) {
   return (
-    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
-      <header className="flex min-h-10 items-center gap-2 overflow-hidden border-b border-(--border-subtle) bg-(--chrome) px-2">
+    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas) text-(--fg-primary)">
+      <header className="flex min-h-10 items-center gap-2 overflow-hidden border-b border-(--line) bg-(--bg-panel-header) px-2">
         <nav
           aria-label="Operations sections"
-          className="flex min-w-0 flex-wrap items-center gap-1 overflow-hidden rounded-lg border border-(--border-subtle) bg-[color-mix(in_srgb,var(--surface)_58%,transparent)] p-0.5"
+          className="flex min-w-0 flex-wrap items-center gap-1 overflow-hidden rounded-[var(--radius-panel)] border border-(--line) bg-(--bg-control) p-0.5"
         >
           {operationTabs.map((tab) => (
             <Link
               className={cn(
-                "h-6 shrink-0 rounded-md px-2.5 text-[11px] font-medium leading-6 transition-colors",
+                "h-6 shrink-0 rounded-[var(--radius-control)] px-2.5 text-[11px] font-medium leading-6 transition-colors",
                 active === tab.key
                   ? "native-selection"
-                  : "text-(--muted) hover:bg-(--hover) hover:text-(--foreground)"
+                  : "text-(--fg-tertiary) hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
               )}
               key={tab.key}
               to={tab.to}

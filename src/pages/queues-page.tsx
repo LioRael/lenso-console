@@ -111,23 +111,23 @@ export function QueuesPage() {
 
   return (
     <section
-      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--background) text-(--foreground)"
+      className="grid h-full min-h-0 min-w-0 overflow-hidden bg-(--bg-canvas) text-(--fg-primary)"
       style={{
         gridTemplateColumns: `minmax(0,1fr) 1px ${inspectorWidth}px`,
       }}
     >
-      <main className="grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--border-subtle)">
-        <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+      <main className="grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden border-r border-(--line)">
+        <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
           <div className="flex items-center gap-2">
             <Inbox className="text-(--accent)" size={14} />
             <h1 className="font-mono text-[13px] font-semibold">Queues</h1>
-            <span className="ml-auto font-mono text-[10px] text-(--muted)">
+            <span className="ml-auto font-mono text-[10px] text-(--fg-tertiary)">
               {rows.length} queues / {runtimeConsoleDataSource()}
             </span>
           </div>
         </header>
 
-        <div className="grid border-b border-(--border-subtle) bg-(--surface) md:grid-cols-4">
+        <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-4">
           {[
             ["pending", totals.pending],
             ["running", totals.running],
@@ -135,11 +135,11 @@ export function QueuesPage() {
             ["dead", totals.dead],
           ].map(([label, value]) => (
             <div
-              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--border-subtle) px-3 py-2 font-mono text-[10px] last:border-r-0"
+              className="grid grid-cols-[minmax(0,1fr)_auto] border-r border-(--line) px-3 py-2 font-mono text-[10px] last:border-r-0"
               key={label}
             >
-              <span className="text-(--muted)">{label}</span>
-              <span className="text-[13px] font-semibold text-(--foreground)">
+              <span className="text-(--fg-tertiary)">{label}</span>
+              <span className="text-[13px] font-semibold text-(--fg-primary)">
                 {value}
               </span>
             </div>
@@ -192,30 +192,34 @@ export function QueuesPage() {
                   key={queue.name}
                   onClick={() => selectItem(queue)}
                 >
-                  <span className="truncate text-(--foreground)">
+                  <span className="truncate text-(--fg-primary)">
                     {queue.name}
                   </span>
-                  <span className="text-(--secondary)">{queue.pending}</span>
-                  <span className="text-(--secondary)">{queue.running}</span>
+                  <span className="text-(--fg-secondary)">{queue.pending}</span>
+                  <span className="text-(--fg-secondary)">{queue.running}</span>
                   <span
                     className={
-                      queue.failed > 0 ? "text-[#ef4444]" : "text-(--muted)"
+                      queue.failed > 0
+                        ? "text-(--tone-error-fg)"
+                        : "text-(--fg-tertiary)"
                     }
                   >
                     {queue.failed}
                   </span>
                   <span
                     className={
-                      queue.dead > 0 ? "text-[#ef4444]" : "text-(--muted)"
+                      queue.dead > 0
+                        ? "text-(--tone-error-fg)"
+                        : "text-(--fg-tertiary)"
                     }
                   >
                     {queue.dead}
                   </span>
-                  <span className="text-(--muted)">
+                  <span className="text-(--fg-tertiary)">
                     {formatOldest(queue.oldestSeconds)}
                   </span>
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="h-1 flex-1 overflow-hidden rounded-[1px] bg-(--elevated)">
+                    <span className="h-1 flex-1 overflow-hidden rounded-[1px] bg-(--bg-control)">
                       <span
                         className="block h-full rounded-[1px] bg-(--accent)"
                         style={{
@@ -223,7 +227,7 @@ export function QueuesPage() {
                         }}
                       />
                     </span>
-                    <span className="w-8 text-right text-(--muted)">
+                    <span className="w-8 text-right text-(--fg-tertiary)">
                       {total}
                     </span>
                   </span>
@@ -240,7 +244,7 @@ export function QueuesPage() {
         onResize={resizeInspector}
       />
 
-      <aside className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--sidebar)">
+      <aside className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--bg-sidebar)">
         <OperationsInspectorHeader
           eyebrow="Queue"
           meta={selected ? selectedTarget?.reason : null}
@@ -253,7 +257,7 @@ export function QueuesPage() {
             <OperationsMessageRow message="select a queue" />
           )}
         </div>
-        <div className="flex gap-2 border-t border-(--border-subtle) bg-(--surface) p-2">
+        <div className="flex gap-2 border-t border-(--line) bg-(--bg-panel) p-2">
           <Button
             disabled={!selectedTarget}
             onClick={() => {
