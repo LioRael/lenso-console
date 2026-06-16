@@ -161,8 +161,7 @@ flow. The older `pnpm demo:remote-module-install` command is kept as an alias.
 See `docs/remote-module-install-flow.md` for the full host and module author
 workflow.
 
-Runnable examples that use the published `@lenso/remote-module-kit` and
-`@lenso/ts-sdk` packages live in
+Runnable examples that use the published `@lenso/remote-module-kit` package live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos
 in this repository remain release and CLI fixtures for the Runtime Console
 workspace.
