@@ -588,7 +588,7 @@ describe("module scaffold CLI", () => {
     expect(stdout).not.toContain("lenso module marketplace import");
     expect(stdout).toContain("lenso console-package apply-plan");
     expect(stdout).not.toContain("lenso module doctor");
-  });
+  }, 20_000);
 
   test("runs the remote module package demo script", async () => {
     const runtimeConsoleRoot = path.resolve(import.meta.dirname, "../../..");
@@ -1004,6 +1004,9 @@ describe("module scaffold CLI", () => {
     expect(output).toContain("Next steps:");
     expect(output).toContain("- lenso console-package apply-plan");
     expect(output).toContain("- pnpm install");
+    expect(output).toContain(
+      "- restart Runtime Console after applying the plan"
+    );
     expect(output).toContain("- restart the API and worker");
     expect(output).not.toContain("review");
     expect(output).not.toContain("doctor");

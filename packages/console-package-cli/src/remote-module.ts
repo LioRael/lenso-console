@@ -987,6 +987,7 @@ export const addRemoteModule = async ({
   if (consolePackageCount > 0) {
     console.log("- lenso console-package apply-plan");
     console.log("- pnpm install");
+    console.log("- restart Runtime Console after applying the plan");
   }
   console.log("- restart the API and worker");
 };
