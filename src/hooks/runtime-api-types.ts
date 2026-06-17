@@ -148,10 +148,6 @@ export type AdminFunctionRunListResponse = {
   page: PageInfo;
 };
 
-export type AdminFunctionRunResponse = {
-  data: AdminFunctionRunDetail;
-};
-
 export type AdminRuntimeOutboxItem = {
   attempts: number;
   available_at: string;
@@ -177,10 +173,6 @@ export type AdminOutboxEventDetail = AdminRuntimeOutboxItem & {
   payload: unknown;
   source_module: string;
   trace: unknown;
-};
-
-export type AdminOutboxEventDetailResponse = {
-  data: AdminOutboxEventDetail;
 };
 
 export type AdminOutboxListResponse = {
