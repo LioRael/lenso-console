@@ -35,7 +35,8 @@ const catalog: AvailableModulesCatalog = {
 
 const installCommands = [
   {
-    command: "lenso module add https://example.com/lenso/module/v1/manifest",
+    command:
+      "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
     key: "add",
     label: "install",
   },
@@ -124,12 +125,13 @@ describe("available modules model", () => {
     expect(
       availableModuleHandoffState({
         installCommand:
-          "lenso module add https://example.com/lenso/module/v1/manifest",
+          "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
         row: row!,
       })
     ).toEqual({
       action: "install",
-      command: "lenso module add https://example.com/lenso/module/v1/manifest",
+      command:
+        "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
       detail: "manifest will be read from the manifest URL during install",
       kind: "available",
       label: "available",
@@ -144,7 +146,7 @@ describe("available modules model", () => {
           restartPending: false,
         },
         installCommand:
-          "lenso module add https://example.com/lenso/module/v1/manifest",
+          "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
         row: row!,
       })
     ).toEqual({
@@ -164,7 +166,7 @@ describe("available modules model", () => {
           restartPending: false,
         },
         installCommand:
-          "lenso module add https://example.com/lenso/module/v1/manifest",
+          "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
         row: row!,
       })
     ).toEqual({
@@ -184,7 +186,7 @@ describe("available modules model", () => {
           restartPending: true,
         },
         installCommand:
-          "lenso module add https://example.com/lenso/module/v1/manifest",
+          "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
         row: row!,
       })
     ).toEqual({
@@ -574,7 +576,7 @@ describe("available modules model", () => {
     expect(row).toBeDefined();
 
     const handoff = availableModuleHandoffState({
-      installCommand: "lenso module add ./lenso.module.json",
+      installCommand: "lenso module marketplace install ./lenso.module.json",
       row: row!,
     });
     expect(handoff).toMatchObject({

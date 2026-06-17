@@ -115,7 +115,8 @@ export const availableModulesQueryKey = [
   "available-modules",
 ] as const;
 
-const moduleAddCommand = "lenso module add <manifest-url>";
+const marketplaceInstallCommand =
+  "lenso module marketplace install <manifest-url>";
 
 export function moduleRefreshInvalidationQueryKeys() {
   return [["modules", "registry"], availableModulesQueryKey] as const;
@@ -171,7 +172,7 @@ export function availableModulesPanelState({
   const firstIssue = response?.issues[0];
   if (isLoading) {
     return {
-      actionCommand: moduleAddCommand,
+      actionCommand: marketplaceInstallCommand,
       detail: source,
       moduleCount: 0,
       kind: "loading",
@@ -182,7 +183,7 @@ export function availableModulesPanelState({
   }
   if (isError) {
     return {
-      actionCommand: moduleAddCommand,
+      actionCommand: marketplaceInstallCommand,
       detail: "check the API and local catalog file",
       moduleCount: 0,
       kind: "error",
@@ -193,7 +194,7 @@ export function availableModulesPanelState({
   }
   if (rows.length === 0) {
     return {
-      actionCommand: moduleAddCommand,
+      actionCommand: marketplaceInstallCommand,
       detail: "install a manifest URL to show modules here",
       moduleCount: 0,
       kind: "empty",
@@ -204,8 +205,8 @@ export function availableModulesPanelState({
   }
 
   return {
-    actionCommand: moduleAddCommand,
-    detail: firstIssue?.fix ?? "copy a module install command",
+    actionCommand: marketplaceInstallCommand,
+    detail: firstIssue?.fix ?? "copy a marketplace install command",
     moduleCount: rows.length,
     kind: "ready",
     label: `${rows.length} module${rows.length === 1 ? "" : "s"}`,

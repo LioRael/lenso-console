@@ -26,7 +26,7 @@ to the host application.
 
 ## Host Developer
 
-Main path: `catalog add -> module add -> apply-plan -> install -> restart`.
+Main path: `catalog add -> marketplace install -> apply-plan -> install -> restart`.
 
 Add a module to the local catalog when you want it to appear in Runtime
 Console's Available Modules panel before installing it:
@@ -67,13 +67,13 @@ The catalog file is intentionally small:
 Install a remote module from the manifest URL:
 
 ```sh
-lenso module add https://example.com/lenso/module/v1/manifest
+lenso module marketplace install https://example.com/lenso/module/v1/manifest
 ```
 
-The marketplace namespace exposes the same low-friction install path:
+The older `module add` command exposes the same low-friction install path:
 
 ```sh
-lenso module marketplace install https://example.com/lenso/module/v1/manifest
+lenso module add https://example.com/lenso/module/v1/manifest
 ```
 
 If the manifest is read from a local file, pass the runtime base URL:
@@ -124,7 +124,7 @@ GET /admin/data/available-modules
 
 The Available Modules panel keeps that view lightweight: it shows module name,
 version, source, summary, capability count, console package count, compatibility
-preflight status, archived catalog entries, and copyable install commands.
+preflight status, archived catalog entries, and copyable marketplace install commands.
 Installing from a manifest URL writes local module configuration and the console
 package install plan.
 

@@ -10,6 +10,7 @@ import {
   ScrollText,
   ShieldCheck,
   SquareTerminal,
+  Store,
   TriangleAlert,
   Zap,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   fetchAvailableModules,
   moduleRefreshInvalidationQueryKeys,
 } from "../data/available-modules";
+import { useBrowserUrlPopState } from "../hooks/use-browser-url-state";
 import {
   useAdminActionInvocations,
   useRemoteProxyCalls,
@@ -46,9 +48,11 @@ import {
 import {
   type AvailableModuleDoctorCheck,
   type AvailableModuleDoctorCheckStatus,
+  type AvailableModuleHandoffState,
   type AvailableModuleInstallStep,
   type AvailableModuleInstallStepKey,
   type AvailableModuleInstallStepStatus,
+  type AvailableModuleRow,
   availableModuleDoctorChecks,
   availableModuleHandoffState,
   availableModuleInstallSteps,
@@ -58,7 +62,6 @@ import {
   type AdminModuleMetadata,
   type ConfigValueMetadata,
   type ModuleRegistryFilters,
-  adminSurfaceLabel,
   adminSurfaceMetadataRows,
   filterModuleRegistry,
   moduleActivationLabel,
@@ -136,6 +139,9 @@ const modulesQueryKey = ["modules", "registry"] as const;
 const configValuesQueryKey = ["config", "values"] as const;
 const emptyModules: AdminModuleMetadata[] = [];
 const emptyConfigValues: ConfigValueMetadata[] = [];
+type ModulesPageMode = "registry" | "marketplace";
+
+const modulesPageModeQueryParam = "panel";
 
 function configPath(service: string, key: string) {
   return `admin/config/${encodeURIComponent(service)}/${encodeURIComponent(key)}`;
@@ -196,8 +202,15 @@ function ModulesContent() {
     response: availableModulesData ?? null,
     rows: availableModuleRows,
   });
+  const [panel, setPanel] = useState<ModulesPageMode>(() =>
+    typeof window === "undefined"
+      ? "registry"
+      : initialModulesPageMode(window.location.search)
+  );
   const [selectedModuleName, setSelectedModuleName] = useState<string | null>(
-    initialSelectedModuleName()
+    typeof window === "undefined"
+      ? null
+      : initialSelectedModuleName(window.location.search)
   );
   const [filters, setFilters] = useState<ModuleRegistryFilters>({
     query: "",
@@ -208,19 +221,41 @@ function ModulesContent() {
   const summary = moduleRegistrySummary(modules);
   const filteredModules = filterModuleRegistry(modules, filters);
   const selectedModule =
-    filteredModules.find(
-      (module) => module.module_name === selectedModuleName
-    ) ??
-    filteredModules[0] ??
-    null;
+    panel === "registry"
+      ? (filteredModules.find(
+          (module) => module.module_name === selectedModuleName
+        ) ??
+        filteredModules[0] ??
+        null)
+      : null;
+
+  useBrowserUrlPopState((search) => {
+    setPanel(initialModulesPageMode(search.toString()));
+    setSelectedModuleName(initialSelectedModuleName(search.toString()));
+  });
+
+  const updatePanel = (nextPanel: ModulesPageMode) => {
+    setPanel(nextPanel);
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    if (nextPanel === "marketplace") {
+      url.searchParams.set(modulesPageModeQueryParam, nextPanel);
+    } else {
+      url.searchParams.delete(modulesPageModeQueryParam);
+    }
+    window.history.replaceState(null, "", url.pathname + url.search);
+  };
 
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
-      <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
-        <div className="flex items-center gap-2">
+      <header className="border-b border-(--border-subtle) bg-(--surface) px-2">
+        <div className="flex min-h-10 items-center gap-2 overflow-hidden py-2">
           <Boxes className="text-(--accent)" size={14} />
           <h1 className="font-mono text-[13px] font-semibold">Modules</h1>
-          <span className="ml-auto font-mono text-[10px] text-(--muted)">
+          <ModuleModeTabs mode={panel} onChange={updatePanel} />
+          <span className="ml-auto truncate font-mono text-[10px] text-(--muted)">
             {modules.length} modules / {runtimeConsoleDataSource()} /{" "}
             {registrySnapshotLabel(modulesData?.refreshed_at ?? null)}
           </span>
@@ -252,14 +287,8 @@ function ModulesContent() {
         <ModuleRefreshHistory history={modulesData?.refresh_history ?? []} />
       </header>
 
-      <div className="grid min-h-0 grid-cols-[260px_minmax(0,1fr)] overflow-hidden">
+      <div className="grid min-h-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden">
         <nav className="min-h-0 overflow-auto border-r border-(--border-subtle) p-2 font-mono text-[12px]">
-          <ModuleRegistryCatalogPanel
-            configValues={configValues}
-            modules={modules}
-            panelState={availableModulePanelState}
-            rows={availableModuleRows}
-          />
           <ModuleRegistryControls
             filters={filters}
             onChange={setFilters}
@@ -290,7 +319,10 @@ function ModulesContent() {
                     moduleIsLoaded(module) ? null : "text-(--secondary)"
                   )}
                   key={module.module_name}
-                  onClick={() => setSelectedModuleName(module.module_name)}
+                  onClick={() => {
+                    setPanel("registry");
+                    setSelectedModuleName(module.module_name);
+                  }}
                   type="button"
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
@@ -316,9 +348,7 @@ function ModulesContent() {
                     </span>
                   </span>
                   <span className="block truncate text-[10px] text-(--muted)">
-                    {moduleSourceLabel(module)} /{" "}
-                    {adminSurfaceLabel(module.admin)} /{" "}
-                    {moduleStatusLabel(module)} /{" "}
+                    {moduleSourceLabel(module)} / {moduleStatusLabel(module)} /{" "}
                     {moduleActivationLabel(module)}
                   </span>
                   {moduleError ? (
@@ -333,14 +363,23 @@ function ModulesContent() {
         </nav>
 
         <main className="min-h-0 overflow-auto p-3 font-mono text-[12px]">
-          {selectedModule ? (
+          {panel === "marketplace" ? (
+            <ModuleMarketplaceDetail
+              configValues={configValues}
+              modules={modules}
+              panelState={availableModulePanelState}
+              rows={availableModuleRows}
+            />
+          ) : selectedModule ? (
             <ModuleRegistryDetail
               configValues={configValues}
               history={modulesData?.refresh_history ?? []}
               module={selectedModule}
             />
           ) : (
-            <p className="text-(--muted)">Select a module.</p>
+            <p className="text-(--muted)">
+              Select a module or switch to marketplace.
+            </p>
           )}
         </main>
       </div>
@@ -348,365 +387,60 @@ function ModulesContent() {
   );
 }
 
-function ModuleRegistryCatalogPanel({
-  configValues,
-  modules,
-  panelState,
-  rows,
+function ModuleModeTabs({
+  mode,
+  onChange,
 }: {
-  configValues: ConfigValueMetadata[];
-  modules: AdminModuleMetadata[];
-  panelState: ReturnType<typeof availableModulesPanelState>;
-  rows: ReturnType<typeof availableModulesRows>;
-}) {
-  const [copiedCommandKey, setCopiedCommandKey] = useState<string | null>(null);
-  const copyCommand = (key: string, command: string) => {
-    void window.navigator.clipboard?.writeText(command);
-    setCopiedCommandKey(key);
-    window.setTimeout(() => setCopiedCommandKey(null), 1200);
-  };
-
-  return (
-    <section className="mb-2 min-w-0 border border-(--border-subtle) bg-(--surface)">
-      <header className="flex items-center gap-1.5 border-b border-(--border-subtle) px-2 py-1.5">
-        <SquareTerminal className="text-(--accent)" size={13} />
-        <span className="truncate text-[10px] font-semibold uppercase text-(--secondary)">
-          Available Modules
-        </span>
-        <span className="ml-auto border border-[color-mix(in_srgb,var(--info)_35%,transparent)] px-1.5 py-0.5 text-[9px] text-(--info)">
-          Remote install
-        </span>
-      </header>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 border-b border-(--border-subtle) px-2 py-1 text-[9px]">
-        <span className="truncate text-(--muted)">{panelState.message}</span>
-        <span
-          className={cn(
-            "shrink-0 border px-1 py-0.5",
-            panelState.kind === "error"
-              ? "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)"
-              : "border-[color-mix(in_srgb,var(--info)_35%,transparent)] text-(--info)"
-          )}
-        >
-          {panelState.label}
-        </span>
-      </div>
-      <div className="grid gap-0.5 border-b border-(--border-subtle) px-2 py-1 text-[9px] text-(--muted)">
-        <div className="truncate" title={panelState.source}>
-          source {panelState.source}
-        </div>
-        <div className="truncate" title={panelState.detail}>
-          {panelState.detail}
-        </div>
-      </div>
-      <div className="grid gap-1 p-2">
-        {panelState.kind === "loading" ||
-        panelState.kind === "error" ||
-        panelState.kind === "empty" ? (
-          <div className="grid gap-1 border border-(--border-subtle) bg-(--background) px-2 py-1.5 text-[10px] text-(--muted)">
-            <span>{panelState.message}</span>
-            <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
-              <code
-                className="truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[9px] text-(--secondary)"
-                title={panelState.actionCommand}
-              >
-                {panelState.actionCommand}
-              </code>
-              <button
-                aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, "catalog-add")} catalog command`}
-                className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
-                onClick={() =>
-                  copyCommand("catalog-add", panelState.actionCommand)
-                }
-                title={moduleRegistryHandoffCopyLabel(
-                  copiedCommandKey,
-                  "catalog-add"
-                )}
-                type="button"
-              >
-                {copiedCommandKey === "catalog-add" ? (
-                  <Check size={11} />
-                ) : (
-                  <Copy size={11} />
-                )}
-              </button>
-            </div>
-          </div>
-        ) : (
-          rows.map((row) => {
-            const handoffCommands = moduleRegistryHandoffCommands({
-              manifestReference: row.manifestReference,
-            });
-            const [installCommand] = handoffCommands;
-            const installedModule = modules.find(
-              (module) => module.module_name === row.name
-            );
-            const missingConsolePackages = installedModule
-              ? missingConsolePackagesFromMetadata([installedModule])
-              : [];
-            const consolePackageInstallPlan = installedModule
-              ? consolePackageInstallPlanFromMetadata([installedModule])
-              : [];
-            const packageInstallNeeded = missingConsolePackages.length > 0;
-            const restartPending = installedModule
-              ? moduleRestartPending(installedModule, configValues)
-              : false;
-            const desiredEnabled = installedModule
-              ? moduleDesiredEnabled(installedModule, configValues)
-              : null;
-            const runningEnabled = installedModule
-              ? moduleRunningEnabled(installedModule)
-              : null;
-            const handoff = availableModuleHandoffState({
-              installed: installedModule
-                ? {
-                    moduleName: installedModule.module_name,
-                    packageInstallNeeded,
-                    restartPending,
-                  }
-                : null,
-              installCommand: installCommand?.command ?? "",
-              row,
-            });
-            const installSteps = availableModuleInstallSteps({
-              commands: handoffCommands,
-              evidence: {
-                catalogSource: panelState.source,
-                consoleInstallPlanCount: consolePackageInstallPlan.length,
-                desiredEnabled,
-                ...(row.installState ? { installState: row.installState } : {}),
-                missingConsolePackageCount: missingConsolePackages.length,
-                moduleRegistered: Boolean(installedModule),
-                restartPending,
-                runningEnabled,
-              },
-              handoff,
-              row,
-            });
-            const doctorChecks = availableModuleDoctorChecks({
-              commands: handoffCommands,
-              missingConsolePackageCount: missingConsolePackages.length,
-              moduleRegistered: Boolean(installedModule),
-              restartPending,
-              row,
-            });
-            const commandKey = `install:${row.key}`;
-            return (
-              <article
-                className="grid gap-1 border border-(--border-subtle) bg-(--background) px-2 py-1.5"
-                key={row.key}
-              >
-                <div className="flex min-w-0 items-center gap-1">
-                  <span className="truncate text-[11px] text-(--foreground)">
-                    {row.name}
-                  </span>
-                  <span className="shrink-0 text-[9px] text-(--muted)">
-                    {row.version}
-                  </span>
-                  <span className="ml-auto shrink-0 border border-(--border-subtle) px-1 py-0.5 text-[9px] text-(--secondary)">
-                    {handoff.label}
-                  </span>
-                </div>
-                <div className="line-clamp-2 text-[9px] text-(--muted)">
-                  {row.summary}
-                </div>
-                <div className="truncate text-[9px] text-(--muted)">
-                  caps {row.capabilityCount} / console{" "}
-                  {row.consolePackageHintCount} / {row.source}
-                </div>
-                <div className="truncate text-[9px] text-(--muted)">
-                  base {row.baseUrl}
-                </div>
-                <AvailableModuleInstallStepper
-                  copiedCommandKey={copiedCommandKey}
-                  copyCommand={copyCommand}
-                  moduleKey={commandKey}
-                  steps={installSteps}
-                />
-                <AvailableModuleDoctorChecklist
-                  checks={doctorChecks}
-                  copiedCommandKey={copiedCommandKey}
-                  copyCommand={copyCommand}
-                  moduleKey={commandKey}
-                />
-              </article>
-            );
-          })
-        )}
-      </div>
-    </section>
-  );
-}
-
-function AvailableModuleDoctorChecklist({
-  checks,
-  copiedCommandKey,
-  copyCommand,
-  moduleKey,
-}: {
-  checks: AvailableModuleDoctorCheck[];
-  copiedCommandKey: string | null;
-  copyCommand: (key: string, command: string) => void;
-  moduleKey: string;
+  mode: ModulesPageMode;
+  onChange: (mode: ModulesPageMode) => void;
 }) {
   return (
-    <div className="grid gap-0.5">
-      {checks.map((check) => {
-        const commandKey = `${moduleKey}:doctor:${check.key}`;
-        const title = check.command
-          ? `${check.detail}\n${check.command}`
-          : check.detail;
-        return (
-          <div
-            className="grid grid-cols-[44px_32px_minmax(0,1fr)_24px] items-center gap-1 text-[9px]"
-            key={check.key}
-          >
-            <span className="truncate text-(--muted)">{check.label}</span>
-            <span
-              className={cn(
-                "border px-1 py-0.5 text-center uppercase",
-                doctorStatusTone[check.status]
-              )}
-            >
-              {doctorStatusLabel[check.status]}
-            </span>
-            <code
-              className={cn(
-                "truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1",
-                check.command ? "text-(--secondary)" : "text-(--muted)"
-              )}
-              title={title}
-            >
-              {check.command ?? check.detail}
-            </code>
-            {check.command ? (
-              <button
-                aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, commandKey)} ${check.label} command`}
-                className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
-                onClick={() => copyCommand(commandKey, check.command ?? "")}
-                title={moduleRegistryHandoffCopyLabel(
-                  copiedCommandKey,
-                  commandKey
-                )}
-                type="button"
-              >
-                {copiedCommandKey === commandKey ? (
-                  <Check size={11} />
-                ) : (
-                  <Copy size={11} />
-                )}
-              </button>
-            ) : (
-              <span aria-hidden="true" />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function AvailableModuleInstallStepper({
-  copiedCommandKey,
-  copyCommand,
-  moduleKey,
-  steps,
-}: {
-  copiedCommandKey: string | null;
-  copyCommand: (key: string, command: string) => void;
-  moduleKey: string;
-  steps: AvailableModuleInstallStep[];
-}) {
-  const actionStep = steps.find(
-    (step) => step.status === "current" && (step.command || step.path)
-  );
-  const actionKey = actionStep ? `${moduleKey}:${actionStep.key}` : moduleKey;
-  const noteStep =
-    actionStep ??
-    steps.find((step) => step.status === "blocked") ??
-    steps.find((step) => step.status === "current") ??
-    steps[0];
-  const note = [noteStep?.detail, noteStep?.evidence]
-    .filter(Boolean)
-    .join(" / ");
-
-  return (
-    <div className="grid gap-1">
-      <div className="grid grid-cols-5 gap-0.5">
-        {steps.map((step) => (
-          <div
-            className={cn(
-              "min-w-0 border px-1 py-1",
-              step.status === "done" &&
-                "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
-              step.status === "current" &&
-                "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-(--info)",
-              step.status === "blocked" &&
-                "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
-              step.status === "pending" &&
-                "border-(--border-subtle) text-(--muted)",
-              step.status === "skipped" &&
-                "border-(--border-subtle) text-[color-mix(in_srgb,var(--muted)_65%,transparent)]"
-            )}
-            key={step.key}
-            title={step.detail}
-          >
-            <span className="block truncate text-[8px] uppercase">
-              {availableModuleInstallStatusLabel[step.status]}
-            </span>
-            <span className="block truncate text-[9px]">
-              {availableModuleInstallStepLabel[step.key]}
-            </span>
-          </div>
-        ))}
-      </div>
-      {actionStep?.command ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
-          <code
-            className="truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[9px] text-(--secondary)"
-            title={actionStep.command}
-          >
-            {actionStep.command}
-          </code>
-          <button
-            aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, actionKey)} ${actionStep.label} command`}
-            className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
-            onClick={() => copyCommand(actionKey, actionStep.command ?? "")}
-            title={moduleRegistryHandoffCopyLabel(copiedCommandKey, actionKey)}
-            type="button"
-          >
-            {copiedCommandKey === actionKey ? (
-              <Check size={11} />
-            ) : (
-              <Copy size={11} />
-            )}
-          </button>
-        </div>
-      ) : actionStep?.path ? (
+    <nav
+      aria-label="Modules panels"
+      className="flex min-w-0 items-center gap-1 overflow-hidden rounded-[var(--radius-panel)] border border-(--border-subtle) bg-(--background) p-0.5"
+    >
+      {[
+        { key: "registry", label: "Registry" },
+        { key: "marketplace", label: "Marketplace" },
+      ].map((item) => (
         <button
-          className="border border-(--border-subtle) bg-(--surface) px-2 py-1 text-left text-[10px] text-(--secondary) hover:bg-(--sidebar) hover:text-(--foreground)"
-          onClick={() => window.location.assign(actionStep.path ?? "")}
-          title={actionStep.detail}
+          className={cn(
+            "h-6 shrink-0 rounded-[var(--radius-control)] px-2.5 text-[11px] font-medium transition-colors",
+            mode === item.key
+              ? "native-selection"
+              : "text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
+          )}
+          key={item.key}
+          onClick={() => onChange(item.key as ModulesPageMode)}
           type="button"
         >
-          <span className="block truncate">
-            {actionStep.key === "open" ? "Open Module" : "Open Restart Step"}
-          </span>
-          <span className="block truncate pt-0.5 text-[9px] text-(--muted)">
-            {actionStep.detail}
-          </span>
+          {item.label}
         </button>
-      ) : (
-        <div className="truncate text-[9px] text-(--muted)">
-          {steps.find((step) => step.status === "blocked")?.detail ??
-            "waiting for the previous step"}
+      ))}
+    </nav>
+  );
+}
+
+function initialModulesPageMode(search: string): ModulesPageMode {
+  const value = new URLSearchParams(search).get(modulesPageModeQueryParam);
+  return value === "marketplace" ? "marketplace" : "registry";
+}
+
+function initialSelectedModuleName(search: string): string | null {
+  return new URLSearchParams(search).get("module");
+}
+
+function ModulesPlaceholder({ reason }: { reason: string }) {
+  return (
+    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
+      <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Boxes className="text-(--accent)" size={14} />
+          <h1 className="font-mono text-[13px] font-semibold">Modules</h1>
         </div>
-      )}
-      {note ? (
-        <div className="truncate text-[9px] text-(--muted)" title={note}>
-          {note}
-        </div>
-      ) : null}
-    </div>
+      </header>
+      <div className="p-3 font-mono text-[12px] text-(--muted)">{reason}</div>
+    </section>
   );
 }
 
@@ -745,13 +479,6 @@ const doctorStatusTone: Record<AvailableModuleDoctorCheckStatus, string> = {
   ok: "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
   skip: "border-(--border-subtle) text-[color-mix(in_srgb,var(--muted)_65%,transparent)]",
 };
-
-function initialSelectedModuleName(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return new URLSearchParams(window.location.search).get("module");
-}
 
 function ModuleRefreshHistory({ history }: { history: ModuleRefreshRecord[] }) {
   if (history.length === 0) {
@@ -952,6 +679,443 @@ function Counter({
       <div className="truncate text-[9px] text-(--muted)">{label}</div>
     </div>
   );
+}
+
+function ModuleMarketplaceDetail({
+  configValues,
+  modules,
+  panelState,
+  rows,
+}: {
+  configValues: ConfigValueMetadata[];
+  modules: AdminModuleMetadata[];
+  panelState: ReturnType<typeof availableModulesPanelState>;
+  rows: AvailableModuleRow[];
+}) {
+  const [copiedCommandKey, setCopiedCommandKey] = useState<string | null>(null);
+  const copyCommand = (key: string, command: string) => {
+    void window.navigator.clipboard?.writeText(command);
+    setCopiedCommandKey(key);
+    window.setTimeout(() => setCopiedCommandKey(null), 1200);
+  };
+  const installedCount = rows.filter(
+    (row) =>
+      row.installState?.moduleRegistered ||
+      modules.some((module) => module.module_name === row.name)
+  ).length;
+  const readyCount = rows.filter((row) =>
+    ["ready", "unknown"].includes(row.preflightStatus)
+  ).length;
+  const attentionCount = rows.filter(
+    (row) =>
+      row.preflightStatus !== "ready" && row.preflightStatus !== "unknown"
+  ).length;
+  const consoleHintCount = rows.reduce(
+    (total, row) => total + row.consolePackageHintCount,
+    0
+  );
+
+  return (
+    <div className="grid gap-3">
+      <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
+        <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2 font-semibold">
+          <Store className="text-(--info)" size={14} />
+          <span>Marketplace</span>
+          <span className="border border-[color-mix(in_srgb,var(--info)_35%,transparent)] px-1.5 py-0.5 text-[10px] text-(--info)">
+            v0
+          </span>
+          <span className="ml-auto truncate border border-(--border-subtle) px-1.5 py-0.5 text-[10px] text-(--secondary)">
+            {panelState.source}
+          </span>
+        </header>
+        <div className="grid gap-2 p-3">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            <Counter label="available" value={rows.length} />
+            <Counter label="ready" value={readyCount} />
+            <Counter label="installed" value={installedCount} />
+            <Counter
+              label="needs attention"
+              tone={attentionCount > 0 ? "error" : "default"}
+              value={attentionCount}
+            />
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-(--border-subtle) bg-(--background) px-2 py-1.5 text-[10px]">
+            <span className="truncate text-(--muted)">
+              {panelState.message} / console package hints {consoleHintCount}
+            </span>
+            <span
+              className={cn(
+                "shrink-0 border px-1.5 py-0.5 uppercase",
+                panelState.kind === "error"
+                  ? "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)"
+                  : "border-[color-mix(in_srgb,var(--info)_35%,transparent)] text-(--info)"
+              )}
+            >
+              {panelState.label}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {panelState.kind === "loading" ||
+      panelState.kind === "error" ||
+      panelState.kind === "empty" ? (
+        <MarketplaceStateNotice
+          copiedCommandKey={copiedCommandKey}
+          copyCommand={copyCommand}
+          panelState={panelState}
+        />
+      ) : (
+        <section className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+          {rows.map((row) => {
+            const handoffCommands = moduleRegistryHandoffCommands({
+              manifestReference: row.manifestReference,
+            });
+            const [installCommand] = handoffCommands;
+            const installedModule = modules.find(
+              (module) => module.module_name === row.name
+            );
+            const missingConsolePackages = installedModule
+              ? missingConsolePackagesFromMetadata([installedModule])
+              : [];
+            const consolePackageInstallPlan = installedModule
+              ? consolePackageInstallPlanFromMetadata([installedModule])
+              : [];
+            const packageInstallNeeded = missingConsolePackages.length > 0;
+            const restartPending = installedModule
+              ? moduleRestartPending(installedModule, configValues)
+              : false;
+            const desiredEnabled = installedModule
+              ? moduleDesiredEnabled(installedModule, configValues)
+              : null;
+            const runningEnabled = installedModule
+              ? moduleRunningEnabled(installedModule)
+              : null;
+            const handoff = availableModuleHandoffState({
+              installed: installedModule
+                ? {
+                    moduleName: installedModule.module_name,
+                    packageInstallNeeded,
+                    restartPending,
+                  }
+                : null,
+              installCommand: installCommand?.command ?? "",
+              row,
+            });
+            const installSteps = availableModuleInstallSteps({
+              commands: handoffCommands,
+              evidence: {
+                catalogSource: panelState.source,
+                consoleInstallPlanCount: consolePackageInstallPlan.length,
+                desiredEnabled,
+                ...(row.installState ? { installState: row.installState } : {}),
+                missingConsolePackageCount: missingConsolePackages.length,
+                moduleRegistered: Boolean(installedModule),
+                restartPending,
+                runningEnabled,
+              },
+              handoff,
+              row,
+            });
+            const doctorChecks = availableModuleDoctorChecks({
+              commands: handoffCommands,
+              missingConsolePackageCount: missingConsolePackages.length,
+              moduleRegistered: Boolean(installedModule),
+              restartPending,
+              row,
+            });
+
+            return (
+              <MarketplaceModuleCard
+                copiedCommandKey={copiedCommandKey}
+                copyCommand={copyCommand}
+                doctorChecks={doctorChecks}
+                handoff={handoff}
+                key={row.key}
+                row={row}
+                steps={installSteps}
+              />
+            );
+          })}
+        </section>
+      )}
+    </div>
+  );
+}
+
+function MarketplaceStateNotice({
+  copiedCommandKey,
+  copyCommand,
+  panelState,
+}: {
+  copiedCommandKey: string | null;
+  copyCommand: (key: string, command: string) => void;
+  panelState: ReturnType<typeof availableModulesPanelState>;
+}) {
+  return (
+    <section className="border border-(--border-subtle) bg-(--surface) p-3">
+      <div className="grid gap-2 border border-(--border-subtle) bg-(--background) p-3">
+        <div className="flex items-center gap-2">
+          <TriangleAlert
+            className={cn(
+              panelState.kind === "error" ? "text-(--error)" : "text-(--muted)"
+            )}
+            size={14}
+          />
+          <span className="font-semibold text-(--foreground)">
+            {panelState.message}
+          </span>
+          <span className="ml-auto border border-(--border-subtle) px-1.5 py-0.5 text-[10px] text-(--secondary)">
+            {panelState.label}
+          </span>
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
+          <code
+            className="truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[10px] text-(--secondary)"
+            title={panelState.actionCommand}
+          >
+            {panelState.actionCommand}
+          </code>
+          <button
+            aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, "marketplace-empty")} marketplace command`}
+            className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
+            onClick={() =>
+              copyCommand("marketplace-empty", panelState.actionCommand)
+            }
+            title={moduleRegistryHandoffCopyLabel(
+              copiedCommandKey,
+              "marketplace-empty"
+            )}
+            type="button"
+          >
+            {copiedCommandKey === "marketplace-empty" ? (
+              <Check size={11} />
+            ) : (
+              <Copy size={11} />
+            )}
+          </button>
+        </div>
+        <p className="text-[10px] text-(--muted)">{panelState.detail}</p>
+      </div>
+    </section>
+  );
+}
+
+function MarketplaceModuleCard({
+  copiedCommandKey,
+  copyCommand,
+  doctorChecks,
+  handoff,
+  row,
+  steps,
+}: {
+  copiedCommandKey: string | null;
+  copyCommand: (key: string, command: string) => void;
+  doctorChecks: AvailableModuleDoctorCheck[];
+  handoff: AvailableModuleHandoffState;
+  row: AvailableModuleRow;
+  steps: AvailableModuleInstallStep[];
+}) {
+  const currentStep = steps.find(
+    (step) => step.status === "current" && (step.command || step.path)
+  );
+  const commandKey = `marketplace:${row.key}:${currentStep?.key ?? "state"}`;
+
+  return (
+    <article className="grid min-h-[320px] grid-rows-[auto_auto_1fr_auto] gap-2 border border-(--border-subtle) bg-(--surface) p-3">
+      <header className="grid gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="grid size-9 shrink-0 place-items-center border border-(--border-subtle) bg-(--background)">
+            <Store className="text-(--info)" size={17} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="truncate text-[13px] font-semibold text-(--foreground)">
+              {row.name}
+            </h2>
+            <div className="truncate pt-0.5 text-[10px] text-(--muted)">
+              {row.version} / {row.source} / {row.baseUrl}
+            </div>
+          </div>
+          <span
+            className={cn(
+              "ml-auto shrink-0 border px-1.5 py-0.5 text-[10px] uppercase",
+              marketplaceHandoffTone[handoff.kind]
+            )}
+          >
+            {handoff.label}
+          </span>
+        </div>
+        <p className="line-clamp-2 min-h-8 text-[11px] text-(--secondary)">
+          {row.summary}
+        </p>
+      </header>
+
+      <div className="grid grid-cols-3 gap-1 text-center text-[10px]">
+        <MarketplaceSmallMetric
+          label="capabilities"
+          value={row.capabilityCount}
+        />
+        <MarketplaceSmallMetric
+          label="console"
+          value={row.consolePackageHintCount}
+        />
+        <MarketplaceSmallMetric
+          label="preflight"
+          tone={availableModuleCanInstallVisual(row) ? "default" : "error"}
+          value={row.preflightLabel}
+        />
+      </div>
+
+      <div className="grid content-start gap-2">
+        <MarketplaceInstallRail steps={steps} />
+        <div
+          className="truncate text-[10px] text-(--muted)"
+          title={handoff.detail}
+        >
+          {handoff.detail}
+        </div>
+        {currentStep?.command ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
+            <code
+              className="truncate border border-(--border-subtle) bg-(--background) px-1.5 py-1 text-[10px] text-(--secondary)"
+              title={currentStep.command}
+            >
+              {currentStep.command}
+            </code>
+            <button
+              aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, commandKey)} ${currentStep.label} command`}
+              className="grid size-6 place-items-center border border-(--border-subtle) bg-(--background) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
+              onClick={() => copyCommand(commandKey, currentStep.command ?? "")}
+              title={moduleRegistryHandoffCopyLabel(
+                copiedCommandKey,
+                commandKey
+              )}
+              type="button"
+            >
+              {copiedCommandKey === commandKey ? (
+                <Check size={11} />
+              ) : (
+                <Copy size={11} />
+              )}
+            </button>
+          </div>
+        ) : currentStep?.path ? (
+          <button
+            className="border border-(--border-subtle) bg-(--background) px-2 py-1 text-left text-[10px] text-(--secondary) hover:bg-(--sidebar) hover:text-(--foreground)"
+            onClick={() => window.location.assign(currentStep.path ?? "")}
+            title={currentStep.detail}
+            type="button"
+          >
+            {currentStep.key === "open" ? "Open Module" : "Open Restart Step"}
+          </button>
+        ) : (
+          <div
+            className="truncate border border-(--border-subtle) bg-(--background) px-1.5 py-1 text-[10px] text-(--muted)"
+            title={row.preflightFix ?? row.preflightReason}
+          >
+            {row.preflightFix ?? row.preflightReason}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-1 border-t border-(--border-subtle) pt-2">
+        <div className="grid grid-cols-3 gap-1">
+          {doctorChecks.slice(0, 6).map((check) => (
+            <span
+              className={cn(
+                "truncate border px-1 py-0.5 text-center text-[9px] uppercase",
+                doctorStatusTone[check.status]
+              )}
+              key={check.key}
+              title={check.command ?? check.detail}
+            >
+              {check.label} {doctorStatusLabel[check.status]}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MarketplaceSmallMetric({
+  label,
+  tone = "default",
+  value,
+}: {
+  label: string;
+  tone?: "default" | "error";
+  value: number | string;
+}) {
+  return (
+    <div className="min-w-0 border border-(--border-subtle) bg-(--background) px-1 py-1">
+      <div
+        className={cn(
+          "truncate text-[11px] text-(--secondary)",
+          tone === "error" && "text-(--error)"
+        )}
+      >
+        {value}
+      </div>
+      <div className="truncate text-[9px] text-(--muted)">{label}</div>
+    </div>
+  );
+}
+
+function MarketplaceInstallRail({
+  steps,
+}: {
+  steps: AvailableModuleInstallStep[];
+}) {
+  return (
+    <div className="grid grid-cols-5 gap-1">
+      {steps.map((step) => (
+        <div className="min-w-0" key={step.key} title={step.detail}>
+          <div
+            className={cn(
+              "h-1 border",
+              step.status === "done" &&
+                "border-[color-mix(in_srgb,var(--success)_45%,transparent)] bg-(--success)",
+              step.status === "current" &&
+                "border-[color-mix(in_srgb,var(--info)_45%,transparent)] bg-(--info)",
+              step.status === "blocked" &&
+                "border-[color-mix(in_srgb,var(--error)_55%,transparent)] bg-(--error)",
+              step.status === "pending" &&
+                "border-(--border-subtle) bg-(--background)",
+              step.status === "skipped" &&
+                "border-(--border-subtle) bg-[color-mix(in_srgb,var(--muted)_20%,transparent)]"
+            )}
+          />
+          <div className="truncate pt-1 text-[9px] text-(--muted)">
+            {availableModuleInstallStepLabel[step.key]}
+          </div>
+          <div className="truncate text-[8px] uppercase text-(--secondary)">
+            {availableModuleInstallStatusLabel[step.status]}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const marketplaceHandoffTone: Record<
+  AvailableModuleHandoffState["kind"],
+  string
+> = {
+  available:
+    "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-(--info)",
+  blocked:
+    "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
+  installed:
+    "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
+  package_install_needed:
+    "border-[color-mix(in_srgb,var(--warning)_55%,transparent)] text-(--warning)",
+  restart_pending:
+    "border-[color-mix(in_srgb,var(--warning)_55%,transparent)] text-(--warning)",
+};
+
+function availableModuleCanInstallVisual(row: AvailableModuleRow): boolean {
+  return row.preflightStatus === "ready" || row.preflightStatus === "unknown";
 }
 
 function registrySnapshotLabel(refreshedAt: string | null): string {
@@ -2284,18 +2448,4 @@ function formatRemoteDuration(ms: number) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Module operation failed";
-}
-
-function ModulesPlaceholder({ reason }: { reason: string }) {
-  return (
-    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
-      <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
-        <div className="flex items-center gap-2">
-          <Boxes className="text-(--accent)" size={14} />
-          <h1 className="font-mono text-[13px] font-semibold">Modules</h1>
-        </div>
-      </header>
-      <div className="p-3 font-mono text-[12px] text-(--muted)">{reason}</div>
-    </section>
-  );
 }
