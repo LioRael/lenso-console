@@ -43,9 +43,7 @@ import type {
   AdminActionInvocationListResponse,
   AdminFunctionRunDetail,
   AdminFunctionRunListResponse,
-  AdminFunctionRunResponse,
   AdminOutboxEventDetail,
-  AdminOutboxEventDetailResponse,
   AdminRemoteProxyCallItem,
   AdminRemoteProxyCallListResponse,
   AdminRuntimeFunctionDeclarationMetadata,
@@ -520,8 +518,8 @@ async function fetchRuntimeEventDetail(
 ): Promise<RuntimeEvent> {
   const response = await httpClient
     .get(`admin/runtime/outbox/${encodeURIComponent(id)}`)
-    .json<AdminOutboxEventDetailResponse>();
-  return normalizeOutboxEventDetailForConsole(response.data, fallback);
+    .json<AdminOutboxEventDetail>();
+  return normalizeOutboxEventDetailForConsole(response, fallback);
 }
 
 async function fetchRuntimeFunctions(): Promise<FunctionRun[]> {
@@ -537,8 +535,8 @@ async function fetchRuntimeFunctionDetail(
 ): Promise<FunctionRun> {
   const response = await httpClient
     .get(`admin/runtime/functions/${encodeURIComponent(id)}`)
-    .json<AdminFunctionRunResponse>();
-  return normalizeFunctionRunDetailForConsole(response.data, fallback);
+    .json<AdminFunctionRunDetail>();
+  return normalizeFunctionRunDetailForConsole(response, fallback);
 }
 
 async function fetchRuntimeHeatmap(): Promise<RuntimeHeatmap> {
