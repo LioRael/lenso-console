@@ -74,7 +74,7 @@ describe("available modules provider", () => {
         rows: [],
       })
     ).toEqual({
-      actionCommand: "lenso module add <manifest-url>",
+      actionCommand: "lenso module marketplace install <manifest-url>",
       detail: ".lenso/module-catalog.json",
       moduleCount: 0,
       kind: "loading",
@@ -91,7 +91,7 @@ describe("available modules provider", () => {
         rows: [],
       })
     ).toMatchObject({
-      actionCommand: "lenso module add <manifest-url>",
+      actionCommand: "lenso module marketplace install <manifest-url>",
       detail: "check the API and local catalog file",
       kind: "error",
       label: "unavailable",
@@ -114,7 +114,7 @@ describe("available modules provider", () => {
         rows: [],
       })
     ).toMatchObject({
-      actionCommand: "lenso module add <manifest-url>",
+      actionCommand: "lenso module marketplace install <manifest-url>",
       detail: "install a manifest URL to show modules here",
       kind: "empty",
       label: "no remote modules",
@@ -129,7 +129,7 @@ describe("available modules provider", () => {
         rows: availableModulesRows(),
       })
     ).toMatchObject({
-      actionCommand: "lenso module add <manifest-url>",
+      actionCommand: "lenso module marketplace install <manifest-url>",
       detail: "add baseUrl or use a manifest URL ending with /manifest",
       moduleCount: 2,
       kind: "ready",

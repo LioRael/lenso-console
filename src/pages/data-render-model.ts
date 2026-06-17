@@ -724,7 +724,7 @@ export function moduleRegistryHandoffCommands({
     {
       key: "add",
       label: "install",
-      command: `lenso module add ${manifestReference}`,
+      command: `lenso module marketplace install ${manifestReference}`,
     },
     {
       key: "apply-plan",

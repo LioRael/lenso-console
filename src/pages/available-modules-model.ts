@@ -698,7 +698,7 @@ export function availableModuleDoctorChecks({
 }): AvailableModuleDoctorCheck[] {
   const addCommand =
     commandByKey(commands, "add") ??
-    `lenso module add ${row.manifestReference}`;
+    `lenso module marketplace install ${row.manifestReference}`;
   const applyPlanCommand =
     commandByKey(commands, "apply-plan") ?? "lenso console-package apply-plan";
   const installPackagesCommand =

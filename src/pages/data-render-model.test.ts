@@ -833,7 +833,7 @@ describe("module status helpers", () => {
         key: "add",
         label: "install",
         command:
-          "lenso module add https://example.com/lenso/module/v1/manifest",
+          "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
       },
       {
         key: "apply-plan",
