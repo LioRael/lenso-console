@@ -1,6 +1,9 @@
 import { httpClient, isApiMode } from "../lib/http-client";
 import {
   type AvailableModulesResponse,
+  type AvailableModuleConsolePackagePlanState,
+  type AvailableModuleLinkedSourceInstallState,
+  type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   availableModuleRowsFromResponse,
 } from "../pages/available-modules-model";
@@ -46,6 +49,7 @@ export const sampleAvailableModulesResponse = {
           restartRequired: null,
         },
         moduleRegistered: false,
+        linkedSource: null,
         remoteSource: {
           configured: false,
           desiredBaseUrl: null,
@@ -86,6 +90,7 @@ export const sampleAvailableModulesResponse = {
           restartRequired: null,
         },
         moduleRegistered: false,
+        linkedSource: null,
         remoteSource: {
           configured: false,
           desiredBaseUrl: null,
@@ -128,6 +133,30 @@ type AvailableModulesHttpClient = {
   };
 };
 
+export type AvailableModuleInstallResponse = {
+  moduleName: string;
+  manifestReference: string;
+  linkedSource?: AvailableModuleLinkedSourceInstallState | null;
+  remoteSource?: AvailableModuleRemoteSourceInstallState | null;
+  consolePlan: AvailableModuleConsolePackagePlanState;
+  restartRequired: boolean;
+};
+
+type AvailableModuleInstallHttpClient = {
+  post: (
+    path: string,
+    options: { json: Record<string, never> }
+  ) => {
+    json: () => Promise<AvailableModuleInstallResponse>;
+  };
+};
+
+type AvailableModuleUninstallHttpClient = {
+  delete: (path: string) => {
+    json: () => Promise<AvailableModuleInstallResponse>;
+  };
+};
+
 export async function fetchAvailableModules({
   apiMode = isApiMode(),
   client = httpClient,
@@ -139,6 +168,65 @@ export async function fetchAvailableModules({
     return client.get("admin/data/available-modules").json();
   }
   return sampleAvailableModulesResponse;
+}
+
+export async function installAvailableModule({
+  client = httpClient,
+  moduleName,
+}: {
+  client?: AvailableModuleInstallHttpClient;
+  moduleName: string;
+}): Promise<AvailableModuleInstallResponse> {
+  return client
+    .post(
+      `admin/data/available-modules/${encodeURIComponent(moduleName)}/install`,
+      { json: {} }
+    )
+    .json();
+}
+
+export async function uninstallAvailableModule({
+  client = httpClient,
+  moduleName,
+}: {
+  client?: AvailableModuleUninstallHttpClient;
+  moduleName: string;
+}): Promise<AvailableModuleInstallResponse> {
+  return client
+    .delete(
+      `admin/data/available-modules/${encodeURIComponent(moduleName)}/install`
+    )
+    .json();
+}
+
+export function applyAvailableModuleInstallResponse(
+  response: AvailableModulesResponse | undefined,
+  installResponse: AvailableModuleInstallResponse
+): AvailableModulesResponse | undefined {
+  if (!response) {
+    return response;
+  }
+  return {
+    ...response,
+    modules: response.modules.map((module) =>
+      module.name === installResponse.moduleName
+        ? {
+            ...module,
+            installState: {
+              consolePlan: installResponse.consolePlan,
+              moduleRegistered:
+                module.installState?.moduleRegistered ??
+                Boolean(
+                  installResponse.remoteSource?.runningBaseUrl ??
+                  installResponse.linkedSource?.runningEnabled
+                ),
+              linkedSource: installResponse.linkedSource ?? null,
+              remoteSource: installResponse.remoteSource ?? null,
+            },
+          }
+        : module
+    ),
+  };
 }
 
 export function availableModulesRows(

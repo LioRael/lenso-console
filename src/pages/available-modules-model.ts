@@ -83,8 +83,19 @@ export type AvailableModulesResponseModule = {
 
 export type AvailableModuleInstallState = {
   moduleRegistered: boolean;
-  remoteSource: AvailableModuleRemoteSourceInstallState;
+  linkedSource?: AvailableModuleLinkedSourceInstallState | null;
+  remoteSource?: AvailableModuleRemoteSourceInstallState | null;
   consolePlan: AvailableModuleConsolePackagePlanState;
+};
+
+export type AvailableModuleLinkedSourceInstallState = {
+  envFile: string;
+  configured: boolean;
+  desiredEnabled?: boolean | null;
+  runningEnabled: boolean;
+  restartPending: boolean;
+  restartReason?: string | null;
+  error?: string | null;
 };
 
 export type AvailableModuleRemoteSourceInstallState = {
@@ -377,11 +388,11 @@ export function availableModuleHandoffState({
     };
   }
 
-  if (row.installState?.remoteSource.restartPending) {
+  const sourceRestart = sourceRestartState(row);
+  if (sourceRestart.restartPending) {
     return {
       action: "restart",
-      detail:
-        row.installState.remoteSource.restartReason ?? "restart API and worker",
+      detail: sourceRestart.restartReason ?? "restart API and worker",
       kind: "restart_pending",
       label: "restart pending",
       moduleName: row.name,
@@ -408,6 +419,47 @@ export function availableModuleHandoffState({
     label: "available",
     moduleName: row.name,
   };
+}
+
+function linkedSourceForRow(
+  row: AvailableModuleRow
+): AvailableModuleLinkedSourceInstallState | null {
+  return row.source === "linked"
+    ? (row.installState?.linkedSource ?? null)
+    : null;
+}
+
+function remoteSourceForRow(
+  row: AvailableModuleRow
+): AvailableModuleRemoteSourceInstallState | null {
+  return row.source === "remote"
+    ? (row.installState?.remoteSource ?? null)
+    : null;
+}
+
+function sourceRestartState(row: AvailableModuleRow): {
+  restartPending: boolean;
+  restartReason?: string | null;
+} {
+  const linkedSource = linkedSourceForRow(row);
+  if (linkedSource) {
+    return linkedSource.restartReason === undefined
+      ? { restartPending: linkedSource.restartPending }
+      : {
+          restartPending: linkedSource.restartPending,
+          restartReason: linkedSource.restartReason,
+        };
+  }
+  const remoteSource = remoteSourceForRow(row);
+  if (remoteSource) {
+    return remoteSource.restartReason === undefined
+      ? { restartPending: remoteSource.restartPending }
+      : {
+          restartPending: remoteSource.restartPending,
+          restartReason: remoteSource.restartReason,
+        };
+  }
+  return { restartPending: false };
 }
 
 export function availableModuleInstallSteps({
@@ -705,11 +757,13 @@ export function availableModuleDoctorChecks({
     commandByKey(commands, "install-packages") ??
     "pnpm --dir apps/runtime-console install";
   const consolePlan = row.installState?.consolePlan;
-  const remoteSource = row.installState?.remoteSource;
+  const linkedSource = linkedSourceForRow(row);
+  const remoteSource = remoteSourceForRow(row);
+  const sourceRestart = sourceRestartState(row);
   const isModuleRegistered =
     moduleRegistered ?? row.installState?.moduleRegistered ?? false;
   const isRestartPending = Boolean(
-    restartPending || remoteSource?.restartPending
+    restartPending || sourceRestart.restartPending
   );
   const packageCommand =
     consolePlan?.packages.find((planPackage) => planPackage.command)?.command ??
@@ -718,6 +772,7 @@ export function availableModuleDoctorChecks({
     sourceDoctorCheck({
       addCommand,
       isModuleRegistered,
+      linkedSource,
       remoteSource,
       row,
     }),
@@ -737,12 +792,14 @@ export function availableModuleDoctorChecks({
     runtimeDoctorCheck({
       addCommand,
       isModuleRegistered,
+      linkedSource,
       remoteSource,
       row,
     }),
     restartDoctorCheck({
       isModuleRegistered,
       isRestartPending,
+      linkedSource,
       remoteSource,
     }),
   ];
@@ -809,10 +866,14 @@ function installEvidence(
 ): string {
   const moduleRegistered =
     evidence.installState?.moduleRegistered ?? evidence.moduleRegistered;
+  const linkedSource = evidence.installState?.linkedSource;
   const remoteSource = evidence.installState?.remoteSource;
   const transport = remoteSourceTransportLabel(remoteSource);
   if (moduleRegistered === true) {
     return "module registered in /admin/data/modules";
+  }
+  if (linkedSource?.configured) {
+    return `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`;
   }
   if (remoteSource?.configured) {
     return `remote source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
@@ -852,6 +913,13 @@ function packageEvidence(
 }
 
 function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
+  const linkedSource = evidence.installState?.linkedSource;
+  if (linkedSource?.restartPending) {
+    return linkedSource.restartReason ?? "linked module env override changed";
+  }
+  if (linkedSource?.configured) {
+    return `LENSO_MODULE_*_ENABLED desired=${String(linkedSource.desiredEnabled)} running=${String(linkedSource.runningEnabled)}`;
+  }
   const remoteSource = evidence.installState?.remoteSource;
   if (remoteSource?.restartPending) {
     return (
@@ -894,16 +962,29 @@ function commandByKey(
 function sourceDoctorCheck({
   addCommand,
   isModuleRegistered,
+  linkedSource,
   remoteSource,
   row,
 }: {
   addCommand: string;
   isModuleRegistered: boolean;
-  remoteSource: AvailableModuleRemoteSourceInstallState | undefined;
+  linkedSource: AvailableModuleLinkedSourceInstallState | null;
+  remoteSource: AvailableModuleRemoteSourceInstallState | null;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
+  if (linkedSource?.error) {
+    return doctorCheck("source", "source", "hold", linkedSource.error);
+  }
   if (remoteSource?.error) {
     return doctorCheck("source", "source", "hold", remoteSource.error);
+  }
+  if (linkedSource?.configured) {
+    return doctorCheck(
+      "source",
+      "source",
+      "ok",
+      `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`
+    );
   }
   if (isModuleRegistered || remoteSource?.configured) {
     const transport = remoteSourceTransportLabel(remoteSource);
@@ -930,13 +1011,15 @@ function sourceDoctorCheck({
     "source",
     "source",
     "fix",
-    `register source in ${remoteSource?.envFile ?? ".env"}`,
+    row.source === "linked"
+      ? "set linked module env override"
+      : `register source in ${remoteSource?.envFile ?? ".env"}`,
     addCommand
   );
 }
 
 function remoteSourceTransportLabel(
-  remoteSource: AvailableModuleRemoteSourceInstallState | undefined
+  remoteSource: AvailableModuleRemoteSourceInstallState | null | undefined
 ): string | null {
   const url =
     remoteSource?.desiredBaseUrl ?? remoteSource?.runningBaseUrl ?? "";
@@ -964,7 +1047,7 @@ function planDoctorCheck({
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
   const consolePlan = row.installState?.consolePlan;
-  const remoteSource = row.installState?.remoteSource;
+  const remoteSource = remoteSourceForRow(row);
   if (row.consolePackageHintCount === 0) {
     return doctorCheck("plan", "plan", "skip", "no console package hints");
   }
@@ -1060,12 +1143,14 @@ function packageDoctorCheck({
 function runtimeDoctorCheck({
   addCommand,
   isModuleRegistered,
+  linkedSource,
   remoteSource,
   row,
 }: {
   addCommand: string;
   isModuleRegistered: boolean;
-  remoteSource: AvailableModuleRemoteSourceInstallState | undefined;
+  linkedSource: AvailableModuleLinkedSourceInstallState | null;
+  remoteSource: AvailableModuleRemoteSourceInstallState | null;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
   if (isModuleRegistered) {
@@ -1074,6 +1159,23 @@ function runtimeDoctorCheck({
       "runtime",
       "ok",
       "module registered in /admin/data/modules"
+    );
+  }
+  if (linkedSource?.restartPending) {
+    return doctorCheck(
+      "runtime",
+      "runtime",
+      "fix",
+      linkedSource.restartReason ??
+        "restart to apply linked module env override"
+    );
+  }
+  if (linkedSource?.configured) {
+    return doctorCheck(
+      "runtime",
+      "runtime",
+      "hold",
+      "linked module override is configured but not active"
     );
   }
   if (remoteSource?.restartPending) {
@@ -1107,18 +1209,30 @@ function runtimeDoctorCheck({
 function restartDoctorCheck({
   isModuleRegistered,
   isRestartPending,
+  linkedSource,
   remoteSource,
 }: {
   isModuleRegistered: boolean;
   isRestartPending: boolean;
-  remoteSource: AvailableModuleRemoteSourceInstallState | undefined;
+  linkedSource: AvailableModuleLinkedSourceInstallState | null;
+  remoteSource: AvailableModuleRemoteSourceInstallState | null;
 }): AvailableModuleDoctorCheck {
   if (isRestartPending) {
     return doctorCheck(
       "restart",
       "restart",
       "fix",
-      remoteSource?.restartReason ?? "restart API and worker"
+      linkedSource?.restartReason ??
+        remoteSource?.restartReason ??
+        "restart API and worker"
+    );
+  }
+  if (linkedSource?.configured) {
+    return doctorCheck(
+      "restart",
+      "restart",
+      "ok",
+      `linked override desired=${String(linkedSource.desiredEnabled)} running=${String(linkedSource.runningEnabled)}`
     );
   }
   if (remoteSource?.configured && remoteSource.runningBaseUrl) {

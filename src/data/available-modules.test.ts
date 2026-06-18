@@ -4,9 +4,11 @@ import {
   availableModulesPanelState,
   availableModulesQueryKey,
   availableModulesRows,
+  installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
+  uninstallAvailableModule,
 } from "./available-modules";
 
 describe("available modules provider", () => {
@@ -63,6 +65,94 @@ describe("available modules provider", () => {
       fetchAvailableModules({ apiMode: true, client })
     ).resolves.toBe(response);
     expect(getCalls).toEqual(["admin/data/available-modules"]);
+  });
+
+  test("installs an available module through the API", async () => {
+    const postCalls: string[] = [];
+    const response = {
+      consolePlan: {
+        error: null,
+        exists: true,
+        moduleEntryPresent: true,
+        packageCount: 1,
+        packages: [],
+        planFile: ".lenso/console-package-install-plan.json",
+        readable: true,
+        restartRequired: true,
+      },
+      manifestReference: "https://example.com/lenso/module/v1/manifest",
+      moduleName: "billing",
+      linkedSource: null,
+      remoteSource: {
+        configured: true,
+        desiredBaseUrl: "https://example.com/lenso/module/v1",
+        envFile: ".env",
+        error: null,
+        restartPending: true,
+        restartReason: "remote source configured in .env but not loaded",
+        runningBaseUrl: null,
+      },
+      restartRequired: true,
+    };
+    const client = {
+      post(path: string, options: unknown) {
+        postCalls.push(`${path}:${JSON.stringify(options)}`);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(
+      installAvailableModule({ client, moduleName: "billing" })
+    ).resolves.toBe(response);
+    expect(postCalls).toEqual([
+      'admin/data/available-modules/billing/install:{"json":{}}',
+    ]);
+  });
+
+  test("uninstalls an available module through the API", async () => {
+    const deleteCalls: string[] = [];
+    const response = {
+      consolePlan: {
+        error: null,
+        exists: true,
+        moduleEntryPresent: false,
+        packageCount: 0,
+        packages: [],
+        planFile: ".lenso/console-package-install-plan.json",
+        readable: true,
+        restartRequired: true,
+      },
+      manifestReference: "https://example.com/lenso/module/v1/manifest",
+      moduleName: "billing",
+      linkedSource: null,
+      remoteSource: {
+        configured: false,
+        desiredBaseUrl: null,
+        envFile: ".env",
+        error: null,
+        restartPending: false,
+        restartReason: null,
+        runningBaseUrl: null,
+      },
+      restartRequired: true,
+    };
+    const client = {
+      delete(path: string) {
+        deleteCalls.push(path);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(
+      uninstallAvailableModule({ client, moduleName: "billing" })
+    ).resolves.toBe(response);
+    expect(deleteCalls).toEqual([
+      "admin/data/available-modules/billing/install",
+    ]);
   });
 
   test("summarizes available modules panel states", () => {

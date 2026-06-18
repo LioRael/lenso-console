@@ -75,6 +75,21 @@ const baseInstallState: AvailableModuleInstallState = {
   },
 };
 
+function remoteInstallState(
+  overrides: Partial<NonNullable<AvailableModuleInstallState["remoteSource"]>>
+): NonNullable<AvailableModuleInstallState["remoteSource"]> {
+  return {
+    configured: false,
+    desiredBaseUrl: null,
+    envFile: ".env",
+    error: null,
+    restartPending: false,
+    restartReason: null,
+    runningBaseUrl: null,
+    ...overrides,
+  };
+}
+
 describe("available modules model", () => {
   test("builds rows from available module catalog entries", () => {
     expect(availableModuleRows(catalog)).toEqual([
@@ -224,13 +239,12 @@ describe("available modules model", () => {
           readable: true,
           restartRequired: true,
         },
-        remoteSource: {
-          ...baseInstallState.remoteSource,
+        remoteSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason: "remote source configured in .env but not loaded",
-        },
+        }),
       },
     };
 
@@ -267,13 +281,12 @@ describe("available modules model", () => {
       ...baseRow!,
       installState: {
         ...baseInstallState,
-        remoteSource: {
-          ...baseInstallState.remoteSource,
+        remoteSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason: "remote source configured in .env but not loaded",
-        },
+        }),
       },
     };
     const handoff = availableModuleHandoffState({
@@ -325,13 +338,12 @@ describe("available modules model", () => {
           readable: true,
           restartRequired: true,
         },
-        remoteSource: {
-          ...baseInstallState.remoteSource,
+        remoteSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason: "remote source configured in .env but not loaded",
-        },
+        }),
       },
     };
 
@@ -366,12 +378,11 @@ describe("available modules model", () => {
       installState: {
         ...baseInstallState,
         moduleRegistered: true,
-        remoteSource: {
-          ...baseInstallState.remoteSource,
+        remoteSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "https://example.com/lenso/module/v1",
           runningBaseUrl: "https://example.com/lenso/module/v1",
-        },
+        }),
       },
     };
 
