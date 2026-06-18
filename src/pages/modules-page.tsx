@@ -25,9 +25,12 @@ import { Button } from "../components/ui/button";
 import {
   availableModulesPanelState,
   availableModulesQueryKey,
+  applyAvailableModuleInstallResponse,
   availableModulesRows,
   fetchAvailableModules,
+  installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
+  uninstallAvailableModule,
 } from "../data/available-modules";
 import { useBrowserUrlPopState } from "../hooks/use-browser-url-state";
 import {
@@ -147,6 +150,54 @@ function configPath(service: string, key: string) {
   return `admin/config/${encodeURIComponent(service)}/${encodeURIComponent(key)}`;
 }
 
+function applyConfigValueUpdate(
+  response: ConfigValueListResponse | undefined,
+  moduleName: string,
+  desiredValue: boolean
+): ConfigValueListResponse | undefined {
+  if (!response) {
+    return response;
+  }
+  const key = moduleEnabledConfigKey(moduleName);
+  return {
+    ...response,
+    data: response.data.map((item) =>
+      item.key === key
+        ? {
+            ...item,
+            desired_value: desiredValue,
+            pending_restart: true,
+            value: desiredValue,
+          }
+        : item
+    ),
+  };
+}
+
+function applyModuleToggleUpdate(
+  response: ModulesResponse | undefined,
+  moduleName: string,
+  desiredValue: boolean
+): ModulesResponse | undefined {
+  if (!response) {
+    return response;
+  }
+  return {
+    ...response,
+    modules: response.modules.map((module) =>
+      module.module_name === moduleName
+        ? {
+            ...module,
+            error:
+              module.source === "linked" && !desiredValue
+                ? "module disabled by configuration"
+                : module.error,
+          }
+        : module
+    ),
+  };
+}
+
 export function ModulesPage() {
   if (!isApiMode()) {
     return <ModulesPlaceholder reason="modules registry requires API mode" />;
@@ -184,6 +235,39 @@ function ModulesContent() {
     mutationFn: () =>
       httpClient.post("admin/data/modules/refresh").json<ModulesResponse>(),
     onSuccess: async () => {
+      await Promise.all(
+        moduleRefreshInvalidationQueryKeys().map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey })
+        )
+      );
+    },
+  });
+  const installMutation = useMutation({
+    mutationFn: (moduleName: string) => installAvailableModule({ moduleName }),
+    onSuccess: async (response) => {
+      queryClient.setQueryData(availableModulesQueryKey, (current) =>
+        applyAvailableModuleInstallResponse(
+          current as typeof availableModulesData | undefined,
+          response
+        )
+      );
+      await Promise.all(
+        moduleRefreshInvalidationQueryKeys().map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey })
+        )
+      );
+    },
+  });
+  const uninstallMutation = useMutation({
+    mutationFn: (moduleName: string) =>
+      uninstallAvailableModule({ moduleName }),
+    onSuccess: async (response) => {
+      queryClient.setQueryData(availableModulesQueryKey, (current) =>
+        applyAvailableModuleInstallResponse(
+          current as typeof availableModulesData | undefined,
+          response
+        )
+      );
       await Promise.all(
         moduleRefreshInvalidationQueryKeys().map((queryKey) =>
           queryClient.invalidateQueries({ queryKey })
@@ -366,9 +450,41 @@ function ModulesContent() {
           {panel === "marketplace" ? (
             <ModuleMarketplaceDetail
               configValues={configValues}
+              installError={
+                installMutation.error instanceof Error
+                  ? installMutation.error.message
+                  : null
+              }
+              installErrorModuleName={
+                installMutation.isError
+                  ? (installMutation.variables ?? null)
+                  : null
+              }
+              uninstallError={
+                uninstallMutation.error instanceof Error
+                  ? uninstallMutation.error.message
+                  : null
+              }
+              uninstallErrorModuleName={
+                uninstallMutation.isError
+                  ? (uninstallMutation.variables ?? null)
+                  : null
+              }
+              installingModuleName={
+                installMutation.isPending
+                  ? (installMutation.variables ?? null)
+                  : null
+              }
               modules={modules}
+              onInstall={(moduleName) => installMutation.mutate(moduleName)}
+              onUninstall={(moduleName) => uninstallMutation.mutate(moduleName)}
               panelState={availableModulePanelState}
               rows={availableModuleRows}
+              uninstallingModuleName={
+                uninstallMutation.isPending
+                  ? (uninstallMutation.variables ?? null)
+                  : null
+              }
             />
           ) : selectedModule ? (
             <ModuleRegistryDetail
@@ -683,14 +799,30 @@ function Counter({
 
 function ModuleMarketplaceDetail({
   configValues,
+  installError,
+  installErrorModuleName,
+  installingModuleName,
   modules,
+  onInstall,
+  onUninstall,
   panelState,
   rows,
+  uninstallError,
+  uninstallErrorModuleName,
+  uninstallingModuleName,
 }: {
   configValues: ConfigValueMetadata[];
+  installError: string | null;
+  installErrorModuleName: string | null;
+  installingModuleName: string | null;
   modules: AdminModuleMetadata[];
+  onInstall: (moduleName: string) => void;
+  onUninstall: (moduleName: string) => void;
   panelState: ReturnType<typeof availableModulesPanelState>;
   rows: AvailableModuleRow[];
+  uninstallError: string | null;
+  uninstallErrorModuleName: string | null;
+  uninstallingModuleName: string | null;
 }) {
   const [copiedCommandKey, setCopiedCommandKey] = useState<string | null>(null);
   const copyCommand = (key: string, command: string) => {
@@ -831,9 +963,23 @@ function ModuleMarketplaceDetail({
                 copyCommand={copyCommand}
                 doctorChecks={doctorChecks}
                 handoff={handoff}
+                installError={
+                  installError && installErrorModuleName === row.name
+                    ? installError
+                    : null
+                }
+                isInstalling={installingModuleName === row.name}
+                isUninstalling={uninstallingModuleName === row.name}
                 key={row.key}
+                onInstall={onInstall}
+                onUninstall={onUninstall}
                 row={row}
                 steps={installSteps}
+                uninstallError={
+                  uninstallError && uninstallErrorModuleName === row.name
+                    ? uninstallError
+                    : null
+                }
               />
             );
           })}
@@ -906,15 +1052,27 @@ function MarketplaceModuleCard({
   copyCommand,
   doctorChecks,
   handoff,
+  installError,
+  isInstalling,
+  isUninstalling,
+  onInstall,
+  onUninstall,
   row,
   steps,
+  uninstallError,
 }: {
   copiedCommandKey: string | null;
   copyCommand: (key: string, command: string) => void;
   doctorChecks: AvailableModuleDoctorCheck[];
   handoff: AvailableModuleHandoffState;
+  installError: string | null;
+  isInstalling: boolean;
+  isUninstalling: boolean;
+  onInstall: (moduleName: string) => void;
+  onUninstall: (moduleName: string) => void;
   row: AvailableModuleRow;
   steps: AvailableModuleInstallStep[];
+  uninstallError: string | null;
 }) {
   const currentStep = steps.find(
     (step) => step.status === "current" && (step.command || step.path)
@@ -974,6 +1132,46 @@ function MarketplaceModuleCard({
         >
           {handoff.detail}
         </div>
+        {handoff.kind === "available" ? (
+          <button
+            className="border border-[color-mix(in_srgb,var(--info)_45%,transparent)] bg-(--background) px-2 py-1 text-left text-[10px] font-semibold text-(--info) hover:bg-(--sidebar) disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isInstalling}
+            onClick={() => onInstall(row.name)}
+            title={`Install ${row.name} from ${row.manifestReference}`}
+            type="button"
+          >
+            {isInstalling ? "Installing..." : "Install"}
+          </button>
+        ) : null}
+        {handoff.kind === "installed" ||
+        handoff.kind === "restart_pending" ||
+        handoff.kind === "package_install_needed" ? (
+          <button
+            className="border border-[color-mix(in_srgb,var(--warning)_55%,transparent)] bg-(--background) px-2 py-1 text-left text-[10px] font-semibold text-(--warning) hover:bg-(--sidebar) disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isUninstalling}
+            onClick={() => onUninstall(row.name)}
+            title={`Uninstall ${row.name} from local module configuration`}
+            type="button"
+          >
+            {isUninstalling ? "Uninstalling..." : "Uninstall"}
+          </button>
+        ) : null}
+        {installError ? (
+          <div
+            className="truncate border border-[color-mix(in_srgb,var(--error)_55%,transparent)] bg-(--background) px-1.5 py-1 text-[10px] text-(--error)"
+            title={installError}
+          >
+            {installError}
+          </div>
+        ) : null}
+        {uninstallError ? (
+          <div
+            className="truncate border border-[color-mix(in_srgb,var(--error)_55%,transparent)] bg-(--background) px-1.5 py-1 text-[10px] text-(--error)"
+            title={uninstallError}
+          >
+            {uninstallError}
+          </div>
+        ) : null}
         {currentStep?.command ? (
           <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
             <code
@@ -1406,6 +1604,20 @@ function ModuleOperationsPanel({
         `${enabled ? "enable" : "disable"} saved${
           response.applies_on_restart ? "; restart required" : ""
         }`
+      );
+      queryClient.setQueryData(configValuesQueryKey, (current) =>
+        applyConfigValueUpdate(
+          current as ConfigValueListResponse | undefined,
+          module.module_name,
+          enabled
+        )
+      );
+      queryClient.setQueryData(modulesQueryKey, (current) =>
+        applyModuleToggleUpdate(
+          current as ModulesResponse | undefined,
+          module.module_name,
+          enabled
+        )
       );
       await queryClient.invalidateQueries({ queryKey: modulesQueryKey });
       await queryClient.invalidateQueries({ queryKey: configValuesQueryKey });
