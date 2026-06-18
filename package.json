@@ -11,8 +11,8 @@
     "check": "pnpm package-readiness && pnpm check:console-packages && ultracite check --deny-warnings && pnpm test:local && pnpm typecheck:local && pnpm build:local",
     "check:console-packages": "node scripts/check-console-packages.mjs",
     "package-readiness": "node scripts/package-readiness.mjs",
-    "create:module": "lenso-console-package module create",
-    "create:console-package": "lenso-console-package create",
+    "create:module": "node scripts/run-lenso-cli.mjs module create",
+    "create:console-package": "node scripts/create-console-package.mjs",
     "console-api-fixture": "sh scripts/runtime-console-api-fixture.sh",
     "console-api-smoke": "sh scripts/runtime-console-api-smoke.sh",
     "console-api-qa": "sh scripts/runtime-console-api-qa.sh",
@@ -21,9 +21,9 @@
     "demo:remote-module-run": "pnpm --filter @lenso/remote-module-kit build && node scripts/remote-module-run-demo.mjs",
     "demo:release": "pnpm --filter @lenso/remote-module-kit build && node scripts/release-demo.mjs",
     "build": "pnpm build:local",
-    "build:local": "pnpm --filter @lenso/remote-module-kit build && pnpm --filter @lenso/console-package-cli build && tsc -b && vite build",
+    "build:local": "pnpm --filter @lenso/remote-module-kit build && tsc -b && vite build",
     "test": "pnpm test:local",
-    "test:local": "pnpm --filter @lenso/remote-module-kit build && vitest run src packages/story-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src packages/console-package-cli/src",
+    "test:local": "pnpm --filter @lenso/remote-module-kit build && vitest run src packages/story-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src",
     "typecheck": "pnpm typecheck:local",
     "typecheck:local": "tsc -b --pretty false",
     "preview": "vite preview --host 0.0.0.0"
@@ -49,7 +49,6 @@
     "vite": "^8.0.16"
   },
   "devDependencies": {
-    "@lenso/console-package-cli": "workspace:*",
     "@lenso/remote-module-kit": "workspace:*",
     "@types/node": "^25.9.2",
     "@types/react": "^19.1.0",

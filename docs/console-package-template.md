@@ -29,9 +29,9 @@ Generate the standard frontend package skeleton and host registration next:
 pnpm create:console-package billing
 ```
 
-The CLI also exposes `pnpm exec lenso-console-package module create billing`,
-`pnpm exec lenso module create billing`, and
-`pnpm exec lenso-console-package create billing` for command-style usage.
+The package scaffold generator is owned by the Rust `lenso` CLI. Use
+`lenso module create billing` and `lenso console-package create billing` for
+command-style usage.
 
 Use `--dry-run` to preview file changes, and pass options such as
 `--label "Billing"` or `--route /data/billing` when defaults are not enough.
