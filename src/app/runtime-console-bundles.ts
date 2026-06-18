@@ -158,7 +158,6 @@ function isConsoleModule(value: unknown): value is ConsoleModule {
 async function dynamicImport(
   entryUrl: string
 ): Promise<Record<string, unknown>> {
-  return import(/* @vite-ignore */ entryUrl) as Promise<
-    Record<string, unknown>
-  >;
+  /* @vite-ignore */
+  return import(entryUrl) as Promise<Record<string, unknown>>;
 }
