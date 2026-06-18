@@ -18,134 +18,153 @@ import { OperationsPage } from "../pages/operations-page";
 import { OverviewPage } from "../pages/overview-page";
 import { QueuesPage } from "../pages/queues-page";
 import { RemoteProxyCallsPage } from "../pages/remote-proxy-calls-page";
-import { consoleRoutes } from "./console-modules";
+import type { ConsoleModule } from "./console-module-api";
+import { buildConsoleRoutes, consoleModules } from "./console-modules";
 
 export const rootRedirectPath = "/overview";
-
-const rootRoute = createRootRoute({
-  component: () => (
-    <RuntimeConsoleProvider>
-      <RuntimeConsoleShell>
-        <Outlet />
-      </RuntimeConsoleShell>
-    </RuntimeConsoleProvider>
-  ),
-});
-
-const indexRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/",
-  beforeLoad: () => {
-    throw redirect({ to: rootRedirectPath });
-  },
-});
-
-const consoleRouteNodes = consoleRoutes.map((route) =>
-  createRoute({
-    component: route.component,
-    getParentRoute: () => rootRoute,
-    path: route.path,
-  })
+export const runtimeConsoleBasePath = consoleBasePathFromBaseUrl(
+  import.meta.env.BASE_URL
 );
 
-const overviewRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/overview",
-  component: OverviewPage,
-});
+export function consoleBasePathFromBaseUrl(baseUrl: string) {
+  const basePath = baseUrl.replace(/\/+$/, "");
+  if (!basePath) {
+    return "/";
+  }
+  return basePath.startsWith("/") ? basePath : `/${basePath}`;
+}
 
-const operationsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/operations",
-  beforeLoad: () => {
-    throw redirect({ to: "/operations/queues" });
-  },
-});
+export function createRuntimeConsoleRouter(
+  modules: ConsoleModule[],
+  { basepath = runtimeConsoleBasePath } = {}
+) {
+  const rootRoute = createRootRoute({
+    component: () => (
+      <RuntimeConsoleProvider>
+        <RuntimeConsoleShell>
+          <Outlet />
+        </RuntimeConsoleShell>
+      </RuntimeConsoleProvider>
+    ),
+  });
 
-const operationsQueuesRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/operations/queues",
-  component: () => (
-    <OperationsPage active="queues">
-      <QueuesPage />
-    </OperationsPage>
-  ),
-});
+  const indexRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/",
+    beforeLoad: () => {
+      throw redirect({ to: rootRedirectPath });
+    },
+  });
 
-const operationsDeadLettersRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/operations/dead-letters",
-  component: () => (
-    <OperationsPage active="dead-letters">
-      <DeadLettersPage />
-    </OperationsPage>
-  ),
-});
+  const consoleRouteNodes = buildConsoleRoutes(modules).map((route) =>
+    createRoute({
+      component: route.component,
+      getParentRoute: () => rootRoute,
+      path: route.path,
+    })
+  );
 
-const operationsFunctionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/operations/functions",
-  component: () => (
-    <OperationsPage active="functions">
-      <FunctionsPage />
-    </OperationsPage>
-  ),
-});
+  const overviewRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/overview",
+    component: OverviewPage,
+  });
 
-const operationsRemoteCallsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/operations/remote-calls",
-  component: () => (
-    <OperationsPage active="remote-calls">
-      <RemoteProxyCallsPage />
-    </OperationsPage>
-  ),
-});
+  const operationsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/operations",
+    beforeLoad: () => {
+      throw redirect({ to: "/operations/queues" });
+    },
+  });
 
-const operationsAdminActionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/operations/admin-actions",
-  component: () => (
-    <OperationsPage active="admin-actions">
-      <AdminActionsPage />
-    </OperationsPage>
-  ),
-});
+  const operationsQueuesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/operations/queues",
+    component: () => (
+      <OperationsPage active="queues">
+        <QueuesPage />
+      </OperationsPage>
+    ),
+  });
 
-const configRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/config",
-  component: ConfigPage,
-});
+  const operationsDeadLettersRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/operations/dead-letters",
+    component: () => (
+      <OperationsPage active="dead-letters">
+        <DeadLettersPage />
+      </OperationsPage>
+    ),
+  });
 
-const dataRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/data",
-  component: DataPage,
-});
+  const operationsFunctionsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/operations/functions",
+    component: () => (
+      <OperationsPage active="functions">
+        <FunctionsPage />
+      </OperationsPage>
+    ),
+  });
 
-const modulesRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/modules",
-  component: ModulesPage,
-});
+  const operationsRemoteCallsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/operations/remote-calls",
+    component: () => (
+      <OperationsPage active="remote-calls">
+        <RemoteProxyCallsPage />
+      </OperationsPage>
+    ),
+  });
 
-const routeTree = rootRoute.addChildren([
-  indexRoute,
-  ...consoleRouteNodes,
-  overviewRoute,
-  operationsRoute,
-  operationsQueuesRoute,
-  operationsDeadLettersRoute,
-  operationsFunctionsRoute,
-  operationsRemoteCallsRoute,
-  operationsAdminActionsRoute,
-  modulesRoute,
-  configRoute,
-  dataRoute,
-]);
+  const operationsAdminActionsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/operations/admin-actions",
+    component: () => (
+      <OperationsPage active="admin-actions">
+        <AdminActionsPage />
+      </OperationsPage>
+    ),
+  });
 
-export const router = createRouter({ routeTree });
+  const configRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/config",
+    component: ConfigPage,
+  });
+
+  const dataRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/data",
+    component: DataPage,
+  });
+
+  const modulesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/modules",
+    component: ModulesPage,
+  });
+
+  const routeTree = rootRoute.addChildren([
+    indexRoute,
+    ...consoleRouteNodes,
+    overviewRoute,
+    operationsRoute,
+    operationsQueuesRoute,
+    operationsDeadLettersRoute,
+    operationsFunctionsRoute,
+    operationsRemoteCallsRoute,
+    operationsAdminActionsRoute,
+    modulesRoute,
+    configRoute,
+    dataRoute,
+  ]);
+
+  return createRouter({ basepath, routeTree });
+}
+
+export const router = createRuntimeConsoleRouter(consoleModules);
 
 declare module "@tanstack/react-router" {
   interface Register {

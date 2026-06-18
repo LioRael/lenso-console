@@ -13,6 +13,38 @@ import {
   buildConsoleNavigation,
   buildTimeConsoleModuleMetadata,
 } from "./console-modules";
+import type { InstalledConsolePackage } from "./console-package-registry";
+
+const runtimeConsoleModuleMetadata: ConsoleModuleMetadata[] = [];
+
+export function registerRuntimeConsoleModuleMetadata(
+  packages: readonly InstalledConsolePackage[]
+) {
+  runtimeConsoleModuleMetadata.push(
+    ...packages.map((item) => ({
+      console: item.module.surfaces.map((surface) => {
+        const metadata: NonNullable<ConsoleModuleMetadata["console"]>[number] =
+          {
+            area: surface.area,
+            label: surface.label,
+            package: {
+              export: item.exportName,
+              name: item.packageName,
+            },
+            route: surface.path,
+          };
+        if (surface.icon) {
+          metadata.icon = surface.icon;
+        }
+        if (surface.navigation) {
+          metadata.navigation = surface.navigation;
+        }
+        return metadata;
+      }),
+      module_name: item.module.id,
+    }))
+  );
+}
 
 export function consoleModuleMetadataWithFallback({
   apiMode,
@@ -30,7 +62,7 @@ export function consoleModuleMetadataWithFallback({
   }
   return apiMode && !(isError || isPending)
     ? []
-    : buildTimeConsoleModuleMetadata;
+    : [...buildTimeConsoleModuleMetadata, ...runtimeConsoleModuleMetadata];
 }
 
 export function navigationFromConsoleModuleMetadata(
