@@ -3,7 +3,6 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { runConsolePackageCli } from "@lenso/console-package-cli";
 import {
   defineRemoteModule,
   defineSchemaEntity,
@@ -14,6 +13,8 @@ import {
   textField,
   timestampField,
 } from "@lenso/remote-module-kit";
+
+import { runLensoCli } from "./run-lenso-cli.mjs";
 
 const writeFixture = async (root, relativePath, contents) => {
   const filePath = path.join(root, relativePath);
@@ -178,16 +179,10 @@ const main = async () => {
     const hostRoot = path.join(demoRoot, "host");
     await createHostFixture(hostRoot);
 
-    await runConsolePackageCli([
+    await runLensoCli([
       "module",
       "add",
       server.manifestUrl,
-      "--repo-root",
-      hostRoot,
-    ]);
-    await runConsolePackageCli([
-      "console-package",
-      "apply-plan",
       "--repo-root",
       hostRoot,
     ]);
