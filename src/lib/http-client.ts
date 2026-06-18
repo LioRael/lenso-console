@@ -17,16 +17,31 @@ export const apiAuthToken =
   (import.meta.env.VITE_API_AUTH_TOKEN as string | undefined) ??
   (import.meta.env.DEV ? developmentApiAuthToken : undefined);
 
+export function runtimeConsoleApiPrefix(value = apiBaseUrl) {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed === "/" ? "/" : trimmed.replace(/\/+$/, "");
+}
+
 export function isApiMode() {
-  return runtimeConsoleMode === "api" && Boolean(apiBaseUrl);
+  return runtimeConsoleMode === "api" && Boolean(runtimeConsoleApiPrefix());
 }
 
 export function runtimeConsoleDataSource() {
   return isApiMode() ? "api" : "mock";
 }
 
+const runtimeConsolePrefix = runtimeConsoleApiPrefix();
+
 export const httpClient = ky.create({
-  ...(apiBaseUrl ? { prefix: apiBaseUrl.replace(/\/$/, "") } : {}),
+  ...(runtimeConsolePrefix ? { prefix: runtimeConsolePrefix } : {}),
   hooks: {
     beforeRequest: [
       ({ request }) => {
