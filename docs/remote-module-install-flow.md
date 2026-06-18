@@ -26,9 +26,56 @@ to the host application.
 
 ## Host Developer
 
-Main path: `catalog add -> marketplace install -> apply-plan -> install -> restart`.
+Main path: `module add -> install packages -> restart`.
 
-Add a module to the local catalog when you want it to appear in Runtime
+Install a remote module from the manifest URL:
+
+```sh
+lenso module add https://example.com/lenso/module/v1/manifest
+```
+
+If the manifest is read from a local file, pass the runtime base URL:
+
+```sh
+lenso module add ./lenso.module.json --base-url https://example.com/lenso/module/v1
+```
+
+The install command reads the manifest, derives the remote base URL when the
+manifest URL ends in `/manifest`, then writes host-local state:
+
+- `.env`: adds or replaces the module entry in `REMOTE_MODULES`.
+- `.lenso/console-package-install-plan.json`: records requested Runtime Console
+  packages and their install commands.
+- Runtime Console package registration files when the manifest requests console
+  packages.
+
+Expected CLI output points at the same short path:
+
+```text
+Added remote module billing.
+Updated:
+- .env
+- .lenso/console-package-install-plan.json
+Applied 1 console package install plan item(s).
+Next steps:
+- pnpm --dir apps/runtime-console install
+- pnpm --dir apps/runtime-console check:console-packages
+- restart Runtime Console after installing packages
+- restart the API and worker
+```
+
+Pass `--no-console-plan` when you want to write only `.env` and the install plan,
+then apply Runtime Console registration later:
+
+```sh
+lenso module add https://example.com/lenso/module/v1/manifest --no-console-plan
+lenso console-package apply-plan
+```
+
+Pass `--runtime-console-root ../lenso-runtime-console` when the console app is
+outside the host repository.
+
+Add a module to the local catalog only when you want it to appear in Runtime
 Console's Available Modules panel before installing it:
 
 ```sh
@@ -37,9 +84,8 @@ lenso module catalog add https://example.com/lenso/module/v1/manifest \
 ```
 
 This writes `.lenso/module-catalog.json`. It is a local or team-maintained
-module list, not a publisher approval or review workflow.
-
-The catalog file is intentionally small:
+module list, not a publisher approval or review workflow. The catalog file is
+intentionally small:
 
 ```json
 {
@@ -64,55 +110,17 @@ The catalog file is intentionally small:
 }
 ```
 
-Install a remote module from the manifest URL:
+`module marketplace install` remains an alias for the install path:
 
 ```sh
 lenso module marketplace install https://example.com/lenso/module/v1/manifest
 ```
 
-The older `module add` command exposes the same low-friction install path:
+Install package dependencies in Runtime Console, then restart Runtime Console,
+the API, and the worker so `REMOTE_MODULES` is loaded:
 
 ```sh
-lenso module add https://example.com/lenso/module/v1/manifest
-```
-
-If the manifest is read from a local file, pass the runtime base URL:
-
-```sh
-lenso module add ./lenso.module.json --base-url https://example.com/lenso/module/v1
-```
-
-The install command reads the manifest, derives the remote base URL when the
-manifest URL ends in `/manifest`, then writes host-local state:
-
-- `.env`: adds or replaces the module entry in `REMOTE_MODULES`.
-- `.lenso/console-package-install-plan.json`: records requested Runtime Console
-  packages and their install commands.
-
-Expected CLI output points at the same short path:
-
-```text
-Added remote module billing.
-Updated:
-- .env
-- .lenso/console-package-install-plan.json
-Next steps:
-- lenso console-package apply-plan
-- pnpm install
-- restart the API and worker
-```
-
-Apply the generated console package install plan:
-
-```sh
-lenso console-package apply-plan
-```
-
-Install package dependencies, then restart the API and worker so
-`REMOTE_MODULES` is loaded:
-
-```sh
-pnpm install
+pnpm --dir apps/runtime-console install
 ```
 
 When the host API is running, the Runtime Console can show available modules
@@ -124,9 +132,10 @@ GET /admin/data/available-modules
 
 The Available Modules panel keeps that view lightweight: it shows module name,
 version, source, summary, capability count, console package count, compatibility
-preflight status, archived catalog entries, and copyable marketplace install commands.
+preflight status, archived catalog entries, and copyable module add commands.
 Installing from a manifest URL writes local module configuration and the console
-package install plan.
+package install plan, then applies Runtime Console registration when console
+packages are declared.
 
 The repository's `remote-crm` fixture demonstrates the installed-console
 surface path. Its manifest declares `@lenso/remote-crm-console` /

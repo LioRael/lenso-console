@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { runConsolePackageCli } from "@lenso/console-package-cli";
+import { runLensoCli } from "./run-lenso-cli.mjs";
 
 const execFileAsync = promisify(execFile);
 const writeFixture = async (root, relativePath, contents) => {
@@ -111,7 +111,7 @@ const main = async () => {
     const modulePackagesRoot = path.join(demoRoot, "module-packages");
     await createHostFixture(hostRoot);
 
-    await runConsolePackageCli([
+    await runLensoCli([
       "module",
       "create",
       "billing",
@@ -210,7 +210,7 @@ const main = async () => {
       throw new Error("runtime function endpoint did not return output");
     }
 
-    await runConsolePackageCli([
+    await runLensoCli([
       "module",
       "catalog",
       "add",
@@ -220,19 +220,7 @@ const main = async () => {
       "--summary",
       catalogEntry.summary,
     ]);
-    await runConsolePackageCli([
-      "module",
-      "add",
-      manifestUrl,
-      "--repo-root",
-      hostRoot,
-    ]);
-    await runConsolePackageCli([
-      "console-package",
-      "apply-plan",
-      "--repo-root",
-      hostRoot,
-    ]);
+    await runLensoCli(["module", "add", manifestUrl, "--repo-root", hostRoot]);
 
     const catalogFile = await readFile(
       path.join(hostRoot, ".lenso/module-catalog.json"),

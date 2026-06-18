@@ -1,11 +1,11 @@
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-import { runConsolePackageCli } from "@lenso/console-package-cli";
+import { runLensoCli } from "./run-lenso-cli.mjs";
 
-const runtimeConsoleRoot = fileURLToPath(new URL("..", import.meta.url));
-const exitCode = await runConsolePackageCli(
-  ["create", ...process.argv.slice(2)],
-  { defaultRuntimeConsoleRoot: runtimeConsoleRoot }
-);
+const runtimeConsoleRoot = path.resolve(import.meta.dirname, "..");
+const cliArgs = process.argv.slice(2);
+if (!cliArgs.includes("--runtime-console-root")) {
+  cliArgs.push("--runtime-console-root", runtimeConsoleRoot);
+}
 
-process.exit(exitCode);
+await runLensoCli(["console-package", "create", ...cliArgs]);

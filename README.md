@@ -151,9 +151,7 @@ workspace, use the remote scaffold:
 
 ```bash
 pnpm create:module billing --remote --output-dir ../modules
-lenso module catalog add https://example.com/lenso/module/v1/manifest
 lenso module add https://example.com/lenso/module/v1/manifest
-lenso console-package apply-plan
 ```
 
 Run `pnpm demo:remote-module-package` for a temp-directory smoke demo of that
@@ -184,7 +182,7 @@ pnpm create:console-package billing
 The underlying CLI command is:
 
 ```bash
-pnpm exec lenso-console-package create billing
+lenso console-package create billing
 ```
 
 The generator also writes `console-surface.json` and `console-surface.rs` so the
