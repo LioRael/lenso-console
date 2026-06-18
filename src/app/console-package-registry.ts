@@ -1,6 +1,9 @@
 import type { ConsoleModule } from "./console-module-api";
 
-export type ConsolePackageRegistrySource = "first_party" | "installed";
+export type ConsolePackageRegistrySource =
+  | "first_party"
+  | "installed"
+  | "runtime_bundle";
 
 export type ConsolePackageInstallManifest = {
   packageName: string;
