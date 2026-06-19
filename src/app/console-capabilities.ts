@@ -2,6 +2,7 @@ import { apiAuthToken, isApiMode } from "../lib/http-client";
 
 const localConsoleCapabilities = [
   "runtime.stories.read",
+  "auth.users.read",
   "identity.users.read",
 ] as const;
 

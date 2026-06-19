@@ -41,14 +41,15 @@ const installCommands = [
     label: "install",
   },
   {
-    command: "lenso console-package apply-plan",
+    command:
+      "lenso module install https://example.com/lenso/module/v1/manifest",
     key: "apply-plan",
-    label: "console",
+    label: "extension",
   },
   {
-    command: "pnpm --dir apps/runtime-console install",
+    command: "reload Runtime Console",
     key: "install-packages",
-    label: "packages",
+    label: "reload",
   },
 ];
 
@@ -59,7 +60,7 @@ const baseInstallState: AvailableModuleInstallState = {
     moduleEntryPresent: false,
     packageCount: 0,
     packages: [],
-    planFile: ".lenso/console-package-install-plan.json",
+    planFile: ".lenso/console/extensions/registry.json",
     readable: false,
     restartRequired: null,
   },
@@ -166,9 +167,9 @@ describe("available modules model", () => {
       })
     ).toEqual({
       action: "install_package",
-      detail: "install console package and restart",
+      detail: "reload Runtime Console after extension install",
       kind: "package_install_needed",
-      label: "package install needed",
+      label: "extension reload needed",
       moduleName: "billing",
       path: "/modules?module=billing",
     });
@@ -253,8 +254,8 @@ describe("available modules model", () => {
       row,
     });
     expect(handoff).toMatchObject({
-      detail: "apply console package plan and install packages",
-      kind: "package_install_needed",
+      detail: "remote source configured in .env but not loaded",
+      kind: "restart_pending",
     });
     expect(
       availableModuleInstallSteps({
@@ -267,10 +268,9 @@ describe("available modules model", () => {
         row,
       })[1]
     ).toMatchObject({
-      command: "lenso console-package apply-plan",
       evidence:
-        "1 package plan item in .lenso/console-package-install-plan.json",
-      status: "current",
+        "1 console extension entry in .lenso/console/extensions/registry.json",
+      status: "done",
     });
   });
 
@@ -356,8 +356,8 @@ describe("available modules model", () => {
       }).map((check) => [check.key, check.status, check.command ?? null])
     ).toEqual([
       ["source", "ok", null],
-      ["plan", "fix", "lenso console-package apply-plan"],
-      ["package", "fix", "pnpm add @vendor/lenso-billing-console"],
+      ["plan", "ok", null],
+      ["package", "fix", "reload Runtime Console"],
       ["runtime", "fix", null],
       ["restart", "fix", null],
       ["doctor", "ok", "lenso module doctor"],
@@ -464,8 +464,8 @@ describe("available modules model", () => {
       }).map((step) => [step.key, step.status, step.command ?? null])
     ).toEqual([
       ["add", "done", null],
-      ["apply-plan", "current", installCommands[1]!.command],
-      ["install-packages", "pending", installCommands[2]!.command],
+      ["apply-plan", "current", null],
+      ["install-packages", "pending", null],
       ["restart", "pending", null],
       ["open", "pending", null],
     ]);
@@ -482,7 +482,7 @@ describe("available modules model", () => {
       })[1]
     ).toMatchObject({
       evidence:
-        "1 missing console package; 1 plan item derived from backend metadata",
+        "1 missing console package; 1 extension entry derived from backend metadata",
     });
 
     const restart = availableModuleHandoffState({

@@ -185,7 +185,7 @@ export type AvailableModuleHandoffState =
     }
   | {
       kind: "package_install_needed";
-      label: "package install needed";
+      label: "extension reload needed";
       action: "install_package";
       detail: string;
       moduleName: string;
@@ -355,9 +355,9 @@ export function availableModuleHandoffState({
   if (installed?.packageInstallNeeded) {
     return {
       action: "install_package",
-      detail: "install console package and restart",
+      detail: "reload Runtime Console after extension install",
       kind: "package_install_needed",
-      label: "package install needed",
+      label: "extension reload needed",
       moduleName: installed.moduleName,
       path: `/modules?module=${encodeURIComponent(installed.moduleName)}`,
     };
@@ -371,20 +371,6 @@ export function availableModuleHandoffState({
       label: "installed",
       moduleName: installed.moduleName,
       path: `/modules?module=${encodeURIComponent(installed.moduleName)}`,
-    };
-  }
-
-  if (
-    row.installState?.consolePlan.moduleEntryPresent &&
-    row.installState.consolePlan.packageCount > 0
-  ) {
-    return {
-      action: "install_package",
-      detail: "apply console package plan and install packages",
-      kind: "package_install_needed",
-      label: "package install needed",
-      moduleName: row.name,
-      path: `/modules?module=${encodeURIComponent(row.name)}`,
     };
   }
 
@@ -474,12 +460,6 @@ export function availableModuleInstallSteps({
   row: AvailableModuleRow;
 }): AvailableModuleInstallStep[] {
   const addCommand = commands.find((command) => command.key === "add");
-  const applyPlanCommand = commands.find(
-    (command) => command.key === "apply-plan"
-  );
-  const installPackagesCommand = commands.find(
-    (command) => command.key === "install-packages"
-  );
   const packageDoneStatus = packageStepDoneStatus(row);
   const packagePendingStatus = packageStepPendingStatus(row);
 
@@ -505,9 +485,9 @@ export function availableModuleInstallSteps({
         ),
         installStep(
           "install-packages",
-          "packages",
+          "bundle",
           packagePendingStatus,
-          "apply console package plan first",
+          "install module first",
           undefined,
           undefined,
           packageEvidence(evidence, row)
@@ -545,7 +525,7 @@ export function availableModuleInstallSteps({
         ),
         installStep(
           "apply-plan",
-          "plan",
+          "extension",
           packagePendingStatus,
           "add module first",
           undefined,
@@ -554,9 +534,9 @@ export function availableModuleInstallSteps({
         ),
         installStep(
           "install-packages",
-          "packages",
+          "bundle",
           packagePendingStatus,
-          "apply console package plan first",
+          "install module first",
           undefined,
           undefined,
           packageEvidence(evidence, row)
@@ -594,19 +574,19 @@ export function availableModuleInstallSteps({
         ),
         installStep(
           "apply-plan",
-          "plan",
+          "extension",
           "current",
           handoff.detail,
-          applyPlanCommand,
+          undefined,
           undefined,
           packageEvidence(evidence, row)
         ),
         installStep(
           "install-packages",
-          "packages",
+          "bundle",
           "pending",
-          "run after applying the console package plan",
-          installPackagesCommand,
+          "reload Runtime Console after extension registry update",
+          undefined,
           undefined,
           packageEvidence(evidence, row)
         ),
@@ -643,18 +623,18 @@ export function availableModuleInstallSteps({
         ),
         installStep(
           "apply-plan",
-          "plan",
+          "extension",
           packageDoneStatus,
-          "console plan ready",
+          "console extension registered",
           undefined,
           undefined,
           packageEvidence(evidence, row)
         ),
         installStep(
           "install-packages",
-          "packages",
+          "bundle",
           packageDoneStatus,
-          "console dependencies are ready",
+          "console bundle is ready",
           undefined,
           undefined,
           packageEvidence(evidence, row)
@@ -692,18 +672,18 @@ export function availableModuleInstallSteps({
         ),
         installStep(
           "apply-plan",
-          "plan",
+          "extension",
           packageDoneStatus,
-          "console plan ready",
+          "console extension registered",
           undefined,
           undefined,
           packageEvidence(evidence, row)
         ),
         installStep(
           "install-packages",
-          "packages",
+          "bundle",
           packageDoneStatus,
-          "console dependencies are ready",
+          "console bundle is ready",
           undefined,
           undefined,
           packageEvidence(evidence, row)
@@ -751,11 +731,8 @@ export function availableModuleDoctorChecks({
   const addCommand =
     commandByKey(commands, "add") ??
     `lenso module marketplace install ${row.manifestReference}`;
-  const applyPlanCommand =
-    commandByKey(commands, "apply-plan") ?? "lenso console-package apply-plan";
   const installPackagesCommand =
-    commandByKey(commands, "install-packages") ??
-    "pnpm --dir apps/runtime-console install";
+    commandByKey(commands, "install-packages") ?? "reload Runtime Console";
   const consolePlan = row.installState?.consolePlan;
   const linkedSource = linkedSourceForRow(row);
   const remoteSource = remoteSourceForRow(row);
@@ -765,9 +742,7 @@ export function availableModuleDoctorChecks({
   const isRestartPending = Boolean(
     restartPending || sourceRestart.restartPending
   );
-  const packageCommand =
-    consolePlan?.packages.find((planPackage) => planPackage.command)?.command ??
-    installPackagesCommand;
+  const packageCommand = installPackagesCommand;
   const checks: AvailableModuleDoctorCheck[] = [
     sourceDoctorCheck({
       addCommand,
@@ -778,7 +753,6 @@ export function availableModuleDoctorChecks({
     }),
     planDoctorCheck({
       addCommand,
-      applyPlanCommand,
       isModuleRegistered,
       row,
     }),
@@ -893,10 +867,10 @@ function packageEvidence(
     return consolePlan.error;
   }
   if (consolePlan?.moduleEntryPresent) {
-    return `${consolePlan.packageCount} package plan item${consolePlan.packageCount === 1 ? "" : "s"} in ${consolePlan.planFile}`;
+    return `${consolePlan.packageCount} console extension entr${consolePlan.packageCount === 1 ? "y" : "ies"} in ${consolePlan.planFile}`;
   }
   if (consolePlan?.exists) {
-    return `plan exists at ${consolePlan.planFile}; no ${row.name} entry`;
+    return `extension registry exists at ${consolePlan.planFile}; no ${row.name} entry`;
   }
   if (row.consolePackageHintCount === 0) {
     return "catalog declares no console package hints";
@@ -904,7 +878,7 @@ function packageEvidence(
   const missingCount = evidence.missingConsolePackageCount ?? null;
   const planCount = evidence.consoleInstallPlanCount ?? null;
   if (missingCount !== null && planCount !== null) {
-    return `${missingCount} missing console package${missingCount === 1 ? "" : "s"}; ${planCount} plan item${planCount === 1 ? "" : "s"} derived from backend metadata`;
+    return `${missingCount} missing console package${missingCount === 1 ? "" : "s"}; ${planCount} extension entr${planCount === 1 ? "y" : "ies"} derived from backend metadata`;
   }
   if (missingCount !== null) {
     return `${missingCount} missing console package${missingCount === 1 ? "" : "s"} from backend metadata`;
@@ -1037,39 +1011,41 @@ function remoteSourceTransportLabel(
 
 function planDoctorCheck({
   addCommand,
-  applyPlanCommand,
   isModuleRegistered,
   row,
 }: {
   addCommand: string;
-  applyPlanCommand: string;
   isModuleRegistered: boolean;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
   const consolePlan = row.installState?.consolePlan;
   const remoteSource = remoteSourceForRow(row);
   if (row.consolePackageHintCount === 0) {
-    return doctorCheck("plan", "plan", "skip", "no console package hints");
+    return doctorCheck("plan", "extension", "skip", "no console package hints");
   }
   if (consolePlan?.error) {
-    return doctorCheck("plan", "plan", "hold", consolePlan.error);
+    return doctorCheck("plan", "extension", "hold", consolePlan.error);
   }
   if (consolePlan?.moduleEntryPresent) {
     return doctorCheck(
       "plan",
-      "plan",
-      "fix",
-      `${consolePlan.packageCount} item${consolePlan.packageCount === 1 ? "" : "s"} pending in ${consolePlan.planFile}`,
-      applyPlanCommand
+      "extension",
+      "ok",
+      `${consolePlan.packageCount} extension entr${consolePlan.packageCount === 1 ? "y" : "ies"} in ${consolePlan.planFile}`
     );
   }
   if (isModuleRegistered) {
-    return doctorCheck("plan", "plan", "skip", "no pending console plan");
+    return doctorCheck(
+      "plan",
+      "extension",
+      "skip",
+      "no console extension needed"
+    );
   }
   if (consolePlan?.exists) {
     return doctorCheck(
       "plan",
-      "plan",
+      "extension",
       "fix",
       `no ${row.name} entry in ${consolePlan.planFile}`,
       addCommand
@@ -1078,13 +1054,13 @@ function planDoctorCheck({
   if (remoteSource?.configured) {
     return doctorCheck(
       "plan",
-      "plan",
+      "extension",
       "fix",
-      `write console plan for ${row.name}`,
+      `write console extension registry for ${row.name}`,
       addCommand
     );
   }
-  return doctorCheck("plan", "plan", "skip", "add source first");
+  return doctorCheck("plan", "extension", "skip", "add source first");
 }
 
 function packageDoctorCheck({
@@ -1123,21 +1099,25 @@ function packageDoctorCheck({
   if (consolePlan?.moduleEntryPresent && consolePlan.packageCount > 0) {
     return doctorCheck(
       "package",
-      "package",
-      "fix",
-      `${consolePlan.packageCount} package${consolePlan.packageCount === 1 ? "" : "s"} listed in plan`,
-      packageCommand
+      "bundle",
+      "ok",
+      `${consolePlan.packageCount} console bundle${consolePlan.packageCount === 1 ? "" : "s"} registered`
     );
   }
   if (isModuleRegistered) {
     return doctorCheck(
       "package",
-      "package",
+      "bundle",
       "ok",
       "console package registry current"
     );
   }
-  return doctorCheck("package", "package", "skip", "waiting for console plan");
+  return doctorCheck(
+    "package",
+    "bundle",
+    "skip",
+    "waiting for console extension"
+  );
 }
 
 function runtimeDoctorCheck({

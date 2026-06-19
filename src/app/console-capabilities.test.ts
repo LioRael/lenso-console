@@ -9,9 +9,13 @@ describe("console capabilities", () => {
   test("parses scopes from development service tokens", () => {
     expect(
       parseDevAuthTokenScopes(
-        "dev-service:admin:runtime.stories.read,identity.users.read"
+        "dev-service:admin:runtime.stories.read,auth.users.read,identity.users.read"
       )
-    ).toEqual(["runtime.stories.read", "identity.users.read"]);
+    ).toEqual([
+      "runtime.stories.read",
+      "auth.users.read",
+      "identity.users.read",
+    ]);
     expect(
       parseDevAuthTokenScopes("Bearer dev-service:admin:runtime.stories.read")
     ).toEqual(["runtime.stories.read"]);
@@ -29,9 +33,14 @@ describe("console capabilities", () => {
     expect(
       consoleCapabilityProvider({
         apiMode: true,
-        authToken: "dev-service:admin:runtime.stories.read,identity.users.read",
+        authToken:
+          "dev-service:admin:runtime.stories.read,auth.users.read,identity.users.read",
       })
-    ).toEqual(["runtime.stories.read", "identity.users.read"]);
+    ).toEqual([
+      "runtime.stories.read",
+      "auth.users.read",
+      "identity.users.read",
+    ]);
   });
 
   test("has no API-mode capabilities when no auth token is configured", () => {
@@ -49,6 +58,10 @@ describe("console capabilities", () => {
         apiMode: false,
         authToken: "dev-service:admin",
       })
-    ).toEqual(["runtime.stories.read", "identity.users.read"]);
+    ).toEqual([
+      "runtime.stories.read",
+      "auth.users.read",
+      "identity.users.read",
+    ]);
   });
 });

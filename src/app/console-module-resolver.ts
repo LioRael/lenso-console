@@ -255,6 +255,7 @@ function isConsoleSurfaceIcon(
     icon === "boxes" ||
     icon === "database" ||
     icon === "network" ||
+    icon === "shield" ||
     icon === "settings" ||
     icon === "workflow"
   );

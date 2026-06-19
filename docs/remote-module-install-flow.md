@@ -1,7 +1,7 @@
 # Remote Module Install Flow
 
 Use this flow when a third-party module should stay outside the host workspace
-but still contribute a Runtime Console frontend package.
+but still contribute an already-built Runtime Console frontend bundle.
 
 For a runnable remote module that depends on published `@lenso/*` packages
 instead of workspace paths, see
@@ -21,59 +21,55 @@ Expose the remote module protocol from a stable base URL:
 GET https://example.com/lenso/module/v1/manifest
 ```
 
-Publish or otherwise make the console package named in the manifest available
-to the host application.
+Publish or otherwise make the console bundle named by the manifest's
+`package.bundleUrl` available to the host application.
 
 ## Host Developer
 
-Main path: `module add -> install packages -> restart`.
+Main path: `module install -> restart -> reload Runtime Console`.
 
 Install a remote module from the manifest URL:
 
 ```sh
-lenso module add https://example.com/lenso/module/v1/manifest
+lenso module install https://example.com/lenso/module/v1/manifest
 ```
 
 If the manifest is read from a local file, pass the runtime base URL:
 
 ```sh
-lenso module add ./lenso.module.json --base-url https://example.com/lenso/module/v1
+lenso module install ./lenso.module.json --base-url https://example.com/lenso/module/v1
 ```
 
 The install command reads the manifest, derives the remote base URL when the
 manifest URL ends in `/manifest`, then writes host-local state:
 
 - `.env`: adds or replaces the module entry in `REMOTE_MODULES`.
-- `.lenso/console-package-install-plan.json`: records requested Runtime Console
-  packages and their install commands.
-- Runtime Console package registration files when the manifest requests console
-  packages.
+- `.lenso/module-installs.json`: records the module source and host-local writes.
+- `.lenso/console/extensions/<module>/*.js`: stores copied third-party console
+  bundles.
+- `.lenso/console/extensions/registry.json`: registers same-origin dynamic
+  bundle exports for Runtime Console.
 
 Expected CLI output points at the same short path:
 
 ```text
-Added remote module billing.
+Installed remote module billing.
 Updated:
 - .env
-- .lenso/console-package-install-plan.json
-Applied 1 console package install plan item(s).
+- .lenso/console/extensions/registry.json
+- .lenso/console/extensions/billing/billing-console.js
+- .lenso/module-installs.json
 Next steps:
-- pnpm --dir apps/runtime-console install
-- pnpm --dir apps/runtime-console check:console-packages
-- restart Runtime Console after installing packages
 - restart the API and worker
+- reload Runtime Console
 ```
 
-Pass `--no-console-plan` when you want to write only `.env` and the install plan,
-then apply Runtime Console registration later:
+Pass `--no-console-extension` when you want to skip Runtime Console extension
+registration:
 
 ```sh
-lenso module add https://example.com/lenso/module/v1/manifest --no-console-plan
-lenso console-package apply-plan
+lenso module install https://example.com/lenso/module/v1/manifest --no-console-extension
 ```
-
-Pass `--runtime-console-root ../lenso-runtime-console` when the console app is
-outside the host repository.
 
 Add a module to the local catalog only when you want it to appear in Runtime
 Console's Available Modules panel before installing it:
@@ -116,12 +112,8 @@ intentionally small:
 lenso module marketplace install https://example.com/lenso/module/v1/manifest
 ```
 
-Install package dependencies in Runtime Console, then restart Runtime Console,
-the API, and the worker so `REMOTE_MODULES` is loaded:
-
-```sh
-pnpm --dir apps/runtime-console install
-```
+Restart the API and worker so `REMOTE_MODULES` is loaded, then reload Runtime
+Console so it reads `/console/extensions/registry.json`.
 
 When the host API is running, the Runtime Console can show available modules
 from:
@@ -132,16 +124,17 @@ GET /admin/data/available-modules
 
 The Available Modules panel keeps that view lightweight: it shows module name,
 version, source, summary, capability count, console package count, compatibility
-preflight status, archived catalog entries, and copyable module add commands.
-Installing from a manifest URL writes local module configuration and the console
-package install plan, then applies Runtime Console registration when console
-packages are declared.
+preflight status, archived catalog entries, and copyable module install
+commands. Installing from a manifest URL writes local module configuration,
+copies declared console bundles, and updates the Runtime Console extension
+registry.
 
 The repository's `remote-crm` fixture demonstrates the installed-console
 surface path. Its manifest declares `@lenso/remote-crm-console` /
 `remoteCrmConsoleModule`, and the workspace package contributes the
-`/data/remote-crm` page through the static console package registry. That keeps
-the demo low-friction while still avoiding arbitrary remote JavaScript loading.
+`/data/remote-crm` page through the static console package registry. Third-party
+modules should use `bundleUrl` and the dynamic extension registry instead of
+being compiled into the official Runtime Console bundle.
 
 ## Smoke Demo
 
@@ -168,31 +161,19 @@ If `REMOTE_MODULES` is missing a module or points at the wrong base URL, add the
 module source again:
 
 ```text
-fix: lenso module add <manifest-url> --base-url <base-url>
+fix: lenso module install <manifest-url> --base-url <base-url>
 ```
 
-This updates `.env` and refreshes the local console package install plan.
+This updates `.env` and refreshes the local console extension registry.
 
-### Console package
+### Console extension
 
-If the Runtime Console dependency is missing, install the package requested by
-the module manifest:
+If the Runtime Console extension is missing, reinstall the module so the host
+copies the declared bundle and rewrites the registry:
 
 ```text
-fix: pnpm add <package-name>
+fix: lenso module install <manifest-url>
 ```
 
-Run the host package install afterward so the lockfile matches the registered
-frontend package.
-
-### Console registration
-
-If manifest exports or module export mappings are missing, re-apply the install
-plan:
-
-```text
-fix: lenso console-package apply-plan
-```
-
-This updates Runtime Console package dependencies, manifest exports, and module
-export mappings from `.lenso/console-package-install-plan.json`.
+Reload Runtime Console after the API and worker restart so the bootstrap loader
+reads `/console/extensions/registry.json` again.

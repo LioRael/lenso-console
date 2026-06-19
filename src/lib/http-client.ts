@@ -7,6 +7,7 @@ const runtimeConsoleMode = import.meta.env.VITE_RUNTIME_CONSOLE_MODE as
   | undefined;
 const developmentApiAuthScopes = [
   "runtime.stories.read",
+  "auth.users.read",
   "identity.users.read",
   "remote_crm.contacts.read",
   "remote_crm.contacts.sync",
