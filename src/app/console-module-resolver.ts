@@ -267,9 +267,11 @@ function isConsoleSurfaceIcon(
     icon === "activity" ||
     icon === "boxes" ||
     icon === "database" ||
+    icon === "key-round" ||
     icon === "network" ||
     icon === "shield" ||
     icon === "settings" ||
+    icon === "users" ||
     icon === "workflow"
   );
 }

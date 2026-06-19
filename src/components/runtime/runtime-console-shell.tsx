@@ -7,6 +7,7 @@ import {
   BriefcaseBusiness,
   Command,
   Database,
+  KeyRound,
   Moon,
   Network,
   PanelLeftClose,
@@ -58,9 +59,11 @@ const iconRegistry = {
   activity: Activity,
   boxes: Boxes,
   database: Database,
+  "key-round": KeyRound,
   network: Network,
   shield: Shield,
   settings: Settings,
+  users: Users,
   workflow: Workflow,
 } satisfies Record<ConsoleSurfaceIcon, ShellIcon>;
 

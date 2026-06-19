@@ -1,0 +1,92 @@
+name: publish runtime-console-api
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version from packages/console-package-api/package.json
+        required: true
+        type: string
+      dry_run:
+        default: false
+        description: Run checks without uploading to npm
+        required: true
+        type: boolean
+
+concurrency:
+  cancel-in-progress: false
+  group: publish-runtime-console-api
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lenso-runtime-console
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - name: Checkout Runtime Console
+        uses: actions/checkout@v6
+        with:
+          path: lenso-runtime-console
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: lenso-runtime-console/package.json
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure npm supports trusted publishing
+        run: |
+          npm install --global npm@^11.5.1
+          npm --version
+
+      - name: Verify publish input
+        run: |
+          package_version="$(node -p "require('./packages/console-package-api/package.json').version")"
+          if [ "${package_version}" != "${{ inputs.version }}" ]; then
+            echo "Input version ${{ inputs.version }} does not match package.json version ${package_version}."
+            exit 1
+          fi
+
+          if npm view "@lenso/runtime-console-api@${package_version}" version >/dev/null 2>&1; then
+            echo "@lenso/runtime-console-api@${package_version} is already published."
+            exit 1
+          fi
+
+      - name: Check package
+        run: |
+          pnpm --filter @lenso/runtime-console-api build
+          pnpm exec vitest run packages/console-package-api/src
+          cd packages/console-package-api
+          npm pack --dry-run --json
+
+      - name: Dry-run publish
+        if: ${{ inputs.dry_run }}
+        run: npm publish --access public --dry-run
+        working-directory: lenso-runtime-console/packages/console-package-api
+
+      - name: Publish with token
+        if: ${{ !inputs.dry_run && env.HAS_NPM_TOKEN == 'true' }}
+        run: npm publish --access public
+        working-directory: lenso-runtime-console/packages/console-package-api
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish with trusted publishing
+        if: ${{ !inputs.dry_run && env.HAS_NPM_TOKEN != 'true' }}
+        run: npm publish --access public
+        working-directory: lenso-runtime-console/packages/console-package-api

@@ -10,9 +10,11 @@ export type ConsoleSurfaceIcon =
   | "activity"
   | "boxes"
   | "database"
+  | "key-round"
   | "network"
   | "shield"
   | "settings"
+  | "users"
   | "workflow";
 
 export type ConsoleNavigationMetadata = {
