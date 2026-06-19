@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { authUserRows, authUsersSummary } from "./model";
+import {
+  authSessionRows,
+  authSessionsSummary,
+  authUserRows,
+  authUsersSummary,
+} from "./model";
 
 describe("auth console model", () => {
   test("formats auth user records from admin data", () => {
@@ -35,6 +40,45 @@ describe("auth console model", () => {
       active: 1,
       disabled: 1,
       total: 2,
+    });
+  });
+
+  test("formats auth session records from admin data", () => {
+    const now = new Date("2026-06-18T12:00:00.000Z");
+    const sessions = [
+      {
+        created_at: "2026-06-18T09:00:00.000Z",
+        expires_at: "2026-06-18T13:00:00.000Z",
+        id: "sess_active",
+        revoked_at: null,
+        user_id: "usr_active",
+      },
+      {
+        created_at: "2026-06-18T09:00:00.000Z",
+        expires_at: "2026-06-18T10:00:00.000Z",
+        id: "sess_expired",
+        revoked_at: null,
+        user_id: "usr_expired",
+      },
+      {
+        created_at: "2026-06-18T09:00:00.000Z",
+        expires_at: "2026-06-18T13:00:00.000Z",
+        id: "sess_revoked",
+        revoked_at: "2026-06-18T11:00:00.000Z",
+        user_id: "usr_revoked",
+      },
+    ];
+
+    expect(authSessionRows(sessions, now).map((row) => row.status)).toEqual([
+      "active",
+      "expired",
+      "revoked",
+    ]);
+    expect(authSessionsSummary(sessions, now)).toEqual({
+      active: 1,
+      expired: 1,
+      revoked: 1,
+      total: 3,
     });
   });
 });
