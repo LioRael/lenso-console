@@ -141,6 +141,7 @@ const AuthUsersSurfacePage = () => {
     entityName: "users",
     moduleName: "auth",
   });
+  const userAction = runtimeConsoleHostApi.adminData.useInvokeAction();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const userRows = authUserRows(usersQuery.data?.data ?? []);
   const summary = authUsersSummary(usersQuery.data?.data ?? []);
@@ -199,6 +200,41 @@ const AuthUsersSurfacePage = () => {
               <Metric label="created" value={selectedUser.createdAt} />
               <Metric label="disabled" value={selectedUser.disabledAt} />
               <Metric label="status" value={selectedUser.status} />
+              <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+                <button
+                  className={[
+                    "h-7 border px-2 font-mono text-[11px] font-semibold disabled:opacity-45",
+                    selectedUser.status === "active"
+                      ? "border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] text-(--tone-error-fg)"
+                      : "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-(--tone-success-fg)",
+                  ].join(" ")}
+                  disabled={userAction.isPending}
+                  onClick={() =>
+                    userAction.mutate({
+                      actionName:
+                        selectedUser.status === "active"
+                          ? "disable_user"
+                          : "enable_user",
+                      input: { user_id: selectedUser.id },
+                      moduleName: "auth",
+                    })
+                  }
+                  type="button"
+                >
+                  {userAction.isPending
+                    ? selectedUser.status === "active"
+                      ? "Disabling"
+                      : "Enabling"
+                    : selectedUser.status === "active"
+                      ? "Disable"
+                      : "Enable"}
+                </button>
+                {userAction.isError ? (
+                  <div className="mt-1 truncate font-mono text-[10px] text-(--error)">
+                    {String((userAction.error as Error).message)}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : (
             <PanelMessage value="Select a user" />
