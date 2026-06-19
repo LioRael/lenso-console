@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { currentBrowserUrl, writeBrowserUrl } from "./use-browser-url-state";
+import {
+  browserUrlForConsolePath,
+  currentBrowserUrl,
+  writeBrowserUrl,
+} from "./use-browser-url-state";
 
 describe("browser url state helpers", () => {
   afterEach(() => {
@@ -38,6 +42,15 @@ describe("browser url state helpers", () => {
       "",
       "/runtime/stories?story=corr_3"
     );
+  });
+
+  test("prefixes browser-state urls with the built console base", () => {
+    expect(
+      browserUrlForConsolePath("/runtime/stories?story=corr_1", "/console/")
+    ).toBe("/console/runtime/stories?story=corr_1");
+    expect(
+      browserUrlForConsolePath("/console/operations/functions", "/console/")
+    ).toBe("/console/operations/functions");
   });
 });
 
