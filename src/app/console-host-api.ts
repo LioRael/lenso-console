@@ -20,11 +20,15 @@ import { useListKeyboard } from "../hooks/use-list-keyboard";
 import { usePersistedLayout } from "../hooks/use-persisted-layout";
 import { useRuntimeStories } from "../hooks/use-runtime-queries";
 import { operationsPath } from "../pages/operations-url-model";
-import { useConsoleAdminRecords } from "./console-admin-data-api";
+import {
+  useConsoleAdminAction,
+  useConsoleAdminRecords,
+} from "./console-admin-data-api";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 
 export const runtimeConsoleHostApi = {
   adminData: {
+    useInvokeAction: useConsoleAdminAction,
     useRecords: useConsoleAdminRecords,
   },
   modules: {

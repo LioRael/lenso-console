@@ -214,6 +214,7 @@ const AuthSessionsSurfacePage = () => {
     entityName: "sessions",
     moduleName: "auth",
   });
+  const revokeSession = runtimeConsoleHostApi.adminData.useInvokeAction();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     null
   );
@@ -282,6 +283,29 @@ const AuthSessionsSurfacePage = () => {
               <Metric label="expires" value={selectedSession.expiresAt} />
               <Metric label="revoked" value={selectedSession.revokedAt} />
               <Metric label="status" value={selectedSession.status} />
+              {selectedSession.status === "active" ? (
+                <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
+                  <button
+                    className="h-7 border border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] px-2 font-mono text-[11px] font-semibold text-(--tone-error-fg) disabled:opacity-45"
+                    disabled={revokeSession.isPending}
+                    onClick={() =>
+                      revokeSession.mutate({
+                        actionName: "revoke_session",
+                        input: { session_id: selectedSession.id },
+                        moduleName: "auth",
+                      })
+                    }
+                    type="button"
+                  >
+                    {revokeSession.isPending ? "Revoking" : "Revoke"}
+                  </button>
+                  {revokeSession.isError ? (
+                    <div className="mt-1 truncate font-mono text-[10px] text-(--error)">
+                      {String((revokeSession.error as Error).message)}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <PanelMessage value="Select a session" />
