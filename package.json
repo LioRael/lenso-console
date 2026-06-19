@@ -21,7 +21,7 @@
     "demo:remote-module-run": "pnpm --filter @lenso/remote-module-kit build && node scripts/remote-module-run-demo.mjs",
     "demo:release": "pnpm --filter @lenso/remote-module-kit build && node scripts/release-demo.mjs",
     "build": "pnpm build:local",
-    "build:local": "pnpm --filter @lenso/remote-module-kit build && tsc -b && vite build",
+    "build:local": "pnpm --filter @lenso/remote-module-kit build && tsc -b && VITE_RUNTIME_CONSOLE_MODE=${VITE_RUNTIME_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} VITE_API_AUTH_TOKEN=${VITE_API_AUTH_TOKEN:-dev-service:admin:runtime.stories.read,identity.users.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write} vite build",
     "test": "pnpm test:local",
     "test:local": "pnpm --filter @lenso/remote-module-kit build && vitest run src packages/story-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src",
     "typecheck": "pnpm typecheck:local",
