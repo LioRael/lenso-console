@@ -44,6 +44,7 @@ export type ConsoleModuleMetadata = {
 
 export type ConsoleModuleSelectionOptions = {
   availableCapabilities?: readonly string[];
+  packages?: readonly InstalledConsolePackage[];
 };
 
 export type MissingConsolePackageReference = {
@@ -187,7 +188,7 @@ export function selectConsoleModulePackageReferences(
         reference.icon = surface.icon;
       }
       reference.navigation = surface.navigation ?? null;
-      if (!consolePackageExportIsRegistered(reference)) {
+      if (!consolePackageExportIsRegistered(reference, options.packages)) {
         return [];
       }
       return [reference];

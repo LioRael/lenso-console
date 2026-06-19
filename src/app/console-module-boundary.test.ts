@@ -149,6 +149,12 @@ function consolePackageNames(): string[] {
   return [
     ...new Set(
       Object.keys(consoleSurfaceFiles).flatMap((file) => {
+        const surface = JSON.parse(consoleSurfaceFiles[file] ?? "{}") as {
+          source?: string;
+        };
+        if (surface.source === "runtime_bundle") {
+          return [];
+        }
         const packageName = file.match(
           /^\.\.\/\.\.\/packages\/([^/]+)\//u
         )?.[1];

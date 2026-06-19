@@ -23,6 +23,11 @@ jobs:
           path: lenso
           repository: LioRael/lenso
           ssh-key: ${{ secrets.LENSO_REPO_DEPLOY_KEY }}
+      - name: Checkout auth console package
+        uses: actions/checkout@v6
+        with:
+          path: lenso-auth-module
+          repository: LioRael/lenso-auth-module
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: lenso-runtime-console/package.json
