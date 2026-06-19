@@ -1,3 +1,5 @@
+import { once } from "node:events";
+/* eslint-disable func-style, no-use-before-define */
 import { connect } from "node:http2";
 
 import { describe, expect, test } from "vitest";
@@ -754,86 +756,86 @@ describe("@lenso/remote-module-kit", () => {
   });
 });
 
-const grpcUnary = async (
+async function grpcUnary(
   client: ReturnType<typeof connect>,
   path: string,
   payload: unknown
-) =>
-  new Promise<unknown>((resolve, reject) => {
-    const request = client.request({
-      ":method": "POST",
-      ":path": path,
-      "content-type": "application/grpc",
-    });
-    const chunks: Buffer[] = [];
-    request.on("data", (chunk) =>
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-    );
-    request.on("end", () => {
-      try {
-        resolve(readGrpcPayload(Buffer.concat(chunks)));
-      } catch (error) {
-        reject(error);
-      }
-    });
-    request.on("error", reject);
-    request.end(grpcFrame(payload));
+) {
+  const request = client.request({
+    ":method": "POST",
+    ":path": path,
+    "content-type": "application/grpc",
   });
+  const chunks: Buffer[] = [];
+  request.on("data", (chunk) =>
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  );
+  const ended = once(request, "end");
+  const failed = once(request, "error").then(([error]) => {
+    throw error;
+  });
+  request.end(grpcFrame(payload));
+  await Promise.race([ended, failed]);
+  return readGrpcPayload(Buffer.concat(chunks));
+}
 
-const grpcFrame = (payload: unknown) => {
+function grpcFrame(payload: unknown) {
   const message = encodeJsonEnvelope(JSON.stringify(payload));
   const frame = Buffer.alloc(5 + message.length);
   frame[0] = 0;
   frame.writeUInt32BE(message.length, 1);
   message.copy(frame, 5);
   return frame;
-};
+}
 
-const readGrpcPayload = (body: Buffer) => {
+function readGrpcPayload(body: Buffer) {
   const length = body.readUInt32BE(1);
   return JSON.parse(decodeJsonEnvelope(body.subarray(5, 5 + length)));
-};
+}
 
-const encodeJsonEnvelope = (payloadJson: string) => {
+function encodeJsonEnvelope(payloadJson: string) {
   const payload = Buffer.from(payloadJson, "utf-8");
   return Buffer.concat([
     Buffer.from([0x0a]),
     encodeVarint(payload.length),
     payload,
   ]);
-};
+}
 
-const decodeJsonEnvelope = (message: Buffer) => {
+function decodeJsonEnvelope(message: Buffer) {
   const { value: length, offset } = decodeVarint(message, 1);
   return message.subarray(offset, offset + length).toString("utf-8");
-};
+}
 
-const encodeVarint = (value: number) => {
+function encodeVarint(value: number) {
   const bytes: number[] = [];
   let current = value;
   do {
-    let byte = current & 0x7f;
-    current >>>= 7;
-    if (current) {
-      byte |= 0x80;
+    let byte = current % 128;
+    current = Math.floor(current / 128);
+    if (current > 0) {
+      byte += 128;
     }
     bytes.push(byte);
-  } while (current);
+  } while (current > 0);
   return Buffer.from(bytes);
-};
+}
 
-const decodeVarint = (buffer: Buffer, offset: number) => {
+function decodeVarint(buffer: Buffer, offset: number) {
   let value = 0;
   let shift = 0;
   let index = offset;
   while (index < buffer.length) {
-    const byte = buffer[index]!;
-    value |= (byte & 0x7f) << shift;
+    const byte = buffer[index];
+    if (byte === undefined) {
+      break;
+    }
+    value += (byte % 128) * 2 ** shift;
     index += 1;
-    if ((byte & 0x80) === 0) {
+    if (byte < 128) {
       return { offset: index, value };
     }
     shift += 7;
   }
   throw new Error("unterminated varint");
-};
+}

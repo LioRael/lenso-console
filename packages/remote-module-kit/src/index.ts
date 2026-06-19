@@ -1,3 +1,4 @@
+/* eslint-disable func-style, no-use-before-define */
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type {
@@ -171,11 +172,11 @@ export interface RemoteEventHandleRequest {
   headers: unknown;
 }
 
-export type RemoteEventResultAction = {
+export interface RemoteEventResultAction {
   type: "enqueue_function";
   function_name: string;
   input: unknown;
-};
+}
 
 export interface RemoteEventHandleResponse {
   actions?: readonly RemoteEventResultAction[];
@@ -190,8 +191,8 @@ export type RemoteEventHandler = (
   context: RemoteEventHandlerContext
 ) =>
   | RemoteEventHandleResponse
-  | void
-  | Promise<RemoteEventHandleResponse | void>;
+  | undefined
+  | Promise<RemoteEventHandleResponse | undefined>;
 
 export interface RemoteLifecycleStartupCheck {
   name: string;
@@ -421,8 +422,8 @@ const sendJson = (
 };
 
 const GRPC_PATHS = {
-  getManifest: "/lenso.remote.v1.RemoteModule/GetManifest",
   getAdminRecord: "/lenso.remote.v1.RemoteModule/GetAdminRecord",
+  getManifest: "/lenso.remote.v1.RemoteModule/GetManifest",
   handleEvent: "/lenso.remote.v1.RemoteModule/HandleEvent",
   invokeAdminAction: "/lenso.remote.v1.RemoteModule/InvokeAdminAction",
   invokeFunction: "/lenso.remote.v1.RemoteModule/InvokeFunction",
@@ -470,70 +471,73 @@ const writeGrpcResponse = (
   stream.end(grpcFrame(payload));
 };
 
-const grpcFrame = (payload: unknown) => {
+function grpcFrame(payload: unknown) {
   const message = encodeJsonEnvelope(JSON.stringify(payload));
   const frame = Buffer.alloc(5 + message.length);
   frame[0] = 0;
   frame.writeUInt32BE(message.length, 1);
   message.copy(frame, 5);
   return frame;
-};
+}
 
-const readGrpcPayload = (body: Buffer) => {
+function readGrpcPayload(body: Buffer) {
   if (body.length < 5 || body[0] !== 0) {
     throw new Error("invalid gRPC frame");
   }
   const length = body.readUInt32BE(1);
   const message = body.subarray(5, 5 + length);
   return JSON.parse(decodeJsonEnvelope(message));
-};
+}
 
-const encodeJsonEnvelope = (payloadJson: string) => {
+function encodeJsonEnvelope(payloadJson: string) {
   const payload = Buffer.from(payloadJson, "utf-8");
   return Buffer.concat([
     Buffer.from([0x0a]),
     encodeVarint(payload.length),
     payload,
   ]);
-};
+}
 
-const decodeJsonEnvelope = (message: Buffer) => {
+function decodeJsonEnvelope(message: Buffer) {
   if (message[0] !== 0x0a) {
     throw new Error("invalid JsonEnvelope");
   }
   const { value: length, offset } = decodeVarint(message, 1);
   return message.subarray(offset, offset + length).toString("utf-8");
-};
+}
 
-const encodeVarint = (value: number) => {
+function encodeVarint(value: number) {
   const bytes: number[] = [];
   let current = value;
   do {
-    let byte = current & 0x7f;
-    current >>>= 7;
-    if (current) {
-      byte |= 0x80;
+    let byte = current % 128;
+    current = Math.floor(current / 128);
+    if (current > 0) {
+      byte += 128;
     }
     bytes.push(byte);
-  } while (current);
+  } while (current > 0);
   return Buffer.from(bytes);
-};
+}
 
-const decodeVarint = (buffer: Buffer, offset: number) => {
+function decodeVarint(buffer: Buffer, offset: number) {
   let value = 0;
   let shift = 0;
   let index = offset;
   while (index < buffer.length) {
-    const byte = buffer[index]!;
-    value |= (byte & 0x7f) << shift;
+    const byte = buffer[index];
+    if (byte === undefined) {
+      break;
+    }
+    value += (byte % 128) * 2 ** shift;
     index += 1;
-    if ((byte & 0x80) === 0) {
+    if (byte < 128) {
       return { offset: index, value };
     }
     shift += 7;
   }
   throw new Error("unterminated varint");
-};
+}
 
 const route = (
   method: RemoteHttpMethod,
@@ -1311,7 +1315,7 @@ export const serveRemoteModuleGrpc = async (
   options: ServeRemoteModuleOptions = {}
 ): Promise<ServedRemoteModule> => {
   const host = options.host ?? "127.0.0.1";
-  const port = options.port ?? 50051;
+  const port = options.port ?? 50_051;
   const server = createHttp2Server();
 
   server.on("stream", (stream, headers) => {
@@ -1344,7 +1348,7 @@ export const serveRemoteModuleGrpc = async (
   return served;
 };
 
-const handleGrpcStream = async ({
+async function handleGrpcStream({
   headers,
   manifest,
   options,
@@ -1354,7 +1358,7 @@ const handleGrpcStream = async ({
   manifest: RemoteModuleManifest;
   options: ServeRemoteModuleOptions;
   stream: ServerHttp2Stream;
-}) => {
+}) {
   const path = headers[":path"];
   if (typeof path !== "string") {
     writeGrpcResponse(
@@ -1374,49 +1378,57 @@ const handleGrpcStream = async ({
       error instanceof Error ? error.message : "gRPC request failed";
     writeGrpcResponse(stream, grpcStatus.invalidArgument, undefined, message);
   }
-};
+}
 
-const readGrpcBody = async (stream: ServerHttp2Stream) => {
+async function readGrpcBody(stream: ServerHttp2Stream) {
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
-};
+}
 
-const handleGrpcPayload = async (
+function handleGrpcPayload(
   path: string,
   payload: Record<string, unknown>,
   manifest: RemoteModuleManifest,
   options: ServeRemoteModuleOptions
-) => {
+) {
   switch (path) {
-    case GRPC_PATHS.getManifest:
+    case GRPC_PATHS.getManifest: {
       return manifest;
-    case GRPC_PATHS.listAdminRecords:
+    }
+    case GRPC_PATHS.listAdminRecords: {
       return listGrpcAdminRecords(payload, options.data ?? {});
-    case GRPC_PATHS.getAdminRecord:
+    }
+    case GRPC_PATHS.getAdminRecord: {
       return getGrpcAdminRecord(payload, options.data ?? {});
-    case GRPC_PATHS.invokeAdminAction:
+    }
+    case GRPC_PATHS.invokeAdminAction: {
       return invokeGrpcAdminAction(payload, options.actions ?? {});
-    case GRPC_PATHS.proxyHttpRoute:
+    }
+    case GRPC_PATHS.proxyHttpRoute: {
       return proxyGrpcHttpRoute(payload, options.http ?? {});
-    case GRPC_PATHS.invokeFunction:
+    }
+    case GRPC_PATHS.invokeFunction: {
       return invokeGrpcRuntimeFunction(payload, options.runtime ?? {});
-    case GRPC_PATHS.handleEvent:
+    }
+    case GRPC_PATHS.handleEvent: {
       return invokeEventHandler(
         options.events ?? {},
         payload as unknown as RemoteEventHandleRequest
       );
-    default:
+    }
+    default: {
       throw new Error("unknown gRPC method");
+    }
   }
-};
+}
 
-const listGrpcAdminRecords = async (
+function listGrpcAdminRecords(
   payload: Record<string, unknown>,
   data: Record<string, RemoteAdminDataSource>
-) => {
+) {
   const entity = String(payload.entity ?? "");
   const source = data[entity];
   if (!source) {
@@ -1426,12 +1438,12 @@ const listGrpcAdminRecords = async (
     limit: Number(payload.limit ?? 50),
     ...(typeof payload.cursor === "string" ? { cursor: payload.cursor } : {}),
   });
-};
+}
 
-const getGrpcAdminRecord = async (
+async function getGrpcAdminRecord(
   payload: Record<string, unknown>,
   data: Record<string, RemoteAdminDataSource>
-) => {
+) {
   const entity = String(payload.entity ?? "");
   const source = data[entity];
   if (!source) {
@@ -1439,12 +1451,12 @@ const getGrpcAdminRecord = async (
   }
   const record = await source.detail(String(payload.id ?? ""));
   return { record: record ?? null };
-};
+}
 
-const invokeGrpcAdminAction = async (
+async function invokeGrpcAdminAction(
   payload: Record<string, unknown>,
   handlers: Record<string, RemoteAdminActionHandler>
-) => {
+) {
   const action = String(payload.action ?? "");
   const handler = handlers[action];
   if (!handler) {
@@ -1456,12 +1468,12 @@ const invokeGrpcAdminAction = async (
     request: undefined as unknown as IncomingMessage,
   });
   return { result: result ?? null };
-};
+}
 
-const proxyGrpcHttpRoute = async (
+async function proxyGrpcHttpRoute(
   payload: Record<string, unknown>,
   handlers: Record<string, RemoteHttpHandler>
-) => {
+) {
   const method = String(payload.method ?? "") as RemoteHttpMethod;
   const declaredPath = String(
     payload.declared_path ?? payload.remote_path ?? ""
@@ -1493,12 +1505,12 @@ const proxyGrpcHttpRoute = async (
     body: result.body,
     status_code: result.statusCode,
   };
-};
+}
 
-const invokeGrpcRuntimeFunction = async (
+async function invokeGrpcRuntimeFunction(
   payload: Record<string, unknown>,
   handlers: Record<string, RemoteRuntimeHandler>
-) => {
+) {
   const functionName = String(payload.function_name ?? "");
   const handler = handlers[functionName];
   if (!handler) {
@@ -1510,4 +1522,4 @@ const invokeGrpcRuntimeFunction = async (
     request: undefined as unknown as IncomingMessage,
   });
   return { output: output ?? null };
-};
+}
