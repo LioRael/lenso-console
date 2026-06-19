@@ -2,10 +2,18 @@ import { resolve } from "node:path";
 
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   base: process.env.LENSO_CONSOLE_BASE ?? "/",
+  test: {
+    alias: {
+      "@lenso/runtime-console-api": resolve(
+        import.meta.dirname,
+        "src/extension-host/runtime-console-api.ts"
+      ),
+    },
+  },
   build: {
     rolldownOptions: {
       input: {
