@@ -98,6 +98,33 @@ describe("console module resolver", () => {
     ]);
   });
 
+  test("labels the legacy auth route as sessions", () => {
+    expect(
+      selectConsoleModulePackageReferences([
+        {
+          module_name: "auth",
+          console: [
+            {
+              label: "Auth",
+              name: "auth",
+              package: {
+                export: "authConsoleModule",
+                name: "@lenso/auth-console",
+              },
+              route: "/data/auth",
+            },
+          ],
+        },
+      ])
+    ).toEqual([
+      expect.objectContaining({
+        label: "Sessions",
+        route: "/data/auth",
+        surfaceName: "auth",
+      }),
+    ]);
+  });
+
   test("filters console surfaces when required capabilities are missing", () => {
     const metadata = [
       {

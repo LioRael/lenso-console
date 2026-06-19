@@ -49,20 +49,17 @@ export function registerRuntimeConsoleModuleMetadata(
 export function consoleModuleMetadataWithFallback({
   apiMode,
   data,
-  isError,
-  isPending,
 }: {
   apiMode: boolean;
   data?: ConsoleModuleMetadata[] | undefined;
-  isError: boolean;
-  isPending: boolean;
 }): ConsoleModuleMetadata[] {
   if (data) {
     return data;
   }
-  return apiMode && !(isError || isPending)
-    ? []
-    : [...buildTimeConsoleModuleMetadata, ...runtimeConsoleModuleMetadata];
+  if (apiMode) {
+    return [];
+  }
+  return [...buildTimeConsoleModuleMetadata, ...runtimeConsoleModuleMetadata];
 }
 
 export function navigationFromConsoleModuleMetadata(
@@ -106,8 +103,6 @@ export function useConsoleNavigation() {
   const modules = consoleModuleMetadataWithFallback({
     apiMode,
     data: modulesQuery.data?.modules,
-    isError: modulesQuery.isError,
-    isPending: modulesQuery.isPending,
   });
 
   return navigationFromConsoleModuleMetadata(modules, availableCapabilities);

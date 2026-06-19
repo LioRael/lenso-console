@@ -187,7 +187,7 @@ describe("console module registry", () => {
         area: "data",
         exportName: "authConsoleModule",
         icon: "shield",
-        label: "Auth",
+        label: "Sessions",
         moduleName: "auth",
         navigation: {
           order: 50,
@@ -200,6 +200,42 @@ describe("console module registry", () => {
         packageName: "@lenso/auth-console",
         route: "/data/auth",
         surfaceName: "auth",
+      },
+      {
+        area: "data",
+        exportName: "authConsoleModule",
+        icon: "shield",
+        label: "Sessions",
+        moduleName: "auth",
+        navigation: {
+          order: 50,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        packageName: "@lenso/auth-console",
+        route: "/data/auth/sessions",
+        surfaceName: "sessions",
+      },
+      {
+        area: "data",
+        exportName: "authConsoleModule",
+        icon: "shield",
+        label: "Users",
+        moduleName: "auth",
+        navigation: {
+          order: 60,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        packageName: "@lenso/auth-console",
+        route: "/data/auth/users",
+        surfaceName: "users",
       },
       {
         area: "data",
@@ -266,6 +302,28 @@ describe("console module registry", () => {
       },
       {
         navigation: {
+          order: 50,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        path: "/data/auth/sessions",
+      },
+      {
+        navigation: {
+          order: 60,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        path: "/data/auth/users",
+      },
+      {
+        navigation: {
           order: 60,
           workspace: {
             icon: "database",
@@ -317,6 +375,28 @@ describe("console module registry", () => {
       },
       {
         navigation: {
+          order: 50,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        path: "/data/auth/sessions",
+      },
+      {
+        navigation: {
+          order: 60,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        path: "/data/auth/users",
+      },
+      {
+        navigation: {
           order: 60,
           workspace: {
             icon: "database",
@@ -343,6 +423,8 @@ describe("console module registry", () => {
     ).toEqual([
       "/runtime/stories",
       "/data/auth",
+      "/data/auth/sessions",
+      "/data/auth/users",
       "/data/identity",
       "/data/remote-crm",
     ]);
@@ -365,7 +447,7 @@ describe("console module registry", () => {
       },
       {
         id: "auth",
-        items: ["/data/auth"],
+        items: ["/data/auth", "/data/auth/sessions", "/data/auth/users"],
         label: "Auth",
       },
       {

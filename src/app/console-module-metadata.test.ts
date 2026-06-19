@@ -171,32 +171,40 @@ describe("console module metadata", () => {
       consoleModuleMetadataWithFallback({
         apiMode: true,
         data: backendMetadata,
-        isError: false,
-        isPending: false,
       })
     ).toBe(backendMetadata);
   });
 
-  test("falls back while metadata is loading or unavailable", () => {
+  test("keeps api navigation empty while metadata is loading", () => {
     expect(
       navigationFromConsoleModuleMetadata(
         consoleModuleMetadataWithFallback({
           apiMode: true,
           data: undefined,
-          isError: false,
-          isPending: true,
         }),
         ["runtime.stories.read", "identity.users.read"]
       ).map((item) => item.path)
-    ).toEqual(["/runtime/stories", "/data/identity"]);
+    ).toEqual([]);
+  });
 
+  test("keeps api navigation empty after api errors", () => {
+    expect(
+      navigationFromConsoleModuleMetadata(
+        consoleModuleMetadataWithFallback({
+          apiMode: true,
+          data: undefined,
+        }),
+        ["runtime.stories.read", "identity.users.read"]
+      ).map((item) => item.path)
+    ).toEqual([]);
+  });
+
+  test("falls back outside api mode", () => {
     expect(
       navigationFromConsoleModuleMetadata(
         consoleModuleMetadataWithFallback({
           apiMode: false,
           data: undefined,
-          isError: false,
-          isPending: false,
         }),
         ["runtime.stories.read", "identity.users.read"]
       ).map((item) => item.path)

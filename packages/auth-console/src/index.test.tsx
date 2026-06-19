@@ -1,36 +1,55 @@
 import { describe, expect, test } from "vitest";
 
-import { AuthConsolePage, authConsoleManifest, authConsoleModule } from ".";
+import {
+  AuthSessionsPage,
+  AuthUsersPage,
+  authConsoleManifest,
+  authConsoleModule,
+} from ".";
 
 describe("auth console package", () => {
   test("declares an installable auth console package export", () => {
     expect(authConsoleManifest).toMatchObject({
       exportName: "authConsoleModule",
-      navigation: {
-        order: 50,
-        workspace: {
-          icon: "shield",
-          id: "auth",
-          label: "Auth",
-        },
-      },
       packageName: "@lenso/auth-console",
-      requiredCapabilities: ["auth.users.read"],
-      route: "/data/auth",
       source: "installed",
-      surfaceName: "auth",
+      surfaces: [
+        {
+          label: "Sessions",
+          route: "/data/auth",
+          surfaceName: "auth",
+        },
+        {
+          label: "Sessions",
+          route: "/data/auth/sessions",
+          surfaceName: "sessions",
+        },
+        {
+          label: "Users",
+          route: "/data/auth/users",
+          surfaceName: "users",
+        },
+      ],
       version: "workspace",
     });
     expect(authConsoleModule).toMatchObject({
       id: "auth",
       surfaces: [
         {
-          label: "Auth",
-          navigation: authConsoleManifest.navigation,
+          label: "Sessions",
           path: "/data/auth",
+        },
+        {
+          label: "Sessions",
+          path: "/data/auth/sessions",
+        },
+        {
+          label: "Users",
+          path: "/data/auth/users",
         },
       ],
     });
-    expect(AuthConsolePage).toBeTypeOf("function");
+    expect(AuthSessionsPage).toBeTypeOf("function");
+    expect(AuthUsersPage).toBeTypeOf("function");
   });
 });
