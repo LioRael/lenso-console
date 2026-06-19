@@ -1,9 +1,46 @@
 {
   "name": "@lenso/runtime-console-api",
   "version": "0.1.0",
-  "private": true,
+  "description": "Runtime Console API surface for Lenso console packages.",
+  "keywords": [
+    "console-package",
+    "lenso",
+    "runtime-console"
+  ],
+  "homepage": "https://github.com/LioRael/lenso-runtime-console#readme",
+  "bugs": {
+    "url": "https://github.com/LioRael/lenso-runtime-console/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-runtime-console.git",
+    "directory": "packages/console-package-api"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsc -p tsconfig.build.json",
+    "prepack": "pnpm build"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
   }
 }

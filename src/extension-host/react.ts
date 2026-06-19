@@ -1,0 +1,31 @@
+import React from "react";
+
+export default React;
+export const {
+  Children,
+  Fragment,
+  StrictMode,
+  Suspense,
+  cloneElement,
+  createContext,
+  createElement,
+  forwardRef,
+  lazy,
+  memo,
+  startTransition,
+  useCallback,
+  useContext,
+  useDebugValue,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useInsertionEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} = React;

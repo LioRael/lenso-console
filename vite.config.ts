@@ -2,25 +2,48 @@ import { resolve } from "node:path";
 
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   base: process.env.LENSO_CONSOLE_BASE ?? "/",
+  test: {
+    alias: {
+      "@lenso/runtime-console-api": resolve(
+        import.meta.dirname,
+        "src/extension-host/runtime-console-api.ts"
+      ),
+    },
+  },
   build: {
     rolldownOptions: {
       input: {
         app: resolve(import.meta.dirname, "index.html"),
-        "auth-console": resolve(
+        "extension-host-react": resolve(
           import.meta.dirname,
-          "src/auth-console-extension-entry.ts"
+          "src/extension-host/react.ts"
+        ),
+        "extension-host-react-jsx-runtime": resolve(
+          import.meta.dirname,
+          "src/extension-host/react-jsx-runtime.ts"
+        ),
+        "extension-host-runtime-console-api": resolve(
+          import.meta.dirname,
+          "src/extension-host/runtime-console-api.ts"
         ),
       },
       preserveEntrySignatures: "strict",
       output: {
         entryFileNames(chunkInfo) {
-          return chunkInfo.name === "auth-console"
-            ? "extensions/auth/auth-console.js"
-            : "assets/[name]-[hash].js";
+          if (chunkInfo.name === "extension-host-react") {
+            return "extensions/host/react.js";
+          }
+          if (chunkInfo.name === "extension-host-react-jsx-runtime") {
+            return "extensions/host/react-jsx-runtime.js";
+          }
+          if (chunkInfo.name === "extension-host-runtime-console-api") {
+            return "extensions/host/runtime-console-api.js";
+          }
+          return "assets/[name]-[hash].js";
         },
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",

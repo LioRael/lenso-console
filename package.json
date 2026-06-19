@@ -49,7 +49,6 @@
     "vite": "^8.0.16"
   },
   "devDependencies": {
-    "@lenso/auth-console": "file:../lenso-auth-module/packages/auth-console",
     "@lenso/remote-module-kit": "workspace:*",
     "@types/node": "^25.9.2",
     "@types/react": "^19.1.0",
