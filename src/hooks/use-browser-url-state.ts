@@ -9,18 +9,37 @@ export function currentBrowserUrl() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
+export function browserUrlForConsolePath(
+  path: string,
+  baseUrl = import.meta.env.BASE_URL
+) {
+  const basePath = baseUrl.replace(/\/+$/, "");
+  if (
+    !basePath ||
+    basePath === "/" ||
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path === basePath ||
+    path.startsWith(`${basePath}/`)
+  ) {
+    return path;
+  }
+  return `${basePath}${path}`;
+}
+
 export function writeBrowserUrl(
   path: string,
   mode: BrowserUrlWriteMode = "replace"
 ) {
-  if (typeof window === "undefined" || currentBrowserUrl() === path) {
+  const targetPath = browserUrlForConsolePath(path);
+  if (typeof window === "undefined" || currentBrowserUrl() === targetPath) {
     return;
   }
   if (mode === "push") {
-    window.history.pushState(null, "", path);
+    window.history.pushState(null, "", targetPath);
     return;
   }
-  window.history.replaceState(null, "", path);
+  window.history.replaceState(null, "", targetPath);
 }
 
 export function useBrowserUrlPopState(
