@@ -6,7 +6,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   base: process.env.LENSO_CONSOLE_BASE ?? "/",
-  test: {
+  resolve: {
     alias: {
       "@lenso/runtime-console-api": resolve(
         import.meta.dirname,
