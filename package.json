@@ -23,7 +23,7 @@
     "build": "pnpm build:local",
     "build:local": "pnpm --filter @lenso/remote-module-kit build && tsc -b && VITE_RUNTIME_CONSOLE_MODE=${VITE_RUNTIME_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} VITE_API_AUTH_TOKEN=${VITE_API_AUTH_TOKEN:-dev-service:admin:runtime.stories.read,auth.users.read,identity.users.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write} vite build",
     "test": "pnpm test:local",
-    "test:local": "pnpm --filter @lenso/remote-module-kit build && vitest run src packages/story-console/src packages/auth-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src",
+    "test:local": "pnpm --filter @lenso/remote-module-kit build && vitest run src packages/story-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src",
     "typecheck": "pnpm typecheck:local",
     "typecheck:local": "tsc -b --pretty false",
     "preview": "vite preview --host 0.0.0.0"
@@ -31,7 +31,6 @@
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@gsap/react": "^2.1.2",
-    "@lenso/auth-console": "workspace:*",
     "@lenso/identity-console": "workspace:*",
     "@lenso/remote-crm-console": "workspace:*",
     "@lenso/runtime-console-api": "workspace:*",
@@ -50,6 +49,7 @@
     "vite": "^8.0.16"
   },
   "devDependencies": {
+    "@lenso/auth-console": "file:../lenso-auth-module/packages/auth-console",
     "@lenso/remote-module-kit": "workspace:*",
     "@types/node": "^25.9.2",
     "@types/react": "^19.1.0",

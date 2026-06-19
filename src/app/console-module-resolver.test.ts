@@ -99,23 +99,47 @@ describe("console module resolver", () => {
   });
 
   test("labels the legacy auth route as sessions", () => {
-    expect(
-      selectConsoleModulePackageReferences([
+    const authModule = defineConsoleModule({
+      id: "auth",
+      surfaces: [
         {
-          module_name: "auth",
-          console: [
-            {
-              label: "Auth",
-              name: "auth",
-              package: {
-                export: "authConsoleModule",
-                name: "@lenso/auth-console",
+          area: "data",
+          component: () => null,
+          label: "Auth",
+          path: "/data/auth",
+        },
+      ],
+    });
+
+    expect(
+      selectConsoleModulePackageReferences(
+        [
+          {
+            module_name: "auth",
+            console: [
+              {
+                label: "Auth",
+                name: "auth",
+                package: {
+                  export: "authConsoleModule",
+                  name: "@lenso/auth-console",
+                },
+                route: "/data/auth",
               },
-              route: "/data/auth",
+            ],
+          },
+        ],
+        {
+          packages: [
+            {
+              exportName: "authConsoleModule",
+              module: authModule,
+              packageName: "@lenso/auth-console",
+              source: "runtime_bundle",
             },
           ],
-        },
-      ])
+        }
+      )
     ).toEqual([
       expect.objectContaining({
         label: "Sessions",

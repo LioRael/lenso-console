@@ -1,4 +1,3 @@
-import { authConsoleManifest } from "@lenso/auth-console";
 import { identityConsoleManifest } from "@lenso/identity-console";
 import { remoteCrmConsoleManifest } from "@lenso/remote-crm-console";
 import { storyConsoleManifest } from "@lenso/story-console";
@@ -58,7 +57,6 @@ describe("console package installs", () => {
   test("registers installed workspace console packages", () => {
     expect(consolePackageInstallManifests.map((item) => item.manifest)).toEqual(
       expect.arrayContaining([
-        authConsoleManifest,
         identityConsoleManifest,
         remoteCrmConsoleManifest,
         storyConsoleManifest,
@@ -71,7 +69,6 @@ describe("console package installs", () => {
     );
     expect(Object.keys(consolePackageModuleExportsByKey)).toEqual(
       expect.arrayContaining([
-        "@lenso/auth-console#authConsoleModule",
         "@lenso/identity-console#identityConsoleModule",
         "@lenso/remote-crm-console#remoteCrmConsoleModule",
         "@lenso/story-console#storyConsoleModule",
@@ -79,12 +76,6 @@ describe("console package installs", () => {
     );
     expect(installedConsolePackages).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          exportName: "authConsoleModule",
-          packageName: "@lenso/auth-console",
-          source: "installed",
-          version: "workspace",
-        }),
         expect.objectContaining({
           exportName: "identityConsoleModule",
           packageName: "@lenso/identity-console",
@@ -110,11 +101,6 @@ describe("console package installs", () => {
         "@lenso/story-console#storyConsoleModule"
       ]?.module.id
     ).toBe("platform-story");
-    expect(
-      consolePackageRegistryByKey(installedConsolePackages)[
-        "@lenso/auth-console#authConsoleModule"
-      ]?.module.id
-    ).toBe("auth");
     expect(
       consolePackageRegistryByKey(installedConsolePackages)[
         "@lenso/identity-console#identityConsoleModule"

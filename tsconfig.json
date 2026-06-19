@@ -22,7 +22,6 @@
   "include": [
     "src",
     "packages/story-console/src",
-    "packages/auth-console/src",
     "packages/identity-console/src",
     "packages/remote-crm-console/src",
     "packages/console-package-api/src",
