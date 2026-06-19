@@ -24,6 +24,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     defaults:
       run:
         working-directory: lenso-runtime-console
@@ -66,33 +68,65 @@ jobs:
 
       - name: Verify publish input
         run: |
-          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+          input="${{ inputs.version }}"
+          package_dir="packages/remote-module-kit"
+          package_name="@lenso/remote-module-kit"
+          package_version="${input}"
+
+          if [[ "${input}" == runtime-console-api@* ]]; then
+            package_dir="packages/console-package-api"
+            package_name="@lenso/runtime-console-api"
+            package_version="${input#runtime-console-api@}"
+          fi
+
+          if [ "${package_name}" = "@lenso/remote-module-kit" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
             echo "Publish workflow must run from main, got ${GITHUB_REF}."
             exit 1
           fi
 
-          package_version="$(node -p "require('./packages/remote-module-kit/package.json').version")"
-          if [ "${package_version}" != "${{ inputs.version }}" ]; then
-            echo "Input version ${{ inputs.version }} does not match package.json version ${package_version}."
+          manifest_version="$(node -p "require('./${package_dir}/package.json').version")"
+          if [ "${manifest_version}" != "${package_version}" ]; then
+            echo "Input version ${package_version} does not match package.json version ${manifest_version}."
             exit 1
           fi
 
-          if npm view "@lenso/remote-module-kit@${package_version}" version >/dev/null 2>&1; then
-            echo "@lenso/remote-module-kit@${package_version} is already published."
+          if npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+            echo "${package_name}@${package_version} is already published."
             exit 1
           fi
 
+          echo "PACKAGE_DIR=${package_dir}" >> "${GITHUB_ENV}"
+          echo "PACKAGE_NAME=${package_name}" >> "${GITHUB_ENV}"
           echo "PACKAGE_VERSION=${package_version}" >> "${GITHUB_ENV}"
 
       - name: Run package readiness
+        if: ${{ env.PACKAGE_NAME == '@lenso/remote-module-kit' }}
         run: pnpm package-readiness
+
+      - name: Check runtime console API package
+        if: ${{ env.PACKAGE_NAME == '@lenso/runtime-console-api' }}
+        run: |
+          pnpm --filter @lenso/runtime-console-api build
+          pnpm exec vitest run packages/console-package-api/src
+          cd packages/console-package-api
+          npm pack --dry-run --json
 
       - name: Dry-run npm publish
         if: ${{ inputs.dry_run }}
-        working-directory: lenso-runtime-console/packages/remote-module-kit
-        run: npm publish --access public --dry-run
+        run: |
+          cd "${PACKAGE_DIR}"
+          npm publish --access public --dry-run
 
-      - name: Publish to npm
-        if: ${{ !inputs.dry_run }}
-        working-directory: lenso-runtime-console/packages/remote-module-kit
-        run: npm publish --access public
+      - name: Publish to npm with token
+        if: ${{ !inputs.dry_run && env.HAS_NPM_TOKEN == 'true' }}
+        run: |
+          cd "${PACKAGE_DIR}"
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm with trusted publishing
+        if: ${{ !inputs.dry_run && env.HAS_NPM_TOKEN != 'true' }}
+        run: |
+          cd "${PACKAGE_DIR}"
+          npm publish --access public
