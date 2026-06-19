@@ -1,5 +1,5 @@
 import { runtimeConsoleHostApi } from "@lenso/runtime-console-api";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 import {
   authSessionRows,
@@ -42,10 +42,11 @@ const AuthUsersTable = ({
 
   return (
     <div className="min-h-0 overflow-auto">
-      <div className="grid min-w-190 grid-cols-[minmax(220px,1fr)_180px_180px_88px] border-b border-(--border-subtle) bg-(--surface) px-3 py-1.5 font-mono text-[10px] text-(--muted)">
+      <div className="grid min-w-240 grid-cols-[minmax(220px,1fr)_170px_170px_170px_88px] border-b border-(--border-subtle) bg-(--surface) px-3 py-1.5 font-mono text-[10px] text-(--muted)">
         <span>User</span>
         <span>Created</span>
         <span>Disabled</span>
+        <span>Until</span>
         <span>Status</span>
       </div>
       {rows.map((user) => {
@@ -54,7 +55,7 @@ const AuthUsersTable = ({
           <button
             aria-pressed={selected}
             className={[
-              "grid min-h-11 w-full min-w-190 grid-cols-[minmax(220px,1fr)_180px_180px_88px] items-center gap-0 border-b border-(--border-subtle) px-3 py-2 text-left font-mono text-[11px] transition",
+              "grid min-h-11 w-full min-w-240 grid-cols-[minmax(220px,1fr)_170px_170px_170px_88px] items-center gap-0 border-b border-(--border-subtle) px-3 py-2 text-left font-mono text-[11px] transition",
               selected ? "native-selection" : "hover:bg-(--bg-row-hover)",
             ].join(" ")}
             key={user.id}
@@ -64,6 +65,9 @@ const AuthUsersTable = ({
             <span className="truncate text-(--foreground)">{user.id}</span>
             <span className="truncate text-(--muted)">{user.createdAt}</span>
             <span className="truncate text-(--muted)">{user.disabledAt}</span>
+            <span className="truncate text-(--muted)">
+              {user.disabledUntil}
+            </span>
             <StatusPill status={user.status} />
           </button>
         );
@@ -147,6 +151,27 @@ const AuthUsersSurfacePage = () => {
   const summary = authUsersSummary(usersQuery.data?.data ?? []);
   const selectedUser =
     userRows.find((user) => user.id === selectedUserId) ?? userRows[0] ?? null;
+  const disableUser = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedUser) {
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    const reason = String(form.get("reason") ?? "").trim();
+    const until = String(form.get("disabled_until") ?? "").trim();
+    const input: Record<string, string> = { user_id: selectedUser.id };
+    if (reason.length > 0) {
+      input.reason = reason;
+    }
+    if (until.length > 0) {
+      input.disabled_until = new Date(until).toISOString();
+    }
+    userAction.mutate({
+      actionName: "disable_user",
+      input,
+      moduleName: "auth",
+    });
+  };
 
   return (
     <main className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
@@ -199,36 +224,58 @@ const AuthUsersSurfacePage = () => {
             <div className="min-h-0 overflow-auto">
               <Metric label="created" value={selectedUser.createdAt} />
               <Metric label="disabled" value={selectedUser.disabledAt} />
+              <Metric label="reason" value={selectedUser.disabledReason} />
+              <Metric label="until" value={selectedUser.disabledUntil} />
               <Metric label="status" value={selectedUser.status} />
               <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
-                <button
-                  className={[
-                    "h-7 border px-2 font-mono text-[11px] font-semibold disabled:opacity-45",
-                    selectedUser.status === "active"
-                      ? "border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] text-(--tone-error-fg)"
-                      : "border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] text-(--tone-success-fg)",
-                  ].join(" ")}
-                  disabled={userAction.isPending}
-                  onClick={() =>
-                    userAction.mutate({
-                      actionName:
-                        selectedUser.status === "active"
-                          ? "disable_user"
-                          : "enable_user",
-                      input: { user_id: selectedUser.id },
-                      moduleName: "auth",
-                    })
-                  }
-                  type="button"
-                >
-                  {userAction.isPending
-                    ? selectedUser.status === "active"
-                      ? "Disabling"
-                      : "Enabling"
-                    : selectedUser.status === "active"
-                      ? "Disable"
-                      : "Enable"}
-                </button>
+                {selectedUser.status === "active" ? (
+                  <form
+                    className="grid gap-2"
+                    key={selectedUser.id}
+                    onSubmit={disableUser}
+                  >
+                    <label className="grid gap-1 font-mono text-[10px] text-(--muted)">
+                      Reason
+                      <input
+                        aria-label="Disable reason"
+                        className="h-7 border border-(--border-subtle) bg-(--bg-control) px-2 text-[11px] text-(--foreground)"
+                        name="reason"
+                        type="text"
+                      />
+                    </label>
+                    <label className="grid gap-1 font-mono text-[10px] text-(--muted)">
+                      Until
+                      <input
+                        aria-label="Disable until"
+                        className="h-7 border border-(--border-subtle) bg-(--bg-control) px-2 text-[11px] text-(--foreground)"
+                        name="disabled_until"
+                        type="datetime-local"
+                      />
+                    </label>
+                    <button
+                      className="h-7 justify-self-start border border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] px-2 font-mono text-[11px] font-semibold text-(--tone-error-fg) disabled:opacity-45"
+                      disabled={userAction.isPending}
+                      type="submit"
+                    >
+                      {userAction.isPending ? "Disabling" : "Disable"}
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    className="h-7 border border-[var(--tone-success-border)] bg-[var(--tone-success-bg)] px-2 font-mono text-[11px] font-semibold text-(--tone-success-fg) disabled:opacity-45"
+                    disabled={userAction.isPending}
+                    onClick={() =>
+                      userAction.mutate({
+                        actionName: "enable_user",
+                        input: { user_id: selectedUser.id },
+                        moduleName: "auth",
+                      })
+                    }
+                    type="button"
+                  >
+                    {userAction.isPending ? "Enabling" : "Enable"}
+                  </button>
+                )}
                 {userAction.isError ? (
                   <div className="mt-1 truncate font-mono text-[10px] text-(--error)">
                     {String((userAction.error as Error).message)}

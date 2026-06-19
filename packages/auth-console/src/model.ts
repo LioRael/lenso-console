@@ -3,6 +3,8 @@ import type { ConsoleAdminRecord } from "@lenso/runtime-console-api";
 export type AuthUserRow = {
   createdAt: string;
   disabledAt: string;
+  disabledReason: string;
+  disabledUntil: string;
   id: string;
   status: "active" | "disabled";
 };
@@ -33,28 +35,47 @@ const fieldText = (value: unknown): string =>
   typeof value === "string" && value.length > 0 ? value : "-";
 
 export const authUserRows = (
-  records: readonly ConsoleAdminRecord[]
+  records: readonly ConsoleAdminRecord[],
+  now = new Date()
 ): AuthUserRow[] =>
   records.map((record) => {
     const disabledAt = fieldText(record.disabled_at);
+    const disabledUntil = fieldText(record.disabled_until);
     return {
       createdAt: fieldText(record.created_at),
       disabledAt,
+      disabledReason: fieldText(record.disabled_reason),
+      disabledUntil,
       id: fieldText(record.id),
-      status: disabledAt === "-" ? "active" : "disabled",
+      status: userStatus(disabledAt, disabledUntil, now),
     };
   });
 
 export const authUsersSummary = (
-  records: readonly ConsoleAdminRecord[]
+  records: readonly ConsoleAdminRecord[],
+  now = new Date()
 ): AuthUsersSummary => {
   const summary: AuthUsersSummary = { active: 0, disabled: 0, total: 0 };
-  for (const row of authUserRows(records)) {
+  for (const row of authUserRows(records, now)) {
     summary.total += 1;
     summary[row.status] += 1;
   }
   return summary;
 };
+
+function userStatus(
+  disabledAt: string,
+  disabledUntil: string,
+  now: Date
+): AuthUserRow["status"] {
+  if (disabledAt === "-") {
+    return "active";
+  }
+  const untilMs = Date.parse(disabledUntil);
+  return Number.isFinite(untilMs) && untilMs <= now.getTime()
+    ? "active"
+    : "disabled";
+}
 
 export const authSessionRows = (
   records: readonly ConsoleAdminRecord[],
