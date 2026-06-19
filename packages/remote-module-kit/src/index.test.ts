@@ -1,3 +1,7 @@
+import { once } from "node:events";
+/* eslint-disable func-style, no-use-before-define */
+import { connect } from "node:http2";
+
 import { describe, expect, test } from "vitest";
 
 import {
@@ -12,6 +16,7 @@ import {
   defineRemoteModule,
   defineSchemaEntity,
   entityTable,
+  eventHandler,
   everyStartup,
   getRoute,
   integerField,
@@ -21,6 +26,7 @@ import {
   metricStrip,
   postRoute,
   runtimeFunction,
+  serveRemoteModuleGrpc,
   schemaAdmin,
   serveRemoteModule,
   textField,
@@ -63,13 +69,62 @@ describe("@lenso/remote-module-kit", () => {
           route: "/data/billing",
         },
       ],
+      dependencies: [],
       http_routes: [],
       name: "billing",
       runtime: {
         functions: [],
       },
       source: "remote",
+      story_display: [],
       version: "0.1.0",
+    });
+  });
+
+  test("defines event handler declarations and dependency metadata", () => {
+    expect(
+      defineRemoteModule({
+        dependencies: ["identity"],
+        eventHandlers: [
+          eventHandler(
+            "sync_contact_on_user_registered",
+            "identity.user_registered.v1"
+          ),
+        ],
+        name: "crm",
+        storyDisplay: [
+          {
+            display_name: "Fetch Contact",
+            source: {
+              kind: "http_request",
+              method: "GET",
+              path: "/contacts/{id}",
+            },
+            story_title: "Fetch Contact",
+          },
+        ],
+      })
+    ).toMatchObject({
+      dependencies: ["identity"],
+      events: {
+        handlers: [
+          {
+            event_name: "identity.user_registered.v1",
+            name: "sync_contact_on_user_registered",
+          },
+        ],
+      },
+      story_display: [
+        {
+          display_name: "Fetch Contact",
+          source: {
+            kind: "http_request",
+            method: "GET",
+            path: "/contacts/{id}",
+          },
+          story_title: "Fetch Contact",
+        },
+      ],
     });
   });
 
@@ -551,4 +606,236 @@ describe("@lenso/remote-module-kit", () => {
       await served.close();
     }
   });
+
+  test("serves event handler invocations", async () => {
+    const manifest = defineRemoteModule({
+      eventHandlers: [
+        eventHandler(
+          "sync_contact_on_user_registered",
+          "identity.user_registered.v1"
+        ),
+      ],
+      name: "crm",
+    });
+    const served = await serveRemoteModule(manifest, {
+      events: {
+        sync_contact_on_user_registered: ({ event }) => ({
+          actions: [
+            {
+              function_name: "crm.contacts.enrich.v1",
+              input: { contact_id: event.aggregate_id },
+              type: "enqueue_function",
+            },
+          ],
+        }),
+      },
+      port: 0,
+    });
+    try {
+      await expect(
+        fetch(
+          `${served.baseUrl}/events/handlers/sync_contact_on_user_registered/invoke`,
+          {
+            body: JSON.stringify({
+              actor: { kind: "user", scopes: [], user_id: "usr_actor" },
+              aggregate_id: "usr_1",
+              aggregate_type: "user",
+              correlation_id: "corr_1",
+              event_name: "identity.user_registered.v1",
+              event_version: 1,
+              handler_name: "sync_contact_on_user_registered",
+              headers: {},
+              outbox_event_id: "evt_1",
+              payload: { email: "ada@example.com" },
+              request_id: "evt_1:sync_contact_on_user_registered",
+              source_module: "identity",
+              trace: { span_id: "span_1", trace_id: "trace_1" },
+            }),
+            headers: { "content-type": "application/json" },
+            method: "POST",
+          }
+        ).then((response) => response.json())
+      ).resolves.toEqual({
+        actions: [
+          {
+            function_name: "crm.contacts.enrich.v1",
+            input: { contact_id: "usr_1" },
+            type: "enqueue_function",
+          },
+        ],
+      });
+    } finally {
+      await served.close();
+    }
+  });
+
+  test("serves the remote module gRPC JSON envelope protocol", async () => {
+    const manifest = defineRemoteModule({
+      eventHandlers: [
+        eventHandler(
+          "sync_contact_on_user_registered",
+          "identity.user_registered.v1"
+        ),
+      ],
+      name: "crm",
+      runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
+    });
+    const served = await serveRemoteModuleGrpc(manifest, {
+      events: {
+        sync_contact_on_user_registered: ({ event }) => ({
+          actions: [
+            {
+              function_name: "crm.contacts.enrich.v1",
+              input: { contact_id: event.aggregate_id },
+              type: "enqueue_function",
+            },
+          ],
+        }),
+      },
+      port: 0,
+      runtime: {
+        "crm.contacts.enrich.v1": ({ input }) => ({ input, synced: true }),
+      },
+    });
+    const client = connect(served.baseUrl.replace("grpc://", "http://"));
+    try {
+      await expect(
+        grpcUnary(client, "/lenso.remote.v1.RemoteModule/GetManifest", {})
+      ).resolves.toMatchObject({
+        name: "crm",
+        runtime: {
+          functions: [{ name: "crm.contacts.enrich.v1" }],
+        },
+      });
+      await expect(
+        grpcUnary(client, "/lenso.remote.v1.RemoteModule/InvokeFunction", {
+          actor: { kind: "user", scopes: [] },
+          attempt: 1,
+          correlation_id: "corr_1",
+          function_name: "crm.contacts.enrich.v1",
+          function_run_id: "fnrun_1",
+          input: { contact_id: "usr_1" },
+          request_id: "req_1",
+          trace: { span_id: "span_1", trace_id: "trace_1" },
+        })
+      ).resolves.toEqual({
+        output: {
+          input: { contact_id: "usr_1" },
+          synced: true,
+        },
+      });
+      await expect(
+        grpcUnary(client, "/lenso.remote.v1.RemoteModule/HandleEvent", {
+          actor: { kind: "user", scopes: [], user_id: "usr_actor" },
+          aggregate_id: "usr_1",
+          aggregate_type: "user",
+          correlation_id: "corr_1",
+          event_name: "identity.user_registered.v1",
+          event_version: 1,
+          handler_name: "sync_contact_on_user_registered",
+          headers: {},
+          outbox_event_id: "evt_1",
+          payload: { email: "ada@example.com" },
+          request_id: "evt_1:sync_contact_on_user_registered",
+          source_module: "identity",
+          trace: { span_id: "span_1", trace_id: "trace_1" },
+        })
+      ).resolves.toEqual({
+        actions: [
+          {
+            function_name: "crm.contacts.enrich.v1",
+            input: { contact_id: "usr_1" },
+            type: "enqueue_function",
+          },
+        ],
+      });
+    } finally {
+      client.close();
+      await served.close();
+    }
+  });
 });
+
+async function grpcUnary(
+  client: ReturnType<typeof connect>,
+  path: string,
+  payload: unknown
+) {
+  const request = client.request({
+    ":method": "POST",
+    ":path": path,
+    "content-type": "application/grpc",
+  });
+  const chunks: Buffer[] = [];
+  request.on("data", (chunk) =>
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  );
+  const ended = once(request, "end");
+  const failed = once(request, "error").then(([error]) => {
+    throw error;
+  });
+  request.end(grpcFrame(payload));
+  await Promise.race([ended, failed]);
+  return readGrpcPayload(Buffer.concat(chunks));
+}
+
+function grpcFrame(payload: unknown) {
+  const message = encodeJsonEnvelope(JSON.stringify(payload));
+  const frame = Buffer.alloc(5 + message.length);
+  frame[0] = 0;
+  frame.writeUInt32BE(message.length, 1);
+  message.copy(frame, 5);
+  return frame;
+}
+
+function readGrpcPayload(body: Buffer) {
+  const length = body.readUInt32BE(1);
+  return JSON.parse(decodeJsonEnvelope(body.subarray(5, 5 + length)));
+}
+
+function encodeJsonEnvelope(payloadJson: string) {
+  const payload = Buffer.from(payloadJson, "utf-8");
+  return Buffer.concat([
+    Buffer.from([0x0a]),
+    encodeVarint(payload.length),
+    payload,
+  ]);
+}
+
+function decodeJsonEnvelope(message: Buffer) {
+  const { value: length, offset } = decodeVarint(message, 1);
+  return message.subarray(offset, offset + length).toString("utf-8");
+}
+
+function encodeVarint(value: number) {
+  const bytes: number[] = [];
+  let current = value;
+  do {
+    let byte = current % 128;
+    current = Math.floor(current / 128);
+    if (current > 0) {
+      byte += 128;
+    }
+    bytes.push(byte);
+  } while (current > 0);
+  return Buffer.from(bytes);
+}
+
+function decodeVarint(buffer: Buffer, offset: number) {
+  let value = 0;
+  let shift = 0;
+  let index = offset;
+  while (index < buffer.length) {
+    const byte = buffer[index];
+    if (byte === undefined) {
+      break;
+    }
+    value += (byte % 128) * 2 ** shift;
+    index += 1;
+    if (byte < 128) {
+      return { offset: index, value };
+    }
+    shift += 7;
+  }
+  throw new Error("unterminated varint");
+}

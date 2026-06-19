@@ -1,6 +1,13 @@
+/* eslint-disable func-style, no-use-before-define */
 import { once } from "node:events";
 import { createServer } from "node:http";
-import type { IncomingMessage, Server, ServerResponse } from "node:http";
+import type {
+  IncomingMessage,
+  Server as HttpServer,
+  ServerResponse,
+} from "node:http";
+import { createServer as createHttp2Server } from "node:http2";
+import type { Http2Server, ServerHttp2Stream } from "node:http2";
 
 export interface RemoteModuleConsoleSurface {
   name: string;
@@ -32,14 +39,34 @@ export interface RemoteModuleManifest {
   name: string;
   version: string;
   source: "remote";
+  story_display: readonly RemoteStoryDisplayDescriptor[];
   capabilities: readonly string[];
+  dependencies: readonly string[];
   http_routes: readonly RemoteHttpRoute[];
   runtime: {
     functions: readonly RemoteRuntimeFunctionDeclaration[];
   };
+  events?: RemoteEventSurface;
   lifecycle?: RemoteLifecycleSurface;
   admin: unknown | null;
   console?: readonly RemoteModuleConsoleSurface[];
+}
+
+export type RemoteStoryDisplaySource =
+  | {
+      kind: "execution_name";
+      name: string;
+    }
+  | {
+      kind: "http_request";
+      method: string;
+      path: string;
+    };
+
+export interface RemoteStoryDisplayDescriptor {
+  source: RemoteStoryDisplaySource;
+  display_name: string;
+  story_title?: string;
 }
 
 export type RemoteHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -117,6 +144,55 @@ export interface RemoteRuntimeHandlerContext {
 export type RemoteRuntimeHandler = (
   context: RemoteRuntimeHandlerContext
 ) => unknown | Promise<unknown>;
+
+export interface RemoteEventSurface {
+  handlers: readonly RemoteEventHandlerDeclaration[];
+}
+
+export interface RemoteEventHandlerDeclaration {
+  name: string;
+  event_name: string;
+}
+
+export interface RemoteEventHandleRequest {
+  request_id: string;
+  outbox_event_id: string;
+  handler_name: string;
+  event_name: string;
+  event_version: number;
+  source_module: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  correlation_id: string;
+  causation_id?: string | null;
+  occurred_at: string;
+  actor: unknown;
+  trace: unknown;
+  payload: unknown;
+  headers: unknown;
+}
+
+export interface RemoteEventResultAction {
+  type: "enqueue_function";
+  function_name: string;
+  input: unknown;
+}
+
+export interface RemoteEventHandleResponse {
+  actions?: readonly RemoteEventResultAction[];
+}
+
+export interface RemoteEventHandlerContext {
+  event: RemoteEventHandleRequest;
+  request: IncomingMessage;
+}
+
+export type RemoteEventHandler = (
+  context: RemoteEventHandlerContext
+) =>
+  | RemoteEventHandleResponse
+  | undefined
+  | Promise<RemoteEventHandleResponse | undefined>;
 
 export interface RemoteLifecycleStartupCheck {
   name: string;
@@ -239,12 +315,44 @@ export interface AdminDeclarativeSurface {
   fallback_schema?: AdminSchema;
 }
 
+export type AdminEmbeddedRuntime = "iframe" | "wasm" | "js_bundle";
+
+export interface AdminEmbeddedSurface {
+  kind: "embedded_custom";
+  runtime: AdminEmbeddedRuntime;
+  entry: {
+    kind: "url";
+    url: string;
+    allowed_origins?: readonly string[];
+  };
+  sandbox: {
+    allow_scripts?: boolean;
+    allow_forms?: boolean;
+    allow_popups?: boolean;
+    allow_same_origin?: boolean;
+  };
+  permissions?: readonly (
+    | {
+        kind: "read_entity";
+        entity: string;
+      }
+    | {
+        kind: "invoke_action";
+        action: string;
+      }
+  )[];
+  fallback_schema?: AdminSchema;
+}
+
 export interface RemoteModuleDefinition {
   name: string;
   version?: string;
+  storyDisplay?: readonly RemoteStoryDisplayDescriptor[];
   capabilities?: readonly string[];
+  dependencies?: readonly string[];
   httpRoutes?: readonly RemoteHttpRoute[];
   runtimeFunctions?: readonly RemoteRuntimeFunctionDeclaration[];
+  eventHandlers?: readonly RemoteEventHandlerDeclaration[];
   lifecycle?: RemoteLifecycleSurface;
   admin?: unknown | null;
   console?: readonly RemoteModuleConsoleSurface[];
@@ -278,7 +386,7 @@ export type RemoteAdminActionHandler = (
 export interface ServedRemoteModule {
   baseUrl: string;
   manifestUrl: string;
-  server: Server;
+  server: HttpServer | Http2Server;
   close: () => Promise<void>;
 }
 
@@ -290,6 +398,7 @@ export interface ServeRemoteModuleOptions {
   actions?: Record<string, RemoteAdminActionHandler>;
   http?: Record<string, RemoteHttpHandler>;
   runtime?: Record<string, RemoteRuntimeHandler>;
+  events?: Record<string, RemoteEventHandler>;
   onReady?: (server: ServedRemoteModule) => void;
 }
 
@@ -311,6 +420,124 @@ const sendJson = (
   });
   response.end(JSON.stringify(body));
 };
+
+const GRPC_PATHS = {
+  getAdminRecord: "/lenso.remote.v1.RemoteModule/GetAdminRecord",
+  getManifest: "/lenso.remote.v1.RemoteModule/GetManifest",
+  handleEvent: "/lenso.remote.v1.RemoteModule/HandleEvent",
+  invokeAdminAction: "/lenso.remote.v1.RemoteModule/InvokeAdminAction",
+  invokeFunction: "/lenso.remote.v1.RemoteModule/InvokeFunction",
+  listAdminRecords: "/lenso.remote.v1.RemoteModule/ListAdminRecords",
+  proxyHttpRoute: "/lenso.remote.v1.RemoteModule/ProxyHttpRoute",
+} as const;
+
+const grpcStatus = {
+  invalidArgument: "3",
+  notFound: "5",
+  ok: "0",
+  unimplemented: "12",
+} as const;
+
+const writeGrpcResponse = (
+  stream: ServerHttp2Stream,
+  status: string,
+  payload?: unknown,
+  message?: string
+) => {
+  if (payload === undefined) {
+    stream.respond({
+      ":status": 200,
+      "content-type": "application/grpc",
+      "grpc-status": status,
+      ...(message ? { "grpc-message": encodeURIComponent(message) } : {}),
+    });
+    stream.end();
+    return;
+  }
+
+  stream.respond(
+    {
+      ":status": 200,
+      "content-type": "application/grpc",
+    },
+    { waitForTrailers: true }
+  );
+  stream.on("wantTrailers", () => {
+    stream.sendTrailers({
+      "grpc-status": status,
+      ...(message ? { "grpc-message": encodeURIComponent(message) } : {}),
+    });
+  });
+  stream.end(grpcFrame(payload));
+};
+
+function grpcFrame(payload: unknown) {
+  const message = encodeJsonEnvelope(JSON.stringify(payload));
+  const frame = Buffer.alloc(5 + message.length);
+  frame[0] = 0;
+  frame.writeUInt32BE(message.length, 1);
+  message.copy(frame, 5);
+  return frame;
+}
+
+function readGrpcPayload(body: Buffer) {
+  if (body.length < 5 || body[0] !== 0) {
+    throw new Error("invalid gRPC frame");
+  }
+  const length = body.readUInt32BE(1);
+  const message = body.subarray(5, 5 + length);
+  return JSON.parse(decodeJsonEnvelope(message));
+}
+
+function encodeJsonEnvelope(payloadJson: string) {
+  const payload = Buffer.from(payloadJson, "utf-8");
+  return Buffer.concat([
+    Buffer.from([0x0a]),
+    encodeVarint(payload.length),
+    payload,
+  ]);
+}
+
+function decodeJsonEnvelope(message: Buffer) {
+  if (message[0] !== 0x0a) {
+    throw new Error("invalid JsonEnvelope");
+  }
+  const { value: length, offset } = decodeVarint(message, 1);
+  return message.subarray(offset, offset + length).toString("utf-8");
+}
+
+function encodeVarint(value: number) {
+  const bytes: number[] = [];
+  let current = value;
+  do {
+    let byte = current % 128;
+    current = Math.floor(current / 128);
+    if (current > 0) {
+      byte += 128;
+    }
+    bytes.push(byte);
+  } while (current > 0);
+  return Buffer.from(bytes);
+}
+
+function decodeVarint(buffer: Buffer, offset: number) {
+  let value = 0;
+  let shift = 0;
+  let index = offset;
+  while (index < buffer.length) {
+    const byte = buffer[index];
+    if (byte === undefined) {
+      break;
+    }
+    value += (byte % 128) * 2 ** shift;
+    index += 1;
+    if (byte < 128) {
+      return { offset: index, value };
+    }
+    shift += 7;
+  }
+  throw new Error("unterminated varint");
+}
 
 const route = (
   method: RemoteHttpMethod,
@@ -505,6 +732,74 @@ const handleRuntimeFunctionRequest = async ({
   };
 };
 
+const handleEventRequest = async ({
+  basePath,
+  handlers,
+  request,
+}: {
+  basePath: string;
+  handlers: Record<string, RemoteEventHandler>;
+  request: IncomingMessage;
+}): Promise<{ body: unknown; statusCode: number } | null> => {
+  if (request.method !== "POST") {
+    return null;
+  }
+  const url = new URL(request.url ?? "", "http://127.0.0.1");
+  const prefix = `${basePath}/events/handlers/`;
+  if (!(url.pathname.startsWith(prefix) && url.pathname.endsWith("/invoke"))) {
+    return null;
+  }
+  const handlerName = decodeURIComponent(
+    url.pathname.slice(prefix.length, -"/invoke".length)
+  );
+  if (!handlerName || handlerName.includes("/")) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: "event handler endpoint not found",
+        },
+      },
+      statusCode: 404,
+    };
+  }
+  const handler = handlers[handlerName];
+  if (!handler) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: `${handlerName} event handler not found`,
+        },
+      },
+      statusCode: 404,
+    };
+  }
+  const event = (await readBody(request)) as RemoteEventHandleRequest;
+  const result = await handler({ event, request });
+  return {
+    body: result ?? { actions: [] },
+    statusCode: 200,
+  };
+};
+
+const invokeEventHandler = async (
+  handlers: Record<string, RemoteEventHandler>,
+  event: RemoteEventHandleRequest
+) => {
+  const handlerName = event.handler_name;
+  const handler = handlers[handlerName];
+  if (!handler) {
+    throw new Error(`${handlerName} event handler not found`);
+  }
+  return (
+    (await handler({
+      event,
+      request: undefined as unknown as IncomingMessage,
+    })) ?? { actions: [] }
+  );
+};
+
 const handleAdminActionRequest = async ({
   basePath,
   handlers,
@@ -689,6 +984,10 @@ export const defineRemoteModule = (
     admin: definition.admin ?? null,
     capabilities: definition.capabilities ?? [],
     console: definition.console ?? [],
+    dependencies: definition.dependencies ?? [],
+    ...(definition.eventHandlers
+      ? { events: { handlers: definition.eventHandlers } }
+      : {}),
     http_routes: definition.httpRoutes ?? [],
     ...(definition.lifecycle ? { lifecycle: definition.lifecycle } : {}),
     name: definition.name,
@@ -696,6 +995,7 @@ export const defineRemoteModule = (
       functions: definition.runtimeFunctions ?? [],
     },
     source: "remote",
+    story_display: definition.storyDisplay ?? [],
     version: definition.version ?? "0.1.0",
   };
 };
@@ -728,6 +1028,14 @@ export const runtimeFunction = (
   ...(options.retryPolicy ? { retry_policy: options.retryPolicy } : {}),
   name,
   version: options.version ?? 1,
+});
+
+export const eventHandler = (
+  name: string,
+  eventName: string
+): RemoteEventHandlerDeclaration => ({
+  event_name: eventName,
+  name,
 });
 
 export const everyStartup = (
@@ -903,6 +1211,13 @@ export const declarativeCustom = (
   pages: options.pages ?? [],
 });
 
+export const embeddedCustom = (
+  surface: Omit<AdminEmbeddedSurface, "kind">
+): AdminEmbeddedSurface => ({
+  ...surface,
+  kind: "embedded_custom",
+});
+
 export const serveRemoteModule = async (
   manifest: RemoteModuleManifest,
   options: ServeRemoteModuleOptions = {}
@@ -946,6 +1261,15 @@ export const serveRemoteModule = async (
       sendJson(response, runtimeResult.statusCode, runtimeResult.body);
       return;
     }
+    const eventResult = await handleEventRequest({
+      basePath,
+      handlers: options.events ?? {},
+      request,
+    });
+    if (eventResult) {
+      sendJson(response, eventResult.statusCode, eventResult.body);
+      return;
+    }
     const httpResult = await handleHttpRouteRequest({
       basePath,
       handlers: options.http ?? {},
@@ -985,3 +1309,217 @@ export const serveRemoteModule = async (
   options.onReady?.(served);
   return served;
 };
+
+export const serveRemoteModuleGrpc = async (
+  manifest: RemoteModuleManifest,
+  options: ServeRemoteModuleOptions = {}
+): Promise<ServedRemoteModule> => {
+  const host = options.host ?? "127.0.0.1";
+  const port = options.port ?? 50_051;
+  const server = createHttp2Server();
+
+  server.on("stream", (stream, headers) => {
+    void handleGrpcStream({
+      headers,
+      manifest,
+      options,
+      stream: stream as ServerHttp2Stream,
+    });
+  });
+
+  server.listen(port, host);
+  await once(server, "listening");
+
+  const address = server.address();
+  const boundPort =
+    typeof address === "object" && address ? address.port : port;
+  const baseUrl = `grpc://${host}:${boundPort}`;
+  const served = {
+    baseUrl,
+    close: async () => {
+      server.close();
+      await once(server, "close");
+    },
+    manifestUrl: `${baseUrl}${GRPC_PATHS.getManifest}`,
+    server,
+  } satisfies ServedRemoteModule;
+
+  options.onReady?.(served);
+  return served;
+};
+
+async function handleGrpcStream({
+  headers,
+  manifest,
+  options,
+  stream,
+}: {
+  headers: NodeJS.Dict<number | string | string[]>;
+  manifest: RemoteModuleManifest;
+  options: ServeRemoteModuleOptions;
+  stream: ServerHttp2Stream;
+}) {
+  const path = headers[":path"];
+  if (typeof path !== "string") {
+    writeGrpcResponse(
+      stream,
+      grpcStatus.unimplemented,
+      undefined,
+      "unknown method"
+    );
+    return;
+  }
+  try {
+    const payload = readGrpcPayload(await readGrpcBody(stream));
+    const response = await handleGrpcPayload(path, payload, manifest, options);
+    writeGrpcResponse(stream, grpcStatus.ok, response);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "gRPC request failed";
+    writeGrpcResponse(stream, grpcStatus.invalidArgument, undefined, message);
+  }
+}
+
+async function readGrpcBody(stream: ServerHttp2Stream) {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+function handleGrpcPayload(
+  path: string,
+  payload: Record<string, unknown>,
+  manifest: RemoteModuleManifest,
+  options: ServeRemoteModuleOptions
+) {
+  switch (path) {
+    case GRPC_PATHS.getManifest: {
+      return manifest;
+    }
+    case GRPC_PATHS.listAdminRecords: {
+      return listGrpcAdminRecords(payload, options.data ?? {});
+    }
+    case GRPC_PATHS.getAdminRecord: {
+      return getGrpcAdminRecord(payload, options.data ?? {});
+    }
+    case GRPC_PATHS.invokeAdminAction: {
+      return invokeGrpcAdminAction(payload, options.actions ?? {});
+    }
+    case GRPC_PATHS.proxyHttpRoute: {
+      return proxyGrpcHttpRoute(payload, options.http ?? {});
+    }
+    case GRPC_PATHS.invokeFunction: {
+      return invokeGrpcRuntimeFunction(payload, options.runtime ?? {});
+    }
+    case GRPC_PATHS.handleEvent: {
+      return invokeEventHandler(
+        options.events ?? {},
+        payload as unknown as RemoteEventHandleRequest
+      );
+    }
+    default: {
+      throw new Error("unknown gRPC method");
+    }
+  }
+}
+
+function listGrpcAdminRecords(
+  payload: Record<string, unknown>,
+  data: Record<string, RemoteAdminDataSource>
+) {
+  const entity = String(payload.entity ?? "");
+  const source = data[entity];
+  if (!source) {
+    throw new Error(`${entity} admin data not found`);
+  }
+  return source.list({
+    limit: Number(payload.limit ?? 50),
+    ...(typeof payload.cursor === "string" ? { cursor: payload.cursor } : {}),
+  });
+}
+
+async function getGrpcAdminRecord(
+  payload: Record<string, unknown>,
+  data: Record<string, RemoteAdminDataSource>
+) {
+  const entity = String(payload.entity ?? "");
+  const source = data[entity];
+  if (!source) {
+    throw new Error(`${entity} admin data not found`);
+  }
+  const record = await source.detail(String(payload.id ?? ""));
+  return { record: record ?? null };
+}
+
+async function invokeGrpcAdminAction(
+  payload: Record<string, unknown>,
+  handlers: Record<string, RemoteAdminActionHandler>
+) {
+  const action = String(payload.action ?? "");
+  const handler = handlers[action];
+  if (!handler) {
+    throw new Error(`${action} admin action handler not found`);
+  }
+  const result = await handler({
+    action,
+    input: payload.input,
+    request: undefined as unknown as IncomingMessage,
+  });
+  return { result: result ?? null };
+}
+
+async function proxyGrpcHttpRoute(
+  payload: Record<string, unknown>,
+  handlers: Record<string, RemoteHttpHandler>
+) {
+  const method = String(payload.method ?? "") as RemoteHttpMethod;
+  const declaredPath = String(
+    payload.declared_path ?? payload.remote_path ?? ""
+  );
+  const handler = handlers[routeKey(method, declaredPath)];
+  if (!handler) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: `${method} ${declaredPath} handler not found`,
+        },
+      },
+      status_code: 404,
+    };
+  }
+  const result = normalizeHandlerResult(
+    await handler({
+      body: payload.body,
+      params:
+        typeof payload.path_params === "object" && payload.path_params !== null
+          ? (payload.path_params as Record<string, string>)
+          : {},
+      request: undefined as unknown as IncomingMessage,
+      url: new URL(String(payload.remote_path ?? "/"), "http://127.0.0.1"),
+    })
+  );
+  return {
+    body: result.body,
+    status_code: result.statusCode,
+  };
+}
+
+async function invokeGrpcRuntimeFunction(
+  payload: Record<string, unknown>,
+  handlers: Record<string, RemoteRuntimeHandler>
+) {
+  const functionName = String(payload.function_name ?? "");
+  const handler = handlers[functionName];
+  if (!handler) {
+    throw new Error(`${functionName} runtime function handler not found`);
+  }
+  const output = await handler({
+    input: payload.input,
+    invocation: payload as unknown as RemoteRuntimeInvokeRequest,
+    request: undefined as unknown as IncomingMessage,
+  });
+  return { output: output ?? null };
+}
