@@ -837,13 +837,14 @@ describe("module status helpers", () => {
       },
       {
         key: "apply-plan",
-        label: "console",
-        command: "lenso console-package apply-plan",
+        label: "extension",
+        command:
+          "lenso module install https://example.com/lenso/module/v1/manifest",
       },
       {
         key: "install-packages",
-        label: "packages",
-        command: "pnpm --dir apps/runtime-console install",
+        label: "reload",
+        command: "reload Runtime Console",
       },
     ]);
   });
@@ -916,10 +917,10 @@ describe("module status helpers", () => {
         path: "",
       },
       {
-        detail: "lenso console-package apply-plan",
+        detail: "refresh console extension registry",
         key: "console-package",
         kind: "package",
-        label: "Install Console Package",
+        label: "Console Extension Missing",
         path: "",
       },
       {

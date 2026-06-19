@@ -11,6 +11,7 @@ export type ConsoleSurfaceIcon =
   | "boxes"
   | "database"
   | "network"
+  | "shield"
   | "settings"
   | "workflow";
 

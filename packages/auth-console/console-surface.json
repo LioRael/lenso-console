@@ -1,0 +1,21 @@
+{
+  "area": "data",
+  "exportName": "authConsoleModule",
+  "icon": "shield",
+  "id": "auth",
+  "label": "Auth",
+  "navigation": {
+    "order": 50,
+    "workspace": {
+      "icon": "shield",
+      "id": "auth",
+      "label": "Auth"
+    }
+  },
+  "packageName": "@lenso/auth-console",
+  "requiredCapabilities": ["auth.users.read"],
+  "route": "/data/auth",
+  "source": "installed",
+  "surfaceName": "auth",
+  "version": "workspace"
+}

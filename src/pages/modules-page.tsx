@@ -576,8 +576,8 @@ const availableModuleInstallStepLabel: Record<
   string
 > = {
   add: "add",
-  "apply-plan": "plan",
-  "install-packages": "pkg",
+  "apply-plan": "ext",
+  "install-packages": "bundle",
   open: "open",
   restart: "boot",
 };
@@ -1478,23 +1478,23 @@ function MissingConsolePackagesTable({
         <TriangleAlert className="text-(--warning)" size={14} />
         <span>Missing Console Packages</span>
         <span className="border border-[color-mix(in_srgb,var(--info)_35%,transparent)] px-1.5 py-0.5 text-[10px] text-(--info)">
-          manual install
+          extension missing
         </span>
         <span className="ml-auto border border-(--border-subtle) px-1.5 py-0.5 text-[10px] text-(--secondary)">
           {rows.length}
         </span>
       </header>
       <div className="border-b border-(--border-subtle) px-3 py-2 text-[11px] text-(--secondary)">
-        Run <code>lenso console-package apply-plan</code>, then{" "}
-        <code>pnpm --dir apps/runtime-console install</code>. Restart the API
-        and worker after package changes.
+        Reinstall the module to refresh{" "}
+        <code>.lenso/console/extensions/registry.json</code>, then reload
+        Runtime Console after the API and worker restart.
       </div>
       <div className="overflow-auto">
         <table className="w-full min-w-[820px] table-fixed">
           <thead className="bg-(--sidebar) text-[10px] uppercase tracking-wide text-(--muted)">
             <tr>
               <th className="px-3 py-1.5 text-left">package</th>
-              <th className="w-28 px-3 py-1.5 text-left">plan</th>
+              <th className="w-28 px-3 py-1.5 text-left">extension</th>
               <th className="px-3 py-1.5 text-left">surface</th>
               <th className="px-3 py-1.5 text-left">route</th>
               <th className="px-3 py-1.5 text-left">capabilities</th>
@@ -1528,7 +1528,7 @@ function MissingConsolePackagesTable({
                     >
                       {plan
                         ? `pnpm --dir apps/runtime-console add ${plan.packageName}`
-                        : "manual install required"}
+                        : "extension registry entry required"}
                     </div>
                   </td>
                   <td className="truncate px-3 py-1.5 text-(--secondary)">

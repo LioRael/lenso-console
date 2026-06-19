@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Shield,
   Sun,
   Users,
   Workflow,
@@ -58,6 +59,7 @@ const iconRegistry = {
   boxes: Boxes,
   database: Database,
   network: Network,
+  shield: Shield,
   settings: Settings,
   workflow: Workflow,
 } satisfies Record<ConsoleSurfaceIcon, ShellIcon>;

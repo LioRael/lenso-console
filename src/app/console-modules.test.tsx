@@ -185,6 +185,24 @@ describe("console module registry", () => {
       },
       {
         area: "data",
+        exportName: "authConsoleModule",
+        icon: "shield",
+        label: "Auth",
+        moduleName: "auth",
+        navigation: {
+          order: 50,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        packageName: "@lenso/auth-console",
+        route: "/data/auth",
+        surfaceName: "auth",
+      },
+      {
+        area: "data",
         exportName: "identityConsoleModule",
         icon: "database",
         label: "Identity",
@@ -223,6 +241,7 @@ describe("console module registry", () => {
     expect(consoleModules.map((module) => module.id)).toContain(
       "platform-story"
     );
+    expect(consoleModules.map((module) => module.id)).toContain("auth");
     expect(consoleModules.map((module) => module.id)).toContain("identity");
     expect(
       buildConsoleRoutes(consoleModules).map((route) => ({
@@ -233,6 +252,17 @@ describe("console module registry", () => {
       {
         navigation: undefined,
         path: "/runtime/stories",
+      },
+      {
+        navigation: {
+          order: 50,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        path: "/data/auth",
       },
       {
         navigation: {
@@ -276,6 +306,17 @@ describe("console module registry", () => {
       },
       {
         navigation: {
+          order: 50,
+          workspace: {
+            icon: "shield",
+            id: "auth",
+            label: "Auth",
+          },
+        },
+        path: "/data/auth",
+      },
+      {
+        navigation: {
           order: 60,
           workspace: {
             icon: "database",
@@ -299,7 +340,12 @@ describe("console module registry", () => {
     ]);
     expect(
       buildConsoleRoutes(consoleModules).map((route) => route.path)
-    ).toEqual(["/runtime/stories", "/data/identity", "/data/remote-crm"]);
+    ).toEqual([
+      "/runtime/stories",
+      "/data/auth",
+      "/data/identity",
+      "/data/remote-crm",
+    ]);
   });
 
   test("build-time module metadata creates switchable workspaces", () => {
@@ -316,6 +362,11 @@ describe("console module registry", () => {
         id: "system",
         items: ["/runtime/stories"],
         label: "System",
+      },
+      {
+        id: "auth",
+        items: ["/data/auth"],
+        label: "Auth",
       },
       {
         id: "identity",
