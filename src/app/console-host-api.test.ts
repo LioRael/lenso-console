@@ -7,6 +7,9 @@ describe("console host api", () => {
     expect(runtimeConsoleHostApi.queries.useRuntimeStories).toBeTypeOf(
       "function"
     );
+    expect(runtimeConsoleHostApi.queries.useRuntimeStoryDetail).toBeTypeOf(
+      "function"
+    );
     expect(runtimeConsoleHostApi.adminData.useRecords).toBeTypeOf("function");
     expect(runtimeConsoleHostApi.adminData.useInvokeAction).toBeTypeOf(
       "function"

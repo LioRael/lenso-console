@@ -55,7 +55,7 @@ export function RuntimeStoriesPage() {
     data: { retryTargetForNode },
     hooks: { useBrowserUrlPopState, useListKeyboard, usePersistedLayout },
     modules: { useMetadata: useConsoleModulesMetadata },
-    queries: { useRuntimeStories },
+    queries: { useRuntimeStories, useRuntimeStoryDetail },
     story: { findStoryByCorrelation },
     ui: {
       common: { EmptyState },
@@ -141,16 +141,25 @@ export function RuntimeStoriesPage() {
     });
   }, [query, stories]);
 
-  const targetStory = activeStoryTarget
-    ? findStoryByCorrelation(stories, activeStoryTarget.storyId)
+  const targetStoryId = activeStoryTarget?.storyId ?? selectedStoryId;
+  const targetStory = targetStoryId
+    ? findStoryByCorrelation(stories, targetStoryId)
     : null;
-  const selectedStory =
+  const selectedStorySummary =
     targetStory ??
     resolveSelectedRuntimeStory(
       visibleStories,
       selectedStoryId,
       storyDetailClosed
     );
+  const selectedStoryCorrelationId =
+    selectedStorySummary?.correlationId ??
+    (storyDetailClosed ? null : targetStoryId);
+  const storyDetailQuery = useRuntimeStoryDetail(selectedStoryCorrelationId, {
+    enabled: !storyModuleUnavailable && Boolean(selectedStoryCorrelationId),
+  });
+  const selectedStory = storyDetailQuery.data ?? null;
+  const selectedStoryForUrl = selectedStory ?? selectedStorySummary;
   const selectedNode =
     selectedStory?.nodes.find((node) => {
       const targetNodeId = activeStoryTarget?.nodeId ?? selectedNodeId;
@@ -158,7 +167,7 @@ export function RuntimeStoriesPage() {
     }) ?? null;
   const selectedStoryIndex = Math.max(
     0,
-    visibleStories.findIndex((story) => story.id === selectedStory?.id)
+    visibleStories.findIndex((story) => story.id === selectedStorySummary?.id)
   );
   const inspectorOpen = selectedNode !== null;
   const hasInspector = displayedNode !== null;
@@ -168,6 +177,8 @@ export function RuntimeStoriesPage() {
     ? `${listColumn} 1px minmax(0,1fr) calc(1px * var(--story-inspector-open)) minmax(0,calc(${inspectorColumn} * var(--story-inspector-open)))`
     : `${listColumn} 1px minmax(0,1fr)`;
   const showServicesPanel = mode === "waterfall" || mode === "flame";
+  const storyDetailLoading =
+    Boolean(selectedStoryCorrelationId) && storyDetailQuery.isPending;
 
   useBrowserUrlPopState((search) => {
     clearStoryTarget();
@@ -196,7 +207,7 @@ export function RuntimeStoriesPage() {
       query: overrides.query ?? query,
       storyId: Object.hasOwn(overrides, "storyId")
         ? (overrides.storyId ?? null)
-        : storyUrlId(selectedStory),
+        : storyUrlId(selectedStoryForUrl),
       viewMode: overrides.viewMode ?? mode,
     });
 
@@ -212,7 +223,7 @@ export function RuntimeStoriesPage() {
         inspectorTab: selectedNode ? inspectorTab : "overview",
         nodeId: selectedNode?.id ?? null,
         query,
-        storyId: storyUrlId(selectedStory),
+        storyId: storyUrlId(selectedStoryForUrl),
         viewMode: mode,
       })
     );
@@ -221,7 +232,7 @@ export function RuntimeStoriesPage() {
     mode,
     query,
     selectedNode,
-    selectedStory,
+    selectedStoryForUrl,
     storiesQuery.isLoading,
   ]);
 
@@ -395,14 +406,12 @@ export function RuntimeStoriesPage() {
   };
 
   const selectNode = (node: ExecutionNode) => {
-    const ownerStory = stories.find((story) =>
-      story.nodes.some((item) => item.id === node.id)
-    );
     setStoryDetailClosed(false);
     const nextStoryId =
-      ownerStory?.correlationId ??
       selectedStory?.correlationId ??
-      selectedStoryId;
+      selectedStoryCorrelationId ??
+      selectedStoryId ??
+      null;
     setSelectedStoryId(nextStoryId);
     if (nextStoryId) {
       window.localStorage.setItem(selectedStoryStorageKey, nextStoryId);
@@ -438,19 +447,7 @@ export function RuntimeStoriesPage() {
   useListKeyboard({
     items: visibleStories,
     onOpen: selectStory,
-    onRetry: (story) => {
-      const retryableNode = story.nodes.find(
-        (node) => retryTargetForNode(node) !== null
-      );
-      if (retryableNode) {
-        selectStory(story);
-        selectNode(retryableNode);
-        const retryTarget = retryTargetForNode(retryableNode);
-        if (retryTarget) {
-          openRetry(retryTarget);
-        }
-      }
-    },
+    // ponytail: list rows are summaries; retry from detail after real node ids load.
     selectedIndex: selectedStoryIndex,
     setSelectedIndex: (index) => {
       const story = visibleStories[index];
@@ -515,7 +512,7 @@ export function RuntimeStoriesPage() {
         <StoryList
           onSelect={selectStory}
           query={query}
-          selectedStoryId={selectedStory?.id ?? null}
+          selectedStoryId={selectedStoryForUrl?.id ?? null}
           setQuery={setQuery}
           stories={visibleStories}
         />
@@ -571,6 +568,22 @@ export function RuntimeStoriesPage() {
                 </>
               ) : null}
             </>
+          ) : storyDetailLoading ? (
+            <EmptyState className="h-full bg-(--surface)">
+              <EmptyState.Title>Loading story detail</EmptyState.Title>
+              <EmptyState.Description>
+                The selected runtime story is being loaded.
+              </EmptyState.Description>
+            </EmptyState>
+          ) : storyDetailQuery.isError ? (
+            <EmptyState className="h-full bg-(--surface)">
+              <EmptyState.Title>Story detail unavailable</EmptyState.Title>
+              <EmptyState.Description>
+                {storyDetailQuery.error instanceof Error
+                  ? storyDetailQuery.error.message
+                  : "Runtime story detail could not be loaded."}
+              </EmptyState.Description>
+            </EmptyState>
           ) : (
             <EmptyState className="h-full bg-(--surface)">
               <EmptyState.Title>

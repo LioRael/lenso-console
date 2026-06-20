@@ -233,6 +233,12 @@ export interface RuntimeConsoleHostApi {
     useMetadata: () => ConsoleQueryResult<{ modules: ConsoleModuleMetadata[] }>;
   };
   queries: {
+    useRuntimeStoryDetail: (
+      storyCorrelationId: string | null | undefined,
+      options?: {
+        enabled?: boolean;
+      }
+    ) => ConsoleQueryResult<RuntimeStory>;
     useRuntimeStories: (options?: {
       enabled?: boolean;
     }) => ConsoleQueryResult<RuntimeStory[]>;
