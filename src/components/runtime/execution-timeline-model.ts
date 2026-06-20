@@ -25,8 +25,9 @@ export function buildExecutionTimelineRows(
   story: RuntimeStory
 ): ExecutionTimelineRow[] {
   if (story.timelineItems !== undefined) {
+    const nodesById = new Map(story.nodes.map((node) => [node.id, node]));
     return story.timelineItems.map((item, index) =>
-      rowFromTimelineItem(story, item, index)
+      rowFromTimelineItem(story, item, index, nodesById)
     );
   }
 
@@ -60,11 +61,10 @@ export function executionTimelineEnd(story: RuntimeStory) {
 function rowFromTimelineItem(
   story: RuntimeStory,
   item: TimelineItem,
-  index: number
+  index: number,
+  nodesById: Map<string, ExecutionNode>
 ): ExecutionTimelineRow {
-  const node =
-    story.nodes.find((candidate) => candidate.id === item.detailId) ??
-    story.nodes.find((candidate) => candidate.id === item.id);
+  const node = nodesById.get(item.detailId ?? "") ?? nodesById.get(item.id);
   const startMs = item.startedAt
     ? offsetMs(story.timestamp, item.startedAt, index)
     : offsetMs(story.timestamp, item.createdAt, index);
