@@ -29,6 +29,7 @@ const crmBundle = {
   exportName: "crmConsoleModule",
   hostApi: CONSOLE_BUNDLE_HOST_API,
   packageName: "@vendor/crm-console",
+  styles: ["/console/extensions/crm/entry.css"],
   version: "1.0.0",
 } satisfies RuntimeConsoleBundleManifest;
 
@@ -39,13 +40,19 @@ const registry = {
 
 describe("runtime console bundles", () => {
   test("loads same-origin bundle exports as runtime console packages", async () => {
-    const importModule = vi
-      .fn()
-      .mockResolvedValue({ crmConsoleModule: crmModule });
+    const calls: string[] = [];
+    const importModule = vi.fn().mockImplementation(async () => {
+      calls.push("import");
+      return { crmConsoleModule: crmModule };
+    });
+    const loadStyle = vi.fn().mockImplementation(async (href: string) => {
+      calls.push(`style:${href}`);
+    });
 
     await expect(
       runtimeConsoleBundlePackages(registry, {
         importModule,
+        loadStyle,
         origin: "http://lenso.test",
       })
     ).resolves.toEqual([
@@ -60,6 +67,11 @@ describe("runtime console bundles", () => {
     expect(importModule).toHaveBeenCalledWith(
       "/console/extensions/crm/entry.js"
     );
+    expect(loadStyle).toHaveBeenCalledWith("/console/extensions/crm/entry.css");
+    expect(calls).toEqual([
+      "style:/console/extensions/crm/entry.css",
+      "import",
+    ]);
   });
 
   test("rejects cross-origin bundle entries", async () => {
@@ -80,6 +92,27 @@ describe("runtime console bundles", () => {
         }
       )
     ).rejects.toThrow("Console bundle entry must be same-origin");
+  });
+
+  test("rejects cross-origin bundle styles", async () => {
+    await expect(
+      runtimeConsoleBundlePackages(
+        {
+          bundles: [
+            {
+              ...crmBundle,
+              styles: ["https://cdn.example.com/crm/entry.css"],
+            },
+          ],
+          version: 1,
+        },
+        {
+          importModule: vi.fn(),
+          loadStyle: vi.fn(),
+          origin: "http://lenso.test",
+        }
+      )
+    ).rejects.toThrow("Console bundle style must be same-origin");
   });
 
   test("rejects unsupported host API versions", async () => {

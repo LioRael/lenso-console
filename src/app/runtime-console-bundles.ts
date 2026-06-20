@@ -15,6 +15,7 @@ export type RuntimeConsoleBundleManifest = {
   hostApi: string;
   version?: string;
   requiredCapabilities?: readonly string[];
+  styles?: readonly string[];
 };
 
 export type RuntimeConsoleBundleRegistry = {
@@ -26,9 +27,14 @@ export type RuntimeConsoleBundleImport = (
   entryUrl: string
 ) => Promise<Record<string, unknown>>;
 
+export type RuntimeConsoleBundleStyleLoader = (
+  href: string
+) => Promise<void> | void;
+
 type RuntimeConsoleBundleOptions = {
   availableCapabilities?: readonly string[];
   importModule?: RuntimeConsoleBundleImport;
+  loadStyle?: RuntimeConsoleBundleStyleLoader;
   origin?: string;
 };
 
@@ -81,8 +87,14 @@ async function runtimeConsoleBundlePackage(
       `${bundle.packageName} requires console host API ${bundle.hostApi}; host supports ${CONSOLE_BUNDLE_HOST_API}`
     );
   }
-  const entryUrl = sameOriginEntryUrl(bundle.entry, options.origin);
+  const entryUrl = sameOriginBundleUrl(bundle.entry, "entry", options.origin);
   const importModule = options.importModule ?? dynamicImport;
+  const loadStyle = options.loadStyle ?? appendStylesheet;
+  await Promise.all(
+    (bundle.styles ?? []).map((style) =>
+      loadStyle(sameOriginBundleUrl(style, "style", options.origin))
+    )
+  );
   const imported = await importModule(entryUrl);
   const module = consoleModuleExport(imported, bundle.exportName);
   const declaration: Parameters<typeof defineInstalledConsolePackage>[0] = {
@@ -112,13 +124,14 @@ function bundleHasCapabilities(
   );
 }
 
-function sameOriginEntryUrl(
-  entry: string,
+function sameOriginBundleUrl(
+  reference: string,
+  kind: "entry" | "style",
   origin = globalThis.location.origin
 ) {
-  const url = new URL(entry, origin);
+  const url = new URL(reference, origin);
   if (url.origin !== origin) {
-    throw new Error(`Console bundle entry must be same-origin: ${entry}`);
+    throw new Error(`Console bundle ${kind} must be same-origin: ${reference}`);
   }
   return `${url.pathname}${url.search}${url.hash}`;
 }
@@ -160,4 +173,34 @@ async function dynamicImport(
 ): Promise<Record<string, unknown>> {
   /* @vite-ignore */
   return import(entryUrl) as Promise<Record<string, unknown>>;
+}
+
+const stylesheetLoads = new Map<string, Promise<void>>();
+
+function appendStylesheet(href: string): Promise<void> {
+  if (typeof document === "undefined") {
+    return Promise.resolve();
+  }
+  const absoluteHref = new URL(href, globalThis.location.href).href;
+  const existing = Array.from(
+    document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+  ).find((link) => link.href === absoluteHref);
+  if (existing) {
+    return stylesheetLoads.get(absoluteHref) ?? Promise.resolve();
+  }
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  link.dataset.lensoConsoleExtensionStyle = href;
+  const loaded = new Promise<void>((resolve, reject) => {
+    link.addEventListener("load", () => resolve(), { once: true });
+    link.addEventListener(
+      "error",
+      () => reject(new Error(`Console bundle style failed to load: ${href}`)),
+      { once: true }
+    );
+  });
+  stylesheetLoads.set(absoluteHref, loaded);
+  document.head.append(link);
+  return loaded;
 }
