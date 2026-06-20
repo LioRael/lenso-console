@@ -25,6 +25,7 @@ import {
   metricBinding,
   metricStrip,
   postRoute,
+  queryValue,
   runtimeFunction,
   serveRemoteModuleGrpc,
   schemaAdmin,
@@ -373,11 +374,21 @@ describe("@lenso/remote-module-kit", () => {
                   metricBinding("Pending contacts", "$.pending_contacts"),
                 ]),
               }),
+              declarativeSection("health", {
+                component: queryValue("health", {
+                  capability: "crm.health.read",
+                  valuePath: "metrics.contacts",
+                }),
+              }),
             ],
           }),
         ],
       }),
-      capabilities: ["crm.contacts.read", "crm.contacts.sync"],
+      capabilities: [
+        "crm.contacts.read",
+        "crm.contacts.sync",
+        "crm.health.read",
+      ],
       name: "crm",
     });
 
@@ -448,6 +459,16 @@ describe("@lenso/remote-module-kit", () => {
               },
               label: "Metrics",
               name: "metrics",
+            },
+            {
+              component: {
+                capability: "crm.health.read",
+                kind: "query_value",
+                query: "health",
+                value_path: "metrics.contacts",
+              },
+              label: "Health",
+              name: "health",
             },
           ],
         },
@@ -554,6 +575,46 @@ describe("@lenso/remote-module-kit", () => {
       await expect(missingResponse.json()).resolves.toMatchObject({
         error: {
           code: "not_found",
+        },
+      });
+    } finally {
+      await served.close();
+    }
+  });
+
+  test("serves admin query values", async () => {
+    const manifest = defineRemoteModule({
+      admin: declarativeCustom({
+        pages: [
+          declarativePage("dashboard", {
+            sections: [
+              declarativeSection("health", {
+                component: queryValue("health", {
+                  capability: "crm.health.read",
+                  valuePath: "metrics.contacts",
+                }),
+              }),
+            ],
+          }),
+        ],
+      }),
+      name: "crm",
+    });
+    const served = await serveRemoteModule(manifest, {
+      port: 0,
+      queries: {
+        health: ({ query }) => ({ metrics: { contacts: 2 }, query }),
+      },
+    });
+    try {
+      const queryResponse = await fetch(
+        `${served.baseUrl}/admin/queries/health`
+      );
+      expect(queryResponse.status).toBe(200);
+      await expect(queryResponse.json()).resolves.toEqual({
+        data: {
+          metrics: { contacts: 2 },
+          query: "health",
         },
       });
     } finally {
@@ -671,6 +732,20 @@ describe("@lenso/remote-module-kit", () => {
 
   test("serves the remote module gRPC JSON envelope protocol", async () => {
     const manifest = defineRemoteModule({
+      admin: declarativeCustom({
+        pages: [
+          declarativePage("dashboard", {
+            sections: [
+              declarativeSection("health", {
+                component: queryValue("health", {
+                  capability: "crm.health.read",
+                  valuePath: "metrics.contacts",
+                }),
+              }),
+            ],
+          }),
+        ],
+      }),
       eventHandlers: [
         eventHandler(
           "sync_contact_on_user_registered",
@@ -693,6 +768,9 @@ describe("@lenso/remote-module-kit", () => {
         }),
       },
       port: 0,
+      queries: {
+        health: ({ query }) => ({ metrics: { contacts: 2 }, query }),
+      },
       runtime: {
         "crm.contacts.enrich.v1": ({ input }) => ({ input, synced: true }),
       },
@@ -722,6 +800,16 @@ describe("@lenso/remote-module-kit", () => {
         output: {
           input: { contact_id: "usr_1" },
           synced: true,
+        },
+      });
+      await expect(
+        grpcUnary(client, "/lenso.remote.v1.RemoteModule/QueryAdminValue", {
+          query: "health",
+        })
+      ).resolves.toEqual({
+        data: {
+          metrics: { contacts: 2 },
+          query: "health",
         },
       });
       await expect(

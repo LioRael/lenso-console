@@ -14,6 +14,7 @@ import {
   type DeclarativeComponent,
   declarativeEntitySection,
   declarativeMetricValues,
+  declarativeQueryDisplay,
   detailRows,
   embeddedIframePolicy,
   type EntitySchema,
@@ -36,6 +37,7 @@ type ListResponse = {
   page: { limit: number; next_cursor: string | null };
 };
 type DetailResponse = { data: AdminRecord };
+type QueryResponse = { data: unknown };
 
 type Selection = { module: AdminModuleMetadata; entity: EntitySchema | null };
 
@@ -44,6 +46,7 @@ const dataKeys = {
   list: (m: string, e: string) => ["admin-data", "list", m, e] as const,
   detail: (m: string, e: string, id: string) =>
     ["admin-data", "detail", m, e, id] as const,
+  query: (m: string, q: string) => ["admin-data", "query", m, q] as const,
 };
 
 function dataSurfaceModules(modules: AdminModuleMetadata[]) {
@@ -128,6 +131,10 @@ export function DataPage() {
     },
   });
 
+  const detailSelection = selected?.entity
+    ? { entity: selected.entity, module: selected.module }
+    : null;
+
   if (!isApiMode()) {
     return <DataPlaceholder reason="admin data requires API mode" />;
   }
@@ -152,7 +159,14 @@ export function DataPage() {
           Refresh
         </Button>
       </header>
-      <div className="grid min-h-0 grid-cols-[220px_minmax(0,1fr)_320px]">
+      <div
+        className={cn(
+          "grid min-h-0",
+          detailSelection
+            ? "grid-cols-[220px_minmax(0,1fr)_320px]"
+            : "grid-cols-[220px_minmax(0,1fr)]"
+        )}
+      >
         <nav className="overflow-auto border-r border-(--border-subtle) p-2 font-mono text-[12px]">
           {modulesQuery.isError ? (
             <p className="px-2 py-1 text-(--muted)">Failed to load modules.</p>
@@ -231,33 +245,30 @@ export function DataPage() {
             <p className="text-(--muted)">Select a module or entity.</p>
           )}
         </div>
-        <aside className="min-w-0 overflow-auto border-l border-(--border-subtle) bg-(--surface) font-mono text-[12px]">
-          <div className="border-b border-(--border-subtle) px-3 py-2">
-            <h2 className="font-semibold">Detail</h2>
-            <p className="mt-1 truncate text-[11px] text-(--muted)">
-              {selected && selected.entity && selectedRecordId
-                ? `${selected.module.module_name}/${selected.entity.name}/${selectedRecordId}`
-                : selected && !moduleIsLoaded(selected.module)
-                  ? `${selected.module.module_name} unavailable`
-                  : selected
-                    ? `${selected.module.module_name} surface`
-                    : "select a row"}
-            </p>
-          </div>
-          <div className="p-3">
-            {selected && !moduleIsLoaded(selected.module) ? (
-              <ModuleErrorPanel module={selected.module} compact />
-            ) : selected && selected.entity && selectedRecordId ? (
-              detailQuery.isError ? (
-                <p className="text-(--muted)">
-                  Failed to load detail: {String(detailQuery.error.message)}
-                </p>
-              ) : detailQuery.isPending ? (
-                <p className="text-(--muted)">Loading…</p>
-              ) : detailQuery.data ? (
-                <dl className="grid grid-cols-[96px_minmax(0,1fr)] border-y border-(--border-subtle)">
-                  {detailRows(selected.entity, detailQuery.data.data).map(
-                    (row) => (
+        {detailSelection ? (
+          <aside className="min-w-0 overflow-auto border-l border-(--border-subtle) bg-(--surface) font-mono text-[12px]">
+            <div className="border-b border-(--border-subtle) px-3 py-2">
+              <h2 className="font-semibold">Record detail</h2>
+              <p className="mt-1 truncate text-[11px] text-(--muted)">
+                {selectedRecordId
+                  ? `${detailSelection.module.module_name}/${detailSelection.entity.name}/${selectedRecordId}`
+                  : `${detailSelection.module.module_name}/${detailSelection.entity.name}`}
+              </p>
+            </div>
+            <div className="p-3">
+              {selectedRecordId ? (
+                detailQuery.isError ? (
+                  <p className="text-(--muted)">
+                    Failed to load detail: {String(detailQuery.error.message)}
+                  </p>
+                ) : detailQuery.isPending ? (
+                  <p className="text-(--muted)">Loading…</p>
+                ) : detailQuery.data ? (
+                  <dl className="grid grid-cols-[96px_minmax(0,1fr)] border-y border-(--border-subtle)">
+                    {detailRows(
+                      detailSelection.entity,
+                      detailQuery.data.data
+                    ).map((row) => (
                       <div className="contents" key={row.field}>
                         <dt className="border-b border-(--border-subtle) bg-(--sidebar) px-2 py-1.5 text-(--muted)">
                           {row.label}
@@ -266,17 +277,17 @@ export function DataPage() {
                           {row.display}
                         </dd>
                       </div>
-                    )
-                  )}
-                </dl>
-              ) : null
-            ) : selected ? (
-              <ModuleSurfacePanel compact module={selected.module} />
-            ) : (
-              <p className="text-(--muted)">No record selected.</p>
-            )}
-          </div>
-        </aside>
+                    ))}
+                  </dl>
+                ) : null
+              ) : (
+                <p className="text-(--muted)">
+                  Select a row to inspect detail.
+                </p>
+              )}
+            </div>
+          </aside>
+        ) : null}
       </div>
     </section>
   );
@@ -554,6 +565,9 @@ function DeclarativeComponentView({
         />
       );
     }
+    case "query_value": {
+      return <DeclarativeQueryValue component={component} module={module} />;
+    }
     case "entity_detail": {
       const { entity, reason } = declarativeEntitySection(
         surface,
@@ -576,6 +590,48 @@ function DeclarativeComponentView({
       );
     }
   }
+}
+
+function DeclarativeQueryValue({
+  component,
+  module,
+}: {
+  component: Extract<DeclarativeComponent, { kind: "query_value" }>;
+  module: AdminModuleMetadata;
+}) {
+  const query = useQuery({
+    queryKey: dataKeys.query(module.module_name, component.query),
+    queryFn: () =>
+      httpClient
+        .get(
+          `admin/data/${encodeURIComponent(module.module_name)}/queries/${encodeURIComponent(component.query)}`
+        )
+        .json<QueryResponse>(),
+    enabled: isApiMode() && moduleIsLoaded(module),
+  });
+
+  if (query.isError) {
+    return (
+      <p className="text-(--muted)">
+        Failed to load query: {String(query.error.message)}
+      </p>
+    );
+  }
+  if (query.isPending) {
+    return <p className="text-(--muted)">Loading…</p>;
+  }
+
+  const display = declarativeQueryDisplay(
+    component.query,
+    query.data.data,
+    component.value_path
+  );
+  return (
+    <div className="border border-(--border-subtle) bg-(--surface) px-2 py-1.5">
+      <div className="truncate text-[10px] text-(--muted)">{display.query}</div>
+      <div className="mt-1 truncate text-(--foreground)">{display.value}</div>
+    </div>
+  );
 }
 
 function DeclarativeEntityTable({
