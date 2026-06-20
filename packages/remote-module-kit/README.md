@@ -6,8 +6,11 @@ Helpers for building out-of-process Lenso remote modules.
 import {
   adminAction,
   declarativeCustom,
+  declarativePage,
+  declarativeSection,
   defineRemoteModule,
   getRoute,
+  queryValue,
   runtimeFunction,
   serveRemoteModule,
 } from "@lenso/remote-module-kit";
@@ -20,8 +23,20 @@ const manifest = defineRemoteModule({
         label: "Sync contacts",
       }),
     ],
+    pages: [
+      declarativePage("overview", {
+        sections: [
+          declarativeSection("health", {
+            component: queryValue("health", {
+              capability: "crm.health.read",
+              valuePath: "metrics.contacts",
+            }),
+          }),
+        ],
+      }),
+    ],
   }),
-  capabilities: ["crm.contacts.read"],
+  capabilities: ["crm.contacts.read", "crm.health.read"],
   httpRoutes: [getRoute("/contacts/{id}")],
   name: "crm",
   runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
@@ -30,6 +45,9 @@ const manifest = defineRemoteModule({
 const server = await serveRemoteModule(manifest, {
   actions: {
     sync_contacts: ({ input }) => ({ input, synced: true }),
+  },
+  queries: {
+    health: () => ({ metrics: { contacts: 2 } }),
   },
   port: 4100,
 });

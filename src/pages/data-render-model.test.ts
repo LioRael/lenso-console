@@ -12,6 +12,7 @@ import {
   buildAdminActionInput,
   declarativeEntitySection,
   declarativeMetricValues,
+  declarativeQueryDisplay,
   detailRows,
   embeddedIframePolicy,
   filterModuleRegistry,
@@ -1573,6 +1574,23 @@ describe("declarative admin helpers", () => {
       { label: "Capability", value: "identity.users.read" },
       { label: "Missing", value: "—" },
     ]);
+  });
+
+  test("resolves query values from returned JSON data", () => {
+    expect(
+      declarativeQueryDisplay(
+        "health",
+        { metrics: { contacts: 2 } },
+        "metrics.contacts"
+      )
+    ).toEqual({
+      query: "health",
+      value: "2",
+    });
+    expect(declarativeQueryDisplay("health", {}, "metrics.contacts")).toEqual({
+      query: "health",
+      value: "—",
+    });
   });
 
   test("looks up entity table declarations in fallback schema", () => {

@@ -95,6 +95,12 @@ export type DeclarativeComponent =
       metrics?: DeclarativeMetricBinding[];
     }
   | {
+      kind: "query_value";
+      query: string;
+      capability: string;
+      value_path: string;
+    }
+  | {
       kind: "entity_table";
       entity: string;
     }
@@ -492,6 +498,11 @@ export type EmbeddedIframePolicy =
 
 export type DeclarativeMetric = {
   label: string;
+  value: string;
+};
+
+export type DeclarativeQueryDisplay = {
+  query: string;
   value: string;
 };
 
@@ -1475,6 +1486,17 @@ export function declarativeMetricValues(
   }));
 }
 
+export function declarativeQueryDisplay(
+  query: string,
+  data: unknown,
+  valuePath: string
+): DeclarativeQueryDisplay {
+  return {
+    query,
+    value: displayDeclarativeValue(resolveJsonPath(data, valuePath)),
+  };
+}
+
 export function declarativeEntitySection(
   surface: DeclarativeAdminSurface,
   entityName: string
@@ -1699,6 +1721,28 @@ function displayDeclarativeValue(value: unknown): string {
     return String(value);
   }
   return JSON.stringify(value);
+}
+
+function resolveJsonPath(data: unknown, path: string): unknown {
+  if (!path.trim()) {
+    return data;
+  }
+  return path
+    .split(".")
+    .filter(Boolean)
+    .reduce<unknown>((current, segment) => {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      if (Array.isArray(current)) {
+        const index = Number(segment);
+        return Number.isInteger(index) ? current[index] : undefined;
+      }
+      if (typeof current === "object") {
+        return (current as Record<string, unknown>)[segment];
+      }
+      return undefined;
+    }, data);
 }
 
 function truncateActionResult(value: string): string {

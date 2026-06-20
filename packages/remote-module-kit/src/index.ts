@@ -288,6 +288,12 @@ export type AdminDeclarativeComponent =
       metrics: readonly AdminMetricBinding[];
     }
   | {
+      kind: "query_value";
+      query: string;
+      capability: string;
+      value_path: string;
+    }
+  | {
       kind: "entity_table";
       entity: string;
     }
@@ -373,6 +379,11 @@ export interface RemoteAdminDataSource {
   ) => unknown | null | undefined | Promise<unknown | null | undefined>;
 }
 
+export type RemoteAdminQueryHandler = (context: {
+  query: string;
+  request: IncomingMessage;
+}) => unknown | Promise<unknown>;
+
 export interface RemoteAdminActionHandlerContext {
   action: string;
   input: unknown;
@@ -395,6 +406,7 @@ export interface ServeRemoteModuleOptions {
   port?: number;
   basePath?: string;
   data?: Record<string, RemoteAdminDataSource>;
+  queries?: Record<string, RemoteAdminQueryHandler>;
   actions?: Record<string, RemoteAdminActionHandler>;
   http?: Record<string, RemoteHttpHandler>;
   runtime?: Record<string, RemoteRuntimeHandler>;
@@ -429,6 +441,7 @@ const GRPC_PATHS = {
   invokeFunction: "/lenso.remote.v1.RemoteModule/InvokeFunction",
   listAdminRecords: "/lenso.remote.v1.RemoteModule/ListAdminRecords",
   proxyHttpRoute: "/lenso.remote.v1.RemoteModule/ProxyHttpRoute",
+  queryAdminValue: "/lenso.remote.v1.RemoteModule/QueryAdminValue",
 } as const;
 
 const grpcStatus = {
@@ -853,6 +866,54 @@ const handleAdminActionRequest = async ({
   };
 };
 
+const handleAdminQueryRequest = async ({
+  basePath,
+  handlers,
+  request,
+}: {
+  basePath: string;
+  handlers: Record<string, RemoteAdminQueryHandler>;
+  request: IncomingMessage;
+}): Promise<{ body: unknown; statusCode: number } | null> => {
+  if (request.method !== "GET") {
+    return null;
+  }
+  const url = new URL(request.url ?? "", "http://127.0.0.1");
+  const prefix = `${basePath}/admin/queries/`;
+  if (!url.pathname.startsWith(prefix)) {
+    return null;
+  }
+  const query = decodeURIComponent(url.pathname.slice(prefix.length));
+  if (!query || query.includes("/")) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: "admin query endpoint not found",
+        },
+      },
+      statusCode: 404,
+    };
+  }
+  const handler = handlers[query];
+  if (!handler) {
+    return {
+      body: {
+        error: {
+          code: "not_found",
+          message: `${query} admin query handler not found`,
+        },
+      },
+      statusCode: 404,
+    };
+  }
+  const data = await handler({ query, request });
+  return {
+    body: { data: data ?? null },
+    statusCode: 200,
+  };
+};
+
 interface FieldOptions {
   label?: string;
   nullable?: boolean;
@@ -1142,6 +1203,16 @@ export const metricStrip = (
   metrics,
 });
 
+export const queryValue = (
+  query: string,
+  options: { capability: string; valuePath: string }
+): AdminDeclarativeComponent => ({
+  capability: options.capability,
+  kind: "query_value",
+  query,
+  value_path: options.valuePath,
+});
+
 export const entityTable = (entity: string): AdminDeclarativeComponent => ({
   entity,
   kind: "entity_table",
@@ -1233,6 +1304,15 @@ export const serveRemoteModule = async (
       return;
     }
     if (request.method === "GET") {
+      const queryResult = await handleAdminQueryRequest({
+        basePath,
+        handlers: options.queries ?? {},
+        request,
+      });
+      if (queryResult) {
+        sendJson(response, queryResult.statusCode, queryResult.body);
+        return;
+      }
       const adminResult = await handleAdminDataRequest({
         basePath,
         data: options.data ?? {},
@@ -1407,6 +1487,9 @@ function handleGrpcPayload(
     case GRPC_PATHS.invokeAdminAction: {
       return invokeGrpcAdminAction(payload, options.actions ?? {});
     }
+    case GRPC_PATHS.queryAdminValue: {
+      return invokeGrpcAdminQuery(payload, options.queries ?? {});
+    }
     case GRPC_PATHS.proxyHttpRoute: {
       return proxyGrpcHttpRoute(payload, options.http ?? {});
     }
@@ -1468,6 +1551,22 @@ async function invokeGrpcAdminAction(
     request: undefined as unknown as IncomingMessage,
   });
   return { result: result ?? null };
+}
+
+async function invokeGrpcAdminQuery(
+  payload: Record<string, unknown>,
+  handlers: Record<string, RemoteAdminQueryHandler>
+) {
+  const query = String(payload.query ?? "");
+  const handler = handlers[query];
+  if (!handler) {
+    throw new Error(`${query} admin query handler not found`);
+  }
+  const data = await handler({
+    query,
+    request: undefined as unknown as IncomingMessage,
+  });
+  return { data: data ?? null };
 }
 
 async function proxyGrpcHttpRoute(
