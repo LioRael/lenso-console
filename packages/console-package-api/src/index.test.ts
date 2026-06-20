@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, test } from "vitest";
 
 import {
@@ -7,6 +9,22 @@ import {
 } from ".";
 
 describe("runtime console package API", () => {
+  test("publishes Tailwind theme tokens for console packages", () => {
+    const themeCss = readFileSync(new URL("../theme.css", import.meta.url), {
+      encoding: "utf-8",
+    });
+
+    expect(themeCss).toContain("--color-card: var(--surface);");
+    expect(themeCss).toContain("--color-muted-foreground: var(--secondary);");
+    expect(themeCss).toContain(
+      "--color-control-hover: var(--bg-control-hover);"
+    );
+    expect(themeCss).toContain("--radius-control: var(--radius-control);");
+    expect(themeCss).toContain("--shadow-overlay: var(--elevation-overlay);");
+    expect(themeCss).toContain("--color-panel-gloss: var(--panel-gloss);");
+    expect(themeCss).toContain("--color-shadow-strong: var(--shadow-strong);");
+  });
+
   test("defines console package manifests for frontend modules", () => {
     const manifest = defineConsolePackageManifest({
       area: "runtime",
