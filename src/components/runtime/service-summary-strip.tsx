@@ -10,6 +10,16 @@ import { getServiceSummaryPanelLayout } from "./service-summary-strip-layout";
 
 gsap.registerPlugin(useGSAP);
 
+type ServiceSummary = {
+  duration: number;
+  errors: number;
+  p50: number;
+  p95: number;
+  p99: number;
+  service: string;
+  nodes: number;
+};
+
 export function ServiceSummaryStrip({
   expanded,
   height,
@@ -28,28 +38,8 @@ export function ServiceSummaryStrip({
   const previousExpandedRef = useRef(expanded);
   const panelLayout = getServiceSummaryPanelLayout({ expanded, height });
   const initialPanelLayoutRef = useRef(panelLayout);
-  const services = Array.from(
-    new Set(story.nodes.map((node) => node.service))
-  ).map((service) => {
-    const nodes = story.nodes.filter((node) => node.service === service);
-    const durations = nodes.map((node) => node.durationMs);
-    const duration = durations.reduce(
-      (total, nodeDuration) => total + nodeDuration,
-      0
-    );
-    const errors = nodes.filter(
-      (node) => node.status === "failed" || node.status === "dead"
-    ).length;
-    return {
-      duration,
-      errors,
-      p50: percentile(durations, 50),
-      p95: percentile(durations, 95),
-      p99: percentile(durations, 99),
-      service,
-      nodes: nodes.length,
-    };
-  });
+  const serviceSummary = summarizeServices(story);
+  const { services } = serviceSummary;
 
   useGSAP(
     () => {
@@ -148,30 +138,9 @@ export function ServiceSummaryStrip({
           </span>
         </button>
         <div className="ml-auto flex min-w-0 items-center gap-3 overflow-hidden font-mono text-[11px] text-(--muted)">
-          <span>
-            p50{" "}
-            {formatRuntimeDuration(
-              percentile(
-                story.nodes.map((node) => node.durationMs),
-                50
-              )
-            )}
-          </span>
-          <span>
-            p95{" "}
-            {formatRuntimeDuration(
-              percentile(
-                story.nodes.map((node) => node.durationMs),
-                95
-              )
-            )}
-          </span>
-          <span>
-            max{" "}
-            {formatRuntimeDuration(
-              Math.max(...story.nodes.map((node) => node.durationMs))
-            )}
-          </span>
+          <span>p50 {formatRuntimeDuration(serviceSummary.p50)}</span>
+          <span>p95 {formatRuntimeDuration(serviceSummary.p95)}</span>
+          <span>max {formatRuntimeDuration(serviceSummary.max)}</span>
         </div>
       </div>
       <div
@@ -234,11 +203,61 @@ export function ServiceSummaryStrip({
   );
 }
 
-function percentile(values: number[], pct: number) {
+function summarizeServices(story: RuntimeStory) {
+  const servicesByName = new Map<
+    string,
+    Omit<ServiceSummary, "p50" | "p95" | "p99"> & { durations: number[] }
+  >();
+  const allDurations: number[] = [];
+  let max = 0;
+
+  for (const node of story.nodes) {
+    let service = servicesByName.get(node.service);
+    if (!service) {
+      service = {
+        duration: 0,
+        durations: [],
+        errors: 0,
+        service: node.service,
+        nodes: 0,
+      };
+      servicesByName.set(node.service, service);
+    }
+
+    service.duration += node.durationMs;
+    service.durations.push(node.durationMs);
+    service.errors +=
+      node.status === "failed" || node.status === "dead" ? 1 : 0;
+    service.nodes += 1;
+    allDurations.push(node.durationMs);
+    max = Math.max(max, node.durationMs);
+  }
+
+  allDurations.sort(compareNumbers);
+  return {
+    max,
+    p50: percentileSorted(allDurations, 50),
+    p95: percentileSorted(allDurations, 95),
+    services: [...servicesByName.values()].map(({ durations, ...service }) => {
+      durations.sort(compareNumbers);
+      return {
+        ...service,
+        p50: percentileSorted(durations, 50),
+        p95: percentileSorted(durations, 95),
+        p99: percentileSorted(durations, 99),
+      };
+    }),
+  };
+}
+
+function percentileSorted(values: number[], pct: number) {
   if (values.length === 0) {
     return 0;
   }
-  const sorted = [...values].sort((left, right) => left - right);
-  const index = Math.ceil((pct / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, index)] ?? 0;
+  const index = Math.ceil((pct / 100) * values.length) - 1;
+  return values[Math.max(0, index)] ?? 0;
+}
+
+function compareNumbers(left: number, right: number) {
+  return left - right;
 }

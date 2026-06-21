@@ -18,7 +18,10 @@ import {
 } from "../hooks/use-browser-url-state";
 import { useListKeyboard } from "../hooks/use-list-keyboard";
 import { usePersistedLayout } from "../hooks/use-persisted-layout";
-import { useRuntimeStories } from "../hooks/use-runtime-queries";
+import {
+  useRuntimeStories,
+  useRuntimeStoryDetail,
+} from "../hooks/use-runtime-queries";
 import { operationsPath } from "../pages/operations-url-model";
 import {
   useConsoleAdminAction,
@@ -49,6 +52,7 @@ export const runtimeConsoleHostApi = {
   },
   queries: {
     useRuntimeStories,
+    useRuntimeStoryDetail,
   },
   routing: {
     buildPath: operationsPath,

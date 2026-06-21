@@ -43,12 +43,13 @@ export type WaterfallSegmentLayout = {
 export function buildWaterfallRows(story: RuntimeStory): WaterfallRow[] {
   const nodeRows = buildNodeRows(story);
   const attachedMarkerIds = new Set<string>();
+  const nodesById = new Map(story.nodes.map((node) => [node.id, node]));
   const rowsByNodeId = new Map(
     nodeRows.map((row) => [row.node?.id ?? row.id, row])
   );
 
   for (const item of story.timelineItems ?? []) {
-    const node = findNodeForTimelineItem(story, item);
+    const node = findNodeForTimelineItem(nodesById, item);
     if (!node) {
       continue;
     }
@@ -112,6 +113,7 @@ export function waterfallSegmentLayout({
 
 function buildNodeRows(story: RuntimeStory): WaterfallRow[] {
   const graph = buildRuntimeGraphModel(story);
+  const nodesById = new Map(story.nodes.map((node) => [node.id, node]));
   const parallelGroups = buildParallelExecutionGroups(story);
   const fanoutGroupSizeByParent = new Map(
     parallelGroups.map((group) => [group.parentId, group.branchCount])
@@ -125,8 +127,8 @@ function buildNodeRows(story: RuntimeStory): WaterfallRow[] {
   const parentByNode = new Map<string, string>();
 
   for (const edge of graph.edges) {
-    const parent = story.nodes.find((node) => node.id === edge.source);
-    const child = story.nodes.find((node) => node.id === edge.target);
+    const parent = nodesById.get(edge.source);
+    const child = nodesById.get(edge.target);
     if (!parent || !child || parentByNode.has(child.id)) {
       continue;
     }
@@ -279,12 +281,11 @@ function markerFromTimelineItem(
   };
 }
 
-function findNodeForTimelineItem(story: RuntimeStory, item: TimelineItem) {
-  return (
-    story.nodes.find((node) => node.id === item.detailId) ??
-    story.nodes.find((node) => node.id === item.id) ??
-    null
-  );
+function findNodeForTimelineItem(
+  nodesById: Map<string, ExecutionNode>,
+  item: TimelineItem
+) {
+  return nodesById.get(item.detailId ?? "") ?? nodesById.get(item.id) ?? null;
 }
 
 function compareWaterfallRows(left: WaterfallRow, right: WaterfallRow) {

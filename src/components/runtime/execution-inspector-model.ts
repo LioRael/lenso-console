@@ -224,8 +224,7 @@ export function buildExecutionContext(
   story: RuntimeStory,
   node: ExecutionNode
 ): ExecutionContextModel {
-  const upstream = relatedNodes(story, node, "upstream");
-  const downstream = relatedNodes(story, node, "downstream");
+  const { downstream, upstream } = relatedNodeGroups(story, node);
   const causationId =
     typeof node.context.causation_id === "string"
       ? node.context.causation_id
@@ -263,11 +262,11 @@ export function getExecutionInspectorTabCounts(
   story: RuntimeStory,
   node: ExecutionNode
 ): Record<ExecutionInspectorTab, number> {
+  const { downstream, upstream } = relatedNodeGroups(story, node);
+
   return {
     activity: buildExecutionActivity(story, node).length,
-    context:
-      relatedNodes(story, node, "upstream").length +
-      relatedNodes(story, node, "downstream").length,
+    context: upstream.length + downstream.length,
     failures: buildExecutionFailures(node).length,
     logs: node.logs.length,
     overview: 0,
@@ -362,33 +361,39 @@ function remoteProxyResultLabel(status: string, retryable: boolean) {
   return status;
 }
 
-function relatedNodes(
-  story: RuntimeStory,
-  node: ExecutionNode,
-  direction: "upstream" | "downstream"
-) {
+function relatedNodeGroups(story: RuntimeStory, node: ExecutionNode) {
   const edges = story.edges ?? [];
-  const relatedIds = edges
-    .filter((edge) =>
-      direction === "upstream"
-        ? edge.target === node.id
-        : edge.source === node.id
-    )
-    .map((edge) => (direction === "upstream" ? edge.source : edge.target));
-  const parentId = direction === "upstream" ? node.parentId : undefined;
-  const childIds =
-    direction === "downstream"
-      ? story.nodes
-          .filter((candidate) => candidate.parentId === node.id)
-          .map((candidate) => candidate.id)
-      : [];
-  const ids = new Set([
-    ...relatedIds,
-    ...(parentId ? [parentId] : []),
-    ...childIds,
-  ]);
+  const upstreamIds = new Set<string>();
+  const downstreamIds = new Set<string>();
 
-  return story.nodes.filter((candidate) => ids.has(candidate.id));
+  for (const edge of edges) {
+    if (edge.target === node.id) {
+      upstreamIds.add(edge.source);
+    }
+    if (edge.source === node.id) {
+      downstreamIds.add(edge.target);
+    }
+  }
+
+  if (node.parentId) {
+    upstreamIds.add(node.parentId);
+  }
+
+  const upstream: ExecutionNode[] = [];
+  const downstream: ExecutionNode[] = [];
+  for (const candidate of story.nodes) {
+    if (candidate.parentId === node.id) {
+      downstreamIds.add(candidate.id);
+    }
+    if (upstreamIds.has(candidate.id)) {
+      upstream.push(candidate);
+    }
+    if (downstreamIds.has(candidate.id)) {
+      downstream.push(candidate);
+    }
+  }
+
+  return { downstream, upstream };
 }
 
 function offsetMs(baseTimestamp: string, timestamp: string) {

@@ -71,6 +71,7 @@ export const runtimeQueryKeys = {
     ["runtime", "executions", id, "payload"] as const,
   executionLogs: (id: string) => ["runtime", "executions", id, "logs"] as const,
   stories: ["runtime", "stories"] as const,
+  storyDetail: (id: string) => ["runtime", "stories", id, "detail"] as const,
   deadLetters: ["runtime", "dead-letters"] as const,
   remoteProxyCalls: (filters: RemoteProxyCallFilters) =>
     ["runtime", "remote-proxy-calls", filters] as const,
@@ -251,6 +252,33 @@ export function useRuntimeStories({
     enabled,
     queryKey: runtimeQueryKeys.stories,
     queryFn: async () => (isApiMode() ? fetchRuntimeStories() : runtimeStories),
+  });
+}
+
+export function useRuntimeStoryDetail(
+  storyCorrelationId: string | null | undefined,
+  { enabled = true }: { enabled?: boolean } = {}
+) {
+  return useQuery({
+    enabled: Boolean(storyCorrelationId) && enabled,
+    queryKey: runtimeQueryKeys.storyDetail(storyCorrelationId ?? "-"),
+    queryFn: async () => {
+      if (!storyCorrelationId) {
+        throw new Error("Runtime story detail query requires a story id");
+      }
+      if (isApiMode()) {
+        return fetchRuntimeStory(storyCorrelationId);
+      }
+      const story = runtimeStories.find(
+        (item) =>
+          item.id === storyCorrelationId ||
+          item.correlationId === storyCorrelationId
+      );
+      if (!story) {
+        throw new Error(`Runtime story not found: ${storyCorrelationId}`);
+      }
+      return story;
+    },
   });
 }
 
@@ -562,16 +590,7 @@ async function fetchRuntimeStories(): Promise<RuntimeStory[]> {
     .get("admin/runtime/stories")
     .json<ApiRuntimeStoryListResponse>();
   const { stories } = normalizeRuntimeStoryListResponse(response);
-
-  const details = await Promise.all(
-    stories.map((story) =>
-      fetchRuntimeStory(story.correlationId)
-        .then((detail) => mergeStoryDetail(story, detail))
-        .catch(() => story)
-    )
-  );
-
-  return details;
+  return stories;
 }
 
 async function fetchRemoteProxyCalls(
@@ -1110,13 +1129,6 @@ function storyHeatmapCells(
         left.nodeType.localeCompare(right.nodeType)
     )
     .map(({ durationTotalMs: _durationTotalMs, ...cell }) => cell);
-}
-
-function mergeStoryDetail(summary: RuntimeStory, detail: RuntimeStory) {
-  return {
-    ...detail,
-    name: detail.name || summary.name,
-  };
 }
 
 function toActor(value: unknown): Actor {
