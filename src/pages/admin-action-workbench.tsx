@@ -292,7 +292,7 @@ function AdminActionPanel({
   const isDangerous = dangerLevel !== "low";
   const requiredPhrase = adminActionRequiredConfirmationPhrase(action);
   return (
-    <div className="grid gap-2 border border-(--border-subtle) bg-(--surface) p-2">
+    <div className="grid w-full max-w-3xl gap-2 border border-(--border-subtle) bg-(--surface) p-2">
       <div className="flex min-w-0 items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
@@ -330,7 +330,7 @@ function AdminActionPanel({
       </div>
 
       {fields.length > 0 ? (
-        <div className="grid gap-1.5 md:grid-cols-2">
+        <div className="grid max-w-3xl gap-1.5 sm:grid-cols-2">
           {fields.map((field) => (
             <AdminActionFieldControl
               field={field}

@@ -220,7 +220,7 @@ export function DataPage() {
             </p>
           ) : null}
         </nav>
-        <div className="min-w-0 overflow-auto p-3 font-mono text-[12px]">
+        <div className="min-w-0 overflow-auto p-2 font-mono text-[12px]">
           {selected && !moduleIsLoaded(selected.module) ? (
             <ModuleErrorPanel module={selected.module} />
           ) : selected && selected.entity ? (
@@ -308,56 +308,58 @@ function RecordsTable({
 }) {
   return (
     <>
-      <div className="mb-2 flex items-center gap-2 text-[11px] text-(--muted)">
+      <div className="mb-1.5 flex min-w-0 items-center gap-2 text-[11px] text-(--muted)">
         <span>{module.module_name}</span>
         <span>/</span>
         <span>{entity.name}</span>
-        <span className="ml-auto border border-(--border-subtle) px-2 py-0.5 text-[10px] text-(--secondary)">
+        <span className="ml-auto shrink-0 border border-(--border-subtle) px-2 py-0.5 text-[10px] text-(--secondary)">
           {module.source} / {moduleStatusLabel(module)}
         </span>
       </div>
-      <table className="w-full table-fixed">
-        <thead>
-          <tr>
-            {entity.fields.map((field) => (
-              <th
-                className="px-2 py-1 text-left text-(--muted)"
-                key={field.name}
-              >
-                {field.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((record, index) => {
-            const id = recordId(record);
-            const isSelected = id !== null && id === selectedRecordId;
-            return (
-              <tr
-                className={cn(
-                  "border-t border-(--border-subtle)",
-                  isSelected && "bg-(--bg-row-hover)"
-                )}
-                key={id ?? index}
-              >
-                {renderRow(entity, record).map((cell) => (
-                  <td className="p-0" key={cell.field}>
-                    <button
-                      className="block min-h-7 w-full truncate px-2 py-1 text-left disabled:cursor-default disabled:text-(--muted)"
-                      disabled={id === null}
-                      onClick={() => setSelectedRecordId(id)}
-                      type="button"
-                    >
-                      {cell.display}
-                    </button>
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto border border-(--border-subtle) bg-(--surface)">
+        <table className="w-full min-w-[640px] table-fixed">
+          <thead>
+            <tr>
+              {entity.fields.map((field) => (
+                <th
+                  className="border-b border-(--border-subtle) px-2 py-1.5 text-left text-(--muted)"
+                  key={field.name}
+                >
+                  {field.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record, index) => {
+              const id = recordId(record);
+              const isSelected = id !== null && id === selectedRecordId;
+              return (
+                <tr
+                  className={cn(
+                    "border-t border-(--border-subtle)",
+                    isSelected && "bg-(--bg-row-hover)"
+                  )}
+                  key={id ?? index}
+                >
+                  {renderRow(entity, record).map((cell) => (
+                    <td className="p-0" key={cell.field}>
+                      <button
+                        className="block min-h-7 w-full truncate px-2 py-1 text-left disabled:cursor-default disabled:text-(--muted)"
+                        disabled={id === null}
+                        onClick={() => setSelectedRecordId(id)}
+                        type="button"
+                      >
+                        {cell.display}
+                      </button>
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }
@@ -403,11 +405,11 @@ function ModuleSurfacePanel({
   return (
     <div
       className={cn(
-        "grid gap-3 border border-(--border-subtle) bg-(--surface) p-3",
+        "grid w-full max-w-screen-2xl gap-3",
         compact && "text-[11px]"
       )}
     >
-      <div className="flex items-center gap-2 font-semibold text-(--foreground)">
+      <div className="flex items-center gap-2 border border-(--border-subtle) bg-(--surface) px-2 py-1.5 font-semibold text-(--foreground)">
         <Code2 className="text-(--info)" size={14} />
         <span>{module.module_name}</span>
         <span className="ml-auto border border-(--border-subtle) px-2 py-0.5 text-[10px] text-(--secondary)">
@@ -429,7 +431,7 @@ function ModuleSurfacePanel({
             : "Custom admin surface is discoverable. Rendering is waiting for a host renderer."}
         </p>
       )}
-      <dl className="grid grid-cols-[120px_minmax(0,1fr)] border-y border-(--border-subtle)">
+      <dl className="grid grid-cols-[120px_minmax(0,1fr)] border border-(--border-subtle) bg-(--surface)">
         {rows.map((row) => (
           <div className="contents" key={row.label}>
             <dt className="border-b border-(--border-subtle) bg-(--sidebar) px-2 py-1.5 text-(--muted)">
@@ -468,6 +470,7 @@ function DeclarativeSurface({
       {actions.length > 0 ? (
         <AdminActionWorkbench
           actions={actions}
+          className="border-0 bg-transparent p-0"
           moduleName={module.module_name}
         />
       ) : null}
@@ -481,13 +484,13 @@ function DeclarativeSurface({
           </div>
           {(page.sections ?? []).map((section) => (
             <section
-              className="border border-(--border-subtle) bg-(--background)"
+              className="grid gap-2 border-t border-(--border-subtle) pt-3 first:border-t-0 first:pt-0"
               key={section.name}
             >
-              <header className="border-b border-(--border-subtle) px-2 py-1.5 font-semibold">
+              <header className="font-semibold text-(--foreground)">
                 {section.label}
               </header>
-              <div className={cn("p-2", compact && "text-[11px]")}>
+              <div className={cn(compact && "text-[11px]")}>
                 <DeclarativeComponentView
                   component={section.component}
                   module={module}
@@ -599,7 +602,7 @@ function DeclarativeQueryValue({
   component: Extract<DeclarativeComponent, { kind: "query_value" }>;
   module: AdminModuleMetadata;
 }) {
-  const query = useQuery({
+  const { data, error, isError, isPending } = useQuery({
     queryKey: dataKeys.query(module.module_name, component.query),
     queryFn: () =>
       httpClient
@@ -610,20 +613,20 @@ function DeclarativeQueryValue({
     enabled: isApiMode() && moduleIsLoaded(module),
   });
 
-  if (query.isError) {
+  if (isError) {
     return (
       <p className="text-(--muted)">
-        Failed to load query: {String(query.error.message)}
+        Failed to load query: {String(error.message)}
       </p>
     );
   }
-  if (query.isPending) {
+  if (isPending) {
     return <p className="text-(--muted)">Loading…</p>;
   }
 
   const display = declarativeQueryDisplay(
     component.query,
-    query.data.data,
+    data.data,
     component.value_path
   );
   return (
