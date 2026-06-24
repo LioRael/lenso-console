@@ -17,6 +17,17 @@ const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.jo
 export const apiAuthToken =
   (import.meta.env.VITE_API_AUTH_TOKEN as string | undefined) ??
   (import.meta.env.DEV ? developmentApiAuthToken : undefined);
+export const consoleAccessTokenStorageKey = "runtime-console:access-token";
+
+export function storedConsoleAccessToken() {
+  return typeof window === "undefined"
+    ? undefined
+    : (window.localStorage.getItem(consoleAccessTokenStorageKey) ?? undefined);
+}
+
+export function runtimeApiAuthToken() {
+  return apiAuthToken ?? storedConsoleAccessToken();
+}
 
 export function runtimeConsoleApiPrefix(value = apiBaseUrl) {
   if (!value) {
@@ -47,8 +58,9 @@ export const httpClient = ky.create({
     beforeRequest: [
       ({ request }) => {
         request.headers.set("Accept", "application/json");
-        if (apiAuthToken) {
-          request.headers.set("Authorization", `Bearer ${apiAuthToken}`);
+        const token = runtimeApiAuthToken();
+        if (token) {
+          request.headers.set("Authorization", `Bearer ${token}`);
         }
       },
     ],

@@ -1,4 +1,4 @@
-import { apiAuthToken, isApiMode } from "../lib/http-client";
+import { isApiMode, runtimeApiAuthToken } from "../lib/http-client";
 
 const localConsoleCapabilities = [
   "runtime.stories.read",
@@ -31,7 +31,7 @@ export function consoleCapabilityProvider(
 ): readonly string[] {
   const resolvedApiMode = options.apiMode ?? isApiMode();
   const resolvedAuthToken =
-    "authToken" in options ? options.authToken : apiAuthToken;
+    "authToken" in options ? options.authToken : runtimeApiAuthToken();
   if (!resolvedApiMode) {
     return localConsoleCapabilities;
   }
