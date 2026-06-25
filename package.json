@@ -11,6 +11,7 @@
     "check": "pnpm package-readiness && pnpm check:console-packages && ultracite check --deny-warnings && pnpm test:local && pnpm typecheck:local && pnpm build:local",
     "check:console-packages": "node scripts/check-console-packages.mjs",
     "package-readiness": "node scripts/package-readiness.mjs",
+    "package:hosted-console": "node scripts/package-hosted-console.mjs",
     "create:module": "node scripts/run-lenso-cli.mjs module create",
     "create:console-package": "node scripts/create-console-package.mjs",
     "console-api-fixture": "sh scripts/runtime-console-api-fixture.sh",

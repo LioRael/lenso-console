@@ -1,0 +1,104 @@
+name: publish hosted console
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Runtime Console version from package.json
+        required: true
+        type: string
+      dry_run:
+        default: false
+        description: Build and package without creating the GitHub Release
+        required: true
+        type: boolean
+
+concurrency:
+  cancel-in-progress: false
+  group: publish-hosted-console
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lenso-runtime-console
+    steps:
+      - name: Checkout Runtime Console
+        uses: actions/checkout@v6
+        with:
+          path: lenso-runtime-console
+
+      - name: Checkout Lenso backend SDK
+        uses: actions/checkout@v6
+        with:
+          path: lenso
+          repository: LioRael/lenso
+          ssh-key: ${{ secrets.LENSO_REPO_DEPLOY_KEY }}
+
+      - name: Checkout auth console package
+        uses: actions/checkout@v6
+        with:
+          path: lenso-auth-module
+          repository: LioRael/lenso-auth-module
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: lenso-runtime-console/package.json
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          cache-dependency-path: lenso-runtime-console/pnpm-lock.yaml
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify publish input
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Publish workflow must run from main, got ${GITHUB_REF}."
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          if [ "${package_version}" != "${{ inputs.version }}" ]; then
+            echo "Input version ${{ inputs.version }} does not match package.json version ${package_version}."
+            exit 1
+          fi
+
+      - name: Build hosted console
+        run: LENSO_CONSOLE_BASE=/console/ pnpm build:local
+
+      - name: Package hosted console
+        env:
+          LENSO_RUNTIME_CONSOLE_VERSION: ${{ inputs.version }}
+        run: pnpm package:hosted-console
+
+      - name: Upload dry-run artifact
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lenso-runtime-console-${{ inputs.version }}
+          path: |
+            lenso-runtime-console/dist/release/lenso-runtime-console.tar.gz
+            lenso-runtime-console/dist/release/lenso-runtime-console.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Lenso Runtime Console ${{ inputs.version }}" \
+            --notes "Hosted Runtime Console artifact for \`lenso host update-console --console-version ${{ inputs.version }}\`." \
+            dist/release/lenso-runtime-console.tar.gz \
+            dist/release/lenso-runtime-console.tar.gz.sha256
