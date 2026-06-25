@@ -77,6 +77,28 @@ export interface ConsoleAdminListResponse {
   };
 }
 
+export interface ConsoleConfigValue {
+  desired_value: unknown;
+  effective_value: unknown;
+  key: string;
+  pending_restart: boolean;
+  source: string;
+  value: unknown;
+}
+
+export interface ConsoleConfigValueListResponse {
+  data: ConsoleConfigValue[];
+}
+
+export interface ConsoleConfigWriteResponse {
+  applies_on_restart: boolean;
+  key: string;
+  service: string;
+  updated_at: string;
+  updated_by?: string | null;
+  value: unknown;
+}
+
 export type RuntimeStatus =
   | "pending"
   | "processing"
@@ -202,6 +224,19 @@ export interface RuntimeConsoleHostApi {
       limit?: number;
       moduleName: string;
     }) => ConsoleQueryResult<ConsoleAdminListResponse>;
+  };
+  config: {
+    useValues: () => ConsoleQueryResult<ConsoleConfigValueListResponse>;
+    useWriteValue: () => {
+      error: Error;
+      isError: boolean;
+      isPending: boolean;
+      mutate: (request: {
+        key: string;
+        service: string;
+        value: unknown;
+      }) => void;
+    };
   };
   context: {
     useRuntimeConsole: () => {

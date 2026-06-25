@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import {
+  consoleConfigQueryKeys,
+  useConsoleConfigValues,
+} from "../app/console-config-api";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Drawer } from "../components/ui/drawer";
@@ -19,7 +23,6 @@ import type {
   ConfigDescriptorListResponse,
   ConfigGroupDto,
   ConfigValueDto,
-  ConfigValueListResponse,
   ConfigWriteResponse,
 } from "../hooks/runtime-api-types";
 import { time } from "../lib/format";
@@ -62,7 +65,7 @@ type ConfigSection = {
 
 const configQueryKeys = {
   descriptors: ["config", "descriptors"] as const,
-  values: ["config", "values"] as const,
+  values: consoleConfigQueryKeys.values,
   audit: (service: string, key: string) =>
     ["config", "audit", service, key] as const,
 };
@@ -119,15 +122,6 @@ function useConfigDescriptors() {
   });
 }
 
-function useConfigValues() {
-  return useQuery({
-    enabled: isApiMode(),
-    queryKey: configQueryKeys.values,
-    queryFn: () =>
-      httpClient.get("admin/config/values").json<ConfigValueListResponse>(),
-  });
-}
-
 export function ConfigPage() {
   if (!isApiMode()) {
     return <DeferredConfig />;
@@ -137,7 +131,7 @@ export function ConfigPage() {
 
 function ConfigContent() {
   const descriptorsQuery = useConfigDescriptors();
-  const valuesQuery = useConfigValues();
+  const valuesQuery = useConsoleConfigValues();
   const [auditTarget, setAuditTarget] = useState<ConfigRow | null>(null);
   const [restartStatus, setRestartStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
