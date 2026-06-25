@@ -1,6 +1,6 @@
 {
   "name": "@lenso/runtime-console-api",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Runtime Console API surface for Lenso console packages.",
   "keywords": [
     "console-package",

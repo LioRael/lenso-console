@@ -27,12 +27,20 @@ import {
   useConsoleAdminAction,
   useConsoleAdminRecords,
 } from "./console-admin-data-api";
+import {
+  useConsoleConfigValues,
+  useWriteConsoleConfigValue,
+} from "./console-config-api";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 
 export const runtimeConsoleHostApi = {
   adminData: {
     useInvokeAction: useConsoleAdminAction,
     useRecords: useConsoleAdminRecords,
+  },
+  config: {
+    useValues: useConsoleConfigValues,
+    useWriteValue: useWriteConsoleConfigValue,
   },
   modules: {
     useMetadata: useConsoleModulesMetadata,
@@ -82,6 +90,11 @@ export type {
   ConsoleAdminListResponse,
   ConsoleAdminRecord,
 } from "./console-admin-data-api";
+export type {
+  ConsoleConfigValue,
+  ConsoleConfigValueListResponse,
+  ConsoleConfigWriteResponse,
+} from "./console-config-api";
 export type { ConsoleModuleMetadata } from "./console-module-resolver";
 export type { ExecutionInspectorTab } from "../components/runtime/execution-inspector-model";
 export type { StoryViewMode } from "../components/runtime/story-tabs";

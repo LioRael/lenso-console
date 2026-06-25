@@ -21,15 +21,17 @@ const archive = path.join(outDir, "lenso-runtime-console.tar.gz");
 const checksum = `${archive}.sha256`;
 const distRoot = path.join(root, "dist");
 
-const exists = async (filePath) =>
-  stat(filePath)
-    .then(() => true)
-    .catch((error) => {
-      if (error.code === "ENOENT") {
-        return false;
-      }
-      throw error;
-    });
+const exists = async (filePath) => {
+  try {
+    await stat(filePath);
+    return true;
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+};
 
 if (!(await exists(path.join(distRoot, "index.html")))) {
   throw new Error("dist/index.html is missing; run pnpm build:local first");
