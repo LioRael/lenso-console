@@ -1,5 +1,5 @@
 import { LogIn } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { Button } from "../components/ui/button";
 import {
@@ -22,6 +22,11 @@ type OidcMetadata = {
 
 type OidcTokenResponse = {
   access_token: string;
+};
+
+type PasswordLoginInput = {
+  identifier: string;
+  password: string;
 };
 
 export function consoleOidcCallbackPath(baseUrl = import.meta.env.BASE_URL) {
@@ -56,6 +61,8 @@ export function oidcAuthIsRequired() {
 export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const isCallback =
     typeof window !== "undefined" &&
     window.location.pathname === consoleOidcCallbackPath();
@@ -69,6 +76,24 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
       setBusy(false);
       setAuthError(
         error instanceof Error ? error.message : "OIDC login failed"
+      );
+    }
+  }
+
+  async function handlePasswordSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setAuthError(null);
+    try {
+      await loginWithPassword({
+        identifier: identifier.trim(),
+        password,
+      });
+      await beginConsoleOidcLogin();
+    } catch (error: unknown) {
+      setBusy(false);
+      setAuthError(
+        error instanceof Error ? error.message : "Password login failed"
       );
     }
   }
@@ -111,13 +136,76 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
             {authError}
           </p>
         ) : null}
-        <Button className="mt-5 w-full" disabled={busy} onClick={handleSignIn}>
-          <LogIn aria-hidden="true" className="size-3.5" />
-          {busy ? "Signing in" : "Sign in"}
+        <form className="mt-5 grid gap-3" onSubmit={handlePasswordSignIn}>
+          <label className="grid gap-1.5 text-xs font-medium text-(--fg-secondary)">
+            <span>Identifier</span>
+            <input
+              aria-label="Identifier"
+              autoComplete="username"
+              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover)"
+              onChange={(event) => setIdentifier(event.target.value)}
+              required
+              value={identifier}
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs font-medium text-(--fg-secondary)">
+            <span>Password</span>
+            <input
+              aria-label="Password"
+              autoComplete="current-password"
+              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover)"
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
+          </label>
+          <Button className="w-full" disabled={busy} type="submit">
+            <LogIn aria-hidden="true" className="size-3.5" />
+            {busy ? "Signing in" : "Sign in"}
+          </Button>
+        </form>
+        <Button
+          className="mt-2 w-full"
+          disabled={busy}
+          onClick={handleSignIn}
+          variant="ghost"
+        >
+          Continue with existing session
         </Button>
       </section>
     </main>
   );
+}
+
+export function consolePasswordLoginUrl(
+  prefix = runtimeConsoleApiPrefix()
+): string {
+  if (!prefix) {
+    throw new Error("Runtime Console API base URL is not configured");
+  }
+  return `${prefix === "/" ? "" : prefix}/v1/auth/password/login`;
+}
+
+export function passwordLoginBody(input: PasswordLoginInput): string {
+  return JSON.stringify(input);
+}
+
+async function loginWithPassword(input: PasswordLoginInput) {
+  const response = await fetch(consolePasswordLoginUrl(), {
+    body: passwordLoginBody(input),
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(
+      await responseErrorMessage(response, "Password login failed")
+    );
+  }
 }
 
 async function beginConsoleOidcLogin() {
@@ -176,6 +264,7 @@ async function completeConsoleOidcLogin() {
   });
   const response = await fetch(metadata.token_endpoint, {
     body,
+    credentials: "include",
     headers: { Accept: "application/json" },
     method: "POST",
   });
@@ -215,6 +304,21 @@ async function fetchOidcMetadata() {
     throw new Error("OIDC provider is not available");
   }
   return (await response.json()) as OidcMetadata;
+}
+
+async function responseErrorMessage(response: Response, fallback: string) {
+  const body = await response.json().catch(() => undefined);
+  if (
+    body &&
+    typeof body === "object" &&
+    "error" in body &&
+    body.error &&
+    typeof body.error === "object" &&
+    "message" in body.error
+  ) {
+    return String(body.error.message);
+  }
+  return fallback;
 }
 
 async function pkceS256Challenge(verifier: string) {

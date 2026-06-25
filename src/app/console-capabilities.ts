@@ -6,10 +6,19 @@ const localConsoleCapabilities = [
   "identity.users.read",
 ] as const;
 
+function normalizedAuthToken(token: string): string {
+  return token.startsWith("Bearer ") ? token.slice("Bearer ".length) : token;
+}
+
+function isDevelopmentAuthToken(token: string): boolean {
+  const normalized = normalizedAuthToken(token);
+  return (
+    normalized.startsWith("dev-service:") || normalized.startsWith("dev-user:")
+  );
+}
+
 export function parseDevAuthTokenScopes(token: string): string[] {
-  const normalized = token.startsWith("Bearer ")
-    ? token.slice("Bearer ".length)
-    : token;
+  const normalized = normalizedAuthToken(token);
   const serviceToken = normalized.startsWith("dev-service:")
     ? normalized.slice("dev-service:".length)
     : normalized.startsWith("dev-user:")
@@ -37,6 +46,9 @@ export function consoleCapabilityProvider(
   }
   if (!resolvedAuthToken) {
     return [];
+  }
+  if (!isDevelopmentAuthToken(resolvedAuthToken)) {
+    return localConsoleCapabilities;
   }
   return parseDevAuthTokenScopes(resolvedAuthToken);
 }
