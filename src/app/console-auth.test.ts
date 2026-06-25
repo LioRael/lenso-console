@@ -4,6 +4,8 @@ import {
   base64UrlNoPadding,
   consoleOidcCallbackPath,
   consoleOidcRedirectUri,
+  consolePasswordLoginUrl,
+  passwordLoginBody,
 } from "./console-auth";
 
 describe("console OIDC auth", () => {
@@ -17,5 +19,23 @@ describe("console OIDC auth", () => {
 
   test("uses unpadded base64url for PKCE values", () => {
     expect(base64UrlNoPadding(new Uint8Array([0xfb, 0xff]))).toBe("-_8");
+  });
+
+  test("builds password login requests against the configured API prefix", () => {
+    expect(consolePasswordLoginUrl("/")).toBe("/v1/auth/password/login");
+    expect(consolePasswordLoginUrl("https://api.example.com")).toBe(
+      "https://api.example.com/v1/auth/password/login"
+    );
+    expect(
+      passwordLoginBody({
+        identifier: "admin@example.com",
+        password: "secret",
+      })
+    ).toBe(
+      JSON.stringify({
+        identifier: "admin@example.com",
+        password: "secret",
+      })
+    );
   });
 });

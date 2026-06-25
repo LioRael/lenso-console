@@ -43,6 +43,19 @@ describe("console capabilities", () => {
     ]);
   });
 
+  test("uses baseline capabilities for opaque API tokens", () => {
+    expect(
+      consoleCapabilityProvider({
+        apiMode: true,
+        authToken: "oidc_access_123",
+      })
+    ).toEqual([
+      "runtime.stories.read",
+      "auth.users.read",
+      "identity.users.read",
+    ]);
+  });
+
   test("has no API-mode capabilities when no auth token is configured", () => {
     expect(
       consoleCapabilityProvider({
