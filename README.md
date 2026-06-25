@@ -63,6 +63,16 @@ cd ../lenso-runtime-console
 VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
 ```
 
+Package the hosted console artifact consumed by `lenso host update-console`:
+
+```bash
+LENSO_CONSOLE_BASE=/console/ pnpm build:local
+pnpm package:hosted-console
+```
+
+The publish workflow uploads `lenso-runtime-console.tar.gz` to the Runtime
+Console GitHub Release. Hosts install it under `.lenso/console`.
+
 Override the development service token when needed:
 
 ```bash
