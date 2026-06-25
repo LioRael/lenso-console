@@ -180,6 +180,17 @@ describe("console module resolver", () => {
         packageName: "@lenso/story-console",
       },
     ]);
+    expect(
+      selectConsoleModulePackageReferences(metadata, {
+        availableCapabilities: ["*"],
+      })
+    ).toEqual([
+      {
+        exportName: "storyConsoleModule",
+        navigation: null,
+        packageName: "@lenso/story-console",
+      },
+    ]);
   });
 
   test("clears package navigation when backend metadata omits navigation", () => {

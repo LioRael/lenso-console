@@ -1,4 +1,8 @@
 import { isApiMode, runtimeApiAuthToken } from "../lib/http-client";
+import {
+  type ConsoleAdminContext,
+  useConsoleAdminContext,
+} from "./console-admin-context";
 
 const localConsoleCapabilities = [
   "runtime.stories.read",
@@ -34,10 +38,15 @@ export function parseDevAuthTokenScopes(token: string): string[] {
 
 export function consoleCapabilityProvider(
   options: {
+    adminContext?: ConsoleAdminContext | undefined;
     apiMode?: boolean;
     authToken?: string | undefined;
   } = {}
 ): readonly string[] {
+  if (options.adminContext) {
+    return options.adminContext.capabilities;
+  }
+
   const resolvedApiMode = options.apiMode ?? isApiMode();
   const resolvedAuthToken =
     "authToken" in options ? options.authToken : runtimeApiAuthToken();
@@ -54,5 +63,20 @@ export function consoleCapabilityProvider(
 }
 
 export function useConsoleCapabilities(): readonly string[] {
-  return consoleCapabilityProvider();
+  const adminContextQuery = useConsoleAdminContext();
+  const apiMode = isApiMode();
+  const authToken = runtimeApiAuthToken();
+
+  if (adminContextQuery.data) {
+    return adminContextQuery.data.capabilities;
+  }
+
+  if (apiMode && authToken && !isDevelopmentAuthToken(authToken)) {
+    return [];
+  }
+
+  return consoleCapabilityProvider({
+    apiMode,
+    authToken,
+  });
 }

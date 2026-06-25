@@ -56,6 +56,23 @@ describe("console capabilities", () => {
     ]);
   });
 
+  test("uses admin context capabilities before token fallbacks", () => {
+    expect(
+      consoleCapabilityProvider({
+        adminContext: {
+          actor: {
+            kind: "user",
+            user_id: "usr_admin",
+          },
+          capabilities: ["console.admin"],
+          scopes: ["console.admin"],
+        },
+        apiMode: true,
+        authToken: "oidc_access_123",
+      })
+    ).toEqual(["console.admin"]);
+  });
+
   test("has no API-mode capabilities when no auth token is configured", () => {
     expect(
       consoleCapabilityProvider({

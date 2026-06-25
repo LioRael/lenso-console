@@ -165,6 +165,37 @@ describe("runtime console bundles", () => {
     ).resolves.toEqual([]);
   });
 
+  test("treats wildcard capability as full bundle access", async () => {
+    const importModule = vi.fn().mockResolvedValue({
+      crmConsoleModule: crmModule,
+    });
+
+    await expect(
+      runtimeConsoleBundlePackages(
+        {
+          bundles: [
+            {
+              ...crmBundle,
+              requiredCapabilities: ["crm.read"],
+            },
+          ],
+          version: 1,
+        },
+        {
+          availableCapabilities: ["*"],
+          importModule,
+          origin: "http://lenso.test",
+        }
+      )
+    ).resolves.toEqual([
+      expect.objectContaining({
+        exportName: "crmConsoleModule",
+        module: crmModule,
+        packageName: "@vendor/crm-console",
+      }),
+    ]);
+  });
+
   test("treats a missing registry as no runtime bundles", async () => {
     const fetchJson = vi.fn().mockResolvedValue(
       new Response("not found", {

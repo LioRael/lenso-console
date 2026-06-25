@@ -1,4 +1,5 @@
 import { installedConsolePackages } from "../console-package-installs";
+import { hasConsoleCapability } from "./console-capability-matching";
 import type {
   ConsoleModule,
   ConsoleNavigationMetadata,
@@ -159,7 +160,7 @@ export function selectConsoleModulePackageReferences(
       if (
         availableCapabilities &&
         !requiredCapabilities.every((capability) =>
-          availableCapabilities.has(capability)
+          hasConsoleCapability(availableCapabilities, capability)
         )
       ) {
         return [];

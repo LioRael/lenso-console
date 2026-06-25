@@ -1,3 +1,4 @@
+import { hasConsoleCapability } from "./console-capability-matching";
 import type { ConsoleModule } from "./console-module-api";
 import {
   defineInstalledConsolePackage,
@@ -120,7 +121,7 @@ function bundleHasCapabilities(
   }
   const available = new Set(availableCapabilities);
   return (bundle.requiredCapabilities ?? []).every((capability) =>
-    available.has(capability)
+    hasConsoleCapability(available, capability)
   );
 }
 

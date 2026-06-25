@@ -50,6 +50,20 @@ export function runtimeConsoleDataSource() {
   return isApiMode() ? "api" : "mock";
 }
 
+export function lensoApiErrorMessage(body: unknown): string | undefined {
+  if (
+    body &&
+    typeof body === "object" &&
+    "error" in body &&
+    body.error &&
+    typeof body.error === "object" &&
+    "message" in body.error
+  ) {
+    return String(body.error.message);
+  }
+  return undefined;
+}
+
 const runtimeConsolePrefix = runtimeConsoleApiPrefix();
 
 export const httpClient = ky.create({
@@ -71,15 +85,9 @@ export const httpClient = ky.create({
         }
 
         const body = await error.response.json().catch(() => undefined);
-        if (
-          body &&
-          typeof body === "object" &&
-          "error" in body &&
-          body.error &&
-          typeof body.error === "object" &&
-          "message" in body.error
-        ) {
-          error.message = String(body.error.message);
+        const message = lensoApiErrorMessage(body);
+        if (message) {
+          error.message = message;
         }
         return error;
       },
