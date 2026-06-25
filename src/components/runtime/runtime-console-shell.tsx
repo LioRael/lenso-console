@@ -27,6 +27,10 @@ import {
 } from "react";
 import type { ComponentType, CSSProperties, PropsWithChildren } from "react";
 
+import {
+  consoleAdminActorLabel,
+  useConsoleAdminContext,
+} from "../../app/console-admin-context";
 import { useConsoleNavigation } from "../../app/console-module-metadata";
 import type {
   ConsoleNavigationItem,
@@ -40,7 +44,7 @@ import {
   SYSTEM_WORKSPACE,
 } from "../../app/console-workspace-navigation";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
-import { runtimeConsoleDataSource } from "../../lib/http-client";
+import { isApiMode, runtimeConsoleDataSource } from "../../lib/http-client";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { CommandPalette } from "./command-palette";
@@ -399,14 +403,8 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
               ⌘K
             </span>
           </Button>
-          <Badge className="h-7 text-[11px] max-lg:hidden">
-            <Activity size={13} />
-            local
-          </Badge>
-          <Badge className="h-7 text-[11px] max-lg:hidden">
-            <Command size={13} />
-            service:admin
-          </Badge>
+          <ConsoleDataSourceBadge />
+          <ConsoleAdminContextBadge />
         </header>
         <div className="h-[calc(100vh-44px)] overflow-hidden">{children}</div>
       </main>
@@ -414,6 +412,76 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
       <CommandPalette onToggleTheme={toggleTheme} theme={theme} />
     </div>
   );
+}
+
+function ConsoleDataSourceBadge() {
+  const source = runtimeConsoleDataSource();
+
+  return (
+    <Badge className="h-7 text-[11px] max-lg:hidden" title={`data: ${source}`}>
+      <Activity size={13} />
+      {source}
+    </Badge>
+  );
+}
+
+function ConsoleAdminContextBadge() {
+  const adminContextQuery = useConsoleAdminContext();
+  const apiMode = isApiMode();
+  const context = adminContextQuery.data;
+  const label = context
+    ? `${consoleAdminActorLabel(context.actor)} / ${capabilityCountLabel(
+        context.capabilities
+      )}`
+    : apiMode
+      ? adminContextQuery.isError
+        ? "permission needed"
+        : "checking actor"
+      : "local actor";
+  const title = context
+    ? adminContextTitle(context)
+    : adminContextQuery.isError && adminContextQuery.error instanceof Error
+      ? adminContextQuery.error.message
+      : apiMode
+        ? "Loading Runtime Console admin actor context"
+        : "Local mock Runtime Console capabilities";
+
+  return (
+    <Badge
+      className={`h-7 max-w-[260px] overflow-hidden text-[11px] max-lg:hidden ${
+        adminContextQuery.isError ? "text-[var(--tone-error-fg)]" : ""
+      }`}
+      title={title}
+    >
+      <Shield size={13} />
+      <span className="min-w-0 truncate">{label}</span>
+    </Badge>
+  );
+}
+
+function capabilityCountLabel(capabilities: readonly string[]) {
+  if (capabilities.includes("*")) {
+    return "all capabilities";
+  }
+  return `${capabilities.length} ${
+    capabilities.length === 1 ? "capability" : "capabilities"
+  }`;
+}
+
+function adminContextTitle(context: {
+  actor: Parameters<typeof consoleAdminActorLabel>[0];
+  capabilities: readonly string[];
+  scopes: readonly string[];
+}) {
+  const scopes = context.scopes.length > 0 ? context.scopes.join(", ") : "none";
+  const capabilities =
+    context.capabilities.length > 0 ? context.capabilities.join(", ") : "none";
+
+  return [
+    `actor: ${consoleAdminActorLabel(context.actor)}`,
+    `scopes: ${scopes}`,
+    `capabilities: ${capabilities}`,
+  ].join("\n");
 }
 
 function WorkspaceSwitcher({
