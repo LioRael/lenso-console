@@ -79,9 +79,9 @@ Override the development service token when needed:
 VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write pnpm dev
 ```
 
-## Remote Module API QA
+## Service Module API QA
 
-From the repo root, start a full remote-module Runtime Console demo:
+From the repo root, start a full service-module Runtime Console demo:
 
 ```bash
 just console-api-demo
@@ -156,7 +156,7 @@ package in the same command:
 pnpm create:module billing --with-console
 ```
 
-For a third-party remote package that should not compile into the host
+For a third-party service module that should not compile into the host
 workspace, use the remote scaffold:
 
 ```bash
@@ -169,7 +169,8 @@ flow. The older `pnpm demo:remote-module-install` command is kept as an alias.
 See `docs/remote-module-install-flow.md` for the full host and module author
 workflow.
 
-Runnable examples that use the published `@lenso/remote-module-kit` package live in
+Runnable service module examples that use the published
+`@lenso/remote-module-kit` package live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos
 in this repository remain release and CLI fixtures for the Runtime Console
 workspace.

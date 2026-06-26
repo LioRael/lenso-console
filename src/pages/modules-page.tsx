@@ -28,8 +28,10 @@ import {
   applyAvailableModuleInstallResponse,
   availableModulesRows,
   fetchAvailableModules,
+  fetchServiceModuleLifecycle,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
+  serviceModuleLifecycleQueryKey,
   uninstallAvailableModule,
 } from "../data/available-modules";
 import { useBrowserUrlPopState } from "../hooks/use-browser-url-state";
@@ -56,10 +58,13 @@ import {
   type AvailableModuleInstallStepKey,
   type AvailableModuleInstallStepStatus,
   type AvailableModuleRow,
+  type ServiceModuleLifecycleModule,
+  type ServiceModuleLifecycleResponse,
   availableModuleDoctorChecks,
   availableModuleHandoffState,
   availableModuleInstallSteps,
   availableModuleRowsFromResponse,
+  serviceModuleLifecycleModuleFor,
 } from "./available-modules-model";
 import {
   type AdminModuleMetadata,
@@ -231,6 +236,11 @@ function ModulesContent() {
     queryKey: availableModulesQueryKey,
     queryFn: () => fetchAvailableModules(),
   });
+  const { data: serviceLifecycleData } = useQuery({
+    enabled: isApiMode(),
+    queryKey: serviceModuleLifecycleQueryKey,
+    queryFn: () => fetchServiceModuleLifecycle(),
+  });
   const refreshMutation = useMutation({
     mutationFn: () =>
       httpClient.post("admin/data/modules/refresh").json<ModulesResponse>(),
@@ -312,6 +322,12 @@ function ModulesContent() {
         filteredModules[0] ??
         null)
       : null;
+  const selectedServiceLifecycle = selectedModule
+    ? serviceModuleLifecycleModuleFor(
+        selectedModule.module_name,
+        serviceLifecycleData ?? null
+      )
+    : null;
 
   useBrowserUrlPopState((search) => {
     setPanel(initialModulesPageMode(search.toString()));
@@ -480,6 +496,7 @@ function ModulesContent() {
               onUninstall={(moduleName) => uninstallMutation.mutate(moduleName)}
               panelState={availableModulePanelState}
               rows={availableModuleRows}
+              serviceLifecycle={serviceLifecycleData ?? null}
               uninstallingModuleName={
                 uninstallMutation.isPending
                   ? (uninstallMutation.variables ?? null)
@@ -491,6 +508,7 @@ function ModulesContent() {
               configValues={configValues}
               history={modulesData?.refresh_history ?? []}
               module={selectedModule}
+              serviceLifecycleModule={selectedServiceLifecycle}
             />
           ) : (
             <p className="text-(--muted)">
@@ -807,6 +825,7 @@ function ModuleMarketplaceDetail({
   onUninstall,
   panelState,
   rows,
+  serviceLifecycle,
   uninstallError,
   uninstallErrorModuleName,
   uninstallingModuleName,
@@ -820,6 +839,7 @@ function ModuleMarketplaceDetail({
   onUninstall: (moduleName: string) => void;
   panelState: ReturnType<typeof availableModulesPanelState>;
   rows: AvailableModuleRow[];
+  serviceLifecycle?: ServiceModuleLifecycleResponse | null;
   uninstallError: string | null;
   uninstallErrorModuleName: string | null;
   uninstallingModuleName: string | null;
@@ -923,6 +943,10 @@ function ModuleMarketplaceDetail({
             const runningEnabled = installedModule
               ? moduleRunningEnabled(installedModule)
               : null;
+            const lifecycleModule = serviceModuleLifecycleModuleFor(
+              row.name,
+              serviceLifecycle ?? null
+            );
             const handoff = availableModuleHandoffState({
               installed: installedModule
                 ? {
@@ -955,6 +979,7 @@ function ModuleMarketplaceDetail({
               moduleRegistered: Boolean(installedModule),
               restartPending,
               row,
+              serviceLifecycle,
             });
 
             return (
@@ -974,6 +999,7 @@ function ModuleMarketplaceDetail({
                 onInstall={onInstall}
                 onUninstall={onUninstall}
                 row={row}
+                serviceLifecycleModule={lifecycleModule}
                 steps={installSteps}
                 uninstallError={
                   uninstallError && uninstallErrorModuleName === row.name
@@ -1058,6 +1084,7 @@ function MarketplaceModuleCard({
   onInstall,
   onUninstall,
   row,
+  serviceLifecycleModule,
   steps,
   uninstallError,
 }: {
@@ -1071,6 +1098,7 @@ function MarketplaceModuleCard({
   onInstall: (moduleName: string) => void;
   onUninstall: (moduleName: string) => void;
   row: AvailableModuleRow;
+  serviceLifecycleModule?: ServiceModuleLifecycleModule | null;
   steps: AvailableModuleInstallStep[];
   uninstallError: string | null;
 }) {
@@ -1108,7 +1136,7 @@ function MarketplaceModuleCard({
         </p>
       </header>
 
-      <div className="grid grid-cols-3 gap-1 text-center text-[10px]">
+      <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
         <MarketplaceSmallMetric
           label="capabilities"
           value={row.capabilityCount}
@@ -1121,6 +1149,15 @@ function MarketplaceModuleCard({
           label="preflight"
           tone={availableModuleCanInstallVisual(row) ? "default" : "error"}
           value={row.preflightLabel}
+        />
+        <MarketplaceSmallMetric
+          label="service"
+          tone={
+            serviceLifecycleModule && serviceLifecycleModule.status !== "ready"
+              ? "error"
+              : "default"
+          }
+          value={serviceLifecycleModule?.status ?? "n/a"}
         />
       </div>
 
@@ -1331,10 +1368,12 @@ function ModuleRegistryDetail({
   configValues,
   history,
   module,
+  serviceLifecycleModule,
 }: {
   configValues: ConfigValueMetadata[];
   history: ModuleRefreshRecord[];
   module: AdminModuleMetadata;
+  serviceLifecycleModule?: ServiceModuleLifecycleModule | null;
 }) {
   const availableCapabilities = useConsoleCapabilities();
   const routeRows = moduleHttpRouteRows(module);
@@ -1380,6 +1419,7 @@ function ModuleRegistryDetail({
         configValues={configValues}
         history={history}
         module={module}
+        serviceLifecycleModule={serviceLifecycleModule}
       />
       <ModuleActionsPanel module={module} />
       <ModuleGovernancePanel module={module} />
@@ -1554,10 +1594,12 @@ function ModuleOperationsPanel({
   configValues,
   history,
   module,
+  serviceLifecycleModule,
 }: {
   configValues: ConfigValueMetadata[];
   history: ModuleRefreshRecord[];
   module: AdminModuleMetadata;
+  serviceLifecycleModule?: ServiceModuleLifecycleModule | null;
 }) {
   const queryClient = useQueryClient();
   const [moduleToggleMessage, setModuleToggleMessage] = useState<string | null>(
@@ -1631,6 +1673,59 @@ function ModuleOperationsPanel({
       : moduleIsLoaded(module)
         ? "ready"
         : "blocked";
+  const serviceReadyCount =
+    serviceLifecycleModule?.services.filter((service) => service.ready)
+      .length ?? 0;
+  const serviceTotal = serviceLifecycleModule?.services.length ?? 0;
+  const serviceLifecycleRows = serviceLifecycleModule
+    ? [
+        {
+          label: "service lifecycle",
+          value: serviceLifecycleModule.status,
+        },
+        {
+          label: "service configured",
+          value: String(serviceLifecycleModule.configured),
+        },
+        {
+          label: "service loaded",
+          value: String(serviceLifecycleModule.loaded),
+        },
+        {
+          label: "service ready",
+          value:
+            serviceTotal > 0 ? `${serviceReadyCount}/${serviceTotal}` : "-",
+        },
+        {
+          label: "service manifest",
+          value: serviceLifecycleModule.manifestStatus,
+        },
+        {
+          label: "status endpoint",
+          value: serviceLifecycleModule.statusUrl ?? "-",
+        },
+        {
+          label: "service health",
+          value: serviceLifecycleModule.serviceStatus?.state ?? "-",
+        },
+        {
+          label: "health history",
+          value: String(serviceLifecycleModule.healthHistory?.length ?? 0),
+        },
+        {
+          label: "compatibility",
+          value: serviceLifecycleModule.compatibility?.state ?? "-",
+        },
+        {
+          label: "deployment",
+          value: serviceLifecycleModule.deployment?.target ?? "-",
+        },
+        {
+          label: "service fix",
+          value: serviceLifecycleModule.fixes[0] ?? "-",
+        },
+      ]
+    : [];
 
   return (
     <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
@@ -1652,6 +1747,18 @@ function ModuleOperationsPanel({
         >
           {operationStatus}
         </span>
+        {serviceLifecycleModule ? (
+          <span
+            className={cn(
+              "border px-1.5 py-0.5 text-[10px]",
+              serviceLifecycleModule.status === "ready"
+                ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)"
+                : "border-[color-mix(in_srgb,var(--warning)_55%,transparent)] text-(--warning)"
+            )}
+          >
+            service {serviceLifecycleModule.status}
+          </span>
+        ) : null}
         {restartPending ? (
           <span className="border border-[color-mix(in_srgb,var(--warning)_55%,transparent)] px-1.5 py-0.5 text-[10px] text-(--warning)">
             pending restart
@@ -1713,6 +1820,7 @@ function ModuleOperationsPanel({
             label: "restart pending",
             value: restartPending ? "true" : "false",
           },
+          ...serviceLifecycleRows,
           {
             label: "next step",
             value: restartPending

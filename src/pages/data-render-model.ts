@@ -923,7 +923,7 @@ export function remoteModuleReadiness(
   }
   return {
     latestFailure,
-    reasons: ["remote module is ready"],
+    reasons: ["service module is ready"],
     status: "ready",
   };
 }

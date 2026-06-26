@@ -129,6 +129,39 @@ describe("@lenso/remote-module-kit", () => {
     });
   });
 
+  test("defines service release metadata", () => {
+    expect(
+      defineRemoteModule({
+        compatibility: {
+          console_package_api: "1",
+          remote_protocol_version: "1",
+          required_host_features: ["service.status"],
+        },
+        name: "billing",
+        service: {
+          deployment: {
+            commands: ["docker compose up billing"],
+            target: "container",
+          },
+          name: "api",
+          required_env: ["BILLING_DATABASE_URL"],
+          status_path: "/lenso/module/v1/status",
+          transports: ["http"],
+        },
+      })
+    ).toMatchObject({
+      compatibility: {
+        console_package_api: "1",
+        remote_protocol_version: "1",
+      },
+      service: {
+        name: "api",
+        required_env: ["BILLING_DATABASE_URL"],
+        status_path: "/lenso/module/v1/status",
+      },
+    });
+  });
+
   test("defines HTTP route declarations", () => {
     expect(
       defineRemoteModule({
@@ -240,6 +273,13 @@ describe("@lenso/remote-module-kit", () => {
       ).resolves.toMatchObject({
         name: "billing",
         source: "remote",
+      });
+      await expect(
+        fetch(served.statusUrl).then((response) => response.json())
+      ).resolves.toMatchObject({
+        moduleName: "billing",
+        serviceName: "api",
+        state: "ready",
       });
       await expect(
         fetch(`${served.baseUrl}/missing`).then((response) => response.json())

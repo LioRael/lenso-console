@@ -1,6 +1,6 @@
 # @lenso/remote-module-kit
 
-Helpers for building out-of-process Lenso remote modules.
+Helpers for building out-of-process Lenso service modules.
 
 ```js
 import {
@@ -16,6 +16,11 @@ import {
 } from "@lenso/remote-module-kit";
 
 const manifest = defineRemoteModule({
+  compatibility: {
+    console_package_api: "1",
+    remote_protocol_version: "1",
+    required_host_features: ["service.status"],
+  },
   admin: declarativeCustom({
     actions: [
       adminAction("sync_contacts", {
@@ -40,6 +45,12 @@ const manifest = defineRemoteModule({
   httpRoutes: [getRoute("/contacts/{id}")],
   name: "crm",
   runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
+  service: {
+    name: "api",
+    status_path: "/lenso/module/v1/status",
+    transports: ["http"],
+    version: "0.1.0",
+  },
 });
 
 const server = await serveRemoteModule(manifest, {
@@ -53,7 +64,12 @@ const server = await serveRemoteModule(manifest, {
 });
 
 console.log(server.manifestUrl);
+console.log(server.statusUrl);
 ```
+
+`serveRemoteModule()` serves `GET /lenso/module/v1/status` by default. The host
+and CLI use it for service-module readiness diagnostics; modules can pass
+`status.checks` when they need to expose a small health summary.
 
 ## Scripts
 

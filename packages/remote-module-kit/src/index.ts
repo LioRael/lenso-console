@@ -39,6 +39,8 @@ export interface RemoteModuleManifest {
   name: string;
   version: string;
   source: "remote";
+  compatibility?: RemoteModuleCompatibility;
+  service?: RemoteModuleServiceMetadata;
   story_display: readonly RemoteStoryDisplayDescriptor[];
   capabilities: readonly string[];
   dependencies: readonly string[];
@@ -50,6 +52,60 @@ export interface RemoteModuleManifest {
   lifecycle?: RemoteLifecycleSurface;
   admin: unknown | null;
   console?: readonly RemoteModuleConsoleSurface[];
+}
+
+export interface RemoteModuleCompatibility {
+  console_package_api?: string;
+  lenso?: {
+    min_version?: string;
+    max_version?: string;
+  };
+  remote_protocol_version?: string;
+  required_host_features?: readonly string[];
+}
+
+export interface RemoteModuleDeploymentMetadata {
+  target?: string;
+  commands?: readonly string[];
+  compose_service?: string;
+}
+
+export interface RemoteModuleServiceMetadata {
+  deployment?: RemoteModuleDeploymentMetadata;
+  name?: string;
+  required_env?: readonly string[];
+  status_path?: string;
+  status_url?: string;
+  transports?: readonly string[];
+  version?: string;
+}
+
+export type RemoteModuleServiceStatusState = "ready" | "degraded" | "starting";
+
+export interface RemoteModuleServiceStatusCheck {
+  name: string;
+  status: "ok" | "warning" | "error";
+  detail?: string;
+}
+
+export interface RemoteModuleServiceStatus {
+  moduleName: string;
+  serviceName: string;
+  version: string;
+  protocolVersion: string;
+  transports: readonly string[];
+  state: RemoteModuleServiceStatusState;
+  checks: readonly RemoteModuleServiceStatusCheck[];
+  manifestUrl: string;
+}
+
+export interface RemoteModuleServiceStatusOptions {
+  checks?:
+    | readonly RemoteModuleServiceStatusCheck[]
+    | (() =>
+        | readonly RemoteModuleServiceStatusCheck[]
+        | Promise<readonly RemoteModuleServiceStatusCheck[]>);
+  state?: RemoteModuleServiceStatusState;
 }
 
 export type RemoteStoryDisplaySource =
@@ -353,6 +409,8 @@ export interface AdminEmbeddedSurface {
 export interface RemoteModuleDefinition {
   name: string;
   version?: string;
+  compatibility?: RemoteModuleCompatibility;
+  service?: RemoteModuleServiceMetadata;
   storyDisplay?: readonly RemoteStoryDisplayDescriptor[];
   capabilities?: readonly string[];
   dependencies?: readonly string[];
@@ -397,6 +455,7 @@ export type RemoteAdminActionHandler = (
 export interface ServedRemoteModule {
   baseUrl: string;
   manifestUrl: string;
+  statusUrl: string;
   server: HttpServer | Http2Server;
   close: () => Promise<void>;
 }
@@ -411,6 +470,7 @@ export interface ServeRemoteModuleOptions {
   http?: Record<string, RemoteHttpHandler>;
   runtime?: Record<string, RemoteRuntimeHandler>;
   events?: Record<string, RemoteEventHandler>;
+  status?: RemoteModuleServiceStatusOptions;
   onReady?: (server: ServedRemoteModule) => void;
 }
 
@@ -1044,6 +1104,9 @@ export const defineRemoteModule = (
   return {
     admin: definition.admin ?? null,
     capabilities: definition.capabilities ?? [],
+    ...(definition.compatibility
+      ? { compatibility: definition.compatibility }
+      : {}),
     console: definition.console ?? [],
     dependencies: definition.dependencies ?? [],
     ...(definition.eventHandlers
@@ -1055,6 +1118,7 @@ export const defineRemoteModule = (
     runtime: {
       functions: definition.runtimeFunctions ?? [],
     },
+    ...(definition.service ? { service: definition.service } : {}),
     source: "remote",
     story_display: definition.storyDisplay ?? [],
     version: definition.version ?? "0.1.0",
@@ -1289,6 +1353,36 @@ export const embeddedCustom = (
   kind: "embedded_custom",
 });
 
+const remoteModuleStatusChecks = async (
+  options: RemoteModuleServiceStatusOptions | undefined
+) => {
+  if (!options?.checks) {
+    return [{ name: "service", status: "ok" as const }];
+  }
+  return typeof options.checks === "function"
+    ? await options.checks()
+    : options.checks;
+};
+
+const remoteModuleStatusResponse = async ({
+  baseUrl,
+  manifest,
+  options,
+}: {
+  baseUrl: string;
+  manifest: RemoteModuleManifest;
+  options: RemoteModuleServiceStatusOptions | undefined;
+}): Promise<RemoteModuleServiceStatus> => ({
+  checks: await remoteModuleStatusChecks(options),
+  manifestUrl: `${baseUrl}/manifest`,
+  moduleName: manifest.name,
+  protocolVersion: manifest.compatibility?.remote_protocol_version ?? "1",
+  serviceName: manifest.service?.name ?? "api",
+  state: options?.state ?? "ready",
+  transports: manifest.service?.transports ?? ["http"],
+  version: manifest.service?.version ?? manifest.version,
+});
+
 export const serveRemoteModule = async (
   manifest: RemoteModuleManifest,
   options: ServeRemoteModuleOptions = {}
@@ -1297,10 +1391,25 @@ export const serveRemoteModule = async (
   const port = options.port ?? 4100;
   const basePath = normalizeBasePath(options.basePath ?? "/lenso/module/v1");
   const manifestPath = `${basePath}/manifest`;
+  const statusPath = `${basePath}/status`;
+  let servedBaseUrl = "";
 
   const server = createServer(async (request, response) => {
-    if (request.method === "GET" && request.url === manifestPath) {
+    const requestPath = new URL(request.url ?? "", "http://127.0.0.1").pathname;
+    if (request.method === "GET" && requestPath === manifestPath) {
       sendJson(response, 200, manifest);
+      return;
+    }
+    if (request.method === "GET" && requestPath === statusPath) {
+      sendJson(
+        response,
+        200,
+        await remoteModuleStatusResponse({
+          baseUrl: servedBaseUrl,
+          manifest,
+          options: options.status,
+        })
+      );
       return;
     }
     if (request.method === "GET") {
@@ -1376,6 +1485,7 @@ export const serveRemoteModule = async (
   const boundPort =
     typeof address === "object" && address ? address.port : port;
   const baseUrl = `http://${host}:${boundPort}${basePath}`;
+  servedBaseUrl = baseUrl;
   const served = {
     baseUrl,
     close: async () => {
@@ -1383,6 +1493,7 @@ export const serveRemoteModule = async (
       await once(server, "close");
     },
     manifestUrl: `${baseUrl}/manifest`,
+    statusUrl: `${baseUrl}/status`,
     server,
   } satisfies ServedRemoteModule;
 
@@ -1422,6 +1533,7 @@ export const serveRemoteModuleGrpc = async (
     },
     manifestUrl: `${baseUrl}${GRPC_PATHS.getManifest}`,
     server,
+    statusUrl: `${baseUrl}/lenso.remote.v1.RemoteModule/GetStatus`,
   } satisfies ServedRemoteModule;
 
   options.onReady?.(served);

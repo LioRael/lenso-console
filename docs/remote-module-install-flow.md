@@ -1,21 +1,21 @@
-# Remote Module Install Flow
+# Service Module Install Flow
 
 Use this flow when a third-party module should stay outside the host workspace
 but still contribute an already-built Runtime Console frontend bundle.
 
-For a runnable remote module that depends on published `@lenso/*` packages
+For a runnable service module that depends on published `@lenso/*` packages
 instead of workspace paths, see
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples).
 
 ## Module Author
 
-Create the standalone remote package:
+Create the standalone service module package:
 
 ```sh
 pnpm create:module billing --remote --output-dir ../module-packages
 ```
 
-Expose the remote module protocol from a stable base URL:
+Expose the service module protocol from a stable base URL:
 
 ```text
 GET https://example.com/lenso/module/v1/manifest
@@ -28,7 +28,7 @@ Publish or otherwise make the console bundle named by the manifest's
 
 Main path: `module install -> restart -> reload Runtime Console`.
 
-Install a remote module from the manifest URL:
+Install a service module from the manifest URL:
 
 ```sh
 lenso module install https://example.com/lenso/module/v1/manifest
@@ -53,7 +53,7 @@ manifest URL ends in `/manifest`, then writes host-local state:
 Expected CLI output points at the same short path:
 
 ```text
-Installed remote module billing.
+Installed service module billing.
 Updated:
 - .env
 - .lenso/console/extensions/registry.json

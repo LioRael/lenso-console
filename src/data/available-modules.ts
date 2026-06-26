@@ -5,6 +5,7 @@ import {
   type AvailableModuleLinkedSourceInstallState,
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
+  type ServiceModuleLifecycleResponse,
   availableModuleRowsFromResponse,
 } from "../pages/available-modules-model";
 
@@ -115,21 +116,156 @@ export const sampleAvailableModulesResponse = {
   version: 1,
 } satisfies AvailableModulesResponse;
 
+export const sampleServiceModuleLifecycleResponse = {
+  modules: [
+    {
+      baseUrl: "https://example.com/lenso/module/v1",
+      configured: true,
+      fixes: [],
+      installed: true,
+      loaded: true,
+      manifestStatus: "reachable",
+      manifestUrl: "https://example.com/lenso/module/v1/manifest",
+      moduleName: "billing",
+      restartPending: false,
+      compatibility: {
+        declared: {
+          consolePackageApi: "1",
+          lenso: {
+            minVersion: "0.1.0",
+          },
+        },
+        host: {
+          consolePackageApi: "1",
+          lensoVersion: "0.1.0",
+        },
+        issue: null,
+        fix: null,
+        overrideAllowed: false,
+        state: "compatible",
+      },
+      deployment: {
+        commands: ["docker compose up billing-api"],
+        target: "container-paas",
+      },
+      serviceStatus: {
+        checked: true,
+        checks: [{ name: "service", status: "ok" }],
+        error: null,
+        state: "ready",
+      },
+      healthHistory: [
+        {
+          checkedAtUnixMs: 1_771_963_200_000,
+          error: null,
+          moduleName: "billing",
+          state: "ready",
+          statusUrl: "https://example.com/lenso/module/v1/status",
+        },
+      ],
+      statusUrl: "https://example.com/lenso/module/v1/status",
+      services: [
+        {
+          autoStart: true,
+          lockFile: ".lenso/services/billing.lock",
+          name: "billing-api",
+          pidFile: ".lenso/services/billing.pid",
+          ready: true,
+          readyUrl: "https://example.com/lenso/module/v1/ready",
+        },
+      ],
+      status: "ready",
+    },
+    {
+      baseUrl: "http://127.0.0.1:4891/lenso/module/v1",
+      configured: true,
+      fixes: ["restart API and worker to load the configured service module"],
+      installed: true,
+      loaded: false,
+      manifestStatus: "reachable",
+      manifestUrl: "http://127.0.0.1:4891/lenso/module/v1/manifest",
+      moduleName: "support-ticket",
+      restartPending: true,
+      compatibility: {
+        declared: {
+          consolePackageApi: "1",
+        },
+        host: {
+          consolePackageApi: "1",
+          lensoVersion: "0.1.0",
+        },
+        issue: null,
+        fix: null,
+        overrideAllowed: false,
+        state: "compatible",
+      },
+      deployment: {
+        commands: ["pnpm --dir examples/support-ticket start"],
+        target: "container-paas",
+      },
+      serviceStatus: {
+        checked: true,
+        checks: [{ name: "service", status: "ok" }],
+        error: null,
+        state: "ready",
+      },
+      healthHistory: [
+        {
+          checkedAtUnixMs: 1_771_963_200_000,
+          error: null,
+          moduleName: "support-ticket",
+          state: "ready",
+          statusUrl: "http://127.0.0.1:4891/lenso/module/v1/status",
+        },
+      ],
+      statusUrl: "http://127.0.0.1:4891/lenso/module/v1/status",
+      services: [
+        {
+          autoStart: true,
+          lockFile: ".lenso/services/support-ticket.lock",
+          name: "support-ticket-api",
+          pidFile: ".lenso/services/support-ticket.pid",
+          ready: true,
+          readyUrl: "http://127.0.0.1:4891/lenso/module/v1/ready",
+        },
+      ],
+      status: "restart_pending",
+    },
+  ],
+  status: "needs_attention",
+  version: 1,
+} satisfies ServiceModuleLifecycleResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
+] as const;
+
+export const serviceModuleLifecycleQueryKey = [
+  "modules",
+  "service-module-lifecycle",
 ] as const;
 
 const marketplaceInstallCommand =
   "lenso module marketplace install <manifest-url>";
 
 export function moduleRefreshInvalidationQueryKeys() {
-  return [["modules", "registry"], availableModulesQueryKey] as const;
+  return [
+    ["modules", "registry"],
+    availableModulesQueryKey,
+    serviceModuleLifecycleQueryKey,
+  ] as const;
 }
 
 type AvailableModulesHttpClient = {
   get: (path: string) => {
     json: () => Promise<AvailableModulesResponse>;
+  };
+};
+
+type ServiceModuleLifecycleHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceModuleLifecycleResponse>;
   };
 };
 
@@ -168,6 +304,19 @@ export async function fetchAvailableModules({
     return client.get("admin/data/available-modules").json();
   }
   return sampleAvailableModulesResponse;
+}
+
+export async function fetchServiceModuleLifecycle({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceModuleLifecycleHttpClient;
+} = {}): Promise<ServiceModuleLifecycleResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-modules").json();
+  }
+  return sampleServiceModuleLifecycleResponse;
 }
 
 export async function installAvailableModule({
@@ -286,7 +435,7 @@ export function availableModulesPanelState({
       detail: "install a manifest URL to show modules here",
       moduleCount: 0,
       kind: "empty",
-      label: "no remote modules",
+      label: "no service modules",
       message: `No modules in ${source}.`,
       source,
     };

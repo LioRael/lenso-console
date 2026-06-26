@@ -4,6 +4,8 @@ import {
   type AvailableModuleInstallState,
   type AvailableModulesResponse,
   type AvailableModulesCatalog,
+  type ServiceModuleLifecycleResponse,
+  type ServiceModuleLifecycleModuleStatus,
   availableModuleDoctorChecks,
   availableModuleHandoffState,
   availableModuleInstallSteps,
@@ -88,6 +90,61 @@ function remoteInstallState(
     restartReason: null,
     runningBaseUrl: null,
     ...overrides,
+  };
+}
+
+function serviceLifecycle(
+  status: ServiceModuleLifecycleModuleStatus,
+  fixes: string[] = []
+): ServiceModuleLifecycleResponse {
+  return {
+    modules: [
+      {
+        baseUrl: "https://example.com/lenso/module/v1",
+        configured: true,
+        fixes,
+        installed: true,
+        loaded: status === "ready",
+        manifestStatus:
+          status === "manifest_unreachable" ? "unreachable" : "reachable",
+        manifestUrl: "https://example.com/lenso/module/v1/manifest",
+        moduleName: "billing",
+        restartPending: status === "restart_pending",
+        compatibility: {
+          declared: {
+            consolePackageApi: "1",
+          },
+          fix: null,
+          host: {
+            consolePackageApi: "1",
+            lensoVersion: "0.1.0",
+          },
+          issue: null,
+          overrideAllowed: false,
+          state: "compatible",
+        },
+        serviceStatus: {
+          checked: true,
+          checks: [{ name: "service", status: "ok" }],
+          error: null,
+          state: "ready",
+        },
+        statusUrl: "https://example.com/lenso/module/v1/status",
+        services: [
+          {
+            autoStart: true,
+            lockFile: ".lenso/services/billing.lock",
+            name: "billing-api",
+            pidFile: ".lenso/services/billing.pid",
+            ready: status !== "service_not_ready",
+            readyUrl: "https://example.com/lenso/module/v1/ready",
+          },
+        ],
+        status,
+      },
+    ],
+    status: status === "ready" ? "ready" : "needs_attention",
+    version: 1,
   };
 }
 
@@ -244,7 +301,8 @@ describe("available modules model", () => {
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
-          restartReason: "remote source configured in .env but not loaded",
+          restartReason:
+            "service module source configured in .env but not loaded",
         }),
       },
     };
@@ -254,7 +312,7 @@ describe("available modules model", () => {
       row,
     });
     expect(handoff).toMatchObject({
-      detail: "remote source configured in .env but not loaded",
+      detail: "service module source configured in .env but not loaded",
       kind: "restart_pending",
     });
     expect(
@@ -285,7 +343,8 @@ describe("available modules model", () => {
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
-          restartReason: "remote source configured in .env but not loaded",
+          restartReason:
+            "service module source configured in .env but not loaded",
         }),
       },
     };
@@ -295,7 +354,7 @@ describe("available modules model", () => {
     });
 
     expect(handoff).toMatchObject({
-      detail: "remote source configured in .env but not loaded",
+      detail: "service module source configured in .env but not loaded",
       kind: "restart_pending",
     });
     expect(
@@ -308,12 +367,12 @@ describe("available modules model", () => {
         row,
       })[3]
     ).toMatchObject({
-      evidence: "remote source configured in .env but not loaded",
+      evidence: "service module source configured in .env but not loaded",
       status: "current",
     });
   });
 
-  test("builds doctor checks for pending remote module install work", () => {
+  test("builds doctor checks for pending service module install work", () => {
     const [baseRow] = availableModuleRows(catalog);
     expect(baseRow).toBeDefined();
     const row = {
@@ -342,7 +401,8 @@ describe("available modules model", () => {
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
-          restartReason: "remote source configured in .env but not loaded",
+          restartReason:
+            "service module source configured in .env but not loaded",
         }),
       },
     };
@@ -370,7 +430,7 @@ describe("available modules model", () => {
     ).toBe("REMOTE_MODULES -> grpc://example.com:50051 (grpc)");
   });
 
-  test("builds clean doctor checks for installed remote modules", () => {
+  test("builds clean doctor checks for installed service modules", () => {
     const [baseRow] = availableModuleRows(catalog);
     expect(baseRow).toBeDefined();
     const row = {
@@ -400,6 +460,85 @@ describe("available modules model", () => {
       ["restart", "ok", null],
       ["doctor", "ok", "lenso module doctor"],
     ]);
+  });
+
+  test("adds service lifecycle doctor checks when Host exposes lifecycle state", () => {
+    const [baseRow] = availableModuleRows(catalog);
+    expect(baseRow).toBeDefined();
+    const row = {
+      ...baseRow!,
+      installState: {
+        ...baseInstallState,
+        moduleRegistered: true,
+        remoteSource: remoteInstallState({
+          configured: true,
+          desiredBaseUrl: "https://example.com/lenso/module/v1",
+          runningBaseUrl: "https://example.com/lenso/module/v1",
+        }),
+      },
+    };
+
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        moduleRegistered: true,
+        row,
+        serviceLifecycle: serviceLifecycle("ready"),
+      }).map((check) => [check.key, check.status, check.detail])
+    ).toContainEqual(["service", "ok", "service module is ready"]);
+
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        moduleRegistered: true,
+        row,
+        serviceLifecycle: serviceLifecycle("restart_pending", [
+          "restart API and worker",
+        ]),
+      }).map((check) => [check.key, check.status, check.detail])
+    ).toContainEqual(["service", "fix", "restart API and worker"]);
+
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        moduleRegistered: true,
+        row,
+        serviceLifecycle: serviceLifecycle("manifest_unreachable", [
+          "start the support-ticket service",
+        ]),
+      }).map((check) => [check.key, check.status, check.detail])
+    ).toContainEqual(["service", "fix", "start the support-ticket service"]);
+
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        moduleRegistered: true,
+        row,
+        serviceLifecycle: serviceLifecycle("stale_state", [
+          "remove stale lock file .lenso/services/billing.lock",
+        ]),
+      }).map((check) => [check.key, check.status, check.detail])
+    ).toContainEqual([
+      "service",
+      "fix",
+      "remove stale lock file .lenso/services/billing.lock",
+    ]);
+
+    const unreachable = serviceLifecycle("ready");
+    unreachable.modules[0]!.serviceStatus = {
+      checked: true,
+      checks: [],
+      error: "status endpoint returned HTTP 503",
+      state: "unreachable",
+    };
+    expect(
+      availableModuleDoctorChecks({
+        commands: installCommands,
+        moduleRegistered: true,
+        row,
+        serviceLifecycle: unreachable,
+      }).map((check) => [check.key, check.status, check.detail])
+    ).toContainEqual(["service", "fix", "status endpoint returned HTTP 503"]);
   });
 
   test("builds install wizard steps from handoff states", () => {
