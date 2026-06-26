@@ -63,7 +63,7 @@ cd ../lenso-runtime-console
 VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
 ```
 
-Package the hosted console artifact consumed by `lenso host update-console`:
+Package the hosted console artifact consumed by `lenso console update`:
 
 ```bash
 LENSO_CONSOLE_BASE=/console/ pnpm build:local
@@ -192,7 +192,7 @@ pnpm create:console-package billing
 The underlying CLI command is:
 
 ```bash
-lenso console-package create billing
+lenso console package create billing
 ```
 
 The generator also writes `console-surface.json` and `console-surface.rs` so the
