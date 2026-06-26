@@ -30,7 +30,7 @@ pnpm create:console-package billing
 ```
 
 The package scaffold generator is owned by the Rust `lenso` CLI. Use
-`lenso module create billing` and `lenso console-package create billing` for
+`lenso module create billing` and `lenso console package create billing` for
 command-style usage.
 
 Use `--dry-run` to preview file changes, and pass options such as
