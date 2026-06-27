@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { defineServiceContract, serviceEnv, serviceHealth } from "./index";
+import {
+  assertServiceContract,
+  defineServiceContract,
+  serviceContractSchema,
+  serviceEnv,
+  serviceHealth,
+  validateServiceContract,
+} from "./index";
 
 describe("defineServiceContract", () => {
   it("builds a provider service manifest with modules", () => {
@@ -40,6 +47,8 @@ describe("defineServiceContract", () => {
       },
       modules: [{ name: "support-ticket" }],
     });
+    expect(validateServiceContract(manifest)).toEqual([]);
+    expect(() => assertServiceContract(manifest)).not.toThrow();
   });
 
   it("defaults omitted config and env without replacing provided fields", () => {
@@ -57,5 +66,37 @@ describe("defineServiceContract", () => {
     expect(manifest.config).toEqual([]);
     expect(manifest.env).toEqual([]);
     expect(manifest.localProcess).toBe(localProcess);
+  });
+
+  it("exports the packaged service contract schema", () => {
+    expect(serviceContractSchema.title).toBe("LensoServiceContract");
+    expect(serviceContractSchema.required).toEqual(["name", "modules"]);
+  });
+
+  it("reports validation paths for malformed contracts", () => {
+    const issues = validateServiceContract({
+      install: {
+        services: [{ name: "support-suite-provider" }],
+      },
+      modules: [
+        {
+          capabilities: ["support_ticket.read", 42],
+          name: "support-ticket",
+        },
+        {
+          name: "support-ticket",
+        },
+      ],
+      name: "",
+    });
+
+    expect(issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining([
+        "$.name",
+        "$.install.services[0].command",
+        "$.modules[0].capabilities[1]",
+        "$.modules[1].name",
+      ])
+    );
   });
 });
