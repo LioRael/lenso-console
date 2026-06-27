@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Network } from "lucide-react";
 
 import {
@@ -91,12 +92,12 @@ function ServiceRow({ row }: { row: ServiceCenterRow }) {
       <ServiceStateBadge state={row.state} />
       <InlineList items={row.modules} />
       <InlineList items={row.managedServices} empty="external" />
-      <a
+      <Link
         className="text-(--accent) hover:underline"
-        href={serviceRemoteCallsPath(moduleName)}
+        to={serviceRemoteCallsPath(moduleName)}
       >
         Remote calls
-      </a>
+      </Link>
     </div>
   );
 }
@@ -108,7 +109,7 @@ function ServiceStateBadge({ state }: { state: string }) {
         "w-fit border px-1.5 py-0.5 text-[10px]",
         state === "ready" &&
           "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
-        state === "restart pending" &&
+        state === "restart_pending" &&
           "border-[color-mix(in_srgb,var(--warning)_55%,transparent)] text-(--warning)",
         state === "unhealthy" &&
           "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",

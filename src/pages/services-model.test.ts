@@ -37,6 +37,21 @@ describe("service center model", () => {
 
   it("labels unhealthy services", () => {
     expect(serviceStateLabel("unhealthy")).toBe("unhealthy");
+    expect(serviceStateLabel("restart_pending")).toBe("restart pending");
+  });
+
+  it("keeps restart pending as a canonical state", () => {
+    expect(
+      serviceCenterRows({
+        modules: [
+          {
+            moduleName: "support-ticket",
+            providerName: "support-suite-provider",
+            status: "restart_pending",
+          },
+        ],
+      })[0]?.state
+    ).toBe("restart_pending");
   });
 
   it("links to remote calls for a provider module", () => {

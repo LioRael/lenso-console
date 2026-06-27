@@ -72,7 +72,7 @@ export function providerState(modules: ServiceCenterModule[]) {
       (module) => module.status === "restart_pending" || module.restartPending
     )
   ) {
-    return "restart pending";
+    return "restart_pending";
   }
   if (modules.every((module) => module.status === "ready")) {
     return "ready";
