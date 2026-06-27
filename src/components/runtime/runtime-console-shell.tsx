@@ -98,6 +98,16 @@ const hostPrimaryNavItems = [
     path: "/operations",
   },
   {
+    icon: "network",
+    label: "Services",
+    moduleId: "host",
+    navigation: {
+      order: 85,
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/services",
+  },
+  {
     icon: "boxes",
     label: "Modules",
     moduleId: "host",
