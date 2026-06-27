@@ -23,7 +23,14 @@ describe("service center model", () => {
           moduleName: "support-ticket",
           providerName: "support-suite-provider",
           restartPending: false,
-          services: [{ name: "support-service", ready: true }],
+          services: [
+            {
+              autoStart: true,
+              name: "support-service",
+              ready: true,
+              readyUrl: "http://127.0.0.1:4110/lenso/service/v1/ready",
+            },
+          ],
           status: "ready",
         },
         {
@@ -36,7 +43,14 @@ describe("service center model", () => {
           moduleName: "support-notification",
           providerName: "support-suite-provider",
           restartPending: false,
-          services: [{ name: "support-service", ready: true }],
+          services: [
+            {
+              autoStart: true,
+              name: "support-service",
+              ready: true,
+              readyUrl: "http://127.0.0.1:4110/lenso/service/v1/ready",
+            },
+          ],
           status: "ready",
         },
       ],

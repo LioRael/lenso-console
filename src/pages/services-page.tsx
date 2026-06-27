@@ -21,6 +21,7 @@ export function ServicesPage() {
     queryFn: () => fetchServiceModuleLifecycle(),
   });
   const rows = serviceCenterRows(query.data ?? { modules: [] });
+  const attentionCount = rows.filter((row) => row.state !== "ready").length;
 
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas) text-(--fg-primary)">
@@ -50,9 +51,11 @@ export function ServicesPage() {
             tone={
               rows.some((row) => row.state === "unhealthy")
                 ? "error"
-                : "default"
+                : attentionCount > 0
+                  ? "warning"
+                  : "default"
             }
-            value={rows.filter((row) => row.state === "unhealthy").length}
+            value={attentionCount}
           />
         </div>
 
@@ -151,7 +154,7 @@ function Counter({
   value,
 }: {
   label: string;
-  tone?: "default" | "error";
+  tone?: "default" | "error" | "warning";
   value: number | string;
 }) {
   return (
@@ -160,7 +163,8 @@ function Counter({
       <span
         className={cn(
           "text-[13px] font-semibold text-(--fg-primary)",
-          tone === "error" && "text-(--tone-error-fg)"
+          tone === "error" && "text-(--tone-error-fg)",
+          tone === "warning" && "text-(--warning)"
         )}
       >
         {value}
