@@ -66,6 +66,10 @@ export type AvailableModulesResponseModule = {
   source: "remote" | string;
   catalogVersion: string;
   manifestReference: string;
+  providedBy?: string | null;
+  provided_by?: string | null;
+  serviceManifest?: string | null;
+  service_manifest?: string | null;
   summary?: string | null;
   archivedAt?: string;
   archiveReason?: string;
@@ -237,6 +241,8 @@ export type AvailableModuleRow = {
   version: string;
   source: string;
   manifestReference: string;
+  providerName?: string | null;
+  serviceManifest?: string | null;
   baseUrl: string;
   capabilityCount: number;
   consolePackageHintCount: number;
@@ -416,6 +422,8 @@ export function availableModuleRowsFromResponse(
       preflightLabel: statusLabel[preflight.status],
       preflightReason: preflight.reason,
       preflightStatus: preflight.status,
+      providerName: module.providedBy ?? module.provided_by ?? null,
+      serviceManifest: module.serviceManifest ?? module.service_manifest ?? null,
       source: module.source,
       summary: module.summary ?? "-",
       version: module.catalogVersion,
