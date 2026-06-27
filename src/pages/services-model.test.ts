@@ -71,6 +71,94 @@ describe("service center model", () => {
     expect(rows[0]?.remoteCallsPath).toContain("support-notification");
   });
 
+  it("groups provider operations from provided modules by operation id", () => {
+    const response = {
+      version: 1,
+      status: "ready",
+      modules: [
+        {
+          configured: true,
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-ticket",
+          operations: [
+            {
+              capability: "support_ticket.tickets.write",
+              kind: "admin_action",
+              links: {
+                remoteCalls: "/operations/remote-calls?module=support-ticket",
+                runtime: "/operations/functions?module=support-ticket",
+                story: "/?q=support-suite-provider",
+                technicalOperations: "/operations?q=support-suite-provider",
+              },
+              method: null,
+              moduleName: "support-ticket",
+              name: "assign_ticket",
+              nextAction: "add safeProbe metadata before active checks",
+              operationId: "support-ticket/action/assign_ticket",
+              path: null,
+              providerName: "support-suite-provider",
+              safeProbe: false,
+              summary: "Assign ticket",
+            },
+          ],
+          providerName: "support-suite-provider",
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+        {
+          configured: true,
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-notification",
+          operations: [
+            {
+              capability: null,
+              kind: "event_handler",
+              links: {
+                remoteCalls:
+                  "/operations/remote-calls?module=support-notification",
+                runtime: "/operations/functions?module=support-notification",
+                story: "/?q=support-suite-provider",
+                technicalOperations: "/operations?q=support-suite-provider",
+              },
+              method: null,
+              moduleName: "support-notification",
+              name: "ticket-created-handler",
+              nextAction: "add safeProbe metadata before active checks",
+              operationId: "support-notification/event/ticket-created-handler",
+              path: null,
+              providerName: "support-suite-provider",
+              safeProbe: false,
+              summary: "Ticket created",
+            },
+          ],
+          providerName: "support-suite-provider",
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+      ],
+    } satisfies ServiceModuleLifecycleResponse;
+
+    const rows = serviceCenterRows(response);
+
+    expect(
+      rows[0]?.operations.map((operation) => operation.operationId)
+    ).toEqual([
+      "support-notification/event/ticket-created-handler",
+      "support-ticket/action/assign_ticket",
+    ]);
+    expect(rows[0]?.operations[0]?.links.story).toBe(
+      "/?q=support-suite-provider"
+    );
+  });
+
   it("labels unhealthy services", () => {
     expect(serviceStateLabel("unhealthy")).toBe("unhealthy");
     expect(serviceStateLabel("restart_pending")).toBe("restart pending");

@@ -151,6 +151,35 @@ export type ServiceModuleDeployment = {
   composeService?: string | null;
 };
 
+export type ServiceOperationKind =
+  | "http_route"
+  | "runtime_function"
+  | "event_handler"
+  | "admin_action"
+  | string;
+
+export type ServiceOperationLinks = {
+  remoteCalls?: string | null;
+  runtime?: string | null;
+  story: string;
+  technicalOperations: string;
+};
+
+export type ServiceOperation = {
+  operationId: string;
+  providerName?: string | null;
+  moduleName: string;
+  kind: ServiceOperationKind;
+  name: string;
+  method?: string | null;
+  path?: string | null;
+  capability?: string | null;
+  summary?: string | null;
+  safeProbe: boolean;
+  links: ServiceOperationLinks;
+  nextAction: string;
+};
+
 export type ServiceModuleHealthCheck = {
   moduleName: string;
   checkedAtUnixMs: number;
@@ -176,6 +205,7 @@ export type ServiceModuleLifecycleModule = {
   compatibility?: ServiceModuleCompatibility;
   deployment?: ServiceModuleDeployment | null;
   services: ServiceModuleLifecycleService[];
+  operations?: ServiceOperation[];
   fixes: string[];
 };
 
@@ -423,7 +453,8 @@ export function availableModuleRowsFromResponse(
       preflightReason: preflight.reason,
       preflightStatus: preflight.status,
       providerName: module.providedBy ?? module.provided_by ?? null,
-      serviceManifest: module.serviceManifest ?? module.service_manifest ?? null,
+      serviceManifest:
+        module.serviceManifest ?? module.service_manifest ?? null,
       source: module.source,
       summary: module.summary ?? "-",
       version: module.catalogVersion,

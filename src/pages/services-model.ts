@@ -1,4 +1,5 @@
 import type {
+  ServiceOperation,
   ServiceModuleLifecycleModule,
   ServiceModuleLifecycleService,
 } from "./available-modules-model";
@@ -19,12 +20,13 @@ export type ServiceCenterModule = Pick<
       | "fixes"
       | "healthHistory"
       | "installed"
-  | "loaded"
-  | "manifestStatus"
-  | "manifestUrl"
-  | "moduleName"
-  | "providerName"
-  | "restartPending"
+      | "loaded"
+      | "manifestStatus"
+      | "manifestUrl"
+      | "moduleName"
+      | "operations"
+      | "providerName"
+      | "restartPending"
       | "serviceStatus"
       | "statusUrl"
     >
@@ -53,6 +55,7 @@ export type ServiceCenterRow = {
   modules: string[];
   managedServices: string[];
   nextAction: string;
+  operations: ServiceOperation[];
   operationsPath: string;
   remoteCallsPath: string;
   runtimePath: string;
@@ -99,6 +102,9 @@ export function serviceCenterRows(
           )
         ).sort(),
         nextAction: providerNextAction(modules),
+        operations: modules
+          .flatMap((module) => module.operations ?? [])
+          .sort((a, b) => a.operationId.localeCompare(b.operationId)),
         operationsPath: operationsPath("/operations", { q: providerName }),
         remoteCallsPath: serviceRemoteCallsPath(primaryModuleName),
         runtimePath: functionsPath({ moduleName: primaryModuleName }),
@@ -121,8 +127,9 @@ export function serviceCenterProviderDetail(
   providerName: string
 ) {
   return (
-    serviceCenterRows(response).find((row) => row.providerName === providerName) ??
-    null
+    serviceCenterRows(response).find(
+      (row) => row.providerName === providerName
+    ) ?? null
   );
 }
 

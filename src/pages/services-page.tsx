@@ -164,6 +164,9 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
       <DetailSection title="modules">
         <InlineList items={row.modules} />
       </DetailSection>
+      <DetailSection title="operations">
+        <OperationList operations={row.operations} />
+      </DetailSection>
       <DetailSection title="lifecycle">
         <DetailList
           items={row.moduleDetails.map(
@@ -223,10 +226,12 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
           items={[
             `${row.healthChecks} checks recorded`,
             ...row.moduleDetails.flatMap((module) =>
-              (module.healthHistory ?? []).slice(-2).map(
-                (check) =>
-                  `${module.moduleName}: ${check.state} @ ${check.statusUrl}`
-              )
+              (module.healthHistory ?? [])
+                .slice(-2)
+                .map(
+                  (check) =>
+                    `${module.moduleName}: ${check.state} @ ${check.statusUrl}`
+                )
             ),
           ]}
         />
@@ -266,6 +271,61 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
         <DetailList items={row.fixes.length > 0 ? row.fixes : ["-"]} />
       </DetailSection>
     </aside>
+  );
+}
+
+function OperationList({
+  operations,
+}: {
+  operations: ServiceCenterRow["operations"];
+}) {
+  if (operations.length === 0) {
+    return <span className="text-(--fg-tertiary)">-</span>;
+  }
+  return (
+    <div className="grid gap-2">
+      {operations.map((operation) => {
+        const label = `${operation.operationId} / ${operation.name}`;
+        const detail = operation.nextAction || operation.summary || "-";
+        return (
+          <div
+            className="grid gap-1 border-t border-(--line) pt-1 first:border-t-0 first:pt-0"
+            key={operation.operationId}
+          >
+            <div className="flex min-w-0 items-center gap-1 text-[10px] text-(--fg-tertiary)">
+              <span>{operation.kind.replaceAll("_", " ")}</span>
+              <span className="text-(--line-strong)">/</span>
+              <span>{operation.safeProbe ? "safe probe" : "no probe"}</span>
+            </div>
+            <span
+              className="min-w-0 truncate text-(--fg-primary)"
+              title={label}
+            >
+              {label}
+            </span>
+            <span
+              className="min-w-0 truncate text-(--fg-secondary)"
+              title={detail}
+            >
+              {detail}
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {operation.links.remoteCalls ? (
+                <DetailLink label="calls" to={operation.links.remoteCalls} />
+              ) : null}
+              {operation.links.runtime ? (
+                <DetailLink label="runtime" to={operation.links.runtime} />
+              ) : null}
+              <DetailLink label="story" to={operation.links.story} />
+              <DetailLink
+                label="ops"
+                to={operation.links.technicalOperations}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
