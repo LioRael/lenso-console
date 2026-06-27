@@ -41,4 +41,21 @@ describe("defineServiceContract", () => {
       modules: [{ name: "support-ticket" }],
     });
   });
+
+  it("defaults omitted config and env without replacing provided fields", () => {
+    const localProcess = {
+      command: "pnpm start",
+      env: { PORT: "4110" },
+    };
+
+    const manifest = defineServiceContract({
+      name: "support-suite-provider",
+      localProcess,
+      modules: [{ name: "support-ticket" }],
+    });
+
+    expect(manifest.config).toEqual([]);
+    expect(manifest.env).toEqual([]);
+    expect(manifest.localProcess).toBe(localProcess);
+  });
 });
