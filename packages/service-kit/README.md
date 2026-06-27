@@ -2,6 +2,37 @@
 
 Helpers for building Lenso services that provide one or more modules.
 
+```ts
+import {
+  defineModule,
+  defineService,
+  defineServiceContract,
+  serviceEnv,
+  serveService,
+} from "@lenso/service-kit";
+
+const supportTicket = defineModule({
+  name: "support-ticket",
+  version: "0.1.0",
+  capabilities: ["support_ticket.tickets.read"],
+});
+
+export const contract = defineServiceContract({
+  name: "support-suite-provider",
+  version: "0.2.0",
+  env: [serviceEnv("PORT", { example: "4110", required: true })],
+  modules: [{ name: supportTicket.name, version: supportTicket.version }],
+});
+
+export const manifest = defineService({
+  name: contract.name,
+  version: contract.version,
+  modules: [supportTicket],
+});
+
+serveService(manifest, { modules: {} });
+```
+
 ```js
 import {
   defineModule,
