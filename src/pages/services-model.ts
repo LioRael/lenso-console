@@ -1,12 +1,40 @@
-import type { ServiceModuleLifecycleModule } from "./available-modules-model";
+import type {
+  ServiceModuleLifecycleModule,
+  ServiceModuleLifecycleService,
+} from "./available-modules-model";
+import { functionsPath, operationsPath } from "./operations-url-model";
 import { remoteProxyCallsPath } from "./remote-proxy-calls-model";
 
 export type ServiceCenterModule = Pick<
   ServiceModuleLifecycleModule,
   "moduleName" | "providerName" | "status"
 > &
-  Partial<Pick<ServiceModuleLifecycleModule, "restartPending">> & {
-    services?: Array<{ name: string; ready?: boolean }>;
+  Partial<
+    Pick<
+      ServiceModuleLifecycleModule,
+      | "baseUrl"
+      | "compatibility"
+      | "configured"
+      | "deployment"
+      | "fixes"
+      | "healthHistory"
+      | "installed"
+  | "loaded"
+  | "manifestStatus"
+  | "manifestUrl"
+  | "moduleName"
+  | "providerName"
+  | "restartPending"
+      | "serviceStatus"
+      | "statusUrl"
+    >
+  > & {
+    services?: Array<
+      Pick<
+        ServiceModuleLifecycleService,
+        "autoStart" | "lockFile" | "name" | "pidFile" | "ready" | "readyUrl"
+      >
+    >;
   };
 
 export type ServiceCenterResponse = {
@@ -14,10 +42,21 @@ export type ServiceCenterResponse = {
 };
 
 export type ServiceCenterRow = {
+  baseUrls: string[];
+  compatibilityStates: string[];
+  fixes: string[];
+  healthChecks: number;
+  manifestUrls: string[];
+  moduleDetails: ServiceCenterModule[];
   providerName: string;
   state: string;
   modules: string[];
   managedServices: string[];
+  nextAction: string;
+  operationsPath: string;
+  remoteCallsPath: string;
+  runtimePath: string;
+  storyPath: string;
 };
 
 export function serviceCenterRows(
@@ -30,18 +69,42 @@ export function serviceCenterRows(
   }
 
   return Array.from(groups.entries())
-    .map(([providerName, modules]) => ({
-      providerName,
-      state: providerState(modules),
-      modules: modules.map((module) => module.moduleName).sort(),
-      managedServices: Array.from(
-        new Set(
-          modules.flatMap(
-            (module) => module.services?.map((service) => service.name) ?? []
+    .map(([providerName, modules]) => {
+      const moduleDetails = [...modules].sort((a, b) =>
+        a.moduleName.localeCompare(b.moduleName)
+      );
+      const primaryModuleName = moduleDetails[0]?.moduleName ?? providerName;
+      return {
+        baseUrls: uniqueStrings(modules.map((module) => module.baseUrl)),
+        compatibilityStates: uniqueStrings(
+          modules.map((module) => module.compatibility?.state)
+        ),
+        fixes: uniqueStrings(modules.flatMap((module) => module.fixes ?? [])),
+        healthChecks: modules.reduce(
+          (total, module) => total + (module.healthHistory?.length ?? 0),
+          0
+        ),
+        manifestUrls: uniqueStrings(
+          modules.map((module) => module.manifestUrl)
+        ),
+        moduleDetails,
+        providerName,
+        state: providerState(modules),
+        modules: moduleDetails.map((module) => module.moduleName),
+        managedServices: Array.from(
+          new Set(
+            modules.flatMap(
+              (module) => module.services?.map((service) => service.name) ?? []
+            )
           )
-        )
-      ).sort(),
-    }))
+        ).sort(),
+        nextAction: providerNextAction(modules),
+        operationsPath: operationsPath("/operations", { q: providerName }),
+        remoteCallsPath: serviceRemoteCallsPath(primaryModuleName),
+        runtimePath: functionsPath({ moduleName: primaryModuleName }),
+        storyPath: `/?q=${encodeURIComponent(providerName)}`,
+      };
+    })
     .sort((a, b) => a.providerName.localeCompare(b.providerName));
 }
 
@@ -51,6 +114,16 @@ export function serviceStateLabel(state: string) {
 
 export function serviceRemoteCallsPath(moduleName: string) {
   return remoteProxyCallsPath({ moduleName });
+}
+
+export function serviceCenterProviderDetail(
+  response: ServiceCenterResponse,
+  providerName: string
+) {
+  return (
+    serviceCenterRows(response).find((row) => row.providerName === providerName) ??
+    null
+  );
 }
 
 export function providerState(modules: ServiceCenterModule[]) {
@@ -77,4 +150,45 @@ export function providerState(modules: ServiceCenterModule[]) {
     return "ready";
   }
   return "configured";
+}
+
+export function providerNextAction(modules: ServiceCenterModule[]) {
+  if (
+    modules.some(
+      (module) =>
+        module.status === "manifest_unreachable" ||
+        module.status === "service_not_ready" ||
+        module.status === "stale_state" ||
+        module.services?.some((service) => service.ready === false)
+    )
+  ) {
+    return (
+      modules.flatMap((module) => module.fixes ?? [])[0] ??
+      modules.find((module) => module.compatibility?.fix)?.compatibility?.fix ??
+      "start the service or fix its status endpoint"
+    );
+  }
+  if (
+    modules.some(
+      (module) => module.status === "restart_pending" || module.restartPending
+    )
+  ) {
+    return "restart API and worker to load the latest service state";
+  }
+  if (modules.some((module) => module.compatibility?.state === "blocked")) {
+    return (
+      modules.find((module) => module.compatibility?.fix)?.compatibility?.fix ??
+      "upgrade the host or choose a compatible service version"
+    );
+  }
+  if (modules.some((module) => module.loaded === false)) {
+    return "configure the provider source and restart the host";
+  }
+  return "monitor remote calls and Runtime Story";
+}
+
+function uniqueStrings(values: Array<null | string | undefined>) {
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value)))
+  ).sort();
 }
