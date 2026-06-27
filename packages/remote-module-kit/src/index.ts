@@ -154,19 +154,84 @@ export interface RemoteStoryDisplayDescriptor {
 
 export type RemoteHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export type ServiceOperationIdempotency =
+  | "none"
+  | "idempotent"
+  | "requires_key";
+
+export interface ServiceOperationSafeProbe {
+  method?: RemoteHttpMethod | string;
+  path?: string;
+  input?: unknown;
+  expectStatus?: number;
+}
+
+export interface ServiceOperationMetadata {
+  operationId?: string;
+  summary?: string;
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  safeProbe?: ServiceOperationSafeProbe;
+  timeoutMs?: number;
+  idempotency?: ServiceOperationIdempotency;
+}
+
 export interface RemoteHttpRoute {
   method: RemoteHttpMethod;
   path: string;
   capability?: string;
   display_name?: string;
+  operation?: ServiceOperationMetadata;
   story_title?: string;
 }
 
 export interface RemoteHttpRouteOptions {
   capability?: string;
   displayName?: string;
+  operation?: ServiceOperationMetadata;
   storyTitle?: string;
 }
+
+export interface LensoInvocationContext {
+  requestId?: string;
+  correlationId?: string;
+  causationId?: string;
+  providerName?: string;
+  moduleName?: string;
+  operationId?: string;
+  operationKind?: string;
+  actorKind?: string;
+  traceparent?: string;
+}
+
+const firstHeaderValue = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
+
+export const readLensoInvocationContext = (
+  request: IncomingMessage
+): LensoInvocationContext => {
+  const { headers } = request;
+  const requestId = firstHeaderValue(headers["x-request-id"]);
+  const correlationId = firstHeaderValue(headers["x-lenso-correlation-id"]);
+  const causationId = firstHeaderValue(headers["x-lenso-causation-id"]);
+  const providerName = firstHeaderValue(headers["x-lenso-provider"]);
+  const moduleName = firstHeaderValue(headers["x-lenso-module"]);
+  const operationId = firstHeaderValue(headers["x-lenso-operation"]);
+  const operationKind = firstHeaderValue(headers["x-lenso-operation-kind"]);
+  const actorKind = firstHeaderValue(headers["x-lenso-actor-kind"]);
+  const traceparent = firstHeaderValue(headers.traceparent);
+  return {
+    ...(requestId === undefined ? {} : { requestId }),
+    ...(correlationId === undefined ? {} : { correlationId }),
+    ...(causationId === undefined ? {} : { causationId }),
+    ...(providerName === undefined ? {} : { providerName }),
+    ...(moduleName === undefined ? {} : { moduleName }),
+    ...(operationId === undefined ? {} : { operationId }),
+    ...(operationKind === undefined ? {} : { operationKind }),
+    ...(actorKind === undefined ? {} : { actorKind }),
+    ...(traceparent === undefined ? {} : { traceparent }),
+  };
+};
 
 export interface RemoteHttpHandlerContext {
   body: unknown;
@@ -196,6 +261,7 @@ export interface RemoteRuntimeFunctionDeclaration {
   version: number;
   queue: string;
   input_schema?: string;
+  operation?: ServiceOperationMetadata;
   retry_policy?: RemoteRuntimeRetryPolicy;
 }
 
@@ -203,6 +269,7 @@ export interface RemoteRuntimeFunctionOptions {
   version?: number;
   queue?: string;
   inputSchema?: string;
+  operation?: ServiceOperationMetadata;
   retryPolicy?: RemoteRuntimeRetryPolicy;
 }
 
@@ -235,6 +302,11 @@ export interface RemoteEventSurface {
 export interface RemoteEventHandlerDeclaration {
   name: string;
   event_name: string;
+  operation?: ServiceOperationMetadata;
+}
+
+export interface RemoteEventHandlerOptions {
+  operation?: ServiceOperationMetadata;
 }
 
 export interface RemoteEventHandleRequest {
@@ -358,6 +430,7 @@ export interface AdminAction {
   input_schema?: AdminActionInputSchema;
   confirmation?: AdminActionConfirmation;
   danger_level?: AdminActionDangerLevel;
+  operation?: ServiceOperationMetadata;
 }
 
 export interface AdminMetricBinding {
@@ -720,6 +793,7 @@ const route = (
   ...(options.capability ? { capability: options.capability } : {}),
   ...(options.displayName ? { display_name: options.displayName } : {}),
   method,
+  ...(options.operation ? { operation: options.operation } : {}),
   path,
   ...(options.storyTitle ? { story_title: options.storyTitle } : {}),
 });
@@ -1091,6 +1165,7 @@ export interface AdminActionOptions {
   inputFields?: readonly AdminActionInputField[];
   confirmation?: AdminActionConfirmation;
   dangerLevel?: AdminActionDangerLevel;
+  operation?: ServiceOperationMetadata;
 }
 
 export interface AdminConfirmationOptions {
@@ -1294,6 +1369,7 @@ export const runtimeFunction = (
   options: RemoteRuntimeFunctionOptions = {}
 ): RemoteRuntimeFunctionDeclaration => ({
   ...(options.inputSchema ? { input_schema: options.inputSchema } : {}),
+  ...(options.operation ? { operation: options.operation } : {}),
   queue: options.queue ?? runtimeFunctionQueue(name),
   ...(options.retryPolicy ? { retry_policy: options.retryPolicy } : {}),
   name,
@@ -1302,10 +1378,12 @@ export const runtimeFunction = (
 
 export const eventHandler = (
   name: string,
-  eventName: string
+  eventName: string,
+  options: RemoteEventHandlerOptions = {}
 ): RemoteEventHandlerDeclaration => ({
   event_name: eventName,
   name,
+  ...(options.operation ? { operation: options.operation } : {}),
 });
 
 export const everyStartup = (
@@ -1395,6 +1473,7 @@ export const adminAction = (
     : {}),
   label: options.label ?? titleCase(name),
   name,
+  ...(options.operation ? { operation: options.operation } : {}),
 });
 
 export const metricBinding = (

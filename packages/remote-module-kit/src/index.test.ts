@@ -1,5 +1,6 @@
 import { once } from "node:events";
 /* eslint-disable func-style, no-use-before-define */
+import type { IncomingMessage } from "node:http";
 import { connect } from "node:http2";
 
 import { describe, expect, test } from "vitest";
@@ -28,6 +29,7 @@ import {
   metricStrip,
   postRoute,
   queryValue,
+  readLensoInvocationContext,
   runtimeFunction,
   serveRemoteModuleGrpc,
   schemaAdmin,
@@ -251,6 +253,64 @@ describe("@lenso/remote-module-kit", () => {
           story_title: "Fetch Contact",
         },
       ],
+    });
+  });
+
+  test("preserves service operation metadata in module manifests", () => {
+    const operation = {
+      idempotency: "requires_key" as const,
+      inputSchema: { type: "object" },
+      operationId: "crm.contacts.sync",
+      outputSchema: { type: "object" },
+      safeProbe: {
+        expectStatus: 204,
+        method: "POST",
+        path: "/contacts/sync/probe",
+      },
+      summary: "Sync contacts",
+      timeoutMs: 5000,
+    };
+
+    expect(
+      defineModule({
+        admin: declarativeCustom({
+          actions: [
+            adminAction("sync_contacts", {
+              capability: "crm.contacts.sync",
+              label: "Sync contacts",
+              operation,
+            }),
+          ],
+        }),
+        eventHandlers: [
+          eventHandler(
+            "sync_contact_on_user_registered",
+            "identity.user_registered.v1",
+            { operation }
+          ),
+        ],
+        httpRoutes: [
+          postRoute("/contacts/sync", {
+            capability: "crm.contacts.sync",
+            operation,
+          }),
+        ],
+        name: "crm",
+        runtimeFunctions: [
+          runtimeFunction("crm.contacts.sync.v1", { operation }),
+        ],
+      })
+    ).toMatchObject({
+      admin: {
+        actions: [{ operation }],
+      },
+      events: {
+        handlers: [{ operation }],
+      },
+      http_routes: [{ operation }],
+      runtime: {
+        functions: [{ operation }],
+      },
     });
   });
 
@@ -892,6 +952,38 @@ describe("@lenso/remote-module-kit", () => {
     } finally {
       await served.close();
     }
+  });
+
+  test("reads Lenso invocation context headers from Node requests", () => {
+    const request = {
+      headers: {
+        traceparent: "00-trace-span-01",
+        "x-lenso-actor-kind": "service",
+        "x-lenso-causation-id": "cause_1",
+        "x-lenso-correlation-id": ["corr_1", "corr_ignored"],
+        "x-lenso-module": "crm",
+        "x-lenso-operation": "crm.contacts.sync",
+        "x-lenso-operation-kind": "runtime_function",
+        "x-lenso-provider": "acme",
+        "x-request-id": "req_1",
+      },
+    } as unknown as IncomingMessage;
+
+    expect(readLensoInvocationContext(request)).toEqual({
+      actorKind: "service",
+      causationId: "cause_1",
+      correlationId: "corr_1",
+      moduleName: "crm",
+      operationId: "crm.contacts.sync",
+      operationKind: "runtime_function",
+      providerName: "acme",
+      requestId: "req_1",
+      traceparent: "00-trace-span-01",
+    });
+    expect(
+      readLensoInvocationContext({ headers: {} } as unknown as IncomingMessage)
+        .requestId
+    ).toBeUndefined();
   });
 
   test("serves the remote module gRPC JSON envelope protocol", async () => {
