@@ -157,6 +157,7 @@ export type ServiceModuleHealthCheck = {
 
 export type ServiceModuleLifecycleModule = {
   moduleName: string;
+  providerName?: string | null;
   status: ServiceModuleLifecycleModuleStatus;
   installed: boolean;
   configured: boolean;

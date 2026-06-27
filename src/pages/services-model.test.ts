@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { ServiceModuleLifecycleResponse } from "./available-modules-model";
 import {
   serviceCenterRows,
   serviceRemoteCallsPath,
@@ -8,22 +9,40 @@ import {
 
 describe("service center model", () => {
   it("groups provider services with provided modules", () => {
-    const rows = serviceCenterRows({
+    const response = {
+      version: 1,
+      status: "ready",
       modules: [
         {
+          baseUrl: "http://127.0.0.1:4110/lenso/service/v1",
+          configured: true,
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
           moduleName: "support-ticket",
           providerName: "support-suite-provider",
-          status: "ready",
+          restartPending: false,
           services: [{ name: "support-service", ready: true }],
+          status: "ready",
         },
         {
+          baseUrl: "http://127.0.0.1:4110/lenso/service/v1",
+          configured: true,
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
           moduleName: "support-notification",
           providerName: "support-suite-provider",
-          status: "ready",
+          restartPending: false,
           services: [{ name: "support-service", ready: true }],
+          status: "ready",
         },
       ],
-    });
+    } satisfies ServiceModuleLifecycleResponse;
+
+    const rows = serviceCenterRows(response);
 
     expect(rows).toEqual([
       {

@@ -57,7 +57,7 @@ export function ServicesPage() {
         </div>
 
         <div className="min-w-[760px]">
-          <div className="grid grid-cols-[minmax(180px,1fr)_120px_minmax(220px,1.2fr)_minmax(180px,1fr)_116px] gap-3 border-b border-(--line) bg-(--bg-panel-muted) px-3 py-1.5 font-mono text-[10px] uppercase text-(--fg-tertiary)">
+          <div className="grid grid-cols-[minmax(180px,1fr)_120px_minmax(220px,1.2fr)_minmax(180px,1fr)_minmax(160px,0.8fr)] gap-3 border-b border-(--line) bg-(--bg-panel-muted) px-3 py-1.5 font-mono text-[10px] uppercase text-(--fg-tertiary)">
             <span>provider</span>
             <span>state</span>
             <span>modules</span>
@@ -83,21 +83,25 @@ export function ServicesPage() {
 }
 
 function ServiceRow({ row }: { row: ServiceCenterRow }) {
-  const moduleName = row.modules[0] ?? row.providerName;
   return (
-    <div className="grid min-h-14 grid-cols-[minmax(180px,1fr)_120px_minmax(220px,1.2fr)_minmax(180px,1fr)_116px] items-center gap-3 border-b border-(--line) px-3 py-2 font-mono text-[11px] hover:bg-(--bg-row-hover)">
+    <div className="grid min-h-14 grid-cols-[minmax(180px,1fr)_120px_minmax(220px,1.2fr)_minmax(180px,1fr)_minmax(160px,0.8fr)] items-center gap-3 border-b border-(--line) px-3 py-2 font-mono text-[11px] hover:bg-(--bg-row-hover)">
       <span className="min-w-0 truncate font-semibold text-(--fg-primary)">
         {row.providerName}
       </span>
       <ServiceStateBadge state={row.state} />
       <InlineList items={row.modules} />
       <InlineList items={row.managedServices} empty="external" />
-      <Link
-        className="text-(--accent) hover:underline"
-        to={serviceRemoteCallsPath(moduleName)}
-      >
-        Remote calls
-      </Link>
+      <div className="flex min-w-0 flex-wrap gap-1">
+        {row.modules.map((moduleName) => (
+          <Link
+            className="border border-(--line) px-1.5 py-0.5 text-[10px] text-(--accent) hover:bg-(--bg-control-hover)"
+            key={moduleName}
+            to={serviceRemoteCallsPath(moduleName)}
+          >
+            {moduleName}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

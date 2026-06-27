@@ -3,10 +3,9 @@ import { remoteProxyCallsPath } from "./remote-proxy-calls-model";
 
 export type ServiceCenterModule = Pick<
   ServiceModuleLifecycleModule,
-  "moduleName" | "status"
+  "moduleName" | "providerName" | "status"
 > &
   Partial<Pick<ServiceModuleLifecycleModule, "restartPending">> & {
-    providerName?: string | null;
     services?: Array<{ name: string; ready?: boolean }>;
   };
 
