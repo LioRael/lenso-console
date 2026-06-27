@@ -922,7 +922,7 @@ export function serviceModuleLifecycleDoctorCheck({
       "fix",
       module.compatibility.fix ??
         module.compatibility.issue ??
-        "install a compatible service module release"
+        "install a compatible service release"
     );
   }
   if (module.serviceStatus?.state === "unreachable") {
@@ -945,55 +945,55 @@ export function serviceModuleLifecycleDoctorCheck({
   const firstFix = module.fixes[0];
   switch (module.status) {
     case "ready":
-      return doctorCheck("service", "service", "ok", "service module is ready");
+      return doctorCheck("service", "service", "ok", "service is ready");
     case "restart_pending":
       return doctorCheck(
         "service",
         "service",
         "fix",
-        firstFix ?? "restart API and worker to load the service module"
+        firstFix ?? "restart API and worker to load the service"
       );
     case "configured_not_loaded":
       return doctorCheck(
         "service",
         "service",
         "fix",
-        firstFix ?? "restart Host after installing the service module"
+        firstFix ?? "restart Host after installing the service"
       );
     case "manifest_unreachable":
       return doctorCheck(
         "service",
         "service",
         "fix",
-        firstFix ?? "fix the service manifest URL or start the module service"
+        firstFix ?? "fix the service manifest URL or start the service"
       );
     case "service_not_ready":
       return doctorCheck(
         "service",
         "service",
         "fix",
-        firstFix ?? "start the module service or fix its readiness endpoint"
+        firstFix ?? "start the service or fix its readiness endpoint"
       );
     case "stale_state":
       return doctorCheck(
         "service",
         "service",
         "fix",
-        firstFix ?? "remove stale lock or pid files for the service module"
+        firstFix ?? "remove stale lock or pid files for the service"
       );
     case "not_configured":
       return doctorCheck(
         "service",
         "service",
         "fix",
-        firstFix ?? "configure the service module source"
+        firstFix ?? "configure the service provider source"
       );
     default:
       return doctorCheck(
         "service",
         "service",
         "hold",
-        firstFix ?? `service module status ${module.status}`
+        firstFix ?? `service status ${module.status}`
       );
   }
 }
@@ -1056,7 +1056,7 @@ function installEvidence(
     return `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`;
   }
   if (remoteSource?.configured) {
-    return `service module source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
+    return `service provider source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
   }
   if (moduleRegistered === false) {
     return "module not registered in /admin/data/modules";
@@ -1104,7 +1104,7 @@ function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
   if (remoteSource?.restartPending) {
     return (
       remoteSource.restartReason ??
-      "service module source differs from loaded module metadata"
+      "service provider source differs from loaded module metadata"
     );
   }
   if (remoteSource?.configured && remoteSource.runningBaseUrl) {
@@ -1115,7 +1115,7 @@ function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
     !remoteSource.configured &&
     !remoteSource.runningBaseUrl
   ) {
-    return `service module source not present in ${remoteSource.envFile}`;
+    return `service provider source not present in ${remoteSource.envFile}`;
   }
   if (
     evidence.desiredEnabled !== undefined &&
@@ -1174,7 +1174,7 @@ function sourceDoctorCheck({
       "ok",
       remoteSource?.desiredBaseUrl
         ? `REMOTE_MODULES -> ${remoteSource.desiredBaseUrl}${transport ? ` (${transport})` : ""}`
-        : "service module source registered"
+        : "service provider source registered"
     );
   }
   if (!availableModuleCanInstall(row)) {
@@ -1193,7 +1193,7 @@ function sourceDoctorCheck({
     "fix",
     row.source === "linked"
       ? "set linked module env override"
-      : `register service module source in ${remoteSource?.envFile ?? ".env"}`,
+      : `register service provider source in ${remoteSource?.envFile ?? ".env"}`,
     addCommand
   );
 }
@@ -1370,7 +1370,7 @@ function runtimeDoctorCheck({
       "runtime",
       "fix",
       remoteSource.restartReason ??
-        "restart to load configured service module source"
+        "restart to load configured service provider source"
     );
   }
   if (remoteSource?.configured) {
@@ -1378,7 +1378,7 @@ function runtimeDoctorCheck({
       "runtime",
       "runtime",
       "hold",
-      "service module source configured but module is not registered"
+      "service provider source configured but module is not registered"
     );
   }
   if (!availableModuleCanInstall(row)) {

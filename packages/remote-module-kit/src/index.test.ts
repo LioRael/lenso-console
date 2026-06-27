@@ -13,7 +13,9 @@ import {
   declarativeCustom,
   declarativePage,
   declarativeSection,
+  defineModule,
   defineRemoteModule,
+  defineService,
   defineSchemaEntity,
   entityTable,
   eventHandler,
@@ -30,6 +32,7 @@ import {
   serveRemoteModuleGrpc,
   schemaAdmin,
   serveRemoteModule,
+  serveService,
   textField,
   timestampField,
 } from ".";
@@ -162,6 +165,70 @@ describe("@lenso/remote-module-kit", () => {
     });
   });
 
+  test("defines a service manifest with provided modules", () => {
+    const supportTicket = defineModule({
+      capabilities: ["support_ticket.tickets.read"],
+      httpRoutes: [
+        getRoute("/tickets/{id}", {
+          capability: "support_ticket.tickets.read",
+          displayName: "Get Ticket",
+          storyTitle: "Get Ticket",
+        }),
+      ],
+      name: "support-ticket",
+    });
+
+    expect(
+      defineService({
+        compatibility: {
+          remote_protocol_version: "1",
+          required_host_features: ["service.status"],
+        },
+        deployment: {
+          commands: ["pnpm start"],
+          target: "container-paas",
+        },
+        install: {
+          services: [
+            {
+              command: "pnpm start",
+              name: "support-service",
+              readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+            },
+          ],
+        },
+        modules: [supportTicket],
+        name: "support-service",
+        requiredEnv: ["PORT"],
+      })
+    ).toEqual({
+      compatibility: {
+        remote_protocol_version: "1",
+        required_host_features: ["service.status"],
+      },
+      deployment: {
+        commands: ["pnpm start"],
+        target: "container-paas",
+      },
+      install: {
+        services: [
+          {
+            command: "pnpm start",
+            name: "support-service",
+            readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+          },
+        ],
+      },
+      modules: [supportTicket],
+      name: "support-service",
+      protocol: "lenso.service.v1",
+      required_env: ["PORT"],
+      status_path: "/lenso/service/v1/status",
+      transports: ["http"],
+      version: "0.1.0",
+    });
+  });
+
   test("defines HTTP route declarations", () => {
     expect(
       defineRemoteModule({
@@ -287,6 +354,63 @@ describe("@lenso/remote-module-kit", () => {
         error: {
           code: "not_found",
         },
+      });
+    } finally {
+      await served.close();
+    }
+  });
+
+  test("serves a service manifest, status, and module HTTP handlers", async () => {
+    const service = defineService({
+      modules: [
+        defineModule({
+          capabilities: ["support_ticket.tickets.read"],
+          httpRoutes: [
+            getRoute("/tickets/{id}", {
+              capability: "support_ticket.tickets.read",
+              displayName: "Get Ticket",
+              storyTitle: "Get Ticket",
+            }),
+          ],
+          name: "support-ticket",
+        }),
+      ],
+      name: "support-service",
+    });
+    const served = await serveService(service, {
+      modules: {
+        "support-ticket": {
+          http: {
+            "GET /tickets/{id}": ({ params }) => ({
+              ticket: { id: params.id },
+            }),
+          },
+        },
+      },
+      port: 0,
+    });
+
+    try {
+      await expect(
+        fetch(served.manifestUrl).then((response) => response.json())
+      ).resolves.toMatchObject({
+        modules: [{ name: "support-ticket" }],
+        name: "support-service",
+        protocol: "lenso.service.v1",
+      });
+      await expect(
+        fetch(served.statusUrl).then((response) => response.json())
+      ).resolves.toMatchObject({
+        modules: [{ name: "support-ticket" }],
+        serviceName: "support-service",
+        state: "ready",
+      });
+      await expect(
+        fetch(`${served.baseUrl}/modules/support-ticket/tickets/ticket_1`).then(
+          (response) => response.json()
+        )
+      ).resolves.toEqual({
+        ticket: { id: "ticket_1" },
       });
     } finally {
       await served.close();

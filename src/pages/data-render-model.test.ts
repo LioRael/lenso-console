@@ -311,7 +311,7 @@ describe("module status helpers", () => {
 
     expect(remoteModuleReadiness(remoteModule, [])).toEqual({
       latestFailure: null,
-      reasons: ["service module is ready"],
+      reasons: ["service is ready"],
       status: "ready",
     });
 

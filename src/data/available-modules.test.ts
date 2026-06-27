@@ -124,7 +124,7 @@ describe("available modules provider", () => {
         error: null,
         restartPending: true,
         restartReason:
-          "service module source configured in .env but not loaded",
+          "service provider source configured in .env but not loaded",
         runningBaseUrl: null,
       },
       restartRequired: true,

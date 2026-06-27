@@ -117,6 +117,12 @@ importers:
 
   packages/remote-module-kit: {}
 
+  packages/service-kit:
+    dependencies:
+      '@lenso/remote-module-kit':
+        specifier: workspace:^
+        version: link:../remote-module-kit
+
   packages/story-console:
     dependencies:
       '@gsap/react':

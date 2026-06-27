@@ -302,7 +302,7 @@ describe("available modules model", () => {
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason:
-            "service module source configured in .env but not loaded",
+            "service provider source configured in .env but not loaded",
         }),
       },
     };
@@ -312,7 +312,7 @@ describe("available modules model", () => {
       row,
     });
     expect(handoff).toMatchObject({
-      detail: "service module source configured in .env but not loaded",
+      detail: "service provider source configured in .env but not loaded",
       kind: "restart_pending",
     });
     expect(
@@ -344,7 +344,7 @@ describe("available modules model", () => {
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason:
-            "service module source configured in .env but not loaded",
+            "service provider source configured in .env but not loaded",
         }),
       },
     };
@@ -354,7 +354,7 @@ describe("available modules model", () => {
     });
 
     expect(handoff).toMatchObject({
-      detail: "service module source configured in .env but not loaded",
+      detail: "service provider source configured in .env but not loaded",
       kind: "restart_pending",
     });
     expect(
@@ -367,7 +367,7 @@ describe("available modules model", () => {
         row,
       })[3]
     ).toMatchObject({
-      evidence: "service module source configured in .env but not loaded",
+      evidence: "service provider source configured in .env but not loaded",
       status: "current",
     });
   });
@@ -402,7 +402,7 @@ describe("available modules model", () => {
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
           restartReason:
-            "service module source configured in .env but not loaded",
+            "service provider source configured in .env but not loaded",
         }),
       },
     };
@@ -485,7 +485,7 @@ describe("available modules model", () => {
         row,
         serviceLifecycle: serviceLifecycle("ready"),
       }).map((check) => [check.key, check.status, check.detail])
-    ).toContainEqual(["service", "ok", "service module is ready"]);
+    ).toContainEqual(["service", "ok", "service is ready"]);
 
     expect(
       availableModuleDoctorChecks({

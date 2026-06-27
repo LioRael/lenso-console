@@ -6,8 +6,42 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const runtimeConsoleRoot = path.resolve(import.meta.dirname, "..");
-const kitDir = path.join(runtimeConsoleRoot, "packages/remote-module-kit");
-const kitPackageJsonPath = path.join(kitDir, "package.json");
+
+const packages = [
+  {
+    name: "@lenso/remote-module-kit",
+    dir: path.join(runtimeConsoleRoot, "packages/remote-module-kit"),
+    smokeImport:
+      'import { defineRemoteModule, runtimeFunction as remoteRuntimeFunction } from "@lenso/remote-module-kit";',
+    smokeBody: `const manifest = defineRemoteModule({
+  name: "smoke",
+  runtimeFunctions: [remoteRuntimeFunction("smoke.run.v1")],
+});
+
+if (manifest.runtime.functions[0]?.name !== "smoke.run.v1") {
+  throw new Error("remote-module-kit import did not work");
+}`,
+  },
+  {
+    name: "@lenso/service-kit",
+    dir: path.join(runtimeConsoleRoot, "packages/service-kit"),
+    smokeImport:
+      'import { defineModule, defineService, runtimeFunction as serviceRuntimeFunction } from "@lenso/service-kit";',
+    smokeBody: `const module = defineModule({
+  capabilities: ["smoke.records.read"],
+  name: "smoke-records",
+  runtimeFunctions: [serviceRuntimeFunction("smoke.records.sync.v1")],
+});
+const service = defineService({
+  modules: [module],
+  name: "smoke-service",
+});
+
+if (service.modules[0]?.name !== "smoke-records") {
+  throw new Error("service-kit import did not work");
+}`,
+  },
+];
 
 const readJson = async (filePath) =>
   JSON.parse(await readFile(filePath, "utf-8"));
@@ -27,43 +61,60 @@ const run = async (command, args, options = {}) => {
   return stdout;
 };
 
-const assertRemoteModuleKitMetadata = async () => {
-  const manifest = await readJson(kitPackageJsonPath);
+const assertPackageMetadata = async ({ dir, name }) => {
+  const manifest = await readJson(path.join(dir, "package.json"));
 
-  assert(manifest.private !== true, "remote-module-kit must not be private");
-  assert(manifest.license === "MIT", "remote-module-kit license must be MIT");
+  assert(manifest.name === name, `${name} package name must match`);
+  assert(manifest.private !== true, `${name} must not be private`);
+  assert(manifest.license === "MIT", `${name} license must be MIT`);
   assert(
     manifest.publishConfig?.access === "public",
-    "remote-module-kit publishConfig.access must be public"
+    `${name} publishConfig.access must be public`
   );
   assert(
     manifest.publishConfig?.registry === "https://registry.npmjs.org/",
-    "remote-module-kit publishConfig.registry must target npmjs.org"
+    `${name} publishConfig.registry must target npmjs.org`
   );
   assert(
     manifest.main === "./dist/index.js",
-    "remote-module-kit main must point at dist/index.js"
+    `${name} main must point at dist/index.js`
   );
   assert(
     manifest.types === "./dist/index.d.ts",
-    "remote-module-kit types must point at dist/index.d.ts"
+    `${name} types must point at dist/index.d.ts`
   );
   assert(
     manifest.exports?.["."]?.default === "./dist/index.js",
-    "remote-module-kit exports.default must point at dist/index.js"
+    `${name} exports.default must point at dist/index.js`
   );
   assert(
     manifest.exports?.["."]?.types === "./dist/index.d.ts",
-    "remote-module-kit exports.types must point at dist/index.d.ts"
+    `${name} exports.types must point at dist/index.d.ts`
   );
+  assert(manifest.files?.includes("dist"), `${name} files must include dist`);
+
+};
+
+const parsePnpmPackOutput = (packOutput) => {
+  const jsonStart = packOutput.indexOf("{\n");
+  assert(jsonStart >= 0, "pnpm pack did not print JSON output");
+  return JSON.parse(packOutput.slice(jsonStart));
+};
+
+const assertNoWorkspaceDependencies = (packageName, manifest) => {
+  const workspaceDependencies = Object.entries({
+    ...manifest.dependencies,
+    ...manifest.peerDependencies,
+    ...manifest.optionalDependencies,
+  }).filter(([, version]) => String(version).startsWith("workspace:"));
   assert(
-    manifest.files?.includes("dist"),
-    "remote-module-kit files must include dist"
+    workspaceDependencies.length === 0,
+    `${packageName} packed dependencies must not use workspace:*`
   );
 };
 
-const assertPackContents = (packOutput) => {
-  const [pack] = JSON.parse(packOutput);
+const assertPackContents = (packageName, packOutput) => {
+  const pack = parsePnpmPackOutput(packOutput);
   const files = pack.files.map((entry) => entry.path).toSorted();
   const required = [
     "LICENSE",
@@ -83,33 +134,56 @@ const assertPackContents = (packOutput) => {
 
   assert(
     missing.length === 0,
-    `remote-module-kit package is missing expected files: ${missing.join(", ")}`
+    `${packageName} package is missing expected files: ${missing.join(", ")}`
   );
   assert(
     forbidden.length === 0,
-    `remote-module-kit package includes unexpected files: ${forbidden.join(", ")}`
+    `${packageName} package includes unexpected files: ${forbidden.join(", ")}`
   );
 
   console.log(
-    `@lenso/remote-module-kit pack dry-run: ${files.length} files, ${pack.unpackedSize} unpacked bytes`
+    `${packageName} pack dry-run: ${files.length} files`
   );
 };
 
+const packPackage = async ({ dir }) => {
+  const packOutput = await execFileAsync("pnpm", ["pack", "--json"], {
+    cwd: dir,
+    maxBuffer: 1024 * 1024 * 10,
+  });
+  const pack = parsePnpmPackOutput(packOutput.stdout);
+  const tarballPath = path.join(dir, pack.filename);
+  const packedManifestOutput = await execFileAsync(
+    "tar",
+    ["-xOf", tarballPath, "package/package.json"],
+    {
+      cwd: dir,
+      maxBuffer: 1024 * 1024,
+    }
+  );
+  assertNoWorkspaceDependencies(
+    pack.name,
+    JSON.parse(packedManifestOutput.stdout)
+  );
+  return tarballPath;
+};
+
 const assertInstallSmoke = async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "lenso-kit-pack-"));
-  let tarballPath;
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "lenso-sdk-pack-"));
+  const tarballs = [];
   try {
-    const packOutput = await execFileAsync("npm", ["pack", "--json"], {
-      cwd: kitDir,
-      maxBuffer: 1024 * 1024 * 10,
-    });
-    const [pack] = JSON.parse(packOutput.stdout);
-    tarballPath = path.join(kitDir, pack.filename);
+    for (const packageConfig of packages) {
+      tarballs.push(await packPackage(packageConfig));
+    }
+
     const smokePackageJson = {
-      dependencies: {
-        "@lenso/remote-module-kit": tarballPath,
-      },
-      name: "lenso-remote-module-kit-smoke",
+      dependencies: Object.fromEntries(
+        packages.map((packageConfig, index) => [
+          packageConfig.name,
+          tarballs[index],
+        ])
+      ),
+      name: "lenso-service-sdk-smoke",
       private: true,
       scripts: {
         smoke: "node smoke.mjs",
@@ -122,20 +196,17 @@ const assertInstallSmoke = async () => {
       `${JSON.stringify(smokePackageJson, null, 2)}\n`
     );
     await writeFile(
+      path.join(tempRoot, "pnpm-workspace.yaml"),
+      `overrides:\n  "@lenso/remote-module-kit": "${tarballs[0]}"\n`
+    );
+    await writeFile(
       path.join(tempRoot, "smoke.mjs"),
-      `import { defineRemoteModule, runtimeFunction } from "@lenso/remote-module-kit";
+      `${packages.map((packageConfig) => packageConfig.smokeImport).join("\n")}
 
-const manifest = defineRemoteModule({
-  name: "smoke",
-  runtimeFunctions: [runtimeFunction("smoke.run.v1")],
-});
-
-if (manifest.runtime.functions[0]?.name !== "smoke.run.v1") {
-  throw new Error("remote-module-kit import did not work");
-}
+${packages.map((packageConfig) => packageConfig.smokeBody).join("\n\n")}
 `
     );
-    await execFileAsync("pnpm", ["install", "--silent"], {
+    await execFileAsync("pnpm", ["install"], {
       cwd: tempRoot,
       maxBuffer: 1024 * 1024 * 10,
     });
@@ -144,31 +215,31 @@ if (manifest.runtime.functions[0]?.name !== "smoke.run.v1") {
       maxBuffer: 1024 * 1024 * 10,
     });
   } finally {
-    if (tarballPath) {
-      await rm(tarballPath, { force: true });
-    }
+    await Promise.all(tarballs.map((tarballPath) => rm(tarballPath, { force: true })));
     await rm(tempRoot, { force: true, recursive: true });
   }
 };
 
-console.log("Checking @lenso/remote-module-kit publish metadata...");
-await assertRemoteModuleKitMetadata();
+for (const packageConfig of packages) {
+  console.log(`Checking ${packageConfig.name} publish metadata...`);
+  await assertPackageMetadata(packageConfig);
 
-console.log("Building @lenso/remote-module-kit...");
-await run("pnpm", ["--filter", "@lenso/remote-module-kit", "build"]);
+  console.log(`Building ${packageConfig.name}...`);
+  await run("pnpm", ["--filter", packageConfig.name, "build"]);
 
-console.log("Dry-running npm pack for @lenso/remote-module-kit...");
-const packDryRunOutput = await execFileAsync(
-  "npm",
-  ["pack", "--dry-run", "--json"],
-  {
-    cwd: kitDir,
-    maxBuffer: 1024 * 1024 * 10,
-  }
-);
-assertPackContents(packDryRunOutput.stdout);
+  console.log(`Dry-running pnpm pack for ${packageConfig.name}...`);
+  const packDryRunOutput = await execFileAsync(
+    "pnpm",
+    ["pack", "--dry-run", "--json"],
+    {
+      cwd: packageConfig.dir,
+      maxBuffer: 1024 * 1024 * 10,
+    }
+  );
+  assertPackContents(packageConfig.name, packDryRunOutput.stdout);
+}
 
-console.log("Installing @lenso/remote-module-kit from a packed tarball...");
+console.log("Installing service SDKs from packed tarballs...");
 await assertInstallSmoke();
 
 console.log("Package readiness checks passed.");

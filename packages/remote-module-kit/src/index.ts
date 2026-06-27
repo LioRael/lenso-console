@@ -108,6 +108,33 @@ export interface RemoteModuleServiceStatusOptions {
   state?: RemoteModuleServiceStatusState;
 }
 
+export type ServiceStatusState = RemoteModuleServiceStatusState;
+
+export interface ServiceStatusCheck extends RemoteModuleServiceStatusCheck {}
+
+export interface ServiceModuleStatusSummary {
+  name: string;
+  version: string;
+}
+
+export interface ServiceStatus {
+  serviceName: string;
+  version: string;
+  protocolVersion: string;
+  transports: readonly string[];
+  state: ServiceStatusState;
+  checks: readonly ServiceStatusCheck[];
+  manifestUrl: string;
+  modules: readonly ServiceModuleStatusSummary[];
+}
+
+export interface ServiceStatusOptions {
+  checks?:
+    | readonly ServiceStatusCheck[]
+    | (() => readonly ServiceStatusCheck[] | Promise<readonly ServiceStatusCheck[]>);
+  state?: ServiceStatusState;
+}
+
 export type RemoteStoryDisplaySource =
   | {
       kind: "execution_name";
@@ -422,6 +449,63 @@ export interface RemoteModuleDefinition {
   console?: readonly RemoteModuleConsoleSurface[];
 }
 
+export type ServiceModuleDefinition = Omit<
+  RemoteModuleDefinition,
+  "compatibility" | "service"
+>;
+
+export type ServiceModuleManifest = Omit<
+  RemoteModuleManifest,
+  "compatibility" | "service" | "source"
+>;
+
+export interface ServiceInstallCommand {
+  command: string;
+  cwd?: string;
+}
+
+export interface ServiceInstallService {
+  name?: string;
+  command: string;
+  cwd?: string;
+  readyUrl?: string;
+  readyTimeoutMs?: number;
+  autoStart?: boolean;
+}
+
+export interface ServiceInstall {
+  env?: Record<string, string>;
+  commands?: readonly (string | ServiceInstallCommand)[];
+  services?: readonly ServiceInstallService[];
+}
+
+export interface ServiceDefinition {
+  name: string;
+  version?: string;
+  compatibility?: RemoteModuleCompatibility;
+  deployment?: RemoteModuleDeploymentMetadata;
+  install?: ServiceInstall;
+  modules: readonly ServiceModuleManifest[];
+  requiredEnv?: readonly string[];
+  statusPath?: string;
+  statusUrl?: string;
+  transports?: readonly string[];
+}
+
+export interface ServiceManifest {
+  name: string;
+  version: string;
+  protocol: "lenso.service.v1";
+  compatibility?: RemoteModuleCompatibility;
+  deployment?: RemoteModuleDeploymentMetadata;
+  install?: ServiceInstall;
+  modules: readonly ServiceModuleManifest[];
+  required_env: readonly string[];
+  status_path: string;
+  status_url?: string;
+  transports: readonly string[];
+}
+
 export interface RemoteAdminPage {
   records: readonly unknown[];
   next_cursor?: string | null;
@@ -460,6 +544,13 @@ export interface ServedRemoteModule {
   close: () => Promise<void>;
 }
 
+export interface ServedService extends ServedRemoteModule {}
+
+export type ServiceModuleHandlers = Pick<
+  ServeRemoteModuleOptions,
+  "actions" | "data" | "events" | "http" | "queries" | "runtime"
+>;
+
 export interface ServeRemoteModuleOptions {
   host?: string;
   port?: number;
@@ -472,6 +563,15 @@ export interface ServeRemoteModuleOptions {
   events?: Record<string, RemoteEventHandler>;
   status?: RemoteModuleServiceStatusOptions;
   onReady?: (server: ServedRemoteModule) => void;
+}
+
+export interface ServeServiceOptions {
+  host?: string;
+  port?: number;
+  basePath?: string;
+  modules?: Record<string, ServiceModuleHandlers>;
+  status?: ServiceStatusOptions;
+  onReady?: (server: ServedService) => void;
 }
 
 const normalizeBasePath = (basePath: string) => {
@@ -1125,6 +1225,51 @@ export const defineRemoteModule = (
   };
 };
 
+export const defineModule = (
+  definition: ServiceModuleDefinition
+): ServiceModuleManifest => {
+  const { compatibility: _compatibility, service: _service, source: _source, ...module } =
+    defineRemoteModule(definition);
+  return module;
+};
+
+export const defineService = (
+  definition: ServiceDefinition
+): ServiceManifest => {
+  const name = definition.name.trim();
+  if (!name) {
+    throw new Error("Service name is required");
+  }
+  if (definition.modules.length === 0) {
+    throw new Error("Service must provide at least one module");
+  }
+  const moduleNames = new Set<string>();
+  for (const module of definition.modules) {
+    if (!module.name.trim()) {
+      throw new Error("Service module name is required");
+    }
+    if (moduleNames.has(module.name)) {
+      throw new Error(`Duplicate service module: ${module.name}`);
+    }
+    moduleNames.add(module.name);
+  }
+  return {
+    ...(definition.compatibility
+      ? { compatibility: definition.compatibility }
+      : {}),
+    ...(definition.deployment ? { deployment: definition.deployment } : {}),
+    ...(definition.install ? { install: definition.install } : {}),
+    modules: definition.modules,
+    name,
+    protocol: "lenso.service.v1",
+    required_env: definition.requiredEnv ?? [],
+    status_path: definition.statusPath ?? "/lenso/service/v1/status",
+    ...(definition.statusUrl ? { status_url: definition.statusUrl } : {}),
+    transports: definition.transports ?? ["http"],
+    version: definition.version ?? "0.1.0",
+  };
+};
+
 export const getRoute = (path: string, options: RemoteHttpRouteOptions = {}) =>
   route("GET", path, options);
 
@@ -1383,6 +1528,57 @@ const remoteModuleStatusResponse = async ({
   version: manifest.service?.version ?? manifest.version,
 });
 
+const serviceStatusChecks = async (
+  options: ServiceStatusOptions | undefined
+) => {
+  if (!options?.checks) {
+    return [{ name: "service", status: "ok" as const }];
+  }
+  return typeof options.checks === "function"
+    ? await options.checks()
+    : options.checks;
+};
+
+const serviceStatusResponse = async ({
+  baseUrl,
+  manifest,
+  options,
+}: {
+  baseUrl: string;
+  manifest: ServiceManifest;
+  options: ServiceStatusOptions | undefined;
+}): Promise<ServiceStatus> => ({
+  checks: await serviceStatusChecks(options),
+  manifestUrl: `${baseUrl}/manifest`,
+  modules: manifest.modules.map((module) => ({
+    name: module.name,
+    version: module.version,
+  })),
+  protocolVersion: manifest.compatibility?.remote_protocol_version ?? "1",
+  serviceName: manifest.name,
+  state: options?.state ?? "ready",
+  transports: manifest.transports,
+  version: manifest.version,
+});
+
+const remoteManifestForServiceModule = (
+  service: ServiceManifest,
+  module: ServiceModuleManifest
+): RemoteModuleManifest => ({
+  ...module,
+  ...(service.compatibility ? { compatibility: service.compatibility } : {}),
+  service: {
+    ...(service.deployment ? { deployment: service.deployment } : {}),
+    name: service.name,
+    required_env: service.required_env,
+    status_path: service.status_path,
+    ...(service.status_url ? { status_url: service.status_url } : {}),
+    transports: service.transports,
+    version: service.version,
+  },
+  source: "remote",
+});
+
 export const serveRemoteModule = async (
   manifest: RemoteModuleManifest,
   options: ServeRemoteModuleOptions = {}
@@ -1496,6 +1692,138 @@ export const serveRemoteModule = async (
     statusUrl: `${baseUrl}/status`,
     server,
   } satisfies ServedRemoteModule;
+
+  options.onReady?.(served);
+  return served;
+};
+
+export const serveService = async (
+  manifest: ServiceManifest,
+  options: ServeServiceOptions = {}
+): Promise<ServedService> => {
+  const host = options.host ?? "127.0.0.1";
+  const port = options.port ?? 4100;
+  const basePath = normalizeBasePath(options.basePath ?? "/lenso/service/v1");
+  const manifestPath = `${basePath}/manifest`;
+  const statusPath = `${basePath}/status`;
+  let servedBaseUrl = "";
+
+  const server = createServer(async (request, response) => {
+    const requestPath = new URL(request.url ?? "", "http://127.0.0.1").pathname;
+    if (request.method === "GET" && requestPath === manifestPath) {
+      sendJson(response, 200, manifest);
+      return;
+    }
+    if (request.method === "GET" && requestPath === statusPath) {
+      sendJson(
+        response,
+        200,
+        await serviceStatusResponse({
+          baseUrl: servedBaseUrl,
+          manifest,
+          options: options.status,
+        })
+      );
+      return;
+    }
+
+    for (const module of manifest.modules) {
+      const moduleBasePath = `${basePath}/modules/${module.name}`;
+      const moduleHandlers = options.modules?.[module.name] ?? {};
+      const remoteManifest = remoteManifestForServiceModule(manifest, module);
+
+      if (
+        request.method === "GET" &&
+        requestPath === `${moduleBasePath}/manifest`
+      ) {
+        sendJson(response, 200, module);
+        return;
+      }
+      if (request.method === "GET") {
+        const queryResult = await handleAdminQueryRequest({
+          basePath: moduleBasePath,
+          handlers: moduleHandlers.queries ?? {},
+          request,
+        });
+        if (queryResult) {
+          sendJson(response, queryResult.statusCode, queryResult.body);
+          return;
+        }
+        const adminResult = await handleAdminDataRequest({
+          basePath: moduleBasePath,
+          data: moduleHandlers.data ?? {},
+          requestUrl: request.url ?? "",
+        });
+        if (adminResult) {
+          sendJson(response, adminResult.statusCode, adminResult.body);
+          return;
+        }
+      }
+      const actionResult = await handleAdminActionRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.actions ?? {},
+        request,
+      });
+      if (actionResult) {
+        sendJson(response, actionResult.statusCode, actionResult.body);
+        return;
+      }
+      const runtimeResult = await handleRuntimeFunctionRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.runtime ?? {},
+        request,
+      });
+      if (runtimeResult) {
+        sendJson(response, runtimeResult.statusCode, runtimeResult.body);
+        return;
+      }
+      const eventResult = await handleEventRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.events ?? {},
+        request,
+      });
+      if (eventResult) {
+        sendJson(response, eventResult.statusCode, eventResult.body);
+        return;
+      }
+      const httpResult = await handleHttpRouteRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.http ?? {},
+        manifest: remoteManifest,
+        request,
+      });
+      if (httpResult) {
+        sendJson(response, httpResult.statusCode, httpResult.body);
+        return;
+      }
+    }
+
+    sendJson(response, 404, {
+      error: {
+        code: "not_found",
+        message: `${manifest.name} service endpoint not found`,
+      },
+    });
+  });
+
+  server.listen(port, host);
+  await once(server, "listening");
+
+  const address = server.address();
+  const boundPort =
+    typeof address === "object" && address ? address.port : port;
+  const baseUrl = `http://${host}:${boundPort}${basePath}`;
+  servedBaseUrl = baseUrl;
+  const served = {
+    baseUrl,
+    close: async () => {
+      server.close();
+      await once(server, "close");
+    },
+    manifestUrl: `${baseUrl}/manifest`,
+    statusUrl: `${baseUrl}/status`,
+    server,
+  } satisfies ServedService;
 
   options.onReady?.(served);
   return served;
