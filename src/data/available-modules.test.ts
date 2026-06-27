@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import type { ServiceModuleLifecycleResponse } from "../pages/available-modules-model";
 import {
   availableModulesPanelState,
   availableModulesQueryKey,
@@ -81,11 +82,11 @@ describe("available modules provider", () => {
     ]);
 
     const getCalls: string[] = [];
-    const response = {
+    const response: ServiceModuleLifecycleResponse = {
       modules: [],
       status: "empty",
       version: 1,
-    } as const;
+    };
     const client = {
       get(path: string) {
         getCalls.push(path);

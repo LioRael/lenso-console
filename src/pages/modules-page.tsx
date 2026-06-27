@@ -979,7 +979,7 @@ function ModuleMarketplaceDetail({
               moduleRegistered: Boolean(installedModule),
               restartPending,
               row,
-              serviceLifecycle,
+              ...(serviceLifecycle === undefined ? {} : { serviceLifecycle }),
             });
 
             return (
@@ -1419,7 +1419,9 @@ function ModuleRegistryDetail({
         configValues={configValues}
         history={history}
         module={module}
-        serviceLifecycleModule={serviceLifecycleModule}
+        {...(serviceLifecycleModule === undefined
+          ? {}
+          : { serviceLifecycleModule })}
       />
       <ModuleActionsPanel module={module} />
       <ModuleGovernancePanel module={module} />
