@@ -922,6 +922,7 @@ function ModuleMarketplaceDetail({
           {rows.map((row) => {
             const handoffCommands = moduleRegistryHandoffCommands({
               manifestReference: row.manifestReference,
+              moduleRelease: row.moduleRelease,
             });
             const [installCommand] = handoffCommands;
             const installedModule = modules.find(
@@ -1106,6 +1107,15 @@ function MarketplaceModuleCard({
     (step) => step.status === "current" && (step.command || step.path)
   );
   const commandKey = `marketplace:${row.key}:${currentStep?.key ?? "state"}`;
+  const releaseTitle = row.moduleRelease
+    ? [
+        row.moduleRelease.name ?? row.name,
+        row.moduleRelease.providerName,
+        row.moduleRelease.manifestReference,
+      ]
+        .filter(Boolean)
+        .join(" / ")
+    : null;
 
   return (
     <article className="grid min-h-[320px] grid-rows-[auto_auto_1fr_auto] gap-2 border border-(--border-subtle) bg-(--surface) p-3">
@@ -1169,6 +1179,14 @@ function MarketplaceModuleCard({
         >
           {handoff.detail}
         </div>
+        {releaseTitle ? (
+          <div
+            className="truncate text-[10px] text-(--muted)"
+            title={releaseTitle}
+          >
+            release {releaseTitle}
+          </div>
+        ) : null}
         {handoff.kind === "available" ? (
           <button
             className="border border-[color-mix(in_srgb,var(--info)_45%,transparent)] bg-(--background) px-2 py-1 text-left text-[10px] font-semibold text-(--info) hover:bg-(--sidebar) disabled:cursor-not-allowed disabled:opacity-60"

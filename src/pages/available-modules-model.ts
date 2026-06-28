@@ -70,6 +70,8 @@ export type AvailableModulesResponseModule = {
   provided_by?: string | null;
   serviceManifest?: string | null;
   service_manifest?: string | null;
+  moduleRelease?: AvailableModuleRelease | null;
+  module_release?: AvailableModuleRelease | null;
   summary?: string | null;
   archivedAt?: string;
   archiveReason?: string;
@@ -83,6 +85,15 @@ export type AvailableModulesResponseModule = {
   manifestStatus: "ok" | "invalid" | "unreadable" | "archived" | string;
   manifestVersion: string | null;
   status: "ready" | "needs_attention" | "archived" | string;
+};
+
+export type AvailableModuleRelease = {
+  manifestReference: string;
+  name?: string | null;
+  version?: string | null;
+  providerName?: string | null;
+  servicePackage?: string | null;
+  serviceManifest?: string | null;
 };
 
 export type ServiceModuleLifecycleResponse = {
@@ -206,6 +217,7 @@ export type ServiceModuleLifecycleModule = {
   deployment?: ServiceModuleDeployment | null;
   services: ServiceModuleLifecycleService[];
   operations?: ServiceOperation[];
+  moduleRelease?: AvailableModuleRelease | null;
   fixes: string[];
 };
 
@@ -273,6 +285,7 @@ export type AvailableModuleRow = {
   manifestReference: string;
   providerName?: string | null;
   serviceManifest?: string | null;
+  moduleRelease?: AvailableModuleRelease | null;
   baseUrl: string;
   capabilityCount: number;
   consolePackageHintCount: number;
@@ -455,6 +468,9 @@ export function availableModuleRowsFromResponse(
       providerName: module.providedBy ?? module.provided_by ?? null,
       serviceManifest:
         module.serviceManifest ?? module.service_manifest ?? null,
+      ...(module.moduleRelease || module.module_release
+        ? { moduleRelease: module.moduleRelease ?? module.module_release }
+        : {}),
       source: module.source,
       summary: module.summary ?? "-",
       version: module.catalogVersion,

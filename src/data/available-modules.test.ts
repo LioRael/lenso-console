@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { ServiceModuleLifecycleResponse } from "../pages/available-modules-model";
 import {
+  applyAvailableModuleInstallResponse,
   availableModulesPanelState,
   availableModulesQueryKey,
   availableModulesRows,
@@ -117,6 +118,15 @@ describe("available modules provider", () => {
       },
       manifestReference: "https://example.com/lenso/module/v1/manifest",
       moduleName: "billing",
+      moduleRelease: {
+        manifestReference:
+          "dist/lenso-service/billing-provider/modules/billing/lenso.module-release.json",
+        name: "billing",
+        providerName: "billing-provider",
+        serviceManifest: "https://example.com/lenso/service/v1/manifest",
+        servicePackage: null,
+        version: "0.1.0",
+      },
       linkedSource: null,
       remoteSource: {
         configured: true,
@@ -145,6 +155,61 @@ describe("available modules provider", () => {
     expect(postCalls).toEqual([
       'admin/data/available-modules/billing/install:{"json":{}}',
     ]);
+  });
+
+  test("applies module release provenance from install responses", () => {
+    const next = applyAvailableModuleInstallResponse(
+      sampleAvailableModulesResponse,
+      {
+        consolePlan: {
+          error: null,
+          exists: true,
+          moduleEntryPresent: true,
+          packageCount: 0,
+          packages: [],
+          planFile: ".lenso/console/extensions/registry.json",
+          readable: true,
+          restartRequired: true,
+        },
+        manifestReference: "https://example.com/lenso/module/v1/manifest",
+        moduleName: "billing",
+        moduleRelease: {
+          manifestReference:
+            "dist/lenso-service/billing-provider/modules/billing/lenso.module-release.json",
+          name: "billing",
+          providerName: "billing-provider",
+          serviceManifest: "https://example.com/lenso/service/v1/manifest",
+          servicePackage: null,
+          version: "0.1.0",
+        },
+        linkedSource: null,
+        remoteSource: {
+          configured: true,
+          desiredBaseUrl: "https://example.com/lenso/service/v1",
+          envFile: ".env",
+          error: null,
+          restartPending: true,
+          restartReason:
+            "service provider source configured in .env but not loaded",
+          runningBaseUrl: null,
+        },
+        restartRequired: true,
+      }
+    );
+
+    const billing = next?.modules.find((module) => module.name === "billing");
+    expect(billing?.moduleRelease).toEqual({
+      manifestReference:
+        "dist/lenso-service/billing-provider/modules/billing/lenso.module-release.json",
+      name: "billing",
+      providerName: "billing-provider",
+      serviceManifest: "https://example.com/lenso/service/v1/manifest",
+      servicePackage: null,
+      version: "0.1.0",
+    });
+    expect(billing?.installState?.remoteSource?.desiredBaseUrl).toBe(
+      "https://example.com/lenso/service/v1"
+    );
   });
 
   test("uninstalls an available module through the API", async () => {
