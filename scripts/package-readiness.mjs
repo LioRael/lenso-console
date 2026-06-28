@@ -9,10 +9,8 @@ const runtimeConsoleRoot = path.resolve(import.meta.dirname, "..");
 
 const packages = [
   {
-    name: "@lenso/remote-module-kit",
     dir: path.join(runtimeConsoleRoot, "packages/remote-module-kit"),
-    smokeImport:
-      'import { defineRemoteModule, runtimeFunction as remoteRuntimeFunction } from "@lenso/remote-module-kit";',
+    name: "@lenso/remote-module-kit",
     smokeBody: `const manifest = defineRemoteModule({
   name: "smoke",
   runtimeFunctions: [remoteRuntimeFunction("smoke.run.v1")],
@@ -21,12 +19,12 @@ const packages = [
 if (manifest.runtime.functions[0]?.name !== "smoke.run.v1") {
   throw new Error("remote-module-kit import did not work");
 }`,
+    smokeImport:
+      'import { defineRemoteModule, runtimeFunction as remoteRuntimeFunction } from "@lenso/remote-module-kit";',
   },
   {
-    name: "@lenso/service-kit",
     dir: path.join(runtimeConsoleRoot, "packages/service-kit"),
-    smokeImport:
-      'import { defineModule, defineService, runtimeFunction as serviceRuntimeFunction } from "@lenso/service-kit";',
+    name: "@lenso/service-kit",
     smokeBody: `const module = defineModule({
   capabilities: ["smoke.records.read"],
   name: "smoke-records",
@@ -40,6 +38,8 @@ const service = defineService({
 if (service.modules[0]?.name !== "smoke-records") {
   throw new Error("service-kit import did not work");
 }`,
+    smokeImport:
+      'import { defineModule, defineService, runtimeFunction as serviceRuntimeFunction } from "@lenso/service-kit";',
   },
 ];
 
@@ -92,12 +92,11 @@ const assertPackageMetadata = async ({ dir, name }) => {
     `${name} exports.types must point at dist/index.d.ts`
   );
   assert(manifest.files?.includes("dist"), `${name} files must include dist`);
-
 };
 
 const parsePnpmPackOutput = (packOutput) => {
   const jsonStart = packOutput.indexOf("{\n");
-  assert(jsonStart >= 0, "pnpm pack did not print JSON output");
+  assert(jsonStart !== -1, "pnpm pack did not print JSON output");
   return JSON.parse(packOutput.slice(jsonStart));
 };
 
@@ -141,9 +140,7 @@ const assertPackContents = (packageName, packOutput) => {
     `${packageName} package includes unexpected files: ${forbidden.join(", ")}`
   );
 
-  console.log(
-    `${packageName} pack dry-run: ${files.length} files`
-  );
+  console.log(`${packageName} pack dry-run: ${files.length} files`);
 };
 
 const packPackage = async ({ dir }) => {
@@ -215,7 +212,9 @@ ${packages.map((packageConfig) => packageConfig.smokeBody).join("\n\n")}
       maxBuffer: 1024 * 1024 * 10,
     });
   } finally {
-    await Promise.all(tarballs.map((tarballPath) => rm(tarballPath, { force: true })));
+    await Promise.all(
+      tarballs.map((tarballPath) => rm(tarballPath, { force: true }))
+    );
     await rm(tempRoot, { force: true, recursive: true });
   }
 };

@@ -982,59 +982,67 @@ export function serviceModuleLifecycleDoctorCheck({
       module.serviceStatus.error ?? "service status is degraded"
     );
   }
-  const firstFix = module.fixes[0];
+  const [firstFix] = module.fixes;
   switch (module.status) {
-    case "ready":
+    case "ready": {
       return doctorCheck("service", "service", "ok", "service is ready");
-    case "restart_pending":
+    }
+    case "restart_pending": {
       return doctorCheck(
         "service",
         "service",
         "fix",
         firstFix ?? "restart API and worker to load the service"
       );
-    case "configured_not_loaded":
+    }
+    case "configured_not_loaded": {
       return doctorCheck(
         "service",
         "service",
         "fix",
         firstFix ?? "restart Host after installing the service"
       );
-    case "manifest_unreachable":
+    }
+    case "manifest_unreachable": {
       return doctorCheck(
         "service",
         "service",
         "fix",
         firstFix ?? "fix the service manifest URL or start the service"
       );
-    case "service_not_ready":
+    }
+    case "service_not_ready": {
       return doctorCheck(
         "service",
         "service",
         "fix",
         firstFix ?? "start the service or fix its readiness endpoint"
       );
-    case "stale_state":
+    }
+    case "stale_state": {
       return doctorCheck(
         "service",
         "service",
         "fix",
         firstFix ?? "remove stale lock or pid files for the service"
       );
-    case "not_configured":
+    }
+    case "not_configured": {
       return doctorCheck(
         "service",
         "service",
         "fix",
         firstFix ?? "configure the service provider source"
       );
-    default:
+    }
+    default: {
       return doctorCheck(
         "service",
         "service",
         "hold",
         firstFix ?? `service status ${module.status}`
       );
+    }
   }
 }
 

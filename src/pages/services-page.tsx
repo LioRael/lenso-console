@@ -330,7 +330,7 @@ function OperationList({
 }
 
 function compactStrings(values: Array<null | string | undefined>) {
-  return values.filter((value): value is string => Boolean(value));
+  return values.filter(Boolean) as string[];
 }
 
 function nonEmpty(items: string[], fallback: string[]) {

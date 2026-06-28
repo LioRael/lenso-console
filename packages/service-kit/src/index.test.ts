@@ -1,4 +1,6 @@
+/* eslint-disable sort-keys */
 import { describe, expect, it } from "vitest";
+
 import {
   assertServiceContract,
   defineServiceContract,
@@ -11,13 +13,6 @@ import {
 describe("defineServiceContract", () => {
   it("builds a provider service manifest with modules", () => {
     const manifest = defineServiceContract({
-      name: "support-suite-provider",
-      version: "0.2.0",
-      provider: {
-        name: "support-suite-provider",
-        vendor: "Lenso",
-        summary: "Support workflow provider",
-      },
       compatibility: {
         remoteProtocolVersion: "1",
         requiredHostFeatures: ["service.status"],
@@ -36,16 +31,23 @@ describe("defineServiceContract", () => {
           capabilities: ["support_ticket.tickets.read"],
         },
       ],
+      name: "support-suite-provider",
+      provider: {
+        name: "support-suite-provider",
+        summary: "Support workflow provider",
+        vendor: "Lenso",
+      },
+      version: "0.2.0",
     });
 
     expect(manifest).toMatchObject({
-      name: "support-suite-provider",
-      provider: { vendor: "Lenso" },
       env: [{ name: "PORT", required: true, example: "4110" }],
       health: {
         readyUrl: "http://127.0.0.1:4110/lenso/service/v1/ready",
       },
       modules: [{ name: "support-ticket" }],
+      name: "support-suite-provider",
+      provider: { vendor: "Lenso" },
     });
     expect(validateServiceContract(manifest)).toEqual([]);
     expect(() => assertServiceContract(manifest)).not.toThrow();
@@ -58,9 +60,9 @@ describe("defineServiceContract", () => {
     };
 
     const manifest = defineServiceContract({
-      name: "support-suite-provider",
       localProcess,
       modules: [{ name: "support-ticket" }],
+      name: "support-suite-provider",
     });
 
     expect(manifest.config).toEqual([]);

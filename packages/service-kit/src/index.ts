@@ -1,6 +1,7 @@
+/* eslint-disable func-style, no-use-before-define, sort-keys */
 export * from "@lenso/remote-module-kit";
 
-export type ServiceContract = {
+export interface ServiceContract {
   name: string;
   version?: string;
   provider?: ServiceProviderMetadata;
@@ -10,80 +11,80 @@ export type ServiceContract = {
   health?: ServiceHealth;
   localProcess?: ServiceLocalProcess;
   modules: ServiceModuleContract[];
-};
+}
 
-export type ServiceProviderMetadata = {
+export interface ServiceProviderMetadata {
   name: string;
   vendor?: string;
   summary?: string;
   homepage?: string;
-};
+}
 
-export type ServiceCompatibility = {
+export interface ServiceCompatibility {
   remoteProtocolVersion?: string;
   requiredHostFeatures?: string[];
   sdkLanguage?: "ts" | "rust" | string;
   sdkVersion?: string;
-};
+}
 
-export type ServiceConfigField = {
+export interface ServiceConfigField {
   key: string;
   required?: boolean;
   defaultValue?: unknown;
   secret?: boolean;
-};
+}
 
-export type ServiceEnvField = {
+export interface ServiceEnvField {
   name: string;
   required?: boolean;
   example?: string;
-};
+}
 
-export type ServiceHealth = {
+export interface ServiceHealth {
   manifestUrl?: string;
   readyUrl?: string;
   livenessUrl?: string;
   statusUrl?: string;
-};
+}
 
-export type ServiceLocalProcess = {
+export interface ServiceLocalProcess {
   command: string;
   cwd?: string;
   env?: Record<string, string>;
   autoStart?: boolean;
   readyTimeoutMs?: number;
-};
+}
 
-export type ServiceModuleContract = {
+export interface ServiceModuleContract {
   name: string;
   version?: string;
   capabilities?: string[];
   dependencies?: string[];
-};
+}
 
-export type ServiceContractIssue = {
+export interface ServiceContractIssue {
   path: string;
   message: string;
-};
+}
 
 export const serviceContractSchema = {
   $id: "https://contracts.lenso.local/services/lenso-service.v1.schema.json",
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  title: "LensoServiceContract",
-  type: "object",
-  required: ["name", "modules"],
   additionalProperties: true,
   properties: {
-    name: { type: "string", minLength: 1 },
-    version: { type: "string", minLength: 1 },
-    provider: { type: "object" },
     compatibility: { type: "object" },
     config: { type: "array" },
     env: { type: "array" },
     health: { type: "object" },
     localProcess: { type: "object" },
-    modules: { type: "array", minItems: 1 },
+    modules: { minItems: 1, type: "array" },
+    name: { minLength: 1, type: "string" },
+    provider: { type: "object" },
+    version: { minLength: 1, type: "string" },
   },
+  required: ["name", "modules"],
+  title: "LensoServiceContract",
+  type: "object",
 } as const;
 
 export function defineServiceContract(
@@ -108,10 +109,12 @@ export function serviceHealth(health: ServiceHealth): ServiceHealth {
   return health;
 }
 
-export function validateServiceContract(value: unknown): ServiceContractIssue[] {
+export function validateServiceContract(
+  value: unknown
+): ServiceContractIssue[] {
   const root = asRecord(value);
   if (!root) {
-    return [{ path: "$", message: "service contract must be an object" }];
+    return [{ message: "service contract must be an object", path: "$" }];
   }
 
   const issues: ServiceContractIssue[] = [];
@@ -160,7 +163,7 @@ function validateProvider(
   }
   const provider = asRecord(value);
   if (!provider) {
-    issues.push({ path: "$.provider", message: "provider must be an object" });
+    issues.push({ message: "provider must be an object", path: "$.provider" });
     return;
   }
   requireNonEmptyString(provider.name, "$.provider.name", issues);
@@ -176,14 +179,13 @@ function validateCompatibility(
   const compatibility = asRecord(value);
   if (!compatibility) {
     issues.push({
-      path: "$.compatibility",
       message: "compatibility must be an object",
+      path: "$.compatibility",
     });
     return;
   }
   validateStringArray(
-    compatibility.requiredHostFeatures ??
-      compatibility.required_host_features,
+    compatibility.requiredHostFeatures ?? compatibility.required_host_features,
     "$.compatibility.requiredHostFeatures",
     issues
   );
@@ -199,15 +201,15 @@ function validateNamedFieldsArray(
     return;
   }
   if (!Array.isArray(value)) {
-    issues.push({ path, message: "field must be an array" });
+    issues.push({ message: "field must be an array", path });
     return;
   }
   for (const [index, item] of value.entries()) {
     const entry = asRecord(item);
     if (!entry) {
       issues.push({
-        path: `${path}[${index}]`,
         message: "entry must be an object",
+        path: `${path}[${index}]`,
       });
       continue;
     }
@@ -229,22 +231,19 @@ function validateLocalProcess(
   }
   const localProcess = asRecord(value);
   if (!localProcess) {
-    issues.push({ path, message: "localProcess must be an object" });
+    issues.push({ message: "localProcess must be an object", path });
     return;
   }
   requireNonEmptyString(localProcess.command, `${path}.command`, issues);
 }
 
-function validateInstall(
-  value: unknown,
-  issues: ServiceContractIssue[]
-): void {
+function validateInstall(value: unknown, issues: ServiceContractIssue[]): void {
   if (value === undefined) {
     return;
   }
   const install = asRecord(value);
   if (!install) {
-    issues.push({ path: "$.install", message: "install must be an object" });
+    issues.push({ message: "install must be an object", path: "$.install" });
     return;
   }
   if (install.services === undefined) {
@@ -252,8 +251,8 @@ function validateInstall(
   }
   if (!Array.isArray(install.services)) {
     issues.push({
-      path: "$.install.services",
       message: "install services must be an array",
+      path: "$.install.services",
     });
     return;
   }
@@ -261,8 +260,8 @@ function validateInstall(
     const entry = asRecord(service);
     if (!entry) {
       issues.push({
-        path: `$.install.services[${index}]`,
         message: "service must be an object",
+        path: `$.install.services[${index}]`,
       });
       continue;
     }
@@ -279,16 +278,13 @@ function validateInstall(
   }
 }
 
-function validateModules(
-  value: unknown,
-  issues: ServiceContractIssue[]
-): void {
+function validateModules(value: unknown, issues: ServiceContractIssue[]): void {
   if (!Array.isArray(value)) {
-    issues.push({ path: "$.modules", message: "modules must be an array" });
+    issues.push({ message: "modules must be an array", path: "$.modules" });
     return;
   }
   if (value.length === 0) {
-    issues.push({ path: "$.modules", message: "modules must not be empty" });
+    issues.push({ message: "modules must not be empty", path: "$.modules" });
     return;
   }
 
@@ -297,8 +293,8 @@ function validateModules(
     const entry = asRecord(module);
     if (!entry) {
       issues.push({
-        path: `$.modules[${index}]`,
         message: "module must be an object",
+        path: `$.modules[${index}]`,
       });
       continue;
     }
@@ -310,8 +306,8 @@ function validateModules(
     if (moduleName) {
       if (names.has(moduleName)) {
         issues.push({
-          path: `$.modules[${index}].name`,
           message: `module \`${moduleName}\` is declared more than once`,
+          path: `$.modules[${index}].name`,
         });
       }
       names.add(moduleName);
@@ -338,7 +334,7 @@ function validateStringArray(
     return;
   }
   if (!Array.isArray(value)) {
-    issues.push({ path, message: "field must be an array" });
+    issues.push({ message: "field must be an array", path });
     return;
   }
   for (const [index, item] of value.entries()) {
@@ -354,7 +350,7 @@ function requireNonEmptyString(
   if (typeof value === "string" && value.trim()) {
     return value.trim();
   }
-  issues.push({ path, message: "field must be a non-empty string" });
+  issues.push({ message: "field must be a non-empty string", path });
   return undefined;
 }
 

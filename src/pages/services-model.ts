@@ -195,7 +195,5 @@ export function providerNextAction(modules: ServiceCenterModule[]) {
 }
 
 function uniqueStrings(values: Array<null | string | undefined>) {
-  return Array.from(
-    new Set(values.filter((value): value is string => Boolean(value)))
-  ).sort();
+  return Array.from(new Set(values.filter(Boolean) as string[])).sort();
 }

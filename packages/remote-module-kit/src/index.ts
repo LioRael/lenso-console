@@ -1,4 +1,4 @@
-/* eslint-disable func-style, no-use-before-define */
+/* eslint-disable complexity, func-style, no-use-before-define */
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type {
@@ -110,7 +110,7 @@ export interface RemoteModuleServiceStatusOptions {
 
 export type ServiceStatusState = RemoteModuleServiceStatusState;
 
-export interface ServiceStatusCheck extends RemoteModuleServiceStatusCheck {}
+export type ServiceStatusCheck = RemoteModuleServiceStatusCheck;
 
 export interface ServiceModuleStatusSummary {
   name: string;
@@ -131,7 +131,9 @@ export interface ServiceStatus {
 export interface ServiceStatusOptions {
   checks?:
     | readonly ServiceStatusCheck[]
-    | (() => readonly ServiceStatusCheck[] | Promise<readonly ServiceStatusCheck[]>);
+    | (() =>
+        | readonly ServiceStatusCheck[]
+        | Promise<readonly ServiceStatusCheck[]>);
   state?: ServiceStatusState;
 }
 
@@ -617,7 +619,7 @@ export interface ServedRemoteModule {
   close: () => Promise<void>;
 }
 
-export interface ServedService extends ServedRemoteModule {}
+export type ServedService = ServedRemoteModule;
 
 export type ServiceModuleHandlers = Pick<
   ServeRemoteModuleOptions,
@@ -1303,8 +1305,12 @@ export const defineRemoteModule = (
 export const defineModule = (
   definition: ServiceModuleDefinition
 ): ServiceModuleManifest => {
-  const { compatibility: _compatibility, service: _service, source: _source, ...module } =
-    defineRemoteModule(definition);
+  const {
+    compatibility: _compatibility,
+    service: _service,
+    source: _source,
+    ...module
+  } = defineRemoteModule(definition);
   return module;
 };
 
@@ -1768,14 +1774,16 @@ export const serveRemoteModule = async (
       await once(server, "close");
     },
     manifestUrl: `${baseUrl}/manifest`,
-    statusUrl: `${baseUrl}/status`,
     server,
+    statusUrl: `${baseUrl}/status`,
   } satisfies ServedRemoteModule;
 
   options.onReady?.(served);
   return served;
 };
 
+// ponytail: shared server wrapper is intentionally flat; split handlers if this grows again.
+// eslint-disable-next-line complexity
 export const serveService = async (
   manifest: ServiceManifest,
   options: ServeServiceOptions = {}
@@ -1900,8 +1908,8 @@ export const serveService = async (
       await once(server, "close");
     },
     manifestUrl: `${baseUrl}/manifest`,
-    statusUrl: `${baseUrl}/status`,
     server,
+    statusUrl: `${baseUrl}/status`,
   } satisfies ServedService;
 
   options.onReady?.(served);

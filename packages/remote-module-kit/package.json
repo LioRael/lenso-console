@@ -7,8 +7,8 @@
     "lenso",
     "module",
     "remote-module",
-    "service",
-    "runtime-console"
+    "runtime-console",
+    "service"
   ],
   "homepage": "https://github.com/LioRael/lenso-runtime-console#readme",
   "bugs": {
