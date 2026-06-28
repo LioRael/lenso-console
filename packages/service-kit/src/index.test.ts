@@ -2,12 +2,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertServicePackage,
   assertServiceContract,
+  defineServicePackage,
   defineServiceContract,
   serviceContractSchema,
   serviceEnv,
   serviceHealth,
+  servicePackageSchema,
   validateServiceContract,
+  validateServicePackage,
 } from "./index";
 
 describe("defineServiceContract", () => {
@@ -73,6 +77,41 @@ describe("defineServiceContract", () => {
   it("exports the packaged service contract schema", () => {
     expect(serviceContractSchema.title).toBe("LensoServiceContract");
     expect(serviceContractSchema.required).toEqual(["name", "modules"]);
+  });
+
+  it("defines and validates a service package manifest", () => {
+    const servicePackage = defineServicePackage({
+      modules: ["support-ticket", "support-inbox"],
+      name: "support-suite-provider",
+      version: "0.2.0",
+    });
+
+    expect(servicePackage).toEqual({
+      modules: ["support-ticket", "support-inbox"],
+      name: "support-suite-provider",
+      protocol: "lenso.service-package.v1",
+      serviceManifest: "lenso.service.json",
+      version: "0.2.0",
+    });
+    expect(servicePackageSchema.title).toBe("LensoServicePackage");
+    expect(validateServicePackage(servicePackage)).toEqual([]);
+    expect(() => assertServicePackage(servicePackage)).not.toThrow();
+  });
+
+  it("reports validation paths for malformed service packages", () => {
+    const issues = validateServicePackage({
+      modules: ["support-ticket", "support-ticket", ""],
+      name: "support-suite-provider",
+      protocol: "remote-module",
+      serviceManifest: "lenso.service.json",
+      version: "0.2.0",
+    });
+
+    expect(issues.map((issue) => issue.path)).toEqual([
+      "$.protocol",
+      "$.modules[1]",
+      "$.modules[2]",
+    ]);
   });
 
   it("reports validation paths for malformed contracts", () => {

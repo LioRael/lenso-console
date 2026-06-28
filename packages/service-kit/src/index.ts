@@ -67,6 +67,16 @@ export interface ServiceContractIssue {
   message: string;
 }
 
+export const servicePackageProtocol = "lenso.service-package.v1" as const;
+
+export interface ServicePackage {
+  protocol: typeof servicePackageProtocol;
+  name: string;
+  version: string;
+  serviceManifest: string;
+  modules: string[];
+}
+
 export const serviceContractSchema = {
   $id: "https://contracts.lenso.local/services/lenso-service.v1.schema.json",
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -87,6 +97,26 @@ export const serviceContractSchema = {
   type: "object",
 } as const;
 
+export const servicePackageSchema = {
+  $id: "https://contracts.lenso.local/services/lenso-service-package.v1.schema.json",
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  additionalProperties: true,
+  properties: {
+    modules: {
+      items: { minLength: 1, type: "string" },
+      minItems: 1,
+      type: "array",
+    },
+    name: { minLength: 1, type: "string" },
+    protocol: { const: servicePackageProtocol, type: "string" },
+    serviceManifest: { minLength: 1, type: "string" },
+    version: { minLength: 1, type: "string" },
+  },
+  required: ["protocol", "name", "version", "serviceManifest", "modules"],
+  title: "LensoServicePackage",
+  type: "object",
+} as const;
+
 export function defineServiceContract(
   contract: ServiceContract
 ): ServiceContract {
@@ -95,6 +125,18 @@ export function defineServiceContract(
     config: contract.config ?? [],
     env: contract.env ?? [],
     modules: contract.modules,
+  };
+}
+
+export function defineServicePackage(
+  servicePackage: Omit<ServicePackage, "protocol" | "serviceManifest"> & {
+    serviceManifest?: string;
+  }
+): ServicePackage {
+  return {
+    ...servicePackage,
+    protocol: servicePackageProtocol,
+    serviceManifest: servicePackage.serviceManifest ?? "lenso.service.json",
   };
 }
 
@@ -148,6 +190,43 @@ export function assertServiceContract(
   if (issues.length > 0) {
     throw new Error(
       `Invalid Lenso service contract: ${issues
+        .map((issue) => `${issue.path} ${issue.message}`)
+        .join("; ")}`
+    );
+  }
+}
+
+export function validateServicePackage(value: unknown): ServiceContractIssue[] {
+  const root = asRecord(value);
+  if (!root) {
+    return [{ message: "service package must be an object", path: "$" }];
+  }
+
+  const issues: ServiceContractIssue[] = [];
+  if (root.protocol !== servicePackageProtocol) {
+    issues.push({
+      message: `protocol must be \`${servicePackageProtocol}\``,
+      path: "$.protocol",
+    });
+  }
+  requireNonEmptyString(root.name, "$.name", issues);
+  requireNonEmptyString(root.version, "$.version", issues);
+  requireNonEmptyString(
+    root.serviceManifest ?? root.service_manifest,
+    "$.serviceManifest",
+    issues
+  );
+  validateServicePackageModules(root.modules, issues);
+  return issues;
+}
+
+export function assertServicePackage(
+  value: unknown
+): asserts value is ServicePackage {
+  const issues = validateServicePackage(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid Lenso service package: ${issues
         .map((issue) => `${issue.path} ${issue.message}`)
         .join("; ")}`
     );
@@ -322,6 +401,37 @@ function validateModules(value: unknown, issues: ServiceContractIssue[]): void {
       `$.modules[${index}].dependencies`,
       issues
     );
+  }
+}
+
+function validateServicePackageModules(
+  value: unknown,
+  issues: ServiceContractIssue[]
+): void {
+  if (!Array.isArray(value)) {
+    issues.push({ message: "modules must be an array", path: "$.modules" });
+    return;
+  }
+  if (value.length === 0) {
+    issues.push({ message: "modules must not be empty", path: "$.modules" });
+    return;
+  }
+  const names = new Set<string>();
+  for (const [index, moduleNameValue] of value.entries()) {
+    const moduleName = requireNonEmptyString(
+      moduleNameValue,
+      `$.modules[${index}]`,
+      issues
+    );
+    if (moduleName) {
+      if (names.has(moduleName)) {
+        issues.push({
+          message: `module \`${moduleName}\` is declared more than once`,
+          path: `$.modules[${index}]`,
+        });
+      }
+      names.add(moduleName);
+    }
   }
 }
 
