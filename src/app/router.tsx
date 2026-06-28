@@ -18,6 +18,7 @@ import { OperationsPage } from "../pages/operations-page";
 import { OverviewPage } from "../pages/overview-page";
 import { QueuesPage } from "../pages/queues-page";
 import { RemoteProxyCallsPage } from "../pages/remote-proxy-calls-page";
+import { ServicesPage } from "../pages/services-page";
 import type { ConsoleModule } from "./console-module-api";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
 
@@ -146,6 +147,12 @@ export function createRuntimeConsoleRouter(
     component: ModulesPage,
   });
 
+  const servicesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/services",
+    component: ServicesPage,
+  });
+
   const routeTree = rootRoute.addChildren([
     indexRoute,
     ...consoleRouteNodes,
@@ -156,6 +163,7 @@ export function createRuntimeConsoleRouter(
     operationsFunctionsRoute,
     operationsRemoteCallsRoute,
     operationsAdminActionsRoute,
+    servicesRoute,
     modulesRoute,
     configRoute,
     dataRoute,

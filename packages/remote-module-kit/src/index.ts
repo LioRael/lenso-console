@@ -1,4 +1,4 @@
-/* eslint-disable func-style, no-use-before-define */
+/* eslint-disable complexity, func-style, no-use-before-define */
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type {
@@ -39,6 +39,8 @@ export interface RemoteModuleManifest {
   name: string;
   version: string;
   source: "remote";
+  compatibility?: RemoteModuleCompatibility;
+  service?: RemoteModuleServiceMetadata;
   story_display: readonly RemoteStoryDisplayDescriptor[];
   capabilities: readonly string[];
   dependencies: readonly string[];
@@ -50,6 +52,89 @@ export interface RemoteModuleManifest {
   lifecycle?: RemoteLifecycleSurface;
   admin: unknown | null;
   console?: readonly RemoteModuleConsoleSurface[];
+}
+
+export interface RemoteModuleCompatibility {
+  console_package_api?: string;
+  lenso?: {
+    min_version?: string;
+    max_version?: string;
+  };
+  remote_protocol_version?: string;
+  required_host_features?: readonly string[];
+}
+
+export interface RemoteModuleDeploymentMetadata {
+  target?: string;
+  commands?: readonly string[];
+  compose_service?: string;
+}
+
+export interface RemoteModuleServiceMetadata {
+  deployment?: RemoteModuleDeploymentMetadata;
+  name?: string;
+  required_env?: readonly string[];
+  status_path?: string;
+  status_url?: string;
+  transports?: readonly string[];
+  version?: string;
+}
+
+export type RemoteModuleServiceStatusState = "ready" | "degraded" | "starting";
+
+export interface RemoteModuleServiceStatusCheck {
+  name: string;
+  status: "ok" | "warning" | "error";
+  detail?: string;
+}
+
+export interface RemoteModuleServiceStatus {
+  moduleName: string;
+  serviceName: string;
+  version: string;
+  protocolVersion: string;
+  transports: readonly string[];
+  state: RemoteModuleServiceStatusState;
+  checks: readonly RemoteModuleServiceStatusCheck[];
+  manifestUrl: string;
+}
+
+export interface RemoteModuleServiceStatusOptions {
+  checks?:
+    | readonly RemoteModuleServiceStatusCheck[]
+    | (() =>
+        | readonly RemoteModuleServiceStatusCheck[]
+        | Promise<readonly RemoteModuleServiceStatusCheck[]>);
+  state?: RemoteModuleServiceStatusState;
+}
+
+export type ServiceStatusState = RemoteModuleServiceStatusState;
+
+export type ServiceStatusCheck = RemoteModuleServiceStatusCheck;
+
+export interface ServiceModuleStatusSummary {
+  name: string;
+  version: string;
+}
+
+export interface ServiceStatus {
+  serviceName: string;
+  version: string;
+  protocolVersion: string;
+  transports: readonly string[];
+  state: ServiceStatusState;
+  checks: readonly ServiceStatusCheck[];
+  manifestUrl: string;
+  modules: readonly ServiceModuleStatusSummary[];
+}
+
+export interface ServiceStatusOptions {
+  checks?:
+    | readonly ServiceStatusCheck[]
+    | (() =>
+        | readonly ServiceStatusCheck[]
+        | Promise<readonly ServiceStatusCheck[]>);
+  state?: ServiceStatusState;
 }
 
 export type RemoteStoryDisplaySource =
@@ -71,19 +156,84 @@ export interface RemoteStoryDisplayDescriptor {
 
 export type RemoteHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export type ServiceOperationIdempotency =
+  | "none"
+  | "idempotent"
+  | "requires_key";
+
+export interface ServiceOperationSafeProbe {
+  method?: RemoteHttpMethod | string;
+  path?: string;
+  input?: unknown;
+  expectStatus?: number;
+}
+
+export interface ServiceOperationMetadata {
+  operationId?: string;
+  summary?: string;
+  inputSchema?: unknown;
+  outputSchema?: unknown;
+  safeProbe?: ServiceOperationSafeProbe;
+  timeoutMs?: number;
+  idempotency?: ServiceOperationIdempotency;
+}
+
 export interface RemoteHttpRoute {
   method: RemoteHttpMethod;
   path: string;
   capability?: string;
   display_name?: string;
+  operation?: ServiceOperationMetadata;
   story_title?: string;
 }
 
 export interface RemoteHttpRouteOptions {
   capability?: string;
   displayName?: string;
+  operation?: ServiceOperationMetadata;
   storyTitle?: string;
 }
+
+export interface LensoInvocationContext {
+  requestId?: string;
+  correlationId?: string;
+  causationId?: string;
+  providerName?: string;
+  moduleName?: string;
+  operationId?: string;
+  operationKind?: string;
+  actorKind?: string;
+  traceparent?: string;
+}
+
+const firstHeaderValue = (value: string | string[] | undefined) =>
+  Array.isArray(value) ? value[0] : value;
+
+export const readLensoInvocationContext = (
+  request: IncomingMessage
+): LensoInvocationContext => {
+  const { headers } = request;
+  const requestId = firstHeaderValue(headers["x-request-id"]);
+  const correlationId = firstHeaderValue(headers["x-lenso-correlation-id"]);
+  const causationId = firstHeaderValue(headers["x-lenso-causation-id"]);
+  const providerName = firstHeaderValue(headers["x-lenso-provider"]);
+  const moduleName = firstHeaderValue(headers["x-lenso-module"]);
+  const operationId = firstHeaderValue(headers["x-lenso-operation"]);
+  const operationKind = firstHeaderValue(headers["x-lenso-operation-kind"]);
+  const actorKind = firstHeaderValue(headers["x-lenso-actor-kind"]);
+  const traceparent = firstHeaderValue(headers.traceparent);
+  return {
+    ...(requestId === undefined ? {} : { requestId }),
+    ...(correlationId === undefined ? {} : { correlationId }),
+    ...(causationId === undefined ? {} : { causationId }),
+    ...(providerName === undefined ? {} : { providerName }),
+    ...(moduleName === undefined ? {} : { moduleName }),
+    ...(operationId === undefined ? {} : { operationId }),
+    ...(operationKind === undefined ? {} : { operationKind }),
+    ...(actorKind === undefined ? {} : { actorKind }),
+    ...(traceparent === undefined ? {} : { traceparent }),
+  };
+};
 
 export interface RemoteHttpHandlerContext {
   body: unknown;
@@ -113,6 +263,7 @@ export interface RemoteRuntimeFunctionDeclaration {
   version: number;
   queue: string;
   input_schema?: string;
+  operation?: ServiceOperationMetadata;
   retry_policy?: RemoteRuntimeRetryPolicy;
 }
 
@@ -120,6 +271,7 @@ export interface RemoteRuntimeFunctionOptions {
   version?: number;
   queue?: string;
   inputSchema?: string;
+  operation?: ServiceOperationMetadata;
   retryPolicy?: RemoteRuntimeRetryPolicy;
 }
 
@@ -152,6 +304,11 @@ export interface RemoteEventSurface {
 export interface RemoteEventHandlerDeclaration {
   name: string;
   event_name: string;
+  operation?: ServiceOperationMetadata;
+}
+
+export interface RemoteEventHandlerOptions {
+  operation?: ServiceOperationMetadata;
 }
 
 export interface RemoteEventHandleRequest {
@@ -275,6 +432,7 @@ export interface AdminAction {
   input_schema?: AdminActionInputSchema;
   confirmation?: AdminActionConfirmation;
   danger_level?: AdminActionDangerLevel;
+  operation?: ServiceOperationMetadata;
 }
 
 export interface AdminMetricBinding {
@@ -353,6 +511,8 @@ export interface AdminEmbeddedSurface {
 export interface RemoteModuleDefinition {
   name: string;
   version?: string;
+  compatibility?: RemoteModuleCompatibility;
+  service?: RemoteModuleServiceMetadata;
   storyDisplay?: readonly RemoteStoryDisplayDescriptor[];
   capabilities?: readonly string[];
   dependencies?: readonly string[];
@@ -362,6 +522,63 @@ export interface RemoteModuleDefinition {
   lifecycle?: RemoteLifecycleSurface;
   admin?: unknown | null;
   console?: readonly RemoteModuleConsoleSurface[];
+}
+
+export type ServiceModuleDefinition = Omit<
+  RemoteModuleDefinition,
+  "compatibility" | "service"
+>;
+
+export type ServiceModuleManifest = Omit<
+  RemoteModuleManifest,
+  "compatibility" | "service" | "source"
+>;
+
+export interface ServiceInstallCommand {
+  command: string;
+  cwd?: string;
+}
+
+export interface ServiceInstallService {
+  name?: string;
+  command: string;
+  cwd?: string;
+  readyUrl?: string;
+  readyTimeoutMs?: number;
+  autoStart?: boolean;
+}
+
+export interface ServiceInstall {
+  env?: Record<string, string>;
+  commands?: readonly (string | ServiceInstallCommand)[];
+  services?: readonly ServiceInstallService[];
+}
+
+export interface ServiceDefinition {
+  name: string;
+  version?: string;
+  compatibility?: RemoteModuleCompatibility;
+  deployment?: RemoteModuleDeploymentMetadata;
+  install?: ServiceInstall;
+  modules: readonly ServiceModuleManifest[];
+  requiredEnv?: readonly string[];
+  statusPath?: string;
+  statusUrl?: string;
+  transports?: readonly string[];
+}
+
+export interface ServiceManifest {
+  name: string;
+  version: string;
+  protocol: "lenso.service.v1";
+  compatibility?: RemoteModuleCompatibility;
+  deployment?: RemoteModuleDeploymentMetadata;
+  install?: ServiceInstall;
+  modules: readonly ServiceModuleManifest[];
+  required_env: readonly string[];
+  status_path: string;
+  status_url?: string;
+  transports: readonly string[];
 }
 
 export interface RemoteAdminPage {
@@ -397,9 +614,17 @@ export type RemoteAdminActionHandler = (
 export interface ServedRemoteModule {
   baseUrl: string;
   manifestUrl: string;
+  statusUrl: string;
   server: HttpServer | Http2Server;
   close: () => Promise<void>;
 }
+
+export type ServedService = ServedRemoteModule;
+
+export type ServiceModuleHandlers = Pick<
+  ServeRemoteModuleOptions,
+  "actions" | "data" | "events" | "http" | "queries" | "runtime"
+>;
 
 export interface ServeRemoteModuleOptions {
   host?: string;
@@ -411,7 +636,17 @@ export interface ServeRemoteModuleOptions {
   http?: Record<string, RemoteHttpHandler>;
   runtime?: Record<string, RemoteRuntimeHandler>;
   events?: Record<string, RemoteEventHandler>;
+  status?: RemoteModuleServiceStatusOptions;
   onReady?: (server: ServedRemoteModule) => void;
+}
+
+export interface ServeServiceOptions {
+  host?: string;
+  port?: number;
+  basePath?: string;
+  modules?: Record<string, ServiceModuleHandlers>;
+  status?: ServiceStatusOptions;
+  onReady?: (server: ServedService) => void;
 }
 
 const normalizeBasePath = (basePath: string) => {
@@ -560,6 +795,7 @@ const route = (
   ...(options.capability ? { capability: options.capability } : {}),
   ...(options.displayName ? { display_name: options.displayName } : {}),
   method,
+  ...(options.operation ? { operation: options.operation } : {}),
   path,
   ...(options.storyTitle ? { story_title: options.storyTitle } : {}),
 });
@@ -931,6 +1167,7 @@ export interface AdminActionOptions {
   inputFields?: readonly AdminActionInputField[];
   confirmation?: AdminActionConfirmation;
   dangerLevel?: AdminActionDangerLevel;
+  operation?: ServiceOperationMetadata;
 }
 
 export interface AdminConfirmationOptions {
@@ -1044,6 +1281,9 @@ export const defineRemoteModule = (
   return {
     admin: definition.admin ?? null,
     capabilities: definition.capabilities ?? [],
+    ...(definition.compatibility
+      ? { compatibility: definition.compatibility }
+      : {}),
     console: definition.console ?? [],
     dependencies: definition.dependencies ?? [],
     ...(definition.eventHandlers
@@ -1055,8 +1295,58 @@ export const defineRemoteModule = (
     runtime: {
       functions: definition.runtimeFunctions ?? [],
     },
+    ...(definition.service ? { service: definition.service } : {}),
     source: "remote",
     story_display: definition.storyDisplay ?? [],
+    version: definition.version ?? "0.1.0",
+  };
+};
+
+export const defineModule = (
+  definition: ServiceModuleDefinition
+): ServiceModuleManifest => {
+  const {
+    compatibility: _compatibility,
+    service: _service,
+    source: _source,
+    ...module
+  } = defineRemoteModule(definition);
+  return module;
+};
+
+export const defineService = (
+  definition: ServiceDefinition
+): ServiceManifest => {
+  const name = definition.name.trim();
+  if (!name) {
+    throw new Error("Service name is required");
+  }
+  if (definition.modules.length === 0) {
+    throw new Error("Service must provide at least one module");
+  }
+  const moduleNames = new Set<string>();
+  for (const module of definition.modules) {
+    if (!module.name.trim()) {
+      throw new Error("Service module name is required");
+    }
+    if (moduleNames.has(module.name)) {
+      throw new Error(`Duplicate service module: ${module.name}`);
+    }
+    moduleNames.add(module.name);
+  }
+  return {
+    ...(definition.compatibility
+      ? { compatibility: definition.compatibility }
+      : {}),
+    ...(definition.deployment ? { deployment: definition.deployment } : {}),
+    ...(definition.install ? { install: definition.install } : {}),
+    modules: definition.modules,
+    name,
+    protocol: "lenso.service.v1",
+    required_env: definition.requiredEnv ?? [],
+    status_path: definition.statusPath ?? "/lenso/service/v1/status",
+    ...(definition.statusUrl ? { status_url: definition.statusUrl } : {}),
+    transports: definition.transports ?? ["http"],
     version: definition.version ?? "0.1.0",
   };
 };
@@ -1085,6 +1375,7 @@ export const runtimeFunction = (
   options: RemoteRuntimeFunctionOptions = {}
 ): RemoteRuntimeFunctionDeclaration => ({
   ...(options.inputSchema ? { input_schema: options.inputSchema } : {}),
+  ...(options.operation ? { operation: options.operation } : {}),
   queue: options.queue ?? runtimeFunctionQueue(name),
   ...(options.retryPolicy ? { retry_policy: options.retryPolicy } : {}),
   name,
@@ -1093,10 +1384,12 @@ export const runtimeFunction = (
 
 export const eventHandler = (
   name: string,
-  eventName: string
+  eventName: string,
+  options: RemoteEventHandlerOptions = {}
 ): RemoteEventHandlerDeclaration => ({
   event_name: eventName,
   name,
+  ...(options.operation ? { operation: options.operation } : {}),
 });
 
 export const everyStartup = (
@@ -1186,6 +1479,7 @@ export const adminAction = (
     : {}),
   label: options.label ?? titleCase(name),
   name,
+  ...(options.operation ? { operation: options.operation } : {}),
 });
 
 export const metricBinding = (
@@ -1289,6 +1583,87 @@ export const embeddedCustom = (
   kind: "embedded_custom",
 });
 
+const remoteModuleStatusChecks = async (
+  options: RemoteModuleServiceStatusOptions | undefined
+) => {
+  if (!options?.checks) {
+    return [{ name: "service", status: "ok" as const }];
+  }
+  return typeof options.checks === "function"
+    ? await options.checks()
+    : options.checks;
+};
+
+const remoteModuleStatusResponse = async ({
+  baseUrl,
+  manifest,
+  options,
+}: {
+  baseUrl: string;
+  manifest: RemoteModuleManifest;
+  options: RemoteModuleServiceStatusOptions | undefined;
+}): Promise<RemoteModuleServiceStatus> => ({
+  checks: await remoteModuleStatusChecks(options),
+  manifestUrl: `${baseUrl}/manifest`,
+  moduleName: manifest.name,
+  protocolVersion: manifest.compatibility?.remote_protocol_version ?? "1",
+  serviceName: manifest.service?.name ?? "api",
+  state: options?.state ?? "ready",
+  transports: manifest.service?.transports ?? ["http"],
+  version: manifest.service?.version ?? manifest.version,
+});
+
+const serviceStatusChecks = async (
+  options: ServiceStatusOptions | undefined
+) => {
+  if (!options?.checks) {
+    return [{ name: "service", status: "ok" as const }];
+  }
+  return typeof options.checks === "function"
+    ? await options.checks()
+    : options.checks;
+};
+
+const serviceStatusResponse = async ({
+  baseUrl,
+  manifest,
+  options,
+}: {
+  baseUrl: string;
+  manifest: ServiceManifest;
+  options: ServiceStatusOptions | undefined;
+}): Promise<ServiceStatus> => ({
+  checks: await serviceStatusChecks(options),
+  manifestUrl: `${baseUrl}/manifest`,
+  modules: manifest.modules.map((module) => ({
+    name: module.name,
+    version: module.version,
+  })),
+  protocolVersion: manifest.compatibility?.remote_protocol_version ?? "1",
+  serviceName: manifest.name,
+  state: options?.state ?? "ready",
+  transports: manifest.transports,
+  version: manifest.version,
+});
+
+const remoteManifestForServiceModule = (
+  service: ServiceManifest,
+  module: ServiceModuleManifest
+): RemoteModuleManifest => ({
+  ...module,
+  ...(service.compatibility ? { compatibility: service.compatibility } : {}),
+  service: {
+    ...(service.deployment ? { deployment: service.deployment } : {}),
+    name: service.name,
+    required_env: service.required_env,
+    status_path: service.status_path,
+    ...(service.status_url ? { status_url: service.status_url } : {}),
+    transports: service.transports,
+    version: service.version,
+  },
+  source: "remote",
+});
+
 export const serveRemoteModule = async (
   manifest: RemoteModuleManifest,
   options: ServeRemoteModuleOptions = {}
@@ -1297,10 +1672,25 @@ export const serveRemoteModule = async (
   const port = options.port ?? 4100;
   const basePath = normalizeBasePath(options.basePath ?? "/lenso/module/v1");
   const manifestPath = `${basePath}/manifest`;
+  const statusPath = `${basePath}/status`;
+  let servedBaseUrl = "";
 
   const server = createServer(async (request, response) => {
-    if (request.method === "GET" && request.url === manifestPath) {
+    const requestPath = new URL(request.url ?? "", "http://127.0.0.1").pathname;
+    if (request.method === "GET" && requestPath === manifestPath) {
       sendJson(response, 200, manifest);
+      return;
+    }
+    if (request.method === "GET" && requestPath === statusPath) {
+      sendJson(
+        response,
+        200,
+        await remoteModuleStatusResponse({
+          baseUrl: servedBaseUrl,
+          manifest,
+          options: options.status,
+        })
+      );
       return;
     }
     if (request.method === "GET") {
@@ -1376,6 +1766,7 @@ export const serveRemoteModule = async (
   const boundPort =
     typeof address === "object" && address ? address.port : port;
   const baseUrl = `http://${host}:${boundPort}${basePath}`;
+  servedBaseUrl = baseUrl;
   const served = {
     baseUrl,
     close: async () => {
@@ -1384,7 +1775,142 @@ export const serveRemoteModule = async (
     },
     manifestUrl: `${baseUrl}/manifest`,
     server,
+    statusUrl: `${baseUrl}/status`,
   } satisfies ServedRemoteModule;
+
+  options.onReady?.(served);
+  return served;
+};
+
+// ponytail: shared server wrapper is intentionally flat; split handlers if this grows again.
+// eslint-disable-next-line complexity
+export const serveService = async (
+  manifest: ServiceManifest,
+  options: ServeServiceOptions = {}
+): Promise<ServedService> => {
+  const host = options.host ?? "127.0.0.1";
+  const port = options.port ?? 4100;
+  const basePath = normalizeBasePath(options.basePath ?? "/lenso/service/v1");
+  const manifestPath = `${basePath}/manifest`;
+  const statusPath = `${basePath}/status`;
+  let servedBaseUrl = "";
+
+  const server = createServer(async (request, response) => {
+    const requestPath = new URL(request.url ?? "", "http://127.0.0.1").pathname;
+    if (request.method === "GET" && requestPath === manifestPath) {
+      sendJson(response, 200, manifest);
+      return;
+    }
+    if (request.method === "GET" && requestPath === statusPath) {
+      sendJson(
+        response,
+        200,
+        await serviceStatusResponse({
+          baseUrl: servedBaseUrl,
+          manifest,
+          options: options.status,
+        })
+      );
+      return;
+    }
+
+    for (const module of manifest.modules) {
+      const moduleBasePath = `${basePath}/modules/${module.name}`;
+      const moduleHandlers = options.modules?.[module.name] ?? {};
+      const remoteManifest = remoteManifestForServiceModule(manifest, module);
+
+      if (
+        request.method === "GET" &&
+        requestPath === `${moduleBasePath}/manifest`
+      ) {
+        sendJson(response, 200, module);
+        return;
+      }
+      if (request.method === "GET") {
+        const queryResult = await handleAdminQueryRequest({
+          basePath: moduleBasePath,
+          handlers: moduleHandlers.queries ?? {},
+          request,
+        });
+        if (queryResult) {
+          sendJson(response, queryResult.statusCode, queryResult.body);
+          return;
+        }
+        const adminResult = await handleAdminDataRequest({
+          basePath: moduleBasePath,
+          data: moduleHandlers.data ?? {},
+          requestUrl: request.url ?? "",
+        });
+        if (adminResult) {
+          sendJson(response, adminResult.statusCode, adminResult.body);
+          return;
+        }
+      }
+      const actionResult = await handleAdminActionRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.actions ?? {},
+        request,
+      });
+      if (actionResult) {
+        sendJson(response, actionResult.statusCode, actionResult.body);
+        return;
+      }
+      const runtimeResult = await handleRuntimeFunctionRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.runtime ?? {},
+        request,
+      });
+      if (runtimeResult) {
+        sendJson(response, runtimeResult.statusCode, runtimeResult.body);
+        return;
+      }
+      const eventResult = await handleEventRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.events ?? {},
+        request,
+      });
+      if (eventResult) {
+        sendJson(response, eventResult.statusCode, eventResult.body);
+        return;
+      }
+      const httpResult = await handleHttpRouteRequest({
+        basePath: moduleBasePath,
+        handlers: moduleHandlers.http ?? {},
+        manifest: remoteManifest,
+        request,
+      });
+      if (httpResult) {
+        sendJson(response, httpResult.statusCode, httpResult.body);
+        return;
+      }
+    }
+
+    sendJson(response, 404, {
+      error: {
+        code: "not_found",
+        message: `${manifest.name} service endpoint not found`,
+      },
+    });
+  });
+
+  server.listen(port, host);
+  await once(server, "listening");
+
+  const address = server.address();
+  const boundPort =
+    typeof address === "object" && address ? address.port : port;
+  const baseUrl = `http://${host}:${boundPort}${basePath}`;
+  servedBaseUrl = baseUrl;
+  const served = {
+    baseUrl,
+    close: async () => {
+      server.close();
+      await once(server, "close");
+    },
+    manifestUrl: `${baseUrl}/manifest`,
+    server,
+    statusUrl: `${baseUrl}/status`,
+  } satisfies ServedService;
 
   options.onReady?.(served);
   return served;
@@ -1422,6 +1948,7 @@ export const serveRemoteModuleGrpc = async (
     },
     manifestUrl: `${baseUrl}${GRPC_PATHS.getManifest}`,
     server,
+    statusUrl: `${baseUrl}/lenso.remote.v1.RemoteModule/GetStatus`,
   } satisfies ServedRemoteModule;
 
   options.onReady?.(served);

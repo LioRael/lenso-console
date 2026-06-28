@@ -1,10 +1,14 @@
-name: publish remote-module-kit
+name: publish service SDKs
 
 on:
   workflow_dispatch:
     inputs:
       version:
         description: Package version from packages/remote-module-kit/package.json
+        required: true
+        type: string
+      service_kit_version:
+        description: Package version from packages/service-kit/package.json
         required: true
         type: string
       dry_run:
@@ -15,7 +19,7 @@ on:
 
 concurrency:
   cancel-in-progress: false
-  group: publish-remote-module-kit
+  group: publish-service-sdks
 
 permissions:
   contents: read
@@ -82,17 +86,39 @@ jobs:
             exit 1
           fi
 
+          service_kit_version="$(node -p "require('./packages/service-kit/package.json').version")"
+          if [ "${service_kit_version}" != "${{ inputs.service_kit_version }}" ]; then
+            echo "Service kit input version ${{ inputs.service_kit_version }} does not match package.json version ${service_kit_version}."
+            exit 1
+          fi
+
+          if npm view "@lenso/service-kit@${service_kit_version}" version >/dev/null 2>&1; then
+            echo "@lenso/service-kit@${service_kit_version} is already published."
+            exit 1
+          fi
+
           echo "PACKAGE_VERSION=${package_version}" >> "${GITHUB_ENV}"
+          echo "SERVICE_KIT_VERSION=${service_kit_version}" >> "${GITHUB_ENV}"
 
       - name: Run package readiness
         run: pnpm package-readiness
 
-      - name: Dry-run npm publish
+      - name: Dry-run remote-module-kit publish
         if: ${{ inputs.dry_run }}
         working-directory: lenso-runtime-console/packages/remote-module-kit
-        run: npm publish --access public --dry-run
+        run: pnpm publish --access public --dry-run --no-git-checks
 
-      - name: Publish to npm
+      - name: Dry-run service-kit publish
+        if: ${{ inputs.dry_run }}
+        working-directory: lenso-runtime-console/packages/service-kit
+        run: pnpm publish --access public --dry-run --no-git-checks
+
+      - name: Publish remote-module-kit to npm
         if: ${{ !inputs.dry_run }}
         working-directory: lenso-runtime-console/packages/remote-module-kit
-        run: npm publish --access public
+        run: pnpm publish --access public --no-git-checks
+
+      - name: Publish service-kit to npm
+        if: ${{ !inputs.dry_run }}
+        working-directory: lenso-runtime-console/packages/service-kit
+        run: pnpm publish --access public --no-git-checks

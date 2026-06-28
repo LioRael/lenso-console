@@ -1,0 +1,102 @@
+# @lenso/service-kit
+
+Helpers for building Lenso services that provide one or more modules.
+
+```ts
+import {
+  defineModule,
+  defineService,
+  defineServiceContract,
+  serviceEnv,
+  serveService,
+} from "@lenso/service-kit";
+
+const supportTicket = defineModule({
+  name: "support-ticket",
+  version: "0.1.0",
+  capabilities: ["support_ticket.tickets.read"],
+});
+
+export const contract = defineServiceContract({
+  name: "support-suite-provider",
+  version: "0.2.0",
+  env: [serviceEnv("PORT", { example: "4110", required: true })],
+  modules: [{ name: supportTicket.name, version: supportTicket.version }],
+});
+
+export const manifest = defineService({
+  name: contract.name,
+  version: contract.version,
+  modules: [supportTicket],
+});
+
+serveService(manifest, { modules: {} });
+```
+
+```js
+import {
+  defineModule,
+  defineService,
+  getRoute,
+  runtimeFunction,
+  serveService,
+} from "@lenso/service-kit";
+
+const supportTicket = defineModule({
+  capabilities: ["support_ticket.tickets.read"],
+  httpRoutes: [
+    getRoute("/tickets/{id}", {
+      capability: "support_ticket.tickets.read",
+      displayName: "Get Ticket",
+      storyTitle: "Get Ticket",
+    }),
+  ],
+  name: "support-ticket",
+  runtimeFunctions: [runtimeFunction("support-ticket.escalate-ticket.v1")],
+});
+
+const service = defineService({
+  install: {
+    services: [
+      {
+        command: "pnpm start",
+        name: "support-service",
+        readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+      },
+    ],
+  },
+  modules: [supportTicket],
+  name: "support-service",
+  requiredEnv: ["PORT"],
+});
+
+const server = await serveService(service, {
+  modules: {
+    "support-ticket": {
+      http: {
+        "GET /tickets/{id}": ({ params }) => ({ ticket: { id: params.id } }),
+      },
+    },
+  },
+});
+
+console.log(server.manifestUrl);
+console.log(server.statusUrl);
+```
+
+`serveService()` serves:
+
+- `GET /lenso/service/v1/manifest`
+- `GET /lenso/service/v1/status`
+- module handlers below `/lenso/service/v1/modules/{moduleName}`
+
+Install it into a host with:
+
+```sh
+lenso service install http://127.0.0.1:4110/lenso/service/v1/manifest
+```
+
+## Scripts
+
+- `pnpm build`: emit JavaScript and declarations into `dist/`.
+- `pnpm pack --dry-run`: build and inspect the publish tarball without uploading.

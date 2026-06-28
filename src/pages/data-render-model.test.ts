@@ -299,7 +299,7 @@ describe("module status helpers", () => {
     expect(moduleErrorMessage(loadedModule)).toBeNull();
   });
 
-  test("summarizes remote module readiness from metadata and recent calls", () => {
+  test("summarizes service module readiness from metadata and recent calls", () => {
     const remoteModule = moduleMetadata({
       module_name: "remote-crm",
       source: "remote",
@@ -311,7 +311,7 @@ describe("module status helpers", () => {
 
     expect(remoteModuleReadiness(remoteModule, [])).toEqual({
       latestFailure: null,
-      reasons: ["remote module is ready"],
+      reasons: ["service is ready"],
       status: "ready",
     });
 

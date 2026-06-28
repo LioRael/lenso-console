@@ -1,6 +1,10 @@
 # @lenso/remote-module-kit
 
-Helpers for building out-of-process Lenso remote modules.
+Compatibility helpers for the old remote-module entrypoint.
+
+New services should use `@lenso/service-kit` with `defineService`,
+`defineModule`, and `serveService`. This package remains available for hosts
+and examples that still speak the V4 remote-module protocol directly.
 
 ```js
 import {
@@ -16,6 +20,11 @@ import {
 } from "@lenso/remote-module-kit";
 
 const manifest = defineRemoteModule({
+  compatibility: {
+    console_package_api: "1",
+    remote_protocol_version: "1",
+    required_host_features: ["service.status"],
+  },
   admin: declarativeCustom({
     actions: [
       adminAction("sync_contacts", {
@@ -40,6 +49,12 @@ const manifest = defineRemoteModule({
   httpRoutes: [getRoute("/contacts/{id}")],
   name: "crm",
   runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
+  service: {
+    name: "api",
+    status_path: "/lenso/module/v1/status",
+    transports: ["http"],
+    version: "0.1.0",
+  },
 });
 
 const server = await serveRemoteModule(manifest, {
@@ -53,18 +68,24 @@ const server = await serveRemoteModule(manifest, {
 });
 
 console.log(server.manifestUrl);
+console.log(server.statusUrl);
 ```
+
+`serveRemoteModule()` serves `GET /lenso/module/v1/status` by default. The host
+and CLI use it for service-module readiness diagnostics; modules can pass
+`status.checks` when they need to expose a small health summary.
 
 ## Scripts
 
 - `pnpm build`: emit JavaScript and declarations into `dist/`.
-- `npm pack --dry-run`: build and inspect the publish tarball without uploading
+- `pnpm pack --dry-run`: build and inspect the publish tarball without uploading
   it.
 
 ## Publishing
 
-This package is published through the `publish remote-module-kit` GitHub Actions
-workflow. The npm package should be configured for trusted publishing with:
+This package is published with `@lenso/service-kit` through the `publish service
+SDKs` GitHub Actions workflow. The npm packages should be configured for
+trusted publishing with:
 
 - repository: `LioRael/lenso-runtime-console`
 - workflow: `publish-remote-module-kit.yml`
@@ -77,6 +98,7 @@ pnpm package-readiness
 ```
 
 After the release PR is merged, run the workflow from `main` with the package
-version from `packages/remote-module-kit/package.json`. The workflow verifies
-the version is not already published, runs `pnpm package-readiness`, and then
-publishes from `packages/remote-module-kit`.
+versions from `packages/remote-module-kit/package.json` and
+`packages/service-kit/package.json`. The workflow verifies neither version is
+already published, runs `pnpm package-readiness`, publishes
+`@lenso/remote-module-kit`, and then publishes `@lenso/service-kit`.

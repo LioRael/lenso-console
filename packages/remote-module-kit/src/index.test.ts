@@ -1,5 +1,6 @@
 import { once } from "node:events";
 /* eslint-disable func-style, no-use-before-define */
+import type { IncomingMessage } from "node:http";
 import { connect } from "node:http2";
 
 import { describe, expect, test } from "vitest";
@@ -13,7 +14,9 @@ import {
   declarativeCustom,
   declarativePage,
   declarativeSection,
+  defineModule,
   defineRemoteModule,
+  defineService,
   defineSchemaEntity,
   entityTable,
   eventHandler,
@@ -26,10 +29,12 @@ import {
   metricStrip,
   postRoute,
   queryValue,
+  readLensoInvocationContext,
   runtimeFunction,
   serveRemoteModuleGrpc,
   schemaAdmin,
   serveRemoteModule,
+  serveService,
   textField,
   timestampField,
 } from ".";
@@ -129,6 +134,103 @@ describe("@lenso/remote-module-kit", () => {
     });
   });
 
+  test("defines service release metadata", () => {
+    expect(
+      defineRemoteModule({
+        compatibility: {
+          console_package_api: "1",
+          remote_protocol_version: "1",
+          required_host_features: ["service.status"],
+        },
+        name: "billing",
+        service: {
+          deployment: {
+            commands: ["docker compose up billing"],
+            target: "container",
+          },
+          name: "api",
+          required_env: ["BILLING_DATABASE_URL"],
+          status_path: "/lenso/module/v1/status",
+          transports: ["http"],
+        },
+      })
+    ).toMatchObject({
+      compatibility: {
+        console_package_api: "1",
+        remote_protocol_version: "1",
+      },
+      service: {
+        name: "api",
+        required_env: ["BILLING_DATABASE_URL"],
+        status_path: "/lenso/module/v1/status",
+      },
+    });
+  });
+
+  test("defines a service manifest with provided modules", () => {
+    const supportTicket = defineModule({
+      capabilities: ["support_ticket.tickets.read"],
+      httpRoutes: [
+        getRoute("/tickets/{id}", {
+          capability: "support_ticket.tickets.read",
+          displayName: "Get Ticket",
+          storyTitle: "Get Ticket",
+        }),
+      ],
+      name: "support-ticket",
+    });
+
+    expect(
+      defineService({
+        compatibility: {
+          remote_protocol_version: "1",
+          required_host_features: ["service.status"],
+        },
+        deployment: {
+          commands: ["pnpm start"],
+          target: "container-paas",
+        },
+        install: {
+          services: [
+            {
+              command: "pnpm start",
+              name: "support-service",
+              readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+            },
+          ],
+        },
+        modules: [supportTicket],
+        name: "support-service",
+        requiredEnv: ["PORT"],
+      })
+    ).toEqual({
+      compatibility: {
+        remote_protocol_version: "1",
+        required_host_features: ["service.status"],
+      },
+      deployment: {
+        commands: ["pnpm start"],
+        target: "container-paas",
+      },
+      install: {
+        services: [
+          {
+            command: "pnpm start",
+            name: "support-service",
+            readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+          },
+        ],
+      },
+      modules: [supportTicket],
+      name: "support-service",
+      protocol: "lenso.service.v1",
+      required_env: ["PORT"],
+      status_path: "/lenso/service/v1/status",
+      transports: ["http"],
+      version: "0.1.0",
+    });
+  });
+
   test("defines HTTP route declarations", () => {
     expect(
       defineRemoteModule({
@@ -151,6 +253,64 @@ describe("@lenso/remote-module-kit", () => {
           story_title: "Fetch Contact",
         },
       ],
+    });
+  });
+
+  test("preserves service operation metadata in module manifests", () => {
+    const operation = {
+      idempotency: "requires_key" as const,
+      inputSchema: { type: "object" },
+      operationId: "crm.contacts.sync",
+      outputSchema: { type: "object" },
+      safeProbe: {
+        expectStatus: 204,
+        method: "POST",
+        path: "/contacts/sync/probe",
+      },
+      summary: "Sync contacts",
+      timeoutMs: 5000,
+    };
+
+    expect(
+      defineModule({
+        admin: declarativeCustom({
+          actions: [
+            adminAction("sync_contacts", {
+              capability: "crm.contacts.sync",
+              label: "Sync contacts",
+              operation,
+            }),
+          ],
+        }),
+        eventHandlers: [
+          eventHandler(
+            "sync_contact_on_user_registered",
+            "identity.user_registered.v1",
+            { operation }
+          ),
+        ],
+        httpRoutes: [
+          postRoute("/contacts/sync", {
+            capability: "crm.contacts.sync",
+            operation,
+          }),
+        ],
+        name: "crm",
+        runtimeFunctions: [
+          runtimeFunction("crm.contacts.sync.v1", { operation }),
+        ],
+      })
+    ).toMatchObject({
+      admin: {
+        actions: [{ operation }],
+      },
+      events: {
+        handlers: [{ operation }],
+      },
+      http_routes: [{ operation }],
+      runtime: {
+        functions: [{ operation }],
+      },
     });
   });
 
@@ -242,11 +402,75 @@ describe("@lenso/remote-module-kit", () => {
         source: "remote",
       });
       await expect(
+        fetch(served.statusUrl).then((response) => response.json())
+      ).resolves.toMatchObject({
+        moduleName: "billing",
+        serviceName: "api",
+        state: "ready",
+      });
+      await expect(
         fetch(`${served.baseUrl}/missing`).then((response) => response.json())
       ).resolves.toMatchObject({
         error: {
           code: "not_found",
         },
+      });
+    } finally {
+      await served.close();
+    }
+  });
+
+  test("serves a service manifest, status, and module HTTP handlers", async () => {
+    const service = defineService({
+      modules: [
+        defineModule({
+          capabilities: ["support_ticket.tickets.read"],
+          httpRoutes: [
+            getRoute("/tickets/{id}", {
+              capability: "support_ticket.tickets.read",
+              displayName: "Get Ticket",
+              storyTitle: "Get Ticket",
+            }),
+          ],
+          name: "support-ticket",
+        }),
+      ],
+      name: "support-service",
+    });
+    const served = await serveService(service, {
+      modules: {
+        "support-ticket": {
+          http: {
+            "GET /tickets/{id}": ({ params }) => ({
+              ticket: { id: params.id },
+            }),
+          },
+        },
+      },
+      port: 0,
+    });
+
+    try {
+      await expect(
+        fetch(served.manifestUrl).then((response) => response.json())
+      ).resolves.toMatchObject({
+        modules: [{ name: "support-ticket" }],
+        name: "support-service",
+        protocol: "lenso.service.v1",
+      });
+      await expect(
+        fetch(served.statusUrl).then((response) => response.json())
+      ).resolves.toMatchObject({
+        modules: [{ name: "support-ticket" }],
+        serviceName: "support-service",
+        state: "ready",
+      });
+      await expect(
+        fetch(`${served.baseUrl}/modules/support-ticket/tickets/ticket_1`).then(
+          (response) => response.json()
+        )
+      ).resolves.toEqual({
+        ticket: { id: "ticket_1" },
       });
     } finally {
       await served.close();
@@ -728,6 +952,38 @@ describe("@lenso/remote-module-kit", () => {
     } finally {
       await served.close();
     }
+  });
+
+  test("reads Lenso invocation context headers from Node requests", () => {
+    const request = {
+      headers: {
+        traceparent: "00-trace-span-01",
+        "x-lenso-actor-kind": "service",
+        "x-lenso-causation-id": "cause_1",
+        "x-lenso-correlation-id": ["corr_1", "corr_ignored"],
+        "x-lenso-module": "crm",
+        "x-lenso-operation": "crm.contacts.sync",
+        "x-lenso-operation-kind": "runtime_function",
+        "x-lenso-provider": "acme",
+        "x-request-id": "req_1",
+      },
+    } as unknown as IncomingMessage;
+
+    expect(readLensoInvocationContext(request)).toEqual({
+      actorKind: "service",
+      causationId: "cause_1",
+      correlationId: "corr_1",
+      moduleName: "crm",
+      operationId: "crm.contacts.sync",
+      operationKind: "runtime_function",
+      providerName: "acme",
+      requestId: "req_1",
+      traceparent: "00-trace-span-01",
+    });
+    expect(
+      readLensoInvocationContext({ headers: {} } as unknown as IncomingMessage)
+        .requestId
+    ).toBeUndefined();
   });
 
   test("serves the remote module gRPC JSON envelope protocol", async () => {

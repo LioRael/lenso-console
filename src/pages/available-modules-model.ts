@@ -66,6 +66,10 @@ export type AvailableModulesResponseModule = {
   source: "remote" | string;
   catalogVersion: string;
   manifestReference: string;
+  providedBy?: string | null;
+  provided_by?: string | null;
+  serviceManifest?: string | null;
+  service_manifest?: string | null;
   summary?: string | null;
   archivedAt?: string;
   archiveReason?: string;
@@ -79,6 +83,130 @@ export type AvailableModulesResponseModule = {
   manifestStatus: "ok" | "invalid" | "unreadable" | "archived" | string;
   manifestVersion: string | null;
   status: "ready" | "needs_attention" | "archived" | string;
+};
+
+export type ServiceModuleLifecycleResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  modules: ServiceModuleLifecycleModule[];
+};
+
+export type ServiceModuleLifecycleModuleStatus =
+  | "ready"
+  | "restart_pending"
+  | "configured_not_loaded"
+  | "manifest_unreachable"
+  | "service_not_ready"
+  | "stale_state"
+  | "not_configured"
+  | string;
+
+export type ServiceModuleManifestStatus =
+  | "reachable"
+  | "unreachable"
+  | "skipped"
+  | "not_configured"
+  | string;
+
+export type ServiceModuleLifecycleService = {
+  name: string;
+  readyUrl: string;
+  ready: boolean;
+  autoStart: boolean;
+  lockFile?: string | null;
+  pidFile?: string | null;
+};
+
+export type ServiceModuleServiceStatusState =
+  | "ready"
+  | "degraded"
+  | "starting"
+  | "unreachable"
+  | "unknown"
+  | string;
+
+export type ServiceModuleServiceStatus = {
+  checked: boolean;
+  state: ServiceModuleServiceStatusState;
+  error?: string | null;
+  checks: {
+    name: string;
+    status: string;
+    detail?: string | null;
+  }[];
+};
+
+export type ServiceModuleCompatibility = {
+  state: "compatible" | "blocked" | "unknown" | string;
+  declared?: AvailableModuleCompatibility | null;
+  host?: AvailableModuleHostCompatibility;
+  issue?: string | null;
+  fix?: string | null;
+  overrideAllowed: boolean;
+};
+
+export type ServiceModuleDeployment = {
+  target?: string | null;
+  commands?: string[];
+  composeService?: string | null;
+};
+
+export type ServiceOperationKind =
+  | "http_route"
+  | "runtime_function"
+  | "event_handler"
+  | "admin_action"
+  | string;
+
+export type ServiceOperationLinks = {
+  remoteCalls?: string | null;
+  runtime?: string | null;
+  story: string;
+  technicalOperations: string;
+};
+
+export type ServiceOperation = {
+  operationId: string;
+  providerName?: string | null;
+  moduleName: string;
+  kind: ServiceOperationKind;
+  name: string;
+  method?: string | null;
+  path?: string | null;
+  capability?: string | null;
+  summary?: string | null;
+  safeProbe: boolean;
+  links: ServiceOperationLinks;
+  nextAction: string;
+};
+
+export type ServiceModuleHealthCheck = {
+  moduleName: string;
+  checkedAtUnixMs: number;
+  statusUrl: string;
+  state: string;
+  error?: string | null;
+};
+
+export type ServiceModuleLifecycleModule = {
+  moduleName: string;
+  providerName?: string | null;
+  status: ServiceModuleLifecycleModuleStatus;
+  installed: boolean;
+  configured: boolean;
+  loaded: boolean;
+  restartPending: boolean;
+  baseUrl?: string | null;
+  manifestUrl?: string | null;
+  manifestStatus: ServiceModuleManifestStatus;
+  statusUrl?: string | null;
+  serviceStatus?: ServiceModuleServiceStatus;
+  healthHistory?: ServiceModuleHealthCheck[];
+  compatibility?: ServiceModuleCompatibility;
+  deployment?: ServiceModuleDeployment | null;
+  services: ServiceModuleLifecycleService[];
+  operations?: ServiceOperation[];
+  fixes: string[];
 };
 
 export type AvailableModuleInstallState = {
@@ -143,6 +271,8 @@ export type AvailableModuleRow = {
   version: string;
   source: string;
   manifestReference: string;
+  providerName?: string | null;
+  serviceManifest?: string | null;
   baseUrl: string;
   capabilityCount: number;
   consolePackageHintCount: number;
@@ -251,6 +381,7 @@ export type AvailableModuleDoctorCheckKey =
   | "plan"
   | "restart"
   | "runtime"
+  | "service"
   | "source";
 
 export type AvailableModuleDoctorCheck = {
@@ -321,6 +452,9 @@ export function availableModuleRowsFromResponse(
       preflightLabel: statusLabel[preflight.status],
       preflightReason: preflight.reason,
       preflightStatus: preflight.status,
+      providerName: module.providedBy ?? module.provided_by ?? null,
+      serviceManifest:
+        module.serviceManifest ?? module.service_manifest ?? null,
       source: module.source,
       summary: module.summary ?? "-",
       version: module.catalogVersion,
@@ -721,12 +855,14 @@ export function availableModuleDoctorChecks({
   moduleRegistered,
   restartPending,
   row,
+  serviceLifecycle,
 }: {
   commands: AvailableModuleInstallCommand[];
   missingConsolePackageCount?: number;
   moduleRegistered?: boolean;
   restartPending?: boolean;
   row: AvailableModuleRow;
+  serviceLifecycle?: ServiceModuleLifecycleResponse | null;
 }): AvailableModuleDoctorCheck[] {
   const addCommand =
     commandByKey(commands, "add") ??
@@ -777,11 +913,17 @@ export function availableModuleDoctorChecks({
       remoteSource,
     }),
   ];
-  const hasKnownWork = checks.some(
-    (check) => check.status === "fix" || check.status === "hold"
-  );
+  const serviceCheck = serviceModuleLifecycleDoctorCheck({
+    lifecycle: serviceLifecycle ?? null,
+    moduleName: row.name,
+  });
+  const hasKnownWork =
+    checks.some((check) => check.status === "fix" || check.status === "hold") ||
+    serviceCheck?.status === "fix" ||
+    serviceCheck?.status === "hold";
   return [
     ...checks,
+    ...(serviceCheck ? [serviceCheck] : []),
     doctorCheck(
       "doctor",
       "doctor",
@@ -790,6 +932,118 @@ export function availableModuleDoctorChecks({
       "lenso module doctor"
     ),
   ];
+}
+
+export function serviceModuleLifecycleModuleFor(
+  moduleName: string,
+  lifecycle?: ServiceModuleLifecycleResponse | null
+): ServiceModuleLifecycleModule | null {
+  return (
+    lifecycle?.modules.find((module) => module.moduleName === moduleName) ??
+    null
+  );
+}
+
+export function serviceModuleLifecycleDoctorCheck({
+  lifecycle,
+  moduleName,
+}: {
+  lifecycle?: ServiceModuleLifecycleResponse | null;
+  moduleName: string;
+}): AvailableModuleDoctorCheck | null {
+  const module = serviceModuleLifecycleModuleFor(moduleName, lifecycle);
+  if (!module) {
+    return null;
+  }
+  if (module.compatibility?.state === "blocked") {
+    return doctorCheck(
+      "service",
+      "service",
+      "fix",
+      module.compatibility.fix ??
+        module.compatibility.issue ??
+        "install a compatible service release"
+    );
+  }
+  if (module.serviceStatus?.state === "unreachable") {
+    return doctorCheck(
+      "service",
+      "service",
+      "fix",
+      module.serviceStatus.error ??
+        "start the service or fix its status endpoint"
+    );
+  }
+  if (module.serviceStatus?.state === "degraded") {
+    return doctorCheck(
+      "service",
+      "service",
+      "hold",
+      module.serviceStatus.error ?? "service status is degraded"
+    );
+  }
+  const [firstFix] = module.fixes;
+  switch (module.status) {
+    case "ready": {
+      return doctorCheck("service", "service", "ok", "service is ready");
+    }
+    case "restart_pending": {
+      return doctorCheck(
+        "service",
+        "service",
+        "fix",
+        firstFix ?? "restart API and worker to load the service"
+      );
+    }
+    case "configured_not_loaded": {
+      return doctorCheck(
+        "service",
+        "service",
+        "fix",
+        firstFix ?? "restart Host after installing the service"
+      );
+    }
+    case "manifest_unreachable": {
+      return doctorCheck(
+        "service",
+        "service",
+        "fix",
+        firstFix ?? "fix the service manifest URL or start the service"
+      );
+    }
+    case "service_not_ready": {
+      return doctorCheck(
+        "service",
+        "service",
+        "fix",
+        firstFix ?? "start the service or fix its readiness endpoint"
+      );
+    }
+    case "stale_state": {
+      return doctorCheck(
+        "service",
+        "service",
+        "fix",
+        firstFix ?? "remove stale lock or pid files for the service"
+      );
+    }
+    case "not_configured": {
+      return doctorCheck(
+        "service",
+        "service",
+        "fix",
+        firstFix ?? "configure the service provider source"
+      );
+    }
+    default: {
+      return doctorCheck(
+        "service",
+        "service",
+        "hold",
+        firstFix ?? `service status ${module.status}`
+      );
+    }
+  }
 }
 
 function availableModuleCanInstall(row: AvailableModuleRow): boolean {
@@ -850,7 +1104,7 @@ function installEvidence(
     return `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`;
   }
   if (remoteSource?.configured) {
-    return `remote source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
+    return `service provider source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
   }
   if (moduleRegistered === false) {
     return "module not registered in /admin/data/modules";
@@ -898,7 +1152,7 @@ function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
   if (remoteSource?.restartPending) {
     return (
       remoteSource.restartReason ??
-      "remote source differs from running module metadata"
+      "service provider source differs from loaded module metadata"
     );
   }
   if (remoteSource?.configured && remoteSource.runningBaseUrl) {
@@ -909,7 +1163,7 @@ function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
     !remoteSource.configured &&
     !remoteSource.runningBaseUrl
   ) {
-    return `remote source not present in ${remoteSource.envFile}`;
+    return `service provider source not present in ${remoteSource.envFile}`;
   }
   if (
     evidence.desiredEnabled !== undefined &&
@@ -968,7 +1222,7 @@ function sourceDoctorCheck({
       "ok",
       remoteSource?.desiredBaseUrl
         ? `REMOTE_MODULES -> ${remoteSource.desiredBaseUrl}${transport ? ` (${transport})` : ""}`
-        : "module source registered"
+        : "service provider source registered"
     );
   }
   if (!availableModuleCanInstall(row)) {
@@ -987,7 +1241,7 @@ function sourceDoctorCheck({
     "fix",
     row.source === "linked"
       ? "set linked module env override"
-      : `register source in ${remoteSource?.envFile ?? ".env"}`,
+      : `register service provider source in ${remoteSource?.envFile ?? ".env"}`,
     addCommand
   );
 }
@@ -1163,7 +1417,8 @@ function runtimeDoctorCheck({
       "runtime",
       "runtime",
       "fix",
-      remoteSource.restartReason ?? "restart to load configured source"
+      remoteSource.restartReason ??
+        "restart to load configured service provider source"
     );
   }
   if (remoteSource?.configured) {
@@ -1171,7 +1426,7 @@ function runtimeDoctorCheck({
       "runtime",
       "runtime",
       "hold",
-      "source configured but module is not registered"
+      "service provider source configured but module is not registered"
     );
   }
   if (!availableModuleCanInstall(row)) {

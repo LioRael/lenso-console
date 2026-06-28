@@ -1,13 +1,17 @@
 import { describe, expect, test } from "vitest";
 
+import type { ServiceModuleLifecycleResponse } from "../pages/available-modules-model";
 import {
   availableModulesPanelState,
   availableModulesQueryKey,
   availableModulesRows,
+  fetchServiceModuleLifecycle,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
+  sampleServiceModuleLifecycleResponse,
+  serviceModuleLifecycleQueryKey,
   uninstallAvailableModule,
 } from "./available-modules";
 
@@ -43,6 +47,7 @@ describe("available modules provider", () => {
     expect(moduleRefreshInvalidationQueryKeys()).toEqual([
       ["modules", "registry"],
       availableModulesQueryKey,
+      serviceModuleLifecycleQueryKey,
     ]);
   });
 
@@ -67,6 +72,36 @@ describe("available modules provider", () => {
     expect(getCalls).toEqual(["admin/data/available-modules"]);
   });
 
+  test("fetches service module lifecycle state", async () => {
+    await expect(fetchServiceModuleLifecycle()).resolves.toBe(
+      sampleServiceModuleLifecycleResponse
+    );
+    expect(serviceModuleLifecycleQueryKey).toEqual([
+      "modules",
+      "service-module-lifecycle",
+    ]);
+
+    const getCalls: string[] = [];
+    const response: ServiceModuleLifecycleResponse = {
+      modules: [],
+      status: "empty",
+      version: 1,
+    };
+    const client = {
+      get(path: string) {
+        getCalls.push(path);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(
+      fetchServiceModuleLifecycle({ apiMode: true, client })
+    ).resolves.toBe(response);
+    expect(getCalls).toEqual(["admin/data/service-modules"]);
+  });
+
   test("installs an available module through the API", async () => {
     const postCalls: string[] = [];
     const response = {
@@ -89,7 +124,8 @@ describe("available modules provider", () => {
         envFile: ".env",
         error: null,
         restartPending: true,
-        restartReason: "remote source configured in .env but not loaded",
+        restartReason:
+          "service provider source configured in .env but not loaded",
         runningBaseUrl: null,
       },
       restartRequired: true,
@@ -207,7 +243,7 @@ describe("available modules provider", () => {
       actionCommand: "lenso module marketplace install <manifest-url>",
       detail: "install a manifest URL to show modules here",
       kind: "empty",
-      label: "no remote modules",
+      label: "no service modules",
       message: "No modules in .lenso/module-catalog.json.",
     });
 

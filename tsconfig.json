@@ -32,7 +32,8 @@
     "packages/identity-console/src",
     "packages/remote-crm-console/src",
     "packages/console-package-api/src",
-    "packages/remote-module-kit/src"
+    "packages/remote-module-kit/src",
+    "packages/service-kit/src"
   ],
   "references": []
 }

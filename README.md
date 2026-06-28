@@ -79,9 +79,9 @@ Override the development service token when needed:
 VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write pnpm dev
 ```
 
-## Remote Module API QA
+## Service API QA
 
-From the repo root, start a full remote-module Runtime Console demo:
+From the repo root, start a full service Runtime Console demo:
 
 ```bash
 just console-api-demo
@@ -156,20 +156,19 @@ package in the same command:
 pnpm create:module billing --with-console
 ```
 
-For a third-party remote package that should not compile into the host
-workspace, use the remote scaffold:
+For a third-party service that should not compile into the host workspace, use
+the service kit and install the service manifest:
 
 ```bash
-pnpm create:module billing --remote --output-dir ../modules
-lenso module install https://example.com/lenso/module/v1/manifest
+lenso service install https://example.com/lenso/service/v1/manifest
 ```
 
-Run `pnpm demo:remote-module-package` for a temp-directory smoke demo of that
-flow. The older `pnpm demo:remote-module-install` command is kept as an alias.
-See `docs/remote-module-install-flow.md` for the full host and module author
-workflow.
+Run `pnpm demo:remote-module-package` for the legacy temp-directory remote
+module fixture. The older `pnpm demo:remote-module-install` command is kept as
+an alias.
 
-Runnable examples that use the published `@lenso/remote-module-kit` package live in
+Runnable service examples that use the published `@lenso/service-kit` package
+live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos
 in this repository remain release and CLI fixtures for the Runtime Console
 workspace.
