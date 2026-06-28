@@ -3,6 +3,7 @@ import {
   type AvailableModulesResponse,
   type AvailableModuleConsolePackagePlanState,
   type AvailableModuleLinkedSourceInstallState,
+  type AvailableModuleRelease,
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   type ServiceModuleLifecycleResponse,
@@ -272,6 +273,7 @@ type ServiceModuleLifecycleHttpClient = {
 export type AvailableModuleInstallResponse = {
   moduleName: string;
   manifestReference: string;
+  moduleRelease?: AvailableModuleRelease | null;
   linkedSource?: AvailableModuleLinkedSourceInstallState | null;
   remoteSource?: AvailableModuleRemoteSourceInstallState | null;
   consolePlan: AvailableModuleConsolePackagePlanState;
@@ -372,6 +374,11 @@ export function applyAvailableModuleInstallResponse(
               linkedSource: installResponse.linkedSource ?? null,
               remoteSource: installResponse.remoteSource ?? null,
             },
+            moduleRelease:
+              installResponse.moduleRelease ??
+              module.moduleRelease ??
+              module.module_release ??
+              null,
           }
         : module
     ),

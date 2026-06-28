@@ -922,6 +922,7 @@ function ModuleMarketplaceDetail({
           {rows.map((row) => {
             const handoffCommands = moduleRegistryHandoffCommands({
               manifestReference: row.manifestReference,
+              moduleRelease: row.moduleRelease,
             });
             const [installCommand] = handoffCommands;
             const installedModule = modules.find(

@@ -728,19 +728,24 @@ export function filterModuleRegistry(
 
 export function moduleRegistryHandoffCommands({
   manifestReference = "<manifest-url>",
+  moduleRelease,
 }: {
   manifestReference?: string;
+  moduleRelease?: { manifestReference: string } | null | undefined;
 } = {}): ModuleRegistryHandoffCommand[] {
+  const releaseReference = moduleRelease?.manifestReference ?? manifestReference;
   return [
     {
       key: "add",
-      label: "install",
-      command: `lenso module marketplace install ${manifestReference}`,
+      label: moduleRelease ? "release" : "install",
+      command: moduleRelease
+        ? `lenso module install ${releaseReference}`
+        : `lenso module marketplace install ${manifestReference}`,
     },
     {
       key: "apply-plan",
       label: "extension",
-      command: `lenso module install ${manifestReference}`,
+      command: `lenso module install ${releaseReference}`,
     },
     {
       key: "install-packages",

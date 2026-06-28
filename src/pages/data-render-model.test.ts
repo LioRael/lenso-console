@@ -850,6 +850,37 @@ describe("module status helpers", () => {
     ]);
   });
 
+  test("builds module release handoff commands", () => {
+    expect(
+      moduleRegistryHandoffCommands({
+        manifestReference:
+          "dist/lenso-service/support-suite-provider/modules/support-ticket/lenso.module-release.json",
+        moduleRelease: {
+          manifestReference:
+            "dist/lenso-service/support-suite-provider/modules/support-ticket/lenso.module-release.json",
+        },
+      })
+    ).toEqual([
+      {
+        key: "add",
+        label: "release",
+        command:
+          "lenso module install dist/lenso-service/support-suite-provider/modules/support-ticket/lenso.module-release.json",
+      },
+      {
+        key: "apply-plan",
+        label: "extension",
+        command:
+          "lenso module install dist/lenso-service/support-suite-provider/modules/support-ticket/lenso.module-release.json",
+      },
+      {
+        key: "install-packages",
+        label: "reload",
+        command: "reload Runtime Console",
+      },
+    ]);
+  });
+
   test("labels copied module registry commands", () => {
     expect(moduleRegistryHandoffCopyLabel("inspect", "inspect")).toBe("copied");
     expect(moduleRegistryHandoffCopyLabel("install", "inspect")).toBe("copy");
