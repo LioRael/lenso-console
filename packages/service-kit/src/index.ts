@@ -68,6 +68,7 @@ export interface ServiceContractIssue {
 }
 
 export const servicePackageProtocol = "lenso.service-package.v1" as const;
+export const moduleReleaseProtocol = "lenso.module-release.v1" as const;
 
 export interface ServicePackage {
   protocol: typeof servicePackageProtocol;
@@ -75,6 +76,23 @@ export interface ServicePackage {
   version: string;
   serviceManifest: string;
   modules: string[];
+}
+
+export interface ModuleReleaseProvider {
+  name: string;
+  servicePackage?: string;
+  serviceManifest?: string;
+}
+
+export interface ModuleRelease {
+  protocol: typeof moduleReleaseProtocol;
+  name: string;
+  version: string;
+  source: "service";
+  provider: ModuleReleaseProvider;
+  summary?: string;
+  capabilities?: string[];
+  dependencies?: string[];
 }
 
 export const serviceContractSchema = {
@@ -117,6 +135,38 @@ export const servicePackageSchema = {
   type: "object",
 } as const;
 
+export const moduleReleaseSchema = {
+  $id: "https://contracts.lenso.local/modules/lenso-module-release.v1.schema.json",
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  additionalProperties: true,
+  properties: {
+    capabilities: { items: { minLength: 1, type: "string" }, type: "array" },
+    dependencies: { items: { minLength: 1, type: "string" }, type: "array" },
+    name: { minLength: 1, type: "string" },
+    protocol: { const: moduleReleaseProtocol, type: "string" },
+    provider: {
+      additionalProperties: true,
+      anyOf: [
+        { required: ["servicePackage"] },
+        { required: ["serviceManifest"] },
+      ],
+      properties: {
+        name: { minLength: 1, type: "string" },
+        serviceManifest: { minLength: 1, type: "string" },
+        servicePackage: { minLength: 1, type: "string" },
+      },
+      required: ["name"],
+      type: "object",
+    },
+    source: { const: "service", type: "string" },
+    summary: { type: "string" },
+    version: { minLength: 1, type: "string" },
+  },
+  required: ["protocol", "name", "version", "source", "provider"],
+  title: "LensoModuleRelease",
+  type: "object",
+} as const;
+
 export function defineServiceContract(
   contract: ServiceContract
 ): ServiceContract {
@@ -137,6 +187,23 @@ export function defineServicePackage(
     ...servicePackage,
     protocol: servicePackageProtocol,
     serviceManifest: servicePackage.serviceManifest ?? "lenso.service.json",
+  };
+}
+
+export function defineModuleRelease(
+  release: Omit<ModuleRelease, "protocol" | "source" | "provider"> & {
+    provider: ModuleReleaseProvider;
+  }
+): ModuleRelease {
+  const provider =
+    release.provider.servicePackage || release.provider.serviceManifest
+      ? release.provider
+      : { ...release.provider, servicePackage: "lenso.service-package.json" };
+  return {
+    ...release,
+    protocol: moduleReleaseProtocol,
+    source: "service",
+    provider,
   };
 }
 
@@ -230,6 +297,69 @@ export function assertServicePackage(
         .map((issue) => `${issue.path} ${issue.message}`)
         .join("; ")}`
     );
+  }
+}
+
+export function validateModuleRelease(value: unknown): ServiceContractIssue[] {
+  const root = asRecord(value);
+  if (!root) {
+    return [{ message: "module release must be an object", path: "$" }];
+  }
+
+  const issues: ServiceContractIssue[] = [];
+  if (root.protocol !== moduleReleaseProtocol) {
+    issues.push({
+      message: `protocol must be \`${moduleReleaseProtocol}\``,
+      path: "$.protocol",
+    });
+  }
+  requireNonEmptyString(root.name, "$.name", issues);
+  requireNonEmptyString(root.version, "$.version", issues);
+  if (root.source !== "service") {
+    issues.push({ message: "source must be `service`", path: "$.source" });
+  }
+  validateModuleReleaseProvider(root.provider, issues);
+  validateStringArray(root.capabilities, "$.capabilities", issues);
+  validateStringArray(root.dependencies, "$.dependencies", issues);
+  return issues;
+}
+
+export function assertModuleRelease(
+  value: unknown
+): asserts value is ModuleRelease {
+  const issues = validateModuleRelease(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid Lenso module release: ${issues
+        .map((issue) => `${issue.path} ${issue.message}`)
+        .join("; ")}`
+    );
+  }
+}
+
+function validateModuleReleaseProvider(
+  value: unknown,
+  issues: ServiceContractIssue[]
+): void {
+  const provider = asRecord(value);
+  if (!provider) {
+    issues.push({ message: "provider must be an object", path: "$.provider" });
+    return;
+  }
+  requireNonEmptyString(provider.name, "$.provider.name", issues);
+  if (
+    !requireOneNonEmptyString(
+      [
+        provider.servicePackage,
+        provider.service_package,
+        provider.serviceManifest,
+        provider.service_manifest,
+      ],
+      "$.provider.servicePackage",
+      issues
+    )
+  ) {
+    return;
   }
 }
 
@@ -462,6 +592,18 @@ function requireNonEmptyString(
   }
   issues.push({ message: "field must be a non-empty string", path });
   return undefined;
+}
+
+function requireOneNonEmptyString(
+  values: unknown[],
+  path: string,
+  issues: ServiceContractIssue[]
+): boolean {
+  if (values.some((value) => typeof value === "string" && value.trim())) {
+    return true;
+  }
+  issues.push({ message: "field must be a non-empty string", path });
+  return false;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

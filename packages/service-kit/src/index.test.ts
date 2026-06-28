@@ -2,14 +2,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertModuleRelease,
   assertServicePackage,
   assertServiceContract,
+  defineModuleRelease,
   defineServicePackage,
   defineServiceContract,
+  moduleReleaseSchema,
   serviceContractSchema,
   serviceEnv,
   serviceHealth,
   servicePackageSchema,
+  validateModuleRelease,
   validateServiceContract,
   validateServicePackage,
 } from "./index";
@@ -111,6 +115,69 @@ describe("defineServiceContract", () => {
       "$.protocol",
       "$.modules[1]",
       "$.modules[2]",
+    ]);
+  });
+
+  it("defines and validates a module release manifest", () => {
+    const release = defineModuleRelease({
+      capabilities: ["support_ticket.tickets.read"],
+      dependencies: ["auth"],
+      name: "support-ticket",
+      provider: { name: "support-suite-provider" },
+      version: "0.2.0",
+    });
+
+    expect(release).toEqual({
+      capabilities: ["support_ticket.tickets.read"],
+      dependencies: ["auth"],
+      name: "support-ticket",
+      protocol: "lenso.module-release.v1",
+      provider: {
+        name: "support-suite-provider",
+        servicePackage: "lenso.service-package.json",
+      },
+      source: "service",
+      version: "0.2.0",
+    });
+    expect(moduleReleaseSchema.title).toBe("LensoModuleRelease");
+    expect(validateModuleRelease(release)).toEqual([]);
+    expect(() => assertModuleRelease(release)).not.toThrow();
+  });
+
+  it("keeps explicit module release service manifests", () => {
+    const release = defineModuleRelease({
+      name: "support-ticket",
+      provider: {
+        name: "support-suite-provider",
+        serviceManifest: "https://example.test/lenso/service/v1/manifest",
+      },
+      version: "0.2.0",
+    });
+
+    expect(release.provider).toEqual({
+      name: "support-suite-provider",
+      serviceManifest: "https://example.test/lenso/service/v1/manifest",
+    });
+  });
+
+  it("reports validation paths for malformed module releases", () => {
+    const issues = validateModuleRelease({
+      capabilities: ["support_ticket.read", 42],
+      name: "",
+      protocol: "remote-module",
+      provider: { name: "" },
+      source: "remote",
+      version: "",
+    });
+
+    expect(issues.map((issue) => issue.path)).toEqual([
+      "$.protocol",
+      "$.name",
+      "$.version",
+      "$.source",
+      "$.provider.name",
+      "$.provider.servicePackage",
+      "$.capabilities[1]",
     ]);
   });
 

@@ -5,6 +5,7 @@ Helpers for building Lenso services that provide one or more modules.
 ```ts
 import {
   defineModule,
+  defineModuleRelease,
   defineService,
   defineServiceContract,
   defineServicePackage,
@@ -35,6 +36,13 @@ export const servicePackage = defineServicePackage({
   name: contract.name,
   version: contract.version ?? "0.1.0",
   modules: [supportTicket.name],
+});
+
+export const moduleRelease = defineModuleRelease({
+  name: supportTicket.name,
+  version: supportTicket.version ?? "0.1.0",
+  provider: { name: contract.name },
+  capabilities: supportTicket.capabilities,
 });
 
 serveService(manifest, { modules: {} });
@@ -108,6 +116,9 @@ Package a running service manifest for handoff with:
 ```sh
 lenso service package --manifest http://127.0.0.1:4110/lenso/service/v1/manifest
 ```
+
+The package command writes `lenso.service-package.json` plus one
+`modules/<module>/lenso.module-release.json` artifact per provided module.
 
 ## Scripts
 
