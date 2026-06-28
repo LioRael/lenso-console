@@ -347,20 +347,16 @@ function validateModuleReleaseProvider(
     return;
   }
   requireNonEmptyString(provider.name, "$.provider.name", issues);
-  if (
-    !requireOneNonEmptyString(
-      [
-        provider.servicePackage,
-        provider.service_package,
-        provider.serviceManifest,
-        provider.service_manifest,
-      ],
-      "$.provider.servicePackage",
-      issues
-    )
-  ) {
-    return;
-  }
+  requireOneNonEmptyString(
+    [
+      provider.servicePackage,
+      provider.service_package,
+      provider.serviceManifest,
+      provider.service_manifest,
+    ],
+    "$.provider.servicePackage",
+    issues
+  );
 }
 
 function validateProvider(

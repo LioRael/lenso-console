@@ -733,7 +733,8 @@ export function moduleRegistryHandoffCommands({
   manifestReference?: string;
   moduleRelease?: { manifestReference: string } | null | undefined;
 } = {}): ModuleRegistryHandoffCommand[] {
-  const releaseReference = moduleRelease?.manifestReference ?? manifestReference;
+  const releaseReference =
+    moduleRelease?.manifestReference ?? manifestReference;
   return [
     {
       key: "add",
