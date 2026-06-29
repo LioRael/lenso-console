@@ -12,6 +12,8 @@ import {
   defineServicePackage,
   defineServiceWorkspace,
   serviceEnv,
+  serviceWorkspaceBaseUrl,
+  serviceWorkspaceToModuleServices,
   serveService,
 } from "@lenso/service-kit";
 
@@ -60,6 +62,9 @@ export const workspace = defineServiceWorkspace({
     },
   ],
 });
+
+export const serviceStartFile = serviceWorkspaceToModuleServices(workspace);
+export const localBaseUrl = serviceWorkspaceBaseUrl(workspace.services[0]);
 
 export const moduleRelease = defineModuleRelease({
   name: supportTicket.name,

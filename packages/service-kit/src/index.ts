@@ -98,6 +98,25 @@ export interface ServiceWorkspaceService {
   modules?: string[];
 }
 
+export interface ServiceWorkspaceProcess {
+  name: string;
+  command: string;
+  cwd: string;
+  readyUrl: string;
+  autoStart: boolean;
+  readyTimeoutMs: number;
+}
+
+export interface ServiceWorkspaceModuleServices {
+  moduleName: string;
+  services: ServiceWorkspaceProcess[];
+}
+
+export interface ServiceWorkspaceModuleServicesFile {
+  version: 1;
+  modules: ServiceWorkspaceModuleServices[];
+}
+
 export interface ModuleReleaseProvider {
   name: string;
   servicePackage?: string;
@@ -302,6 +321,75 @@ export function defineServiceWorkspace(
   };
 }
 
+export function serviceWorkspaceToModuleServices(
+  workspace: ServiceWorkspace,
+): ServiceWorkspaceModuleServicesFile {
+  return {
+    modules: workspace.services.map((service) => ({
+      moduleName: service.name,
+      services: [
+        {
+          autoStart: service.autoStart ?? true,
+          command: service.command,
+          cwd: service.cwd,
+          name: service.name,
+          readyTimeoutMs: service.readyTimeoutMs ?? 10_000,
+          readyUrl: service.readyUrl,
+        },
+      ],
+    })),
+    version: 1,
+  };
+}
+
+export function serviceWorkspaceBaseUrl(
+  service: Pick<ServiceWorkspaceService, "manifest" | "readyUrl">,
+): string | undefined {
+  return (
+    serviceBaseUrlFromReadyUrl(service.readyUrl) ??
+    serviceBaseUrlFromManifestUrl(service.manifest)
+  );
+}
+
+export function serviceBaseUrlFromReadyUrl(
+  readyUrl: string,
+): string | undefined {
+  const url = parseUrl(readyUrl);
+  if (!url) {
+    return undefined;
+  }
+  const path = url.pathname.replace(/\/+$/, "");
+  const basePath = ["/status", "/ready", "/health", "/healthz"]
+    .map((suffix) =>
+      path.endsWith(suffix) ? path.slice(0, -suffix.length) : undefined,
+    )
+    .find((value): value is string => value !== undefined);
+  if (basePath === undefined) {
+    return undefined;
+  }
+  url.pathname = basePath;
+  url.search = "";
+  url.hash = "";
+  return trimTrailingSlash(url.toString());
+}
+
+export function serviceBaseUrlFromManifestUrl(
+  manifestUrl: string,
+): string | undefined {
+  const url = parseUrl(manifestUrl);
+  if (!url) {
+    return undefined;
+  }
+  const path = url.pathname.replace(/\/+$/, "");
+  if (!path.endsWith("/manifest")) {
+    return undefined;
+  }
+  url.pathname = path.slice(0, -"/manifest".length);
+  url.search = "";
+  url.hash = "";
+  return trimTrailingSlash(url.toString());
+}
+
 export function defineModuleContract(
   contract: Omit<ModuleContract, "protocol">,
 ): ModuleContract {
@@ -345,6 +433,18 @@ function moduleReleaseProviderForSource(
     return provider;
   }
   return { ...provider, servicePackage: "lenso.service-package.json" };
+}
+
+function parseUrl(value: string): URL | undefined {
+  try {
+    return new URL(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
 }
 
 export function serviceEnv(

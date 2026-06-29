@@ -16,9 +16,13 @@ import {
   moduleReleaseSchema,
   serviceContractSchema,
   serviceEnv,
+  serviceBaseUrlFromManifestUrl,
+  serviceBaseUrlFromReadyUrl,
   serviceHealth,
   servicePackageSchema,
+  serviceWorkspaceBaseUrl,
   serviceWorkspaceSchema,
+  serviceWorkspaceToModuleServices,
   validateModuleContract,
   validateModuleRelease,
   validateServiceContract,
@@ -144,6 +148,61 @@ describe("defineServiceContract", () => {
     expect(serviceWorkspaceSchema.title).toBe("LensoServiceWorkspace");
     expect(validateServiceWorkspace(workspace)).toEqual([]);
     expect(() => assertServiceWorkspace(workspace)).not.toThrow();
+  });
+
+  it("converts service workspaces to module service start files", () => {
+    const workspace = defineServiceWorkspace({
+      services: [
+        {
+          command: "pnpm start",
+          cwd: "services/support-suite-provider",
+          lang: "ts",
+          manifest: "lenso.service.json",
+          modules: ["support-ticket"],
+          name: "support-suite-provider",
+          readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+        },
+      ],
+    });
+
+    expect(serviceWorkspaceToModuleServices(workspace)).toEqual({
+      modules: [
+        {
+          moduleName: "support-suite-provider",
+          services: [
+            {
+              autoStart: true,
+              command: "pnpm start",
+              cwd: "services/support-suite-provider",
+              name: "support-suite-provider",
+              readyTimeoutMs: 10_000,
+              readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+            },
+          ],
+        },
+      ],
+      version: 1,
+    });
+  });
+
+  it("infers service base URLs from workspace service URLs", () => {
+    expect(
+      serviceBaseUrlFromReadyUrl(
+        "http://127.0.0.1:4110/lenso/service/v1/status?probe=1",
+      ),
+    ).toBe("http://127.0.0.1:4110/lenso/service/v1");
+    expect(
+      serviceBaseUrlFromManifestUrl(
+        "http://127.0.0.1:4110/lenso/service/v1/manifest",
+      ),
+    ).toBe("http://127.0.0.1:4110/lenso/service/v1");
+    expect(
+      serviceWorkspaceBaseUrl({
+        manifest: "lenso.service.json",
+        readyUrl: "http://127.0.0.1:4110/lenso/service/v1/ready",
+      }),
+    ).toBe("http://127.0.0.1:4110/lenso/service/v1");
+    expect(serviceBaseUrlFromReadyUrl("not a url")).toBeUndefined();
   });
 
   it("reports validation paths for malformed service workspaces", () => {
