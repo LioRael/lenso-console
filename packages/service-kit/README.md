@@ -5,6 +5,7 @@ Helpers for building Lenso services that provide one or more modules.
 ```ts
 import {
   defineModule,
+  defineKubernetesDeployment,
   defineModuleContract,
   defineModuleRelease,
   defineService,
@@ -35,6 +36,11 @@ export const moduleContract = defineModuleContract({
 export const contract = defineServiceContract({
   name: "support-suite-provider",
   version: "0.2.0",
+  deployment: defineKubernetesDeployment({
+    ingressHost: "support-staging.example.com",
+    port: 4110,
+    replicas: 2,
+  }),
   env: [serviceEnv("PORT", { example: "4110", required: true })],
   modules: [{ name: supportTicket.name, version: supportTicket.version }],
 });

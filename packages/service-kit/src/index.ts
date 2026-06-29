@@ -10,6 +10,7 @@ export interface ServiceContract {
   env?: ServiceEnvField[];
   health?: ServiceHealth;
   localProcess?: ServiceLocalProcess;
+  deployment?: ServiceDeployment;
   modules: ServiceModuleContract[];
 }
 
@@ -53,6 +54,24 @@ export interface ServiceLocalProcess {
   env?: Record<string, string>;
   autoStart?: boolean;
   readyTimeoutMs?: number;
+}
+
+export interface ServiceDeployment {
+  target: "kubernetes" | "container-paas" | "compose" | "systemd" | string;
+  commands?: string[];
+  composeService?: string;
+  kubernetes?: KubernetesDeployment;
+}
+
+export interface KubernetesDeployment {
+  port?: number;
+  replicas?: number;
+  ingressHost?: string;
+  env?: string[];
+  secrets?: string[];
+  autoscaling?: boolean;
+  disruptionBudget?: boolean;
+  networkPolicy?: boolean;
 }
 
 export interface ServiceModuleContract {
@@ -212,6 +231,7 @@ export const serviceContractSchema = {
     compatibility: { type: "object" },
     config: { type: "array" },
     env: { type: "array" },
+    deployment: { type: "object" },
     health: { type: "object" },
     localProcess: { type: "object" },
     modules: { minItems: 1, type: "array" },
@@ -646,6 +666,12 @@ export function serviceEnv(
 
 export function serviceHealth(health: ServiceHealth): ServiceHealth {
   return health;
+}
+
+export function defineKubernetesDeployment(
+  kubernetes: KubernetesDeployment
+): ServiceDeployment {
+  return { kubernetes, target: "kubernetes" };
 }
 
 export function validateServiceContract(

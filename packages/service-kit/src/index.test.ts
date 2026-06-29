@@ -9,6 +9,7 @@ import {
   assertServiceContract,
   defineModuleContract,
   defineModuleRelease,
+  defineKubernetesDeployment,
   defineServicePackage,
   defineServiceReleasePlan,
   defineServiceWorkspace,
@@ -201,6 +202,25 @@ describe("defineServiceContract", () => {
     expect(plan.protocol).toBe("lenso.service-release-plan.v1");
     expect(plan.policy.risk).toBe("breaking");
     expect(plan.nextAction).toContain("Review removed modules");
+  });
+
+  it("defines kubernetes deployment hints", () => {
+    const deployment = defineKubernetesDeployment({
+      ingressHost: "support-staging.example.com",
+      port: 4110,
+      replicas: 2,
+      secrets: ["SUPPORT_TICKET_TOKEN"],
+    });
+
+    expect(deployment).toEqual({
+      kubernetes: {
+        ingressHost: "support-staging.example.com",
+        port: 4110,
+        replicas: 2,
+        secrets: ["SUPPORT_TICKET_TOKEN"],
+      },
+      target: "kubernetes",
+    });
   });
 
   it("converts service workspaces to module service start files", () => {
