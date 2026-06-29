@@ -91,6 +91,7 @@ export type AvailableModuleRelease = {
   manifestReference: string;
   name?: string | null;
   version?: string | null;
+  source?: string | null;
   providerName?: string | null;
   servicePackage?: string | null;
   serviceManifest?: string | null;
@@ -568,9 +569,13 @@ function linkedSourceForRow(
 function remoteSourceForRow(
   row: AvailableModuleRow
 ): AvailableModuleRemoteSourceInstallState | null {
-  return row.source === "remote"
+  return serviceBackedSource(row.source)
     ? (row.installState?.remoteSource ?? null)
     : null;
+}
+
+function serviceBackedSource(source: string): boolean {
+  return source === "remote" || source === "service";
 }
 
 function sourceRestartState(row: AvailableModuleRow): {

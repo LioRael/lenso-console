@@ -66,8 +66,17 @@ export const sampleAvailableModulesResponse = {
       manifestReference: "https://example.com/lenso/module/v1/manifest",
       manifestStatus: "ok",
       manifestVersion: "0.1.0",
+      moduleRelease: {
+        manifestReference:
+          "https://example.com/lenso/releases/billing/lenso.module-release.json",
+        name: "billing",
+        providerName: "billing-service",
+        serviceManifest: "https://example.com/lenso/service/v1/manifest",
+        source: "service",
+        version: "0.1.0",
+      },
       name: "billing",
-      source: "remote",
+      source: "service",
       status: "ready",
       summary: "Billing workspace and operations",
     },

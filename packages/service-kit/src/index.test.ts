@@ -2,17 +2,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assertModuleContract,
   assertModuleRelease,
   assertServicePackage,
   assertServiceContract,
+  defineModuleContract,
   defineModuleRelease,
   defineServicePackage,
   defineServiceContract,
+  moduleContractSchema,
   moduleReleaseSchema,
   serviceContractSchema,
   serviceEnv,
   serviceHealth,
   servicePackageSchema,
+  validateModuleContract,
   validateModuleRelease,
   validateServiceContract,
   validateServicePackage,
@@ -144,6 +148,46 @@ describe("defineServiceContract", () => {
     expect(() => assertModuleRelease(release)).not.toThrow();
   });
 
+  it("defines and validates a linked module contract", () => {
+    const contract = defineModuleContract({
+      capabilities: ["support_ticket.tickets.read"],
+      dependencies: ["auth"],
+      manifest: { name: "support-ticket" },
+      name: "support-ticket",
+      source: "linked",
+      version: "0.2.0",
+    });
+
+    expect(contract).toEqual({
+      capabilities: ["support_ticket.tickets.read"],
+      dependencies: ["auth"],
+      manifest: { name: "support-ticket" },
+      name: "support-ticket",
+      protocol: "lenso.module.v1",
+      source: "linked",
+      version: "0.2.0",
+    });
+    expect(moduleContractSchema.title).toBe("LensoModuleContract");
+    expect(validateModuleContract(contract)).toEqual([]);
+    expect(() => assertModuleContract(contract)).not.toThrow();
+  });
+
+  it("allows linked module releases without service providers", () => {
+    const release = defineModuleRelease({
+      name: "auth-password",
+      source: "linked",
+      version: "0.2.0",
+    });
+
+    expect(release).toEqual({
+      name: "auth-password",
+      protocol: "lenso.module-release.v1",
+      source: "linked",
+      version: "0.2.0",
+    });
+    expect(validateModuleRelease(release)).toEqual([]);
+  });
+
   it("keeps explicit module release service manifests", () => {
     const release = defineModuleRelease({
       name: "support-ticket",
@@ -175,9 +219,27 @@ describe("defineServiceContract", () => {
       "$.name",
       "$.version",
       "$.source",
-      "$.provider.name",
-      "$.provider.servicePackage",
       "$.capabilities[1]",
+    ]);
+  });
+
+  it("reports validation paths for malformed module contracts", () => {
+    const issues = validateModuleContract({
+      capabilities: ["support_ticket.read", 42],
+      manifest: [],
+      name: "",
+      protocol: "lenso.module",
+      source: "remote",
+      version: "",
+    });
+
+    expect(issues.map((issue) => issue.path)).toEqual([
+      "$.protocol",
+      "$.name",
+      "$.version",
+      "$.source",
+      "$.capabilities[1]",
+      "$.manifest",
     ]);
   });
 

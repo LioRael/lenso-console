@@ -1110,6 +1110,7 @@ function MarketplaceModuleCard({
   const releaseTitle = row.moduleRelease
     ? [
         row.moduleRelease.name ?? row.name,
+        row.moduleRelease.source ?? row.source,
         row.moduleRelease.providerName,
         row.moduleRelease.manifestReference,
       ]
@@ -1633,7 +1634,8 @@ function ModuleOperationsPanel({
   const summary = summarizeRemoteProxyCalls(calls);
   const readiness = remoteModuleReadiness(module, calls);
   const { latestFailure } = readiness;
-  const isRemote = module.source === "remote";
+  const moduleSource = String(module.source);
+  const isRemote = moduleSource === "remote" || moduleSource === "service";
   const diagnostics =
     module.source_diagnostics?.kind === "remote"
       ? module.source_diagnostics
@@ -1644,7 +1646,9 @@ function ModuleOperationsPanel({
   const restartPending = moduleRestartPending(module, configValues);
   const disabledByConfig = moduleDisabledByConfig(module);
   const moduleSupportsToggle =
-    module.source === "linked" || module.source === "remote";
+    moduleSource === "linked" ||
+    moduleSource === "remote" ||
+    moduleSource === "service";
   const moduleToggleTarget =
     moduleSupportsToggle &&
     (moduleIsLoaded(module) ||

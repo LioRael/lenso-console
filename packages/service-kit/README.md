@@ -5,6 +5,7 @@ Helpers for building Lenso services that provide one or more modules.
 ```ts
 import {
   defineModule,
+  defineModuleContract,
   defineModuleRelease,
   defineService,
   defineServiceContract,
@@ -17,6 +18,13 @@ const supportTicket = defineModule({
   name: "support-ticket",
   version: "0.1.0",
   capabilities: ["support_ticket.tickets.read"],
+});
+
+export const moduleContract = defineModuleContract({
+  name: supportTicket.name,
+  version: supportTicket.version ?? "0.1.0",
+  source: "service",
+  capabilities: supportTicket.capabilities,
 });
 
 export const contract = defineServiceContract({
