@@ -295,6 +295,9 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
           )}
         />
       </DetailSection>
+      <DetailSection title="deployment timeline">
+        <DetailList items={nonEmpty(deploymentTimelineItems(row), ["-"])} />
+      </DetailSection>
       <DetailSection title="operator commands">
         <DetailList items={nonEmpty(activeCommands, ["-"])} />
       </DetailSection>
@@ -650,6 +653,21 @@ function formatReleaseTime(value?: number | null) {
     return "-";
   }
   return new Date(value).toISOString();
+}
+
+function deploymentTimelineItems(row: ServiceCenterRow) {
+  return row.deploymentHistory
+    .slice(0, 5)
+    .map((deployment) =>
+      compactStrings([
+        formatReleaseTime(deployment.observedAtUnixMs),
+        deployment.environment,
+        deployment.target,
+        deployment.state,
+        `drift=${deployment.drift}`,
+        deployment.nextAction ?? undefined,
+      ]).join(" / ")
+    );
 }
 
 function InlineList({

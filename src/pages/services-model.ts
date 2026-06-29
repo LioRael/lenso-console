@@ -22,6 +22,7 @@ export type ServiceCenterModule = Pick<
       | "configured"
       | "deployment"
       | "deploymentDrift"
+      | "deploymentHistory"
       | "deploymentNextAction"
       | "deployments"
       | "environments"
@@ -60,6 +61,7 @@ export type ServiceCenterRow = {
   healthChecks: number;
   environments: ServiceEnvironment[];
   deployments: ServiceDeploymentObservation[];
+  deploymentHistory: ServiceDeploymentObservation[];
   deploymentDrift?: string | null;
   deploymentNextAction?: string | null;
   operatorManaged: boolean;
@@ -108,6 +110,9 @@ export function serviceCenterRows(
       const deployments = uniqueServiceDeployments(
         modules.flatMap((module) => module.deployments ?? [])
       );
+      const deploymentHistory = uniqueServiceDeploymentHistory(
+        modules.flatMap((module) => module.deploymentHistory ?? [])
+      );
       return {
         baseUrls: uniqueStrings(modules.map((module) => module.baseUrl)),
         compatibilityStates: uniqueStrings(
@@ -116,6 +121,7 @@ export function serviceCenterRows(
         fixes: uniqueStrings(modules.flatMap((module) => module.fixes ?? [])),
         environments,
         deployments,
+        deploymentHistory,
         deploymentDrift:
           modules.find((module) => module.deploymentDrift)?.deploymentDrift ??
           modules.flatMap((module) => module.deployments ?? [])[0]?.drift ??
@@ -322,6 +328,7 @@ function serviceOperatorCommands(
         `lenso service deploy export ${providerName} --env ${environment.name} --target operator --output-dir ${outputDir}`,
         `kubectl apply -k ${outputDir}`,
         `lenso service deploy status ${providerName} --env ${environment.name} --source operator --write-state`,
+        `lenso service deploy wait ${providerName} --env ${environment.name} --source operator --write-state`,
         `lenso service release rollback ${providerName} --env ${environment.name}`,
       ];
     }
@@ -329,9 +336,32 @@ function serviceOperatorCommands(
       `lenso service deploy export ${providerName} --env ${environment.name} --target kubernetes --output-dir ${outputDir}`,
       `kubectl apply -k ${outputDir}`,
       `lenso service deploy status ${providerName} --env ${environment.name} --write-state`,
+      `lenso service deploy wait ${providerName} --env ${environment.name} --write-state`,
       `lenso service release rollback ${providerName} --env ${environment.name}`,
     ];
   });
+}
+
+function uniqueServiceDeploymentHistory(
+  deployments: ServiceDeploymentObservation[]
+) {
+  const records = new Map<string, ServiceDeploymentObservation>();
+  for (const deployment of deployments) {
+    records.set(
+      [
+        deployment.serviceName,
+        deployment.environment,
+        deployment.target,
+        deployment.observedAtUnixMs ?? "-",
+        deployment.state,
+        deployment.drift,
+      ].join(":"),
+      deployment
+    );
+  }
+  return Array.from(records.values()).sort(
+    (a, b) => (b.observedAtUnixMs ?? 0) - (a.observedAtUnixMs ?? 0)
+  );
 }
 
 function operatorConditionLabels(deployments: ServiceDeploymentObservation[]) {

@@ -297,6 +297,7 @@ export type ServiceModuleLifecycleModule = {
   deployment?: ServiceModuleDeployment | null;
   environments?: ServiceEnvironment[];
   deployments?: ServiceDeploymentObservation[];
+  deploymentHistory?: ServiceDeploymentObservation[];
   deploymentDrift?: string | null;
   deploymentNextAction?: string | null;
   services: ServiceModuleLifecycleService[];

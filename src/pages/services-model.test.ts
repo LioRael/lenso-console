@@ -198,6 +198,24 @@ describe("service center model", () => {
           deploymentDrift: "in_sync",
           deploymentNextAction:
             "monitor operator conditions, Remote Calls, and Runtime Story",
+          deploymentHistory: [
+            {
+              serviceName: "support-suite-provider",
+              environment: "staging",
+              target: "operator",
+              observedAtUnixMs: 100,
+              state: "progressing",
+              drift: "host_ahead",
+            },
+            {
+              serviceName: "support-suite-provider",
+              environment: "staging",
+              target: "operator",
+              observedAtUnixMs: 300,
+              state: "ready",
+              drift: "in_sync",
+            },
+          ],
           deployments: [
             {
               serviceName: "support-suite-provider",
@@ -257,11 +275,17 @@ describe("service center model", () => {
     expect(row?.operatorConditions).toEqual([
       "Ready=True DeploymentAvailable: 2/2 replicas are ready.",
     ]);
+    expect(
+      row?.deploymentHistory.map((deployment) => deployment.state)
+    ).toEqual(["ready", "progressing"]);
     expect(row?.operatorCommands).toContain(
       "lenso service deploy export support-suite-provider --env staging --target operator --output-dir dist/lenso-service/support-suite-provider/operator/staging"
     );
     expect(row?.operatorCommands).toContain(
       "lenso service deploy status support-suite-provider --env staging --source operator --write-state"
+    );
+    expect(row?.operatorCommands).toContain(
+      "lenso service deploy wait support-suite-provider --env staging --source operator --write-state"
     );
   });
 
