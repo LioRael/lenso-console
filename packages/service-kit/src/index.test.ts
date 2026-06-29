@@ -188,19 +188,19 @@ describe("defineServiceContract", () => {
   it("infers service base URLs from workspace service URLs", () => {
     expect(
       serviceBaseUrlFromReadyUrl(
-        "http://127.0.0.1:4110/lenso/service/v1/status?probe=1",
-      ),
+        "http://127.0.0.1:4110/lenso/service/v1/status?probe=1"
+      )
     ).toBe("http://127.0.0.1:4110/lenso/service/v1");
     expect(
       serviceBaseUrlFromManifestUrl(
-        "http://127.0.0.1:4110/lenso/service/v1/manifest",
-      ),
+        "http://127.0.0.1:4110/lenso/service/v1/manifest"
+      )
     ).toBe("http://127.0.0.1:4110/lenso/service/v1");
     expect(
       serviceWorkspaceBaseUrl({
         manifest: "lenso.service.json",
         readyUrl: "http://127.0.0.1:4110/lenso/service/v1/ready",
-      }),
+      })
     ).toBe("http://127.0.0.1:4110/lenso/service/v1");
     expect(serviceBaseUrlFromReadyUrl("not a url")).toBeUndefined();
   });
@@ -383,7 +383,7 @@ describe("defineServiceContract", () => {
         "$.install.services[0].command",
         "$.modules[0].capabilities[1]",
         "$.modules[1].name",
-      ]),
+      ])
     );
   });
 });
