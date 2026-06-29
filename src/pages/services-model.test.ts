@@ -188,6 +188,83 @@ describe("service center model", () => {
     );
   });
 
+  it("surfaces operator-managed deployment conditions and commands", () => {
+    const response = {
+      version: 1,
+      status: "ready",
+      modules: [
+        {
+          configured: true,
+          deploymentDrift: "in_sync",
+          deploymentNextAction:
+            "monitor operator conditions, Remote Calls, and Runtime Story",
+          deployments: [
+            {
+              serviceName: "support-suite-provider",
+              environment: "staging",
+              target: "operator",
+              observedAtUnixMs: 300,
+              state: "ready",
+              drift: "in_sync",
+              operator: {
+                resource: "support-suite-provider",
+                namespace: "lenso-staging",
+                observedGeneration: 3,
+                conditions: [
+                  {
+                    type: "Ready",
+                    status: "True",
+                    reason: "DeploymentAvailable",
+                    message: "2/2 replicas are ready.",
+                    lastTransitionTime: "2026-06-29T00:00:00Z",
+                  },
+                ],
+              },
+              cluster: {
+                namespace: "lenso-staging",
+                readyReplicas: 2,
+                desiredReplicas: 2,
+                availableReplicas: 2,
+                image: "ghcr.io/acme/support-suite-provider:0.4.0",
+              },
+            },
+          ],
+          environments: [
+            {
+              name: "staging",
+              serviceName: "support-suite-provider",
+              target: "operator",
+              namespace: "lenso-staging",
+              image: "ghcr.io/acme/support-suite-provider:0.4.0",
+            },
+          ],
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-ticket",
+          providerName: "support-suite-provider",
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+      ],
+    } satisfies ServiceModuleLifecycleResponse;
+
+    const [row] = serviceCenterRows(response);
+
+    expect(row?.operatorManaged).toBe(true);
+    expect(row?.operatorConditions).toEqual([
+      "Ready=True DeploymentAvailable: 2/2 replicas are ready.",
+    ]);
+    expect(row?.operatorCommands).toContain(
+      "lenso service deploy export support-suite-provider --env staging --target operator --output-dir dist/lenso-service/support-suite-provider/operator/staging"
+    );
+    expect(row?.operatorCommands).toContain(
+      "lenso service deploy status support-suite-provider --env staging --source operator --write-state"
+    );
+  });
+
   it("groups provider operations from provided modules by operation id", () => {
     const response = {
       version: 1,

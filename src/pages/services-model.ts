@@ -62,6 +62,8 @@ export type ServiceCenterRow = {
   deployments: ServiceDeploymentObservation[];
   deploymentDrift?: string | null;
   deploymentNextAction?: string | null;
+  operatorManaged: boolean;
+  operatorConditions: string[];
   operatorCommands: string[];
   manifestUrls: string[];
   moduleDetails: ServiceCenterModule[];
@@ -100,18 +102,20 @@ export function serviceCenterRows(
           ...(module.latestRelease ? [module.latestRelease] : []),
         ])
       );
+      const environments = uniqueServiceEnvironments(
+        modules.flatMap((module) => module.environments ?? [])
+      );
+      const deployments = uniqueServiceDeployments(
+        modules.flatMap((module) => module.deployments ?? [])
+      );
       return {
         baseUrls: uniqueStrings(modules.map((module) => module.baseUrl)),
         compatibilityStates: uniqueStrings(
           modules.map((module) => module.compatibility?.state)
         ),
         fixes: uniqueStrings(modules.flatMap((module) => module.fixes ?? [])),
-        environments: uniqueServiceEnvironments(
-          modules.flatMap((module) => module.environments ?? [])
-        ),
-        deployments: uniqueServiceDeployments(
-          modules.flatMap((module) => module.deployments ?? [])
-        ),
+        environments,
+        deployments,
         deploymentDrift:
           modules.find((module) => module.deploymentDrift)?.deploymentDrift ??
           modules.flatMap((module) => module.deployments ?? [])[0]?.drift ??
@@ -145,12 +149,11 @@ export function serviceCenterRows(
           .flatMap((module) => module.operations ?? [])
           .sort((a, b) => a.operationId.localeCompare(b.operationId)),
         operationsPath: operationsPath("/operations", { q: providerName }),
-        operatorCommands: serviceOperatorCommands(
-          providerName,
-          uniqueServiceEnvironments(
-            modules.flatMap((module) => module.environments ?? [])
-          )
+        operatorManaged: deployments.some(
+          (deployment) => deployment.target === "operator"
         ),
+        operatorConditions: operatorConditionLabels(deployments),
+        operatorCommands: serviceOperatorCommands(providerName, environments),
         remoteCallsPath: serviceRemoteCallsPath(primaryModuleName),
         latestRelease:
           releaseHistory[0] ??
@@ -256,6 +259,10 @@ function uniqueStrings(values: Array<null | string | undefined>) {
   return Array.from(new Set(values.filter(Boolean) as string[])).sort();
 }
 
+function compactStrings(values: Array<null | string | undefined>) {
+  return values.filter(Boolean) as string[];
+}
+
 function uniqueServiceEnvironments(environments: ServiceEnvironment[]) {
   const records = new Map<string, ServiceEnvironment>();
   for (const environment of environments) {
@@ -284,7 +291,19 @@ function serviceOperatorCommands(
   environments: ServiceEnvironment[]
 ) {
   return environments.flatMap((environment) => {
-    const outputDir = `dist/lenso-service/${providerName}/kubernetes/${environment.name}`;
+    const target =
+      environment.target === "operator" ? "operator" : "kubernetes";
+    const outputDir = `dist/lenso-service/${providerName}/${target}/${environment.name}`;
+    if (target === "operator") {
+      return [
+        "lenso operator export-crd --output dist/lenso-operator/crds",
+        "kubectl apply -k dist/lenso-operator/crds",
+        `lenso service deploy export ${providerName} --env ${environment.name} --target operator --output-dir ${outputDir}`,
+        `kubectl apply -k ${outputDir}`,
+        `lenso service deploy status ${providerName} --env ${environment.name} --source operator --write-state`,
+        `lenso service release rollback ${providerName} --env ${environment.name}`,
+      ];
+    }
     return [
       `lenso service deploy export ${providerName} --env ${environment.name} --target kubernetes --output-dir ${outputDir}`,
       `kubectl apply -k ${outputDir}`,
@@ -292,6 +311,22 @@ function serviceOperatorCommands(
       `lenso service release rollback ${providerName} --env ${environment.name}`,
     ];
   });
+}
+
+function operatorConditionLabels(deployments: ServiceDeploymentObservation[]) {
+  return deployments.flatMap((deployment) =>
+    (deployment.operator?.conditions ?? []).map((condition) =>
+      compactStrings([
+        condition.type && condition.status
+          ? `${condition.type}=${condition.status}`
+          : (condition.type ?? condition.status ?? undefined),
+        condition.reason ?? undefined,
+        condition.message ? `: ${condition.message}` : undefined,
+      ])
+        .join(" ")
+        .replace(" : ", ": ")
+    )
+  );
 }
 
 function uniqueServiceReleases(releases: ServiceReleaseRecord[]) {

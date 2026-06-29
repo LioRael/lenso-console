@@ -184,8 +184,13 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
         <div className="truncate text-[12px] font-semibold text-(--fg-primary)">
           {row.providerName}
         </div>
-        <div className="mt-1">
+        <div className="mt-1 flex flex-wrap gap-1">
           <ServiceStateBadge state={row.state} />
+          {row.operatorManaged ? (
+            <span className="border border-(--line) px-1 py-0.5 text-[10px] uppercase text-(--fg-secondary)">
+              operator managed
+            </span>
+          ) : null}
         </div>
       </div>
       <DetailSection title="next action">
@@ -224,7 +229,13 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
           )}
         />
       </DetailSection>
-      <DetailSection title="kubernetes rollout">
+      <DetailSection
+        title={
+          activeDeployment?.target === "operator"
+            ? "operator rollout"
+            : "kubernetes rollout"
+        }
+      >
         <DetailList
           items={nonEmpty(
             activeDeployment
@@ -249,6 +260,24 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
           )}
         />
       </DetailSection>
+      {activeDeployment?.target === "operator" ? (
+        <DetailSection title="operator conditions">
+          <DetailList
+            items={nonEmpty(
+              compactStrings([
+                activeDeployment.operator?.resource
+                  ? `resource=${activeDeployment.operator.resource}`
+                  : undefined,
+                activeDeployment.operator?.observedGeneration
+                  ? `generation=${activeDeployment.operator.observedGeneration}`
+                  : undefined,
+                ...row.operatorConditions,
+              ]),
+              ["-"]
+            )}
+          />
+        </DetailSection>
+      ) : null}
       <DetailSection title="release drift">
         <DetailList
           items={nonEmpty(

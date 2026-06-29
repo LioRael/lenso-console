@@ -235,6 +235,18 @@ export type ServiceDeploymentObservation = {
   observedAtUnixMs?: number | null;
   state: string;
   drift: string;
+  operator?: {
+    resource?: string | null;
+    namespace?: string | null;
+    observedGeneration?: number | null;
+    conditions?: Array<{
+      type?: string | null;
+      status?: string | null;
+      reason?: string | null;
+      message?: string | null;
+      lastTransitionTime?: string | null;
+    }>;
+  } | null;
   cluster?: {
     namespace?: string | null;
     deployment?: string | null;
