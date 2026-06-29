@@ -265,6 +265,93 @@ describe("service center model", () => {
     );
   });
 
+  it("keeps operator rollout state from being hidden by ready modules", () => {
+    const progressingResponse = {
+      version: 1,
+      status: "ready",
+      modules: [
+        {
+          configured: true,
+          deploymentNextAction: "wait for operator rollout to become ready",
+          deployments: [
+            {
+              serviceName: "support-suite-provider",
+              environment: "staging",
+              target: "operator",
+              observedAtUnixMs: 300,
+              state: "progressing",
+              drift: "image_drift",
+              operator: {
+                resource: "support-suite-provider",
+                namespace: "lenso-staging",
+                conditions: [
+                  {
+                    type: "Available",
+                    status: "False",
+                    reason: "DeploymentProgressing",
+                    message: "1/2 replicas are ready.",
+                  },
+                ],
+              },
+              cluster: {
+                namespace: "lenso-staging",
+                readyReplicas: 1,
+                desiredReplicas: 2,
+              },
+            },
+          ],
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-ticket",
+          providerName: "support-suite-provider",
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+      ],
+    } satisfies ServiceModuleLifecycleResponse;
+    const [progressing] = serviceCenterRows(progressingResponse);
+
+    expect(progressing?.state).toBe("configured");
+    expect(progressing?.nextAction).toBe(
+      "wait for operator rollout to become ready"
+    );
+
+    const failedResponse = {
+      version: 1,
+      status: "ready",
+      modules: [
+        {
+          configured: true,
+          deployments: [
+            {
+              serviceName: "support-suite-provider",
+              environment: "staging",
+              target: "operator",
+              observedAtUnixMs: 300,
+              state: "failed",
+              drift: "in_sync",
+            },
+          ],
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-ticket",
+          providerName: "support-suite-provider",
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+      ],
+    } satisfies ServiceModuleLifecycleResponse;
+    const [failed] = serviceCenterRows(failedResponse);
+
+    expect(failed?.state).toBe("unhealthy");
+  });
+
   it("groups provider operations from provided modules by operation id", () => {
     const response = {
       version: 1,

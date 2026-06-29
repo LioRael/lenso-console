@@ -135,7 +135,7 @@ export function serviceCenterRows(
         ),
         moduleDetails,
         providerName,
-        state: providerState(modules),
+        state: providerState(modules, deployments),
         modules: moduleDetails.map((module) => module.moduleName),
         managedServices: Array.from(
           new Set(
@@ -186,7 +186,12 @@ export function serviceCenterProviderDetail(
   );
 }
 
-export function providerState(modules: ServiceCenterModule[]) {
+export function providerState(
+  modules: ServiceCenterModule[],
+  deployments: ServiceDeploymentObservation[] = modules.flatMap(
+    (module) => module.deployments ?? []
+  )
+) {
   if (
     modules.some(
       (module) =>
@@ -196,7 +201,8 @@ export function providerState(modules: ServiceCenterModule[]) {
         module.status === "service_not_ready" ||
         module.status === "stale_state" ||
         module.services?.some((service) => service.ready === false)
-    )
+    ) ||
+    deployments.some(deploymentIsUnhealthy)
   ) {
     return "unhealthy";
   }
@@ -207,10 +213,25 @@ export function providerState(modules: ServiceCenterModule[]) {
   ) {
     return "restart_pending";
   }
-  if (modules.every((module) => module.status === "ready")) {
+  if (
+    modules.every((module) => module.status === "ready") &&
+    deploymentsReady(deployments)
+  ) {
     return "ready";
   }
   return "configured";
+}
+
+function deploymentIsUnhealthy(deployment: ServiceDeploymentObservation) {
+  return deployment.state === "failed" || deployment.state === "unhealthy";
+}
+
+function deploymentsReady(deployments: ServiceDeploymentObservation[]) {
+  return deployments.every(
+    (deployment) =>
+      deployment.state === "ready" &&
+      (!deployment.drift || deployment.drift === "in_sync")
+  );
 }
 
 export function providerNextAction(modules: ServiceCenterModule[]) {
