@@ -68,7 +68,9 @@ export interface ServiceContractIssue {
 }
 
 export const servicePackageProtocol = "lenso.service-package.v1" as const;
+export const moduleContractProtocol = "lenso.module.v1" as const;
 export const moduleReleaseProtocol = "lenso.module-release.v1" as const;
+export type ModuleArtifactSource = "linked" | "service" | "bundled";
 
 export interface ServicePackage {
   protocol: typeof servicePackageProtocol;
@@ -84,15 +86,27 @@ export interface ModuleReleaseProvider {
   serviceManifest?: string;
 }
 
+export interface ModuleContract {
+  protocol: typeof moduleContractProtocol;
+  name: string;
+  version: string;
+  source: ModuleArtifactSource;
+  summary?: string;
+  capabilities?: string[];
+  dependencies?: string[];
+  manifest?: ServiceModuleContract & Record<string, unknown>;
+}
+
 export interface ModuleRelease {
   protocol: typeof moduleReleaseProtocol;
   name: string;
   version: string;
-  source: "service";
-  provider: ModuleReleaseProvider;
+  source: ModuleArtifactSource;
+  provider?: ModuleReleaseProvider;
   summary?: string;
   capabilities?: string[];
   dependencies?: string[];
+  linked?: Record<string, unknown>;
 }
 
 export const serviceContractSchema = {
@@ -139,6 +153,16 @@ export const moduleReleaseSchema = {
   $id: "https://contracts.lenso.local/modules/lenso-module-release.v1.schema.json",
   $schema: "https://json-schema.org/draft/2020-12/schema",
   additionalProperties: true,
+  allOf: [
+    {
+      if: {
+        properties: { source: { const: "service" } },
+        required: ["source"],
+      },
+      // eslint-disable-next-line unicorn/no-thenable
+      then: { required: ["provider"] },
+    },
+  ],
   properties: {
     capabilities: { items: { minLength: 1, type: "string" }, type: "array" },
     dependencies: { items: { minLength: 1, type: "string" }, type: "array" },
@@ -158,12 +182,31 @@ export const moduleReleaseSchema = {
       required: ["name"],
       type: "object",
     },
-    source: { const: "service", type: "string" },
+    source: { enum: ["linked", "service", "bundled"], type: "string" },
     summary: { type: "string" },
     version: { minLength: 1, type: "string" },
   },
-  required: ["protocol", "name", "version", "source", "provider"],
+  required: ["protocol", "name", "version", "source"],
   title: "LensoModuleRelease",
+  type: "object",
+} as const;
+
+export const moduleContractSchema = {
+  $id: "https://contracts.lenso.local/modules/lenso-module.v1.schema.json",
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  additionalProperties: true,
+  properties: {
+    capabilities: { items: { minLength: 1, type: "string" }, type: "array" },
+    dependencies: { items: { minLength: 1, type: "string" }, type: "array" },
+    manifest: { type: "object" },
+    name: { minLength: 1, type: "string" },
+    protocol: { const: moduleContractProtocol, type: "string" },
+    source: { enum: ["linked", "service", "bundled"], type: "string" },
+    summary: { type: "string" },
+    version: { minLength: 1, type: "string" },
+  },
+  required: ["protocol", "name", "version", "source"],
+  title: "LensoModuleContract",
   type: "object",
 } as const;
 
@@ -190,21 +233,49 @@ export function defineServicePackage(
   };
 }
 
+export function defineModuleContract(
+  contract: Omit<ModuleContract, "protocol">
+): ModuleContract {
+  return {
+    ...contract,
+    protocol: moduleContractProtocol,
+  };
+}
+
 export function defineModuleRelease(
-  release: Omit<ModuleRelease, "protocol" | "source" | "provider"> & {
-    provider: ModuleReleaseProvider;
+  release: Omit<ModuleRelease, "protocol" | "source"> & {
+    source?: ModuleArtifactSource;
   }
 ): ModuleRelease {
-  const provider =
-    release.provider.servicePackage || release.provider.serviceManifest
-      ? release.provider
-      : { ...release.provider, servicePackage: "lenso.service-package.json" };
+  const source = release.source ?? "service";
+  const provider = moduleReleaseProviderForSource(source, release.provider);
+  const { provider: _provider, source: _source, ...rest } = release;
+  if (provider) {
+    return {
+      ...rest,
+      protocol: moduleReleaseProtocol,
+      provider,
+      source,
+    };
+  }
   return {
-    ...release,
+    ...rest,
     protocol: moduleReleaseProtocol,
-    source: "service",
-    provider,
+    source,
   };
+}
+
+function moduleReleaseProviderForSource(
+  source: ModuleArtifactSource,
+  provider: ModuleReleaseProvider | undefined
+): ModuleReleaseProvider | undefined {
+  if (source !== "service" || !provider) {
+    return provider;
+  }
+  if (provider.servicePackage || provider.serviceManifest) {
+    return provider;
+  }
+  return { ...provider, servicePackage: "lenso.service-package.json" };
 }
 
 export function serviceEnv(
@@ -315,13 +386,68 @@ export function validateModuleRelease(value: unknown): ServiceContractIssue[] {
   }
   requireNonEmptyString(root.name, "$.name", issues);
   requireNonEmptyString(root.version, "$.version", issues);
-  if (root.source !== "service") {
-    issues.push({ message: "source must be `service`", path: "$.source" });
+  validateModuleArtifactSource(root.source, "$.source", issues);
+  if (root.source === "service") {
+    validateModuleReleaseProvider(root.provider, issues);
+  } else if (
+    (root.source === "linked" || root.source === "bundled") &&
+    root.provider !== undefined
+  ) {
+    validateModuleReleaseProvider(root.provider, issues);
   }
-  validateModuleReleaseProvider(root.provider, issues);
   validateStringArray(root.capabilities, "$.capabilities", issues);
   validateStringArray(root.dependencies, "$.dependencies", issues);
   return issues;
+}
+
+export function validateModuleContract(value: unknown): ServiceContractIssue[] {
+  const root = asRecord(value);
+  if (!root) {
+    return [{ message: "module contract must be an object", path: "$" }];
+  }
+
+  const issues: ServiceContractIssue[] = [];
+  if (root.protocol !== moduleContractProtocol) {
+    issues.push({
+      message: `protocol must be \`${moduleContractProtocol}\``,
+      path: "$.protocol",
+    });
+  }
+  requireNonEmptyString(root.name, "$.name", issues);
+  requireNonEmptyString(root.version, "$.version", issues);
+  validateModuleArtifactSource(root.source, "$.source", issues);
+  validateStringArray(root.capabilities, "$.capabilities", issues);
+  validateStringArray(root.dependencies, "$.dependencies", issues);
+  if (root.manifest !== undefined && !asRecord(root.manifest)) {
+    issues.push({ message: "manifest must be an object", path: "$.manifest" });
+  }
+  return issues;
+}
+
+export function assertModuleContract(
+  value: unknown
+): asserts value is ModuleContract {
+  const issues = validateModuleContract(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid Lenso module contract: ${issues
+        .map((issue) => `${issue.path} ${issue.message}`)
+        .join("; ")}`
+    );
+  }
+}
+
+function validateModuleArtifactSource(
+  value: unknown,
+  path: string,
+  issues: ServiceContractIssue[]
+): void {
+  if (value !== "service" && value !== "linked" && value !== "bundled") {
+    issues.push({
+      message: "source must be `service`, `linked`, or `bundled`",
+      path,
+    });
+  }
 }
 
 export function assertModuleRelease(

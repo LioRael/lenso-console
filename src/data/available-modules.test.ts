@@ -27,7 +27,7 @@ describe("available modules provider", () => {
       expect.objectContaining({
         name: "billing",
         preflightStatus: "ready",
-        source: "remote",
+        source: "service",
       }),
       expect.objectContaining({
         name: "local-crm",
