@@ -10,10 +10,13 @@ import {
   defineModuleContract,
   defineModuleRelease,
   defineServicePackage,
+  defineServiceReleasePlan,
   defineServiceWorkspace,
   defineServiceContract,
+  evaluateServiceReleasePolicy,
   moduleContractSchema,
   moduleReleaseSchema,
+  serviceReleaseRestartRequired,
   serviceContractSchema,
   serviceEnv,
   serviceBaseUrlFromManifestUrl,
@@ -148,6 +151,56 @@ describe("defineServiceContract", () => {
     expect(serviceWorkspaceSchema.title).toBe("LensoServiceWorkspace");
     expect(validateServiceWorkspace(workspace)).toEqual([]);
     expect(() => assertServiceWorkspace(workspace)).not.toThrow();
+  });
+
+  it("evaluates service release plans with delivery policy", () => {
+    const diff = {
+      capabilities: [
+        {
+          added: [],
+          module: "support-ticket",
+          removed: ["support_ticket.tickets.write"],
+        },
+      ],
+      config: { added: ["support.mode"], removed: [] },
+      env: { added: ["SUPPORT_API_KEY"], removed: [] },
+      modules: { added: [], removed: [] },
+      operations: [
+        {
+          added: [],
+          module: "support-ticket",
+          removed: ["route:DELETE /tickets/{id}"],
+        },
+      ],
+    };
+
+    expect(evaluateServiceReleasePolicy(diff).risk).toBe("breaking");
+    expect(
+      evaluateServiceReleasePolicy(diff, "remote protocol is newer").risk
+    ).toBe("blocked");
+    expect(serviceReleaseRestartRequired(diff)).toBe(true);
+
+    const plan = defineServiceReleasePlan({
+      candidate: {
+        manifestReference: "./support/v2/lenso.service.json",
+        modules: ["support-ticket"],
+        name: "support-suite-provider",
+        version: "0.2.0",
+      },
+      current: {
+        manifestReference: "./support/v1/lenso.service.json",
+        modules: ["support-ticket"],
+        name: "support-suite-provider",
+        version: "0.1.0",
+      },
+      diff,
+      restartRequired: serviceReleaseRestartRequired(diff),
+      service: { name: "support-suite-provider" },
+    });
+
+    expect(plan.protocol).toBe("lenso.service-release-plan.v1");
+    expect(plan.policy.risk).toBe("breaking");
+    expect(plan.nextAction).toContain("Review removed modules");
   });
 
   it("converts service workspaces to module service start files", () => {

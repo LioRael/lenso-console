@@ -2,6 +2,7 @@ import type {
   ServiceOperation,
   ServiceModuleLifecycleModule,
   ServiceModuleLifecycleService,
+  ServiceReleaseRecord,
 } from "./available-modules-model";
 import { functionsPath, operationsPath } from "./operations-url-model";
 import { remoteProxyCallsPath } from "./remote-proxy-calls-model";
@@ -22,11 +23,13 @@ export type ServiceCenterModule = Pick<
       | "healthHistory"
       | "installed"
       | "loaded"
+      | "latestRelease"
       | "manifestStatus"
       | "manifestUrl"
       | "moduleName"
       | "operations"
       | "providerName"
+      | "releaseHistory"
       | "restartPending"
       | "serviceStatus"
       | "statusUrl"
@@ -59,6 +62,8 @@ export type ServiceCenterRow = {
   operations: ServiceOperation[];
   operationsPath: string;
   remoteCallsPath: string;
+  latestRelease?: ServiceReleaseRecord | null;
+  releaseHistory: ServiceReleaseRecord[];
   runtimePath: string;
   storyPath: string;
 };
@@ -78,6 +83,12 @@ export function serviceCenterRows(
         a.moduleName.localeCompare(b.moduleName)
       );
       const primaryModuleName = moduleDetails[0]?.moduleName ?? providerName;
+      const releaseHistory = uniqueServiceReleases(
+        modules.flatMap((module) => [
+          ...(module.releaseHistory ?? []),
+          ...(module.latestRelease ? [module.latestRelease] : []),
+        ])
+      );
       return {
         baseUrls: uniqueStrings(modules.map((module) => module.baseUrl)),
         compatibilityStates: uniqueStrings(
@@ -108,6 +119,11 @@ export function serviceCenterRows(
           .sort((a, b) => a.operationId.localeCompare(b.operationId)),
         operationsPath: operationsPath("/operations", { q: providerName }),
         remoteCallsPath: serviceRemoteCallsPath(primaryModuleName),
+        latestRelease:
+          releaseHistory[0] ??
+          modules.find((module) => module.latestRelease)?.latestRelease ??
+          null,
+        releaseHistory,
         runtimePath: functionsPath({ moduleName: primaryModuleName }),
         storyPath: `/?q=${encodeURIComponent(providerName)}`,
       };
@@ -199,4 +215,22 @@ export function providerNextAction(modules: ServiceCenterModule[]) {
 
 function uniqueStrings(values: Array<null | string | undefined>) {
   return Array.from(new Set(values.filter(Boolean) as string[])).sort();
+}
+
+function uniqueServiceReleases(releases: ServiceReleaseRecord[]) {
+  const records = new Map<string, ServiceReleaseRecord>();
+  for (const release of releases) {
+    const key =
+      release.id ??
+      [
+        release.serviceName,
+        release.appliedAtUnixMs ?? "-",
+        release.candidateVersion ?? "-",
+        release.candidateManifestReference ?? "-",
+      ].join(":");
+    records.set(key, release);
+  }
+  return Array.from(records.values()).sort(
+    (left, right) => (right.appliedAtUnixMs ?? 0) - (left.appliedAtUnixMs ?? 0)
+  );
 }

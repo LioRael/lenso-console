@@ -201,6 +201,19 @@ export type ServiceModuleHealthCheck = {
   error?: string | null;
 };
 
+export type ServiceReleaseRecord = {
+  id?: string | null;
+  serviceName: string;
+  appliedAtUnixMs?: number | null;
+  risk: "safe" | "needs_attention" | "breaking" | "blocked" | string;
+  currentVersion?: string | null;
+  candidateVersion?: string | null;
+  currentManifestReference?: string | null;
+  candidateManifestReference?: string | null;
+  candidatePackageReference?: string | null;
+  rollbackTarget?: string | null;
+};
+
 export type ServiceModuleConfig = {
   envFile: string;
   requiredEnv: string[];
@@ -228,6 +241,8 @@ export type ServiceModuleLifecycleModule = {
   services: ServiceModuleLifecycleService[];
   operations?: ServiceOperation[];
   moduleRelease?: AvailableModuleRelease | null;
+  latestRelease?: ServiceReleaseRecord | null;
+  releaseHistory?: ServiceReleaseRecord[];
   fixes: string[];
 };
 

@@ -71,6 +71,65 @@ describe("service center model", () => {
     expect(rows[0]?.remoteCallsPath).toContain("support-notification");
   });
 
+  it("surfaces the latest service release for a provider", () => {
+    const response = {
+      version: 1,
+      status: "ready",
+      modules: [
+        {
+          configured: true,
+          fixes: [],
+          installed: true,
+          latestRelease: {
+            appliedAtUnixMs: 300,
+            candidateManifestReference: "./support/v3/lenso.service.json",
+            candidateVersion: "0.3.0",
+            currentVersion: "0.2.0",
+            id: "rel_new",
+            risk: "breaking",
+            serviceName: "support-suite-provider",
+          },
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-ticket",
+          providerName: "support-suite-provider",
+          releaseHistory: [
+            {
+              appliedAtUnixMs: 100,
+              candidateManifestReference: "./support/v2/lenso.service.json",
+              candidateVersion: "0.2.0",
+              currentVersion: "0.1.0",
+              id: "rel_old",
+              risk: "safe",
+              serviceName: "support-suite-provider",
+            },
+            {
+              appliedAtUnixMs: 300,
+              candidateManifestReference: "./support/v3/lenso.service.json",
+              candidateVersion: "0.3.0",
+              currentVersion: "0.2.0",
+              id: "rel_new",
+              risk: "breaking",
+              serviceName: "support-suite-provider",
+            },
+          ],
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+      ],
+    } satisfies ServiceModuleLifecycleResponse;
+
+    const [row] = serviceCenterRows(response);
+
+    expect(row?.latestRelease?.id).toBe("rel_new");
+    expect(row?.latestRelease?.risk).toBe("breaking");
+    expect(row?.releaseHistory.map((release) => release.id)).toEqual([
+      "rel_new",
+      "rel_old",
+    ]);
+  });
+
   it("groups provider operations from provided modules by operation id", () => {
     const response = {
       version: 1,

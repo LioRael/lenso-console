@@ -69,9 +69,16 @@ export interface ServiceContractIssue {
 
 export const servicePackageProtocol = "lenso.service-package.v1" as const;
 export const serviceWorkspaceProtocol = "lenso.service-workspace.v1" as const;
+export const serviceReleasePlanProtocol =
+  "lenso.service-release-plan.v1" as const;
 export const moduleContractProtocol = "lenso.module.v1" as const;
 export const moduleReleaseProtocol = "lenso.module-release.v1" as const;
 export type ModuleArtifactSource = "linked" | "service" | "bundled";
+export type ServiceReleaseRisk =
+  | "safe"
+  | "needs_attention"
+  | "breaking"
+  | "blocked";
 
 export interface ServicePackage {
   protocol: typeof servicePackageProtocol;
@@ -115,6 +122,57 @@ export interface ServiceWorkspaceModuleServices {
 export interface ServiceWorkspaceModuleServicesFile {
   version: 1;
   modules: ServiceWorkspaceModuleServices[];
+}
+
+export interface ServiceReleaseChangeSet {
+  added: string[];
+  removed: string[];
+}
+
+export interface ServiceReleaseModuleChangeSet extends ServiceReleaseChangeSet {
+  module: string;
+}
+
+export interface ServiceReleaseDiff {
+  capabilities: ServiceReleaseModuleChangeSet[];
+  compatibilityChanged?: boolean;
+  config: ServiceReleaseChangeSet;
+  env: ServiceReleaseChangeSet;
+  modules: ServiceReleaseChangeSet;
+  operations: ServiceReleaseModuleChangeSet[];
+}
+
+export interface ServiceReleaseManifestSummary {
+  name: string;
+  version?: string;
+  manifestReference: string;
+  packageReference?: string;
+  inputReference?: string;
+  modules: string[];
+  compatibilityIssue?: string | null;
+}
+
+export interface ServiceReleasePolicyIssue {
+  code: string;
+  level: Exclude<ServiceReleaseRisk, "safe">;
+  message: string;
+}
+
+export interface ServiceReleasePolicy {
+  risk: ServiceReleaseRisk;
+  issues: ServiceReleasePolicyIssue[];
+}
+
+export interface ServiceReleasePlan {
+  protocol: typeof serviceReleasePlanProtocol;
+  service: { name: string };
+  current: ServiceReleaseManifestSummary;
+  candidate: ServiceReleaseManifestSummary;
+  diff: ServiceReleaseDiff;
+  policy: ServiceReleasePolicy;
+  restartRequired: boolean;
+  nextAction: string;
+  createdAtUnixMs?: number;
 }
 
 export interface ModuleReleaseProvider {
@@ -342,6 +400,116 @@ export function serviceWorkspaceToModuleServices(
   };
 }
 
+export function defineServiceReleasePlan(
+  plan: Omit<ServiceReleasePlan, "protocol" | "policy" | "nextAction"> & {
+    policy?: ServiceReleasePolicy;
+    nextAction?: string;
+  }
+): ServiceReleasePlan {
+  const policy =
+    plan.policy ??
+    evaluateServiceReleasePolicy(
+      plan.diff,
+      plan.candidate.compatibilityIssue ?? undefined
+    );
+  return {
+    ...plan,
+    nextAction: plan.nextAction ?? serviceReleaseNextAction(policy.risk),
+    policy,
+    protocol: serviceReleasePlanProtocol,
+  };
+}
+
+export function evaluateServiceReleasePolicy(
+  diff: ServiceReleaseDiff,
+  compatibilityIssue?: string | null
+): ServiceReleasePolicy {
+  const issues: ServiceReleasePolicyIssue[] = [];
+  if (compatibilityIssue) {
+    issues.push({
+      code: "host_incompatible",
+      level: "blocked",
+      message: compatibilityIssue,
+    });
+  } else if (diff.compatibilityChanged) {
+    issues.push({
+      code: "compatibility_changed",
+      level: "needs_attention",
+      message:
+        "Service compatibility metadata changed; review host support before applying.",
+    });
+  }
+  for (const moduleName of diff.modules.removed) {
+    issues.push({
+      code: "module_removed",
+      level: "breaking",
+      message: `Module \`${moduleName}\` is removed by this release.`,
+    });
+  }
+  for (const envName of diff.env.added) {
+    issues.push({
+      code: "env_added",
+      level: "needs_attention",
+      message: `Environment value \`${envName}\` is newly required by this release.`,
+    });
+  }
+  for (const configKey of diff.config.added) {
+    issues.push({
+      code: "config_added",
+      level: "needs_attention",
+      message: `Runtime config \`${configKey}\` is newly declared by this release.`,
+    });
+  }
+  for (const change of diff.capabilities) {
+    for (const capability of change.removed) {
+      issues.push({
+        code: "capability_removed",
+        level: "breaking",
+        message: `Capability \`${capability}\` is removed from module \`${change.module}\`.`,
+      });
+    }
+  }
+  for (const change of diff.operations) {
+    for (const operation of change.removed) {
+      issues.push({
+        code: "operation_removed",
+        level: "breaking",
+        message: `Operation \`${operation}\` is removed from module \`${change.module}\`.`,
+      });
+    }
+  }
+  return {
+    issues,
+    risk:
+      issues
+        .map((issue) => issue.level)
+        .toSorted(
+          (left, right) => releaseRiskRank(right) - releaseRiskRank(left)
+        )
+        .at(0) ?? "safe",
+  };
+}
+
+export function serviceReleaseRestartRequired(
+  diff: ServiceReleaseDiff
+): boolean {
+  return (
+    diff.compatibilityChanged === true ||
+    diff.modules.added.length > 0 ||
+    diff.modules.removed.length > 0 ||
+    diff.env.added.length > 0 ||
+    diff.env.removed.length > 0 ||
+    diff.config.added.length > 0 ||
+    diff.config.removed.length > 0 ||
+    diff.capabilities.some(
+      (change) => change.added.length > 0 || change.removed.length > 0
+    ) ||
+    diff.operations.some(
+      (change) => change.added.length > 0 || change.removed.length > 0
+    )
+  );
+}
+
 export function serviceWorkspaceBaseUrl(
   service: Pick<ServiceWorkspaceService, "manifest" | "readyUrl">
 ): string | undefined {
@@ -433,6 +601,28 @@ function moduleReleaseProviderForSource(
     return provider;
   }
   return { ...provider, servicePackage: "lenso.service-package.json" };
+}
+
+function releaseRiskRank(risk: ServiceReleaseRisk): number {
+  return {
+    blocked: 3,
+    breaking: 2,
+    needs_attention: 1,
+    safe: 0,
+  }[risk];
+}
+
+function serviceReleaseNextAction(risk: ServiceReleaseRisk): string {
+  if (risk === "safe") {
+    return "Run `lenso service release apply <plan.json>` when ready.";
+  }
+  if (risk === "needs_attention") {
+    return "Review required env/config, then run `lenso service release apply <plan.json>`.";
+  }
+  if (risk === "breaking") {
+    return "Review removed modules, capabilities, or operations before applying.";
+  }
+  return "Fix blocked policy issues before applying this release.";
 }
 
 function parseUrl(value: string): URL | undefined {
