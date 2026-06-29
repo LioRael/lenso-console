@@ -249,6 +249,13 @@ describe("service center model", () => {
           ],
           environments: [
             {
+              name: "prod",
+              serviceName: "support-suite-provider",
+              target: "operator",
+              namespace: "lenso-prod",
+              image: "ghcr.io/acme/support-suite-provider:0.4.0",
+            },
+            {
               name: "staging",
               serviceName: "support-suite-provider",
               target: "operator",
@@ -286,6 +293,12 @@ describe("service center model", () => {
     );
     expect(row?.operatorCommands).toContain(
       "lenso service deploy wait support-suite-provider --env staging --source operator --write-state"
+    );
+    expect(row?.operatorCommands).toContain(
+      "lenso service release promote support-suite-provider --from staging --to prod --output .lenso/support-suite-provider.prod.release-plan.json"
+    );
+    expect(row?.operatorCommands).toContain(
+      "lenso service release apply .lenso/support-suite-provider.prod.release-plan.json --env prod"
     );
   });
 

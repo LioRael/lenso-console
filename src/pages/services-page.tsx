@@ -173,8 +173,11 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
         deployment.environment === (activeEnvironment?.name ?? selectedName)
     ) ?? row.deployments[0];
   const activeCommands = activeEnvironment
-    ? row.operatorCommands.filter((command) =>
-        command.includes(`--env ${activeEnvironment.name}`)
+    ? row.operatorCommands.filter(
+        (command) =>
+          command.includes(`--env ${activeEnvironment.name}`) ||
+          command.includes(`--to ${activeEnvironment.name}`) ||
+          command.includes(`.${activeEnvironment.name}.release-plan.json`)
       )
     : row.operatorCommands;
 
@@ -298,7 +301,7 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
       <DetailSection title="deployment timeline">
         <DetailList items={nonEmpty(deploymentTimelineItems(row), ["-"])} />
       </DetailSection>
-      <DetailSection title="operator commands">
+      <DetailSection title="delivery commands">
         <DetailList items={nonEmpty(activeCommands, ["-"])} />
       </DetailSection>
       <DetailSection title="modules">

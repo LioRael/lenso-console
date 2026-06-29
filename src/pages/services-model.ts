@@ -317,7 +317,7 @@ function serviceOperatorCommands(
   providerName: string,
   environments: ServiceEnvironment[]
 ) {
-  return environments.flatMap((environment) => {
+  const rolloutCommands = environments.flatMap((environment) => {
     const target =
       environment.target === "operator" ? "operator" : "kubernetes";
     const outputDir = `dist/lenso-service/${providerName}/${target}/${environment.name}`;
@@ -340,6 +340,26 @@ function serviceOperatorCommands(
       `lenso service release rollback ${providerName} --env ${environment.name}`,
     ];
   });
+  return [
+    ...rolloutCommands,
+    ...servicePromotionCommands(providerName, environments),
+  ];
+}
+
+function servicePromotionCommands(
+  providerName: string,
+  environments: ServiceEnvironment[]
+) {
+  const names = new Set(environments.map((environment) => environment.name));
+  if (!(names.has("staging") && names.has("prod"))) {
+    return [];
+  }
+  const planPath = `.lenso/${providerName}.prod.release-plan.json`;
+  return [
+    `lenso service release promote ${providerName} --from staging --to prod --output ${planPath}`,
+    `lenso service policy check ${planPath} --fail-on breaking`,
+    `lenso service release apply ${planPath} --env prod`,
+  ];
 }
 
 function uniqueServiceDeploymentHistory(
