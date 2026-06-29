@@ -5,10 +5,12 @@ import {
   assertModuleContract,
   assertModuleRelease,
   assertServicePackage,
+  assertServiceWorkspace,
   assertServiceContract,
   defineModuleContract,
   defineModuleRelease,
   defineServicePackage,
+  defineServiceWorkspace,
   defineServiceContract,
   moduleContractSchema,
   moduleReleaseSchema,
@@ -16,10 +18,12 @@ import {
   serviceEnv,
   serviceHealth,
   servicePackageSchema,
+  serviceWorkspaceSchema,
   validateModuleContract,
   validateModuleRelease,
   validateServiceContract,
   validateServicePackage,
+  validateServiceWorkspace,
 } from "./index";
 
 describe("defineServiceContract", () => {
@@ -104,6 +108,60 @@ describe("defineServiceContract", () => {
     expect(servicePackageSchema.title).toBe("LensoServicePackage");
     expect(validateServicePackage(servicePackage)).toEqual([]);
     expect(() => assertServicePackage(servicePackage)).not.toThrow();
+  });
+
+  it("defines and validates a service workspace manifest", () => {
+    const workspace = defineServiceWorkspace({
+      services: [
+        {
+          command: "pnpm start",
+          cwd: "services/support-suite-provider",
+          lang: "ts",
+          manifest: "lenso.service.json",
+          modules: ["support-ticket"],
+          name: "support-suite-provider",
+          readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+        },
+      ],
+    });
+
+    expect(workspace).toEqual({
+      protocol: "lenso.service-workspace.v1",
+      services: [
+        {
+          autoStart: true,
+          command: "pnpm start",
+          cwd: "services/support-suite-provider",
+          lang: "ts",
+          manifest: "lenso.service.json",
+          modules: ["support-ticket"],
+          name: "support-suite-provider",
+          readyTimeoutMs: 10_000,
+          readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+        },
+      ],
+    });
+    expect(serviceWorkspaceSchema.title).toBe("LensoServiceWorkspace");
+    expect(validateServiceWorkspace(workspace)).toEqual([]);
+    expect(() => assertServiceWorkspace(workspace)).not.toThrow();
+  });
+
+  it("reports validation paths for malformed service workspaces", () => {
+    const issues = validateServiceWorkspace({
+      protocol: "lenso.workspace",
+      services: [{ name: "", modules: ["support-ticket", 42] }],
+    });
+
+    expect(issues.map((issue) => issue.path)).toEqual([
+      "$.protocol",
+      "$.services[0].name",
+      "$.services[0].lang",
+      "$.services[0].cwd",
+      "$.services[0].manifest",
+      "$.services[0].command",
+      "$.services[0].readyUrl",
+      "$.services[0].modules[1]",
+    ]);
   });
 
   it("reports validation paths for malformed service packages", () => {
@@ -266,7 +324,7 @@ describe("defineServiceContract", () => {
         "$.install.services[0].command",
         "$.modules[0].capabilities[1]",
         "$.modules[1].name",
-      ])
+      ]),
     );
   });
 });

@@ -68,6 +68,7 @@ export interface ServiceContractIssue {
 }
 
 export const servicePackageProtocol = "lenso.service-package.v1" as const;
+export const serviceWorkspaceProtocol = "lenso.service-workspace.v1" as const;
 export const moduleContractProtocol = "lenso.module.v1" as const;
 export const moduleReleaseProtocol = "lenso.module-release.v1" as const;
 export type ModuleArtifactSource = "linked" | "service" | "bundled";
@@ -78,6 +79,23 @@ export interface ServicePackage {
   version: string;
   serviceManifest: string;
   modules: string[];
+}
+
+export interface ServiceWorkspace {
+  protocol: typeof serviceWorkspaceProtocol;
+  services: ServiceWorkspaceService[];
+}
+
+export interface ServiceWorkspaceService {
+  name: string;
+  lang: "ts" | "rust" | string;
+  cwd: string;
+  manifest: string;
+  command: string;
+  readyUrl: string;
+  autoStart?: boolean;
+  readyTimeoutMs?: number;
+  modules?: string[];
 }
 
 export interface ModuleReleaseProvider {
@@ -149,6 +167,37 @@ export const servicePackageSchema = {
   type: "object",
 } as const;
 
+export const serviceWorkspaceSchema = {
+  $id: "https://contracts.lenso.local/services/lenso-service-workspace.v1.schema.json",
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  additionalProperties: true,
+  properties: {
+    protocol: { const: serviceWorkspaceProtocol, type: "string" },
+    services: {
+      items: {
+        additionalProperties: true,
+        properties: {
+          autoStart: { type: "boolean" },
+          command: { minLength: 1, type: "string" },
+          cwd: { minLength: 1, type: "string" },
+          lang: { minLength: 1, type: "string" },
+          manifest: { minLength: 1, type: "string" },
+          modules: { items: { minLength: 1, type: "string" }, type: "array" },
+          name: { minLength: 1, type: "string" },
+          readyTimeoutMs: { minimum: 1, type: "integer" },
+          readyUrl: { minLength: 1, type: "string" },
+        },
+        required: ["name", "lang", "cwd", "manifest", "command", "readyUrl"],
+        type: "object",
+      },
+      type: "array",
+    },
+  },
+  required: ["protocol"],
+  title: "LensoServiceWorkspace",
+  type: "object",
+} as const;
+
 export const moduleReleaseSchema = {
   $id: "https://contracts.lenso.local/modules/lenso-module-release.v1.schema.json",
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -211,7 +260,7 @@ export const moduleContractSchema = {
 } as const;
 
 export function defineServiceContract(
-  contract: ServiceContract
+  contract: ServiceContract,
 ): ServiceContract {
   return {
     ...contract,
@@ -224,7 +273,7 @@ export function defineServiceContract(
 export function defineServicePackage(
   servicePackage: Omit<ServicePackage, "protocol" | "serviceManifest"> & {
     serviceManifest?: string;
-  }
+  },
 ): ServicePackage {
   return {
     ...servicePackage,
@@ -233,8 +282,28 @@ export function defineServicePackage(
   };
 }
 
+export function defineServiceWorkspace(
+  workspace: Omit<ServiceWorkspace, "protocol" | "services"> & {
+    protocol?: string;
+    services: Array<
+      Omit<ServiceWorkspaceService, "manifest"> & { manifest?: string }
+    >;
+  },
+): ServiceWorkspace {
+  return {
+    ...workspace,
+    protocol: serviceWorkspaceProtocol,
+    services: workspace.services.map((service) => ({
+      ...service,
+      autoStart: service.autoStart ?? true,
+      manifest: service.manifest || "lenso.service.json",
+      readyTimeoutMs: service.readyTimeoutMs ?? 10_000,
+    })),
+  };
+}
+
 export function defineModuleContract(
-  contract: Omit<ModuleContract, "protocol">
+  contract: Omit<ModuleContract, "protocol">,
 ): ModuleContract {
   return {
     ...contract,
@@ -245,7 +314,7 @@ export function defineModuleContract(
 export function defineModuleRelease(
   release: Omit<ModuleRelease, "protocol" | "source"> & {
     source?: ModuleArtifactSource;
-  }
+  },
 ): ModuleRelease {
   const source = release.source ?? "service";
   const provider = moduleReleaseProviderForSource(source, release.provider);
@@ -267,7 +336,7 @@ export function defineModuleRelease(
 
 function moduleReleaseProviderForSource(
   source: ModuleArtifactSource,
-  provider: ModuleReleaseProvider | undefined
+  provider: ModuleReleaseProvider | undefined,
 ): ModuleReleaseProvider | undefined {
   if (source !== "service" || !provider) {
     return provider;
@@ -280,7 +349,7 @@ function moduleReleaseProviderForSource(
 
 export function serviceEnv(
   name: string,
-  options: Omit<ServiceEnvField, "name"> = {}
+  options: Omit<ServiceEnvField, "name"> = {},
 ): ServiceEnvField {
   return { name, ...options };
 }
@@ -290,7 +359,7 @@ export function serviceHealth(health: ServiceHealth): ServiceHealth {
 }
 
 export function validateServiceContract(
-  value: unknown
+  value: unknown,
 ): ServiceContractIssue[] {
   const root = asRecord(value);
   if (!root) {
@@ -308,13 +377,13 @@ export function validateServiceContract(
   validateStringArray(
     root.requiredEnv ?? root.required_env,
     "$.requiredEnv",
-    issues
+    issues,
   );
   validateCompatibility(root.compatibility, issues);
   validateLocalProcess(
     root.localProcess ?? root.local_process,
     "$.localProcess",
-    issues
+    issues,
   );
   validateInstall(root.install, issues);
   validateModules(root.modules, issues);
@@ -322,14 +391,14 @@ export function validateServiceContract(
 }
 
 export function assertServiceContract(
-  value: unknown
+  value: unknown,
 ): asserts value is ServiceContract {
   const issues = validateServiceContract(value);
   if (issues.length > 0) {
     throw new Error(
       `Invalid Lenso service contract: ${issues
         .map((issue) => `${issue.path} ${issue.message}`)
-        .join("; ")}`
+        .join("; ")}`,
     );
   }
 }
@@ -352,21 +421,53 @@ export function validateServicePackage(value: unknown): ServiceContractIssue[] {
   requireNonEmptyString(
     root.serviceManifest ?? root.service_manifest,
     "$.serviceManifest",
-    issues
+    issues,
   );
   validateServicePackageModules(root.modules, issues);
   return issues;
 }
 
 export function assertServicePackage(
-  value: unknown
+  value: unknown,
 ): asserts value is ServicePackage {
   const issues = validateServicePackage(value);
   if (issues.length > 0) {
     throw new Error(
       `Invalid Lenso service package: ${issues
         .map((issue) => `${issue.path} ${issue.message}`)
-        .join("; ")}`
+        .join("; ")}`,
+    );
+  }
+}
+
+export function validateServiceWorkspace(
+  value: unknown,
+): ServiceContractIssue[] {
+  const root = asRecord(value);
+  if (!root) {
+    return [{ message: "service workspace must be an object", path: "$" }];
+  }
+
+  const issues: ServiceContractIssue[] = [];
+  if (root.protocol !== serviceWorkspaceProtocol) {
+    issues.push({
+      message: `protocol must be \`${serviceWorkspaceProtocol}\``,
+      path: "$.protocol",
+    });
+  }
+  validateWorkspaceServices(root.services, issues);
+  return issues;
+}
+
+export function assertServiceWorkspace(
+  value: unknown,
+): asserts value is ServiceWorkspace {
+  const issues = validateServiceWorkspace(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid Lenso service workspace: ${issues
+        .map((issue) => `${issue.path} ${issue.message}`)
+        .join("; ")}`,
     );
   }
 }
@@ -425,14 +526,14 @@ export function validateModuleContract(value: unknown): ServiceContractIssue[] {
 }
 
 export function assertModuleContract(
-  value: unknown
+  value: unknown,
 ): asserts value is ModuleContract {
   const issues = validateModuleContract(value);
   if (issues.length > 0) {
     throw new Error(
       `Invalid Lenso module contract: ${issues
         .map((issue) => `${issue.path} ${issue.message}`)
-        .join("; ")}`
+        .join("; ")}`,
     );
   }
 }
@@ -440,7 +541,7 @@ export function assertModuleContract(
 function validateModuleArtifactSource(
   value: unknown,
   path: string,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (value !== "service" && value !== "linked" && value !== "bundled") {
     issues.push({
@@ -451,21 +552,21 @@ function validateModuleArtifactSource(
 }
 
 export function assertModuleRelease(
-  value: unknown
+  value: unknown,
 ): asserts value is ModuleRelease {
   const issues = validateModuleRelease(value);
   if (issues.length > 0) {
     throw new Error(
       `Invalid Lenso module release: ${issues
         .map((issue) => `${issue.path} ${issue.message}`)
-        .join("; ")}`
+        .join("; ")}`,
     );
   }
 }
 
 function validateModuleReleaseProvider(
   value: unknown,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   const provider = asRecord(value);
   if (!provider) {
@@ -481,13 +582,13 @@ function validateModuleReleaseProvider(
       provider.service_manifest,
     ],
     "$.provider.servicePackage",
-    issues
+    issues,
   );
 }
 
 function validateProvider(
   value: unknown,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (value === undefined) {
     return;
@@ -502,7 +603,7 @@ function validateProvider(
 
 function validateCompatibility(
   value: unknown,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (value === undefined) {
     return;
@@ -518,7 +619,7 @@ function validateCompatibility(
   validateStringArray(
     compatibility.requiredHostFeatures ?? compatibility.required_host_features,
     "$.compatibility.requiredHostFeatures",
-    issues
+    issues,
   );
 }
 
@@ -526,7 +627,7 @@ function validateNamedFieldsArray(
   value: unknown,
   path: string,
   nameField: string,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (value === undefined) {
     return;
@@ -547,7 +648,7 @@ function validateNamedFieldsArray(
     requireNonEmptyString(
       entry[nameField],
       `${path}[${index}].${nameField}`,
-      issues
+      issues,
     );
   }
 }
@@ -555,7 +656,7 @@ function validateNamedFieldsArray(
 function validateLocalProcess(
   value: unknown,
   path: string,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (value === undefined) {
     return;
@@ -599,12 +700,12 @@ function validateInstall(value: unknown, issues: ServiceContractIssue[]): void {
     requireNonEmptyString(
       entry.name,
       `$.install.services[${index}].name`,
-      issues
+      issues,
     );
     requireNonEmptyString(
       entry.command,
       `$.install.services[${index}].command`,
-      issues
+      issues,
     );
   }
 }
@@ -632,7 +733,7 @@ function validateModules(value: unknown, issues: ServiceContractIssue[]): void {
     const moduleName = requireNonEmptyString(
       entry.name,
       `$.modules[${index}].name`,
-      issues
+      issues,
     );
     if (moduleName) {
       if (names.has(moduleName)) {
@@ -646,19 +747,19 @@ function validateModules(value: unknown, issues: ServiceContractIssue[]): void {
     validateStringArray(
       entry.capabilities,
       `$.modules[${index}].capabilities`,
-      issues
+      issues,
     );
     validateStringArray(
       entry.dependencies,
       `$.modules[${index}].dependencies`,
-      issues
+      issues,
     );
   }
 }
 
 function validateServicePackageModules(
   value: unknown,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (!Array.isArray(value)) {
     issues.push({ message: "modules must be an array", path: "$.modules" });
@@ -673,7 +774,7 @@ function validateServicePackageModules(
     const moduleName = requireNonEmptyString(
       moduleNameValue,
       `$.modules[${index}]`,
-      issues
+      issues,
     );
     if (moduleName) {
       if (names.has(moduleName)) {
@@ -687,10 +788,66 @@ function validateServicePackageModules(
   }
 }
 
+function validateWorkspaceServices(
+  value: unknown,
+  issues: ServiceContractIssue[],
+): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    issues.push({ message: "services must be an array", path: "$.services" });
+    return;
+  }
+  const names = new Set<string>();
+  for (const [index, service] of value.entries()) {
+    const entry = asRecord(service);
+    if (!entry) {
+      issues.push({
+        message: "service must be an object",
+        path: `$.services[${index}]`,
+      });
+      continue;
+    }
+    const name = requireNonEmptyString(
+      entry.name,
+      `$.services[${index}].name`,
+      issues,
+    );
+    if (name) {
+      if (names.has(name)) {
+        issues.push({
+          message: `service \`${name}\` is declared more than once`,
+          path: `$.services[${index}].name`,
+        });
+      }
+      names.add(name);
+    }
+    requireNonEmptyString(entry.lang, `$.services[${index}].lang`, issues);
+    requireNonEmptyString(entry.cwd, `$.services[${index}].cwd`, issues);
+    requireNonEmptyString(
+      entry.manifest,
+      `$.services[${index}].manifest`,
+      issues,
+    );
+    requireNonEmptyString(
+      entry.command,
+      `$.services[${index}].command`,
+      issues,
+    );
+    requireNonEmptyString(
+      entry.readyUrl ?? entry.ready_url,
+      `$.services[${index}].readyUrl`,
+      issues,
+    );
+    validateStringArray(entry.modules, `$.services[${index}].modules`, issues);
+  }
+}
+
 function validateStringArray(
   value: unknown,
   path: string,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): void {
   if (value === undefined) {
     return;
@@ -707,7 +864,7 @@ function validateStringArray(
 function requireNonEmptyString(
   value: unknown,
   path: string,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): string | undefined {
   if (typeof value === "string" && value.trim()) {
     return value.trim();
@@ -719,7 +876,7 @@ function requireNonEmptyString(
 function requireOneNonEmptyString(
   values: unknown[],
   path: string,
-  issues: ServiceContractIssue[]
+  issues: ServiceContractIssue[],
 ): boolean {
   if (values.some((value) => typeof value === "string" && value.trim())) {
     return true;

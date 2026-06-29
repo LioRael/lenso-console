@@ -10,6 +10,7 @@ import {
   defineService,
   defineServiceContract,
   defineServicePackage,
+  defineServiceWorkspace,
   serviceEnv,
   serveService,
 } from "@lenso/service-kit";
@@ -44,6 +45,20 @@ export const servicePackage = defineServicePackage({
   name: contract.name,
   version: contract.version ?? "0.1.0",
   modules: [supportTicket.name],
+});
+
+export const workspace = defineServiceWorkspace({
+  services: [
+    {
+      command: "pnpm start",
+      cwd: "services/support-suite-provider",
+      lang: "ts",
+      manifest: "lenso.service.json",
+      modules: [supportTicket.name],
+      name: contract.name,
+      readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+    },
+  ],
 });
 
 export const moduleRelease = defineModuleRelease({

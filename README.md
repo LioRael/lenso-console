@@ -157,9 +157,12 @@ pnpm create:module billing --with-console
 ```
 
 For a third-party service that should not compile into the host workspace, use
-the service kit and install the service manifest:
+the service kit, register the local workspace entry, and install the service
+manifest:
 
 ```bash
+lenso service create support-suite-provider --lang ts --output-dir services --port 4110
+lenso service dev
 lenso service install https://example.com/lenso/service/v1/manifest
 ```
 
