@@ -204,6 +204,8 @@ export type ServiceModuleHealthCheck = {
 export type ServiceReleaseRecord = {
   id?: string | null;
   serviceName: string;
+  environment?: string | null;
+  target?: string | null;
   appliedAtUnixMs?: number | null;
   risk: "safe" | "needs_attention" | "breaking" | "blocked" | string;
   currentVersion?: string | null;
@@ -212,6 +214,49 @@ export type ServiceReleaseRecord = {
   candidateManifestReference?: string | null;
   candidatePackageReference?: string | null;
   rollbackTarget?: string | null;
+};
+
+export type ServiceEnvironment = {
+  name: string;
+  serviceName: string;
+  target: string;
+  namespace?: string | null;
+  kubeContext?: string | null;
+  image?: string | null;
+  publicBaseUrl?: string | null;
+  manifestReference?: string | null;
+  releaseTrack?: string | null;
+};
+
+export type ServiceDeploymentObservation = {
+  serviceName: string;
+  environment: string;
+  target: string;
+  observedAtUnixMs?: number | null;
+  state: string;
+  drift: string;
+  cluster?: {
+    namespace?: string | null;
+    deployment?: string | null;
+    readyReplicas?: number | null;
+    desiredReplicas?: number | null;
+    availableReplicas?: number | null;
+    image?: string | null;
+    releaseId?: string | null;
+    manifestReference?: string | null;
+    serviceEndpoint?: string | null;
+    ingressHost?: string | null;
+  } | null;
+  host?: {
+    releaseId?: string | null;
+    candidateVersion?: string | null;
+  } | null;
+  checks?: Array<{
+    name: string;
+    status: string;
+    detail?: string | null;
+  }>;
+  nextAction?: string | null;
 };
 
 export type ServiceModuleConfig = {
@@ -238,6 +283,10 @@ export type ServiceModuleLifecycleModule = {
   compatibility?: ServiceModuleCompatibility;
   config?: ServiceModuleConfig;
   deployment?: ServiceModuleDeployment | null;
+  environments?: ServiceEnvironment[];
+  deployments?: ServiceDeploymentObservation[];
+  deploymentDrift?: string | null;
+  deploymentNextAction?: string | null;
   services: ServiceModuleLifecycleService[];
   operations?: ServiceOperation[];
   moduleRelease?: AvailableModuleRelease | null;

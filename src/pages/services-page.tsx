@@ -173,6 +173,56 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
       <DetailSection title="release center">
         <ReleaseCenter row={row} />
       </DetailSection>
+      <DetailSection title="deployment environments">
+        <DetailList
+          items={nonEmpty(
+            row.environments.map((environment) =>
+              compactStrings([
+                environment.name,
+                environment.target,
+                environment.namespace ?? undefined,
+                environment.image ?? undefined,
+              ]).join(" / ")
+            ),
+            ["-"]
+          )}
+        />
+      </DetailSection>
+      <DetailSection title="kubernetes rollout">
+        <DetailList
+          items={nonEmpty(
+            row.deployments.map((deployment) =>
+              compactStrings([
+                deployment.environment,
+                deployment.state,
+                deployment.cluster?.namespace
+                  ? `ns=${deployment.cluster.namespace}`
+                  : undefined,
+                typeof deployment.cluster?.readyReplicas === "number" &&
+                typeof deployment.cluster?.desiredReplicas === "number"
+                  ? `replicas=${deployment.cluster.readyReplicas}/${deployment.cluster.desiredReplicas}`
+                  : undefined,
+                deployment.cluster?.image ?? undefined,
+              ]).join(" / ")
+            ),
+            ["-"]
+          )}
+        />
+      </DetailSection>
+      <DetailSection title="release drift">
+        <DetailList
+          items={nonEmpty(
+            compactStrings([
+              row.deploymentDrift ? `drift=${row.deploymentDrift}` : undefined,
+              row.deploymentNextAction ?? undefined,
+            ]),
+            ["-"]
+          )}
+        />
+      </DetailSection>
+      <DetailSection title="operator commands">
+        <DetailList items={nonEmpty(row.operatorCommands, ["-"])} />
+      </DetailSection>
       <DetailSection title="modules">
         <InlineList items={row.modules} />
       </DetailSection>

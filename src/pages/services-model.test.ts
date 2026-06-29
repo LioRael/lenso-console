@@ -130,6 +130,64 @@ describe("service center model", () => {
     ]);
   });
 
+  it("surfaces deployment environments and operator commands", () => {
+    const response = {
+      version: 1,
+      status: "ready",
+      modules: [
+        {
+          configured: true,
+          deploymentDrift: "in_sync",
+          deploymentNextAction: "monitor rollout and Remote Calls",
+          deployments: [
+            {
+              serviceName: "support-suite-provider",
+              environment: "staging",
+              target: "kubernetes",
+              observedAtUnixMs: 300,
+              state: "ready",
+              drift: "in_sync",
+              cluster: {
+                namespace: "lenso-staging",
+                readyReplicas: 2,
+                desiredReplicas: 2,
+                image: "ghcr.io/acme/support-suite-provider:0.4.0",
+              },
+            },
+          ],
+          environments: [
+            {
+              name: "staging",
+              serviceName: "support-suite-provider",
+              target: "kubernetes",
+              namespace: "lenso-staging",
+              image: "ghcr.io/acme/support-suite-provider:0.4.0",
+            },
+          ],
+          fixes: [],
+          installed: true,
+          loaded: true,
+          manifestStatus: "reachable",
+          moduleName: "support-ticket",
+          providerName: "support-suite-provider",
+          restartPending: false,
+          services: [],
+          status: "ready",
+        },
+      ],
+    } satisfies ServiceModuleLifecycleResponse;
+
+    const [row] = serviceCenterRows(response);
+
+    expect(row?.deploymentDrift).toBe("in_sync");
+    expect(row?.deploymentNextAction).toBe("monitor rollout and Remote Calls");
+    expect(row?.environments[0]?.namespace).toBe("lenso-staging");
+    expect(row?.deployments[0]?.state).toBe("ready");
+    expect(row?.operatorCommands).toContain(
+      "lenso service deploy status support-suite-provider --env staging --write-state"
+    );
+  });
+
   it("groups provider operations from provided modules by operation id", () => {
     const response = {
       version: 1,

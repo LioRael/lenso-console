@@ -1,4 +1,6 @@
 import type {
+  ServiceDeploymentObservation,
+  ServiceEnvironment,
   ServiceOperation,
   ServiceModuleLifecycleModule,
   ServiceModuleLifecycleService,
@@ -19,6 +21,10 @@ export type ServiceCenterModule = Pick<
       | "config"
       | "configured"
       | "deployment"
+      | "deploymentDrift"
+      | "deploymentNextAction"
+      | "deployments"
+      | "environments"
       | "fixes"
       | "healthHistory"
       | "installed"
@@ -52,6 +58,11 @@ export type ServiceCenterRow = {
   compatibilityStates: string[];
   fixes: string[];
   healthChecks: number;
+  environments: ServiceEnvironment[];
+  deployments: ServiceDeploymentObservation[];
+  deploymentDrift?: string | null;
+  deploymentNextAction?: string | null;
+  operatorCommands: string[];
   manifestUrls: string[];
   moduleDetails: ServiceCenterModule[];
   providerName: string;
@@ -95,6 +106,22 @@ export function serviceCenterRows(
           modules.map((module) => module.compatibility?.state)
         ),
         fixes: uniqueStrings(modules.flatMap((module) => module.fixes ?? [])),
+        environments: uniqueServiceEnvironments(
+          modules.flatMap((module) => module.environments ?? [])
+        ),
+        deployments: uniqueServiceDeployments(
+          modules.flatMap((module) => module.deployments ?? [])
+        ),
+        deploymentDrift:
+          modules.find((module) => module.deploymentDrift)?.deploymentDrift ??
+          modules.flatMap((module) => module.deployments ?? [])[0]?.drift ??
+          null,
+        deploymentNextAction:
+          modules.find((module) => module.deploymentNextAction)
+            ?.deploymentNextAction ??
+          modules.flatMap((module) => module.deployments ?? [])[0]
+            ?.nextAction ??
+          null,
         healthChecks: modules.reduce(
           (total, module) => total + (module.healthHistory?.length ?? 0),
           0
@@ -118,6 +145,12 @@ export function serviceCenterRows(
           .flatMap((module) => module.operations ?? [])
           .sort((a, b) => a.operationId.localeCompare(b.operationId)),
         operationsPath: operationsPath("/operations", { q: providerName }),
+        operatorCommands: serviceOperatorCommands(
+          providerName,
+          uniqueServiceEnvironments(
+            modules.flatMap((module) => module.environments ?? [])
+          )
+        ),
         remoteCallsPath: serviceRemoteCallsPath(primaryModuleName),
         latestRelease:
           releaseHistory[0] ??
@@ -210,11 +243,55 @@ export function providerNextAction(modules: ServiceCenterModule[]) {
   if (modules.some((module) => module.loaded === false)) {
     return "configure the provider source and restart the host";
   }
+  const deploymentAction = modules.find(
+    (module) => module.deploymentNextAction
+  )?.deploymentNextAction;
+  if (deploymentAction) {
+    return deploymentAction;
+  }
   return "monitor remote calls and Runtime Story";
 }
 
 function uniqueStrings(values: Array<null | string | undefined>) {
   return Array.from(new Set(values.filter(Boolean) as string[])).sort();
+}
+
+function uniqueServiceEnvironments(environments: ServiceEnvironment[]) {
+  const records = new Map<string, ServiceEnvironment>();
+  for (const environment of environments) {
+    records.set(`${environment.serviceName}:${environment.name}`, environment);
+  }
+  return Array.from(records.values()).sort((a, b) =>
+    `${a.serviceName}:${a.name}`.localeCompare(`${b.serviceName}:${b.name}`)
+  );
+}
+
+function uniqueServiceDeployments(deployments: ServiceDeploymentObservation[]) {
+  const records = new Map<string, ServiceDeploymentObservation>();
+  for (const deployment of deployments) {
+    records.set(
+      `${deployment.serviceName}:${deployment.environment}`,
+      deployment
+    );
+  }
+  return Array.from(records.values()).sort(
+    (a, b) => (b.observedAtUnixMs ?? 0) - (a.observedAtUnixMs ?? 0)
+  );
+}
+
+function serviceOperatorCommands(
+  providerName: string,
+  environments: ServiceEnvironment[]
+) {
+  return environments.flatMap((environment) => {
+    const outputDir = `dist/lenso-service/${providerName}/kubernetes/${environment.name}`;
+    return [
+      `lenso service deploy export ${providerName} --env ${environment.name} --target kubernetes --output-dir ${outputDir}`,
+      `kubectl apply -k ${outputDir}`,
+      `lenso service deploy status ${providerName} --env ${environment.name} --write-state`,
+      `lenso service release rollback ${providerName} --env ${environment.name}`,
+    ];
+  });
 }
 
 function uniqueServiceReleases(releases: ServiceReleaseRecord[]) {
