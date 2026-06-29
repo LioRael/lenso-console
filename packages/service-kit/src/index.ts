@@ -68,6 +68,7 @@ export interface ServiceContractIssue {
 }
 
 export const servicePackageProtocol = "lenso.service-package.v1" as const;
+export const serviceWorkspaceProtocol = "lenso.service-workspace.v1" as const;
 export const moduleContractProtocol = "lenso.module.v1" as const;
 export const moduleReleaseProtocol = "lenso.module-release.v1" as const;
 export type ModuleArtifactSource = "linked" | "service" | "bundled";
@@ -78,6 +79,42 @@ export interface ServicePackage {
   version: string;
   serviceManifest: string;
   modules: string[];
+}
+
+export interface ServiceWorkspace {
+  protocol: typeof serviceWorkspaceProtocol;
+  services: ServiceWorkspaceService[];
+}
+
+export interface ServiceWorkspaceService {
+  name: string;
+  lang: "ts" | "rust" | string;
+  cwd: string;
+  manifest: string;
+  command: string;
+  readyUrl: string;
+  autoStart?: boolean;
+  readyTimeoutMs?: number;
+  modules?: string[];
+}
+
+export interface ServiceWorkspaceProcess {
+  name: string;
+  command: string;
+  cwd: string;
+  readyUrl: string;
+  autoStart: boolean;
+  readyTimeoutMs: number;
+}
+
+export interface ServiceWorkspaceModuleServices {
+  moduleName: string;
+  services: ServiceWorkspaceProcess[];
+}
+
+export interface ServiceWorkspaceModuleServicesFile {
+  version: 1;
+  modules: ServiceWorkspaceModuleServices[];
 }
 
 export interface ModuleReleaseProvider {
@@ -146,6 +183,37 @@ export const servicePackageSchema = {
   },
   required: ["protocol", "name", "version", "serviceManifest", "modules"],
   title: "LensoServicePackage",
+  type: "object",
+} as const;
+
+export const serviceWorkspaceSchema = {
+  $id: "https://contracts.lenso.local/services/lenso-service-workspace.v1.schema.json",
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  additionalProperties: true,
+  properties: {
+    protocol: { const: serviceWorkspaceProtocol, type: "string" },
+    services: {
+      items: {
+        additionalProperties: true,
+        properties: {
+          autoStart: { type: "boolean" },
+          command: { minLength: 1, type: "string" },
+          cwd: { minLength: 1, type: "string" },
+          lang: { minLength: 1, type: "string" },
+          manifest: { minLength: 1, type: "string" },
+          modules: { items: { minLength: 1, type: "string" }, type: "array" },
+          name: { minLength: 1, type: "string" },
+          readyTimeoutMs: { minimum: 1, type: "integer" },
+          readyUrl: { minLength: 1, type: "string" },
+        },
+        required: ["name", "lang", "cwd", "manifest", "command", "readyUrl"],
+        type: "object",
+      },
+      type: "array",
+    },
+  },
+  required: ["protocol"],
+  title: "LensoServiceWorkspace",
   type: "object",
 } as const;
 
@@ -233,6 +301,95 @@ export function defineServicePackage(
   };
 }
 
+export function defineServiceWorkspace(
+  workspace: Omit<ServiceWorkspace, "protocol" | "services"> & {
+    protocol?: string;
+    services: (Omit<ServiceWorkspaceService, "manifest"> & {
+      manifest?: string;
+    })[];
+  }
+): ServiceWorkspace {
+  return {
+    ...workspace,
+    protocol: serviceWorkspaceProtocol,
+    services: workspace.services.map((service) => ({
+      ...service,
+      autoStart: service.autoStart ?? true,
+      manifest: service.manifest || "lenso.service.json",
+      readyTimeoutMs: service.readyTimeoutMs ?? 10_000,
+    })),
+  };
+}
+
+export function serviceWorkspaceToModuleServices(
+  workspace: ServiceWorkspace
+): ServiceWorkspaceModuleServicesFile {
+  return {
+    modules: workspace.services.map((service) => ({
+      moduleName: service.name,
+      services: [
+        {
+          autoStart: service.autoStart ?? true,
+          command: service.command,
+          cwd: service.cwd,
+          name: service.name,
+          readyTimeoutMs: service.readyTimeoutMs ?? 10_000,
+          readyUrl: service.readyUrl,
+        },
+      ],
+    })),
+    version: 1,
+  };
+}
+
+export function serviceWorkspaceBaseUrl(
+  service: Pick<ServiceWorkspaceService, "manifest" | "readyUrl">
+): string | undefined {
+  return (
+    serviceBaseUrlFromReadyUrl(service.readyUrl) ??
+    serviceBaseUrlFromManifestUrl(service.manifest)
+  );
+}
+
+export function serviceBaseUrlFromReadyUrl(
+  readyUrl: string
+): string | undefined {
+  const url = parseUrl(readyUrl);
+  if (!url) {
+    return undefined;
+  }
+  const path = url.pathname.replace(/\/+$/u, "");
+  const basePath = ["/status", "/ready", "/health", "/healthz"]
+    .map((suffix) =>
+      path.endsWith(suffix) ? path.slice(0, -suffix.length) : undefined
+    )
+    .find((value): value is string => value !== undefined);
+  if (basePath === undefined) {
+    return undefined;
+  }
+  url.pathname = basePath;
+  url.search = "";
+  url.hash = "";
+  return trimTrailingSlash(url.toString());
+}
+
+export function serviceBaseUrlFromManifestUrl(
+  manifestUrl: string
+): string | undefined {
+  const url = parseUrl(manifestUrl);
+  if (!url) {
+    return undefined;
+  }
+  const path = url.pathname.replace(/\/+$/u, "");
+  if (!path.endsWith("/manifest")) {
+    return undefined;
+  }
+  url.pathname = path.slice(0, -"/manifest".length);
+  url.search = "";
+  url.hash = "";
+  return trimTrailingSlash(url.toString());
+}
+
 export function defineModuleContract(
   contract: Omit<ModuleContract, "protocol">
 ): ModuleContract {
@@ -276,6 +433,18 @@ function moduleReleaseProviderForSource(
     return provider;
   }
   return { ...provider, servicePackage: "lenso.service-package.json" };
+}
+
+function parseUrl(value: string): URL | undefined {
+  try {
+    return new URL(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/u, "");
 }
 
 export function serviceEnv(
@@ -365,6 +534,38 @@ export function assertServicePackage(
   if (issues.length > 0) {
     throw new Error(
       `Invalid Lenso service package: ${issues
+        .map((issue) => `${issue.path} ${issue.message}`)
+        .join("; ")}`
+    );
+  }
+}
+
+export function validateServiceWorkspace(
+  value: unknown
+): ServiceContractIssue[] {
+  const root = asRecord(value);
+  if (!root) {
+    return [{ message: "service workspace must be an object", path: "$" }];
+  }
+
+  const issues: ServiceContractIssue[] = [];
+  if (root.protocol !== serviceWorkspaceProtocol) {
+    issues.push({
+      message: `protocol must be \`${serviceWorkspaceProtocol}\``,
+      path: "$.protocol",
+    });
+  }
+  validateWorkspaceServices(root.services, issues);
+  return issues;
+}
+
+export function assertServiceWorkspace(
+  value: unknown
+): asserts value is ServiceWorkspace {
+  const issues = validateServiceWorkspace(value);
+  if (issues.length > 0) {
+    throw new Error(
+      `Invalid Lenso service workspace: ${issues
         .map((issue) => `${issue.path} ${issue.message}`)
         .join("; ")}`
     );
@@ -684,6 +885,62 @@ function validateServicePackageModules(
       }
       names.add(moduleName);
     }
+  }
+}
+
+function validateWorkspaceServices(
+  value: unknown,
+  issues: ServiceContractIssue[]
+): void {
+  if (value === undefined) {
+    return;
+  }
+  if (!Array.isArray(value)) {
+    issues.push({ message: "services must be an array", path: "$.services" });
+    return;
+  }
+  const names = new Set<string>();
+  for (const [index, service] of value.entries()) {
+    const entry = asRecord(service);
+    if (!entry) {
+      issues.push({
+        message: "service must be an object",
+        path: `$.services[${index}]`,
+      });
+      continue;
+    }
+    const name = requireNonEmptyString(
+      entry.name,
+      `$.services[${index}].name`,
+      issues
+    );
+    if (name) {
+      if (names.has(name)) {
+        issues.push({
+          message: `service \`${name}\` is declared more than once`,
+          path: `$.services[${index}].name`,
+        });
+      }
+      names.add(name);
+    }
+    requireNonEmptyString(entry.lang, `$.services[${index}].lang`, issues);
+    requireNonEmptyString(entry.cwd, `$.services[${index}].cwd`, issues);
+    requireNonEmptyString(
+      entry.manifest,
+      `$.services[${index}].manifest`,
+      issues
+    );
+    requireNonEmptyString(
+      entry.command,
+      `$.services[${index}].command`,
+      issues
+    );
+    requireNonEmptyString(
+      entry.readyUrl ?? entry.ready_url,
+      `$.services[${index}].readyUrl`,
+      issues
+    );
+    validateStringArray(entry.modules, `$.services[${index}].modules`, issues);
   }
 }
 
