@@ -149,6 +149,7 @@ function ServiceRow({
 }
 
 function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
+  const [selectedEnvironmentName, setSelectedEnvironmentName] = useState("");
   if (!row) {
     return (
       <aside className="border-l border-(--line) bg-(--bg-panel) px-3 py-3 font-mono text-[11px] text-(--fg-tertiary)">
@@ -156,6 +157,26 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
       </aside>
     );
   }
+  const fallbackEnvironmentName =
+    row.environments[0]?.name ?? row.deployments[0]?.environment ?? "";
+  const selectedName = row.environments.some(
+    (environment) => environment.name === selectedEnvironmentName
+  )
+    ? selectedEnvironmentName
+    : fallbackEnvironmentName;
+  const activeEnvironment =
+    row.environments.find((environment) => environment.name === selectedName) ??
+    row.environments[0];
+  const activeDeployment =
+    row.deployments.find(
+      (deployment) =>
+        deployment.environment === (activeEnvironment?.name ?? selectedName)
+    ) ?? row.deployments[0];
+  const activeCommands = activeEnvironment
+    ? row.operatorCommands.filter((command) =>
+        command.includes(`--env ${activeEnvironment.name}`)
+      )
+    : row.operatorCommands;
 
   return (
     <aside className="border-l border-(--line) bg-(--bg-panel) font-mono text-[11px]">
@@ -174,16 +195,31 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
         <ReleaseCenter row={row} />
       </DetailSection>
       <DetailSection title="deployment environments">
+        {row.environments.length > 0 ? (
+          <select
+            className="mb-1 w-full border border-(--line) bg-(--bg-control) px-1 py-0.5 text-(--fg-primary)"
+            onChange={(event) => setSelectedEnvironmentName(event.target.value)}
+            value={activeEnvironment?.name ?? ""}
+          >
+            {row.environments.map((environment) => (
+              <option key={environment.name} value={environment.name}>
+                {environment.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <DetailList
           items={nonEmpty(
-            row.environments.map((environment) =>
-              compactStrings([
-                environment.name,
-                environment.target,
-                environment.namespace ?? undefined,
-                environment.image ?? undefined,
-              ]).join(" / ")
-            ),
+            activeEnvironment
+              ? [
+                  compactStrings([
+                    activeEnvironment.name,
+                    activeEnvironment.target,
+                    activeEnvironment.namespace ?? undefined,
+                    activeEnvironment.image ?? undefined,
+                  ]).join(" / "),
+                ]
+              : [],
             ["-"]
           )}
         />
@@ -191,20 +227,24 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
       <DetailSection title="kubernetes rollout">
         <DetailList
           items={nonEmpty(
-            row.deployments.map((deployment) =>
-              compactStrings([
-                deployment.environment,
-                deployment.state,
-                deployment.cluster?.namespace
-                  ? `ns=${deployment.cluster.namespace}`
-                  : undefined,
-                typeof deployment.cluster?.readyReplicas === "number" &&
-                typeof deployment.cluster?.desiredReplicas === "number"
-                  ? `replicas=${deployment.cluster.readyReplicas}/${deployment.cluster.desiredReplicas}`
-                  : undefined,
-                deployment.cluster?.image ?? undefined,
-              ]).join(" / ")
-            ),
+            activeDeployment
+              ? [
+                  compactStrings([
+                    activeDeployment.environment,
+                    activeDeployment.state,
+                    activeDeployment.cluster?.namespace
+                      ? `ns=${activeDeployment.cluster.namespace}`
+                      : undefined,
+                    typeof activeDeployment.cluster?.readyReplicas ===
+                      "number" &&
+                    typeof activeDeployment.cluster?.desiredReplicas ===
+                      "number"
+                      ? `replicas=${activeDeployment.cluster.readyReplicas}/${activeDeployment.cluster.desiredReplicas}`
+                      : undefined,
+                    activeDeployment.cluster?.image ?? undefined,
+                  ]).join(" / "),
+                ]
+              : [],
             ["-"]
           )}
         />
@@ -213,15 +253,21 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
         <DetailList
           items={nonEmpty(
             compactStrings([
-              row.deploymentDrift ? `drift=${row.deploymentDrift}` : undefined,
-              row.deploymentNextAction ?? undefined,
+              activeDeployment?.drift
+                ? `drift=${activeDeployment.drift}`
+                : row.deploymentDrift
+                  ? `drift=${row.deploymentDrift}`
+                  : undefined,
+              activeDeployment?.nextAction ??
+                row.deploymentNextAction ??
+                undefined,
             ]),
             ["-"]
           )}
         />
       </DetailSection>
       <DetailSection title="operator commands">
-        <DetailList items={nonEmpty(row.operatorCommands, ["-"])} />
+        <DetailList items={nonEmpty(activeCommands, ["-"])} />
       </DetailSection>
       <DetailSection title="modules">
         <InlineList items={row.modules} />
