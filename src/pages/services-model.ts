@@ -15,6 +15,7 @@ export type ServiceCenterModule = Pick<
       ServiceModuleLifecycleModule,
       | "baseUrl"
       | "compatibility"
+      | "config"
       | "configured"
       | "deployment"
       | "fixes"
@@ -138,6 +139,7 @@ export function providerState(modules: ServiceCenterModule[]) {
     modules.some(
       (module) =>
         module.status === "unhealthy" ||
+        module.status === "missing_config" ||
         module.status === "manifest_unreachable" ||
         module.status === "service_not_ready" ||
         module.status === "stale_state" ||
@@ -164,6 +166,7 @@ export function providerNextAction(modules: ServiceCenterModule[]) {
     modules.some(
       (module) =>
         module.status === "manifest_unreachable" ||
+        module.status === "missing_config" ||
         module.status === "service_not_ready" ||
         module.status === "stale_state" ||
         module.services?.some((service) => service.ready === false)

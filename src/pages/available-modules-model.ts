@@ -105,6 +105,7 @@ export type ServiceModuleLifecycleResponse = {
 
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
+  | "missing_config"
   | "restart_pending"
   | "configured_not_loaded"
   | "manifest_unreachable"
@@ -200,6 +201,13 @@ export type ServiceModuleHealthCheck = {
   error?: string | null;
 };
 
+export type ServiceModuleConfig = {
+  envFile: string;
+  requiredEnv: string[];
+  configuredEnv: string[];
+  missingEnv: string[];
+};
+
 export type ServiceModuleLifecycleModule = {
   moduleName: string;
   providerName?: string | null;
@@ -215,6 +223,7 @@ export type ServiceModuleLifecycleModule = {
   serviceStatus?: ServiceModuleServiceStatus;
   healthHistory?: ServiceModuleHealthCheck[];
   compatibility?: ServiceModuleCompatibility;
+  config?: ServiceModuleConfig;
   deployment?: ServiceModuleDeployment | null;
   services: ServiceModuleLifecycleService[];
   operations?: ServiceOperation[];

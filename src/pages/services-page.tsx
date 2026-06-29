@@ -250,6 +250,26 @@ function ServiceDetail({ row }: { row: ServiceCenterRow | undefined }) {
           )}
         />
       </DetailSection>
+      <DetailSection title="config">
+        <DetailList
+          items={nonEmpty(
+            row.moduleDetails.flatMap((module) =>
+              compactStrings([
+                module.config?.requiredEnv.length
+                  ? `${module.moduleName}: required=${module.config.requiredEnv.join(", ")}`
+                  : undefined,
+                module.config?.configuredEnv.length
+                  ? `${module.moduleName}: configured=${module.config.configuredEnv.join(", ")}`
+                  : undefined,
+                module.config?.missingEnv.length
+                  ? `${module.moduleName}: missing=${module.config.missingEnv.join(", ")} in ${module.config.envFile}`
+                  : undefined,
+              ])
+            ),
+            ["-"]
+          )}
+        />
+      </DetailSection>
       <DetailSection title="compatibility">
         <DetailList
           items={

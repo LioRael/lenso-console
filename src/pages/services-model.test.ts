@@ -178,6 +178,30 @@ describe("service center model", () => {
     ).toBe("restart_pending");
   });
 
+  it("treats missing config as provider attention", () => {
+    const [row] = serviceCenterRows({
+      modules: [
+        {
+          config: {
+            configuredEnv: [],
+            envFile: ".env",
+            missingEnv: ["BILLING_API_KEY"],
+            requiredEnv: ["BILLING_API_KEY"],
+          },
+          fixes: ["set missing service env in .env: BILLING_API_KEY"],
+          moduleName: "billing",
+          providerName: "billing",
+          status: "missing_config",
+        },
+      ],
+    });
+
+    expect(row).toMatchObject({
+      nextAction: "set missing service env in .env: BILLING_API_KEY",
+      state: "unhealthy",
+    });
+  });
+
   it("links to remote calls for a provider module", () => {
     expect(serviceRemoteCallsPath("support-ticket")).toContain(
       "module=support-ticket"
