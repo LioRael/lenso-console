@@ -7,6 +7,7 @@ import {
   serviceRemoteCallsPath,
   serviceStateLabel,
   serviceSystemDriftSummary,
+  serviceSystemReleaseTrainSummary,
   serviceSystemSummary,
 } from "./services-model";
 
@@ -136,6 +137,35 @@ describe("service center model", () => {
       commands: ["lenso system apply"],
       drifts: ["service_env_missing: missing staging"],
       status: "drifted",
+    });
+  });
+
+  it("summarizes service system release train", () => {
+    expect(
+      serviceSystemReleaseTrainSummary({
+        commands: ["lenso system release history"],
+        releases: [
+          {
+            appliedAtUnixMs: 1772300000000,
+            environment: "staging",
+            id: "sysrel_staging_1",
+            kind: "release",
+            modules: 5,
+            policyRisk: "safe",
+            rollbackAvailable: true,
+            services: 2,
+            status: "ready",
+            systemName: "support-platform",
+          },
+        ],
+        status: "ready",
+        version: 1,
+      })
+    ).toEqual({
+      commands: ["lenso system release history"],
+      latest: "support-platform/staging ready (safe)",
+      releases: 1,
+      status: "ready",
     });
   });
 

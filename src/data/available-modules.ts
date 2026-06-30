@@ -8,6 +8,7 @@ import {
   type AvailableModuleRow,
   type ServiceModuleLifecycleResponse,
   type ServiceSystemDriftResponse,
+  type ServiceSystemReleaseTrainResponse,
   type ServiceSystemResponse,
   availableModuleRowsFromResponse,
 } from "../pages/available-modules-model";
@@ -343,6 +344,29 @@ export const sampleServiceSystemDriftResponse = {
   version: 1,
 } satisfies ServiceSystemDriftResponse;
 
+export const sampleServiceSystemReleaseTrainResponse = {
+  commands: [
+    "lenso system release history",
+    "lenso system release promote --from staging --to prod --output system-release-prod.json",
+  ],
+  releases: [
+    {
+      appliedAtUnixMs: 1_772_300_000_000,
+      environment: "staging",
+      id: "sysrel_staging_001",
+      kind: "release",
+      modules: 5,
+      policyRisk: "safe",
+      rollbackAvailable: true,
+      services: 2,
+      status: "ready",
+      systemName: "support-platform",
+    },
+  ],
+  status: "ready",
+  version: 1,
+} satisfies ServiceSystemReleaseTrainResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
@@ -358,6 +382,10 @@ export const serviceSystemDriftQueryKey = [
   "modules",
   "service-system-drift",
 ] as const;
+export const serviceSystemReleaseTrainQueryKey = [
+  "modules",
+  "service-system-release-train",
+] as const;
 
 const marketplaceInstallCommand =
   "lenso module marketplace install <manifest-url>";
@@ -369,6 +397,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     serviceModuleLifecycleQueryKey,
     serviceSystemQueryKey,
     serviceSystemDriftQueryKey,
+    serviceSystemReleaseTrainQueryKey,
   ] as const;
 }
 
@@ -393,6 +422,12 @@ type ServiceSystemHttpClient = {
 type ServiceSystemDriftHttpClient = {
   get: (path: string) => {
     json: () => Promise<ServiceSystemDriftResponse>;
+  };
+};
+
+type ServiceSystemReleaseTrainHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemReleaseTrainResponse>;
   };
 };
 
@@ -471,6 +506,19 @@ export async function fetchServiceSystemDrift({
     return client.get("admin/data/service-system/drift").json();
   }
   return sampleServiceSystemDriftResponse;
+}
+
+export async function fetchServiceSystemReleaseTrain({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemReleaseTrainHttpClient;
+} = {}): Promise<ServiceSystemReleaseTrainResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system/release-train").json();
+  }
+  return sampleServiceSystemReleaseTrainResponse;
 }
 
 export async function installAvailableModule({

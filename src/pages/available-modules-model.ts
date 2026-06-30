@@ -158,6 +158,26 @@ export type ServiceSystemDrift = {
   command?: string | null;
 };
 
+export type ServiceSystemReleaseTrainResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  releases: ServiceSystemReleaseRecord[];
+  commands: string[];
+};
+
+export type ServiceSystemReleaseRecord = {
+  id: string;
+  kind: string;
+  systemName: string;
+  environment: string;
+  status: string;
+  policyRisk: string;
+  appliedAtUnixMs?: number | null;
+  services: number;
+  modules: number;
+  rollbackAvailable: boolean;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

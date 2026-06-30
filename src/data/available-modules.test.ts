@@ -9,15 +9,18 @@ import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
+  fetchServiceSystemReleaseTrain,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
   sampleServiceModuleLifecycleResponse,
   sampleServiceSystemDriftResponse,
+  sampleServiceSystemReleaseTrainResponse,
   sampleServiceSystemResponse,
   serviceModuleLifecycleQueryKey,
   serviceSystemDriftQueryKey,
+  serviceSystemReleaseTrainQueryKey,
   serviceSystemQueryKey,
   uninstallAvailableModule,
 } from "./available-modules";
@@ -57,6 +60,7 @@ describe("available modules provider", () => {
       serviceModuleLifecycleQueryKey,
       serviceSystemQueryKey,
       serviceSystemDriftQueryKey,
+      serviceSystemReleaseTrainQueryKey,
     ]);
   });
 
@@ -125,6 +129,16 @@ describe("available modules provider", () => {
     expect(serviceSystemDriftQueryKey).toEqual([
       "modules",
       "service-system-drift",
+    ]);
+  });
+
+  test("fetches service system release train state", async () => {
+    await expect(fetchServiceSystemReleaseTrain()).resolves.toBe(
+      sampleServiceSystemReleaseTrainResponse
+    );
+    expect(serviceSystemReleaseTrainQueryKey).toEqual([
+      "modules",
+      "service-system-release-train",
     ]);
   });
 

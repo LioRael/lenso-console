@@ -6,6 +6,7 @@ import type {
   ServiceModuleLifecycleService,
   ServiceReleaseRecord,
   ServiceSystemDriftResponse,
+  ServiceSystemReleaseTrainResponse,
   ServiceSystemResponse,
 } from "./available-modules-model";
 import { functionsPath, operationsPath } from "./operations-url-model";
@@ -70,6 +71,13 @@ export type ServiceSystemSummary = {
 export type ServiceSystemDriftSummary = {
   commands: string[];
   drifts: string[];
+  status: string;
+};
+
+export type ServiceSystemReleaseTrainSummary = {
+  latest: string | null;
+  commands: string[];
+  releases: number;
   status: string;
 };
 
@@ -217,6 +225,20 @@ export function serviceSystemDriftSummary(
     commands: response?.commands ?? [],
     drifts:
       response?.drifts.map((drift) => `${drift.code}: ${drift.message}`) ?? [],
+    status: response?.status ?? "empty",
+  };
+}
+
+export function serviceSystemReleaseTrainSummary(
+  response: ServiceSystemReleaseTrainResponse | undefined
+): ServiceSystemReleaseTrainSummary {
+  const latest = response?.releases[0];
+  return {
+    commands: response?.commands ?? [],
+    latest: latest
+      ? `${latest.systemName}/${latest.environment} ${latest.status} (${latest.policyRisk})`
+      : null,
+    releases: response?.releases.length ?? 0,
     status: response?.status ?? "empty",
   };
 }

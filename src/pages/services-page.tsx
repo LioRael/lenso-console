@@ -7,8 +7,10 @@ import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
+  fetchServiceSystemReleaseTrain,
   serviceModuleLifecycleQueryKey,
   serviceSystemDriftQueryKey,
+  serviceSystemReleaseTrainQueryKey,
   serviceSystemQueryKey,
 } from "../data/available-modules";
 import { cn } from "../lib/cn";
@@ -19,6 +21,7 @@ import {
   serviceRemoteCallsPath,
   serviceStateLabel,
   serviceSystemDriftSummary,
+  serviceSystemReleaseTrainSummary,
   serviceSystemSummary,
 } from "./services-model";
 
@@ -36,9 +39,14 @@ export function ServicesPage() {
     queryKey: serviceSystemDriftQueryKey,
     queryFn: () => fetchServiceSystemDrift(),
   });
+  const releaseTrainQuery = useQuery({
+    queryKey: serviceSystemReleaseTrainQueryKey,
+    queryFn: () => fetchServiceSystemReleaseTrain(),
+  });
   const rows = serviceCenterRows(query.data ?? { modules: [] });
   const system = serviceSystemSummary(systemQuery.data);
   const drift = serviceSystemDriftSummary(driftQuery.data);
+  const releaseTrain = serviceSystemReleaseTrainSummary(releaseTrainQuery.data);
   const selectedRow =
     rows.find((row) => row.providerName === selectedProvider) ?? rows[0];
   const attentionCount = rows.filter((row) => row.state !== "ready").length;
@@ -63,6 +71,12 @@ export function ServicesPage() {
             driftQuery.isError ? errorMessage(driftQuery.error) : null
           }
           loading={systemQuery.isLoading}
+          releaseTrain={releaseTrain}
+          releaseTrainError={
+            releaseTrainQuery.isError
+              ? errorMessage(releaseTrainQuery.error)
+              : null
+          }
           system={system}
         />
         <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
@@ -137,16 +151,23 @@ function SystemPlane({
   driftError,
   error,
   loading,
+  releaseTrain,
+  releaseTrainError,
   system,
 }: {
   drift: ReturnType<typeof serviceSystemDriftSummary>;
   driftError: string | null;
   error: string | null;
   loading: boolean;
+  releaseTrain: ReturnType<typeof serviceSystemReleaseTrainSummary>;
+  releaseTrainError: string | null;
   system: ReturnType<typeof serviceSystemSummary>;
 }) {
   const tone =
-    error || driftError || system.status === "needs_attention"
+    error ||
+    driftError ||
+    releaseTrainError ||
+    system.status === "needs_attention"
       ? "error"
       : drift.status === "drifted"
         ? "default"
@@ -164,7 +185,7 @@ function SystemPlane({
             state={
               loading
                 ? "loading"
-                : error || driftError
+                : error || driftError || releaseTrainError
                   ? "error"
                   : drift.status === "drifted"
                     ? "drifted"
@@ -185,8 +206,10 @@ function SystemPlane({
         </div>
       </div>
       <div className="min-w-0 text-(--fg-secondary)">
-        {error || driftError ? (
-          <span className="text-(--tone-error-fg)">{error ?? driftError}</span>
+        {error || driftError || releaseTrainError ? (
+          <span className="text-(--tone-error-fg)">
+            {error ?? driftError ?? releaseTrainError}
+          </span>
         ) : system.issues.length > 0 ? (
           <div className="grid gap-1">
             {system.issues.slice(0, 2).map((issue) => (
@@ -209,11 +232,19 @@ function SystemPlane({
             ) : null}
           </div>
         ) : (
-          <span>
-            {system.targets.length > 0
-              ? `targets: ${system.targets.join(", ")}`
-              : "no service system manifest"}
-          </span>
+          <div className="grid gap-1">
+            <span>
+              {system.targets.length > 0
+                ? `targets: ${system.targets.join(", ")}`
+                : "no service system manifest"}
+            </span>
+            <span className="min-w-0 truncate text-(--fg-tertiary)">
+              release train: {releaseTrain.latest ?? releaseTrain.status}
+              {releaseTrain.commands[0]
+                ? ` / next: ${releaseTrain.commands[0]}`
+                : ""}
+            </span>
+          </div>
         )}
       </div>
     </section>
