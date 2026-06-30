@@ -103,6 +103,43 @@ export type ServiceModuleLifecycleResponse = {
   modules: ServiceModuleLifecycleModule[];
 };
 
+export type ServiceSystemResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  systemFile: string;
+  name?: string | null;
+  environments: string[];
+  services: ServiceSystemService[];
+  modules: ServiceSystemModule[];
+  dependencies: ServiceSystemDependency[];
+  issues: ServiceSystemIssue[];
+};
+
+export type ServiceSystemService = {
+  name: string;
+  target: string;
+  modules: string[];
+};
+
+export type ServiceSystemModule = {
+  name: string;
+  owner: string;
+  capabilities: string[];
+  dependencies: string[];
+};
+
+export type ServiceSystemDependency = {
+  from: string;
+  capability: string;
+  state: string;
+  to?: string | null;
+};
+
+export type ServiceSystemIssue = {
+  code: string;
+  message: string;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

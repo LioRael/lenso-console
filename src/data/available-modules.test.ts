@@ -7,12 +7,15 @@ import {
   availableModulesQueryKey,
   availableModulesRows,
   fetchServiceModuleLifecycle,
+  fetchServiceSystem,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
   sampleServiceModuleLifecycleResponse,
+  sampleServiceSystemResponse,
   serviceModuleLifecycleQueryKey,
+  serviceSystemQueryKey,
   uninstallAvailableModule,
 } from "./available-modules";
 
@@ -49,6 +52,7 @@ describe("available modules provider", () => {
       ["modules", "registry"],
       availableModulesQueryKey,
       serviceModuleLifecycleQueryKey,
+      serviceSystemQueryKey,
     ]);
   });
 
@@ -101,6 +105,13 @@ describe("available modules provider", () => {
       fetchServiceModuleLifecycle({ apiMode: true, client })
     ).resolves.toBe(response);
     expect(getCalls).toEqual(["admin/data/service-modules"]);
+  });
+
+  test("fetches service system state", async () => {
+    await expect(fetchServiceSystem()).resolves.toBe(
+      sampleServiceSystemResponse
+    );
+    expect(serviceSystemQueryKey).toEqual(["modules", "service-system"]);
   });
 
   test("installs an available module through the API", async () => {

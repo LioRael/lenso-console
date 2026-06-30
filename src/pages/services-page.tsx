@@ -5,7 +5,9 @@ import { type ReactNode, useState } from "react";
 
 import {
   fetchServiceModuleLifecycle,
+  fetchServiceSystem,
   serviceModuleLifecycleQueryKey,
+  serviceSystemQueryKey,
 } from "../data/available-modules";
 import { cn } from "../lib/cn";
 import { runtimeConsoleDataSource } from "../lib/http-client";
@@ -14,6 +16,7 @@ import {
   serviceCenterRows,
   serviceRemoteCallsPath,
   serviceStateLabel,
+  serviceSystemSummary,
 } from "./services-model";
 
 export function ServicesPage() {
@@ -22,7 +25,12 @@ export function ServicesPage() {
     queryKey: serviceModuleLifecycleQueryKey,
     queryFn: () => fetchServiceModuleLifecycle(),
   });
+  const systemQuery = useQuery({
+    queryKey: serviceSystemQueryKey,
+    queryFn: () => fetchServiceSystem(),
+  });
   const rows = serviceCenterRows(query.data ?? { modules: [] });
+  const system = serviceSystemSummary(systemQuery.data);
   const selectedRow =
     rows.find((row) => row.providerName === selectedProvider) ?? rows[0];
   const attentionCount = rows.filter((row) => row.state !== "ready").length;
@@ -40,6 +48,11 @@ export function ServicesPage() {
       </header>
 
       <main className="min-h-0 overflow-auto">
+        <SystemPlane
+          error={systemQuery.isError ? errorMessage(systemQuery.error) : null}
+          loading={systemQuery.isLoading}
+          system={system}
+        />
         <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
           <Counter label="providers" value={rows.length} />
           <Counter
@@ -103,6 +116,67 @@ export function ServicesPage() {
           <ServiceDetail row={selectedRow} />
         </div>
       </main>
+    </section>
+  );
+}
+
+function SystemPlane({
+  error,
+  loading,
+  system,
+}: {
+  error: string | null;
+  loading: boolean;
+  system: ReturnType<typeof serviceSystemSummary>;
+}) {
+  const tone =
+    error || system.status === "needs_attention"
+      ? "error"
+      : system.status === "ready"
+        ? "success"
+        : "default";
+  return (
+    <section className="grid gap-2 border-b border-(--line) bg-(--bg-panel-muted) px-3 py-2 font-mono text-[11px] md:grid-cols-[minmax(220px,1.2fr)_minmax(0,2fr)]">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-[12px] font-semibold text-(--fg-primary)">
+            {system.name}
+          </span>
+          <SystemStatusBadge
+            state={loading ? "loading" : error ? "error" : system.status}
+            tone={tone}
+          />
+        </div>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--fg-tertiary)">
+          <span>{system.services} services</span>
+          <span>{system.modules} modules</span>
+          <span>{system.dependencies} dependencies</span>
+          <span>
+            {system.environments.length > 0
+              ? system.environments.join(", ")
+              : "no environments"}
+          </span>
+        </div>
+      </div>
+      <div className="min-w-0 text-(--fg-secondary)">
+        {error ? (
+          <span className="text-(--tone-error-fg)">{error}</span>
+        ) : system.issues.length > 0 ? (
+          <div className="grid gap-1">
+            {system.issues.slice(0, 2).map((issue) => (
+              <span className="min-w-0 truncate" key={issue} title={issue}>
+                {issue}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span>
+            {system.targets.length > 0
+              ? `targets: ${system.targets.join(", ")}`
+              : "no service system manifest"}
+          </span>
+        )}
+      </div>
     </section>
   );
 }
@@ -611,6 +685,29 @@ function ServiceStateBadge({ state }: { state: string }) {
         state === "unhealthy" &&
           "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
         state === "configured" && "border-(--line) text-(--fg-secondary)"
+      )}
+    >
+      {serviceStateLabel(state)}
+    </span>
+  );
+}
+
+function SystemStatusBadge({
+  state,
+  tone,
+}: {
+  state: string;
+  tone: "default" | "error" | "success";
+}) {
+  return (
+    <span
+      className={cn(
+        "w-fit border px-1.5 py-0.5 text-[10px]",
+        tone === "success" &&
+          "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
+        tone === "error" &&
+          "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
+        tone === "default" && "border-(--line) text-(--fg-secondary)"
       )}
     >
       {serviceStateLabel(state)}

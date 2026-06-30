@@ -6,6 +6,7 @@ import {
   serviceCenterRows,
   serviceRemoteCallsPath,
   serviceStateLabel,
+  serviceSystemSummary,
 } from "./services-model";
 
 describe("service center model", () => {
@@ -69,6 +70,46 @@ describe("service center model", () => {
       },
     ]);
     expect(rows[0]?.remoteCallsPath).toContain("support-notification");
+  });
+
+  it("summarizes the service system plane", () => {
+    expect(
+      serviceSystemSummary({
+        dependencies: [
+          {
+            capability: "billing.invoice.read",
+            from: "support",
+            state: "resolved",
+            to: "billing",
+          },
+        ],
+        environments: ["local", "prod"],
+        issues: [{ code: "dependency_unresolved", message: "missing billing" }],
+        modules: [
+          {
+            capabilities: ["support.ticket.read"],
+            dependencies: ["billing.invoice.read"],
+            name: "support-ticket",
+            owner: "support",
+          },
+        ],
+        name: "support-platform",
+        services: [
+          { modules: ["support-ticket"], name: "support", target: "local" },
+          { modules: [], name: "billing", target: "kubernetes" },
+        ],
+        status: "needs_attention",
+        systemFile: "lenso.system.json",
+        version: 1,
+      })
+    ).toMatchObject({
+      dependencies: 1,
+      modules: 1,
+      name: "support-platform",
+      services: 2,
+      status: "needs_attention",
+      targets: ["kubernetes", "local"],
+    });
   });
 
   it("surfaces the latest service release for a provider", () => {

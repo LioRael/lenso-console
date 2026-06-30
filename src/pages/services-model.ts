@@ -5,6 +5,7 @@ import type {
   ServiceModuleLifecycleModule,
   ServiceModuleLifecycleService,
   ServiceReleaseRecord,
+  ServiceSystemResponse,
 } from "./available-modules-model";
 import { functionsPath, operationsPath } from "./operations-url-model";
 import { remoteProxyCallsPath } from "./remote-proxy-calls-model";
@@ -52,6 +53,17 @@ export type ServiceCenterModule = Pick<
 
 export type ServiceCenterResponse = {
   modules: ServiceCenterModule[];
+};
+
+export type ServiceSystemSummary = {
+  dependencies: number;
+  environments: string[];
+  issues: string[];
+  modules: number;
+  name: string;
+  services: number;
+  status: string;
+  targets: string[];
 };
 
 export type ServiceCenterRow = {
@@ -171,6 +183,24 @@ export function serviceCenterRows(
       };
     })
     .sort((a, b) => a.providerName.localeCompare(b.providerName));
+}
+
+export function serviceSystemSummary(
+  response: ServiceSystemResponse | undefined
+): ServiceSystemSummary {
+  return {
+    dependencies: response?.dependencies.length ?? 0,
+    environments: response?.environments ?? [],
+    issues:
+      response?.issues.map((issue) => `${issue.code}: ${issue.message}`) ?? [],
+    modules: response?.modules.length ?? 0,
+    name: response?.name ?? "service system",
+    services: response?.services.length ?? 0,
+    status: response?.status ?? "empty",
+    targets: uniqueStrings(
+      response?.services.map((service) => service.target) ?? []
+    ),
+  };
 }
 
 export function serviceStateLabel(state: string) {

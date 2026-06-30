@@ -7,6 +7,7 @@ import {
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   type ServiceModuleLifecycleResponse,
+  type ServiceSystemResponse,
   availableModuleRowsFromResponse,
 } from "../pages/available-modules-model";
 
@@ -280,6 +281,49 @@ export const sampleServiceModuleLifecycleResponse = {
   version: 1,
 } satisfies ServiceModuleLifecycleResponse;
 
+export const sampleServiceSystemResponse = {
+  dependencies: [
+    {
+      capability: "billing.invoice.read",
+      from: "support",
+      state: "resolved",
+      to: "billing",
+    },
+  ],
+  environments: ["local", "staging", "prod"],
+  issues: [],
+  modules: [
+    {
+      capabilities: ["support.ticket.read"],
+      dependencies: ["billing.invoice.read"],
+      name: "support-ticket",
+      owner: "support",
+    },
+    {
+      capabilities: ["billing.invoice.read"],
+      dependencies: [],
+      name: "invoice",
+      owner: "billing",
+    },
+  ],
+  name: "support-platform",
+  services: [
+    {
+      modules: ["support-ticket"],
+      name: "support",
+      target: "local",
+    },
+    {
+      modules: ["invoice"],
+      name: "billing",
+      target: "kubernetes",
+    },
+  ],
+  status: "ready",
+  systemFile: "lenso.system.json",
+  version: 1,
+} satisfies ServiceSystemResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
@@ -290,6 +334,8 @@ export const serviceModuleLifecycleQueryKey = [
   "service-module-lifecycle",
 ] as const;
 
+export const serviceSystemQueryKey = ["modules", "service-system"] as const;
+
 const marketplaceInstallCommand =
   "lenso module marketplace install <manifest-url>";
 
@@ -298,6 +344,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     ["modules", "registry"],
     availableModulesQueryKey,
     serviceModuleLifecycleQueryKey,
+    serviceSystemQueryKey,
   ] as const;
 }
 
@@ -310,6 +357,12 @@ type AvailableModulesHttpClient = {
 type ServiceModuleLifecycleHttpClient = {
   get: (path: string) => {
     json: () => Promise<ServiceModuleLifecycleResponse>;
+  };
+};
+
+type ServiceSystemHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemResponse>;
   };
 };
 
@@ -362,6 +415,19 @@ export async function fetchServiceModuleLifecycle({
     return client.get("admin/data/service-modules").json();
   }
   return sampleServiceModuleLifecycleResponse;
+}
+
+export async function fetchServiceSystem({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemHttpClient;
+} = {}): Promise<ServiceSystemResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system").json();
+  }
+  return sampleServiceSystemResponse;
 }
 
 export async function installAvailableModule({
