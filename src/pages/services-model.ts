@@ -6,6 +6,7 @@ import type {
   ServiceModuleLifecycleService,
   ServiceReleaseRecord,
   ServiceSystemDriftResponse,
+  ServiceSystemRunbooksResponse,
   ServiceSystemReleaseTrainResponse,
   ServiceSystemResponse,
 } from "./available-modules-model";
@@ -78,6 +79,14 @@ export type ServiceSystemReleaseTrainSummary = {
   latest: string | null;
   commands: string[];
   releases: number;
+  status: string;
+};
+
+export type ServiceSystemRunbooksSummary = {
+  active: string | null;
+  commands: string[];
+  currentStep: string | null;
+  runbooks: number;
   status: string;
 };
 
@@ -239,6 +248,21 @@ export function serviceSystemReleaseTrainSummary(
       ? `${latest.systemName}/${latest.environment} ${latest.status} (${latest.policyRisk})`
       : null,
     releases: response?.releases.length ?? 0,
+    status: response?.status ?? "empty",
+  };
+}
+
+export function serviceSystemRunbooksSummary(
+  response: ServiceSystemRunbooksResponse | undefined
+): ServiceSystemRunbooksSummary {
+  const active = response?.runbooks.find((runbook) => runbook.active);
+  return {
+    active: active
+      ? `${active.systemName}/${active.environment} ${active.status}`
+      : null,
+    commands: response?.commands ?? [],
+    currentStep: active?.currentStep ?? null,
+    runbooks: response?.runbooks.length ?? 0,
     status: response?.status ?? "empty",
   };
 }

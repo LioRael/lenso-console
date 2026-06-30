@@ -178,6 +178,25 @@ export type ServiceSystemReleaseRecord = {
   rollbackAvailable: boolean;
 };
 
+export type ServiceSystemRunbooksResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  runbooks: ServiceSystemRunbookRecord[];
+  commands: string[];
+};
+
+export type ServiceSystemRunbookRecord = {
+  id: string;
+  releaseId: string;
+  systemName: string;
+  environment: string;
+  status: string;
+  active: boolean;
+  recordedAtUnixMs?: number | null;
+  steps: number;
+  currentStep?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

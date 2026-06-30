@@ -9,6 +9,7 @@ import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
+  fetchServiceSystemRunbooks,
   fetchServiceSystemReleaseTrain,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
@@ -16,10 +17,12 @@ import {
   sampleAvailableModulesResponse,
   sampleServiceModuleLifecycleResponse,
   sampleServiceSystemDriftResponse,
+  sampleServiceSystemRunbooksResponse,
   sampleServiceSystemReleaseTrainResponse,
   sampleServiceSystemResponse,
   serviceModuleLifecycleQueryKey,
   serviceSystemDriftQueryKey,
+  serviceSystemRunbooksQueryKey,
   serviceSystemReleaseTrainQueryKey,
   serviceSystemQueryKey,
   uninstallAvailableModule,
@@ -61,6 +64,7 @@ describe("available modules provider", () => {
       serviceSystemQueryKey,
       serviceSystemDriftQueryKey,
       serviceSystemReleaseTrainQueryKey,
+      serviceSystemRunbooksQueryKey,
     ]);
   });
 
@@ -139,6 +143,16 @@ describe("available modules provider", () => {
     expect(serviceSystemReleaseTrainQueryKey).toEqual([
       "modules",
       "service-system-release-train",
+    ]);
+  });
+
+  test("fetches service system runbooks state", async () => {
+    await expect(fetchServiceSystemRunbooks()).resolves.toBe(
+      sampleServiceSystemRunbooksResponse
+    );
+    expect(serviceSystemRunbooksQueryKey).toEqual([
+      "modules",
+      "service-system-runbooks",
     ]);
   });
 

@@ -7,6 +7,7 @@ import {
   serviceRemoteCallsPath,
   serviceStateLabel,
   serviceSystemDriftSummary,
+  serviceSystemRunbooksSummary,
   serviceSystemReleaseTrainSummary,
   serviceSystemSummary,
 } from "./services-model";
@@ -165,6 +166,34 @@ describe("service center model", () => {
       commands: ["lenso system release history"],
       latest: "support-platform/staging ready (safe)",
       releases: 1,
+      status: "ready",
+    });
+  });
+
+  it("summarizes service system runbooks", () => {
+    expect(
+      serviceSystemRunbooksSummary({
+        commands: ["lenso system runbook history"],
+        runbooks: [
+          {
+            active: true,
+            currentStep: "Check system release",
+            environment: "staging",
+            id: "sysrun_staging_1",
+            releaseId: "sysrel_staging_1",
+            status: "ready",
+            steps: 4,
+            systemName: "support-platform",
+          },
+        ],
+        status: "ready",
+        version: 1,
+      })
+    ).toEqual({
+      active: "support-platform/staging ready",
+      commands: ["lenso system runbook history"],
+      currentStep: "Check system release",
+      runbooks: 1,
       status: "ready",
     });
   });

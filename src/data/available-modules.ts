@@ -8,6 +8,7 @@ import {
   type AvailableModuleRow,
   type ServiceModuleLifecycleResponse,
   type ServiceSystemDriftResponse,
+  type ServiceSystemRunbooksResponse,
   type ServiceSystemReleaseTrainResponse,
   type ServiceSystemResponse,
   availableModuleRowsFromResponse,
@@ -367,6 +368,25 @@ export const sampleServiceSystemReleaseTrainResponse = {
   version: 1,
 } satisfies ServiceSystemReleaseTrainResponse;
 
+export const sampleServiceSystemRunbooksResponse = {
+  commands: ["lenso system runbook history", "lenso system runbook doctor"],
+  runbooks: [
+    {
+      active: true,
+      currentStep: "Check system release",
+      environment: "staging",
+      id: "sysrun_staging_001",
+      recordedAtUnixMs: 1_772_300_000_000,
+      releaseId: "sysrel_staging_001",
+      status: "ready",
+      steps: 4,
+      systemName: "support-platform",
+    },
+  ],
+  status: "ready",
+  version: 1,
+} satisfies ServiceSystemRunbooksResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
@@ -386,6 +406,10 @@ export const serviceSystemReleaseTrainQueryKey = [
   "modules",
   "service-system-release-train",
 ] as const;
+export const serviceSystemRunbooksQueryKey = [
+  "modules",
+  "service-system-runbooks",
+] as const;
 
 const marketplaceInstallCommand =
   "lenso module marketplace install <manifest-url>";
@@ -398,6 +422,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     serviceSystemQueryKey,
     serviceSystemDriftQueryKey,
     serviceSystemReleaseTrainQueryKey,
+    serviceSystemRunbooksQueryKey,
   ] as const;
 }
 
@@ -428,6 +453,12 @@ type ServiceSystemDriftHttpClient = {
 type ServiceSystemReleaseTrainHttpClient = {
   get: (path: string) => {
     json: () => Promise<ServiceSystemReleaseTrainResponse>;
+  };
+};
+
+type ServiceSystemRunbooksHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemRunbooksResponse>;
   };
 };
 
@@ -519,6 +550,19 @@ export async function fetchServiceSystemReleaseTrain({
     return client.get("admin/data/service-system/release-train").json();
   }
   return sampleServiceSystemReleaseTrainResponse;
+}
+
+export async function fetchServiceSystemRunbooks({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemRunbooksHttpClient;
+} = {}): Promise<ServiceSystemRunbooksResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system/runbooks").json();
+  }
+  return sampleServiceSystemRunbooksResponse;
 }
 
 export async function installAvailableModule({

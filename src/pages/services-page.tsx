@@ -7,9 +7,11 @@ import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
+  fetchServiceSystemRunbooks,
   fetchServiceSystemReleaseTrain,
   serviceModuleLifecycleQueryKey,
   serviceSystemDriftQueryKey,
+  serviceSystemRunbooksQueryKey,
   serviceSystemReleaseTrainQueryKey,
   serviceSystemQueryKey,
 } from "../data/available-modules";
@@ -21,6 +23,7 @@ import {
   serviceRemoteCallsPath,
   serviceStateLabel,
   serviceSystemDriftSummary,
+  serviceSystemRunbooksSummary,
   serviceSystemReleaseTrainSummary,
   serviceSystemSummary,
 } from "./services-model";
@@ -43,10 +46,15 @@ export function ServicesPage() {
     queryKey: serviceSystemReleaseTrainQueryKey,
     queryFn: () => fetchServiceSystemReleaseTrain(),
   });
+  const runbooksQuery = useQuery({
+    queryKey: serviceSystemRunbooksQueryKey,
+    queryFn: () => fetchServiceSystemRunbooks(),
+  });
   const rows = serviceCenterRows(query.data ?? { modules: [] });
   const system = serviceSystemSummary(systemQuery.data);
   const drift = serviceSystemDriftSummary(driftQuery.data);
   const releaseTrain = serviceSystemReleaseTrainSummary(releaseTrainQuery.data);
+  const runbooks = serviceSystemRunbooksSummary(runbooksQuery.data);
   const selectedRow =
     rows.find((row) => row.providerName === selectedProvider) ?? rows[0];
   const attentionCount = rows.filter((row) => row.state !== "ready").length;
@@ -76,6 +84,10 @@ export function ServicesPage() {
             releaseTrainQuery.isError
               ? errorMessage(releaseTrainQuery.error)
               : null
+          }
+          runbooks={runbooks}
+          runbooksError={
+            runbooksQuery.isError ? errorMessage(runbooksQuery.error) : null
           }
           system={system}
         />
@@ -153,6 +165,8 @@ function SystemPlane({
   loading,
   releaseTrain,
   releaseTrainError,
+  runbooks,
+  runbooksError,
   system,
 }: {
   drift: ReturnType<typeof serviceSystemDriftSummary>;
@@ -161,12 +175,15 @@ function SystemPlane({
   loading: boolean;
   releaseTrain: ReturnType<typeof serviceSystemReleaseTrainSummary>;
   releaseTrainError: string | null;
+  runbooks: ReturnType<typeof serviceSystemRunbooksSummary>;
+  runbooksError: string | null;
   system: ReturnType<typeof serviceSystemSummary>;
 }) {
   const tone =
     error ||
     driftError ||
     releaseTrainError ||
+    runbooksError ||
     system.status === "needs_attention"
       ? "error"
       : drift.status === "drifted"
@@ -185,7 +202,7 @@ function SystemPlane({
             state={
               loading
                 ? "loading"
-                : error || driftError || releaseTrainError
+                : error || driftError || releaseTrainError || runbooksError
                   ? "error"
                   : drift.status === "drifted"
                     ? "drifted"
@@ -206,9 +223,9 @@ function SystemPlane({
         </div>
       </div>
       <div className="min-w-0 text-(--fg-secondary)">
-        {error || driftError || releaseTrainError ? (
+        {error || driftError || releaseTrainError || runbooksError ? (
           <span className="text-(--tone-error-fg)">
-            {error ?? driftError ?? releaseTrainError}
+            {error ?? driftError ?? releaseTrainError ?? runbooksError}
           </span>
         ) : system.issues.length > 0 ? (
           <div className="grid gap-1">
@@ -242,6 +259,13 @@ function SystemPlane({
               release train: {releaseTrain.latest ?? releaseTrain.status}
               {releaseTrain.commands[0]
                 ? ` / next: ${releaseTrain.commands[0]}`
+                : ""}
+            </span>
+            <span className="min-w-0 truncate text-(--fg-tertiary)">
+              runbook: {runbooks.active ?? runbooks.status}
+              {runbooks.currentStep ? ` / step: ${runbooks.currentStep}` : ""}
+              {!runbooks.currentStep && runbooks.commands[0]
+                ? ` / next: ${runbooks.commands[0]}`
                 : ""}
             </span>
           </div>
