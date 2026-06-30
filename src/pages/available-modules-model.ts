@@ -140,6 +140,24 @@ export type ServiceSystemIssue = {
   message: string;
 };
 
+export type ServiceSystemDriftResponse = {
+  version: number;
+  status: "ready" | "drifted" | "needs_attention" | "empty" | string;
+  systemFile: string;
+  graphIssues: ServiceSystemIssue[];
+  drifts: ServiceSystemDrift[];
+  commands: string[];
+};
+
+export type ServiceSystemDrift = {
+  code: string;
+  severity: "info" | "warning" | "error" | string;
+  resource: string;
+  name: string;
+  message: string;
+  command?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

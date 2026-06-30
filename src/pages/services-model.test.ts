@@ -6,6 +6,7 @@ import {
   serviceCenterRows,
   serviceRemoteCallsPath,
   serviceStateLabel,
+  serviceSystemDriftSummary,
   serviceSystemSummary,
 } from "./services-model";
 
@@ -109,6 +110,32 @@ describe("service center model", () => {
       services: 2,
       status: "needs_attention",
       targets: ["kubernetes", "local"],
+    });
+  });
+
+  it("summarizes service system drift", () => {
+    expect(
+      serviceSystemDriftSummary({
+        commands: ["lenso system apply"],
+        drifts: [
+          {
+            code: "service_env_missing",
+            command: "lenso system apply",
+            message: "missing staging",
+            name: "support/staging",
+            resource: "environment",
+            severity: "warning",
+          },
+        ],
+        graphIssues: [],
+        status: "drifted",
+        systemFile: "lenso.system.json",
+        version: 1,
+      })
+    ).toEqual({
+      commands: ["lenso system apply"],
+      drifts: ["service_env_missing: missing staging"],
+      status: "drifted",
     });
   });
 

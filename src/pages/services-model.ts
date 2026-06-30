@@ -5,6 +5,7 @@ import type {
   ServiceModuleLifecycleModule,
   ServiceModuleLifecycleService,
   ServiceReleaseRecord,
+  ServiceSystemDriftResponse,
   ServiceSystemResponse,
 } from "./available-modules-model";
 import { functionsPath, operationsPath } from "./operations-url-model";
@@ -64,6 +65,12 @@ export type ServiceSystemSummary = {
   services: number;
   status: string;
   targets: string[];
+};
+
+export type ServiceSystemDriftSummary = {
+  commands: string[];
+  drifts: string[];
+  status: string;
 };
 
 export type ServiceCenterRow = {
@@ -200,6 +207,17 @@ export function serviceSystemSummary(
     targets: uniqueStrings(
       response?.services.map((service) => service.target) ?? []
     ),
+  };
+}
+
+export function serviceSystemDriftSummary(
+  response: ServiceSystemDriftResponse | undefined
+): ServiceSystemDriftSummary {
+  return {
+    commands: response?.commands ?? [],
+    drifts:
+      response?.drifts.map((drift) => `${drift.code}: ${drift.message}`) ?? [],
+    status: response?.status ?? "empty",
   };
 }
 

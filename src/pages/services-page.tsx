@@ -6,7 +6,9 @@ import { type ReactNode, useState } from "react";
 import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
+  fetchServiceSystemDrift,
   serviceModuleLifecycleQueryKey,
+  serviceSystemDriftQueryKey,
   serviceSystemQueryKey,
 } from "../data/available-modules";
 import { cn } from "../lib/cn";
@@ -16,6 +18,7 @@ import {
   serviceCenterRows,
   serviceRemoteCallsPath,
   serviceStateLabel,
+  serviceSystemDriftSummary,
   serviceSystemSummary,
 } from "./services-model";
 
@@ -29,8 +32,13 @@ export function ServicesPage() {
     queryKey: serviceSystemQueryKey,
     queryFn: () => fetchServiceSystem(),
   });
+  const driftQuery = useQuery({
+    queryKey: serviceSystemDriftQueryKey,
+    queryFn: () => fetchServiceSystemDrift(),
+  });
   const rows = serviceCenterRows(query.data ?? { modules: [] });
   const system = serviceSystemSummary(systemQuery.data);
+  const drift = serviceSystemDriftSummary(driftQuery.data);
   const selectedRow =
     rows.find((row) => row.providerName === selectedProvider) ?? rows[0];
   const attentionCount = rows.filter((row) => row.state !== "ready").length;
@@ -50,6 +58,10 @@ export function ServicesPage() {
       <main className="min-h-0 overflow-auto">
         <SystemPlane
           error={systemQuery.isError ? errorMessage(systemQuery.error) : null}
+          drift={drift}
+          driftError={
+            driftQuery.isError ? errorMessage(driftQuery.error) : null
+          }
           loading={systemQuery.isLoading}
           system={system}
         />
@@ -121,20 +133,26 @@ export function ServicesPage() {
 }
 
 function SystemPlane({
+  drift,
+  driftError,
   error,
   loading,
   system,
 }: {
+  drift: ReturnType<typeof serviceSystemDriftSummary>;
+  driftError: string | null;
   error: string | null;
   loading: boolean;
   system: ReturnType<typeof serviceSystemSummary>;
 }) {
   const tone =
-    error || system.status === "needs_attention"
+    error || driftError || system.status === "needs_attention"
       ? "error"
-      : system.status === "ready"
-        ? "success"
-        : "default";
+      : drift.status === "drifted"
+        ? "default"
+        : system.status === "ready"
+          ? "success"
+          : "default";
   return (
     <section className="grid gap-2 border-b border-(--line) bg-(--bg-panel-muted) px-3 py-2 font-mono text-[11px] md:grid-cols-[minmax(220px,1.2fr)_minmax(0,2fr)]">
       <div className="min-w-0">
@@ -143,7 +161,15 @@ function SystemPlane({
             {system.name}
           </span>
           <SystemStatusBadge
-            state={loading ? "loading" : error ? "error" : system.status}
+            state={
+              loading
+                ? "loading"
+                : error || driftError
+                  ? "error"
+                  : drift.status === "drifted"
+                    ? "drifted"
+                    : system.status
+            }
             tone={tone}
           />
         </div>
@@ -159,8 +185,8 @@ function SystemPlane({
         </div>
       </div>
       <div className="min-w-0 text-(--fg-secondary)">
-        {error ? (
-          <span className="text-(--tone-error-fg)">{error}</span>
+        {error || driftError ? (
+          <span className="text-(--tone-error-fg)">{error ?? driftError}</span>
         ) : system.issues.length > 0 ? (
           <div className="grid gap-1">
             {system.issues.slice(0, 2).map((issue) => (
@@ -168,6 +194,19 @@ function SystemPlane({
                 {issue}
               </span>
             ))}
+          </div>
+        ) : drift.drifts.length > 0 ? (
+          <div className="grid gap-1">
+            {drift.drifts.slice(0, 2).map((item) => (
+              <span className="min-w-0 truncate" key={item} title={item}>
+                {item}
+              </span>
+            ))}
+            {drift.commands[0] ? (
+              <span className="min-w-0 truncate text-(--fg-tertiary)">
+                next: {drift.commands[0]}
+              </span>
+            ) : null}
           </div>
         ) : (
           <span>

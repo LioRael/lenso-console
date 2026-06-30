@@ -8,13 +8,16 @@ import {
   availableModulesRows,
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
+  fetchServiceSystemDrift,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
   sampleServiceModuleLifecycleResponse,
+  sampleServiceSystemDriftResponse,
   sampleServiceSystemResponse,
   serviceModuleLifecycleQueryKey,
+  serviceSystemDriftQueryKey,
   serviceSystemQueryKey,
   uninstallAvailableModule,
 } from "./available-modules";
@@ -53,6 +56,7 @@ describe("available modules provider", () => {
       availableModulesQueryKey,
       serviceModuleLifecycleQueryKey,
       serviceSystemQueryKey,
+      serviceSystemDriftQueryKey,
     ]);
   });
 
@@ -112,6 +116,16 @@ describe("available modules provider", () => {
       sampleServiceSystemResponse
     );
     expect(serviceSystemQueryKey).toEqual(["modules", "service-system"]);
+  });
+
+  test("fetches service system drift state", async () => {
+    await expect(fetchServiceSystemDrift()).resolves.toBe(
+      sampleServiceSystemDriftResponse
+    );
+    expect(serviceSystemDriftQueryKey).toEqual([
+      "modules",
+      "service-system-drift",
+    ]);
   });
 
   test("installs an available module through the API", async () => {

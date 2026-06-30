@@ -7,6 +7,7 @@ import {
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   type ServiceModuleLifecycleResponse,
+  type ServiceSystemDriftResponse,
   type ServiceSystemResponse,
   availableModuleRowsFromResponse,
 } from "../pages/available-modules-model";
@@ -324,6 +325,24 @@ export const sampleServiceSystemResponse = {
   version: 1,
 } satisfies ServiceSystemResponse;
 
+export const sampleServiceSystemDriftResponse = {
+  commands: ["lenso system apply"],
+  drifts: [
+    {
+      code: "service_env_missing",
+      command: "lenso system apply",
+      message: "Service `billing` has no `prod` environment state.",
+      name: "billing/prod",
+      resource: "environment",
+      severity: "warning",
+    },
+  ],
+  graphIssues: [],
+  status: "drifted",
+  systemFile: "lenso.system.json",
+  version: 1,
+} satisfies ServiceSystemDriftResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
@@ -335,6 +354,10 @@ export const serviceModuleLifecycleQueryKey = [
 ] as const;
 
 export const serviceSystemQueryKey = ["modules", "service-system"] as const;
+export const serviceSystemDriftQueryKey = [
+  "modules",
+  "service-system-drift",
+] as const;
 
 const marketplaceInstallCommand =
   "lenso module marketplace install <manifest-url>";
@@ -345,6 +368,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     availableModulesQueryKey,
     serviceModuleLifecycleQueryKey,
     serviceSystemQueryKey,
+    serviceSystemDriftQueryKey,
   ] as const;
 }
 
@@ -363,6 +387,12 @@ type ServiceModuleLifecycleHttpClient = {
 type ServiceSystemHttpClient = {
   get: (path: string) => {
     json: () => Promise<ServiceSystemResponse>;
+  };
+};
+
+type ServiceSystemDriftHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemDriftResponse>;
   };
 };
 
@@ -428,6 +458,19 @@ export async function fetchServiceSystem({
     return client.get("admin/data/service-system").json();
   }
   return sampleServiceSystemResponse;
+}
+
+export async function fetchServiceSystemDrift({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemDriftHttpClient;
+} = {}): Promise<ServiceSystemDriftResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system/drift").json();
+  }
+  return sampleServiceSystemDriftResponse;
 }
 
 export async function installAvailableModule({
