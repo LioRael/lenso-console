@@ -138,6 +138,40 @@ export const sampleServiceModuleLifecycleResponse = {
       manifestUrl: "https://example.com/lenso/module/v1/manifest",
       moduleName: "billing",
       restartPending: false,
+      latestRelease: {
+        appliedAtUnixMs: 1_771_963_200_000,
+        candidateManifestReference:
+          "https://example.com/billing/lenso.service.json",
+        candidatePackageReference:
+          "https://example.com/billing/lenso.service-package.json",
+        candidateVersion: "0.3.0",
+        currentManifestReference:
+          "https://example.com/billing/previous/lenso.service.json",
+        currentVersion: "0.2.0",
+        id: "rel_billing_003",
+        risk: "safe",
+        rollbackTarget:
+          "https://example.com/billing/previous/lenso.service.json",
+        serviceName: "billing-provider",
+      },
+      releaseHistory: [
+        {
+          appliedAtUnixMs: 1_771_963_200_000,
+          candidateManifestReference:
+            "https://example.com/billing/lenso.service.json",
+          candidatePackageReference:
+            "https://example.com/billing/lenso.service-package.json",
+          candidateVersion: "0.3.0",
+          currentManifestReference:
+            "https://example.com/billing/previous/lenso.service.json",
+          currentVersion: "0.2.0",
+          id: "rel_billing_003",
+          risk: "safe",
+          rollbackTarget:
+            "https://example.com/billing/previous/lenso.service.json",
+          serviceName: "billing-provider",
+        },
+      ],
       compatibility: {
         declared: {
           consolePackageApi: "1",

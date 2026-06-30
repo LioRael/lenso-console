@@ -5,12 +5,15 @@ Helpers for building Lenso services that provide one or more modules.
 ```ts
 import {
   defineModule,
+  defineKubernetesDeployment,
   defineModuleContract,
   defineModuleRelease,
   defineService,
   defineServiceContract,
   defineServicePackage,
+  defineServiceReleasePlan,
   defineServiceWorkspace,
+  serviceReleaseRestartRequired,
   serviceEnv,
   serviceWorkspaceBaseUrl,
   serviceWorkspaceToModuleServices,
@@ -33,6 +36,11 @@ export const moduleContract = defineModuleContract({
 export const contract = defineServiceContract({
   name: "support-suite-provider",
   version: "0.2.0",
+  deployment: defineKubernetesDeployment({
+    ingressHost: "support-staging.example.com",
+    port: 4110,
+    replicas: 2,
+  }),
   env: [serviceEnv("PORT", { example: "4110", required: true })],
   modules: [{ name: supportTicket.name, version: supportTicket.version }],
 });
@@ -71,6 +79,38 @@ export const moduleRelease = defineModuleRelease({
   version: supportTicket.version ?? "0.1.0",
   provider: { name: contract.name },
   capabilities: supportTicket.capabilities,
+});
+
+export const releasePlan = defineServiceReleasePlan({
+  service: { name: contract.name },
+  current: {
+    name: contract.name,
+    version: "0.1.0",
+    manifestReference: "https://example.com/support/v1/lenso.service.json",
+    modules: [supportTicket.name],
+  },
+  candidate: {
+    name: contract.name,
+    version: contract.version,
+    manifestReference: "https://example.com/support/v2/lenso.service.json",
+    packageReference:
+      "https://example.com/support/v2/lenso.service-package.json",
+    modules: [supportTicket.name],
+  },
+  diff: {
+    capabilities: [],
+    config: { added: [], removed: [] },
+    env: { added: ["SUPPORT_API_KEY"], removed: [] },
+    modules: { added: [], removed: [] },
+    operations: [],
+  },
+  restartRequired: serviceReleaseRestartRequired({
+    capabilities: [],
+    config: { added: [], removed: [] },
+    env: { added: ["SUPPORT_API_KEY"], removed: [] },
+    modules: { added: [], removed: [] },
+    operations: [],
+  }),
 });
 
 serveService(manifest, { modules: {} });

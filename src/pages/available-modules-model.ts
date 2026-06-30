@@ -105,6 +105,7 @@ export type ServiceModuleLifecycleResponse = {
 
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
+  | "missing_config"
   | "restart_pending"
   | "configured_not_loaded"
   | "manifest_unreachable"
@@ -200,6 +201,83 @@ export type ServiceModuleHealthCheck = {
   error?: string | null;
 };
 
+export type ServiceReleaseRecord = {
+  id?: string | null;
+  serviceName: string;
+  environment?: string | null;
+  target?: string | null;
+  appliedAtUnixMs?: number | null;
+  risk: "safe" | "needs_attention" | "breaking" | "blocked" | string;
+  currentVersion?: string | null;
+  candidateVersion?: string | null;
+  currentManifestReference?: string | null;
+  candidateManifestReference?: string | null;
+  candidatePackageReference?: string | null;
+  rollbackTarget?: string | null;
+};
+
+export type ServiceEnvironment = {
+  name: string;
+  serviceName: string;
+  target: string;
+  namespace?: string | null;
+  kubeContext?: string | null;
+  image?: string | null;
+  publicBaseUrl?: string | null;
+  manifestReference?: string | null;
+  releaseTrack?: string | null;
+};
+
+export type ServiceDeploymentObservation = {
+  serviceName: string;
+  environment: string;
+  target: string;
+  observedAtUnixMs?: number | null;
+  state: string;
+  drift: string;
+  operator?: {
+    resource?: string | null;
+    namespace?: string | null;
+    observedGeneration?: number | null;
+    conditions?: Array<{
+      type?: string | null;
+      status?: string | null;
+      reason?: string | null;
+      message?: string | null;
+      lastTransitionTime?: string | null;
+    }>;
+  } | null;
+  cluster?: {
+    namespace?: string | null;
+    deployment?: string | null;
+    readyReplicas?: number | null;
+    desiredReplicas?: number | null;
+    availableReplicas?: number | null;
+    image?: string | null;
+    releaseId?: string | null;
+    manifestReference?: string | null;
+    serviceEndpoint?: string | null;
+    ingressHost?: string | null;
+  } | null;
+  host?: {
+    releaseId?: string | null;
+    candidateVersion?: string | null;
+  } | null;
+  checks?: Array<{
+    name: string;
+    status: string;
+    detail?: string | null;
+  }>;
+  nextAction?: string | null;
+};
+
+export type ServiceModuleConfig = {
+  envFile: string;
+  requiredEnv: string[];
+  configuredEnv: string[];
+  missingEnv: string[];
+};
+
 export type ServiceModuleLifecycleModule = {
   moduleName: string;
   providerName?: string | null;
@@ -215,10 +293,18 @@ export type ServiceModuleLifecycleModule = {
   serviceStatus?: ServiceModuleServiceStatus;
   healthHistory?: ServiceModuleHealthCheck[];
   compatibility?: ServiceModuleCompatibility;
+  config?: ServiceModuleConfig;
   deployment?: ServiceModuleDeployment | null;
+  environments?: ServiceEnvironment[];
+  deployments?: ServiceDeploymentObservation[];
+  deploymentHistory?: ServiceDeploymentObservation[];
+  deploymentDrift?: string | null;
+  deploymentNextAction?: string | null;
   services: ServiceModuleLifecycleService[];
   operations?: ServiceOperation[];
   moduleRelease?: AvailableModuleRelease | null;
+  latestRelease?: ServiceReleaseRecord | null;
+  releaseHistory?: ServiceReleaseRecord[];
   fixes: string[];
 };
 
