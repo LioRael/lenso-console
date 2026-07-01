@@ -13,6 +13,7 @@ import { ConfigPage } from "../pages/config-page";
 import { DataPage } from "../pages/data-page";
 import { DeadLettersPage } from "../pages/dead-letters-page";
 import { FunctionsPage } from "../pages/functions-page";
+import { LaunchpadPage } from "../pages/launchpad-page";
 import { ModulesPage } from "../pages/modules-page";
 import { OperationsPage } from "../pages/operations-page";
 import { OverviewPage } from "../pages/overview-page";
@@ -22,7 +23,7 @@ import { ServicesPage } from "../pages/services-page";
 import type { ConsoleModule } from "./console-module-api";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
 
-export const rootRedirectPath = "/overview";
+export const rootRedirectPath = "/launchpad";
 export const runtimeConsoleBasePath = consoleBasePathFromBaseUrl(
   import.meta.env.BASE_URL
 );
@@ -69,6 +70,12 @@ export function createRuntimeConsoleRouter(
     getParentRoute: () => rootRoute,
     path: "/overview",
     component: OverviewPage,
+  });
+
+  const launchpadRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/launchpad",
+    component: LaunchpadPage,
   });
 
   const operationsRoute = createRoute({
@@ -156,6 +163,7 @@ export function createRuntimeConsoleRouter(
   const routeTree = rootRoute.addChildren([
     indexRoute,
     ...consoleRouteNodes,
+    launchpadRoute,
     overviewRoute,
     operationsRoute,
     operationsQueuesRoute,

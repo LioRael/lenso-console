@@ -6,15 +6,18 @@ import {
   availableModulesPanelState,
   availableModulesQueryKey,
   availableModulesRows,
+  fetchLaunchpad,
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
   fetchServiceSystemRunbooks,
   fetchServiceSystemReleaseTrain,
   installAvailableModule,
+  launchpadQueryKey,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
+  sampleLaunchpadResponse,
   sampleServiceModuleLifecycleResponse,
   sampleServiceSystemDriftResponse,
   sampleServiceSystemRunbooksResponse,
@@ -60,6 +63,7 @@ describe("available modules provider", () => {
     expect(moduleRefreshInvalidationQueryKeys()).toEqual([
       ["modules", "registry"],
       availableModulesQueryKey,
+      launchpadQueryKey,
       serviceModuleLifecycleQueryKey,
       serviceSystemQueryKey,
       serviceSystemDriftQueryKey,
@@ -154,6 +158,30 @@ describe("available modules provider", () => {
       "modules",
       "service-system-runbooks",
     ]);
+  });
+
+  test("fetches Launchpad state", async () => {
+    await expect(fetchLaunchpad()).resolves.toBe(sampleLaunchpadResponse);
+    expect(launchpadQueryKey).toEqual(["launchpad"]);
+
+    const getCalls: string[] = [];
+    const response = {
+      ...sampleLaunchpadResponse,
+      status: "empty",
+    };
+    const client = {
+      get(path: string) {
+        getCalls.push(path);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(fetchLaunchpad({ apiMode: true, client })).resolves.toBe(
+      response
+    );
+    expect(getCalls).toEqual(["admin/data/launchpad"]);
   });
 
   test("installs an available module through the API", async () => {

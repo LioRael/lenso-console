@@ -197,6 +197,50 @@ export type ServiceSystemRunbookRecord = {
   currentStep?: string | null;
 };
 
+export type LaunchpadResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  launchpadFile: string;
+  projectName?: string | null;
+  blueprint?: string | null;
+  summary?: string | null;
+  services: LaunchpadService[];
+  modules: LaunchpadModule[];
+  checklist: LaunchpadChecklistItem[];
+  commands: string[];
+  nextCommand?: string | null;
+  issues: LaunchpadIssue[];
+};
+
+export type LaunchpadService = {
+  name: string;
+  role?: string | null;
+  language?: string | null;
+  cwd?: string | null;
+  command?: string | null;
+  readyUrl?: string | null;
+  modules: string[];
+};
+
+export type LaunchpadModule = {
+  name: string;
+  ownerService?: string | null;
+  capability?: string | null;
+};
+
+export type LaunchpadChecklistItem = {
+  id: string;
+  label: string;
+  status: string;
+  nextCommand?: string | null;
+};
+
+export type LaunchpadIssue = {
+  code: string;
+  message: string;
+  command?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

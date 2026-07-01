@@ -7,8 +7,8 @@ import {
 } from "./router";
 
 describe("runtime console router", () => {
-  test("uses a host route as the root entrypoint", () => {
-    expect(rootRedirectPath).toBe("/overview");
+  test("uses Launchpad as the root entrypoint", () => {
+    expect(rootRedirectPath).toBe("/launchpad");
   });
 
   test("mounts routes under the built console base path", () => {

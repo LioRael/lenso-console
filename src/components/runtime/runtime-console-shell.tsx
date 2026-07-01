@@ -78,11 +78,21 @@ const namedIconRegistry: Record<string, ShellIcon> = {
 
 const hostPrimaryNavItems = [
   {
+    icon: "workflow",
+    label: "Launchpad",
+    moduleId: "host",
+    navigation: {
+      order: 0,
+      workspace: SYSTEM_WORKSPACE,
+    },
+    path: "/launchpad",
+  },
+  {
     icon: "activity",
     label: "Overview",
     moduleId: "host",
     navigation: {
-      order: 0,
+      order: 10,
       workspace: SYSTEM_WORKSPACE,
     },
     path: "/overview",

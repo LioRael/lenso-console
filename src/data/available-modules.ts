@@ -6,6 +6,7 @@ import {
   type AvailableModuleRelease,
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
+  type LaunchpadResponse,
   type ServiceModuleLifecycleResponse,
   type ServiceSystemDriftResponse,
   type ServiceSystemRunbooksResponse,
@@ -387,10 +388,93 @@ export const sampleServiceSystemRunbooksResponse = {
   version: 1,
 } satisfies ServiceSystemRunbooksResponse;
 
+export const sampleLaunchpadResponse = {
+  blueprint: "support-desk",
+  checklist: [
+    {
+      id: "app-created",
+      label: "Host application scaffolded",
+      nextCommand: null,
+      status: "done",
+    },
+    {
+      id: "services-created",
+      label: "TypeScript and Rust services scaffolded",
+      nextCommand: null,
+      status: "done",
+    },
+    {
+      id: "env-prepared",
+      label: "Local environment file prepared",
+      nextCommand: null,
+      status: "done",
+    },
+    {
+      id: "dev-up",
+      label: "Run services and host locally",
+      nextCommand: "lenso dev up",
+      status: "next",
+    },
+    {
+      id: "console-open",
+      label: "Open Runtime Console Launchpad",
+      nextCommand: "open http://127.0.0.1:3000/launchpad",
+      status: "pending",
+    },
+  ],
+  commands: [
+    "lenso dev up",
+    "lenso dev status",
+    "lenso agent context",
+    "http://127.0.0.1:3000/launchpad",
+  ],
+  issues: [],
+  launchpadFile: ".lenso/launchpad.json",
+  modules: [
+    {
+      capability: "support.tickets",
+      name: "support-api",
+      ownerService: "support-api",
+    },
+    {
+      capability: "support.notifications",
+      name: "notification-worker",
+      ownerService: "notification-worker",
+    },
+  ],
+  nextCommand: "lenso dev up",
+  projectName: "support-desk",
+  services: [
+    {
+      command: "pnpm start",
+      cwd: "services/support-api",
+      language: "ts",
+      modules: ["support-api"],
+      name: "support-api",
+      readyUrl: "http://127.0.0.1:4110/lenso/service/v1/status",
+      role: "ticket intake and admin HTTP actions",
+    },
+    {
+      command: "cargo run",
+      cwd: "services/notification-worker",
+      language: "rust",
+      modules: ["notification-worker"],
+      name: "notification-worker",
+      readyUrl: "http://127.0.0.1:4120/lenso/service/v1/status",
+      role: "notification and background service functions",
+    },
+  ],
+  status: "ready",
+  summary:
+    "Support desk app with one TypeScript API service and one Rust worker service.",
+  version: 1,
+} satisfies LaunchpadResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
 ] as const;
+export const launchpadQueryKey = ["launchpad"] as const;
 
 export const serviceModuleLifecycleQueryKey = [
   "modules",
@@ -418,6 +502,7 @@ export function moduleRefreshInvalidationQueryKeys() {
   return [
     ["modules", "registry"],
     availableModulesQueryKey,
+    launchpadQueryKey,
     serviceModuleLifecycleQueryKey,
     serviceSystemQueryKey,
     serviceSystemDriftQueryKey,
@@ -459,6 +544,12 @@ type ServiceSystemReleaseTrainHttpClient = {
 type ServiceSystemRunbooksHttpClient = {
   get: (path: string) => {
     json: () => Promise<ServiceSystemRunbooksResponse>;
+  };
+};
+
+type LaunchpadHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<LaunchpadResponse>;
   };
 };
 
@@ -563,6 +654,19 @@ export async function fetchServiceSystemRunbooks({
     return client.get("admin/data/service-system/runbooks").json();
   }
   return sampleServiceSystemRunbooksResponse;
+}
+
+export async function fetchLaunchpad({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: LaunchpadHttpClient;
+} = {}): Promise<LaunchpadResponse> {
+  if (apiMode) {
+    return client.get("admin/data/launchpad").json();
+  }
+  return sampleLaunchpadResponse;
 }
 
 export async function installAvailableModule({
