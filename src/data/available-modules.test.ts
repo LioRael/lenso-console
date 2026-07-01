@@ -6,7 +6,9 @@ import {
   availableModulesPanelState,
   availableModulesQueryKey,
   availableModulesRows,
+  fetchAvailableModules,
   fetchLaunchpad,
+  fetchLaunchpadDoctor,
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
@@ -15,8 +17,9 @@ import {
   installAvailableModule,
   launchpadQueryKey,
   moduleRefreshInvalidationQueryKeys,
-  fetchAvailableModules,
+  launchpadDoctorQueryKey,
   sampleAvailableModulesResponse,
+  sampleLaunchpadDoctorResponse,
   sampleLaunchpadResponse,
   sampleServiceModuleLifecycleResponse,
   sampleServiceSystemDriftResponse,
@@ -64,6 +67,7 @@ describe("available modules provider", () => {
       ["modules", "registry"],
       availableModulesQueryKey,
       launchpadQueryKey,
+      launchpadDoctorQueryKey,
       serviceModuleLifecycleQueryKey,
       serviceSystemQueryKey,
       serviceSystemDriftQueryKey,
@@ -182,6 +186,32 @@ describe("available modules provider", () => {
       response
     );
     expect(getCalls).toEqual(["admin/data/launchpad"]);
+  });
+
+  test("fetches Launchpad doctor state", async () => {
+    await expect(fetchLaunchpadDoctor()).resolves.toBe(
+      sampleLaunchpadDoctorResponse
+    );
+    expect(launchpadDoctorQueryKey).toEqual(["launchpad", "doctor"]);
+
+    const getCalls: string[] = [];
+    const response = {
+      ...sampleLaunchpadDoctorResponse,
+      status: "ready",
+    };
+    const client = {
+      get(path: string) {
+        getCalls.push(path);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(fetchLaunchpadDoctor({ apiMode: true, client })).resolves.toBe(
+      response
+    );
+    expect(getCalls).toEqual(["admin/data/launchpad/doctor"]);
   });
 
   test("installs an available module through the API", async () => {

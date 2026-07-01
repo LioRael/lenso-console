@@ -1,6 +1,17 @@
-import type { LaunchpadResponse } from "./available-modules-model";
+import type {
+  LaunchpadDoctorResponse,
+  LaunchpadResponse,
+} from "./available-modules-model";
 
 export type LaunchpadSummary = {
+  addonCount: number;
+  addons: Array<{
+    label: string;
+    modules: string[];
+    name: string;
+    services: string[];
+    status: string;
+  }>;
   blueprint: string;
   checklist: Array<{
     id: string;
@@ -16,6 +27,23 @@ export type LaunchpadSummary = {
   serviceCount: number;
   status: string;
   summary: string;
+  supportedAddons: string[];
+};
+
+export type LaunchpadDoctorSummary = {
+  attentionChecks: Array<{
+    id: string;
+    label: string;
+    message: string;
+    status: string;
+    command: string | null;
+  }>;
+  checkedAtUnixMs: number | null;
+  checks: number;
+  doctorFile: string;
+  live: boolean;
+  nextCommand: string;
+  status: string;
 };
 
 export function launchpadSummary(
@@ -25,6 +53,15 @@ export function launchpadSummary(
   const fallbackCommand =
     "lenso app create support-desk --blueprint support-desk";
   return {
+    addonCount: response?.addons?.length ?? 0,
+    addons:
+      response?.addons?.map((addon) => ({
+        label: addon.label,
+        modules: addon.modules,
+        name: addon.name,
+        services: addon.services,
+        status: addon.status,
+      })) ?? [],
     blueprint: response?.blueprint ?? "not configured",
     checklist:
       response?.checklist.map((item) => ({
@@ -47,12 +84,45 @@ export function launchpadSummary(
     summary:
       response?.summary ??
       "Create a support-desk app to see the generated service system.",
+    supportedAddons: response?.supportedAddons ?? [],
+  };
+}
+
+export function launchpadDoctorSummary(
+  response: LaunchpadDoctorResponse | undefined
+): LaunchpadDoctorSummary {
+  const attentionChecks =
+    response?.checks
+      .filter((check) =>
+        ["failed", "needs_attention", "missing"].includes(check.status)
+      )
+      .map((check) => ({
+        command: check.command ?? null,
+        id: check.id,
+        label: check.label,
+        message: check.message,
+        status: check.status,
+      })) ?? [];
+  return {
+    attentionChecks,
+    checkedAtUnixMs: response?.checkedAtUnixMs ?? null,
+    checks: response?.checks.length ?? 0,
+    doctorFile: response?.doctorFile ?? ".lenso/dev-doctor.json",
+    live: response?.live ?? false,
+    nextCommand:
+      response?.nextCommand ??
+      attentionChecks.find((check) => check.command)?.command ??
+      "lenso dev doctor --write-state",
+    status: response?.status ?? "empty",
   };
 }
 
 export function launchpadStatusLabel(status: string) {
   if (status === "ready") {
     return "ready";
+  }
+  if (status === "failed") {
+    return "failed";
   }
   if (status === "needs_attention") {
     return "needs attention";

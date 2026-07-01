@@ -6,6 +6,7 @@ import {
   type AvailableModuleRelease,
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
+  type LaunchpadDoctorResponse,
   type LaunchpadResponse,
   type ServiceModuleLifecycleResponse,
   type ServiceSystemDriftResponse,
@@ -422,6 +423,16 @@ export const sampleLaunchpadResponse = {
       status: "pending",
     },
   ],
+  addons: [
+    {
+      label: "Support SLA",
+      modules: ["support-sla"],
+      name: "support-sla",
+      services: ["support-sla"],
+      status: "configured",
+    },
+  ],
+  supportedAddons: ["support-sla", "customer-profile", "notifications"],
   commands: [
     "lenso dev up",
     "lenso dev status",
@@ -470,11 +481,44 @@ export const sampleLaunchpadResponse = {
   version: 1,
 } satisfies LaunchpadResponse;
 
+export const sampleLaunchpadDoctorResponse = {
+  checkedAtUnixMs: 1_782_903_144_460,
+  checks: [
+    {
+      command: null,
+      id: "env",
+      label: ".env file",
+      message: ".env exists",
+      status: "passed",
+    },
+    {
+      command: null,
+      id: "lenso-workspace-json",
+      label: "Service workspace",
+      message: "lenso.workspace.json parses",
+      status: "passed",
+    },
+    {
+      command: "lenso dev up",
+      id: "service-ready-support-sla",
+      label: "support-sla ready endpoint",
+      message: "support-sla is not running on port 4150",
+      status: "needs_attention",
+    },
+  ],
+  doctorFile: ".lenso/dev-doctor.json",
+  live: true,
+  nextCommand: "lenso dev up",
+  status: "needs_attention",
+  version: 1,
+} satisfies LaunchpadDoctorResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
 ] as const;
 export const launchpadQueryKey = ["launchpad"] as const;
+export const launchpadDoctorQueryKey = ["launchpad", "doctor"] as const;
 
 export const serviceModuleLifecycleQueryKey = [
   "modules",
@@ -503,6 +547,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     ["modules", "registry"],
     availableModulesQueryKey,
     launchpadQueryKey,
+    launchpadDoctorQueryKey,
     serviceModuleLifecycleQueryKey,
     serviceSystemQueryKey,
     serviceSystemDriftQueryKey,
@@ -550,6 +595,12 @@ type ServiceSystemRunbooksHttpClient = {
 type LaunchpadHttpClient = {
   get: (path: string) => {
     json: () => Promise<LaunchpadResponse>;
+  };
+};
+
+type LaunchpadDoctorHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<LaunchpadDoctorResponse>;
   };
 };
 
@@ -667,6 +718,19 @@ export async function fetchLaunchpad({
     return client.get("admin/data/launchpad").json();
   }
   return sampleLaunchpadResponse;
+}
+
+export async function fetchLaunchpadDoctor({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: LaunchpadDoctorHttpClient;
+} = {}): Promise<LaunchpadDoctorResponse> {
+  if (apiMode) {
+    return client.get("admin/data/launchpad/doctor").json();
+  }
+  return sampleLaunchpadDoctorResponse;
 }
 
 export async function installAvailableModule({

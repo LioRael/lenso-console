@@ -207,6 +207,8 @@ export type LaunchpadResponse = {
   services: LaunchpadService[];
   modules: LaunchpadModule[];
   checklist: LaunchpadChecklistItem[];
+  addons?: LaunchpadAddon[];
+  supportedAddons?: string[];
   commands: string[];
   nextCommand?: string | null;
   issues: LaunchpadIssue[];
@@ -237,6 +239,32 @@ export type LaunchpadChecklistItem = {
 
 export type LaunchpadIssue = {
   code: string;
+  message: string;
+  command?: string | null;
+};
+
+export type LaunchpadAddon = {
+  name: string;
+  label: string;
+  status: string;
+  services: string[];
+  modules: string[];
+};
+
+export type LaunchpadDoctorResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "failed" | "empty" | string;
+  doctorFile: string;
+  checkedAtUnixMs?: number | null;
+  live: boolean;
+  checks: LaunchpadDoctorCheck[];
+  nextCommand?: string | null;
+};
+
+export type LaunchpadDoctorCheck = {
+  id: string;
+  label: string;
+  status: string;
   message: string;
   command?: string | null;
 };
