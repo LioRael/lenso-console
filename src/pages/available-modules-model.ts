@@ -103,6 +103,100 @@ export type ServiceModuleLifecycleResponse = {
   modules: ServiceModuleLifecycleModule[];
 };
 
+export type ServiceSystemResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  systemFile: string;
+  name?: string | null;
+  environments: string[];
+  services: ServiceSystemService[];
+  modules: ServiceSystemModule[];
+  dependencies: ServiceSystemDependency[];
+  issues: ServiceSystemIssue[];
+};
+
+export type ServiceSystemService = {
+  name: string;
+  target: string;
+  modules: string[];
+};
+
+export type ServiceSystemModule = {
+  name: string;
+  owner: string;
+  capabilities: string[];
+  dependencies: string[];
+};
+
+export type ServiceSystemDependency = {
+  from: string;
+  capability: string;
+  state: string;
+  to?: string | null;
+};
+
+export type ServiceSystemIssue = {
+  code: string;
+  message: string;
+};
+
+export type ServiceSystemDriftResponse = {
+  version: number;
+  status: "ready" | "drifted" | "needs_attention" | "empty" | string;
+  systemFile: string;
+  graphIssues: ServiceSystemIssue[];
+  drifts: ServiceSystemDrift[];
+  commands: string[];
+};
+
+export type ServiceSystemDrift = {
+  code: string;
+  severity: "info" | "warning" | "error" | string;
+  resource: string;
+  name: string;
+  message: string;
+  command?: string | null;
+};
+
+export type ServiceSystemReleaseTrainResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  releases: ServiceSystemReleaseRecord[];
+  commands: string[];
+};
+
+export type ServiceSystemReleaseRecord = {
+  id: string;
+  kind: string;
+  systemName: string;
+  environment: string;
+  status: string;
+  policyRisk: string;
+  appliedAtUnixMs?: number | null;
+  services: number;
+  modules: number;
+  rollbackAvailable: boolean;
+};
+
+export type ServiceSystemRunbooksResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  runbooks: ServiceSystemRunbookRecord[];
+  commands: string[];
+};
+
+export type ServiceSystemRunbookRecord = {
+  id: string;
+  releaseId: string;
+  systemName: string;
+  environment: string;
+  status: string;
+  active: boolean;
+  recordedAtUnixMs?: number | null;
+  steps: number;
+  currentStep?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

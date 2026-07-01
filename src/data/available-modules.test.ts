@@ -7,12 +7,24 @@ import {
   availableModulesQueryKey,
   availableModulesRows,
   fetchServiceModuleLifecycle,
+  fetchServiceSystem,
+  fetchServiceSystemDrift,
+  fetchServiceSystemRunbooks,
+  fetchServiceSystemReleaseTrain,
   installAvailableModule,
   moduleRefreshInvalidationQueryKeys,
   fetchAvailableModules,
   sampleAvailableModulesResponse,
   sampleServiceModuleLifecycleResponse,
+  sampleServiceSystemDriftResponse,
+  sampleServiceSystemRunbooksResponse,
+  sampleServiceSystemReleaseTrainResponse,
+  sampleServiceSystemResponse,
   serviceModuleLifecycleQueryKey,
+  serviceSystemDriftQueryKey,
+  serviceSystemRunbooksQueryKey,
+  serviceSystemReleaseTrainQueryKey,
+  serviceSystemQueryKey,
   uninstallAvailableModule,
 } from "./available-modules";
 
@@ -49,6 +61,10 @@ describe("available modules provider", () => {
       ["modules", "registry"],
       availableModulesQueryKey,
       serviceModuleLifecycleQueryKey,
+      serviceSystemQueryKey,
+      serviceSystemDriftQueryKey,
+      serviceSystemReleaseTrainQueryKey,
+      serviceSystemRunbooksQueryKey,
     ]);
   });
 
@@ -101,6 +117,43 @@ describe("available modules provider", () => {
       fetchServiceModuleLifecycle({ apiMode: true, client })
     ).resolves.toBe(response);
     expect(getCalls).toEqual(["admin/data/service-modules"]);
+  });
+
+  test("fetches service system state", async () => {
+    await expect(fetchServiceSystem()).resolves.toBe(
+      sampleServiceSystemResponse
+    );
+    expect(serviceSystemQueryKey).toEqual(["modules", "service-system"]);
+  });
+
+  test("fetches service system drift state", async () => {
+    await expect(fetchServiceSystemDrift()).resolves.toBe(
+      sampleServiceSystemDriftResponse
+    );
+    expect(serviceSystemDriftQueryKey).toEqual([
+      "modules",
+      "service-system-drift",
+    ]);
+  });
+
+  test("fetches service system release train state", async () => {
+    await expect(fetchServiceSystemReleaseTrain()).resolves.toBe(
+      sampleServiceSystemReleaseTrainResponse
+    );
+    expect(serviceSystemReleaseTrainQueryKey).toEqual([
+      "modules",
+      "service-system-release-train",
+    ]);
+  });
+
+  test("fetches service system runbooks state", async () => {
+    await expect(fetchServiceSystemRunbooks()).resolves.toBe(
+      sampleServiceSystemRunbooksResponse
+    );
+    expect(serviceSystemRunbooksQueryKey).toEqual([
+      "modules",
+      "service-system-runbooks",
+    ]);
   });
 
   test("installs an available module through the API", async () => {

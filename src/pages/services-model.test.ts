@@ -6,6 +6,10 @@ import {
   serviceCenterRows,
   serviceRemoteCallsPath,
   serviceStateLabel,
+  serviceSystemDriftSummary,
+  serviceSystemRunbooksSummary,
+  serviceSystemReleaseTrainSummary,
+  serviceSystemSummary,
 } from "./services-model";
 
 describe("service center model", () => {
@@ -69,6 +73,129 @@ describe("service center model", () => {
       },
     ]);
     expect(rows[0]?.remoteCallsPath).toContain("support-notification");
+  });
+
+  it("summarizes the service system plane", () => {
+    expect(
+      serviceSystemSummary({
+        dependencies: [
+          {
+            capability: "billing.invoice.read",
+            from: "support",
+            state: "resolved",
+            to: "billing",
+          },
+        ],
+        environments: ["local", "prod"],
+        issues: [{ code: "dependency_unresolved", message: "missing billing" }],
+        modules: [
+          {
+            capabilities: ["support.ticket.read"],
+            dependencies: ["billing.invoice.read"],
+            name: "support-ticket",
+            owner: "support",
+          },
+        ],
+        name: "support-platform",
+        services: [
+          { modules: ["support-ticket"], name: "support", target: "local" },
+          { modules: [], name: "billing", target: "kubernetes" },
+        ],
+        status: "needs_attention",
+        systemFile: "lenso.system.json",
+        version: 1,
+      })
+    ).toMatchObject({
+      dependencies: 1,
+      modules: 1,
+      name: "support-platform",
+      services: 2,
+      status: "needs_attention",
+      targets: ["kubernetes", "local"],
+    });
+  });
+
+  it("summarizes service system drift", () => {
+    expect(
+      serviceSystemDriftSummary({
+        commands: ["lenso system apply"],
+        drifts: [
+          {
+            code: "service_env_missing",
+            command: "lenso system apply",
+            message: "missing staging",
+            name: "support/staging",
+            resource: "environment",
+            severity: "warning",
+          },
+        ],
+        graphIssues: [],
+        status: "drifted",
+        systemFile: "lenso.system.json",
+        version: 1,
+      })
+    ).toEqual({
+      commands: ["lenso system apply"],
+      drifts: ["service_env_missing: missing staging"],
+      status: "drifted",
+    });
+  });
+
+  it("summarizes service system release train", () => {
+    expect(
+      serviceSystemReleaseTrainSummary({
+        commands: ["lenso system release history"],
+        releases: [
+          {
+            appliedAtUnixMs: 1_772_300_000_000,
+            environment: "staging",
+            id: "sysrel_staging_1",
+            kind: "release",
+            modules: 5,
+            policyRisk: "safe",
+            rollbackAvailable: true,
+            services: 2,
+            status: "ready",
+            systemName: "support-platform",
+          },
+        ],
+        status: "ready",
+        version: 1,
+      })
+    ).toEqual({
+      commands: ["lenso system release history"],
+      latest: "support-platform/staging ready (safe)",
+      releases: 1,
+      status: "ready",
+    });
+  });
+
+  it("summarizes service system runbooks", () => {
+    expect(
+      serviceSystemRunbooksSummary({
+        commands: ["lenso system runbook history"],
+        runbooks: [
+          {
+            active: true,
+            currentStep: "Check system release",
+            environment: "staging",
+            id: "sysrun_staging_1",
+            releaseId: "sysrel_staging_1",
+            status: "ready",
+            steps: 4,
+            systemName: "support-platform",
+          },
+        ],
+        status: "ready",
+        version: 1,
+      })
+    ).toEqual({
+      active: "support-platform/staging ready",
+      commands: ["lenso system runbook history"],
+      currentStep: "Check system release",
+      runbooks: 1,
+      status: "ready",
+    });
   });
 
   it("surfaces the latest service release for a provider", () => {

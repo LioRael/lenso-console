@@ -5,6 +5,10 @@ import type {
   ServiceModuleLifecycleModule,
   ServiceModuleLifecycleService,
   ServiceReleaseRecord,
+  ServiceSystemDriftResponse,
+  ServiceSystemRunbooksResponse,
+  ServiceSystemReleaseTrainResponse,
+  ServiceSystemResponse,
 } from "./available-modules-model";
 import { functionsPath, operationsPath } from "./operations-url-model";
 import { remoteProxyCallsPath } from "./remote-proxy-calls-model";
@@ -52,6 +56,38 @@ export type ServiceCenterModule = Pick<
 
 export type ServiceCenterResponse = {
   modules: ServiceCenterModule[];
+};
+
+export type ServiceSystemSummary = {
+  dependencies: number;
+  environments: string[];
+  issues: string[];
+  modules: number;
+  name: string;
+  services: number;
+  status: string;
+  targets: string[];
+};
+
+export type ServiceSystemDriftSummary = {
+  commands: string[];
+  drifts: string[];
+  status: string;
+};
+
+export type ServiceSystemReleaseTrainSummary = {
+  latest: string | null;
+  commands: string[];
+  releases: number;
+  status: string;
+};
+
+export type ServiceSystemRunbooksSummary = {
+  active: string | null;
+  commands: string[];
+  currentStep: string | null;
+  runbooks: number;
+  status: string;
 };
 
 export type ServiceCenterRow = {
@@ -171,6 +207,64 @@ export function serviceCenterRows(
       };
     })
     .sort((a, b) => a.providerName.localeCompare(b.providerName));
+}
+
+export function serviceSystemSummary(
+  response: ServiceSystemResponse | undefined
+): ServiceSystemSummary {
+  return {
+    dependencies: response?.dependencies.length ?? 0,
+    environments: response?.environments ?? [],
+    issues:
+      response?.issues.map((issue) => `${issue.code}: ${issue.message}`) ?? [],
+    modules: response?.modules.length ?? 0,
+    name: response?.name ?? "service system",
+    services: response?.services.length ?? 0,
+    status: response?.status ?? "empty",
+    targets: uniqueStrings(
+      response?.services.map((service) => service.target) ?? []
+    ),
+  };
+}
+
+export function serviceSystemDriftSummary(
+  response: ServiceSystemDriftResponse | undefined
+): ServiceSystemDriftSummary {
+  return {
+    commands: response?.commands ?? [],
+    drifts:
+      response?.drifts.map((drift) => `${drift.code}: ${drift.message}`) ?? [],
+    status: response?.status ?? "empty",
+  };
+}
+
+export function serviceSystemReleaseTrainSummary(
+  response: ServiceSystemReleaseTrainResponse | undefined
+): ServiceSystemReleaseTrainSummary {
+  const latest = response?.releases[0];
+  return {
+    commands: response?.commands ?? [],
+    latest: latest
+      ? `${latest.systemName}/${latest.environment} ${latest.status} (${latest.policyRisk})`
+      : null,
+    releases: response?.releases.length ?? 0,
+    status: response?.status ?? "empty",
+  };
+}
+
+export function serviceSystemRunbooksSummary(
+  response: ServiceSystemRunbooksResponse | undefined
+): ServiceSystemRunbooksSummary {
+  const active = response?.runbooks.find((runbook) => runbook.active);
+  return {
+    active: active
+      ? `${active.systemName}/${active.environment} ${active.status}`
+      : null,
+    commands: response?.commands ?? [],
+    currentStep: active?.currentStep ?? null,
+    runbooks: response?.runbooks.length ?? 0,
+    status: response?.status ?? "empty",
+  };
 }
 
 export function serviceStateLabel(state: string) {

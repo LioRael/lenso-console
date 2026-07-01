@@ -7,6 +7,10 @@ import {
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   type ServiceModuleLifecycleResponse,
+  type ServiceSystemDriftResponse,
+  type ServiceSystemRunbooksResponse,
+  type ServiceSystemReleaseTrainResponse,
+  type ServiceSystemResponse,
   availableModuleRowsFromResponse,
 } from "../pages/available-modules-model";
 
@@ -280,6 +284,109 @@ export const sampleServiceModuleLifecycleResponse = {
   version: 1,
 } satisfies ServiceModuleLifecycleResponse;
 
+export const sampleServiceSystemResponse = {
+  dependencies: [
+    {
+      capability: "billing.invoice.read",
+      from: "support",
+      state: "resolved",
+      to: "billing",
+    },
+  ],
+  environments: ["local", "staging", "prod"],
+  issues: [],
+  modules: [
+    {
+      capabilities: ["support.ticket.read"],
+      dependencies: ["billing.invoice.read"],
+      name: "support-ticket",
+      owner: "support",
+    },
+    {
+      capabilities: ["billing.invoice.read"],
+      dependencies: [],
+      name: "invoice",
+      owner: "billing",
+    },
+  ],
+  name: "support-platform",
+  services: [
+    {
+      modules: ["support-ticket"],
+      name: "support",
+      target: "local",
+    },
+    {
+      modules: ["invoice"],
+      name: "billing",
+      target: "kubernetes",
+    },
+  ],
+  status: "ready",
+  systemFile: "lenso.system.json",
+  version: 1,
+} satisfies ServiceSystemResponse;
+
+export const sampleServiceSystemDriftResponse = {
+  commands: ["lenso system apply"],
+  drifts: [
+    {
+      code: "service_env_missing",
+      command: "lenso system apply",
+      message: "Service `billing` has no `prod` environment state.",
+      name: "billing/prod",
+      resource: "environment",
+      severity: "warning",
+    },
+  ],
+  graphIssues: [],
+  status: "drifted",
+  systemFile: "lenso.system.json",
+  version: 1,
+} satisfies ServiceSystemDriftResponse;
+
+export const sampleServiceSystemReleaseTrainResponse = {
+  commands: [
+    "lenso system release history",
+    "lenso system release promote --from staging --to prod --output system-release-prod.json",
+  ],
+  releases: [
+    {
+      appliedAtUnixMs: 1_772_300_000_000,
+      environment: "staging",
+      id: "sysrel_staging_001",
+      kind: "release",
+      modules: 5,
+      policyRisk: "safe",
+      rollbackAvailable: true,
+      services: 2,
+      status: "ready",
+      systemName: "support-platform",
+    },
+  ],
+  status: "ready",
+  version: 1,
+} satisfies ServiceSystemReleaseTrainResponse;
+
+export const sampleServiceSystemRunbooksResponse = {
+  commands: ["lenso system runbook history", "lenso system runbook doctor"],
+  runbooks: [
+    {
+      active: true,
+      currentStep: "Check system release",
+      environment: "staging",
+      id: "sysrun_staging_001",
+      recordedAtUnixMs: 1_772_300_000_000,
+      releaseId: "sysrel_staging_001",
+      status: "ready",
+      steps: 4,
+      systemName: "support-platform",
+    },
+  ],
+  status: "ready",
+  version: 1,
+} satisfies ServiceSystemRunbooksResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
@@ -290,6 +397,20 @@ export const serviceModuleLifecycleQueryKey = [
   "service-module-lifecycle",
 ] as const;
 
+export const serviceSystemQueryKey = ["modules", "service-system"] as const;
+export const serviceSystemDriftQueryKey = [
+  "modules",
+  "service-system-drift",
+] as const;
+export const serviceSystemReleaseTrainQueryKey = [
+  "modules",
+  "service-system-release-train",
+] as const;
+export const serviceSystemRunbooksQueryKey = [
+  "modules",
+  "service-system-runbooks",
+] as const;
+
 const marketplaceInstallCommand =
   "lenso module marketplace install <manifest-url>";
 
@@ -298,6 +419,10 @@ export function moduleRefreshInvalidationQueryKeys() {
     ["modules", "registry"],
     availableModulesQueryKey,
     serviceModuleLifecycleQueryKey,
+    serviceSystemQueryKey,
+    serviceSystemDriftQueryKey,
+    serviceSystemReleaseTrainQueryKey,
+    serviceSystemRunbooksQueryKey,
   ] as const;
 }
 
@@ -310,6 +435,30 @@ type AvailableModulesHttpClient = {
 type ServiceModuleLifecycleHttpClient = {
   get: (path: string) => {
     json: () => Promise<ServiceModuleLifecycleResponse>;
+  };
+};
+
+type ServiceSystemHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemResponse>;
+  };
+};
+
+type ServiceSystemDriftHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemDriftResponse>;
+  };
+};
+
+type ServiceSystemReleaseTrainHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemReleaseTrainResponse>;
+  };
+};
+
+type ServiceSystemRunbooksHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<ServiceSystemRunbooksResponse>;
   };
 };
 
@@ -362,6 +511,58 @@ export async function fetchServiceModuleLifecycle({
     return client.get("admin/data/service-modules").json();
   }
   return sampleServiceModuleLifecycleResponse;
+}
+
+export async function fetchServiceSystem({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemHttpClient;
+} = {}): Promise<ServiceSystemResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system").json();
+  }
+  return sampleServiceSystemResponse;
+}
+
+export async function fetchServiceSystemDrift({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemDriftHttpClient;
+} = {}): Promise<ServiceSystemDriftResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system/drift").json();
+  }
+  return sampleServiceSystemDriftResponse;
+}
+
+export async function fetchServiceSystemReleaseTrain({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemReleaseTrainHttpClient;
+} = {}): Promise<ServiceSystemReleaseTrainResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system/release-train").json();
+  }
+  return sampleServiceSystemReleaseTrainResponse;
+}
+
+export async function fetchServiceSystemRunbooks({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: ServiceSystemRunbooksHttpClient;
+} = {}): Promise<ServiceSystemRunbooksResponse> {
+  if (apiMode) {
+    return client.get("admin/data/service-system/runbooks").json();
+  }
+  return sampleServiceSystemRunbooksResponse;
 }
 
 export async function installAvailableModule({

@@ -5,7 +5,15 @@ import { type ReactNode, useState } from "react";
 
 import {
   fetchServiceModuleLifecycle,
+  fetchServiceSystem,
+  fetchServiceSystemDrift,
+  fetchServiceSystemRunbooks,
+  fetchServiceSystemReleaseTrain,
   serviceModuleLifecycleQueryKey,
+  serviceSystemDriftQueryKey,
+  serviceSystemRunbooksQueryKey,
+  serviceSystemReleaseTrainQueryKey,
+  serviceSystemQueryKey,
 } from "../data/available-modules";
 import { cn } from "../lib/cn";
 import { runtimeConsoleDataSource } from "../lib/http-client";
@@ -14,6 +22,10 @@ import {
   serviceCenterRows,
   serviceRemoteCallsPath,
   serviceStateLabel,
+  serviceSystemDriftSummary,
+  serviceSystemRunbooksSummary,
+  serviceSystemReleaseTrainSummary,
+  serviceSystemSummary,
 } from "./services-model";
 
 export function ServicesPage() {
@@ -22,7 +34,27 @@ export function ServicesPage() {
     queryKey: serviceModuleLifecycleQueryKey,
     queryFn: () => fetchServiceModuleLifecycle(),
   });
+  const systemQuery = useQuery({
+    queryKey: serviceSystemQueryKey,
+    queryFn: () => fetchServiceSystem(),
+  });
+  const driftQuery = useQuery({
+    queryKey: serviceSystemDriftQueryKey,
+    queryFn: () => fetchServiceSystemDrift(),
+  });
+  const releaseTrainQuery = useQuery({
+    queryKey: serviceSystemReleaseTrainQueryKey,
+    queryFn: () => fetchServiceSystemReleaseTrain(),
+  });
+  const runbooksQuery = useQuery({
+    queryKey: serviceSystemRunbooksQueryKey,
+    queryFn: () => fetchServiceSystemRunbooks(),
+  });
   const rows = serviceCenterRows(query.data ?? { modules: [] });
+  const system = serviceSystemSummary(systemQuery.data);
+  const drift = serviceSystemDriftSummary(driftQuery.data);
+  const releaseTrain = serviceSystemReleaseTrainSummary(releaseTrainQuery.data);
+  const runbooks = serviceSystemRunbooksSummary(runbooksQuery.data);
   const selectedRow =
     rows.find((row) => row.providerName === selectedProvider) ?? rows[0];
   const attentionCount = rows.filter((row) => row.state !== "ready").length;
@@ -40,6 +72,25 @@ export function ServicesPage() {
       </header>
 
       <main className="min-h-0 overflow-auto">
+        <SystemPlane
+          error={systemQuery.isError ? errorMessage(systemQuery.error) : null}
+          drift={drift}
+          driftError={
+            driftQuery.isError ? errorMessage(driftQuery.error) : null
+          }
+          loading={systemQuery.isLoading}
+          releaseTrain={releaseTrain}
+          releaseTrainError={
+            releaseTrainQuery.isError
+              ? errorMessage(releaseTrainQuery.error)
+              : null
+          }
+          runbooks={runbooks}
+          runbooksError={
+            runbooksQuery.isError ? errorMessage(runbooksQuery.error) : null
+          }
+          system={system}
+        />
         <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
           <Counter label="providers" value={rows.length} />
           <Counter
@@ -103,6 +154,123 @@ export function ServicesPage() {
           <ServiceDetail row={selectedRow} />
         </div>
       </main>
+    </section>
+  );
+}
+
+function SystemPlane({
+  drift,
+  driftError,
+  error,
+  loading,
+  releaseTrain,
+  releaseTrainError,
+  runbooks,
+  runbooksError,
+  system,
+}: {
+  drift: ReturnType<typeof serviceSystemDriftSummary>;
+  driftError: string | null;
+  error: string | null;
+  loading: boolean;
+  releaseTrain: ReturnType<typeof serviceSystemReleaseTrainSummary>;
+  releaseTrainError: string | null;
+  runbooks: ReturnType<typeof serviceSystemRunbooksSummary>;
+  runbooksError: string | null;
+  system: ReturnType<typeof serviceSystemSummary>;
+}) {
+  const tone =
+    error ||
+    driftError ||
+    releaseTrainError ||
+    runbooksError ||
+    system.status === "needs_attention"
+      ? "error"
+      : drift.status === "drifted"
+        ? "default"
+        : system.status === "ready"
+          ? "success"
+          : "default";
+  return (
+    <section className="grid gap-2 border-b border-(--line) bg-(--bg-panel-muted) px-3 py-2 font-mono text-[11px] md:grid-cols-[minmax(220px,1.2fr)_minmax(0,2fr)]">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-[12px] font-semibold text-(--fg-primary)">
+            {system.name}
+          </span>
+          <SystemStatusBadge
+            state={
+              loading
+                ? "loading"
+                : error || driftError || releaseTrainError || runbooksError
+                  ? "error"
+                  : drift.status === "drifted"
+                    ? "drifted"
+                    : system.status
+            }
+            tone={tone}
+          />
+        </div>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--fg-tertiary)">
+          <span>{system.services} services</span>
+          <span>{system.modules} modules</span>
+          <span>{system.dependencies} dependencies</span>
+          <span>
+            {system.environments.length > 0
+              ? system.environments.join(", ")
+              : "no environments"}
+          </span>
+        </div>
+      </div>
+      <div className="min-w-0 text-(--fg-secondary)">
+        {error || driftError || releaseTrainError || runbooksError ? (
+          <span className="text-(--tone-error-fg)">
+            {error ?? driftError ?? releaseTrainError ?? runbooksError}
+          </span>
+        ) : system.issues.length > 0 ? (
+          <div className="grid gap-1">
+            {system.issues.slice(0, 2).map((issue) => (
+              <span className="min-w-0 truncate" key={issue} title={issue}>
+                {issue}
+              </span>
+            ))}
+          </div>
+        ) : drift.drifts.length > 0 ? (
+          <div className="grid gap-1">
+            {drift.drifts.slice(0, 2).map((item) => (
+              <span className="min-w-0 truncate" key={item} title={item}>
+                {item}
+              </span>
+            ))}
+            {drift.commands[0] ? (
+              <span className="min-w-0 truncate text-(--fg-tertiary)">
+                next: {drift.commands[0]}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <div className="grid gap-1">
+            <span>
+              {system.targets.length > 0
+                ? `targets: ${system.targets.join(", ")}`
+                : "no service system manifest"}
+            </span>
+            <span className="min-w-0 truncate text-(--fg-tertiary)">
+              release train: {releaseTrain.latest ?? releaseTrain.status}
+              {releaseTrain.commands[0]
+                ? ` / next: ${releaseTrain.commands[0]}`
+                : ""}
+            </span>
+            <span className="min-w-0 truncate text-(--fg-tertiary)">
+              runbook: {runbooks.active ?? runbooks.status}
+              {runbooks.currentStep ? ` / step: ${runbooks.currentStep}` : ""}
+              {!runbooks.currentStep && runbooks.commands[0]
+                ? ` / next: ${runbooks.commands[0]}`
+                : ""}
+            </span>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -611,6 +779,29 @@ function ServiceStateBadge({ state }: { state: string }) {
         state === "unhealthy" &&
           "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
         state === "configured" && "border-(--line) text-(--fg-secondary)"
+      )}
+    >
+      {serviceStateLabel(state)}
+    </span>
+  );
+}
+
+function SystemStatusBadge({
+  state,
+  tone,
+}: {
+  state: string;
+  tone: "default" | "error" | "success";
+}) {
+  return (
+    <span
+      className={cn(
+        "w-fit border px-1.5 py-0.5 text-[10px]",
+        tone === "success" &&
+          "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-(--success)",
+        tone === "error" &&
+          "border-[color-mix(in_srgb,var(--error)_55%,transparent)] text-(--error)",
+        tone === "default" && "border-(--line) text-(--fg-secondary)"
       )}
     >
       {serviceStateLabel(state)}
