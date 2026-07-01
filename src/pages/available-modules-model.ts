@@ -197,6 +197,106 @@ export type ServiceSystemRunbookRecord = {
   currentStep?: string | null;
 };
 
+export type LaunchpadResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "empty" | string;
+  launchpadFile: string;
+  projectName?: string | null;
+  blueprint?: string | null;
+  summary?: string | null;
+  services: LaunchpadService[];
+  modules: LaunchpadModule[];
+  checklist: LaunchpadChecklistItem[];
+  addons?: LaunchpadAddon[];
+  supportedAddons?: string[];
+  commands: string[];
+  nextCommand?: string | null;
+  issues: LaunchpadIssue[];
+};
+
+export type LaunchpadService = {
+  name: string;
+  role?: string | null;
+  language?: string | null;
+  cwd?: string | null;
+  command?: string | null;
+  readyUrl?: string | null;
+  modules: string[];
+};
+
+export type LaunchpadModule = {
+  name: string;
+  ownerService?: string | null;
+  capability?: string | null;
+};
+
+export type LaunchpadChecklistItem = {
+  id: string;
+  label: string;
+  status: string;
+  nextCommand?: string | null;
+};
+
+export type LaunchpadIssue = {
+  code: string;
+  message: string;
+  command?: string | null;
+};
+
+export type LaunchpadAddon = {
+  name: string;
+  label: string;
+  status: string;
+  services: string[];
+  modules: string[];
+};
+
+export type LaunchpadDoctorResponse = {
+  version: number;
+  status: "ready" | "needs_attention" | "failed" | "empty" | string;
+  doctorFile: string;
+  checkedAtUnixMs?: number | null;
+  live: boolean;
+  checks: LaunchpadDoctorCheck[];
+  nextCommand?: string | null;
+};
+
+export type LaunchpadDoctorCheck = {
+  id: string;
+  label: string;
+  status: string;
+  message: string;
+  command?: string | null;
+};
+
+export type LaunchpadProofResponse = {
+  version: number;
+  status: "ready" | "drifted" | "needs_attention" | "failed" | "empty" | string;
+  proofFile: string;
+  checkedAtUnixMs?: number | null;
+  projectName?: string | null;
+  blueprint?: string | null;
+  addons: string[];
+  checks: LaunchpadProofCheck[];
+  drifts: LaunchpadProofDrift[];
+  nextCommand?: string | null;
+};
+
+export type LaunchpadProofCheck = {
+  id: string;
+  label: string;
+  status: string;
+  message: string;
+  command?: string | null;
+};
+
+export type LaunchpadProofDrift = {
+  resource: string;
+  name: string;
+  message: string;
+  command?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

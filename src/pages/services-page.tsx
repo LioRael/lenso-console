@@ -30,31 +30,53 @@ import {
 
 export function ServicesPage() {
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const query = useQuery({
+  const {
+    data: lifecycleData,
+    error: lifecycleError,
+    isError: isLifecycleError,
+    isLoading: isLifecycleLoading,
+  } = useQuery({
     queryKey: serviceModuleLifecycleQueryKey,
     queryFn: () => fetchServiceModuleLifecycle(),
   });
-  const systemQuery = useQuery({
+  const {
+    data: systemData,
+    error: systemError,
+    isError: isSystemError,
+    isLoading: isSystemLoading,
+  } = useQuery({
     queryKey: serviceSystemQueryKey,
     queryFn: () => fetchServiceSystem(),
   });
-  const driftQuery = useQuery({
+  const {
+    data: driftData,
+    error: driftError,
+    isError: isDriftError,
+  } = useQuery({
     queryKey: serviceSystemDriftQueryKey,
     queryFn: () => fetchServiceSystemDrift(),
   });
-  const releaseTrainQuery = useQuery({
+  const {
+    data: releaseTrainData,
+    error: releaseTrainError,
+    isError: isReleaseTrainError,
+  } = useQuery({
     queryKey: serviceSystemReleaseTrainQueryKey,
     queryFn: () => fetchServiceSystemReleaseTrain(),
   });
-  const runbooksQuery = useQuery({
+  const {
+    data: runbooksData,
+    error: runbooksError,
+    isError: isRunbooksError,
+  } = useQuery({
     queryKey: serviceSystemRunbooksQueryKey,
     queryFn: () => fetchServiceSystemRunbooks(),
   });
-  const rows = serviceCenterRows(query.data ?? { modules: [] });
-  const system = serviceSystemSummary(systemQuery.data);
-  const drift = serviceSystemDriftSummary(driftQuery.data);
-  const releaseTrain = serviceSystemReleaseTrainSummary(releaseTrainQuery.data);
-  const runbooks = serviceSystemRunbooksSummary(runbooksQuery.data);
+  const rows = serviceCenterRows(lifecycleData ?? { modules: [] });
+  const system = serviceSystemSummary(systemData);
+  const drift = serviceSystemDriftSummary(driftData);
+  const releaseTrain = serviceSystemReleaseTrainSummary(releaseTrainData);
+  const runbooks = serviceSystemRunbooksSummary(runbooksData);
   const selectedRow =
     rows.find((row) => row.providerName === selectedProvider) ?? rows[0];
   const attentionCount = rows.filter((row) => row.state !== "ready").length;
@@ -73,22 +95,16 @@ export function ServicesPage() {
 
       <main className="min-h-0 overflow-auto">
         <SystemPlane
-          error={systemQuery.isError ? errorMessage(systemQuery.error) : null}
+          error={isSystemError ? errorMessage(systemError) : null}
           drift={drift}
-          driftError={
-            driftQuery.isError ? errorMessage(driftQuery.error) : null
-          }
-          loading={systemQuery.isLoading}
+          driftError={isDriftError ? errorMessage(driftError) : null}
+          loading={isSystemLoading}
           releaseTrain={releaseTrain}
           releaseTrainError={
-            releaseTrainQuery.isError
-              ? errorMessage(releaseTrainQuery.error)
-              : null
+            isReleaseTrainError ? errorMessage(releaseTrainError) : null
           }
           runbooks={runbooks}
-          runbooksError={
-            runbooksQuery.isError ? errorMessage(runbooksQuery.error) : null
-          }
+          runbooksError={isRunbooksError ? errorMessage(runbooksError) : null}
           system={system}
         />
         <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
@@ -131,11 +147,11 @@ export function ServicesPage() {
               <span>managed services</span>
               <span>operations</span>
             </div>
-            {query.isLoading ? (
+            {isLifecycleLoading ? (
               <ServicesMessageRow message="Loading service center..." />
-            ) : query.isError ? (
+            ) : isLifecycleError ? (
               <ServicesMessageRow
-                message={errorMessage(query.error)}
+                message={errorMessage(lifecycleError)}
                 tone="error"
               />
             ) : rows.length === 0 ? (
