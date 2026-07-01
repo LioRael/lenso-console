@@ -297,6 +297,38 @@ export type LaunchpadProofDrift = {
   command?: string | null;
 };
 
+export type LaunchpadChangePlanResponse = {
+  version: number;
+  status:
+    | "ready"
+    | "changes"
+    | "blocked"
+    | "needs_setup"
+    | "failed"
+    | "empty"
+    | string;
+  planFile: string;
+  generatedAtUnixMs?: number | null;
+  projectName?: string | null;
+  blueprint?: string | null;
+  addons: string[];
+  proofStatus?: string | null;
+  changes: LaunchpadChangePlanItem[];
+  blocked: LaunchpadChangePlanItem[];
+  nextCommand?: string | null;
+  issues: LaunchpadIssue[];
+};
+
+export type LaunchpadChangePlanItem = {
+  id: string;
+  kind: string;
+  name: string;
+  action: string;
+  safe: boolean;
+  message: string;
+  command?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"
