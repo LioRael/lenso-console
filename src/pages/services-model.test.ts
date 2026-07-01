@@ -147,7 +147,7 @@ describe("service center model", () => {
         commands: ["lenso system release history"],
         releases: [
           {
-            appliedAtUnixMs: 1772300000000,
+            appliedAtUnixMs: 1_772_300_000_000,
             environment: "staging",
             id: "sysrel_staging_1",
             kind: "release",
