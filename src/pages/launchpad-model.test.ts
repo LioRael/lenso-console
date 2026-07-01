@@ -1,11 +1,13 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  sampleLaunchpadChangePlanResponse,
   sampleLaunchpadDoctorResponse,
   sampleLaunchpadProofResponse,
   sampleLaunchpadResponse,
 } from "../data/available-modules";
 import {
+  launchpadChangePlanSummary,
   launchpadDoctorSummary,
   launchpadProofSummary,
   launchpadStatusLabel,
@@ -59,6 +61,20 @@ describe("launchpad model", () => {
     );
   });
 
+  test("summarizes Launchpad app change plan response", () => {
+    expect(
+      launchpadChangePlanSummary(sampleLaunchpadChangePlanResponse)
+    ).toEqual(
+      expect.objectContaining({
+        blueprint: "support-desk",
+        nextCommand: "lenso app apply .lenso/app-change-plan.json",
+        proofStatus: "drifted",
+        safeChangeCount: 1,
+        status: "changes",
+      })
+    );
+  });
+
   test("summarizes an empty Launchpad state", () => {
     const summary = launchpadSummary(undefined);
 
@@ -72,6 +88,10 @@ describe("launchpad model", () => {
     expect(launchpadProofSummary(undefined).nextCommand).toBe(
       "lenso app verify --write-proof"
     );
+    expect(launchpadChangePlanSummary(undefined).nextCommand).toBe(
+      "lenso app plan --write-plan"
+    );
     expect(launchpadStatusLabel("needs_attention")).toBe("needs attention");
+    expect(launchpadStatusLabel("needs_setup")).toBe("needs setup");
   });
 });

@@ -4,6 +4,7 @@ import {
   Activity,
   CheckCircle2,
   Circle,
+  ListChecks,
   Plug,
   PlayCircle,
   ShieldCheck,
@@ -13,8 +14,10 @@ import {
 
 import {
   fetchLaunchpad,
+  fetchLaunchpadChangePlan,
   fetchLaunchpadDoctor,
   fetchLaunchpadProof,
+  launchpadChangePlanQueryKey,
   launchpadDoctorQueryKey,
   launchpadProofQueryKey,
   launchpadQueryKey,
@@ -25,6 +28,8 @@ import {
   type LaunchpadDoctorSummary,
   type LaunchpadProofSummary,
   type LaunchpadSummary,
+  type LaunchpadChangePlanSummary,
+  launchpadChangePlanSummary,
   launchpadDoctorSummary,
   launchpadProofSummary,
   launchpadStatusLabel,
@@ -62,6 +67,16 @@ export function LaunchpadPage() {
     queryKey: launchpadProofQueryKey,
   });
   const proof = launchpadProofSummary(proofResponse);
+  const {
+    data: changePlanResponse,
+    error: changePlanError,
+    isError: isChangePlanError,
+    isLoading: isChangePlanLoading,
+  } = useQuery({
+    queryFn: () => fetchLaunchpadChangePlan(),
+    queryKey: launchpadChangePlanQueryKey,
+  });
+  const changePlan = launchpadChangePlanSummary(changePlanResponse);
   const tone =
     isLaunchpadError || summary.status === "needs_attention"
       ? "error"
@@ -83,6 +98,14 @@ export function LaunchpadPage() {
     proof.status === "drifted"
       ? "error"
       : proof.status === "ready"
+        ? "success"
+        : "default";
+  const changePlanTone =
+    isChangePlanError ||
+    changePlan.status === "failed" ||
+    changePlan.status === "blocked"
+      ? "error"
+      : changePlan.status === "ready"
         ? "success"
         : "default";
 
@@ -137,6 +160,22 @@ export function LaunchpadPage() {
             proof{" "}
             {isProofLoading ? "loading" : launchpadStatusLabel(proof.status)}
           </span>
+          <span
+            className={cn(
+              "rounded border px-1.5 py-0.5 font-mono text-[10px]",
+              changePlanTone === "success" &&
+                "border-(--tone-success-border) bg-(--tone-success-bg) text-(--tone-success-fg)",
+              changePlanTone === "error" &&
+                "border-(--tone-error-border) bg-(--tone-error-bg) text-(--tone-error-fg)",
+              changePlanTone === "default" &&
+                "border-(--line-strong) bg-(--bg-panel-muted) text-(--fg-secondary)"
+            )}
+          >
+            plan{" "}
+            {isChangePlanLoading
+              ? "loading"
+              : launchpadStatusLabel(changePlan.status)}
+          </span>
           <span className="ml-auto min-w-0 truncate font-mono text-[10px] text-(--fg-tertiary)">
             {runtimeConsoleDataSource()}
           </span>
@@ -146,13 +185,14 @@ export function LaunchpadPage() {
         </p>
       </header>
 
-      <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-6">
+      <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-7">
         <LaunchpadCounter label="services" value={summary.serviceCount} />
         <LaunchpadCounter label="modules" value={summary.moduleCount} />
         <LaunchpadCounter label="addons" value={summary.addonCount} />
         <LaunchpadCounter label="checklist" value={summary.checklist.length} />
         <LaunchpadCounter label="doctor" value={doctor.checks} />
         <LaunchpadCounter label="proof" value={proof.driftCount} />
+        <LaunchpadCounter label="plan" value={changePlan.changes.length} />
       </div>
 
       <main className="min-h-0 overflow-auto">
@@ -261,6 +301,12 @@ export function LaunchpadPage() {
               isError={isProofError}
               isLoading={isProofLoading}
               proof={proof}
+            />
+            <LaunchpadChangePlanPanel
+              changePlan={changePlan}
+              error={changePlanError}
+              isError={isChangePlanError}
+              isLoading={isChangePlanLoading}
             />
             <LaunchpadAgentHandoff commands={summary.commands} />
           </aside>
@@ -522,6 +568,92 @@ function LaunchpadProofPanel({
   );
 }
 
+function LaunchpadChangePlanPanel({
+  changePlan,
+  error,
+  isError,
+  isLoading,
+}: {
+  changePlan: LaunchpadChangePlanSummary;
+  error: unknown;
+  isError: boolean;
+  isLoading: boolean;
+}) {
+  const visibleItems =
+    changePlan.blocked.length > 0 ? changePlan.blocked : changePlan.changes;
+
+  return (
+    <section className="border-b border-(--line) px-3 py-2">
+      <div className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase text-(--fg-tertiary)">
+        <ListChecks size={12} />
+        app change plan
+      </div>
+      {isLoading ? (
+        <div className="font-mono text-[11px] text-(--fg-tertiary)">
+          Loading app change plan...
+        </div>
+      ) : isError ? (
+        <div className="font-mono text-[11px] text-(--tone-error-fg)">
+          {errorMessage(error)}
+        </div>
+      ) : (
+        <div className="grid gap-1.5 font-mono text-[11px]">
+          <div className="flex min-w-0 items-center gap-2">
+            <StatusDot status={changePlan.status} />
+            <span className="min-w-0 truncate">
+              {launchpadStatusLabel(changePlan.status)}
+            </span>
+            <span className="ml-auto text-[10px] text-(--fg-tertiary)">
+              {changePlan.safeChangeCount} safe
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-1 text-[10px] text-(--fg-tertiary)">
+            <span className="min-w-0 truncate">
+              plan: {changePlan.planFile}
+            </span>
+            <span className="min-w-0 truncate">
+              proof: {launchpadStatusLabel(changePlan.proofStatus)}
+            </span>
+          </div>
+          {visibleItems.length > 0 ? (
+            visibleItems.map((item) => (
+              <div
+                className="grid grid-cols-[16px_minmax(0,1fr)] gap-2 pt-1"
+                key={item.id}
+              >
+                <StatusDot status={item.safe ? "ready" : "failed"} />
+                <div className="min-w-0">
+                  <div className="truncate">
+                    {item.action} / {item.name}
+                  </div>
+                  <div className="truncate text-[10px] text-(--fg-tertiary)">
+                    {item.message}
+                  </div>
+                  <div className="truncate text-[10px] text-(--fg-tertiary)">
+                    {item.kind}
+                  </div>
+                  {item.command && (
+                    <code className="mt-1 block min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-secondary)">
+                      {item.command}
+                    </code>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-(--fg-tertiary)">
+              No generated app changes pending.
+            </div>
+          )}
+          <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
+            {changePlan.nextCommand}
+          </code>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function LaunchpadAgentHandoff({ commands }: { commands: string[] }) {
   return (
     <section className="px-3 py-2">
@@ -599,9 +731,13 @@ function StatusDot({ status }: { status: string }) {
   if (
     status === "failed" ||
     status === "needs_attention" ||
-    status === "drifted"
+    status === "drifted" ||
+    status === "blocked"
   ) {
     return <AlertCircle className="mt-0.5 text-(--tone-error-fg)" size={13} />;
+  }
+  if (status === "changes" || status === "needs_setup") {
+    return <PlayCircle className="mt-0.5 text-(--accent)" size={13} />;
   }
   return <Circle className="mt-0.5 text-(--fg-tertiary)" size={13} />;
 }

@@ -1,4 +1,5 @@
 import type {
+  LaunchpadChangePlanResponse,
   LaunchpadDoctorResponse,
   LaunchpadProofResponse,
   LaunchpadResponse,
@@ -69,6 +70,36 @@ export type LaunchpadProofSummary = {
   nextCommand: string;
   projectName: string;
   proofFile: string;
+  status: string;
+};
+
+export type LaunchpadChangePlanSummary = {
+  addons: string[];
+  blocked: Array<{
+    action: string;
+    command: string | null;
+    id: string;
+    kind: string;
+    message: string;
+    name: string;
+    safe: boolean;
+  }>;
+  blueprint: string;
+  changes: Array<{
+    action: string;
+    command: string | null;
+    id: string;
+    kind: string;
+    message: string;
+    name: string;
+    safe: boolean;
+  }>;
+  generatedAtUnixMs: number | null;
+  nextCommand: string;
+  planFile: string;
+  projectName: string;
+  proofStatus: string;
+  safeChangeCount: number;
   status: string;
 };
 
@@ -186,6 +217,50 @@ export function launchpadProofSummary(
   };
 }
 
+export function launchpadChangePlanSummary(
+  response: LaunchpadChangePlanResponse | undefined
+): LaunchpadChangePlanSummary {
+  const changes =
+    response?.changes.map((change) => ({
+      action: change.action,
+      command: change.command ?? null,
+      id: change.id,
+      kind: change.kind,
+      message: change.message,
+      name: change.name,
+      safe: change.safe,
+    })) ?? [];
+  const blocked =
+    response?.blocked.map((change) => ({
+      action: change.action,
+      command: change.command ?? null,
+      id: change.id,
+      kind: change.kind,
+      message: change.message,
+      name: change.name,
+      safe: change.safe,
+    })) ?? [];
+  const fallbackCommand = "lenso app plan --write-plan";
+
+  return {
+    addons: response?.addons ?? [],
+    blocked,
+    blueprint: response?.blueprint ?? "not configured",
+    changes,
+    generatedAtUnixMs: response?.generatedAtUnixMs ?? null,
+    nextCommand:
+      response?.nextCommand ??
+      blocked.find((change) => change.command)?.command ??
+      changes.find((change) => change.command)?.command ??
+      fallbackCommand,
+    planFile: response?.planFile ?? ".lenso/app-change-plan.json",
+    projectName: response?.projectName ?? "Launchpad app",
+    proofStatus: response?.proofStatus ?? "unknown",
+    safeChangeCount: changes.filter((change) => change.safe).length,
+    status: response?.status ?? "empty",
+  };
+}
+
 export function launchpadStatusLabel(status: string) {
   if (status === "ready") {
     return "ready";
@@ -198,6 +273,9 @@ export function launchpadStatusLabel(status: string) {
   }
   if (status === "needs_attention") {
     return "needs attention";
+  }
+  if (status === "needs_setup") {
+    return "needs setup";
   }
   if (status === "empty") {
     return "not configured";

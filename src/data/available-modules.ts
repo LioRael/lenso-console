@@ -6,6 +6,7 @@ import {
   type AvailableModuleRelease,
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
+  type LaunchpadChangePlanResponse,
   type LaunchpadDoctorResponse,
   type LaunchpadProofResponse,
   type LaunchpadResponse,
@@ -542,6 +543,31 @@ export const sampleLaunchpadProofResponse = {
   version: 1,
 } satisfies LaunchpadProofResponse;
 
+export const sampleLaunchpadChangePlanResponse = {
+  addons: ["support-sla"],
+  blocked: [],
+  blueprint: "support-desk",
+  changes: [
+    {
+      action: "restore-workspace-service",
+      command: "lenso app apply .lenso/app-change-plan.json",
+      id: "workspace-service-support-sla",
+      kind: "workspace-service",
+      message: "support-sla is missing from lenso.workspace.json",
+      name: "support-sla",
+      safe: true,
+    },
+  ],
+  generatedAtUnixMs: 1_782_903_160_000,
+  issues: [],
+  nextCommand: "lenso app apply .lenso/app-change-plan.json",
+  planFile: ".lenso/app-change-plan.json",
+  projectName: "support-desk",
+  proofStatus: "drifted",
+  status: "changes",
+  version: 1,
+} satisfies LaunchpadChangePlanResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
@@ -549,6 +575,10 @@ export const availableModulesQueryKey = [
 export const launchpadQueryKey = ["launchpad"] as const;
 export const launchpadDoctorQueryKey = ["launchpad", "doctor"] as const;
 export const launchpadProofQueryKey = ["launchpad", "proof"] as const;
+export const launchpadChangePlanQueryKey = [
+  "launchpad",
+  "change-plan",
+] as const;
 
 export const serviceModuleLifecycleQueryKey = [
   "modules",
@@ -579,6 +609,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     launchpadQueryKey,
     launchpadDoctorQueryKey,
     launchpadProofQueryKey,
+    launchpadChangePlanQueryKey,
     serviceModuleLifecycleQueryKey,
     serviceSystemQueryKey,
     serviceSystemDriftQueryKey,
@@ -638,6 +669,12 @@ type LaunchpadDoctorHttpClient = {
 type LaunchpadProofHttpClient = {
   get: (path: string) => {
     json: () => Promise<LaunchpadProofResponse>;
+  };
+};
+
+type LaunchpadChangePlanHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<LaunchpadChangePlanResponse>;
   };
 };
 
@@ -781,6 +818,19 @@ export async function fetchLaunchpadProof({
     return client.get("admin/data/launchpad/proof").json();
   }
   return sampleLaunchpadProofResponse;
+}
+
+export async function fetchLaunchpadChangePlan({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: LaunchpadChangePlanHttpClient;
+} = {}): Promise<LaunchpadChangePlanResponse> {
+  if (apiMode) {
+    return client.get("admin/data/launchpad/change-plan").json();
+  }
+  return sampleLaunchpadChangePlanResponse;
 }
 
 export async function installAvailableModule({

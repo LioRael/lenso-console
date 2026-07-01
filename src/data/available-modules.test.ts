@@ -8,6 +8,7 @@ import {
   availableModulesRows,
   fetchAvailableModules,
   fetchLaunchpad,
+  fetchLaunchpadChangePlan,
   fetchLaunchpadDoctor,
   fetchLaunchpadProof,
   fetchServiceModuleLifecycle,
@@ -17,10 +18,12 @@ import {
   fetchServiceSystemReleaseTrain,
   installAvailableModule,
   launchpadQueryKey,
+  launchpadChangePlanQueryKey,
   moduleRefreshInvalidationQueryKeys,
   launchpadDoctorQueryKey,
   launchpadProofQueryKey,
   sampleAvailableModulesResponse,
+  sampleLaunchpadChangePlanResponse,
   sampleLaunchpadDoctorResponse,
   sampleLaunchpadProofResponse,
   sampleLaunchpadResponse,
@@ -72,6 +75,7 @@ describe("available modules provider", () => {
       launchpadQueryKey,
       launchpadDoctorQueryKey,
       launchpadProofQueryKey,
+      launchpadChangePlanQueryKey,
       serviceModuleLifecycleQueryKey,
       serviceSystemQueryKey,
       serviceSystemDriftQueryKey,
@@ -242,6 +246,32 @@ describe("available modules provider", () => {
       response
     );
     expect(getCalls).toEqual(["admin/data/launchpad/proof"]);
+  });
+
+  test("fetches Launchpad app change plan state", async () => {
+    await expect(fetchLaunchpadChangePlan()).resolves.toBe(
+      sampleLaunchpadChangePlanResponse
+    );
+    expect(launchpadChangePlanQueryKey).toEqual(["launchpad", "change-plan"]);
+
+    const getCalls: string[] = [];
+    const response = {
+      ...sampleLaunchpadChangePlanResponse,
+      status: "ready",
+    };
+    const client = {
+      get(path: string) {
+        getCalls.push(path);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(
+      fetchLaunchpadChangePlan({ apiMode: true, client })
+    ).resolves.toBe(response);
+    expect(getCalls).toEqual(["admin/data/launchpad/change-plan"]);
   });
 
   test("installs an available module through the API", async () => {
