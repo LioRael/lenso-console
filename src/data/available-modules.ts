@@ -581,6 +581,15 @@ export const sampleLaunchpadChangePlanResponse = {
         status: "pending",
       },
     ],
+    packFit: [
+      {
+        command: "lenso app compose --pack support-sla",
+        issues: [],
+        name: "support-sla",
+        path: "../capabilities/support-sla",
+        status: "ready",
+      },
+    ],
     intent: "support desk with SLA and customer profile",
     pendingAddons: ["customer-profile"],
     pendingPacks: ["support-sla"],

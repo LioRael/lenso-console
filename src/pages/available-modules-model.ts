@@ -340,6 +340,7 @@ export type LaunchpadComposition = {
   appliedPacks?: string[];
   pendingPacks?: string[];
   capabilityPacks?: LaunchpadCapabilityPack[];
+  packFit?: LaunchpadPackFit[];
   serviceActions: LaunchpadCompositionAction[];
   agentActions: LaunchpadCompositionAction[];
 };
@@ -351,6 +352,14 @@ export type LaunchpadCapabilityPack = {
   modules: string[];
   services: string[];
   nextCommand?: string | null;
+};
+
+export type LaunchpadPackFit = {
+  name: string;
+  path: string;
+  status: string;
+  issues: string[];
+  command?: string | null;
 };
 
 export type LaunchpadCompositionAction = {

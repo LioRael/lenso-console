@@ -70,6 +70,12 @@ describe("launchpad model", () => {
         nextCommand: "lenso app apply .lenso/app-change-plan.json",
         pendingAddons: ["customer-profile"],
         pendingPacks: ["support-sla"],
+        packFit: [
+          expect.objectContaining({
+            name: "support-sla",
+            status: "ready",
+          }),
+        ],
         packAction: "lenso capability check ../capabilities/support-sla",
         proofStatus: "drifted",
         requestedAddons: ["support-sla", "customer-profile"],
