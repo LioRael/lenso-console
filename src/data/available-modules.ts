@@ -570,10 +570,23 @@ export const sampleLaunchpadChangePlanResponse = {
       },
     ],
     appliedAddons: ["support-sla"],
+    appliedPacks: [],
+    capabilityPacks: [
+      {
+        modules: ["support-sla"],
+        name: "support-sla",
+        nextCommand: "lenso capability check ../capabilities/support-sla",
+        path: "../capabilities/support-sla",
+        services: ["support-sla-provider/api"],
+        status: "pending",
+      },
+    ],
     intent: "support desk with SLA and customer profile",
     pendingAddons: ["customer-profile"],
+    pendingPacks: ["support-sla"],
     protocol: "lenso.app-composition.v1",
     requestedAddons: ["support-sla", "customer-profile"],
+    requestedPacks: ["support-sla"],
     serviceActions: [
       {
         command: "lenso service workspace check customer-profile",

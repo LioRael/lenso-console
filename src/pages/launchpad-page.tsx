@@ -628,6 +628,24 @@ function LaunchpadChangePlanPanel({
               </div>
             </div>
           )}
+          {changePlan.requestedPacks.length > 0 && (
+            <div className="grid gap-0.5 text-[10px] text-(--fg-tertiary)">
+              <div className="truncate">
+                packs: {changePlan.requestedPacks.join(", ")}
+              </div>
+              <div className="truncate">
+                pending packs:{" "}
+                {changePlan.pendingPacks.length
+                  ? changePlan.pendingPacks.join(", ")
+                  : "none"}
+              </div>
+            </div>
+          )}
+          {changePlan.packAction && (
+            <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
+              {changePlan.packAction}
+            </code>
+          )}
           {changePlan.serviceAction?.command && (
             <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
               {changePlan.serviceAction.command}

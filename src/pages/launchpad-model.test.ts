@@ -69,8 +69,11 @@ describe("launchpad model", () => {
         blueprint: "support-desk",
         nextCommand: "lenso app apply .lenso/app-change-plan.json",
         pendingAddons: ["customer-profile"],
+        pendingPacks: ["support-sla"],
+        packAction: "lenso capability check ../capabilities/support-sla",
         proofStatus: "drifted",
         requestedAddons: ["support-sla", "customer-profile"],
+        requestedPacks: ["support-sla"],
         safeChangeCount: 1,
         serviceAction: expect.objectContaining({
           command: "lenso service workspace check customer-profile",

@@ -336,8 +336,21 @@ export type LaunchpadComposition = {
   requestedAddons: string[];
   appliedAddons: string[];
   pendingAddons: string[];
+  requestedPacks?: string[];
+  appliedPacks?: string[];
+  pendingPacks?: string[];
+  capabilityPacks?: LaunchpadCapabilityPack[];
   serviceActions: LaunchpadCompositionAction[];
   agentActions: LaunchpadCompositionAction[];
+};
+
+export type LaunchpadCapabilityPack = {
+  name: string;
+  path: string;
+  status: string;
+  modules: string[];
+  services: string[];
+  nextCommand?: string | null;
 };
 
 export type LaunchpadCompositionAction = {
