@@ -7,6 +7,7 @@ import {
   type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   type LaunchpadDoctorResponse,
+  type LaunchpadProofResponse,
   type LaunchpadResponse,
   type ServiceModuleLifecycleResponse,
   type ServiceSystemDriftResponse,
@@ -513,12 +514,41 @@ export const sampleLaunchpadDoctorResponse = {
   version: 1,
 } satisfies LaunchpadDoctorResponse;
 
+export const sampleLaunchpadProofResponse = {
+  addons: ["support-sla"],
+  blueprint: "support-desk",
+  checkedAtUnixMs: 1_782_903_155_000,
+  checks: [
+    {
+      command: null,
+      id: "launchpad-state",
+      label: "Launchpad state",
+      message: ".lenso/launchpad.json matches support-desk",
+      status: "passed",
+    },
+    {
+      command: null,
+      id: "workspace-services",
+      label: "Workspace services",
+      message: "lenso.workspace.json includes generated services",
+      status: "passed",
+    },
+  ],
+  drifts: [],
+  nextCommand: null,
+  projectName: "support-desk",
+  proofFile: ".lenso/app-proof.json",
+  status: "ready",
+  version: 1,
+} satisfies LaunchpadProofResponse;
+
 export const availableModulesQueryKey = [
   "modules",
   "available-modules",
 ] as const;
 export const launchpadQueryKey = ["launchpad"] as const;
 export const launchpadDoctorQueryKey = ["launchpad", "doctor"] as const;
+export const launchpadProofQueryKey = ["launchpad", "proof"] as const;
 
 export const serviceModuleLifecycleQueryKey = [
   "modules",
@@ -548,6 +578,7 @@ export function moduleRefreshInvalidationQueryKeys() {
     availableModulesQueryKey,
     launchpadQueryKey,
     launchpadDoctorQueryKey,
+    launchpadProofQueryKey,
     serviceModuleLifecycleQueryKey,
     serviceSystemQueryKey,
     serviceSystemDriftQueryKey,
@@ -601,6 +632,12 @@ type LaunchpadHttpClient = {
 type LaunchpadDoctorHttpClient = {
   get: (path: string) => {
     json: () => Promise<LaunchpadDoctorResponse>;
+  };
+};
+
+type LaunchpadProofHttpClient = {
+  get: (path: string) => {
+    json: () => Promise<LaunchpadProofResponse>;
   };
 };
 
@@ -731,6 +768,19 @@ export async function fetchLaunchpadDoctor({
     return client.get("admin/data/launchpad/doctor").json();
   }
   return sampleLaunchpadDoctorResponse;
+}
+
+export async function fetchLaunchpadProof({
+  apiMode = isApiMode(),
+  client = httpClient,
+}: {
+  apiMode?: boolean;
+  client?: LaunchpadProofHttpClient;
+} = {}): Promise<LaunchpadProofResponse> {
+  if (apiMode) {
+    return client.get("admin/data/launchpad/proof").json();
+  }
+  return sampleLaunchpadProofResponse;
 }
 
 export async function installAvailableModule({

@@ -1,5 +1,6 @@
 import type {
   LaunchpadDoctorResponse,
+  LaunchpadProofResponse,
   LaunchpadResponse,
 } from "./available-modules-model";
 
@@ -43,6 +44,31 @@ export type LaunchpadDoctorSummary = {
   doctorFile: string;
   live: boolean;
   nextCommand: string;
+  status: string;
+};
+
+export type LaunchpadProofSummary = {
+  addons: string[];
+  attentionChecks: Array<{
+    id: string;
+    label: string;
+    message: string;
+    status: string;
+    command: string | null;
+  }>;
+  blueprint: string;
+  checkedAtUnixMs: number | null;
+  checks: number;
+  driftCount: number;
+  drifts: Array<{
+    resource: string;
+    name: string;
+    message: string;
+    command: string | null;
+  }>;
+  nextCommand: string;
+  projectName: string;
+  proofFile: string;
   status: string;
 };
 
@@ -117,9 +143,55 @@ export function launchpadDoctorSummary(
   };
 }
 
+export function launchpadProofSummary(
+  response: LaunchpadProofResponse | undefined
+): LaunchpadProofSummary {
+  const attentionChecks =
+    response?.checks
+      .filter((check) =>
+        ["failed", "needs_attention", "missing"].includes(check.status)
+      )
+      .map((check) => ({
+        command: check.command ?? null,
+        id: check.id,
+        label: check.label,
+        message: check.message,
+        status: check.status,
+      })) ?? [];
+  const drifts =
+    response?.drifts.map((drift) => ({
+      command: drift.command ?? null,
+      message: drift.message,
+      name: drift.name,
+      resource: drift.resource,
+    })) ?? [];
+  const fallbackCommand = "lenso app verify --write-proof";
+
+  return {
+    addons: response?.addons ?? [],
+    attentionChecks,
+    blueprint: response?.blueprint ?? "not configured",
+    checkedAtUnixMs: response?.checkedAtUnixMs ?? null,
+    checks: response?.checks.length ?? 0,
+    driftCount: drifts.length,
+    drifts,
+    nextCommand:
+      response?.nextCommand ??
+      drifts.find((drift) => drift.command)?.command ??
+      attentionChecks.find((check) => check.command)?.command ??
+      fallbackCommand,
+    projectName: response?.projectName ?? "Launchpad app",
+    proofFile: response?.proofFile ?? ".lenso/app-proof.json",
+    status: response?.status ?? "empty",
+  };
+}
+
 export function launchpadStatusLabel(status: string) {
   if (status === "ready") {
     return "ready";
+  }
+  if (status === "drifted") {
+    return "drifted";
   }
   if (status === "failed") {
     return "failed";

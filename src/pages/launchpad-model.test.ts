@@ -2,10 +2,12 @@ import { describe, expect, test } from "vitest";
 
 import {
   sampleLaunchpadDoctorResponse,
+  sampleLaunchpadProofResponse,
   sampleLaunchpadResponse,
 } from "../data/available-modules";
 import {
   launchpadDoctorSummary,
+  launchpadProofSummary,
   launchpadStatusLabel,
   launchpadSummary,
 } from "./launchpad-model";
@@ -43,6 +45,20 @@ describe("launchpad model", () => {
     );
   });
 
+  test("summarizes Launchpad App Proof response", () => {
+    expect(launchpadProofSummary(sampleLaunchpadProofResponse)).toEqual(
+      expect.objectContaining({
+        addons: ["support-sla"],
+        blueprint: "support-desk",
+        checks: 2,
+        driftCount: 0,
+        nextCommand: "lenso app verify --write-proof",
+        projectName: "support-desk",
+        status: "ready",
+      })
+    );
+  });
+
   test("summarizes an empty Launchpad state", () => {
     const summary = launchpadSummary(undefined);
 
@@ -52,6 +68,9 @@ describe("launchpad model", () => {
     );
     expect(launchpadDoctorSummary(undefined).nextCommand).toBe(
       "lenso dev doctor --write-state"
+    );
+    expect(launchpadProofSummary(undefined).nextCommand).toBe(
+      "lenso app verify --write-proof"
     );
     expect(launchpadStatusLabel("needs_attention")).toBe("needs attention");
   });

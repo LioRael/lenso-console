@@ -6,6 +6,7 @@ import {
   Circle,
   Plug,
   PlayCircle,
+  ShieldCheck,
   Terminal,
   Workflow,
 } from "lucide-react";
@@ -13,15 +14,19 @@ import {
 import {
   fetchLaunchpad,
   fetchLaunchpadDoctor,
+  fetchLaunchpadProof,
   launchpadDoctorQueryKey,
+  launchpadProofQueryKey,
   launchpadQueryKey,
 } from "../data/available-modules";
 import { cn } from "../lib/cn";
 import { runtimeConsoleDataSource } from "../lib/http-client";
 import {
   type LaunchpadDoctorSummary,
+  type LaunchpadProofSummary,
   type LaunchpadSummary,
   launchpadDoctorSummary,
+  launchpadProofSummary,
   launchpadStatusLabel,
   launchpadSummary,
 } from "./launchpad-model";
@@ -47,6 +52,16 @@ export function LaunchpadPage() {
     queryKey: launchpadDoctorQueryKey,
   });
   const doctor = launchpadDoctorSummary(doctorResponse);
+  const {
+    data: proofResponse,
+    error: proofError,
+    isError: isProofError,
+    isLoading: isProofLoading,
+  } = useQuery({
+    queryFn: () => fetchLaunchpadProof(),
+    queryKey: launchpadProofQueryKey,
+  });
+  const proof = launchpadProofSummary(proofResponse);
   const tone =
     isLaunchpadError || summary.status === "needs_attention"
       ? "error"
@@ -59,6 +74,15 @@ export function LaunchpadPage() {
     doctor.status === "needs_attention"
       ? "error"
       : doctor.status === "ready"
+        ? "success"
+        : "default";
+  const proofTone =
+    isProofError ||
+    proof.status === "failed" ||
+    proof.status === "needs_attention" ||
+    proof.status === "drifted"
+      ? "error"
+      : proof.status === "ready"
         ? "success"
         : "default";
 
@@ -99,6 +123,20 @@ export function LaunchpadPage() {
             doctor{" "}
             {isDoctorLoading ? "loading" : launchpadStatusLabel(doctor.status)}
           </span>
+          <span
+            className={cn(
+              "rounded border px-1.5 py-0.5 font-mono text-[10px]",
+              proofTone === "success" &&
+                "border-(--tone-success-border) bg-(--tone-success-bg) text-(--tone-success-fg)",
+              proofTone === "error" &&
+                "border-(--tone-error-border) bg-(--tone-error-bg) text-(--tone-error-fg)",
+              proofTone === "default" &&
+                "border-(--line-strong) bg-(--bg-panel-muted) text-(--fg-secondary)"
+            )}
+          >
+            proof{" "}
+            {isProofLoading ? "loading" : launchpadStatusLabel(proof.status)}
+          </span>
           <span className="ml-auto min-w-0 truncate font-mono text-[10px] text-(--fg-tertiary)">
             {runtimeConsoleDataSource()}
           </span>
@@ -108,12 +146,13 @@ export function LaunchpadPage() {
         </p>
       </header>
 
-      <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
+      <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-6">
         <LaunchpadCounter label="services" value={summary.serviceCount} />
         <LaunchpadCounter label="modules" value={summary.moduleCount} />
         <LaunchpadCounter label="addons" value={summary.addonCount} />
         <LaunchpadCounter label="checklist" value={summary.checklist.length} />
         <LaunchpadCounter label="doctor" value={doctor.checks} />
+        <LaunchpadCounter label="proof" value={proof.driftCount} />
       </div>
 
       <main className="min-h-0 overflow-auto">
@@ -216,6 +255,12 @@ export function LaunchpadPage() {
               error={doctorError}
               isError={isDoctorError}
               isLoading={isDoctorLoading}
+            />
+            <LaunchpadProofPanel
+              error={proofError}
+              isError={isProofError}
+              isLoading={isProofLoading}
+              proof={proof}
             />
             <LaunchpadAgentHandoff commands={summary.commands} />
           </aside>
@@ -382,6 +427,101 @@ function LaunchpadDoctorPanel({
   );
 }
 
+function LaunchpadProofPanel({
+  error,
+  isError,
+  isLoading,
+  proof,
+}: {
+  error: unknown;
+  isError: boolean;
+  isLoading: boolean;
+  proof: LaunchpadProofSummary;
+}) {
+  return (
+    <section className="border-b border-(--line) px-3 py-2">
+      <div className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase text-(--fg-tertiary)">
+        <ShieldCheck size={12} />
+        app proof
+      </div>
+      {isLoading ? (
+        <div className="font-mono text-[11px] text-(--fg-tertiary)">
+          Loading App Proof...
+        </div>
+      ) : isError ? (
+        <div className="font-mono text-[11px] text-(--tone-error-fg)">
+          {errorMessage(error)}
+        </div>
+      ) : (
+        <div className="grid gap-1.5 font-mono text-[11px]">
+          <div className="flex min-w-0 items-center gap-2">
+            <StatusDot status={proof.status} />
+            <span className="min-w-0 truncate">
+              {launchpadStatusLabel(proof.status)}
+            </span>
+            <span className="ml-auto text-[10px] text-(--fg-tertiary)">
+              {proof.driftCount} drift
+            </span>
+          </div>
+          <div className="truncate text-[10px] text-(--fg-tertiary)">
+            state file: {proof.proofFile}
+          </div>
+          {proof.drifts.length > 0 ? (
+            proof.drifts.map((drift) => (
+              <div
+                className="grid grid-cols-[16px_minmax(0,1fr)] gap-2 pt-1"
+                key={`${drift.resource}:${drift.name}`}
+              >
+                <StatusDot status="drifted" />
+                <div className="min-w-0">
+                  <div className="truncate">
+                    {drift.resource} / {drift.name}
+                  </div>
+                  <div className="truncate text-[10px] text-(--fg-tertiary)">
+                    {drift.message}
+                  </div>
+                  {drift.command && (
+                    <code className="mt-1 block min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-secondary)">
+                      {drift.command}
+                    </code>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : proof.attentionChecks.length > 0 ? (
+            proof.attentionChecks.map((check) => (
+              <div
+                className="grid grid-cols-[16px_minmax(0,1fr)] gap-2 pt-1"
+                key={check.id}
+              >
+                <StatusDot status={check.status} />
+                <div className="min-w-0">
+                  <div className="truncate">{check.label}</div>
+                  <div className="truncate text-[10px] text-(--fg-tertiary)">
+                    {check.message}
+                  </div>
+                  {check.command && (
+                    <code className="mt-1 block min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-secondary)">
+                      {check.command}
+                    </code>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-(--fg-tertiary)">
+              No generated-state drift found.
+            </div>
+          )}
+          <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
+            {proof.nextCommand}
+          </code>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function LaunchpadAgentHandoff({ commands }: { commands: string[] }) {
   return (
     <section className="px-3 py-2">
@@ -456,7 +596,11 @@ function StatusDot({ status }: { status: string }) {
       <CheckCircle2 className="mt-0.5 text-(--tone-success-fg)" size={13} />
     );
   }
-  if (status === "failed" || status === "needs_attention") {
+  if (
+    status === "failed" ||
+    status === "needs_attention" ||
+    status === "drifted"
+  ) {
     return <AlertCircle className="mt-0.5 text-(--tone-error-fg)" size={13} />;
   }
   return <Circle className="mt-0.5 text-(--fg-tertiary)" size={13} />;

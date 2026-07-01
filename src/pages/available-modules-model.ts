@@ -269,6 +269,34 @@ export type LaunchpadDoctorCheck = {
   command?: string | null;
 };
 
+export type LaunchpadProofResponse = {
+  version: number;
+  status: "ready" | "drifted" | "needs_attention" | "failed" | "empty" | string;
+  proofFile: string;
+  checkedAtUnixMs?: number | null;
+  projectName?: string | null;
+  blueprint?: string | null;
+  addons: string[];
+  checks: LaunchpadProofCheck[];
+  drifts: LaunchpadProofDrift[];
+  nextCommand?: string | null;
+};
+
+export type LaunchpadProofCheck = {
+  id: string;
+  label: string;
+  status: string;
+  message: string;
+  command?: string | null;
+};
+
+export type LaunchpadProofDrift = {
+  resource: string;
+  name: string;
+  message: string;
+  command?: string | null;
+};
+
 export type ServiceModuleLifecycleModuleStatus =
   | "ready"
   | "missing_config"

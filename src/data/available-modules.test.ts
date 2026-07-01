@@ -9,6 +9,7 @@ import {
   fetchAvailableModules,
   fetchLaunchpad,
   fetchLaunchpadDoctor,
+  fetchLaunchpadProof,
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
   fetchServiceSystemDrift,
@@ -18,8 +19,10 @@ import {
   launchpadQueryKey,
   moduleRefreshInvalidationQueryKeys,
   launchpadDoctorQueryKey,
+  launchpadProofQueryKey,
   sampleAvailableModulesResponse,
   sampleLaunchpadDoctorResponse,
+  sampleLaunchpadProofResponse,
   sampleLaunchpadResponse,
   sampleServiceModuleLifecycleResponse,
   sampleServiceSystemDriftResponse,
@@ -68,6 +71,7 @@ describe("available modules provider", () => {
       availableModulesQueryKey,
       launchpadQueryKey,
       launchpadDoctorQueryKey,
+      launchpadProofQueryKey,
       serviceModuleLifecycleQueryKey,
       serviceSystemQueryKey,
       serviceSystemDriftQueryKey,
@@ -212,6 +216,32 @@ describe("available modules provider", () => {
       response
     );
     expect(getCalls).toEqual(["admin/data/launchpad/doctor"]);
+  });
+
+  test("fetches Launchpad App Proof state", async () => {
+    await expect(fetchLaunchpadProof()).resolves.toBe(
+      sampleLaunchpadProofResponse
+    );
+    expect(launchpadProofQueryKey).toEqual(["launchpad", "proof"]);
+
+    const getCalls: string[] = [];
+    const response = {
+      ...sampleLaunchpadProofResponse,
+      status: "drifted",
+    };
+    const client = {
+      get(path: string) {
+        getCalls.push(path);
+        return {
+          json: async () => response,
+        };
+      },
+    };
+
+    await expect(fetchLaunchpadProof({ apiMode: true, client })).resolves.toBe(
+      response
+    );
+    expect(getCalls).toEqual(["admin/data/launchpad/proof"]);
   });
 
   test("installs an available module through the API", async () => {
