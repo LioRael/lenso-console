@@ -1,5 +1,6 @@
 import type {
   LaunchpadChangePlanResponse,
+  LaunchpadCompositionAction,
   LaunchpadDoctorResponse,
   LaunchpadProofResponse,
   LaunchpadResponse,
@@ -99,7 +100,11 @@ export type LaunchpadChangePlanSummary = {
   planFile: string;
   projectName: string;
   proofStatus: string;
+  requestedAddons: string[];
+  pendingAddons: string[];
   safeChangeCount: number;
+  serviceAction: LaunchpadCompositionAction | null;
+  agentAction: LaunchpadCompositionAction | null;
   status: string;
 };
 
@@ -256,7 +261,11 @@ export function launchpadChangePlanSummary(
     planFile: response?.planFile ?? ".lenso/app-change-plan.json",
     projectName: response?.projectName ?? "Launchpad app",
     proofStatus: response?.proofStatus ?? "unknown",
+    requestedAddons: response?.composition?.requestedAddons ?? [],
+    pendingAddons: response?.composition?.pendingAddons ?? [],
     safeChangeCount: changes.filter((change) => change.safe).length,
+    serviceAction: response?.composition?.serviceActions[0] ?? null,
+    agentAction: response?.composition?.agentActions[0] ?? null,
     status: response?.status ?? "empty",
   };
 }

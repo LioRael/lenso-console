@@ -115,7 +115,7 @@ export function LaunchpadPage() {
         <div className="flex min-w-0 items-center gap-2">
           <Workflow className="text-(--accent)" size={14} />
           <h1 className="min-w-0 truncate font-mono text-[13px] font-semibold">
-            Launchpad
+            App Lifecycle
           </h1>
           <span
             className={cn(
@@ -615,6 +615,29 @@ function LaunchpadChangePlanPanel({
               proof: {launchpadStatusLabel(changePlan.proofStatus)}
             </span>
           </div>
+          {changePlan.requestedAddons.length > 0 && (
+            <div className="grid gap-0.5 text-[10px] text-(--fg-tertiary)">
+              <div className="truncate">
+                requested: {changePlan.requestedAddons.join(", ")}
+              </div>
+              <div className="truncate">
+                pending:{" "}
+                {changePlan.pendingAddons.length
+                  ? changePlan.pendingAddons.join(", ")
+                  : "none"}
+              </div>
+            </div>
+          )}
+          {changePlan.serviceAction?.command && (
+            <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
+              {changePlan.serviceAction.command}
+            </code>
+          )}
+          {changePlan.agentAction?.command && (
+            <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
+              {changePlan.agentAction.command}
+            </code>
+          )}
           {visibleItems.length > 0 ? (
             visibleItems.map((item) => (
               <div

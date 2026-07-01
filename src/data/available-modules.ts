@@ -558,6 +558,32 @@ export const sampleLaunchpadChangePlanResponse = {
       safe: true,
     },
   ],
+  composition: {
+    agentActions: [
+      {
+        command:
+          'lenso agent task --from-app-plan "add customer profile lookup"',
+        id: "agent:task:from-app-plan",
+        kind: "agent_task",
+        label: "Generate agent task pack from the app plan",
+        status: "recommended",
+      },
+    ],
+    appliedAddons: ["support-sla"],
+    intent: "support desk with SLA and customer profile",
+    pendingAddons: ["customer-profile"],
+    protocol: "lenso.app-composition.v1",
+    requestedAddons: ["support-sla", "customer-profile"],
+    serviceActions: [
+      {
+        command: "lenso service workspace check customer-profile",
+        id: "service:check:customer-profile",
+        kind: "service_check",
+        label: "Check customer-profile service readiness",
+        status: "recommended",
+      },
+    ],
+  },
   generatedAtUnixMs: 1_782_903_160_000,
   issues: [],
   nextCommand: "lenso app apply .lenso/app-change-plan.json",
