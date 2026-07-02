@@ -316,6 +316,7 @@ export type LaunchpadChangePlanResponse = {
   changes: LaunchpadChangePlanItem[];
   blocked: LaunchpadChangePlanItem[];
   nextCommand?: string | null;
+  composition?: LaunchpadComposition | null;
   issues: LaunchpadIssue[];
 };
 
@@ -327,6 +328,46 @@ export type LaunchpadChangePlanItem = {
   safe: boolean;
   message: string;
   command?: string | null;
+};
+
+export type LaunchpadComposition = {
+  protocol: string;
+  intent?: string | null;
+  requestedAddons: string[];
+  appliedAddons: string[];
+  pendingAddons: string[];
+  requestedPacks?: string[];
+  appliedPacks?: string[];
+  pendingPacks?: string[];
+  capabilityPacks?: LaunchpadCapabilityPack[];
+  packFit?: LaunchpadPackFit[];
+  serviceActions: LaunchpadCompositionAction[];
+  agentActions: LaunchpadCompositionAction[];
+};
+
+export type LaunchpadCapabilityPack = {
+  name: string;
+  path: string;
+  status: string;
+  modules: string[];
+  services: string[];
+  nextCommand?: string | null;
+};
+
+export type LaunchpadPackFit = {
+  name: string;
+  path: string;
+  status: string;
+  issues: string[];
+  command?: string | null;
+};
+
+export type LaunchpadCompositionAction = {
+  id: string;
+  kind: string;
+  label: string;
+  command?: string | null;
+  status: string;
 };
 
 export type ServiceModuleLifecycleModuleStatus =

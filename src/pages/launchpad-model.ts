@@ -1,6 +1,9 @@
 import type {
   LaunchpadChangePlanResponse,
+  LaunchpadCapabilityPack,
+  LaunchpadCompositionAction,
   LaunchpadDoctorResponse,
+  LaunchpadPackFit,
   LaunchpadProofResponse,
   LaunchpadResponse,
 } from "./available-modules-model";
@@ -99,7 +102,16 @@ export type LaunchpadChangePlanSummary = {
   planFile: string;
   projectName: string;
   proofStatus: string;
+  requestedAddons: string[];
+  pendingAddons: string[];
+  requestedPacks: string[];
+  pendingPacks: string[];
+  capabilityPacks: LaunchpadCapabilityPack[];
+  packFit: LaunchpadPackFit[];
+  packAction: string | null;
   safeChangeCount: number;
+  serviceAction: LaunchpadCompositionAction | null;
+  agentAction: LaunchpadCompositionAction | null;
   status: string;
 };
 
@@ -256,7 +268,19 @@ export function launchpadChangePlanSummary(
     planFile: response?.planFile ?? ".lenso/app-change-plan.json",
     projectName: response?.projectName ?? "Launchpad app",
     proofStatus: response?.proofStatus ?? "unknown",
+    requestedAddons: response?.composition?.requestedAddons ?? [],
+    pendingAddons: response?.composition?.pendingAddons ?? [],
+    requestedPacks: response?.composition?.requestedPacks ?? [],
+    pendingPacks: response?.composition?.pendingPacks ?? [],
+    capabilityPacks: response?.composition?.capabilityPacks ?? [],
+    packFit: response?.composition?.packFit ?? [],
+    packAction:
+      response?.composition?.capabilityPacks?.find(
+        (pack) => pack.status === "pending" && pack.nextCommand
+      )?.nextCommand ?? null,
     safeChangeCount: changes.filter((change) => change.safe).length,
+    serviceAction: response?.composition?.serviceActions[0] ?? null,
+    agentAction: response?.composition?.agentActions[0] ?? null,
     status: response?.status ?? "empty",
   };
 }
