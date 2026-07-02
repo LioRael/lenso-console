@@ -3,6 +3,7 @@ import type {
   LaunchpadCapabilityPack,
   LaunchpadCompositionAction,
   LaunchpadDoctorResponse,
+  LaunchpadPackFit,
   LaunchpadProofResponse,
   LaunchpadResponse,
 } from "./available-modules-model";
@@ -106,6 +107,7 @@ export type LaunchpadChangePlanSummary = {
   requestedPacks: string[];
   pendingPacks: string[];
   capabilityPacks: LaunchpadCapabilityPack[];
+  packFit: LaunchpadPackFit[];
   packAction: string | null;
   safeChangeCount: number;
   serviceAction: LaunchpadCompositionAction | null;
@@ -271,6 +273,7 @@ export function launchpadChangePlanSummary(
     requestedPacks: response?.composition?.requestedPacks ?? [],
     pendingPacks: response?.composition?.pendingPacks ?? [],
     capabilityPacks: response?.composition?.capabilityPacks ?? [],
+    packFit: response?.composition?.packFit ?? [],
     packAction:
       response?.composition?.capabilityPacks?.find(
         (pack) => pack.status === "pending" && pack.nextCommand

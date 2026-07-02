@@ -641,6 +641,16 @@ function LaunchpadChangePlanPanel({
               </div>
             </div>
           )}
+          {changePlan.packFit.length > 0 && (
+            <div className="grid gap-0.5 text-[10px] text-(--fg-tertiary)">
+              {changePlan.packFit.map((fit) => (
+                <div className="truncate" key={`${fit.name}:${fit.status}`}>
+                  fit: {fit.name} / {fit.status}
+                  {fit.issues.length ? ` / ${fit.issues[0]}` : ""}
+                </div>
+              ))}
+            </div>
+          )}
           {changePlan.packAction && (
             <code className="min-w-0 overflow-hidden text-ellipsis border border-(--line) bg-(--bg-canvas) px-2 py-1 text-[10px] text-(--fg-secondary)">
               {changePlan.packAction}
