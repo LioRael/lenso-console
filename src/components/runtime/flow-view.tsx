@@ -484,7 +484,7 @@ export function FlowView({
         </button>
       </div>
 
-      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-(--bg-panel)">
+      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_90%,transparent)]">
         <div
           className="absolute top-2 left-2"
           style={{
@@ -509,7 +509,7 @@ export function FlowView({
         </div>
       </div>
 
-      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-(--bg-panel) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
+      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
         <span>Select nodes</span>
         <span>{Math.round(zoom * 100)}%</span>
         <span>Ctrl wheel zoom</span>

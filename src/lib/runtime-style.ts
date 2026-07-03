@@ -5,14 +5,14 @@ import type {
 } from "../data/mock-runtime";
 
 const serviceColors = [
-  "#737373",
-  "#525252",
-  "#8a8a8a",
-  "#6b7280",
-  "#4b5563",
-  "#71717a",
-  "#3f3f46",
-  "#a1a1aa",
+  "#45c7dd",
+  "#2fbf71",
+  "#4f8cff",
+  "#a78bfa",
+  "#d89b25",
+  "#14b8a6",
+  "#f472b6",
+  "#778394",
 ] as const;
 
 export function formatRuntimeDuration(ms: number) {

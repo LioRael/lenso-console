@@ -178,7 +178,7 @@ export function ExecutionInspector({
                 className={cn(
                   "inline-flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap border-b border-transparent px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-(--fg-tertiary) transition hover:border-(--border) hover:text-(--fg-secondary) disabled:text-(--fg-quaternary)",
                   activeTab === tab.id &&
-                    "border-(--line-strong) bg-(--bg-row-hover) text-(--fg-primary)"
+                    "border-(--accent) bg-[var(--tone-info-bg)] text-(--fg-primary)"
                 )}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}

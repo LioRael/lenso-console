@@ -561,7 +561,7 @@ function WorkspaceMenu({
 
         return (
           <div className="contents" key={group.id}>
-            <div className="sidebar-copy mt-[var(--sidebar-group-label-margin)] flex h-[var(--sidebar-group-label-height)] items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 text-[10px] font-semibold uppercase text-(--fg-tertiary) max-lg:hidden">
+            <div className="sidebar-copy sidebar-group-label mt-[var(--sidebar-group-label-margin)] flex items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 text-[10px] font-semibold uppercase text-(--fg-tertiary) max-lg:hidden">
               {GroupIcon ? <GroupIcon size={11} strokeWidth={1.5} /> : null}
               <span className="min-w-0 truncate">{group.label}</span>
             </div>
