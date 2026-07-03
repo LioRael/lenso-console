@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 export const discoverConsoleDevTargets = async ({ cwd, packagePath } = {}) => {
-  const root = path.resolve(packagePath ?? cwd ?? process.cwd());
+  const root = resolveDiscoveryRoot({ cwd, packagePath });
   const direct = await maybeConsolePackage(root);
   if (direct) {
     return [direct];
@@ -24,19 +24,25 @@ export const discoverConsoleDevTargets = async ({ cwd, packagePath } = {}) => {
   return targets;
 };
 
+const resolveDiscoveryRoot = ({ cwd, packagePath }) => {
+  const base = path.resolve(cwd ?? process.cwd());
+  return packagePath ? path.resolve(base, packagePath) : base;
+};
+
 const maybeConsolePackage = async (packageRoot) => {
   const packageJsonPath = path.join(packageRoot, "package.json");
-  const packageJson = await readJson(packageJsonPath).catch(() => null);
+  const packageJson = await readOptionalJson(packageJsonPath, "package.json");
   if (!packageJson) {
     return null;
   }
 
   const consoleConfig = packageJson.lenso?.console ?? {};
+  const hasConsoleConfig = Boolean(packageJson.lenso?.console);
   const surfacePath = path.resolve(
     packageRoot,
     consoleConfig.surface ?? "console-surface.json"
   );
-  const surface = await readJson(surfacePath).catch(() => null);
+  const surface = await readConsoleSurface({ hasConsoleConfig, surfacePath });
   if (!surface) {
     return null;
   }
@@ -50,6 +56,13 @@ const maybeConsolePackage = async (packageRoot) => {
   });
 };
 
+const readConsoleSurface = ({ hasConsoleConfig, surfacePath }) => {
+  if (hasConsoleConfig) {
+    return readRequiredJson(surfacePath, "console surface manifest");
+  }
+  return readOptionalJson(surfacePath, "console surface manifest");
+};
+
 const consoleTargetFromConfig = ({
   consoleConfig,
   packageJson,
@@ -58,6 +71,12 @@ const consoleTargetFromConfig = ({
   surfacePath,
 }) => {
   const firstSurface = firstConsoleSurface(surface);
+  if (Array.isArray(surface.surfaces) && !firstSurface) {
+    throw new Error(
+      `Console package ${packageRoot} must declare at least one surface`
+    );
+  }
+
   const { exportName } = surface;
   const packageName = surface.packageName ?? packageJson.name;
   if (!(packageName && exportName)) {
@@ -117,3 +136,29 @@ const candidatePackageDirs = async (root) => {
 
 const readJson = async (filePath) =>
   JSON.parse(await readFile(filePath, "utf-8"));
+
+const readOptionalJson = async (filePath, label) => {
+  try {
+    return await readJson(filePath);
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw readJsonError({ error, filePath, label });
+  }
+};
+
+const readRequiredJson = async (filePath, label) => {
+  try {
+    return await readJson(filePath);
+  } catch (error) {
+    throw readJsonError({ error, filePath, label });
+  }
+};
+
+const readJsonError = ({ error, filePath, label }) =>
+  new Error(`Unable to read ${label} ${filePath}: ${error.message}`, {
+    cause: error,
+  });
+
+const isNotFoundError = (error) => error?.code === "ENOENT";

@@ -13,6 +13,11 @@ const writeJson = async (filePath, value) => {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
 };
 
+const writeText = async (filePath, value) => {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  await writeFile(filePath, value);
+};
+
 describe("console dev discovery", () => {
   test("discovers a console package directory", async () => {
     const root = await tempRoot();
@@ -94,6 +99,105 @@ describe("console dev discovery", () => {
       "@lenso/auth-console",
       "@lenso/auth-provider-console",
     ]);
+  });
+
+  test("resolves relative package paths from the supplied cwd", async () => {
+    const root = await tempRoot();
+    const packageRoot = path.join(root, "packages/auth-console");
+    await writeJson(path.join(packageRoot, "package.json"), {
+      lenso: { console: { surface: "./console-surface.json" } },
+      name: "@lenso/auth-console",
+    });
+    await writeJson(path.join(packageRoot, "console-surface.json"), {
+      exportName: "authConsoleModule",
+      id: "auth",
+      packageName: "@lenso/auth-console",
+      route: "/data/auth",
+      source: "runtime_bundle",
+      surfaceName: "auth",
+      version: "workspace",
+    });
+
+    await expect(
+      discoverConsoleDevTargets({
+        cwd: root,
+        packagePath: "packages/auth-console",
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        packageName: "@lenso/auth-console",
+        packageRoot,
+      }),
+    ]);
+  });
+
+  test("reports invalid declared console surface JSON", async () => {
+    const root = await tempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      lenso: { console: { surface: "./console-surface.json" } },
+      name: "@lenso/auth-console",
+    });
+    await writeText(path.join(root, "console-surface.json"), "{");
+
+    await expect(discoverConsoleDevTargets({ cwd: root })).rejects.toThrow(
+      /Unable to read console surface manifest .*console-surface\.json/u
+    );
+  });
+
+  test("reports invalid package JSON", async () => {
+    const root = await tempRoot();
+    await writeText(path.join(root, "package.json"), "{");
+
+    await expect(discoverConsoleDevTargets({ cwd: root })).rejects.toThrow(
+      /Unable to read package\.json .*package\.json/u
+    );
+  });
+
+  test("uses the first entry from a multi-surface manifest", async () => {
+    const root = await tempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "@lenso/auth-console",
+    });
+    await writeJson(path.join(root, "console-surface.json"), {
+      exportName: "authConsoleModule",
+      packageName: "@lenso/auth-console",
+      surfaces: [
+        {
+          requiredCapabilities: ["auth.users.read"],
+          route: "/data/auth/users",
+          surfaceName: "users",
+        },
+        {
+          requiredCapabilities: ["auth.roles.read"],
+          route: "/data/auth/roles",
+          surfaceName: "roles",
+        },
+      ],
+    });
+
+    await expect(discoverConsoleDevTargets({ cwd: root })).resolves.toEqual([
+      expect.objectContaining({
+        moduleName: "users",
+        requiredCapabilities: ["auth.users.read"],
+        route: "/data/auth/users",
+      }),
+    ]);
+  });
+
+  test("rejects empty multi-surface manifests clearly", async () => {
+    const root = await tempRoot();
+    await writeJson(path.join(root, "package.json"), {
+      name: "@lenso/auth-console",
+    });
+    await writeJson(path.join(root, "console-surface.json"), {
+      exportName: "authConsoleModule",
+      packageName: "@lenso/auth-console",
+      surfaces: [],
+    });
+
+    await expect(discoverConsoleDevTargets({ cwd: root })).rejects.toThrow(
+      /must declare at least one surface/u
+    );
   });
 
   test("returns a diagnostic when no console package exists", async () => {
