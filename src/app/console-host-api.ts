@@ -12,6 +12,8 @@ import { StoryHeader } from "../components/runtime/story-header";
 import { StoryList } from "../components/runtime/story-list";
 import { EmptyState } from "../components/ui/empty-state";
 import { retryTargetForNode, runtimeStories } from "../data/mock-runtime";
+import { consoleDevConfig } from "../dev/console-dev-config";
+import { createMockConsoleHostApi } from "../dev/mock-console-host-api";
 import {
   useBrowserUrlPopState,
   writeBrowserUrl,
@@ -35,7 +37,7 @@ import {
 import { useConsoleSlotContributions } from "./console-contributions";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 
-export const runtimeConsoleHostApi = {
+export const productionRuntimeConsoleHostApi = {
   adminData: {
     useInvokeAction: useConsoleAdminAction,
     useRecords: useConsoleAdminRecords,
@@ -93,7 +95,12 @@ export const runtimeConsoleHostApi = {
   },
 };
 
-export type RuntimeConsoleHostApi = typeof runtimeConsoleHostApi;
+export const runtimeConsoleHostApi =
+  consoleDevConfig.mode === "mock"
+    ? createMockConsoleHostApi(productionRuntimeConsoleHostApi)
+    : productionRuntimeConsoleHostApi;
+
+export type RuntimeConsoleHostApi = typeof productionRuntimeConsoleHostApi;
 export type {
   ConsoleAdminListResponse,
   ConsoleAdminRecord,
