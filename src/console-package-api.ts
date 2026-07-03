@@ -12,6 +12,8 @@ export {
 } from "./app/console-module-api";
 export {
   runtimeConsoleHostApi,
+  type ConsoleResolvedAdminActionContribution,
+  type ConsoleResolvedContribution,
   type RuntimeConsoleHostApi,
   type ExecutionInspectorTab,
   type ExecutionNode,

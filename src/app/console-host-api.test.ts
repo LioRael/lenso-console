@@ -16,6 +16,7 @@ describe("console host api", () => {
     );
     expect(runtimeConsoleHostApi.config.useValues).toBeTypeOf("function");
     expect(runtimeConsoleHostApi.config.useWriteValue).toBeTypeOf("function");
+    expect(runtimeConsoleHostApi.contributions.useSlot).toBeTypeOf("function");
     expect(runtimeConsoleHostApi.modules.useMetadata).toBeTypeOf("function");
     expect(runtimeConsoleHostApi.context.useRuntimeConsole).toBeTypeOf(
       "function"

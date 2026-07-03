@@ -103,7 +103,7 @@ function WaterfallRowButton({
       aria-label={`Select row ${row.name}`}
       className={cn(
         "grid w-full min-w-0 grid-cols-[minmax(260px,340px)_minmax(0,1fr)] items-center gap-4 px-3 py-1.5 text-left transition hover:bg-(--bg-row-hover) disabled:cursor-default",
-        selected && "bg-(--bg-row-hover)",
+        selected && "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]",
         row.group === "unlinked" && "opacity-82"
       )}
       disabled={!node}

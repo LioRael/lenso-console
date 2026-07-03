@@ -45,6 +45,67 @@ export interface ConsoleModuleSurface {
   navigation?: ConsoleNavigationMetadata;
 }
 
+export interface ConsoleActionInputBinding {
+  input: string;
+  value: ConsoleActionInputValue;
+}
+
+export interface ConsoleActionInputValue {
+  kind: "slot_context";
+  path: string;
+}
+
+export type ConsoleContributionKind = "admin_action";
+
+export interface ConsoleContributionAction {
+  kind: "admin_action";
+  module: string;
+  name: string;
+  input_bindings?: ConsoleActionInputBinding[];
+}
+
+export interface ConsoleContribution {
+  target: string;
+  target_version: number;
+  label: string;
+  action: ConsoleContributionAction;
+  icon?: string | null;
+  required_capabilities?: readonly string[];
+}
+
+export interface ConsoleSlot {
+  id: string;
+  version: number;
+  label: string;
+  accepts?: readonly ConsoleContributionKind[];
+  context?: readonly ConsoleSlotContext[];
+}
+
+export interface ConsoleSlotContext {
+  name: string;
+  fields?: readonly ConsoleSlotContextField[];
+}
+
+export interface ConsoleSlotContextField {
+  name: string;
+  field_type: "string" | "boolean" | "number" | "timestamp";
+  required?: boolean;
+}
+
+export interface ConsoleResolvedAdminActionContribution {
+  kind: "admin_action";
+  key: string;
+  label: string;
+  moduleName: string;
+  actionName: string;
+  input: Record<string, unknown>;
+  requiredCapabilities: readonly string[];
+  icon?: string | null;
+}
+
+export type ConsoleResolvedContribution =
+  ConsoleResolvedAdminActionContribution;
+
 export interface ConsoleModule {
   id: string;
   surfaces: ConsoleModuleSurface[];
@@ -197,6 +258,8 @@ export type StoryViewMode =
 export interface ConsoleModuleMetadata {
   module_name?: string;
   status?: "loaded" | "error";
+  console_slots?: ConsoleSlot[];
+  console_contributions?: ConsoleContribution[];
 }
 
 export interface ConsoleQueryResult<T> {
@@ -224,6 +287,15 @@ export interface RuntimeConsoleHostApi {
       limit?: number;
       moduleName: string;
     }) => ConsoleQueryResult<ConsoleAdminListResponse>;
+  };
+  capabilities: {
+    useAvailable: () => readonly string[];
+  };
+  contributions: {
+    useSlot: (
+      slotId: string,
+      context: Record<string, unknown>
+    ) => ConsoleResolvedContribution[];
   };
   config: {
     useValues: () => ConsoleQueryResult<ConsoleConfigValueListResponse>;

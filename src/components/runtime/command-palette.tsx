@@ -325,7 +325,7 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
                         <button
                           className={`grid h-10 w-full grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-control)] border px-2 text-left transition-colors max-sm:grid-cols-[28px_minmax(0,1fr)] ${
                             index === activeIndex
-                              ? "border-(--line-strong) bg-(--bg-row-hover)"
+                              ? "border-(--accent) bg-(--accent-muted)"
                               : "border-transparent hover:bg-(--bg-row-hover)"
                           }`}
                           key={command.id}

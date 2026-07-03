@@ -233,7 +233,8 @@ function HeatmapCellInspector({
               aria-label={`Open heatmap node ${node.name}`}
               className={cn(
                 "grid w-full min-w-0 gap-1 border-b border-(--line) px-3 py-2 text-left transition hover:bg-(--bg-row-hover)",
-                selectedNodeId === node.id && "bg-(--bg-row-hover)"
+                selectedNodeId === node.id &&
+                  "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
               )}
               key={node.id}
               onClick={() => onSelectNode(node)}
