@@ -105,20 +105,58 @@ jobs:
 
       - name: Dry-run remote-module-kit publish
         if: ${{ inputs.dry_run }}
-        working-directory: lenso-runtime-console/packages/remote-module-kit
-        run: pnpm publish --access public --dry-run --no-git-checks
+        working-directory: lenso-runtime-console
+        run: |
+          set -eu
+          pack_dir="$PWD/dist/npm"
+          rm -rf "$pack_dir"
+          mkdir -p "$pack_dir"
+          tarball="$(cd packages/remote-module-kit && pnpm pack --pack-destination "$pack_dir" | tail -n 1)"
+          case "$tarball" in
+            /*) package="$tarball" ;;
+            *) package="$pack_dir/$tarball" ;;
+          esac
+          npm publish "$package" --access public --dry-run --registry https://registry.npmjs.org/
 
       - name: Dry-run service-kit publish
         if: ${{ inputs.dry_run }}
-        working-directory: lenso-runtime-console/packages/service-kit
-        run: pnpm publish --access public --dry-run --no-git-checks
+        working-directory: lenso-runtime-console
+        run: |
+          set -eu
+          pack_dir="$PWD/dist/npm"
+          mkdir -p "$pack_dir"
+          tarball="$(cd packages/service-kit && pnpm pack --pack-destination "$pack_dir" | tail -n 1)"
+          case "$tarball" in
+            /*) package="$tarball" ;;
+            *) package="$pack_dir/$tarball" ;;
+          esac
+          npm publish "$package" --access public --dry-run --registry https://registry.npmjs.org/
 
-      - name: Publish remote-module-kit to npm
+      - name: Publish remote-module-kit to npm with trusted publishing
         if: ${{ !inputs.dry_run }}
-        working-directory: lenso-runtime-console/packages/remote-module-kit
-        run: pnpm publish --access public --no-git-checks
+        working-directory: lenso-runtime-console
+        run: |
+          set -eu
+          pack_dir="$PWD/dist/npm"
+          rm -rf "$pack_dir"
+          mkdir -p "$pack_dir"
+          tarball="$(cd packages/remote-module-kit && pnpm pack --pack-destination "$pack_dir" | tail -n 1)"
+          case "$tarball" in
+            /*) package="$tarball" ;;
+            *) package="$pack_dir/$tarball" ;;
+          esac
+          npm publish "$package" --access public --registry https://registry.npmjs.org/
 
-      - name: Publish service-kit to npm
+      - name: Publish service-kit to npm with trusted publishing
         if: ${{ !inputs.dry_run }}
-        working-directory: lenso-runtime-console/packages/service-kit
-        run: pnpm publish --access public --no-git-checks
+        working-directory: lenso-runtime-console
+        run: |
+          set -eu
+          pack_dir="$PWD/dist/npm"
+          mkdir -p "$pack_dir"
+          tarball="$(cd packages/service-kit && pnpm pack --pack-destination "$pack_dir" | tail -n 1)"
+          case "$tarball" in
+            /*) package="$tarball" ;;
+            *) package="$pack_dir/$tarball" ;;
+          esac
+          npm publish "$package" --access public --registry https://registry.npmjs.org/
