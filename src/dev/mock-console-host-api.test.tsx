@@ -5,6 +5,7 @@ import { executionInspectorTabs } from "../components/runtime/execution-inspecto
 import {
   type MockConsoleFixtures,
   createMockConsoleHostApi,
+  emptyAdminListResponse,
   mockAdminRecords,
   mockAvailableCapabilities,
   mockSlotContributions,
@@ -28,13 +29,7 @@ describe("mock console host api", () => {
           moduleName: "auth",
         }
       )
-    ).toEqual({
-      data: [],
-      page: {
-        limit: 50,
-        next_cursor: null,
-      },
-    });
+    ).toEqual(emptyAdminListResponse);
   });
 
   test("returns fixture-backed admin records", () => {
