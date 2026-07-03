@@ -27,16 +27,24 @@ import {
   useConsoleAdminAction,
   useConsoleAdminRecords,
 } from "./console-admin-data-api";
+import { useConsoleCapabilities } from "./console-capabilities";
 import {
   useConsoleConfigValues,
   useWriteConsoleConfigValue,
 } from "./console-config-api";
+import { useConsoleSlotContributions } from "./console-contributions";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 
 export const runtimeConsoleHostApi = {
   adminData: {
     useInvokeAction: useConsoleAdminAction,
     useRecords: useConsoleAdminRecords,
+  },
+  capabilities: {
+    useAvailable: useConsoleCapabilities,
+  },
+  contributions: {
+    useSlot: useConsoleSlotContributions,
   },
   config: {
     useValues: useConsoleConfigValues,
@@ -90,6 +98,10 @@ export type {
   ConsoleAdminListResponse,
   ConsoleAdminRecord,
 } from "./console-admin-data-api";
+export type {
+  ConsoleResolvedAdminActionContribution,
+  ConsoleResolvedContribution,
+} from "./console-contributions";
 export type {
   ConsoleConfigValue,
   ConsoleConfigValueListResponse,
