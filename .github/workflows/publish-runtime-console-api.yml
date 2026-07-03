@@ -27,8 +27,6 @@ jobs:
     defaults:
       run:
         working-directory: lenso-runtime-console
-    env:
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - name: Checkout Runtime Console
         uses: actions/checkout@v6
@@ -48,6 +46,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Ensure npm supports trusted publishing
+        run: |
+          npm install --global npm@^11.5.1
+          npm --version
 
       - name: Verify publish input
         run: |
@@ -79,14 +82,7 @@ jobs:
         working-directory: lenso-runtime-console/packages/console-package-api
         run: npm publish --access public --dry-run --registry https://registry.npmjs.org/
 
-      - name: Publish to npm with token
-        if: ${{ !inputs.dry_run && env.HAS_NPM_TOKEN == 'true' }}
-        working-directory: lenso-runtime-console/packages/console-package-api
-        run: npm publish --access public --registry https://registry.npmjs.org/
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to npm with trusted publishing
-        if: ${{ !inputs.dry_run && env.HAS_NPM_TOKEN != 'true' }}
+        if: ${{ !inputs.dry_run }}
         working-directory: lenso-runtime-console/packages/console-package-api
         run: npm publish --access public --registry https://registry.npmjs.org/
