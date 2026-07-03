@@ -59,5 +59,5 @@ function consoleDevMode(value: string | undefined): ConsoleDevMode {
 
 function cleanString(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
+  return trimmed || undefined;
 }

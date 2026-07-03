@@ -45,4 +45,21 @@ describe("console dev config", () => {
       registryUrl: "/console/dev/registry.json",
     });
   });
+
+  test("normalizes whitespace values and falls back from unknown modes", () => {
+    expect(
+      consoleDevConfigFromEnv({
+        VITE_CONSOLE_DEV_DIAGNOSTICS_URL: "   ",
+        VITE_CONSOLE_DEV_MODE: "preview",
+        VITE_CONSOLE_DEV_REGISTRY_URL: "  ",
+        VITE_CONSOLE_DEV_TARGET_LABEL: "  @lenso/auth-console  ",
+      })
+    ).toEqual({
+      diagnosticsUrl: null,
+      enabled: false,
+      mode: "production",
+      registryUrl: defaultConsoleBundleRegistryUrl,
+      targetLabel: "@lenso/auth-console",
+    });
+  });
 });
