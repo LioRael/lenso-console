@@ -39,7 +39,18 @@ export function mockAdminRecords(
     moduleName: string;
   }
 ) {
-  const rows = fixtures.adminData?.[moduleName]?.[entityName] ?? [];
+  const rows = fixtures.adminData?.[moduleName]?.[entityName];
+  if (rows === undefined) {
+    return limit === emptyAdminListResponse.page.limit
+      ? emptyAdminListResponse
+      : {
+          ...emptyAdminListResponse,
+          page: {
+            ...emptyAdminListResponse.page,
+            limit,
+          },
+        };
+  }
   return {
     data: rows,
     page: {
@@ -101,8 +112,7 @@ export function createMockConsoleHostApi(
 function mockSuccessQueryResult<TData>(
   data: TData
 ): MockSuccessQueryResult<TData> {
-  let result: MockSuccessQueryResult<TData>;
-  result = {
+  const result: MockSuccessQueryResult<TData> = {
     data,
     dataUpdatedAt: 0,
     error: null,
