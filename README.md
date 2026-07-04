@@ -201,6 +201,31 @@ The generator also writes `console-surface.json` and `console-surface.rs` so the
 frontend manifest and Rust `ModuleManifest.console` declaration can share the
 same package/export/route/capability values.
 
+### Console Package Dev Server
+
+Use the local dev shell to preview a package inside Runtime Console while
+editing it:
+
+```bash
+pnpm console-package:dev --package ../lenso-auth-module/packages/auth-console
+```
+
+The default mode is standalone mock mode. It starts the Runtime Console shell,
+loads the package through a temporary `/console/dev/registry.json`, and serves
+the package bundle from a temporary `/console/extensions/dev/*` path.
+
+Proxy a real Lenso host when the package needs real admin data or capabilities:
+
+```bash
+pnpm console-package:dev \
+  --package ../lenso-auth-module/packages/auth-console \
+  --host http://localhost:3000
+```
+
+Dev mode does not write `.lenso/console/extensions` and does not install
+packages into the host. Production installs still use the normal service/module
+install path.
+
 ## Checks
 
 The console uses Ultracite with the Oxlint/Oxfmt provider:

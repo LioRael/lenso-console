@@ -4,6 +4,15 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
+import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin";
+
+const consoleDevMiddleware = consoleDevPlugin({
+  diagnosticsFile: process.env.LENSO_CONSOLE_DEV_DIAGNOSTICS_FILE,
+  extensionsDir: process.env.LENSO_CONSOLE_DEV_EXTENSIONS_DIR,
+  hostUrl: process.env.LENSO_CONSOLE_DEV_HOST,
+  registryFile: process.env.LENSO_CONSOLE_DEV_REGISTRY_FILE,
+});
+
 export default defineConfig({
   base: process.env.LENSO_CONSOLE_BASE ?? "/",
   resolve: {
@@ -68,7 +77,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), consoleDevMiddleware],
   server: {
     port: 5174,
   },

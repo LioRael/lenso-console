@@ -8,18 +8,20 @@ import { Providers } from "./app/providers";
 import { createRuntimeConsoleRouter } from "./app/router";
 import { loadRuntimeConsoleBundlePackages } from "./app/runtime-console-bundles";
 import { registerRuntimeConsolePackages } from "./console-package-installs";
+import { consoleDevConfig } from "./dev/console-dev-config";
+import { ConsoleDevOverlay } from "./dev/console-dev-overlay";
 
 import "./styles.css";
 
 void startRuntimeConsole();
 
 async function startRuntimeConsole() {
-  const runtimePackages = await loadRuntimeConsoleBundlePackages().catch(
-    (error: unknown) => {
-      console.warn("Runtime console bundle loading failed", error);
-      return [];
-    }
-  );
+  const runtimePackages = await loadRuntimeConsoleBundlePackages(
+    consoleDevConfig.registryUrl
+  ).catch((error: unknown) => {
+    console.warn("Runtime console bundle loading failed", error);
+    return [];
+  });
   registerRuntimeConsolePackages(runtimePackages);
   registerRuntimeConsoleModuleMetadata(runtimePackages);
   const router = createRuntimeConsoleRouter([
@@ -31,6 +33,7 @@ async function startRuntimeConsole() {
     <React.StrictMode>
       <Providers>
         <RouterProvider router={router} />
+        <ConsoleDevOverlay config={consoleDevConfig} />
       </Providers>
     </React.StrictMode>
   );

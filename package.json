@@ -14,6 +14,7 @@
     "package:hosted-console": "node scripts/package-hosted-console.mjs",
     "create:module": "node scripts/run-lenso-cli.mjs module create",
     "create:console-package": "node scripts/create-console-package.mjs",
+    "console-package:dev": "node scripts/console-package-dev.mjs",
     "console-api-fixture": "sh scripts/runtime-console-api-fixture.sh",
     "console-api-smoke": "sh scripts/runtime-console-api-smoke.sh",
     "console-api-qa": "sh scripts/runtime-console-api-qa.sh",
@@ -24,7 +25,7 @@
     "build": "pnpm build:local",
     "build:local": "pnpm --filter @lenso/remote-module-kit build && pnpm --filter @lenso/service-kit build && tsc -b && VITE_RUNTIME_CONSOLE_MODE=${VITE_RUNTIME_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} VITE_API_AUTH_TOKEN=${VITE_API_AUTH_TOKEN:-dev-service:admin:runtime.stories.read,auth.users.read,identity.users.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write} vite build && node scripts/check-host-extension-exports.mjs",
     "test": "pnpm test:local",
-    "test:local": "pnpm --filter @lenso/remote-module-kit build && pnpm --filter @lenso/service-kit build && vitest run src packages/story-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src packages/service-kit/src",
+    "test:local": "pnpm --filter @lenso/remote-module-kit build && pnpm --filter @lenso/service-kit build && vitest run src packages/story-console/src packages/identity-console/src packages/remote-crm-console/src packages/console-package-api/src packages/remote-module-kit/src packages/service-kit/src scripts/console-dev",
     "typecheck": "pnpm typecheck:local",
     "typecheck:local": "tsc -b --pretty false",
     "preview": "vite preview --host 0.0.0.0"
