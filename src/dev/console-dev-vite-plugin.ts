@@ -127,11 +127,12 @@ function sendDevAsset({
     res.end("not found");
     return;
   }
-  sendFile(
-    res,
-    assetPath,
-    assetName.endsWith(".css") ? "text/css" : "text/javascript"
-  );
+  const contentType = assetName.endsWith(".css")
+    ? "text/css"
+    : "text/javascript";
+  sendFile(res, assetPath, contentType, {
+    fallbackBody: assetName.endsWith(".css") ? "" : undefined,
+  });
 }
 
 function safeJoin(root: string, relativePath: string) {
@@ -146,10 +147,16 @@ function safeJoin(root: string, relativePath: string) {
   return resolvedPath;
 }
 
-function sendFile(res: ServerResponse, filePath: string, contentType: string) {
+function sendFile(
+  res: ServerResponse,
+  filePath: string,
+  contentType: string,
+  { fallbackBody }: { fallbackBody?: string | undefined } = {}
+) {
   if (!existsSync(filePath)) {
-    res.statusCode = 404;
-    res.end("not found");
+    res.statusCode = fallbackBody === undefined ? 404 : 200;
+    res.setHeader("content-type", contentType);
+    res.end(fallbackBody ?? "not found");
     return;
   }
   res.setHeader("content-type", contentType);

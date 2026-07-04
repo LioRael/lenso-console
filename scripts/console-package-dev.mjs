@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -10,19 +10,11 @@ import {
   writeConsoleDevRegistry,
 } from "./console-dev/registry.mjs";
 
-const spawnPackageWatcher = ({ outputDir, target }) => {
+const spawnPackageWatcher = ({ configPath, target }) => {
   const baseName = bundleBaseName(target);
   return spawn(
     "pnpm",
-    [
-      "exec",
-      "vite",
-      "build",
-      "--watch",
-      "--emptyOutDir=false",
-      "--outDir",
-      outputDir,
-    ],
+    ["exec", "vite", "build", "--watch", "--config", configPath],
     {
       cwd: target.packageRoot,
       env: {
@@ -33,6 +25,108 @@ const spawnPackageWatcher = ({ outputDir, target }) => {
     }
   );
 };
+
+const writePackageViteConfig = async ({
+  outputDir,
+  root,
+  target,
+  tempRoot,
+}) => {
+  const baseName = bundleBaseName(target);
+  const configPath = path.join(tempRoot, `${baseName}.vite.config.mjs`);
+  const entry = await packageEntryPoint(target.packageRoot);
+  await writeFile(
+    configPath,
+    `${packageViteConfigSource({ baseName, entry, outputDir, root, target })}\n`
+  );
+  return configPath;
+};
+
+const packageViteConfigSource = ({
+  baseName,
+  entry,
+  outputDir,
+  root,
+  target,
+}) =>
+  `export default {
+  build: {
+    emptyOutDir: false,
+    lib: {
+      cssFileName: ${JSON.stringify(baseName)},
+      entry: ${JSON.stringify(entry)},
+      fileName: () => ${JSON.stringify(`${baseName}.js`)},
+      formats: ["es"],
+    },
+    outDir: ${JSON.stringify(outputDir)},
+    sourcemap: true,
+    rollupOptions: {
+      external: [
+        "@lenso/runtime-console-api",
+        "react",
+        "react/jsx-dev-runtime",
+        "react/jsx-runtime",
+      ],
+      output: {
+        paths: {
+          "@lenso/runtime-console-api": "/console/src/extension-host/runtime-console-api.ts",
+          react: "/console/src/extension-host/react.ts",
+          "react/jsx-dev-runtime": "/console/src/extension-host/react-jsx-runtime.ts",
+          "react/jsx-runtime": "/console/src/extension-host/react-jsx-runtime.ts",
+        },
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@lenso/runtime-console-api": ${JSON.stringify(
+        path.join(root, "src/extension-host/runtime-console-api.ts")
+      )},
+    },
+    dedupe: ["@lenso/runtime-console-api", "react", "react-dom"],
+  },
+  root: ${JSON.stringify(target.packageRoot)},
+};
+`;
+
+const packageEntryPoint = async (packageRoot) => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(packageRoot, "package.json"), "utf-8")
+  );
+  const entry =
+    exportEntryPath(packageJson.exports) ??
+    stringValue(packageJson.module) ??
+    stringValue(packageJson.main) ??
+    "src/index.tsx";
+  return path.resolve(packageRoot, entry);
+};
+
+const exportEntryPath = (exportsField) => {
+  if (typeof exportsField === "string") {
+    return exportsField;
+  }
+  if (!exportsField || typeof exportsField !== "object") {
+    return null;
+  }
+  return exportValuePath(exportsField["."] ?? exportsField);
+};
+
+const exportValuePath = (value) => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  return (
+    stringValue(value.import) ??
+    stringValue(value.default) ??
+    stringValue(value.browser) ??
+    stringValue(value.require)
+  );
+};
+
+const stringValue = (value) => (typeof value === "string" ? value : null);
 
 const spawnRuntimeConsole = ({
   cliArgs,
@@ -131,8 +225,22 @@ const main = async () => {
   const registryPath = path.join(tempRoot, "registry.json");
   await writeConsoleDevRegistry({ registryPath, targets });
 
-  const children = targets.map((target) =>
-    spawnPackageWatcher({ outputDir, target })
+  const watcherInputs = await Promise.all(
+    targets.map(async (target) => ({
+      configPath: await writePackageViteConfig({
+        outputDir,
+        root,
+        target,
+        tempRoot,
+      }),
+      target,
+    }))
+  );
+  const children = watcherInputs.map((input) =>
+    spawnPackageWatcher({
+      configPath: input.configPath,
+      target: input.target,
+    })
   );
   children.push(
     spawnRuntimeConsole({
