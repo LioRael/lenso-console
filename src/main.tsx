@@ -9,6 +9,7 @@ import { createRuntimeConsoleRouter } from "./app/router";
 import { loadRuntimeConsoleBundlePackages } from "./app/runtime-console-bundles";
 import { registerRuntimeConsolePackages } from "./console-package-installs";
 import { consoleDevConfig } from "./dev/console-dev-config";
+import { ConsoleDevOverlay } from "./dev/console-dev-overlay";
 
 import "./styles.css";
 
@@ -32,6 +33,7 @@ async function startRuntimeConsole() {
     <React.StrictMode>
       <Providers>
         <RouterProvider router={router} />
+        <ConsoleDevOverlay config={consoleDevConfig} />
       </Providers>
     </React.StrictMode>
   );
