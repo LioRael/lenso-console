@@ -58,15 +58,15 @@ registration work.
 
 ## Key Decisions
 
-| Decision | Choice | Why |
-| --- | --- | --- |
-| Core product | Dev server, not visual builder | The pain is seeing and debugging code in context, not generating all UI. |
-| Default data mode | Mock host shell | Fast first run; no Postgres/API setup required. |
-| Real host mode | `--host <url>` proxy | Authors can verify real data, capabilities, and module metadata when needed. |
-| Loading mechanism | Temporary runtime bundle registry | Reuses the production `/console/extensions/registry.json` contract. |
-| Discovery | Support package directory and module repo root | Package authors and module authors both get natural entrypoints. |
-| Multiple packages | One shell, multiple local bundles | A module repo can expose several surfaces without port sprawl. |
-| Ownership | Runtime Console owns shell/dev UI; CLI owns command facade | Keeps package preview behavior near package API while preserving public `lenso` commands. |
+| Decision          | Choice                                                     | Why                                                                                       |
+| ----------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Core product      | Dev server, not visual builder                             | The pain is seeing and debugging code in context, not generating all UI.                  |
+| Default data mode | Mock host shell                                            | Fast first run; no Postgres/API setup required.                                           |
+| Real host mode    | `--host <url>` proxy                                       | Authors can verify real data, capabilities, and module metadata when needed.              |
+| Loading mechanism | Temporary runtime bundle registry                          | Reuses the production `/console/extensions/registry.json` contract.                       |
+| Discovery         | Support package directory and module repo root             | Package authors and module authors both get natural entrypoints.                          |
+| Multiple packages | One shell, multiple local bundles                          | A module repo can expose several surfaces without port sprawl.                            |
+| Ownership         | Runtime Console owns shell/dev UI; CLI owns command facade | Keeps package preview behavior near package API while preserving public `lenso` commands. |
 
 ## User Experience
 

@@ -48,6 +48,7 @@ CLI files:
 ### Task 1: Add Browser Dev Config And Registry URL Selection
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/dev/console-dev-config.ts`
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/dev/console-dev-config.test.ts`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/main.tsx`
@@ -244,6 +245,7 @@ git commit -m "feat: configure console dev registry"
 ### Task 2: Add Mock Host API For Package Development
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/dev/mock-console-host-api.ts`
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/dev/mock-console-host-api.test.tsx`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/app/console-host-api.ts`
@@ -292,8 +294,8 @@ describe("mock console host api", () => {
 
     expect(
       mockAdminRecords(fixtures, {
-          entityName: "users",
-          moduleName: "auth",
+        entityName: "users",
+        moduleName: "auth",
       }).data
     ).toEqual([{ id: "usr_1", status: "active" }]);
     expect(mockAvailableCapabilities(fixtures)).toEqual(["auth.users.read"]);
@@ -355,11 +357,14 @@ export type MockConsoleFixtures = {
   adminData?: Record<string, Record<string, ConsoleAdminRecord[]>>;
   capabilities?: readonly string[];
   configValues?: unknown[];
-  contributions?: Record<string, RuntimeConsoleHostApi["contributions"] extends {
-    useSlot: (...args: never[]) => infer Result;
-  }
-    ? Result
-    : never>;
+  contributions?: Record<
+    string,
+    RuntimeConsoleHostApi["contributions"] extends {
+      useSlot: (...args: never[]) => infer Result;
+    }
+      ? Result
+      : never
+  >;
 };
 
 export function mockAdminRecords(
@@ -546,6 +551,7 @@ git commit -m "feat: add console dev mock host api"
 ### Task 3: Add Console Package Discovery
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/scripts/console-dev/discovery.mjs`
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/scripts/console-dev/discovery.test.mjs`
 
@@ -616,28 +622,34 @@ describe("console dev discovery", () => {
       name: "@lenso/auth-console",
       lenso: { console: { surface: "./console-surface.json" } },
     });
-    await writeJson(path.join(root, "packages/auth-console/console-surface.json"), {
-      exportName: "authConsoleModule",
-      id: "auth",
-      packageName: "@lenso/auth-console",
-      route: "/data/auth",
-      source: "runtime_bundle",
-      surfaceName: "auth",
-      version: "workspace",
-    });
+    await writeJson(
+      path.join(root, "packages/auth-console/console-surface.json"),
+      {
+        exportName: "authConsoleModule",
+        id: "auth",
+        packageName: "@lenso/auth-console",
+        route: "/data/auth",
+        source: "runtime_bundle",
+        surfaceName: "auth",
+        version: "workspace",
+      }
+    );
     await writeJson(path.join(root, "packages/provider-console/package.json"), {
       name: "@lenso/auth-provider-console",
       lenso: { console: { surface: "./console-surface.json" } },
     });
-    await writeJson(path.join(root, "packages/provider-console/console-surface.json"), {
-      exportName: "authProviderConsoleModule",
-      id: "auth-provider",
-      packageName: "@lenso/auth-provider-console",
-      route: "/data/auth/providers",
-      source: "runtime_bundle",
-      surfaceName: "providers",
-      version: "workspace",
-    });
+    await writeJson(
+      path.join(root, "packages/provider-console/console-surface.json"),
+      {
+        exportName: "authProviderConsoleModule",
+        id: "auth-provider",
+        packageName: "@lenso/auth-provider-console",
+        route: "/data/auth/providers",
+        source: "runtime_bundle",
+        surfaceName: "providers",
+        version: "workspace",
+      }
+    );
 
     const targets = await discoverConsoleDevTargets({ cwd: root });
 
@@ -782,6 +794,7 @@ git commit -m "feat: discover console dev packages"
 ### Task 4: Add Transient Dev Registry Generation
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/scripts/console-dev/registry.mjs`
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/scripts/console-dev/registry.test.mjs`
 
@@ -903,6 +916,7 @@ git commit -m "feat: write console dev registry"
 ### Task 5: Add Vite Dev Middleware For Registry, Bundles, And Host Proxy
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/dev/console-dev-vite-plugin.ts`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-runtime-console/vite.config.ts`
 
@@ -1059,6 +1073,7 @@ git commit -m "feat: serve console dev assets"
 ### Task 6: Add Runtime Console Dev Runner Script
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/scripts/console-package-dev.mjs`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-runtime-console/package.json`
 
@@ -1074,7 +1089,10 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 
 import { discoverConsoleDevTargets } from "./console-dev/discovery.mjs";
-import { bundleBaseName, writeConsoleDevRegistry } from "./console-dev/registry.mjs";
+import {
+  bundleBaseName,
+  writeConsoleDevRegistry,
+} from "./console-dev/registry.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const runtimeConsoleRoot = path.resolve(import.meta.dirname, "..");
@@ -1093,7 +1111,15 @@ const children = [];
 for (const target of targets) {
   children.push(spawnPackageWatcher({ extensionsDir, target }));
 }
-children.push(spawnRuntimeConsole({ args, extensionsDir, registryFile, runtimeConsoleRoot, targets }));
+children.push(
+  spawnRuntimeConsole({
+    args,
+    extensionsDir,
+    registryFile,
+    runtimeConsoleRoot,
+    targets,
+  })
+);
 
 process.on("SIGINT", () => {
   for (const child of children) {
@@ -1105,7 +1131,15 @@ function spawnPackageWatcher({ extensionsDir, target }) {
   const baseName = bundleBaseName(target);
   const child = spawn(
     "pnpm",
-    ["exec", "vite", "build", "--watch", "--emptyOutDir=false", "--outDir", extensionsDir],
+    [
+      "exec",
+      "vite",
+      "build",
+      "--watch",
+      "--emptyOutDir=false",
+      "--outDir",
+      extensionsDir,
+    ],
     {
       cwd: target.packageRoot,
       env: {
@@ -1118,30 +1152,44 @@ function spawnPackageWatcher({ extensionsDir, target }) {
   return child;
 }
 
-function spawnRuntimeConsole({ args, extensionsDir, registryFile, runtimeConsoleRoot, targets }) {
+function spawnRuntimeConsole({
+  args,
+  extensionsDir,
+  registryFile,
+  runtimeConsoleRoot,
+  targets,
+}) {
   const mode = args.host ? "host" : "mock";
   console.error("Lenso Console Dev");
   console.error(`Mode: ${mode}`);
-  console.error(`Targets: ${targets.map((target) => target.packageName).join(", ")}`);
+  console.error(
+    `Targets: ${targets.map((target) => target.packageName).join(", ")}`
+  );
   console.error(`Console: http://localhost:${args.port}/console/launchpad`);
 
-  return spawn("pnpm", ["exec", "vite", "--host", "0.0.0.0", "--port", String(args.port)], {
-    cwd: runtimeConsoleRoot,
-    env: {
-      ...process.env,
-      LENSO_CONSOLE_DEV_EXTENSIONS_DIR: extensionsDir,
-      LENSO_CONSOLE_DEV_HOST: args.host ?? "",
-      LENSO_CONSOLE_DEV_REGISTRY_FILE: registryFile,
-      LENSO_CONSOLE_BASE: "/console/",
-      VITE_CONSOLE_DEV_MODE: mode,
-      VITE_CONSOLE_DEV_REGISTRY_URL: "/console/dev/registry.json",
-      VITE_CONSOLE_DEV_TARGET_LABEL: targets.map((target) => target.packageName).join(", "),
-      VITE_RUNTIME_CONSOLE_MODE: args.host ? "api" : "mock",
-      VITE_API_BASE_URL: args.host ? "/" : "",
-      VITE_API_AUTH_TOKEN: process.env.LENSO_CONSOLE_DEV_AUTH_TOKEN ?? "",
-    },
-    stdio: "inherit",
-  });
+  return spawn(
+    "pnpm",
+    ["exec", "vite", "--host", "0.0.0.0", "--port", String(args.port)],
+    {
+      cwd: runtimeConsoleRoot,
+      env: {
+        ...process.env,
+        LENSO_CONSOLE_DEV_EXTENSIONS_DIR: extensionsDir,
+        LENSO_CONSOLE_DEV_HOST: args.host ?? "",
+        LENSO_CONSOLE_DEV_REGISTRY_FILE: registryFile,
+        LENSO_CONSOLE_BASE: "/console/",
+        VITE_CONSOLE_DEV_MODE: mode,
+        VITE_CONSOLE_DEV_REGISTRY_URL: "/console/dev/registry.json",
+        VITE_CONSOLE_DEV_TARGET_LABEL: targets
+          .map((target) => target.packageName)
+          .join(", "),
+        VITE_RUNTIME_CONSOLE_MODE: args.host ? "api" : "mock",
+        VITE_API_BASE_URL: args.host ? "/" : "",
+        VITE_API_AUTH_TOKEN: process.env.LENSO_CONSOLE_DEV_AUTH_TOKEN ?? "",
+      },
+      stdio: "inherit",
+    }
+  );
 }
 
 function parseArgs(rawArgs) {
@@ -1224,6 +1272,7 @@ git commit -m "feat: add console package dev runner"
 ### Task 7: Add Browser Dev Overlay
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/dev/console-dev-overlay.tsx`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-runtime-console/src/main.tsx`
 
@@ -1289,6 +1338,7 @@ git commit -m "feat: show console dev overlay"
 ### Task 8: Add CLI Facade For Console Dev
 
 **Files:**
+
 - Create: `/Users/leosouthey/Projects/framework/lenso-cli/src/console_dev.rs`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-cli/src/main.rs`
 
@@ -1495,6 +1545,7 @@ git commit -m "feat: add console dev cli commands"
 ### Task 9: Document The Author Workflow
 
 **Files:**
+
 - Modify: `/Users/leosouthey/Projects/framework/lenso-runtime-console/README.md`
 - Modify: `/Users/leosouthey/Projects/framework/lenso-cli/README.md`
 
@@ -1502,7 +1553,7 @@ git commit -m "feat: add console dev cli commands"
 
 In `/Users/leosouthey/Projects/framework/lenso-runtime-console/README.md`, add this section after the console package creation section:
 
-```md
+````md
 ### Console Package Dev Server
 
 Use the local dev shell to preview a package inside Runtime Console while
@@ -1511,6 +1562,7 @@ editing it:
 ```bash
 pnpm console-package:dev --package ../lenso-auth-module/packages/auth-console
 ```
+````
 
 The default mode is standalone mock mode. It starts the Runtime Console shell,
 loads the package through a temporary `/console/dev/registry.json`, and serves
@@ -1527,7 +1579,8 @@ pnpm console-package:dev \
 Dev mode does not write `.lenso/console/extensions` and does not install
 packages into the host. Production installs still use the normal service/module
 install path.
-```
+
+````
 
 - [ ] **Step 2: Update CLI README**
 
@@ -1540,7 +1593,7 @@ Preview a console package while editing it:
 
 ```bash
 lenso console dev --package packages/auth-console
-```
+````
 
 From a module repository root, discover every local console package:
 
@@ -1557,14 +1610,15 @@ lenso module dev --console --host http://localhost:3000
 
 Set `LENSO_RUNTIME_CONSOLE_ROOT=/path/to/lenso-runtime-console` when the Runtime
 Console checkout is not a sibling of the current repository.
-```
+
+````
 
 - [ ] **Step 3: Commit docs**
 
 ```bash
 git add README.md
 git commit -m "docs: document console dev workflow"
-```
+````
 
 Then in `/Users/leosouthey/Projects/framework/lenso-cli`:
 
@@ -1578,6 +1632,7 @@ git commit -m "docs: document console dev commands"
 ### Task 10: Final Verification
 
 **Files:**
+
 - Verify all files changed by Tasks 1-9.
 
 - [ ] **Step 1: Runtime Console checks**
