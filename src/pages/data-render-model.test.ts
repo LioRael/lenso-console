@@ -26,6 +26,7 @@ import {
   moduleActivationReasons,
   moduleAdminActions,
   moduleConsoleSurfaceRows,
+  moduleDataSurfaceRows,
   moduleDisabledByConfig,
   moduleDesiredEnabled,
   moduleEntrypointRows,
@@ -1543,6 +1544,71 @@ describe("admin surface metadata helpers", () => {
       { label: "allowed origins", value: "1" },
       { label: "permissions", value: "1" },
       { label: "fallback entities", value: "1" },
+    ]);
+  });
+
+  test("summarizes schema surfaces for installed audit-log visibility", () => {
+    const module: AdminModuleMetadata = moduleMetadata({
+      module_name: "audit-log",
+      source: "linked",
+      status: "loaded",
+      error: null,
+      http_routes: [],
+      admin: {
+        kind: "schema",
+        entities: [
+          {
+            name: "events",
+            label: "Audit Events",
+            fields: [emailField, createdAtField, metaField],
+            read_capability: "audit_log.events.read",
+          },
+        ],
+      },
+    });
+
+    expect(adminSurfaceMetadataRows(module)).toEqual([
+      { label: "module", value: "audit-log" },
+      { label: "source", value: "linked" },
+      { label: "surface", value: "schema" },
+      { label: "status", value: "loaded" },
+      { label: "entities", value: "1" },
+      { label: "fields", value: "3" },
+      { label: "read capabilities", value: "audit_log.events.read" },
+    ]);
+  });
+
+  test("builds data surface rows for installed audit-log modules", () => {
+    const module: AdminModuleMetadata = moduleMetadata({
+      module_name: "audit-log",
+      source: "linked",
+      status: "loaded",
+      error: null,
+      http_routes: [],
+      admin: {
+        kind: "schema",
+        entities: [
+          {
+            name: "events",
+            label: "Audit Events",
+            fields: [emailField, createdAtField, metaField],
+            read_capability: "audit_log.events.read",
+          },
+        ],
+      },
+    });
+
+    expect(moduleDataSurfaceRows(module)).toEqual([
+      {
+        capability: "audit_log.events.read",
+        detail: "linked / loaded / 3 fields",
+        entityLabel: "Audit Events",
+        entityName: "events",
+        fieldCount: 3,
+        key: "audit-log:events",
+        moduleName: "audit-log",
+        path: "/data",
+      },
     ]);
   });
 });

@@ -412,6 +412,17 @@ export type ModuleEntrypointRow = {
     | "restart";
 };
 
+export type ModuleDataSurfaceRow = {
+  key: string;
+  moduleName: string;
+  entityName: string;
+  entityLabel: string;
+  fieldCount: number;
+  capability: string;
+  path: string;
+  detail: string;
+};
+
 export type ModuleConsoleSurfaceRow = {
   key: string;
   name: string;
@@ -1008,6 +1019,26 @@ export function adminSurfaceMetadataRows(
     rows.splice(2, 0, { label: "transport", value: transport });
   }
 
+  if (surface.kind === "schema") {
+    const fieldCount = surface.entities.reduce(
+      (total, entity) => total + entity.fields.length,
+      0
+    );
+    const readCapabilities = Array.from(
+      new Set(
+        surface.entities.map((entity) => entity.read_capability).filter(Boolean)
+      )
+    );
+    rows.push(
+      { label: "entities", value: String(surface.entities.length) },
+      { label: "fields", value: String(fieldCount) },
+      {
+        label: "read capabilities",
+        value: readCapabilities.join(", ") || "-",
+      }
+    );
+  }
+
   if (surface.kind === "declarative_custom") {
     rows.push(
       { label: "pages", value: String(surface.pages?.length ?? 0) },
@@ -1040,6 +1071,26 @@ export function adminSurfaceMetadataRows(
   }
 
   return rows;
+}
+
+export function moduleDataSurfaceRows(
+  module: AdminModuleMetadata
+): ModuleDataSurfaceRow[] {
+  const schema = schemaFromModule(module);
+  if (!schema) {
+    return [];
+  }
+
+  return schema.entities.map((entity) => ({
+    capability: entity.read_capability || "-",
+    detail: `${moduleSourceLabel(module)} / ${moduleStatusLabel(module)} / ${entity.fields.length} field${entity.fields.length === 1 ? "" : "s"}`,
+    entityLabel: entity.label,
+    entityName: entity.name,
+    fieldCount: entity.fields.length,
+    key: `${module.module_name}:${entity.name}`,
+    moduleName: module.module_name,
+    path: "/data",
+  }));
 }
 
 export function moduleHttpRouteRows(
