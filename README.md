@@ -72,6 +72,9 @@ pnpm package:hosted-console
 
 The publish workflow uploads `lenso-runtime-console.tar.gz` to the Runtime
 Console GitHub Release. Hosts install it under `.lenso/console`.
+Run the workflow from `main` with the exact `package.json` version; it publishes
+tag `vX.Y.Z`, which hosts can pin with
+`lenso console update --console-version vX.Y.Z`.
 
 Override the development service token when needed:
 
