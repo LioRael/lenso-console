@@ -3,6 +3,7 @@ import {
   Boxes,
   Check,
   Copy,
+  Database,
   KeyRound,
   Network,
   RefreshCw,
@@ -75,6 +76,7 @@ import {
   moduleActivationLabel,
   moduleActivationReasons,
   moduleConsoleSurfaceRows,
+  moduleDataSurfaceRows,
   moduleDisabledByConfig,
   moduleDesiredEnabled,
   moduleEntrypointRows,
@@ -387,8 +389,8 @@ function ModulesContent() {
         <ModuleRefreshHistory history={modulesData?.refresh_history ?? []} />
       </header>
 
-      <div className="grid min-h-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden">
-        <nav className="min-h-0 overflow-auto border-r border-(--border-subtle) p-2 font-mono text-[12px]">
+      <div className="grid min-h-0 grid-rows-[minmax(220px,40vh)_minmax(0,1fr)] overflow-hidden md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-none">
+        <nav className="min-h-0 min-w-0 overflow-auto border-b border-(--border-subtle) p-2 font-mono text-[12px] md:border-r md:border-b-0">
           <ModuleRegistryControls
             filters={filters}
             onChange={setFilters}
@@ -462,7 +464,7 @@ function ModulesContent() {
           )}
         </nav>
 
-        <main className="min-h-0 overflow-auto p-3 font-mono text-[12px]">
+        <main className="min-h-0 min-w-0 overflow-auto p-3 font-mono text-[12px]">
           {panel === "marketplace" ? (
             <ModuleMarketplaceDetail
               configValues={configValues}
@@ -1403,6 +1405,7 @@ function ModuleRegistryDetail({
   const consoleRows = moduleConsoleSurfaceRows(module, {
     availableCapabilities,
   });
+  const dataSurfaceRows = moduleDataSurfaceRows(module);
   const missingConsolePackages = missingConsolePackagesFromMetadata([module]);
   const consolePackageInstallPlan = consolePackageInstallPlanFromMetadata([
     module,
@@ -1434,6 +1437,7 @@ function ModuleRegistryDetail({
       </section>
 
       <ModuleEntrypointsPanel rows={entrypointRows} />
+      <ModuleDataSurfacesPanel rows={dataSurfaceRows} />
       <ModuleOperationsPanel
         configValues={configValues}
         history={history}
@@ -1520,6 +1524,102 @@ function openModuleEntrypoint(path: string) {
     return;
   }
   window.location.assign(path);
+}
+
+function ModuleDataSurfacesPanel({
+  rows,
+}: {
+  rows: ReturnType<typeof moduleDataSurfaceRows>;
+}) {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
+      <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2 font-semibold">
+        <Database className="text-(--info)" size={14} />
+        <span>Data Surfaces</span>
+        <span className="ml-auto border border-(--border-subtle) px-1.5 py-0.5 text-[10px] text-(--secondary)">
+          {rows.length}
+        </span>
+      </header>
+      <div className="overflow-auto">
+        <table className="w-full min-w-full table-fixed">
+          <thead className="bg-(--sidebar) text-[10px] uppercase tracking-wide text-(--muted)">
+            <tr>
+              <th className="px-3 py-1.5 text-left">entity</th>
+              <th className="w-16 px-3 py-1.5 text-left sm:w-24">fields</th>
+              <th className="hidden px-3 py-1.5 text-left sm:table-cell">
+                capability
+              </th>
+              <th className="hidden w-28 px-3 py-1.5 text-left sm:table-cell">
+                action
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                className="border-t border-(--border-subtle) text-[11px]"
+                key={row.key}
+              >
+                <td className="min-w-0 px-3 py-1.5">
+                  <div
+                    className="truncate text-(--foreground)"
+                    title={`${row.moduleName} / ${row.entityName}`}
+                  >
+                    {row.moduleName} / {row.entityLabel}
+                  </div>
+                  <div
+                    className="truncate pt-0.5 text-[9px] text-(--muted)"
+                    title={row.detail}
+                  >
+                    {row.detail}
+                  </div>
+                  <div
+                    className="truncate pt-0.5 text-[9px] text-(--muted) sm:hidden"
+                    title={row.capability}
+                  >
+                    {row.capability}
+                  </div>
+                  <button
+                    className="mt-1 inline-flex h-6 items-center justify-center gap-1 border border-(--border-subtle) bg-(--elevated) px-2 text-[10px] text-(--muted) hover:text-(--foreground) sm:hidden"
+                    onClick={() => window.location.assign(row.path)}
+                    title={`${row.moduleName} / ${row.entityName}`}
+                    type="button"
+                  >
+                    <Database size={11} />
+                    Open Data
+                  </button>
+                </td>
+                <td className="px-3 py-1.5 text-(--secondary)">
+                  {row.fieldCount}
+                </td>
+                <td
+                  className="hidden truncate px-3 py-1.5 text-(--muted) sm:table-cell"
+                  title={row.capability}
+                >
+                  {row.capability}
+                </td>
+                <td className="hidden px-3 py-1.5 sm:table-cell">
+                  <button
+                    className="inline-flex h-6 items-center justify-center gap-1 border border-(--border-subtle) bg-(--elevated) px-2 text-[10px] text-(--muted) hover:text-(--foreground)"
+                    onClick={() => window.location.assign(row.path)}
+                    title={`${row.moduleName} / ${row.entityName}`}
+                    type="button"
+                  >
+                    <Database size={11} />
+                    Open Data
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 function MissingConsolePackagesTable({
