@@ -95,10 +95,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ inputs.version }}" \
+          gh release create "v${{ inputs.version }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Lenso Runtime Console ${{ inputs.version }}" \
-            --notes "Hosted Runtime Console artifact for \`lenso host update-console --console-version ${{ inputs.version }}\`." \
+            --notes "Hosted Runtime Console artifact for \`lenso console update --console-version v${{ inputs.version }}\`." \
             dist/release/lenso-runtime-console.tar.gz \
             dist/release/lenso-runtime-console.tar.gz.sha256
