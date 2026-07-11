@@ -1,6 +1,6 @@
 {
   "schema": "lenso.repository-template.v1",
-  "sourceRevision": "6ef78ef4a1a89870ae278e57594fe86cdfa8a696",
+  "sourceRevision": "e68104fa7c81a89ac1a354b072181c4d7aec9e2e",
   "files": [
     {
       "path": ".github/workflows/publish.yml",
