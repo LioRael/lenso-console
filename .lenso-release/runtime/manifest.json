@@ -1,6 +1,6 @@
 {
   "schema": "lenso.repository-runtime.v1",
-  "sourceRevision": "9bdacb54382579ec8fd8eec26e094dd4444d6f6c",
+  "sourceRevision": "8e9d1959bb127173043202c60a4624a72d5553a6",
   "files": [
     {
       "path": ".lenso-release/runtime/components.yaml",
@@ -48,7 +48,7 @@
     },
     {
       "path": ".lenso-release/runtime/lib/repository/runtime.js",
-      "sha256": "sha256:337b434270b9830bd1c802f1e76c36a77764fc9b8572c1e321b97cfb2ce5faca"
+      "sha256": "sha256:46cd60c29637687ba2b2ef184ba01cd836dc915c9299c438b88ea4db423392e6"
     },
     {
       "path": ".lenso-release/runtime/lib/tegami/capture-plugin.js",
@@ -59,8 +59,12 @@
       "sha256": "sha256:96b7d5bddaa5ab54befe02594fa763ac56a4282ac8addaf5155e14c5139afda0"
     },
     {
+      "path": ".lenso-release/runtime/lib/tegami/cargo-workspace-plugin.js",
+      "sha256": "sha256:8a366a311261443e58ba2439c9f395c12bc9f769a261a1adfe0c69f8a3c3f719"
+    },
+    {
       "path": ".lenso-release/runtime/lib/tegami/export-plan.js",
-      "sha256": "sha256:8b5fc03113da1062c5a56de8a50daef666ff2b8b663a0fccecb78a1b094eab04"
+      "sha256": "sha256:e8eccc45e4ac0954456d7e6b2b067f8137d4b2ac458015f9ab6e7beff9b19b6d"
     },
     {
       "path": ".lenso-release/runtime/node_modules/@clack/core/LICENSE",

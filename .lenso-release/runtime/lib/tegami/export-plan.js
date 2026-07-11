@@ -11,7 +11,10 @@ import { assertReleasePlan } from "../contracts/validate.js";
 import { canonicalBytes, sha256 } from "../core/canonical.js";
 import { capturePackages } from "./capture-plugin.js";
 import { refreshCargoLock } from "./cargo-lock-plugin.js";
+import { repairCargoWorkspace } from "./cargo-workspace-plugin.js";
 const execFileAsync = promisify(execFile);
+const CARGO_METADATA_BUFFER = 64 * 1024 * 1024;
+const RELEASE_GROUP_ORDER = ["foundation", "modules", "console", "host", "distribution"];
 const SUPPORTED_BUMPS = new Set(["patch", "minor", "major"]);
 function fail(message) {
     throw new TypeError(`cannot export Tegami release plan: ${message}`);
@@ -111,7 +114,7 @@ async function assertSupportedCargoSources(cwd) {
     const temp = await mkdtemp(join(tmpdir(), "lenso-cargo-source-check-"));
     try {
         await cp(cwd, temp, { recursive: true, filter: (source) => !source.includes(`${join(cwd, ".git")}`) });
-        const { stdout } = await execFileAsync("cargo", ["metadata", "--no-deps", "--offline", "--format-version", "1"], { cwd: temp });
+        const { stdout } = await execFileAsync("cargo", ["metadata", "--no-deps", "--offline", "--format-version", "1"], { cwd: temp, maxBuffer: CARGO_METADATA_BUFFER });
         const metadata = JSON.parse(stdout);
         for (const owner of metadata.packages) {
             for (const dependency of owner.dependencies) {
@@ -135,7 +138,7 @@ async function cargoObservations(cwd, pkg, components, planned, locked = true) {
     }
     let stdout;
     try {
-        ({ stdout } = await execFileAsync("cargo", ["metadata", ...(locked ? ["--locked"] : ["--offline"]), "--format-version", "1"], { cwd: metadataCwd }));
+        ({ stdout } = await execFileAsync("cargo", ["metadata", ...(locked ? ["--locked"] : ["--offline"]), "--format-version", "1"], { cwd: metadataCwd, maxBuffer: CARGO_METADATA_BUFFER }));
     }
     finally {
         if (cleanup)
@@ -151,15 +154,23 @@ async function cargoObservations(cwd, pkg, components, planned, locked = true) {
     const node = metadata.resolve?.nodes.find((item) => item.id === owner.id);
     if (!node)
         fail(`cargo metadata has no resolved node for ${pkg.id}`);
-    return owner.dependencies.map((dependency) => {
+    return owner.dependencies.flatMap((dependency) => {
+        if (dependency.kind && dependency.kind !== "normal")
+            return [];
         const id = `cargo:${dependency.name}`;
-        assertKnown(id, components, pkg.id);
+        if (!components[id]) {
+            if (dependency.path || !dependency.source)
+                fail(`${id} is a workspace dependency without component registry metadata`);
+            if (!isCratesIoSource(dependency.source))
+                fail(`${id} has unsupported Cargo dependency source ${dependency.source}`);
+            return [];
+        }
         const localVersion = planned.get(id);
-        if ((dependency.path || !dependency.source) && !localVersion)
-            fail(`${id} is a workspace dependency absent from the plan`);
         if (dependency.source && !isCratesIoSource(dependency.source))
             fail(`${id} has unsupported Cargo dependency source ${dependency.source}`);
-        const matches = node.deps.filter((entry) => entry.name === (dependency.rename ?? dependency.name));
+        const matches = node.deps.filter((entry) => metadata.packages.some((candidate) => candidate.id === entry.pkg && candidate.name === dependency.name));
+        if (matches.length === 0 && dependency.optional)
+            return [];
         if (matches.length !== 1)
             fail(`ambiguous cargo lock resolution for ${id}`);
         const resolved = metadata.packages.find((item) => item.id === matches[0].pkg);
@@ -269,7 +280,7 @@ async function safeRead(cwd, path) {
     }
 }
 async function snapshotWorkspace(cwd, packages) {
-    const paths = new Set([join(cwd, "Cargo.lock"), join(cwd, "pnpm-lock.yaml"), join(cwd, ".tegami/publish-lock.yaml")]);
+    const paths = new Set([join(cwd, "Cargo.toml"), join(cwd, "Cargo.lock"), join(cwd, "pnpm-lock.yaml"), join(cwd, ".tegami/publish-lock.yaml")]);
     for (const pkg of packages) {
         paths.add(join(pkg.path, pkg.manager === "cargo" ? "Cargo.toml" : "package.json"));
         paths.add(join(pkg.path, "CHANGELOG.md"));
@@ -321,7 +332,7 @@ async function restoreSnapshot(cwd, snapshot) {
             }
         }
         else {
-            const handle = await open(path, constants.O_WRONLY | constants.O_TRUNC | constants.O_NOFOLLOW);
+            const handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600);
             try {
                 await handle.writeFile(content);
                 await handle.sync();
@@ -347,13 +358,10 @@ async function verifyApplied(options, releasePackages, packages) {
             : JSON.parse(manifest).version;
         if (version !== item.nextVersion)
             fail(`applied manifest version for ${item.id} does not match the plan`);
-        const changelog = await lstat(join(pkg.path, "CHANGELOG.md"));
-        if (!changelog.isFile() || changelog.isSymbolicLink())
-            fail(`Tegami changelog for ${item.id} was not safely generated`);
     }
     const cargoPackages = releasePackages.filter(({ id }) => id.startsWith("cargo:"));
     if (cargoPackages.length > 0) {
-        const { stdout } = await execFileAsync("cargo", ["metadata", "--locked", "--offline", "--format-version", "1"], { cwd });
+        const { stdout } = await execFileAsync("cargo", ["metadata", "--locked", "--offline", "--format-version", "1"], { cwd, maxBuffer: CARGO_METADATA_BUFFER });
         const metadata = JSON.parse(stdout);
         for (const item of cargoPackages) {
             if (!metadata.packages.some((pkg) => pkg.name === item.id.slice(6) && pkg.version === item.nextVersion)) {
@@ -372,7 +380,12 @@ function buildPackages(options, pending, observations) {
             resolvedVersion: planned.get(dependency.id) ?? dependency.resolvedVersion,
             source: planned.has(dependency.id) ? "plan" : "registry",
         })),
-    })).sort((left, right) => left.id.localeCompare(right.id));
+    })).sort((left, right) => {
+        const leftGroup = RELEASE_GROUP_ORDER.indexOf(left.releaseGroup);
+        const rightGroup = RELEASE_GROUP_ORDER.indexOf(right.releaseGroup);
+        const groupOrder = (leftGroup === -1 ? RELEASE_GROUP_ORDER.length : leftGroup) - (rightGroup === -1 ? RELEASE_GROUP_ORDER.length : rightGroup);
+        return groupOrder || left.id.localeCompare(right.id);
+    });
 }
 function buildPlan(options, releasePackages, generatedFiles) {
     const identity = {
@@ -383,7 +396,7 @@ function buildPlan(options, releasePackages, generatedFiles) {
     assertReleasePlan(plan);
     return plan;
 }
-function expectedGeneratedPaths(options, releasePackages, packages) {
+async function expectedGeneratedPaths(options, releasePackages, packages) {
     const { cwd } = options;
     const paths = new Set([".tegami/publish-lock.yaml"]);
     for (const item of releasePackages) {
@@ -391,9 +404,21 @@ function expectedGeneratedPaths(options, releasePackages, packages) {
         if (!pkg)
             fail(`generated package ${item.id} was not captured`);
         paths.add(relative(cwd, join(pkg.path, pkg.manager === "cargo" ? "Cargo.toml" : "package.json")));
-        paths.add(relative(cwd, join(pkg.path, "CHANGELOG.md")));
+        const changelog = join(pkg.path, "CHANGELOG.md");
+        try {
+            const status = await lstat(changelog);
+            if (!status.isFile() || status.isSymbolicLink())
+                fail(`unsafe Tegami changelog for ${item.id}`);
+            paths.add(relative(cwd, changelog));
+        }
+        catch (error) {
+            if (error.code !== "ENOENT")
+                throw error;
+        }
         paths.add(pkg.manager === "cargo" ? "Cargo.lock" : "pnpm-lock.yaml");
     }
+    if (![...paths].some((path) => path.endsWith("CHANGELOG.md")))
+        fail("Tegami generated no package changelog");
     return [...paths].sort();
 }
 async function collectGeneratedFiles(cwd, paths) {
@@ -404,7 +429,7 @@ async function collectGeneratedFiles(cwd, paths) {
 }
 async function verifyGeneratedFiles(options, plan, packages) {
     const { cwd } = options;
-    const expected = expectedGeneratedPaths(options, plan.packages, packages);
+    const expected = await expectedGeneratedPaths(options, plan.packages, packages);
     if (expected.join("\n") !== plan.generatedFiles.map(({ path }) => path).join("\n")) {
         fail("generated file set does not match the plan");
     }
@@ -464,7 +489,12 @@ export async function exportReleasePlan(options) {
     const path = await assertSafePlanPath(options.cwd);
     await assertSupportedCargoSources(options.cwd);
     const captured = new Map();
-    const project = tegami({ cwd: options.cwd, ignore: [...(options.ignore ?? [])], plugins: [cargo(), refreshCargoLock(), capturePackages(captured)] });
+    const ignored = new Set(options.ignore ?? []);
+    const project = tegami({ cwd: options.cwd, ignore: [...ignored], plugins: [cargo({
+                bumpDep: ({ dependent, kind }) => ignored.has(dependent.id) || ignored.has(dependent.name)
+                    ? false
+                    : kind === "dependencies" ? "patch" : false,
+            }), repairCargoWorkspace(), refreshCargoLock(), capturePackages(captured)] });
     const draft = await project.draft();
     const pending = [...draft.getPackageDrafts()].flatMap(([id, packageDraft]) => {
         const pkg = captured.get(id);
@@ -509,7 +539,7 @@ export async function exportReleasePlan(options) {
     try {
         await draft.apply();
         await verifyApplied(options, releasePackages, captured);
-        const generatedFiles = await collectGeneratedFiles(options.cwd, expectedGeneratedPaths(options, releasePackages, captured));
+        const generatedFiles = await collectGeneratedFiles(options.cwd, await expectedGeneratedPaths(options, releasePackages, captured));
         const plan = buildPlan(options, releasePackages, generatedFiles);
         const bytes = Buffer.concat([Buffer.from(JSON.stringify(plan, null, 2)), Buffer.from("\n")]);
         await atomicWrite(path, bytes);
