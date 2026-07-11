@@ -15,28 +15,12 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: contains(inputs.packages_json, 'npm:')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
       attestations: write
     steps:
-      - name: Select npm packages
-        id: selection
-        env:
-          PACKAGES_JSON: ${{ inputs.packages_json }}
-        run: |
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const packages = JSON.parse(process.env.PACKAGES_JSON);
-          if (!Array.isArray(packages) || packages.some(({ id }) => !id.startsWith('npm:') && id !== 'artifact:lenso-runtime-console')) {
-            throw new Error('Runtime Console publish selection contains an unsupported component');
-          }
-          const selected = packages.filter(({ id }) => id.startsWith('npm:'));
-          if (selected.length === 0) throw new Error('npm publish job has no npm package');
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `packages=${JSON.stringify(selected)}\n`);
-          NODE
       - uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b
         id: app
         with:
@@ -48,6 +32,9 @@ jobs:
         with:
           ref: ${{ inputs.release_commit }}
           persist-credentials: false
+      - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
+        with:
+          run_install: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24.18.0
@@ -55,15 +42,29 @@ jobs:
       - name: Install reviewed publishing toolchains
         run: |
           corepack enable
-          npm install --global npm@11.7.0
           pnpm install --frozen-lockfile
+          npm install --global npm@11.7.0
+          rustup toolchain install 1.92.0 --profile minimal
+          rustup default 1.92.0
+      - name: Build exact Runtime Console release artifacts
+        env:
+          PACKAGES_JSON: ${{ inputs.packages_json }}
+        run: |
+          pnpm --filter @lenso/runtime-console-api build
+          pnpm --filter @lenso/remote-module-kit build
+          pnpm --filter @lenso/service-kit build
+          if node -e "process.exit(JSON.parse(process.env.PACKAGES_JSON).some(({id}) => id === 'artifact:lenso-runtime-console') ? 0 : 1)"; then
+            version="$(node -e "const p=JSON.parse(process.env.PACKAGES_JSON).find(({id}) => id === 'artifact:lenso-runtime-console'); if (!p || !/^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$/.test(p.version)) process.exit(1); process.stdout.write(p.version)")"
+            LENSO_CONSOLE_BASE=/console/ pnpm build:local
+            LENSO_RUNTIME_CONSOLE_VERSION="$version" pnpm package:hosted-console
+          fi
       - name: Complete fail-closed preflight before any registry OIDC
         env:
           INPUT_EVENT_ID: ${{ inputs.event_id }}
           INPUT_PLAN_ID: ${{ inputs.plan_id }}
           INPUT_PLAN_SHA256: ${{ inputs.plan_sha256 }}
           INPUT_RELEASE_COMMIT: ${{ inputs.release_commit }}
-          INPUT_PACKAGES_JSON: ${{ steps.selection.outputs.packages }}
+          INPUT_PACKAGES_JSON: ${{ inputs.packages_json }}
           INPUT_NONCE: ${{ inputs.nonce }}
           LENSO_APP_TOKEN: ${{ steps.app.outputs.token }}
           LENSO_COORDINATOR_PREFLIGHT_URL: ${{ vars.LENSO_COORDINATOR_PREFLIGHT_URL }}
@@ -75,73 +76,30 @@ jobs:
           INPUT_PLAN_ID: ${{ inputs.plan_id }}
           INPUT_PLAN_SHA256: ${{ inputs.plan_sha256 }}
           INPUT_RELEASE_COMMIT: ${{ inputs.release_commit }}
-          INPUT_PACKAGES_JSON: ${{ steps.selection.outputs.packages }}
+          INPUT_PACKAGES_JSON: ${{ inputs.packages_json }}
           INPUT_NONCE: ${{ inputs.nonce }}
           LENSO_APP_TOKEN: ${{ steps.app.outputs.token }}
           LENSO_COORDINATOR_PREFLIGHT_CONSUME_URL: ${{ vars.LENSO_COORDINATOR_PREFLIGHT_CONSUME_URL }}
           LENSO_PREFLIGHT_AUTHORITY_PUBLIC_KEY: ${{ vars.LENSO_PREFLIGHT_AUTHORITY_PUBLIC_KEY }}
           RUNNER_IMAGE: ubuntu-24.04
         run: node .lenso-release/runtime/lib/repository/cli.js consume-preflight
+      - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18
+        if: contains(inputs.packages_json, 'cargo:')
+        id: crates-auth
       - name: Publish and confirm receipts
         env:
           INPUT_EVENT_ID: ${{ inputs.event_id }}
           INPUT_PLAN_ID: ${{ inputs.plan_id }}
           INPUT_PLAN_SHA256: ${{ inputs.plan_sha256 }}
           INPUT_RELEASE_COMMIT: ${{ inputs.release_commit }}
-          INPUT_PACKAGES_JSON: ${{ steps.selection.outputs.packages }}
+          INPUT_PACKAGES_JSON: ${{ inputs.packages_json }}
           INPUT_NONCE: ${{ inputs.nonce }}
           LENSO_APP_ID: ${{ vars.LENSO_RELEASE_APP_ID }}
           LENSO_APP_TOKEN: ${{ steps.app.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
           LENSO_COORDINATOR_RECEIPT_URL: ${{ vars.LENSO_COORDINATOR_RECEIPT_URL }}
           LENSO_COORDINATOR_CLEANUP_URL: ${{ vars.LENSO_COORDINATOR_CLEANUP_URL }}
           LENSO_COORDINATOR_PREFLIGHT_CONSUME_URL: ${{ vars.LENSO_COORDINATOR_PREFLIGHT_CONSUME_URL }}
           LENSO_PREFLIGHT_AUTHORITY_PUBLIC_KEY: ${{ vars.LENSO_PREFLIGHT_AUTHORITY_PUBLIC_KEY }}
           RUNNER_IMAGE: ubuntu-24.04
         run: node .lenso-release/runtime/lib/repository/cli.js publish
-  hosted-console-shadow:
-    if: contains(inputs.packages_json, 'artifact:lenso-runtime-console')
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ inputs.release_commit }}
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 24.18.0
-          cache: pnpm
-      - name: Verify exact hosted Console execution ref
-        env:
-          PACKAGES_JSON: ${{ inputs.packages_json }}
-          RELEASE_COMMIT: ${{ inputs.release_commit }}
-          PLAN_ID: ${{ inputs.plan_id }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
-          test "$GITHUB_SHA" = "$RELEASE_COMMIT"
-          test "$GITHUB_REF_NAME" = "release-execution/${PLAN_ID#sha256:}"
-          node - <<'NODE'
-          const packages = JSON.parse(process.env.PACKAGES_JSON);
-          const artifacts = packages.filter(({ id }) => id === 'artifact:lenso-runtime-console');
-          if (artifacts.length !== 1 || packages.some(({ id }) => !id.startsWith('npm:') && id !== 'artifact:lenso-runtime-console')) {
-            throw new Error('hosted Console shadow requires exactly one supported artifact');
-          }
-          if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(artifacts[0]?.version ?? '')) {
-            throw new Error('hosted Console shadow version must be exact SemVer');
-          }
-          NODE
-      - name: Build exact hosted Console archive
-        run: |
-          corepack enable
-          pnpm install --frozen-lockfile
-          LENSO_CONSOLE_BASE=/console/ pnpm build:local
-          pnpm package:hosted-console
-          sha256sum --check dist/release/lenso-runtime-console.tar.gz.sha256
-      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
-        with:
-          name: untrusted-hosted-console-shadow-${{ inputs.plan_id }}
-          path: |
-            dist/release/lenso-runtime-console.tar.gz
-            dist/release/lenso-runtime-console.tar.gz.sha256
-          if-no-files-found: error

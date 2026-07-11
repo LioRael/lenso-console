@@ -4,7 +4,6 @@
  */
 export default {
   ignore: [
-    "@lenso/runtime-console",
     "@lenso/identity-console",
     "@lenso/remote-crm-console",
     "@lenso/story-console",

@@ -1,4 +1,20 @@
 {
   "schema": "lenso.repository-config.v1",
-  "repository": "LioRael/lenso-runtime-console"
+  "repository": "LioRael/lenso-runtime-console",
+  "aliases": {
+    "artifact:lenso-runtime-console": "npm:@lenso/runtime-console"
+  },
+  "ignore": [
+    "@lenso/identity-console",
+    "@lenso/remote-crm-console",
+    "@lenso/story-console",
+    "npm:@lenso/identity-console",
+    "npm:@lenso/remote-crm-console",
+    "npm:@lenso/story-console"
+  ],
+  "artifacts": {
+    "artifact:lenso-runtime-console": {
+      "path": "dist/release/lenso-runtime-console.tar.gz"
+    }
+  }
 }
