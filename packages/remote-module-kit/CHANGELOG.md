@@ -1,8 +1,4 @@
----
-packages:
-  "@lenso/remote-module-kit": patch
-  "@lenso/service-kit": patch
----
+## @lenso/remote-module-kit@0.1.4
 
 ### Fixes
 
