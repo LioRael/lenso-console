@@ -25,9 +25,11 @@ jobs:
         run: |
           corepack enable
           npm install --global npm@11.7.0 --registry https://registry.npmjs.org/
+          export NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
           pnpm install --frozen-lockfile
           pnpm --filter @lenso/runtime-console-api build
           pnpm --filter @lenso/remote-module-kit build
           pnpm --filter @lenso/service-kit build
+          unset NPM_CONFIG_REGISTRY
           npm pack "$PWD/packages/remote-module-kit" --json --ignore-scripts
           npm publish "$PWD/lenso-remote-module-kit-0.1.4.tgz" --registry "$REGISTRY" --access public --ignore-scripts
