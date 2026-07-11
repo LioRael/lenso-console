@@ -24,7 +24,7 @@ jobs:
           REGISTRY: ${{ vars.LENSO_SHADOW_NPM_REGISTRY_URL }}
         run: |
           corepack enable
-          npm install --global npm@11.7.0
+          npm install --global npm@11.7.0 --registry https://registry.npmjs.org/
           pnpm install --frozen-lockfile
           pnpm --filter @lenso/runtime-console-api build
           pnpm --filter @lenso/remote-module-kit build
