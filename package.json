@@ -12,6 +12,9 @@
     "check:console-packages": "node scripts/check-console-packages.mjs",
     "package-readiness": "node scripts/package-readiness.mjs",
     "package:hosted-console": "node scripts/package-hosted-console.mjs",
+    "release:intent-check": "node scripts/release-plan.mjs --check-intent",
+    "release:plan": "node scripts/release-plan.mjs",
+    "release:verify": "pnpm check && node scripts/release-plan.mjs --verify",
     "create:module": "node scripts/run-lenso-cli.mjs module create",
     "create:console-package": "node scripts/create-console-package.mjs",
     "console-package:dev": "node scripts/console-package-dev.mjs",
@@ -56,6 +59,7 @@
     "@types/react-dom": "^19.1.0",
     "oxfmt": "^0.52.0",
     "oxlint": "^1.67.0",
+    "tegami": "1.2.5",
     "typescript": "^6.0.3",
     "ultracite": "^7.8.1",
     "vitest": "^4.1.7"

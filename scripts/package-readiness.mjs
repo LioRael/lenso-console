@@ -144,10 +144,14 @@ const assertPackContents = (packageName, packOutput) => {
 };
 
 const packPackage = async ({ dir }) => {
-  const packOutput = await execFileAsync("pnpm", ["pack", "--json"], {
-    cwd: dir,
-    maxBuffer: 1024 * 1024 * 10,
-  });
+  const packOutput = await execFileAsync(
+    "pnpm",
+    ["pack", "--config.ignore-scripts=true", "--json"],
+    {
+      cwd: dir,
+      maxBuffer: 1024 * 1024 * 10,
+    }
+  );
   const pack = parsePnpmPackOutput(packOutput.stdout);
   const tarballPath = path.join(dir, pack.filename);
   const packedManifestOutput = await execFileAsync(
@@ -229,7 +233,7 @@ for (const packageConfig of packages) {
   console.log(`Dry-running pnpm pack for ${packageConfig.name}...`);
   const packDryRunOutput = await execFileAsync(
     "pnpm",
-    ["pack", "--dry-run", "--json"],
+    ["pack", "--dry-run", "--config.ignore-scripts=true", "--json"],
     {
       cwd: packageConfig.dir,
       maxBuffer: 1024 * 1024 * 10,
