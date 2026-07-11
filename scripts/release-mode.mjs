@@ -25,7 +25,6 @@ if (mode === "shadow") {
     LENSO_GITHUB_API_URL: "LENSO_SHADOW_GITHUB_API_URL",
     LENSO_NPM_REGISTRY_URL: "LENSO_SHADOW_NPM_REGISTRY_URL",
     LENSO_SHADOW_ATTESTATION_URL: "LENSO_SHADOW_ATTESTATION_URL",
-    NPM_CONFIG_REGISTRY: "LENSO_SHADOW_NPM_REGISTRY_URL",
   };
   for (const [target, source] of Object.entries(mappings)) {
     const value = process.env[source];
