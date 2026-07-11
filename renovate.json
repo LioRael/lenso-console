@@ -20,8 +20,9 @@
       "groupName": "lenso internal manifest dependencies",
       "automerge": false,
       "dependencyDashboardApproval": true,
-      "prBodyNotes": ["Manifest or dependency-range changes require the release-intent status check."]
+      "prBodyNotes": [
+        "Manifest or dependency-range changes require the release-intent status check."
+      ]
     }
   ]
 }
-
