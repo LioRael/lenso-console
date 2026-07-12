@@ -113,6 +113,41 @@ export type ServiceSystemResponse = {
   modules: ServiceSystemModule[];
   dependencies: ServiceSystemDependency[];
   issues: ServiceSystemIssue[];
+  protocolVersion: string | null;
+  semanticKind: string | null;
+  nodes: ServiceSystemNode[];
+  relationships: ServiceSystemRelationship[];
+  compatibilityResults: ServiceSystemCompatibilityResult[];
+};
+
+export type ServiceSystemNode = {
+  id: string;
+  kind: string;
+  owner?: string | null;
+};
+
+export type ServiceSystemRelationship = {
+  kind: string;
+  from: string;
+  to: string;
+  contractId?: string | null;
+  contractVersion?: string | null;
+};
+
+export type ServiceSystemCompatibilityResult = {
+  category: string;
+  contractKind: string;
+  contractId: string;
+  changedVersion: string;
+  affectedReferences: string[];
+  reasons: ServiceSystemCompatibilityReason[];
+};
+
+export type ServiceSystemCompatibilityReason = {
+  code: string;
+  path: string;
+  message: string;
+  nextAction: string;
 };
 
 export type ServiceSystemService = {

@@ -67,6 +67,36 @@ export type ServiceSystemSummary = {
   services: number;
   status: string;
   targets: string[];
+  topology: ServiceSystemTopology;
+};
+
+export type ServiceSystemTopology = {
+  protocolVersion: string | null;
+  semanticKind: string | null;
+  nodes: ServiceSystemTopologyNode[];
+  relationships: ServiceSystemTopologyRelationship[];
+  compatibility: ServiceSystemCompatibilitySummary[];
+};
+
+export type ServiceSystemTopologyNode = {
+  id: string;
+  kind: string;
+  owner: string | null;
+};
+
+export type ServiceSystemTopologyRelationship = {
+  kind: string;
+  from: string;
+  to: string;
+  contract: string | null;
+};
+
+export type ServiceSystemCompatibilitySummary = {
+  category: string;
+  contract: string;
+  affectedReferences: string[];
+  reasons: string[];
+  nextActions: string[];
 };
 
 export type ServiceSystemDriftSummary = {
@@ -224,7 +254,67 @@ export function serviceSystemSummary(
     targets: uniqueStrings(
       response?.services.map((service) => service.target) ?? []
     ),
+    topology: serviceSystemTopology(response),
   };
+}
+
+export function serviceSystemTopology(
+  response: ServiceSystemResponse | undefined
+): ServiceSystemTopology {
+  return {
+    protocolVersion: response?.protocolVersion ?? null,
+    semanticKind: response?.semanticKind?.replaceAll("_", " ") ?? null,
+    nodes: [...(response?.nodes ?? [])]
+      .map((node) => ({
+        id: node.id,
+        kind: topologyKindLabel(node.kind),
+        owner: node.owner ?? null,
+      }))
+      .sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id)),
+    relationships: [...(response?.relationships ?? [])]
+      .map((relationship) => ({
+        contract: relationship.contractId
+          ? `${relationship.contractId}${relationship.contractVersion ? `@${relationship.contractVersion}` : ""}`
+          : null,
+        from: relationship.from,
+        kind: relationship.kind,
+        to: relationship.to,
+      }))
+      .sort(
+        (a, b) =>
+          relationshipRank(a.kind) - relationshipRank(b.kind) ||
+          a.from.localeCompare(b.from) ||
+          a.to.localeCompare(b.to)
+      ),
+    compatibility: [...(response?.compatibilityResults ?? [])]
+      .map((result) => ({
+        affectedReferences: [...result.affectedReferences].sort(),
+        category: result.category,
+        contract: `${result.contractKind}/${result.contractId}@${result.changedVersion}`,
+        nextActions: uniqueStrings(
+          result.reasons.map((reason) => reason.nextAction)
+        ),
+        reasons: result.reasons.map(
+          (reason) => `${reason.code}: ${reason.message}`
+        ),
+      }))
+      .sort((a, b) => a.contract.localeCompare(b.contract)),
+  };
+}
+
+function topologyKindLabel(kind: string): string {
+  const labels: Record<string, string> = {
+    autonomous_service: "Autonomous Service",
+    host: "Host",
+    module: "Module",
+    provider: "Provider",
+    workload: "Workload",
+  };
+  return labels[kind] ?? kind.replaceAll("_", " ");
+}
+
+function relationshipRank(kind: string): number {
+  return { produces: 0, consumes: 1, owns: 2 }[kind] ?? 3;
 }
 
 export function serviceSystemDriftSummary(

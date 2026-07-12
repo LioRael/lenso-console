@@ -174,7 +174,7 @@ export function ServicesPage() {
   );
 }
 
-function SystemPlane({
+export function SystemPlane({
   drift,
   driftError,
   error,
@@ -228,6 +228,12 @@ function SystemPlane({
           />
         </div>
         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-(--fg-tertiary)">
+          {system.topology.protocolVersion ? (
+            <span>{system.topology.protocolVersion}</span>
+          ) : null}
+          {system.topology.semanticKind ? (
+            <span>{system.topology.semanticKind}</span>
+          ) : null}
           <span>{system.services} services</span>
           <span>{system.modules} modules</span>
           <span>{system.dependencies} dependencies</span>
@@ -287,7 +293,74 @@ function SystemPlane({
           </div>
         )}
       </div>
+      {system.topology.nodes.length > 0 ? (
+        <div className="grid gap-1 border-t border-(--line) pt-2 md:col-span-2 md:grid-cols-2">
+          <SystemTopologyList
+            items={system.topology.nodes.map((node) => ({
+              key: `${node.kind}:${node.id}`,
+              label: `${node.kind}: ${node.id}${node.owner ? ` / owner: ${node.owner}` : ""}`,
+            }))}
+            title="topology"
+          />
+          <SystemTopologyList
+            items={system.topology.relationships.map((relationship) => ({
+              key: `${relationship.kind}:${relationship.from}:${relationship.to}:${relationship.contract ?? ""}`,
+              label: `${relationship.from} --${relationship.kind}--> ${relationship.to}${relationship.contract ? ` / ${relationship.contract}` : ""}`,
+            }))}
+            title="relationships"
+          />
+        </div>
+      ) : null}
+      {system.topology.compatibility.length > 0 ? (
+        <div className="grid gap-1 border-t border-(--line) pt-2 md:col-span-2">
+          <span className="text-[10px] uppercase text-(--fg-tertiary)">
+            contract compatibility
+          </span>
+          {system.topology.compatibility.map((result) => (
+            <div
+              className="grid gap-0.5 border border-(--line) bg-(--bg-panel) px-2 py-1"
+              key={result.contract}
+            >
+              <span className="text-(--fg-primary)">
+                {result.category}: {result.contract}
+              </span>
+              {result.affectedReferences.length > 0 ? (
+                <span>affected: {result.affectedReferences.join(", ")}</span>
+              ) : null}
+              {result.reasons.map((reason) => (
+                <span key={reason}>{reason}</span>
+              ))}
+              {result.nextActions.map((action) => (
+                <span className="text-(--accent)" key={action}>
+                  next: {action}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function SystemTopologyList({
+  items,
+  title,
+}: {
+  items: Array<{ key: string; label: string }>;
+  title: string;
+}) {
+  return (
+    <div className="grid content-start gap-0.5">
+      <span className="text-[10px] uppercase text-(--fg-tertiary)">
+        {title}
+      </span>
+      {items.length > 0 ? (
+        items.map((item) => <span key={item.key}>{item.label}</span>)
+      ) : (
+        <span className="text-(--fg-tertiary)">none</span>
+      )}
+    </div>
   );
 }
 
