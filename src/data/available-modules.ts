@@ -289,6 +289,7 @@ export const sampleServiceModuleLifecycleResponse = {
 } satisfies ServiceModuleLifecycleResponse;
 
 export const sampleServiceSystemResponse = {
+  compatibilityResults: [],
   dependencies: [
     {
       capability: "billing.invoice.read",
@@ -314,6 +315,10 @@ export const sampleServiceSystemResponse = {
     },
   ],
   name: "support-platform",
+  nodes: [],
+  protocolVersion: "lenso.system.v1",
+  relationships: [],
+  semanticKind: "provider_system",
   services: [
     {
       modules: ["support-ticket"],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { m0ServiceSystemResponse } from "../data/m0-service-system-fixture";
 import type { ServiceModuleLifecycleResponse } from "./available-modules-model";
 import {
   serviceCenterProviderDetail,
@@ -10,6 +11,7 @@ import {
   serviceSystemRunbooksSummary,
   serviceSystemReleaseTrainSummary,
   serviceSystemSummary,
+  serviceSystemTopology,
 } from "./services-model";
 
 describe("service center model", () => {
@@ -87,6 +89,7 @@ describe("service center model", () => {
           },
         ],
         environments: ["local", "prod"],
+        compatibilityResults: [],
         issues: [{ code: "dependency_unresolved", message: "missing billing" }],
         modules: [
           {
@@ -97,6 +100,10 @@ describe("service center model", () => {
           },
         ],
         name: "support-platform",
+        nodes: [],
+        protocolVersion: "lenso.system.v1",
+        relationships: [],
+        semanticKind: "provider_system",
         services: [
           { modules: ["support-ticket"], name: "support", target: "local" },
           { modules: [], name: "billing", target: "kubernetes" },
@@ -112,6 +119,83 @@ describe("service center model", () => {
       services: 2,
       status: "needs_attention",
       targets: ["kubernetes", "local"],
+    });
+  });
+
+  it("projects mixed topology and backend compatibility evidence", () => {
+    const topology = serviceSystemTopology(m0ServiceSystemResponse);
+
+    expect(topology).toEqual({
+      compatibility: [
+        {
+          affectedReferences: ["consumer:analytics"],
+          category: "breaking",
+          contract: "event_contract/notification-events.v1@v2",
+          nextActions: ["coordinate the analytics consumer upgrade"],
+          reasons: [
+            "event_field_removed: required event field `channel` was removed",
+          ],
+        },
+      ],
+      nodes: [
+        { id: "support", kind: "Autonomous Service", owner: null },
+        {
+          id: "consumer:support-host-support-api",
+          kind: "consumer",
+          owner: "support-host",
+        },
+        {
+          id: "consumer:support-notifications",
+          kind: "consumer",
+          owner: "support",
+        },
+        { id: "support-host", kind: "Host", owner: null },
+        { id: "auth", kind: "Module", owner: "support-host" },
+        {
+          id: "notification-gateway",
+          kind: "Module",
+          owner: "notification-provider",
+        },
+        { id: "support-sla", kind: "Module", owner: "support" },
+        { id: "support-ticket", kind: "Module", owner: "support" },
+        {
+          id: "producer:notification-events.v1",
+          kind: "producer",
+          owner: "notification-provider",
+        },
+        {
+          id: "producer:support-http.v1",
+          kind: "producer",
+          owner: "support",
+        },
+        { id: "notification-provider", kind: "Provider", owner: null },
+        { id: "support-api", kind: "Workload", owner: "support" },
+        { id: "support-worker", kind: "Workload", owner: "support" },
+      ],
+      protocolVersion: "lenso.system.v2",
+      relationships: [
+        {
+          contract: "notification-events.v1@v1",
+          from: "notification-provider",
+          kind: "produces",
+          to: "producer:notification-events.v1",
+        },
+        {
+          contract: "support-http.v1@v1",
+          from: "support",
+          kind: "produces",
+          to: "producer:support-http.v1",
+        },
+        expect.objectContaining({ kind: "consumes" }),
+        expect.objectContaining({ kind: "consumes" }),
+        expect.objectContaining({ kind: "owns" }),
+        expect.objectContaining({ kind: "owns" }),
+        expect.objectContaining({ kind: "owns" }),
+        expect.objectContaining({ kind: "owns" }),
+        expect.objectContaining({ kind: "owns" }),
+        expect.objectContaining({ kind: "owns" }),
+      ],
+      semanticKind: "mixed system",
     });
   });
 
