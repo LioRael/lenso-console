@@ -249,6 +249,7 @@ export type AdminRuntimeStoryEdge = {
 };
 
 export type AdminRuntimeStoryListItem = {
+  story_kind: string;
   correlation_id: string;
   created_at: string;
   duration: number;
@@ -260,6 +261,72 @@ export type AdminRuntimeStoryListItem = {
   status: string;
   title: string;
   updated_at: string;
+};
+
+export type AdminFederatedStoryGap = {
+  sourceServiceId: string;
+  tenantId?: string | null;
+  kind: string;
+  detectedAt: string;
+  lastObservedAt: string;
+  detail: string;
+  nextAction: string;
+};
+
+export type AdminFederatedWorkflowEntity = {
+  kind: string;
+  id: string;
+  nodeId: string;
+  instanceId: string;
+  parentId?: string | null;
+  label: string;
+  state: string;
+  serviceId: string;
+  attempt: number;
+  observedAt: string;
+};
+
+export type AdminFederatedReliabilityCheck = {
+  code: string;
+  state: string;
+  observed: unknown;
+  expected: unknown;
+  evidenceReferences: string[];
+  issueCode?: string | null;
+  nextActions: string[];
+};
+
+export type AdminFederatedReliabilityEvidence = {
+  sourceServiceId: string;
+  observedAt: string;
+  status: string;
+  report?: {
+    protocol: string;
+    serviceId: string;
+    contractId: string;
+    contractVersion: string;
+    profile: string;
+    overrides: unknown;
+    effectiveValues: unknown;
+    state: string;
+    activeDegradedModes: Array<{
+      dependencyId: string;
+      mode: string;
+      evidenceReferences: string[];
+    }>;
+    checks: AdminFederatedReliabilityCheck[];
+  } | null;
+  detail?: string | null;
+  nextAction?: string | null;
+};
+
+export type AdminFederatedStoryEvidence = {
+  protocol: string;
+  tenantId?: string | null;
+  assembledAt: string;
+  gaps: AdminFederatedStoryGap[];
+  workflowEntities: AdminFederatedWorkflowEntity[];
+  reliability: AdminFederatedReliabilityEvidence[];
 };
 
 export type AdminRuntimeStoryNode = {
@@ -292,6 +359,7 @@ export type AdminRuntimeTimelineItem = {
 
 export type AdminRuntimeStoryDetail = {
   edges: AdminRuntimeStoryEdge[];
+  federation?: AdminFederatedStoryEvidence | null;
   nodes: AdminRuntimeStoryNode[];
   summary: AdminRuntimeStoryListItem;
   timeline_items: AdminRuntimeTimelineItem[];

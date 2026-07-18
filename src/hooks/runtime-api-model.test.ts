@@ -101,6 +101,113 @@ describe("runtime API model normalization", () => {
     ]);
   });
 
+  test("keeps backend-projected federated workflow, gaps, and reliability evidence", () => {
+    const story = normalizeRuntimeStory({
+      ...normalStory,
+      summary: {
+        ...normalStory.summary,
+        correlation_id: "story_federated",
+        story_kind: "federated",
+      },
+      nodes: [
+        {
+          duration_ms: 80,
+          id: "evt_support_failed",
+          metadata: { attempt: 3 },
+          name: "support.ticket.escalation-requested.v1",
+          service: "support-sla",
+          status: "failed",
+          timestamp: "2026-07-18T08:05:00.000Z",
+          type: "outbox_event",
+        },
+      ],
+      federation: {
+        assembledAt: "2026-07-18T08:05:00.000Z",
+        gaps: [
+          {
+            detectedAt: "2026-07-18T08:04:00.000Z",
+            detail: "reader forbidden",
+            kind: "unauthorized",
+            lastObservedAt: "2026-07-18T08:05:00.000Z",
+            nextAction: "refresh_story_segment_feed_authorization",
+            sourceServiceId: "support-identity",
+            tenantId: "tenant_a",
+          },
+        ],
+        protocol: "lenso.federated-runtime-story.v1",
+        reliability: [
+          {
+            observedAt: "2026-07-18T08:05:00.000Z",
+            report: {
+              activeDegradedModes: [
+                {
+                  dependencyId: "notification-gateway",
+                  evidenceReferences: ["probe:notification-gateway"],
+                  mode: "queue_notifications",
+                },
+              ],
+              checks: [
+                {
+                  code: "workflow_backlog",
+                  evidenceReferences: ["service-store:workflow"],
+                  expected: { maximum: 5 },
+                  issueCode: "workflow_backlog_limit_exceeded",
+                  nextActions: ["drain_workflow_backlog"],
+                  observed: 8,
+                  state: "breached",
+                },
+              ],
+              contractId: "support-reliability",
+              contractVersion: "v1",
+              effectiveValues: { workflowBacklogLimit: 5 },
+              overrides: { workflowBacklogLimit: 5 },
+              profile: "critical",
+              protocol: "lenso.reliability-report.v1",
+              serviceId: "support-sla",
+              state: "degraded",
+            },
+            sourceServiceId: "support-sla",
+            status: "available",
+          },
+        ],
+        tenantId: "tenant_a",
+        workflowEntities: [
+          {
+            attempt: 2,
+            id: "compensation-1",
+            instanceId: "workflow-1",
+            kind: "compensation",
+            label: "Compensation compensation-1",
+            nodeId: "node-compensation",
+            observedAt: "2026-07-18T08:05:00.000Z",
+            serviceId: "support-sla",
+            state: "intervention_required",
+          },
+        ],
+      },
+    });
+
+    expect(story.source).toBe("federated-runtime-story");
+    expect(story.nodes[0]).toMatchObject({
+      id: "evt_support_failed",
+      retryable: false,
+      status: "failed",
+    });
+    expect(story.federation?.gaps[0]).toMatchObject({
+      kind: "unauthorized",
+      sourceServiceId: "support-identity",
+    });
+    expect(story.federation?.workflowEntities[0]).toMatchObject({
+      kind: "compensation",
+      state: "intervention_required",
+    });
+    expect(story.federation?.reliability[0]?.report).toMatchObject({
+      overrides: { workflowBacklogLimit: 5 },
+      profile: "critical",
+      state: "degraded",
+    });
+  });
+
   test("normalizes remote proxy calls as story graph and timeline nodes", () => {
     const story = normalizeRuntimeStory({
       ...normalStory,
