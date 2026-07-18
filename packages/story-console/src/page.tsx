@@ -15,6 +15,7 @@ import {
   type CSSProperties,
 } from "react";
 
+import { FederatedStoryEvidencePanel } from "./federated-evidence";
 import { shouldCloseInspectorOnEscape } from "./keyboard";
 import {
   resizeServicesPanelLayout,
@@ -179,6 +180,14 @@ export function RuntimeStoriesPage() {
   const showServicesPanel = mode === "waterfall" || mode === "flame";
   const storyDetailLoading =
     Boolean(selectedStoryCorrelationId) && storyDetailQuery.isPending;
+  const mainGridTemplateRows = selectedStory
+    ? [
+        "auto",
+        ...(selectedStory.federation ? ["auto"] : []),
+        "minmax(0,1fr)",
+        ...(showServicesPanel ? ["auto", "auto"] : []),
+      ].join(" ")
+    : "minmax(0,1fr)";
 
   useBrowserUrlPopState((search) => {
     clearStoryTarget();
@@ -526,17 +535,18 @@ export function RuntimeStoriesPage() {
         <main
           className="grid min-h-0 min-w-0 overflow-hidden"
           style={{
-            gridTemplateRows: selectedStory
-              ? showServicesPanel
-                ? "auto minmax(0,1fr) auto auto"
-                : "auto minmax(0,1fr)"
-              : "minmax(0,1fr)",
+            gridTemplateRows: mainGridTemplateRows,
           }}
         >
           {selectedStory ? (
             <>
               <StoryHeader
                 onClose={closeStoryDetail}
+                onSelectNode={selectNode}
+                story={selectedStory}
+              />
+
+              <FederatedStoryEvidencePanel
                 onSelectNode={selectNode}
                 story={selectedStory}
               />

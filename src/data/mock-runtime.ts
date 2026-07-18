@@ -157,6 +157,84 @@ export type ExecutionEdge = {
   label?: string;
 };
 
+export type FederatedStoryGap = {
+  sourceServiceId: string;
+  tenantId?: string;
+  kind:
+    | "unreachable"
+    | "stale"
+    | "unauthorized"
+    | "truncated"
+    | "retention_expired";
+  detectedAt: string;
+  lastObservedAt: string;
+  detail: string;
+  nextAction: string;
+};
+
+export type FederatedWorkflowEntity = {
+  kind:
+    | "instance"
+    | "step"
+    | "attempt"
+    | "timer"
+    | "child"
+    | "compensation"
+    | "intervention";
+  id: string;
+  nodeId: string;
+  instanceId: string;
+  parentId?: string;
+  label: string;
+  state: string;
+  serviceId: string;
+  attempt: number;
+  observedAt: string;
+};
+
+export type FederatedReliabilityCheck = {
+  code: string;
+  state: "met" | "breached" | "unknown" | "allowed";
+  observed: unknown;
+  expected: unknown;
+  evidenceReferences: string[];
+  issueCode?: string;
+  nextActions: string[];
+};
+
+export type FederatedReliabilityEvidence = {
+  sourceServiceId: string;
+  observedAt: string;
+  status: "available" | "unavailable" | "not_declared";
+  report?: {
+    protocol: string;
+    serviceId: string;
+    contractId: string;
+    contractVersion: string;
+    profile: "development" | "standard" | "critical";
+    overrides: Record<string, unknown>;
+    effectiveValues: Record<string, unknown>;
+    state: "healthy" | "degraded" | "unavailable";
+    activeDegradedModes: {
+      dependencyId: string;
+      mode: string;
+      evidenceReferences: string[];
+    }[];
+    checks: FederatedReliabilityCheck[];
+  };
+  detail?: string;
+  nextAction?: string;
+};
+
+export type FederatedStoryEvidence = {
+  protocol: string;
+  tenantId?: string;
+  assembledAt: string;
+  gaps: FederatedStoryGap[];
+  workflowEntities: FederatedWorkflowEntity[];
+  reliability: FederatedReliabilityEvidence[];
+};
+
 export type RuntimeStory = {
   id: string;
   name: string;
@@ -169,6 +247,7 @@ export type RuntimeStory = {
   nodes: ExecutionNode[];
   edges?: ExecutionEdge[];
   timelineItems?: TimelineItem[];
+  federation?: FederatedStoryEvidence;
 };
 
 export type TechnicalOperation = {

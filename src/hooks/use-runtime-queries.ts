@@ -334,9 +334,12 @@ export function useStoryTechnicalOperations(storyCorrelationId: string) {
   });
 }
 
-export function useExecutionTechnicalOperations(nodeId: string) {
+export function useExecutionTechnicalOperations(
+  nodeId: string,
+  enabled = true
+) {
   return useQuery({
-    enabled: Boolean(nodeId),
+    enabled: Boolean(nodeId) && enabled,
     queryKey: runtimeQueryKeys.technicalOperationsForExecution(nodeId),
     queryFn: async () =>
       isApiMode()

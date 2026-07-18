@@ -3,6 +3,10 @@ import type {
   ExecutionLogEntry,
   ExecutionPayload,
   ExecutionNode,
+  FederatedReliabilityEvidence,
+  FederatedStoryEvidence,
+  FederatedStoryGap,
+  FederatedWorkflowEntity,
   RuntimeStatus,
   RuntimeStory,
   TechnicalOperation,
@@ -120,7 +124,10 @@ export function normalizeRuntimeStoryListItem(
     name: safeString(item.title, "Runtime Story"),
     nodes,
     service: services[0] ?? "runtime",
-    source: "runtime-story",
+    source:
+      item.story_kind === "federated"
+        ? "federated-runtime-story"
+        : "runtime-story",
     status: normalizeRuntimeStatus(item.status),
     timestamp,
   };
@@ -130,6 +137,7 @@ export function normalizeRuntimeStory(
   detail: ApiRuntimeStoryDetail
 ): RuntimeStory {
   const summary = detail.summary ?? {};
+  const isFederated = summary.story_kind === "federated";
   const correlationId = safeString(summary.correlation_id, "unknown");
   const timestamp = normalizeTimestamp(summary.created_at);
   const hasValidBaseTimestamp =
@@ -180,7 +188,7 @@ export function normalizeRuntimeStory(
       kind: toExecutionNodeKind(node.type),
       logs: error ? [error] : [],
       name: displayName,
-      retryable: isRetryable(status),
+      retryable: !isFederated && isRetryable(status),
       service: safeString(node.service, "runtime"),
       startMs,
       status,
@@ -219,10 +227,131 @@ export function normalizeRuntimeStory(
     name: safeString(summary.title, "Runtime Story"),
     nodes: nodesWithParents,
     service: nodesWithParents[0]?.service ?? "runtime",
-    source: "runtime-story",
+    source: isFederated ? "federated-runtime-story" : "runtime-story",
     status: normalizeRuntimeStatus(summary.status),
     timelineItems,
     timestamp,
+    ...(detail.federation
+      ? { federation: normalizeFederatedStoryEvidence(detail.federation) }
+      : {}),
+  };
+}
+
+function normalizeFederatedStoryEvidence(
+  evidence: NonNullable<ApiRuntimeStoryDetail["federation"]>
+): FederatedStoryEvidence {
+  return {
+    assembledAt: normalizeTimestamp(evidence.assembledAt),
+    gaps: (evidence.gaps ?? []).map(normalizeFederatedStoryGap),
+    protocol: safeString(evidence.protocol, "lenso.federated-runtime-story.v1"),
+    reliability: (evidence.reliability ?? []).map(
+      normalizeFederatedReliabilityEvidence
+    ),
+    ...(typeof evidence.tenantId === "string"
+      ? { tenantId: evidence.tenantId }
+      : {}),
+    workflowEntities: (evidence.workflowEntities ?? []).map(
+      normalizeFederatedWorkflowEntity
+    ),
+  };
+}
+
+function normalizeFederatedStoryGap(
+  gap: NonNullable<
+    NonNullable<ApiRuntimeStoryDetail["federation"]>["gaps"]
+  >[number]
+): FederatedStoryGap {
+  return {
+    detail: safeString(gap.detail, "Story Segment evidence is unavailable"),
+    detectedAt: normalizeTimestamp(gap.detectedAt),
+    kind: normalizeFederatedGapKind(gap.kind),
+    lastObservedAt: normalizeTimestamp(gap.lastObservedAt),
+    nextAction: safeString(gap.nextAction, "inspect_story_segment_source"),
+    sourceServiceId: safeString(gap.sourceServiceId, "unknown-service"),
+    ...(typeof gap.tenantId === "string" ? { tenantId: gap.tenantId } : {}),
+  };
+}
+
+function normalizeFederatedWorkflowEntity(
+  entity: NonNullable<
+    NonNullable<ApiRuntimeStoryDetail["federation"]>["workflowEntities"]
+  >[number]
+): FederatedWorkflowEntity {
+  return {
+    attempt: normalizeInteger(entity.attempt, 1),
+    id: safeString(entity.id, "unknown-workflow-entity"),
+    instanceId: safeString(entity.instanceId, "unknown-workflow"),
+    kind: normalizeFederatedWorkflowKind(entity.kind),
+    label: safeString(entity.label, "Workflow evidence"),
+    nodeId: safeString(entity.nodeId, "unknown-node"),
+    observedAt: normalizeTimestamp(entity.observedAt),
+    ...(typeof entity.parentId === "string"
+      ? { parentId: entity.parentId }
+      : {}),
+    serviceId: safeString(entity.serviceId, "unknown-service"),
+    state: safeString(entity.state, "unknown"),
+  };
+}
+
+function normalizeFederatedReliabilityEvidence(
+  evidence: NonNullable<
+    NonNullable<ApiRuntimeStoryDetail["federation"]>["reliability"]
+  >[number]
+): FederatedReliabilityEvidence {
+  const { report } = evidence;
+  return {
+    ...(typeof evidence.detail === "string" ? { detail: evidence.detail } : {}),
+    ...(typeof evidence.nextAction === "string"
+      ? { nextAction: evidence.nextAction }
+      : {}),
+    observedAt: normalizeTimestamp(evidence.observedAt),
+    ...(report
+      ? {
+          report: {
+            activeDegradedModes: (report.activeDegradedModes ?? []).map(
+              (mode) => ({
+                dependencyId: safeString(
+                  mode.dependencyId,
+                  "unknown-dependency"
+                ),
+                evidenceReferences: normalizeStringArray(
+                  mode.evidenceReferences
+                ),
+                mode: safeString(mode.mode, "degraded"),
+              })
+            ),
+            checks: (report.checks ?? []).map((check) => ({
+              code: safeString(check.code, "unknown_check"),
+              evidenceReferences: normalizeStringArray(
+                check.evidenceReferences
+              ),
+              expected: check.expected,
+              ...(typeof check.issueCode === "string"
+                ? { issueCode: check.issueCode }
+                : {}),
+              nextActions: normalizeStringArray(check.nextActions),
+              observed: check.observed,
+              state: normalizeReliabilityCheckState(check.state),
+            })),
+            contractId: safeString(report.contractId, "unknown-contract"),
+            contractVersion: safeString(report.contractVersion, "unknown"),
+            effectiveValues: objectRecord(report.effectiveValues),
+            overrides: objectRecord(report.overrides),
+            profile: normalizeReliabilityProfile(report.profile),
+            protocol: safeString(
+              report.protocol,
+              "lenso.reliability-report.v1"
+            ),
+            serviceId: safeString(
+              report.serviceId,
+              safeString(evidence.sourceServiceId, "unknown-service")
+            ),
+            state: normalizeReliabilityState(report.state),
+          },
+        }
+      : {}),
+    sourceServiceId: safeString(evidence.sourceServiceId, "unknown-service"),
+    status: normalizeReliabilityEvidenceStatus(evidence.status),
   };
 }
 
@@ -543,6 +672,105 @@ function normalizeRuntimeStatus(status: string | undefined): RuntimeStatus {
     }
     default: {
       return "pending";
+    }
+  }
+}
+
+function normalizeFederatedGapKind(
+  kind: string | undefined
+): FederatedStoryGap["kind"] {
+  switch (kind) {
+    case "unreachable":
+    case "stale":
+    case "unauthorized":
+    case "truncated":
+    case "retention_expired": {
+      return kind;
+    }
+    default: {
+      return "unreachable";
+    }
+  }
+}
+
+function normalizeFederatedWorkflowKind(
+  kind: string | undefined
+): FederatedWorkflowEntity["kind"] {
+  switch (kind) {
+    case "instance":
+    case "step":
+    case "attempt":
+    case "timer":
+    case "child":
+    case "compensation":
+    case "intervention": {
+      return kind;
+    }
+    default: {
+      return "instance";
+    }
+  }
+}
+
+function normalizeReliabilityEvidenceStatus(
+  status: string | undefined
+): FederatedReliabilityEvidence["status"] {
+  switch (status) {
+    case "available":
+    case "unavailable":
+    case "not_declared": {
+      return status;
+    }
+    default: {
+      return "unavailable";
+    }
+  }
+}
+
+function normalizeReliabilityProfile(
+  profile: string | undefined
+): NonNullable<FederatedReliabilityEvidence["report"]>["profile"] {
+  switch (profile) {
+    case "development":
+    case "standard":
+    case "critical": {
+      return profile;
+    }
+    default: {
+      return "development";
+    }
+  }
+}
+
+function normalizeReliabilityState(
+  state: string | undefined
+): NonNullable<FederatedReliabilityEvidence["report"]>["state"] {
+  switch (state) {
+    case "healthy":
+    case "degraded":
+    case "unavailable": {
+      return state;
+    }
+    default: {
+      return "unavailable";
+    }
+  }
+}
+
+function normalizeReliabilityCheckState(
+  state: string | undefined
+): NonNullable<
+  FederatedReliabilityEvidence["report"]
+>["checks"][number]["state"] {
+  switch (state) {
+    case "met":
+    case "breached":
+    case "unknown":
+    case "allowed": {
+      return state;
+    }
+    default: {
+      return "unknown";
     }
   }
 }

@@ -226,7 +226,10 @@ function InspectorBody({
     activeTab === "payload"
   );
   const logsQuery = useExecutionLogs(story, node.id, activeTab === "logs");
-  const executionOperationsQuery = useExecutionTechnicalOperations(node.id);
+  const executionOperationsQuery = useExecutionTechnicalOperations(
+    node.id,
+    !story.federation
+  );
   const storyOperationsQuery = useStoryTechnicalOperations(story.correlationId);
 
   if (activeTab === "overview") {
