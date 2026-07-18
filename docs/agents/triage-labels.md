@@ -9,6 +9,6 @@ the central `LioRael/lenso` tracker.
 | `needs-info`      | `needs-info`      | Waiting for more information           |
 | `ready-for-agent` | `ready-for-agent` | Fully specified and ready for an agent |
 | `ready-for-human` | `ready-for-human` | Requires human implementation          |
-| `wontfix`         | `wontfix`         | Will not be actioned                    |
+| `wontfix`         | `wontfix`         | Will not be actioned                   |
 
 When a skill names a canonical role, use the corresponding tracker label.
