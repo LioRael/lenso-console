@@ -60,7 +60,7 @@ const projection: ExtractionConsoleProjection = {
 describe("extraction console", () => {
   it("renders backend-projected rollback, blockers, provenance and protected workflow", () => {
     const html = renderToStaticMarkup(
-      <ExtractionConsolePanel data={projection} />,
+      <ExtractionConsolePanel data={projection} />
     );
     expect(html).toContain("rolled back");
     expect(html).toContain("candidate_unhealthy");
@@ -69,17 +69,17 @@ describe("extraction console", () => {
     expect(html).toContain("Approval boundaries");
     expect(html).toContain("planDigest, verificationDigest");
     expect(html).toContain(
-      "/admin/runtime/extractions/artifacts/cutover%3Afailed",
+      "/admin/runtime/extractions/artifacts/cutover%3Afailed"
     );
     expect(html).toContain('aria-label="Extraction phase timeline"');
     expect(html).not.toContain("Apply Cutover");
   });
   it("has explicit empty and error states", () => {
     expect(renderToStaticMarkup(<ExtractionConsolePanel />)).toContain(
-      "No extraction plan",
+      "No extraction plan"
     );
     expect(
-      renderToStaticMarkup(<ExtractionConsolePanel error="HTTP 503" />),
+      renderToStaticMarkup(<ExtractionConsolePanel error="HTTP 503" />)
     ).toContain('role="alert"');
   });
 });
