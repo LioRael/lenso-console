@@ -137,7 +137,7 @@ export function ExtractionConsolePanel({
                 {phase.phaseId}
               </div>
               <div className="mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)">
-                {phase.artifactId}
+                <ArtifactLink artifactId={phase.artifactId} />
               </div>
             </li>
           ))
@@ -171,6 +171,32 @@ export function ExtractionConsolePanel({
           ))}
         </div>
       ) : null}
+      {data.approvalBoundaries.length > 0 ? (
+        <div
+          aria-label="Extraction approval boundaries"
+          className="border-t border-(--line) p-3"
+        >
+          <h3 className="mb-2 font-mono text-[10px] uppercase">
+            Approval boundaries
+          </h3>
+          {data.approvalBoundaries.map((boundary) => (
+            <article
+              className="mb-2 border border-(--line) bg-(--bg-panel-muted) p-2"
+              key={boundary.boundaryId}
+            >
+              <div className="font-mono text-[10px]">
+                {boundary.action} · {boundary.phaseId}
+              </div>
+              <p className="mt-1 text-[11px] text-(--fg-secondary)">
+                {boundary.reason}
+              </p>
+              <p className="mt-1 font-mono text-[9px] text-(--fg-tertiary)">
+                required pins: {boundary.requiredPins.join(", ") || "none"}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : null}
       <details className="border-t border-(--line) p-3">
         <summary className="cursor-pointer font-mono text-[10px] uppercase">
           Evidence provenance ({data.evidence.length})
@@ -184,6 +210,9 @@ export function ExtractionConsolePanel({
               {item.kind} / {item.subject}
             </span>
             <span className="ml-2 text-(--fg-tertiary)">{item.detail}</span>
+            <span className="ml-2 font-mono text-(--accent)">
+              <ArtifactLink artifactId={item.artifactId} />
+            </span>
           </div>
         ))}
       </details>
@@ -192,6 +221,16 @@ export function ExtractionConsolePanel({
         read-only and does not evaluate or apply Cutover rules.
       </footer>
     </section>
+  );
+}
+
+function ArtifactLink({ artifactId }: { artifactId: string }) {
+  return (
+    <a
+      href={`/admin/runtime/extractions/artifacts/${encodeURIComponent(artifactId)}`}
+    >
+      {artifactId}
+    </a>
   );
 }
 
