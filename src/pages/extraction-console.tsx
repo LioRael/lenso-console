@@ -137,7 +137,10 @@ export function ExtractionConsolePanel({
                 {phase.phaseId}
               </div>
               <div className="mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)">
-                <ArtifactLink artifactId={phase.artifactId} />
+                <ArtifactLink
+                  artifactId={phase.artifactId}
+                  planId={data.planId}
+                />
               </div>
             </li>
           ))
@@ -211,7 +214,7 @@ export function ExtractionConsolePanel({
             </span>
             <span className="ml-2 text-(--fg-tertiary)">{item.detail}</span>
             <span className="ml-2 font-mono text-(--accent)">
-              <ArtifactLink artifactId={item.artifactId} />
+              <ArtifactLink artifactId={item.artifactId} planId={data.planId} />
             </span>
           </div>
         ))}
@@ -224,10 +227,19 @@ export function ExtractionConsolePanel({
   );
 }
 
-function ArtifactLink({ artifactId }: { artifactId: string }) {
+function ArtifactLink({
+  artifactId,
+  planId,
+}: {
+  artifactId: string;
+  planId: string | null | undefined;
+}) {
+  if (!planId) {
+    return <>{artifactId}</>;
+  }
   return (
     <a
-      href={`/admin/runtime/extractions/artifacts/${encodeURIComponent(artifactId)}`}
+      href={`/admin/runtime/extractions/${encodeURIComponent(planId)}/artifacts/${encodeURIComponent(artifactId)}`}
     >
       {artifactId}
     </a>

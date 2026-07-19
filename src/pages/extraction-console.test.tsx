@@ -69,7 +69,7 @@ describe("extraction console", () => {
     expect(html).toContain("Approval boundaries");
     expect(html).toContain("planDigest, verificationDigest");
     expect(html).toContain(
-      "/admin/runtime/extractions/artifacts/cutover%3Afailed"
+      "/admin/runtime/extractions/plan%3Asupport/artifacts/cutover%3Afailed"
     );
     expect(html).toContain('aria-label="Extraction phase timeline"');
     expect(html).not.toContain("Apply Cutover");
