@@ -16,7 +16,11 @@ import {
   serviceSystemQueryKey,
 } from "../data/available-modules";
 import { cn } from "../lib/cn";
-import { runtimeConsoleDataSource } from "../lib/http-client";
+import { httpClient, runtimeConsoleDataSource } from "../lib/http-client";
+import {
+  ExtractionConsolePanel,
+  type ExtractionConsoleProjection,
+} from "./extraction-console";
 import {
   type ServiceCenterRow,
   serviceCenterRows,
@@ -30,6 +34,14 @@ import {
 
 export function ServicesPage() {
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const extraction = useQuery({
+    queryKey: ["runtime", "extraction", "current"],
+    queryFn: () =>
+      httpClient
+        .get("admin/runtime/extractions/current")
+        .json<ExtractionConsoleProjection>(),
+    retry: false,
+  });
   const {
     data: lifecycleData,
     error: lifecycleError,
@@ -106,6 +118,11 @@ export function ServicesPage() {
           runbooks={runbooks}
           runbooksError={isRunbooksError ? errorMessage(runbooksError) : null}
           system={system}
+        />
+        <ExtractionConsolePanel
+          data={extraction.data}
+          error={extraction.isError ? errorMessage(extraction.error) : null}
+          loading={extraction.isLoading}
         />
         <div className="grid border-b border-(--line) bg-(--bg-panel) md:grid-cols-5">
           <Counter label="providers" value={rows.length} />
