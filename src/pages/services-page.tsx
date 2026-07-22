@@ -18,6 +18,10 @@ import {
 import { cn } from "../lib/cn";
 import { httpClient, runtimeConsoleDataSource } from "../lib/http-client";
 import {
+  DeliveryConsolePanel,
+  type DeliveryConsoleProjection,
+} from "./delivery-console";
+import {
   ExtractionConsolePanel,
   type ExtractionConsoleProjection,
 } from "./extraction-console";
@@ -34,6 +38,14 @@ import {
 
 export function ServicesPage() {
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const delivery = useQuery({
+    queryKey: ["runtime", "delivery", "current"],
+    queryFn: () =>
+      httpClient
+        .get("admin/runtime/deliveries/current")
+        .json<DeliveryConsoleProjection>(),
+    retry: false,
+  });
   const extraction = useQuery({
     queryKey: ["runtime", "extraction", "current"],
     queryFn: () =>
@@ -118,6 +130,11 @@ export function ServicesPage() {
           runbooks={runbooks}
           runbooksError={isRunbooksError ? errorMessage(runbooksError) : null}
           system={system}
+        />
+        <DeliveryConsolePanel
+          data={delivery.data}
+          error={delivery.isError ? errorMessage(delivery.error) : null}
+          loading={delivery.isLoading}
         />
         <ExtractionConsolePanel
           data={extraction.data}
