@@ -121,6 +121,9 @@ const projection: DeliveryConsoleProjection = {
       status: "candidate",
       stale: false,
       subjects: {},
+      details: {
+        combinations: [{ combinationId: "m6-ga-1", status: "candidate" }],
+      },
       issueCodes: [],
       nextActions: [],
     },
@@ -219,6 +222,8 @@ describe("delivery console", () => {
       expect(html).toContain(`>${state}<`);
     }
     expect(html).toContain("/admin/runtime/stories/runtime-story%3Aga-1");
+    expect(html).toContain("exact evidence");
+    expect(html).toContain("m6-ga-1");
 
     const { gaOperations: _ignored, ...legacy } = projection;
     expect(

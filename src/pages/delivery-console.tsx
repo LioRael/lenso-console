@@ -32,6 +32,7 @@ export type DeliveryConsoleGaEvidence = {
   status: string;
   stale: boolean;
   subjects: Record<string, string>;
+  details?: Record<string, unknown>;
   issueCodes: string[];
   nextActions: string[];
 };
@@ -442,6 +443,16 @@ export function DeliveryConsolePanel({
                     </div>
                   ))}
                 </dl>
+                {Object.keys(evidence.details ?? {}).length > 0 ? (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-(--accent)">
+                      exact evidence
+                    </summary>
+                    <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all border border-(--line) p-2 text-[9px] text-(--fg-tertiary)">
+                      {JSON.stringify(evidence.details, null, 2)}
+                    </pre>
+                  </details>
+                ) : null}
                 {evidence.issueCodes.length > 0 ? (
                   <p className="mt-2 font-mono text-[9px] text-(--danger)">
                     {evidence.issueCodes.join(", ")}
