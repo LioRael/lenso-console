@@ -1,4 +1,8 @@
-## @lenso/runtime-console@0.1.2
+---
+packages:
+  "@lenso/runtime-console":
+    type: patch
+---
 
 ### Features
 
