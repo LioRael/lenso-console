@@ -127,7 +127,7 @@ export type DeliveryConsoleProjection = {
   }>;
   nextActions: string[];
   runtimeStoryReferences: string[];
-  gaOperations: {
+  gaOperations?: {
     supportManifest?: DeliveryConsoleGaEvidence | null;
     deliveryRecovery: DeliveryConsoleGaEvidence[];
     restore?: DeliveryConsoleGaEvidence | null;
@@ -524,11 +524,14 @@ export function DeliveryConsolePanel({
 function gaEvidenceItems(
   operations: DeliveryConsoleProjection["gaOperations"]
 ): Array<{ label: string; evidence: DeliveryConsoleGaEvidence }> {
+  if (!operations) {
+    return [];
+  }
   return [
     operations.supportManifest
       ? { label: "support manifest", evidence: operations.supportManifest }
       : null,
-    ...operations.deliveryRecovery.map((evidence) => ({
+    ...(operations.deliveryRecovery ?? []).map((evidence) => ({
       label: "delivery recovery",
       evidence,
     })),
@@ -547,7 +550,7 @@ function gaEvidenceItems(
     operations.securityReview
       ? { label: "security review", evidence: operations.securityReview }
       : null,
-    ...operations.contractLifecycle.map((evidence) => ({
+    ...(operations.contractLifecycle ?? []).map((evidence) => ({
       label: "Contract lifecycle",
       evidence,
     })),
