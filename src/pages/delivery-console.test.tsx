@@ -191,4 +191,40 @@ describe("delivery console", () => {
       renderToStaticMarkup(<DeliveryConsolePanel error="HTTP 503" />)
     ).toContain('role="alert"');
   });
+
+  it("keeps every GA state distinct, deep-links Stories, and accepts legacy v1 payloads", () => {
+    const states = ["unknown", "blocked", "partial", "failed", "passed"].map(
+      (status, index) => ({
+        protocol: "lenso.delivery-failure-recovery-evidence.v1",
+        evidenceId: `recovery:${status}`,
+        status,
+        stale: status === "partial",
+        subjects: index === 4 ? { storyId: "runtime-story:ga-1" } : {},
+        issueCodes: status === "passed" ? [] : [`state_${status}`],
+        nextActions: [],
+      })
+    );
+    const html = renderToStaticMarkup(
+      <DeliveryConsolePanel
+        data={{
+          ...projection,
+          gaOperations: {
+            ...projection.gaOperations!,
+            deliveryRecovery: states,
+          },
+        }}
+      />
+    );
+    for (const state of ["unknown", "blocked", "stale", "failed", "passed"]) {
+      expect(html).toContain(`>${state}<`);
+    }
+    expect(html).toContain(
+      "/admin/runtime/stories/runtime-story%3Aga-1"
+    );
+
+    const { gaOperations: _ignored, ...legacy } = projection;
+    expect(
+      renderToStaticMarkup(<DeliveryConsolePanel data={legacy} />)
+    ).toContain("No GA support, recovery, performance");
+  });
 });

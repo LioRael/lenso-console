@@ -415,7 +415,7 @@ export function DeliveryConsolePanel({
                 <div className="flex gap-2 font-mono">
                   <span>{label}</span>
                   <span
-                    className={`ml-auto uppercase ${evidence.status === "passed" || evidence.status === "supported" || evidence.status === "general_availability" ? "text-(--success)" : "text-(--danger)"}`}
+                    className={`ml-auto uppercase ${gaStatusClass(evidence)}`}
                   >
                     {evidence.stale ? "stale" : evidence.status}
                   </span>
@@ -427,7 +427,16 @@ export function DeliveryConsolePanel({
                   {Object.entries(evidence.subjects).map(([key, value]) => (
                     <div className="contents" key={key}>
                       <dt>{key}</dt>
-                      <dd className="break-all">{value}</dd>
+                      <dd className="break-all">
+                        {key === "storyId" ? (
+                          <a
+                            className="text-(--accent)"
+                            href={`/admin/runtime/stories/${encodeURIComponent(value)}`}
+                          >
+                            {value}
+                          </a>
+                        ) : value}
+                      </dd>
                     </div>
                   ))}
                 </dl>
@@ -519,6 +528,19 @@ export function DeliveryConsolePanel({
       </footer>
     </section>
   );
+}
+
+function gaStatusClass(evidence: DeliveryConsoleGaEvidence): string {
+  if (evidence.stale || evidence.status === "partial") {
+    return "text-(--warning)";
+  }
+  if (["passed", "supported", "general_availability"].includes(evidence.status)) {
+    return "text-(--success)";
+  }
+  if (["unknown", "unavailable"].includes(evidence.status)) {
+    return "text-(--fg-tertiary)";
+  }
+  return "text-(--danger)";
 }
 
 function gaEvidenceItems(
