@@ -26,6 +26,17 @@ export type DeliveryConsoleTimelineEntry = {
   evidenceReferences: string[];
 };
 
+export type DeliveryConsoleGaEvidence = {
+  protocol: string;
+  evidenceId: string;
+  status: string;
+  stale: boolean;
+  subjects: Record<string, string>;
+  details?: Record<string, unknown>;
+  issueCodes: string[];
+  nextActions: string[];
+};
+
 export type DeliveryConsoleProjection = {
   protocol: "lenso.delivery-console.v1";
   projectionDigest: string;
@@ -117,6 +128,16 @@ export type DeliveryConsoleProjection = {
   }>;
   nextActions: string[];
   runtimeStoryReferences: string[];
+  gaOperations?: {
+    supportManifest?: DeliveryConsoleGaEvidence | null;
+    deliveryRecovery: DeliveryConsoleGaEvidence[];
+    restore?: DeliveryConsoleGaEvidence | null;
+    disasterRecovery?: DeliveryConsoleGaEvidence | null;
+    performance?: DeliveryConsoleGaEvidence | null;
+    supportEnvelope?: DeliveryConsoleGaEvidence | null;
+    securityReview?: DeliveryConsoleGaEvidence | null;
+    contractLifecycle: DeliveryConsoleGaEvidence[];
+  };
   readOnly: boolean;
   applyActions: string[];
 };
@@ -382,6 +403,72 @@ export function DeliveryConsolePanel({
         )}
       </EvidenceSection>
 
+      <EvidenceSection label="GA support and operations">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {gaEvidenceItems(data.gaOperations).length === 0 ? (
+            <EmptyLine text="No GA support, recovery, performance, disaster, Contract, or security evidence recorded." />
+          ) : (
+            gaEvidenceItems(data.gaOperations).map(({ label, evidence }) => (
+              <article
+                className="border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                key={`${label}:${evidence.protocol}:${evidence.evidenceId}`}
+              >
+                <div className="flex gap-2 font-mono">
+                  <span>{label}</span>
+                  <span
+                    className={`ml-auto uppercase ${gaStatusClass(evidence)}`}
+                  >
+                    {evidence.stale ? "stale" : evidence.status}
+                  </span>
+                </div>
+                <div className="mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)">
+                  {evidence.evidenceId}
+                </div>
+                <dl className="mt-2 grid grid-cols-[90px_minmax(0,1fr)] gap-x-2">
+                  {Object.entries(evidence.subjects).map(([key, value]) => (
+                    <div className="contents" key={key}>
+                      <dt>{key}</dt>
+                      <dd className="break-all">
+                        {key === "storyId" ? (
+                          <a
+                            className="text-(--accent)"
+                            href={`/admin/runtime/stories/${encodeURIComponent(value)}`}
+                          >
+                            {value}
+                          </a>
+                        ) : (
+                          value
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                {Object.keys(evidence.details ?? {}).length > 0 ? (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-(--accent)">
+                      exact evidence
+                    </summary>
+                    <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all border border-(--line) p-2 text-[9px] text-(--fg-tertiary)">
+                      {JSON.stringify(evidence.details, null, 2)}
+                    </pre>
+                  </details>
+                ) : null}
+                {evidence.issueCodes.length > 0 ? (
+                  <p className="mt-2 font-mono text-[9px] text-(--danger)">
+                    {evidence.issueCodes.join(", ")}
+                  </p>
+                ) : null}
+                {evidence.nextActions.map((action) => (
+                  <p className="mt-1 text-(--accent)" key={action}>
+                    next: {action}
+                  </p>
+                ))}
+              </article>
+            ))
+          )}
+        </div>
+      </EvidenceSection>
+
       <div
         aria-label="Production delivery timeline"
         className="border-t border-(--line) p-3"
@@ -453,6 +540,60 @@ export function DeliveryConsolePanel({
         Provider authority.
       </footer>
     </section>
+  );
+}
+
+function gaStatusClass(evidence: DeliveryConsoleGaEvidence): string {
+  if (evidence.stale || evidence.status === "partial") {
+    return "text-(--warning)";
+  }
+  if (
+    ["passed", "supported", "general_availability"].includes(evidence.status)
+  ) {
+    return "text-(--success)";
+  }
+  if (["unknown", "unavailable"].includes(evidence.status)) {
+    return "text-(--fg-tertiary)";
+  }
+  return "text-(--danger)";
+}
+
+function gaEvidenceItems(
+  operations: DeliveryConsoleProjection["gaOperations"]
+): Array<{ label: string; evidence: DeliveryConsoleGaEvidence }> {
+  if (!operations) {
+    return [];
+  }
+  return [
+    operations.supportManifest
+      ? { label: "support manifest", evidence: operations.supportManifest }
+      : null,
+    ...(operations.deliveryRecovery ?? []).map((evidence) => ({
+      label: "delivery recovery",
+      evidence,
+    })),
+    operations.restore
+      ? { label: "restore", evidence: operations.restore }
+      : null,
+    operations.disasterRecovery
+      ? { label: "disaster recovery", evidence: operations.disasterRecovery }
+      : null,
+    operations.performance
+      ? { label: "performance", evidence: operations.performance }
+      : null,
+    operations.supportEnvelope
+      ? { label: "support envelope", evidence: operations.supportEnvelope }
+      : null,
+    operations.securityReview
+      ? { label: "security review", evidence: operations.securityReview }
+      : null,
+    ...(operations.contractLifecycle ?? []).map((evidence) => ({
+      label: "Contract lifecycle",
+      evidence,
+    })),
+  ].filter(
+    (item): item is { label: string; evidence: DeliveryConsoleGaEvidence } =>
+      item !== null
   );
 }
 

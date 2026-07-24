@@ -114,6 +114,47 @@ const projection: DeliveryConsoleProjection = {
   ],
   nextActions: ["request intervention approval"],
   runtimeStoryReferences: ["runtime-story:canary-5"],
+  gaOperations: {
+    supportManifest: {
+      protocol: "lenso.ga-support-manifest.v1",
+      evidenceId: "ga-support:m6",
+      status: "candidate",
+      stale: false,
+      subjects: {},
+      details: {
+        combinations: [{ combinationId: "m6-ga-1", status: "candidate" }],
+      },
+      issueCodes: [],
+      nextActions: [],
+    },
+    deliveryRecovery: [],
+    restore: null,
+    disasterRecovery: {
+      protocol: "lenso.disaster-recovery-evidence.v1",
+      evidenceId: "disaster-recovery:support",
+      status: "passed",
+      stale: false,
+      subjects: {
+        serviceId: "service:support",
+        primaryRegion: "cn-east-1",
+        passiveRegion: "cn-east-2",
+      },
+      issueCodes: [],
+      nextActions: ["keep the prior primary fenced"],
+    },
+    performance: null,
+    supportEnvelope: null,
+    securityReview: {
+      protocol: "lenso.security-review-evidence.v1",
+      evidenceId: "security-review:m6",
+      status: "blocked",
+      stale: true,
+      subjects: { supportManifestDigest: "sha256:manifest" },
+      issueCodes: ["security_review_stale"],
+      nextActions: ["refresh review"],
+    },
+    contractLifecycle: [],
+  },
   readOnly: true,
   applyActions: [],
 };
@@ -134,6 +175,10 @@ describe("delivery console", () => {
     expect(html).toContain("120 ms");
     expect(html).toContain('aria-label="Production delivery timeline"');
     expect(html).toContain('aria-label="Production delivery issues"');
+    expect(html).toContain("GA support and operations");
+    expect(html).toContain("disaster-recovery:support");
+    expect(html).toContain("security_review_stale");
+    expect(html).toContain("refresh review");
     expect(html).not.toContain("Apply");
     expect(html).not.toContain("secretValue");
   });
@@ -148,5 +193,41 @@ describe("delivery console", () => {
     expect(
       renderToStaticMarkup(<DeliveryConsolePanel error="HTTP 503" />)
     ).toContain('role="alert"');
+  });
+
+  it("keeps every GA state distinct, deep-links Stories, and accepts legacy v1 payloads", () => {
+    const states = ["unknown", "blocked", "partial", "failed", "passed"].map(
+      (status, index) => ({
+        protocol: "lenso.delivery-failure-recovery-evidence.v1",
+        evidenceId: `recovery:${status}`,
+        status,
+        stale: status === "partial",
+        subjects: index === 4 ? { storyId: "runtime-story:ga-1" } : {},
+        issueCodes: status === "passed" ? [] : [`state_${status}`],
+        nextActions: [],
+      })
+    );
+    const html = renderToStaticMarkup(
+      <DeliveryConsolePanel
+        data={{
+          ...projection,
+          gaOperations: {
+            ...projection.gaOperations!,
+            deliveryRecovery: states,
+          },
+        }}
+      />
+    );
+    for (const state of ["unknown", "blocked", "stale", "failed", "passed"]) {
+      expect(html).toContain(`>${state}<`);
+    }
+    expect(html).toContain("/admin/runtime/stories/runtime-story%3Aga-1");
+    expect(html).toContain("exact evidence");
+    expect(html).toContain("m6-ga-1");
+
+    const { gaOperations: _ignored, ...legacy } = projection;
+    expect(
+      renderToStaticMarkup(<DeliveryConsolePanel data={legacy} />)
+    ).toContain("No GA support, recovery, performance");
   });
 });
