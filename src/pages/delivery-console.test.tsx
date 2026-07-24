@@ -114,6 +114,44 @@ const projection: DeliveryConsoleProjection = {
   ],
   nextActions: ["request intervention approval"],
   runtimeStoryReferences: ["runtime-story:canary-5"],
+  gaOperations: {
+    supportManifest: {
+      protocol: "lenso.ga-support-manifest.v1",
+      evidenceId: "ga-support:m6",
+      status: "candidate",
+      stale: false,
+      subjects: {},
+      issueCodes: [],
+      nextActions: [],
+    },
+    deliveryRecovery: [],
+    restore: null,
+    disasterRecovery: {
+      protocol: "lenso.disaster-recovery-evidence.v1",
+      evidenceId: "disaster-recovery:support",
+      status: "passed",
+      stale: false,
+      subjects: {
+        serviceId: "service:support",
+        primaryRegion: "cn-east-1",
+        passiveRegion: "cn-east-2",
+      },
+      issueCodes: [],
+      nextActions: ["keep the prior primary fenced"],
+    },
+    performance: null,
+    supportEnvelope: null,
+    securityReview: {
+      protocol: "lenso.security-review-evidence.v1",
+      evidenceId: "security-review:m6",
+      status: "blocked",
+      stale: true,
+      subjects: { supportManifestDigest: "sha256:manifest" },
+      issueCodes: ["security_review_stale"],
+      nextActions: ["refresh review"],
+    },
+    contractLifecycle: [],
+  },
   readOnly: true,
   applyActions: [],
 };
@@ -134,6 +172,10 @@ describe("delivery console", () => {
     expect(html).toContain("120 ms");
     expect(html).toContain('aria-label="Production delivery timeline"');
     expect(html).toContain('aria-label="Production delivery issues"');
+    expect(html).toContain("GA support and operations");
+    expect(html).toContain("disaster-recovery:support");
+    expect(html).toContain("security_review_stale");
+    expect(html).toContain("refresh review");
     expect(html).not.toContain("Apply");
     expect(html).not.toContain("secretValue");
   });
