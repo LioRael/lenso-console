@@ -10,7 +10,7 @@ const config = JSON.parse(
 );
 assert.equal(config.schema, "lenso.release-mode.v1");
 assert.equal(config.mode, "shadow");
-assert.deepEqual(config.allowedModes, ["shadow"]);
+assert.deepEqual(config.allowedModes, ["shadow", "production"]);
 const mode = process.env.REQUESTED_MODE || config.mode;
 assert.match(mode, /^(?:shadow|production)$/u);
 assert.ok(
