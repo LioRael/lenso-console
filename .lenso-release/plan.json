@@ -1,0 +1,46 @@
+{
+  "schema": "lenso.release-plan.v1",
+  "repository": "LioRael/lenso-runtime-console",
+  "sourceCommit": "b92a78ba2581ca76e306f4fd5c3d7f536465c006",
+  "tegamiVersion": "1.2.5",
+  "publisher": {
+    "workflow": ".github/workflows/publish.yml",
+    "workflowSha256": "sha256:7e442a6b811abad4ed1665ae6ba7f51331a34043b56c77de4116a0f0f5e87049",
+    "sharedRevision": "b94fda985b5beba9af449afb32b2d2413caee97c",
+    "sharedBundleSha256": "sha256:327b30c5b799ccb532295a5d8fc81d4f884e316b2a6ec5f244c1cf8695b2b15a",
+    "runner": "ubuntu-24.04",
+    "node": "24.18.0",
+    "npm": "11.7.0",
+    "rust": "1.94.0"
+  },
+  "generatedFiles": [
+    {
+      "path": ".tegami/publish-lock.yaml",
+      "sha256": "sha256:b5cb127518b445c9b52fcd518c053c7dd029f75248c2df8196a877e3ecbdb484"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "sha256:f2f8fd323d150febf8f2a600961c7bf9acce96d9e3360c155d87cd503b8c4da5"
+    },
+    {
+      "path": "package.json",
+      "sha256": "sha256:3f0f04f80e31afc422aa1545e0a66807527a57f957e674276131dcf8ef908a3d"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "sha256": "sha256:35ba8488acb2685961c0f688234f300691d424195f912d21b3354464334c5fe1"
+    }
+  ],
+  "packages": [
+    {
+      "id": "artifact:lenso-runtime-console",
+      "previousVersion": "0.1.1",
+      "nextVersion": "0.1.2",
+      "bump": "patch",
+      "releaseGroup": "console",
+      "userFacing": true,
+      "dependencies": []
+    }
+  ],
+  "planId": "sha256:50af8b6ee94da3b24ab5e26d1b0f7edc1329a5858ba8f7f159ed8c9f602fe321"
+}
