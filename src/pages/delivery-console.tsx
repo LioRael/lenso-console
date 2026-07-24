@@ -435,7 +435,9 @@ export function DeliveryConsolePanel({
                           >
                             {value}
                           </a>
-                        ) : value}
+                        ) : (
+                          value
+                        )}
                       </dd>
                     </div>
                   ))}
@@ -534,7 +536,9 @@ function gaStatusClass(evidence: DeliveryConsoleGaEvidence): string {
   if (evidence.stale || evidence.status === "partial") {
     return "text-(--warning)";
   }
-  if (["passed", "supported", "general_availability"].includes(evidence.status)) {
+  if (
+    ["passed", "supported", "general_availability"].includes(evidence.status)
+  ) {
     return "text-(--success)";
   }
   if (["unknown", "unavailable"].includes(evidence.status)) {
