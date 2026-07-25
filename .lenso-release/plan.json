@@ -1,7 +1,7 @@
 {
   "schema": "lenso.release-plan.v1",
   "repository": "LioRael/lenso-runtime-console",
-  "sourceCommit": "c4908d52253086a29b89d25cc322da94d18a4ab0",
+  "sourceCommit": "3cdf77c2f1793a3870906ed4773995a4322efaaa",
   "tegamiVersion": "1.2.5",
   "publisher": {
     "workflow": ".github/workflows/publish.yml",
@@ -42,5 +42,5 @@
       "dependencies": []
     }
   ],
-  "planId": "sha256:4e59fdb9215ebaad4a9ef8bb9e625f2e704144bc405074fb2337779ee3fdeffb"
+  "planId": "sha256:b51cd3cfc842af2c5213fcbf4f833ab48dcc728879d43b35cdf2bc3ba437c02d"
 }
