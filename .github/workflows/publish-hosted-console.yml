@@ -44,6 +44,16 @@ jobs:
       run:
         working-directory: lenso-runtime-console
     steps:
+      - uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b
+        id: app
+        with:
+          app-id: ${{ vars.LENSO_RELEASE_APP_ID }}
+          private-key: ${{ secrets.LENSO_RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-metadata: read
+
       - name: Checkout Runtime Console
         uses: actions/checkout@v6
         with:
@@ -128,7 +138,8 @@ jobs:
         env:
           EXPECTED_RELEASE_COMMIT: ${{ inputs.release_commit }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
-          GH_TOKEN: ${{ github.token }}
+          GH_ATTESTATION_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
           if ! printf '%s' "$EXPECTED_RELEASE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'; then
             echo "Draft recovery requires an exact release commit."
@@ -158,6 +169,7 @@ jobs:
           printf '%s  lenso-runtime-console.tar.gz\n' "$EXPECTED_SHA256" \
             | cmp - /tmp/lenso-runtime-console.tar.gz.sha256
 
-          gh attestation sign "$archive" --repo "$GITHUB_REPOSITORY"
+          GH_TOKEN="$GH_ATTESTATION_TOKEN" gh attestation sign "$archive" \
+            --repo "$GITHUB_REPOSITORY"
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
             -F draft=false -f make_latest=false >/dev/null
