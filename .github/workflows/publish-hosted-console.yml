@@ -47,6 +47,7 @@ jobs:
       - name: Checkout Runtime Console
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           path: lenso-runtime-console
 
       - name: Checkout Lenso backend SDK
