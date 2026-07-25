@@ -91,9 +91,11 @@ jobs:
           fi
 
       - name: Build hosted console
+        if: ${{ !inputs.recover_existing_draft }}
         run: LENSO_CONSOLE_BASE=/console/ pnpm build:local
 
       - name: Package hosted console
+        if: ${{ !inputs.recover_existing_draft }}
         env:
           LENSO_RUNTIME_CONSOLE_VERSION: ${{ inputs.version }}
         run: pnpm package:hosted-console
@@ -138,23 +140,23 @@ jobs:
           fi
           git merge-base --is-ancestor "$EXPECTED_RELEASE_COMMIT" HEAD
 
-          archive=dist/release/lenso-runtime-console.tar.gz
-          actual_sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
-          test "$actual_sha256" = "$EXPECTED_SHA256"
-
           release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v${{ inputs.version }}")"
           test "$(jq -r '.draft' <<<"$release_json")" = true
           test "$(jq -r '.target_commitish' <<<"$release_json")" = "$EXPECTED_RELEASE_COMMIT"
           release_id="$(jq -r '.id' <<<"$release_json")"
 
           for name in lenso-runtime-console.tar.gz lenso-runtime-console.tar.gz.sha256; do
-            local_path="dist/release/$name"
             asset_id="$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .id' <<<"$release_json")"
             test -n "$asset_id"
             gh api -H 'Accept: application/octet-stream' \
               "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "/tmp/$name"
-            cmp "$local_path" "/tmp/$name"
           done
+
+          archive=/tmp/lenso-runtime-console.tar.gz
+          actual_sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
+          test "$actual_sha256" = "$EXPECTED_SHA256"
+          printf '%s  lenso-runtime-console.tar.gz\n' "$EXPECTED_SHA256" \
+            | cmp - /tmp/lenso-runtime-console.tar.gz.sha256
 
           gh attestation sign "$archive" --repo "$GITHUB_REPOSITORY"
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
