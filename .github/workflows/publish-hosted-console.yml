@@ -151,7 +151,12 @@ jobs:
           fi
           git merge-base --is-ancestor "$EXPECTED_RELEASE_COMMIT" HEAD
 
-          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v${{ inputs.version }}")"
+          releases_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          release_json="$(
+            jq -cer --arg tag "v${{ inputs.version }}" \
+              '[.[] | select(.tag_name == $tag)] | if length == 1 then .[0] else error("expected one exact release") end' \
+              <<<"$releases_json"
+          )"
           test "$(jq -r '.draft' <<<"$release_json")" = true
           test "$(jq -r '.target_commitish' <<<"$release_json")" = "$EXPECTED_RELEASE_COMMIT"
           release_id="$(jq -r '.id' <<<"$release_json")"
