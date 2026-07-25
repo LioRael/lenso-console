@@ -12,13 +12,30 @@ on:
         description: Build and package without creating the GitHub Release
         required: true
         type: boolean
+      recover_existing_draft:
+        default: false
+        description: Publish and attest an exact draft created by the reviewed publisher
+        required: true
+        type: boolean
+      release_commit:
+        default: ""
+        description: Exact reviewed release commit for draft recovery
+        required: false
+        type: string
+      expected_sha256:
+        default: ""
+        description: Exact reviewed hosted-console archive SHA-256 for draft recovery
+        required: false
+        type: string
 
 concurrency:
   cancel-in-progress: false
   group: publish-hosted-console
 
 permissions:
+  attestations: write
   contents: write
+  id-token: write
 
 jobs:
   publish:
@@ -91,7 +108,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && !inputs.recover_existing_draft }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -102,3 +119,42 @@ jobs:
             --notes "Hosted Runtime Console artifact for \`lenso console update --console-version v${{ inputs.version }}\`." \
             dist/release/lenso-runtime-console.tar.gz \
             dist/release/lenso-runtime-console.tar.gz.sha256
+
+      - name: Recover exact reviewed draft
+        if: ${{ !inputs.dry_run && inputs.recover_existing_draft }}
+        env:
+          EXPECTED_RELEASE_COMMIT: ${{ inputs.release_commit }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! printf '%s' "$EXPECTED_RELEASE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Draft recovery requires an exact release commit."
+            exit 1
+          fi
+          if ! printf '%s' "$EXPECTED_SHA256" | grep -Eq '^[0-9a-f]{64}$'; then
+            echo "Draft recovery requires an exact archive SHA-256."
+            exit 1
+          fi
+          git merge-base --is-ancestor "$EXPECTED_RELEASE_COMMIT" HEAD
+
+          archive=dist/release/lenso-runtime-console.tar.gz
+          actual_sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
+          test "$actual_sha256" = "$EXPECTED_SHA256"
+
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v${{ inputs.version }}")"
+          test "$(jq -r '.draft' <<<"$release_json")" = true
+          test "$(jq -r '.target_commitish' <<<"$release_json")" = "$EXPECTED_RELEASE_COMMIT"
+          release_id="$(jq -r '.id' <<<"$release_json")"
+
+          for name in lenso-runtime-console.tar.gz lenso-runtime-console.tar.gz.sha256; do
+            local_path="dist/release/$name"
+            asset_id="$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .id' <<<"$release_json")"
+            test -n "$asset_id"
+            gh api -H 'Accept: application/octet-stream' \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > "/tmp/$name"
+            cmp "$local_path" "/tmp/$name"
+          done
+
+          gh attestation sign "$archive" --repo "$GITHUB_REPOSITORY"
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -F draft=false -f make_latest=false >/dev/null
