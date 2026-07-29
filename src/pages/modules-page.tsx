@@ -103,6 +103,10 @@ import {
   moduleStatusLabel,
   storyDisplayRows,
 } from "./data-render-model";
+import {
+  ModuleLifecyclePrototype,
+  isModuleLifecyclePrototype,
+} from "./module-lifecycle-prototype";
 import { pushOperationsUrl } from "./operations-url-model";
 import {
   flattenRemoteProxyCallPages,
@@ -206,6 +210,12 @@ function applyModuleToggleUpdate(
 }
 
 export function ModulesPage() {
+  if (
+    typeof window !== "undefined" &&
+    isModuleLifecyclePrototype(window.location.search)
+  ) {
+    return <ModuleLifecyclePrototype />;
+  }
   if (!isApiMode()) {
     return <ModulesPlaceholder reason="modules registry requires API mode" />;
   }
