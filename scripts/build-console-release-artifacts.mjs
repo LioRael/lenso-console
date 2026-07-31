@@ -32,26 +32,31 @@ export function parseReleaseSelection(raw) {
       }
     );
   }
-  if (
-    !Array.isArray(value) ||
-    value.some(
-      (item) =>
-        !item ||
-        typeof item !== "object" ||
-        Array.isArray(item) ||
-        Object.keys(item).toSorted().join(",") !== "id,version" ||
-        typeof item.id !== "string" ||
-        !versionPattern.test(item.version)
-    ) ||
-    new Set(value.map(({ id }) => id)).size !== value.length
-  ) {
-    fail("selection must contain unique canonical id/version entries");
+  if (!Array.isArray(value)) {
+    fail("selection must be an array of canonical package identities");
   }
-  const targets = value.filter(({ id }) => id === componentId);
-  if (targets.length !== 1) {
-    fail(`selection must contain exactly one ${componentId}`);
+  const identities = new Set();
+  for (const selected of value) {
+    if (
+      !selected ||
+      typeof selected !== "object" ||
+      Array.isArray(selected) ||
+      Object.keys(selected).toSorted().join(",") !== "id,version" ||
+      typeof selected.id !== "string" ||
+      !versionPattern.test(selected.version) ||
+      identities.has(selected.id)
+    ) {
+      fail("selection must be an array of unique canonical package identities");
+    }
+    identities.add(selected.id);
   }
-  return targets[0];
+  const matches = value.filter(({ id }) => id === componentId);
+  if (matches.length !== 1) {
+    fail(
+      `selection must contain exactly one ${componentId} at a canonical version`
+    );
+  }
+  return matches[0];
 }
 
 async function assertRegularFile(filePath) {

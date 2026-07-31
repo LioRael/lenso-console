@@ -8,8 +8,6 @@
     "@lenso/console-system-plane",
     "@lenso/identity-console",
     "@lenso/remote-crm-console",
-    "@lenso/remote-module-kit",
-    "@lenso/service-kit",
     "@lenso/story-console",
     "@lenso/system-registry-console",
     "lenso-console-service"

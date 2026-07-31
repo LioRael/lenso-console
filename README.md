@@ -16,12 +16,13 @@ local backend when `VITE_RUNTIME_CONSOLE_MODE=api` and `VITE_API_BASE_URL` are s
 - Lenso framework: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the
   public framework and host crates consumed by the Console Service.
 
-Keep both repositories checked out as siblings for backend-backed Console work:
+After the repository rename cutover, keep both repositories checked out as
+siblings for backend-backed Console work:
 
 ```text
 framework/
   lenso/
-  lenso-runtime-console/
+  lenso-console/
 ```
 
 Repository operations notes, including branch protection and backend checkout
@@ -165,7 +166,7 @@ an alias.
 Runnable service examples that use the published `@lenso/service-kit` package
 live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos
-in this repository remain release and CLI fixtures for the Runtime Console
+in this repository remain release and CLI fixtures for the Lenso Console
 workspace.
 
 See `docs/console-package-template.md` before adding a package. The short path is:

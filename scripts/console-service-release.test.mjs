@@ -165,7 +165,7 @@ async function artifactFixture() {
 }
 
 describe("Console Service release manifest", () => {
-  test("accepts only the reviewed composite OCI component", () => {
+  test("selects the reviewed composite OCI component from a mixed plan", () => {
     expect(
       parseReleaseSelection(
         JSON.stringify([{ id: "oci:lenso-console-service", version: "0.2.0" }])
@@ -194,7 +194,7 @@ describe("Console Service release manifest", () => {
           { id: "oci:lenso-console-service", version: "0.2.0" },
         ])
       )
-    ).toThrow("selection must contain unique canonical id/version entries");
+    ).toThrow("unique canonical package identities");
   });
 
   test("builds and verifies the exact OCI graph before exposing release artifacts", async () => {

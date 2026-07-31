@@ -1,27 +1,39 @@
 # Repository Operations
 
-This repository is the frontend half of the Lenso repo pair. It owns the
-Runtime Console React/Vite workspace, console package host, module console
-package fixtures, and frontend quality gate.
+This repository owns the complete Lenso Console product and deployable Console
+Service. It contains the React Shell, Console Service API, Worker and Migration
+Workloads, Console-owned Store migrations, Console Module UI packages, and the
+quality and delivery gates that verify them together.
 
-For the backend side of the pair, see
+For the framework and managed-Service side of the seam, see
 [`LioRael/lenso`](https://github.com/LioRael/lenso).
 
-## Repository Pair
+## Repository Boundary
 
-Keep the Runtime Console and backend checked out as siblings:
+The active GitHub repository remains `LioRael/lenso-runtime-console` until the
+coordinated rename cutover. Its target identity and post-cutover sibling layout
+are:
 
 ```text
 framework/
   lenso/
-  lenso-runtime-console/
+  lenso-console/
 ```
 
-- Runtime Console: `LioRael/lenso-runtime-console`
-- Backend: `LioRael/lenso`
+- Lenso Console: `LioRael/lenso-console`
+- Lenso framework: `LioRael/lenso`
 
-The backend owns the admin APIs, module manifests, contracts, and generated
-TypeScript SDK consumed here.
+This repository owns the Console Shell, Console Service API, Console Operator
+identity integration, System Registry Module, Management Intents, Console
+Projections, reconciliation, System Operations, and Console-specific release
+artifacts.
+
+The framework repository owns public cross-repository contracts and the
+managed-Service System Plane Capability Providers that expose authoritative
+Observations and Operations. Managed Services retain their own state and must
+not depend on this repository. Lenso Console consumes the published `lenso`
+facade and System Plane contracts without directly reading a managed Service
+Store.
 
 ## Branch Protection
 
@@ -41,7 +53,7 @@ multiple commits.
 
 ## Continuous Integration
 
-The Runtime Console `ci` workflow runs on pull requests and pushes to `main`.
+The Lenso Console `ci` workflow runs on pull requests and pushes to `main`.
 
 The `quality` job runs:
 
@@ -51,19 +63,20 @@ pnpm check
 
 The workflow checks out both repositories:
 
-- `lenso-runtime-console` at the workflow SHA.
+- `lenso-runtime-console` at the workflow SHA until the rename cutover.
 - `lenso` from `LioRael/lenso` so this workspace can consume the backend SDK.
 
 The workflow uses Node 24 with Node 24-native GitHub Actions.
 
 ## Backend Checkout Secret
 
-Runtime Console CI reads the private backend repository through a read-only
+Lenso Console CI reads the private framework repository through a read-only
 deploy key:
 
-- Backend deploy key: `lenso-runtime-console CI read key`
+- Backend deploy key: `lenso-runtime-console CI read key` until the rename
+  cutover
 - Backend deploy key mode: read-only
-- Runtime Console secret: `LENSO_REPO_DEPLOY_KEY`
+- Lenso Console secret: `LENSO_REPO_DEPLOY_KEY`
 
 If the backend repository is recreated, transferred, or renamed, recreate the
 read-only deploy key on `LioRael/lenso` and update the
@@ -73,20 +86,31 @@ read-only deploy key on `LioRael/lenso` and update the
 
 Current repository metadata should stay aligned with the README:
 
-- Description: `Frontend workspace for the Lenso Runtime Console, module admin surfaces, and runtime observability views`
-- Topics: `admin-console`, `lenso`, `react`, `runtime-console`, `tailwindcss`, `typescript`, `vite`
+- Description: `Operator-facing System Plane and independently deployable Console Service for Lenso systems`
+- Topics: `admin-console`, `lenso`, `react`, `service-management`, `system-plane`, `typescript`, `vite`
 
 Update GitHub metadata when the repository role changes materially.
 
 ## Migration Checklist
 
-When moving this repo pair to a new owner or recreating either repository:
+When renaming or transferring this repository:
 
-1. Push both repositories and keep them as private repos unless intentionally publishing them.
-2. Reapply `main` branch protection in both repositories.
-3. Verify the required check name is still `quality`.
-4. Recreate the backend read-only deploy key for Runtime Console CI.
-5. Recreate `LENSO_REPO_DEPLOY_KEY` in this repository.
-6. Verify the CI workflow still checks out the backend repository successfully.
-7. Run both main-branch CI workflows and confirm they pass.
-8. Update README repository links and GitHub metadata if owner or repo names changed.
+1. Retire or migrate the legacy manually dispatched SDK publisher to the
+   coordinator-owned reviewed publisher; do not preserve direct publication as
+   a normal post-rename path.
+2. Update the component entry in `LioRael/lenso-release` through its reviewed
+   change path before attempting another release plan.
+3. Rename the GitHub repository to `LioRael/lenso-console`; repository write
+   access alone is not release authority.
+4. In the cutover change, update release config, generated runtime, package
+   metadata, OCI source labels, CI checkout paths, and the repository-boundary
+   test together; never leave old and new live identities mixed.
+5. Reapply or verify `main` branch protection and the required `quality` check.
+6. Rename the backend read-only deploy key label to `lenso-console CI read key`;
+   rotate `LENSO_REPO_DEPLOY_KEY` only when its key material changes.
+7. Update npm trusted-publisher repository bindings for the packages published
+   from this repository.
+8. Verify CI checks out `lenso` and all package fixtures successfully.
+9. Run the Console and framework main-branch quality gates.
+10. Use the reviewed Lenso release workflow for the first post-rename shadow
+    release and verify its receipt and attestation before production activation.
