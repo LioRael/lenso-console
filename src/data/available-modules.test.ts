@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import type { ServiceModuleLifecycleResponse } from "../pages/available-modules-model";
 import {
-  applyAvailableModuleInstallResponse,
   availableModulesPanelState,
   availableModulesQueryKey,
   availableModulesRows,
@@ -275,45 +274,26 @@ describe("available modules provider", () => {
   });
 
   test("installs an available module through the API", async () => {
-    const postCalls: string[] = [];
-    const response = {
-      consolePlan: {
-        error: null,
-        exists: true,
-        moduleEntryPresent: true,
-        packageCount: 1,
-        packages: [],
-        planFile: ".lenso/console/extensions/registry.json",
-        readable: true,
-        restartRequired: true,
-      },
-      manifestReference: "https://example.com/lenso/module/v1/manifest",
-      moduleName: "billing",
-      moduleRelease: {
-        manifestReference:
-          "dist/lenso-service/billing-provider/modules/billing/lenso.module-release.json",
-        name: "billing",
-        providerName: "billing-provider",
-        serviceManifest: "https://example.com/lenso/service/v1/manifest",
-        servicePackage: null,
-        version: "0.1.0",
-      },
-      linkedSource: null,
-      remoteSource: {
-        configured: true,
-        desiredBaseUrl: "https://example.com/lenso/module/v1",
-        envFile: ".env",
-        error: null,
-        restartPending: true,
-        restartReason:
-          "service provider source configured in .env but not loaded",
-        runningBaseUrl: null,
-      },
-      restartRequired: true,
+    const postCalls: Array<{
+      path: string;
+      options: { json: unknown } | undefined;
+    }> = [];
+    const plan = { approval_boundaries: [], plan_id: "plan-1" };
+    const ready = { operation_id: "op-1", revision: 0, state: "ready" };
+    const succeeded = {
+      operation_id: "op-1",
+      revision: 1,
+      state: "succeeded",
     };
     const client = {
-      post(path: string, options: unknown) {
-        postCalls.push(`${path}:${JSON.stringify(options)}`);
+      post(path: string, options?: { json: unknown }) {
+        postCalls.push({ path, options });
+        const response =
+          path === "admin/modules/plans/preview"
+            ? plan
+            : path === "admin/modules/operations"
+              ? ready
+              : succeeded;
         return {
           json: async () => response,
         };
@@ -322,97 +302,58 @@ describe("available modules provider", () => {
 
     await expect(
       installAvailableModule({ client, moduleName: "billing" })
-    ).resolves.toBe(response);
-    expect(postCalls).toEqual([
-      'admin/data/available-modules/billing/install:{"json":{}}',
+    ).resolves.toBe(succeeded);
+    expect(postCalls.map(({ path }) => path)).toEqual([
+      "admin/modules/plans/preview",
+      "admin/modules/operations",
+      "admin/modules/operations/op-1/apply",
     ]);
-  });
-
-  test("applies module release provenance from install responses", () => {
-    const next = applyAvailableModuleInstallResponse(
-      sampleAvailableModulesResponse,
-      {
-        consolePlan: {
-          error: null,
-          exists: true,
-          moduleEntryPresent: true,
-          packageCount: 0,
-          packages: [],
-          planFile: ".lenso/console/extensions/registry.json",
-          readable: true,
-          restartRequired: true,
+    expect(postCalls[0]?.options).toEqual({
+      json: {
+        kind: "install",
+        selection: {
+          module_id: "billing",
+          optional_requirements: [],
+          version_requirement: "*",
         },
-        manifestReference: "https://example.com/lenso/module/v1/manifest",
-        moduleName: "billing",
-        moduleRelease: {
-          manifestReference:
-            "dist/lenso-service/billing-provider/modules/billing/lenso.module-release.json",
-          name: "billing",
-          providerName: "billing-provider",
-          serviceManifest: "https://example.com/lenso/service/v1/manifest",
-          servicePackage: null,
-          version: "0.1.0",
-        },
-        linkedSource: null,
-        remoteSource: {
-          configured: true,
-          desiredBaseUrl: "https://example.com/lenso/service/v1",
-          envFile: ".env",
-          error: null,
-          restartPending: true,
-          restartReason:
-            "service provider source configured in .env but not loaded",
-          runningBaseUrl: null,
-        },
-        restartRequired: true,
-      }
-    );
-
-    const billing = next?.modules.find((module) => module.name === "billing");
-    expect(billing?.moduleRelease).toEqual({
-      manifestReference:
-        "dist/lenso-service/billing-provider/modules/billing/lenso.module-release.json",
-      name: "billing",
-      providerName: "billing-provider",
-      serviceManifest: "https://example.com/lenso/service/v1/manifest",
-      servicePackage: null,
-      version: "0.1.0",
+      },
     });
-    expect(billing?.installState?.remoteSource?.desiredBaseUrl).toBe(
-      "https://example.com/lenso/service/v1"
-    );
+    expect(postCalls[1]?.options).toEqual({
+      json: { idempotency_key: expect.any(String), plan },
+    });
   });
 
-  test("uninstalls an available module through the API", async () => {
-    const deleteCalls: string[] = [];
-    const response = {
-      consolePlan: {
-        error: null,
-        exists: true,
-        moduleEntryPresent: false,
-        packageCount: 0,
-        packages: [],
-        planFile: ".lenso/console/extensions/registry.json",
-        readable: true,
-        restartRequired: true,
-      },
-      manifestReference: "https://example.com/lenso/module/v1/manifest",
-      moduleName: "billing",
-      linkedSource: null,
-      remoteSource: {
-        configured: false,
-        desiredBaseUrl: null,
-        envFile: ".env",
-        error: null,
-        restartPending: false,
-        restartReason: null,
-        runningBaseUrl: null,
-      },
-      restartRequired: true,
+  test("approves and applies an available module uninstall", async () => {
+    const postCalls: Array<{
+      path: string;
+      options: { json: unknown } | undefined;
+    }> = [];
+    const plan = {
+      approval_boundaries: [{ boundary_id: "destructive-change" }],
+      plan_id: "plan-2",
+    };
+    const awaitingApproval = {
+      operation_id: "op-2",
+      revision: 0,
+      state: "awaiting_approval",
+    };
+    const ready = { operation_id: "op-2", revision: 1, state: "ready" };
+    const succeeded = {
+      operation_id: "op-2",
+      revision: 2,
+      state: "succeeded",
     };
     const client = {
-      delete(path: string) {
-        deleteCalls.push(path);
+      post(path: string, options?: { json: unknown }) {
+        postCalls.push({ path, options });
+        const response =
+          path === "admin/modules/plans/preview"
+            ? plan
+            : path === "admin/modules/operations"
+              ? awaitingApproval
+              : path.endsWith("/approvals")
+                ? ready
+                : succeeded;
         return {
           json: async () => response,
         };
@@ -421,10 +362,24 @@ describe("available modules provider", () => {
 
     await expect(
       uninstallAvailableModule({ client, moduleName: "billing" })
-    ).resolves.toBe(response);
-    expect(deleteCalls).toEqual([
-      "admin/data/available-modules/billing/install",
+    ).resolves.toBe(succeeded);
+    expect(postCalls.map(({ path }) => path)).toEqual([
+      "admin/modules/plans/preview",
+      "admin/modules/operations",
+      "admin/modules/operations/op-2/approvals",
+      "admin/modules/operations/op-2/apply",
     ]);
+    expect(postCalls[0]?.options).toEqual({
+      json: { kind: "uninstall", module_id: "billing" },
+    });
+    expect(postCalls[2]?.options).toEqual({
+      json: {
+        boundary_id: "destructive-change",
+        expected_revision: 0,
+        nonce: expect.any(String),
+        reason: "Approved in Runtime Console",
+      },
+    });
   });
 
   test("summarizes available modules panel states", () => {
@@ -436,7 +391,7 @@ describe("available modules provider", () => {
         rows: [],
       })
     ).toEqual({
-      actionCommand: "lenso module marketplace install <manifest-url>",
+      actionCommand: "Use Marketplace to install a module",
       detail: ".lenso/module-catalog.json",
       moduleCount: 0,
       kind: "loading",
@@ -453,7 +408,7 @@ describe("available modules provider", () => {
         rows: [],
       })
     ).toMatchObject({
-      actionCommand: "lenso module marketplace install <manifest-url>",
+      actionCommand: "Use Marketplace to install a module",
       detail: "check the API and local catalog file",
       kind: "error",
       label: "unavailable",
@@ -476,7 +431,7 @@ describe("available modules provider", () => {
         rows: [],
       })
     ).toMatchObject({
-      actionCommand: "lenso module marketplace install <manifest-url>",
+      actionCommand: "Use Marketplace to install a module",
       detail: "install a manifest URL to show modules here",
       kind: "empty",
       label: "no service modules",
@@ -491,7 +446,7 @@ describe("available modules provider", () => {
         rows: availableModulesRows(),
       })
     ).toMatchObject({
-      actionCommand: "lenso module marketplace install <manifest-url>",
+      actionCommand: "Use Marketplace to install a module",
       detail: "add baseUrl or use a manifest URL ending with /manifest",
       moduleCount: 2,
       kind: "ready",
