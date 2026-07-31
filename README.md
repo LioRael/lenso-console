@@ -1,16 +1,20 @@
-# Lenso Runtime Console
+# Lenso Console
 
 [![CI](https://github.com/LioRael/lenso-runtime-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-runtime-console/actions/workflows/ci.yml)
 
-Frontend workspace for the Lenso Runtime Console.
+Operator-facing System Plane for one Lenso System. This repository owns the
+independently installed Console Service, its React Shell, and Console Module UI
+contracts.
 
 The console runs with seeded data by default, and switches core runtime views to the
 local backend when `VITE_RUNTIME_CONSOLE_MODE=api` and `VITE_API_BASE_URL` are set.
 
-## Repository Pair
+## Repository shape
 
-- Runtime Console: this repository owns the React/Vite frontend, console package host, module console package fixtures, and Runtime Console quality gate.
-- Backend platform: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the admin APIs, module manifests, contracts, and generated TypeScript SDK consumed here.
+- Lenso Console: this repository owns the standalone Lenso Service, Console Shell,
+  System Registry Module, Console package host, and delivery gates.
+- Lenso framework: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the
+  public framework and host crates consumed by the Console Service.
 
 Keep both repositories checked out as siblings for backend-backed Console work:
 
@@ -31,50 +35,35 @@ their own `VITE_API_AUTH_TOKEN`.
 Authorization: Bearer dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write
 ```
 
-## Run
+## Run the Console Service
 
 ```bash
 pnpm install
-pnpm dev
+cp service/.env.example service/.env
+docker compose --env-file service/.env -f service/docker-compose.yml up -d postgres
+pnpm service:migrate
+pnpm service:serve
 ```
 
 Open:
 
 ```text
-http://localhost:5174
+http://localhost:3030
 ```
 
-## Backend Wiring
+For the container installation path, including the migration-first Compose stack,
+see [service/README.md](service/README.md).
 
-Start the backend and worker from the sibling `../lenso` repository:
+## Shell development
+
+Run Vite separately when working on the Shell with hot reload:
 
 ```bash
-cd ../lenso
-just db-up
-just migrate
-just api
-just worker
+VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3030 pnpm dev
 ```
 
-Run the console against the local API:
-
-```bash
-cd ../lenso-runtime-console
-VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
-```
-
-Package the hosted console artifact consumed by `lenso console update`:
-
-```bash
-LENSO_CONSOLE_BASE=/console/ pnpm build:local
-pnpm package:hosted-console
-```
-
-The publish workflow uploads `lenso-runtime-console.tar.gz` to the Runtime
-Console GitHub Release. Hosts install it under `.lenso/console`.
-Run the workflow from `main` with the exact `package.json` version; it publishes
-tag `vX.Y.Z`, which hosts can pin with
-`lenso console update --console-version vX.Y.Z`.
+The production build always uses `/` because the Shell and Console API share one
+origin. The retired hosted archive and `/console/` embedding path are unsupported.
 
 Override the development service token when needed:
 
@@ -84,7 +73,7 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.r
 
 ## Service API QA
 
-From the repo root, start a full service Runtime Console demo:
+From the repo root, start the legacy service API QA fixture:
 
 ```bash
 just console-api-demo
@@ -124,7 +113,7 @@ REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localh
 
 - `src/app`: router and root providers.
 - `src/components/ui`: small Tailwind-composed primitives.
-- `src/components/runtime`: Runtime Console shell, search, command palette, drawer, timeline nodes.
+- `src/components/runtime`: Console Shell, search, command palette, drawer, timeline nodes.
 - `src/data`: seeded mock runtime data.
 - `src/hooks`: keyboard and runtime query hooks with API/mock switching.
 - `src/lib`: formatting, query client, and ky HTTP client foundation.
@@ -136,8 +125,8 @@ REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localh
 
 ## Console Packages
 
-Runtime Console frontend modules are local workspace packages under `packages/*`.
-They must import host capabilities through `@lenso/runtime-console-api`, define a
+Console frontend modules are local workspace packages under `packages/*`.
+They must import host capabilities through `@lenso/console-package-api`, define a
 `ConsolePackageManifest`, and export a `ConsoleModule`.
 
 Lenso provides the package framework and fixtures. Product projects choose and
@@ -152,7 +141,7 @@ pnpm create:module billing
 This creates `modules/billing`, adds it to the Rust workspace, and registers it
 in `crates/app-bootstrap` as a linked module.
 
-Add `--with-console` to generate and register the matching Runtime Console
+Add `--with-console` to generate and register the matching Console
 package in the same command:
 
 ```bash
@@ -206,14 +195,14 @@ same package/export/route/capability values.
 
 ### Console Package Dev Server
 
-Use the local dev shell to preview a package inside Runtime Console while
+Use the local dev shell to preview a package inside Lenso Console while
 editing it:
 
 ```bash
 pnpm console-package:dev --package ../lenso-auth-module/packages/auth-console
 ```
 
-The default mode is standalone mock mode. It starts the Runtime Console shell,
+The default mode is standalone mock mode. It starts the Lenso Console Shell,
 loads the package through a temporary `/console/dev/registry.json`, and serves
 the package bundle from a temporary `/console/extensions/dev/*` path.
 

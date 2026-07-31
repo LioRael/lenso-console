@@ -1,4 +1,4 @@
-import type { ConsoleAdminRecord } from "@lenso/runtime-console-api";
+import type { ConsoleAdminRecord } from "@lenso/console-package-api";
 
 export type IdentityUserRow = {
   id: string;

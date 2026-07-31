@@ -1,4 +1,4 @@
-import type { RuntimeStory } from "@lenso/runtime-console-api";
+import type { RuntimeStory } from "@lenso/console-package-api";
 
 export function resolveSelectedRuntimeStory(
   visibleStories: RuntimeStory[],

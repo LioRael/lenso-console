@@ -349,7 +349,23 @@ export interface ConsoleQueryResult<T> {
   isPending: boolean;
 }
 
-export interface RuntimeConsoleHostApi {
+export interface ConsoleManagedService {
+  authorizationEpoch: number;
+  baseUrl: string;
+  connectionState: "never_observed" | "ready" | "unavailable" | "incompatible";
+  coreDocument?: unknown;
+  coreObservedAt?: string | null;
+  enrollmentExpiresAtUnixMs: number;
+  enrollmentGrantRevision: number;
+  enrollmentReceiptDigest: string;
+  enrollmentState: "active" | "revoked";
+  lastErrorCode?: string | null;
+  serviceId: string;
+  servicePrincipal: string;
+  version: number;
+}
+
+export interface ConsoleHostApi {
   adminData: {
     useInvokeAction: () => {
       error: Error;
@@ -442,6 +458,19 @@ export interface RuntimeConsoleHostApi {
       correlationId: string
     ) => RuntimeStory | null;
   };
+  systemRegistry: {
+    useRevokeEnrollment: () => {
+      error: Error | null;
+      isError: boolean;
+      isPending: boolean;
+      mutate: (request: {
+        expectedVersion: number;
+        reason: string;
+        serviceId: string;
+      }) => void;
+    };
+    useServices: () => ConsoleQueryResult<ConsoleManagedService[]>;
+  };
   ui: {
     common: {
       EmptyState: ComponentType<Record<string, unknown>> & {
@@ -472,15 +501,15 @@ export const defineConsoleModule = <Module extends ConsoleModule>(
 ): Module => module;
 
 const missingHostApi = () => {
-  throw new Error("Runtime Console host API is only available inside Lenso.");
+  throw new Error("Console host API is only available inside Lenso Console.");
 };
 
-export const runtimeConsoleHostApi: RuntimeConsoleHostApi = new Proxy(
+export const consoleHostApi: ConsoleHostApi = new Proxy(
   {},
   {
     get: missingHostApi,
   }
-) as RuntimeConsoleHostApi;
+) as ConsoleHostApi;
 
 export interface ConsolePackageSurfaceManifest {
   surfaceName: string;

@@ -1,9 +1,9 @@
 import {
-  runtimeConsoleHostApi,
+  consoleHostApi,
   type ExecutionInspectorTab,
   type RuntimeStory,
   type StoryViewMode,
-} from "@lenso/runtime-console-api";
+} from "@lenso/console-package-api";
 
 const defaultStoryViewMode = "story" satisfies StoryViewMode;
 
@@ -16,7 +16,7 @@ export function runtimeStoriesPath(
     viewMode?: StoryViewMode;
   } = {}
 ) {
-  return runtimeConsoleHostApi.routing.buildPath("/runtime/stories", {
+  return consoleHostApi.routing.buildPath("/runtime/stories", {
     node: filters.nodeId,
     q: filters.query,
     story: filters.storyId,
@@ -40,11 +40,11 @@ export function readRuntimeStoriesParam(name: string) {
 }
 
 export function replaceRuntimeStoriesUrl(path: string) {
-  runtimeConsoleHostApi.hooks.writeBrowserUrl(path, "replace");
+  consoleHostApi.hooks.writeBrowserUrl(path, "replace");
 }
 
 export function pushRuntimeStoriesUrl(path: string) {
-  runtimeConsoleHostApi.hooks.writeBrowserUrl(path, "push");
+  consoleHostApi.hooks.writeBrowserUrl(path, "push");
 }
 
 export function readStoryViewMode(value: string): StoryViewMode {
@@ -75,7 +75,7 @@ function isStoryViewMode(value: string): value is StoryViewMode {
 function isExecutionInspectorTab(
   value: string
 ): value is ExecutionInspectorTab {
-  return runtimeConsoleHostApi.story.executionInspectorTabs.some(
+  return consoleHostApi.story.executionInspectorTabs.some(
     (tab) => tab.id === value
   );
 }

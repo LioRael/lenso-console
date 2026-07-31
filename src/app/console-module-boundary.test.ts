@@ -73,12 +73,9 @@ function findConsoleModuleBoundaryViolations(): string[] {
         );
       }
 
-      if (
-        inConsoleModule &&
-        target === "@lenso/runtime-console/console-package-api"
-      ) {
+      if (inConsoleModule && target === "@lenso/console/console-package-api") {
         violations.push(
-          `${displayPath(file)} imports host API through ${specifier}; use @lenso/runtime-console-api`
+          `${displayPath(file)} imports host API through ${specifier}; use @lenso/console-package-api`
         );
       }
 
@@ -168,7 +165,7 @@ function installedConsolePackageNames(): string[] {
   return Object.keys(runtimeConsolePackageJson.dependencies ?? {})
     .filter(
       (name) =>
-        name.startsWith("@lenso/") && name !== "@lenso/runtime-console-api"
+        name.startsWith("@lenso/") && name !== "@lenso/console-package-api"
     )
     .map((name) => name.replace("@lenso/", ""))
     .sort();

@@ -8,6 +8,13 @@ const localConsoleCapabilities = [
   "runtime.stories.read",
   "auth.users.read",
   "identity.users.read",
+  "console.system-registry.read",
+] as const;
+
+const opaqueApiTokenCapabilities = [
+  "runtime.stories.read",
+  "auth.users.read",
+  "identity.users.read",
 ] as const;
 
 function normalizedAuthToken(token: string): string {
@@ -57,7 +64,7 @@ export function consoleCapabilityProvider(
     return [];
   }
   if (!isDevelopmentAuthToken(resolvedAuthToken)) {
-    return localConsoleCapabilities;
+    return opaqueApiTokenCapabilities;
   }
   return parseDevAuthTokenScopes(resolvedAuthToken);
 }

@@ -1,0 +1,50 @@
+name: Build Console Service release candidate
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      source_commit:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact source binding
+        env:
+          EXPECTED_SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          test "$GITHUB_SHA" = "$EXPECTED_SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_COMMIT"
+          test -z "$(git status --porcelain)"
+      - name: Build deterministic OCI archive
+        env:
+          RELEASE_COMMIT: ${{ inputs.source_commit }}
+          RELEASE_PACKAGES_JSON: >-
+            [{"id":"oci:lenso-console-service","version":"${{ inputs.version }}"}]
+        run: node scripts/build-console-release-artifacts.mjs
+      - name: Generate candidate checksums
+        run: |
+          sha256sum \
+            .artifacts/lenso-console-service.oci.tar \
+            .artifacts/lenso-console-release.json \
+            > .artifacts/SHA256SUMS
+      - name: Upload unsigned release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lenso-console-service-${{ inputs.version }}-${{ inputs.source_commit }}
+          path: .artifacts/
+          if-no-files-found: error
+          retention-days: 7

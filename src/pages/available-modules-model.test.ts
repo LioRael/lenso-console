@@ -49,7 +49,7 @@ const installCommands = [
     label: "extension",
   },
   {
-    command: "reload Runtime Console",
+    command: "reload Lenso Console",
     key: "install-packages",
     label: "reload",
   },
@@ -224,7 +224,7 @@ describe("available modules model", () => {
       })
     ).toEqual({
       action: "install_package",
-      detail: "reload Runtime Console after extension install",
+      detail: "reload Lenso Console after extension install",
       kind: "package_install_needed",
       label: "extension reload needed",
       moduleName: "billing",
@@ -417,7 +417,7 @@ describe("available modules model", () => {
     ).toEqual([
       ["source", "ok", null],
       ["plan", "ok", null],
-      ["package", "fix", "reload Runtime Console"],
+      ["package", "fix", "reload Lenso Console"],
       ["runtime", "fix", null],
       ["restart", "fix", null],
       ["doctor", "ok", "lenso module doctor"],

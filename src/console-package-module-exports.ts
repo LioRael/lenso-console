@@ -7,6 +7,10 @@ import {
   remoteCrmConsoleModule,
 } from "@lenso/remote-crm-console";
 import { storyConsoleManifest, storyConsoleModule } from "@lenso/story-console";
+import {
+  systemRegistryConsoleManifest,
+  systemRegistryConsoleModule,
+} from "@lenso/system-registry-console";
 
 import {
   consolePackageKey,
@@ -17,4 +21,6 @@ export const consolePackageModuleExportsByKey = {
   [consolePackageKey(identityConsoleManifest)]: identityConsoleModule,
   [consolePackageKey(remoteCrmConsoleManifest)]: remoteCrmConsoleModule,
   [consolePackageKey(storyConsoleManifest)]: storyConsoleModule,
+  // oxfmt-ignore
+  [consolePackageKey(systemRegistryConsoleManifest)]: systemRegistryConsoleModule,
 } satisfies ConsolePackageModuleExportsByKey;

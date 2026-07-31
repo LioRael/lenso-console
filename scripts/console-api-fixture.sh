@@ -26,7 +26,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Runtime Console API fixture: $module_name $contact_id"
+echo "Console API fixture: $module_name $contact_id"
 
 status="$(
     curl --noproxy "*" -sS -o "$tmp_response" -w "%{http_code}" \
@@ -38,7 +38,7 @@ status="$(
 
 if [ "$status" != "200" ]; then
     cat >&2 <<EOF
-Runtime Console API fixture could not create the remote proxy sample.
+Console API fixture could not create the remote proxy sample.
 
 Request:
   GET $api_base$path
@@ -68,11 +68,11 @@ if ! jq -e \
     --arg contact_id "$contact_id" \
     '.status == "forwarded" and .module_name == $module_name and .data.id == $contact_id' \
     "$tmp_response" >/dev/null; then
-    echo "Runtime Console API fixture response shape is unexpected." >&2
+    echo "Console API fixture response shape is unexpected." >&2
     jq . "$tmp_response" >&2 || cat "$tmp_response" >&2
     exit 1
 fi
 
-echo "Runtime Console API fixture created:"
+echo "Console API fixture created:"
 echo "- request_id=$request_id"
 echo "- correlation_id=$correlation_id"

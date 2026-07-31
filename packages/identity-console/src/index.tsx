@@ -1,4 +1,4 @@
-import { defineConsoleModule } from "@lenso/runtime-console-api";
+import { defineConsoleModule } from "@lenso/console-package-api";
 
 import { identityConsoleManifest } from "./manifest";
 import { IdentityConsolePage } from "./page";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import type { RuntimeConsoleHostApi } from "../app/console-host-api";
+import type { ConsoleHostApi } from "../app/console-host-api";
 import { executionInspectorTabs } from "../components/runtime/execution-inspector-model";
 import {
   type MockConsoleFixtures,
@@ -12,11 +12,11 @@ import {
 } from "./mock-console-host-api";
 
 const delegatedUseRuntimeConsole =
-  notCalled as RuntimeConsoleHostApi["context"]["useRuntimeConsole"];
-const delegatedWriteBrowserUrl: RuntimeConsoleHostApi["hooks"]["writeBrowserUrl"] =
+  notCalled as ConsoleHostApi["context"]["useRuntimeConsole"];
+const delegatedWriteBrowserUrl: ConsoleHostApi["hooks"]["writeBrowserUrl"] =
   () => undefined;
-const buildPath: RuntimeConsoleHostApi["routing"]["buildPath"] = (path) => path;
-const findStoryByCorrelation: RuntimeConsoleHostApi["story"]["findStoryByCorrelation"] =
+const buildPath: ConsoleHostApi["routing"]["buildPath"] = (path) => path;
+const findStoryByCorrelation: ConsoleHostApi["story"]["findStoryByCorrelation"] =
   () => null;
 
 describe("mock console host api", () => {
@@ -113,7 +113,7 @@ describe("mock console host api", () => {
         useListKeyboard: notCalled,
         usePersistedLayout: notCalled,
         writeBrowserUrl: delegatedWriteBrowserUrl,
-      } as RuntimeConsoleHostApi["hooks"],
+      } as ConsoleHostApi["hooks"],
       modules: {
         useMetadata: notCalled,
       },
@@ -128,8 +128,12 @@ describe("mock console host api", () => {
         executionInspectorTabs,
         findStoryByCorrelation,
       },
-      ui: {} as RuntimeConsoleHostApi["ui"],
-    } satisfies RuntimeConsoleHostApi;
+      systemRegistry: {
+        useRevokeEnrollment: notCalled,
+        useServices: notCalled,
+      },
+      ui: {} as ConsoleHostApi["ui"],
+    } satisfies ConsoleHostApi;
 
     const hostApi = createMockConsoleHostApi(baseHostApi, {
       adminData: {

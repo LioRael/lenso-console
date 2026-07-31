@@ -894,7 +894,7 @@ export function availableModuleHandoffState({
   if (installed?.packageInstallNeeded) {
     return {
       action: "install_package",
-      detail: "reload Runtime Console after extension install",
+      detail: "reload Lenso Console after extension install",
       kind: "package_install_needed",
       label: "extension reload needed",
       moduleName: installed.moduleName,
@@ -1128,7 +1128,7 @@ export function availableModuleInstallSteps({
           "install-packages",
           "bundle",
           "pending",
-          "reload Runtime Console after extension registry update",
+          "reload Lenso Console after extension registry update",
           undefined,
           undefined,
           packageEvidence(evidence, row)
@@ -1277,7 +1277,7 @@ export function availableModuleDoctorChecks({
     commandByKey(commands, "add") ??
     "Install from Marketplace in Runtime Console";
   const installPackagesCommand =
-    commandByKey(commands, "install-packages") ?? "reload Runtime Console";
+    commandByKey(commands, "install-packages") ?? "reload Lenso Console";
   const consolePlan = row.installState?.consolePlan;
   const linkedSource = linkedSourceForRow(row);
   const remoteSource = remoteSourceForRow(row);

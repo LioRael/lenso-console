@@ -1,11 +1,12 @@
+import type { ConsoleManagedService } from "@lenso/console-package-api";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import type { ConsoleAdminRecord } from "../app/console-admin-data-api";
 import type { ConsoleConfigValue } from "../app/console-config-api";
-import type { RuntimeConsoleHostApi } from "../app/console-host-api";
+import type { ConsoleHostApi } from "../app/console-host-api";
 
 type ConsoleSlotContributions = ReturnType<
-  RuntimeConsoleHostApi["contributions"]["useSlot"]
+  ConsoleHostApi["contributions"]["useSlot"]
 >;
 type MockSuccessQueryResult<TData> = Extract<
   UseQueryResult<TData, Error>,
@@ -25,6 +26,7 @@ export type MockConsoleFixtures = {
   capabilities?: readonly string[];
   configValues?: ConsoleConfigValue[];
   contributions?: Record<string, ConsoleSlotContributions>;
+  managedServices?: ConsoleManagedService[];
 };
 
 export function mockAdminRecords(
@@ -73,9 +75,9 @@ export function mockSlotContributions(
 }
 
 export function createMockConsoleHostApi(
-  baseHostApi: RuntimeConsoleHostApi,
+  baseHostApi: ConsoleHostApi,
   fixtures: MockConsoleFixtures = {}
-): RuntimeConsoleHostApi {
+): ConsoleHostApi {
   return {
     adminData: {
       useInvokeAction: baseHostApi.adminData.useInvokeAction,
@@ -105,6 +107,10 @@ export function createMockConsoleHostApi(
     queries: baseHostApi.queries,
     routing: baseHostApi.routing,
     story: baseHostApi.story,
+    systemRegistry: {
+      useRevokeEnrollment: baseHostApi.systemRegistry.useRevokeEnrollment,
+      useServices: () => mockSuccessQueryResult(fixtures.managedServices ?? []),
+    },
     ui: baseHostApi.ui,
   };
 }

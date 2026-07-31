@@ -1,10 +1,10 @@
 # Console Package Template
 
-Use this checklist when adding a Runtime Console frontend package.
+Use this checklist when adding a Lenso Console frontend package.
 
 Console packages let a module contribute a frontend surface without deep-importing
-Runtime Console internals. The package can live in this monorepo today and move
-to an external repository later if `@lenso/runtime-console-api` is published.
+Lenso Console internals. The package can live in this monorepo today and move
+to an external repository later if `@lenso/console-package-api` is published.
 
 ## Package Shape
 
@@ -17,7 +17,7 @@ pnpm create:module billing
 That command creates `modules/billing`, adds it to the Rust workspace, and
 registers it in `crates/app-bootstrap`.
 
-To create the linked module and matching Runtime Console package together, run:
+To create the linked module and matching Console package together, run:
 
 ```sh
 pnpm create:module billing --with-console
@@ -68,7 +68,7 @@ packages/<package-name>/
     ".": "./src/index.tsx"
   },
   "peerDependencies": {
-    "@lenso/runtime-console-api": "workspace:*",
+    "@lenso/console-package-api": "workspace:*",
     "react": "^19.1.0"
   }
 }
@@ -112,7 +112,7 @@ API:
 ```
 
 ```ts
-import { defineConsolePackageManifest } from "@lenso/runtime-console-api";
+import { defineConsolePackageManifest } from "@lenso/console-package-api";
 
 import consoleSurface from "../console-surface.json";
 
@@ -241,7 +241,7 @@ implementation.
 Export a console module from the package entrypoint:
 
 ```tsx
-import { defineConsoleModule } from "@lenso/runtime-console-api";
+import { defineConsoleModule } from "@lenso/console-package-api";
 
 import { billingConsoleManifest } from "./manifest";
 import { BillingConsolePage } from "./page";
@@ -290,7 +290,7 @@ pnpm install --lockfile-only
 ```
 
 The host still has to import installed packages at build time. A backend module
-can declare any package, but Runtime Console can only mount it after the package
+can declare any package, but Lenso Console can only mount it after the package
 has been added to `package.json` and `console-package-module-exports.ts`.
 Package entrypoints are resolved through pnpm workspace links and each package's
 `exports` field. Missing declarations appear in the module registry as
@@ -298,11 +298,11 @@ install-plan rows.
 
 ## Boundary Rules
 
-Console packages must not import Runtime Console internals directly.
+Console packages must not import Lenso Console internals directly.
 
 Allowed:
 
-- `@lenso/runtime-console-api`
+- `@lenso/console-package-api`
 - Local package files such as `./manifest`, `./page`, and `./layout`
 - Declared package peer dependencies
 
@@ -321,7 +321,7 @@ src/app/console-module-boundary.test.ts
 ```
 
 If a package needs a new host capability, add it to
-`@lenso/runtime-console-api` instead of importing host internals.
+`@lenso/console-package-api` instead of importing host internals.
 
 ## Verification
 
@@ -331,5 +331,5 @@ Run:
 pnpm check
 ```
 
-This covers formatting, linting, Runtime Console tests, package tests,
+This covers formatting, linting, Lenso Console tests, package tests,
 TypeScript, and production build.

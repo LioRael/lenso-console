@@ -1,51 +1,35 @@
 import { describe, expect, test } from "vitest";
 
-import { runtimeConsoleHostApi } from "./console-host-api";
+import { consoleHostApi } from "./console-host-api";
 
 describe("console host api", () => {
   test("exposes stable host capabilities consumed by console modules", () => {
-    expect(runtimeConsoleHostApi.queries.useRuntimeStories).toBeTypeOf(
+    expect(consoleHostApi.queries.useRuntimeStories).toBeTypeOf("function");
+    expect(consoleHostApi.queries.useRuntimeStoryDetail).toBeTypeOf("function");
+    expect(consoleHostApi.adminData.useRecords).toBeTypeOf("function");
+    expect(consoleHostApi.adminData.useInvokeAction).toBeTypeOf("function");
+    expect(consoleHostApi.config.useValues).toBeTypeOf("function");
+    expect(consoleHostApi.config.useWriteValue).toBeTypeOf("function");
+    expect(consoleHostApi.contributions.useSlot).toBeTypeOf("function");
+    expect(consoleHostApi.modules.useMetadata).toBeTypeOf("function");
+    expect(consoleHostApi.context.useRuntimeConsole).toBeTypeOf("function");
+    expect(consoleHostApi.hooks.useBrowserUrlPopState).toBeTypeOf("function");
+    expect(consoleHostApi.hooks.useListKeyboard).toBeTypeOf("function");
+    expect(consoleHostApi.hooks.usePersistedLayout).toBeTypeOf("function");
+    expect(consoleHostApi.hooks.writeBrowserUrl).toBeTypeOf("function");
+    expect(consoleHostApi.data.retryTargetForNode).toBeTypeOf("function");
+    expect(consoleHostApi.story.findStoryByCorrelation).toBeTypeOf("function");
+    expect(consoleHostApi.story.executionInspectorTabs.length).toBe(7);
+    expect(consoleHostApi.ui.runtime.ExecutionInspector).toBeTypeOf("function");
+    expect(consoleHostApi.ui.runtime.ResizeHandle).toBeTypeOf("function");
+    expect(consoleHostApi.ui.runtime.StoryList).toBeTypeOf("function");
+    expect(consoleHostApi.ui.common.EmptyState).toBeTypeOf("function");
+    expect(consoleHostApi.systemRegistry.useServices).toBeTypeOf("function");
+    expect(consoleHostApi.systemRegistry.useRevokeEnrollment).toBeTypeOf(
       "function"
     );
-    expect(runtimeConsoleHostApi.queries.useRuntimeStoryDetail).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.adminData.useRecords).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.adminData.useInvokeAction).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.config.useValues).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.config.useWriteValue).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.contributions.useSlot).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.modules.useMetadata).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.context.useRuntimeConsole).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.hooks.useBrowserUrlPopState).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.hooks.useListKeyboard).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.hooks.usePersistedLayout).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.hooks.writeBrowserUrl).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.data.retryTargetForNode).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.story.findStoryByCorrelation).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.story.executionInspectorTabs.length).toBe(7);
-    expect(runtimeConsoleHostApi.ui.runtime.ExecutionInspector).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.ui.runtime.ResizeHandle).toBeTypeOf(
-      "function"
-    );
-    expect(runtimeConsoleHostApi.ui.runtime.StoryList).toBeTypeOf("function");
-    expect(runtimeConsoleHostApi.ui.common.EmptyState).toBeTypeOf("function");
     expect(
-      runtimeConsoleHostApi.routing.buildPath("/runtime/stories", {
+      consoleHostApi.routing.buildPath("/runtime/stories", {
         story: "corr_1",
       })
     ).toBe("/runtime/stories?story=corr_1");

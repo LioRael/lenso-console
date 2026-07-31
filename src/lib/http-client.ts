@@ -12,6 +12,8 @@ const developmentApiAuthScopes = [
   "remote_crm.contacts.read",
   "remote_crm.contacts.sync",
   "hello-action:greetings:write",
+  "console.system-registry.read",
+  "console.system-registry.revoke",
 ] as const;
 const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =

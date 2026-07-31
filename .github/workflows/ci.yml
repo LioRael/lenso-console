@@ -87,3 +87,16 @@ jobs:
         env:
           LENSO_REPO_ROOT: ${{ inputs.integration_set_url != '' && format('{0}/integration/lenso', github.workspace) || '' }}
         run: pnpm check
+
+  console-service-container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Lenso Console
+        uses: actions/checkout@v6
+      - name: Build and smoke Console Service image
+        run: sh scripts/console-service-container-smoke.sh
+      - name: Run Console Service recovery drill
+        env:
+          LENSO_CONSOLE_IMAGE_VERSION: smoke
+          LENSO_CONSOLE_SKIP_BUILD: "1"
+        run: sh scripts/console-service-recovery-smoke.sh

@@ -312,7 +312,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
       }
     >
       <aside
-        aria-label="Runtime Console navigation"
+        aria-label="Lenso Console navigation"
         className="relative overflow-hidden border-(--line) bg-(--bg-sidebar) lg:sticky lg:top-0 lg:h-screen lg:border-r max-lg:border-b"
       >
         <div className="h-11 border-b border-(--line) bg-(--bg-chrome) max-lg:hidden">
@@ -333,9 +333,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
                 <div className="text-xs font-semibold text-(--fg-primary)">
                   Lenso
                 </div>
-                <div className="text-[11px] text-(--fg-tertiary)">
-                  Runtime Console
-                </div>
+                <div className="text-[11px] text-(--fg-tertiary)">Console</div>
               </div>
             </div>
             <button
@@ -463,8 +461,8 @@ function ConsoleAdminContextBadge() {
     : adminContextQuery.isError && adminContextQuery.error instanceof Error
       ? adminContextQuery.error.message
       : apiMode
-        ? "Loading Runtime Console admin actor context"
-        : "Local mock Runtime Console capabilities";
+        ? "Loading Lenso Console admin actor context"
+        : "Local mock Lenso Console capabilities";
 
   return (
     <Badge

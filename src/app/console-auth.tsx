@@ -29,6 +29,19 @@ type PasswordLoginInput = {
   password: string;
 };
 
+type PasswordSessionResponse = {
+  token: string;
+};
+
+const consoleBootstrapStatusSchema =
+  "lenso.console-bootstrap-status.v1" as const;
+
+export type ConsoleBootstrapStatus = {
+  schema: typeof consoleBootstrapStatusSchema;
+  status: "operator_required" | "ready";
+  nextAction: string;
+};
+
 export function consoleOidcCallbackPath(baseUrl = import.meta.env.BASE_URL) {
   const basePath = baseUrl.replace(/\/+$/, "");
   const normalizedBasePath =
@@ -61,11 +74,46 @@ export function oidcAuthIsRequired() {
 export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [passwordAuthenticated, setPasswordAuthenticated] = useState(false);
+  const [bootstrapStatus, setBootstrapStatus] = useState<
+    ConsoleBootstrapStatus | "checking" | "unavailable"
+  >("checking");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const isCallback =
     typeof window !== "undefined" &&
     window.location.pathname === consoleOidcCallbackPath();
+
+  useEffect(() => {
+    if (!oidcAuthIsRequired() || isCallback) {
+      return;
+    }
+    let active = true;
+    void inspectBootstrapStatus();
+
+    async function inspectBootstrapStatus() {
+      try {
+        const response = await fetch(consoleBootstrapStatusUrl(), {
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) {
+          throw new Error("Console bootstrap status is unavailable");
+        }
+        const status = decodeConsoleBootstrapStatus(await response.json());
+        if (active) {
+          setBootstrapStatus(status);
+        }
+      } catch {
+        if (active) {
+          setBootstrapStatus("unavailable");
+        }
+      }
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [isCallback]);
 
   async function handleSignIn() {
     setBusy(true);
@@ -85,11 +133,12 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
     setBusy(true);
     setAuthError(null);
     try {
-      await loginWithPassword({
+      const token = await loginWithPassword({
         identifier: identifier.trim(),
         password,
       });
-      await beginConsoleOidcLogin();
+      window.localStorage.setItem(consoleAccessTokenStorageKey, token);
+      setPasswordAuthenticated(true);
     } catch (error: unknown) {
       setBusy(false);
       setAuthError(
@@ -118,15 +167,34 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
     }
   }, [isCallback]);
 
-  if (!oidcAuthIsRequired() && !isCallback) {
+  if ((!oidcAuthIsRequired() || passwordAuthenticated) && !isCallback) {
     return children;
+  }
+
+  if (bootstrapStatus === "checking" && !isCallback) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-(--bg-app) px-4 text-(--fg-primary)">
+        <p className="text-xs text-(--fg-secondary)">
+          Inspecting Console bootstrap status…
+        </p>
+      </main>
+    );
+  }
+
+  if (
+    bootstrapStatus !== "checking" &&
+    bootstrapStatus !== "unavailable" &&
+    bootstrapStatus.status === "operator_required" &&
+    !isCallback
+  ) {
+    return <ConsoleOperatorBootstrapRequired status={bootstrapStatus} />;
   }
 
   return (
     <main className="grid min-h-screen place-items-center bg-(--bg-app) px-4 text-(--fg-primary)">
       <section className="w-full max-w-sm rounded-[var(--radius-panel)] border border-(--line) bg-(--bg-panel) p-5 shadow-(--elevation-panel)">
         <div className="space-y-1">
-          <h1 className="text-sm font-semibold">Runtime Console</h1>
+          <h1 className="text-sm font-semibold">Lenso Console</h1>
           <p className="text-xs text-(--fg-secondary)">
             Sign in with the configured Lenso identity provider.
           </p>
@@ -178,20 +246,88 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   );
 }
 
+function ConsoleOperatorBootstrapRequired({
+  status,
+}: {
+  status: ConsoleBootstrapStatus;
+}) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-(--bg-app) px-4 text-(--fg-primary)">
+      <section className="w-full max-w-lg rounded-[var(--radius-panel)] border border-(--line) bg-(--bg-panel) p-5 shadow-(--elevation-panel)">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--fg-tertiary)">
+          Console Bootstrap
+        </p>
+        <h1 className="mt-1 text-lg font-semibold">Operator required</h1>
+        <p className="mt-2 text-sm text-(--fg-secondary)">
+          This Console has no operator yet. Run the installation-authority
+          command below, then restart the Console Service.
+        </p>
+        <pre className="mt-4 overflow-x-auto rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) p-3 text-xs text-(--fg-primary)">
+          <code>{`lenso console operator bootstrap \\\n+  --console-url ${window.location.origin} \\\n+  --identifier admin@example.com`}</code>
+        </pre>
+        <p className="mt-3 text-xs text-(--fg-tertiary)">{status.nextAction}</p>
+      </section>
+    </main>
+  );
+}
+
 export function consolePasswordLoginUrl(
   prefix = runtimeConsoleApiPrefix()
 ): string {
   if (!prefix) {
-    throw new Error("Runtime Console API base URL is not configured");
+    throw new Error("Lenso Console API base URL is not configured");
   }
   return `${prefix === "/" ? "" : prefix}/v1/auth/password/login`;
+}
+
+export function consoleBootstrapStatusUrl(
+  prefix = runtimeConsoleApiPrefix()
+): string {
+  if (!prefix) {
+    throw new Error("Lenso Console API base URL is not configured");
+  }
+  return `${prefix === "/" ? "" : prefix}/bootstrap/v1/status`;
+}
+
+export function decodeConsoleBootstrapStatus(
+  value: unknown
+): ConsoleBootstrapStatus {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Console bootstrap status must be an object");
+  }
+  const record = value as Record<string, unknown>;
+  if (record.schema !== consoleBootstrapStatusSchema) {
+    throw new TypeError("Console bootstrap status schema is not supported");
+  }
+  if (record.status !== "operator_required" && record.status !== "ready") {
+    throw new TypeError("Console bootstrap status is not supported");
+  }
+  if (typeof record.nextAction !== "string" || !record.nextAction) {
+    throw new TypeError("Console bootstrap next action is required");
+  }
+  return {
+    schema: record.schema,
+    status: record.status,
+    nextAction: record.nextAction,
+  };
 }
 
 export function passwordLoginBody(input: PasswordLoginInput): string {
   return JSON.stringify(input);
 }
 
-async function loginWithPassword(input: PasswordLoginInput) {
+export function decodePasswordSessionToken(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Password login response token is invalid");
+  }
+  const { token } = value as Partial<PasswordSessionResponse>;
+  if (typeof token !== "string" || !token) {
+    throw new TypeError("Password login response token is invalid");
+  }
+  return token;
+}
+
+async function loginWithPassword(input: PasswordLoginInput): Promise<string> {
   const response = await fetch(consolePasswordLoginUrl(), {
     body: passwordLoginBody(input),
     credentials: "include",
@@ -206,6 +342,7 @@ async function loginWithPassword(input: PasswordLoginInput) {
       await responseErrorMessage(response, "Password login failed")
     );
   }
+  return decodePasswordSessionToken(await response.json());
 }
 
 async function beginConsoleOidcLogin() {
@@ -289,7 +426,7 @@ async function completeConsoleOidcLogin() {
 async function fetchOidcMetadata() {
   const prefix = runtimeConsoleApiPrefix();
   if (!prefix) {
-    throw new Error("Runtime Console API base URL is not configured");
+    throw new Error("Lenso Console API base URL is not configured");
   }
   const response = await fetch(
     `${prefix === "/" ? "" : prefix}/.well-known/openid-configuration`,

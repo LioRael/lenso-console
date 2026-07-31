@@ -36,8 +36,12 @@ import {
 } from "./console-config-api";
 import { useConsoleSlotContributions } from "./console-contributions";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
+import {
+  useConsoleManagedServices,
+  useRevokeConsoleEnrollment,
+} from "./console-system-registry-api";
 
-export const productionRuntimeConsoleHostApi = {
+export const productionConsoleHostApi = {
   adminData: {
     useInvokeAction: useConsoleAdminAction,
     useRecords: useConsoleAdminRecords,
@@ -79,6 +83,10 @@ export const productionRuntimeConsoleHostApi = {
     executionInspectorTabs,
     findStoryByCorrelation,
   },
+  systemRegistry: {
+    useRevokeEnrollment: useRevokeConsoleEnrollment,
+    useServices: useConsoleManagedServices,
+  },
   ui: {
     common: {
       EmptyState,
@@ -95,12 +103,12 @@ export const productionRuntimeConsoleHostApi = {
   },
 };
 
-export const runtimeConsoleHostApi =
+export const consoleHostApi =
   consoleDevConfig.mode === "mock"
-    ? createMockConsoleHostApi(productionRuntimeConsoleHostApi)
-    : productionRuntimeConsoleHostApi;
+    ? createMockConsoleHostApi(productionConsoleHostApi)
+    : productionConsoleHostApi;
 
-export type RuntimeConsoleHostApi = typeof productionRuntimeConsoleHostApi;
+export type ConsoleHostApi = typeof productionConsoleHostApi;
 export type {
   ConsoleAdminListResponse,
   ConsoleAdminRecord,

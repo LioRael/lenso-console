@@ -7,7 +7,7 @@
     ".": "./src/index.tsx"
   },
   "peerDependencies": {
-    "@lenso/runtime-console-api": "workspace:*",
+    "@lenso/console-package-api": "workspace:*",
     "react": "^19.1.0"
   }
 }

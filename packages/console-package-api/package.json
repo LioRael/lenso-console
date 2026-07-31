@@ -1,11 +1,11 @@
 {
-  "name": "@lenso/runtime-console-api",
-  "version": "0.1.2",
-  "description": "Runtime Console API surface for Lenso console packages.",
+  "name": "@lenso/console-package-api",
+  "version": "0.1.0",
+  "description": "Shared host contract for Lenso Console packages.",
   "keywords": [
     "console-package",
     "lenso",
-    "runtime-console"
+    "lenso-console"
   ],
   "homepage": "https://github.com/LioRael/lenso-runtime-console#readme",
   "bugs": {
@@ -19,6 +19,7 @@
   },
   "files": [
     "dist",
+    "README.md",
     "theme.css"
   ],
   "type": "module",

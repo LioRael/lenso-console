@@ -1,4 +1,4 @@
-import { DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL } from "../app/runtime-console-bundles";
+import { DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL } from "../app/console-bundles";
 
 export const defaultConsoleBundleRegistryUrl =
   DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL;

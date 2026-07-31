@@ -18,11 +18,11 @@ get_api() {
 require_cmd curl
 require_cmd jq
 
-echo "Runtime Console API QA: $api_base"
+echo "Console API QA: $api_base"
 
 if ! get_api "/livez" | jq -e '.status == "healthy"' >/dev/null; then
     cat >&2 <<EOF
-Runtime Console API QA could not reach $api_base/livez.
+Console API QA could not reach $api_base/livez.
 
 Start the local API first:
   cd ../lenso
@@ -39,7 +39,7 @@ fi
 
 if ! get_api "/readyz" | jq -e '.status == "healthy"' >/dev/null; then
     cat >&2 <<EOF
-Runtime Console API QA reached /livez but /readyz is not healthy.
+Console API QA reached /livez but /readyz is not healthy.
 
 Check local database and migrations:
   cd ../lenso
@@ -50,14 +50,14 @@ EOF
     exit 1
 fi
 
-sh scripts/runtime-console-api-fixture.sh
-sh scripts/runtime-console-api-smoke.sh
+sh scripts/console-api-fixture.sh
+sh scripts/console-api-smoke.sh
 
 cat <<EOF
-Runtime Console API QA passed.
+Console API QA passed.
 
 Optional manual pass:
-  run the Runtime Console from this repository
+  run Lenso Console from this repository
   check /operations/queues
   check /operations/functions
   check /operations/dead-letters

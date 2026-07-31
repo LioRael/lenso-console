@@ -2,11 +2,11 @@ import { describe, expect, test, vi } from "vitest";
 
 import {
   CONSOLE_BUNDLE_HOST_API,
-  loadRuntimeConsoleBundlePackages,
-  runtimeConsoleBundlePackages,
-  type RuntimeConsoleBundleManifest,
-  type RuntimeConsoleBundleRegistry,
-} from "./runtime-console-bundles";
+  loadConsoleBundlePackages,
+  consoleBundlePackages,
+  type ConsoleBundleManifest,
+  type ConsoleBundleRegistry,
+} from "./console-bundles";
 
 function BundlePage() {
   return "CRM";
@@ -31,15 +31,15 @@ const crmBundle = {
   packageName: "@vendor/crm-console",
   styles: ["/console/extensions/crm/entry.css"],
   version: "1.0.0",
-} satisfies RuntimeConsoleBundleManifest;
+} satisfies ConsoleBundleManifest;
 
 const registry = {
   bundles: [crmBundle],
   version: 1,
-} satisfies RuntimeConsoleBundleRegistry;
+} satisfies ConsoleBundleRegistry;
 
-describe("runtime console bundles", () => {
-  test("loads same-origin bundle exports as runtime console packages", async () => {
+describe("console bundles", () => {
+  test("loads same-origin bundle exports as console packages", async () => {
     const calls: string[] = [];
     const importModule = vi.fn().mockImplementation(async () => {
       calls.push("import");
@@ -50,7 +50,7 @@ describe("runtime console bundles", () => {
     });
 
     await expect(
-      runtimeConsoleBundlePackages(registry, {
+      consoleBundlePackages(registry, {
         importModule,
         loadStyle,
         origin: "http://lenso.test",
@@ -76,7 +76,7 @@ describe("runtime console bundles", () => {
 
   test("rejects cross-origin bundle entries", async () => {
     await expect(
-      runtimeConsoleBundlePackages(
+      consoleBundlePackages(
         {
           bundles: [
             {
@@ -96,7 +96,7 @@ describe("runtime console bundles", () => {
 
   test("rejects cross-origin bundle styles", async () => {
     await expect(
-      runtimeConsoleBundlePackages(
+      consoleBundlePackages(
         {
           bundles: [
             {
@@ -117,7 +117,7 @@ describe("runtime console bundles", () => {
 
   test("rejects unsupported host API versions", async () => {
     await expect(
-      runtimeConsoleBundlePackages(
+      consoleBundlePackages(
         {
           bundles: [
             {
@@ -137,7 +137,7 @@ describe("runtime console bundles", () => {
 
   test("rejects exports that are not console modules", async () => {
     await expect(
-      runtimeConsoleBundlePackages(registry, {
+      consoleBundlePackages(registry, {
         importModule: vi.fn().mockResolvedValue({ crmConsoleModule: {} }),
         origin: "http://lenso.test",
       })
@@ -146,7 +146,7 @@ describe("runtime console bundles", () => {
 
   test("skips bundles missing required capabilities", async () => {
     await expect(
-      runtimeConsoleBundlePackages(
+      consoleBundlePackages(
         {
           bundles: [
             {
@@ -171,7 +171,7 @@ describe("runtime console bundles", () => {
     });
 
     await expect(
-      runtimeConsoleBundlePackages(
+      consoleBundlePackages(
         {
           bundles: [
             {
@@ -205,7 +205,7 @@ describe("runtime console bundles", () => {
     );
 
     await expect(
-      loadRuntimeConsoleBundlePackages("/console/extensions/registry.json", {
+      loadConsoleBundlePackages("/console/extensions/registry.json", {
         fetchJson,
         origin: "http://lenso.test",
       })

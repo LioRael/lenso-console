@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lenso.dev/contracts/console/recovery-drill-result.schema.json",
+  "title": "Lenso Console Recovery Drill Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "sourceProject",
+    "recoveryProject",
+    "sourcePort",
+    "recoveryPort",
+    "checks"
+  ],
+  "properties": {
+    "schema": { "const": "lenso.console-recovery-drill.v1" },
+    "status": { "const": "passed" },
+    "sourceProject": {
+      "type": "string",
+      "pattern": "^lenso-console-recovery-source-[0-9]+$"
+    },
+    "recoveryProject": {
+      "type": "string",
+      "pattern": "^lenso-console-recovery-target-[0-9]+$"
+    },
+    "sourcePort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "recoveryPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "checks": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "normal_mode_ready",
+          "source_normal_mode_reported",
+          "source_normal_authority_reported",
+          "managed_services_seeded",
+          "store_stream_restored",
+          "browser_sessions_excluded",
+          "restored_mode_reported",
+          "restored_authority_reported",
+          "restore_mode_mutation_blocked",
+          "activated_normal_mode_reported",
+          "activated_normal_authority_reported",
+          "normal_mode_mutation_enabled",
+          "post_activation_drift_observed",
+          "refenced_restore_mode_reported",
+          "refenced_restore_authority_reported",
+          "recovery_fence_reestablished"
+        ]
+      }
+    }
+  }
+}

@@ -92,6 +92,7 @@ describe("console capabilities", () => {
       "runtime.stories.read",
       "auth.users.read",
       "identity.users.read",
+      "console.system-registry.read",
     ]);
   });
 });

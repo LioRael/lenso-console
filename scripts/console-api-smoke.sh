@@ -24,7 +24,7 @@ assert_json() {
     expr="$2"
     message="$3"
     if ! jq -e "$expr" "$file" >/dev/null; then
-        echo "Runtime Console API smoke failed: $message" >&2
+        echo "Console API smoke failed: $message" >&2
         echo "Response:" >&2
         jq . "$file" >&2 || cat "$file" >&2
         exit 1
@@ -36,7 +36,7 @@ assert_jq() {
     message="$2"
     shift 2
     if ! jq -e "$@" "$file" >/dev/null; then
-        echo "Runtime Console API smoke failed: $message" >&2
+        echo "Console API smoke failed: $message" >&2
         echo "Response:" >&2
         jq . "$file" >&2 || cat "$file" >&2
         exit 1
@@ -56,7 +56,7 @@ wait_for_remote_runtime_function() {
         sleep 1
     done
 
-    echo "Runtime Console API smoke failed: remote runtime function did not complete" >&2
+    echo "Console API smoke failed: remote runtime function did not complete" >&2
     echo "Start app-worker with REMOTE_MODULES configured." >&2
     echo "Response:" >&2
     jq . "$file" >&2 || cat "$file" >&2
@@ -72,7 +72,7 @@ trap cleanup EXIT
 require_cmd curl
 require_cmd jq
 
-echo "Runtime Console API smoke: $api_base"
+echo "Console API smoke: $api_base"
 
 summary="$tmpdir/summary.json"
 api_get "/admin/runtime/summary" >"$summary"
@@ -129,7 +129,7 @@ if [ "$(jq '.data | length' "$remote_calls")" -gt 0 ]; then
         --argjson success "$success" \
         'all(.data[]; .correlation_id == $correlation_id and .module_name == $module_name and .success == $success)' \
         "$filtered_remote_calls" >/dev/null; then
-        echo "Runtime Console API smoke failed: remote call filters are not preserved" >&2
+        echo "Console API smoke failed: remote call filters are not preserved" >&2
         echo "Response:" >&2
         jq . "$filtered_remote_calls" >&2 || cat "$filtered_remote_calls" >&2
         exit 1
@@ -255,7 +255,7 @@ assert_jq "$remote_function_logs" "remote runtime function logs are missing life
     and any(.data[]; .node_id == $id and .body == "Function run completed")
 '
 
-echo "Runtime Console API smoke passed."
+echo "Console API smoke passed."
 echo "- summary supports queue pressure inputs"
 echo "- outbox list/detail supports dead-letter inspector payload and actor"
 echo "- functions list/detail supports operation inspector metadata"

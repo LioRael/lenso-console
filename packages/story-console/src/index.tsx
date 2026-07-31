@@ -1,4 +1,4 @@
-import { defineConsoleModule } from "@lenso/runtime-console-api";
+import { defineConsoleModule } from "@lenso/console-package-api";
 
 import { storyConsoleManifest } from "./manifest";
 import { RuntimeStoriesPage } from "./page";
