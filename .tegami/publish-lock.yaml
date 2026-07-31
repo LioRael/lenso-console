@@ -1,12 +1,12 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@lenso/console-bridge\":\n    type: patch\n---\n\n### Features\n\nPublish the isolated Module UI bridge contract for host-bound permissions,\nartifact identity, and lifecycle messages.\n"
-    filename: console-bridge.md
+  - content: "---\npackages:\n  \"@lenso/console-bridge\":\n    type: patch\n---\n\n### Fixes\n\nPublish the isolated Module UI bridge contract through the environment-bound\nrelease runtime after the earlier ready event was rejected before dispatch.\n"
+    filename: console-bridge-runtime.md
     v: 0.0.0
 core:packages:
   - id: npm:@lenso/console
     updated: false
   - changelogIds:
-      - console-bridge.md
+      - console-bridge-runtime.md
     id: npm:@lenso/console-bridge
     updated: true
   - id: npm:@lenso/console-package-api
