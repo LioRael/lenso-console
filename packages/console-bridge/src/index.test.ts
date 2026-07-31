@@ -26,8 +26,21 @@ describe("Console Bridge host", () => {
         moduleReleaseDigest: `sha256:${"a".repeat(64)}`,
         uiArtifactDigest: `sha256:${"b".repeat(64)}`,
       },
+      surface: "contacts",
       invoke,
     });
+
+    listener?.({
+      data: {
+        moduleId: "acme/contacts",
+        nonce: "wrong-surface",
+        protocol: consoleBridgeProtocol,
+        surface: "settings",
+        type: "ready",
+      },
+      source: child,
+    } as unknown as MessageEvent<unknown>);
+    expect(posted).toEqual([]);
 
     listener?.({
       data: {

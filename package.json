@@ -29,7 +29,7 @@
     "test": "pnpm test:local",
     "test:local": "vitest run src/app/router.test.ts src/app/console-auth.test.tsx src/app/console-composition.test.ts packages/console-bridge/src/index.test.ts packages/console-system-plane/src scripts/console-service-delivery.test.mjs scripts/console-service-release.test.mjs scripts/repository-boundary.test.mjs",
     "typecheck": "pnpm typecheck:local",
-    "typecheck:local": "tsc -b --pretty false",
+    "typecheck:local": "pnpm --filter @lenso/console-bridge build && pnpm --filter @lenso/console-system-plane build && tsc -b --pretty false",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {

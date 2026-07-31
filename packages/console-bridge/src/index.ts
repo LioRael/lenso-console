@@ -25,6 +25,7 @@ export interface ConsoleBridgeGrant {
 export interface ConsoleBridgeHostOptions {
   frame: HTMLIFrameElement;
   grant: ConsoleBridgeGrant;
+  surface: string;
   invoke(permission: string, payload: unknown): Promise<unknown>;
 }
 
@@ -121,7 +122,10 @@ export function installConsoleBridgeHost(
       return;
     }
     if (isReady(event.data)) {
-      if (event.data.moduleId !== options.grant.moduleId) {
+      if (
+        event.data.moduleId !== options.grant.moduleId ||
+        event.data.surface !== options.surface
+      ) {
         return;
       }
       const init: BridgeInit = {

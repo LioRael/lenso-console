@@ -54,6 +54,7 @@ export function ModuleUiPage() {
         moduleReleaseDigest: binding.module.moduleReleaseDigest,
         uiArtifactDigest: binding.module.uiArtifactDigest,
       },
+      surface: binding.entry.name,
       invoke: async (permission, payload) =>
         httpClient
           .post(
