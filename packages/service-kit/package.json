@@ -9,14 +9,14 @@
     "runtime-console",
     "service"
   ],
-  "homepage": "https://github.com/LioRael/lenso-runtime-console#readme",
+  "homepage": "https://github.com/LioRael/lenso-console#readme",
   "bugs": {
-    "url": "https://github.com/LioRael/lenso-runtime-console/issues"
+    "url": "https://github.com/LioRael/lenso-console/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LioRael/lenso-runtime-console.git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
     "directory": "packages/service-kit"
   },
   "files": [

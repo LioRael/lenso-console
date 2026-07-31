@@ -87,7 +87,7 @@ This package is published with `@lenso/service-kit` through the repository's
 reviewed release plan and coordinator-authorized `publish.yml` workflow. The npm
 packages should be configured for trusted publishing with:
 
-- repository: `LioRael/lenso-runtime-console`
+- repository: `LioRael/lenso-console`
 - workflow: `publish.yml`
 
 From the repository root, run the package preflight before opening a release

@@ -4,8 +4,8 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 const root = path.resolve(import.meta.dirname, "..");
-const currentRepository = "LioRael/lenso-runtime-console";
-const targetRepository = "LioRael/lenso-console";
+const currentRepository = "LioRael/lenso-console";
+const legacyRepository = "LioRael/lenso-runtime-console";
 
 const liveRepositoryIdentityFiles = [
   ".lenso-release/config.json",
@@ -31,12 +31,12 @@ const source = (file) => readFile(path.join(root, file), "utf-8");
 
 describe("Lenso Console repository boundary", () => {
   test.each(liveRepositoryIdentityFiles)(
-    "%s keeps the current repository identity until cutover",
+    "%s uses the renamed repository identity",
     async (file) => {
       const contents = await source(file);
 
       expect(contents).toContain(currentRepository);
-      expect(contents).not.toContain(targetRepository);
+      expect(contents).not.toContain(legacyRepository);
     }
   );
 
@@ -61,11 +61,11 @@ describe("Lenso Console repository boundary", () => {
     expect(publisher).toContain("LENSO_COORDINATOR_RECEIPT_URL");
   });
 
-  test("documents the target identity and cross-repository responsibilities", async () => {
+  test("documents the live identity and cross-repository responsibilities", async () => {
     const contents = await source("docs/repository-operations.md");
 
     expect(contents).toContain(currentRepository);
-    expect(contents).toContain(targetRepository);
+    expect(contents).not.toContain(legacyRepository);
     expect(contents).toContain("Console Service API");
     expect(contents).toContain("System Registry Module");
     expect(contents).toContain(
