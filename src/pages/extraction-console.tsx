@@ -118,7 +118,7 @@ export function ExtractionConsolePanel({
       </div>
       <ol
         aria-label="Extraction phase timeline"
-        className="grid gap-2 p-3 md:grid-cols-4"
+        className="divide-y divide-(--line)"
       >
         {data.timeline.length === 0 ? (
           <li className="text-[11px] text-(--fg-tertiary)">
@@ -127,16 +127,14 @@ export function ExtractionConsolePanel({
         ) : (
           data.timeline.map((phase) => (
             <li
-              className="border border-(--line) bg-(--bg-panel-muted) p-2"
+              className="grid min-h-9 grid-cols-[96px_minmax(0,1fr)_minmax(140px,0.7fr)] items-center gap-3 px-3 py-1.5 text-[10px] hover:bg-(--bg-row-hover)"
               key={`${phase.phaseId}:${phase.artifactId}`}
             >
-              <div className="font-mono text-[10px] uppercase text-(--fg-tertiary)">
-                {phase.state}
-              </div>
-              <div className="mt-1 text-[11px] text-(--fg-primary)">
+              <div className="text-(--fg-tertiary)">{phase.state}</div>
+              <div className="truncate text-[11px] text-(--fg-primary)">
                 {phase.phaseId}
               </div>
-              <div className="mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)">
+              <div className="truncate font-mono text-[9px] text-(--fg-tertiary)">
                 <ArtifactLink
                   artifactId={phase.artifactId}
                   planId={data.planId}
@@ -184,16 +182,16 @@ export function ExtractionConsolePanel({
           </h3>
           {data.approvalBoundaries.map((boundary) => (
             <article
-              className="mb-2 border border-(--line) bg-(--bg-panel-muted) p-2"
+              className="grid grid-cols-[minmax(140px,0.6fr)_minmax(0,1fr)_minmax(140px,0.7fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
               key={boundary.boundaryId}
             >
               <div className="font-mono text-[10px]">
                 {boundary.action} · {boundary.phaseId}
               </div>
-              <p className="mt-1 text-[11px] text-(--fg-secondary)">
+              <p className="text-[11px] text-(--fg-secondary)">
                 {boundary.reason}
               </p>
-              <p className="mt-1 font-mono text-[9px] text-(--fg-tertiary)">
+              <p className="font-mono text-[9px] text-(--fg-tertiary)">
                 required pins: {boundary.requiredPins.join(", ") || "none"}
               </p>
             </article>

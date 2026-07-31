@@ -6,7 +6,7 @@
   --font-code:
     "SFMono-Regular", "SF Mono", "Cascadia Code", "Roboto Mono", ui-monospace,
     monospace;
-  --font-mono: var(--font-ui);
+  --font-mono: var(--font-code);
 
   --bg-canvas: #000000;
   --bg-window: #000000;

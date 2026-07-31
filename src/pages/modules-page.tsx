@@ -17,7 +17,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "../../packages/console-package-api/src/index";
+import {
+  Button,
+  StateView,
+} from "../../packages/console-package-api/src/index";
 import { useConsoleCapabilities } from "../app/console-capabilities";
 import {
   consolePackageInstallPlanFromMetadata,
@@ -569,7 +572,11 @@ function ModulesPlaceholder({ reason }: { reason: string }) {
           <h1 className="text-sm font-semibold">Modules</h1>
         </div>
       </header>
-      <div className="p-3 font-mono text-[12px] text-(--muted)">{reason}</div>
+      <StateView
+        description={`${reason}. Connect to a running Lenso System to inspect linked Modules, their registered surface groups, and lifecycle evidence.`}
+        icon={<Boxes size={15} />}
+        title="Module registry is unavailable"
+      />
     </section>
   );
 }
@@ -864,8 +871,8 @@ function ModuleMarketplaceDetail({
   );
 
   return (
-    <div className="grid gap-3">
-      <section className="min-w-0 border border-(--border-subtle) bg-(--surface)">
+    <div className="min-w-0 border border-(--border-subtle) bg-(--surface)">
+      <section className="min-w-0 bg-(--surface)">
         <header className="flex items-center gap-2 border-b border-(--border-subtle) px-3 py-2 font-semibold">
           <Store className="text-(--info)" size={14} />
           <span>Marketplace</span>
@@ -876,8 +883,8 @@ function ModuleMarketplaceDetail({
             {panelState.source}
           </span>
         </header>
-        <div className="grid gap-2 p-3">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div>
+          <div className="grid grid-cols-2 divide-x divide-(--border-subtle) border-b border-(--border-subtle) md:grid-cols-4">
             <Counter label="available" value={rows.length} />
             <Counter label="ready" value={readyCount} />
             <Counter label="installed" value={installedCount} />
@@ -887,7 +894,7 @@ function ModuleMarketplaceDetail({
               value={attentionCount}
             />
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-(--border-subtle) bg-(--background) px-2 py-1.5 text-[10px]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-(--border-subtle) bg-(--background) px-2 py-1.5 text-[10px]">
             <span className="truncate text-(--muted)">
               {panelState.message} / console package hints {consoleHintCount}
             </span>
@@ -910,7 +917,7 @@ function ModuleMarketplaceDetail({
       panelState.kind === "empty" ? (
         <MarketplaceStateNotice panelState={panelState} />
       ) : (
-        <section className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
+        <section className="divide-y divide-(--border-subtle)">
           {rows.map((row) => {
             const handoffCommands = moduleRegistryHandoffCommands({
               manifestReference: row.manifestReference,
@@ -1014,8 +1021,8 @@ function MarketplaceStateNotice({
   panelState: ReturnType<typeof availableModulesPanelState>;
 }) {
   return (
-    <section className="border border-(--border-subtle) bg-(--surface) p-3">
-      <div className="grid gap-2 border border-(--border-subtle) bg-(--background) p-3">
+    <section className="bg-(--surface)">
+      <div className="grid gap-2 bg-(--background) p-3">
         <div className="flex items-center gap-2">
           <TriangleAlert
             className={cn(
@@ -1084,12 +1091,10 @@ function MarketplaceModuleCard({
     : null;
 
   return (
-    <article className="grid min-h-[320px] grid-rows-[auto_auto_1fr_auto] gap-2 border border-(--border-subtle) bg-(--surface) p-3">
+    <article className="grid gap-2 bg-(--surface) p-3 hover:bg-(--bg-row-hover)">
       <header className="grid gap-2">
         <div className="flex min-w-0 items-start gap-2">
-          <div className="grid size-9 shrink-0 place-items-center border border-(--border-subtle) bg-(--background)">
-            <Store className="text-(--info)" size={17} />
-          </div>
+          <Store className="mt-0.5 shrink-0 text-(--muted)" size={15} />
           <div className="min-w-0">
             <h2 className="truncate text-[13px] font-semibold text-(--foreground)">
               {row.name}
@@ -1112,7 +1117,7 @@ function MarketplaceModuleCard({
         </p>
       </header>
 
-      <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
+      <div className="grid grid-cols-4 divide-x divide-(--border-subtle) border-y border-(--border-subtle) text-[10px]">
         <MarketplaceSmallMetric
           label="capabilities"
           value={row.capabilityCount}
@@ -1267,7 +1272,7 @@ function MarketplaceSmallMetric({
   value: number | string;
 }) {
   return (
-    <div className="min-w-0 border border-(--border-subtle) bg-(--background) px-1 py-1">
+    <div className="min-w-0 px-2 py-1">
       <div
         className={cn(
           "truncate text-[11px] text-(--secondary)",

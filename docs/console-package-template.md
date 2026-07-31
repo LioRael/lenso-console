@@ -278,6 +278,11 @@ import {
 } from "@lenso/console-package-api";
 ```
 
+Operational surfaces should compose `ConsolePage` with `SummaryStrip`,
+`SplitView`, `Section`, `KeyValueList`, and `StateView`. This preserves the
+host's continuous canvas and list/inspector hierarchy without duplicating
+layout classes inside the extension.
+
 For Tailwind v4 packages, import the public theme contract from the package's
 stylesheet:
 

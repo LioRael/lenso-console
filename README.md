@@ -96,8 +96,9 @@ They must import host capabilities through `@lenso/console-package-api`, define 
 derived from the manifest instead of repeating route and navigation metadata.
 
 The same package publishes the Console UI primitives and styling contract used
-by the Shell. Dynamic extensions can import `ConsolePage`, `Panel`, `Button`,
-`Tabs`, settings rows, form controls, status components, and tables directly. Import
+by the Shell. Dynamic extensions can import `ConsolePage`, `SummaryStrip`,
+`SplitView`, `Section`, `KeyValueList`, `StateView`, `Button`, `Tabs`, settings
+rows, form controls, status components, and tables directly. Import
 `@lenso/console-package-api/theme.css` for the Tailwind v4 mappings and semantic
 CSS variables; those variables remain the supported escape hatch for custom
 extension visualizations and controls.

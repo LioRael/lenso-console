@@ -13,7 +13,9 @@ configuration, capabilities, and navigation is provided by `consoleHostApi`.
 import {
   Badge,
   ConsolePage,
-  Panel,
+  Section,
+  StateView,
+  SummaryStrip,
   consoleHostApi,
   defineConsoleExtension,
   defineConsolePackageManifest,
@@ -47,15 +49,23 @@ function BillingPage() {
           <Badge>{invoices.data?.data.length ?? 0} records</Badge>
         </ConsolePage.Actions>
       </ConsolePage.Header>
-      <ConsolePage.Body>
-        <Panel>
-          <Panel.Header>
-            <Panel.Title>Recent invoices</Panel.Title>
-          </Panel.Header>
-          <Panel.Content padding="md">
+      <ConsolePage.Body className="grid grid-rows-[auto_minmax(0,1fr)]">
+        <SummaryStrip>
+          <SummaryStrip.Item
+            label="Records"
+            value={invoices.data?.data.length ?? 0}
+          />
+        </SummaryStrip>
+        <Section>
+          <Section.Header>
+            <Section.Title>Recent invoices</Section.Title>
+          </Section.Header>
+          {invoices.isPending ? (
+            <StateView description="Reading invoices." title="Loading" />
+          ) : (
             <pre>{JSON.stringify(invoices.data, null, 2)}</pre>
-          </Panel.Content>
-        </Panel>
+          )}
+        </Section>
       </ConsolePage.Body>
     </ConsolePage>
   );
@@ -72,10 +82,12 @@ export const billingConsoleModule = billingConsoleExtension.module;
 
 ## UI and theme contract
 
-The package exports `ConsolePage`, `Panel`, `Button`, `IconButton`, `Badge`,
+The package exports `ConsolePage`, `SummaryStrip`, `SplitView`, `Section`,
+`KeyValueList`, `StateView`, `Panel`, `Button`, `IconButton`, `Badge`,
 `StatusMarker`, `Tabs`, `SettingsGroup`, `SettingsRow`, `Field`, `Input`,
-`Select`, `Textarea`, `EmptyState`, and `DataTable`. These primitives are also
-present in the runtime host bundle, so a
+`Select`, `Textarea`, `EmptyState`, and `DataTable`. Use the workspace
+primitives for edge-to-edge operational surfaces instead of nesting cards or
+copying page layout classes. These primitives are also present in the runtime host bundle, so a
 dynamically loaded extension does not ship a second design system or React
 runtime.
 

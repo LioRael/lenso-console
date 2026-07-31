@@ -26,6 +26,11 @@ describe("console host api", () => {
     expect(consoleHostApi.ui.runtime.StoryList).toBeTypeOf("function");
     expect(consoleHostApi.ui.common.EmptyState).toBeTypeOf("function");
     expect(consoleHostApi.ui.Button).toBeTypeOf("function");
+    expect(consoleHostApi.ui.KeyValueList.Row).toBeTypeOf("function");
+    expect(consoleHostApi.ui.Section.Header).toBeTypeOf("function");
+    expect(consoleHostApi.ui.SplitView.Inspector).toBeTypeOf("function");
+    expect(consoleHostApi.ui.StateView).toBeTypeOf("function");
+    expect(consoleHostApi.ui.SummaryStrip.Item).toBeTypeOf("function");
     expect(consoleHostApi.ui.Tabs.Tab).toBeTypeOf("function");
     expect(consoleHostApi.systemRegistry.useServices).toBeTypeOf("function");
     expect(consoleHostApi.systemRegistry.useRevokeEnrollment).toBeTypeOf(

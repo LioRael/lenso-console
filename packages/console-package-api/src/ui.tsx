@@ -315,6 +315,225 @@ export const Panel = Object.assign(PanelRoot, {
   Title: PanelTitle,
 });
 
+function SummaryStripRoot({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+  return (
+    <div className={classes("lenso-ui-summary", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+function SummaryStripItem({
+  children,
+  className,
+  label,
+  note,
+  tone = "neutral",
+  value,
+  ...props
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    label: ReactNode;
+    note?: ReactNode;
+    tone?: SemanticTone;
+    value: ReactNode;
+  }
+>) {
+  return (
+    <div
+      className={classes("lenso-ui-summary__item", className)}
+      data-tone={tone}
+      {...props}
+    >
+      <span className="lenso-ui-summary__label">{label}</span>
+      <strong className="lenso-ui-summary__value">{value}</strong>
+      {note ? <span className="lenso-ui-summary__note">{note}</span> : null}
+      {children}
+    </div>
+  );
+}
+
+export const SummaryStrip = Object.assign(SummaryStripRoot, {
+  Item: SummaryStripItem,
+});
+
+function SplitViewRoot({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+  return (
+    <div className={classes("lenso-ui-split-view", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+function SplitViewMain({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"section">>) {
+  return (
+    <section
+      className={classes("lenso-ui-split-view__main", className)}
+      {...props}
+    >
+      {children}
+    </section>
+  );
+}
+
+function SplitViewInspector({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"aside">>) {
+  return (
+    <aside
+      className={classes("lenso-ui-split-view__inspector", className)}
+      {...props}
+    >
+      {children}
+    </aside>
+  );
+}
+
+export const SplitView = Object.assign(SplitViewRoot, {
+  Inspector: SplitViewInspector,
+  Main: SplitViewMain,
+});
+
+function SectionRoot({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"section">>) {
+  return (
+    <section className={classes("lenso-ui-section", className)} {...props}>
+      {children}
+    </section>
+  );
+}
+
+function SectionHeader({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"header">>) {
+  return (
+    <header
+      className={classes("lenso-ui-section__header", className)}
+      {...props}
+    >
+      {children}
+    </header>
+  );
+}
+
+function SectionTitle({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"h2">>) {
+  return (
+    <h2 className={classes("lenso-ui-section__title", className)} {...props}>
+      {children}
+    </h2>
+  );
+}
+
+function SectionMeta({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"span">>) {
+  return (
+    <span className={classes("lenso-ui-section__meta", className)} {...props}>
+      {children}
+    </span>
+  );
+}
+
+function SectionBody({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+  return (
+    <div className={classes("lenso-ui-section__body", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export const Section = Object.assign(SectionRoot, {
+  Body: SectionBody,
+  Header: SectionHeader,
+  Meta: SectionMeta,
+  Title: SectionTitle,
+});
+
+function KeyValueListRoot({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"dl">>) {
+  return (
+    <dl className={classes("lenso-ui-key-values", className)} {...props}>
+      {children}
+    </dl>
+  );
+}
+
+function KeyValueListRow({
+  className,
+  label,
+  value,
+  ...props
+}: ComponentPropsWithoutRef<"div"> & {
+  label: ReactNode;
+  value: ReactNode;
+}) {
+  return (
+    <div className={classes("lenso-ui-key-values__row", className)} {...props}>
+      <dt className="lenso-ui-key-values__label">{label}</dt>
+      <dd className="lenso-ui-key-values__value">{value}</dd>
+    </div>
+  );
+}
+
+export const KeyValueList = Object.assign(KeyValueListRoot, {
+  Row: KeyValueListRow,
+});
+
+export function StateView({
+  action,
+  className,
+  description,
+  icon,
+  title,
+  ...props
+}: ComponentPropsWithoutRef<"div"> & {
+  action?: ReactNode;
+  description: ReactNode;
+  icon?: ReactNode;
+  title: ReactNode;
+}) {
+  return (
+    <div className={classes("lenso-ui-state", className)} {...props}>
+      {icon ? <span className="lenso-ui-state__icon">{icon}</span> : null}
+      <strong className="lenso-ui-state__title">{title}</strong>
+      <p className="lenso-ui-state__description">{description}</p>
+      {action ? <div className="lenso-ui-state__action">{action}</div> : null}
+    </div>
+  );
+}
+
 function TabsRoot({
   children,
   className,
@@ -709,11 +928,16 @@ export interface ConsoleUiComponents {
   Field: typeof Field;
   IconButton: typeof IconButton;
   Input: typeof Input;
+  KeyValueList: typeof KeyValueList;
   Panel: typeof Panel;
+  Section: typeof Section;
   Select: typeof Select;
   SettingsGroup: typeof SettingsGroup;
   SettingsRow: typeof SettingsRow;
   StatusMarker: typeof StatusMarker;
+  StateView: typeof StateView;
+  SummaryStrip: typeof SummaryStrip;
+  SplitView: typeof SplitView;
   Tabs: typeof Tabs;
   Textarea: typeof Textarea;
 }
@@ -727,11 +951,16 @@ export const consoleUi: ConsoleUiComponents = {
   Field,
   IconButton,
   Input,
+  KeyValueList,
   Panel,
+  Section,
   Select,
   SettingsGroup,
   SettingsRow,
+  SplitView,
+  StateView,
   StatusMarker,
+  SummaryStrip,
   Tabs,
   Textarea,
 };

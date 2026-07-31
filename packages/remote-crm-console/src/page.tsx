@@ -1,7 +1,12 @@
 import {
   Badge,
   ConsolePage,
-  Panel,
+  DataTable,
+  KeyValueList,
+  Section,
+  SplitView,
+  StateView,
+  SummaryStrip,
   consoleHostApi,
 } from "@lenso/console-package-api";
 
@@ -34,62 +39,59 @@ const RemoteCrmContactsContent = ({
 }) => {
   if (isError) {
     return (
-      <p className="px-3 py-3 text-muted-foreground text-sm">
-        Failed to load contacts: {String((error as Error | undefined)?.message)}
-      </p>
+      <StateView
+        description={String((error as Error | undefined)?.message)}
+        title="Contacts could not be loaded"
+      />
     );
   }
   if (isPending) {
     return (
-      <p className="px-3 py-3 text-muted-foreground text-sm">
-        Loading contacts...
-      </p>
+      <StateView
+        description="Reading the schema-admin surface."
+        title="Loading contacts"
+      />
     );
   }
   if (rows.length === 0) {
     return (
-      <p className="px-3 py-3 text-muted-foreground text-sm">
-        No contacts found.
-      </p>
+      <StateView
+        description="The CRM Service returned no records."
+        title="No contacts"
+      />
     );
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[680px] text-left text-sm">
-        <thead className="border-border border-b text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 font-medium">Contact</th>
-            <th className="px-3 py-2 font-medium">Email</th>
-            <th className="px-3 py-2 font-medium">Company</th>
-            <th className="px-3 py-2 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {rows.map((contact) => (
-            <tr key={contact.id}>
-              <td className="px-3 py-2">
-                <div className="font-medium text-foreground">
-                  {contact.name}
-                </div>
-                <div className="font-mono text-muted-foreground text-xs">
-                  {contact.id}
-                </div>
-              </td>
-              <td className="px-3 py-2 text-foreground">{contact.email}</td>
-              <td className="px-3 py-2 text-muted-foreground">
-                {contact.company}
-              </td>
-              <td className="px-3 py-2">
-                <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
-                  {contact.status}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable className="min-w-[680px]">
+      <DataTable.Head>
+        <DataTable.Row>
+          <DataTable.Header>Contact</DataTable.Header>
+          <DataTable.Header>Email</DataTable.Header>
+          <DataTable.Header>Company</DataTable.Header>
+          <DataTable.Header>Status</DataTable.Header>
+        </DataTable.Row>
+      </DataTable.Head>
+      <DataTable.Body>
+        {rows.map((contact) => (
+          <DataTable.Row key={contact.id}>
+            <DataTable.Cell>
+              <div className="font-medium text-foreground">{contact.name}</div>
+              <div className="font-mono text-muted-foreground text-xs">
+                {contact.id}
+              </div>
+            </DataTable.Cell>
+            <DataTable.Cell className="text-foreground">
+              {contact.email}
+            </DataTable.Cell>
+            <DataTable.Cell>{contact.company}</DataTable.Cell>
+            <DataTable.Cell>
+              <Badge>{contact.status}</Badge>
+            </DataTable.Cell>
+          </DataTable.Row>
+        ))}
+      </DataTable.Body>
+    </DataTable>
   );
 };
 
@@ -117,66 +119,58 @@ export const RemoteCrmConsolePage = () => {
         </ConsolePage.Actions>
       </ConsolePage.Header>
 
-      <ConsolePage.Body className="grid gap-3">
-        <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <Panel>
-            <Panel.Header>
-              <Panel.Title>Contacts</Panel.Title>
-              <span className="ml-auto border border-border px-2 py-0.5 text-muted-foreground text-xs">
-                {summary.total} records
-              </span>
-              <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
-                {summary.active} active
-              </span>
-              <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
-                {summary.paused} paused
-              </span>
-            </Panel.Header>
-            <RemoteCrmContactsContent
-              error={contactsQuery.error}
-              isError={contactsQuery.isError}
-              isPending={contactsQuery.isPending}
-              rows={contactRows}
-            />
-          </Panel>
-
-          <Panel>
-            <Panel.Header>
-              <Panel.Title>Package contract</Panel.Title>
-            </Panel.Header>
-            <dl className="divide-y divide-border">
-              {surfaceRows.map(([label, value]) => (
-                <div
-                  className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 px-3 py-2 text-sm"
-                  key={label}
-                >
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="truncate font-mono text-foreground text-xs">
-                    {value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
-        </section>
-
-        <Panel>
-          <Panel.Header>
-            <Panel.Title>Host-owned execution path</Panel.Title>
-          </Panel.Header>
-          <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
-            {workflowRows.map(([label, value]) => (
-              <div className="min-w-0 px-3 py-3" key={label}>
-                <div className="font-medium text-foreground text-sm">
-                  {label}
-                </div>
-                <div className="mt-1 text-muted-foreground text-xs">
-                  {value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
+      <ConsolePage.Body className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+        <SummaryStrip>
+          <SummaryStrip.Item label="Records" value={summary.total} />
+          <SummaryStrip.Item
+            label="Active"
+            tone="success"
+            value={summary.active}
+          />
+          <SummaryStrip.Item
+            label="Paused"
+            tone="warning"
+            value={summary.paused}
+          />
+        </SummaryStrip>
+        <SplitView>
+          <SplitView.Main>
+            <Section>
+              <Section.Header>
+                <Section.Title>Contacts</Section.Title>
+                <Section.Meta>{summary.total} records</Section.Meta>
+              </Section.Header>
+              <RemoteCrmContactsContent
+                error={contactsQuery.error}
+                isError={contactsQuery.isError}
+                isPending={contactsQuery.isPending}
+                rows={contactRows}
+              />
+            </Section>
+          </SplitView.Main>
+          <SplitView.Inspector>
+            <Section>
+              <Section.Header>
+                <Section.Title>Package contract</Section.Title>
+              </Section.Header>
+              <KeyValueList>
+                {surfaceRows.map(([label, value]) => (
+                  <KeyValueList.Row key={label} label={label} value={value} />
+                ))}
+              </KeyValueList>
+            </Section>
+            <Section>
+              <Section.Header>
+                <Section.Title>Execution path</Section.Title>
+              </Section.Header>
+              <KeyValueList>
+                {workflowRows.map(([label, value]) => (
+                  <KeyValueList.Row key={label} label={label} value={value} />
+                ))}
+              </KeyValueList>
+            </Section>
+          </SplitView.Inspector>
+        </SplitView>
       </ConsolePage.Body>
     </ConsolePage>
   );

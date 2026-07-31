@@ -15,6 +15,7 @@ import {
   Select,
   SettingsGroup,
   SettingsRow,
+  StateView,
 } from "../../packages/console-package-api/src/index";
 import {
   consoleConfigQueryKeys,
@@ -901,28 +902,12 @@ function DeferredConfig() {
           </span>
         </div>
       </header>
-      <div className="p-3 font-mono">
-        <div className="-mx-3 -mt-3 mb-3 font-sans">
-          <ConsolePreferences />
-        </div>
-        <div className="border-y border-(--border-subtle)">
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] border-b border-(--border-subtle) text-[11px]">
-            <div className="bg-(--sidebar) px-3 py-1.5 text-(--muted)">
-              status
-            </div>
-            <div className="px-3 py-1.5 text-(--secondary)">
-              requires API mode
-            </div>
-          </div>
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] text-[11px]">
-            <div className="bg-(--sidebar) px-3 py-1.5 text-(--muted)">
-              reason
-            </div>
-            <div className="px-3 py-1.5 text-(--secondary)">
-              configuration is unavailable in mock mode
-            </div>
-          </div>
-        </div>
+      <div className="min-h-0 overflow-auto">
+        <ConsolePreferences />
+        <StateView
+          description="Runtime configuration requires a connected Lenso System. Browser preferences above remain available to every host and Module surface."
+          title="System configuration is unavailable"
+        />
       </div>
     </section>
   );

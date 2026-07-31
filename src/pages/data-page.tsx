@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Code2, RefreshCw } from "lucide-react";
+import { AlertTriangle, Code2, Database, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "../../packages/console-package-api/src/index";
+import {
+  Button,
+  StateView,
+} from "../../packages/console-package-api/src/index";
 import { cn } from "../lib/cn";
 import { httpClient, isApiMode } from "../lib/http-client";
 import { AdminActionWorkbench } from "./admin-action-workbench";
@@ -781,8 +784,16 @@ function EmbeddedIframeSurface({
 
 function DataPlaceholder({ reason }: { reason: string }) {
   return (
-    <section className="grid h-full place-items-center bg-(--background) font-mono text-[12px] text-(--muted)">
-      {reason}
+    <section className="grid h-full min-h-0 grid-rows-[40px_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
+      <header className="flex items-center gap-2 border-b border-(--border-subtle) bg-(--surface) px-3">
+        <Database className="text-(--accent)" size={14} />
+        <h1 className="text-sm font-semibold">Data</h1>
+      </header>
+      <StateView
+        description={`${reason}. Connect the Console to a running Lenso System to inspect registered schema-admin surfaces.`}
+        icon={<Database size={15} />}
+        title="Data surfaces are unavailable"
+      />
     </section>
   );
 }
