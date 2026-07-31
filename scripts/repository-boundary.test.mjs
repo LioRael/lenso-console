@@ -63,7 +63,7 @@ describe("Lenso Console repository boundary", () => {
       publisher.match(
         /docker\/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f/gu
       )
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   test("documents the live identity and cross-repository responsibilities", async () => {
