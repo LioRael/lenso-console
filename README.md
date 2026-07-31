@@ -1,6 +1,6 @@
 # Lenso Console
 
-[![CI](https://github.com/LioRael/lenso-runtime-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-runtime-console/actions/workflows/ci.yml)
+[![CI](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml)
 
 Operator-facing System Plane for one Lenso System. This repository owns the
 independently installed Console Service, its React Shell, and Console Module UI
@@ -16,8 +16,7 @@ local backend when `VITE_RUNTIME_CONSOLE_MODE=api` and `VITE_API_BASE_URL` are s
 - Lenso framework: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the
   public framework and host crates consumed by the Console Service.
 
-After the repository rename cutover, keep both repositories checked out as
-siblings for backend-backed Console work:
+Keep both repositories checked out as siblings for backend-backed Console work:
 
 ```text
 framework/

@@ -10,9 +10,8 @@ For the framework and managed-Service side of the seam, see
 
 ## Repository Boundary
 
-The active GitHub repository remains `LioRael/lenso-runtime-console` until the
-coordinated rename cutover. Its target identity and post-cutover sibling layout
-are:
+The active GitHub repository is `LioRael/lenso-console`. Keep the framework and
+Console checkouts in this sibling layout:
 
 ```text
 framework/
@@ -63,7 +62,7 @@ pnpm check
 
 The workflow checks out both repositories:
 
-- `lenso-runtime-console` at the workflow SHA until the rename cutover.
+- `lenso-console` at the workflow SHA.
 - `lenso` from `LioRael/lenso` so this workspace can consume the backend SDK.
 
 The workflow uses Node 24 with Node 24-native GitHub Actions.
@@ -73,8 +72,7 @@ The workflow uses Node 24 with Node 24-native GitHub Actions.
 Lenso Console CI reads the private framework repository through a read-only
 deploy key:
 
-- Backend deploy key: `lenso-runtime-console CI read key` until the rename
-  cutover
+- Backend deploy key: the existing read-only Console CI key on `LioRael/lenso`
 - Backend deploy key mode: read-only
 - Lenso Console secret: `LENSO_REPO_DEPLOY_KEY`
 
@@ -86,31 +84,32 @@ read-only deploy key on `LioRael/lenso` and update the
 
 Current repository metadata should stay aligned with the README:
 
-- Description: `Operator-facing System Plane and independently deployable Console Service for Lenso systems`
+- Description: `Lenso Console frontend, Console Service backend, extension packages, and service SDKs.`
 - Topics: `admin-console`, `lenso`, `react`, `service-management`, `system-plane`, `typescript`, `vite`
 
 Update GitHub metadata when the repository role changes materially.
 
-## Migration Checklist
+## Completed Rename Checklist
 
-When renaming or transferring this repository:
+The coordinated rename completed with these invariants:
 
 1. Retire or migrate the legacy manually dispatched SDK publisher to the
    coordinator-owned reviewed publisher; do not preserve direct publication as
    a normal post-rename path.
 2. Update the component entry in `LioRael/lenso-release` through its reviewed
    change path before attempting another release plan.
-3. Rename the GitHub repository to `LioRael/lenso-console`; repository write
-   access alone is not release authority.
-4. In the cutover change, update release config, generated runtime, package
+3. The GitHub repository is `LioRael/lenso-console`; repository write access
+   alone is not release authority.
+4. The cutover change updates release config, generated runtime, package
    metadata, OCI source labels, CI checkout paths, and the repository-boundary
    test together; never leave old and new live identities mixed.
-5. Reapply or verify `main` branch protection and the required `quality` check.
-6. Rename the backend read-only deploy key label to `lenso-console CI read key`;
-   rotate `LENSO_REPO_DEPLOY_KEY` only when its key material changes.
-7. Update npm trusted-publisher repository bindings for the packages published
-   from this repository.
+5. Verify `main` branch protection and the required `quality` check after the
+   rename.
+6. Keep the backend deploy key read-only; rotate `LENSO_REPO_DEPLOY_KEY` only
+   when its key material changes.
+7. Update npm trusted-publisher repository bindings before the next production
+   release for packages published from this repository.
 8. Verify CI checks out `lenso` and all package fixtures successfully.
 9. Run the Console and framework main-branch quality gates.
-10. Use the reviewed Lenso release workflow for the first post-rename shadow
+10. Use the reviewed Lenso release workflow for a post-rename shadow
     release and verify its receipt and attestation before production activation.

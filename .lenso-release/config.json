@@ -1,6 +1,6 @@
 {
   "schema": "lenso.repository-config.v1",
-  "repository": "LioRael/lenso-runtime-console",
+  "repository": "LioRael/lenso-console",
   "aliases": {
     "oci:lenso-console-service": "npm:@lenso/console"
   },

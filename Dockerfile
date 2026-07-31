@@ -34,7 +34,7 @@ FROM debian:bookworm-slim AS runtime
 ARG RELEASE_VERSION
 ARG RELEASE_COMMIT
 
-LABEL org.opencontainers.image.source="https://github.com/LioRael/lenso-runtime-console" \
+LABEL org.opencontainers.image.source="https://github.com/LioRael/lenso-console" \
     org.opencontainers.image.version="${RELEASE_VERSION}" \
     org.opencontainers.image.revision="${RELEASE_COMMIT}"
 

@@ -105,7 +105,7 @@ through `/health/authority`. The machine-readable result conforms to
 
 An official Console Service Release must publish a JSON document conforming to
 `service/release-manifest.schema.json`. The document is a GitHub-attested
-release artifact from `LioRael/lenso-runtime-console` and binds the source
+release artifact from `LioRael/lenso-console` and binds the source
 commit, exact OCI digest, Console composition, Store schema, public contracts,
 and non-secret configuration contract. It also declares which prior Store
 schema digests may be upgraded and names every irreversible migration.
