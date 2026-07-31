@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   buildReleaseArtifacts,
@@ -179,14 +179,12 @@ describe("Console Service release manifest", () => {
         ])
       )
     ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
-    expect(() => parseReleaseSelection("[]")).toThrow(
-      "selection must contain exactly one oci:lenso-console-service"
-    );
-    expect(() =>
+    expect(parseReleaseSelection("[]")).toBeNull();
+    expect(
       parseReleaseSelection(
         JSON.stringify([{ id: "npm:@lenso/console", version: "0.2.0" }])
       )
-    ).toThrow("selection must contain exactly one oci:lenso-console-service");
+    ).toBeNull();
     expect(() =>
       parseReleaseSelection(
         JSON.stringify([
@@ -195,6 +193,19 @@ describe("Console Service release manifest", () => {
         ])
       )
     ).toThrow("unique canonical package identities");
+  });
+
+  test("skips OCI assembly when the reviewed plan selects only other packages", async () => {
+    const execute = vi.fn();
+    await expect(
+      buildReleaseArtifacts({
+        execute,
+        packagesJson: JSON.stringify([
+          { id: "npm:@lenso/console-bridge", version: "0.1.2" },
+        ]),
+      })
+    ).resolves.toBeNull();
+    expect(execute).not.toHaveBeenCalled();
   });
 
   test("builds and verifies the exact OCI graph before exposing release artifacts", async () => {
