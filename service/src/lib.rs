@@ -136,11 +136,15 @@ mod tests {
             1
         );
         assert_eq!(
-            names,
+            composition
+                .linked_modules()
+                .iter()
+                .map(|module| (module.manifest)().module_id)
+                .collect::<Vec<_>>(),
             composition::official_composition(ConsoleRecoveryMode::Normal)
                 .modules
                 .iter()
-                .map(|module| module.module_id.as_str())
+                .map(|module| module.module_id.clone())
                 .collect::<Vec<_>>()
         );
         assert_eq!(

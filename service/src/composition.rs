@@ -1,5 +1,9 @@
+use lenso::host::http::{AppContext, AppError, ErrorCode};
 use lenso::host::prelude::*;
+use lenso::host::{ConsoleBridgeAuthority, ConsoleBridgeGrantRequest};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::sync::Arc;
 use utoipa::ToSchema;
 
 use crate::ConsoleRecoveryMode;
@@ -106,6 +110,9 @@ impl ConsoleServiceComposition {
             }
         }
         for module in &self.modules {
+            if module.module_id.is_empty() || !module.module_id.contains('/') {
+                return Err("Module identity is invalid");
+            }
             let Some(release_digest) = module.module_release_digest.as_deref() else {
                 return Err("Module Release digest is missing");
             };
@@ -137,15 +144,56 @@ impl ConsoleServiceComposition {
             }) {
                 return Err("Console UI entry is invalid");
             }
+            if module
+                .granted_permissions
+                .iter()
+                .any(|permission| permission.is_empty())
+            {
+                return Err("Console permission grant is invalid");
+            }
+            let entry_names = module
+                .ui_entries
+                .iter()
+                .map(|entry| entry.name.as_str())
+                .collect::<BTreeSet<_>>();
+            let entry_routes = module
+                .ui_entries
+                .iter()
+                .map(|entry| entry.route.as_str())
+                .collect::<BTreeSet<_>>();
+            let permissions = module
+                .granted_permissions
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>();
+            if entry_names.len() != module.ui_entries.len()
+                || entry_routes.len() != module.ui_entries.len()
+                || permissions.len() != module.granted_permissions.len()
+            {
+                return Err("Console Module composition contains duplicate bindings");
+            }
+        }
+        if self
+            .modules
+            .iter()
+            .map(|module| module.module_id.as_str())
+            .collect::<BTreeSet<_>>()
+            .len()
+            != self.modules.len()
+        {
+            return Err("Console composition contains duplicate Modules");
         }
         Ok(())
     }
 }
 
 fn valid_sha256(value: &str) -> bool {
-    value
-        .strip_prefix("sha256:")
-        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
 }
 
 #[must_use]
@@ -158,11 +206,11 @@ pub fn official_composition(workload_mode: ConsoleRecoveryMode) -> ConsoleServic
                 None,
             ),
             module(
-                "auth",
+                "lenso/auth",
                 ConsoleModuleKind::Mandatory,
                 Some(MandatoryConsoleRole::Identity),
             ),
-            module("auth-password", ConsoleModuleKind::Optional, None),
+            module("lenso/auth-password", ConsoleModuleKind::Optional, None),
             module(
                 modules::system_registry::MODULE_NAME,
                 ConsoleModuleKind::Mandatory,
@@ -180,7 +228,75 @@ pub fn official_host_composition() -> HostComposition {
         .linked_module(builtins::auth())
         .linked_module(builtins::auth_password())
         .linked_module(modules::system_registry::linked_module())
+        .console_bridge_authority(Arc::new(ConsoleCompositionAuthority))
         .build()
+}
+
+#[derive(Debug)]
+struct ConsoleCompositionAuthority;
+
+#[async_trait::async_trait]
+impl ConsoleBridgeAuthority for ConsoleCompositionAuthority {
+    async fn authorize(
+        &self,
+        ctx: &AppContext,
+        request: &ConsoleBridgeGrantRequest,
+    ) -> Result<(), AppError> {
+        if crate::recovery_mode().ok() != Some(ConsoleRecoveryMode::Normal) {
+            return Err(AppError::new(
+                ErrorCode::Forbidden,
+                "Console Bridge is disabled outside normal workload mode",
+            ));
+        }
+        let document = sqlx::query_scalar::<_, serde_json::Value>(
+            "select document from console.service_composition where singleton = true",
+        )
+        .fetch_optional(&ctx.db)
+        .await
+        .map_err(|error| {
+            AppError::new(ErrorCode::Internal, "Console composition Store read failed")
+                .with_source(error)
+        })?
+        .ok_or_else(|| {
+            AppError::new(
+                ErrorCode::Forbidden,
+                "Console Bridge requires an active digest-bound composition",
+            )
+        })?;
+        let composition: ConsoleServiceComposition =
+            serde_json::from_value(document).map_err(|error| {
+                AppError::new(ErrorCode::Internal, "Stored Console composition is invalid")
+                    .with_source(error)
+            })?;
+        authorize_bridge_request(&composition, request)
+    }
+}
+
+fn authorize_bridge_request(
+    composition: &ConsoleServiceComposition,
+    request: &ConsoleBridgeGrantRequest,
+) -> Result<(), AppError> {
+    composition
+        .validate_stored()
+        .map_err(|message| AppError::new(ErrorCode::Internal, message))?;
+    let authorized = composition.modules.iter().any(|module| {
+        module.module_id == request.module_id
+            && module.module_release_digest.as_deref()
+                == Some(request.module_release_digest.as_str())
+            && module.ui_artifact_digest.as_deref() == Some(request.ui_artifact_digest.as_str())
+            && module
+                .granted_permissions
+                .iter()
+                .any(|permission| permission == &request.permission)
+    });
+    if authorized {
+        Ok(())
+    } else {
+        Err(AppError::new(
+            ErrorCode::Forbidden,
+            "Console Bridge grant does not match the active composition",
+        ))
+    }
 }
 
 fn module(
@@ -305,12 +421,12 @@ mod tests {
         let composition = evaluate_composition(
             vec![
                 module(
-                    "auth",
+                    "lenso/auth",
                     ConsoleModuleKind::Mandatory,
                     Some(MandatoryConsoleRole::Identity),
                 ),
                 module(
-                    "custom-auth",
+                    "vendor/custom-auth",
                     ConsoleModuleKind::Mandatory,
                     Some(MandatoryConsoleRole::Identity),
                 ),
@@ -332,6 +448,71 @@ mod tests {
             composition.issues[0].code,
             "mandatory_console_role_ambiguous"
         );
-        assert_eq!(composition.issues[0].module_ids, ["auth", "custom-auth"]);
+        assert_eq!(
+            composition.issues[0].module_ids,
+            ["lenso/auth", "vendor/custom-auth"]
+        );
+    }
+
+    #[test]
+    fn bridge_authority_requires_exact_active_release_artifact_and_permission() {
+        let mut composition = official_composition(ConsoleRecoveryMode::Normal);
+        for module in &mut composition.modules {
+            module.module_release_digest = Some(digest('a'));
+        }
+        let auth = composition
+            .modules
+            .iter_mut()
+            .find(|module| module.module_id == "lenso/auth")
+            .expect("auth composition entry");
+        auth.ui_artifact_digest = Some(digest('b'));
+        auth.ui_artifact_base_url = Some("https://artifacts.example/auth/".to_owned());
+        auth.ui_entries.push(ConsoleUiEntry {
+            name: "users".to_owned(),
+            label: "Users".to_owned(),
+            route: "/data/auth/users".to_owned(),
+            path: "index.html?surface=users".to_owned(),
+            icon: None,
+        });
+        auth.granted_permissions = vec!["auth.users.manage".to_owned()];
+        let request = ConsoleBridgeGrantRequest {
+            module_id: "lenso/auth".to_owned(),
+            module_release_digest: digest('a'),
+            ui_artifact_digest: digest('b'),
+            permission: "auth.users.manage".to_owned(),
+        };
+
+        assert!(authorize_bridge_request(&composition, &request).is_ok());
+        let mut stale = request.clone();
+        stale.ui_artifact_digest = digest('c');
+        assert!(authorize_bridge_request(&composition, &stale).is_err());
+        let mut elevated = request;
+        elevated.permission = "console.admin".to_owned();
+        assert!(authorize_bridge_request(&composition, &elevated).is_err());
+    }
+
+    #[test]
+    fn stored_composition_rejects_duplicate_module_and_permission_bindings() {
+        let mut composition = official_composition(ConsoleRecoveryMode::Normal);
+        for module in &mut composition.modules {
+            module.module_release_digest = Some(digest('a'));
+        }
+        composition.modules.push(composition.modules[0].clone());
+        assert_eq!(
+            composition.validate_stored(),
+            Err("Console composition contains duplicate Modules")
+        );
+
+        composition.modules.pop();
+        composition.modules[0].granted_permissions =
+            vec!["console.read".to_owned(), "console.read".to_owned()];
+        assert_eq!(
+            composition.validate_stored(),
+            Err("Console Module composition contains duplicate bindings")
+        );
+    }
+
+    fn digest(hex: char) -> String {
+        format!("sha256:{}", hex.to_string().repeat(64))
     }
 }

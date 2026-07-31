@@ -23,6 +23,7 @@ path = "src/bin/migrate.rs"
 
 [dependencies]
 anyhow = "1.0"
+async-trait = "0.1"
 axum = "0.8"
 dotenvy = "0.15"
 lenso = { version = "0.3.33", features = ["host"] }

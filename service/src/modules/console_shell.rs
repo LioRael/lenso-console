@@ -314,7 +314,7 @@ mod tests {
     fn shell_module_is_capability_neutral() {
         let manifest = manifest();
 
-        assert_eq!(manifest.name, MODULE_NAME);
+        assert_eq!(manifest.module_id, MODULE_NAME);
         assert!(manifest.capabilities.is_empty());
         assert!(manifest.console.is_empty());
         assert_eq!(manifest.http_routes.len(), 2);
