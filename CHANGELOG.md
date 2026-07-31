@@ -1,3 +1,10 @@
+## @lenso/console@0.1.4
+
+### Fixes
+
+Republish the Console package API with its built artifacts and advance the
+Console Service OCI image to the matching immutable version.
+
 ## @lenso/console@0.1.3
 
 ### Features
