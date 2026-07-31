@@ -79,6 +79,7 @@ export function createMockConsoleHostApi(
   fixtures: MockConsoleFixtures = {}
 ): ConsoleHostApi {
   return {
+    version: baseHostApi.version,
     adminData: {
       useInvokeAction: baseHostApi.adminData.useInvokeAction,
       useRecords: ({ entityName, limit = 50, moduleName }) =>

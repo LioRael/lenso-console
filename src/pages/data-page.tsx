@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Code2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "../components/ui/button";
+import { Button } from "../../packages/console-package-api/src/index";
 import { cn } from "../lib/cn";
 import { httpClient, isApiMode } from "../lib/http-client";
 import { AdminActionWorkbench } from "./admin-action-workbench";
@@ -142,7 +142,7 @@ export function DataPage() {
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
       <header className="flex items-center border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
-        <h1 className="font-mono text-[13px] font-semibold">Data</h1>
+        <h1 className="text-sm font-semibold">Data</h1>
         <Button
           aria-label="Refresh admin data"
           className="ml-auto min-h-6 px-2"

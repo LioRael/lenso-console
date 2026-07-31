@@ -2,7 +2,7 @@
 
 import { consoleHostApi } from "@lenso/console-package-api";
 import type { ConsoleManagedService } from "@lenso/console-package-api";
-import { Ban, Network, RefreshCw, ShieldCheck } from "lucide-react";
+import { Ban, Network, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
@@ -44,10 +44,6 @@ export function SystemRegistryConsolePage() {
       <header className="border-(--line) border-b px-4 py-5 md:px-6">
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-end gap-4">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-(--fg-tertiary) text-xs uppercase tracking-[0.16em]">
-              <ShieldCheck aria-hidden="true" size={14} />
-              System authority
-            </div>
             <h1 className="font-semibold text-2xl tracking-[-0.03em]">
               Managed Services
             </h1>

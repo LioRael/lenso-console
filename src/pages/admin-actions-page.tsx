@@ -1,10 +1,10 @@
 import { ExternalLink, PlayCircle, RefreshCcw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Button } from "../../packages/console-package-api/src/index";
 import { JsonViewer } from "../components/runtime/json-viewer";
 import { ResizeHandle } from "../components/runtime/resize-handle";
 import { useRuntimeConsole } from "../components/runtime/runtime-console-context";
-import { Button } from "../components/ui/button";
 import { useListKeyboard } from "../hooks/use-list-keyboard";
 import {
   type RuntimeAdminActionInvocation,
@@ -187,9 +187,7 @@ export function AdminActionsPage() {
         <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
           <div className="flex items-center gap-2">
             <PlayCircle className="text-(--accent)" size={14} />
-            <h1 className="font-mono text-[13px] font-semibold">
-              Admin Actions
-            </h1>
+            <h1 className="text-sm font-semibold">Admin Actions</h1>
             <span className="ml-auto font-mono text-[10px] text-(--muted)">
               {visible.length} actions / {runtimeConsoleDataSource()}
             </span>

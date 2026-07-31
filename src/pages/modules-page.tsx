@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "../../packages/console-package-api/src/index";
 import { useConsoleCapabilities } from "../app/console-capabilities";
 import {
   consolePackageInstallPlanFromMetadata,
   missingConsolePackagesFromMetadata,
 } from "../app/console-module-metadata";
-import { Button } from "../components/ui/button";
 import {
   availableModulesPanelState,
   availableModulesQueryKey,
@@ -342,7 +342,7 @@ function ModulesContent() {
       <header className="border-b border-(--border-subtle) bg-(--surface) px-2">
         <div className="flex min-h-10 items-center gap-2 overflow-hidden py-2">
           <Boxes className="text-(--accent)" size={14} />
-          <h1 className="font-mono text-[13px] font-semibold">Modules</h1>
+          <h1 className="text-sm font-semibold">Modules</h1>
           <ModuleModeTabs mode={panel} onChange={updatePanel} />
           <span className="ml-auto truncate font-mono text-[10px] text-(--muted)">
             {modules.length} modules / {runtimeConsoleDataSource()} /{" "}
@@ -377,7 +377,7 @@ function ModulesContent() {
       </header>
 
       <div className="grid min-h-0 grid-rows-[minmax(220px,40vh)_minmax(0,1fr)] overflow-hidden md:grid-cols-[280px_minmax(0,1fr)] md:grid-rows-none">
-        <nav className="min-h-0 min-w-0 overflow-auto border-b border-(--border-subtle) p-2 font-mono text-[12px] md:border-r md:border-b-0">
+        <nav className="min-h-0 min-w-0 overflow-auto border-b border-(--border-subtle) bg-(--bg-canvas) p-2 text-[12px] md:border-r md:border-b-0">
           <ModuleRegistryControls
             filters={filters}
             onChange={setFilters}
@@ -400,11 +400,8 @@ function ModulesContent() {
               return (
                 <button
                   className={cn(
-                    "block w-full border-l-2 px-2 py-1 text-left",
+                    "relative block w-full border-b border-(--line-subtle) px-2 py-2 text-left transition-colors",
                     selected ? "bg-(--bg-row-hover)" : "hover:bg-(--sidebar)",
-                    lintHealth === "ok" && "border-l-(--success)",
-                    lintHealth === "warning" && "border-l-(--warning)",
-                    lintHealth === "error" && "border-l-(--error)",
                     moduleIsLoaded(module) ? null : "text-(--secondary)"
                   )}
                   key={module.module_name}
@@ -421,7 +418,17 @@ function ModulesContent() {
                         size={12}
                       />
                     )}
-                    <span className="truncate">{module.module_name}</span>
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        lintHealth === "ok" && "bg-(--success)",
+                        lintHealth === "warning" && "bg-(--warning)",
+                        lintHealth === "error" && "bg-(--error)"
+                      )}
+                    />
+                    <span className="truncate font-medium">
+                      {module.module_name}
+                    </span>
                     <span
                       className={cn(
                         "ml-auto shrink-0 border px-1 text-[9px] uppercase",
@@ -520,7 +527,7 @@ function ModuleModeTabs({
   return (
     <nav
       aria-label="Modules panels"
-      className="flex min-w-0 items-center gap-1 overflow-hidden rounded-[var(--radius-panel)] border border-(--border-subtle) bg-(--background) p-0.5"
+      className="lenso-ui-tabs__list h-10 min-w-0 overflow-hidden border-b-0"
     >
       {[
         { key: "registry", label: "Registry" },
@@ -528,13 +535,13 @@ function ModuleModeTabs({
       ].map((item) => (
         <button
           className={cn(
-            "h-6 shrink-0 rounded-[var(--radius-control)] px-2.5 text-[11px] font-medium transition-colors",
-            mode === item.key
-              ? "native-selection"
-              : "text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
+            "lenso-ui-tabs__tab h-full min-h-0 shrink-0 text-[11px]",
+            mode === item.key && "text-(--foreground)"
           )}
+          aria-selected={mode === item.key}
           key={item.key}
           onClick={() => onChange(item.key as ModulesPageMode)}
+          role="tab"
           type="button"
         >
           {item.label}
@@ -559,7 +566,7 @@ function ModulesPlaceholder({ reason }: { reason: string }) {
       <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
         <div className="flex items-center gap-2">
           <Boxes className="text-(--accent)" size={14} />
-          <h1 className="font-mono text-[13px] font-semibold">Modules</h1>
+          <h1 className="text-sm font-semibold">Modules</h1>
         </div>
       </header>
       <div className="p-3 font-mono text-[12px] text-(--muted)">{reason}</div>

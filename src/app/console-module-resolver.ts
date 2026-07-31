@@ -1,11 +1,11 @@
+import {
+  isConsoleSurfaceIcon,
+  type ConsoleModule,
+  type ConsoleNavigationMetadata,
+  type ConsoleSurfaceArea,
+} from "../../packages/console-package-api/src/index";
 import { installedConsolePackages } from "../console-package-installs";
 import { hasConsoleCapability } from "./console-capability-matching";
-import type {
-  ConsoleModule,
-  ConsoleNavigationMetadata,
-  ConsoleSurfaceArea,
-  ConsoleSurfaceIcon,
-} from "./console-module-api";
 import {
   consolePackageKey,
   consolePackageRegistryByKey,
@@ -308,20 +308,6 @@ function consoleSurfaceFromBackendReference(
     }
   }
   return resolvedSurface;
-}
-
-function isConsoleSurfaceIcon(
-  icon: string | null | undefined
-): icon is ConsoleSurfaceIcon {
-  return (
-    icon === "activity" ||
-    icon === "boxes" ||
-    icon === "database" ||
-    icon === "network" ||
-    icon === "shield" ||
-    icon === "settings" ||
-    icon === "workflow"
-  );
 }
 
 function surfaceReferenceLabel(

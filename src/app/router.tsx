@@ -6,6 +6,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 
+import type { ConsoleModule } from "../../packages/console-package-api/src/index";
 import { RuntimeConsoleProvider } from "../components/runtime/runtime-console-context";
 import { RuntimeConsoleShell } from "../components/runtime/runtime-console-shell";
 import { AdminActionsPage } from "../pages/admin-actions-page";
@@ -20,7 +21,6 @@ import { OverviewPage } from "../pages/overview-page";
 import { QueuesPage } from "../pages/queues-page";
 import { RemoteProxyCallsPage } from "../pages/remote-proxy-calls-page";
 import { ServicesPage } from "../pages/services-page";
-import type { ConsoleModule } from "./console-module-api";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
 
 export const rootRedirectPath = "/launchpad";

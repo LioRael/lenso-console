@@ -1,4 +1,9 @@
-import { consoleHostApi } from "@lenso/console-package-api";
+import {
+  Badge,
+  ConsolePage,
+  Panel,
+  consoleHostApi,
+} from "@lenso/console-package-api";
 
 import { remoteCrmContactRows, remoteCrmContactsSummary } from "./model";
 
@@ -97,83 +102,82 @@ export const RemoteCrmConsolePage = () => {
   const summary = remoteCrmContactsSummary(contactsQuery.data?.data ?? []);
 
   return (
-    <main className="flex h-full flex-col gap-4 overflow-auto bg-background p-4">
-      <header className="flex flex-wrap items-start gap-3 border-border border-b pb-3">
-        <div className="min-w-0">
-          <p className="font-medium text-muted-foreground text-xs uppercase tracking-normal">
-            Remote module console package
-          </p>
-          <h1 className="font-semibold text-2xl text-foreground">Remote CRM</h1>
-        </div>
-        <div className="ml-auto flex flex-wrap gap-2 text-xs">
-          <span className="border border-border px-2 py-1 text-muted-foreground">
-            remote module
-          </span>
-          <span className="border border-border px-2 py-1 text-muted-foreground">
-            host-rendered
-          </span>
-        </div>
-      </header>
+    <ConsolePage className="h-full">
+      <ConsolePage.Header>
+        <ConsolePage.Heading>
+          <ConsolePage.Title>Remote CRM</ConsolePage.Title>
+          <ConsolePage.Description>
+            Contacts exposed by the remote CRM Service through the host-owned
+            schema-admin capability.
+          </ConsolePage.Description>
+        </ConsolePage.Heading>
+        <ConsolePage.Actions>
+          <Badge>remote Service</Badge>
+          <Badge>host rendered</Badge>
+        </ConsolePage.Actions>
+      </ConsolePage.Header>
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="border border-border bg-card">
-          <div className="flex items-center gap-3 border-border border-b px-3 py-2">
-            <h2 className="font-medium text-foreground text-sm">Contacts</h2>
-            <span className="ml-auto border border-border px-2 py-0.5 text-muted-foreground text-xs">
-              {summary.total} records
-            </span>
-            <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
-              {summary.active} active
-            </span>
-            <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
-              {summary.paused} paused
-            </span>
-          </div>
-          <RemoteCrmContactsContent
-            error={contactsQuery.error}
-            isError={contactsQuery.isError}
-            isPending={contactsQuery.isPending}
-            rows={contactRows}
-          />
-        </div>
+      <ConsolePage.Body className="grid gap-3">
+        <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <Panel>
+            <Panel.Header>
+              <Panel.Title>Contacts</Panel.Title>
+              <span className="ml-auto border border-border px-2 py-0.5 text-muted-foreground text-xs">
+                {summary.total} records
+              </span>
+              <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
+                {summary.active} active
+              </span>
+              <span className="border border-border px-2 py-0.5 text-muted-foreground text-xs">
+                {summary.paused} paused
+              </span>
+            </Panel.Header>
+            <RemoteCrmContactsContent
+              error={contactsQuery.error}
+              isError={contactsQuery.isError}
+              isPending={contactsQuery.isPending}
+              rows={contactRows}
+            />
+          </Panel>
 
-        <div className="border border-border bg-card">
-          <div className="border-border border-b px-3 py-2">
-            <h2 className="font-medium text-foreground text-sm">
-              Package contract
-            </h2>
-          </div>
-          <dl className="divide-y divide-border">
-            {surfaceRows.map(([label, value]) => (
-              <div
-                className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 px-3 py-2 text-sm"
-                key={label}
-              >
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="truncate font-mono text-foreground text-xs">
+          <Panel>
+            <Panel.Header>
+              <Panel.Title>Package contract</Panel.Title>
+            </Panel.Header>
+            <dl className="divide-y divide-border">
+              {surfaceRows.map(([label, value]) => (
+                <div
+                  className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 px-3 py-2 text-sm"
+                  key={label}
+                >
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="truncate font-mono text-foreground text-xs">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Panel>
+        </section>
+
+        <Panel>
+          <Panel.Header>
+            <Panel.Title>Host-owned execution path</Panel.Title>
+          </Panel.Header>
+          <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
+            {workflowRows.map(([label, value]) => (
+              <div className="min-w-0 px-3 py-3" key={label}>
+                <div className="font-medium text-foreground text-sm">
+                  {label}
+                </div>
+                <div className="mt-1 text-muted-foreground text-xs">
                   {value}
-                </dd>
+                </div>
               </div>
             ))}
-          </dl>
-        </div>
-      </section>
-
-      <section className="border border-border bg-card">
-        <div className="border-border border-b px-3 py-2">
-          <h2 className="font-medium text-foreground text-sm">
-            Host-owned execution path
-          </h2>
-        </div>
-        <div className="grid divide-y divide-border md:grid-cols-3 md:divide-x md:divide-y-0">
-          {workflowRows.map(([label, value]) => (
-            <div className="min-w-0 px-3 py-3" key={label}>
-              <div className="font-medium text-foreground text-sm">{label}</div>
-              <div className="mt-1 text-muted-foreground text-xs">{value}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-    </main>
+          </div>
+        </Panel>
+      </ConsolePage.Body>
+    </ConsolePage>
   );
 };

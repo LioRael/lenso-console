@@ -1,0 +1,221 @@
+:root {
+  color-scheme: dark;
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
+    "Segoe UI", system-ui, sans-serif;
+  --font-code:
+    "SFMono-Regular", "SF Mono", "Cascadia Code", "Roboto Mono", ui-monospace,
+    monospace;
+  --font-mono: var(--font-ui);
+
+  --bg-canvas: #000000;
+  --bg-window: #000000;
+  --bg-sidebar: #050505;
+  --bg-chrome: #000000;
+  --bg-surface: #000000;
+  --bg-surface-raised: #0a0a0a;
+  --bg-surface-muted: #0a0a0a;
+  --bg-panel: #000000;
+  --bg-panel-muted: #050505;
+  --bg-panel-header: #0a0a0a;
+  --bg-row-hover: #111111;
+  --bg-row-selected: #ffffff;
+  --bg-control: #000000;
+  --bg-control-hover: #111111;
+  --bg-control-active: #1a1a1a;
+  --bg-overlay: #000000;
+  --bg-scrim: rgba(0, 0, 0, 0.68);
+  --bg-glass: var(--bg-overlay);
+  --bg-glass-control: var(--bg-control);
+
+  --fg-primary: #ededed;
+  --fg-secondary: #a1a1aa;
+  --fg-tertiary: #737373;
+  --fg-quaternary: #525252;
+  --fg-on-accent: #000000;
+  --fg-inverse: #000000;
+
+  --line-subtle: #1f1f1f;
+  --line: #333333;
+  --line-strong: #444444;
+  --line-glass: var(--line);
+
+  --accent: #ededed;
+  --accent-hover: #ffffff;
+  --accent-muted: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #000000;
+  --success: #00a63e;
+  --warning: #f5a524;
+  --error: #e5484d;
+  --info: #0070f3;
+
+  --tone-muted-bg: rgba(255, 255, 255, 0.06);
+  --tone-muted-border: rgba(255, 255, 255, 0.14);
+  --tone-muted-fg: var(--fg-secondary);
+  --tone-info-bg: rgba(0, 112, 243, 0.12);
+  --tone-info-border: rgba(0, 112, 243, 0.3);
+  --tone-info-fg: #58a6ff;
+  --tone-success-bg: rgba(0, 166, 62, 0.12);
+  --tone-success-border: rgba(0, 166, 62, 0.28);
+  --tone-success-fg: #63d471;
+  --tone-warning-bg: rgba(245, 165, 36, 0.12);
+  --tone-warning-border: rgba(245, 165, 36, 0.3);
+  --tone-warning-fg: #f2c97d;
+  --tone-error-bg: rgba(229, 72, 77, 0.13);
+  --tone-error-border: rgba(229, 72, 77, 0.32);
+  --tone-error-fg: #ff8589;
+  --data-info: #1d4f73;
+  --data-accent: #3f3f46;
+  --data-success: #176f3d;
+  --data-warning: #7a5214;
+  --data-error: #8f2c31;
+
+  --focus-ring: rgba(255, 255, 255, 0.72);
+  --focus-ring-muted: rgba(255, 255, 255, 0.22);
+  --radius-control: 6px;
+  --radius-panel: 6px;
+  --radius-popover: 8px;
+  --radius-overlay: 8px;
+  --radius-pill: 999px;
+  --control-height-sm: 28px;
+  --control-height-md: 32px;
+  --control-height-lg: 36px;
+  --content-gutter: 20px;
+  --content-max-width: 1480px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --panel-gloss: transparent;
+  --shadow-color: rgba(0, 0, 0, 0.48);
+  --shadow-color-soft: rgba(0, 0, 0, 0.2);
+  --elevation-control: none;
+  --elevation-raised: 0 1px 0 rgba(255, 255, 255, 0.035);
+  --elevation-panel: none;
+  --elevation-card: var(--elevation-panel);
+  --elevation-overlay:
+    0 24px 70px -42px rgba(0, 0, 0, 0.88), 0 1px 0 rgba(255, 255, 255, 0.05);
+  --elevation-glass: var(--elevation-overlay);
+
+  --background: var(--bg-canvas);
+  --foreground: var(--fg-primary);
+  --sidebar: var(--bg-sidebar);
+  --surface: var(--bg-surface);
+  --elevated: var(--bg-surface-raised);
+  --hover: var(--bg-control-hover);
+  --border: var(--line-strong);
+  --border-subtle: var(--line);
+  --muted: var(--fg-tertiary);
+  --muted-deep: var(--fg-quaternary);
+  --secondary: var(--fg-secondary);
+  --accent-soft: var(--accent-muted);
+  --ambient: rgba(255, 255, 255, 0.04);
+  --chrome: var(--bg-chrome);
+  --inverse: var(--fg-inverse);
+  --shadow-strong: var(--shadow-color);
+  --shadow-soft: var(--shadow-color-soft);
+  accent-color: var(--accent);
+  font-family: var(--font-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-canvas: #ffffff;
+  --bg-window: #ffffff;
+  --bg-sidebar: #fafafa;
+  --bg-chrome: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #fafafa;
+  --bg-surface-muted: #fafafa;
+  --bg-panel: #ffffff;
+  --bg-panel-muted: #fafafa;
+  --bg-panel-header: #fafafa;
+  --bg-row-hover: #f5f5f5;
+  --bg-row-selected: #000000;
+  --bg-control: #ffffff;
+  --bg-control-hover: #f5f5f5;
+  --bg-control-active: #eeeeee;
+  --bg-overlay: #ffffff;
+  --bg-scrim: rgba(9, 15, 24, 0.42);
+  --bg-glass: var(--bg-overlay);
+  --bg-glass-control: var(--bg-control);
+
+  --fg-primary: #000000;
+  --fg-secondary: #444444;
+  --fg-tertiary: #666666;
+  --fg-quaternary: #999999;
+  --fg-on-accent: #ffffff;
+  --fg-inverse: #ffffff;
+
+  --line-subtle: #f2f2f2;
+  --line: #eaeaea;
+  --line-strong: #d4d4d4;
+  --line-glass: var(--line);
+
+  --accent: #000000;
+  --accent-hover: #333333;
+  --accent-muted: #f5f5f5;
+  --accent-foreground: #ffffff;
+  --success: #007a3d;
+  --warning: #b45309;
+  --error: #dc2626;
+  --info: #0070f3;
+
+  --tone-muted-bg: #fafafa;
+  --tone-muted-border: #eaeaea;
+  --tone-muted-fg: var(--fg-secondary);
+  --tone-info-bg: #f0f7ff;
+  --tone-info-border: #bbe0ff;
+  --tone-info-fg: #0068d6;
+  --tone-success-bg: #f0fff4;
+  --tone-success-border: #b7ebc6;
+  --tone-success-fg: #007a3d;
+  --tone-warning-bg: #fffbeb;
+  --tone-warning-border: #f5d590;
+  --tone-warning-fg: #8a5a00;
+  --tone-error-bg: rgba(220, 38, 38, 0.08);
+  --tone-error-border: rgba(220, 38, 38, 0.24);
+  --tone-error-fg: #dc2626;
+  --data-info: #dbeafe;
+  --data-accent: #e5e7eb;
+  --data-success: #dcfce7;
+  --data-warning: #fef3c7;
+  --data-error: #fee2e2;
+
+  --focus-ring: rgba(0, 0, 0, 0.5);
+  --focus-ring-muted: rgba(0, 0, 0, 0.14);
+  --panel-gloss: transparent;
+  --shadow-color: rgba(31, 35, 40, 0.16);
+  --shadow-color-soft: rgba(31, 35, 40, 0.06);
+  --elevation-control: none;
+  --elevation-raised: 0 1px 0 rgba(15, 23, 42, 0.03);
+  --elevation-panel: none;
+  --elevation-card: var(--elevation-panel);
+  --elevation-overlay:
+    0 24px 70px -44px rgba(0, 0, 0, 0.32), 0 1px 1px rgba(0, 0, 0, 0.08);
+  --elevation-glass: var(--elevation-overlay);
+
+  --background: var(--bg-canvas);
+  --foreground: var(--fg-primary);
+  --sidebar: var(--bg-sidebar);
+  --surface: var(--bg-surface);
+  --elevated: var(--bg-surface-raised);
+  --hover: var(--bg-control-hover);
+  --border: var(--line-strong);
+  --border-subtle: var(--line);
+  --muted: var(--fg-tertiary);
+  --muted-deep: var(--fg-quaternary);
+  --secondary: var(--fg-secondary);
+  --accent-soft: var(--accent-muted);
+  --ambient: rgba(0, 0, 0, 0.025);
+  --chrome: var(--bg-chrome);
+  --inverse: var(--fg-inverse);
+  --shadow-strong: var(--shadow-color);
+  --shadow-soft: var(--shadow-color-soft);
+}

@@ -14,7 +14,7 @@ export function OperationsInspectorHeader({
 }) {
   return (
     <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
-      <div className="mb-1 text-[10px] font-semibold uppercase text-(--accent)">
+      <div className="mb-1 text-[10px] font-medium text-(--fg-tertiary)">
         {eyebrow}
       </div>
       <div className="truncate text-[13px] font-semibold text-(--fg-primary)">
@@ -84,7 +84,7 @@ export function OperationsStatusBanner({
 
 export function OperationsSectionTitle({ children }: { children: string }) {
   return (
-    <div className="border-b border-(--line) bg-(--bg-panel-header) px-3 py-1.5 text-[10px] font-semibold uppercase text-(--fg-tertiary)">
+    <div className="border-b border-(--line) bg-(--bg-panel-header) px-3 py-1.5 text-[11px] font-medium text-(--fg-secondary)">
       {children}
     </div>
   );

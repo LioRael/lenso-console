@@ -39,7 +39,7 @@ export function WaterfallView({
       <div className={runtimeWaterfallTableHeaderClassName}>
         <span>Node</span>
         <div className="grid min-w-0 grid-cols-5 overflow-hidden">
-          {[0, 25, 50, 75, 100].map((tick) => (
+          {[0, 50, 100].map((tick) => (
             <span className="font-mono normal-case" key={tick}>
               {formatRuntimeDuration((timelineEnd * tick) / 100)}
             </span>
@@ -102,7 +102,7 @@ function WaterfallRowButton({
     <button
       aria-label={`Select row ${row.name}`}
       className={cn(
-        "grid w-full min-w-0 grid-cols-[minmax(260px,340px)_minmax(0,1fr)] items-center gap-4 px-3 py-1.5 text-left transition hover:bg-(--bg-row-hover) disabled:cursor-default",
+        "grid w-full min-w-0 grid-cols-[minmax(200px,240px)_minmax(0,1fr)] items-center gap-3 border-b border-(--line-subtle) px-3 py-0.5 text-left transition-colors hover:bg-(--bg-row-hover) disabled:cursor-default",
         selected && "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]",
         row.group === "unlinked" && "opacity-82"
       )}
@@ -116,12 +116,12 @@ function WaterfallRowButton({
     >
       <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
         <span
-          className="grid h-7 shrink-0 grid-cols-[1px_minmax(0,1fr)]"
+          className="grid h-6 shrink-0 grid-cols-[1px_minmax(0,1fr)]"
           style={{ marginLeft: row.depth * 16, width: row.depth > 0 ? 18 : 2 }}
         >
           <span className="h-full bg-(--border-subtle)" />
           {row.depth > 0 ? (
-            <span className="mt-3 h-px bg-(--border-subtle)" />
+            <span className="mt-2.5 h-px bg-(--border-subtle)" />
           ) : null}
         </span>
         <span
@@ -129,7 +129,7 @@ function WaterfallRowButton({
           style={{ backgroundColor: statusColor(row.status) }}
         />
         <span
-          className="max-w-28 shrink-0 truncate whitespace-nowrap rounded-xs border px-1.5 py-0.5 font-mono text-[11px] leading-3.5"
+          className="max-w-20 shrink-0 truncate whitespace-nowrap rounded-xs border px-1.5 py-0.5 font-mono text-[11px] leading-3.5"
           style={{
             backgroundColor: `${color}12`,
             borderColor: `${color}24`,
@@ -138,7 +138,7 @@ function WaterfallRowButton({
         >
           {row.service}
         </span>
-        <span className="max-w-26 shrink-0 truncate font-mono text-[11px] text-(--muted)">
+        <span className="max-w-16 shrink-0 truncate font-mono text-[11px] text-(--muted)">
           {row.kind}
         </span>
         {row.fanoutGroupSize ? (
@@ -158,9 +158,9 @@ function WaterfallRowButton({
           {formatRuntimeDuration(row.durationMs)}
         </span>
       </span>
-      <span className="relative isolate h-8 min-w-0 overflow-hidden rounded-xs bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--border-subtle)_25%,transparent_25.2%,transparent_49.8%,var(--border-subtle)_50%,transparent_50.2%,transparent_74.8%,var(--border-subtle)_75%,transparent_75.2%)]">
+      <span className="relative isolate h-7 min-w-0 overflow-hidden bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--border-subtle)_25%,transparent_25.2%,transparent_49.8%,var(--border-subtle)_50%,transparent_50.2%,transparent_74.8%,var(--border-subtle)_75%,transparent_75.2%)]">
         <span
-          className="absolute top-2 h-4 min-w-0.75 rounded-xs transition-transform"
+          className="absolute top-1.5 h-4 min-w-0.75 rounded-[2px] transition-transform"
           style={{
             backgroundColor:
               row.status === "failed" || row.status === "dead"

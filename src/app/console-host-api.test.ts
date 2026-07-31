@@ -4,6 +4,7 @@ import { consoleHostApi } from "./console-host-api";
 
 describe("console host api", () => {
   test("exposes stable host capabilities consumed by console modules", () => {
+    expect(consoleHostApi.version).toBe("1");
     expect(consoleHostApi.queries.useRuntimeStories).toBeTypeOf("function");
     expect(consoleHostApi.queries.useRuntimeStoryDetail).toBeTypeOf("function");
     expect(consoleHostApi.adminData.useRecords).toBeTypeOf("function");
@@ -24,6 +25,8 @@ describe("console host api", () => {
     expect(consoleHostApi.ui.runtime.ResizeHandle).toBeTypeOf("function");
     expect(consoleHostApi.ui.runtime.StoryList).toBeTypeOf("function");
     expect(consoleHostApi.ui.common.EmptyState).toBeTypeOf("function");
+    expect(consoleHostApi.ui.Button).toBeTypeOf("function");
+    expect(consoleHostApi.ui.Tabs.Tab).toBeTypeOf("function");
     expect(consoleHostApi.systemRegistry.useServices).toBeTypeOf("function");
     expect(consoleHostApi.systemRegistry.useRevokeEnrollment).toBeTypeOf(
       "function"

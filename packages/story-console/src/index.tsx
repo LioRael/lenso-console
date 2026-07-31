@@ -1,20 +1,13 @@
-import { defineConsoleModule } from "@lenso/console-package-api";
+import { defineConsoleExtension } from "@lenso/console-package-api";
 
 import { storyConsoleManifest } from "./manifest";
 import { RuntimeStoriesPage } from "./page";
 
-export const storyConsoleModule = defineConsoleModule({
-  id: storyConsoleManifest.id,
-  surfaces: [
-    {
-      area: storyConsoleManifest.area,
-      component: RuntimeStoriesPage,
-      icon: storyConsoleManifest.icon,
-      label: storyConsoleManifest.label,
-      path: storyConsoleManifest.route,
-    },
-  ],
+export const storyConsoleExtension = defineConsoleExtension({
+  components: { stories: RuntimeStoriesPage },
+  manifest: storyConsoleManifest,
 });
+export const storyConsoleModule = storyConsoleExtension.module;
 
 export { storyConsoleManifest } from "./manifest";
 export { RuntimeStoriesPage, runtimeStoriesDefaultViewMode } from "./page";

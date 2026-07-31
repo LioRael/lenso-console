@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { defineConsoleModule } from "./console-module-api";
+import { defineConsoleModule } from "../../packages/console-package-api/src/index";
 import {
   createDevManualConsolePackageInstaller,
   createNoopConsolePackageInstaller,

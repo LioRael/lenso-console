@@ -1,21 +1,13 @@
-import { defineConsoleModule } from "@lenso/console-package-api";
+import { defineConsoleExtension } from "@lenso/console-package-api";
 
 import { remoteCrmConsoleManifest } from "./manifest";
 import { RemoteCrmConsolePage } from "./page";
 
-export const remoteCrmConsoleModule = defineConsoleModule({
-  id: remoteCrmConsoleManifest.id,
-  surfaces: [
-    {
-      area: remoteCrmConsoleManifest.area,
-      component: RemoteCrmConsolePage,
-      icon: remoteCrmConsoleManifest.icon,
-      label: remoteCrmConsoleManifest.label,
-      navigation: remoteCrmConsoleManifest.navigation,
-      path: remoteCrmConsoleManifest.route,
-    },
-  ],
+export const remoteCrmConsoleExtension = defineConsoleExtension({
+  components: { "remote-crm": RemoteCrmConsolePage },
+  manifest: remoteCrmConsoleManifest,
 });
+export const remoteCrmConsoleModule = remoteCrmConsoleExtension.module;
 
 export { remoteCrmConsoleManifest } from "./manifest";
 export { RemoteCrmConsolePage } from "./page";

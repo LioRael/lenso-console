@@ -5,8 +5,11 @@ import {
   Activity,
   Boxes,
   BriefcaseBusiness,
+  Check,
+  ChevronDown,
   Command,
   Database,
+  KeyRound,
   Moon,
   Network,
   PanelLeftClose,
@@ -57,14 +60,17 @@ gsap.registerPlugin(useGSAP);
 type ShellIcon = ComponentType<{ size?: number; strokeWidth?: number }>;
 type Theme = "dark" | "light";
 type ThemePreference = Theme | "system";
+type LanguagePreference = "system" | "en" | "zh-CN";
 
 const iconRegistry = {
   activity: Activity,
   boxes: Boxes,
   database: Database,
+  "key-round": KeyRound,
   network: Network,
   shield: Shield,
   settings: Settings,
+  users: Users,
   workflow: Workflow,
 } satisfies Record<ConsoleSurfaceIcon, ShellIcon>;
 
@@ -79,7 +85,7 @@ const namedIconRegistry: Record<string, ShellIcon> = {
 const hostPrimaryNavItems = [
   {
     icon: "workflow",
-    label: "Launchpad",
+    label: "Home",
     moduleId: "host",
     navigation: {
       order: 0,
@@ -89,7 +95,7 @@ const hostPrimaryNavItems = [
   },
   {
     icon: "activity",
-    label: "Overview",
+    label: "Runtime",
     moduleId: "host",
     navigation: {
       order: 10,
@@ -139,7 +145,7 @@ const hostPrimaryNavItems = [
   },
   {
     icon: "settings",
-    label: "Configuration",
+    label: "Settings",
     moduleId: "host",
     navigation: {
       workspace: SYSTEM_WORKSPACE,
@@ -185,6 +191,10 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
       "runtime-console:theme-preference",
       "system"
     );
+  const [languagePreference] = usePersistedLayout<LanguagePreference>(
+    "runtime-console:language-preference",
+    "system"
+  );
   const [systemTheme, setSystemTheme] = useState<Theme>(systemAppearanceTheme);
   const theme = themePreference === "system" ? systemTheme : themePreference;
   const initialCollapseRef = useRef(sidebarCollapsed ? 1 : 0);
@@ -220,6 +230,14 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.themePreference = themePreference;
   }, [theme, themePreference]);
+
+  useLayoutEffect(() => {
+    document.documentElement.lang =
+      languagePreference === "system"
+        ? window.navigator.language || "en"
+        : languagePreference;
+    document.documentElement.dataset.languagePreference = languagePreference;
+  }, [languagePreference]);
 
   useEffect(() => {
     if (!routeWorkspaceId) {
@@ -313,7 +331,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
     >
       <aside
         aria-label="Lenso Console navigation"
-        className="relative overflow-hidden border-(--line) bg-(--bg-sidebar) lg:sticky lg:top-0 lg:h-screen lg:border-r max-lg:border-b"
+        className="relative z-30 border-(--line) bg-(--bg-sidebar) lg:sticky lg:top-0 lg:h-screen lg:border-r max-lg:border-b"
       >
         <div className="h-11 border-b border-(--line) bg-(--bg-chrome) max-lg:hidden">
           <div className="sidebar-header flex h-full items-center">
@@ -321,7 +339,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
               aria-hidden={sidebarCollapsed}
               className="sidebar-copy flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap"
             >
-              <div className="grid h-6 min-w-6 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-1.5 text-(--accent)">
+              <div className="grid size-6 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--accent)">
                 <span className="text-[11px] font-semibold leading-none">
                   L
                 </span>
@@ -372,7 +390,9 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
 
         <div className="absolute right-0 bottom-0 left-0 border-t border-(--line) bg-(--bg-sidebar) p-2 max-lg:hidden">
           <div className="sidebar-status-item flex w-full items-center gap-2 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2">
-            <div className="size-1.5 shrink-0 rounded-full bg-(--success)" />
+            <span className="grid size-4 shrink-0 place-items-center">
+              <span className="size-1.5 rounded-full bg-(--success)" />
+            </span>
             <span
               aria-hidden={sidebarCollapsed}
               className="sidebar-copy overflow-hidden whitespace-nowrap text-[11px] font-medium text-(--fg-primary)"
@@ -511,35 +531,113 @@ function WorkspaceSwitcher({
   onSelectWorkspace: (workspaceId: string) => void;
   workspaces: ConsoleWorkspaceNavigation[];
 }) {
-  return (
-    <div
-      aria-label="Console workspaces"
-      className="grid gap-px max-lg:flex max-lg:min-w-max"
-    >
-      {workspaces.map((workspace) => {
-        const Icon = iconForWorkspace(workspace);
-        const active = workspace.id === activeWorkspaceId;
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const activeWorkspace =
+    workspaces.find((workspace) => workspace.id === activeWorkspaceId) ??
+    workspaces[0];
+  const ActiveIcon = activeWorkspace
+    ? iconForWorkspace(activeWorkspace)
+    : Settings;
 
-        return (
-          <button
-            aria-pressed={active}
-            className={`sidebar-nav-item flex h-7 w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-xs transition-colors max-lg:w-8 max-lg:min-w-8 max-lg:justify-center max-lg:px-2 ${
-              active
-                ? "native-selection"
-                : "text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
-            }`}
-            key={workspace.id}
-            onClick={() => onSelectWorkspace(workspace.id)}
-            title={workspace.label}
-            type="button"
-          >
-            <Icon size={13} strokeWidth={1.5} />
-            <span className="sidebar-copy min-w-0 overflow-hidden whitespace-nowrap max-lg:hidden">
-              {workspace.label}
-            </span>
-          </button>
-        );
-      })}
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const close = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative max-lg:flex" ref={rootRef}>
+      <button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="sidebar-nav-item flex h-8 w-full items-center gap-2 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2 text-xs text-(--fg-primary) transition-colors hover:border-(--line-strong) hover:bg-(--bg-control-hover) max-lg:w-8 max-lg:min-w-8 max-lg:justify-center max-lg:px-2"
+        onClick={() => setOpen((current) => !current)}
+        title={activeWorkspace?.label ?? "Select workspace"}
+        type="button"
+      >
+        <span className="grid size-4 shrink-0 place-items-center">
+          <ActiveIcon size={13} strokeWidth={1.6} />
+        </span>
+        <span className="sidebar-copy min-w-0 flex-1 overflow-hidden whitespace-nowrap text-left max-lg:hidden">
+          {activeWorkspace?.label ?? "Workspace"}
+        </span>
+        <ChevronDown
+          className={`sidebar-copy shrink-0 transition-transform max-lg:hidden ${open ? "rotate-180" : ""}`}
+          size={12}
+        />
+      </button>
+      {open ? (
+        <div
+          aria-label="Console workspaces"
+          className="absolute top-10 left-0 z-40 w-[260px] overflow-hidden rounded-[var(--radius-popover)] border border-(--line-strong) bg-(--bg-overlay) p-1 shadow-(--elevation-overlay) max-lg:left-0"
+          role="menu"
+        >
+          <div className="px-2 py-1.5 text-[10px] font-medium text-(--fg-tertiary)">
+            Workspaces
+          </div>
+          {workspaces.map((workspace) => {
+            const Icon = iconForWorkspace(workspace);
+            const active = workspace.id === activeWorkspaceId;
+            const surfaceCount =
+              workspace.items.length +
+              workspace.groups.reduce(
+                (count, group) => count + group.items.length,
+                0
+              );
+            return (
+              <button
+                className={`grid w-full grid-cols-[16px_minmax(0,1fr)_16px] items-start gap-2 rounded-[var(--radius-control)] px-2 py-2 text-left transition-colors ${
+                  active
+                    ? "bg-(--bg-row-hover) text-(--fg-primary)"
+                    : "text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
+                }`}
+                key={workspace.id}
+                onClick={() => {
+                  onSelectWorkspace(workspace.id);
+                  setOpen(false);
+                }}
+                aria-checked={active}
+                role="menuitemradio"
+                type="button"
+              >
+                <span className="grid size-4 place-items-center">
+                  <Icon size={13} strokeWidth={1.6} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-medium">
+                    {workspace.label}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[10px] text-(--fg-tertiary)">
+                    {workspace.groups.length > 0
+                      ? workspace.groups.map((group) => group.label).join(" · ")
+                      : `${surfaceCount} ${surfaceCount === 1 ? "surface" : "surfaces"}`}
+                  </span>
+                </span>
+                <span className="grid size-4 place-items-center">
+                  {active ? <Check size={12} /> : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -560,7 +658,11 @@ function WorkspaceMenu({
         return (
           <div className="contents" key={group.id}>
             <div className="sidebar-copy sidebar-group-label mt-[var(--sidebar-group-label-margin)] flex items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 text-[10px] font-semibold uppercase text-(--fg-tertiary) max-lg:hidden">
-              {GroupIcon ? <GroupIcon size={11} strokeWidth={1.5} /> : null}
+              {GroupIcon ? (
+                <span className="grid size-4 shrink-0 place-items-center">
+                  <GroupIcon size={11} strokeWidth={1.5} />
+                </span>
+              ) : null}
               <span className="min-w-0 truncate">{group.label}</span>
             </div>
             {group.items.map((item) => (
@@ -586,7 +688,9 @@ function NavLink({ item }: { item: ConsoleNavigationItem }) {
       title={item.label}
       to={item.path}
     >
-      <Icon size={13} strokeWidth={1.5} />
+      <span className="grid size-4 shrink-0 place-items-center">
+        <Icon size={13} strokeWidth={1.5} />
+      </span>
       <span className="sidebar-copy min-w-0 overflow-hidden whitespace-nowrap max-lg:hidden">
         {item.label}
       </span>

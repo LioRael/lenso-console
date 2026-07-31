@@ -19,8 +19,8 @@ export function StoryList({
   onSelect: (story: RuntimeStory) => void;
 }) {
   return (
-    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-panel)">
-      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--line) bg-(--bg-panel) px-3 py-2">
+    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
+      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--line) bg-(--bg-canvas) px-3 py-2">
         <div>
           <h2 className="text-sm font-semibold tracking-tight text-(--fg-primary)">
             Stories
@@ -60,7 +60,7 @@ export function StoryList({
           return (
             <button
               className={cn(
-                "relative w-full border-b border-(--line) py-2.5 pr-3 pl-4 text-left transition",
+                "relative w-full border-b border-(--line) py-2 pr-3 pl-4 text-left transition-colors",
                 isError &&
                   "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-(--error)",
                 isSelected ? "native-selection" : "hover:bg-(--bg-row-hover)"

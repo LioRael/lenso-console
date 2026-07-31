@@ -114,7 +114,7 @@ export function LaunchpadPage() {
       <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <Workflow className="text-(--accent)" size={14} />
-          <h1 className="min-w-0 truncate font-mono text-[13px] font-semibold">
+          <h1 className="min-w-0 truncate text-sm font-semibold">
             App Lifecycle
           </h1>
           <span

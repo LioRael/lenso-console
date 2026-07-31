@@ -46,14 +46,20 @@ const packageInstallManifestsSource = await readFile(
 const workspacePackageNames = Object.keys(hostPackageJson.dependencies ?? {})
   .filter(
     (name) =>
-      name.startsWith("@lenso/") && name !== "@lenso/console-package-api"
+      name.includes("/") &&
+      name.endsWith("-console") &&
+      name !== "@lenso/runtime-console"
   )
   .toSorted();
 
 const errors = [];
 
 for (const packageName of workspacePackageNames) {
-  const packageSlug = packageName.replace("@lenso/", "");
+  const packageSlug = packageName.split("/").at(-1);
+  if (!packageSlug) {
+    errors.push(`Console package ${packageName} must include a package slug`);
+    continue;
+  }
   const exportStem = exportStemFromPackageSlug(packageSlug);
   const manifestName = `${exportStem}Manifest`;
   const moduleName = `${exportStem}Module`;
@@ -128,7 +134,10 @@ for (const packageName of workspacePackageNames) {
         `${relativePath(consoleSurfacePath)} navigation must include workspace id and label`
       );
     }
-    if (sourceIndexSource) {
+    if (
+      sourceIndexSource &&
+      !sourceIndexSource.includes("defineConsoleExtension")
+    ) {
       assertContains({
         content: sourceIndexSource,
         filePath: sourceIndexPath,
@@ -136,6 +145,15 @@ for (const packageName of workspacePackageNames) {
         needle: `navigation: ${manifestName}.navigation`,
       });
     }
+  }
+
+  if (sourceIndexSource?.includes("defineConsoleExtension")) {
+    assertContains({
+      content: sourceIndexSource,
+      filePath: sourceIndexPath,
+      message: `bind ${manifestName} through defineConsoleExtension`,
+      needle: `manifest: ${manifestName}`,
+    });
   }
 
   assertContains({

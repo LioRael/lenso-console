@@ -2,8 +2,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { ExternalLink, Inbox, RefreshCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Button } from "../../packages/console-package-api/src/index";
 import { ResizeHandle } from "../components/runtime/resize-handle";
-import { Button } from "../components/ui/button";
 import { buildRuntimeQueueRows } from "../hooks/runtime-queue-model";
 import { useListKeyboard } from "../hooks/use-list-keyboard";
 import {
@@ -120,7 +120,7 @@ export function QueuesPage() {
         <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
           <div className="flex items-center gap-2">
             <Inbox className="text-(--accent)" size={14} />
-            <h1 className="font-mono text-[13px] font-semibold">Queues</h1>
+            <h1 className="text-sm font-semibold">Queues</h1>
             <span className="ml-auto font-mono text-[10px] text-(--fg-tertiary)">
               {rows.length} queues / {runtimeConsoleDataSource()}
             </span>

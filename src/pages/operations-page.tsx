@@ -46,17 +46,17 @@ export function OperationsPage({
       <header className="flex min-h-10 items-center gap-2 overflow-hidden border-b border-(--line) bg-(--bg-panel-header) px-2">
         <nav
           aria-label="Operations sections"
-          className="flex min-w-0 flex-wrap items-center gap-1 overflow-hidden rounded-[var(--radius-panel)] border border-(--line) bg-(--bg-control) p-0.5"
+          className="lenso-ui-tabs__list h-10 min-w-0 overflow-x-auto border-b-0"
         >
           {operationTabs.map((tab) => (
             <Link
               className={cn(
-                "h-6 shrink-0 rounded-[var(--radius-control)] px-2.5 text-[11px] font-medium leading-6 transition-colors",
-                active === tab.key
-                  ? "native-selection"
-                  : "text-(--fg-tertiary) hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
+                "lenso-ui-tabs__tab h-full min-h-0 shrink-0 text-[11px]",
+                active === tab.key && "text-(--fg-primary)"
               )}
+              aria-selected={active === tab.key}
               key={tab.key}
+              role="tab"
               to={tab.to}
             >
               {tab.label}

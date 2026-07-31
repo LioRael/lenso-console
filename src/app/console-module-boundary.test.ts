@@ -163,11 +163,11 @@ function consolePackageNames(): string[] {
 
 function installedConsolePackageNames(): string[] {
   return Object.keys(runtimeConsolePackageJson.dependencies ?? {})
-    .filter(
-      (name) =>
-        name.startsWith("@lenso/") && name !== "@lenso/console-package-api"
-    )
-    .map((name) => name.replace("@lenso/", ""))
+    .filter((name) => name.includes("/") && name.endsWith("-console"))
+    .flatMap((name) => {
+      const packageSlug = name.split("/").at(-1);
+      return packageSlug ? [packageSlug] : [];
+    })
     .sort();
 }
 

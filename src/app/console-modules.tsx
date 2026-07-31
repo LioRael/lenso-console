@@ -1,18 +1,16 @@
 import {
   consoleSurfacesFromPackageManifest,
+  type ConsoleModule,
+  type ConsoleNavigationItem,
   type ConsolePackageManifest,
+  type ConsoleRouteContribution,
+  type ConsoleSurfaceArea,
 } from "@lenso/console-package-api";
 import { identityConsoleManifest } from "@lenso/identity-console";
 import { remoteCrmConsoleManifest } from "@lenso/remote-crm-console";
 import { storyConsoleManifest } from "@lenso/story-console";
 import { systemRegistryConsoleManifest } from "@lenso/system-registry-console";
 
-import type {
-  ConsoleModule,
-  ConsoleNavigationItem,
-  ConsoleRouteContribution,
-  ConsoleSurfaceArea,
-} from "./console-module-api";
 import {
   type ConsoleModuleMetadata,
   resolveConsoleModules,
@@ -20,7 +18,7 @@ import {
 } from "./console-module-resolver";
 import { SYSTEM_WORKSPACE } from "./console-workspace-navigation";
 
-export { defineConsoleModule } from "./console-module-api";
+export { defineConsoleModule } from "@lenso/console-package-api";
 export type {
   ConsoleModule,
   ConsoleNavigationItem,
@@ -31,7 +29,7 @@ export type {
   ConsoleSurfaceIcon,
   ConsoleWorkspaceRef,
   ConsoleModuleSurface,
-} from "./console-module-api";
+} from "@lenso/console-package-api";
 
 export function buildConsoleRoutes(
   modules: ConsoleModule[]

@@ -1,3 +1,8 @@
+import {
+  CONSOLE_HOST_API_VERSION,
+  EmptyState,
+  consoleUi,
+} from "../../packages/console-package-api/src/index";
 import { ExecutionInspector } from "../components/runtime/execution-inspector";
 import {
   defaultExecutionInspectorTab,
@@ -10,7 +15,6 @@ import { RuntimeStoryVisualization } from "../components/runtime/runtime-story-v
 import { ServiceSummaryStrip } from "../components/runtime/service-summary-strip";
 import { StoryHeader } from "../components/runtime/story-header";
 import { StoryList } from "../components/runtime/story-list";
-import { EmptyState } from "../components/ui/empty-state";
 import { retryTargetForNode, runtimeStories } from "../data/mock-runtime";
 import { consoleDevConfig } from "../dev/console-dev-config";
 import { createMockConsoleHostApi } from "../dev/mock-console-host-api";
@@ -42,6 +46,7 @@ import {
 } from "./console-system-registry-api";
 
 export const productionConsoleHostApi = {
+  version: CONSOLE_HOST_API_VERSION,
   adminData: {
     useInvokeAction: useConsoleAdminAction,
     useRecords: useConsoleAdminRecords,
@@ -88,6 +93,7 @@ export const productionConsoleHostApi = {
     useServices: useConsoleManagedServices,
   },
   ui: {
+    ...consoleUi,
     common: {
       EmptyState,
     },

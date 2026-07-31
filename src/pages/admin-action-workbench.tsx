@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ExternalLink, Play } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "../components/ui/button";
+import { Button } from "../../packages/console-package-api/src/index";
 import type { AdminActionInvokeResponse } from "../hooks/runtime-api-types";
 import { cn } from "../lib/cn";
 import { httpClient } from "../lib/http-client";

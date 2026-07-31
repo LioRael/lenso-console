@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
   History,
+  Languages,
   RefreshCw,
   RotateCcw,
   Search,
@@ -9,11 +10,16 @@ import {
 import { useMemo, useState } from "react";
 
 import {
+  Badge,
+  Button,
+  Select,
+  SettingsGroup,
+  SettingsRow,
+} from "../../packages/console-package-api/src/index";
+import {
   consoleConfigQueryKeys,
   useConsoleConfigValues,
 } from "../app/console-config-api";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
 import { Drawer } from "../components/ui/drawer";
 import type {
   AdminServiceRestartResponse,
@@ -25,6 +31,7 @@ import type {
   ConfigValueDto,
   ConfigWriteResponse,
 } from "../hooks/runtime-api-types";
+import { usePersistedLayout } from "../hooks/use-persisted-layout";
 import { time } from "../lib/format";
 import {
   httpClient,
@@ -49,6 +56,7 @@ export type ConfigRow = {
 };
 
 const EMPTY_GROUPS: ConfigGroupDto[] = [];
+type LanguagePreference = "system" | "en" | "zh-CN";
 
 type ConfigGroup = {
   description: string;
@@ -195,7 +203,7 @@ function ConfigContent() {
     <section className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
       <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
         <div className="flex items-center gap-2">
-          <h1 className="font-mono text-[13px] font-semibold">Configuration</h1>
+          <h1 className="text-sm font-semibold">Settings</h1>
           <div className="ml-auto flex items-center gap-2">
             {restartStatus ? (
               <span className="font-mono text-[10px] text-(--muted)">
@@ -234,6 +242,7 @@ function ConfigContent() {
       </div>
 
       <div className="min-h-0 overflow-auto">
+        <ConsolePreferences />
         {isLoading ? (
           <LoadingRows />
         ) : error ? (
@@ -289,6 +298,48 @@ function ConfigContent() {
 
       <AuditDrawer onClose={() => setAuditTarget(null)} target={auditTarget} />
     </section>
+  );
+}
+
+function ConsolePreferences() {
+  const [language, setLanguage] = usePersistedLayout<LanguagePreference>(
+    "runtime-console:language-preference",
+    "system"
+  );
+
+  return (
+    <SettingsGroup>
+      <SettingsGroup.Header>
+        <div className="flex items-center gap-2">
+          <Languages className="text-(--fg-tertiary)" size={14} />
+          <SettingsGroup.Title>Console preferences</SettingsGroup.Title>
+        </div>
+        <SettingsGroup.Description>
+          Preferences are stored in this browser and apply to every Console
+          surface, including module extensions.
+        </SettingsGroup.Description>
+      </SettingsGroup.Header>
+      <SettingsRow
+        description="Controls locale-sensitive formatting and the language exposed to module surfaces."
+        label="Interface language"
+      >
+        <Select
+          aria-label="Interface language"
+          onChange={(event) => {
+            const next = event.target.value as LanguagePreference;
+            setLanguage(next);
+            document.documentElement.lang =
+              next === "system" ? window.navigator.language || "en" : next;
+            document.documentElement.dataset.languagePreference = next;
+          }}
+          value={language}
+        >
+          <option value="system">System default</option>
+          <option value="en">English</option>
+          <option value="zh-CN">简体中文</option>
+        </Select>
+      </SettingsRow>
+    </SettingsGroup>
   );
 }
 
@@ -844,13 +895,16 @@ function DeferredConfig() {
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--background) text-(--foreground)">
       <header className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
         <div className="flex items-center gap-2">
-          <h1 className="font-mono text-[13px] font-semibold">Configuration</h1>
+          <h1 className="text-sm font-semibold">Settings</h1>
           <span className="ml-auto font-mono text-[10px] text-(--muted)">
             deferred
           </span>
         </div>
       </header>
       <div className="p-3 font-mono">
+        <div className="-mx-3 -mt-3 mb-3 font-sans">
+          <ConsolePreferences />
+        </div>
         <div className="border-y border-(--border-subtle)">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] border-b border-(--border-subtle) text-[11px]">
             <div className="bg-(--sidebar) px-3 py-1.5 text-(--muted)">

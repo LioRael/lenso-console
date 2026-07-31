@@ -73,37 +73,34 @@ export function ExecutionInspector({
   const tabCounts = getExecutionInspectorTabCounts(story, node);
 
   return (
-    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-panel-header)">
+    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
       <div className="min-w-0 overflow-hidden border-b border-(--line) bg-(--bg-panel)">
         <div className="flex min-w-0 items-start gap-2 px-3 py-2">
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span
                 className={cn(
-                  "shrink-0 rounded-xs border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em]",
-                  "border-(--line) bg-(--bg-control) text-(--accent)"
+                  "shrink-0 border-r border-(--line) pr-1.5 text-[10px] font-medium text-(--fg-secondary)"
                 )}
               >
                 {typeLabel(node)}
               </span>
               <span
-                className="min-w-0 truncate rounded-xs border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wide"
+                className="min-w-0 truncate text-[10px] font-medium"
                 style={{
-                  backgroundColor: `${serviceColor(node.service)}14`,
-                  borderColor: `${serviceColor(node.service)}28`,
                   color: serviceColor(node.service),
                 }}
               >
                 {node.service}
               </span>
             </div>
-            <h2 className="truncate font-mono text-sm font-semibold leading-tight text-(--fg-primary)">
+            <h2 className="truncate text-[15px] font-semibold leading-tight text-(--fg-primary)">
               {node.name}
             </h2>
           </div>
           <button
             aria-label="Clear inspector selection"
-            className="grid size-6 shrink-0 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-tertiary) transition hover:text-(--fg-primary)"
+            className="grid size-6 shrink-0 place-items-center rounded-[var(--radius-control)] border border-transparent text-(--fg-tertiary) transition-colors hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
             onClick={onClearSelection}
             type="button"
           >
@@ -172,26 +169,27 @@ export function ExecutionInspector({
 
       <div className="min-w-0 overflow-hidden border-b border-(--line) bg-(--bg-panel-muted)">
         <HorizontalTabScroll>
-          <div className="flex h-full w-max min-w-full items-stretch pr-10">
+          <div className="lenso-ui-tabs__list h-full w-max min-w-full border-b-0 pr-8">
             {executionInspectorTabs.map((tab) => (
               <button
+                aria-selected={activeTab === tab.id}
                 className={cn(
-                  "inline-flex h-full shrink-0 items-center gap-1.5 whitespace-nowrap border-b border-transparent px-2 font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-(--fg-tertiary) transition hover:border-(--border) hover:text-(--fg-secondary) disabled:text-(--fg-quaternary)",
-                  activeTab === tab.id &&
-                    "border-(--accent) bg-[var(--tone-info-bg)] text-(--fg-primary)"
+                  "lenso-ui-tabs__tab h-full min-h-0 shrink-0 gap-1.5 text-[11px] disabled:text-(--fg-quaternary)",
+                  activeTab === tab.id && "text-(--fg-primary)"
                 )}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                role="tab"
                 type="button"
               >
                 <span>{tab.label}</span>
                 {tabCounts[tab.id] > 0 ? (
                   <span
                     className={cn(
-                      "grid h-4.5 min-w-4.5 place-items-center border px-1 font-mono text-[10px] leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+                      "grid h-4 min-w-4 place-items-center rounded-[3px] px-1 font-mono text-[9px] leading-none",
                       activeTab === tab.id
-                        ? "border-[var(--tone-info-border)] bg-[var(--tone-info-bg)] text-(--tone-info-fg)"
-                        : "border-(--line) bg-(--bg-canvas) text-(--fg-tertiary)"
+                        ? "bg-(--bg-control-active) text-(--fg-primary)"
+                        : "bg-(--bg-control) text-(--fg-tertiary)"
                     )}
                   >
                     {tabCounts[tab.id]}
@@ -236,7 +234,7 @@ function InspectorBody({
     const retryTarget = retryTargetForNode(node);
     const remoteProxyDetail = buildRemoteProxyInspectorDetail(node);
     return (
-      <div className="font-mono text-xs">
+      <div className="text-xs">
         <SummaryCard node={node} story={story} />
         <KeyValueTable
           rows={[
@@ -266,7 +264,7 @@ function InspectorBody({
         {retryTarget ? (
           <div className="border-b border-(--line) px-3 py-2">
             <button
-              className="inline-flex h-8 w-fit items-center gap-2 rounded-xs border border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] px-2 font-mono text-[11px] text-(--tone-error-fg)"
+              className="inline-flex h-7 w-fit items-center gap-2 rounded-[var(--radius-control)] border border-[var(--tone-error-border)] bg-(--bg-control) px-2 text-[11px] font-medium text-(--tone-error-fg) transition-colors hover:bg-(--bg-control-hover)"
               onClick={() => openRetry(retryTarget)}
               type="button"
             >
@@ -358,7 +356,7 @@ function SummaryCard({
   node: ExecutionNode;
 }) {
   return (
-    <div className="border-b border-(--line) bg-(--bg-panel-muted) p-3">
+    <div className="border-b border-(--line) bg-(--bg-panel-muted) px-3 py-2.5">
       <div className="flex min-w-0 items-start gap-2">
         <span
           className="mt-1 size-2 shrink-0 rounded-xs"
@@ -397,8 +395,8 @@ function RemoteProxyDetail({
 
   return (
     <section className="grid min-w-full border-b border-(--line)">
-      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
-        <span>remote proxy</span>
+      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 text-[11px] text-(--fg-tertiary)">
+        <span className="font-medium text-(--fg-secondary)">Remote proxy</span>
         <button
           className="ml-auto inline-flex h-5 items-center gap-1 border border-(--line) bg-(--bg-control) px-1.5 text-[10px] text-(--fg-secondary) hover:text-(--fg-primary)"
           onClick={onOpenRemoteCalls}
@@ -468,8 +466,8 @@ function TechnicalOperationGroupView({
 }) {
   return (
     <section className="border-b border-(--line)">
-      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
-        <span>{group.label}</span>
+      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 text-[11px] text-(--fg-tertiary)">
+        <span className="font-medium text-(--fg-secondary)">{group.label}</span>
         <span className="rounded-xs border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)">
           {group.operations.length}
         </span>
@@ -490,20 +488,23 @@ function TechnicalOperationRow({
   const operationsTarget = technicalOperationOperationsTarget(operation);
   return (
     <div className="border-t border-(--line) bg-(--bg-canvas)">
-      <div className="grid min-w-full grid-cols-[72px_82px_minmax(180px,1fr)_72px_64px_58px_24px] items-start gap-2 px-3 py-2 font-mono text-xs">
-        <span className="w-fit rounded-xs border border-(--line) bg-(--bg-control) px-1.5 py-0.5 text-[10px] font-semibold uppercase text-(--accent)">
+      <div className="grid min-w-full grid-cols-[72px_82px_minmax(180px,1fr)_72px_64px_58px_24px] items-start gap-2 px-3 py-2 text-xs">
+        <span className="w-fit border-r border-(--line) pr-1.5 text-[10px] font-medium text-(--fg-secondary)">
           {operation.category}
         </span>
         <span
           className={cn(
-            "w-fit rounded-xs border px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+            "w-fit text-[10px] font-medium",
             operationSourceTone(operation)
           )}
         >
           {operation.sourceLabel}
         </span>
         <div className="min-w-0">
-          <div className="truncate text-(--fg-primary)" title={operation.name}>
+          <div
+            className="truncate font-mono text-(--fg-primary)"
+            title={operation.name}
+          >
             {operation.name}
           </div>
           {operation.summary ? (
@@ -564,15 +565,15 @@ function TechnicalOperationRow({
 
 function operationSourceTone(operation: TechnicalOperationView) {
   if (operation.source === "remote_proxy") {
-    return "tint tint-warning";
+    return "text-(--tone-warning-fg)";
   }
   if (operation.source === "remote_runtime") {
-    return "tint tint-info";
+    return "text-(--tone-info-fg)";
   }
   if (operation.source === "admin_action") {
-    return "tint tint-info";
+    return "text-(--tone-info-fg)";
   }
-  return "border-(--line) bg-(--bg-control) text-(--fg-tertiary)";
+  return "text-(--fg-tertiary)";
 }
 
 function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
@@ -581,16 +582,16 @@ function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
   }
 
   return (
-    <div className="w-max min-w-full border-b border-(--line) font-mono text-xs">
+    <div className="w-max min-w-full border-b border-(--line) text-xs">
       {rows.map(([key, value]) => (
         <div
           className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-b border-(--line) last:border-b-0"
           key={key}
         >
-          <div className="bg-(--bg-panel-header) px-3 py-1.5 text-(--fg-tertiary)">
+          <div className="bg-(--bg-panel-header) px-3 py-1.5 text-[11px] font-medium text-(--fg-tertiary)">
             {key}
           </div>
-          <div className="whitespace-pre-wrap px-3 py-1.5 text-(--fg-secondary)">
+          <div className="whitespace-pre-wrap px-3 py-1.5 font-mono text-[11px] text-(--fg-secondary)">
             {formatCell(value)}
           </div>
         </div>
@@ -604,20 +605,20 @@ function ActivityList({ activity }: { activity: ExecutionActivityItem[] }) {
     return <EmptyRows label="No activity recorded" />;
   }
   return (
-    <div className="w-max min-w-full font-mono text-xs">
+    <div className="w-max min-w-full text-xs">
       {activity.map((item) => (
         <div
           className="grid w-max min-w-full grid-cols-[58px_minmax(220px,max-content)] gap-2 border-b border-(--line) px-3 py-2"
           key={item.id}
         >
-          <span className="whitespace-nowrap text-(--fg-tertiary)">
+          <span className="whitespace-nowrap font-mono text-(--fg-tertiary)">
             +{formatRuntimeDuration(item.timestampMs)}
           </span>
           <div>
             <div className="whitespace-nowrap text-(--fg-primary)">
               {item.label}
             </div>
-            <div className="whitespace-nowrap text-[11px] text-(--fg-tertiary)">
+            <div className="whitespace-nowrap font-mono text-[11px] text-(--fg-tertiary)">
               {item.detail ?? `${item.kind} · ${item.status}`}
             </div>
           </div>

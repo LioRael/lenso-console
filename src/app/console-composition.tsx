@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { PropsWithChildren } from "react";
 
-import { Button } from "../components/ui/button";
+import { Button } from "../../packages/console-package-api/src/index";
 import { httpClient, isApiMode } from "../lib/http-client";
 
 export const consoleCompositionSchema =
@@ -279,8 +279,8 @@ function ConsoleRecoveryMode({
   );
   return (
     <main className="grid min-h-screen place-items-center bg-(--background) p-6 text-(--foreground)">
-      <section className="w-full max-w-3xl rounded-2xl border border-(--border) bg-(--surface) p-6 shadow-xl">
-        <div className="mb-6 flex items-start gap-3">
+      <section className="w-full max-w-3xl overflow-hidden rounded-[var(--radius-overlay)] border border-(--border) bg-(--surface)">
+        <div className="flex items-start gap-3 border-b border-(--border) p-5">
           <AlertTriangle
             aria-hidden="true"
             className="mt-1 text-(--warning)"
@@ -305,7 +305,7 @@ function ConsoleRecoveryMode({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div>
           {issues.length === 0 ? (
             <RecoveryIssue
               issue={{
@@ -328,7 +328,7 @@ function ConsoleRecoveryMode({
           )}
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="flex justify-end border-t border-(--border) p-3">
           <Button onClick={onRetry} type="button">
             <RefreshCw aria-hidden="true" size={15} />
             Retry diagnostics
@@ -341,7 +341,7 @@ function ConsoleRecoveryMode({
 
 function RecoveryIssue({ issue }: { issue: ConsoleCompositionIssue }) {
   return (
-    <article className="rounded-xl border border-(--border) bg-(--background) p-4">
+    <article className="border-b border-(--border-subtle) bg-(--background) px-5 py-4 last:border-b-0">
       <div className="flex flex-wrap items-center gap-2 text-xs text-(--muted)">
         <code>{issue.code}</code>
         <span aria-hidden="true">·</span>

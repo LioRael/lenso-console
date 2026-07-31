@@ -1,10 +1,10 @@
 import { ExternalLink, Network, RefreshCcw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Button } from "../../packages/console-package-api/src/index";
 import { JsonViewer } from "../components/runtime/json-viewer";
 import { ResizeHandle } from "../components/runtime/resize-handle";
 import { useRuntimeConsole } from "../components/runtime/runtime-console-context";
-import { Button } from "../components/ui/button";
 import { useListKeyboard } from "../hooks/use-list-keyboard";
 import {
   type RuntimeRemoteProxyCall,
@@ -178,9 +178,7 @@ export function RemoteProxyCallsPage() {
         <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
           <div className="flex items-center gap-2">
             <Network className="text-(--accent)" size={14} />
-            <h1 className="font-mono text-[13px] font-semibold">
-              Remote Calls
-            </h1>
+            <h1 className="text-sm font-semibold">Remote Calls</h1>
             <span className="ml-auto font-mono text-[10px] text-(--fg-tertiary)">
               {visible.length} calls / {runtimeConsoleDataSource()}
             </span>

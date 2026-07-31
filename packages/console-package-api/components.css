@@ -1,0 +1,538 @@
+:where(.lenso-ui-page) {
+  min-height: 100%;
+  overflow: auto;
+  background: var(--bg-canvas);
+  color: var(--fg-primary);
+}
+
+:where(.lenso-ui-page__header) {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--content-gutter);
+  border-bottom: 1px solid var(--line);
+}
+
+:where(.lenso-ui-page__heading) {
+  min-width: 0;
+}
+
+:where(.lenso-ui-page__eyebrow) {
+  margin: 0 0 var(--space-1-5);
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+:where(.lenso-ui-page__title) {
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+:where(.lenso-ui-page__description) {
+  max-width: 720px;
+  margin: var(--space-1) 0 0;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+:where(.lenso-ui-page__actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+:where(.lenso-ui-page__body) {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--content-gutter);
+}
+
+:where(.lenso-ui-button) {
+  display: inline-flex;
+  min-height: var(--control-height-sm);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--bg-control);
+  color: var(--fg-primary);
+  box-shadow: var(--elevation-control);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+:where(.lenso-ui-button:hover:not(:disabled)) {
+  background: var(--bg-control-hover);
+}
+
+:where(.lenso-ui-button:active:not(:disabled)) {
+  background: var(--bg-control-active);
+}
+
+:where(.lenso-ui-button:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+:where(.lenso-ui-button:disabled) {
+  opacity: 0.45;
+}
+
+:where(.lenso-ui-button[data-size="md"]) {
+  min-height: var(--control-height-md);
+  padding-inline: 12px;
+  font-size: 13px;
+}
+
+:where(.lenso-ui-button[data-variant="primary"]) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+:where(.lenso-ui-button[data-variant="primary"]:hover:not(:disabled)) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+:where(.lenso-ui-button[data-variant="ghost"]) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--fg-secondary);
+  box-shadow: none;
+}
+
+:where(.lenso-ui-button[data-variant="ghost"]:hover:not(:disabled)) {
+  background: var(--bg-row-hover);
+  color: var(--fg-primary);
+}
+
+:where(.lenso-ui-button[data-variant="danger"]) {
+  border-color: var(--tone-error-border);
+  background: var(--tone-error-bg);
+  color: var(--tone-error-fg);
+}
+
+:where(.lenso-ui-icon-button) {
+  width: var(--control-height-sm);
+  min-width: var(--control-height-sm);
+  padding: 0;
+}
+
+:where(.lenso-ui-button[data-size="md"].lenso-ui-icon-button) {
+  width: var(--control-height-md);
+  min-width: var(--control-height-md);
+  padding: 0;
+}
+
+:where(.lenso-ui-button > svg),
+:where(.lenso-ui-icon-button > svg) {
+  display: block;
+  flex: none;
+}
+
+:where(.lenso-ui-badge) {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 2px 7px;
+  border: 1px solid var(--tone-muted-border);
+  border-radius: var(--radius-control);
+  background: var(--tone-muted-bg);
+  color: var(--tone-muted-fg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+:where(.lenso-ui-badge[data-tone="info"]) {
+  border-color: var(--tone-info-border);
+  background: var(--tone-info-bg);
+  color: var(--tone-info-fg);
+}
+
+:where(.lenso-ui-badge[data-tone="success"]) {
+  border-color: var(--tone-success-border);
+  background: var(--tone-success-bg);
+  color: var(--tone-success-fg);
+}
+
+:where(.lenso-ui-badge[data-tone="warning"]) {
+  border-color: var(--tone-warning-border);
+  background: var(--tone-warning-bg);
+  color: var(--tone-warning-fg);
+}
+
+:where(.lenso-ui-badge[data-tone="danger"]) {
+  border-color: var(--tone-error-border);
+  background: var(--tone-error-bg);
+  color: var(--tone-error-fg);
+}
+
+:where(.lenso-ui-status) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+:where(.lenso-ui-status[data-align="top"]) {
+  align-items: flex-start;
+}
+
+:where(.lenso-ui-status__dot) {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--fg-tertiary);
+}
+
+:where(.lenso-ui-status[data-align="top"] .lenso-ui-status__dot) {
+  margin-top: 0.38em;
+}
+
+:where(.lenso-ui-status[data-tone="info"] .lenso-ui-status__dot) {
+  background: var(--info);
+}
+
+:where(.lenso-ui-status[data-tone="success"] .lenso-ui-status__dot) {
+  background: var(--success);
+}
+
+:where(.lenso-ui-status[data-tone="warning"] .lenso-ui-status__dot) {
+  background: var(--warning);
+}
+
+:where(.lenso-ui-status[data-tone="danger"] .lenso-ui-status__dot) {
+  background: var(--error);
+}
+
+:where(.lenso-ui-panel) {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--bg-panel);
+  box-shadow: var(--elevation-panel);
+}
+
+:where(.lenso-ui-panel__header) {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-panel-header);
+}
+
+:where(.lenso-ui-panel__title) {
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+:where(.lenso-ui-panel__description) {
+  margin: 2px 0 0;
+  color: var(--fg-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+:where(.lenso-ui-panel__content[data-padding="sm"]) {
+  padding: var(--space-3);
+}
+
+:where(.lenso-ui-panel__content[data-padding="md"]) {
+  padding: var(--space-4);
+}
+
+:where(.lenso-ui-tabs__list) {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+:where(.lenso-ui-tabs__tab) {
+  position: relative;
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-tertiary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+:where(.lenso-ui-settings-group) {
+  border-top: 1px solid var(--line);
+}
+
+:where(.lenso-ui-settings-group__header) {
+  padding: var(--space-4) var(--content-gutter) var(--space-2);
+}
+
+:where(.lenso-ui-settings-group__title) {
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+:where(.lenso-ui-settings-group__description) {
+  margin: var(--space-1) 0 0;
+  color: var(--fg-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+:where(.lenso-ui-settings-row) {
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-2) var(--content-gutter);
+  border-top: 1px solid var(--line-subtle);
+}
+
+:where(.lenso-ui-settings-row__copy) {
+  min-width: 0;
+}
+
+:where(.lenso-ui-settings-row__label) {
+  color: var(--fg-primary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+:where(.lenso-ui-settings-row__description) {
+  margin-top: 2px;
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+:where(.lenso-ui-settings-row__control) {
+  min-width: 0;
+}
+
+:where(.lenso-ui-tabs__tab:hover) {
+  color: var(--fg-primary);
+}
+
+:where(.lenso-ui-tabs__tab[aria-selected="true"]) {
+  color: var(--fg-primary);
+}
+
+:where(.lenso-ui-tabs__tab[aria-selected="true"])::after {
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  content: "";
+  transform: translateX(-50%);
+}
+
+:where(.lenso-ui-tabs__tab:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+:where(.lenso-ui-tabs__panel) {
+  min-width: 0;
+}
+
+:where(.lenso-ui-field) {
+  display: grid;
+  gap: var(--space-1-5);
+}
+
+:where(.lenso-ui-field__label) {
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+:where(.lenso-ui-field__hint) {
+  margin: 0;
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+:where(.lenso-ui-field__error) {
+  margin: 0;
+  color: var(--tone-error-fg);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+:where(.lenso-ui-input),
+:where(.lenso-ui-select),
+:where(.lenso-ui-textarea) {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--bg-control);
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: 13px;
+  box-shadow: var(--elevation-control);
+}
+
+:where(.lenso-ui-input),
+:where(.lenso-ui-select) {
+  min-height: var(--control-height-md);
+  padding: 0 10px;
+}
+
+:where(.lenso-ui-textarea) {
+  min-height: 88px;
+  padding: 8px 10px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+:where(.lenso-ui-input::placeholder),
+:where(.lenso-ui-textarea::placeholder) {
+  color: var(--fg-quaternary);
+}
+
+:where(.lenso-ui-input:focus-visible),
+:where(.lenso-ui-select:focus-visible),
+:where(.lenso-ui-textarea:focus-visible) {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--focus-ring-muted);
+}
+
+:where(.lenso-ui-empty-state) {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-2);
+  padding: var(--space-8);
+  color: var(--fg-tertiary);
+  text-align: center;
+}
+
+:where(.lenso-ui-empty-state__icon) {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: var(--fg-tertiary);
+}
+
+:where(.lenso-ui-empty-state__title) {
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:where(.lenso-ui-empty-state__description) {
+  max-width: 440px;
+  margin: 0;
+  color: var(--fg-tertiary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+:where(.lenso-ui-table-wrap) {
+  overflow-x: auto;
+}
+
+:where(.lenso-ui-table) {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  text-align: left;
+}
+
+:where(.lenso-ui-table__head) {
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-tertiary);
+}
+
+:where(.lenso-ui-table__body .lenso-ui-table__row) {
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+:where(.lenso-ui-table__body .lenso-ui-table__row:last-child) {
+  border-bottom: 0;
+}
+
+:where(.lenso-ui-table__row:hover) {
+  background: var(--bg-row-hover);
+}
+
+:where(.lenso-ui-table__header),
+:where(.lenso-ui-table__cell) {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+
+:where(.lenso-ui-table__header) {
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  :where(.lenso-ui-page__header) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  :where(.lenso-ui-page__actions) {
+    margin-left: 0;
+  }
+
+  :where(.lenso-ui-settings-row) {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+  }
+}

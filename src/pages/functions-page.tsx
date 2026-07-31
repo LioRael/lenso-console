@@ -1,6 +1,7 @@
 import { Braces, ExternalLink, RefreshCcw, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Button } from "../../packages/console-package-api/src/index";
 import { JsonViewer } from "../components/runtime/json-viewer";
 import { ResizeHandle } from "../components/runtime/resize-handle";
 import { useRuntimeConsole } from "../components/runtime/runtime-console-context";
@@ -10,7 +11,6 @@ import {
   technicalOperationsStateLabel,
   type TechnicalOperationView,
 } from "../components/runtime/technical-operations-model";
-import { Button } from "../components/ui/button";
 import { retryTargetFor, type FunctionRun } from "../data/mock-runtime";
 import { useListKeyboard } from "../hooks/use-list-keyboard";
 import {
@@ -177,7 +177,7 @@ export function FunctionsPage() {
         <header className="border-b border-(--line) bg-(--bg-panel) px-3 py-2">
           <div className="flex items-center gap-2">
             <Braces className="text-(--accent)" size={14} />
-            <h1 className="font-mono text-[13px] font-semibold">Functions</h1>
+            <h1 className="text-sm font-semibold">Functions</h1>
             <span className="ml-auto font-mono text-[10px] text-(--fg-tertiary)">
               {visible.length} runs / {runtimeConsoleDataSource()}
             </span>
