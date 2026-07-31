@@ -165,20 +165,36 @@ async function artifactFixture() {
 }
 
 describe("Console Service release manifest", () => {
-  test("accepts only the reviewed composite OCI component", () => {
+  test("selects the reviewed composite OCI component from a mixed plan", () => {
     expect(
       parseReleaseSelection(
         JSON.stringify([{ id: "oci:lenso-console-service", version: "0.2.0" }])
       )
     ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
+    expect(
+      parseReleaseSelection(
+        JSON.stringify([
+          { id: "npm:@lenso/console-package-api", version: "0.1.1" },
+          { id: "oci:lenso-console-service", version: "0.2.0" },
+        ])
+      )
+    ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
     expect(() => parseReleaseSelection("[]")).toThrow(
-      "selection must contain exactly oci:lenso-console-service"
+      "selection must contain exactly one oci:lenso-console-service"
     );
     expect(() =>
       parseReleaseSelection(
         JSON.stringify([{ id: "npm:@lenso/console", version: "0.2.0" }])
       )
-    ).toThrow("selection must contain exactly oci:lenso-console-service");
+    ).toThrow("selection must contain exactly one oci:lenso-console-service");
+    expect(() =>
+      parseReleaseSelection(
+        JSON.stringify([
+          { id: "oci:lenso-console-service", version: "0.2.0" },
+          { id: "oci:lenso-console-service", version: "0.2.0" },
+        ])
+      )
+    ).toThrow("unique canonical package identities");
   });
 
   test("builds and verifies the exact OCI graph before exposing release artifacts", async () => {
