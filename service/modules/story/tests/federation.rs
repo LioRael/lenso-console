@@ -171,13 +171,13 @@ fn sources(ticket_url: &str, sla_url: &str) -> Vec<FederatedStorySource> {
             "support-ticket",
             ticket_url,
             audience("support-ticket"),
-            Duration::from_secs(300),
+            Duration::from_mins(5),
         ),
         FederatedStorySource::new(
             "support-sla",
             sla_url,
             audience("support-sla"),
-            Duration::from_secs(300),
+            Duration::from_mins(5),
         ),
     ]
 }
@@ -679,7 +679,7 @@ async fn every_source_failure_is_an_explicit_typed_gap_and_late_data_resolves_tr
                 service_id,
                 format!("mock://{service_id}"),
                 format!("service:{service_id}/feed"),
-                Duration::from_secs(60),
+                Duration::from_mins(1),
             )
         })
         .collect();
