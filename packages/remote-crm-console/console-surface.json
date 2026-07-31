@@ -5,6 +5,11 @@
   "id": "remote-crm",
   "label": "Remote CRM",
   "navigation": {
+    "group": {
+      "id": "customer-data",
+      "label": "Customer data",
+      "order": 10
+    },
     "order": 70,
     "workspace": {
       "icon": "network",

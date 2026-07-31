@@ -3,13 +3,9 @@
 
 :root {
   color-scheme: dark;
-  --font-ui:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
-    "Segoe UI", system-ui, sans-serif;
-  --font-code:
-    "SFMono-Regular", "SF Mono", "Cascadia Code", "Roboto Mono", ui-monospace,
-    monospace;
-  --font-mono: var(--font-ui);
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-code: "Roboto Mono", ui-monospace, monospace;
+  --font-mono: var(--font-code);
 
   --bg-canvas: #000000;
   --bg-window: #000000;

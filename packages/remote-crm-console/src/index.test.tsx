@@ -11,6 +11,11 @@ describe("remote crm console package", () => {
     expect(remoteCrmConsoleManifest).toMatchObject({
       exportName: "remoteCrmConsoleModule",
       navigation: {
+        group: {
+          id: "customer-data",
+          label: "Customer data",
+          order: 10,
+        },
         order: 70,
         workspace: {
           icon: "network",
@@ -32,6 +37,15 @@ describe("remote crm console package", () => {
           label: "Remote CRM",
           navigation: remoteCrmConsoleManifest.navigation,
           path: "/data/remote-crm",
+        },
+        {
+          label: "Companies",
+          navigation: {
+            group: remoteCrmConsoleManifest.navigation?.group,
+            order: 80,
+            workspace: remoteCrmConsoleManifest.navigation?.workspace,
+          },
+          path: "/data/remote-crm/companies",
         },
       ],
     });

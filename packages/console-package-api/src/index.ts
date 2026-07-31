@@ -3,6 +3,14 @@ import type { ComponentType, FunctionComponent, ReactNode } from "react";
 import type { ConsoleUiComponents } from "./ui.js";
 
 export {
+  ConsoleLocaleProvider,
+  useConsoleLocale,
+  type ConsoleLanguagePreference,
+  type ConsoleLocale,
+  type ConsoleLocaleContextValue,
+} from "./locale.js";
+
+export {
   Badge,
   Button,
   ConsolePage,
@@ -46,8 +54,12 @@ export type ConsoleSurfaceIcon =
   | "activity"
   | "boxes"
   | "database"
+  | "git-compare-arrows"
+  | "house"
   | "key-round"
   | "network"
+  | "rocket"
+  | "server-cog"
   | "shield"
   | "settings"
   | "users"

@@ -85,6 +85,13 @@ export function selectDefaultConsoleRoute(
 }
 
 const RESERVED_HOST_CONSOLE_ROUTE_PATHS = new Set([
+  "/",
+  "/system",
+  "/changes",
+  "/runtime",
+  "/stories",
+  "/delivery",
+  "/settings",
   "/overview",
   "/operations",
   "/operations/queues",
@@ -128,12 +135,33 @@ export function consoleModuleMetadataFromManifest(
   };
 }
 
+const remoteCrmBuildTimeMetadata = consoleModuleMetadataFromManifest(
+  remoteCrmConsoleManifest
+);
+remoteCrmBuildTimeMetadata.console?.push({
+  area: "data",
+  icon: "network",
+  label: "Companies",
+  name: "companies",
+  navigation: {
+    group: remoteCrmConsoleManifest.navigation!.group!,
+    order: 80,
+    workspace: remoteCrmConsoleManifest.navigation!.workspace,
+  },
+  package: {
+    export: remoteCrmConsoleManifest.exportName,
+    name: remoteCrmConsoleManifest.packageName,
+  },
+  required_capabilities: remoteCrmConsoleManifest.requiredCapabilities,
+  route: "/data/remote-crm/companies",
+});
+
 export const buildTimeConsoleModuleMetadata = [
-  storyConsoleManifest,
-  identityConsoleManifest,
-  remoteCrmConsoleManifest,
-  systemRegistryConsoleManifest,
-].map(consoleModuleMetadataFromManifest);
+  consoleModuleMetadataFromManifest(storyConsoleManifest),
+  consoleModuleMetadataFromManifest(identityConsoleManifest),
+  remoteCrmBuildTimeMetadata,
+  consoleModuleMetadataFromManifest(systemRegistryConsoleManifest),
+];
 
 export const consoleModulePackageReferences =
   selectConsoleModulePackageReferences(buildTimeConsoleModuleMetadata);

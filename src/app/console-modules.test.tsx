@@ -208,6 +208,11 @@ describe("console module registry", () => {
         label: "Remote CRM",
         moduleName: "remote-crm",
         navigation: {
+          group: {
+            id: "customer-data",
+            label: "Customer data",
+            order: 10,
+          },
           order: 70,
           workspace: {
             icon: "network",
@@ -218,6 +223,29 @@ describe("console module registry", () => {
         packageName: "@lenso/remote-crm-console",
         route: "/data/remote-crm",
         surfaceName: "remote-crm",
+      },
+      {
+        area: "data",
+        exportName: "remoteCrmConsoleModule",
+        icon: "network",
+        label: "Companies",
+        moduleName: "remote-crm",
+        navigation: {
+          group: {
+            id: "customer-data",
+            label: "Customer data",
+            order: 10,
+          },
+          order: 80,
+          workspace: {
+            icon: "network",
+            id: "remote-crm",
+            label: "Remote CRM",
+          },
+        },
+        packageName: "@lenso/remote-crm-console",
+        route: "/data/remote-crm/companies",
+        surfaceName: "companies",
       },
       {
         area: "operations",
@@ -265,6 +293,11 @@ describe("console module registry", () => {
       },
       {
         navigation: {
+          group: {
+            id: "customer-data",
+            label: "Customer data",
+            order: 10,
+          },
           order: 70,
           workspace: {
             icon: "network",
@@ -273,6 +306,22 @@ describe("console module registry", () => {
           },
         },
         path: "/data/remote-crm",
+      },
+      {
+        navigation: {
+          group: {
+            id: "customer-data",
+            label: "Customer data",
+            order: 10,
+          },
+          order: 80,
+          workspace: {
+            icon: "network",
+            id: "remote-crm",
+            label: "Remote CRM",
+          },
+        },
+        path: "/data/remote-crm/companies",
       },
       {
         navigation: {
@@ -316,6 +365,11 @@ describe("console module registry", () => {
       },
       {
         navigation: {
+          group: {
+            id: "customer-data",
+            label: "Customer data",
+            order: 10,
+          },
           order: 70,
           workspace: {
             icon: "network",
@@ -324,6 +378,22 @@ describe("console module registry", () => {
           },
         },
         path: "/data/remote-crm",
+      },
+      {
+        navigation: {
+          group: {
+            id: "customer-data",
+            label: "Customer data",
+            order: 10,
+          },
+          order: 80,
+          workspace: {
+            icon: "network",
+            id: "remote-crm",
+            label: "Remote CRM",
+          },
+        },
+        path: "/data/remote-crm/companies",
       },
       {
         navigation: {
@@ -343,6 +413,7 @@ describe("console module registry", () => {
       "/runtime/stories",
       "/data/identity",
       "/data/remote-crm",
+      "/data/remote-crm/companies",
       "/system/services",
     ]);
   });
@@ -351,6 +422,10 @@ describe("console module registry", () => {
     expect(
       buildWorkspaceNavigation(buildConsoleNavigation(consoleModules)).map(
         (workspace) => ({
+          groups: workspace.groups.map((group) => ({
+            id: group.id,
+            items: group.items.map((item) => item.path),
+          })),
           id: workspace.id,
           items: workspace.items.map((item) => item.path),
           label: workspace.label,
@@ -359,17 +434,25 @@ describe("console module registry", () => {
     ).toEqual([
       {
         id: "system",
+        groups: [],
         items: ["/runtime/stories", "/system/services"],
         label: "System",
       },
       {
         id: "identity",
+        groups: [],
         items: ["/data/identity"],
         label: "Identity",
       },
       {
         id: "remote-crm",
-        items: ["/data/remote-crm"],
+        groups: [
+          {
+            id: "customer-data",
+            items: ["/data/remote-crm", "/data/remote-crm/companies"],
+          },
+        ],
+        items: [],
         label: "Remote CRM",
       },
     ]);

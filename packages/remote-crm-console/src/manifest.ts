@@ -9,6 +9,11 @@ const consoleSurfaceContract = consoleSurface as unknown as {
   readonly id: "remote-crm";
   readonly label: "Remote CRM";
   readonly navigation: {
+    readonly group: {
+      readonly id: "customer-data";
+      readonly label: "Customer data";
+      readonly order: 10;
+    };
     readonly order: 70;
     readonly workspace: {
       readonly icon: "network";
