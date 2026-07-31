@@ -1,0 +1,81 @@
+name: Verify production OCI absence
+run-name: verify-production-oci-absence:${{ inputs.plan_id }}:${{ inputs.package_id }}@${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_id:
+        description: Exact reviewed plan ID
+        required: true
+        type: string
+      release_commit:
+        description: Exact reviewed release commit
+        required: true
+        type: string
+      package_id:
+        description: Exact selected OCI package ID
+        required: true
+        type: string
+      version:
+        description: Exact selected OCI version
+        required: true
+        type: string
+      registry_repository:
+        description: Exact reviewed GHCR repository
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: verify-production-oci-absence-${{ inputs.plan_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact reviewed release commit
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: ${{ inputs.release_commit }}
+          persist-credentials: false
+      - name: Verify plan and registry binding
+        env:
+          PLAN_ID: ${{ inputs.plan_id }}
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+          VERSION: ${{ inputs.version }}
+          REGISTRY_REPOSITORY: ${{ inputs.registry_repository }}
+        run: |
+          test "$GITHUB_SHA" = "$RELEASE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$(jq -r .planId .lenso-release/plan.json)" = "$PLAN_ID"
+          test "$PACKAGE_ID" = "oci:lenso-console-service"
+          test "$REGISTRY_REPOSITORY" = "liorael/lenso-console"
+          test "$(jq -r --arg id "$PACKAGE_ID" '.packages[] | select(.id == $id) | .nextVersion' .lenso-release/plan.json)" = "$VERSION"
+          test "$(jq -r --arg id "$PACKAGE_ID" '.ociImages[$id].registryRepository' .lenso-release/config.json)" = "$REGISTRY_REPOSITORY"
+          test -z "$(git status --porcelain)"
+      - name: Prove the production manifest is absent
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          REGISTRY_REPOSITORY: ${{ inputs.registry_repository }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          token_response="$(mktemp)"
+          manifest_response="$(mktemp)"
+          token_status="$(curl --silent --show-error --output "$token_response" --write-out '%{http_code}' \
+            --user "${GITHUB_ACTOR}:${GHCR_TOKEN}" \
+            --get 'https://ghcr.io/token' \
+            --data-urlencode 'service=ghcr.io' \
+            --data-urlencode "scope=repository:${REGISTRY_REPOSITORY}:pull")"
+          test "$token_status" = 200
+          registry_token="$(jq -er .token "$token_response")"
+          manifest_status="$(curl --silent --show-error --output "$manifest_response" --write-out '%{http_code}' \
+            --header 'Accept: application/vnd.oci.image.manifest.v1+json' \
+            --header "Authorization: Bearer ${registry_token}" \
+            "https://ghcr.io/v2/${REGISTRY_REPOSITORY}/manifests/${VERSION}")"
+          test "$manifest_status" = 404
+          jq -e '.errors | any(.code == "MANIFEST_UNKNOWN")' "$manifest_response"
