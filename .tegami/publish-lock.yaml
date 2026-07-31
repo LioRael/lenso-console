@@ -1,20 +1,20 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@lenso/runtime-console\":\n    type: patch\n---\n\n### Features\n\nPublish the completed M6 delivery, extraction, Service, Story, and operations\nsurfaces as the reviewed Runtime Console artifact.\n"
+  - content: "---\npackages:\n  \"@lenso/console\":\n    type: patch\n  \"@lenso/console-package-api\":\n    type: patch\n---\n\n### Features\n\nPublish the independently operated Lenso Console Service with explicit Operator\nbootstrap, password-authenticated sessions, governed OCI delivery, and the renamed\nConsole package API contract.\n"
     filename: release.md
     v: 0.0.0
 core:packages:
   - changelogIds:
       - release.md
-    id: npm:@lenso/runtime-console
+    id: npm:@lenso/console
     updated: true
-  - id: npm:@lenso/runtime-console-api
-    updated: false
-  - id: npm:@lenso/remote-module-kit
-    updated: false
-  - id: npm:@lenso/service-kit
-    updated: false
+  - changelogIds:
+      - release.md
+    id: npm:@lenso/console-package-api
+    updated: true
 npm:packages:
-  - id: npm:@lenso/runtime-console
-  - id: npm:@lenso/runtime-console-api
-  - id: npm:@lenso/remote-module-kit
-  - id: npm:@lenso/service-kit
+  - id: npm:@lenso/console
+  - id: npm:@lenso/console-package-api
+  - id: npm:@lenso/identity-console
+  - id: npm:@lenso/remote-crm-console
+  - id: npm:@lenso/story-console
+  - id: npm:@lenso/system-registry-console
