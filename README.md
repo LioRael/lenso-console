@@ -1,231 +1,94 @@
 # Lenso Console
 
-[![CI](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml)
+Lenso Console is an independently installed Service for operating one Lenso
+System. It owns operator identity, Console composition, the System Registry,
+management intent and durable operation evidence. Managed Services remain the
+authority for their own state and expose management only through the System
+Plane Protocol.
 
-Operator-facing System Plane for one Lenso System. This repository owns the
-independently installed Console Service, its React Shell, and Console Module UI
-contracts.
+The Console is not embedded in a managed Service and is never on a business
+request path. It does not read a managed Service Store or host business
+administration pages.
 
-The console runs with seeded data by default, and switches core runtime views to the
-local backend when `VITE_RUNTIME_CONSOLE_MODE=api` and `VITE_API_BASE_URL` are set.
+Repository: [LioRael/lenso-console](https://github.com/LioRael/lenso-console)
 
-## Repository shape
+## Product shape
 
-- Lenso Console: this repository owns the standalone Lenso Service, Console Shell,
-  System Registry Module, Console package host, and delivery gates.
-- Lenso framework: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the
-  public framework and host crates consumed by the Console Service.
+- `service/` contains the Console API, Worker, migrations and linked official
+  Modules.
+- `src/` contains the capability-neutral web shell, identity/session gate,
+  composition recovery gate and isolated Module UI host.
+- `packages/console-bridge/` is the only public browser package. It implements
+  `lenso.console-bridge.v1` for sandboxed Module UI artifacts.
+- `packages/console-system-plane/` contains Console-owned contracts and Store
+  migrations.
 
-Keep both repositories checked out as siblings for backend-backed Console work:
+The shell has no built-in management page. A reviewed Console composition binds
+exact Module Releases, optional UI artifact digests and an explicit permission
+subset. UI artifacts run in sandboxed iframes without `allow-same-origin`; the
+parent validates every Bridge request against a short-lived handle and the exact
+composition grant. Operator credentials never enter the iframe.
 
-```text
-framework/
-  lenso/
-  lenso-console/
-```
+## Local development
 
-Repository operations notes, including branch protection and backend checkout
-secrets, live in [docs/repository-operations.md](docs/repository-operations.md).
-
-Local API calls use a development service token. The backend accepts this token
-only in local/development environments; configured API deployments should provide
-their own `VITE_API_AUTH_TOKEN`.
-
-```text
-Authorization: Bearer dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write
-```
-
-## Run the Console Service
+Install dependencies and start the complete Console Service:
 
 ```bash
 pnpm install
-cp service/.env.example service/.env
-docker compose --env-file service/.env -f service/docker-compose.yml up -d postgres
-pnpm service:migrate
 pnpm service:serve
 ```
 
-Open:
-
-```text
-http://localhost:3030
-```
-
-For the container installation path, including the migration-first Compose stack,
-see [service/README.md](service/README.md).
-
-## Shell development
-
-Run Vite separately when working on the Shell with hot reload:
+Or use the external CLI from a source checkout:
 
 ```bash
-VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3030 pnpm dev
+lenso console dev --console-root /path/to/lenso-console
 ```
 
-The production build always uses `/` because the Shell and Console API share one
-origin. The retired hosted archive and `/console/` embedding path are unsupported.
-
-Override the development service token when needed:
+Useful commands:
 
 ```bash
-VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write pnpm dev
-```
-
-## Service API QA
-
-From the repo root, start the legacy service API QA fixture:
-
-```bash
-just console-api-demo
-```
-
-Then seed and verify the remote story path:
-
-```bash
-just console-api-qa
-```
-
-Useful focused commands:
-
-```bash
-just console-api-fixture
-just console-api-smoke
-```
-
-The QA fixture creates a remote proxy call with
-`correlation_id = corr_console_api_fixture`, then verifies the Remote Calls page
-data, Runtime Story remote node/timeline shape, Technical Operations, payloads,
-and logs.
-
-If Postgres is already running and migrated:
-
-```bash
-SKIP_DB_SETUP=1 just console-api-demo
-```
-
-If default ports are busy:
-
-```bash
-REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localhost:3001 CONSOLE_PORT=5176 just console-api-demo
-```
-
-## Architecture
-
-- `src/app`: router and root providers.
-- `src/components/ui`: small Tailwind-composed primitives.
-- `src/components/runtime`: Console Shell, search, command palette, drawer, timeline nodes.
-- `src/data`: seeded mock runtime data.
-- `src/hooks`: keyboard and runtime query hooks with API/mock switching.
-- `src/lib`: formatting, query client, and ky HTTP client foundation.
-- `src/pages`: route-level screens.
-- `packages/console-package-api`: public host API for console package authors.
-- `packages/story-console`: first-party Story workbench package.
-- `packages/identity-console`: installed module package fixture used to exercise
-  framework wiring; it is not a product-default business module.
-
-## Console Packages
-
-Console frontend modules are local workspace packages under `packages/*`.
-They must import host capabilities through `@lenso/console-package-api`, define a
-`ConsolePackageManifest`, and export a `ConsoleModule`.
-
-Lenso provides the package framework and fixtures. Product projects choose and
-own their real business modules.
-
-Generate a linked Rust module scaffold first when starting a new project module:
-
-```bash
-pnpm create:module billing
-```
-
-This creates `modules/billing`, adds it to the Rust workspace, and registers it
-in `crates/app-bootstrap` as a linked module.
-
-Add `--with-console` to generate and register the matching Console
-package in the same command:
-
-```bash
-pnpm create:module billing --with-console
-```
-
-For a third-party service that should not compile into the host workspace, use
-the service kit, register the local workspace entry, and install the service
-manifest:
-
-```bash
-lenso service create support-suite-provider --lang ts --output-dir services --port 4110
-lenso service dev
-lenso service install https://example.com/lenso/service/v1/manifest
-```
-
-Service authoring SDKs, including `@lenso/service-kit`, are owned by the
-[Lenso framework repository](https://github.com/LioRael/lenso). The Console
-repository contains only Console Service and operator-facing UI concerns.
-
-See `docs/console-package-template.md` before adding a package. The short path is:
-
-1. Add `packages/<name>/package.json`.
-2. Define `src/manifest.ts` with `defineConsolePackageManifest`.
-3. Export `<name>ConsoleModule` from `src/index.tsx`.
-4. Register the package in host dependencies, test includes, manifest exports, and module export mapping.
-5. Run `pnpm check:console-packages`, `pnpm install --lockfile-only`, and `pnpm check`.
-
-For the standard workspace package shape, generate the frontend skeleton and host
-registration with:
-
-```bash
-pnpm create:console-package billing
-```
-
-The underlying CLI command is:
-
-```bash
-lenso console package create billing
-```
-
-The generator also writes `console-surface.json` and `console-surface.rs` so the
-frontend manifest and Rust `ModuleManifest.console` declaration can share the
-same package/export/route/capability values.
-
-### Console Package Dev Server
-
-Use the local dev shell to preview a package inside Lenso Console while
-editing it:
-
-```bash
-pnpm console-package:dev --package ../lenso-auth-module/packages/auth-console
-```
-
-The default mode is standalone mock mode. It starts the Lenso Console Shell,
-loads the package through a temporary `/console/dev/registry.json`, and serves
-the package bundle from a temporary `/console/extensions/dev/*` path.
-
-Proxy a real Lenso host when the package needs real admin data or capabilities:
-
-```bash
-pnpm console-package:dev \
-  --package ../lenso-auth-module/packages/auth-console \
-  --host http://localhost:3000
-```
-
-Dev mode does not write `.lenso/console/extensions` and does not install
-packages into the host. Production installs still use the normal service/module
-install path.
-
-## Checks
-
-The console uses Ultracite with the Oxlint/Oxfmt provider:
-
-- `oxlint.config.ts` extends `ultracite/oxlint/core`, `ultracite/oxlint/react`, and `ultracite/oxlint/tanstack`.
-- `oxfmt.config.ts` extends `ultracite/oxfmt`.
-- No ESLint, Prettier, or Biome stack is configured.
-
-```bash
-pnpm format
-pnpm format:check
-pnpm lint
-pnpm check:console-packages
 pnpm typecheck
+pnpm test
 pnpm build
+pnpm service:check
 pnpm check
 ```
+
+## Composition
+
+Composition changes are created and applied by the external Console
+Installation Authority:
+
+```bash
+lenso console composition plan \
+  --composition composition.json \
+  --env-file console.env \
+  --output composition-plan.json
+
+lenso console composition apply \
+  --plan composition-plan.json \
+  --env-file console.env \
+  --approve-plan-digest sha256:...
+```
+
+Plan application uses revision compare-and-set, an immutable plan digest and an
+append-only composition history. Installing a Module never grants permissions
+implicitly.
+
+## Module UI authoring
+
+Create a Module-owned UI artifact with the framework CLI:
+
+```bash
+lenso module create billing --with-console-ui
+lenso module dev --console-ui --repo-root ./modules/billing
+```
+
+The artifact and its manifest declaration are released atomically in the same
+Module Release. The catalog never indexes an independent Console package.
+
+## Release authority
+
+Production release and promotion are coordinated by `LioRael/lenso-release`.
+Repository write access alone does not authorize publication. Follow the
+reviewed release runbook and use the coordinator-issued plan and receipts.

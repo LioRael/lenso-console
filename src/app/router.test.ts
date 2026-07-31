@@ -1,20 +1,22 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  consoleBasePathFromBaseUrl,
-  createRuntimeConsoleRouter,
+  basePathFromViteBase,
+  createConsoleRouter,
   rootRedirectPath,
 } from "./router";
 
-describe("runtime console router", () => {
-  test("uses Launchpad as the root entrypoint", () => {
-    expect(rootRedirectPath).toBe("/launchpad");
+describe("Console router", () => {
+  test("uses the capability-neutral shell as the root entrypoint", () => {
+    expect(rootRedirectPath).toBe("/");
   });
 
-  test("mounts routes under the built console base path", () => {
-    expect(consoleBasePathFromBaseUrl("/console/")).toBe("/console");
-    expect(
-      createRuntimeConsoleRouter([], { basepath: "/console" }).options
-    ).toMatchObject({ basepath: "/console" });
+  test("mounts routes under the built Console base path", () => {
+    expect(basePathFromViteBase("/console/")).toBe("/console");
+    expect(createConsoleRouter({ basepath: "/console" }).options).toMatchObject(
+      {
+        basepath: "/console",
+      }
+    );
   });
 });

@@ -13,11 +13,26 @@ export type MandatoryConsoleRole = "identity" | "system_registry";
 export type ConsoleCompositionStatus = "ready" | "recovery_required";
 export type ConsoleModuleKind = "shell" | "mandatory" | "optional";
 export type ConsoleWorkloadMode = "normal" | "restore";
+export type ConsoleModuleDelivery = "linked" | "service";
 
 export interface ConsoleCompositionModule {
   moduleId: string;
   kind: ConsoleModuleKind;
   role?: MandatoryConsoleRole;
+  moduleReleaseDigest?: string;
+  uiArtifactDigest?: string;
+  uiArtifactBaseUrl?: string;
+  uiEntries?: ConsoleUiEntry[];
+  delivery?: ConsoleModuleDelivery;
+  grantedPermissions?: string[];
+}
+
+export interface ConsoleUiEntry {
+  name: string;
+  label: string;
+  route: string;
+  path: string;
+  icon?: string;
 }
 
 export interface ConsoleCompositionIssue {
@@ -40,6 +55,7 @@ export interface ConsoleServiceComposition {
 const mandatoryRoles = ["identity", "system_registry"] as const;
 const compositionStatuses = ["ready", "recovery_required"] as const;
 const moduleKinds = ["shell", "mandatory", "optional"] as const;
+const moduleDeliveries = ["linked", "service"] as const;
 const workloadModes = ["normal", "restore"] as const;
 
 export function decodeConsoleServiceComposition(
@@ -75,11 +91,75 @@ function decodeModule(value: unknown, index: number): ConsoleCompositionModule {
     record.role === undefined
       ? undefined
       : requireEnum(record.role, mandatoryRoles, `${path}.role`);
+  const delivery =
+    record.delivery === undefined
+      ? undefined
+      : requireEnum(record.delivery, moduleDeliveries, `${path}.delivery`);
+  const moduleReleaseDigest = optionalString(
+    record.moduleReleaseDigest,
+    `${path}.moduleReleaseDigest`
+  );
+  const uiArtifactDigest = optionalString(
+    record.uiArtifactDigest,
+    `${path}.uiArtifactDigest`
+  );
+  const uiArtifactBaseUrl = optionalString(
+    record.uiArtifactBaseUrl,
+    `${path}.uiArtifactBaseUrl`
+  );
+  const uiEntries = optionalUiEntries(record.uiEntries, `${path}.uiEntries`);
+  const grantedPermissions = optionalStringArray(
+    record.grantedPermissions,
+    `${path}.grantedPermissions`
+  );
   return {
+    ...(delivery ? { delivery } : {}),
+    ...(grantedPermissions ? { grantedPermissions } : {}),
     kind: requireEnum(record.kind, moduleKinds, `${path}.kind`),
     moduleId: requireString(record.moduleId, `${path}.moduleId`),
+    ...(moduleReleaseDigest ? { moduleReleaseDigest } : {}),
     ...(role ? { role } : {}),
+    ...(uiArtifactDigest ? { uiArtifactDigest } : {}),
+    ...(uiArtifactBaseUrl ? { uiArtifactBaseUrl } : {}),
+    ...(uiEntries ? { uiEntries } : {}),
   };
+}
+
+function optionalUiEntries(
+  value: unknown,
+  path: string
+): ConsoleUiEntry[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  return requireArray(value, path).map((item, index) => {
+    const entryPath = `${path}[${index}]`;
+    const record = requireRecord(item, entryPath);
+    const icon = optionalString(record.icon, `${entryPath}.icon`);
+    return {
+      ...(icon ? { icon } : {}),
+      label: requireString(record.label, `${entryPath}.label`),
+      name: requireString(record.name, `${entryPath}.name`),
+      path: requireString(record.path, `${entryPath}.path`),
+      route: requireString(record.route, `${entryPath}.route`),
+    };
+  });
+}
+
+function optionalString(value: unknown, path: string): string | undefined {
+  return value === undefined ? undefined : requireString(value, path);
+}
+
+function optionalStringArray(
+  value: unknown,
+  path: string
+): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  return requireArray(value, path).map((item, index) =>
+    requireString(item, `${path}[${index}]`)
+  );
 }
 
 function decodeIssue(value: unknown, index: number): ConsoleCompositionIssue {
@@ -213,15 +293,7 @@ function deduplicateIssues(
 
 export function ConsoleCompositionGate({ children }: PropsWithChildren) {
   const apiMode = isApiMode();
-  const query = useQuery({
-    enabled: apiMode,
-    queryKey: consoleCompositionQueryKey,
-    queryFn: async () =>
-      decodeConsoleServiceComposition(
-        await httpClient.get("api/console/v1/composition").json<unknown>()
-      ),
-    retry: false,
-  });
+  const query = useConsoleComposition(apiMode);
 
   if (!apiMode) {
     return children;
@@ -257,6 +329,18 @@ export function ConsoleCompositionGate({ children }: PropsWithChildren) {
     );
   }
   return children;
+}
+
+export function useConsoleComposition(enabled = isApiMode()) {
+  return useQuery({
+    enabled,
+    queryKey: consoleCompositionQueryKey,
+    queryFn: async () =>
+      decodeConsoleServiceComposition(
+        await httpClient.get("api/console/v1/composition").json<unknown>()
+      ),
+    retry: false,
+  });
 }
 
 function CompositionStatus({ message }: { message: string }) {

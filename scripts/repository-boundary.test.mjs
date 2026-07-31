@@ -15,14 +15,11 @@ const liveRepositoryIdentityFiles = [
   "Dockerfile",
   "README.md",
   "docs/agents/issue-tracker.md",
-  "packages/console-package-api/package.json",
+  "packages/console-bridge/package.json",
   "service/README.md",
 ];
 
-const repositoryIndependentScripts = [
-  "scripts/console-api-fixture.sh",
-  "scripts/console-api-qa.sh",
-];
+const repositoryIndependentScripts = [];
 
 const source = (file) => readFile(path.join(root, file), "utf-8");
 
@@ -63,10 +60,10 @@ describe("Lenso Console repository boundary", () => {
     ).toHaveLength(1);
   });
 
-  test("builds the public package API before release artifacts are packed", async () => {
+  test("builds the isolated Console Bridge before the web application", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];
-    const packageBuild = "pnpm --filter @lenso/console-package-api build";
+    const packageBuild = "pnpm --filter @lenso/console-bridge build";
 
     expect(build).toContain(packageBuild);
     expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
@@ -78,6 +75,9 @@ describe("Lenso Console repository boundary", () => {
     ).rejects.toThrow();
     await expect(
       access(path.join(root, "packages/service-kit"))
+    ).rejects.toThrow();
+    await expect(
+      access(path.join(root, "packages/console-package-api/package.json"))
     ).rejects.toThrow();
   });
 

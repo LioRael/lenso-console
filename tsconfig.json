@@ -13,11 +13,6 @@
     "moduleResolution": "Bundler",
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
-    "paths": {
-      "@lenso/console-package-api": [
-        "packages/console-package-api/src/index.ts"
-      ]
-    },
     "types": ["node"],
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -27,14 +22,18 @@
     "exactOptionalPropertyTypes": true
   },
   "include": [
-    "src",
-    "packages/story-console/src",
-    "packages/identity-console/src",
-    "packages/remote-crm-console/src",
-    "packages/system-registry-console/src",
-    "packages/console-package-api/src",
-    "packages/service-kit/src",
-    "packages/console-system-plane/src"
+    "src/main.tsx",
+    "src/app/console-auth.tsx",
+    "src/app/console-composition.tsx",
+    "src/app/module-ui-page.tsx",
+    "src/app/providers.tsx",
+    "src/app/router.tsx",
+    "src/app/system-shell.tsx",
+    "src/components/ui/button.tsx",
+    "src/lib/cn.ts",
+    "src/lib/http-client.ts",
+    "src/lib/query-client.ts",
+    "src/vite-env.d.ts"
   ],
   "references": []
 }

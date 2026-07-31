@@ -173,10 +173,7 @@ describe("Console Service release manifest", () => {
     ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
     expect(
       parseReleaseSelection(
-        JSON.stringify([
-          { id: "npm:@lenso/console-package-api", version: "0.1.1" },
-          { id: "oci:lenso-console-service", version: "0.2.0" },
-        ])
+        JSON.stringify([{ id: "oci:lenso-console-service", version: "0.2.0" }])
       )
     ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
     expect(() => parseReleaseSelection("[]")).toThrow(

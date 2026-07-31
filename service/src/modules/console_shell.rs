@@ -5,7 +5,8 @@ use axum::http::{HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use lenso::host::http::{
-    ApiOpenApiRouter, AppContext, Json, ModuleHttpMethod, ModuleHttpRoute, OpenApiRouter,
+    ApiErrorResponse, ApiOpenApiRouter, AppContext, AppError, ErrorCode, ErrorResponse,
+    HttpRequestContext, Json, ModuleHttpMethod, ModuleHttpRoute, OpenApiRouter, RequestContext,
     UserActor, routes,
 };
 use lenso::host::prelude::*;
@@ -96,7 +97,7 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
             .layer(SetResponseHeaderLayer::if_not_present(
                 HeaderName::from_static("content-security-policy"),
                 HeaderValue::from_static(
-                    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+                    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; frame-src https: http://localhost http://127.0.0.1; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
                 ),
             ))
             .layer(SetResponseHeaderLayer::if_not_present(
@@ -257,12 +258,52 @@ fn operator_bootstrap_state(value: Option<&Value>) -> Result<ConsoleBootstrapSta
     tag = "console-composition",
     responses(
         (status = 200, body = ConsoleServiceComposition, content_type = "application/json"),
-        (status = 401, description = "Console operator session is required")
+        (status = 401, description = "Console operator session is required"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
-async fn get_console_composition(_actor: UserActor) -> Json<ConsoleServiceComposition> {
+async fn get_console_composition(
+    State(ctx): State<AppContext>,
+    _actor: UserActor,
+    HttpRequestContext(request_ctx): HttpRequestContext,
+) -> Result<Json<ConsoleServiceComposition>, ApiErrorResponse> {
     let workload_mode = crate::recovery_mode().unwrap_or(crate::ConsoleRecoveryMode::Restore);
-    Json(official_composition(workload_mode))
+    let stored = sqlx::query_scalar::<_, Value>(
+        "select document from console.service_composition where singleton = true",
+    )
+    .fetch_optional(&ctx.db)
+    .await
+    .map_err(|error| composition_error(error, &request_ctx))?;
+    let mut composition = match stored {
+        None => official_composition(workload_mode),
+        Some(value) => {
+            let composition: ConsoleServiceComposition =
+                serde_json::from_value(value).map_err(|error| {
+                    ApiErrorResponse::with_context(
+                        AppError::new(ErrorCode::Internal, "Stored Console composition is invalid")
+                            .with_source(error),
+                        &request_ctx,
+                    )
+                })?;
+            composition.validate_stored().map_err(|message| {
+                ApiErrorResponse::with_context(
+                    AppError::new(ErrorCode::Internal, message),
+                    &request_ctx,
+                )
+            })?;
+            composition
+        }
+    };
+    composition.workload_mode = workload_mode;
+    Ok(Json(composition))
+}
+
+fn composition_error(error: sqlx::Error, request_ctx: &RequestContext) -> ApiErrorResponse {
+    ApiErrorResponse::with_context(
+        AppError::new(ErrorCode::Internal, "Console composition Store read failed")
+            .with_source(error),
+        request_ctx,
+    )
 }
 
 #[cfg(test)]

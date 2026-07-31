@@ -19,7 +19,7 @@ const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.jo
 export const apiAuthToken =
   (import.meta.env.VITE_API_AUTH_TOKEN as string | undefined) ??
   (import.meta.env.DEV ? developmentApiAuthToken : undefined);
-export const consoleAccessTokenStorageKey = "runtime-console:access-token";
+export const consoleAccessTokenStorageKey = "lenso-console:access-token";
 
 export function storedConsoleAccessToken() {
   return typeof window === "undefined"
