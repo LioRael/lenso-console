@@ -56,6 +56,7 @@ jobs:
         with:
           node-version: 24.18.0
           cache: pnpm
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: Install reviewed publishing toolchains
         run: |
           corepack enable
@@ -163,6 +164,7 @@ jobs:
         with:
           node-version: 24.18.0
           cache: pnpm
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - name: Install reviewed recovery toolchains
         run: |
           corepack enable
