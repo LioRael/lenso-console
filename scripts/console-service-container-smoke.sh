@@ -5,7 +5,6 @@ repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 project_name="lenso-console-smoke-$$"
 http_port=$((33000 + ($$ % 1000)))
 environment_file=$(mktemp "${TMPDIR:-/tmp}/lenso-console-smoke.XXXXXX")
-extensions_dir=$(mktemp -d "${TMPDIR:-/tmp}/lenso-console-extensions.XXXXXX")
 compose_file="$repository_root/service/compose.yml"
 
 cleanup() {
@@ -15,32 +14,13 @@ cleanup() {
     --file "$compose_file" \
     down --volumes --remove-orphans >/dev/null 2>&1 || true
   rm -f "$environment_file" "$environment_file.story-response"
-  rm -rf "$extensions_dir"
 }
 trap cleanup EXIT INT TERM
-
-mkdir -p "$extensions_dir/runtime/smoke"
-cat >"$extensions_dir/registry.json" <<'EOF'
-{
-  "version": 1,
-  "bundles": [
-    {
-      "packageName": "@lenso/smoke-console",
-      "exportName": "smokeConsoleModule",
-      "entry": "/extensions/runtime/smoke/entry.js",
-      "hostApi": "1"
-    }
-  ]
-}
-EOF
-printf '%s\n' 'export const smokeConsoleModule = { id: "smoke", surfaces: [] };' >"$extensions_dir/runtime/smoke/entry.js"
-chmod -R a+rX "$extensions_dir"
 
 {
   printf '%s\n' 'POSTGRES_PASSWORD=container-smoke-password'
   printf '%s\n' 'CONSOLE_DATABASE_URL=postgres://lenso_console:container-smoke-password@database:5432/lenso_console'
   printf '%s\n' 'CONSOLE_RECOVERY_MODE=normal'
-  printf 'CONSOLE_EXTENSIONS_PATH=%s\n' "$extensions_dir"
   printf '%s\n' 'LENSO_MODULE_PLATFORM_STORY_ENABLED=false'
   printf 'CONSOLE_PUBLIC_ORIGIN=http://127.0.0.1:%s\n' "$http_port"
   printf 'CONSOLE_HTTP_PORT=%s\n' "$http_port"
@@ -74,8 +54,6 @@ done
 
 curl --fail --silent --show-error "http://127.0.0.1:$http_port/" | grep -q '<title>Lenso Console</title>'
 curl --fail --silent --show-error "http://127.0.0.1:$http_port/system/services" | grep -q '<title>Lenso Console</title>'
-curl --fail --silent --show-error "http://127.0.0.1:$http_port/extensions/registry.json" | grep -q '@lenso/smoke-console'
-curl --fail --silent --show-error "http://127.0.0.1:$http_port/extensions/runtime/smoke/entry.js" | grep -q 'smokeConsoleModule'
 
 unknown_status=$(curl --output /dev/null --silent --write-out '%{http_code}' "http://127.0.0.1:$http_port/api/console/v1/unknown")
 if [ "$unknown_status" != "404" ]; then

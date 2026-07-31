@@ -3,13 +3,12 @@ use std::path::{Path, PathBuf};
 
 use axum::http::StatusCode;
 use lenso::host::http::{Json, UserActor};
-use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use utoipa::ToSchema;
 
-pub const EXTENSIONS_MANAGE: &str = "console.extensions.manage";
-const MAX_ARTIFACT_BYTES: usize = 16 * 1024 * 1024;
+pub const ARTIFACTS_MANAGE: &str = "console.artifacts.manage";
+const MAX_ARTIFACT_BYTES: usize = 64 * 1024 * 1024;
 static RECONCILE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]
@@ -22,75 +21,75 @@ pub struct ConsoleCompositionRequest {
     artifacts: Vec<ConsoleCompositionArtifact>,
 }
 
-#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 struct ConsoleCompositionArtifact {
     module_id: String,
-    package: String,
-    version: String,
-    artifact_locator: String,
-    integrity: String,
-    exports: Vec<String>,
-    host_api_requirement: String,
+    module_release_digest: String,
+    locator: String,
+    digest: String,
+    format: String,
+    entries: Vec<ConsoleUiArtifactEntry>,
+    bridge_protocol: String,
+    requested_permissions: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+struct ConsoleUiArtifactEntry {
+    name: String,
+    path: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ConsoleCompositionReceipt {
     candidate_lock_digest: String,
-    artifact_digests: Vec<String>,
-    registry_digest: String,
+    artifacts: Vec<MaterializedArtifact>,
 }
 
-#[derive(Debug, Serialize)]
-struct BundleRegistry {
-    version: u8,
-    bundles: Vec<BundleManifest>,
-}
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
-struct BundleManifest {
-    package_name: String,
-    export_name: String,
-    entry: String,
-    host_api: String,
-    version: String,
+struct MaterializedArtifact {
+    module_id: String,
+    module_release_digest: String,
+    artifact_digest: String,
+    stored_path: String,
 }
 
 #[utoipa::path(
     post,
-    path = "/api/console/v1/extensions/reconcile",
-    operation_id = "console_reconcile_extensions",
-    tag = "console-extensions",
+    path = "/api/console/v1/artifacts/reconcile",
+    operation_id = "console_reconcile_artifacts",
+    tag = "console-artifacts",
     request_body = ConsoleCompositionRequest,
     responses(
         (status = 200, body = ConsoleCompositionReceipt, content_type = "application/json"),
         (status = 400, description = "The composition or artifact contract is invalid"),
         (status = 401, description = "Console operator session is required"),
-        (status = 403, description = "The operator lacks extension management authority"),
+        (status = 403, description = "The operator lacks artifact management authority"),
         (status = 502, description = "A declared artifact could not be downloaded")
     )
 )]
-pub async fn reconcile_extensions(
+pub async fn reconcile_artifacts(
     actor: UserActor,
     Json(request): Json<ConsoleCompositionRequest>,
 ) -> Result<Json<ConsoleCompositionReceipt>, (StatusCode, String)> {
-    if !actor.scopes.iter().any(|scope| scope == EXTENSIONS_MANAGE) {
+    if !actor.scopes.iter().any(|scope| scope == ARTIFACTS_MANAGE) {
         return Err((
             StatusCode::FORBIDDEN,
-            format!("missing required capability {EXTENSIONS_MANAGE}"),
+            format!("missing required capability {ARTIFACTS_MANAGE}"),
         ));
     }
     let _guard = RECONCILE_LOCK.lock().await;
     validate_request(&request).map_err(bad_request)?;
-    let mut downloads = BTreeMap::new();
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(internal_error)?;
+    let mut downloads = BTreeMap::new();
     for artifact in &request.artifacts {
-        let url = reqwest::Url::parse(&artifact.artifact_locator).map_err(bad_request)?;
+        let url = reqwest::Url::parse(&artifact.locator).map_err(bad_request)?;
         if url.scheme() != "https"
             && !(url.scheme() == "http"
                 && url.host_str().is_some_and(|host| {
@@ -115,19 +114,19 @@ pub async fn reconcile_extensions(
             .content_length()
             .is_some_and(|length| length > MAX_ARTIFACT_BYTES as u64)
         {
-            return Err(bad_request("Console artifact exceeds the 16 MiB limit"));
+            return Err(bad_request("Console artifact exceeds the 64 MiB limit"));
         }
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(upstream_error)? {
             if bytes.len().saturating_add(chunk.len()) > MAX_ARTIFACT_BYTES {
-                return Err(bad_request("Console artifact exceeds the 16 MiB limit"));
+                return Err(bad_request("Console artifact exceeds the 64 MiB limit"));
             }
             bytes.extend_from_slice(&chunk);
         }
-        downloads.insert(artifact.artifact_locator.clone(), bytes);
+        downloads.insert(artifact.locator.clone(), bytes);
     }
-    let root = super::console_shell::console_extensions_root();
-    tokio::task::spawn_blocking(move || reconcile_downloads(&root, &request, &downloads))
+    let root = super::console_shell::console_artifact_root();
+    tokio::task::spawn_blocking(move || materialize_downloads(&root, &request, &downloads))
         .await
         .map_err(internal_error)?
         .map(Json)
@@ -135,11 +134,8 @@ pub async fn reconcile_extensions(
 }
 
 fn validate_request(request: &ConsoleCompositionRequest) -> Result<(), String> {
-    if request.kind != "console_composition" {
-        return Err("kind must be console_composition".to_owned());
-    }
-    if request.console_service_id != "lenso-console" {
-        return Err("console_service_id must be lenso-console".to_owned());
+    if request.kind != "console_composition" || request.console_service_id != "lenso-console" {
+        return Err("request must be a lenso-console composition effect".to_owned());
     }
     validate_digest(&request.candidate_lock_digest)?;
     if request.effect_id.trim().is_empty() {
@@ -153,91 +149,63 @@ fn validate_request(request: &ConsoleCompositionRequest) -> Result<(), String> {
                 artifact.module_id
             ));
         }
-        if artifact.package.trim().is_empty() || artifact.exports.is_empty() {
-            return Err("Console package and exports must be non-empty".to_owned());
+        validate_digest(&artifact.module_release_digest)?;
+        validate_digest(&artifact.digest)?;
+        if artifact.format != "isolated_web" {
+            return Err("only isolated_web Console artifacts are supported".to_owned());
         }
-        Version::parse(&artifact.version).map_err(|error| error.to_string())?;
-        let requirement =
-            VersionReq::parse(&artifact.host_api_requirement).map_err(|error| error.to_string())?;
-        if !requirement.matches(&Version::new(1, 0, 0)) {
-            return Err(format!(
-                "{} requires unsupported Console host API {}",
-                artifact.package, artifact.host_api_requirement
-            ));
+        if artifact.bridge_protocol != "lenso.console-bridge.v1" {
+            return Err("unsupported Console Bridge protocol".to_owned());
         }
-        validate_digest(&artifact.integrity)?;
-        let mut exports = artifact.exports.clone();
-        exports.sort();
-        exports.dedup();
-        if exports != artifact.exports || exports.iter().any(|export| export.trim().is_empty()) {
-            return Err("Console exports must be sorted, unique, and non-empty".to_owned());
+        if artifact.entries.is_empty()
+            || artifact.entries.iter().any(|entry| {
+                entry.name.trim().is_empty()
+                    || entry.path.trim().is_empty()
+                    || entry.path.starts_with('/')
+                    || entry.path.split('/').any(|segment| segment == "..")
+            })
+        {
+            return Err("Console artifact entries must be safe relative paths".to_owned());
         }
     }
     Ok(())
 }
 
-fn reconcile_downloads(
+fn materialize_downloads(
     root: &Path,
     request: &ConsoleCompositionRequest,
     downloads: &BTreeMap<String, Vec<u8>>,
 ) -> Result<ConsoleCompositionReceipt, String> {
     validate_request(request)?;
-    std::fs::create_dir_all(root.join("runtime")).map_err(|error| error.to_string())?;
-    let mut bundles = Vec::new();
-    let mut artifact_digests = Vec::new();
+    let mut materialized = Vec::new();
     for artifact in &request.artifacts {
         let bytes = downloads
-            .get(&artifact.artifact_locator)
+            .get(&artifact.locator)
             .ok_or_else(|| format!("missing downloaded artifact for {}", artifact.module_id))?;
-        let actual_digest = sha256(bytes);
-        if actual_digest != artifact.integrity {
+        if sha256(bytes) != artifact.digest {
             return Err(format!(
                 "Console artifact integrity mismatch for {}",
                 artifact.module_id
             ));
         }
-        artifact_digests.push(actual_digest.clone());
-        let module_directory = module_directory(&artifact.module_id);
-        let file_name = format!("{}.js", actual_digest.trim_start_matches("sha256:"));
-        let relative_entry = PathBuf::from("runtime")
-            .join(&module_directory)
-            .join(&file_name);
-        atomic_write(&root.join(&relative_entry), bytes)?;
-        let entry = format!("/extensions/{}", relative_entry.to_string_lossy());
-        for export_name in &artifact.exports {
-            bundles.push(BundleManifest {
-                package_name: artifact.package.clone(),
-                export_name: export_name.clone(),
-                entry: entry.clone(),
-                host_api: "1".to_owned(),
-                version: artifact.version.clone(),
-            });
-        }
+        let stored_path = PathBuf::from("objects")
+            .join(artifact.digest.trim_start_matches("sha256:"))
+            .with_extension("artifact");
+        atomic_write(&root.join(&stored_path), bytes)?;
+        materialized.push(MaterializedArtifact {
+            module_id: artifact.module_id.clone(),
+            module_release_digest: artifact.module_release_digest.clone(),
+            artifact_digest: artifact.digest.clone(),
+            stored_path: stored_path.to_string_lossy().into_owned(),
+        });
     }
-    bundles.sort_by(|left, right| {
-        (&left.package_name, &left.export_name).cmp(&(&right.package_name, &right.export_name))
-    });
-    artifact_digests.sort();
-    let registry = serde_json::to_vec_pretty(&BundleRegistry {
-        version: 1,
-        bundles,
-    })
-    .map_err(|error| error.to_string())?;
-    let registry_digest = sha256(&registry);
-    atomic_write(&root.join("registry.json"), &registry)?;
     let receipt = ConsoleCompositionReceipt {
         candidate_lock_digest: request.candidate_lock_digest.clone(),
-        artifact_digests,
-        registry_digest,
+        artifacts: materialized,
     };
     let receipt_bytes = serde_json::to_vec_pretty(&receipt).map_err(|error| error.to_string())?;
     atomic_write(&root.join("composition-receipt.json"), &receipt_bytes)?;
     Ok(receipt)
-}
-
-fn module_directory(module_id: &str) -> String {
-    let digest = Sha256::digest(module_id.as_bytes());
-    format!("module-{}", &format!("{digest:x}")[..16])
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -291,7 +259,7 @@ mod tests {
 
     fn root() -> PathBuf {
         std::env::temp_dir().join(format!(
-            "lenso-console-composition-{}-{}",
+            "lenso-console-artifacts-{}-{}",
             std::process::id(),
             NEXT_ROOT.fetch_add(1, Ordering::Relaxed)
         ))
@@ -305,69 +273,55 @@ mod tests {
             candidate_lock_digest: format!("sha256:{}", "a".repeat(64)),
             artifacts: vec![ConsoleCompositionArtifact {
                 module_id: "acme/crm".to_owned(),
-                package: "@acme/crm-console".to_owned(),
-                version: "1.0.0".to_owned(),
-                artifact_locator: "https://modules.example/crm.js".to_owned(),
-                integrity: sha256(bytes),
-                exports: vec!["crmConsoleModule".to_owned()],
-                host_api_requirement: "^1".to_owned(),
+                module_release_digest: format!("sha256:{}", "b".repeat(64)),
+                locator: "https://modules.example/crm.artifact".to_owned(),
+                digest: sha256(bytes),
+                format: "isolated_web".to_owned(),
+                entries: vec![ConsoleUiArtifactEntry {
+                    name: "main".to_owned(),
+                    path: "index.html".to_owned(),
+                }],
+                bridge_protocol: "lenso.console-bridge.v1".to_owned(),
+                requested_permissions: Vec::new(),
             }],
         }
     }
 
     #[test]
-    fn materializes_verified_bundle_and_commits_registry_last() {
+    fn materializes_verified_artifact_and_receipt() {
         let root = root();
-        let bytes = b"export const crmConsoleModule = { id: 'crm', surfaces: [] };";
+        let bytes = b"immutable isolated web artifact";
         let request = request(bytes);
-        let downloads = BTreeMap::from([(
-            request.artifacts[0].artifact_locator.clone(),
-            bytes.to_vec(),
-        )]);
+        let downloads = BTreeMap::from([(request.artifacts[0].locator.clone(), bytes.to_vec())]);
 
-        let receipt = reconcile_downloads(&root, &request, &downloads).unwrap();
-        let registry: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(root.join("registry.json")).unwrap()).unwrap();
-        let entry = registry["bundles"][0]["entry"].as_str().unwrap();
+        let receipt = materialize_downloads(&root, &request, &downloads).unwrap();
 
-        assert_eq!(registry["bundles"][0]["hostApi"], "1");
-        assert!(
-            root.join(entry.trim_start_matches("/extensions/"))
-                .is_file()
-        );
-        assert_eq!(receipt.artifact_digests, [sha256(bytes)]);
+        assert_eq!(receipt.artifacts.len(), 1);
+        assert!(root.join(&receipt.artifacts[0].stored_path).is_file());
+        assert!(root.join("composition-receipt.json").is_file());
         std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
-    fn rejects_integrity_mismatch_without_replacing_registry() {
+    fn rejects_integrity_mismatch_without_writing_receipt() {
         let root = root();
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(root.join("registry.json"), b"old-registry").unwrap();
         let request = request(b"expected");
-        let downloads = BTreeMap::from([(
-            request.artifacts[0].artifact_locator.clone(),
-            b"tampered".to_vec(),
-        )]);
+        let downloads =
+            BTreeMap::from([(request.artifacts[0].locator.clone(), b"tampered".to_vec())]);
 
-        assert!(reconcile_downloads(&root, &request, &downloads).is_err());
-        assert_eq!(
-            std::fs::read(root.join("registry.json")).unwrap(),
-            b"old-registry"
-        );
-        std::fs::remove_dir_all(root).unwrap();
+        assert!(materialize_downloads(&root, &request, &downloads).is_err());
+        assert!(!root.join("composition-receipt.json").exists());
     }
 
     #[test]
-    fn empty_composition_removes_all_registry_entries() {
+    fn empty_composition_commits_an_empty_receipt() {
         let root = root();
         let mut request = request(b"unused");
         request.artifacts.clear();
 
-        reconcile_downloads(&root, &request, &BTreeMap::new()).unwrap();
-        let registry: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(root.join("registry.json")).unwrap()).unwrap();
-        assert_eq!(registry["bundles"], serde_json::json!([]));
+        let receipt = materialize_downloads(&root, &request, &BTreeMap::new()).unwrap();
+
+        assert!(receipt.artifacts.is_empty());
         std::fs::remove_dir_all(root).unwrap();
     }
 }

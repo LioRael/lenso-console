@@ -16,9 +16,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use utoipa::ToSchema;
 
-use super::console_extensions::{
-    __path_reconcile_extensions, EXTENSIONS_MANAGE, reconcile_extensions,
-};
+use super::console_artifacts::{__path_reconcile_artifacts, ARTIFACTS_MANAGE, reconcile_artifacts};
 use crate::composition::{CONSOLE_SERVICE_ID, ConsoleServiceComposition, official_composition};
 
 pub const MODULE_NAME: &str = "lenso/console-shell";
@@ -51,14 +49,14 @@ fn manifest() -> ModuleManifest {
             },
             ModuleHttpRoute {
                 method: ModuleHttpMethod::Post,
-                path: "/api/console/v1/extensions/reconcile".to_owned(),
-                capability: Some(EXTENSIONS_MANAGE.to_owned()),
+                path: "/api/console/v1/artifacts/reconcile".to_owned(),
+                capability: Some(ARTIFACTS_MANAGE.to_owned()),
                 operation: None,
-                display_name: Some("Reconcile Console Extensions".to_owned()),
+                display_name: Some("Reconcile Console UI Artifacts".to_owned()),
                 story_title: None,
             },
         ])
-        .capabilities(vec![EXTENSIONS_MANAGE.to_owned()])
+        .capabilities(vec![ARTIFACTS_MANAGE.to_owned()])
         .build()
 }
 
@@ -68,7 +66,7 @@ fn http_binding() -> LinkedBinding {
             public_prefixes: &[
                 "/health/",
                 "/api/console/v1/composition",
-                "/api/console/v1/extensions/reconcile",
+                "/api/console/v1/artifacts/reconcile",
                 "/bootstrap/v1/status",
             ],
             merge: merge_http,
@@ -78,7 +76,6 @@ fn http_binding() -> LinkedBinding {
 
 fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
     let root = console_web_root();
-    let extensions_root = console_extensions_root();
     let index = root.join("index.html");
     assert!(
         index.is_file(),
@@ -90,9 +87,8 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
         .routes(routes!(get_console_bootstrap_status))
         .fallback(not_found);
     let shell = OpenApiRouter::new()
-        .merge(console_extension_router(&extensions_root))
         .routes(routes!(get_console_composition))
-        .routes(routes!(reconcile_extensions))
+        .routes(routes!(reconcile_artifacts))
         .nest("/bootstrap", bootstrap)
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
@@ -127,18 +123,6 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
     base.merge(shell)
 }
 
-fn console_extension_router<S>(root: &Path) -> OpenApiRouter<S>
-where
-    S: Clone + Send + Sync + 'static,
-{
-    OpenApiRouter::<S>::new()
-        .route_service(
-            "/extensions/registry.json",
-            ServeFile::new(root.join("registry.json")),
-        )
-        .nest_service("/extensions/runtime", ServeDir::new(root.join("runtime")))
-}
-
 fn console_web_root() -> PathBuf {
     std::env::var_os("CONSOLE_WEB_ROOT").map_or_else(
         || {
@@ -151,9 +135,9 @@ fn console_web_root() -> PathBuf {
     )
 }
 
-pub(super) fn console_extensions_root() -> PathBuf {
-    std::env::var_os("CONSOLE_EXTENSIONS_ROOT").map_or_else(
-        || Path::new(env!("CARGO_MANIFEST_DIR")).join("extensions"),
+pub(super) fn console_artifact_root() -> PathBuf {
+    std::env::var_os("CONSOLE_ARTIFACT_ROOT").map_or_else(
+        || Path::new(env!("CARGO_MANIFEST_DIR")).join("artifacts"),
         PathBuf::from,
     )
 }
@@ -303,17 +287,12 @@ async fn get_console_composition(_actor: UserActor) -> Json<ConsoleServiceCompos
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::{Body, to_bytes};
-    use axum::http::Request;
-    use std::time::{SystemTime, UNIX_EPOCH};
-    use tower::ServiceExt;
-
     #[test]
-    fn shell_module_declares_extension_management_capability() {
+    fn shell_module_declares_artifact_management_capability() {
         let manifest = manifest();
 
         assert_eq!(manifest.name, MODULE_NAME);
-        assert_eq!(manifest.capabilities, [EXTENSIONS_MANAGE]);
+        assert_eq!(manifest.capabilities, [ARTIFACTS_MANAGE]);
         assert!(manifest.console.is_empty());
         assert_eq!(manifest.http_routes.len(), 3);
         assert_eq!(manifest.http_routes[0].path, "/api/console/v1/composition");
@@ -322,11 +301,11 @@ mod tests {
         assert!(manifest.http_routes[1].capability.is_none());
         assert_eq!(
             manifest.http_routes[2].path,
-            "/api/console/v1/extensions/reconcile"
+            "/api/console/v1/artifacts/reconcile"
         );
         assert_eq!(
             manifest.http_routes[2].capability.as_deref(),
-            Some(EXTENSIONS_MANAGE)
+            Some(ARTIFACTS_MANAGE)
         );
     }
 
@@ -359,56 +338,6 @@ mod tests {
                     .join("dist")
             );
         }
-    }
-
-    #[tokio::test]
-    async fn console_service_serves_installed_extension_registry_and_bundles() {
-        let nonce = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system clock after epoch")
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!("lenso-console-extensions-{nonce}"));
-        tokio::fs::create_dir_all(root.join("runtime/crm"))
-            .await
-            .expect("create extension fixture");
-        tokio::fs::write(root.join("registry.json"), r#"{"version":1,"bundles":[]}"#)
-            .await
-            .expect("write extension registry");
-        tokio::fs::write(
-            root.join("runtime/crm/entry.js"),
-            "export const crmConsoleModule = {};",
-        )
-        .await
-        .expect("write extension bundle");
-
-        let (app, _) = console_extension_router::<()>(&root).split_for_parts();
-        for (path, expected) in [
-            ("/extensions/registry.json", "\"version\":1"),
-            ("/extensions/runtime/crm/entry.js", "crmConsoleModule"),
-        ] {
-            let response = app
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .uri(path)
-                        .body(Body::empty())
-                        .expect("build extension request"),
-                )
-                .await
-                .expect("serve extension request");
-            assert_eq!(response.status(), StatusCode::OK, "path: {path}");
-            let body = to_bytes(response.into_body(), usize::MAX)
-                .await
-                .expect("read extension response");
-            assert!(
-                String::from_utf8_lossy(&body).contains(expected),
-                "path: {path}"
-            );
-        }
-
-        tokio::fs::remove_dir_all(root)
-            .await
-            .expect("remove extension fixture");
     }
 
     #[test]

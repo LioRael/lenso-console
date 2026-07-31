@@ -1644,7 +1644,7 @@ function MissingConsolePackagesTable({
                     >
                       {plan
                         ? `pnpm --dir apps/runtime-console add ${plan.packageName}`
-                        : "Console Service extension install required"}
+                        : "extension registry entry required"}
                     </div>
                   </td>
                   <td className="truncate px-3 py-1.5 text-(--secondary)">

@@ -71,18 +71,17 @@ API and embedded Worker. Packaged deployments may set `CONSOLE_WEB_ROOT` to an
 absolute directory containing the built `index.html`; the API fails closed when
 the Shell build is absent.
 
-Module Console extensions are owned by this Service, not by managed Services.
-Set `CONSOLE_EXTENSIONS_ROOT` to a directory containing `registry.json` and a
-`runtime/` bundle tree. The Service publishes them at
-`/extensions/registry.json` and `/extensions/runtime/*`; the browser validates
-same-origin references, Console host API compatibility, and exported
-`ConsoleModule` values before route registration. Operators with the
-`console.extensions.manage` capability may reconcile reviewed artifacts through
-`POST /api/console/v1/extensions/reconcile`. The Service downloads each
-artifact over HTTPS, verifies its SHA-256 digest and host API requirement, and
-commits a content-addressed bundle registry. Container deployments persist this
-Console-owned directory at `/opt/lenso-console/extensions`; it remains writable
-only by the container's unprivileged UID `10001`.
+Module Console UI artifacts are owned by this Service, not by managed Services.
+Operators with the `console.artifacts.manage` capability may reconcile reviewed
+artifacts through `POST /api/console/v1/artifacts/reconcile`. The Service
+downloads each HTTPS artifact with a bounded response size, verifies its exact
+SHA-256 digest and `lenso.console-bridge.v1` contract, and writes a
+content-addressed object plus an atomic composition receipt. Container
+deployments persist this Console-owned store at
+`/opt/lenso-console/artifacts`; it remains writable only by the container's
+unprivileged UID `10001`. Artifacts are not exposed as same-origin JavaScript;
+isolated UI loading continues through the reviewed composition and sandboxed
+Console Bridge boundary.
 
 ## Container installation
 

@@ -24,10 +24,10 @@ describe("Console Service delivery", () => {
     expect(dockerfile).toContain("lenso-console-worker /usr/local/bin/");
     expect(dockerfile).toContain("CONSOLE_WEB_ROOT=/opt/lenso-console/web");
     expect(dockerfile).toContain(
-      "CONSOLE_EXTENSIONS_ROOT=/opt/lenso-console/extensions"
+      "CONSOLE_ARTIFACT_ROOT=/opt/lenso-console/artifacts"
     );
     expect(dockerfile).toContain(
-      "service/extensions /opt/lenso-console/extensions"
+      "install -d -o 10001 -g 10001 /opt/lenso-console/artifacts"
     );
     expect(dockerfile).toContain("USER 10001:10001");
     expect(dockerfile).toContain("org.opencontainers.image.version");
@@ -46,9 +46,7 @@ describe("Console Service delivery", () => {
     expect(compose.match(/read_only: true/gu)).toHaveLength(2);
     expect(compose.match(/- ALL/gu)).toHaveLength(2);
     expect(compose).toContain("console-database:/var/lib/postgresql");
-    expect(compose).toContain(
-      "CONSOLE_EXTENSIONS_PATH:-./extensions}:/opt/lenso-console/extensions"
-    );
+    expect(compose).toContain("console-artifacts:/opt/lenso-console/artifacts");
     expect(compose).toContain(
       `CONSOLE_RECOVERY_MODE: \${CONSOLE_RECOVERY_MODE:?set CONSOLE_RECOVERY_MODE}`
     );

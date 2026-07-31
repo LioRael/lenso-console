@@ -131,15 +131,14 @@ Console frontend modules are local workspace packages under `packages/*`.
 They must import host capabilities through `@lenso/console-package-api`, define a
 `ConsolePackageManifest`, and export a `ConsoleModule`.
 
-Installable Modules may deliver reviewed Console artifacts without rebuilding
-the Console image. The Console Service reads `registry.json` from
-`CONSOLE_EXTENSIONS_ROOT` (or `service/extensions` locally), exposes it at
-`/extensions/registry.json`, and serves bundle files from the root's `runtime/`
-directory at `/extensions/runtime/*`. The authenticated
-`POST /api/console/v1/extensions/reconcile` endpoint downloads reviewed
-artifacts, verifies their SHA-256 digests and host API requirements, then
-atomically replaces the active registry. Container deployments give only the
-Console Service write access to this persistent extension root.
+Installable Modules may bind an immutable isolated `ConsoleUiArtifact` to the
+same Module Release. The authenticated
+`POST /api/console/v1/artifacts/reconcile` endpoint downloads reviewed
+artifacts, verifies their SHA-256 digests and Console Bridge contract, and
+materializes content-addressed objects plus an atomic composition receipt.
+Container deployments give only the Console Service write access to this
+persistent artifact store. Executable UI remains isolated and is never loaded
+as a same-origin shell extension.
 
 Lenso provides the package framework and fixtures. Product projects choose and
 own their real business modules.
@@ -226,8 +225,9 @@ pnpm console-package:dev \
   --host http://localhost:3000
 ```
 
-Dev mode does not install packages into the host. Production Module packages
-are installed into the Console Service-owned extension root.
+Dev mode does not install packages into the host. Production executable UI is
+delivered as an isolated, digest-bound Module Release artifact rather than a
+same-origin package bundle.
 
 ## Checks
 
