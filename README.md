@@ -158,11 +158,9 @@ lenso service dev
 lenso service install https://example.com/lenso/service/v1/manifest
 ```
 
-Runnable service examples that use the published `@lenso/service-kit` package
-live in
-[LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos
-in this repository remain release and CLI fixtures for the Lenso Console
-workspace.
+Service authoring SDKs, including `@lenso/service-kit`, are owned by the
+[Lenso framework repository](https://github.com/LioRael/lenso). The Console
+repository contains only Console Service and operator-facing UI concerns.
 
 See `docs/console-package-template.md` before adding a package. The short path is:
 

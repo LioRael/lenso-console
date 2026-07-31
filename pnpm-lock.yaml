@@ -124,8 +124,6 @@ importers:
         specifier: ^19.1.0
         version: 19.2.6
 
-  packages/service-kit: {}
-
   packages/story-console:
     dependencies:
       '@gsap/react':

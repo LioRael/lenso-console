@@ -34,25 +34,6 @@ if (consoleModule.id !== "smoke-console") {
     smokeImport:
       'import { defineConsoleModule, defineConsolePackageManifest } from "@lenso/console-package-api";',
   },
-  {
-    dir: path.join(consoleRoot, "packages/service-kit"),
-    name: "@lenso/service-kit",
-    smokeBody: `const module = defineModule({
-  capabilities: ["smoke.records.read"],
-  name: "smoke-records",
-  runtimeFunctions: [serviceRuntimeFunction("smoke.records.sync.v1")],
-});
-const service = defineService({
-  modules: [module],
-  name: "smoke-service",
-});
-
-if (service.modules[0]?.name !== "smoke-records") {
-  throw new Error("service-kit import did not work");
-}`,
-    smokeImport:
-      'import { defineModule, defineService, runtimeFunction as serviceRuntimeFunction } from "@lenso/service-kit";',
-  },
 ];
 
 const readJson = async (filePath) =>

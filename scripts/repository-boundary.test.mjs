@@ -16,7 +16,6 @@ const liveRepositoryIdentityFiles = [
   "README.md",
   "docs/agents/issue-tracker.md",
   "packages/console-package-api/package.json",
-  "packages/service-kit/package.json",
   "service/README.md",
 ];
 
@@ -77,9 +76,9 @@ describe("Lenso Console repository boundary", () => {
     await expect(
       access(path.join(root, "packages/remote-module-kit"))
     ).rejects.toThrow();
-    expect(await source("packages/service-kit/src/index.ts")).not.toContain(
-      "remote-module-kit"
-    );
+    await expect(
+      access(path.join(root, "packages/service-kit"))
+    ).rejects.toThrow();
   });
 
   test("documents the live identity and cross-repository responsibilities", async () => {
