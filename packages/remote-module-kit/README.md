@@ -83,12 +83,12 @@ and CLI use it for service-module readiness diagnostics; modules can pass
 
 ## Publishing
 
-This package is published with `@lenso/service-kit` through the `publish service
-SDKs` GitHub Actions workflow. The npm packages should be configured for
-trusted publishing with:
+This package is published with `@lenso/service-kit` through the repository's
+reviewed release plan and coordinator-authorized `publish.yml` workflow. The npm
+packages should be configured for trusted publishing with:
 
 - repository: `LioRael/lenso-runtime-console`
-- workflow: `publish-remote-module-kit.yml`
+- workflow: `publish.yml`
 
 From the repository root, run the package preflight before opening a release
 PR:
@@ -97,8 +97,7 @@ PR:
 pnpm package-readiness
 ```
 
-After the release PR is merged, run the workflow from `main` with the package
-versions from `packages/remote-module-kit/package.json` and
-`packages/service-kit/package.json`. The workflow verifies neither version is
-already published, runs `pnpm package-readiness`, publishes
-`@lenso/remote-module-kit`, and then publishes `@lenso/service-kit`.
+Add both packages to the reviewed release intent when either SDK changes. After
+the generated release PR is reviewed and merged, the release coordinator invokes
+`publish.yml` at the exact approved commit. Do not dispatch a package-specific
+publisher directly.
