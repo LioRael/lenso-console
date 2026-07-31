@@ -33,7 +33,6 @@
     "packages/remote-crm-console/src",
     "packages/system-registry-console/src",
     "packages/console-package-api/src",
-    "packages/remote-module-kit/src",
     "packages/service-kit/src",
     "packages/console-system-plane/src"
   ],

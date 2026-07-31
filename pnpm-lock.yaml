@@ -14,15 +14,15 @@ importers:
       '@gsap/react':
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.6)
+      '@lenso/console-package-api':
+        specifier: workspace:*
+        version: link:packages/console-package-api
       '@lenso/identity-console':
         specifier: workspace:*
         version: link:packages/identity-console
       '@lenso/remote-crm-console':
         specifier: workspace:*
         version: link:packages/remote-crm-console
-      '@lenso/console-package-api':
-        specifier: workspace:*
-        version: link:packages/console-package-api
       '@lenso/story-console':
         specifier: workspace:*
         version: link:packages/story-console
@@ -63,9 +63,6 @@ importers:
         specifier: ^8.0.16
         version: 8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0)
     devDependencies:
-      '@lenso/remote-module-kit':
-        specifier: workspace:*
-        version: link:packages/remote-module-kit
       '@types/node':
         specifier: ^25.9.2
         version: 25.9.2
@@ -99,6 +96,7 @@ importers:
       react:
         specifier: ^19.1.0
         version: 19.2.6
+
   packages/console-system-plane:
     devDependencies:
       typescript:
@@ -126,13 +124,7 @@ importers:
         specifier: ^19.1.0
         version: 19.2.6
 
-  packages/remote-module-kit: {}
-
-  packages/service-kit:
-    dependencies:
-      '@lenso/remote-module-kit':
-        specifier: workspace:^
-        version: link:../remote-module-kit
+  packages/service-kit: {}
 
   packages/story-console:
     dependencies:

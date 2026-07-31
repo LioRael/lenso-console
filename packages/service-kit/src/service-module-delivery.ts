@@ -9,7 +9,7 @@ import type {
 import { createServer as createHttp2Server } from "node:http2";
 import type { Http2Server, ServerHttp2Stream } from "node:http2";
 
-export interface RemoteModuleConsoleSurface {
+export interface ModuleConsoleSurface {
   name: string;
   label: string;
   area: "runtime" | "operations" | "data" | "configuration" | string;
@@ -35,43 +35,42 @@ export interface RemoteModuleConsoleSurface {
   };
 }
 
-export interface RemoteModuleManifest {
+export interface ProviderModuleManifest {
   name: string;
   version: string;
   source: "remote";
-  compatibility?: RemoteModuleCompatibility;
-  service?: RemoteModuleServiceMetadata;
-  story_display: readonly RemoteStoryDisplayDescriptor[];
+  compatibility?: ServiceModuleCompatibility;
+  service?: ServiceModuleProviderMetadata;
+  story_display: readonly ModuleStoryDisplayDescriptor[];
   capabilities: readonly string[];
   dependencies: readonly string[];
-  http_routes: readonly RemoteHttpRoute[];
+  http_routes: readonly ModuleHttpRoute[];
   runtime: {
-    functions: readonly RemoteRuntimeFunctionDeclaration[];
+    functions: readonly ModuleRuntimeFunctionDeclaration[];
   };
-  events?: RemoteEventSurface;
-  lifecycle?: RemoteLifecycleSurface;
+  events?: ModuleEventSurface;
+  lifecycle?: ModuleLifecycleSurface;
   admin: unknown | null;
-  console?: readonly RemoteModuleConsoleSurface[];
+  console?: readonly ModuleConsoleSurface[];
 }
 
-export interface RemoteModuleCompatibility {
+export interface ServiceModuleCompatibility {
   console_package_api?: string;
   lenso?: {
     min_version?: string;
     max_version?: string;
   };
-  remote_protocol_version?: string;
   required_host_features?: readonly string[];
 }
 
-export interface RemoteModuleDeploymentMetadata {
+export interface ServiceModuleDeploymentMetadata {
   target?: string;
   commands?: readonly string[];
   compose_service?: string;
 }
 
-export interface RemoteModuleServiceMetadata {
-  deployment?: RemoteModuleDeploymentMetadata;
+export interface ServiceModuleProviderMetadata {
+  deployment?: ServiceModuleDeploymentMetadata;
   name?: string;
   required_env?: readonly string[];
   status_path?: string;
@@ -80,37 +79,37 @@ export interface RemoteModuleServiceMetadata {
   version?: string;
 }
 
-export type RemoteModuleServiceStatusState = "ready" | "degraded" | "starting";
+export type ModuleProviderStatusState = "ready" | "degraded" | "starting";
 
-export interface RemoteModuleServiceStatusCheck {
+export interface ModuleProviderStatusCheck {
   name: string;
   status: "ok" | "warning" | "error";
   detail?: string;
 }
 
-export interface RemoteModuleServiceStatus {
+export interface ModuleProviderStatus {
   moduleName: string;
   serviceName: string;
   version: string;
   protocolVersion: string;
   transports: readonly string[];
-  state: RemoteModuleServiceStatusState;
-  checks: readonly RemoteModuleServiceStatusCheck[];
+  state: ModuleProviderStatusState;
+  checks: readonly ModuleProviderStatusCheck[];
   manifestUrl: string;
 }
 
-export interface RemoteModuleServiceStatusOptions {
+export interface ModuleProviderStatusOptions {
   checks?:
-    | readonly RemoteModuleServiceStatusCheck[]
+    | readonly ModuleProviderStatusCheck[]
     | (() =>
-        | readonly RemoteModuleServiceStatusCheck[]
-        | Promise<readonly RemoteModuleServiceStatusCheck[]>);
-  state?: RemoteModuleServiceStatusState;
+        | readonly ModuleProviderStatusCheck[]
+        | Promise<readonly ModuleProviderStatusCheck[]>);
+  state?: ModuleProviderStatusState;
 }
 
-export type ServiceStatusState = RemoteModuleServiceStatusState;
+export type ServiceStatusState = ModuleProviderStatusState;
 
-export type ServiceStatusCheck = RemoteModuleServiceStatusCheck;
+export type ServiceStatusCheck = ModuleProviderStatusCheck;
 
 export interface ServiceModuleStatusSummary {
   name: string;
@@ -137,7 +136,7 @@ export interface ServiceStatusOptions {
   state?: ServiceStatusState;
 }
 
-export type RemoteStoryDisplaySource =
+export type ModuleStoryDisplaySource =
   | {
       kind: "execution_name";
       name: string;
@@ -148,13 +147,13 @@ export type RemoteStoryDisplaySource =
       path: string;
     };
 
-export interface RemoteStoryDisplayDescriptor {
-  source: RemoteStoryDisplaySource;
+export interface ModuleStoryDisplayDescriptor {
+  source: ModuleStoryDisplaySource;
   display_name: string;
   story_title?: string;
 }
 
-export type RemoteHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type ModuleHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type ServiceOperationIdempotency =
   | "none"
@@ -162,7 +161,7 @@ export type ServiceOperationIdempotency =
   | "requires_key";
 
 export interface ServiceOperationSafeProbe {
-  method?: RemoteHttpMethod | string;
+  method?: ModuleHttpMethod | string;
   path?: string;
   input?: unknown;
   expectStatus?: number;
@@ -178,8 +177,8 @@ export interface ServiceOperationMetadata {
   idempotency?: ServiceOperationIdempotency;
 }
 
-export interface RemoteHttpRoute {
-  method: RemoteHttpMethod;
+export interface ModuleHttpRoute {
+  method: ModuleHttpMethod;
   path: string;
   capability?: string;
   display_name?: string;
@@ -187,7 +186,7 @@ export interface RemoteHttpRoute {
   story_title?: string;
 }
 
-export interface RemoteHttpRouteOptions {
+export interface ModuleHttpRouteOptions {
   capability?: string;
   displayName?: string;
   operation?: ServiceOperationMetadata;
@@ -235,47 +234,47 @@ export const readLensoInvocationContext = (
   };
 };
 
-export interface RemoteHttpHandlerContext {
+export interface ModuleHttpHandlerContext {
   body: unknown;
   params: Record<string, string>;
   request: IncomingMessage;
   url: URL;
 }
 
-export type RemoteHttpHandlerResult =
+export type ModuleHttpHandlerResult =
   | unknown
   | {
       body: unknown;
       statusCode?: number;
     };
 
-export type RemoteHttpHandler = (
-  context: RemoteHttpHandlerContext
-) => RemoteHttpHandlerResult | Promise<RemoteHttpHandlerResult>;
+export type ModuleHttpHandler = (
+  context: ModuleHttpHandlerContext
+) => ModuleHttpHandlerResult | Promise<ModuleHttpHandlerResult>;
 
-export interface RemoteRuntimeRetryPolicy {
+export interface ModuleRuntimeRetryPolicy {
   max_attempts: number;
   initial_delay_ms: number;
 }
 
-export interface RemoteRuntimeFunctionDeclaration {
+export interface ModuleRuntimeFunctionDeclaration {
   name: string;
   version: number;
   queue: string;
   input_schema?: string;
   operation?: ServiceOperationMetadata;
-  retry_policy?: RemoteRuntimeRetryPolicy;
+  retry_policy?: ModuleRuntimeRetryPolicy;
 }
 
-export interface RemoteRuntimeFunctionOptions {
+export interface ModuleRuntimeFunctionOptions {
   version?: number;
   queue?: string;
   inputSchema?: string;
   operation?: ServiceOperationMetadata;
-  retryPolicy?: RemoteRuntimeRetryPolicy;
+  retryPolicy?: ModuleRuntimeRetryPolicy;
 }
 
-export interface RemoteRuntimeInvokeRequest {
+export interface ModuleRuntimeInvokeRequest {
   request_id: string;
   function_run_id: string;
   function_name: string;
@@ -287,31 +286,31 @@ export interface RemoteRuntimeInvokeRequest {
   input: unknown;
 }
 
-export interface RemoteRuntimeHandlerContext {
+export interface ModuleRuntimeHandlerContext {
   input: unknown;
-  invocation: RemoteRuntimeInvokeRequest;
+  invocation: ModuleRuntimeInvokeRequest;
   request: IncomingMessage;
 }
 
-export type RemoteRuntimeHandler = (
-  context: RemoteRuntimeHandlerContext
+export type ModuleRuntimeHandler = (
+  context: ModuleRuntimeHandlerContext
 ) => unknown | Promise<unknown>;
 
-export interface RemoteEventSurface {
-  handlers: readonly RemoteEventHandlerDeclaration[];
+export interface ModuleEventSurface {
+  handlers: readonly ModuleEventHandlerDeclaration[];
 }
 
-export interface RemoteEventHandlerDeclaration {
+export interface ModuleEventHandlerDeclaration {
   name: string;
   event_name: string;
   operation?: ServiceOperationMetadata;
 }
 
-export interface RemoteEventHandlerOptions {
+export interface ModuleEventHandlerOptions {
   operation?: ServiceOperationMetadata;
 }
 
-export interface RemoteEventHandleRequest {
+export interface ModuleEventHandleRequest {
   request_id: string;
   outbox_event_id: string;
   handler_name: string;
@@ -329,29 +328,29 @@ export interface RemoteEventHandleRequest {
   headers: unknown;
 }
 
-export interface RemoteEventResultAction {
+export interface ModuleEventResultAction {
   type: "enqueue_function";
   function_name: string;
   input: unknown;
 }
 
-export interface RemoteEventHandleResponse {
-  actions?: readonly RemoteEventResultAction[];
+export interface ModuleEventHandleResponse {
+  actions?: readonly ModuleEventResultAction[];
 }
 
-export interface RemoteEventHandlerContext {
-  event: RemoteEventHandleRequest;
+export interface ModuleEventHandlerContext {
+  event: ModuleEventHandleRequest;
   request: IncomingMessage;
 }
 
-export type RemoteEventHandler = (
-  context: RemoteEventHandlerContext
+export type ModuleEventHandler = (
+  context: ModuleEventHandlerContext
 ) =>
-  | RemoteEventHandleResponse
+  | ModuleEventHandleResponse
   | undefined
-  | Promise<RemoteEventHandleResponse | undefined>;
+  | Promise<ModuleEventHandleResponse | undefined>;
 
-export interface RemoteLifecycleStartupCheck {
+export interface ModuleLifecycleStartupCheck {
   name: string;
   required?: boolean;
   kind: "function_registered" | "capability_declared";
@@ -359,7 +358,7 @@ export interface RemoteLifecycleStartupCheck {
   capability?: string;
 }
 
-export interface RemoteLifecycleActivationJob {
+export interface ModuleLifecycleActivationJob {
   name: string;
   function_name: string;
   run_policy?: "every_startup";
@@ -367,12 +366,12 @@ export interface RemoteLifecycleActivationJob {
   required?: boolean;
 }
 
-export interface RemoteLifecycleSurface {
-  startup_checks: readonly RemoteLifecycleStartupCheck[];
-  activation_jobs: readonly RemoteLifecycleActivationJob[];
+export interface ModuleLifecycleSurface {
+  startup_checks: readonly ModuleLifecycleStartupCheck[];
+  activation_jobs: readonly ModuleLifecycleActivationJob[];
 }
 
-export interface RemoteLifecycleActivationOptions {
+export interface ModuleLifecycleActivationOptions {
   input?: unknown;
   required?: boolean;
 }
@@ -508,29 +507,29 @@ export interface AdminEmbeddedSurface {
   fallback_schema?: AdminSchema;
 }
 
-export interface RemoteModuleDefinition {
+export interface ProviderModuleDefinition {
   name: string;
   version?: string;
-  compatibility?: RemoteModuleCompatibility;
-  service?: RemoteModuleServiceMetadata;
-  storyDisplay?: readonly RemoteStoryDisplayDescriptor[];
+  compatibility?: ServiceModuleCompatibility;
+  service?: ServiceModuleProviderMetadata;
+  storyDisplay?: readonly ModuleStoryDisplayDescriptor[];
   capabilities?: readonly string[];
   dependencies?: readonly string[];
-  httpRoutes?: readonly RemoteHttpRoute[];
-  runtimeFunctions?: readonly RemoteRuntimeFunctionDeclaration[];
-  eventHandlers?: readonly RemoteEventHandlerDeclaration[];
-  lifecycle?: RemoteLifecycleSurface;
+  httpRoutes?: readonly ModuleHttpRoute[];
+  runtimeFunctions?: readonly ModuleRuntimeFunctionDeclaration[];
+  eventHandlers?: readonly ModuleEventHandlerDeclaration[];
+  lifecycle?: ModuleLifecycleSurface;
   admin?: unknown | null;
-  console?: readonly RemoteModuleConsoleSurface[];
+  console?: readonly ModuleConsoleSurface[];
 }
 
 export type ServiceModuleDefinition = Omit<
-  RemoteModuleDefinition,
+  ProviderModuleDefinition,
   "compatibility" | "service"
 >;
 
 export type ServiceModuleManifest = Omit<
-  RemoteModuleManifest,
+  ProviderModuleManifest,
   "compatibility" | "service" | "source"
 >;
 
@@ -557,8 +556,8 @@ export interface ServiceInstall {
 export interface ServiceDefinition {
   name: string;
   version?: string;
-  compatibility?: RemoteModuleCompatibility;
-  deployment?: RemoteModuleDeploymentMetadata;
+  compatibility?: ServiceModuleCompatibility;
+  deployment?: ServiceModuleDeploymentMetadata;
   install?: ServiceInstall;
   modules: readonly ServiceModuleManifest[];
   requiredEnv?: readonly string[];
@@ -571,8 +570,8 @@ export interface ServiceManifest {
   name: string;
   version: string;
   protocol: "lenso.service.v1";
-  compatibility?: RemoteModuleCompatibility;
-  deployment?: RemoteModuleDeploymentMetadata;
+  compatibility?: ServiceModuleCompatibility;
+  deployment?: ServiceModuleDeploymentMetadata;
   install?: ServiceInstall;
   modules: readonly ServiceModuleManifest[];
   required_env: readonly string[];
@@ -581,37 +580,37 @@ export interface ServiceManifest {
   transports: readonly string[];
 }
 
-export interface RemoteAdminPage {
+export interface ModuleAdminPage {
   records: readonly unknown[];
   next_cursor?: string | null;
 }
 
-export interface RemoteAdminDataSource {
+export interface ModuleAdminDataSource {
   list: (query: {
     limit: number;
     cursor?: string;
-  }) => RemoteAdminPage | Promise<RemoteAdminPage>;
+  }) => ModuleAdminPage | Promise<ModuleAdminPage>;
   detail: (
     id: string
   ) => unknown | null | undefined | Promise<unknown | null | undefined>;
 }
 
-export type RemoteAdminQueryHandler = (context: {
+export type ModuleAdminQueryHandler = (context: {
   query: string;
   request: IncomingMessage;
 }) => unknown | Promise<unknown>;
 
-export interface RemoteAdminActionHandlerContext {
+export interface ModuleAdminActionHandlerContext {
   action: string;
   input: unknown;
   request: IncomingMessage;
 }
 
-export type RemoteAdminActionHandler = (
-  context: RemoteAdminActionHandlerContext
+export type ModuleAdminActionHandler = (
+  context: ModuleAdminActionHandlerContext
 ) => unknown | Promise<unknown>;
 
-export interface ServedRemoteModule {
+export interface ServedModuleProvider {
   baseUrl: string;
   manifestUrl: string;
   statusUrl: string;
@@ -619,25 +618,25 @@ export interface ServedRemoteModule {
   close: () => Promise<void>;
 }
 
-export type ServedService = ServedRemoteModule;
+export type ServedService = ServedModuleProvider;
 
 export type ServiceModuleHandlers = Pick<
-  ServeRemoteModuleOptions,
+  ServeModuleProviderOptions,
   "actions" | "data" | "events" | "http" | "queries" | "runtime"
 >;
 
-export interface ServeRemoteModuleOptions {
+export interface ServeModuleProviderOptions {
   host?: string;
   port?: number;
   basePath?: string;
-  data?: Record<string, RemoteAdminDataSource>;
-  queries?: Record<string, RemoteAdminQueryHandler>;
-  actions?: Record<string, RemoteAdminActionHandler>;
-  http?: Record<string, RemoteHttpHandler>;
-  runtime?: Record<string, RemoteRuntimeHandler>;
-  events?: Record<string, RemoteEventHandler>;
-  status?: RemoteModuleServiceStatusOptions;
-  onReady?: (server: ServedRemoteModule) => void;
+  data?: Record<string, ModuleAdminDataSource>;
+  queries?: Record<string, ModuleAdminQueryHandler>;
+  actions?: Record<string, ModuleAdminActionHandler>;
+  http?: Record<string, ModuleHttpHandler>;
+  runtime?: Record<string, ModuleRuntimeHandler>;
+  events?: Record<string, ModuleEventHandler>;
+  status?: ModuleProviderStatusOptions;
+  onReady?: (server: ServedModuleProvider) => void;
 }
 
 export interface ServeServiceOptions {
@@ -788,10 +787,10 @@ function decodeVarint(buffer: Buffer, offset: number) {
 }
 
 const route = (
-  method: RemoteHttpMethod,
+  method: ModuleHttpMethod,
   path: string,
-  options: RemoteHttpRouteOptions = {}
-): RemoteHttpRoute => ({
+  options: ModuleHttpRouteOptions = {}
+): ModuleHttpRoute => ({
   ...(options.capability ? { capability: options.capability } : {}),
   ...(options.displayName ? { display_name: options.displayName } : {}),
   method,
@@ -800,7 +799,7 @@ const route = (
   ...(options.storyTitle ? { story_title: options.storyTitle } : {}),
 });
 
-const routeKey = (method: RemoteHttpMethod, path: string) =>
+const routeKey = (method: ModuleHttpMethod, path: string) =>
   `${method} ${path}`;
 
 const matchRoutePath = (
@@ -853,7 +852,7 @@ const readBody = async (request: IncomingMessage): Promise<unknown> => {
 };
 
 const normalizeHandlerResult = (
-  result: RemoteHttpHandlerResult
+  result: ModuleHttpHandlerResult
 ): { body: unknown; statusCode: number } => {
   if (
     typeof result === "object" &&
@@ -877,11 +876,11 @@ const handleHttpRouteRequest = async ({
   request,
 }: {
   basePath: string;
-  handlers: Record<string, RemoteHttpHandler>;
-  manifest: RemoteModuleManifest;
+  handlers: Record<string, ModuleHttpHandler>;
+  manifest: ProviderModuleManifest;
   request: IncomingMessage;
 }): Promise<{ body: unknown; statusCode: number } | null> => {
-  const method = request.method as RemoteHttpMethod | undefined;
+  const method = request.method as ModuleHttpMethod | undefined;
   if (!method) {
     return null;
   }
@@ -932,7 +931,7 @@ const handleRuntimeFunctionRequest = async ({
   request,
 }: {
   basePath: string;
-  handlers: Record<string, RemoteRuntimeHandler>;
+  handlers: Record<string, ModuleRuntimeHandler>;
   request: IncomingMessage;
 }): Promise<{ body: unknown; statusCode: number } | null> => {
   if (request.method !== "POST") {
@@ -969,7 +968,7 @@ const handleRuntimeFunctionRequest = async ({
       statusCode: 404,
     };
   }
-  const invocation = (await readBody(request)) as RemoteRuntimeInvokeRequest;
+  const invocation = (await readBody(request)) as ModuleRuntimeInvokeRequest;
   const output = await handler({
     input: invocation?.input,
     invocation,
@@ -987,7 +986,7 @@ const handleEventRequest = async ({
   request,
 }: {
   basePath: string;
-  handlers: Record<string, RemoteEventHandler>;
+  handlers: Record<string, ModuleEventHandler>;
   request: IncomingMessage;
 }): Promise<{ body: unknown; statusCode: number } | null> => {
   if (request.method !== "POST") {
@@ -1024,7 +1023,7 @@ const handleEventRequest = async ({
       statusCode: 404,
     };
   }
-  const event = (await readBody(request)) as RemoteEventHandleRequest;
+  const event = (await readBody(request)) as ModuleEventHandleRequest;
   const result = await handler({ event, request });
   return {
     body: result ?? { actions: [] },
@@ -1033,8 +1032,8 @@ const handleEventRequest = async ({
 };
 
 const invokeEventHandler = async (
-  handlers: Record<string, RemoteEventHandler>,
-  event: RemoteEventHandleRequest
+  handlers: Record<string, ModuleEventHandler>,
+  event: ModuleEventHandleRequest
 ) => {
   const handlerName = event.handler_name;
   const handler = handlers[handlerName];
@@ -1055,7 +1054,7 @@ const handleAdminActionRequest = async ({
   request,
 }: {
   basePath: string;
-  handlers: Record<string, RemoteAdminActionHandler>;
+  handlers: Record<string, ModuleAdminActionHandler>;
   request: IncomingMessage;
 }): Promise<{ body: unknown; statusCode: number } | null> => {
   if (request.method !== "POST") {
@@ -1108,7 +1107,7 @@ const handleAdminQueryRequest = async ({
   request,
 }: {
   basePath: string;
-  handlers: Record<string, RemoteAdminQueryHandler>;
+  handlers: Record<string, ModuleAdminQueryHandler>;
   request: IncomingMessage;
 }): Promise<{ body: unknown; statusCode: number } | null> => {
   if (request.method !== "GET") {
@@ -1226,7 +1225,7 @@ const handleAdminDataRequest = async ({
   requestUrl,
 }: {
   basePath: string;
-  data: Record<string, RemoteAdminDataSource>;
+  data: Record<string, ModuleAdminDataSource>;
   requestUrl: string;
 }): Promise<{ body: unknown; statusCode: number } | null> => {
   const url = new URL(requestUrl, "http://127.0.0.1");
@@ -1272,11 +1271,11 @@ const handleAdminDataRequest = async ({
   };
 };
 
-export const defineRemoteModule = (
-  definition: RemoteModuleDefinition
-): RemoteModuleManifest => {
+export const defineProviderModule = (
+  definition: ProviderModuleDefinition
+): ProviderModuleManifest => {
   if (!definition.name.trim()) {
-    throw new Error("Remote module name is required");
+    throw new Error("Service module name is required");
   }
   return {
     admin: definition.admin ?? null,
@@ -1310,7 +1309,7 @@ export const defineModule = (
     service: _service,
     source: _source,
     ...module
-  } = defineRemoteModule(definition);
+  } = defineProviderModule(definition);
   return module;
 };
 
@@ -1351,29 +1350,29 @@ export const defineService = (
   };
 };
 
-export const getRoute = (path: string, options: RemoteHttpRouteOptions = {}) =>
+export const getRoute = (path: string, options: ModuleHttpRouteOptions = {}) =>
   route("GET", path, options);
 
-export const postRoute = (path: string, options: RemoteHttpRouteOptions = {}) =>
+export const postRoute = (path: string, options: ModuleHttpRouteOptions = {}) =>
   route("POST", path, options);
 
-export const putRoute = (path: string, options: RemoteHttpRouteOptions = {}) =>
+export const putRoute = (path: string, options: ModuleHttpRouteOptions = {}) =>
   route("PUT", path, options);
 
 export const patchRoute = (
   path: string,
-  options: RemoteHttpRouteOptions = {}
+  options: ModuleHttpRouteOptions = {}
 ) => route("PATCH", path, options);
 
 export const deleteRoute = (
   path: string,
-  options: RemoteHttpRouteOptions = {}
+  options: ModuleHttpRouteOptions = {}
 ) => route("DELETE", path, options);
 
 export const runtimeFunction = (
   name: string,
-  options: RemoteRuntimeFunctionOptions = {}
-): RemoteRuntimeFunctionDeclaration => ({
+  options: ModuleRuntimeFunctionOptions = {}
+): ModuleRuntimeFunctionDeclaration => ({
   ...(options.inputSchema ? { input_schema: options.inputSchema } : {}),
   ...(options.operation ? { operation: options.operation } : {}),
   queue: options.queue ?? runtimeFunctionQueue(name),
@@ -1385,8 +1384,8 @@ export const runtimeFunction = (
 export const eventHandler = (
   name: string,
   eventName: string,
-  options: RemoteEventHandlerOptions = {}
-): RemoteEventHandlerDeclaration => ({
+  options: ModuleEventHandlerOptions = {}
+): ModuleEventHandlerDeclaration => ({
   event_name: eventName,
   name,
   ...(options.operation ? { operation: options.operation } : {}),
@@ -1395,8 +1394,8 @@ export const eventHandler = (
 export const everyStartup = (
   name: string,
   functionName: string,
-  options: RemoteLifecycleActivationOptions = {}
-): RemoteLifecycleActivationJob => ({
+  options: ModuleLifecycleActivationOptions = {}
+): ModuleLifecycleActivationJob => ({
   function_name: functionName,
   input: options.input ?? {},
   name,
@@ -1408,9 +1407,9 @@ export const lifecycle = ({
   activationJobs,
   startupChecks,
 }: {
-  startupChecks?: readonly RemoteLifecycleStartupCheck[];
-  activationJobs?: readonly RemoteLifecycleActivationJob[];
-}): RemoteLifecycleSurface => ({
+  startupChecks?: readonly ModuleLifecycleStartupCheck[];
+  activationJobs?: readonly ModuleLifecycleActivationJob[];
+}): ModuleLifecycleSurface => ({
   activation_jobs: activationJobs ?? [],
   startup_checks: startupChecks ?? [],
 });
@@ -1583,8 +1582,8 @@ export const embeddedCustom = (
   kind: "embedded_custom",
 });
 
-const remoteModuleStatusChecks = async (
-  options: RemoteModuleServiceStatusOptions | undefined
+const moduleProviderStatusChecks = async (
+  options: ModuleProviderStatusOptions | undefined
 ) => {
   if (!options?.checks) {
     return [{ name: "service", status: "ok" as const }];
@@ -1594,19 +1593,19 @@ const remoteModuleStatusChecks = async (
     : options.checks;
 };
 
-const remoteModuleStatusResponse = async ({
+const moduleProviderStatusResponse = async ({
   baseUrl,
   manifest,
   options,
 }: {
   baseUrl: string;
-  manifest: RemoteModuleManifest;
-  options: RemoteModuleServiceStatusOptions | undefined;
-}): Promise<RemoteModuleServiceStatus> => ({
-  checks: await remoteModuleStatusChecks(options),
+  manifest: ProviderModuleManifest;
+  options: ModuleProviderStatusOptions | undefined;
+}): Promise<ModuleProviderStatus> => ({
+  checks: await moduleProviderStatusChecks(options),
   manifestUrl: `${baseUrl}/manifest`,
   moduleName: manifest.name,
-  protocolVersion: manifest.compatibility?.remote_protocol_version ?? "1",
+  protocolVersion: "1",
   serviceName: manifest.service?.name ?? "api",
   state: options?.state ?? "ready",
   transports: manifest.service?.transports ?? ["http"],
@@ -1639,17 +1638,17 @@ const serviceStatusResponse = async ({
     name: module.name,
     version: module.version,
   })),
-  protocolVersion: manifest.compatibility?.remote_protocol_version ?? "1",
+  protocolVersion: "1",
   serviceName: manifest.name,
   state: options?.state ?? "ready",
   transports: manifest.transports,
   version: manifest.version,
 });
 
-const remoteManifestForServiceModule = (
+const providerManifestForServiceModule = (
   service: ServiceManifest,
   module: ServiceModuleManifest
-): RemoteModuleManifest => ({
+): ProviderModuleManifest => ({
   ...module,
   ...(service.compatibility ? { compatibility: service.compatibility } : {}),
   service: {
@@ -1664,10 +1663,10 @@ const remoteManifestForServiceModule = (
   source: "remote",
 });
 
-export const serveRemoteModule = async (
-  manifest: RemoteModuleManifest,
-  options: ServeRemoteModuleOptions = {}
-): Promise<ServedRemoteModule> => {
+export const serveModuleProvider = async (
+  manifest: ProviderModuleManifest,
+  options: ServeModuleProviderOptions = {}
+): Promise<ServedModuleProvider> => {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 4100;
   const basePath = normalizeBasePath(options.basePath ?? "/lenso/module/v1");
@@ -1685,7 +1684,7 @@ export const serveRemoteModule = async (
       sendJson(
         response,
         200,
-        await remoteModuleStatusResponse({
+        await moduleProviderStatusResponse({
           baseUrl: servedBaseUrl,
           manifest,
           options: options.status,
@@ -1754,7 +1753,7 @@ export const serveRemoteModule = async (
     sendJson(response, 404, {
       error: {
         code: "not_found",
-        message: `${manifest.name} remote module endpoint not found`,
+        message: `${manifest.name} service module endpoint not found`,
       },
     });
   });
@@ -1776,7 +1775,7 @@ export const serveRemoteModule = async (
     manifestUrl: `${baseUrl}/manifest`,
     server,
     statusUrl: `${baseUrl}/status`,
-  } satisfies ServedRemoteModule;
+  } satisfies ServedModuleProvider;
 
   options.onReady?.(served);
   return served;
@@ -1817,7 +1816,10 @@ export const serveService = async (
     for (const module of manifest.modules) {
       const moduleBasePath = `${basePath}/modules/${module.name}`;
       const moduleHandlers = options.modules?.[module.name] ?? {};
-      const remoteManifest = remoteManifestForServiceModule(manifest, module);
+      const providerManifest = providerManifestForServiceModule(
+        manifest,
+        module
+      );
 
       if (
         request.method === "GET" &&
@@ -1876,7 +1878,7 @@ export const serveService = async (
       const httpResult = await handleHttpRouteRequest({
         basePath: moduleBasePath,
         handlers: moduleHandlers.http ?? {},
-        manifest: remoteManifest,
+        manifest: providerManifest,
         request,
       });
       if (httpResult) {
@@ -1916,10 +1918,10 @@ export const serveService = async (
   return served;
 };
 
-export const serveRemoteModuleGrpc = async (
-  manifest: RemoteModuleManifest,
-  options: ServeRemoteModuleOptions = {}
-): Promise<ServedRemoteModule> => {
+export const serveModuleProviderGrpc = async (
+  manifest: ProviderModuleManifest,
+  options: ServeModuleProviderOptions = {}
+): Promise<ServedModuleProvider> => {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 50_051;
   const server = createHttp2Server();
@@ -1949,7 +1951,7 @@ export const serveRemoteModuleGrpc = async (
     manifestUrl: `${baseUrl}${GRPC_PATHS.getManifest}`,
     server,
     statusUrl: `${baseUrl}/lenso.remote.v1.RemoteModule/GetStatus`,
-  } satisfies ServedRemoteModule;
+  } satisfies ServedModuleProvider;
 
   options.onReady?.(served);
   return served;
@@ -1962,8 +1964,8 @@ async function handleGrpcStream({
   stream,
 }: {
   headers: NodeJS.Dict<number | string | string[]>;
-  manifest: RemoteModuleManifest;
-  options: ServeRemoteModuleOptions;
+  manifest: ProviderModuleManifest;
+  options: ServeModuleProviderOptions;
   stream: ServerHttp2Stream;
 }) {
   const path = headers[":path"];
@@ -1998,8 +2000,8 @@ async function readGrpcBody(stream: ServerHttp2Stream) {
 function handleGrpcPayload(
   path: string,
   payload: Record<string, unknown>,
-  manifest: RemoteModuleManifest,
-  options: ServeRemoteModuleOptions
+  manifest: ProviderModuleManifest,
+  options: ServeModuleProviderOptions
 ) {
   switch (path) {
     case GRPC_PATHS.getManifest: {
@@ -2026,7 +2028,7 @@ function handleGrpcPayload(
     case GRPC_PATHS.handleEvent: {
       return invokeEventHandler(
         options.events ?? {},
-        payload as unknown as RemoteEventHandleRequest
+        payload as unknown as ModuleEventHandleRequest
       );
     }
     default: {
@@ -2037,7 +2039,7 @@ function handleGrpcPayload(
 
 function listGrpcAdminRecords(
   payload: Record<string, unknown>,
-  data: Record<string, RemoteAdminDataSource>
+  data: Record<string, ModuleAdminDataSource>
 ) {
   const entity = String(payload.entity ?? "");
   const source = data[entity];
@@ -2052,7 +2054,7 @@ function listGrpcAdminRecords(
 
 async function getGrpcAdminRecord(
   payload: Record<string, unknown>,
-  data: Record<string, RemoteAdminDataSource>
+  data: Record<string, ModuleAdminDataSource>
 ) {
   const entity = String(payload.entity ?? "");
   const source = data[entity];
@@ -2065,7 +2067,7 @@ async function getGrpcAdminRecord(
 
 async function invokeGrpcAdminAction(
   payload: Record<string, unknown>,
-  handlers: Record<string, RemoteAdminActionHandler>
+  handlers: Record<string, ModuleAdminActionHandler>
 ) {
   const action = String(payload.action ?? "");
   const handler = handlers[action];
@@ -2082,7 +2084,7 @@ async function invokeGrpcAdminAction(
 
 async function invokeGrpcAdminQuery(
   payload: Record<string, unknown>,
-  handlers: Record<string, RemoteAdminQueryHandler>
+  handlers: Record<string, ModuleAdminQueryHandler>
 ) {
   const query = String(payload.query ?? "");
   const handler = handlers[query];
@@ -2098,9 +2100,9 @@ async function invokeGrpcAdminQuery(
 
 async function proxyGrpcHttpRoute(
   payload: Record<string, unknown>,
-  handlers: Record<string, RemoteHttpHandler>
+  handlers: Record<string, ModuleHttpHandler>
 ) {
-  const method = String(payload.method ?? "") as RemoteHttpMethod;
+  const method = String(payload.method ?? "") as ModuleHttpMethod;
   const declaredPath = String(
     payload.declared_path ?? payload.remote_path ?? ""
   );
@@ -2135,7 +2137,7 @@ async function proxyGrpcHttpRoute(
 
 async function invokeGrpcRuntimeFunction(
   payload: Record<string, unknown>,
-  handlers: Record<string, RemoteRuntimeHandler>
+  handlers: Record<string, ModuleRuntimeHandler>
 ) {
   const functionName = String(payload.function_name ?? "");
   const handler = handlers[functionName];
@@ -2144,7 +2146,7 @@ async function invokeGrpcRuntimeFunction(
   }
   const output = await handler({
     input: payload.input,
-    invocation: payload as unknown as RemoteRuntimeInvokeRequest,
+    invocation: payload as unknown as ModuleRuntimeInvokeRequest,
     request: undefined as unknown as IncomingMessage,
   });
   return { output: output ?? null };

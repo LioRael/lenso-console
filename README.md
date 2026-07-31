@@ -158,10 +158,6 @@ lenso service dev
 lenso service install https://example.com/lenso/service/v1/manifest
 ```
 
-Run `pnpm demo:remote-module-package` for the legacy temp-directory remote
-module fixture. The older `pnpm demo:remote-module-install` command is kept as
-an alias.
-
 Runnable service examples that use the published `@lenso/service-kit` package
 live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos

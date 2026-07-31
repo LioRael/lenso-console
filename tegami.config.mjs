@@ -14,7 +14,6 @@ export default {
   },
   packages: {
     "@lenso/console-package-api": {},
-    "@lenso/remote-module-kit": {},
     "@lenso/service-kit": {},
   },
 };

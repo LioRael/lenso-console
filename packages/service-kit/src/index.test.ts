@@ -38,7 +38,7 @@ describe("defineServiceContract", () => {
   it("builds a provider service manifest with modules", () => {
     const manifest = defineServiceContract({
       compatibility: {
-        remoteProtocolVersion: "1",
+        providerProtocolVersion: "1",
         requiredHostFeatures: ["service.status"],
         sdkLanguage: "ts",
         sdkVersion: "0.1.0",

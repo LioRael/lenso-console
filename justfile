@@ -94,19 +94,5 @@ create-console-package name:
 create-module name:
     pnpm create:module {{name}}
 
-# Demos
-remote-module-run-demo:
-    pnpm demo:remote-module-run
-
-remote-module-package-demo:
-    pnpm demo:remote-module-package
-
-remote-module-install-demo:
-    pnpm demo:remote-module-install
-
-demo-release:
-    pnpm demo:release
-
 release-check:
     just check
-    just demo-release

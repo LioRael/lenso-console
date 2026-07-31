@@ -10,5 +10,5 @@
     "rootDir": "src",
     "sourceMap": false
   },
-  "include": ["src/index.ts"]
+  "include": ["src/index.ts", "src/service-module-delivery.ts"]
 }

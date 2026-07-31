@@ -195,7 +195,7 @@ The package command writes `lenso.service-package.json` plus one
 
 ## Publishing
 
-This package is released with `@lenso/remote-module-kit` through the reviewed
-release plan and coordinator-authorized `publish.yml` workflow. Run
-`pnpm package-readiness` before opening a release PR; do not dispatch a
-package-specific publisher directly.
+This package is released through the reviewed release plan and
+coordinator-authorized `publish.yml` workflow. Run `pnpm package-readiness`
+before opening a release PR; do not dispatch a package-specific publisher
+directly.

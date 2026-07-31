@@ -35,20 +35,6 @@ if (consoleModule.id !== "smoke-console") {
       'import { defineConsoleModule, defineConsolePackageManifest } from "@lenso/console-package-api";',
   },
   {
-    dir: path.join(consoleRoot, "packages/remote-module-kit"),
-    name: "@lenso/remote-module-kit",
-    smokeBody: `const manifest = defineRemoteModule({
-  name: "smoke",
-  runtimeFunctions: [remoteRuntimeFunction("smoke.run.v1")],
-});
-
-if (manifest.runtime.functions[0]?.name !== "smoke.run.v1") {
-  throw new Error("remote-module-kit import did not work");
-}`,
-    smokeImport:
-      'import { defineRemoteModule, runtimeFunction as remoteRuntimeFunction } from "@lenso/remote-module-kit";',
-  },
-  {
     dir: path.join(consoleRoot, "packages/service-kit"),
     name: "@lenso/service-kit",
     smokeBody: `const module = defineModule({
@@ -226,10 +212,6 @@ const assertInstallSmoke = async () => {
     await writeFile(
       path.join(tempRoot, "package.json"),
       `${JSON.stringify(smokePackageJson, null, 2)}\n`
-    );
-    await writeFile(
-      path.join(tempRoot, "pnpm-workspace.yaml"),
-      `overrides:\n  "@lenso/remote-module-kit": "${tarballByPackage["@lenso/remote-module-kit"]}"\n`
     );
     await writeFile(
       path.join(tempRoot, "smoke.mjs"),

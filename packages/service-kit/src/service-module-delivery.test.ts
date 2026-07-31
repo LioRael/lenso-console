@@ -15,7 +15,7 @@ import {
   declarativePage,
   declarativeSection,
   defineModule,
-  defineRemoteModule,
+  defineProviderModule,
   defineService,
   defineSchemaEntity,
   entityTable,
@@ -31,18 +31,18 @@ import {
   queryValue,
   readLensoInvocationContext,
   runtimeFunction,
-  serveRemoteModuleGrpc,
+  serveModuleProviderGrpc,
   schemaAdmin,
-  serveRemoteModule,
+  serveModuleProvider,
   serveService,
   textField,
   timestampField,
-} from ".";
+} from "./service-module-delivery";
 
-describe("@lenso/remote-module-kit", () => {
-  test("defines a serializable remote module manifest", () => {
+describe("@lenso/service-kit internal delivery adapter", () => {
+  test("defines a serializable service module manifest", () => {
     expect(
-      defineRemoteModule({
+      defineProviderModule({
         capabilities: ["billing.read"],
         console: [
           {
@@ -89,7 +89,7 @@ describe("@lenso/remote-module-kit", () => {
 
   test("defines event handler declarations and dependency metadata", () => {
     expect(
-      defineRemoteModule({
+      defineProviderModule({
         dependencies: ["identity"],
         eventHandlers: [
           eventHandler(
@@ -136,10 +136,9 @@ describe("@lenso/remote-module-kit", () => {
 
   test("defines service release metadata", () => {
     expect(
-      defineRemoteModule({
+      defineProviderModule({
         compatibility: {
           console_package_api: "1",
-          remote_protocol_version: "1",
           required_host_features: ["service.status"],
         },
         name: "billing",
@@ -157,7 +156,6 @@ describe("@lenso/remote-module-kit", () => {
     ).toMatchObject({
       compatibility: {
         console_package_api: "1",
-        remote_protocol_version: "1",
       },
       service: {
         name: "api",
@@ -183,7 +181,6 @@ describe("@lenso/remote-module-kit", () => {
     expect(
       defineService({
         compatibility: {
-          remote_protocol_version: "1",
           required_host_features: ["service.status"],
         },
         deployment: {
@@ -205,7 +202,6 @@ describe("@lenso/remote-module-kit", () => {
       })
     ).toEqual({
       compatibility: {
-        remote_protocol_version: "1",
         required_host_features: ["service.status"],
       },
       deployment: {
@@ -233,7 +229,7 @@ describe("@lenso/remote-module-kit", () => {
 
   test("defines HTTP route declarations", () => {
     expect(
-      defineRemoteModule({
+      defineProviderModule({
         httpRoutes: [
           getRoute("/contacts/{id}", {
             capability: "crm.contacts.read",
@@ -316,7 +312,7 @@ describe("@lenso/remote-module-kit", () => {
 
   test("defines runtime function declarations", () => {
     expect(
-      defineRemoteModule({
+      defineProviderModule({
         name: "crm",
         runtimeFunctions: [
           runtimeFunction("crm.contacts.enrich.v1", {
@@ -350,7 +346,7 @@ describe("@lenso/remote-module-kit", () => {
 
   test("defines lifecycle activation declarations", () => {
     expect(
-      defineRemoteModule({
+      defineProviderModule({
         lifecycle: lifecycle({
           activationJobs: [
             everyStartup("sync contacts on startup", "crm.contacts.enrich.v1", {
@@ -391,9 +387,9 @@ describe("@lenso/remote-module-kit", () => {
     });
   });
 
-  test("serves the manifest through the remote module protocol", async () => {
-    const manifest = defineRemoteModule({ name: "billing" });
-    const served = await serveRemoteModule(manifest, { port: 0 });
+  test("serves the manifest through the service module protocol", async () => {
+    const manifest = defineProviderModule({ name: "billing" });
+    const served = await serveModuleProvider(manifest, { port: 0 });
     try {
       await expect(
         fetch(served.manifestUrl).then((response) => response.json())
@@ -491,7 +487,7 @@ describe("@lenso/remote-module-kit", () => {
       name: "contacts",
       readCapability: "crm.contacts.read",
     });
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       admin: schemaAdmin([contacts]),
       capabilities: ["crm.contacts.read"],
       name: "crm",
@@ -527,7 +523,7 @@ describe("@lenso/remote-module-kit", () => {
       kind: "schema",
     });
 
-    const served = await serveRemoteModule(manifest, {
+    const served = await serveModuleProvider(manifest, {
       data: {
         contacts: {
           detail: (id) =>
@@ -568,7 +564,7 @@ describe("@lenso/remote-module-kit", () => {
       name: "contacts",
       readCapability: "crm.contacts.read",
     });
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       admin: declarativeCustom({
         actions: [
           adminAction("sync_contacts", {
@@ -701,14 +697,14 @@ describe("@lenso/remote-module-kit", () => {
   });
 
   test("serves declared HTTP routes with params and request body", async () => {
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       httpRoutes: [
         getRoute("/contacts/{id}", { capability: "crm.contacts.read" }),
         postRoute("/contacts", { capability: "crm.contacts.write" }),
       ],
       name: "crm",
     });
-    const served = await serveRemoteModule(manifest, {
+    const served = await serveModuleProvider(manifest, {
       http: {
         "GET /contacts/{id}": ({ params }) => ({
           email: "ada@example.com",
@@ -745,7 +741,7 @@ describe("@lenso/remote-module-kit", () => {
   });
 
   test("serves admin action invocations", async () => {
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       admin: declarativeCustom({
         actions: [
           adminAction("sync_contacts", {
@@ -756,7 +752,7 @@ describe("@lenso/remote-module-kit", () => {
       }),
       name: "crm",
     });
-    const served = await serveRemoteModule(manifest, {
+    const served = await serveModuleProvider(manifest, {
       actions: {
         sync_contacts: ({ action, input }) => ({
           action,
@@ -807,7 +803,7 @@ describe("@lenso/remote-module-kit", () => {
   });
 
   test("serves admin query values", async () => {
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       admin: declarativeCustom({
         pages: [
           declarativePage("dashboard", {
@@ -824,7 +820,7 @@ describe("@lenso/remote-module-kit", () => {
       }),
       name: "crm",
     });
-    const served = await serveRemoteModule(manifest, {
+    const served = await serveModuleProvider(manifest, {
       port: 0,
       queries: {
         health: ({ query }) => ({ metrics: { contacts: 2 }, query }),
@@ -847,11 +843,11 @@ describe("@lenso/remote-module-kit", () => {
   });
 
   test("serves runtime function invocations", async () => {
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       name: "crm",
       runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
     });
-    const served = await serveRemoteModule(manifest, {
+    const served = await serveModuleProvider(manifest, {
       port: 0,
       runtime: {
         "crm.contacts.enrich.v1": ({ input, invocation }) => ({
@@ -893,7 +889,7 @@ describe("@lenso/remote-module-kit", () => {
   });
 
   test("serves event handler invocations", async () => {
-    const manifest = defineRemoteModule({
+    const manifest = defineProviderModule({
       eventHandlers: [
         eventHandler(
           "sync_contact_on_user_registered",
@@ -902,7 +898,7 @@ describe("@lenso/remote-module-kit", () => {
       ],
       name: "crm",
     });
-    const served = await serveRemoteModule(manifest, {
+    const served = await serveModuleProvider(manifest, {
       events: {
         sync_contact_on_user_registered: ({ event }) => ({
           actions: [
@@ -986,8 +982,8 @@ describe("@lenso/remote-module-kit", () => {
     ).toBeUndefined();
   });
 
-  test("serves the remote module gRPC JSON envelope protocol", async () => {
-    const manifest = defineRemoteModule({
+  test("serves the service module gRPC JSON envelope protocol", async () => {
+    const manifest = defineProviderModule({
       admin: declarativeCustom({
         pages: [
           declarativePage("dashboard", {
@@ -1011,7 +1007,7 @@ describe("@lenso/remote-module-kit", () => {
       name: "crm",
       runtimeFunctions: [runtimeFunction("crm.contacts.enrich.v1")],
     });
-    const served = await serveRemoteModuleGrpc(manifest, {
+    const served = await serveModuleProviderGrpc(manifest, {
       events: {
         sync_contact_on_user_registered: ({ event }) => ({
           actions: [

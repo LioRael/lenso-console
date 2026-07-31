@@ -16,8 +16,6 @@ const liveRepositoryIdentityFiles = [
   "README.md",
   "docs/agents/issue-tracker.md",
   "packages/console-package-api/package.json",
-  "packages/remote-module-kit/README.md",
-  "packages/remote-module-kit/package.json",
   "packages/service-kit/package.json",
   "service/README.md",
 ];
@@ -73,6 +71,15 @@ describe("Lenso Console repository boundary", () => {
 
     expect(build).toContain(packageBuild);
     expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
+  });
+
+  test("does not retain the retired remote module package", async () => {
+    await expect(
+      access(path.join(root, "packages/remote-module-kit"))
+    ).rejects.toThrow();
+    expect(await source("packages/service-kit/src/index.ts")).not.toContain(
+      "remote-module-kit"
+    );
   });
 
   test("documents the live identity and cross-repository responsibilities", async () => {
