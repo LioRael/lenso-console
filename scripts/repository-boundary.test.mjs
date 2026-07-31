@@ -66,6 +66,15 @@ describe("Lenso Console repository boundary", () => {
     ).toHaveLength(1);
   });
 
+  test("builds the public package API before release artifacts are packed", async () => {
+    const manifest = JSON.parse(await source("package.json"));
+    const build = manifest.scripts["build:local"];
+    const packageBuild = "pnpm --filter @lenso/console-package-api build";
+
+    expect(build).toContain(packageBuild);
+    expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
+  });
+
   test("documents the live identity and cross-repository responsibilities", async () => {
     const contents = await source("docs/repository-operations.md");
 
