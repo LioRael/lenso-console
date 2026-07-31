@@ -56,16 +56,6 @@ const installCommands = [
 ];
 
 const baseInstallState: AvailableModuleInstallState = {
-  consolePlan: {
-    error: null,
-    exists: false,
-    moduleEntryPresent: false,
-    packageCount: 0,
-    packages: [],
-    planFile: ".lenso/console/extensions/registry.json",
-    readable: false,
-    restartRequired: null,
-  },
   moduleRegistered: false,
   remoteSource: {
     configured: false,
@@ -279,24 +269,6 @@ describe("available modules model", () => {
       ...baseRow!,
       installState: {
         ...baseInstallState,
-        consolePlan: {
-          ...baseInstallState.consolePlan,
-          exists: true,
-          moduleEntryPresent: true,
-          packageCount: 1,
-          packages: [
-            {
-              command: "pnpm add @vendor/lenso-billing-console",
-              exportName: "billingConsoleModule",
-              key: "@vendor/lenso-billing-console#billingConsoleModule",
-              packageName: "@vendor/lenso-billing-console",
-              route: "/data/billing",
-              status: "requires_manual_install",
-            },
-          ],
-          readable: true,
-          restartRequired: true,
-        },
         remoteSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
@@ -326,8 +298,7 @@ describe("available modules model", () => {
         row,
       })[1]
     ).toMatchObject({
-      evidence:
-        "1 console extension entry in .lenso/console/extensions/registry.json",
+      evidence: "1 console package hint in catalog",
       status: "done",
     });
   });
@@ -379,24 +350,6 @@ describe("available modules model", () => {
       ...baseRow!,
       installState: {
         ...baseInstallState,
-        consolePlan: {
-          ...baseInstallState.consolePlan,
-          exists: true,
-          moduleEntryPresent: true,
-          packageCount: 1,
-          packages: [
-            {
-              command: "pnpm add @vendor/lenso-billing-console",
-              exportName: "billingConsoleModule",
-              key: "@vendor/lenso-billing-console#billingConsoleModule",
-              packageName: "@vendor/lenso-billing-console",
-              route: "/data/billing",
-              status: "requires_manual_install",
-            },
-          ],
-          readable: true,
-          restartRequired: true,
-        },
         remoteSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
@@ -416,7 +369,11 @@ describe("available modules model", () => {
       }).map((check) => [check.key, check.status, check.command ?? null])
     ).toEqual([
       ["source", "ok", null],
-      ["plan", "ok", null],
+      [
+        "plan",
+        "fix",
+        "lenso module marketplace install https://example.com/lenso/module/v1/manifest",
+      ],
       ["package", "fix", "reload Lenso Console"],
       ["runtime", "fix", null],
       ["restart", "fix", null],
@@ -454,7 +411,7 @@ describe("available modules model", () => {
       }).map((check) => [check.key, check.status, check.command ?? null])
     ).toEqual([
       ["source", "ok", null],
-      ["plan", "skip", null],
+      ["plan", "ok", null],
       ["package", "ok", null],
       ["runtime", "ok", null],
       ["restart", "ok", null],

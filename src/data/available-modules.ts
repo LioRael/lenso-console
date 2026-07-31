@@ -44,16 +44,6 @@ export const sampleAvailableModulesResponse = {
         lensoVersion: "0.1.0",
       },
       installState: {
-        consolePlan: {
-          error: null,
-          exists: false,
-          moduleEntryPresent: false,
-          packageCount: 0,
-          packages: [],
-          planFile: ".lenso/console/extensions/registry.json",
-          readable: false,
-          restartRequired: null,
-        },
         moduleRegistered: false,
         linkedSource: null,
         remoteSource: {
@@ -94,16 +84,6 @@ export const sampleAvailableModulesResponse = {
         lensoVersion: "0.1.0",
       },
       installState: {
-        consolePlan: {
-          error: null,
-          exists: false,
-          moduleEntryPresent: false,
-          packageCount: 0,
-          packages: [],
-          planFile: ".lenso/console/extensions/registry.json",
-          readable: false,
-          restartRequired: null,
-        },
         moduleRegistered: false,
         linkedSource: null,
         remoteSource: {

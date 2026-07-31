@@ -205,7 +205,7 @@ describe("console bundles", () => {
     );
 
     await expect(
-      loadConsoleBundlePackages("/console/extensions/registry.json", {
+      loadConsoleBundlePackages("/console/dev/registry.json", {
         fetchJson,
         origin: "http://lenso.test",
       })

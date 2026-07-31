@@ -206,7 +206,7 @@ pnpm console-package:dev --package ../lenso-auth-module/packages/auth-console
 
 The default mode is standalone mock mode. It starts the Lenso Console Shell,
 loads the package through a temporary `/console/dev/registry.json`, and serves
-the package bundle from a temporary `/console/extensions/dev/*` path.
+the package bundle from a temporary `/console/dev/extensions/*` path.
 
 Proxy a real Lenso host when the package needs real admin data or capabilities:
 
@@ -216,9 +216,8 @@ pnpm console-package:dev \
   --host http://localhost:3000
 ```
 
-Dev mode does not write `.lenso/console/extensions` and does not install
-packages into the host. Production installs still use the normal service/module
-install path.
+Dev mode does not install packages into the host. Production Console packages
+are composed and delivered by the Console Service release.
 
 ## Checks
 

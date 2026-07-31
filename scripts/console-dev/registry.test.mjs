@@ -28,13 +28,13 @@ describe("console dev registry", () => {
     expect(registry).toEqual({
       bundles: [
         {
-          entry: "/console/extensions/dev/auth-console.js",
+          entry: "/console/dev/extensions/auth-console.js",
           exportName: "authConsoleModule",
           hostApi: "1",
           moduleName: "auth",
           packageName: "@lenso/auth-console",
           requiredCapabilities: ["auth.users.read"],
-          styles: ["/console/extensions/dev/auth-console.css"],
+          styles: ["/console/dev/extensions/auth-console.css"],
         },
       ],
       version: 1,
@@ -62,13 +62,13 @@ describe("console dev registry", () => {
     expect(registry).toEqual({
       bundles: [
         {
-          entry: "/console/extensions/dev/auth-console-dev.js",
+          entry: "/console/dev/extensions/auth-console-dev.js",
           exportName: "authConsoleModule",
           hostApi: "1",
           moduleName: "auth",
           packageName: "@scope/auth.console+dev",
           requiredCapabilities: [],
-          styles: ["/console/extensions/dev/auth-console-dev.css"],
+          styles: ["/console/dev/extensions/auth-console-dev.css"],
         },
       ],
       version: 1,

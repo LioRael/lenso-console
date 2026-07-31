@@ -1,15 +1,10 @@
-import { DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL } from "../app/console-bundles";
-
-export const defaultConsoleBundleRegistryUrl =
-  DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL;
-
 export type ConsoleDevMode = "production" | "mock" | "host";
 
 export type ConsoleDevConfig = {
   diagnosticsUrl: string | null;
   enabled: boolean;
   mode: ConsoleDevMode;
-  registryUrl: string;
+  registryUrl: string | null;
   targetLabel: string | null;
 };
 
@@ -25,9 +20,7 @@ export type ConsoleDevEnv = Partial<
 
 export function consoleDevConfigFromEnv(env: ConsoleDevEnv): ConsoleDevConfig {
   const mode = consoleDevMode(env.VITE_CONSOLE_DEV_MODE);
-  const registryUrl =
-    cleanString(env.VITE_CONSOLE_DEV_REGISTRY_URL) ??
-    defaultConsoleBundleRegistryUrl;
+  const registryUrl = cleanString(env.VITE_CONSOLE_DEV_REGISTRY_URL) ?? null;
 
   return {
     diagnosticsUrl: cleanString(env.VITE_CONSOLE_DEV_DIAGNOSTICS_URL) ?? null,
