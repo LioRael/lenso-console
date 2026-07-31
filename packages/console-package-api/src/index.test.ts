@@ -8,7 +8,7 @@ import {
   defineConsolePackageManifest,
 } from ".";
 
-describe("runtime console package API", () => {
+describe("console package API", () => {
   test("publishes Tailwind theme tokens for console packages", () => {
     const themeCss = readFileSync(new URL("../theme.css", import.meta.url), {
       encoding: "utf-8",

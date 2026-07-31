@@ -14,12 +14,12 @@ const consoleDevMiddleware = consoleDevPlugin({
 });
 
 export default defineConfig({
-  base: process.env.LENSO_CONSOLE_BASE ?? "/",
+  base: "/",
   resolve: {
     alias: {
-      "@lenso/runtime-console-api": resolve(
+      "@lenso/console-package-api": resolve(
         import.meta.dirname,
-        "src/extension-host/runtime-console-api.ts"
+        "src/extension-host/console-package-api.ts"
       ),
     },
   },
@@ -35,9 +35,9 @@ export default defineConfig({
           import.meta.dirname,
           "src/extension-host/react-jsx-runtime.ts"
         ),
-        "extension-host-runtime-console-api": resolve(
+        "extension-host-console-package-api": resolve(
           import.meta.dirname,
-          "src/extension-host/runtime-console-api.ts"
+          "src/extension-host/console-package-api.ts"
         ),
       },
       preserveEntrySignatures: "strict",
@@ -49,8 +49,8 @@ export default defineConfig({
           if (chunkInfo.name === "extension-host-react-jsx-runtime") {
             return "extensions/host/react-jsx-runtime.js";
           }
-          if (chunkInfo.name === "extension-host-runtime-console-api") {
-            return "extensions/host/runtime-console-api.js";
+          if (chunkInfo.name === "extension-host-console-package-api") {
+            return "extensions/host/console-package-api.js";
           }
           return "assets/[name]-[hash].js";
         },

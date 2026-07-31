@@ -128,7 +128,7 @@ describe("console package installs", () => {
       runtimeConsolePackageJson.dependencies ?? {}
     ).filter(
       (name) =>
-        name !== "@lenso/runtime-console-api" && name.endsWith("-console")
+        name !== "@lenso/console-package-api" && name.endsWith("-console")
     );
 
     expect(consolePackageNames).toEqual(dependencyNames);

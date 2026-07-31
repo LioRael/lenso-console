@@ -62,14 +62,14 @@ const packageViteConfigSource = ({
     sourcemap: true,
     rollupOptions: {
       external: [
-        "@lenso/runtime-console-api",
+        "@lenso/console-package-api",
         "react",
         "react/jsx-dev-runtime",
         "react/jsx-runtime",
       ],
       output: {
         paths: {
-          "@lenso/runtime-console-api": "/console/src/extension-host/runtime-console-api.ts",
+          "@lenso/console-package-api": "/console/src/extension-host/console-package-api.ts",
           react: "/console/src/extension-host/react.ts",
           "react/jsx-dev-runtime": "/console/src/extension-host/react-jsx-runtime.ts",
           "react/jsx-runtime": "/console/src/extension-host/react-jsx-runtime.ts",
@@ -79,11 +79,11 @@ const packageViteConfigSource = ({
   },
   resolve: {
     alias: {
-      "@lenso/runtime-console-api": ${JSON.stringify(
-        path.join(root, "src/extension-host/runtime-console-api.ts")
+      "@lenso/console-package-api": ${JSON.stringify(
+        path.join(root, "src/extension-host/console-package-api.ts")
       )},
     },
-    dedupe: ["@lenso/runtime-console-api", "react", "react-dom"],
+    dedupe: ["@lenso/console-package-api", "react", "react-dom"],
   },
   root: ${JSON.stringify(target.packageRoot)},
 };
@@ -140,7 +140,7 @@ const spawnRuntimeConsole = ({
   console.error("Lenso Console Dev");
   console.error(`Mode: ${mode}`);
   console.error(`Targets: ${targetLabel}`);
-  console.error(`Console: http://localhost:${cliArgs.port}/console/launchpad`);
+  console.error(`Console: http://localhost:${cliArgs.port}/launchpad`);
 
   return spawn(
     "pnpm",
@@ -149,7 +149,6 @@ const spawnRuntimeConsole = ({
       cwd: root,
       env: {
         ...process.env,
-        LENSO_CONSOLE_BASE: "/console/",
         LENSO_CONSOLE_DEV_EXTENSIONS_DIR: outputDir,
         LENSO_CONSOLE_DEV_HOST: cliArgs.host ?? "",
         LENSO_CONSOLE_DEV_REGISTRY_FILE: registryPath,

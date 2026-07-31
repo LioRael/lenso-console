@@ -1,5 +1,5 @@
 export * from "../../packages/console-package-api/src/index";
-export { runtimeConsoleHostApi } from "../app/console-host-api";
+export { consoleHostApi } from "../app/console-host-api";
 export type {
   ConsoleAdminListResponse,
   ConsoleAdminRecord,

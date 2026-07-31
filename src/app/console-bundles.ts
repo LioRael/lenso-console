@@ -9,7 +9,7 @@ export const CONSOLE_BUNDLE_HOST_API = "1";
 export const DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL =
   "/console/extensions/registry.json";
 
-export type RuntimeConsoleBundleManifest = {
+export type ConsoleBundleManifest = {
   packageName: string;
   exportName: string;
   entry: string;
@@ -19,33 +19,31 @@ export type RuntimeConsoleBundleManifest = {
   styles?: readonly string[];
 };
 
-export type RuntimeConsoleBundleRegistry = {
+export type ConsoleBundleRegistry = {
   version: 1;
-  bundles: readonly RuntimeConsoleBundleManifest[];
+  bundles: readonly ConsoleBundleManifest[];
 };
 
-export type RuntimeConsoleBundleImport = (
+export type ConsoleBundleImport = (
   entryUrl: string
 ) => Promise<Record<string, unknown>>;
 
-export type RuntimeConsoleBundleStyleLoader = (
-  href: string
-) => Promise<void> | void;
+export type ConsoleBundleStyleLoader = (href: string) => Promise<void> | void;
 
-type RuntimeConsoleBundleOptions = {
+type ConsoleBundleOptions = {
   availableCapabilities?: readonly string[];
-  importModule?: RuntimeConsoleBundleImport;
-  loadStyle?: RuntimeConsoleBundleStyleLoader;
+  importModule?: ConsoleBundleImport;
+  loadStyle?: ConsoleBundleStyleLoader;
   origin?: string;
 };
 
-type RuntimeConsoleBundleRegistryOptions = RuntimeConsoleBundleOptions & {
+type ConsoleBundleRegistryOptions = ConsoleBundleOptions & {
   fetchJson?: typeof fetch;
 };
 
-export async function loadRuntimeConsoleBundlePackages(
+export async function loadConsoleBundlePackages(
   registryUrl = DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL,
-  options: RuntimeConsoleBundleRegistryOptions = {}
+  options: ConsoleBundleRegistryOptions = {}
 ): Promise<InstalledConsolePackage[]> {
   const fetchJson = options.fetchJson ?? fetch;
   const response = await fetchJson(registryUrl, {
@@ -60,28 +58,28 @@ export async function loadRuntimeConsoleBundlePackages(
       `Console bundle registry request failed: ${response.status}`
     );
   }
-  return runtimeConsoleBundlePackages(
-    (await response.json()) as RuntimeConsoleBundleRegistry,
+  return consoleBundlePackages(
+    (await response.json()) as ConsoleBundleRegistry,
     options
   );
 }
 
-export async function runtimeConsoleBundlePackages(
-  registry: RuntimeConsoleBundleRegistry,
-  options: RuntimeConsoleBundleOptions = {}
+export async function consoleBundlePackages(
+  registry: ConsoleBundleRegistry,
+  options: ConsoleBundleOptions = {}
 ): Promise<InstalledConsolePackage[]> {
   return Promise.all(
     registry.bundles
       .filter((bundle) =>
         bundleHasCapabilities(bundle, options.availableCapabilities)
       )
-      .map((bundle) => runtimeConsoleBundlePackage(bundle, options))
+      .map((bundle) => consoleBundlePackage(bundle, options))
   );
 }
 
-async function runtimeConsoleBundlePackage(
-  bundle: RuntimeConsoleBundleManifest,
-  options: RuntimeConsoleBundleOptions
+async function consoleBundlePackage(
+  bundle: ConsoleBundleManifest,
+  options: ConsoleBundleOptions
 ): Promise<InstalledConsolePackage> {
   if (bundle.hostApi !== CONSOLE_BUNDLE_HOST_API) {
     throw new Error(
@@ -113,7 +111,7 @@ async function runtimeConsoleBundlePackage(
 }
 
 function bundleHasCapabilities(
-  bundle: RuntimeConsoleBundleManifest,
+  bundle: ConsoleBundleManifest,
   availableCapabilities?: readonly string[]
 ): boolean {
   if (!availableCapabilities) {

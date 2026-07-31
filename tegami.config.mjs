@@ -13,8 +13,8 @@ export default {
     bumpDep: () => false,
   },
   packages: {
+    "@lenso/console-package-api": {},
     "@lenso/remote-module-kit": {},
-    "@lenso/runtime-console-api": {},
     "@lenso/service-kit": {},
   },
 };

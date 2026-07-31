@@ -1,4 +1,4 @@
-import { runtimeConsoleHostApi } from "@lenso/runtime-console-api";
+import { consoleHostApi } from "@lenso/console-package-api";
 import { describe, expect, test } from "vitest";
 
 import { shouldCloseInspectorOnEscape } from "./keyboard";
@@ -15,9 +15,9 @@ describe("story workbench page contracts", () => {
   });
 
   test("keeps story header props aligned with story data", () => {
-    const story = runtimeConsoleHostApi.data.runtimeStories[0]!;
+    const story = consoleHostApi.data.runtimeStories[0]!;
     const storyHeaderProps: Parameters<
-      typeof runtimeConsoleHostApi.ui.runtime.StoryHeader
+      typeof consoleHostApi.ui.runtime.StoryHeader
     >[0] = {
       onClose: () => undefined,
       onSelectNode: () => undefined,

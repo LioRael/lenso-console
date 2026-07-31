@@ -29,7 +29,7 @@ const createHostFixture = async (hostRoot) => {
     JSON.stringify(
       {
         dependencies: {
-          "@lenso/runtime-console-api": "workspace:*",
+          "@lenso/console-package-api": "workspace:*",
         },
         scripts: {
           test: "vitest run src packages/console-package-api/src",

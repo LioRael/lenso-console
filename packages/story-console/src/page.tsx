@@ -1,11 +1,11 @@
 import { useGSAP } from "@gsap/react";
 import {
-  runtimeConsoleHostApi,
+  consoleHostApi,
   type ExecutionInspectorTab,
   type ExecutionNode,
   type RuntimeStory,
   type StoryViewMode,
-} from "@lenso/runtime-console-api";
+} from "@lenso/console-package-api";
 import gsap from "gsap";
 import {
   useEffect,
@@ -70,7 +70,7 @@ export function RuntimeStoriesPage() {
         defaultExecutionInspectorTab,
       },
     },
-  } = runtimeConsoleHostApi;
+  } = consoleHostApi;
   const { activeStoryTarget, clearStoryTarget, openRetry } =
     useRuntimeConsole();
   const modulesQuery = useConsoleModulesMetadata();

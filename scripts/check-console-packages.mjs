@@ -46,7 +46,7 @@ const packageInstallManifestsSource = await readFile(
 const workspacePackageNames = Object.keys(hostPackageJson.dependencies ?? {})
   .filter(
     (name) =>
-      name.startsWith("@lenso/") && name !== "@lenso/runtime-console-api"
+      name.startsWith("@lenso/") && name !== "@lenso/console-package-api"
   )
   .toSorted();
 
@@ -112,9 +112,9 @@ for (const packageName of workspacePackageNames) {
     );
   }
 
-  if (!packageJson.peerDependencies?.["@lenso/runtime-console-api"]) {
+  if (!packageJson.peerDependencies?.["@lenso/console-package-api"]) {
     errors.push(
-      `${relativePath(packageJsonPath)} must declare @lenso/runtime-console-api as a peer dependency`
+      `${relativePath(packageJsonPath)} must declare @lenso/console-package-api as a peer dependency`
     );
   }
   if (consoleSurface?.navigation) {

@@ -219,6 +219,24 @@ describe("console module registry", () => {
         route: "/data/remote-crm",
         surfaceName: "remote-crm",
       },
+      {
+        area: "operations",
+        exportName: "systemRegistryConsoleModule",
+        icon: "network",
+        label: "Managed Services",
+        moduleName: "lenso/system-registry",
+        navigation: {
+          order: 70,
+          workspace: {
+            icon: "shield",
+            id: "system",
+            label: "System",
+          },
+        },
+        packageName: "@lenso/system-registry-console",
+        route: "/system/services",
+        surfaceName: "managed-services",
+      },
     ]);
     expect(consoleModules.map((module) => module.id)).toContain(
       "platform-story"
@@ -255,6 +273,17 @@ describe("console module registry", () => {
           },
         },
         path: "/data/remote-crm",
+      },
+      {
+        navigation: {
+          order: 70,
+          workspace: {
+            icon: "shield",
+            id: "system",
+            label: "System",
+          },
+        },
+        path: "/system/services",
       },
     ]);
     expect(
@@ -296,10 +325,26 @@ describe("console module registry", () => {
         },
         path: "/data/remote-crm",
       },
+      {
+        navigation: {
+          order: 70,
+          workspace: {
+            icon: "shield",
+            id: "system",
+            label: "System",
+          },
+        },
+        path: "/system/services",
+      },
     ]);
     expect(
       buildConsoleRoutes(consoleModules).map((route) => route.path)
-    ).toEqual(["/runtime/stories", "/data/identity", "/data/remote-crm"]);
+    ).toEqual([
+      "/runtime/stories",
+      "/data/identity",
+      "/data/remote-crm",
+      "/system/services",
+    ]);
   });
 
   test("build-time module metadata creates switchable workspaces", () => {
@@ -314,7 +359,7 @@ describe("console module registry", () => {
     ).toEqual([
       {
         id: "system",
-        items: ["/runtime/stories"],
+        items: ["/runtime/stories", "/system/services"],
         label: "System",
       },
       {

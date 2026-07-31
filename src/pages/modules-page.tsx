@@ -1603,8 +1603,8 @@ function MissingConsolePackagesTable({
       </header>
       <div className="border-b border-(--border-subtle) px-3 py-2 text-[11px] text-(--secondary)">
         Reinstall the module to refresh{" "}
-        <code>.lenso/console/extensions/registry.json</code>, then reload
-        Runtime Console after the API and worker restart.
+        <code>.lenso/console/extensions/registry.json</code>, then reload Lenso
+        Console after the API and worker restart.
       </div>
       <div className="overflow-auto">
         <table className="w-full min-w-[820px] table-fixed">

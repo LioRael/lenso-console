@@ -11,10 +11,10 @@ export {
   type ConsoleWorkspaceRef,
 } from "./app/console-module-api";
 export {
-  runtimeConsoleHostApi,
+  consoleHostApi,
   type ConsoleResolvedAdminActionContribution,
   type ConsoleResolvedContribution,
-  type RuntimeConsoleHostApi,
+  type ConsoleHostApi,
   type ExecutionInspectorTab,
   type ExecutionNode,
   type RuntimeStory,

@@ -421,7 +421,7 @@ export const sampleLaunchpadResponse = {
     },
     {
       id: "console-open",
-      label: "Open Runtime Console Launchpad",
+      label: "Open Lenso Console Launchpad",
       nextCommand: "open http://127.0.0.1:3000/launchpad",
       status: "pending",
     },

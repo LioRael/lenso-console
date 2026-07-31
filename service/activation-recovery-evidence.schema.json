@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lenso.dev/schemas/console-activation-recovery-evidence.v1.json",
+  "title": "Lenso Console Activation Recovery Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "evidenceId",
+    "evidenceDigest",
+    "activationRecoveryPlanDigest",
+    "recoverySetId",
+    "recoverySetDigest",
+    "restorePlanDigest",
+    "reconciliationEvidenceDigest",
+    "failedActivationPlanDigest",
+    "releaseId",
+    "targetStoreIdentityDigest",
+    "priorStatus",
+    "priorPhase",
+    "recoveryModeRestored",
+    "workloadMode",
+    "authorityProbe",
+    "authorityProbeDigest",
+    "storeObservationDigest",
+    "store",
+    "restoredAtUnixMs"
+  ],
+  "properties": {
+    "schema": { "const": "lenso.console-activation-recovery-evidence.v1" },
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^arec_[a-f0-9]{16}$"
+    },
+    "evidenceDigest": { "$ref": "#/$defs/digest" },
+    "activationRecoveryPlanDigest": { "$ref": "#/$defs/digest" },
+    "recoverySetId": {
+      "type": "string",
+      "pattern": "^rcv_[a-f0-9-]{36}$"
+    },
+    "recoverySetDigest": { "$ref": "#/$defs/digest" },
+    "restorePlanDigest": { "$ref": "#/$defs/digest" },
+    "reconciliationEvidenceDigest": { "$ref": "#/$defs/digest" },
+    "failedActivationPlanDigest": { "$ref": "#/$defs/digest" },
+    "releaseId": {
+      "type": "string",
+      "pattern": "^lenso-console@(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "targetStoreIdentityDigest": { "$ref": "#/$defs/digest" },
+    "priorStatus": {
+      "enum": [
+        "activating",
+        "activation_failed",
+        "recovering_activation",
+        "activation_recovery_failed"
+      ]
+    },
+    "priorPhase": {
+      "enum": [
+        "authority_transfer",
+        "activation_rollback",
+        "activation_rollback_failed",
+        "activation_recovery_stop",
+        "activation_recovery_start",
+        "activation_recovery_observe",
+        "activation_recovery_commit"
+      ]
+    },
+    "recoveryModeRestored": { "const": true },
+    "workloadMode": { "const": "restore" },
+    "authorityProbe": { "$ref": "#/$defs/authorityProbe" },
+    "authorityProbeDigest": { "$ref": "#/$defs/digest" },
+    "storeObservationDigest": { "$ref": "#/$defs/digest" },
+    "store": { "$ref": "#/$defs/storeObservation" },
+    "restoredAtUnixMs": { "type": "integer", "minimum": 1 }
+  },
+  "$defs": {
+    "authorityProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "serviceId", "workloadMode"],
+      "properties": {
+        "schema": { "const": "lenso.console-authority.v1" },
+        "serviceId": { "const": "lenso-console" },
+        "workloadMode": { "const": "restore" }
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "storeObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionCount",
+        "staleSessionCount",
+        "outboxStatusCounts",
+        "outboxSnapshotDigest",
+        "managedServices"
+      ],
+      "properties": {
+        "sessionCount": { "type": "integer", "minimum": 0 },
+        "staleSessionCount": { "const": 0 },
+        "outboxStatusCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "failed": { "type": "integer", "minimum": 1 },
+            "pending": { "type": "integer", "minimum": 1 },
+            "processing": { "type": "integer", "minimum": 1 },
+            "published": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "outboxSnapshotDigest": { "$ref": "#/$defs/digest" },
+        "managedServices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/managedServiceObservation" }
+        }
+      }
+    },
+    "managedServiceObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serviceId",
+        "servicePrincipal",
+        "enrollmentReceiptDigest",
+        "enrollmentGrantRevision",
+        "authorizationEpoch",
+        "enrollmentState",
+        "version",
+        "coreDocumentDigest"
+      ],
+      "properties": {
+        "serviceId": { "type": "string", "minLength": 1 },
+        "servicePrincipal": { "type": "string", "minLength": 1 },
+        "enrollmentReceiptDigest": { "$ref": "#/$defs/digest" },
+        "enrollmentGrantRevision": { "type": "integer", "minimum": 1 },
+        "authorizationEpoch": { "type": "integer", "minimum": 0 },
+        "enrollmentState": { "enum": ["active", "revoked"] },
+        "version": { "type": "integer", "minimum": 1 },
+        "coreDocumentDigest": {
+          "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }]
+        }
+      }
+    }
+  }
+}

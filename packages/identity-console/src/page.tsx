@@ -1,4 +1,4 @@
-import { runtimeConsoleHostApi } from "@lenso/runtime-console-api";
+import { consoleHostApi } from "@lenso/console-package-api";
 
 import { identityUserRows, identityUsersSummary } from "./model";
 
@@ -25,7 +25,7 @@ const workflowRows = [
 ] as const;
 
 export function IdentityConsolePage() {
-  const usersQuery = runtimeConsoleHostApi.adminData.useRecords({
+  const usersQuery = consoleHostApi.adminData.useRecords({
     entityName: "users",
     moduleName: "identity",
   });

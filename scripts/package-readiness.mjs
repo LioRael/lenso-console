@@ -5,11 +5,37 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
-const runtimeConsoleRoot = path.resolve(import.meta.dirname, "..");
+const consoleRoot = path.resolve(import.meta.dirname, "..");
 
 const packages = [
   {
-    dir: path.join(runtimeConsoleRoot, "packages/remote-module-kit"),
+    dir: path.join(consoleRoot, "packages/console-package-api"),
+    name: "@lenso/console-package-api",
+    requiredFiles: ["theme.css"],
+    smokeBody: `const consoleManifest = defineConsolePackageManifest({
+  area: "data",
+  exportName: "smokeConsoleModule",
+  id: "smoke-console",
+  label: "Smoke",
+  packageName: "@example/smoke-console",
+  requiredCapabilities: [],
+  route: "/smoke",
+  source: "installed",
+  surfaceName: "smoke",
+});
+const consoleModule = defineConsoleModule({
+  id: consoleManifest.id,
+  surfaces: [],
+});
+
+if (consoleModule.id !== "smoke-console") {
+  throw new Error("console-package-api import did not work");
+}`,
+    smokeImport:
+      'import { defineConsoleModule, defineConsolePackageManifest } from "@lenso/console-package-api";',
+  },
+  {
+    dir: path.join(consoleRoot, "packages/remote-module-kit"),
     name: "@lenso/remote-module-kit",
     smokeBody: `const manifest = defineRemoteModule({
   name: "smoke",
@@ -23,7 +49,7 @@ if (manifest.runtime.functions[0]?.name !== "smoke.run.v1") {
       'import { defineRemoteModule, runtimeFunction as remoteRuntimeFunction } from "@lenso/remote-module-kit";',
   },
   {
-    dir: path.join(runtimeConsoleRoot, "packages/service-kit"),
+    dir: path.join(consoleRoot, "packages/service-kit"),
     name: "@lenso/service-kit",
     smokeBody: `const module = defineModule({
   capabilities: ["smoke.records.read"],
@@ -54,7 +80,7 @@ const assert = (condition, message) => {
 
 const run = async (command, args, options = {}) => {
   const { stdout } = await execFileAsync(command, args, {
-    cwd: runtimeConsoleRoot,
+    cwd: consoleRoot,
     maxBuffer: 1024 * 1024 * 10,
     ...options,
   });
@@ -112,7 +138,7 @@ const assertNoWorkspaceDependencies = (packageName, manifest) => {
   );
 };
 
-const assertPackContents = (packageName, packOutput) => {
+const assertPackContents = (packageName, packOutput, requiredFiles = []) => {
   const pack = parsePnpmPackOutput(packOutput);
   const files = pack.files.map((entry) => entry.path).toSorted();
   const required = [
@@ -121,6 +147,7 @@ const assertPackContents = (packageName, packOutput) => {
     "dist/index.d.ts",
     "dist/index.js",
     "package.json",
+    ...requiredFiles,
   ];
   const forbidden = files.filter(
     (filePath) =>
@@ -176,14 +203,18 @@ const assertInstallSmoke = async () => {
     for (const packageConfig of packages) {
       tarballs.push(await packPackage(packageConfig));
     }
+    const tarballByPackage = Object.fromEntries(
+      packages.map((packageConfig, index) => [
+        packageConfig.name,
+        tarballs[index],
+      ])
+    );
 
     const smokePackageJson = {
-      dependencies: Object.fromEntries(
-        packages.map((packageConfig, index) => [
-          packageConfig.name,
-          tarballs[index],
-        ])
-      ),
+      dependencies: Object.fromEntries([
+        ...Object.entries(tarballByPackage),
+        ["react", "^19.1.0"],
+      ]),
       name: "lenso-service-sdk-smoke",
       private: true,
       scripts: {
@@ -198,7 +229,7 @@ const assertInstallSmoke = async () => {
     );
     await writeFile(
       path.join(tempRoot, "pnpm-workspace.yaml"),
-      `overrides:\n  "@lenso/remote-module-kit": "${tarballs[0]}"\n`
+      `overrides:\n  "@lenso/remote-module-kit": "${tarballByPackage["@lenso/remote-module-kit"]}"\n`
     );
     await writeFile(
       path.join(tempRoot, "smoke.mjs"),
@@ -239,10 +270,14 @@ for (const packageConfig of packages) {
       maxBuffer: 1024 * 1024 * 10,
     }
   );
-  assertPackContents(packageConfig.name, packDryRunOutput.stdout);
+  assertPackContents(
+    packageConfig.name,
+    packDryRunOutput.stdout,
+    packageConfig.requiredFiles
+  );
 }
 
-console.log("Installing service SDKs from packed tarballs...");
+console.log("Installing public packages from packed tarballs...");
 await assertInstallSmoke();
 
 console.log("Package readiness checks passed.");

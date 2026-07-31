@@ -846,7 +846,7 @@ describe("module status helpers", () => {
       {
         key: "install-packages",
         label: "reload",
-        command: "reload Runtime Console",
+        command: "reload Lenso Console",
       },
     ]);
   });
@@ -877,7 +877,7 @@ describe("module status helpers", () => {
       {
         key: "install-packages",
         label: "reload",
-        command: "reload Runtime Console",
+        command: "reload Lenso Console",
       },
     ]);
   });

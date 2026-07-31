@@ -1,4 +1,4 @@
-import { defineConsoleModule } from "@lenso/runtime-console-api";
+import { defineConsoleModule } from "@lenso/console-package-api";
 
 import { remoteCrmConsoleManifest } from "./manifest";
 import { RemoteCrmConsolePage } from "./page";

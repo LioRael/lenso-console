@@ -1,0 +1,288 @@
+# Lenso Console Service
+
+This directory is the independently installed Lenso Service behind Lenso
+Console. It owns a dedicated Auth domain, Service Store, API, Worker and
+Migration Workload. It is never embedded in or registered as one of its managed
+Services.
+
+The initial exact composition is:
+
+- the capability-neutral `lenso/console-shell` linked Module;
+- the first-party Auth anchor;
+- the first-party password provider;
+- the mandatory `lenso/system-registry` linked Module.
+
+The process fails closed unless `LENSO_COMPOSITION_PROFILE=core` and
+`SERVICE_NAME=lenso-console`, preventing the framework demo profile from adding
+unreviewed providers or fixture Modules.
+
+## Local start
+
+```sh
+cp service/.env.example service/.env
+docker compose --env-file service/.env -f service/docker-compose.yml up -d postgres
+cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-migrate
+pnpm service:serve
+```
+
+After the Console Service starts, use the external CLI to create its first
+password user through the Console Auth Module, then write the audited first
+Console Operator grant. In an interactive terminal, the CLI securely prompts
+for and confirms the password without echoing it:
+
+```sh
+lenso console operator bootstrap \
+  --console-root . \
+  --console-url http://127.0.0.1:3030 \
+  --identifier admin@example.com
+```
+
+The command grants the Console Minimum operator scopes, writes append-only
+configuration audit evidence, and refuses to run once an operator grant exists.
+It verifies the mandatory System Registry state before writing, so a business
+Service Store is rejected. Additional operators are managed through the identity
+Module. Remote Console URLs must use HTTPS; loopback HTTP is accepted for local
+installation. Non-interactive automation must use `--password-stdin` or a
+private regular file through `--password-file`. If Auth registration succeeds
+but the grant fails, rerun without `--console-url` or a password option to select
+the existing identity. Restart the Console API and Worker after the initial
+bootstrap so the Auth resolver adopts the new grant.
+
+The Console Shell and API share `http://127.0.0.1:3030` by default. The Shell is
+served at `/`, the System Registry API is under `/api/console/v1/services`, and
+the authenticated composition diagnostic is available from
+`/api/console/v1/composition`. It reports the exact Shell, identity role,
+System Registry role, and optional Module selection bound into the Service
+Release. The Shell independently validates the response and enters Recovery
+Mode instead of mounting management routes when a mandatory role is missing,
+ambiguous, or incompatible. The same diagnostic exposes `workloadMode`; a
+`restore` workload keeps the Shell on its dedicated recovery authority screen
+until reconciliation and separately approved activation return the Service to
+`normal`. The unauthenticated, read-only `/health/authority` probe exposes only
+the fixed Console Service identity and current workload mode so the external
+installation authority can verify the running process before committing
+activation or rollback evidence. The Console Service probes are `/health/live`,
+`/health/ready` and `/health/startup`. `pnpm service:serve` builds the Shell before starting the
+API and embedded Worker. Packaged deployments may set `CONSOLE_WEB_ROOT` to an
+absolute directory containing the built `index.html`; the API fails closed when
+the Shell build is absent.
+
+## Container installation
+
+The repository builds one OCI image containing the Console Shell plus the API,
+Worker, and Migration Workloads. Copy the container environment template, replace
+both password occurrences with the same URL-safe random value, and start the
+stack:
+
+```sh
+cp service/.env.container.example service/.env.container
+docker compose --env-file service/.env.container -f service/compose.yml up --build -d
+```
+
+Compose waits for PostgreSQL, runs the deterministic migration workload once,
+then starts the combined API and Worker workload. The Console container runs as a
+non-root user with a read-only filesystem and no Linux capabilities. Database
+state is the only named volume; the Console image and process remain disposable.
+Compose requires `CONSOLE_RECOVERY_MODE` to be explicit, and the container
+environment template selects `normal` for an ordinary installation.
+
+Run `pnpm service:container:smoke` to build an isolated image and prove migration,
+readiness, Shell deep links, protected API responses, and reserved API 404s. The
+smoke stack uses its own Compose project and volume and removes both on exit.
+
+Run `pnpm service:recovery:smoke` to execute the destructive recovery drill in
+two isolated Compose projects. It streams a custom-format Store backup into a
+fresh PostgreSQL volume, excludes browser sessions, proves restore-mode mutation
+fencing, activates the recovered Console, observes the resulting Store drift,
+and re-establishes the recovery fence. It also verifies that the authenticated
+composition diagnostic reports `restore`, `normal`, then `restore` in lockstep
+with those authority transitions, and independently verifies the same sequence
+through `/health/authority`. The machine-readable result conforms to
+`service/recovery-drill-result.schema.json`; set
+`LENSO_CONSOLE_RECOVERY_DRILL_OUTPUT` to retain it after cleanup.
+
+## Release manifest
+
+An official Console Service Release must publish a JSON document conforming to
+`service/release-manifest.schema.json`. The document is a GitHub-attested
+release artifact from `LioRael/lenso-runtime-console` and binds the source
+commit, exact OCI digest, Console composition, Store schema, public contracts,
+and non-secret configuration contract. It also declares which prior Store
+schema digests may be upgraded and names every irreversible migration.
+
+The external CLI verifies that attestation before producing a deterministic
+plan. Applying a plan requires approval of its exact digest; releases declaring
+irreversible migrations require a second explicit approval. The local adapter
+requires an explicit `normal` workload mode, pulls the digest-pinned image,
+completes its migration workload, starts the Console workload, waits for
+container health, and verifies the running `/health/authority` identity and mode
+before recording the applied release state:
+
+```sh
+lenso console install --manifest lenso-console-release.json \
+  --root /srv/lenso-console --output install-plan.json
+lenso console install --manifest lenso-console-release.json \
+  --root /srv/lenso-console --env-file /secure/console.env --apply \
+  --approve-plan-digest sha256:<reviewed-plan-digest>
+lenso console doctor --root /srv/lenso-console \
+  --live-url https://console.example.com --json
+```
+
+Upgrade uses `lenso console upgrade` with the same plan-and-approval protocol.
+Before planning an upgrade, the CLI revalidates the installed manifest's GitHub
+attestation, requires the manifest and generated Compose deployment to exactly
+match the applied state, and rejects same-version or lower-version targets.
+Each applied change records a secret-free `installation-attempt.json` containing
+the target release, approved plan digest, phase, and final status so doctor can
+surface an interrupted migration or readiness wait after the original process
+has exited.
+An OS-backed `installation.lock` serializes the complete apply window, including
+the state reread and plan approval check. Concurrent changes fail without
+mutation. A process crash releases the kernel lock but leaves an active record for
+doctor; the next apply can safely claim that unlocked stale record.
+`lenso console backup` uses that same lock and verifies the installed release
+before streaming a PostgreSQL custom-format dump directly into `age`. The
+resulting Recovery Set contains no plaintext Store file and its manifest binds
+the encrypted payload to the exact release, image, Store schema, composition,
+contract, configuration, external Secret Reference, and restore preconditions.
+Live `auth.sessions` rows are excluded and that rule is recorded inside the
+protected manifest, so a restore cannot revive old browser sessions. The CLI
+refuses to overwrite an existing Recovery Set. Restore stays gated
+by a deterministic plan and approval of its exact digest. The current
+environment must use `CONSOLE_RECOVERY_MODE=normal`; the recovery environment
+must use `CONSOLE_RECOVERY_MODE=restore` and identify a distinct, empty Store:
+
+```sh
+lenso console restore --root /srv/lenso-console \
+  --recovery-set ./console-recovery-2026-07-30 \
+  --current-env-file /secure/console.env \
+  --recovery-env-file /secure/console-recovery.env \
+  --output restore-plan.json
+lenso console restore --root /srv/lenso-console \
+  --recovery-set ./console-recovery-2026-07-30 \
+  --current-env-file /secure/console.env \
+  --recovery-env-file /secure/console-recovery.env \
+  --apply --approve-plan-digest sha256:<reviewed-plan-digest> \
+  --identity-file /secure/console-recovery-identity.txt
+```
+
+Apply validates the manifest and encrypted payload, proves the owner-only `age`
+identity can decrypt a readable PostgreSQL archive, and confirms the isolated
+target Store is empty before it fences the current deployment. It streams the
+archive into a transactional `pg_restore`, starts only the recovery-mode
+Console, and writes durable failed or awaiting-reconciliation evidence. Doctor
+continues to fail on that evidence. The restore command never proves
+single-deployment authority, reconciles identity/enrollment continuity, or
+returns the workload to normal mode; those remain separately reviewed recovery
+steps.
+
+`lenso console recovery reconcile` is the only transition from
+awaiting-reconciliation to ready-for-activation. It reads the passive restored
+Store, rejects `auth.sessions` predating recovery while allowing newly
+authenticated recovery operators, records Outbox status counts and a streamed
+digest of the exact Outbox rows, and
+binds every managed Service's principal, enrollment receipt, authorization
+epoch, and Core document digest to operator-reviewed external evidence. The
+deterministic reconciliation plan requires approval of its exact digest before
+the CLI publishes `reconciliation-evidence.json` and updates recovery state.
+Evidence references are opaque non-secret identifiers; credentials and signing
+material must not be embedded. Ready-for-activation remains a failed doctor
+state and does not enable the Worker, management mutations, or normal mode.
+
+The wire contracts are
+`service/reconciliation-input.schema.json` and
+`service/reconciliation-evidence.schema.json`. Both are part of the attested
+Console release contract digest.
+
+`lenso console recovery activate` creates a separate deterministic plan bound
+to the Recovery Set, restore plan, reconciliation evidence, installed release,
+and restored Store identity. Apply requires both the exact plan digest and an
+explicit authoritative-writer transfer approval. Immediately before transfer,
+the CLI re-observes the Store: new recovery-operator sessions are allowed, but
+the Outbox snapshot and managed-Service identity set must still exactly match
+the reconciliation evidence. A normal-mode startup failure automatically
+starts the recovery-mode workload again and leaves doctor failed. Success
+publishes content-addressed `activation-evidence.json`; doctor accepts recovery
+only after that evidence and the activated state agree. The evidence binds the
+digest of the running Service's exact `/health/authority` response instead of
+inferring workload mode from container health. An interrupted
+authority transfer remains failed and requires operator intervention rather
+than being inferred as successful.
+
+The activation evidence wire contract is
+`service/activation-evidence.schema.json` and is part of the attested Console
+release contract digest.
+
+If activation is interrupted or its automatic recovery-mode restart fails,
+`lenso console recovery recover-activation` is the reviewed intervention path.
+Its deterministic plan requires an exact digest and explicit authority-reset
+approval. Apply stops any possible normal-mode writer, starts the restore-mode
+workload, observes the fenced Store, and publishes
+`activation-recovery-evidence.json`. The state then returns to
+awaiting-reconciliation rather than ready-for-activation: operators must review
+the potentially changed Outbox and managed-Service identities again. The
+intervention evidence binds the verified `restore` authority probe. Every
+reconciliation, activation, and intervention receipt is retained under the
+owner-only `recovery-evidence/` history while the corresponding canonical file
+tracks the latest receipt. A symbolic-link history directory is rejected.
+
+The activation recovery wire contract is
+`service/activation-recovery-evidence.schema.json`. Reconciliation evidence may
+bind `activationRecoveryEvidenceDigest` to retain the complete retry lineage;
+both schemas are part of the attested Console release contract digest.
+
+Every Console workload must set `CONSOLE_RECOVERY_MODE` to exactly `normal` or
+`restore`; missing and unknown values fail startup. Restore mode keeps the API
+available for inspection but does not start the embedded Worker, rejects a
+dedicated Worker process, and returns a conflict before executing System
+Registry management mutations. Returning to normal mode requires an external
+deployment change after reconciliation; the Console cannot remove its own
+recovery fence.
+If the candidate does not become healthy, the CLI preserves the previous
+canonical deployment files and installation state and does not describe the
+candidate as installed. Operators should run `lenso console doctor` with the
+Console `--live-url` before retrying or intervening; the CLI does not
+automatically run an older binary against a Store that may already contain
+forward migrations.
+Release manifests, plans, and installation state must never contain database
+credentials, signing material, passwords, or other secrets; those stay in the
+operator-owned environment file.
+
+`service/release-inputs.json` is the reviewed inventory used to derive the
+composition, Store schema, contract, and configuration digests.
+`service/release-policy.json` declares upgrade-compatible prior schema digests
+and names irreversible migrations. Generate a deterministic manifest after an
+OCI build has produced its canonical digest:
+
+```sh
+pnpm service:release-manifest \
+  --version 0.2.0 \
+  --source-commit 0123456789abcdef0123456789abcdef01234567 \
+  --image ghcr.io/liorael/lenso-console@sha256:<image-digest> \
+  --output .artifacts/lenso-console-release.json
+```
+
+The reusable `build-console-service-release.yml` workflow builds an OCI archive
+and this manifest as a seven-day release candidate. It intentionally has no
+manual dispatch, package-write permission, OIDC permission, or attestation step.
+Only the reviewed coordinator-driven `.github/workflows/publish.yml` authority
+may publish the exact image and attest the exact manifest. Until that OCI
+publisher is installed, candidate output is not an official or installable
+Console Release.
+
+Registry reads require `console.system-registry.read`. Explicit revocation
+requires `console.system-registry.revoke`, an expected row version and a reason.
+Revocation advances the authorization epoch and writes append-only audit
+evidence in the same Console Store transaction.
+
+No enrollment creation endpoint is exposed yet. The signed Enrollment
+Offer/Receipt types exist on the framework System Plane branch but are not in a
+published `lenso-service` release. Adding a direct unsigned registry-write route
+would violate the bilateral enrollment boundary, so the Console Service remains
+fail-closed until it can consume that public contract.
+
+The private `@lenso/console-system-plane` package already provides strict
+Offer/Receipt parsing, canonical digests, Ed25519 verification and fail-closed
+capability-grant validation. Its golden Offer digest is shared with the Rust
+System Plane test suite, so publishing the framework contract can unlock service
+wiring without introducing a second enrollment protocol.

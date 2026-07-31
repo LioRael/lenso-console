@@ -4,7 +4,7 @@ import type {
   FederatedStoryGap,
   FederatedWorkflowEntity,
   RuntimeStory,
-} from "@lenso/runtime-console-api";
+} from "@lenso/console-package-api";
 import type { ReactNode } from "react";
 
 const workflowKindOrder: FederatedWorkflowEntity["kind"][] = [

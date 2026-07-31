@@ -1,0 +1,37 @@
+{
+  "schema": "lenso.console-service-release-inputs.v1",
+  "excludeSuffixes": [".test.ts", ".test.tsx"],
+  "groups": {
+    "composition": [
+      "service/Cargo.lock",
+      "service/Cargo.toml",
+      "service/src/composition.rs",
+      "service/src/modules",
+      "packages/system-registry-console/console-surface.json"
+    ],
+    "schema": [
+      "service/Cargo.lock",
+      "service/Cargo.toml",
+      "service/src",
+      "packages/console-system-plane/migrations"
+    ],
+    "contract": [
+      "service/activation-evidence.schema.json",
+      "service/activation-recovery-evidence.schema.json",
+      "service/reconciliation-evidence.schema.json",
+      "service/reconciliation-input.schema.json",
+      "service/recovery-drill-result.schema.json",
+      "service/recovery-set.schema.json",
+      "service/src",
+      "packages/console-system-plane/src",
+      "packages/system-registry-console/console-surface.json"
+    ],
+    "configuration": [
+      "Dockerfile",
+      "service/.env.container.example",
+      "service/.env.example",
+      "service/compose.yml",
+      "service/src/lib.rs"
+    ]
+  }
+}

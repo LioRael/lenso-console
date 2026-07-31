@@ -1,4 +1,4 @@
-import { runtimeConsoleHostApi } from "@lenso/runtime-console-api";
+import { consoleHostApi } from "@lenso/console-package-api";
 
 import { remoteCrmContactRows, remoteCrmContactsSummary } from "./model";
 
@@ -89,7 +89,7 @@ const RemoteCrmContactsContent = ({
 };
 
 export const RemoteCrmConsolePage = () => {
-  const contactsQuery = runtimeConsoleHostApi.adminData.useRecords({
+  const contactsQuery = consoleHostApi.adminData.useRecords({
     entityName: "contacts",
     moduleName: "remote-crm",
   });

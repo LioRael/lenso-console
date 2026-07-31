@@ -1,4 +1,4 @@
-import { defineConsolePackageManifest } from "@lenso/runtime-console-api";
+import { defineConsolePackageManifest } from "@lenso/console-package-api";
 
 import consoleSurface from "../console-surface.json";
 

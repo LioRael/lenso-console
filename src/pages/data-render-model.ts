@@ -762,7 +762,7 @@ export function moduleRegistryHandoffCommands({
     {
       key: "install-packages",
       label: "reload",
-      command: "reload Runtime Console",
+      command: "reload Lenso Console",
     },
   ];
 }

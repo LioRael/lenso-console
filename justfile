@@ -54,6 +54,22 @@ console-api-qa:
 console-preview:
     pnpm preview
 
+# Independent Console Service
+service-api:
+    pnpm service:api
+
+service-worker:
+    pnpm service:worker
+
+service-migrate:
+    pnpm service:migrate
+
+service-serve:
+    pnpm service:serve
+
+service-check:
+    pnpm service:check
+
 # Console packages
 console-fmt: fmt
 

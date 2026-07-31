@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 const jsxRuntime = await import("../dist/extensions/host/react-jsx-runtime.js");
-const hostApi = await import("../dist/extensions/host/runtime-console-api.js");
+const hostApi = await import("../dist/extensions/host/console-package-api.js");
 
 for (const name of ["Fragment", "jsx", "jsxs"]) {
   if (jsxRuntime[name] === undefined) {
@@ -10,11 +10,11 @@ for (const name of ["Fragment", "jsx", "jsxs"]) {
 }
 
 if (
-  hostApi.runtimeConsoleHostApi.routing.buildPath("/runtime/stories", {
+  hostApi.consoleHostApi.routing.buildPath("/runtime/stories", {
     story: "abc",
   }) !== "/runtime/stories?story=abc"
 ) {
-  throw new Error("runtimeConsoleHostApi export is not the host adapter");
+  throw new Error("consoleHostApi export is not the host adapter");
 }
 
 const index = await readFile("dist/index.html", "utf-8");
@@ -24,7 +24,7 @@ if (!app) {
 }
 const appText = await readFile(`dist/${app}`, "utf-8");
 if (
-  appText.includes("Runtime Console host API is only available inside Lenso")
+  appText.includes("Console host API is only available inside Lenso Console")
 ) {
   throw new Error("placeholder host API leaked into app asset");
 }

@@ -14,7 +14,7 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@lenso/runtime-console-api": [
+      "@lenso/console-package-api": [
         "packages/console-package-api/src/index.ts"
       ]
     },
@@ -31,9 +31,11 @@
     "packages/story-console/src",
     "packages/identity-console/src",
     "packages/remote-crm-console/src",
+    "packages/system-registry-console/src",
     "packages/console-package-api/src",
     "packages/remote-module-kit/src",
-    "packages/service-kit/src"
+    "packages/service-kit/src",
+    "packages/console-system-plane/src"
   ],
   "references": []
 }

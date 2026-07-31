@@ -2,19 +2,23 @@
   "schema": "lenso.repository-config.v1",
   "repository": "LioRael/lenso-runtime-console",
   "aliases": {
-    "artifact:lenso-runtime-console": "npm:@lenso/runtime-console"
+    "oci:lenso-console-service": "npm:@lenso/console"
   },
   "ignore": [
+    "@lenso/console-system-plane",
     "@lenso/identity-console",
     "@lenso/remote-crm-console",
+    "@lenso/remote-module-kit",
+    "@lenso/service-kit",
     "@lenso/story-console",
-    "npm:@lenso/identity-console",
-    "npm:@lenso/remote-crm-console",
-    "npm:@lenso/story-console"
+    "@lenso/system-registry-console",
+    "lenso-console-service"
   ],
-  "artifacts": {
-    "artifact:lenso-runtime-console": {
-      "path": "dist/release/lenso-runtime-console.tar.gz"
+  "ociImages": {
+    "oci:lenso-console-service": {
+      "archivePath": ".artifacts/lenso-console-service.oci.tar",
+      "installManifestPath": ".artifacts/lenso-console-release.json",
+      "registryRepository": "liorael/lenso-console"
     }
   }
 }
