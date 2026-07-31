@@ -26,7 +26,6 @@ import { Button } from "../components/ui/button";
 import {
   availableModulesPanelState,
   availableModulesQueryKey,
-  applyAvailableModuleInstallResponse,
   availableModulesRows,
   fetchAvailableModules,
   fetchServiceModuleLifecycle,
@@ -256,13 +255,7 @@ function ModulesContent() {
   });
   const installMutation = useMutation({
     mutationFn: (moduleName: string) => installAvailableModule({ moduleName }),
-    onSuccess: async (response) => {
-      queryClient.setQueryData(availableModulesQueryKey, (current) =>
-        applyAvailableModuleInstallResponse(
-          current as typeof availableModulesData | undefined,
-          response
-        )
-      );
+    onSuccess: async () => {
       await Promise.all(
         moduleRefreshInvalidationQueryKeys().map((queryKey) =>
           queryClient.invalidateQueries({ queryKey })
@@ -273,13 +266,7 @@ function ModulesContent() {
   const uninstallMutation = useMutation({
     mutationFn: (moduleName: string) =>
       uninstallAvailableModule({ moduleName }),
-    onSuccess: async (response) => {
-      queryClient.setQueryData(availableModulesQueryKey, (current) =>
-        applyAvailableModuleInstallResponse(
-          current as typeof availableModulesData | undefined,
-          response
-        )
-      );
+    onSuccess: async () => {
       await Promise.all(
         moduleRefreshInvalidationQueryKeys().map((queryKey) =>
           queryClient.invalidateQueries({ queryKey })
@@ -914,11 +901,7 @@ function ModuleMarketplaceDetail({
       {panelState.kind === "loading" ||
       panelState.kind === "error" ||
       panelState.kind === "empty" ? (
-        <MarketplaceStateNotice
-          copiedCommandKey={copiedCommandKey}
-          copyCommand={copyCommand}
-          panelState={panelState}
-        />
+        <MarketplaceStateNotice panelState={panelState} />
       ) : (
         <section className="grid gap-2 lg:grid-cols-2 2xl:grid-cols-3">
           {rows.map((row) => {
@@ -1019,12 +1002,8 @@ function ModuleMarketplaceDetail({
 }
 
 function MarketplaceStateNotice({
-  copiedCommandKey,
-  copyCommand,
   panelState,
 }: {
-  copiedCommandKey: string | null;
-  copyCommand: (key: string, command: string) => void;
   panelState: ReturnType<typeof availableModulesPanelState>;
 }) {
   return (
@@ -1044,31 +1023,8 @@ function MarketplaceStateNotice({
             {panelState.label}
           </span>
         </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_24px] items-center gap-1">
-          <code
-            className="truncate border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[10px] text-(--secondary)"
-            title={panelState.actionCommand}
-          >
-            {panelState.actionCommand}
-          </code>
-          <button
-            aria-label={`${moduleRegistryHandoffCopyLabel(copiedCommandKey, "marketplace-empty")} marketplace command`}
-            className="grid size-6 place-items-center border border-(--border-subtle) bg-(--surface) text-(--muted) hover:bg-(--sidebar) hover:text-(--foreground)"
-            onClick={() =>
-              copyCommand("marketplace-empty", panelState.actionCommand)
-            }
-            title={moduleRegistryHandoffCopyLabel(
-              copiedCommandKey,
-              "marketplace-empty"
-            )}
-            type="button"
-          >
-            {copiedCommandKey === "marketplace-empty" ? (
-              <Check size={11} />
-            ) : (
-              <Copy size={11} />
-            )}
-          </button>
+        <div className="border border-(--border-subtle) bg-(--surface) px-1.5 py-1 text-[10px] text-(--secondary)">
+          {panelState.actionCommand}
         </div>
         <p className="text-[10px] text-(--muted)">{panelState.detail}</p>
       </div>

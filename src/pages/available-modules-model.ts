@@ -1275,7 +1275,7 @@ export function availableModuleDoctorChecks({
 }): AvailableModuleDoctorCheck[] {
   const addCommand =
     commandByKey(commands, "add") ??
-    `lenso module marketplace install ${row.manifestReference}`;
+    "Install from Marketplace in Runtime Console";
   const installPackagesCommand =
     commandByKey(commands, "install-packages") ?? "reload Runtime Console";
   const consolePlan = row.installState?.consolePlan;

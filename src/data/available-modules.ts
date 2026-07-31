@@ -1,10 +1,6 @@
 import { httpClient, isApiMode } from "../lib/http-client";
 import {
   type AvailableModulesResponse,
-  type AvailableModuleConsolePackagePlanState,
-  type AvailableModuleLinkedSourceInstallState,
-  type AvailableModuleRelease,
-  type AvailableModuleRemoteSourceInstallState,
   type AvailableModuleRow,
   type LaunchpadChangePlanResponse,
   type LaunchpadDoctorResponse,
@@ -63,7 +59,7 @@ export const sampleAvailableModulesResponse = {
         remoteSource: {
           configured: false,
           desiredBaseUrl: null,
-          envFile: ".env",
+          envFile: "target-owned Service Installation Set",
           error: null,
           restartPending: false,
           restartReason: null,
@@ -113,7 +109,7 @@ export const sampleAvailableModulesResponse = {
         remoteSource: {
           configured: false,
           desiredBaseUrl: null,
-          envFile: ".env",
+          envFile: "target-owned Service Installation Set",
           error: null,
           restartPending: false,
           restartReason: null,
@@ -652,8 +648,7 @@ export const serviceSystemRunbooksQueryKey = [
   "service-system-runbooks",
 ] as const;
 
-const marketplaceInstallCommand =
-  "lenso module marketplace install <manifest-url>";
+const marketplaceInstallCommand = "Use Marketplace to install a module";
 
 export function moduleRefreshInvalidationQueryKeys() {
   return [
@@ -731,28 +726,39 @@ type LaunchpadChangePlanHttpClient = {
   };
 };
 
-export type AvailableModuleInstallResponse = {
-  moduleName: string;
-  manifestReference: string;
-  moduleRelease?: AvailableModuleRelease | null;
-  linkedSource?: AvailableModuleLinkedSourceInstallState | null;
-  remoteSource?: AvailableModuleRemoteSourceInstallState | null;
-  consolePlan: AvailableModuleConsolePackagePlanState;
-  restartRequired: boolean;
+type ModuleRootChange =
+  | {
+      kind: "install";
+      selection: {
+        module_id: string;
+        version_requirement: string;
+        optional_requirements: string[];
+      };
+    }
+  | { kind: "uninstall"; module_id: string };
+
+type ModuleApprovalBoundary = {
+  boundary_id: string;
 };
 
-type AvailableModuleInstallHttpClient = {
+type ModuleChangePlan = {
+  approval_boundaries?: ModuleApprovalBoundary[];
+  [key: string]: unknown;
+};
+
+export type ModuleManagementOperation = {
+  operation_id: string;
+  revision: number;
+  state: string;
+  next_actions?: string[];
+};
+
+type ModuleManagementHttpClient = {
   post: (
     path: string,
-    options: { json: Record<string, never> }
+    options?: { json: unknown }
   ) => {
-    json: () => Promise<AvailableModuleInstallResponse>;
-  };
-};
-
-type AvailableModuleUninstallHttpClient = {
-  delete: (path: string) => {
-    json: () => Promise<AvailableModuleInstallResponse>;
+    json: () => Promise<unknown>;
   };
 };
 
@@ -890,64 +896,80 @@ export async function installAvailableModule({
   client = httpClient,
   moduleName,
 }: {
-  client?: AvailableModuleInstallHttpClient;
+  client?: ModuleManagementHttpClient;
   moduleName: string;
-}): Promise<AvailableModuleInstallResponse> {
-  return client
-    .post(
-      `admin/data/available-modules/${encodeURIComponent(moduleName)}/install`,
-      { json: {} }
-    )
-    .json();
+}): Promise<ModuleManagementOperation> {
+  return runAvailableModuleChange({
+    client,
+    change: {
+      kind: "install",
+      selection: {
+        module_id: moduleName,
+        version_requirement: "*",
+        optional_requirements: [],
+      },
+    },
+  });
 }
 
 export async function uninstallAvailableModule({
   client = httpClient,
   moduleName,
 }: {
-  client?: AvailableModuleUninstallHttpClient;
+  client?: ModuleManagementHttpClient;
   moduleName: string;
-}): Promise<AvailableModuleInstallResponse> {
-  return client
-    .delete(
-      `admin/data/available-modules/${encodeURIComponent(moduleName)}/install`
-    )
-    .json();
+}): Promise<ModuleManagementOperation> {
+  return runAvailableModuleChange({
+    client,
+    change: { kind: "uninstall", module_id: moduleName },
+  });
 }
 
-export function applyAvailableModuleInstallResponse(
-  response: AvailableModulesResponse | undefined,
-  installResponse: AvailableModuleInstallResponse
-): AvailableModulesResponse | undefined {
-  if (!response) {
-    return response;
+async function runAvailableModuleChange({
+  client,
+  change,
+}: {
+  client: ModuleManagementHttpClient;
+  change: ModuleRootChange;
+}): Promise<ModuleManagementOperation> {
+  const plan = (await client
+    .post("admin/modules/plans/preview", { json: change })
+    .json()) as ModuleChangePlan;
+  let operation = (await client
+    .post("admin/modules/operations", {
+      json: { idempotency_key: operationKey(), plan },
+    })
+    .json()) as ModuleManagementOperation;
+
+  for (const boundary of plan.approval_boundaries ?? []) {
+    if (operation.state !== "awaiting_approval") {
+      break;
+    }
+    operation = (await client
+      .post(`admin/modules/operations/${operation.operation_id}/approvals`, {
+        json: {
+          expected_revision: operation.revision,
+          boundary_id: boundary.boundary_id,
+          reason: "Approved in Runtime Console",
+          nonce: operationKey(),
+        },
+      })
+      .json()) as ModuleManagementOperation;
   }
-  return {
-    ...response,
-    modules: response.modules.map((module) =>
-      module.name === installResponse.moduleName
-        ? {
-            ...module,
-            installState: {
-              consolePlan: installResponse.consolePlan,
-              moduleRegistered:
-                module.installState?.moduleRegistered ??
-                Boolean(
-                  installResponse.remoteSource?.runningBaseUrl ??
-                  installResponse.linkedSource?.runningEnabled
-                ),
-              linkedSource: installResponse.linkedSource ?? null,
-              remoteSource: installResponse.remoteSource ?? null,
-            },
-            moduleRelease:
-              installResponse.moduleRelease ??
-              module.moduleRelease ??
-              module.module_release ??
-              null,
-          }
-        : module
-    ),
-  };
+
+  if (operation.state !== "ready") {
+    throw new Error(
+      `Module operation ${operation.operation_id} is ${operation.state}; ${operation.next_actions?.join(", ") ?? "review the operation"}`
+    );
+  }
+
+  return (await client
+    .post(`admin/modules/operations/${operation.operation_id}/apply`)
+    .json()) as ModuleManagementOperation;
+}
+
+function operationKey(): string {
+  return globalThis.crypto.randomUUID();
 }
 
 export function availableModulesRows(
