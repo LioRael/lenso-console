@@ -171,14 +171,30 @@ describe("Console Service release manifest", () => {
         JSON.stringify([{ id: "oci:lenso-console-service", version: "0.2.0" }])
       )
     ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
+    expect(
+      parseReleaseSelection(
+        JSON.stringify([
+          { id: "npm:@lenso/console-package-api", version: "0.1.1" },
+          { id: "oci:lenso-console-service", version: "0.2.0" },
+        ])
+      )
+    ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
     expect(() => parseReleaseSelection("[]")).toThrow(
-      "selection must contain exactly oci:lenso-console-service"
+      "selection must contain exactly one oci:lenso-console-service"
     );
     expect(() =>
       parseReleaseSelection(
         JSON.stringify([{ id: "npm:@lenso/console", version: "0.2.0" }])
       )
-    ).toThrow("selection must contain exactly oci:lenso-console-service");
+    ).toThrow("selection must contain exactly one oci:lenso-console-service");
+    expect(() =>
+      parseReleaseSelection(
+        JSON.stringify([
+          { id: "oci:lenso-console-service", version: "0.2.0" },
+          { id: "oci:lenso-console-service", version: "0.2.0" },
+        ])
+      )
+    ).toThrow("selection must contain unique canonical id/version entries");
   });
 
   test("builds and verifies the exact OCI graph before exposing release artifacts", async () => {

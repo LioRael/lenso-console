@@ -34,19 +34,24 @@ export function parseReleaseSelection(raw) {
   }
   if (
     !Array.isArray(value) ||
-    value.length !== 1 ||
-    !value[0] ||
-    typeof value[0] !== "object" ||
-    Array.isArray(value[0]) ||
-    Object.keys(value[0]).toSorted().join(",") !== "id,version" ||
-    value[0].id !== componentId ||
-    !versionPattern.test(value[0].version)
+    value.some(
+      (item) =>
+        !item ||
+        typeof item !== "object" ||
+        Array.isArray(item) ||
+        Object.keys(item).toSorted().join(",") !== "id,version" ||
+        typeof item.id !== "string" ||
+        !versionPattern.test(item.version)
+    ) ||
+    new Set(value.map(({ id }) => id)).size !== value.length
   ) {
-    fail(
-      `selection must contain exactly ${componentId} at a canonical version`
-    );
+    fail("selection must contain unique canonical id/version entries");
   }
-  return value[0];
+  const targets = value.filter(({ id }) => id === componentId);
+  if (targets.length !== 1) {
+    fail(`selection must contain exactly one ${componentId}`);
+  }
+  return targets[0];
 }
 
 async function assertRegularFile(filePath) {
