@@ -1,13 +1,13 @@
 {
   "schema": "lenso.release-plan.v1",
   "repository": "LioRael/lenso-console",
-  "sourceCommit": "6dc3502a6ebe25cb46e01649c73981eb86d0ae3d",
+  "sourceCommit": "c561464c90e33499c5dded15703b2d975db09dd9",
   "tegamiVersion": "1.2.5",
   "publisher": {
     "workflow": ".github/workflows/publish.yml",
     "workflowSha256": "sha256:12857a2cb05172bef7eee28a08a2c75bdc2fa173892f26c4ac5472da0a3839a9",
-    "sharedRevision": "ce85dedc1431c566d4d7725027da0e54a0b905aa",
-    "sharedBundleSha256": "sha256:8b62c7bcc1abeaf62ffecf23888c112bcbbd5132539258f4429369b666200015",
+    "sharedRevision": "63a082125999d3a2863540c6e40ae1666cf5d5fa",
+    "sharedBundleSha256": "sha256:2e701550533c4cf8c200d22d6f07e586d5c50cdc9d77a4208e0bbe9f744701f0",
     "runner": "ubuntu-24.04",
     "node": "24.18.0",
     "npm": "11.7.0",
@@ -16,48 +16,31 @@
   "generatedFiles": [
     {
       "path": ".tegami/publish-lock.yaml",
-      "sha256": "sha256:f1b531c46548d430fc61419a50c5089d047cc0efa691eb03a22b257c3310f9f8"
+      "sha256": "sha256:16298664d5af1bda9c152c4a0bf703951ba38bae116011e12f3182055158cb0f"
     },
     {
-      "path": "CHANGELOG.md",
-      "sha256": "sha256:277724f2c2eff020b4078d4d10a1794fe71abbab122906366fcb067720616f56"
+      "path": "packages/console-bridge/CHANGELOG.md",
+      "sha256": "sha256:b6356643e18ce1448e1ab739fd21b2b99dd26e9e009239def27c46971d199ef9"
     },
     {
-      "path": "package.json",
-      "sha256": "sha256:b02ee62aa8da076852723b89262ef0bf5dacbd668adddaafd08268d9e88d43e2"
-    },
-    {
-      "path": "packages/console-package-api/CHANGELOG.md",
-      "sha256": "sha256:b7c7935b486e8c844266745db8b1a5b4a26c4b690e25de359ddec91550818a7a"
-    },
-    {
-      "path": "packages/console-package-api/package.json",
-      "sha256": "sha256:e06350ac980c7ff626942a32e7f1303b70dd94a135cd126bab9f830b74bf34a7"
+      "path": "packages/console-bridge/package.json",
+      "sha256": "sha256:0a5cca5504feeaf828da552e638c8aab99de2085ddc8ca42034adf73dca6b44c"
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "sha256:b38044218458fa3db486f05e4eaa406be2e4fd9c111ab718c1965f7172fffbf2"
+      "sha256": "sha256:e1eab7366bfc4a826aae47f6769873a31edf50bc590b7936c6694a4db17ebe30"
     }
   ],
   "packages": [
     {
-      "id": "npm:@lenso/console-package-api",
-      "previousVersion": "0.1.1",
-      "nextVersion": "0.1.2",
-      "bump": "patch",
-      "releaseGroup": "console",
-      "userFacing": true,
-      "dependencies": []
-    },
-    {
-      "id": "oci:lenso-console-service",
-      "previousVersion": "0.1.3",
-      "nextVersion": "0.1.4",
+      "id": "npm:@lenso/console-bridge",
+      "previousVersion": "0.1.0",
+      "nextVersion": "0.1.1",
       "bump": "patch",
       "releaseGroup": "console",
       "userFacing": true,
       "dependencies": []
     }
   ],
-  "planId": "sha256:ac1d61adabfeabf0826aa6acfdd9cf64a8b274565e210935ddf5374d66e9330a"
+  "planId": "sha256:b6d0d61b0045657b3ff2fd3cfcebb078d65570f0ade3f4370d37225c1ecc3e15"
 }

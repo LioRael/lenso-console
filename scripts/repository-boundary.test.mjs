@@ -59,11 +59,11 @@ describe("Lenso Console repository boundary", () => {
     expect(publisher).toContain("workflow_dispatch:");
     expect(publisher).toContain("LENSO_COORDINATOR_PREFLIGHT_URL");
     expect(publisher).toContain("LENSO_COORDINATOR_RECEIPT_URL");
-    expect(
-      publisher.match(
-        /docker\/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f/gu
-      )
-    ).toHaveLength(1);
+    expect(publisher).toContain("LENSO_OCI_TOKEN");
+    expect(publisher).toContain(
+      "node .lenso-release/runtime/lib/repository/cli.js publish"
+    );
+    expect(publisher).not.toContain("docker/setup-buildx-action");
   });
 
   test("builds the public package API before release artifacts are packed", async () => {
