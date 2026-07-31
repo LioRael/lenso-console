@@ -6,6 +6,7 @@ import {
 } from "./console-package-registry";
 
 export const CONSOLE_BUNDLE_HOST_API = "1";
+export const CONSOLE_SERVICE_BUNDLE_REGISTRY_URL = "/extensions/registry.json";
 
 export type ConsoleBundleManifest = {
   packageName: string;
@@ -40,7 +41,7 @@ type ConsoleBundleRegistryOptions = ConsoleBundleOptions & {
 };
 
 export async function loadConsoleBundlePackages(
-  registryUrl: string,
+  registryUrl = CONSOLE_SERVICE_BUNDLE_REGISTRY_URL,
   options: ConsoleBundleRegistryOptions = {}
 ): Promise<InstalledConsolePackage[]> {
   const fetchJson = options.fetchJson ?? fetch;

@@ -67,6 +67,8 @@ services:
       - ALL
     tmpfs:
       - /tmp
+    volumes:
+      - ${CONSOLE_EXTENSIONS_PATH:-./extensions}:/opt/lenso-console/extensions:ro
 
 volumes:
   console-database:

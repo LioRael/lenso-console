@@ -71,6 +71,15 @@ API and embedded Worker. Packaged deployments may set `CONSOLE_WEB_ROOT` to an
 absolute directory containing the built `index.html`; the API fails closed when
 the Shell build is absent.
 
+Module Console extensions are owned by this Service, not by managed Services.
+Set `CONSOLE_EXTENSIONS_ROOT` to a directory containing `registry.json` and a
+`runtime/` bundle tree. The Service publishes them at
+`/extensions/registry.json` and `/extensions/runtime/*`; the browser validates
+same-origin references, Console host API compatibility, and exported
+`ConsoleModule` values before route registration. Container deployments mount
+the host directory selected by `CONSOLE_EXTENSIONS_PATH` read-only at
+`/opt/lenso-console/extensions`.
+
 ## Container installation
 
 The repository builds one OCI image containing the Console Shell plus the API,

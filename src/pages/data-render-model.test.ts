@@ -950,7 +950,7 @@ describe("module status helpers", () => {
         path: "",
       },
       {
-        detail: "refresh console extension registry",
+        detail: "refresh the Console Service extension registry",
         key: "console-package",
         kind: "package",
         label: "Console Extension Missing",

@@ -120,9 +120,11 @@ bundle installation.
 The repository's `remote-crm` fixture demonstrates the installed-console
 surface path. Its manifest declares `@lenso/remote-crm-console` /
 `remoteCrmConsoleModule`, and the workspace package contributes the
-`/data/remote-crm` page through the static console package registry. Third-party
-modules should use `bundleUrl` and the dynamic extension registry instead of
-being compiled into the official Runtime Console bundle.
+`/data/remote-crm` page through the static package set. Third-party Modules can
+instead publish a reviewed Console artifact in their Module Release. The
+Console Service materializes that artifact below its configured extension root,
+serves the registry at `/extensions/registry.json`, and serves bundles from
+`/extensions/runtime/*`.
 
 ## Smoke Demo
 
@@ -156,6 +158,7 @@ This updates the host-local service source configuration.
 
 ### Console package
 
-If a Console package is missing, deploy a Console Service release that includes
-the reviewed package export. Managed application hosts do not expose a Console
-extension registry or embedded Console compatibility routes.
+If a Console package is missing, install its verified Module Release artifact
+into the Console Service extension root and reload Console. Managed application
+hosts do not expose a Console extension registry or embedded Console
+compatibility routes.

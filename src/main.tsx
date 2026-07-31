@@ -16,14 +16,12 @@ import "./styles.css";
 void startConsole();
 
 async function startConsole() {
-  const bundlePackages = consoleDevConfig.registryUrl
-    ? await loadConsoleBundlePackages(consoleDevConfig.registryUrl).catch(
-        (error: unknown) => {
-          console.warn("Console development bundle loading failed", error);
-          return [];
-        }
-      )
-    : [];
+  const bundlePackages = await loadConsoleBundlePackages(
+    consoleDevConfig.registryUrl ?? undefined
+  ).catch((error: unknown) => {
+    console.warn("Console bundle loading failed", error);
+    return [];
+  });
   registerRuntimeConsolePackages(bundlePackages);
   registerRuntimeConsoleModuleMetadata(bundlePackages);
   const router = createRuntimeConsoleRouter([

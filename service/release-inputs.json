@@ -31,6 +31,7 @@
       "service/.env.container.example",
       "service/.env.example",
       "service/compose.yml",
+      "service/extensions",
       "service/src/lib.rs"
     ]
   }

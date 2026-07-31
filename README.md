@@ -131,6 +131,13 @@ Console frontend modules are local workspace packages under `packages/*`.
 They must import host capabilities through `@lenso/console-package-api`, define a
 `ConsolePackageManifest`, and export a `ConsoleModule`.
 
+Installable Modules may deliver reviewed Console artifacts without rebuilding
+the Console image. The Console Service reads `registry.json` from
+`CONSOLE_EXTENSIONS_ROOT` (or `service/extensions` locally), exposes it at
+`/extensions/registry.json`, and serves bundle files from the root's `runtime/`
+directory at `/extensions/runtime/*`. Container deployments can mount that root
+with `CONSOLE_EXTENSIONS_PATH`; the Compose mount is read-only inside Console.
+
 Lenso provides the package framework and fixtures. Product projects choose and
 own their real business modules.
 
@@ -216,8 +223,8 @@ pnpm console-package:dev \
   --host http://localhost:3000
 ```
 
-Dev mode does not install packages into the host. Production Console packages
-are composed and delivered by the Console Service release.
+Dev mode does not install packages into the host. Production Module packages
+are installed into the Console Service-owned extension root.
 
 ## Checks
 

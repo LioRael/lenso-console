@@ -1107,7 +1107,7 @@ export function availableModuleInstallSteps({
           "install-packages",
           "bundle",
           "pending",
-          "reload Lenso Console after extension registry update",
+          "reload Lenso Console after the Console Service registry update",
           undefined,
           undefined,
           packageEvidence(evidence, row)

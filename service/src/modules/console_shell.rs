@@ -65,6 +65,7 @@ fn http_binding() -> LinkedBinding {
 
 fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
     let root = console_web_root();
+    let extensions_root = console_extensions_root();
     let index = root.join("index.html");
     assert!(
         index.is_file(),
@@ -76,39 +77,52 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
         .routes(routes!(get_console_bootstrap_status))
         .fallback(not_found);
     let shell = OpenApiRouter::new()
-            .routes(routes!(get_console_composition))
-            .nest("/bootstrap", bootstrap)
-            .route("/health/live", get(live))
-            .route("/health/ready", get(ready))
-            .route("/health/startup", get(startup))
-            .route("/health/authority", get(authority))
-            .route("/api", any(not_found))
-            .route("/api/{*path}", any(not_found))
-            .route("/admin", any(not_found))
-            .route("/admin/{*path}", any(not_found))
-            .route("/health", any(not_found))
-            .route("/health/{*path}", any(not_found))
-            .route("/oauth/{*path}", any(not_found))
-            .route("/v1", any(not_found))
-            .route("/v1/{*path}", any(not_found))
-            .route("/.well-known/{*path}", any(not_found))
-            .fallback_service(ServeDir::new(root).fallback(ServeFile::new(index)))
-            .layer(SetResponseHeaderLayer::if_not_present(
-                HeaderName::from_static("content-security-policy"),
-                HeaderValue::from_static(
-                    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
-                ),
-            ))
-            .layer(SetResponseHeaderLayer::if_not_present(
-                HeaderName::from_static("referrer-policy"),
-                HeaderValue::from_static("no-referrer"),
-            ))
-            .layer(SetResponseHeaderLayer::if_not_present(
-                HeaderName::from_static("x-content-type-options"),
-                HeaderValue::from_static("nosniff"),
-            ));
+        .merge(console_extension_router(&extensions_root))
+        .routes(routes!(get_console_composition))
+        .nest("/bootstrap", bootstrap)
+        .route("/health/live", get(live))
+        .route("/health/ready", get(ready))
+        .route("/health/startup", get(startup))
+        .route("/health/authority", get(authority))
+        .route("/api", any(not_found))
+        .route("/api/{*path}", any(not_found))
+        .route("/admin", any(not_found))
+        .route("/admin/{*path}", any(not_found))
+        .route("/health", any(not_found))
+        .route("/health/{*path}", any(not_found))
+        .route("/oauth/{*path}", any(not_found))
+        .route("/v1", any(not_found))
+        .route("/v1/{*path}", any(not_found))
+        .route("/.well-known/{*path}", any(not_found))
+        .fallback_service(ServeDir::new(root).fallback(ServeFile::new(index)))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static(
+                "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+            ),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("x-content-type-options"),
+            HeaderValue::from_static("nosniff"),
+        ));
 
     base.merge(shell)
+}
+
+fn console_extension_router<S>(root: &Path) -> OpenApiRouter<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    OpenApiRouter::<S>::new()
+        .route_service(
+            "/extensions/registry.json",
+            ServeFile::new(root.join("registry.json")),
+        )
+        .nest_service("/extensions/runtime", ServeDir::new(root.join("runtime")))
 }
 
 fn console_web_root() -> PathBuf {
@@ -119,6 +133,13 @@ fn console_web_root() -> PathBuf {
                 .expect("Console Service crate must live below the Console workspace")
                 .join("dist")
         },
+        PathBuf::from,
+    )
+}
+
+fn console_extensions_root() -> PathBuf {
+    std::env::var_os("CONSOLE_EXTENSIONS_ROOT").map_or_else(
+        || Path::new(env!("CARGO_MANIFEST_DIR")).join("extensions"),
         PathBuf::from,
     )
 }
@@ -268,6 +289,10 @@ async fn get_console_composition(_actor: UserActor) -> Json<ConsoleServiceCompos
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::{Body, to_bytes};
+    use axum::http::Request;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use tower::ServiceExt;
 
     #[test]
     fn shell_module_is_capability_neutral() {
@@ -312,6 +337,56 @@ mod tests {
                     .join("dist")
             );
         }
+    }
+
+    #[tokio::test]
+    async fn console_service_serves_installed_extension_registry_and_bundles() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock after epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("lenso-console-extensions-{nonce}"));
+        tokio::fs::create_dir_all(root.join("runtime/crm"))
+            .await
+            .expect("create extension fixture");
+        tokio::fs::write(root.join("registry.json"), r#"{"version":1,"bundles":[]}"#)
+            .await
+            .expect("write extension registry");
+        tokio::fs::write(
+            root.join("runtime/crm/entry.js"),
+            "export const crmConsoleModule = {};",
+        )
+        .await
+        .expect("write extension bundle");
+
+        let (app, _) = console_extension_router::<()>(&root).split_for_parts();
+        for (path, expected) in [
+            ("/extensions/registry.json", "\"version\":1"),
+            ("/extensions/runtime/crm/entry.js", "crmConsoleModule"),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(path)
+                        .body(Body::empty())
+                        .expect("build extension request"),
+                )
+                .await
+                .expect("serve extension request");
+            assert_eq!(response.status(), StatusCode::OK, "path: {path}");
+            let body = to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("read extension response");
+            assert!(
+                String::from_utf8_lossy(&body).contains(expected),
+                "path: {path}"
+            );
+        }
+
+        tokio::fs::remove_dir_all(root)
+            .await
+            .expect("remove extension fixture");
     }
 
     #[test]

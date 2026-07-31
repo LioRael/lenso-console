@@ -1181,7 +1181,7 @@ export function moduleEntrypointRows(
 
   if (options.hasMissingConsolePackages) {
     rows.push({
-      detail: "refresh console extension registry",
+      detail: "refresh the Console Service extension registry",
       key: "console-package",
       kind: "package",
       label: "Console Extension Missing",

@@ -25,11 +25,11 @@ const crmModule = {
 } as const;
 
 const crmBundle = {
-  entry: "/console/extensions/crm/entry.js",
+  entry: "/extensions/runtime/crm/entry.js",
   exportName: "crmConsoleModule",
   hostApi: CONSOLE_BUNDLE_HOST_API,
   packageName: "@vendor/crm-console",
-  styles: ["/console/extensions/crm/entry.css"],
+  styles: ["/extensions/runtime/crm/entry.css"],
   version: "1.0.0",
 } satisfies ConsoleBundleManifest;
 
@@ -65,11 +65,11 @@ describe("console bundles", () => {
       }),
     ]);
     expect(importModule).toHaveBeenCalledWith(
-      "/console/extensions/crm/entry.js"
+      "/extensions/runtime/crm/entry.js"
     );
-    expect(loadStyle).toHaveBeenCalledWith("/console/extensions/crm/entry.css");
+    expect(loadStyle).toHaveBeenCalledWith("/extensions/runtime/crm/entry.css");
     expect(calls).toEqual([
-      "style:/console/extensions/crm/entry.css",
+      "style:/extensions/runtime/crm/entry.css",
       "import",
     ]);
   });
@@ -210,5 +210,24 @@ describe("console bundles", () => {
         origin: "http://lenso.test",
       })
     ).resolves.toEqual([]);
+  });
+
+  test("loads the Console Service extension registry by default", async () => {
+    const fetchJson = vi.fn().mockResolvedValue(
+      new Response('{"version":1,"bundles":[]}', {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      })
+    );
+    vi.stubGlobal("fetch", fetchJson);
+
+    try {
+      await expect(loadConsoleBundlePackages()).resolves.toEqual([]);
+      expect(fetchJson).toHaveBeenCalledWith("/extensions/registry.json", {
+        headers: { accept: "application/json" },
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
