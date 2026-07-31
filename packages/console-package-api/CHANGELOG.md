@@ -1,8 +1,4 @@
----
-packages:
-  "@lenso/console": patch
-  "@lenso/console-package-api": patch
----
+## @lenso/console-package-api@0.1.1
 
 ### Features
 
