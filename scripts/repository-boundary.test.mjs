@@ -1,0 +1,80 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import { describe, expect, test } from "vitest";
+
+const root = path.resolve(import.meta.dirname, "..");
+const currentRepository = "LioRael/lenso-runtime-console";
+const targetRepository = "LioRael/lenso-console";
+
+const liveRepositoryIdentityFiles = [
+  ".lenso-release/config.json",
+  ".lenso-release/plan.json",
+  ".lenso-release/runtime/components.yaml",
+  ".lenso-release/runtime/lib/config/components.js",
+  ".lenso-release/runtime/lib/registry/oci.js",
+  "Dockerfile",
+  "README.md",
+  "docs/agents/issue-tracker.md",
+  "packages/console-package-api/package.json",
+  "packages/remote-module-kit/README.md",
+  "packages/remote-module-kit/package.json",
+  "packages/service-kit/package.json",
+  "service/README.md",
+];
+
+const liveCheckoutIdentityFiles = [
+  ".github/workflows/publish-remote-module-kit.yml",
+];
+
+const repositoryIndependentScripts = [
+  "scripts/console-api-fixture.sh",
+  "scripts/console-api-qa.sh",
+];
+
+const source = (file) => readFile(path.join(root, file), "utf-8");
+
+describe("Lenso Console repository boundary", () => {
+  test.each(liveRepositoryIdentityFiles)(
+    "%s keeps the current repository identity until cutover",
+    async (file) => {
+      const contents = await source(file);
+
+      expect(contents).toContain(currentRepository);
+      expect(contents).not.toContain(targetRepository);
+    }
+  );
+
+  test.each(liveCheckoutIdentityFiles)(
+    "%s keeps the current checkout directory until cutover",
+    async (file) => {
+      const contents = await source(file);
+
+      expect(contents).toContain("lenso-runtime-console");
+      expect(contents).not.toContain("lenso-console/");
+    }
+  );
+
+  test.each(repositoryIndependentScripts)(
+    "%s does not assume a checkout directory name",
+    async (file) => {
+      const contents = await source(file);
+
+      expect(contents).not.toContain("lenso-runtime-console");
+      expect(contents).not.toContain("cd ../lenso-console");
+    }
+  );
+
+  test("documents the target identity and cross-repository responsibilities", async () => {
+    const contents = await source("docs/repository-operations.md");
+
+    expect(contents).toContain(currentRepository);
+    expect(contents).toContain(targetRepository);
+    expect(contents).toContain("Console Service API");
+    expect(contents).toContain("System Registry Module");
+    expect(contents).toContain(
+      "managed-Service System Plane Capability Providers"
+    );
+    expect(contents).toMatch(/must\s+not depend on this repository/u);
+  });
+});

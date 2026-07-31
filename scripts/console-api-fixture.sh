@@ -56,8 +56,7 @@ Start the remote module fixture and API with remote-crm loaded:
   cargo run --locked -p remote-module-example
   REMOTE_MODULES=remote-crm=http://127.0.0.1:4100/lenso/module/v1 just api
 
-Then run:
-  cd ../lenso-runtime-console
+Then run from the Lenso Console repository root:
   just console-api-qa
 EOF
     exit 1

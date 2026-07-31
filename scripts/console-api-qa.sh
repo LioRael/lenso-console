@@ -30,8 +30,7 @@ Start the local API first:
   just migrate
   just api
 
-Then run:
-  cd ../lenso-runtime-console
+Then run from the Lenso Console repository root:
   just console-api-qa
 EOF
     exit 1
