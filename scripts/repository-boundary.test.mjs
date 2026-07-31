@@ -9,7 +9,6 @@ const targetRepository = "LioRael/lenso-console";
 
 const liveRepositoryIdentityFiles = [
   ".lenso-release/config.json",
-  ".lenso-release/plan.json",
   ".lenso-release/runtime/components.yaml",
   ".lenso-release/runtime/lib/config/components.js",
   ".lenso-release/runtime/lib/registry/oci.js",

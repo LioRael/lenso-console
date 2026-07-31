@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-package-api",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "description": "Shared host contract for Lenso Console packages.",
   "keywords": [
     "console-package",
