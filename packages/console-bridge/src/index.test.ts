@@ -26,8 +26,8 @@ describe("Console Bridge host", () => {
         moduleReleaseDigest: `sha256:${"a".repeat(64)}`,
         uiArtifactDigest: `sha256:${"b".repeat(64)}`,
       },
-      surface: "contacts",
       invoke,
+      surface: "contacts",
     });
 
     listener?.({

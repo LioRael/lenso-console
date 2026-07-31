@@ -10,7 +10,6 @@ COPY packages ./packages
 RUN pnpm install --frozen-lockfile
 
 COPY index.html tsconfig.json vite.config.ts ./
-COPY scripts/check-host-extension-exports.mjs ./scripts/check-host-extension-exports.mjs
 COPY src ./src
 RUN pnpm service:web-build
 
