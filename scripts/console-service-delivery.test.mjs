@@ -268,6 +268,7 @@ describe("Console Service delivery", () => {
     const packageJson = JSON.parse(await read("package.json"));
     const config = JSON.parse(await read(".lenso-release/config.json"));
     const builder = await read("scripts/build-console-release-artifacts.mjs");
+    const publisher = await read(".github/workflows/publish.yml");
 
     expect(packageJson.scripts["release:artifacts"]).toBe(
       "node scripts/build-console-release-artifacts.mjs"
@@ -283,5 +284,12 @@ describe("Console Service delivery", () => {
     expect(builder).toContain('"--platform",\n        "linux/amd64"');
     expect(builder).toContain('"--provenance=false"');
     expect(builder).toContain('"--sbom=false"');
+    expect(publisher).toContain(
+      "docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
+    );
+    expect(publisher.match(/docker\/setup-buildx-action@/gu)).toHaveLength(2);
+    expect(publisher.indexOf("docker/setup-buildx-action@")).toBeLessThan(
+      publisher.indexOf("pnpm run --if-present release:artifacts")
+    );
   });
 });
