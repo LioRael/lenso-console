@@ -4,6 +4,7 @@ use lenso::host::http::{LinkedHttpContribution, ModuleHttpMethod, ModuleHttpRout
 use lenso::host::prelude::*;
 
 pub const MODULE_NAME: &str = "lenso/system-registry";
+pub const REGISTRY_ENROLL: &str = "console.system-registry.enroll";
 pub const REGISTRY_READ: &str = "console.system-registry.read";
 pub const REGISTRY_REVOKE: &str = "console.system-registry.revoke";
 
@@ -20,6 +21,12 @@ const MIGRATIONS: &[Migration] = &[
             "../../../../packages/console-system-plane/migrations/0003_create_console_composition.sql"
         ),
     },
+    Migration {
+        name: "lenso/system-registry/0003_create_enrollment_evidence",
+        sql: include_str!(
+            "../../../../packages/console-system-plane/migrations/0004_create_enrollment_evidence.sql"
+        ),
+    },
 ];
 
 pub fn linked_module() -> HostLinkedModule {
@@ -29,6 +36,18 @@ pub fn linked_module() -> HostLinkedModule {
 
 pub fn http_routes() -> Vec<ModuleHttpRoute> {
     vec![
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/enrollment/offers",
+            REGISTRY_ENROLL,
+            "Create Service Enrollment Offer",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/enrollment/accept",
+            REGISTRY_ENROLL,
+            "Accept Service Enrollment Receipt",
+        ),
         route(
             ModuleHttpMethod::Get,
             "/api/console/v1/services",
@@ -68,7 +87,11 @@ fn route(
 
 fn manifest() -> ModuleManifest {
     ModuleManifest::builder(MODULE_NAME)
-        .capabilities(vec![REGISTRY_READ.to_owned(), REGISTRY_REVOKE.to_owned()])
+        .capabilities(vec![
+            REGISTRY_ENROLL.to_owned(),
+            REGISTRY_READ.to_owned(),
+            REGISTRY_REVOKE.to_owned(),
+        ])
         .http_routes(http_routes())
         .build()
 }
@@ -92,10 +115,10 @@ mod tests {
         let manifest = (module.manifest)();
 
         assert_eq!(module.module_name, MODULE_NAME);
-        assert_eq!(manifest.capabilities.len(), 2);
+        assert_eq!(manifest.capabilities.len(), 3);
         assert_eq!(manifest.http_routes, http_routes());
         assert!(manifest.console.is_empty());
         assert!(module.http_binding.is_some());
-        assert_eq!(module.migrations.len(), 2);
+        assert_eq!(module.migrations.len(), 3);
     }
 }
