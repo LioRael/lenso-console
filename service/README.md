@@ -78,7 +78,8 @@ Set `CONSOLE_EXTENSIONS_ROOT` to a directory containing `registry.json` and a
 same-origin references, Console host API compatibility, and exported
 `ConsoleModule` values before route registration. Container deployments mount
 the host directory selected by `CONSOLE_EXTENSIONS_PATH` read-only at
-`/opt/lenso-console/extensions`.
+`/opt/lenso-console/extensions`. Its directories and files must be readable by
+the container's unprivileged UID `10001`.
 
 ## Container installation
 

@@ -34,6 +34,7 @@ cat >"$extensions_dir/registry.json" <<'EOF'
 }
 EOF
 printf '%s\n' 'export const smokeConsoleModule = { id: "smoke", surfaces: [] };' >"$extensions_dir/runtime/smoke/entry.js"
+chmod -R a+rX "$extensions_dir"
 
 {
   printf '%s\n' 'POSTGRES_PASSWORD=container-smoke-password'
