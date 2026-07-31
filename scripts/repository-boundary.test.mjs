@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { describe, expect, test } from "vitest";
@@ -23,10 +23,6 @@ const liveRepositoryIdentityFiles = [
   "service/README.md",
 ];
 
-const liveCheckoutIdentityFiles = [
-  ".github/workflows/publish-remote-module-kit.yml",
-];
-
 const repositoryIndependentScripts = [
   "scripts/console-api-fixture.sh",
   "scripts/console-api-qa.sh",
@@ -45,16 +41,6 @@ describe("Lenso Console repository boundary", () => {
     }
   );
 
-  test.each(liveCheckoutIdentityFiles)(
-    "%s keeps the current checkout directory until cutover",
-    async (file) => {
-      const contents = await source(file);
-
-      expect(contents).toContain("lenso-runtime-console");
-      expect(contents).not.toContain("lenso-console/");
-    }
-  );
-
   test.each(repositoryIndependentScripts)(
     "%s does not assume a checkout directory name",
     async (file) => {
@@ -64,6 +50,17 @@ describe("Lenso Console repository boundary", () => {
       expect(contents).not.toContain("cd ../lenso-console");
     }
   );
+
+  test("uses only the coordinator-authorized publisher", async () => {
+    await expect(
+      access(path.join(root, ".github/workflows/publish-remote-module-kit.yml"))
+    ).rejects.toThrow();
+
+    const publisher = await source(".github/workflows/publish.yml");
+    expect(publisher).toContain("workflow_dispatch:");
+    expect(publisher).toContain("LENSO_COORDINATOR_PREFLIGHT_URL");
+    expect(publisher).toContain("LENSO_COORDINATOR_RECEIPT_URL");
+  });
 
   test("documents the target identity and cross-repository responsibilities", async () => {
     const contents = await source("docs/repository-operations.md");
