@@ -1,7 +1,4 @@
----
-packages:
-  "@lenso/console-bridge": patch
----
+## @lenso/console-bridge@0.1.1
 
 ### Features
 
