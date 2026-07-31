@@ -24,8 +24,8 @@ framework/
 
 This repository owns the Console Shell, Console Service API, Console Operator
 identity integration, System Registry Module, Management Intents, Console
-Projections, reconciliation, System Operations, and Console-specific release
-artifacts.
+Projections, reconciliation, System Operations, the `lenso/platform-story`
+Module backend and UI artifact, and Console-specific release artifacts.
 
 The framework repository owns public cross-repository contracts and the
 managed-Service System Plane Capability Providers that expose authoritative

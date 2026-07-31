@@ -18,7 +18,7 @@ function TestPage() {
 describe("console module registry", () => {
   test("turns build-time module contributions into navigation and routes", () => {
     const module = defineConsoleModule({
-      id: "platform-story",
+      id: "lenso/platform-story",
       surfaces: [
         {
           area: "runtime",
@@ -34,7 +34,7 @@ describe("console module registry", () => {
       {
         icon: "workflow",
         label: "Stories",
-        moduleId: "platform-story",
+        moduleId: "lenso/platform-story",
         navigation: {
           order: -10,
           workspace: {
@@ -85,7 +85,7 @@ describe("console module registry", () => {
 
   test("rejects duplicate contribution paths before router creation", () => {
     const storyModule = defineConsoleModule({
-      id: "platform-story",
+      id: "lenso/platform-story",
       surfaces: [
         {
           area: "runtime",
@@ -132,7 +132,7 @@ describe("console module registry", () => {
 
   test("uses the first registered route as the default console route", () => {
     const storyModule = defineConsoleModule({
-      id: "platform-story",
+      id: "lenso/platform-story",
       surfaces: [
         {
           area: "runtime",
@@ -159,7 +159,7 @@ describe("console module registry", () => {
         buildConsoleRoutes([storyModule, identityModule])
       )
     ).toMatchObject({
-      moduleId: "platform-story",
+      moduleId: "lenso/platform-story",
       path: "/runtime/stories",
     });
   });
@@ -177,7 +177,7 @@ describe("console module registry", () => {
         exportName: "storyConsoleModule",
         icon: "workflow",
         label: "Stories",
-        moduleName: "platform-story",
+        moduleName: "lenso/platform-story",
         navigation: null,
         packageName: "@lenso/story-console",
         route: "/runtime/stories",
@@ -239,7 +239,7 @@ describe("console module registry", () => {
       },
     ]);
     expect(consoleModules.map((module) => module.id)).toContain(
-      "platform-story"
+      "lenso/platform-story"
     );
     expect(consoleModules.map((module) => module.id)).toContain("identity");
     expect(

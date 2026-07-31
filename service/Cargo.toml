@@ -5,6 +5,10 @@ edition = "2024"
 publish = false
 rust-version = "1.94"
 
+[workspace]
+members = [".", "modules/story"]
+resolver = "3"
+
 [[bin]]
 name = "lenso-console-api"
 path = "src/bin/api.rs"
@@ -26,6 +30,7 @@ anyhow = "1.0"
 axum = "0.8"
 dotenvy = "0.15"
 lenso = { version = "0.3.33", features = ["host"] }
+console-story-backend = { package = "lenso-module-story", path = "modules/story" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sqlx = { version = "0.9", default-features = false, features = [
@@ -36,6 +41,13 @@ sqlx = { version = "0.9", default-features = false, features = [
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.7", features = ["fs", "set-header"] }
 utoipa = "5.5"
+
+[dev-dependencies]
+lenso-api = "0.1.27"
+lenso-bootstrap = "0.1.26"
+platform-core = { package = "lenso-platform-core", version = "0.1.16" }
+platform-testing = { package = "lenso-platform-testing", version = "0.1.12" }
+tower = "0.5"
 
 [lints.rust]
 unsafe_code = "forbid"

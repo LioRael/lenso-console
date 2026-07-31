@@ -10,11 +10,15 @@ The initial exact composition is:
 - the capability-neutral `lenso/console-shell` linked Module;
 - the first-party Auth anchor;
 - the first-party password provider;
-- the mandatory `lenso/system-registry` linked Module.
+- the mandatory `lenso/system-registry` linked Module;
+- the optional `lenso/platform-story` linked Module, including Story query,
+  federation, projection, and Store migration ownership.
 
 The process fails closed unless `LENSO_COMPOSITION_PROFILE=core` and
-`SERVICE_NAME=lenso-console`, preventing the framework demo profile from adding
-unreviewed providers or fixture Modules.
+`SERVICE_NAME=lenso-console`, and it requires
+`LENSO_MODULE_PLATFORM_STORY_ENABLED=false` while supported framework releases
+still contain the former built-in Story Module. This prevents the framework
+demo profile or legacy Story route from adding unreviewed or duplicate Modules.
 
 ## Local start
 

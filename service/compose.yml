@@ -7,6 +7,7 @@ x-console-environment: &console-environment
   DATABASE_MAX_CONNECTIONS: ${DATABASE_MAX_CONNECTIONS:-10}
   DATABASE_URL: ${CONSOLE_DATABASE_URL:?set CONSOLE_DATABASE_URL}
   LENSO_COMPOSITION_PROFILE: core
+  LENSO_MODULE_PLATFORM_STORY_ENABLED: "false"
   LOG_FORMAT: json
   RUST_LOG: ${RUST_LOG:-info,lenso_console_service=info}
   SERVICE_NAME: lenso-console

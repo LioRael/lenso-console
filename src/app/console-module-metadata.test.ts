@@ -39,7 +39,7 @@ describe("console module metadata", () => {
       {
         icon: "workflow",
         label: "Stories",
-        moduleId: "platform-story",
+        moduleId: "lenso/platform-story",
         navigation: {
           order: 5,
           workspace: {

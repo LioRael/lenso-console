@@ -31,13 +31,13 @@ describe("story workbench page contracts", () => {
     expect(storyModuleIsUnavailable(undefined)).toBe(false);
     expect(
       storyModuleIsUnavailable({
-        module_name: "platform-story",
+        module_name: "lenso/platform-story",
         status: "loaded",
       })
     ).toBe(false);
     expect(
       storyModuleIsUnavailable({
-        module_name: "platform-story",
+        module_name: "lenso/platform-story",
         status: "error",
       })
     ).toBe(true);

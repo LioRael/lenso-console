@@ -120,6 +120,8 @@ REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localh
 - `src/pages`: route-level screens.
 - `packages/console-package-api`: public host API for console package authors.
 - `packages/story-console`: first-party Story workbench package.
+- `service/modules/story`: Console-owned Story backend, federation, projections,
+  and Store migrations released with the Story workbench.
 - `packages/identity-console`: installed module package fixture used to exercise
   framework wiring; it is not a product-default business module.
 
