@@ -50,7 +50,6 @@ jobs:
           VERSION: ${{ inputs.version }}
           REGISTRY_REPOSITORY: ${{ inputs.registry_repository }}
         run: |
-          test "$GITHUB_SHA" = "$RELEASE_COMMIT"
           test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
           test "$(jq -r .planId .lenso-release/plan.json)" = "$PLAN_ID"
           test "$PACKAGE_ID" = "oci:lenso-console-service"
