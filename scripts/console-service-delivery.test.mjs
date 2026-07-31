@@ -47,7 +47,7 @@ describe("Console Service delivery", () => {
     expect(compose.match(/- ALL/gu)).toHaveLength(2);
     expect(compose).toContain("console-database:/var/lib/postgresql");
     expect(compose).toContain(
-      "CONSOLE_EXTENSIONS_PATH:-./extensions}:/opt/lenso-console/extensions:ro"
+      "CONSOLE_EXTENSIONS_PATH:-./extensions}:/opt/lenso-console/extensions"
     );
     expect(compose).toContain(
       `CONSOLE_RECOVERY_MODE: \${CONSOLE_RECOVERY_MODE:?set CONSOLE_RECOVERY_MODE}`

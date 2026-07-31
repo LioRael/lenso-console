@@ -76,10 +76,13 @@ Set `CONSOLE_EXTENSIONS_ROOT` to a directory containing `registry.json` and a
 `runtime/` bundle tree. The Service publishes them at
 `/extensions/registry.json` and `/extensions/runtime/*`; the browser validates
 same-origin references, Console host API compatibility, and exported
-`ConsoleModule` values before route registration. Container deployments mount
-the host directory selected by `CONSOLE_EXTENSIONS_PATH` read-only at
-`/opt/lenso-console/extensions`. Its directories and files must be readable by
-the container's unprivileged UID `10001`.
+`ConsoleModule` values before route registration. Operators with the
+`console.extensions.manage` capability may reconcile reviewed artifacts through
+`POST /api/console/v1/extensions/reconcile`. The Service downloads each
+artifact over HTTPS, verifies its SHA-256 digest and host API requirement, and
+commits a content-addressed bundle registry. Container deployments persist this
+Console-owned directory at `/opt/lenso-console/extensions`; it remains writable
+only by the container's unprivileged UID `10001`.
 
 ## Container installation
 

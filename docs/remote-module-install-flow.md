@@ -158,7 +158,9 @@ This updates the host-local service source configuration.
 
 ### Console package
 
-If a Console package is missing, install its verified Module Release artifact
-into the Console Service extension root and reload Console. Managed application
-hosts do not expose a Console extension registry or embedded Console
-compatibility routes.
+If a Console package is missing, inspect the reviewed Module Change Operation
+and the Console composition receipt. Applying the operation calls the Console
+Service extension management endpoint, which downloads and verifies the Module
+Release artifact before atomically activating it. Managed application hosts do
+not expose a Console extension registry or embedded Console compatibility
+routes.

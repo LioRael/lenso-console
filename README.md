@@ -135,8 +135,11 @@ Installable Modules may deliver reviewed Console artifacts without rebuilding
 the Console image. The Console Service reads `registry.json` from
 `CONSOLE_EXTENSIONS_ROOT` (or `service/extensions` locally), exposes it at
 `/extensions/registry.json`, and serves bundle files from the root's `runtime/`
-directory at `/extensions/runtime/*`. Container deployments can mount that root
-with `CONSOLE_EXTENSIONS_PATH`; the Compose mount is read-only inside Console.
+directory at `/extensions/runtime/*`. The authenticated
+`POST /api/console/v1/extensions/reconcile` endpoint downloads reviewed
+artifacts, verifies their SHA-256 digests and host API requirements, then
+atomically replaces the active registry. Container deployments give only the
+Console Service write access to this persistent extension root.
 
 Lenso provides the package framework and fixtures. Product projects choose and
 own their real business modules.

@@ -16,6 +16,9 @@ use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use utoipa::ToSchema;
 
+use super::console_extensions::{
+    __path_reconcile_extensions, EXTENSIONS_MANAGE, reconcile_extensions,
+};
 use crate::composition::{CONSOLE_SERVICE_ID, ConsoleServiceComposition, official_composition};
 
 pub const MODULE_NAME: &str = "lenso/console-shell";
@@ -46,7 +49,16 @@ fn manifest() -> ModuleManifest {
                 display_name: Some("Inspect Console Bootstrap Status".to_owned()),
                 story_title: None,
             },
+            ModuleHttpRoute {
+                method: ModuleHttpMethod::Post,
+                path: "/api/console/v1/extensions/reconcile".to_owned(),
+                capability: Some(EXTENSIONS_MANAGE.to_owned()),
+                operation: None,
+                display_name: Some("Reconcile Console Extensions".to_owned()),
+                story_title: None,
+            },
         ])
+        .capabilities(vec![EXTENSIONS_MANAGE.to_owned()])
         .build()
 }
 
@@ -56,6 +68,7 @@ fn http_binding() -> LinkedBinding {
             public_prefixes: &[
                 "/health/",
                 "/api/console/v1/composition",
+                "/api/console/v1/extensions/reconcile",
                 "/bootstrap/v1/status",
             ],
             merge: merge_http,
@@ -79,6 +92,7 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
     let shell = OpenApiRouter::new()
         .merge(console_extension_router(&extensions_root))
         .routes(routes!(get_console_composition))
+        .routes(routes!(reconcile_extensions))
         .nest("/bootstrap", bootstrap)
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
@@ -137,7 +151,7 @@ fn console_web_root() -> PathBuf {
     )
 }
 
-fn console_extensions_root() -> PathBuf {
+pub(super) fn console_extensions_root() -> PathBuf {
     std::env::var_os("CONSOLE_EXTENSIONS_ROOT").map_or_else(
         || Path::new(env!("CARGO_MANIFEST_DIR")).join("extensions"),
         PathBuf::from,
@@ -295,17 +309,25 @@ mod tests {
     use tower::ServiceExt;
 
     #[test]
-    fn shell_module_is_capability_neutral() {
+    fn shell_module_declares_extension_management_capability() {
         let manifest = manifest();
 
         assert_eq!(manifest.name, MODULE_NAME);
-        assert!(manifest.capabilities.is_empty());
+        assert_eq!(manifest.capabilities, [EXTENSIONS_MANAGE]);
         assert!(manifest.console.is_empty());
-        assert_eq!(manifest.http_routes.len(), 2);
+        assert_eq!(manifest.http_routes.len(), 3);
         assert_eq!(manifest.http_routes[0].path, "/api/console/v1/composition");
         assert!(manifest.http_routes[0].capability.is_none());
         assert_eq!(manifest.http_routes[1].path, "/bootstrap/v1/status");
         assert!(manifest.http_routes[1].capability.is_none());
+        assert_eq!(
+            manifest.http_routes[2].path,
+            "/api/console/v1/extensions/reconcile"
+        );
+        assert_eq!(
+            manifest.http_routes[2].capability.as_deref(),
+            Some(EXTENSIONS_MANAGE)
+        );
     }
 
     #[test]
