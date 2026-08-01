@@ -12,14 +12,14 @@ describe("runtime stories url model", () => {
     expect(runtimeStoriesPath()).toBe("/stories");
     expect(
       runtimeStoriesPath({
-        inspectorTab: "technical",
+        inspectorTab: "related",
         nodeId: "remoteproxy_rproxy_1",
         query: "crm",
         storyId: "corr_1",
         viewMode: "timeline",
       })
     ).toBe(
-      "/stories?node=remoteproxy_rproxy_1&q=crm&story=corr_1&tab=technical&view=timeline"
+      "/stories?node=remoteproxy_rproxy_1&q=crm&story=corr_1&tab=related&view=timeline"
     );
   });
 
@@ -37,7 +37,8 @@ describe("runtime stories url model", () => {
     expect(readStoryViewMode("unknown")).toBe("waterfall");
     expect(readStoryViewMode("waterfall")).toBe("waterfall");
     expect(readExecutionInspectorTab("unknown")).toBe("overview");
-    expect(readExecutionInspectorTab("technical")).toBe("technical");
+    expect(readExecutionInspectorTab("related")).toBe("related");
+    expect(readExecutionInspectorTab("technical")).toBe("related");
   });
 
   test("prefers correlation ids for story urls", () => {

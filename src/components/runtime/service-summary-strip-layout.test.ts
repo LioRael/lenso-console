@@ -10,7 +10,7 @@ describe("service summary strip layout", () => {
     });
 
     expect(layout.panelHeight).toBe(176);
-    expect(layout.contentHeight).toBe(148);
+    expect(layout.contentHeight).toBe(146);
   });
 
   test("collapses the panel to its header height", () => {
@@ -19,7 +19,7 @@ describe("service summary strip layout", () => {
       height: 176,
     });
 
-    expect(layout.panelHeight).toBe(28);
+    expect(layout.panelHeight).toBe(30);
     expect(layout.contentHeight).toBe(0);
   });
 });

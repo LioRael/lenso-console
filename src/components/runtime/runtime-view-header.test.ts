@@ -13,7 +13,8 @@ describe("runtime view header style contract", () => {
     expect(runtimeViewHeaderClassName).toContain("border-b");
     expect(runtimeViewHeaderClassName).toContain("bg-(--bg-panel-header)");
     expect(runtimeViewHeaderContentClassName).toContain("overflow-hidden");
-    expect(runtimeViewHeaderLabelClassName).toContain("uppercase");
+    expect(runtimeViewHeaderLabelClassName).toContain("text-[12px]");
+    expect(runtimeViewHeaderLabelClassName).toContain("font-medium");
     expect(runtimeViewHeaderSummaryClassName).toContain("truncate");
     expect(runtimeViewHeaderMetaClassName).toContain("shrink-0");
   });

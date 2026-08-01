@@ -3,4 +3,4 @@ export const runtimeTableHeaderBaseClassName =
 
 export const runtimeTimelineTableHeaderClassName = `${runtimeTableHeaderBaseClassName} grid-cols-[minmax(180px,260px)_minmax(0,1fr)] max-md:grid-cols-1`;
 
-export const runtimeWaterfallTableHeaderClassName = `${runtimeTableHeaderBaseClassName} grid-cols-[minmax(200px,240px)_minmax(0,1fr)]`;
+export const runtimeWaterfallTableHeaderClassName = `${runtimeTableHeaderBaseClassName} grid-cols-[minmax(260px,332px)_minmax(232px,1fr)] gap-3`;

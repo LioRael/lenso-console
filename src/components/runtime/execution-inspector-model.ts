@@ -3,12 +3,12 @@ import { formatRuntimeDuration } from "../../lib/runtime-style";
 
 export type ExecutionInspectorTab =
   | "overview"
-  | "payload"
-  | "activity"
-  | "failures"
+  | "input"
+  | "output"
+  | "events"
   | "logs"
-  | "context"
-  | "technical";
+  | "errors"
+  | "related";
 
 export type ExecutionActivityItem = {
   id: string;
@@ -45,12 +45,12 @@ export type RemoteProxyInspectorDetail = {
 
 export const executionInspectorTabs = [
   { id: "overview", label: "Overview" },
-  { id: "payload", label: "Payload" },
-  { id: "activity", label: "Activity" },
+  { id: "input", label: "Input" },
+  { id: "output", label: "Output" },
+  { id: "events", label: "Events" },
   { id: "logs", label: "Logs" },
-  { id: "failures", label: "Failures" },
-  { id: "context", label: "Context" },
-  { id: "technical", label: "Technical" },
+  { id: "errors", label: "Errors" },
+  { id: "related", label: "Related" },
 ] as const satisfies ReadonlyArray<{
   id: ExecutionInspectorTab;
   label: string;
@@ -97,12 +97,9 @@ export function buildExecutionPayload(
 }
 
 export function defaultExecutionInspectorTab(
-  node: ExecutionNode
+  _node: ExecutionNode
 ): ExecutionInspectorTab {
-  if (node.status === "failed" || node.status === "dead") {
-    return "failures";
-  }
-  return hasExecutionPayloadData(node) ? "payload" : "overview";
+  return "overview";
 }
 
 export function buildExecutionActivity(
@@ -265,28 +262,19 @@ export function getExecutionInspectorTabCounts(
   const { downstream, upstream } = relatedNodeGroups(story, node);
 
   return {
-    activity: buildExecutionActivity(story, node).length,
-    context: upstream.length + downstream.length,
-    failures: buildExecutionFailures(node).length,
+    errors: buildExecutionFailures(node).length,
+    events: buildExecutionActivity(story, node).length,
+    input: payloadSectionCount(node, "input"),
     logs: node.logs.length,
     overview: 0,
-    payload: payloadCount(node),
-    technical: 0,
+    output: payloadSectionCount(node, "output"),
+    related: upstream.length + downstream.length,
   };
 }
 
-function payloadCount(node: ExecutionNode) {
+function payloadSectionCount(node: ExecutionNode, section: "input" | "output") {
   const payload = buildExecutionPayload(node);
-  return [payload.input, payload.metadata, payload.output].filter((value) =>
-    hasMeaningfulValue(value)
-  ).length;
-}
-
-function hasExecutionPayloadData(node: ExecutionNode) {
-  const payload = buildExecutionPayload(node);
-  return (
-    hasMeaningfulValue(payload.input) || hasMeaningfulValue(payload.output)
-  );
+  return hasMeaningfulValue(payload[section]) ? 1 : 0;
 }
 
 function firstValue(

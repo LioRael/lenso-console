@@ -379,12 +379,12 @@ export interface RuntimeStory {
 
 export type ExecutionInspectorTab =
   | "overview"
-  | "payload"
-  | "activity"
-  | "failures"
+  | "input"
+  | "output"
+  | "events"
   | "logs"
-  | "context"
-  | "technical";
+  | "errors"
+  | "related";
 
 export type StoryViewMode =
   | "story"

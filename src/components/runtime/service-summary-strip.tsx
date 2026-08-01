@@ -114,7 +114,7 @@ export function ServiceSummaryStrip({
     >
       <div
         className={cn(
-          "flex h-7 min-w-0 items-center gap-2 px-3",
+          "flex h-[30px] min-w-0 items-center gap-[7px] px-3",
           expanded && "border-b border-(--border-subtle)"
         )}
       >
@@ -128,16 +128,16 @@ export function ServiceSummaryStrip({
           <ChevronDown
             ref={iconRef}
             className="shrink-0 text-(--muted)"
-            size={13}
+            size={12}
           />
-          <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.08em] text-(--secondary)">
+          <span className="font-sans text-[9.5px] font-medium text-(--fg-secondary)">
             Services
           </span>
-          <span className="rounded-[2px] border border-(--border-subtle) bg-(--elevated) px-1 font-mono text-[10px] text-(--muted)">
+          <span className="grid h-4 min-w-4.5 place-items-center border border-(--line) bg-(--bg-panel-muted) px-1 font-mono text-[8px] text-(--fg-tertiary)">
             {services.length}
           </span>
         </button>
-        <div className="ml-auto flex min-w-0 items-center gap-3 overflow-hidden font-mono text-[11px] text-(--muted)">
+        <div className="ml-auto flex min-w-0 items-center gap-[7px] overflow-hidden font-mono text-[8.5px] text-(--fg-tertiary)">
           <span>p50 {formatRuntimeDuration(serviceSummary.p50)}</span>
           <span>p95 {formatRuntimeDuration(serviceSummary.p95)}</span>
           <span>max {formatRuntimeDuration(serviceSummary.max)}</span>
@@ -154,14 +154,17 @@ export function ServiceSummaryStrip({
         <div className="h-full min-h-0 overflow-auto">
           {services.map((item) => (
             <div
-              className="grid min-w-175 grid-cols-[12px_minmax(150px,1fr)_64px_82px_82px_82px_minmax(104px,190px)] items-center gap-2 border-b border-(--border-subtle) px-3 py-1.5 font-mono text-[11px] last:border-b-0"
+              className="grid h-10 min-w-[600px] grid-cols-[8px_94px_46px_56px_56px_56px_38px_minmax(96px,1fr)] items-center gap-2 border-b border-(--line-subtle) px-3 font-mono text-[8.5px] last:border-b-0"
               key={item.service}
             >
               <div
                 className="size-2 rounded-xs"
                 style={{ backgroundColor: serviceColor(item.service) }}
               />
-              <span className="min-w-0 truncate text-xs font-medium text-(--foreground)">
+              <span
+                className="min-w-0 truncate font-sans text-[10px] font-medium"
+                style={{ color: serviceColor(item.service) }}
+              >
                 {item.service}
               </span>
               <span className="text-(--muted)">{item.nodes} nodes</span>
@@ -174,26 +177,23 @@ export function ServiceSummaryStrip({
               <span className="text-(--muted)">
                 p99 {formatRuntimeDuration(item.p99)}
               </span>
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className={
-                    item.errors > 0
-                      ? "w-10 text-(--error)"
-                      : "w-10 text-(--muted)"
-                  }
-                >
-                  {item.errors} err
-                </span>
-                <div className="h-1 flex-1 overflow-hidden rounded-[1px] bg-(--elevated)">
-                  <div
-                    className="h-full rounded-[1px]"
-                    style={{
-                      backgroundColor: serviceColor(item.service),
-                      opacity: 0.7,
-                      width: `${Math.max(2, (item.duration / story.durationMs) * 100)}%`,
-                    }}
-                  />
-                </div>
+              <span
+                className={
+                  item.errors > 0
+                    ? "text-(--tone-error-fg)"
+                    : "text-(--fg-tertiary)"
+                }
+              >
+                {item.errors} err
+              </span>
+              <div className="h-1.5 min-w-0 overflow-hidden rounded-[1px] bg-(--bg-panel-muted)">
+                <div
+                  className="h-full rounded-[1px]"
+                  style={{
+                    backgroundColor: serviceColor(item.service),
+                    width: `${Math.max(2, (item.duration / story.durationMs) * 100)}%`,
+                  }}
+                />
               </div>
             </div>
           ))}

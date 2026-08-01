@@ -54,7 +54,23 @@ export function readStoryViewMode(value: string): StoryViewMode {
 export function readExecutionInspectorTab(
   value: string
 ): ExecutionInspectorTab {
+  const legacyTab = legacyExecutionInspectorTab(value);
+  if (legacyTab) {
+    return legacyTab;
+  }
   return isExecutionInspectorTab(value) ? value : "overview";
+}
+
+function legacyExecutionInspectorTab(
+  value: string
+): ExecutionInspectorTab | undefined {
+  return {
+    activity: "events",
+    context: "related",
+    failures: "errors",
+    payload: "input",
+    technical: "related",
+  }[value] as ExecutionInspectorTab | undefined;
 }
 
 export function storyUrlId(story: RuntimeStory | null | undefined) {
