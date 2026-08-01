@@ -1,4 +1,4 @@
-import type { ConsoleNavigationMetadata } from "../app/console-module-api";
+import type { ConsoleNavigationMetadata } from "../../packages/console-package-api/src/index";
 import { registeredConsolePackage } from "../app/console-module-resolver";
 
 // Mirrors platform-module's admin JSON shapes. Hand-typed because the records

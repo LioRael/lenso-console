@@ -111,7 +111,7 @@ function GraphNode({
           </span>
         </span>
         {showConnector ? (
-          <span className="absolute top-11 bottom-[-0.5rem] w-px bg-[linear-gradient(180deg,var(--line)_0%,var(--line)_100%)]" />
+          <span className="absolute top-11 bottom-[-0.5rem] w-px bg-(--line)" />
         ) : null}
       </div>
 

@@ -2,6 +2,11 @@ import { RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
 
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/roboto-mono/400.css";
+
 import { loadConsoleBundlePackages } from "./app/console-bundles";
 import { registerRuntimeConsoleModuleMetadata } from "./app/console-module-metadata";
 import { consoleModules } from "./app/console-modules";

@@ -404,27 +404,25 @@ export function DeliveryConsolePanel({
       </EvidenceSection>
 
       <EvidenceSection label="GA support and operations">
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        <div className="divide-y divide-(--line)">
           {gaEvidenceItems(data.gaOperations).length === 0 ? (
             <EmptyLine text="No GA support, recovery, performance, disaster, Contract, or security evidence recorded." />
           ) : (
             gaEvidenceItems(data.gaOperations).map(({ label, evidence }) => (
               <article
-                className="border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                className="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-2 text-[10px] hover:bg-(--bg-row-hover)"
                 key={`${label}:${evidence.protocol}:${evidence.evidenceId}`}
               >
-                <div className="flex gap-2 font-mono">
+                <div className="grid content-start gap-1 font-mono">
                   <span>{label}</span>
-                  <span
-                    className={`ml-auto uppercase ${gaStatusClass(evidence)}`}
-                  >
+                  <span className={gaStatusClass(evidence)}>
                     {evidence.stale ? "stale" : evidence.status}
                   </span>
                 </div>
-                <div className="mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)">
+                <div className="break-all font-mono text-[9px] text-(--fg-tertiary)">
                   {evidence.evidenceId}
                 </div>
-                <dl className="mt-2 grid grid-cols-[90px_minmax(0,1fr)] gap-x-2">
+                <dl className="grid grid-cols-[90px_minmax(0,1fr)] gap-x-2">
                   {Object.entries(evidence.subjects).map(([key, value]) => (
                     <div className="contents" key={key}>
                       <dt>{key}</dt>
@@ -479,19 +477,17 @@ export function DeliveryConsolePanel({
         {timeline.length === 0 ? (
           <EmptyLine text="No rollout timeline evidence recorded." />
         ) : (
-          <ol className="grid gap-2 md:grid-cols-3">
+          <ol className="divide-y divide-(--line)">
             {timeline.map((entry) => (
               <li
-                className="border border-(--line) bg-(--bg-panel-muted) p-2"
+                className="grid grid-cols-[96px_minmax(0,1fr)_minmax(120px,0.7fr)] gap-3 px-3 py-2"
                 key={`${entry.protocol}:${entry.artifactId}`}
               >
-                <div className="font-mono text-[9px] uppercase text-(--fg-tertiary)">
+                <div className="font-mono text-[9px] text-(--fg-tertiary)">
                   {entry.state}
                 </div>
-                <div className="mt-1 break-all text-[10px]">
-                  {entry.protocol}
-                </div>
-                <div className="mt-1 font-mono text-[9px] text-(--fg-tertiary)">
+                <div className="break-all text-[10px]">{entry.protocol}</div>
+                <div className="font-mono text-[9px] text-(--fg-tertiary)">
                   {entry.artifactId}
                 </div>
                 <EvidenceLinks references={entry.evidenceReferences} />
@@ -508,7 +504,7 @@ export function DeliveryConsolePanel({
         >
           {data.issues.map((issue) => (
             <article
-              className="mb-2 border-l-2 border-(--danger) pl-2"
+              className="grid grid-cols-[minmax(140px,0.5fr)_minmax(0,1fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
               key={`${issue.code}:${issue.message}`}
             >
               <h3 className="font-mono text-[10px] font-semibold">

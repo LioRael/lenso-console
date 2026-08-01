@@ -1,4 +1,4 @@
-import { AlertCircle, Boxes, Clock, GitBranch, Server, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
 import { cn } from "../../lib/cn";
@@ -26,8 +26,8 @@ export function StoryHeader({
     storySummary.status === "failed" || storySummary.status === "dead";
 
   return (
-    <header className="min-w-0 overflow-hidden border-b border-(--border-subtle) bg-(--surface)">
-      <div className="flex min-w-0 items-start gap-3 px-3 pt-2 pb-1.5">
+    <header className="h-28 min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)">
+      <div className="flex h-9 min-w-0 items-start gap-3 px-3.5 pt-2.5">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="min-w-0 truncate text-[16px] font-semibold leading-tight text-(--foreground)">
@@ -35,31 +35,19 @@ export function StoryHeader({
             </h1>
             <RuntimeStatusBadge status={storySummary.status} variant="label" />
           </div>
-          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 font-mono text-[10px] text-(--secondary)">
-            <Metric icon={<Clock size={10} />} tone="accent">
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-3 font-mono text-[10px] text-(--fg-secondary)">
+            <Metric tone="accent">
               {formatRuntimeDuration(storySummary.duration)}
             </Metric>
-            <Metric icon={<Boxes size={10} />}>
-              {storySummary.nodeCount} nodes
-            </Metric>
-            <Metric
-              icon={<AlertCircle size={10} />}
-              tone={storySummary.errorCount > 0 ? "error" : "muted"}
-            >
+            <Metric>{storySummary.nodeCount} nodes</Metric>
+            <Metric tone={storySummary.errorCount > 0 ? "error" : "muted"}>
               {storySummary.errorCount} errors
             </Metric>
-            <Metric icon={<Server size={10} />}>
-              {storySummary.services.length} services
-            </Metric>
+            <Metric>{storySummary.services.length} services</Metric>
             {strongestParallelGroup ? (
-              <>
-                <Metric icon={<GitBranch size={10} />} tone="accent">
-                  fan-out {strongestParallelGroup.branchCount}
-                </Metric>
-                <Metric icon={<Clock size={10} />}>
-                  longest {strongestParallelGroup.longestBranchName}
-                </Metric>
-              </>
+              <Metric tone="accent">
+                fan-out {strongestParallelGroup.branchCount}
+              </Metric>
             ) : null}
           </div>
         </div>
@@ -74,12 +62,12 @@ export function StoryHeader({
         </button>
       </div>
 
-      <div className="min-w-0 px-3 pb-1.5">
-        <HorizontalScrollArea className="h-6" viewportClassName="h-full">
+      <div className="h-6 min-w-0 px-3.5">
+        <HorizontalScrollArea className="h-5" viewportClassName="h-full">
           <div className="flex h-full w-max min-w-full items-center gap-1.5">
             {storySummary.services.map((service) => (
               <span
-                className="shrink-0 border border-(--border-subtle) bg-(--elevated) px-1.5 py-0.5 font-mono text-[10px] text-(--secondary)"
+                className="shrink-0 px-0.5 font-mono text-[10px] text-(--fg-secondary)"
                 key={service}
               >
                 {service}
@@ -89,7 +77,7 @@ export function StoryHeader({
         </HorizontalScrollArea>
       </div>
 
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-1.5 font-mono text-[10px]">
+      <div className="flex h-4 min-w-0 items-center gap-x-2 overflow-hidden px-3.5 font-mono text-[9px]">
         <span className="min-w-0 truncate text-(--secondary)">
           {storySummary.patternLabel || "No execution pattern"}
         </span>
@@ -135,11 +123,9 @@ function lastErrorNode(nodes: ReturnType<typeof buildRuntimeStory>["nodes"]) {
 
 function Metric({
   children,
-  icon,
   tone = "muted",
 }: {
   children: React.ReactNode;
-  icon: React.ReactNode;
   tone?: "accent" | "error" | "muted";
 }) {
   const toneClass = {
@@ -149,8 +135,7 @@ function Metric({
   }[tone];
 
   return (
-    <span className={cn("inline-flex items-center gap-1", toneClass)}>
-      {icon}
+    <span className={cn("inline-flex items-center", toneClass)}>
       {children}
     </span>
   );

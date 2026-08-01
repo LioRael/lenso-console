@@ -131,7 +131,7 @@ describe("console package installs", () => {
         name !== "@lenso/console-package-api" && name.endsWith("-console")
     );
 
-    expect(consolePackageNames).toEqual(dependencyNames);
+    expect(consolePackageNames.toSorted()).toEqual(dependencyNames.toSorted());
   });
 
   test("keeps module export mapping aligned with install manifests", () => {
@@ -139,6 +139,18 @@ describe("console package installs", () => {
       consolePackageInstallManifests.map((item) =>
         consolePackageKey(item.manifest)
       )
+    );
+  });
+
+  test("keeps product-owned console packages out of build-time installs", () => {
+    const dependencyNames = Object.keys(
+      runtimeConsolePackageJson.dependencies ?? {}
+    );
+
+    expect(dependencyNames).not.toContain("@knowflow/knowledge-console");
+    expect(consolePackageNames).not.toContain("@knowflow/knowledge-console");
+    expect(Object.keys(consolePackageModuleExportsByKey)).not.toContain(
+      "@knowflow/knowledge-console#knowledgeConsoleModule"
     );
   });
 });

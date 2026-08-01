@@ -87,6 +87,7 @@ describe("mock console host api", () => {
       },
     ];
     const baseHostApi = {
+      version: "1",
       adminData: {
         useInvokeAction: notCalled,
         useRecords: notCalled,

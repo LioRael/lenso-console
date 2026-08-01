@@ -1,8 +1,13 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import { AlertCircle, Boxes, Clock, Search } from "lucide-react";
 
 import type { RuntimeStory } from "../../data/mock-runtime";
 import { cn } from "../../lib/cn";
-import { formatRuntimeDuration, statusColor } from "../../lib/runtime-style";
+import {
+  formatRuntimeDuration,
+  serviceColor,
+  statusColor,
+} from "../../lib/runtime-style";
 import { buildRuntimeStory } from "../../lib/story";
 
 export function StoryList({
@@ -18,37 +23,45 @@ export function StoryList({
   setQuery: (query: string) => void;
   onSelect: (story: RuntimeStory) => void;
 }) {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   return (
-    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-panel)">
-      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--line) bg-(--bg-panel) px-3 py-2">
+    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
+      <div className="flex h-[60px] items-center justify-between gap-2 border-b border-(--line) bg-(--bg-canvas) px-3.5">
         <div>
           <h2 className="text-sm font-semibold tracking-tight text-(--fg-primary)">
-            Stories
+            {zh ? "业务故事" : "Stories"}
           </h2>
-          <p className="text-xs text-(--fg-tertiary)">
-            {stories.length} correlations
+          <p className="font-mono text-[9px] text-(--fg-tertiary)">
+            platform-story&nbsp; · &nbsp;{stories.length}{" "}
+            {zh ? "个关联" : "correlations"}
           </p>
         </div>
       </div>
-      <div className="flex h-8 items-center gap-2 border-b border-(--line) px-3 text-(--fg-tertiary)">
+      <div className="flex h-10 items-center gap-2 border-b border-(--line) px-3 text-(--fg-tertiary)">
         <Search size={12} />
         <input
           aria-label="Search stories"
           className="mono w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="filter story / service / correlation..."
+          placeholder={
+            zh
+              ? "筛选故事 / 服务 / 关联..."
+              : "filter story / service / correlation..."
+          }
           value={query}
         />
       </div>
-      <div className="grid h-6 grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-semibold uppercase text-(--fg-tertiary)">
-        <span />
-        <span>story</span>
-        <span className="text-right">state</span>
+      <div className="grid h-[26px] grid-cols-[minmax(0,1fr)_58px] items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3.5 text-[9px] text-(--fg-tertiary)">
+        <span>{zh ? "故事" : "story"}</span>
+        <span className="text-right">{zh ? "状态" : "state"}</span>
       </div>
       <div className="min-h-0 overflow-auto">
         {stories.length === 0 ? (
           <div className="p-4 text-[12px] leading-5 text-(--fg-tertiary)">
-            No stories match the current filter.
+            {zh
+              ? "没有符合当前筛选条件的故事。"
+              : "No stories match the current filter."}
           </div>
         ) : null}
         {stories.map((story) => {
@@ -60,7 +73,7 @@ export function StoryList({
           return (
             <button
               className={cn(
-                "relative w-full border-b border-(--line) py-2.5 pr-3 pl-4 text-left transition",
+                "relative h-[120px] w-full overflow-hidden border-b border-(--line) p-3 text-left transition-colors",
                 isError &&
                   "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-(--error)",
                 isSelected ? "native-selection" : "hover:bg-(--bg-row-hover)"
@@ -106,12 +119,6 @@ export function StoryList({
                     </Metric>
                   </>
                 ) : null}
-                <span
-                  className="ml-auto truncate text-[10px] text-(--fg-tertiary)"
-                  title={storySummary.correlationId}
-                >
-                  {shortCorrelation(storySummary.correlationId)}
-                </span>
               </div>
 
               {isError && storySummary.rootError ? (
@@ -124,20 +131,23 @@ export function StoryList({
                 </div>
               )}
 
-              <div className="mt-1.5 flex min-w-0 flex-wrap gap-1">
-                {storySummary.services.slice(0, 4).map((service) => (
+              <div className="mt-1.5 flex min-w-0 items-center gap-2 font-mono text-[9px]">
+                {storySummary.services.slice(0, 3).map((service) => (
                   <span
-                    className="max-w-24 truncate rounded border border-(--line) bg-(--bg-control) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)"
+                    className="max-w-16 truncate"
                     key={service}
+                    style={{ color: serviceColor(service) }}
                   >
                     {service}
                   </span>
                 ))}
-                {storySummary.services.length > 4 ? (
-                  <span className="rounded border border-(--line) bg-(--bg-control) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)">
-                    +{storySummary.services.length - 4}
-                  </span>
-                ) : null}
+                <span className="h-px min-w-2 flex-1 bg-(--line-subtle)" />
+                <span
+                  className="max-w-18 truncate text-[8px] text-(--fg-tertiary)"
+                  title={storySummary.correlationId}
+                >
+                  {shortCorrelation(storySummary.correlationId)}
+                </span>
               </div>
             </button>
           );

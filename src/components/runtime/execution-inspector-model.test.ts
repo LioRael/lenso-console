@@ -113,12 +113,12 @@ describe("execution inspector model", () => {
   test("uses operator workflow tabs", () => {
     expect(executionInspectorTabs.map((tab) => tab.label)).toEqual([
       "Overview",
-      "Payload",
-      "Activity",
+      "Input",
+      "Output",
+      "Events",
       "Logs",
-      "Failures",
-      "Context",
-      "Technical",
+      "Errors",
+      "Related",
     ]);
   });
 
@@ -247,8 +247,8 @@ describe("execution inspector model", () => {
     );
   });
 
-  test("selects failure, payload, then overview as default drawer tabs", () => {
-    expect(defaultExecutionInspectorTab(story.nodes[1]!)).toBe("payload");
+  test("opens every execution on the overview document", () => {
+    expect(defaultExecutionInspectorTab(story.nodes[1]!)).toBe("overview");
     const { payload: _payload, ...nodeWithoutPayload } = story.nodes[1]!;
     expect(defaultExecutionInspectorTab(nodeWithoutPayload)).toBe("overview");
     expect(
@@ -256,20 +256,20 @@ describe("execution inspector model", () => {
         ...story.nodes[1]!,
         status: "failed",
       })
-    ).toBe("failures");
+    ).toBe("overview");
   });
 
   test("counts drawer tab content without data-type tab names", () => {
     const counts = getExecutionInspectorTabCounts(story, story.nodes[1]!);
 
     expect(counts).toMatchObject({
-      activity: 3,
-      context: 2,
-      failures: 0,
+      errors: 0,
+      events: 3,
+      input: 1,
       logs: 2,
       overview: 0,
-      payload: 2,
-      technical: 0,
+      output: 0,
+      related: 2,
     });
   });
 });

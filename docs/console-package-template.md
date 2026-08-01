@@ -238,33 +238,66 @@ implementation.
 
 ## Module Export
 
-Export a console module from the package entrypoint:
+Bind the manifest to React components in the package entrypoint. The helper
+derives every surface's route, label, area, icon, and navigation metadata from
+the manifest and validates the resulting runtime module:
 
 ```tsx
-import { defineConsoleModule } from "@lenso/console-package-api";
+import { defineConsoleExtension } from "@lenso/console-package-api";
 
 import { billingConsoleManifest } from "./manifest";
 import { BillingConsolePage } from "./page";
 
-const [billingSurface] = billingConsoleManifest.surfaces;
-
-export const billingConsoleModule = defineConsoleModule({
-  id: billingConsoleManifest.id,
-  surfaces: [
-    {
-      area: billingSurface.area,
-      component: BillingConsolePage,
-      icon: billingSurface.icon,
-      label: billingSurface.label,
-      navigation: billingSurface.navigation,
-      path: billingSurface.route,
-    },
-  ],
+export const billingConsoleExtension = defineConsoleExtension({
+  components: { billing: BillingConsolePage },
+  manifest: billingConsoleManifest,
 });
+export const billingConsoleModule = billingConsoleExtension.module;
 
 export { billingConsoleManifest } from "./manifest";
 export { BillingConsolePage } from "./page";
 ```
+
+## Shared UI and custom styles
+
+Import common controls directly from `@lenso/console-package-api`. The host and
+runtime-loaded extensions use the same implementations:
+
+```tsx
+import {
+  Badge,
+  Button,
+  ConsolePage,
+  DataTable,
+  EmptyState,
+  Field,
+  Input,
+  Panel,
+  StatusMarker,
+  Tabs,
+} from "@lenso/console-package-api";
+```
+
+Operational surfaces should compose `ConsolePage` with `SummaryStrip`,
+`SplitView`, `Section`, `KeyValueList`, and `StateView`. This preserves the
+host's continuous canvas and list/inspector hierarchy without duplicating
+layout classes inside the extension.
+
+For Tailwind v4 packages, import the public theme contract from the package's
+stylesheet:
+
+```css
+@import "tailwindcss";
+@import "@lenso/console-package-api/theme.css";
+```
+
+The theme contract includes the dark and light token values, low-specificity
+component styles, and Tailwind mappings. Component `className` values can add
+layout or local refinements. For a specialized visualization or control that is
+not covered by the primitives, use semantic variables such as `--bg-panel`,
+`--fg-secondary`, `--line`, `--control-height-sm`, and `--content-gutter`
+instead of hard-coded colors. Extension styles remain isolated bundle assets,
+but inherit the active host theme through these root variables.
 
 ## Host Registration
 
@@ -289,11 +322,11 @@ Then update the lockfile:
 pnpm install --lockfile-only
 ```
 
-The host still has to import installed packages at build time. A backend module
-can declare any package, but Lenso Console can only mount it after the package
-has been added to `package.json` and `console-package-module-exports.ts`.
-Package entrypoints are resolved through pnpm workspace links and each package's
-`exports` field. Missing declarations appear in the module registry as
+Linked first-party packages are registered through workspace dependencies and
+`console-package-module-exports.ts`. Installed runtime bundles instead enter
+through the Console extension registry and are loaded without rebuilding the
+Shell. Both paths resolve the same manifest/module contract and the same public
+host API. Missing linked declarations appear in the module registry as
 install-plan rows.
 
 ## Boundary Rules

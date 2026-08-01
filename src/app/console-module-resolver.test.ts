@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { defineConsoleModule } from "./console-module-api";
+import { defineConsoleModule } from "../../packages/console-package-api/src/index";
 import {
   createDevManualConsolePackageInstaller,
   createNoopConsolePackageInstaller,
@@ -97,57 +97,6 @@ describe("console module resolver", () => {
         navigation: null,
         packageName: "@lenso/story-console",
       },
-    ]);
-  });
-
-  test("labels the legacy auth route as sessions", () => {
-    const authModule = defineConsoleModule({
-      id: "auth",
-      surfaces: [
-        {
-          area: "data",
-          component: () => null,
-          label: "Auth",
-          path: "/data/auth",
-        },
-      ],
-    });
-
-    expect(
-      selectConsoleModulePackageReferences(
-        [
-          {
-            module_name: "auth",
-            console: [
-              {
-                label: "Auth",
-                name: "auth",
-                package: {
-                  export: "authConsoleModule",
-                  name: "@lenso/auth-console",
-                },
-                route: "/data/auth",
-              },
-            ],
-          },
-        ],
-        {
-          packages: [
-            {
-              exportName: "authConsoleModule",
-              module: authModule,
-              packageName: "@lenso/auth-console",
-              source: "runtime_bundle",
-            },
-          ],
-        }
-      )
-    ).toEqual([
-      expect.objectContaining({
-        label: "Sessions",
-        route: "/data/auth",
-        surfaceName: "auth",
-      }),
     ]);
   });
 

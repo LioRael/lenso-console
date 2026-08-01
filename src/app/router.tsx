@@ -1,3 +1,4 @@
+import { RuntimeStoriesPage } from "@lenso/story-console";
 import {
   Outlet,
   createRootRoute,
@@ -5,25 +6,23 @@ import {
   createRouter,
   redirect,
 } from "@tanstack/react-router";
+import type { FunctionComponent } from "react";
 
+import type { ConsoleModule } from "../../packages/console-package-api/src/index";
 import { RuntimeConsoleProvider } from "../components/runtime/runtime-console-context";
 import { RuntimeConsoleShell } from "../components/runtime/runtime-console-shell";
-import { AdminActionsPage } from "../pages/admin-actions-page";
-import { ConfigPage } from "../pages/config-page";
-import { DataPage } from "../pages/data-page";
-import { DeadLettersPage } from "../pages/dead-letters-page";
-import { FunctionsPage } from "../pages/functions-page";
-import { LaunchpadPage } from "../pages/launchpad-page";
-import { ModulesPage } from "../pages/modules-page";
-import { OperationsPage } from "../pages/operations-page";
-import { OverviewPage } from "../pages/overview-page";
-import { QueuesPage } from "../pages/queues-page";
-import { RemoteProxyCallsPage } from "../pages/remote-proxy-calls-page";
-import { ServicesPage } from "../pages/services-page";
-import type { ConsoleModule } from "./console-module-api";
+import { ChangesPage } from "../features/changes/changes-page";
+import { DeliveryPage } from "../features/delivery/delivery-page";
+import { HomePage } from "../features/home/home-page";
+import { ModulesPage } from "../features/modules/modules-page";
+import { RuntimePage } from "../features/runtime/runtime-page";
+import { SettingsPage } from "../features/settings/settings-page";
+import { SystemPage } from "../features/system/system-page";
+import { ConsoleAppearanceProvider } from "./console-appearance";
+import { HostConsoleLocaleProvider } from "./console-locale";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
 
-export const rootRedirectPath = "/launchpad";
+export const rootRedirectPath = "/";
 export const runtimeConsoleBasePath = consoleBasePathFromBaseUrl(
   import.meta.env.BASE_URL
 );
@@ -42,139 +41,55 @@ export function createRuntimeConsoleRouter(
 ) {
   const rootRoute = createRootRoute({
     component: () => (
-      <RuntimeConsoleProvider>
-        <RuntimeConsoleShell>
-          <Outlet />
-        </RuntimeConsoleShell>
-      </RuntimeConsoleProvider>
+      <ConsoleAppearanceProvider>
+        <HostConsoleLocaleProvider>
+          <RuntimeConsoleProvider>
+            <RuntimeConsoleShell>
+              <Outlet />
+            </RuntimeConsoleShell>
+          </RuntimeConsoleProvider>
+        </HostConsoleLocaleProvider>
+      </ConsoleAppearanceProvider>
     ),
   });
 
-  const indexRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/",
-    beforeLoad: () => {
-      throw redirect({ to: rootRedirectPath });
-    },
-  });
-
-  const consoleRouteNodes = buildConsoleRoutes(modules).map((route) =>
+  const page = (path: string, component: FunctionComponent) =>
+    createRoute({ component, getParentRoute: () => rootRoute, path });
+  const legacy = (path: string, to: string) =>
     createRoute({
-      component: route.component,
+      beforeLoad: () => {
+        throw redirect({ to });
+      },
       getParentRoute: () => rootRoute,
-      path: route.path,
-    })
-  );
+      path,
+    });
 
-  const overviewRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/overview",
-    component: OverviewPage,
-  });
-
-  const launchpadRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/launchpad",
-    component: LaunchpadPage,
-  });
-
-  const operationsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/operations",
-    beforeLoad: () => {
-      throw redirect({ to: "/operations/queues" });
-    },
-  });
-
-  const operationsQueuesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/operations/queues",
-    component: () => (
-      <OperationsPage active="queues">
-        <QueuesPage />
-      </OperationsPage>
-    ),
-  });
-
-  const operationsDeadLettersRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/operations/dead-letters",
-    component: () => (
-      <OperationsPage active="dead-letters">
-        <DeadLettersPage />
-      </OperationsPage>
-    ),
-  });
-
-  const operationsFunctionsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/operations/functions",
-    component: () => (
-      <OperationsPage active="functions">
-        <FunctionsPage />
-      </OperationsPage>
-    ),
-  });
-
-  const operationsRemoteCallsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/operations/remote-calls",
-    component: () => (
-      <OperationsPage active="remote-calls">
-        <RemoteProxyCallsPage />
-      </OperationsPage>
-    ),
-  });
-
-  const operationsAdminActionsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/operations/admin-actions",
-    component: () => (
-      <OperationsPage active="admin-actions">
-        <AdminActionsPage />
-      </OperationsPage>
-    ),
-  });
-
-  const configRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/config",
-    component: ConfigPage,
-  });
-
-  const dataRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/data",
-    component: DataPage,
-  });
-
-  const modulesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/modules",
-    component: ModulesPage,
-  });
-
-  const servicesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/services",
-    component: ServicesPage,
-  });
+  const consoleRouteNodes = buildConsoleRoutes(modules)
+    .filter((route) => route.moduleId !== "lenso/platform-story")
+    .map((route) => page(route.path, route.component));
 
   const routeTree = rootRoute.addChildren([
-    indexRoute,
+    page("/", HomePage),
+    page("/system", SystemPage),
+    page("/modules", ModulesPage),
+    page("/changes", ChangesPage),
+    page("/runtime", RuntimePage),
+    page("/stories", RuntimeStoriesPage),
+    page("/delivery", DeliveryPage),
+    page("/settings", SettingsPage),
     ...consoleRouteNodes,
-    launchpadRoute,
-    overviewRoute,
-    operationsRoute,
-    operationsQueuesRoute,
-    operationsDeadLettersRoute,
-    operationsFunctionsRoute,
-    operationsRemoteCallsRoute,
-    operationsAdminActionsRoute,
-    servicesRoute,
-    modulesRoute,
-    configRoute,
-    dataRoute,
+    legacy("/launchpad", "/"),
+    legacy("/overview", "/runtime"),
+    legacy("/operations", "/runtime"),
+    legacy("/operations/queues", "/runtime"),
+    legacy("/operations/dead-letters", "/runtime"),
+    legacy("/operations/functions", "/runtime"),
+    legacy("/operations/remote-calls", "/runtime"),
+    legacy("/operations/admin-actions", "/changes"),
+    legacy("/services", "/runtime"),
+    legacy("/data", "/modules"),
+    legacy("/config", "/settings"),
+    legacy("/runtime/stories", "/stories"),
   ]);
 
   return createRouter({ basepath, routeTree });

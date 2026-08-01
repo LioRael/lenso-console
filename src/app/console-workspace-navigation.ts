@@ -4,12 +4,13 @@ import type {
   ConsoleNavigationMetadata,
   ConsoleSurfaceIcon,
   ConsoleWorkspaceRef,
-} from "./console-module-api";
+} from "../../packages/console-package-api/src/index";
 
 export const SYSTEM_WORKSPACE = {
   icon: "settings",
   id: "system",
   label: "System",
+  localizedLabels: { "zh-CN": "系统" },
 } satisfies ConsoleWorkspaceRef & { icon: ConsoleSurfaceIcon };
 
 export type ConsoleWorkspaceNavigationGroup = ConsoleNavigationGroup & {

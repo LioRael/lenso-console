@@ -1,4 +1,4 @@
-export const serviceSummaryHeaderHeight = 28;
+export const serviceSummaryHeaderHeight = 30;
 export const serviceSummaryDefaultHeight = 144;
 
 export function getServiceSummaryPanelLayout({

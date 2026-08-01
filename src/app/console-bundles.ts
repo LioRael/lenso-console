@@ -1,11 +1,17 @@
+import {
+  CONSOLE_HOST_API_VERSION,
+  isConsoleModule,
+  type ConsoleModule,
+} from "../../packages/console-package-api/src/index";
 import { hasConsoleCapability } from "./console-capability-matching";
-import type { ConsoleModule } from "./console-module-api";
 import {
   defineInstalledConsolePackage,
   type InstalledConsolePackage,
 } from "./console-package-registry";
 
-export const CONSOLE_BUNDLE_HOST_API = "1";
+export const CONSOLE_BUNDLE_HOST_API = CONSOLE_HOST_API_VERSION;
+export const DEFAULT_CONSOLE_BUNDLE_REGISTRY_URL =
+  "/console/extensions/registry.json";
 
 export type ConsoleBundleManifest = {
   packageName: string;
@@ -144,25 +150,6 @@ function consoleModuleExport(
     );
   }
   return value;
-}
-
-function isConsoleModule(value: unknown): value is ConsoleModule {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const module = value as Partial<ConsoleModule>;
-  return (
-    typeof module.id === "string" &&
-    Array.isArray(module.surfaces) &&
-    module.surfaces.every(
-      (surface) =>
-        surface &&
-        typeof surface.path === "string" &&
-        typeof surface.label === "string" &&
-        typeof surface.area === "string" &&
-        typeof surface.component === "function"
-    )
-  );
 }
 
 async function dynamicImport(

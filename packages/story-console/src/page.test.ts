@@ -9,9 +9,9 @@ import {
 
 describe("story workbench page contracts", () => {
   test("defaults to the runtime story visualization mode", () => {
-    const defaultViewMode: "story" = runtimeStoriesDefaultViewMode;
+    const defaultViewMode: "waterfall" = runtimeStoriesDefaultViewMode;
 
-    expect(defaultViewMode).toBe("story");
+    expect(defaultViewMode).toBe("waterfall");
   });
 
   test("keeps story header props aligned with story data", () => {

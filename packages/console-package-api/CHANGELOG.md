@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+Add localized surface, workspace, and navigation-group labels for dynamically
+loaded Console extensions, and align shared workspace primitives with the new
+Console layout.
+
 ## @lenso/console-package-api@0.1.2
 
 ### Fixes

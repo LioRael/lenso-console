@@ -1,14 +1,11 @@
 @import "tailwindcss";
+@import "../packages/console-package-api/theme.css";
 
 :root {
   color-scheme: dark;
-  --font-ui:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
-    "Segoe UI", system-ui, sans-serif;
-  --font-code:
-    "SFMono-Regular", "SF Mono", "Cascadia Code", "Roboto Mono", ui-monospace,
-    monospace;
-  --font-mono: var(--font-ui);
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-code: "Roboto Mono", ui-monospace, monospace;
+  --font-mono: var(--font-code);
 
   --bg-canvas: #000000;
   --bg-window: #000000;
@@ -21,7 +18,7 @@
   --bg-panel-muted: #050505;
   --bg-panel-header: #0a0a0a;
   --bg-row-hover: #111111;
-  --bg-row-selected: #ffffff;
+  --bg-row-selected: #1f1f1f;
   --bg-control: #000000;
   --bg-control-hover: #111111;
   --bg-control-active: #1a1a1a;
@@ -126,7 +123,7 @@
   --bg-panel-muted: #fafafa;
   --bg-panel-header: #fafafa;
   --bg-row-hover: #f5f5f5;
-  --bg-row-selected: #000000;
+  --bg-row-selected: #f5f5f5;
   --bg-control: #ffffff;
   --bg-control-hover: #f5f5f5;
   --bg-control-active: #eeeeee;
@@ -233,7 +230,7 @@ body {
 
 ::selection {
   background: var(--bg-row-selected);
-  color: var(--fg-on-accent);
+  color: var(--fg-primary);
 }
 
 button,
@@ -333,50 +330,6 @@ code,
   border-color: var(--line);
   background: var(--bg-panel);
   box-shadow: var(--elevation-panel);
-}
-
-.glass-panel {
-  border-color: var(--line);
-  background: var(--bg-overlay);
-  box-shadow: var(--elevation-overlay);
-}
-
-.glass-control {
-  border-color: var(--line);
-  background: var(--bg-control);
-  box-shadow: var(--elevation-control);
-}
-
-.glass-progressive-top {
-  background: linear-gradient(
-    to bottom,
-    var(--bg-overlay) 0%,
-    color-mix(in srgb, var(--bg-overlay) 86%, transparent) 52%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    black 0%,
-    black 56%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(to bottom, black 0%, black 56%, transparent 100%);
-}
-
-.glass-progressive-bottom {
-  background: linear-gradient(
-    to top,
-    var(--bg-overlay) 0%,
-    color-mix(in srgb, var(--bg-overlay) 86%, transparent) 52%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to top,
-    black 0%,
-    black 44%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(to top, black 0%, black 44%, transparent 100%);
 }
 
 .runtime-shell {

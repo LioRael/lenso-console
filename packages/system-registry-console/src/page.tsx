@@ -1,8 +1,19 @@
 /* eslint-disable func-style, no-nested-ternary, no-use-before-define, unicorn/no-nested-ternary */
 
-import { consoleHostApi } from "@lenso/console-package-api";
+import {
+  Badge,
+  Button,
+  ConsolePage,
+  KeyValueList,
+  Section,
+  SplitView,
+  StateView,
+  SummaryStrip,
+  Textarea,
+  consoleHostApi,
+} from "@lenso/console-package-api";
 import type { ConsoleManagedService } from "@lenso/console-package-api";
-import { Ban, Network, RefreshCw, ShieldCheck } from "lucide-react";
+import { Ban, Network, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
@@ -40,73 +51,70 @@ export function SystemRegistryConsolePage() {
     services[0];
 
   return (
-    <main className="min-h-full overflow-auto bg-(--bg-canvas) text-(--fg-primary)">
-      <header className="border-(--line) border-b px-4 py-5 md:px-6">
-        <div className="mx-auto flex max-w-[1480px] flex-wrap items-end gap-4">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-(--fg-tertiary) text-xs uppercase tracking-[0.16em]">
-              <ShieldCheck aria-hidden="true" size={14} />
-              System authority
-            </div>
-            <h1 className="font-semibold text-2xl tracking-[-0.03em]">
-              Managed Services
-            </h1>
-            <p className="mt-1 max-w-2xl text-(--fg-secondary) text-sm">
-              Enrollment authority and last known connection state for every
-              Service managed by this Console.
-            </p>
-          </div>
-          <div className="ml-auto grid grid-cols-4 divide-x divide-(--line) border border-(--line) text-xs">
-            <SummaryCell label="Registered" value={summary.total} />
-            <SummaryCell label="Active" value={summary.active} />
-            <SummaryCell label="Connected" value={summary.ready} />
-            <SummaryCell
-              alert={summary.attention > 0}
-              label="Attention"
-              value={summary.attention}
-            />
-          </div>
-        </div>
-      </header>
+    <ConsolePage className="h-full">
+      <ConsolePage.Header>
+        <Network aria-hidden="true" className="text-(--accent)" size={14} />
+        <ConsolePage.Heading>
+          <ConsolePage.Title>Managed Services</ConsolePage.Title>
+          <ConsolePage.Description>
+            Enrollment authority and observed connection state
+          </ConsolePage.Description>
+        </ConsolePage.Heading>
+        <ConsolePage.Actions>
+          <Badge>{services.length} services</Badge>
+        </ConsolePage.Actions>
+      </ConsolePage.Header>
 
-      <div className="mx-auto grid max-w-[1480px] gap-4 p-4 md:p-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="min-w-0 border border-(--line) bg-(--bg-panel)">
-          <div className="flex items-center gap-3 border-(--line) border-b bg-(--bg-panel-header) px-4 py-2.5">
-            <Network
-              aria-hidden="true"
-              className="text-(--fg-tertiary)"
-              size={15}
-            />
-            <h2 className="font-medium text-sm">Service connections</h2>
-            <span className="ml-auto text-(--fg-tertiary) text-xs">
-              authorization and observation are reported independently
-            </span>
-          </div>
-          <RegistryContent
-            error={servicesQuery.error}
-            isError={servicesQuery.isError}
-            isPending={servicesQuery.isPending}
-            onSelect={setSelectedServiceId}
-            selectedServiceId={selected?.serviceId}
-            services={services}
+      <ConsolePage.Body className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+        <SummaryStrip>
+          <SummaryStrip.Item label="Registered" value={summary.total} />
+          <SummaryStrip.Item label="Active" value={summary.active} />
+          <SummaryStrip.Item label="Connected" value={summary.ready} />
+          <SummaryStrip.Item
+            label="Attention"
+            tone={summary.attention > 0 ? "warning" : "neutral"}
+            value={summary.attention}
           />
-        </section>
+        </SummaryStrip>
 
-        <ServiceInspector
-          canRevoke={canRevoke}
-          mutationError={revokeEnrollment.error}
-          mutationPending={revokeEnrollment.isPending}
-          onRevoke={(service, reason) => {
-            revokeEnrollment.mutate({
-              expectedVersion: service.version,
-              reason,
-              serviceId: service.serviceId,
-            });
-          }}
-          service={selected}
-        />
-      </div>
-    </main>
+        <SplitView>
+          <SplitView.Main>
+            <Section>
+              <Section.Header>
+                <Network aria-hidden="true" size={13} />
+                <Section.Title>Service connections</Section.Title>
+                <Section.Meta>
+                  authority and observation are reported independently
+                </Section.Meta>
+              </Section.Header>
+              <RegistryContent
+                error={servicesQuery.error}
+                isError={servicesQuery.isError}
+                isPending={servicesQuery.isPending}
+                onSelect={setSelectedServiceId}
+                selectedServiceId={selected?.serviceId}
+                services={services}
+              />
+            </Section>
+          </SplitView.Main>
+          <SplitView.Inspector>
+            <ServiceInspector
+              canRevoke={canRevoke}
+              mutationError={revokeEnrollment.error}
+              mutationPending={revokeEnrollment.isPending}
+              onRevoke={(service, reason) => {
+                revokeEnrollment.mutate({
+                  expectedVersion: service.version,
+                  reason,
+                  serviceId: service.serviceId,
+                });
+              }}
+              service={selected}
+            />
+          </SplitView.Inspector>
+        </SplitView>
+      </ConsolePage.Body>
+    </ConsolePage>
   );
 }
 
@@ -151,7 +159,7 @@ function RegistryContent({
   }
 
   return (
-    <div className="relative divide-y divide-(--line-subtle) before:absolute before:top-0 before:bottom-0 before:left-[27px] before:w-px before:bg-(--line)">
+    <div className="divide-y divide-(--line-subtle)">
       {services.map((service) => {
         const state = registryState(service);
         const selected = service.serviceId === selectedServiceId;
@@ -159,7 +167,7 @@ function RegistryContent({
           <button
             aria-label={`Inspect ${service.serviceId}`}
             aria-pressed={selected}
-            className={`relative grid w-full grid-cols-[38px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-(--focus-ring) ${
+            className={`grid min-h-12 w-full grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-(--focus-ring) ${
               selected ? "bg-(--bg-row-hover)" : "hover:bg-(--bg-row-hover)"
             }`}
             key={service.serviceId}
@@ -167,14 +175,14 @@ function RegistryContent({
             type="button"
           >
             <span
-              className={`relative z-10 size-3 rounded-full border-2 bg-(--bg-panel) ${
+              className={`size-2 rounded-full ${
                 state.tone === "success"
-                  ? "border-(--success)"
+                  ? "bg-(--success)"
                   : state.tone === "warning"
-                    ? "border-(--warning)"
+                    ? "bg-(--warning)"
                     : state.tone === "error"
-                      ? "border-(--error)"
-                      : "border-(--fg-quaternary)"
+                      ? "bg-(--error)"
+                      : "bg-(--fg-quaternary)"
               }`}
             />
             <span className="min-w-0">
@@ -186,11 +194,11 @@ function RegistryContent({
                   {serviceEndpointLabel(service.baseUrl)}
                 </span>
               </span>
-              <span className="mt-1 block truncate text-(--fg-secondary) text-xs">
+              <span className="block truncate text-(--fg-secondary) text-[11px]">
                 {service.servicePrincipal}
               </span>
             </span>
-            <span className="grid justify-items-end gap-1.5">
+            <span className="grid justify-items-end gap-1">
               <span
                 className={`border px-2 py-0.5 text-[11px] ${toneClasses[state.tone]}`}
               >
@@ -224,59 +232,68 @@ function ServiceInspector({
   const [reason, setReason] = useState("");
   if (!service) {
     return (
-      <aside className="grid min-h-64 place-items-center border border-(--line) bg-(--bg-panel) p-6 text-center text-(--fg-tertiary) text-sm">
-        Select an enrolled Service to inspect its authority record.
-      </aside>
+      <StateView
+        description="Select a Service row to inspect enrollment authority and the latest observed connection."
+        icon={<Network size={15} />}
+        title="No Service selected"
+      />
     );
   }
   const state = registryState(service);
   const revocable = canRevoke && service.enrollmentState === "active";
 
   return (
-    <aside className="h-fit border border-(--line) bg-(--bg-panel) xl:sticky xl:top-6">
-      <div className="border-(--line) border-b bg-(--bg-panel-header) px-4 py-3">
+    <div className="min-h-full bg-(--bg-panel)">
+      <div className="border-(--line) border-b bg-(--bg-panel-header) px-3 py-2">
         <div className="flex items-center gap-2">
-          <h2 className="min-w-0 truncate font-medium text-sm">
+          <h2 className="min-w-0 truncate font-medium text-[12px]">
             {service.serviceId}
           </h2>
-          <span
-            className={`ml-auto border px-2 py-0.5 text-[11px] ${toneClasses[state.tone]}`}
+          <Badge
+            className="ml-auto"
+            tone={
+              state.tone === "error"
+                ? "danger"
+                : state.tone === "muted"
+                  ? "neutral"
+                  : state.tone
+            }
           >
             {state.label}
-          </span>
+          </Badge>
         </div>
-        <div className="mt-1 truncate font-mono text-(--fg-tertiary) text-[11px]">
+        <div className="truncate font-mono text-(--fg-tertiary) text-[10px]">
           {service.servicePrincipal}
         </div>
       </div>
 
-      <dl className="divide-y divide-(--line-subtle)">
-        <InspectorRow label="Endpoint" value={service.baseUrl} />
-        <InspectorRow
+      <KeyValueList>
+        <KeyValueList.Row label="Endpoint" value={service.baseUrl} />
+        <KeyValueList.Row
           label="Enrollment"
           value={`revision ${service.enrollmentGrantRevision} · ${enrollmentExpiryLabel(
             service.enrollmentExpiresAtUnixMs
           )}`}
         />
-        <InspectorRow
+        <KeyValueList.Row
           label="Authority"
           value={`epoch ${service.authorizationEpoch} · record v${service.version}`}
         />
-        <InspectorRow
+        <KeyValueList.Row
           label="Last observed"
           value={service.coreObservedAt ?? "Never observed"}
         />
         {service.lastErrorCode ? (
-          <InspectorRow label="Last error" value={service.lastErrorCode} />
+          <KeyValueList.Row label="Last error" value={service.lastErrorCode} />
         ) : null}
-        <InspectorRow
+        <KeyValueList.Row
           label="Receipt"
           value={`${service.enrollmentReceiptDigest.slice(0, 22)}…`}
         />
-      </dl>
+      </KeyValueList>
 
       <form
-        className="border-(--line) border-t p-4"
+        className="border-(--line) border-t p-3"
         onSubmit={(event) => {
           event.preventDefault();
           const trimmedReason = reason.trim();
@@ -287,59 +304,55 @@ function ServiceInspector({
           setReason("");
         }}
       >
-        <div className="flex items-center gap-2 text-(--fg-secondary) text-xs">
+        <div className="flex items-center gap-2 text-(--fg-secondary) text-[11px]">
           <Ban aria-hidden="true" size={14} />
           Enrollment authority
         </div>
-        <p className="mt-2 text-(--fg-tertiary) text-xs leading-5">
+        <p className="mt-1.5 text-(--fg-tertiary) text-[10px] leading-4">
           Revocation immediately advances the authorization epoch. It does not
           stop the Service business data plane.
         </p>
         {service.enrollmentState === "revoked" ? (
-          <p className="mt-3 border border-(--line) px-3 py-2 text-(--fg-tertiary) text-xs">
+          <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
             This enrollment is already revoked.
           </p>
         ) : canRevoke ? (
           <>
-            <label className="mt-3 grid gap-1.5 text-(--fg-secondary) text-xs">
+            <label
+              className="mt-2 grid gap-1.5 text-(--fg-secondary) text-[11px]"
+              htmlFor="service-revocation-reason"
+            >
               Revocation reason
-              <textarea
+              <Textarea
                 aria-label="Revocation reason"
-                className="min-h-20 resize-y border border-(--line) bg-(--bg-control) px-3 py-2 text-(--fg-primary) outline-none placeholder:text-(--fg-quaternary) focus:border-(--line-strong) focus:ring-1 focus:ring-(--focus-ring-muted)"
+                className="min-h-16"
+                id="service-revocation-reason"
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Why should this Service lose authority?"
                 value={reason}
               />
             </label>
-            <button
+            <Button
               aria-label={`Revoke ${service.serviceId} enrollment`}
-              className="mt-3 w-full border border-[var(--tone-error-border)] bg-[var(--tone-error-bg)] px-3 py-2 font-medium text-[var(--tone-error-fg)] text-xs transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-2 w-full"
               disabled={mutationPending || reason.trim().length === 0}
               type="submit"
+              variant="danger"
             >
               {mutationPending ? "Revoking enrollment…" : "Revoke enrollment"}
-            </button>
+            </Button>
           </>
         ) : (
-          <p className="mt-3 border border-(--line) px-3 py-2 text-(--fg-tertiary) text-xs">
+          <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
             Your operator role can inspect this record but cannot revoke it.
           </p>
         )}
         {mutationError ? (
-          <p className="mt-2 text-[var(--tone-error-fg)] text-xs">
+          <p className="mt-2 text-[var(--tone-error-fg)] text-[10px]">
             Revocation failed: {mutationError.message}
           </p>
         ) : null}
       </form>
-    </aside>
-  );
-}
-
-function InspectorRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 px-4 py-3 text-xs">
-      <dt className="text-(--fg-tertiary)">{label}</dt>
-      <dd className="break-all font-mono text-(--fg-secondary)">{value}</dd>
     </div>
   );
 }
@@ -351,39 +364,5 @@ function RegistryMessage({
   icon: React.ReactNode;
   text: string;
 }) {
-  return (
-    <div className="grid min-h-64 place-items-center p-6 text-center">
-      <div className="max-w-md text-(--fg-tertiary) text-sm">
-        <span className="mx-auto mb-3 grid size-8 place-items-center border border-(--line)">
-          {icon}
-        </span>
-        {text}
-      </div>
-    </div>
-  );
-}
-
-function SummaryCell({
-  alert = false,
-  label,
-  value,
-}: {
-  alert?: boolean;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="min-w-20 px-3 py-2">
-      <div className="text-(--fg-tertiary) text-[10px] uppercase tracking-[0.12em]">
-        {label}
-      </div>
-      <div
-        className={`mt-0.5 font-mono text-base ${
-          alert ? "text-[var(--tone-warning-fg)]" : "text-(--fg-primary)"
-        }`}
-      >
-        {value}
-      </div>
-    </div>
-  );
+  return <StateView description={text} icon={icon} title="Service registry" />;
 }

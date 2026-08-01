@@ -1,4 +1,49 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, FunctionComponent, ReactNode } from "react";
+
+import type { ConsoleLocale } from "./locale.js";
+import type { ConsoleUiComponents } from "./ui.js";
+
+export {
+  ConsoleLocaleProvider,
+  useConsoleLocale,
+  type ConsoleLanguagePreference,
+  type ConsoleLocale,
+  type ConsoleLocaleContextValue,
+} from "./locale.js";
+
+export {
+  Badge,
+  Button,
+  ConsolePage,
+  DataTable,
+  EmptyState,
+  Field,
+  IconButton,
+  Input,
+  KeyValueList,
+  Panel,
+  Section,
+  Select,
+  SettingsGroup,
+  SettingsRow,
+  StatusMarker,
+  StateView,
+  SummaryStrip,
+  SplitView,
+  Tabs,
+  Textarea,
+  consoleUi,
+  type BadgeProps,
+  type ButtonProps,
+  type ButtonVariant,
+  type ConsoleUiComponents,
+  type ControlSize,
+  type IconButtonProps,
+  type SemanticTone,
+  type StatusMarkerProps,
+} from "./ui.js";
+
+export const CONSOLE_HOST_API_VERSION = "1" as const;
 
 export type ConsoleSurfaceArea =
   | "runtime"
@@ -9,23 +54,34 @@ export type ConsoleSurfaceArea =
 export type ConsoleSurfaceIcon =
   | "activity"
   | "boxes"
+  | "chrome"
   | "database"
+  | "git-compare-arrows"
+  | "github"
+  | "house"
   | "key-round"
   | "network"
+  | "rocket"
+  | "server-cog"
   | "shield"
   | "settings"
+  | "smartphone"
   | "users"
   | "workflow";
+
+export type ConsoleLocalizedLabels = Partial<Record<ConsoleLocale, string>>;
 
 export interface ConsoleWorkspaceRef {
   id: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   icon?: string;
 }
 
 export interface ConsoleNavigationGroup {
   id: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   icon?: string;
   order?: number;
 }
@@ -39,8 +95,9 @@ export interface ConsoleNavigationMetadata {
 export interface ConsoleModuleSurface {
   path: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area: ConsoleSurfaceArea;
-  component: () => ReactNode;
+  component: FunctionComponent;
   icon?: ConsoleSurfaceIcon;
   navigation?: ConsoleNavigationMetadata;
 }
@@ -108,7 +165,7 @@ export type ConsoleResolvedContribution =
 
 export interface ConsoleModule {
   id: string;
-  surfaces: ConsoleModuleSurface[];
+  surfaces: readonly ConsoleModuleSurface[];
 }
 
 export type ConsoleRouteContribution = ConsoleModuleSurface & {
@@ -118,10 +175,16 @@ export type ConsoleRouteContribution = ConsoleModuleSurface & {
 export interface ConsoleNavigationItem {
   path: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   moduleId: string;
   icon?: ConsoleSurfaceIcon;
   navigation?: ConsoleNavigationMetadata;
 }
+
+export const consoleLocalizedLabel = (
+  item: { label: string; localizedLabels?: ConsoleLocalizedLabels },
+  locale: ConsoleLocale
+) => item.localizedLabels?.[locale] ?? item.label;
 
 export type ConsolePackageRegistrySource =
   | "first_party"
@@ -319,12 +382,12 @@ export interface RuntimeStory {
 
 export type ExecutionInspectorTab =
   | "overview"
-  | "payload"
-  | "activity"
-  | "failures"
+  | "input"
+  | "output"
+  | "events"
   | "logs"
-  | "context"
-  | "technical";
+  | "errors"
+  | "related";
 
 export type StoryViewMode =
   | "story"
@@ -366,6 +429,7 @@ export interface ConsoleManagedService {
 }
 
 export interface ConsoleHostApi {
+  version: typeof CONSOLE_HOST_API_VERSION;
   adminData: {
     useInvokeAction: () => {
       error: Error;
@@ -471,7 +535,7 @@ export interface ConsoleHostApi {
     };
     useServices: () => ConsoleQueryResult<ConsoleManagedService[]>;
   };
-  ui: {
+  ui: ConsoleUiComponents & {
     common: {
       EmptyState: ComponentType<Record<string, unknown>> & {
         Description: ComponentType<Record<string, unknown>>;
@@ -496,9 +560,74 @@ export interface ConsoleHostApi {
   };
 }
 
+export const isConsoleSurfaceArea = (
+  value: unknown
+): value is ConsoleSurfaceArea =>
+  value === "runtime" ||
+  value === "operations" ||
+  value === "data" ||
+  value === "configuration";
+
+export const isConsoleSurfaceIcon = (
+  value: unknown
+): value is ConsoleSurfaceIcon =>
+  value === "activity" ||
+  value === "boxes" ||
+  value === "chrome" ||
+  value === "database" ||
+  value === "git-compare-arrows" ||
+  value === "github" ||
+  value === "house" ||
+  value === "key-round" ||
+  value === "network" ||
+  value === "rocket" ||
+  value === "server-cog" ||
+  value === "shield" ||
+  value === "settings" ||
+  value === "smartphone" ||
+  value === "users" ||
+  value === "workflow";
+
+export const isConsoleModule = (value: unknown): value is ConsoleModule => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const module = value as Partial<ConsoleModule>;
+  if (!(typeof module.id === "string" && module.id && module.surfaces)) {
+    return false;
+  }
+  if (!Array.isArray(module.surfaces) || module.surfaces.length === 0) {
+    return false;
+  }
+  const paths = new Set<string>();
+  return module.surfaces.every((surface) => {
+    if (
+      !surface ||
+      typeof surface.path !== "string" ||
+      !surface.path.startsWith("/") ||
+      paths.has(surface.path) ||
+      typeof surface.label !== "string" ||
+      !surface.label ||
+      !isConsoleSurfaceArea(surface.area) ||
+      typeof surface.component !== "function"
+    ) {
+      return false;
+    }
+    paths.add(surface.path);
+    return surface.icon === undefined || isConsoleSurfaceIcon(surface.icon);
+  });
+};
+
 export const defineConsoleModule = <Module extends ConsoleModule>(
   module: Module
-): Module => module;
+): Module => {
+  if (!isConsoleModule(module)) {
+    throw new TypeError(
+      "Console module must have a non-empty id and unique, absolute, valid surfaces."
+    );
+  }
+  return module;
+};
 
 const missingHostApi = () => {
   throw new Error("Console host API is only available inside Lenso Console.");
@@ -514,6 +643,7 @@ export const consoleHostApi: ConsoleHostApi = new Proxy(
 export interface ConsolePackageSurfaceManifest {
   surfaceName: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area: ConsoleSurfaceArea;
   route: string;
   requiredCapabilities: readonly string[];
@@ -538,6 +668,7 @@ export type ConsolePackageManifest =
 export interface ConsoleSurfaceManifest {
   name: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area: ConsoleSurfaceArea;
   route: string;
   package: {
@@ -564,6 +695,103 @@ const packageManifestSurfaces = (
   return [manifest];
 };
 
+export interface ConsoleExtension<
+  Manifest extends ConsolePackageManifest = ConsolePackageManifest,
+  Module extends ConsoleModule = ConsoleModule,
+> {
+  manifest: Manifest;
+  module: Module;
+}
+
+type ConsoleSurfaceName<Manifest extends ConsolePackageManifest> =
+  Manifest extends { surfaces: readonly (infer Surface)[] }
+    ? Surface extends ConsolePackageSurfaceManifest
+      ? Surface["surfaceName"]
+      : never
+    : Manifest extends ConsolePackageSurfaceManifest
+      ? Manifest["surfaceName"]
+      : never;
+
+export type ConsoleSurfaceComponents<Manifest extends ConsolePackageManifest> =
+  Readonly<Record<ConsoleSurfaceName<Manifest>, FunctionComponent>>;
+
+export type ConsoleExtensionDefinition<
+  Manifest extends ConsolePackageManifest,
+  Module extends ConsoleModule = ConsoleModule,
+> =
+  | {
+      components: ConsoleSurfaceComponents<Manifest>;
+      manifest: Manifest;
+    }
+  | {
+      manifest: Manifest;
+      module: Module;
+    };
+
+export const defineConsoleExtension = <
+  const Manifest extends ConsolePackageManifest,
+  const Module extends ConsoleModule = ConsoleModule,
+>(
+  definition: ConsoleExtensionDefinition<Manifest, Module>
+): ConsoleExtension<Manifest, Module | ConsoleModule> => {
+  const { manifest } = definition;
+  const module =
+    "module" in definition
+      ? definition.module
+      : defineConsoleModule({
+          id: manifest.id,
+          surfaces: packageManifestSurfaces(manifest).map((surface) => {
+            const component = (
+              definition.components as Readonly<
+                Record<string, FunctionComponent | undefined>
+              >
+            )[surface.surfaceName];
+            if (!component) {
+              throw new TypeError(
+                `Console extension has no component for surface ${surface.surfaceName}.`
+              );
+            }
+            const moduleSurface: ConsoleModuleSurface = {
+              area: surface.area,
+              component,
+              label: surface.label,
+              path: surface.route,
+            };
+            if (surface.icon) {
+              moduleSurface.icon = surface.icon;
+            }
+            if (surface.localizedLabels) {
+              moduleSurface.localizedLabels = surface.localizedLabels;
+            }
+            if (surface.navigation) {
+              moduleSurface.navigation = surface.navigation;
+            }
+            return moduleSurface;
+          }),
+        });
+  defineConsoleModule(module);
+  if (module.id !== manifest.id) {
+    throw new TypeError(
+      `Console extension module id ${module.id} does not match manifest id ${manifest.id}.`
+    );
+  }
+  const declaredRoutes = new Set(
+    packageManifestSurfaces(manifest).map((surface) => surface.route)
+  );
+  const implementedRoutes = new Set(
+    module.surfaces.map((surface) => surface.path)
+  );
+  if (
+    declaredRoutes.size !== implementedRoutes.size ||
+    [...declaredRoutes].some((route) => !implementedRoutes.has(route))
+  ) {
+    throw new TypeError(
+      "Console extension manifest routes must match its module surfaces."
+    );
+  }
+  return { manifest, module };
+};
+
 export const consoleSurfacesFromPackageManifest = (
   manifest: ConsolePackageManifest
 ): ConsoleSurfaceManifest[] =>
@@ -581,6 +809,9 @@ export const consoleSurfacesFromPackageManifest = (
     };
     if (packageSurface.icon) {
       surface.icon = packageSurface.icon;
+    }
+    if (packageSurface.localizedLabels) {
+      surface.localizedLabels = packageSurface.localizedLabels;
     }
     if (packageSurface.navigation) {
       surface.navigation = packageSurface.navigation;

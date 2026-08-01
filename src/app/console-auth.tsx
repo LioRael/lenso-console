@@ -1,7 +1,7 @@
 import { LogIn } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
-import { Button } from "../components/ui/button";
+import { Button } from "../../packages/console-package-api/src/index";
 import {
   apiAuthToken,
   consoleAccessTokenStorageKey,

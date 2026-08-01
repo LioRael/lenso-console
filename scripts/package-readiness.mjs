@@ -11,7 +11,7 @@ const packages = [
   {
     dir: path.join(consoleRoot, "packages/console-package-api"),
     name: "@lenso/console-package-api",
-    requiredFiles: ["theme.css"],
+    requiredFiles: ["components.css", "theme.css", "tokens.css"],
     smokeBody: `const consoleManifest = defineConsolePackageManifest({
   area: "data",
   exportName: "smokeConsoleModule",
@@ -23,16 +23,20 @@ const packages = [
   source: "installed",
   surfaceName: "smoke",
 });
-const consoleModule = defineConsoleModule({
-  id: consoleManifest.id,
-  surfaces: [],
+const consoleExtension = defineConsoleExtension({
+  components: { smoke: () => null },
+  manifest: consoleManifest,
 });
 
-if (consoleModule.id !== "smoke-console") {
+if (
+  consoleExtension.module.id !== "smoke-console" ||
+  consoleExtension.module.surfaces[0]?.path !== "/smoke" ||
+  typeof Button !== "function"
+) {
   throw new Error("console-package-api import did not work");
 }`,
     smokeImport:
-      'import { defineConsoleModule, defineConsolePackageManifest } from "@lenso/console-package-api";',
+      'import { Button, defineConsoleExtension, defineConsolePackageManifest } from "@lenso/console-package-api";',
   },
 ];
 

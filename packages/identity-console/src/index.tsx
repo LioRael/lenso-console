@@ -1,21 +1,13 @@
-import { defineConsoleModule } from "@lenso/console-package-api";
+import { defineConsoleExtension } from "@lenso/console-package-api";
 
 import { identityConsoleManifest } from "./manifest";
 import { IdentityConsolePage } from "./page";
 
-export const identityConsoleModule = defineConsoleModule({
-  id: identityConsoleManifest.id,
-  surfaces: [
-    {
-      area: identityConsoleManifest.area,
-      component: IdentityConsolePage,
-      icon: identityConsoleManifest.icon,
-      label: identityConsoleManifest.label,
-      navigation: identityConsoleManifest.navigation,
-      path: identityConsoleManifest.route,
-    },
-  ],
+export const identityConsoleExtension = defineConsoleExtension({
+  components: { identity: IdentityConsolePage },
+  manifest: identityConsoleManifest,
 });
+export const identityConsoleModule = identityConsoleExtension.module;
 
 export { identityConsoleManifest } from "./manifest";
 export { IdentityConsolePage } from "./page";

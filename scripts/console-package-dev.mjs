@@ -69,10 +69,10 @@ const packageViteConfigSource = ({
       ],
       output: {
         paths: {
-          "@lenso/console-package-api": "/console/src/extension-host/console-package-api.ts",
-          react: "/console/src/extension-host/react.ts",
-          "react/jsx-dev-runtime": "/console/src/extension-host/react-jsx-runtime.ts",
-          "react/jsx-runtime": "/console/src/extension-host/react-jsx-runtime.ts",
+          "@lenso/console-package-api": "/src/extension-host/console-package-api.ts",
+          react: "/src/extension-host/react.ts",
+          "react/jsx-dev-runtime": "/src/extension-host/react-jsx-runtime.ts",
+          "react/jsx-runtime": "/src/extension-host/react-jsx-runtime.ts",
         },
       },
     },

@@ -3,9 +3,17 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import {
+  CONSOLE_HOST_API_VERSION,
+  Button,
+  StatusMarker,
+  Tabs,
+  consoleLocalizedLabel,
   consoleSurfaceFromPackageManifest,
   consoleSurfacesFromPackageManifest,
+  defineConsoleExtension,
+  defineConsoleModule,
   defineConsolePackageManifest,
+  isConsoleModule,
 } from ".";
 
 describe("console package API", () => {
@@ -23,6 +31,130 @@ describe("console package API", () => {
     expect(themeCss).toContain("--shadow-overlay: var(--elevation-overlay);");
     expect(themeCss).toContain("--color-panel-gloss: var(--panel-gloss);");
     expect(themeCss).toContain("--color-shadow-strong: var(--shadow-strong);");
+    expect(themeCss).toContain('@import "./tokens.css";');
+    expect(themeCss).toContain('@import "./components.css";');
+    expect(themeCss).toContain(
+      "--spacing-control-sm: var(--control-height-sm);"
+    );
+
+    const tokensCss = readFileSync(new URL("../tokens.css", import.meta.url), {
+      encoding: "utf-8",
+    });
+    expect(tokensCss).toContain(':root[data-theme="light"]');
+    expect(tokensCss).toContain("--content-gutter: 20px;");
+
+    const componentsCss = readFileSync(
+      new URL("../components.css", import.meta.url),
+      { encoding: "utf-8" }
+    );
+    expect(componentsCss).toContain(".lenso-ui-button");
+    expect(componentsCss).toContain("gap: 4px;");
+    expect(componentsCss).toContain("right: 4px;");
+    expect(componentsCss).toContain("height: 1px;");
+    expect(componentsCss).toContain(
+      '.lenso-ui-tabs__tab:first-child[aria-selected="true"]'
+    );
+  });
+
+  test("publishes the host version and shared UI primitives", () => {
+    expect(CONSOLE_HOST_API_VERSION).toBe("1");
+    expect(Button).toBeTypeOf("function");
+    expect(Tabs.Tab).toBeTypeOf("function");
+    expect(
+      StatusMarker({ align: "top", children: "Degraded", tone: "warning" })
+        .props
+    ).toMatchObject({
+      "data-align": "top",
+      "data-tone": "warning",
+    });
+  });
+
+  test("validates console modules at the package boundary", () => {
+    const valid = {
+      id: "billing",
+      surfaces: [
+        {
+          area: "data",
+          component: () => null,
+          label: "Billing",
+          path: "/billing",
+        },
+      ],
+    } as const;
+
+    expect(isConsoleModule(valid)).toBe(true);
+    expect(defineConsoleModule(valid)).toBe(valid);
+    expect(isConsoleModule({ id: "empty", surfaces: [] })).toBe(false);
+    expect(
+      isConsoleModule({
+        ...valid,
+        surfaces: [{ ...valid.surfaces[0], path: "billing" }],
+      })
+    ).toBe(false);
+  });
+
+  test("resolves extension navigation labels for the active locale", () => {
+    const item = {
+      label: "Contacts",
+      localizedLabels: { "zh-CN": "联系人" },
+    } as const;
+
+    expect(consoleLocalizedLabel(item, "zh-CN")).toBe("联系人");
+    expect(consoleLocalizedLabel(item, "en")).toBe("Contacts");
+  });
+
+  test("binds an extension manifest to matching module routes", () => {
+    const manifest = defineConsolePackageManifest({
+      area: "data",
+      exportName: "billingConsoleModule",
+      id: "billing",
+      label: "Billing",
+      packageName: "@example/billing-console",
+      requiredCapabilities: ["billing.read"],
+      route: "/billing",
+      source: "installed",
+      surfaceName: "billing",
+    } as const);
+    const module = defineConsoleModule({
+      id: "billing",
+      surfaces: [
+        {
+          area: "data",
+          component: () => null,
+          label: "Billing",
+          path: "/billing",
+        },
+      ],
+    } as const);
+
+    const generated = defineConsoleExtension({
+      components: { billing: () => null },
+      manifest,
+    });
+    expect(generated.module).toMatchObject({
+      id: "billing",
+      surfaces: [
+        {
+          area: "data",
+          label: "Billing",
+          path: "/billing",
+        },
+      ],
+    });
+
+    expect(defineConsoleExtension({ manifest, module })).toEqual({
+      manifest,
+      module,
+    });
+    expect(() =>
+      defineConsoleExtension({
+        manifest,
+        module: {
+          ...module,
+          surfaces: [{ ...module.surfaces[0], path: "/other" }],
+        },
+      })
+    ).toThrow("manifest routes must match");
   });
 
   test("defines console package manifests for frontend modules", () => {

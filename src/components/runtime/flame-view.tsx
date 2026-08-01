@@ -27,10 +27,10 @@ export function FlameView({
         summary="color by service and status"
         title="Flame"
       />
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      <div className="min-h-0 flex-1 overflow-auto">
         {levels.map((level) => (
           <div
-            className="relative isolate h-9 overflow-hidden border-b border-[color-mix(in_srgb,var(--line)_60%,transparent)]"
+            className="relative isolate h-7 overflow-hidden border-b border-(--line-subtle)"
             key={level.map((node) => node.id).join(":")}
           >
             {level.map((node) => {
@@ -43,7 +43,7 @@ export function FlameView({
               return (
                 <button
                   className={cn(
-                    "absolute top-1 h-7 overflow-hidden rounded-xs border px-2 text-left font-mono text-[12px] text-(--fg-primary) transition hover:brightness-125",
+                    "absolute top-0.5 h-6 overflow-hidden rounded-[2px] border px-1.5 text-left font-mono text-[11px] text-(--fg-primary) transition-[filter] hover:brightness-110",
                     selectedNodeId === node.id &&
                       "shadow-[0_0_0_1px_var(--line-strong)]"
                   )}

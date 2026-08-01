@@ -1,11 +1,12 @@
+import {
+  isConsoleSurfaceIcon,
+  type ConsoleModule,
+  type ConsoleLocalizedLabels,
+  type ConsoleNavigationMetadata,
+  type ConsoleSurfaceArea,
+} from "../../packages/console-package-api/src/index";
 import { installedConsolePackages } from "../console-package-installs";
 import { hasConsoleCapability } from "./console-capability-matching";
-import type {
-  ConsoleModule,
-  ConsoleNavigationMetadata,
-  ConsoleSurfaceArea,
-  ConsoleSurfaceIcon,
-} from "./console-module-api";
 import {
   consolePackageKey,
   consolePackageRegistryByKey,
@@ -18,6 +19,7 @@ export type ConsoleModulePackageReference = {
   moduleName?: string;
   surfaceName?: string;
   label?: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area?: ConsoleSurfaceArea;
   route?: string;
   icon?: string | null;
@@ -31,6 +33,7 @@ export type ConsoleModuleMetadata = {
   console?: {
     name?: string;
     label?: string;
+    localizedLabels?: ConsoleLocalizedLabels;
     area?: ConsoleSurfaceArea;
     route?: string;
     package?: {
@@ -224,9 +227,11 @@ export function selectConsoleModulePackageReferences(
       if (surface.name) {
         reference.surfaceName = surface.name;
       }
-      const label = legacyAuthSessionsLabel(surface, packageName);
-      if (label) {
-        reference.label = label;
+      if (surface.label) {
+        reference.label = surface.label;
+      }
+      if (surface.localizedLabels) {
+        reference.localizedLabels = surface.localizedLabels;
       }
       if (surface.area) {
         reference.area = surface.area;
@@ -246,17 +251,6 @@ export function selectConsoleModulePackageReferences(
   );
 }
 
-function legacyAuthSessionsLabel(
-  surface: NonNullable<ConsoleModuleMetadata["console"]>[number],
-  packageName: string
-) {
-  return packageName === "@lenso/auth-console" &&
-    surface.name === "auth" &&
-    surface.route === "/data/auth"
-    ? "Sessions"
-    : surface.label;
-}
-
 function referenceHasBackendSurface(
   reference: ConsoleModulePackageReference
 ): boolean {
@@ -264,6 +258,7 @@ function referenceHasBackendSurface(
     reference.moduleName !== undefined ||
     reference.surfaceName !== undefined ||
     reference.label !== undefined ||
+    reference.localizedLabels !== undefined ||
     reference.area !== undefined ||
     reference.route !== undefined ||
     reference.icon !== undefined ||
@@ -289,6 +284,9 @@ function consoleSurfaceFromBackendReference(
   if (reference.label !== undefined) {
     resolvedSurface.label = reference.label;
   }
+  if (reference.localizedLabels !== undefined) {
+    resolvedSurface.localizedLabels = reference.localizedLabels;
+  }
   if (reference.area !== undefined) {
     resolvedSurface.area = reference.area;
   }
@@ -308,20 +306,6 @@ function consoleSurfaceFromBackendReference(
     }
   }
   return resolvedSurface;
-}
-
-function isConsoleSurfaceIcon(
-  icon: string | null | undefined
-): icon is ConsoleSurfaceIcon {
-  return (
-    icon === "activity" ||
-    icon === "boxes" ||
-    icon === "database" ||
-    icon === "network" ||
-    icon === "shield" ||
-    icon === "settings" ||
-    icon === "workflow"
-  );
 }
 
 function surfaceReferenceLabel(

@@ -1,4 +1,4 @@
-import type { ConsoleModule } from "./console-module-api";
+import type { ConsoleModule } from "../../packages/console-package-api/src/index";
 
 export type ConsolePackageRegistrySource =
   | "first_party"

@@ -11,11 +11,16 @@ describe("remote crm console package", () => {
     expect(remoteCrmConsoleManifest).toMatchObject({
       exportName: "remoteCrmConsoleModule",
       navigation: {
+        group: {
+          id: "customer-data",
+          label: "Customers",
+          order: 10,
+        },
         order: 70,
         workspace: {
           icon: "network",
-          id: "remote-crm",
-          label: "Remote CRM",
+          id: "crm",
+          label: "CRM",
         },
       },
       packageName: "@lenso/remote-crm-console",
@@ -29,9 +34,18 @@ describe("remote crm console package", () => {
       id: "remote-crm",
       surfaces: [
         {
-          label: "Remote CRM",
+          label: "Contacts",
           navigation: remoteCrmConsoleManifest.navigation,
           path: "/data/remote-crm",
+        },
+        {
+          label: "Companies",
+          navigation: {
+            group: remoteCrmConsoleManifest.navigation?.group,
+            order: 80,
+            workspace: remoteCrmConsoleManifest.navigation?.workspace,
+          },
+          path: "/data/remote-crm/companies",
         },
       ],
     });

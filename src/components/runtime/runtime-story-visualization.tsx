@@ -27,7 +27,7 @@ export function RuntimeStoryVisualization({
   const heatmapQuery = useStoryHeatmap(story);
 
   return (
-    <section className="isolate grid h-full min-h-0 min-w-0 grid-rows-[32px_minmax(0,1fr)] overflow-hidden">
+    <section className="isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden">
       <StoryTabs mode={mode} onChange={setMode} />
       <div className="min-h-0 min-w-0 overflow-hidden">
         {mode === "story" ? (

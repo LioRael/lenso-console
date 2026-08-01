@@ -1,3 +1,4 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import { Flame, GitBranch, Grid3X3, List, Workflow } from "lucide-react";
 
 import { cn } from "../../lib/cn";
@@ -23,9 +24,9 @@ const labels: Array<{
   { id: "story", label: "Story", icon: Workflow },
   { id: "graph", label: "Graph", icon: GitBranch },
   { id: "timeline", label: "Timeline", icon: Workflow },
-  { id: "heatmap", label: "Heatmap", icon: Grid3X3 },
   { id: "waterfall", label: "Waterfall", icon: List },
   { id: "flame", label: "Flame", icon: Flame },
+  { id: "heatmap", label: "Heatmap", icon: Grid3X3 },
 ];
 
 export function StoryTabs({
@@ -35,28 +36,29 @@ export function StoryTabs({
   mode: StoryViewMode;
   onChange: (mode: StoryViewMode) => void;
 }) {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   return (
     <div className="min-w-0 border-b border-(--line) bg-(--bg-panel-header)">
       <HorizontalTabScroll>
-        <div className="flex h-full w-max min-w-full items-center gap-1 px-2">
+        <div
+          className="lenso-ui-tabs__list h-full w-max min-w-full border-b-0 px-2"
+          data-leading="icon"
+        >
           {labels.map(({ icon: Icon, id, label }) => (
             <button
+              aria-selected={mode === id}
               className={cn(
-                "relative flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-control)] px-2 text-[11px] font-medium transition-colors",
-                mode === id
-                  ? "native-selection"
-                  : "text-(--fg-tertiary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
+                "lenso-ui-tabs__tab h-full min-h-0 shrink-0 px-1 text-[11px] first:pl-1",
+                mode === id && "text-(--fg-primary)"
               )}
               key={id}
               onClick={() => onChange(id)}
+              role="tab"
               type="button"
             >
-              <Icon
-                {...(mode === id ? { className: "text-(--accent)" } : {})}
-                size={12}
-                strokeWidth={1.75}
-              />
-              {label}
+              <Icon size={12} strokeWidth={1.75} />
+              {zh ? storyTabZh[id] : label}
             </button>
           ))}
         </div>
@@ -64,3 +66,12 @@ export function StoryTabs({
     </div>
   );
 }
+
+const storyTabZh: Record<StoryViewMode, string> = {
+  story: "故事",
+  graph: "图谱",
+  timeline: "时间线",
+  waterfall: "瀑布图",
+  flame: "火焰图",
+  heatmap: "热力图",
+};

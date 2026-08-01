@@ -1,19 +1,19 @@
 import type { ReactNode } from "react";
 
 export const runtimeViewHeaderClassName =
-  "flex min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-panel-header) px-3 py-2";
+  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-panel-header) px-3";
 
 export const runtimeViewHeaderContentClassName =
   "flex min-w-0 items-center gap-2 overflow-hidden";
 
 export const runtimeViewHeaderLabelClassName =
-  "font-sans text-[11px] font-semibold uppercase tracking-[0.04em] text-(--fg-tertiary)";
+  "font-sans text-[12px] font-medium text-(--fg-primary)";
 
 export const runtimeViewHeaderSummaryClassName =
-  "min-w-0 truncate font-mono text-[11px] text-(--fg-tertiary)";
+  "min-w-0 truncate font-mono text-[10px] text-(--fg-tertiary)";
 
 export const runtimeViewHeaderMetaClassName =
-  "shrink-0 font-mono text-[11px] text-(--fg-tertiary)";
+  "shrink-0 font-mono text-[10px] text-(--fg-secondary)";
 
 export function RuntimeViewHeader({
   children,

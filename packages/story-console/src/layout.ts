@@ -1,7 +1,7 @@
 export const runtimeStoriesLayoutDefaults = {
-  inspectorWidth: 376,
-  listWidth: 340,
-  servicesHeight: 144,
+  inspectorWidth: 340,
+  listWidth: 260,
+  servicesHeight: 150,
 };
 
 export function clamp(value: number, min: number, max: number) {

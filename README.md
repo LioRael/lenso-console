@@ -91,7 +91,17 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.r
 
 Console frontend modules are local workspace packages under `packages/*`.
 They must import host capabilities through `@lenso/console-package-api`, define a
-`ConsolePackageManifest`, and export a `ConsoleModule`.
+`ConsolePackageManifest`, and export a `ConsoleModule`. Prefer
+`defineConsoleExtension({ manifest, components })` so the implementation is
+derived from the manifest instead of repeating route and navigation metadata.
+
+The same package publishes the Console UI primitives and styling contract used
+by the Shell. Dynamic extensions can import `ConsolePage`, `SummaryStrip`,
+`SplitView`, `Section`, `KeyValueList`, `StateView`, `Button`, `Tabs`, settings
+rows, form controls, status components, and tables directly. Import
+`@lenso/console-package-api/theme.css` for the Tailwind v4 mappings and semantic
+CSS variables; those variables remain the supported escape hatch for custom
+extension visualizations and controls.
 
 Installable Modules may bind an immutable isolated `ConsoleUiArtifact` to the
 same Module Release. The authenticated
