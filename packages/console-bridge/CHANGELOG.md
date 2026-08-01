@@ -1,3 +1,10 @@
+## @lenso/console-bridge@0.1.3
+
+### Fixes
+
+Allow package-only Console release plans to skip the unselected Console Service
+OCI artifact builder.
+
 ## @lenso/console-bridge@0.1.2
 
 ### Fixes
