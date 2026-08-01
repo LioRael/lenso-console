@@ -95,6 +95,7 @@ export async function buildReleaseArtifacts(options = {}) {
 
   const artifactDirectory = path.join(root, ".artifacts");
   const nonce = randomUUID();
+  const builderName = `lenso-console-${nonce}`;
   const archive = path.join(artifactDirectory, "lenso-console-service.oci.tar");
   const installManifest = path.join(
     artifactDirectory,
@@ -113,12 +114,28 @@ export async function buildReleaseArtifacts(options = {}) {
     `.console-${nonce}.metadata.json`
   );
   await mkdir(artifactDirectory, { recursive: true });
+  let builderCreated = false;
   try {
     await execute(
       "docker",
       [
         "buildx",
+        "create",
+        "--driver",
+        "docker-container",
+        "--name",
+        builderName,
+      ],
+      { cwd: root }
+    );
+    builderCreated = true;
+    await execute(
+      "docker",
+      [
+        "buildx",
         "build",
+        "--builder",
+        builderName,
         "--file",
         "Dockerfile",
         "--platform",
@@ -166,6 +183,15 @@ export async function buildReleaseArtifacts(options = {}) {
     await rename(temporaryManifest, installManifest);
     return { archive, imageDigest, installManifest };
   } finally {
+    if (builderCreated) {
+      await execute("docker", ["buildx", "rm", builderName], {
+        cwd: root,
+      }).catch((error) => {
+        process.stderr.write(
+          `Unable to remove temporary Buildx builder ${builderName}: ${error.message}\n`
+        );
+      });
+    }
     await Promise.all([
       rm(temporaryArchive, { force: true }),
       rm(temporaryManifest, { force: true }),

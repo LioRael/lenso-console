@@ -94,6 +94,25 @@ describe("Lenso Console repository boundary", () => {
     }
   });
 
+  test("proves only exact failures that precede preflight and registry access", async () => {
+    const proof = await source(
+      ".github/workflows/verify-production-prepublish-failure.yml"
+    );
+
+    expect(proof).toContain(
+      'Build composite release artifacts when configured" and .conclusion == "failure"'
+    );
+    expect(proof).toContain(
+      'Complete fail-closed preflight before any registry OIDC" and .conclusion == "skipped"'
+    );
+    expect(proof).toContain(
+      'Atomically consume proof and seal exact registry artifacts" and .conclusion == "skipped"'
+    );
+    expect(proof).toContain(
+      'Publish and confirm receipts" and .conclusion == "skipped"'
+    );
+  });
+
   test("builds the public package API before release artifacts are packed", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];

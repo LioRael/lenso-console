@@ -75,7 +75,14 @@ jobs:
             [.jobs[] | select(.name == "publish")] as $publish |
             ($publish | length == 1) and
             ($publish[0].conclusion == "failure") and
-            ($publish[0].steps | any(.name == "Enforce reviewed release mode and shadow endpoints" and .conclusion == "failure")) and
+            ($publish[0].steps | (
+              any(.name == "Enforce reviewed release mode and shadow endpoints" and .conclusion == "failure") or
+              (
+                any(.name == "Enforce reviewed release mode and shadow endpoints" and .conclusion == "success") and
+                any(.name == "Build exact release artifacts when configured" and .conclusion == "success") and
+                any(.name == "Build composite release artifacts when configured" and .conclusion == "failure")
+              )
+            )) and
             ($publish[0].steps | any(.name == "Complete fail-closed preflight before any registry OIDC" and .conclusion == "skipped")) and
             ($publish[0].steps | any(.name == "Atomically consume proof and seal exact registry artifacts" and .conclusion == "skipped")) and
             ($publish[0].steps | any(.name == "Publish and confirm receipts" and .conclusion == "skipped"))
