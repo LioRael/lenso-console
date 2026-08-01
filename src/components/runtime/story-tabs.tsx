@@ -41,12 +41,15 @@ export function StoryTabs({
   return (
     <div className="min-w-0 border-b border-(--line) bg-(--bg-panel-header)">
       <HorizontalTabScroll>
-        <div className="lenso-ui-tabs__list h-full w-max min-w-full border-b-0 px-1">
+        <div
+          className="lenso-ui-tabs__list h-full w-max min-w-full border-b-0 px-2"
+          data-leading="icon"
+        >
           {labels.map(({ icon: Icon, id, label }) => (
             <button
               aria-selected={mode === id}
               className={cn(
-                "lenso-ui-tabs__tab h-full min-h-0 shrink-0 text-[11px]",
+                "lenso-ui-tabs__tab h-full min-h-0 shrink-0 px-1 text-[11px] first:pl-1",
                 mode === id && "text-(--fg-primary)"
               )}
               key={id}

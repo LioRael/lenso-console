@@ -17,7 +17,10 @@ import { StoryHeader } from "../components/runtime/story-header";
 import { StoryList } from "../components/runtime/story-list";
 import { retryTargetForNode, runtimeStories } from "../data/mock-runtime";
 import { consoleDevConfig } from "../dev/console-dev-config";
-import { createMockConsoleHostApi } from "../dev/mock-console-host-api";
+import {
+  authConsoleMockFixtures,
+  createMockConsoleHostApi,
+} from "../dev/mock-console-host-api";
 import {
   useBrowserUrlPopState,
   writeBrowserUrl,
@@ -111,7 +114,10 @@ export const productionConsoleHostApi = {
 
 export const consoleHostApi =
   consoleDevConfig.mode === "mock"
-    ? createMockConsoleHostApi(productionConsoleHostApi)
+    ? createMockConsoleHostApi(
+        productionConsoleHostApi,
+        authConsoleMockFixtures
+      )
     : productionConsoleHostApi;
 
 export type ConsoleHostApi = typeof productionConsoleHostApi;

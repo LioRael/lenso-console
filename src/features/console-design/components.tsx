@@ -51,7 +51,7 @@ export function ProductTabs({
 }) {
   return (
     <div
-      className="flex h-10 items-end gap-4 border-b border-(--line)"
+      className="flex h-10 items-end gap-1 border-b border-(--line) pl-1.5"
       role="tablist"
     >
       {items.map((item) => (

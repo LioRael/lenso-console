@@ -83,6 +83,11 @@ async function handleConsoleDevRequest({
     return;
   }
 
+  if (pathname === "/api/console/v1/composition" && options.hostUrl) {
+    sendJson(res, consoleDevComposition());
+    return;
+  }
+
   if (
     pathname.startsWith("/console/dev/extensions/") &&
     options.extensionsDir
@@ -157,6 +162,31 @@ function sendFile(
   }
   res.setHeader("content-type", contentType);
   createReadStream(filePath).pipe(res);
+}
+
+function sendJson(res: ServerResponse, value: unknown) {
+  res.statusCode = 200;
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify(value));
+}
+
+export function consoleDevComposition() {
+  return {
+    issues: [],
+    modules: [
+      { kind: "shell", moduleId: "console-dev-shell" },
+      { kind: "mandatory", moduleId: "auth", role: "identity" },
+      {
+        kind: "mandatory",
+        moduleId: "console-dev-host",
+        role: "system_registry",
+      },
+    ],
+    schema: "lenso.console-service-composition.v2",
+    serviceId: "lenso-console",
+    status: "ready",
+    workloadMode: "normal",
+  } as const;
 }
 
 async function proxyToHost({

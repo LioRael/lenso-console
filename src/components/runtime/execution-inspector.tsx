@@ -110,7 +110,7 @@ export function ExecutionInspector({
 
       <div className="min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)">
         <HorizontalTabScroll>
-          <div className="flex h-9 w-max min-w-full items-start">
+          <div className="flex h-9 w-max min-w-full items-start gap-1 px-3">
             {executionInspectorTabs.map((tab) => (
               <button
                 aria-selected={activeTab === tab.id}
@@ -132,10 +132,8 @@ export function ExecutionInspector({
                 ) : null}
                 <span
                   className={cn(
-                    "absolute bottom-0 left-1/2 h-px -translate-x-1/2 bg-(--accent) transition-[width,opacity]",
-                    activeTab === tab.id
-                      ? "w-[calc(100%-8px)] opacity-100"
-                      : "w-0 opacity-0"
+                    "absolute right-1 bottom-0 left-1 h-px bg-(--accent) transition-opacity",
+                    activeTab === tab.id ? "opacity-100" : "opacity-0"
                   )}
                 />
               </button>

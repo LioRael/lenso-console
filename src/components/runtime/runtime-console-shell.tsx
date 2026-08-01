@@ -11,7 +11,9 @@ import {
   Check,
   ChevronDown,
   Database,
+  GitFork,
   GitCompareArrows,
+  Globe,
   Handshake,
   House,
   KeyRound,
@@ -22,6 +24,7 @@ import {
   ServerCog,
   Settings,
   Shield,
+  Smartphone,
   Users,
   Workflow,
 } from "lucide-react";
@@ -59,8 +62,10 @@ type ShellIcon = ComponentType<{ size?: number; strokeWidth?: number }>;
 const iconRegistry = {
   activity: Activity,
   boxes: Boxes,
+  chrome: Globe,
   database: Database,
   "git-compare-arrows": GitCompareArrows,
+  github: GitFork,
   house: House,
   "key-round": KeyRound,
   network: Network,
@@ -68,6 +73,7 @@ const iconRegistry = {
   "server-cog": ServerCog,
   shield: Shield,
   settings: Settings,
+  smartphone: Smartphone,
   users: Users,
   workflow: Workflow,
 } satisfies Record<ConsoleSurfaceIcon, ShellIcon>;
@@ -429,23 +435,48 @@ function WorkspaceMenu({
         />
       ))}
       {workspace.groups.map((group) => (
-        <div key={group.id}>
-          <div
-            className={`px-2 pt-3 pb-1 text-[10px] font-medium text-(--fg-tertiary) ${collapsed ? "hidden" : "max-md:hidden"}`}
-          >
-            {consoleLocalizedLabel(group, locale)}
-          </div>
-          {group.items.map((item) => (
-            <NavItem
-              collapsed={collapsed}
-              item={item}
-              key={item.path}
-              locale={locale}
-            />
-          ))}
-        </div>
+        <WorkspaceMenuGroup
+          collapsed={collapsed}
+          group={group}
+          key={group.id}
+          locale={locale}
+        />
       ))}
     </>
+  );
+}
+
+function WorkspaceMenuGroup({
+  collapsed,
+  group,
+  locale,
+}: {
+  collapsed: boolean;
+  group: ConsoleWorkspaceNavigation["groups"][number];
+  locale: ConsoleLocale;
+}) {
+  const GroupIcon = iconForName(group.icon);
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div
+        className={`flex h-5 items-center gap-1.5 pl-2.5 pr-2 text-[10px] font-semibold tracking-[0.04em] text-(--fg-tertiary) ${collapsed ? "hidden" : "max-md:hidden"}`}
+      >
+        {GroupIcon ? (
+          <span className="grid size-3 shrink-0 place-items-center">
+            <GroupIcon size={12} strokeWidth={1.6} />
+          </span>
+        ) : null}
+        <span>{consoleLocalizedLabel(group, locale)}</span>
+      </div>
+      {group.items.map((item) => (
+        <NavItem
+          collapsed={collapsed}
+          item={item}
+          key={item.path}
+          locale={locale}
+        />
+      ))}
+    </div>
   );
 }
 

@@ -23,6 +23,14 @@ import { serviceCenterRows } from "../../pages/services-model";
 
 export type ConsoleDataMode = "live" | "demo";
 
+export type HomeEvidenceItem = {
+  detail: string;
+  id: string;
+  occurredAt: string;
+  title: string;
+  tone: "success" | "warning" | "error" | "neutral";
+};
+
 export function useSystemInventory() {
   const query = useQuery({
     queryKey: serviceSystemQueryKey,
@@ -149,11 +157,19 @@ export function useHomeEvidence() {
       title: item.name,
       tone: item.tone,
     }));
-    return [...actions, ...runtime]
-      .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
-      .slice(0, 8);
+    return mergeHomeEvidence(actions, runtime);
   }, [changes.rows, summary.data]);
   return { changes, evidence, mode: dataMode(), summary };
+}
+
+export function mergeHomeEvidence(
+  actions: HomeEvidenceItem[],
+  runtime: HomeEvidenceItem[]
+): HomeEvidenceItem[] {
+  const actionIds = new Set(actions.map((item) => item.id));
+  return [...actions, ...runtime.filter((item) => !actionIds.has(item.id))]
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+    .slice(0, 8);
 }
 
 function moduleMetadataRow(module: ConsoleModuleMetadata) {

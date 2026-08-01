@@ -48,8 +48,12 @@ describe("console package API", () => {
       { encoding: "utf-8" }
     );
     expect(componentsCss).toContain(".lenso-ui-button");
-    expect(componentsCss).toContain("left: 50%;");
-    expect(componentsCss).toContain("transform: translateX(-50%);");
+    expect(componentsCss).toContain("gap: 4px;");
+    expect(componentsCss).toContain("right: 4px;");
+    expect(componentsCss).toContain("height: 1px;");
+    expect(componentsCss).toContain(
+      '.lenso-ui-tabs__tab:first-child[aria-selected="true"]'
+    );
   });
 
   test("publishes the host version and shared UI primitives", () => {

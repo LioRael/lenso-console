@@ -54,8 +54,10 @@ export type ConsoleSurfaceArea =
 export type ConsoleSurfaceIcon =
   | "activity"
   | "boxes"
+  | "chrome"
   | "database"
   | "git-compare-arrows"
+  | "github"
   | "house"
   | "key-round"
   | "network"
@@ -63,6 +65,7 @@ export type ConsoleSurfaceIcon =
   | "server-cog"
   | "shield"
   | "settings"
+  | "smartphone"
   | "users"
   | "workflow";
 
@@ -570,11 +573,18 @@ export const isConsoleSurfaceIcon = (
 ): value is ConsoleSurfaceIcon =>
   value === "activity" ||
   value === "boxes" ||
+  value === "chrome" ||
   value === "database" ||
+  value === "git-compare-arrows" ||
+  value === "github" ||
+  value === "house" ||
   value === "key-round" ||
   value === "network" ||
+  value === "rocket" ||
+  value === "server-cog" ||
   value === "shield" ||
   value === "settings" ||
+  value === "smartphone" ||
   value === "users" ||
   value === "workflow";
 

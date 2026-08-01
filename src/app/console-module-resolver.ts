@@ -227,9 +227,8 @@ export function selectConsoleModulePackageReferences(
       if (surface.name) {
         reference.surfaceName = surface.name;
       }
-      const label = legacyAuthSessionsLabel(surface, packageName);
-      if (label) {
-        reference.label = label;
+      if (surface.label) {
+        reference.label = surface.label;
       }
       if (surface.localizedLabels) {
         reference.localizedLabels = surface.localizedLabels;
@@ -250,17 +249,6 @@ export function selectConsoleModulePackageReferences(
       return [reference];
     })
   );
-}
-
-function legacyAuthSessionsLabel(
-  surface: NonNullable<ConsoleModuleMetadata["console"]>[number],
-  packageName: string
-) {
-  return packageName === "@lenso/auth-console" &&
-    surface.name === "auth" &&
-    surface.route === "/data/auth"
-    ? "Sessions"
-    : surface.label;
 }
 
 function referenceHasBackendSurface(

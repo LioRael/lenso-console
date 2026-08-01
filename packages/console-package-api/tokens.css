@@ -19,7 +19,7 @@
   --bg-panel-muted: #050505;
   --bg-panel-header: #0a0a0a;
   --bg-row-hover: #111111;
-  --bg-row-selected: #ffffff;
+  --bg-row-selected: #1f1f1f;
   --bg-control: #000000;
   --bg-control-hover: #111111;
   --bg-control-active: #1a1a1a;
@@ -137,7 +137,7 @@
   --bg-panel-muted: #fafafa;
   --bg-panel-header: #fafafa;
   --bg-row-hover: #f5f5f5;
-  --bg-row-selected: #000000;
+  --bg-row-selected: #f5f5f5;
   --bg-control: #ffffff;
   --bg-control-hover: #f5f5f5;
   --bg-control-active: #eeeeee;
