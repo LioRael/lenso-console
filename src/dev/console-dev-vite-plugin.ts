@@ -84,7 +84,7 @@ async function handleConsoleDevRequest({
   }
 
   if (
-    pathname.startsWith("/console/extensions/dev/") &&
+    pathname.startsWith("/console/dev/extensions/") &&
     options.extensionsDir
   ) {
     sendDevAsset({ extensionsDir: options.extensionsDir, pathname, res });
@@ -104,11 +104,7 @@ function requestPathname(url: string) {
 }
 
 function shouldProxyToHost(pathname: string) {
-  return (
-    pathname.startsWith("/admin/") ||
-    pathname.startsWith("/v1/") ||
-    pathname === "/console/extensions/registry.json"
-  );
+  return pathname.startsWith("/admin/") || pathname.startsWith("/v1/");
 }
 
 function sendDevAsset({
@@ -120,7 +116,7 @@ function sendDevAsset({
   pathname: string;
   res: ServerResponse;
 }) {
-  const assetName = pathname.replace("/console/extensions/dev/", "");
+  const assetName = pathname.replace("/console/dev/extensions/", "");
   const assetPath = safeJoin(extensionsDir, assetName);
   if (!assetPath) {
     res.statusCode = 404;

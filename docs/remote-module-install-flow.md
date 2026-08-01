@@ -40,15 +40,11 @@ If the manifest is read from a local file, pass the runtime base URL:
 lenso module install ./lenso.module.json --base-url https://example.com/lenso/module/v1
 ```
 
-The install command reads the manifest, derives the remote base URL when the
-manifest URL ends in `/manifest`, then writes host-local state:
+The legacy install command reads the manifest, derives the remote base URL when
+the manifest URL ends in `/manifest`, then writes host-local service state:
 
 - `.env`: adds or replaces the module entry in `REMOTE_MODULES`.
 - `.lenso/module-installs.json`: records the module source and host-local writes.
-- `.lenso/console/extensions/<module>/*.js`: stores copied third-party console
-  bundles.
-- `.lenso/console/extensions/registry.json`: registers same-origin dynamic
-  bundle exports for Runtime Console.
 
 Expected CLI output points at the same short path:
 
@@ -56,19 +52,10 @@ Expected CLI output points at the same short path:
 Installed service module billing.
 Updated:
 - .env
-- .lenso/console/extensions/registry.json
-- .lenso/console/extensions/billing/billing-console.js
 - .lenso/module-installs.json
 Next steps:
 - restart the API and worker
 - reload Runtime Console
-```
-
-Pass `--no-console-extension` when you want to skip Runtime Console extension
-registration:
-
-```sh
-lenso module install https://example.com/lenso/module/v1/manifest --no-console-extension
 ```
 
 Add a module to the local catalog only when you want it to appear in Runtime
@@ -112,8 +99,9 @@ intentionally small:
 lenso module marketplace install https://example.com/lenso/module/v1/manifest
 ```
 
-Restart the API and worker so `REMOTE_MODULES` is loaded, then reload Runtime
-Console so it reads `/console/extensions/registry.json`.
+Restart the API and worker so `REMOTE_MODULES` is loaded. Console UI packages
+are selected and delivered by the standalone Console Service release; the
+managed application does not copy or serve them.
 
 When the host API is running, the Runtime Console can show available modules
 from:
@@ -125,16 +113,20 @@ GET /admin/data/available-modules
 The Available Modules panel keeps that view lightweight: it shows module name,
 version, source, summary, capability count, console package count, compatibility
 preflight status, archived catalog entries, and copyable module install
-commands. Installing from a manifest URL writes local module configuration,
-copies declared console bundles, and updates the Runtime Console extension
-registry.
+commands. Current Module Ecosystem installation uses reviewed Module Change
+Plans and durable Operations rather than browser-owned or host-local Console
+bundle installation.
 
 The repository's `remote-crm` fixture demonstrates the installed-console
 surface path. Its manifest declares `@lenso/remote-crm-console` /
 `remoteCrmConsoleModule`, and the workspace package contributes the
-`/data/remote-crm` page through the static console package registry. Third-party
-modules should use `bundleUrl` and the dynamic extension registry instead of
-being compiled into the official Runtime Console bundle.
+`/data/remote-crm` page through the static package set. Third-party Modules can
+instead publish a reviewed Console artifact in their Module Release. The
+Console Service downloads and verifies that artifact, materializes the immutable
+object below its configured artifact root, and records the selected composition
+receipt. Executable UI is resolved from the digest-bound release and loaded in
+an isolated cross-origin frame; the Service does not publish a same-origin
+extension registry.
 
 ## Smoke Demo
 
@@ -164,16 +156,12 @@ module source again:
 fix: lenso module install <manifest-url> --base-url <base-url>
 ```
 
-This updates `.env` and refreshes the local console extension registry.
+This updates the host-local service source configuration.
 
-### Console extension
+### Console package
 
-If the Runtime Console extension is missing, reinstall the module so the host
-copies the declared bundle and rewrites the registry:
-
-```text
-fix: lenso module install <manifest-url>
-```
-
-Reload Runtime Console after the API and worker restart so the bootstrap loader
-reads `/console/extensions/registry.json` again.
+If a Console UI artifact is missing, inspect the reviewed Module Change
+Operation and the Console composition receipt. Applying the operation calls the
+Console Service artifact management endpoint, which downloads, verifies, and
+materializes the exact digest-bound object. Managed application hosts do not
+expose a Console extension registry or embedded Console compatibility routes.

@@ -1086,7 +1086,7 @@ describe("module status helpers", () => {
 
   test("builds console surface rows for registry detail", () => {
     const module = moduleMetadata({
-      module_name: "platform-story",
+      module_name: "lenso/platform-story",
       source: "linked",
       status: "loaded",
       error: null,

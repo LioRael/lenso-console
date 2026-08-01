@@ -196,7 +196,7 @@ describe("console package API", () => {
     const manifest = defineConsolePackageManifest({
       area: "runtime",
       exportName: "storyConsoleModule",
-      id: "platform-story",
+      id: "lenso/platform-story",
       label: "Stories",
       packageName: "@lenso/story-console",
       requiredCapabilities: [],

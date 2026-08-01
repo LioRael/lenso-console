@@ -84,6 +84,11 @@ pub fn official_composition(workload_mode: ConsoleRecoveryMode) -> ConsoleServic
                 ConsoleModuleKind::Mandatory,
                 Some(MandatoryConsoleRole::SystemRegistry),
             ),
+            module(
+                modules::story::MODULE_NAME,
+                ConsoleModuleKind::Optional,
+                None,
+            ),
         ],
         workload_mode,
     )
@@ -96,6 +101,7 @@ pub fn official_host_composition() -> HostComposition {
         .linked_module(builtins::auth())
         .linked_module(builtins::auth_password())
         .linked_module(modules::system_registry::linked_module())
+        .linked_module(modules::story::linked_module())
         .build()
 }
 

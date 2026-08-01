@@ -75,7 +75,7 @@ export function RuntimeStoriesPage() {
     useRuntimeConsole();
   const modulesQuery = useConsoleModulesMetadata();
   const storyModule = modulesQuery.data?.modules.find(
-    (module) => module.module_name === "platform-story"
+    (module) => module.module_name === "lenso/platform-story"
   );
   const storyModuleUnavailable = storyModuleIsUnavailable(storyModule);
   const storiesQuery = useRuntimeStories({ enabled: !storyModuleUnavailable });
@@ -486,8 +486,8 @@ export function RuntimeStoriesPage() {
       <EmptyState className="h-full bg-(--surface)">
         <EmptyState.Title>Story module disabled</EmptyState.Title>
         <EmptyState.Description>
-          Enable platform-story in Modules, then restart the API to use Runtime
-          Stories.
+          Enable lenso/platform-story in Modules, then restart the API to use
+          Runtime Stories.
         </EmptyState.Description>
       </EmptyState>
     );

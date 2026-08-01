@@ -10,11 +10,15 @@ The initial exact composition is:
 - the capability-neutral `lenso/console-shell` linked Module;
 - the first-party Auth anchor;
 - the first-party password provider;
-- the mandatory `lenso/system-registry` linked Module.
+- the mandatory `lenso/system-registry` linked Module;
+- the optional `lenso/platform-story` linked Module, including Story query,
+  federation, projection, and Store migration ownership.
 
 The process fails closed unless `LENSO_COMPOSITION_PROFILE=core` and
-`SERVICE_NAME=lenso-console`, preventing the framework demo profile from adding
-unreviewed providers or fixture Modules.
+`SERVICE_NAME=lenso-console`, and it requires
+`LENSO_MODULE_PLATFORM_STORY_ENABLED=false` while supported framework releases
+still contain the former built-in Story Module. This prevents the framework
+demo profile or legacy Story route from adding unreviewed or duplicate Modules.
 
 ## Local start
 
@@ -66,6 +70,18 @@ activation or rollback evidence. The Console Service probes are `/health/live`,
 API and embedded Worker. Packaged deployments may set `CONSOLE_WEB_ROOT` to an
 absolute directory containing the built `index.html`; the API fails closed when
 the Shell build is absent.
+
+Module Console UI artifacts are owned by this Service, not by managed Services.
+Operators with the `console.artifacts.manage` capability may reconcile reviewed
+artifacts through `POST /api/console/v1/artifacts/reconcile`. The Service
+downloads each HTTPS artifact with a bounded response size, verifies its exact
+SHA-256 digest and `lenso.console-bridge.v1` contract, and writes a
+content-addressed object plus an atomic composition receipt. Container
+deployments persist this Console-owned store at
+`/opt/lenso-console/artifacts`; it remains writable only by the container's
+unprivileged UID `10001`. Artifacts are not exposed as same-origin JavaScript;
+isolated UI loading continues through the reviewed composition and sandboxed
+Console Bridge boundary.
 
 ## Container installation
 

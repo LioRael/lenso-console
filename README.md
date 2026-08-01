@@ -120,6 +120,8 @@ REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localh
 - `src/pages`: route-level screens.
 - `packages/console-package-api`: public host API for console package authors.
 - `packages/story-console`: first-party Story workbench package.
+- `service/modules/story`: Console-owned Story backend, federation, projections,
+  and Store migrations released with the Story workbench.
 - `packages/identity-console`: installed module package fixture used to exercise
   framework wiring; it is not a product-default business module.
 
@@ -128,6 +130,15 @@ REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localh
 Console frontend modules are local workspace packages under `packages/*`.
 They must import host capabilities through `@lenso/console-package-api`, define a
 `ConsolePackageManifest`, and export a `ConsoleModule`.
+
+Installable Modules may bind an immutable isolated `ConsoleUiArtifact` to the
+same Module Release. The authenticated
+`POST /api/console/v1/artifacts/reconcile` endpoint downloads reviewed
+artifacts, verifies their SHA-256 digests and Console Bridge contract, and
+materializes content-addressed objects plus an atomic composition receipt.
+Container deployments give only the Console Service write access to this
+persistent artifact store. Executable UI remains isolated and is never loaded
+as a same-origin shell extension.
 
 Lenso provides the package framework and fixtures. Product projects choose and
 own their real business modules.
@@ -204,7 +215,7 @@ pnpm console-package:dev --package ../lenso-auth-module/packages/auth-console
 
 The default mode is standalone mock mode. It starts the Lenso Console Shell,
 loads the package through a temporary `/console/dev/registry.json`, and serves
-the package bundle from a temporary `/console/extensions/dev/*` path.
+the package bundle from a temporary `/console/dev/extensions/*` path.
 
 Proxy a real Lenso host when the package needs real admin data or capabilities:
 
@@ -214,9 +225,9 @@ pnpm console-package:dev \
   --host http://localhost:3000
 ```
 
-Dev mode does not write `.lenso/console/extensions` and does not install
-packages into the host. Production installs still use the normal service/module
-install path.
+Dev mode does not install packages into the host. Production executable UI is
+delivered as an isolated, digest-bound Module Release artifact rather than a
+same-origin package bundle.
 
 ## Checks
 

@@ -100,7 +100,7 @@ describe("console package installs", () => {
       consolePackageRegistryByKey(installedConsolePackages)[
         "@lenso/story-console#storyConsoleModule"
       ]?.module.id
-    ).toBe("platform-story");
+    ).toBe("lenso/platform-story");
     expect(
       consolePackageRegistryByKey(installedConsolePackages)[
         "@lenso/identity-console#identityConsoleModule"

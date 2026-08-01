@@ -16,6 +16,7 @@ use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use utoipa::ToSchema;
 
+use super::console_artifacts::{__path_reconcile_artifacts, ARTIFACTS_MANAGE, reconcile_artifacts};
 use crate::composition::{CONSOLE_SERVICE_ID, ConsoleServiceComposition, official_composition};
 
 pub const MODULE_NAME: &str = "lenso/console-shell";
@@ -46,7 +47,16 @@ fn manifest() -> ModuleManifest {
                 display_name: Some("Inspect Console Bootstrap Status".to_owned()),
                 story_title: None,
             },
+            ModuleHttpRoute {
+                method: ModuleHttpMethod::Post,
+                path: "/api/console/v1/artifacts/reconcile".to_owned(),
+                capability: Some(ARTIFACTS_MANAGE.to_owned()),
+                operation: None,
+                display_name: Some("Reconcile Console UI Artifacts".to_owned()),
+                story_title: None,
+            },
         ])
+        .capabilities(vec![ARTIFACTS_MANAGE.to_owned()])
         .build()
 }
 
@@ -56,6 +66,7 @@ fn http_binding() -> LinkedBinding {
             public_prefixes: &[
                 "/health/",
                 "/api/console/v1/composition",
+                "/api/console/v1/artifacts/reconcile",
                 "/bootstrap/v1/status",
             ],
             merge: merge_http,
@@ -76,37 +87,38 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
         .routes(routes!(get_console_bootstrap_status))
         .fallback(not_found);
     let shell = OpenApiRouter::new()
-            .routes(routes!(get_console_composition))
-            .nest("/bootstrap", bootstrap)
-            .route("/health/live", get(live))
-            .route("/health/ready", get(ready))
-            .route("/health/startup", get(startup))
-            .route("/health/authority", get(authority))
-            .route("/api", any(not_found))
-            .route("/api/{*path}", any(not_found))
-            .route("/admin", any(not_found))
-            .route("/admin/{*path}", any(not_found))
-            .route("/health", any(not_found))
-            .route("/health/{*path}", any(not_found))
-            .route("/oauth/{*path}", any(not_found))
-            .route("/v1", any(not_found))
-            .route("/v1/{*path}", any(not_found))
-            .route("/.well-known/{*path}", any(not_found))
-            .fallback_service(ServeDir::new(root).fallback(ServeFile::new(index)))
-            .layer(SetResponseHeaderLayer::if_not_present(
-                HeaderName::from_static("content-security-policy"),
-                HeaderValue::from_static(
-                    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
-                ),
-            ))
-            .layer(SetResponseHeaderLayer::if_not_present(
-                HeaderName::from_static("referrer-policy"),
-                HeaderValue::from_static("no-referrer"),
-            ))
-            .layer(SetResponseHeaderLayer::if_not_present(
-                HeaderName::from_static("x-content-type-options"),
-                HeaderValue::from_static("nosniff"),
-            ));
+        .routes(routes!(get_console_composition))
+        .routes(routes!(reconcile_artifacts))
+        .nest("/bootstrap", bootstrap)
+        .route("/health/live", get(live))
+        .route("/health/ready", get(ready))
+        .route("/health/startup", get(startup))
+        .route("/health/authority", get(authority))
+        .route("/api", any(not_found))
+        .route("/api/{*path}", any(not_found))
+        .route("/admin", any(not_found))
+        .route("/admin/{*path}", any(not_found))
+        .route("/health", any(not_found))
+        .route("/health/{*path}", any(not_found))
+        .route("/oauth/{*path}", any(not_found))
+        .route("/v1", any(not_found))
+        .route("/v1/{*path}", any(not_found))
+        .route("/.well-known/{*path}", any(not_found))
+        .fallback_service(ServeDir::new(root).fallback(ServeFile::new(index)))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static(
+                "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+            ),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("referrer-policy"),
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("x-content-type-options"),
+            HeaderValue::from_static("nosniff"),
+        ));
 
     base.merge(shell)
 }
@@ -119,6 +131,13 @@ fn console_web_root() -> PathBuf {
                 .expect("Console Service crate must live below the Console workspace")
                 .join("dist")
         },
+        PathBuf::from,
+    )
+}
+
+pub(super) fn console_artifact_root() -> PathBuf {
+    std::env::var_os("CONSOLE_ARTIFACT_ROOT").map_or_else(
+        || Path::new(env!("CARGO_MANIFEST_DIR")).join("artifacts"),
         PathBuf::from,
     )
 }
@@ -268,19 +287,26 @@ async fn get_console_composition(_actor: UserActor) -> Json<ConsoleServiceCompos
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
-    fn shell_module_is_capability_neutral() {
+    fn shell_module_declares_artifact_management_capability() {
         let manifest = manifest();
 
         assert_eq!(manifest.name, MODULE_NAME);
-        assert!(manifest.capabilities.is_empty());
+        assert_eq!(manifest.capabilities, [ARTIFACTS_MANAGE]);
         assert!(manifest.console.is_empty());
-        assert_eq!(manifest.http_routes.len(), 2);
+        assert_eq!(manifest.http_routes.len(), 3);
         assert_eq!(manifest.http_routes[0].path, "/api/console/v1/composition");
         assert!(manifest.http_routes[0].capability.is_none());
         assert_eq!(manifest.http_routes[1].path, "/bootstrap/v1/status");
         assert!(manifest.http_routes[1].capability.is_none());
+        assert_eq!(
+            manifest.http_routes[2].path,
+            "/api/console/v1/artifacts/reconcile"
+        );
+        assert_eq!(
+            manifest.http_routes[2].capability.as_deref(),
+            Some(ARTIFACTS_MANAGE)
+        );
     }
 
     #[test]
