@@ -96,6 +96,54 @@ describe("Lenso Console repository boundary", () => {
     );
   });
 
+  test("proves exact zero-write failures after proof consumption", async () => {
+    const proof = await source(
+      ".github/workflows/verify-production-zero-write-failure.yml"
+    );
+
+    expect(proof).toContain(
+      'Complete fail-closed preflight before any registry OIDC" and .conclusion == "success"'
+    );
+    expect(proof).toContain(
+      'Atomically consume proof and seal exact registry artifacts" and .conclusion == "success"'
+    );
+    expect(proof).toContain("npm error code ENEEDAUTH");
+    expect(proof).toContain(
+      "https://registry.npmjs.org/%40lenso%2Fconsole-package-api/0.1.2"
+    );
+    expect(proof).toContain(
+      "https://ghcr.io/v2/liorael/lenso-console/manifests/0.1.4"
+    );
+  });
+
+  test("uses the reviewed publication recovery for npm and OCI", async () => {
+    const publisher = await source(".github/workflows/publish.yml");
+    const standaloneRecovery = await source(
+      ".github/workflows/recover-partial-production.yml"
+    );
+    const runtime = await source(
+      ".lenso-release/runtime/lib/repository/runtime.js"
+    );
+
+    expect(publisher).toContain("packages: write");
+    expect(publisher).toMatch(/LENSO_OCI_TOKEN: \$\{\{ github\.token \}\}/u);
+    for (const recovery of [publisher, standaloneRecovery]) {
+      expect(recovery).toContain("working-directory: recovery-candidate");
+      expect(recovery).toContain("pnpm run --if-present release:artifacts");
+      expect(recovery).toMatch(
+        /RELEASE_COMMIT: \$\{\{ inputs\.release_commit \}\}/u
+      );
+      expect(recovery).toMatch(
+        /RELEASE_PACKAGES_JSON: \$\{\{ inputs\.packages_json \}\}/u
+      );
+    }
+    expect(runtime).toContain('"production-zero-write"');
+    expect(runtime).toContain(
+      "publication recovery supports Cargo, npm, and OCI packages only"
+    );
+    expect(runtime).toContain("ociObservation(name, item.version, artifact");
+  });
+
   test("builds the public package API before release artifacts are packed", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];

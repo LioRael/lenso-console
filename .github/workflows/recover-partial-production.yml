@@ -70,6 +70,12 @@ jobs:
           cd recovery-candidate
           pnpm install --frozen-lockfile
           pnpm run --if-present build
+      - name: Build composite recovery artifacts when configured
+        working-directory: recovery-candidate
+        env:
+          RELEASE_COMMIT: ${{ inputs.release_commit }}
+          RELEASE_PACKAGES_JSON: ${{ inputs.packages_json }}
+        run: pnpm run --if-present release:artifacts
       - name: Resolve authoritative failed run
         id: failed-run
         env:
@@ -106,6 +112,7 @@ jobs:
           LENSO_APP_TOKEN: ${{ steps.app.outputs.token }}
           LENSO_RUNTIME_CWD: ${{ github.workspace }}/recovery-candidate
           LENSO_WORKFLOW_PATH: .github/workflows/recover-partial-production.yml
+          LENSO_OCI_TOKEN: ${{ github.token }}
           RUNNER_IMAGE: ubuntu-24.04
         run: node .lenso-release/runtime/lib/repository/cli.js recover-partial-prepare
       - name: Attest verified recovery archives
@@ -123,10 +130,12 @@ jobs:
           INPUT_NONCE: ${{ inputs.nonce }}
           LENSO_APP_ID: ${{ vars.LENSO_RELEASE_APP_ID }}
           LENSO_APP_TOKEN: ${{ steps.app.outputs.token }}
+          LENSO_REPOSITORY_TOKEN: ${{ github.token }}
           LENSO_RUNTIME_CWD: ${{ github.workspace }}/recovery-candidate
           LENSO_WORKFLOW_PATH: .github/workflows/recover-partial-production.yml
           RUNNER_IMAGE: ubuntu-24.04
           LENSO_COORDINATOR_RECEIPT_URL: ${{ vars.LENSO_COORDINATOR_RECEIPT_URL }}
           LENSO_RECOVERY_ATTESTATION_URL: ${{ steps.recovery-attestation.outputs.attestation-url }}
+          LENSO_OCI_TOKEN: ${{ github.token }}
           NODE_AUTH_TOKEN: ""
         run: node .lenso-release/runtime/lib/repository/cli.js recover-partial
