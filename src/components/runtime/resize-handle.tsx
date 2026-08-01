@@ -24,7 +24,7 @@ export function ResizeHandle({
     <button
       aria-label={ariaLabel}
       className={`group relative z-1 bg-transparent outline-hidden ${
-        isVertical ? "h-px min-w-0" : "min-h-0 w-px"
+        isVertical ? "h-2 min-w-0" : "min-h-0 w-2"
       }`}
       ref={handleRef}
       style={{ cursor: resizeCursor }}
@@ -99,7 +99,9 @@ export function ResizeHandle({
         }
       />
       <span
-        className={`absolute inset-0 transition ${
+        className={`absolute transition ${
+          isVertical ? "inset-x-0 top-1/2 h-px" : "inset-y-0 left-1/2 w-px"
+        } ${
           isDragging
             ? "bg-(--fg-tertiary)"
             : isActive

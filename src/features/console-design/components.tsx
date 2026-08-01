@@ -134,23 +134,16 @@ export function SplitWorkspace({
 
 export function Inspector({
   children,
-  eyebrow,
   status,
   subtitle,
   title,
 }: PropsWithChildren<{
-  eyebrow?: string;
   status?: ReactNode;
   subtitle?: string;
   title: string;
 }>) {
   return (
     <div className="px-7">
-      {eyebrow ? (
-        <div className="pt-4 font-mono text-[10px] text-(--fg-tertiary)">
-          {eyebrow}
-        </div>
-      ) : null}
       <div className="pt-7">
         <h2 className="text-[18px] leading-6 font-semibold">{title}</h2>
         {subtitle ? (

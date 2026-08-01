@@ -7,6 +7,7 @@ import {
   Button,
   StatusMarker,
   Tabs,
+  consoleLocalizedLabel,
   consoleSurfaceFromPackageManifest,
   consoleSurfacesFromPackageManifest,
   defineConsoleExtension,
@@ -86,6 +87,16 @@ describe("console package API", () => {
         surfaces: [{ ...valid.surfaces[0], path: "billing" }],
       })
     ).toBe(false);
+  });
+
+  test("resolves extension navigation labels for the active locale", () => {
+    const item = {
+      label: "Contacts",
+      localizedLabels: { "zh-CN": "联系人" },
+    } as const;
+
+    expect(consoleLocalizedLabel(item, "zh-CN")).toBe("联系人");
+    expect(consoleLocalizedLabel(item, "en")).toBe("Contacts");
   });
 
   test("binds an extension manifest to matching module routes", () => {

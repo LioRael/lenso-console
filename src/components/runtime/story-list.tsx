@@ -1,3 +1,4 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import { AlertCircle, Boxes, Clock, Search } from "lucide-react";
 
 import type { RuntimeStory } from "../../data/mock-runtime";
@@ -18,37 +19,45 @@ export function StoryList({
   setQuery: (query: string) => void;
   onSelect: (story: RuntimeStory) => void;
 }) {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   return (
     <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
-      <div className="flex min-h-10 items-center justify-between gap-2 border-b border-(--line) bg-(--bg-canvas) px-3 py-2">
+      <div className="flex h-16 items-center justify-between gap-2 border-b border-(--line) bg-(--bg-canvas) px-3">
         <div>
           <h2 className="text-sm font-semibold tracking-tight text-(--fg-primary)">
-            Stories
+            {zh ? "业务故事" : "Stories"}
           </h2>
           <p className="text-xs text-(--fg-tertiary)">
-            {stories.length} correlations
+            {stories.length} {zh ? "个关联" : "correlations"}
           </p>
         </div>
       </div>
-      <div className="flex h-8 items-center gap-2 border-b border-(--line) px-3 text-(--fg-tertiary)">
+      <div className="flex h-10 items-center gap-2 border-b border-(--line) px-3 text-(--fg-tertiary)">
         <Search size={12} />
         <input
           aria-label="Search stories"
           className="mono w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="filter story / service / correlation..."
+          placeholder={
+            zh
+              ? "筛选故事 / 服务 / 关联..."
+              : "filter story / service / correlation..."
+          }
           value={query}
         />
       </div>
-      <div className="grid h-6 grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-semibold uppercase text-(--fg-tertiary)">
+      <div className="grid h-[25px] grid-cols-[12px_minmax(0,1fr)_58px] items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-semibold uppercase text-(--fg-tertiary)">
         <span />
-        <span>story</span>
-        <span className="text-right">state</span>
+        <span>{zh ? "故事" : "story"}</span>
+        <span className="text-right">{zh ? "状态" : "state"}</span>
       </div>
       <div className="min-h-0 overflow-auto">
         {stories.length === 0 ? (
           <div className="p-4 text-[12px] leading-5 text-(--fg-tertiary)">
-            No stories match the current filter.
+            {zh
+              ? "没有符合当前筛选条件的故事。"
+              : "No stories match the current filter."}
           </div>
         ) : null}
         {stories.map((story) => {
@@ -60,7 +69,7 @@ export function StoryList({
           return (
             <button
               className={cn(
-                "relative w-full border-b border-(--line) py-2 pr-3 pl-4 text-left transition-colors",
+                "relative h-[120px] w-full overflow-hidden border-b border-(--line) py-2 pr-3 pl-4 text-left transition-colors",
                 isError &&
                   "before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-(--error)",
                 isSelected ? "native-selection" : "hover:bg-(--bg-row-hover)"

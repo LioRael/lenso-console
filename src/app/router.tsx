@@ -65,7 +65,7 @@ export function createRuntimeConsoleRouter(
     });
 
   const consoleRouteNodes = buildConsoleRoutes(modules)
-    .filter((route) => route.moduleId !== "platform-story")
+    .filter((route) => route.moduleId !== "lenso/platform-story")
     .map((route) => page(route.path, route.component));
 
   const routeTree = rootRoute.addChildren([

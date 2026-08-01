@@ -5,7 +5,7 @@ import {
   type StoryViewMode,
 } from "@lenso/console-package-api";
 
-const defaultStoryViewMode = "story" satisfies StoryViewMode;
+const defaultStoryViewMode = "waterfall" satisfies StoryViewMode;
 
 export function runtimeStoriesPath(
   filters: {
@@ -16,7 +16,7 @@ export function runtimeStoriesPath(
     viewMode?: StoryViewMode;
   } = {}
 ) {
-  return consoleHostApi.routing.buildPath("/runtime/stories", {
+  return consoleHostApi.routing.buildPath("/stories", {
     node: filters.nodeId,
     q: filters.query,
     story: filters.storyId,

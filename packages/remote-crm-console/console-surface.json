@@ -1,20 +1,22 @@
 {
   "area": "data",
   "exportName": "remoteCrmConsoleModule",
-  "icon": "network",
+  "icon": "users",
   "id": "remote-crm",
-  "label": "Remote CRM",
+  "label": "Contacts",
+  "localizedLabels": { "zh-CN": "联系人" },
   "navigation": {
     "group": {
       "id": "customer-data",
-      "label": "Customer data",
+      "label": "Customers",
+      "localizedLabels": { "zh-CN": "客户" },
       "order": 10
     },
     "order": 70,
     "workspace": {
       "icon": "network",
-      "id": "remote-crm",
-      "label": "Remote CRM"
+      "id": "crm",
+      "label": "CRM"
     }
   },
   "packageName": "@lenso/remote-crm-console",

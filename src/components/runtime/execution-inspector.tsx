@@ -1,3 +1,4 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import {
   ArrowRight,
   Copy,
@@ -61,6 +62,8 @@ export function ExecutionInspector({
   onClearSelection: () => void;
   setActiveTab: (tab: ExecutionInspectorTab) => void;
 }) {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   const node = selectedNode;
 
   const parent = node.parentId
@@ -182,7 +185,7 @@ export function ExecutionInspector({
                 role="tab"
                 type="button"
               >
-                <span>{tab.label}</span>
+                <span>{zh ? inspectorTabZh[tab.id] : tab.label}</span>
                 {tabCounts[tab.id] > 0 ? (
                   <span
                     className={cn(
@@ -207,6 +210,16 @@ export function ExecutionInspector({
     </aside>
   );
 }
+
+const inspectorTabZh: Record<ExecutionInspectorTab, string> = {
+  overview: "概览",
+  payload: "载荷",
+  activity: "活动",
+  failures: "失败",
+  logs: "日志",
+  context: "上下文",
+  technical: "技术操作",
+};
 
 function InspectorBody({
   activeTab,

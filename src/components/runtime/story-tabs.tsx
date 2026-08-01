@@ -1,3 +1,4 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import { Flame, GitBranch, Grid3X3, List, Workflow } from "lucide-react";
 
 import { cn } from "../../lib/cn";
@@ -23,9 +24,9 @@ const labels: Array<{
   { id: "story", label: "Story", icon: Workflow },
   { id: "graph", label: "Graph", icon: GitBranch },
   { id: "timeline", label: "Timeline", icon: Workflow },
-  { id: "heatmap", label: "Heatmap", icon: Grid3X3 },
   { id: "waterfall", label: "Waterfall", icon: List },
   { id: "flame", label: "Flame", icon: Flame },
+  { id: "heatmap", label: "Heatmap", icon: Grid3X3 },
 ];
 
 export function StoryTabs({
@@ -35,6 +36,8 @@ export function StoryTabs({
   mode: StoryViewMode;
   onChange: (mode: StoryViewMode) => void;
 }) {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   return (
     <div className="min-w-0 border-b border-(--line) bg-(--bg-panel-header)">
       <HorizontalTabScroll>
@@ -52,7 +55,7 @@ export function StoryTabs({
               type="button"
             >
               <Icon size={12} strokeWidth={1.75} />
-              {label}
+              {zh ? storyTabZh[id] : label}
             </button>
           ))}
         </div>
@@ -60,3 +63,12 @@ export function StoryTabs({
     </div>
   );
 }
+
+const storyTabZh: Record<StoryViewMode, string> = {
+  story: "故事",
+  graph: "图谱",
+  timeline: "时间线",
+  waterfall: "瀑布图",
+  flame: "火焰图",
+  heatmap: "热力图",
+};

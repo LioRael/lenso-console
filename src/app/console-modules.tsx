@@ -65,6 +65,9 @@ export function buildConsoleNavigation(
       moduleId: route.moduleId,
       path: route.path,
     };
+    if (route.localizedLabels) {
+      item.localizedLabels = route.localizedLabels;
+    }
     if (route.icon) {
       item.icon = route.icon;
     }
@@ -140,7 +143,7 @@ const remoteCrmBuildTimeMetadata = consoleModuleMetadataFromManifest(
 );
 remoteCrmBuildTimeMetadata.console?.push({
   area: "data",
-  icon: "network",
+  icon: "boxes",
   label: "Companies",
   name: "companies",
   navigation: {

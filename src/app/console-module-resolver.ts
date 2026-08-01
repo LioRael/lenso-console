@@ -1,6 +1,7 @@
 import {
   isConsoleSurfaceIcon,
   type ConsoleModule,
+  type ConsoleLocalizedLabels,
   type ConsoleNavigationMetadata,
   type ConsoleSurfaceArea,
 } from "../../packages/console-package-api/src/index";
@@ -18,6 +19,7 @@ export type ConsoleModulePackageReference = {
   moduleName?: string;
   surfaceName?: string;
   label?: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area?: ConsoleSurfaceArea;
   route?: string;
   icon?: string | null;
@@ -31,6 +33,7 @@ export type ConsoleModuleMetadata = {
   console?: {
     name?: string;
     label?: string;
+    localizedLabels?: ConsoleLocalizedLabels;
     area?: ConsoleSurfaceArea;
     route?: string;
     package?: {
@@ -228,6 +231,9 @@ export function selectConsoleModulePackageReferences(
       if (label) {
         reference.label = label;
       }
+      if (surface.localizedLabels) {
+        reference.localizedLabels = surface.localizedLabels;
+      }
       if (surface.area) {
         reference.area = surface.area;
       }
@@ -264,6 +270,7 @@ function referenceHasBackendSurface(
     reference.moduleName !== undefined ||
     reference.surfaceName !== undefined ||
     reference.label !== undefined ||
+    reference.localizedLabels !== undefined ||
     reference.area !== undefined ||
     reference.route !== undefined ||
     reference.icon !== undefined ||
@@ -288,6 +295,9 @@ function consoleSurfaceFromBackendReference(
   const resolvedSurface = { ...surface };
   if (reference.label !== undefined) {
     resolvedSurface.label = reference.label;
+  }
+  if (reference.localizedLabels !== undefined) {
+    resolvedSurface.localizedLabels = reference.localizedLabels;
   }
   if (reference.area !== undefined) {
     resolvedSurface.area = reference.area;

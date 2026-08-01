@@ -1,4 +1,7 @@
-import { defineConsoleExtension } from "@lenso/console-package-api";
+import {
+  defineConsoleExtension,
+  defineConsoleModule,
+} from "@lenso/console-package-api";
 
 import { RemoteCrmCompaniesPage } from "./companies-page";
 import { remoteCrmConsoleManifest } from "./manifest";
@@ -19,14 +22,16 @@ if (!contactsSurface.navigation) {
 
 const contactsNavigation = contactsSurface.navigation;
 
-export const remoteCrmConsoleModule = {
+export const remoteCrmConsoleModule = defineConsoleModule({
   ...remoteCrmConsoleExtension.module,
   surfaces: [
     contactsSurface,
     {
       ...contactsSurface,
       component: RemoteCrmCompaniesPage,
+      icon: "boxes" as const,
       label: "Companies",
+      localizedLabels: { "zh-CN": "公司" },
       navigation: {
         ...contactsNavigation,
         order: 80,
@@ -34,7 +39,7 @@ export const remoteCrmConsoleModule = {
       path: "/data/remote-crm/companies",
     },
   ],
-};
+});
 
 export { remoteCrmConsoleManifest } from "./manifest";
 export { RemoteCrmConsolePage } from "./page";

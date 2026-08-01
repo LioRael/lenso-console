@@ -11,7 +11,7 @@ describe("runtime table header style contract", () => {
     expect(runtimeTableHeaderBaseClassName).toContain("border-b");
     expect(runtimeTableHeaderBaseClassName).toContain("bg-(--bg-panel-header)");
     expect(runtimeTableHeaderBaseClassName).toContain("px-3");
-    expect(runtimeTableHeaderBaseClassName).toContain("py-2");
+    expect(runtimeTableHeaderBaseClassName).toContain("h-7");
     expect(runtimeTimelineTableHeaderClassName).toContain(
       runtimeTableHeaderBaseClassName
     );

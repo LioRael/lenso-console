@@ -9,7 +9,7 @@ import {
 
 describe("runtime stories url model", () => {
   test("builds compact story deep links", () => {
-    expect(runtimeStoriesPath()).toBe("/runtime/stories");
+    expect(runtimeStoriesPath()).toBe("/stories");
     expect(
       runtimeStoriesPath({
         inspectorTab: "technical",
@@ -19,7 +19,7 @@ describe("runtime stories url model", () => {
         viewMode: "timeline",
       })
     ).toBe(
-      "/runtime/stories?node=remoteproxy_rproxy_1&q=crm&story=corr_1&tab=technical&view=timeline"
+      "/stories?node=remoteproxy_rproxy_1&q=crm&story=corr_1&tab=technical&view=timeline"
     );
   });
 
@@ -28,13 +28,13 @@ describe("runtime stories url model", () => {
       runtimeStoriesPath({
         inspectorTab: "overview",
         storyId: "corr_1",
-        viewMode: "story",
+        viewMode: "waterfall",
       })
-    ).toBe("/runtime/stories?story=corr_1");
+    ).toBe("/stories?story=corr_1");
   });
 
   test("falls back when url enum values are invalid", () => {
-    expect(readStoryViewMode("unknown")).toBe("story");
+    expect(readStoryViewMode("unknown")).toBe("waterfall");
     expect(readStoryViewMode("waterfall")).toBe("waterfall");
     expect(readExecutionInspectorTab("unknown")).toBe("overview");
     expect(readExecutionInspectorTab("technical")).toBe("technical");

@@ -41,7 +41,7 @@ describe("story console module", () => {
   });
 
   test("exports story model helpers from the module boundary", () => {
-    expect(runtimeStoriesPath()).toBe("/runtime/stories");
+    expect(runtimeStoriesPath()).toBe("/stories");
     expect(resizeStoryListWidth(300, 20)).toBe(320);
     expect(resolveSelectedRuntimeStory([], null, true)).toBeNull();
     expect(

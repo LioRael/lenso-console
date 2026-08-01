@@ -41,6 +41,7 @@ describe("console module registry", () => {
             icon: "settings",
             id: "system",
             label: "System",
+            localizedLabels: { "zh-CN": "系统" },
           },
         },
         path: "/runtime/stories",
@@ -204,20 +205,22 @@ describe("console module registry", () => {
       {
         area: "data",
         exportName: "remoteCrmConsoleModule",
-        icon: "network",
-        label: "Remote CRM",
+        icon: "users",
+        label: "Contacts",
+        localizedLabels: { "zh-CN": "联系人" },
         moduleName: "remote-crm",
         navigation: {
           group: {
             id: "customer-data",
-            label: "Customer data",
+            label: "Customers",
+            localizedLabels: { "zh-CN": "客户" },
             order: 10,
           },
           order: 70,
           workspace: {
             icon: "network",
-            id: "remote-crm",
-            label: "Remote CRM",
+            id: "crm",
+            label: "CRM",
           },
         },
         packageName: "@lenso/remote-crm-console",
@@ -227,20 +230,21 @@ describe("console module registry", () => {
       {
         area: "data",
         exportName: "remoteCrmConsoleModule",
-        icon: "network",
+        icon: "boxes",
         label: "Companies",
         moduleName: "remote-crm",
         navigation: {
           group: {
             id: "customer-data",
-            label: "Customer data",
+            label: "Customers",
+            localizedLabels: { "zh-CN": "客户" },
             order: 10,
           },
           order: 80,
           workspace: {
             icon: "network",
-            id: "remote-crm",
-            label: "Remote CRM",
+            id: "crm",
+            label: "CRM",
           },
         },
         packageName: "@lenso/remote-crm-console",
@@ -295,14 +299,15 @@ describe("console module registry", () => {
         navigation: {
           group: {
             id: "customer-data",
-            label: "Customer data",
+            label: "Customers",
+            localizedLabels: { "zh-CN": "客户" },
             order: 10,
           },
           order: 70,
           workspace: {
             icon: "network",
-            id: "remote-crm",
-            label: "Remote CRM",
+            id: "crm",
+            label: "CRM",
           },
         },
         path: "/data/remote-crm",
@@ -311,14 +316,15 @@ describe("console module registry", () => {
         navigation: {
           group: {
             id: "customer-data",
-            label: "Customer data",
+            label: "Customers",
+            localizedLabels: { "zh-CN": "客户" },
             order: 10,
           },
           order: 80,
           workspace: {
             icon: "network",
-            id: "remote-crm",
-            label: "Remote CRM",
+            id: "crm",
+            label: "CRM",
           },
         },
         path: "/data/remote-crm/companies",
@@ -348,6 +354,7 @@ describe("console module registry", () => {
             icon: "settings",
             id: "system",
             label: "System",
+            localizedLabels: { "zh-CN": "系统" },
           },
         },
         path: "/runtime/stories",
@@ -367,14 +374,15 @@ describe("console module registry", () => {
         navigation: {
           group: {
             id: "customer-data",
-            label: "Customer data",
+            label: "Customers",
+            localizedLabels: { "zh-CN": "客户" },
             order: 10,
           },
           order: 70,
           workspace: {
             icon: "network",
-            id: "remote-crm",
-            label: "Remote CRM",
+            id: "crm",
+            label: "CRM",
           },
         },
         path: "/data/remote-crm",
@@ -383,14 +391,15 @@ describe("console module registry", () => {
         navigation: {
           group: {
             id: "customer-data",
-            label: "Customer data",
+            label: "Customers",
+            localizedLabels: { "zh-CN": "客户" },
             order: 10,
           },
           order: 80,
           workspace: {
             icon: "network",
-            id: "remote-crm",
-            label: "Remote CRM",
+            id: "crm",
+            label: "CRM",
           },
         },
         path: "/data/remote-crm/companies",
@@ -439,13 +448,7 @@ describe("console module registry", () => {
         label: "System",
       },
       {
-        id: "identity",
-        groups: [],
-        items: ["/data/identity"],
-        label: "Identity",
-      },
-      {
-        id: "remote-crm",
+        id: "crm",
         groups: [
           {
             id: "customer-data",
@@ -453,7 +456,13 @@ describe("console module registry", () => {
           },
         ],
         items: [],
-        label: "Remote CRM",
+        label: "CRM",
+      },
+      {
+        id: "identity",
+        groups: [],
+        items: ["/data/identity"],
+        label: "Identity",
       },
     ]);
   });

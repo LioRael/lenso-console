@@ -38,7 +38,8 @@ gsap.registerPlugin(useGSAP);
 
 const emptyStories: RuntimeStory[] = [];
 const selectedStoryStorageKey = "runtime-console:selected-story-correlation-id";
-export const runtimeStoriesDefaultViewMode = "story" satisfies StoryViewMode;
+export const runtimeStoriesDefaultViewMode =
+  "waterfall" satisfies StoryViewMode;
 export type StoryModuleMetadata = {
   module_name?: string;
   status?: "loaded" | "error";
@@ -94,6 +95,7 @@ export function RuntimeStoriesPage() {
   const [displayedNode, setDisplayedNode] = useState<ExecutionNode | null>(
     null
   );
+  const [inspectorDismissed, setInspectorDismissed] = useState(false);
   const [storyDetailClosed, setStoryDetailClosed] = useState(false);
   const [servicesExpanded, setServicesExpanded] = useState(true);
   const [mode, setMode] = useState<StoryViewMode>(() =>
@@ -175,8 +177,8 @@ export function RuntimeStoriesPage() {
   const listColumn = `clamp(220px,24vw,${storiesLayout.listWidth}px)`;
   const inspectorColumn = `clamp(280px,30vw,${storiesLayout.inspectorWidth}px)`;
   const gridTemplateColumns = hasInspector
-    ? `${listColumn} 1px minmax(0,1fr) calc(1px * var(--story-inspector-open)) minmax(0,calc(${inspectorColumn} * var(--story-inspector-open)))`
-    : `${listColumn} 1px minmax(0,1fr)`;
+    ? `${listColumn} 8px minmax(0,1fr) calc(8px * var(--story-inspector-open)) minmax(0,calc(${inspectorColumn} * var(--story-inspector-open)))`
+    : `${listColumn} 8px minmax(0,1fr)`;
   const showServicesPanel = mode === "waterfall" || mode === "flame";
   const storyDetailLoading =
     Boolean(selectedStoryCorrelationId) && storyDetailQuery.isPending;
@@ -196,6 +198,7 @@ export function RuntimeStoriesPage() {
     setSelectedNodeId(search.get("node") || null);
     setMode(readStoryViewMode(search.get("view") ?? ""));
     setInspectorTab(readExecutionInspectorTab(search.get("tab") ?? ""));
+    setInspectorDismissed(false);
     setStoryDetailClosed(false);
   });
 
@@ -252,6 +255,23 @@ export function RuntimeStoriesPage() {
   }, [selectedNode]);
 
   useEffect(() => {
+    if (selectedNodeId || inspectorDismissed) {
+      return;
+    }
+    const [defaultNode] = selectedStory?.nodes ?? [];
+    if (!defaultNode) {
+      return;
+    }
+    setSelectedNodeId(defaultNode.id);
+    setInspectorTab(defaultExecutionInspectorTab(defaultNode));
+  }, [
+    defaultExecutionInspectorTab,
+    inspectorDismissed,
+    selectedNodeId,
+    selectedStory,
+  ]);
+
+  useEffect(() => {
     if (!inspectorOpen) {
       return;
     }
@@ -264,6 +284,7 @@ export function RuntimeStoriesPage() {
       event.preventDefault();
       clearStoryTarget();
       setSelectedNodeId(null);
+      setInspectorDismissed(true);
       setInspectorTab("overview");
     };
 
@@ -361,6 +382,7 @@ export function RuntimeStoriesPage() {
     setSelectedStoryId(story.correlationId);
     window.localStorage.setItem(selectedStoryStorageKey, story.correlationId);
     setSelectedNodeId(null);
+    setInspectorDismissed(false);
     setInspectorTab("overview");
   };
 
@@ -372,6 +394,7 @@ export function RuntimeStoriesPage() {
     window.localStorage.removeItem(selectedStoryStorageKey);
     setSelectedNodeId(null);
     setDisplayedNode(null);
+    setInspectorDismissed(false);
     setInspectorTab("overview");
   };
 
@@ -395,6 +418,7 @@ export function RuntimeStoriesPage() {
     if (!next.open) {
       clearStoryTarget();
       setSelectedNodeId(null);
+      setInspectorDismissed(true);
       setInspectorTab("overview");
     }
   };
@@ -426,6 +450,7 @@ export function RuntimeStoriesPage() {
       window.localStorage.setItem(selectedStoryStorageKey, nextStoryId);
     }
     clearStoryTarget();
+    setInspectorDismissed(false);
     pushStoryUrl({
       inspectorTab: defaultExecutionInspectorTab(node),
       nodeId: node.id,
@@ -468,7 +493,7 @@ export function RuntimeStoriesPage() {
 
   if (modulesQuery.isLoading || storiesQuery.isLoading) {
     return (
-      <div className="grid h-full grid-cols-[clamp(220px,24vw,320px)_1px_minmax(0,1fr)] overflow-hidden bg-(--background)">
+      <div className="grid h-full grid-cols-[260px_8px_minmax(0,1fr)] overflow-hidden bg-(--background)">
         <StoryListSkeleton />
         <div className="bg-(--border-subtle)" />
         <EmptyState className="h-full bg-(--surface)">
@@ -636,6 +661,7 @@ export function RuntimeStoriesPage() {
                   setSelectedStoryId(storyUrlId(selectedStory));
                   clearStoryTarget();
                   setSelectedNodeId(null);
+                  setInspectorDismissed(true);
                   setInspectorTab("overview");
                 }}
                 selectedNode={displayedNode}

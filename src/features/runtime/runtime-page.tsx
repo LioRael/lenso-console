@@ -1,3 +1,4 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import { useState } from "react";
 
 import {
@@ -5,6 +6,7 @@ import {
   useRuntimeFunctions,
   useRuntimeSummary,
 } from "../../hooks/use-runtime-queries";
+import { useRuntimeServices } from "../console-data/use-console-product-data";
 import {
   Inspector,
   InspectorSection,
@@ -13,40 +15,30 @@ import {
   SplitWorkspace,
   StatusDot,
 } from "../console-design/components";
-
-type ServiceRow = readonly [string, string, string, string, string, string];
-
-const services: readonly ServiceRow[] = [
-  ["lenso-api", "svc_lenso_api", "iad1", "0.3.34", "Healthy", "86 ms"],
-  ["lenso-worker", "svc_lenso_worker", "iad1", "0.3.34", "Healthy", "41 ms"],
-  ["billing-sync", "svc_billing_sync", "iad1", "1.8.2", "Healthy", "129 ms"],
-  [
-    "customer-index",
-    "svc_customer_index",
-    "fra1",
-    "2.4.0",
-    "Degraded",
-    "244 ms",
-  ],
-  ["audit-evidence", "svc_audit_evidence", "iad1", "0.9.7", "Healthy", "73 ms"],
-  ["webhook-relay", "svc_webhook_relay", "syd1", "1.3.1", "Healthy", "111 ms"],
-] as const;
+import { consoleProductCopy } from "../console-design/copy";
 
 export function RuntimePage() {
-  const [tab, setTab] = useState("Services");
-  const [selected, setSelected] = useState<ServiceRow>(services[0]!);
+  const { locale } = useConsoleLocale();
+  const copy = consoleProductCopy(locale);
+  const serviceQuery = useRuntimeServices();
+  const services = serviceQuery.rows;
+  const [tabIndex, setTabIndex] = useState(0);
+  const tab = copy.runtime.tabs[tabIndex]!;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected =
+    services.find((row) => row.providerName === selectedId) ?? services[0];
   const summary = useRuntimeSummary().data;
   const events = useRuntimeEvents().data ?? [];
   const functions = useRuntimeFunctions().data ?? [];
   const liveRows =
-    tab === "Operations"
+    tabIndex === 1
       ? functions
           .slice(0, 8)
           .map(
             (item) =>
               [item.functionName, item.id, item.status, item.createdAt] as const
           )
-      : tab === "Outbox" || tab === "Events"
+      : tabIndex === 2 || tabIndex === 3
         ? events
             .slice(0, 8)
             .map(
@@ -57,34 +49,54 @@ export function RuntimePage() {
 
   return (
     <ProductPage
-      description="Observe live services, operations, queues, and the evidence each transition emits."
-      meta={<span className="text-(--success)">12 / 12 healthy</span>}
-      title="Runtime"
+      description={copy.runtime.description}
+      meta={
+        <span className="text-(--success)">
+          {services.filter((item) => item.state === "ready").length} /{" "}
+          {services.length} healthy ·{" "}
+          {serviceQuery.mode === "live" ? copy.common.live : copy.common.demo}
+        </span>
+      }
+      title={copy.runtime.title}
     >
       <ProductTabs
         active={tab}
-        items={["Services", "Operations", "Outbox", "Events"]}
-        onChange={setTab}
+        items={copy.runtime.tabs}
+        onChange={(item) =>
+          setTabIndex(copy.runtime.tabs.indexOf(item as never))
+        }
       />
       <SplitWorkspace
         inspector={
           <Inspector
-            subtitle={`${selected[1]} · ${selected[2]} · ${selected[3]}`}
-            title={selected[0]}
+            subtitle={
+              selected
+                ? `${selected.providerName} · ${selected.environments.map((item) => item.name).join(", ") || "local"}`
+                : "—"
+            }
+            title={selected?.providerName ?? copy.runtime.title}
           >
             <div className="mt-4 flex gap-5 text-[11px]">
-              <span>3 replicas</span>
-              <span>{selected[5]} p95</span>
-              <span>0.02% error</span>
+              <span>{selected?.managedServices.length ?? 0} services</span>
+              <span>{selected?.modules.length ?? 0} modules</span>
+              <span>{selected?.state ?? "unknown"}</span>
             </div>
-            <InspectorSection title="Execution timeline">
-              <Timeline time="12:04:18" title="Config checksum verified" />
-              <Timeline time="12:03:59" title="Replica 3 became ready" />
-              <Timeline time="12:03:42" title="Replica 2 became ready" />
-              <Timeline time="12:03:27" title="Replica 1 became ready" />
-              <Timeline time="12:03:10" title="Release operation started" />
+            <InspectorSection title={copy.runtime.timeline}>
+              {(selected?.deployments ?? []).slice(0, 5).map((deployment) => (
+                <Timeline
+                  key={`${deployment.serviceName}:${deployment.environment}`}
+                  time={
+                    deployment.observedAtUnixMs
+                      ? new Date(
+                          deployment.observedAtUnixMs
+                        ).toLocaleTimeString([], { hour12: false })
+                      : "—"
+                  }
+                  title={`${deployment.serviceName} · ${deployment.state}`}
+                />
+              ))}
             </InspectorSection>
-            <InspectorSection title="Authority">
+            <InspectorSection title={copy.runtime.authority}>
               <p>Service owns runtime state and effects.</p>
               <p className="text-(--fg-secondary)">
                 Console observes, coordinates, and retains evidence.
@@ -93,10 +105,12 @@ export function RuntimePage() {
           </Inspector>
         }
       >
-        {tab === "Services" ? (
+        {tabIndex === 0 ? (
           <>
             <header className="flex h-[50px] items-center px-2.5">
-              <h2 className="text-[14px] font-medium">Services</h2>
+              <h2 className="text-[14px] font-medium">
+                {copy.runtime.tabs[0]}
+              </h2>
               <span className="ml-auto text-[11px] text-(--fg-tertiary)">
                 {summary
                   ? `${summary.recentActivity.length} observed`
@@ -104,32 +118,38 @@ export function RuntimePage() {
               </span>
             </header>
             <div className="grid h-[40px] grid-cols-[minmax(220px,1fr)_110px_140px_120px_90px] items-center border-b border-(--line) px-2.5 text-[11px] text-(--fg-tertiary)">
-              <span>Service</span>
-              <span>Region</span>
-              <span>Version</span>
-              <span>State</span>
+              <span>{copy.runtime.service}</span>
+              <span>{copy.runtime.region}</span>
+              <span>{copy.runtime.version}</span>
+              <span>{copy.runtime.state}</span>
               <span>P95</span>
             </div>
             {services.map((service) => (
               <button
-                className={`grid h-[65px] w-full grid-cols-[minmax(220px,1fr)_110px_140px_120px_90px] items-center border-b border-(--line) px-2.5 text-left text-[12px] ${selected[1] === service[1] ? "bg-(--bg-row-hover)" : "hover:bg-(--bg-row-hover)"}`}
-                key={service[1]}
-                onClick={() => setSelected(service)}
+                className={`grid h-[65px] w-full grid-cols-[minmax(220px,1fr)_110px_140px_120px_90px] items-center border-b border-(--line) px-2.5 text-left text-[12px] ${selected?.providerName === service.providerName ? "bg-(--bg-row-hover)" : "hover:bg-(--bg-row-hover)"}`}
+                key={service.providerName}
+                onClick={() => setSelectedId(service.providerName)}
                 type="button"
               >
                 <span>
-                  <strong className="block font-medium">{service[0]}</strong>
+                  <strong className="block font-medium">
+                    {service.providerName}
+                  </strong>
                   <span className="font-mono text-[10px] text-(--fg-tertiary)">
-                    {service[1]}
+                    {service.modules.join(" · ") || service.providerName}
                   </span>
                 </span>
-                <span>{service[2]}</span>
-                <span className="font-mono">{service[3]}</span>
+                <span>{service.environments[0]?.name ?? "local"}</span>
+                <span className="font-mono">
+                  {service.latestRelease?.candidateVersion ??
+                    service.latestRelease?.currentVersion ??
+                    "—"}
+                </span>
                 <StatusDot
-                  label={service[4]}
-                  tone={service[4] === "Healthy" ? "success" : "warning"}
+                  label={service.state}
+                  tone={service.state === "ready" ? "success" : "warning"}
                 />
-                <span>{service[5]}</span>
+                <span>{service.healthChecks} checks</span>
               </button>
             ))}
           </>

@@ -6,58 +6,88 @@ import {
   Section,
   SplitView,
   StateView,
-  SummaryStrip,
   consoleHostApi,
+  useConsoleLocale,
 } from "@lenso/console-package-api";
 
 import { remoteCrmContactRows, remoteCrmContactsSummary } from "./model";
 
-const surfaceRows = [
-  ["Module", "remote-crm"],
-  ["Package", "@lenso/remote-crm-console"],
-  ["Export", "remoteCrmConsoleModule"],
-  ["Route", "/data/remote-crm"],
-  ["Capability", "remote_crm.contacts.read"],
-] as const;
+const surfaceRows = (zh: boolean) =>
+  [
+    [zh ? "工作区" : "Workspace", "CRM"],
+    [zh ? "分组" : "Group", zh ? "客户" : "Customers"],
+    [zh ? "页面" : "Surface", zh ? "联系人" : "Contacts"],
+    [zh ? "模块" : "Module", "remote-crm"],
+    [zh ? "包" : "Package", "@lenso/remote-crm-console"],
+    [zh ? "导出" : "Export", "remoteCrmConsoleModule"],
+    [zh ? "路由" : "Route", "/data/remote-crm"],
+    [zh ? "能力" : "Capability", "remote_crm.contacts.read"],
+  ] as const;
 
-const workflowRows = [
-  ["Manifest", "remote module declares this ConsoleSurface"],
-  ["Data", "contacts are read through host schema-admin"],
-  ["Runtime", "remote_crm.sync_contact.v1 runs through host worker queues"],
-] as const;
+const workflowRows = (zh: boolean) =>
+  [
+    [
+      "Manifest",
+      zh
+        ? "远程模块声明此 ConsoleSurface"
+        : "remote module declares this ConsoleSurface",
+    ],
+    [
+      zh ? "数据" : "Data",
+      zh
+        ? "联系人通过宿主 schema-admin 读取"
+        : "contacts are read through host schema-admin",
+    ],
+    [
+      zh ? "运行时" : "Runtime",
+      zh
+        ? "remote_crm.sync_contact.v1 通过宿主 worker 队列运行"
+        : "remote_crm.sync_contact.v1 runs through host worker queues",
+    ],
+  ] as const;
 
 const RemoteCrmContactsContent = ({
   error,
   isError,
   isPending,
   rows,
+  zh,
 }: {
   error: unknown;
   isError: boolean;
   isPending: boolean;
   rows: ReturnType<typeof remoteCrmContactRows>;
+  zh: boolean;
 }) => {
   if (isError) {
     return (
       <StateView
         description={String((error as Error | undefined)?.message)}
-        title="Contacts could not be loaded"
+        title={zh ? "联系人加载失败" : "Contacts could not be loaded"}
       />
     );
   }
   if (isPending) {
     return (
       <StateView
-        description="Reading the schema-admin surface."
-        title="Loading contacts"
+        description={
+          zh
+            ? "正在读取 schema-admin 页面。"
+            : "Reading the schema-admin surface."
+        }
+        title={zh ? "正在加载联系人" : "Loading contacts"}
       />
     );
   }
   if (rows.length === 0) {
     return (
       <StateView
-        description="The CRM Service returned no records."
-        title="No contacts"
+        description={
+          zh
+            ? "CRM 服务未返回任何记录。"
+            : "The CRM Service returned no records."
+        }
+        title={zh ? "暂无联系人" : "No contacts"}
       />
     );
   }
@@ -66,10 +96,10 @@ const RemoteCrmContactsContent = ({
     <DataTable className="min-w-[680px]">
       <DataTable.Head>
         <DataTable.Row>
-          <DataTable.Header>Contact</DataTable.Header>
-          <DataTable.Header>Email</DataTable.Header>
-          <DataTable.Header>Company</DataTable.Header>
-          <DataTable.Header>Status</DataTable.Header>
+          <DataTable.Header>{zh ? "联系人" : "Contact"}</DataTable.Header>
+          <DataTable.Header>{zh ? "邮箱" : "Email"}</DataTable.Header>
+          <DataTable.Header>{zh ? "公司" : "Company"}</DataTable.Header>
+          <DataTable.Header>{zh ? "状态" : "Status"}</DataTable.Header>
         </DataTable.Row>
       </DataTable.Head>
       <DataTable.Body>
@@ -96,6 +126,8 @@ const RemoteCrmContactsContent = ({
 };
 
 export const RemoteCrmConsolePage = () => {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   const contactsQuery = consoleHostApi.adminData.useRecords({
     entityName: "contacts",
     moduleName: "remote-crm",
@@ -107,64 +139,55 @@ export const RemoteCrmConsolePage = () => {
     <ConsolePage className="h-full">
       <ConsolePage.Header>
         <ConsolePage.Heading>
-          <ConsolePage.Title>Remote CRM</ConsolePage.Title>
+          <ConsolePage.Title>{zh ? "联系人" : "Contacts"}</ConsolePage.Title>
           <ConsolePage.Description>
-            Contacts exposed by the remote CRM Service through the host-owned
-            schema-admin capability.
+            {zh
+              ? "由 @lenso/remote-crm-console 提供的客户身份与账户关系。"
+              : "Customer identities and account relationships provided by @lenso/remote-crm-console."}
           </ConsolePage.Description>
         </ConsolePage.Heading>
-        <ConsolePage.Actions>
-          <Badge>remote Service</Badge>
-          <Badge>host rendered</Badge>
-        </ConsolePage.Actions>
       </ConsolePage.Header>
 
-      <ConsolePage.Body className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
-        <SummaryStrip>
-          <SummaryStrip.Item label="Records" value={summary.total} />
-          <SummaryStrip.Item
-            label="Active"
-            tone="success"
-            value={summary.active}
-          />
-          <SummaryStrip.Item
-            label="Paused"
-            tone="warning"
-            value={summary.paused}
-          />
-        </SummaryStrip>
+      <ConsolePage.Body className="min-h-0 overflow-hidden">
         <SplitView>
           <SplitView.Main>
             <Section>
               <Section.Header>
-                <Section.Title>Contacts</Section.Title>
-                <Section.Meta>{summary.total} records</Section.Meta>
+                <Section.Title>{zh ? "联系人" : "Contacts"}</Section.Title>
+                <Section.Meta>
+                  {summary.total} {zh ? "条记录" : "records"}
+                </Section.Meta>
               </Section.Header>
               <RemoteCrmContactsContent
                 error={contactsQuery.error}
                 isError={contactsQuery.isError}
                 isPending={contactsQuery.isPending}
                 rows={contactRows}
+                zh={zh}
               />
             </Section>
           </SplitView.Main>
           <SplitView.Inspector>
             <Section>
               <Section.Header>
-                <Section.Title>Package contract</Section.Title>
+                <Section.Title>
+                  {zh ? "页面来源" : "Surface provenance"}
+                </Section.Title>
               </Section.Header>
               <KeyValueList>
-                {surfaceRows.map(([label, value]) => (
+                {surfaceRows(zh).map(([label, value]) => (
                   <KeyValueList.Row key={label} label={label} value={value} />
                 ))}
               </KeyValueList>
             </Section>
             <Section>
               <Section.Header>
-                <Section.Title>Execution path</Section.Title>
+                <Section.Title>
+                  {zh ? "执行路径" : "Execution path"}
+                </Section.Title>
               </Section.Header>
               <KeyValueList>
-                {workflowRows.map(([label, value]) => (
+                {workflowRows(zh).map(([label, value]) => (
                   <KeyValueList.Row key={label} label={label} value={value} />
                 ))}
               </KeyValueList>

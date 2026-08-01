@@ -1,79 +1,73 @@
+import { useConsoleLocale } from "@lenso/console-package-api";
 import { ArrowRight } from "lucide-react";
 
-import { useRuntimeSummary } from "../../hooks/use-runtime-queries";
+import { useHomeEvidence } from "../console-data/use-console-product-data";
 import { ProductPage, StatusDot } from "../console-design/components";
-
-const decisions = [
-  {
-    action: "Review",
-    detail: "Permission policy change requires approval",
-    id: "chg_01J7Q9",
-    name: "auth-policy-v7",
-    tone: "warning" as const,
-  },
-  {
-    action: "Inspect",
-    detail: "Agent plan is applying across 3 services",
-    id: "chg_01J7PZ",
-    name: "billing-sync",
-    tone: "neutral" as const,
-  },
-  {
-    action: "Open",
-    detail: "Release verified; evidence bundle complete",
-    id: "rel_01J7PX",
-    name: "runtime-0.3.34",
-    tone: "success" as const,
-  },
-  {
-    action: "Open",
-    detail: "Draft plan has no material risk delta",
-    id: "chg_01J7PW",
-    name: "customer-index",
-    tone: "neutral" as const,
-  },
-];
-
-const evidence = [
-  ["12:04:18", "Approval recorded", "auth-policy-v7 · Leo"],
-  ["12:03:51", "Verification passed", "billing-sync · 3/3 services"],
-  ["12:02:09", "Agent plan bounded", "scope: runtime.config"],
-  ["11:58:44", "Evidence attached", "rel_01J7PX · 14 artifacts"],
-  ["11:54:12", "Recovery point stored", "customer-index · pre-apply"],
-];
+import { consoleProductCopy } from "../console-design/copy";
 
 export function HomePage() {
-  const summary = useRuntimeSummary().data;
+  const { locale } = useConsoleLocale();
+  const copy = consoleProductCopy(locale);
+  const { changes, evidence, mode, summary: summaryQuery } = useHomeEvidence();
+  const summary = summaryQuery.data;
+  const decisions = changes.rows.slice(0, 4);
   const healthy = summary?.status === "healthy";
-  const runtimeCount = summary
-    ? summary.outbox.published + summary.functions.completed
-    : 12;
+  const activeRuntime = summary
+    ? summary.outbox.pending +
+      summary.outbox.processing +
+      summary.functions.pending +
+      summary.functions.running
+    : 0;
+  const attention = decisions.filter((item) => item.tone !== "success").length;
 
   return (
     <ProductPage
-      description="Understand what changed, decide what needs action, and verify the result."
-      meta={<StatusDot label="Production" tone="success" />}
-      title="Operations"
+      description={copy.home.description}
+      meta={
+        <StatusDot
+          label={mode === "live" ? copy.common.live : copy.common.demo}
+          tone={mode === "live" ? "success" : "neutral"}
+        />
+      }
+      title={copy.home.title}
     >
       <div className="grid h-[72px] grid-cols-4 border-b border-(--line)">
         <Metric
-          label="Runtime"
-          note={healthy ? "healthy" : "observed"}
-          value={`${Math.min(runtimeCount, 12)} / 12`}
+          label={copy.home.runtime}
+          note={healthy ? "healthy" : (summary?.status ?? "loading")}
+          value={String(activeRuntime)}
         />
-        <Metric label="Active changes" note="1 needs review" value="3" />
-        <Metric label="Awaiting approval" note="bounded action" value="1" />
-        <Metric label="Evidence lag" note="within target" value="42s" />
+        <Metric
+          label={copy.home.activeChanges}
+          note={`${attention} need review`}
+          value={String(decisions.length)}
+        />
+        <Metric
+          label={copy.home.awaitingApproval}
+          note="bounded action"
+          value={String(attention)}
+        />
+        <Metric
+          label={copy.home.evidenceLag}
+          note="latest observation"
+          value={
+            mode === "live" && evidence[0]
+              ? relativeSeconds(evidence[0].occurredAt)
+              : "—"
+          }
+        />
       </div>
       <div className="grid min-h-[620px] grid-cols-[minmax(0,1fr)_374px]">
         <section className="pr-7 pt-8">
           <header className="flex h-9 items-start border-b border-(--line)">
-            <h2 className="text-[14px] font-medium">Decision queue</h2>
+            <h2 className="text-[14px] font-medium">
+              {copy.home.decisionQueue}
+            </h2>
             <a
               className="ml-auto inline-flex items-center gap-1 text-[12px] text-(--fg-secondary) hover:text-(--fg-primary)"
               href="/changes"
             >
-              View all <ArrowRight size={12} />
+              {copy.home.viewAll} <ArrowRight size={12} />
             </a>
           </header>
           {decisions.map((item) => (
@@ -99,32 +93,36 @@ export function HomePage() {
                 className="flex items-center gap-1 self-center text-[12px] text-(--fg-secondary) hover:text-(--fg-primary)"
                 href="/changes"
               >
-                {item.action} <ArrowRight size={12} />
+                {copy.home.viewAll} <ArrowRight size={12} />
               </a>
             </article>
           ))}
         </section>
         <aside className="border-l border-(--line) px-7 pt-8">
           <header className="flex h-9 items-start border-b border-(--line)">
-            <h2 className="text-[14px] font-medium">Live evidence</h2>
+            <h2 className="text-[14px] font-medium">
+              {copy.home.liveEvidence}
+            </h2>
             <span className="ml-auto text-[11px] text-(--success)">
-              Streaming
+              {copy.home.streaming}
             </span>
           </header>
           <ol>
-            {evidence.map(([time, title, detail]) => (
+            {evidence.map((item) => (
               <li
                 className="relative grid grid-cols-[10px_minmax(0,1fr)] gap-3 py-3"
-                key={`${time}-${title}`}
+                key={item.id}
               >
                 <span className="mt-1.5 size-1.5 rounded-full bg-(--fg-tertiary)" />
                 <div>
                   <time className="font-mono text-[10px] text-(--fg-tertiary)">
-                    {time}
+                    {timeLabel(item.occurredAt)}
                   </time>
-                  <div className="mt-0.5 text-[12px] font-medium">{title}</div>
+                  <div className="mt-0.5 text-[12px] font-medium">
+                    {item.title}
+                  </div>
                   <div className="mt-0.5 text-[11px] text-(--fg-secondary)">
-                    {detail}
+                    {item.detail}
                   </div>
                 </div>
               </li>
@@ -142,6 +140,21 @@ export function HomePage() {
       </div>
     </ProductPage>
   );
+}
+
+function timeLabel(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleTimeString([], { hour12: false });
+}
+
+function relativeSeconds(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+  return `${Math.max(0, Math.round((Date.now() - date.getTime()) / 1000))}s`;
 }
 
 function Metric({

@@ -1,5 +1,6 @@
 import type { ComponentType, FunctionComponent, ReactNode } from "react";
 
+import type { ConsoleLocale } from "./locale.js";
 import type { ConsoleUiComponents } from "./ui.js";
 
 export {
@@ -65,15 +66,19 @@ export type ConsoleSurfaceIcon =
   | "users"
   | "workflow";
 
+export type ConsoleLocalizedLabels = Partial<Record<ConsoleLocale, string>>;
+
 export interface ConsoleWorkspaceRef {
   id: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   icon?: string;
 }
 
 export interface ConsoleNavigationGroup {
   id: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   icon?: string;
   order?: number;
 }
@@ -87,6 +92,7 @@ export interface ConsoleNavigationMetadata {
 export interface ConsoleModuleSurface {
   path: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area: ConsoleSurfaceArea;
   component: FunctionComponent;
   icon?: ConsoleSurfaceIcon;
@@ -166,10 +172,16 @@ export type ConsoleRouteContribution = ConsoleModuleSurface & {
 export interface ConsoleNavigationItem {
   path: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   moduleId: string;
   icon?: ConsoleSurfaceIcon;
   navigation?: ConsoleNavigationMetadata;
 }
+
+export const consoleLocalizedLabel = (
+  item: { label: string; localizedLabels?: ConsoleLocalizedLabels },
+  locale: ConsoleLocale
+) => item.localizedLabels?.[locale] ?? item.label;
 
 export type ConsolePackageRegistrySource =
   | "first_party"
@@ -621,6 +633,7 @@ export const consoleHostApi: ConsoleHostApi = new Proxy(
 export interface ConsolePackageSurfaceManifest {
   surfaceName: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area: ConsoleSurfaceArea;
   route: string;
   requiredCapabilities: readonly string[];
@@ -645,6 +658,7 @@ export type ConsolePackageManifest =
 export interface ConsoleSurfaceManifest {
   name: string;
   label: string;
+  localizedLabels?: ConsoleLocalizedLabels;
   area: ConsoleSurfaceArea;
   route: string;
   package: {
@@ -736,6 +750,9 @@ export const defineConsoleExtension = <
             if (surface.icon) {
               moduleSurface.icon = surface.icon;
             }
+            if (surface.localizedLabels) {
+              moduleSurface.localizedLabels = surface.localizedLabels;
+            }
             if (surface.navigation) {
               moduleSurface.navigation = surface.navigation;
             }
@@ -782,6 +799,9 @@ export const consoleSurfacesFromPackageManifest = (
     };
     if (packageSurface.icon) {
       surface.icon = packageSurface.icon;
+    }
+    if (packageSurface.localizedLabels) {
+      surface.localizedLabels = packageSurface.localizedLabels;
     }
     if (packageSurface.navigation) {
       surface.navigation = packageSurface.navigation;

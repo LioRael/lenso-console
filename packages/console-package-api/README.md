@@ -26,6 +26,7 @@ export const billingConsoleManifest = defineConsolePackageManifest({
   exportName: "billingConsoleModule",
   id: "billing",
   label: "Billing",
+  localizedLabels: { "zh-CN": "账单" },
   packageName: "@example/billing-console",
   requiredCapabilities: ["billing.invoices.read"],
   route: "/billing/invoices",
@@ -114,3 +115,11 @@ hatch when a use case is more specialized than the component set.
 Console packages should declare this package and React as peer dependencies.
 The host API version is available as `CONSOLE_HOST_API_VERSION`; runtime bundle
 registries must declare the same `hostApi` value.
+
+## Locale contract
+
+Surface, workspace, and navigation-group declarations may include
+`localizedLabels`, keyed by a supported Console locale. The host resolves these
+labels in the sidebar, switcher, and breadcrumb. Extension content can use
+`useConsoleLocale()` and `consoleLocalizedLabel()` so it follows the same
+language preference without bundling a second locale provider.
