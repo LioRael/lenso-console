@@ -1,13 +1,13 @@
 {
   "schema": "lenso.release-plan.v1",
   "repository": "LioRael/lenso-console",
-  "sourceCommit": "f8b22c208ccc9be8bf4bec58ca30cf7bc6836a40",
+  "sourceCommit": "a115529f54df018e4d22e8ccb6d0ec29c60c3eaa",
   "tegamiVersion": "1.2.5",
   "publisher": {
     "workflow": ".github/workflows/publish.yml",
-    "workflowSha256": "sha256:090a63bec4fa09fbcb75c94b1ada616b0466b2104272a4ffa976b16644cdb418",
-    "sharedRevision": "7d4de9d9e356ffe6b37d281989d784b6696632cf",
-    "sharedBundleSha256": "sha256:463a2ea048dc0ea8561e35514eb1dae95b6355b16e9cdd9ac5988698b8e503b4",
+    "workflowSha256": "sha256:e4f83f44c420f2e6fc1b135a644fb20dbe13b4c782310bf85719f52e1616f553",
+    "sharedRevision": "3c2a5b440e0e2bbfb1b22765b36d727bc34c426b",
+    "sharedBundleSha256": "sha256:91829406c8dd411c5bc5e7b0b917cfbf27faad071d454f575fb69411c1d4c97d",
     "runner": "ubuntu-24.04",
     "node": "24.18.0",
     "npm": "11.7.0",
@@ -16,7 +16,7 @@
   "generatedFiles": [
     {
       "path": ".tegami/publish-lock.yaml",
-      "sha256": "sha256:bd325a8b321e816467dfe06a2f28a265eab7bebdbf2ebe74f61477c2702349cc"
+      "sha256": "sha256:7a2f16b06e5e89e995edbb3a690aa11d44ee67aaaa31c4ca43e1212da0d1116a"
     },
     {
       "path": "CHANGELOG.md",
@@ -59,5 +59,5 @@
       "dependencies": []
     }
   ],
-  "planId": "sha256:3c58c2f69b41a2ded6991129ed50d633fad0c1bfcf093fef01c024c51d4d442a"
+  "planId": "sha256:e29c786558f7d415660a5fa32ffb683e122a25d074b258ac9063b32c482b6541"
 }
