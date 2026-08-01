@@ -42,15 +42,6 @@ console:
 console-api:
     VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
 
-console-api-fixture:
-    pnpm console-api-fixture
-
-console-api-smoke:
-    pnpm console-api-smoke
-
-console-api-qa:
-    pnpm console-api-qa
-
 console-preview:
     pnpm preview
 
@@ -94,19 +85,5 @@ create-console-package name:
 create-module name:
     pnpm create:module {{name}}
 
-# Demos
-remote-module-run-demo:
-    pnpm demo:remote-module-run
-
-remote-module-package-demo:
-    pnpm demo:remote-module-package
-
-remote-module-install-demo:
-    pnpm demo:remote-module-install
-
-demo-release:
-    pnpm demo:release
-
 release-check:
     just check
-    just demo-release

@@ -71,44 +71,6 @@ Override the development service token when needed:
 VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,remote_crm.contacts.read,remote_crm.contacts.sync,hello-action:greetings:write pnpm dev
 ```
 
-## Service API QA
-
-From the repo root, start the legacy service API QA fixture:
-
-```bash
-just console-api-demo
-```
-
-Then seed and verify the remote story path:
-
-```bash
-just console-api-qa
-```
-
-Useful focused commands:
-
-```bash
-just console-api-fixture
-just console-api-smoke
-```
-
-The QA fixture creates a remote proxy call with
-`correlation_id = corr_console_api_fixture`, then verifies the Remote Calls page
-data, Runtime Story remote node/timeline shape, Technical Operations, payloads,
-and logs.
-
-If Postgres is already running and migrated:
-
-```bash
-SKIP_DB_SETUP=1 just console-api-demo
-```
-
-If default ports are busy:
-
-```bash
-REMOTE_MODULE_ADDR=127.0.0.1:4101 HTTP_PORT=3001 VITE_API_BASE_URL=http://localhost:3001 CONSOLE_PORT=5176 just console-api-demo
-```
-
 ## Architecture
 
 - `src/app`: router and root providers.
@@ -159,9 +121,8 @@ package in the same command:
 pnpm create:module billing --with-console
 ```
 
-For a third-party service that should not compile into the host workspace, use
-the service kit, register the local workspace entry, and install the service
-manifest:
+For a third-party Service that should not compile into the Host workspace, use
+the framework-owned Service SDK and CLI to create, run, and install it:
 
 ```bash
 lenso service create support-suite-provider --lang ts --output-dir services --port 4110
@@ -169,15 +130,10 @@ lenso service dev
 lenso service install https://example.com/lenso/service/v1/manifest
 ```
 
-Run `pnpm demo:remote-module-package` for the legacy temp-directory remote
-module fixture. The older `pnpm demo:remote-module-install` command is kept as
-an alias.
-
-Runnable service examples that use the published `@lenso/service-kit` package
-live in
+Runnable third-party Service examples use the framework-owned
+`@lenso/service-kit` package and live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). The demos
-in this repository remain release and CLI fixtures for the Lenso Console
-workspace.
+in this repository remain focused on Console-owned packages and delivery.
 
 See `docs/console-package-template.md` before adding a package. The short path is:
 
