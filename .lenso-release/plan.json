@@ -1,13 +1,13 @@
 {
   "schema": "lenso.release-plan.v1",
   "repository": "LioRael/lenso-console",
-  "sourceCommit": "c561464c90e33499c5dded15703b2d975db09dd9",
+  "sourceCommit": "481490db8a5899c63d41760edf87981b740e3308",
   "tegamiVersion": "1.2.5",
   "publisher": {
     "workflow": ".github/workflows/publish.yml",
-    "workflowSha256": "sha256:12857a2cb05172bef7eee28a08a2c75bdc2fa173892f26c4ac5472da0a3839a9",
-    "sharedRevision": "63a082125999d3a2863540c6e40ae1666cf5d5fa",
-    "sharedBundleSha256": "sha256:2e701550533c4cf8c200d22d6f07e586d5c50cdc9d77a4208e0bbe9f744701f0",
+    "workflowSha256": "sha256:9df9e062eeea11f4e82963d1f129c0a0e4918b5619f4c9fcf5ed52c5a007bf46",
+    "sharedRevision": "4b85ea1a6f1f0002d12376985ffab6d4ff76c606",
+    "sharedBundleSha256": "sha256:8c14c10c1b1deaf87d14f8f8594dfade00c81e98ea4c3a13644eefeb2a7f3684",
     "runner": "ubuntu-24.04",
     "node": "24.18.0",
     "npm": "11.7.0",
@@ -16,15 +16,15 @@
   "generatedFiles": [
     {
       "path": ".tegami/publish-lock.yaml",
-      "sha256": "sha256:16298664d5af1bda9c152c4a0bf703951ba38bae116011e12f3182055158cb0f"
+      "sha256": "sha256:ab5aa37e6feabe168d6bd4b2cc1bf0581c11954e217166cc2043c7c33ad56761"
     },
     {
       "path": "packages/console-bridge/CHANGELOG.md",
-      "sha256": "sha256:b6356643e18ce1448e1ab739fd21b2b99dd26e9e009239def27c46971d199ef9"
+      "sha256": "sha256:eaca74056e6466683020f6da1e3c942192ba0e745dbcfd308359962286b75b5d"
     },
     {
       "path": "packages/console-bridge/package.json",
-      "sha256": "sha256:0a5cca5504feeaf828da552e638c8aab99de2085ddc8ca42034adf73dca6b44c"
+      "sha256": "sha256:7855124a707b4a4abf1d46e61fc4007cf3d5e386993f381f30695f29322bf4ba"
     },
     {
       "path": "pnpm-lock.yaml",
@@ -34,13 +34,13 @@
   "packages": [
     {
       "id": "npm:@lenso/console-bridge",
-      "previousVersion": "0.1.0",
-      "nextVersion": "0.1.1",
+      "previousVersion": "0.1.2",
+      "nextVersion": "0.1.3",
       "bump": "patch",
       "releaseGroup": "console",
       "userFacing": true,
       "dependencies": []
     }
   ],
-  "planId": "sha256:b6d0d61b0045657b3ff2fd3cfcebb078d65570f0ade3f4370d37225c1ecc3e15"
+  "planId": "sha256:27e119117ac2cb92d05232130f42cfb0bd90253152758040d2b548f2b4897a75"
 }

@@ -13,7 +13,7 @@ cleanup() {
     --env-file "$environment_file" \
     --file "$compose_file" \
     down --volumes --remove-orphans >/dev/null 2>&1 || true
-  rm -f "$environment_file"
+  rm -f "$environment_file" "$environment_file.story-response"
 }
 trap cleanup EXIT INT TERM
 
@@ -21,6 +21,7 @@ trap cleanup EXIT INT TERM
   printf '%s\n' 'POSTGRES_PASSWORD=container-smoke-password'
   printf '%s\n' 'CONSOLE_DATABASE_URL=postgres://lenso_console:container-smoke-password@database:5432/lenso_console'
   printf '%s\n' 'CONSOLE_RECOVERY_MODE=normal'
+  printf '%s\n' 'LENSO_MODULE_PLATFORM_STORY_ENABLED=false'
   printf 'CONSOLE_PUBLIC_ORIGIN=http://127.0.0.1:%s\n' "$http_port"
   printf 'CONSOLE_HTTP_PORT=%s\n' "$http_port"
   printf '%s\n' 'LENSO_CONSOLE_VERSION=smoke'
@@ -65,6 +66,20 @@ case "$api_content_type" in
   application/problem+json*) ;;
   *)
     printf 'expected protected Console API to return problem JSON, got %s\n' "$api_content_type" >&2
+    exit 1
+    ;;
+esac
+
+story_status=$(curl --output "$environment_file.story-response" --silent --write-out '%{http_code}' "http://127.0.0.1:$http_port/admin/runtime/stories")
+if [ "$story_status" != "401" ]; then
+  printf 'expected Console-owned Story route to require authentication, got %s\n' "$story_status" >&2
+  exit 1
+fi
+story_content_type=$(curl --head --silent "http://127.0.0.1:$http_port/admin/runtime/stories" | tr -d '\r' | awk 'tolower($1) == "content-type:" { print tolower($2) }')
+case "$story_content_type" in
+  application/problem+json*) ;;
+  *)
+    printf 'expected protected Story route to return problem JSON, got %s\n' "$story_content_type" >&2
     exit 1
     ;;
 esac

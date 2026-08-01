@@ -6,7 +6,7 @@ const storyConsoleSurfaceContract = storyConsoleSurface as unknown as {
   readonly area: "runtime";
   readonly exportName: "storyConsoleModule";
   readonly icon: "workflow";
-  readonly id: "platform-story";
+  readonly id: "lenso/platform-story";
   readonly label: "Stories";
   readonly packageName: "@lenso/story-console";
   readonly requiredCapabilities: readonly ["runtime.stories.read"];

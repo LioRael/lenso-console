@@ -61,6 +61,7 @@ CONSOLE_PUBLIC_ORIGIN=http://127.0.0.1:$port
 POSTGRES_PASSWORD=$password
 CONSOLE_DATABASE_URL=postgres://lenso_console:$password@database:5432/lenso_console
 CONSOLE_RECOVERY_MODE=$mode
+LENSO_MODULE_PLATFORM_STORY_ENABLED=false
 EOF
 }
 

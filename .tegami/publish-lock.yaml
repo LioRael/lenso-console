@@ -1,23 +1,23 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@lenso/console-bridge\":\n    type: patch\n---\n\n### Features\n\nPublish the isolated Module UI bridge contract for host-bound permissions,\nartifact identity, and lifecycle messages.\n"
-    filename: console-bridge.md
+  - content: "---\npackages:\n  \"@lenso/console-bridge\":\n    type: patch\n---\n\n### Fixes\n\nAllow package-only Console release plans to skip the unselected Console Service\nOCI artifact builder.\n"
+    filename: console-bridge-artifacts.md
     v: 0.0.0
 core:packages:
   - id: npm:@lenso/console
     updated: false
-  - changelogIds:
-      - console-bridge.md
-    id: npm:@lenso/console-bridge
-    updated: true
   - id: npm:@lenso/console-package-api
     updated: false
+  - changelogIds:
+      - console-bridge-artifacts.md
+    id: npm:@lenso/console-bridge
+    updated: true
   - id: npm:@lenso/remote-module-kit
     updated: false
   - id: npm:@lenso/service-kit
     updated: false
 npm:packages:
   - id: npm:@lenso/console
-  - id: npm:@lenso/console-bridge
   - id: npm:@lenso/console-package-api
+  - id: npm:@lenso/console-bridge
   - id: npm:@lenso/remote-module-kit
   - id: npm:@lenso/service-kit

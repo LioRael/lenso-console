@@ -49,8 +49,10 @@ COPY --from=service-builder /workspace/service-bin/lenso-console-migrate /usr/lo
 COPY --from=service-builder /workspace/service-bin/lenso-console-serve /usr/local/bin/
 COPY --from=service-builder /workspace/service-bin/lenso-console-worker /usr/local/bin/
 COPY --from=web-builder --chown=10001:10001 /workspace/dist /opt/lenso-console/web
+RUN install -d -o 10001 -g 10001 /opt/lenso-console/artifacts
 
 ENV CONSOLE_WEB_ROOT=/opt/lenso-console/web \
+    CONSOLE_ARTIFACT_ROOT=/opt/lenso-console/artifacts \
     HTTP_HOST=0.0.0.0 \
     HTTP_PORT=3030 \
     LENSO_COMPOSITION_PROFILE=core \

@@ -18,7 +18,7 @@ describe("console module resolver", () => {
       packageName: "@lenso/story-console",
     });
 
-    expect(module.id).toBe("platform-story");
+    expect(module.id).toBe("lenso/platform-story");
   });
 
   test("builds the registry from package references", () => {
@@ -29,7 +29,9 @@ describe("console module resolver", () => {
       },
     ]);
 
-    expect(modules.map((module) => module.id)).toEqual(["platform-story"]);
+    expect(modules.map((module) => module.id)).toEqual([
+      "lenso/platform-story",
+    ]);
   });
 
   test("resolves modules from an installed package registry item", () => {

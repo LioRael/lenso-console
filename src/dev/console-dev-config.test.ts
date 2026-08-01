@@ -1,17 +1,14 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  consoleDevConfigFromEnv,
-  defaultConsoleBundleRegistryUrl,
-} from "./console-dev-config";
+import { consoleDevConfigFromEnv } from "./console-dev-config";
 
 describe("console dev config", () => {
-  test("is disabled by default and uses the production registry", () => {
+  test("is disabled by default without a bundle registry", () => {
     expect(consoleDevConfigFromEnv({})).toEqual({
       diagnosticsUrl: null,
       enabled: false,
       mode: "production",
-      registryUrl: defaultConsoleBundleRegistryUrl,
+      registryUrl: null,
       targetLabel: null,
     });
   });
@@ -58,7 +55,7 @@ describe("console dev config", () => {
       diagnosticsUrl: null,
       enabled: false,
       mode: "production",
-      registryUrl: defaultConsoleBundleRegistryUrl,
+      registryUrl: null,
       targetLabel: "@lenso/auth-console",
     });
   });

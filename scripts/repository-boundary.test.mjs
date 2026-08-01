@@ -87,4 +87,18 @@ describe("Lenso Console repository boundary", () => {
     );
     expect(contents).toMatch(/must\s+not depend on this repository/u);
   });
+
+  test("owns the Runtime Story backend beside its Console package", async () => {
+    const storyManifest = await source("service/modules/story/Cargo.toml");
+    const storyModule = await source("service/modules/story/src/module.rs");
+    const serviceManifest = await source("service/Cargo.toml");
+
+    expect(storyManifest).toContain('name = "lenso-module-story"');
+    expect(storyManifest).toContain("publish = false");
+    expect(storyManifest).toContain(
+      'repository = "https://github.com/LioRael/lenso-console"'
+    );
+    expect(storyModule).toContain('"@lenso/story-console"');
+    expect(serviceManifest).toContain('path = "modules/story"');
+  });
 });

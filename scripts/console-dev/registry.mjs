@@ -4,13 +4,13 @@ import path from "node:path";
 export const writeConsoleDevRegistry = async ({ registryPath, targets }) => {
   const registry = {
     bundles: targets.map((target) => ({
-      entry: `/console/extensions/dev/${bundleBaseName(target)}.js`,
+      entry: `/console/dev/extensions/${bundleBaseName(target)}.js`,
       exportName: target.exportName,
       hostApi: target.hostApi ?? "1",
       moduleName: target.moduleName,
       packageName: target.packageName,
       requiredCapabilities: target.requiredCapabilities ?? [],
-      styles: [`/console/extensions/dev/${bundleBaseName(target)}.css`],
+      styles: [`/console/dev/extensions/${bundleBaseName(target)}.css`],
     })),
     version: 1,
   };

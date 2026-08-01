@@ -20,7 +20,9 @@ pub enum ConsoleRecoveryMode {
 /// System Registry implementation. Optional Console Modules are added here by
 /// a reviewed Console Service Release rather than discovered at runtime.
 pub fn host_composition() -> HostComposition {
-    composition::official_host_composition()
+    let composition = composition::official_host_composition();
+    modules::story::install_default_story_display(&composition);
+    composition
 }
 
 /// Load local development configuration and fail closed unless this process is
@@ -36,6 +38,7 @@ pub fn prepare_environment() -> anyhow::Result<()> {
         std::env::var("LENSO_COMPOSITION_PROFILE").as_deref(),
         std::env::var("SERVICE_NAME").as_deref(),
         std::env::var("CONSOLE_RECOVERY_MODE").as_deref(),
+        std::env::var("LENSO_MODULE_PLATFORM_STORY_ENABLED").as_deref(),
     )
 }
 
@@ -83,6 +86,7 @@ fn validate_environment(
     composition_profile: Result<&str, &std::env::VarError>,
     service_name: Result<&str, &std::env::VarError>,
     recovery_mode: Result<&str, &std::env::VarError>,
+    legacy_story_enabled: Result<&str, &std::env::VarError>,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
         composition_profile == Ok("core"),
@@ -91,6 +95,10 @@ fn validate_environment(
     anyhow::ensure!(
         service_name == Ok("lenso-console"),
         "SERVICE_NAME must be exactly `lenso-console` for the Console Service"
+    );
+    anyhow::ensure!(
+        legacy_story_enabled == Ok("false"),
+        "LENSO_MODULE_PLATFORM_STORY_ENABLED must be exactly `false` while the Console supports framework releases that still bundle the legacy Story module"
     );
     recovery_mode_from_value(recovery_mode)?;
     Ok(())
@@ -125,7 +133,8 @@ mod tests {
                 "lenso/console-shell",
                 "auth",
                 "auth-password",
-                "lenso/system-registry"
+                "lenso/system-registry",
+                "lenso/platform-story"
             ]
         );
         assert_eq!(
@@ -151,9 +160,21 @@ mod tests {
 
     #[test]
     fn environment_rejects_demo_or_renamed_service_composition() {
-        assert!(validate_environment(Ok("core"), Ok("lenso-console"), Ok("normal")).is_ok());
-        assert!(validate_environment(Ok("demo"), Ok("lenso-console"), Ok("normal")).is_err());
-        assert!(validate_environment(Ok("core"), Ok("support"), Ok("normal")).is_err());
+        assert!(
+            validate_environment(Ok("core"), Ok("lenso-console"), Ok("normal"), Ok("false"))
+                .is_ok()
+        );
+        assert!(
+            validate_environment(Ok("demo"), Ok("lenso-console"), Ok("normal"), Ok("false"))
+                .is_err()
+        );
+        assert!(
+            validate_environment(Ok("core"), Ok("support"), Ok("normal"), Ok("false")).is_err()
+        );
+        assert!(
+            validate_environment(Ok("core"), Ok("lenso-console"), Ok("normal"), Ok("true"))
+                .is_err()
+        );
     }
 
     #[test]

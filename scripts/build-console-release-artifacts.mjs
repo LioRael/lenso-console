@@ -51,12 +51,12 @@ export function parseReleaseSelection(raw) {
     identities.add(selected.id);
   }
   const matches = value.filter(({ id }) => id === componentId);
-  if (matches.length !== 1) {
+  if (matches.length > 1) {
     fail(
-      `selection must contain exactly one ${componentId} at a canonical version`
+      `selection must contain at most one ${componentId} at a canonical version`
     );
   }
-  return matches[0];
+  return matches[0] ?? null;
 }
 
 async function assertRegularFile(filePath) {
@@ -72,6 +72,9 @@ export async function buildReleaseArtifacts(options = {}) {
   const selection = parseReleaseSelection(
     options.packagesJson ?? process.env.RELEASE_PACKAGES_JSON ?? ""
   );
+  if (!selection) {
+    return null;
+  }
   const execute = options.execute ?? execFile;
   if (!releaseCommit || !commitPattern.test(releaseCommit)) {
     fail("RELEASE_COMMIT must be a full lowercase Git commit");
@@ -177,6 +180,8 @@ if (
 ) {
   const result = await buildReleaseArtifacts();
   process.stderr.write(
-    `Console OCI archive ${result.imageDigest} and install manifest created\n`
+    result
+      ? `Console OCI archive ${result.imageDigest} and install manifest created\n`
+      : "No Console OCI artifact selected\n"
   );
 }

@@ -124,6 +124,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-nats"
+version = "0.49.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fad3cd6df81292728e2a8cb1f1dcb4d7e7a1ab59b80c14fbbcba2baf9d5cf86a"
+dependencies = [
+ "base64",
+ "bytes",
+ "futures-util",
+ "memchr",
+ "nkeys",
+ "pin-project",
+ "portable-atomic",
+ "rand 0.10.2",
+ "regex",
+ "ring",
+ "rustls-native-certs",
+ "rustls-pki-types",
+ "rustls-webpki",
+ "serde",
+ "serde_json",
+ "serde_nanos",
+ "serde_repr",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "tokio-stream",
+ "tokio-util",
+ "tokio-websockets",
+ "tracing",
+ "tryhard",
+ "url",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,6 +372,9 @@ name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "cc"
@@ -595,6 +633,9 @@ name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "digest"
@@ -683,6 +724,7 @@ dependencies = [
  "ed25519",
  "serde",
  "sha2 0.10.9",
+ "signature",
  "subtle",
  "zeroize",
 ]
@@ -890,6 +932,7 @@ checksum = "a88cf1f829d945f548cf8fec32c61b1f202b6d93b45848602fc02af4b12ad218"
 dependencies = [
  "futures-channel",
  "futures-core",
+ "futures-executor",
  "futures-io",
  "futures-sink",
  "futures-task",
@@ -969,6 +1012,7 @@ version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a77a90a256fce34da66415271e30f94ee91c57b04b8a2c042d9cf3220179deaa"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -1627,6 +1671,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-autonomous-service"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e573bae648ec1ebae27ecfacc7be338d4842e342b889847e2356ef4c7689f1a"
+dependencies = [
+ "async-nats",
+ "async-trait",
+ "axum",
+ "base64",
+ "chrono",
+ "futures",
+ "hmac 0.13.0",
+ "lenso-contracts",
+ "lenso-platform-core",
+ "lenso-platform-http",
+ "lenso-platform-runtime",
+ "lenso-platform-runtime-observability",
+ "lenso-platform-runtime-operations",
+ "lenso-platform-system-plane",
+ "lenso-service",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "utoipa-axum",
+ "uuid",
+]
+
+[[package]]
 name = "lenso-bootstrap"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1640,7 +1717,7 @@ dependencies = [
  "lenso-module-auth-oidc",
  "lenso-module-auth-password",
  "lenso-module-auth-phone",
- "lenso-module-story",
+ "lenso-module-story 0.1.18",
  "lenso-platform-admin-data",
  "lenso-platform-core",
  "lenso-platform-http",
@@ -1661,10 +1738,18 @@ dependencies = [
  "axum",
  "dotenvy",
  "lenso",
+ "lenso-api",
+ "lenso-bootstrap",
+ "lenso-module-story 0.1.20",
+ "lenso-platform-core",
+ "lenso-platform-testing",
+ "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tokio",
+ "tower",
  "tower-http 0.7.0",
  "utoipa",
 ]
@@ -1880,6 +1965,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-module-story"
+version = "0.1.20"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "lenso-autonomous-service",
+ "lenso-platform-core",
+ "lenso-platform-http",
+ "lenso-platform-module",
+ "lenso-platform-testing",
+ "lenso-service",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+ "utoipa",
+ "utoipa-axum",
+]
+
+[[package]]
 name = "lenso-platform-admin"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2022,10 +2131,82 @@ dependencies = [
 ]
 
 [[package]]
-name = "lenso-service"
-version = "0.1.15"
+name = "lenso-platform-runtime-observability"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07b42459a7bf7aa0de6bdf5b824453f7a297f270032712b1999c9f906cf0ee6e"
+checksum = "b979ad13b666f278a3deba0e36b03e05a82b45b0cfdd52e07723c32a246c6d7e"
+dependencies = [
+ "axum",
+ "base64",
+ "chrono",
+ "lenso-platform-core",
+ "lenso-platform-system-plane",
+ "lenso-service",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "utoipa",
+ "utoipa-axum",
+]
+
+[[package]]
+name = "lenso-platform-runtime-operations"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "415b9feea5faaf0d5281f11013a56b146b7337de43e30aa3f183de7e6267d89b"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64",
+ "chrono",
+ "lenso-platform-core",
+ "lenso-platform-system-plane",
+ "lenso-service",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "utoipa",
+ "utoipa-axum",
+]
+
+[[package]]
+name = "lenso-platform-system-plane"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "574d0c7730037f541a941790e8ba1c0b3a8f73d255edc3b72966bd1205763d3d"
+dependencies = [
+ "async-trait",
+ "axum",
+ "lenso-platform-core",
+ "lenso-service",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "utoipa",
+ "utoipa-axum",
+]
+
+[[package]]
+name = "lenso-platform-testing"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d32e377a7f6bd31e1817633067859770e18038a988e4b0bb2f8cc0d6a92fea06"
+dependencies = [
+ "chrono",
+ "lenso-platform-core",
+ "serde_json",
+ "sqlx",
+ "uuid",
+]
+
+[[package]]
+name = "lenso-service"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "481f3390c7a27f353c99994ee705702a14204f8a6dfd2fc2d0870b50b200473f"
 dependencies = [
  "async-trait",
  "axum",
@@ -2198,6 +2379,21 @@ name = "multimap"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
+
+[[package]]
+name = "nkeys"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "879011babc47a1c7fdf5a935ae3cfe94f34645ca0cac1c7f6424b36fc743d1bf"
+dependencies = [
+ "data-encoding",
+ "ed25519",
+ "ed25519-dalek",
+ "getrandom 0.2.17",
+ "log",
+ "rand 0.8.7",
+ "signatory",
+]
 
 [[package]]
 name = "nom"
@@ -3398,6 +3594,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_nanos"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a93142f0367a4cc53ae0fead1bcda39e85beccfad3dcd717656cacab94b12985"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_path_to_error"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3406,6 +3611,17 @@ dependencies = [
  "itoa",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "serde_repr"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -3489,6 +3705,18 @@ checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
 dependencies = [
  "errno",
  "libc",
+]
+
+[[package]]
+name = "signatory"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1e303f8205714074f6068773f0e29527e0453937fe837c9717d066635b65f31"
+dependencies = [
+ "pkcs8",
+ "rand_core 0.6.4",
+ "signature",
+ "zeroize",
 ]
 
 [[package]]
@@ -3650,7 +3878,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "webpki-roots",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
@@ -4008,6 +4236,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-websockets"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f591660438b3038dd04d16c938271c79e7e06260ad2ea2885a4861bfb238605d"
+dependencies = [
+ "base64",
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "httparse",
+ "rand 0.8.7",
+ "ring",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls",
+ "tokio-util",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
 name = "tonic"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4035,7 +4284,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
- "webpki-roots",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]
@@ -4261,6 +4510,16 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "tryhard"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fe58ebd5edd976e0fe0f8a14d2a04b7c81ef153ea9a54eebc42e67c2c23b4e5"
+dependencies = [
+ "pin-project-lite",
+ "tokio",
+]
 
 [[package]]
 name = "typenum"
@@ -4537,6 +4796,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b96554aa2acc8ccdb7e1c9a58a7a68dd5d13bccc69cd124cb09406db612a1c9b"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521bc38abb08001b01866da9f51eb7c5d647a19260e00054a8c7fd5f9e57f7a9"
+dependencies = [
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]

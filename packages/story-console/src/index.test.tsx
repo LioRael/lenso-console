@@ -16,7 +16,7 @@ describe("story console module", () => {
       area: "runtime",
       exportName: "storyConsoleModule",
       icon: "workflow",
-      id: "platform-story",
+      id: "lenso/platform-story",
       label: "Stories",
       packageName: "@lenso/story-console",
       requiredCapabilities: ["runtime.stories.read"],
