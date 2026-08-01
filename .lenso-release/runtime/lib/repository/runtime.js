@@ -633,7 +633,18 @@ async function ociObservation(name, version, artifact, environment) {
     if (!artifact.oci)
         fail("sealed OCI image graph is missing");
     const registry = process.env.LENSO_OCI_REGISTRY_URL ?? "https://ghcr.io";
-    const observed = await observeOciImage(name, version, { registry, repository: artifact.oci.registryRepository });
+    const token = process.env.LENSO_OCI_TOKEN;
+    const shadow = process.env.LENSO_RELEASE_MODE === "shadow";
+    const credential = token
+        ? shadow
+            ? { bearer: token }
+            : { username: process.env.GITHUB_ACTOR ?? "github-actions", password: token }
+        : undefined;
+    const observed = await observeOciImage(name, version, {
+        registry,
+        repository: artifact.oci.registryRepository,
+        credential,
+    });
     if ("missing" in observed)
         return { exists: false };
     if ("failure" in observed)
@@ -1424,8 +1435,10 @@ export async function createPlan(cwd, repository, sourceCommit) {
     }
     const registry = await loadComponents(join(cwd, ".lenso-release/runtime/components.yaml"));
     const components = Object.fromEntries(Object.values(registry.packages).map(({ id, releaseGroup, userFacing }) => [id, { releaseGroup, userFacing }]));
-    return exportReleasePlan({ cwd, repository, sourceCommit, components, aliases: config.aliases, ignore: config.ignore, publisher: {
+    const plan = await exportReleasePlan({ cwd, repository, sourceCommit, components, aliases: config.aliases, ignore: config.ignore, publisher: {
             workflow: ".github/workflows/publish.yml", workflowSha256: hash(await safeRead(cwd, ".github/workflows/publish.yml")),
             sharedRevision: manifest.sourceRevision, sharedBundleSha256: hash(bytes), runner: "ubuntu-24.04", node: "24.18.0", npm: "11.7.0", rust: "1.94.0",
         } });
+    await reviewedRegistryBindings(cwd, plan);
+    return plan;
 }
