@@ -211,11 +211,18 @@ describe("Console Service release manifest", () => {
   test("builds and verifies the exact OCI graph before exposing release artifacts", async () => {
     const directory = await artifactFixture();
     const archive = ociArchive("0.2.0", sourceCommit);
+    const dockerInvocations = [];
     const execute = async (command, arguments_) => {
       if (command === "git") {
         return { stderr: "", stdout: `${sourceCommit}\n` };
       }
       expect(command).toBe("docker");
+      dockerInvocations.push(arguments_);
+      if (arguments_[1] === "create" || arguments_[1] === "rm") {
+        return { stderr: "", stdout: "" };
+      }
+      expect(arguments_[1]).toBe("build");
+      expect(arguments_).toContain("--builder");
       const metadataPath =
         arguments_[arguments_.indexOf("--metadata-file") + 1];
       const output = arguments_[arguments_.indexOf("--output") + 1];
@@ -240,6 +247,18 @@ describe("Console Service release manifest", () => {
     await expect(readFile(result.installManifest, "utf-8")).resolves.toContain(
       `ghcr.io/liorael/lenso-console@${archive.digest}`
     );
+    expect(dockerInvocations.map((arguments_) => arguments_[1])).toEqual([
+      "create",
+      "build",
+      "rm",
+    ]);
+    expect(dockerInvocations[0]).toContain("docker-container");
+    expect(
+      dockerInvocations[1][dockerInvocations[1].indexOf("--builder") + 1]
+    ).toBe(dockerInvocations[0][dockerInvocations[0].indexOf("--name") + 1]);
+    expect(dockerInvocations[2][2]).toBe(
+      dockerInvocations[0][dockerInvocations[0].indexOf("--name") + 1]
+    );
   });
 
   test("keeps final artifact paths absent when the OCI graph contradicts Docker metadata", async () => {
@@ -248,6 +267,9 @@ describe("Console Service release manifest", () => {
     const execute = async (command, arguments_) => {
       if (command === "git") {
         return { stderr: "", stdout: `${sourceCommit}\n` };
+      }
+      if (arguments_[1] === "create" || arguments_[1] === "rm") {
+        return { stderr: "", stdout: "" };
       }
       const metadataPath =
         arguments_[arguments_.indexOf("--metadata-file") + 1];
