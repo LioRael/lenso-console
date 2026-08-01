@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -64,6 +65,33 @@ describe("Lenso Console repository boundary", () => {
       "node .lenso-release/runtime/lib/repository/cli.js publish"
     );
     expect(publisher).not.toContain("docker/setup-buildx-action");
+  });
+
+  test("accepts every release mode enabled by reviewed repository config", async () => {
+    const config = JSON.parse(await source(".lenso-release/shadow.json"));
+
+    for (const mode of config.allowedModes) {
+      const output = execFileSync(
+        process.execPath,
+        ["scripts/release-mode.mjs"],
+        {
+          cwd: root,
+          encoding: "utf-8",
+          env: {
+            ...process.env,
+            LENSO_SHADOW_ATTESTATION_URL: "https://shadow.example/attestations",
+            LENSO_SHADOW_CRATES_API_URL: "https://shadow.example/cargo",
+            LENSO_SHADOW_CRATES_UPLOAD_URL:
+              "https://shadow.example/cargo/upload",
+            LENSO_SHADOW_GITHUB_API_URL: "https://shadow.example/github",
+            LENSO_SHADOW_NPM_REGISTRY_URL: "https://shadow.example/npm",
+            LENSO_SHADOW_OCI_REGISTRY_URL: "https://shadow.example/oci",
+            REQUESTED_MODE: mode,
+          },
+        }
+      );
+      expect(output).toContain(`LENSO_RELEASE_MODE=${mode}`);
+    }
   });
 
   test("builds the public package API before release artifacts are packed", async () => {
