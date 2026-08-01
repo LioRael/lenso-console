@@ -4,11 +4,11 @@
   "files": [
     {
       "path": ".github/workflows/publish.yml",
-      "sha256": "sha256:35dd44337344658e5634e35e32536b3220000714ae4dac1197af1dd3f5200108"
+      "sha256": "sha256:f36464967259d7be5d5d54972d362f6b75f163866ac3fb0116f6e827f3ba771d"
     },
     {
       "path": ".github/workflows/recover-partial-production.yml",
-      "sha256": "sha256:b0e655fe7676b6495f8a557b7509732baf1a00d5fc133981b1e2fbf342688d0e"
+      "sha256": "sha256:55bc544d4302b4174d9d84a08af83beedf8fb3bdc2030be6f03752bde12651f6"
     },
     {
       "path": ".github/workflows/release-plan.yml",
