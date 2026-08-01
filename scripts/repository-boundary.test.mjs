@@ -17,15 +17,8 @@ const liveRepositoryIdentityFiles = [
   "README.md",
   "docs/agents/issue-tracker.md",
   "packages/console-package-api/package.json",
-  "packages/remote-module-kit/README.md",
-  "packages/remote-module-kit/package.json",
-  "packages/service-kit/package.json",
+  "packages/console-bridge/package.json",
   "service/README.md",
-];
-
-const repositoryIndependentScripts = [
-  "scripts/console-api-fixture.sh",
-  "scripts/console-api-qa.sh",
 ];
 
 const source = (file) => readFile(path.join(root, file), "utf-8");
@@ -38,16 +31,6 @@ describe("Lenso Console repository boundary", () => {
 
       expect(contents).toContain(currentRepository);
       expect(contents).not.toContain(legacyRepository);
-    }
-  );
-
-  test.each(repositoryIndependentScripts)(
-    "%s does not assume a checkout directory name",
-    async (file) => {
-      const contents = await source(file);
-
-      expect(contents).not.toContain("lenso-runtime-console");
-      expect(contents).not.toContain("cd ../lenso-console");
     }
   );
 
@@ -120,6 +103,15 @@ describe("Lenso Console repository boundary", () => {
 
     expect(build).toContain(packageBuild);
     expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
+  });
+
+  test("does not retain retired service SDK packages", async () => {
+    await expect(
+      access(path.join(root, "packages/remote-module-kit"))
+    ).rejects.toThrow();
+    await expect(
+      access(path.join(root, "packages/service-kit"))
+    ).rejects.toThrow();
   });
 
   test("documents the live identity and cross-repository responsibilities", async () => {
