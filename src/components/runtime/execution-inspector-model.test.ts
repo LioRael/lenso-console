@@ -113,12 +113,10 @@ describe("execution inspector model", () => {
   test("uses operator workflow tabs", () => {
     expect(executionInspectorTabs.map((tab) => tab.label)).toEqual([
       "Overview",
-      "Input",
-      "Output",
-      "Events",
+      "Payload",
       "Logs",
-      "Errors",
-      "Related",
+      "Events",
+      "Operations",
     ]);
   });
 
@@ -263,13 +261,11 @@ describe("execution inspector model", () => {
     const counts = getExecutionInspectorTabCounts(story, story.nodes[1]!);
 
     expect(counts).toMatchObject({
-      errors: 0,
       events: 3,
-      input: 1,
       logs: 2,
       overview: 0,
-      output: 0,
-      related: 2,
+      operations: 2,
+      payload: 2,
     });
   });
 });

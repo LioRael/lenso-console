@@ -5,7 +5,15 @@ import { describe, expect, test } from "vitest";
 import {
   CONSOLE_HOST_API_VERSION,
   Button,
+  DataRow,
+  FilterControl,
+  IconSlot,
+  InlineStatus,
+  Inspector,
+  PaneHeader,
+  SurfaceGroupLabel,
   StatusMarker,
+  TableHeader,
   Tabs,
   consoleLocalizedLabel,
   consoleSurfaceFromPackageManifest,
@@ -42,6 +50,13 @@ describe("console package API", () => {
     });
     expect(tokensCss).toContain(':root[data-theme="light"]');
     expect(tokensCss).toContain("--content-gutter: 20px;");
+    expect(tokensCss).toContain("--console-table-row-height: 64px;");
+    expect(tokensCss).toContain(
+      "--console-generic-columns: 320px 120px 170px 122px;"
+    );
+    expect(tokensCss).toContain(
+      "--console-runtime-columns: 250px 110px 140px 120px 86px;"
+    );
 
     const componentsCss = readFileSync(
       new URL("../components.css", import.meta.url),
@@ -53,6 +68,12 @@ describe("console package API", () => {
     expect(componentsCss).toContain("height: 1px;");
     expect(componentsCss).toContain(
       '.lenso-ui-tabs__tab:first-child[aria-selected="true"]'
+    );
+    expect(componentsCss).toContain(
+      "height: var(--console-pane-header-height);"
+    );
+    expect(componentsCss).toContain(
+      "grid-template-columns: var(--console-generic-columns);"
     );
   });
 
@@ -67,6 +88,41 @@ describe("console package API", () => {
       "data-align": "top",
       "data-tone": "warning",
     });
+    expect(
+      InlineStatus({ children: "Healthy", tone: "success" }).props
+    ).toMatchObject({
+      "data-align": "center",
+      "data-tone": "success",
+    });
+    expect(FilterControl({ children: "All kinds" }).props.className).toBe(
+      "lenso-ui-filter-control"
+    );
+    expect(IconSlot({ children: "icon", size: 16 }).props["data-size"]).toBe(
+      16
+    );
+    expect(
+      PaneHeader({ meta: "18 total", title: "Capabilities" }).props.className
+    ).toBe("lenso-ui-pane-header");
+    expect(TableHeader({ variant: "provider" }).props["data-variant"]).toBe(
+      "provider"
+    );
+    expect(TableHeader({ variant: "runtime" }).props["data-variant"]).toBe(
+      "runtime"
+    );
+    expect(
+      DataRow({ primary: "Auth", secondary: "module.auth", selected: true })
+        .props
+    ).toMatchObject({
+      "data-selected": "true",
+      "data-variant": "generic",
+      role: "row",
+    });
+    expect(Inspector({ title: "Auth" }).props.className).toBe(
+      "lenso-ui-inspector"
+    );
+    expect(SurfaceGroupLabel({ label: "Customers" }).props.className).toBe(
+      "lenso-ui-surface-group-label"
+    );
   });
 
   test("validates console modules at the package boundary", () => {

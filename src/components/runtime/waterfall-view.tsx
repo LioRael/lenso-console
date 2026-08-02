@@ -105,8 +105,9 @@ function WaterfallRowButton({
   return (
     <button
       aria-label={`Select row ${row.name}`}
+      aria-pressed={selected}
       className={cn(
-        "grid h-[50px] w-full min-w-0 grid-cols-[minmax(260px,332px)_minmax(232px,1fr)] items-center gap-3 border-b border-(--line-subtle) px-3 text-left transition-colors hover:bg-(--bg-row-hover) disabled:cursor-default",
+        "grid h-[49px] w-full min-w-0 grid-cols-[minmax(260px,332px)_minmax(232px,1fr)] items-center gap-3 border-b border-(--line-subtle) px-3 text-left transition-colors hover:bg-(--bg-row-hover) disabled:cursor-default",
         selected &&
           "bg-(--bg-row-selected) shadow-[inset_3px_0_0_var(--accent)]",
         row.group === "unlinked" && "opacity-82"
@@ -178,8 +179,8 @@ function WaterfallRowButton({
       </span>
       <span
         className={cn(
-          "relative isolate h-[49px] min-w-0 overflow-hidden bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line-subtle)_25%,transparent_25.2%,transparent_49.8%,var(--line-subtle)_50%,transparent_50.2%,transparent_74.8%,var(--line-subtle)_75%,transparent_75.2%)]",
-          selected && "my-2 h-[34px] bg-(--bg-panel-muted)"
+          "relative isolate h-[48px] min-w-0 overflow-hidden bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line-subtle)_25%,transparent_25.2%,transparent_49.8%,var(--line-subtle)_50%,transparent_50.2%,transparent_74.8%,var(--line-subtle)_75%,transparent_75.2%)]",
+          selected && "my-2 h-[32px] bg-(--bg-panel-muted)"
         )}
       >
         <span
@@ -208,7 +209,7 @@ function CriticalPathSummary({ story }: { story: RuntimeStory }) {
   const duration = path.reduce((total, node) => total + node.durationMs, 0);
   return (
     <>
-      <div className="flex h-11 items-center gap-3 border-b border-(--line-subtle) bg-(--bg-panel-muted) px-3">
+      <div className="flex h-10 items-center gap-3 border-b border-(--line-subtle) bg-(--bg-panel-muted) px-3">
         <div className="min-w-0 flex-1">
           <div className="text-[9.5px] font-medium text-(--fg-tertiary)">
             Critical path

@@ -12,14 +12,14 @@ describe("runtime stories url model", () => {
     expect(runtimeStoriesPath()).toBe("/stories");
     expect(
       runtimeStoriesPath({
-        inspectorTab: "related",
+        inspectorTab: "operations",
         nodeId: "remoteproxy_rproxy_1",
         query: "crm",
         storyId: "corr_1",
         viewMode: "timeline",
       })
     ).toBe(
-      "/stories?node=remoteproxy_rproxy_1&q=crm&story=corr_1&tab=related&view=timeline"
+      "/stories?node=remoteproxy_rproxy_1&q=crm&story=corr_1&tab=operations&view=timeline"
     );
   });
 
@@ -37,8 +37,18 @@ describe("runtime stories url model", () => {
     expect(readStoryViewMode("unknown")).toBe("waterfall");
     expect(readStoryViewMode("waterfall")).toBe("waterfall");
     expect(readExecutionInspectorTab("unknown")).toBe("overview");
-    expect(readExecutionInspectorTab("related")).toBe("related");
-    expect(readExecutionInspectorTab("technical")).toBe("related");
+    expect(readExecutionInspectorTab("related")).toBe("operations");
+    expect(readExecutionInspectorTab("technical")).toBe("operations");
+  });
+
+  test("maps legacy inspector urls into the final information architecture", () => {
+    expect(readExecutionInspectorTab("input")).toBe("payload");
+    expect(readExecutionInspectorTab("output")).toBe("payload");
+    expect(readExecutionInspectorTab("payload")).toBe("payload");
+    expect(readExecutionInspectorTab("activity")).toBe("events");
+    expect(readExecutionInspectorTab("errors")).toBe("events");
+    expect(readExecutionInspectorTab("failures")).toBe("events");
+    expect(readExecutionInspectorTab("context")).toBe("operations");
   });
 
   test("prefers correlation ids for story urls", () => {

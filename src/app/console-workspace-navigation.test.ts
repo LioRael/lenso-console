@@ -7,6 +7,7 @@ import {
   matchedWorkspaceIdForPath,
   selectedWorkspaceForId,
   SYSTEM_WORKSPACE,
+  workspaceMenuIndexForKey,
 } from "./console-workspace-navigation";
 
 const items: ConsoleNavigationItem[] = [
@@ -61,6 +62,19 @@ const items: ConsoleNavigationItem[] = [
 ];
 
 describe("console workspace navigation", () => {
+  test("moves workspace menu focus with wrapping and boundary keys", () => {
+    expect(workspaceMenuIndexForKey(0, "ArrowUp", 3)).toBe(2);
+    expect(workspaceMenuIndexForKey(2, "ArrowDown", 3)).toBe(0);
+    expect(workspaceMenuIndexForKey(1, "Home", 3)).toBe(0);
+    expect(workspaceMenuIndexForKey(1, "End", 3)).toBe(2);
+  });
+
+  test("clamps an invalid focus index and handles an empty menu", () => {
+    expect(workspaceMenuIndexForKey(-1, "ArrowDown", 3)).toBe(1);
+    expect(workspaceMenuIndexForKey(9, "ArrowUp", 3)).toBe(1);
+    expect(workspaceMenuIndexForKey(0, "Home", 0)).toBeNull();
+  });
+
   test("builds system and module-declared workspaces", () => {
     expect(buildWorkspaceNavigation(items)).toMatchObject([
       {

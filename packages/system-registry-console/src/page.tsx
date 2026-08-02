@@ -4,13 +4,17 @@ import {
   Badge,
   Button,
   ConsolePage,
+  DataRow,
+  InlineStatus,
   KeyValueList,
   Section,
   SplitView,
   StateView,
   SummaryStrip,
+  TableHeader,
   Textarea,
   consoleHostApi,
+  useConsoleLocale,
 } from "@lenso/console-package-api";
 import type { ConsoleManagedService } from "@lenso/console-package-api";
 import { Ban, Network, RefreshCw } from "lucide-react";
@@ -24,14 +28,9 @@ import {
   serviceEndpointLabel,
 } from "./model";
 
-const toneClasses = {
-  error: "border-[var(--tone-error-border)] text-[var(--tone-error-fg)]",
-  muted: "border-(--line) text-(--fg-tertiary)",
-  success: "border-[var(--tone-success-border)] text-[var(--tone-success-fg)]",
-  warning: "border-[var(--tone-warning-border)] text-[var(--tone-warning-fg)]",
-} as const;
-
 export function SystemRegistryConsolePage() {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   const servicesQuery = consoleHostApi.systemRegistry.useServices();
   const revokeEnrollment = consoleHostApi.systemRegistry.useRevokeEnrollment();
   const capabilities = consoleHostApi.capabilities.useAvailable();
@@ -55,23 +54,38 @@ export function SystemRegistryConsolePage() {
       <ConsolePage.Header>
         <Network aria-hidden="true" className="text-(--accent)" size={14} />
         <ConsolePage.Heading>
-          <ConsolePage.Title>Managed Services</ConsolePage.Title>
+          <ConsolePage.Title>
+            {zh ? "托管服务" : "Managed Services"}
+          </ConsolePage.Title>
           <ConsolePage.Description>
-            Enrollment authority and observed connection state
+            {zh
+              ? "注册权限与观测到的连接状态"
+              : "Enrollment authority and observed connection state"}
           </ConsolePage.Description>
         </ConsolePage.Heading>
         <ConsolePage.Actions>
-          <Badge>{services.length} services</Badge>
+          <Badge>
+            {services.length} {zh ? "个服务" : "services"}
+          </Badge>
         </ConsolePage.Actions>
       </ConsolePage.Header>
 
       <ConsolePage.Body className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
         <SummaryStrip>
-          <SummaryStrip.Item label="Registered" value={summary.total} />
-          <SummaryStrip.Item label="Active" value={summary.active} />
-          <SummaryStrip.Item label="Connected" value={summary.ready} />
           <SummaryStrip.Item
-            label="Attention"
+            label={zh ? "已注册" : "Registered"}
+            value={summary.total}
+          />
+          <SummaryStrip.Item
+            label={zh ? "活跃" : "Active"}
+            value={summary.active}
+          />
+          <SummaryStrip.Item
+            label={zh ? "已连接" : "Connected"}
+            value={summary.ready}
+          />
+          <SummaryStrip.Item
+            label={zh ? "需关注" : "Attention"}
             tone={summary.attention > 0 ? "warning" : "neutral"}
             value={summary.attention}
           />
@@ -82,9 +96,13 @@ export function SystemRegistryConsolePage() {
             <Section>
               <Section.Header>
                 <Network aria-hidden="true" size={13} />
-                <Section.Title>Service connections</Section.Title>
+                <Section.Title>
+                  {zh ? "服务连接" : "Service connections"}
+                </Section.Title>
                 <Section.Meta>
-                  authority and observation are reported independently
+                  {zh
+                    ? "权限与观测状态分别报告"
+                    : "authority and observation are reported independently"}
                 </Section.Meta>
               </Section.Header>
               <RegistryContent
@@ -94,6 +112,7 @@ export function SystemRegistryConsolePage() {
                 onSelect={setSelectedServiceId}
                 selectedServiceId={selected?.serviceId}
                 services={services}
+                zh={zh}
               />
             </Section>
           </SplitView.Main>
@@ -110,6 +129,7 @@ export function SystemRegistryConsolePage() {
                 });
               }}
               service={selected}
+              zh={zh}
             />
           </SplitView.Inspector>
         </SplitView>
@@ -125,6 +145,7 @@ function RegistryContent({
   onSelect,
   selectedServiceId,
   services,
+  zh,
 }: {
   error: unknown;
   isError: boolean;
@@ -132,12 +153,14 @@ function RegistryContent({
   onSelect: (serviceId: string) => void;
   selectedServiceId: string | undefined;
   services: ConsoleManagedService[];
+  zh: boolean;
 }) {
   if (isPending) {
     return (
       <RegistryMessage
         icon={<RefreshCw size={15} />}
-        text="Loading Service registry…"
+        text={zh ? "正在加载服务注册表…" : "Loading Service registry…"}
+        zh={zh}
       />
     );
   }
@@ -145,7 +168,8 @@ function RegistryContent({
     return (
       <RegistryMessage
         icon={<Ban size={15} />}
-        text={`Registry could not be loaded: ${error instanceof Error ? error.message : String(error)}`}
+        text={`${zh ? "服务注册表加载失败：" : "Registry could not be loaded: "}${error instanceof Error ? error.message : String(error)}`}
+        zh={zh}
       />
     );
   }
@@ -153,67 +177,59 @@ function RegistryContent({
     return (
       <RegistryMessage
         icon={<Network size={15} />}
-        text="No Service is enrolled. Create a signed enrollment offer from the Console installation authority."
+        text={
+          zh
+            ? "暂无已注册服务。请从 Console 安装权威创建带签名的注册提议。"
+            : "No Service is enrolled. Create a signed enrollment offer from the Console installation authority."
+        }
+        zh={zh}
       />
     );
   }
 
   return (
-    <div className="divide-y divide-(--line-subtle)">
+    <div className="lenso-ui-data-grid">
+      <TableHeader
+        columns={
+          zh
+            ? ["服务", "端点", "状态", "权限"]
+            : ["Service", "Endpoint", "State", "Authority"]
+        }
+        variant="generic"
+      />
       {services.map((service) => {
         const state = registryState(service);
         const selected = service.serviceId === selectedServiceId;
         return (
-          <button
-            aria-label={`Inspect ${service.serviceId}`}
-            aria-pressed={selected}
-            className={`grid min-h-12 w-full grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-(--focus-ring) ${
-              selected ? "bg-(--bg-row-hover)" : "hover:bg-(--bg-row-hover)"
-            }`}
+          <DataRow
+            cells={[
+              <span className="font-mono text-[10px]" key="endpoint">
+                {serviceEndpointLabel(service.baseUrl)}
+              </span>,
+              <InlineStatus key="state" tone={semanticStatusTone(state.tone)}>
+                {registryStateLabel(state.label, zh)}
+              </InlineStatus>,
+              <span className="font-mono text-[10px]" key="authority">
+                {zh ? "epoch" : "epoch"} {service.authorizationEpoch} ·{" "}
+                {zh ? "修订" : "rev"} {service.enrollmentGrantRevision}
+              </span>,
+            ]}
+            interactive
             key={service.serviceId}
-            onClick={() => onSelect(service.serviceId)}
-            type="button"
-          >
-            <span
-              className={`size-2 rounded-full ${
-                state.tone === "success"
-                  ? "bg-(--success)"
-                  : state.tone === "warning"
-                    ? "bg-(--warning)"
-                    : state.tone === "error"
-                      ? "bg-(--error)"
-                      : "bg-(--fg-quaternary)"
-              }`}
-            />
-            <span className="min-w-0">
-              <span className="flex min-w-0 items-center gap-2">
-                <strong className="truncate font-medium text-sm">
-                  {service.serviceId}
-                </strong>
-                <span className="truncate font-mono text-(--fg-tertiary) text-[11px]">
-                  {serviceEndpointLabel(service.baseUrl)}
-                </span>
-              </span>
-              <span className="block truncate text-(--fg-secondary) text-[11px]">
-                {service.servicePrincipal}
-              </span>
-            </span>
-            <span className="grid justify-items-end gap-1">
-              <span
-                className={`border px-2 py-0.5 text-[11px] ${toneClasses[state.tone]}`}
-              >
-                {state.label}
-              </span>
-              <span className="font-mono text-(--fg-tertiary) text-[10px]">
-                epoch {service.authorizationEpoch} · rev{" "}
-                {service.enrollmentGrantRevision}
-              </span>
-            </span>
-          </button>
+            onActivate={() => onSelect(service.serviceId)}
+            primary={service.serviceId}
+            secondary={service.servicePrincipal}
+            selected={selected}
+            variant="generic"
+          />
         );
       })}
     </div>
   );
+}
+
+function semanticStatusTone(tone: ReturnType<typeof registryState>["tone"]) {
+  return tone === "error" ? "danger" : tone === "muted" ? "neutral" : tone;
 }
 
 function ServiceInspector({
@@ -222,25 +238,29 @@ function ServiceInspector({
   mutationPending,
   onRevoke,
   service,
+  zh,
 }: {
   canRevoke: boolean;
   mutationError: Error | null;
   mutationPending: boolean;
   onRevoke: (service: ConsoleManagedService, reason: string) => void;
   service: ConsoleManagedService | undefined;
+  zh: boolean;
 }) {
-  const [reason, setReason] = useState("");
   if (!service) {
     return (
       <StateView
-        description="Select a Service row to inspect enrollment authority and the latest observed connection."
+        description={
+          zh
+            ? "选择服务行查看注册权限与最近一次观测到的连接。"
+            : "Select a Service row to inspect enrollment authority and the latest observed connection."
+        }
         icon={<Network size={15} />}
-        title="No Service selected"
+        title={zh ? "未选择服务" : "No Service selected"}
       />
     );
   }
   const state = registryState(service);
-  const revocable = canRevoke && service.enrollmentState === "active";
 
   return (
     <div className="min-h-full bg-(--bg-panel)">
@@ -259,7 +279,7 @@ function ServiceInspector({
                   : state.tone
             }
           >
-            {state.label}
+            {registryStateLabel(state.label, zh)}
           </Badge>
         </div>
         <div className="truncate font-mono text-(--fg-tertiary) text-[10px]">
@@ -268,101 +288,179 @@ function ServiceInspector({
       </div>
 
       <KeyValueList>
-        <KeyValueList.Row label="Endpoint" value={service.baseUrl} />
         <KeyValueList.Row
-          label="Enrollment"
-          value={`revision ${service.enrollmentGrantRevision} · ${enrollmentExpiryLabel(
+          label={zh ? "端点" : "Endpoint"}
+          value={service.baseUrl}
+        />
+        <KeyValueList.Row
+          label={zh ? "注册" : "Enrollment"}
+          value={`${zh ? "修订" : "revision"} ${service.enrollmentGrantRevision} · ${enrollmentExpiryLabel(
             service.enrollmentExpiresAtUnixMs
           )}`}
         />
         <KeyValueList.Row
-          label="Authority"
-          value={`epoch ${service.authorizationEpoch} · record v${service.version}`}
+          label={zh ? "权限" : "Authority"}
+          value={`${zh ? "epoch" : "epoch"} ${service.authorizationEpoch} · ${zh ? "记录" : "record"} v${service.version}`}
         />
         <KeyValueList.Row
-          label="Last observed"
-          value={service.coreObservedAt ?? "Never observed"}
+          label={zh ? "最后观测" : "Last observed"}
+          value={service.coreObservedAt ?? (zh ? "从未观测" : "Never observed")}
         />
         {service.lastErrorCode ? (
-          <KeyValueList.Row label="Last error" value={service.lastErrorCode} />
+          <KeyValueList.Row
+            label={zh ? "最后错误" : "Last error"}
+            value={service.lastErrorCode}
+          />
         ) : null}
         <KeyValueList.Row
-          label="Receipt"
+          label={zh ? "收据" : "Receipt"}
           value={`${service.enrollmentReceiptDigest.slice(0, 22)}…`}
         />
       </KeyValueList>
 
-      <form
-        className="border-(--line) border-t p-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const trimmedReason = reason.trim();
-          if (!(revocable && trimmedReason)) {
-            return;
-          }
-          onRevoke(service, trimmedReason);
-          setReason("");
-        }}
-      >
-        <div className="flex items-center gap-2 text-(--fg-secondary) text-[11px]">
-          <Ban aria-hidden="true" size={14} />
-          Enrollment authority
-        </div>
-        <p className="mt-1.5 text-(--fg-tertiary) text-[10px] leading-4">
-          Revocation immediately advances the authorization epoch. It does not
-          stop the Service business data plane.
-        </p>
-        {service.enrollmentState === "revoked" ? (
-          <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
-            This enrollment is already revoked.
-          </p>
-        ) : canRevoke ? (
-          <>
-            <label
-              className="mt-2 grid gap-1.5 text-(--fg-secondary) text-[11px]"
-              htmlFor="service-revocation-reason"
-            >
-              Revocation reason
-              <Textarea
-                aria-label="Revocation reason"
-                className="min-h-16"
-                id="service-revocation-reason"
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Why should this Service lose authority?"
-                value={reason}
-              />
-            </label>
-            <Button
-              aria-label={`Revoke ${service.serviceId} enrollment`}
-              className="mt-2 w-full"
-              disabled={mutationPending || reason.trim().length === 0}
-              type="submit"
-              variant="danger"
-            >
-              {mutationPending ? "Revoking enrollment…" : "Revoke enrollment"}
-            </Button>
-          </>
-        ) : (
-          <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
-            Your operator role can inspect this record but cannot revoke it.
-          </p>
-        )}
-        {mutationError ? (
-          <p className="mt-2 text-[var(--tone-error-fg)] text-[10px]">
-            Revocation failed: {mutationError.message}
-          </p>
-        ) : null}
-      </form>
+      <ServiceEnrollmentForm
+        canRevoke={canRevoke}
+        mutationError={mutationError}
+        mutationPending={mutationPending}
+        onRevoke={onRevoke}
+        service={service}
+        zh={zh}
+      />
     </div>
+  );
+}
+
+function ServiceEnrollmentForm({
+  canRevoke,
+  mutationError,
+  mutationPending,
+  onRevoke,
+  service,
+  zh,
+}: {
+  canRevoke: boolean;
+  mutationError: Error | null;
+  mutationPending: boolean;
+  onRevoke: (service: ConsoleManagedService, reason: string) => void;
+  service: ConsoleManagedService;
+  zh: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  const revocable = canRevoke && service.enrollmentState === "active";
+
+  return (
+    <form
+      className="border-(--line) border-t p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const trimmedReason = reason.trim();
+        if (!(revocable && trimmedReason)) {
+          return;
+        }
+        onRevoke(service, trimmedReason);
+        setReason("");
+      }}
+    >
+      <div className="flex items-center gap-2 text-(--fg-secondary) text-[11px]">
+        <Ban aria-hidden="true" size={14} />
+        {zh ? "注册权限" : "Enrollment authority"}
+      </div>
+      <p className="mt-1.5 text-(--fg-tertiary) text-[10px] leading-4">
+        {zh
+          ? "撤销会立即推进权限 epoch，但不会停止服务业务数据面。"
+          : "Revocation immediately advances the authorization epoch. It does not stop the Service business data plane."}
+      </p>
+      {service.enrollmentState === "revoked" ? (
+        <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
+          {zh ? "此注册已经撤销。" : "This enrollment is already revoked."}
+        </p>
+      ) : canRevoke ? (
+        <>
+          <label
+            className="mt-2 grid gap-1.5 text-(--fg-secondary) text-[11px]"
+            htmlFor="service-revocation-reason"
+          >
+            {zh ? "撤销原因" : "Revocation reason"}
+            <Textarea
+              aria-label={zh ? "撤销原因" : "Revocation reason"}
+              className="min-h-16"
+              id="service-revocation-reason"
+              onChange={(event) => setReason(event.target.value)}
+              placeholder={
+                zh
+                  ? "为什么应撤销此服务的权限？"
+                  : "Why should this Service lose authority?"
+              }
+              value={reason}
+            />
+          </label>
+          <Button
+            aria-label={
+              zh
+                ? `撤销 ${service.serviceId} 注册`
+                : `Revoke ${service.serviceId} enrollment`
+            }
+            className="mt-2 w-full"
+            disabled={mutationPending || reason.trim().length === 0}
+            type="submit"
+            variant="danger"
+          >
+            {mutationPending
+              ? zh
+                ? "正在撤销注册…"
+                : "Revoking enrollment…"
+              : zh
+                ? "撤销注册"
+                : "Revoke enrollment"}
+          </Button>
+        </>
+      ) : (
+        <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
+          {zh
+            ? "你的操作员角色可以查看此记录，但不能撤销它。"
+            : "Your operator role can inspect this record but cannot revoke it."}
+        </p>
+      )}
+      {mutationError ? (
+        <p className="mt-2 text-[var(--tone-error-fg)] text-[10px]">
+          {zh ? "撤销失败：" : "Revocation failed: "}
+          {mutationError.message}
+        </p>
+      ) : null}
+    </form>
   );
 }
 
 function RegistryMessage({
   icon,
   text,
+  zh,
 }: {
   icon: React.ReactNode;
   text: string;
+  zh: boolean;
 }) {
-  return <StateView description={text} icon={icon} title="Service registry" />;
+  return (
+    <StateView
+      description={text}
+      icon={icon}
+      title={zh ? "服务注册表" : "Service registry"}
+    />
+  );
+}
+
+function registryStateLabel(label: string, zh: boolean) {
+  if (!zh) {
+    return label;
+  }
+  return (
+    {
+      Active: "活跃",
+      Connected: "已连接",
+      Degraded: "降级",
+      Incompatible: "不兼容",
+      Revoked: "已撤销",
+      Unavailable: "不可用",
+    }[label] ?? label
+  );
 }

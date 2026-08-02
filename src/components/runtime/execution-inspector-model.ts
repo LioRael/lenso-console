@@ -3,12 +3,10 @@ import { formatRuntimeDuration } from "../../lib/runtime-style";
 
 export type ExecutionInspectorTab =
   | "overview"
-  | "input"
-  | "output"
+  | "payload"
   | "events"
   | "logs"
-  | "errors"
-  | "related";
+  | "operations";
 
 export type ExecutionActivityItem = {
   id: string;
@@ -45,12 +43,10 @@ export type RemoteProxyInspectorDetail = {
 
 export const executionInspectorTabs = [
   { id: "overview", label: "Overview" },
-  { id: "input", label: "Input" },
-  { id: "output", label: "Output" },
-  { id: "events", label: "Events" },
+  { id: "payload", label: "Payload" },
   { id: "logs", label: "Logs" },
-  { id: "errors", label: "Errors" },
-  { id: "related", label: "Related" },
+  { id: "events", label: "Events" },
+  { id: "operations", label: "Operations" },
 ] as const satisfies ReadonlyArray<{
   id: ExecutionInspectorTab;
   label: string;
@@ -260,21 +256,19 @@ export function getExecutionInspectorTabCounts(
   node: ExecutionNode
 ): Record<ExecutionInspectorTab, number> {
   const { downstream, upstream } = relatedNodeGroups(story, node);
+  const payload = buildExecutionPayload(node);
 
   return {
-    errors: buildExecutionFailures(node).length,
-    events: buildExecutionActivity(story, node).length,
-    input: payloadSectionCount(node, "input"),
+    events:
+      buildExecutionActivity(story, node).length +
+      buildExecutionFailures(node).length,
     logs: node.logs.length,
     overview: 0,
-    output: payloadSectionCount(node, "output"),
-    related: upstream.length + downstream.length,
+    operations: upstream.length + downstream.length,
+    payload: [payload.input, payload.output, payload.metadata].filter(
+      hasMeaningfulValue
+    ).length,
   };
-}
-
-function payloadSectionCount(node: ExecutionNode, section: "input" | "output") {
-  const payload = buildExecutionPayload(node);
-  return hasMeaningfulValue(payload[section]) ? 1 : 0;
 }
 
 function firstValue(

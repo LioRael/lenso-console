@@ -172,7 +172,11 @@ describe("console module registry", () => {
   });
 
   test("loads build-time module metadata through installed package registry", () => {
-    expect(consoleModulePackageReferences).toEqual([
+    expect(
+      consoleModulePackageReferences.filter(
+        (reference) => reference.packageName !== "@lenso/auth-console"
+      )
+    ).toEqual([
       {
         area: "runtime",
         exportName: "storyConsoleModule",
@@ -189,6 +193,7 @@ describe("console module registry", () => {
         exportName: "identityConsoleModule",
         icon: "database",
         label: "Identity",
+        localizedLabels: { "zh-CN": "身份" },
         moduleName: "identity",
         navigation: {
           order: 60,
@@ -232,6 +237,7 @@ describe("console module registry", () => {
         exportName: "remoteCrmConsoleModule",
         icon: "boxes",
         label: "Companies",
+        localizedLabels: { "zh-CN": "公司" },
         moduleName: "remote-crm",
         navigation: {
           group: {
@@ -256,6 +262,7 @@ describe("console module registry", () => {
         exportName: "systemRegistryConsoleModule",
         icon: "network",
         label: "Managed Services",
+        localizedLabels: { "zh-CN": "托管服务" },
         moduleName: "lenso/system-registry",
         navigation: {
           order: 70,
@@ -263,6 +270,7 @@ describe("console module registry", () => {
             icon: "shield",
             id: "system",
             label: "System",
+            localizedLabels: { "zh-CN": "系统" },
           },
         },
         packageName: "@lenso/system-registry-console",
@@ -270,15 +278,23 @@ describe("console module registry", () => {
         surfaceName: "managed-services",
       },
     ]);
+    expect(
+      consoleModulePackageReferences.filter(
+        (reference) => reference.packageName === "@lenso/auth-console"
+      )
+    ).toHaveLength(8);
     expect(consoleModules.map((module) => module.id)).toContain(
       "lenso/platform-story"
     );
     expect(consoleModules.map((module) => module.id)).toContain("identity");
+    expect(consoleModules.map((module) => module.id)).toContain("auth");
     expect(
-      buildConsoleRoutes(consoleModules).map((route) => ({
-        navigation: route.navigation,
-        path: route.path,
-      }))
+      buildConsoleRoutes(consoleModules)
+        .filter((route) => route.moduleId !== "auth")
+        .map((route) => ({
+          navigation: route.navigation,
+          path: route.path,
+        }))
     ).toEqual([
       {
         navigation: undefined,
@@ -336,16 +352,19 @@ describe("console module registry", () => {
             icon: "shield",
             id: "system",
             label: "System",
+            localizedLabels: { "zh-CN": "系统" },
           },
         },
         path: "/system/services",
       },
     ]);
     expect(
-      buildConsoleNavigation(consoleModules).map((item) => ({
-        navigation: item.navigation,
-        path: item.path,
-      }))
+      buildConsoleNavigation(consoleModules)
+        .filter((item) => item.moduleId !== "auth")
+        .map((item) => ({
+          navigation: item.navigation,
+          path: item.path,
+        }))
     ).toEqual([
       {
         navigation: {
@@ -411,13 +430,16 @@ describe("console module registry", () => {
             icon: "shield",
             id: "system",
             label: "System",
+            localizedLabels: { "zh-CN": "系统" },
           },
         },
         path: "/system/services",
       },
     ]);
     expect(
-      buildConsoleRoutes(consoleModules).map((route) => route.path)
+      buildConsoleRoutes(consoleModules)
+        .filter((route) => route.moduleId !== "auth")
+        .map((route) => route.path)
     ).toEqual([
       "/runtime/stories",
       "/data/identity",
@@ -429,17 +451,19 @@ describe("console module registry", () => {
 
   test("build-time module metadata creates switchable workspaces", () => {
     expect(
-      buildWorkspaceNavigation(buildConsoleNavigation(consoleModules)).map(
-        (workspace) => ({
-          groups: workspace.groups.map((group) => ({
-            id: group.id,
-            items: group.items.map((item) => item.path),
-          })),
-          id: workspace.id,
-          items: workspace.items.map((item) => item.path),
-          label: workspace.label,
-        })
-      )
+      buildWorkspaceNavigation(
+        buildConsoleNavigation(consoleModules).filter(
+          (item) => item.moduleId !== "auth"
+        )
+      ).map((workspace) => ({
+        groups: workspace.groups.map((group) => ({
+          id: group.id,
+          items: group.items.map((item) => item.path),
+        })),
+        id: workspace.id,
+        items: workspace.items.map((item) => item.path),
+        label: workspace.label,
+      }))
     ).toEqual([
       {
         id: "system",
@@ -465,6 +489,39 @@ describe("console module registry", () => {
         label: "Identity",
       },
     ]);
+    const authWorkspace = buildWorkspaceNavigation(
+      buildConsoleNavigation(consoleModules)
+    ).find((workspace) => workspace.id === "auth");
+    expect(
+      authWorkspace && {
+        groups: authWorkspace.groups.map((group) => ({
+          id: group.id,
+          items: group.items.map((item) => item.path),
+        })),
+        id: authWorkspace.id,
+        items: authWorkspace.items.map((item) => item.path),
+        label: authWorkspace.label,
+      }
+    ).toEqual({
+      groups: [
+        {
+          id: "directory",
+          items: ["/auth/users", "/auth/sessions", "/auth/credentials"],
+        },
+        {
+          id: "sign-in",
+          items: [
+            "/auth/providers",
+            "/auth/providers/github",
+            "/auth/providers/google",
+            "/auth/providers/oidc",
+          ],
+        },
+      ],
+      id: "auth",
+      items: ["/auth"],
+      label: "Auth",
+    });
   });
 
   test("derives fallback metadata from a package manifest", () => {

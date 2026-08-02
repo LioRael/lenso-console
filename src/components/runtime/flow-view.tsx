@@ -22,10 +22,10 @@ import {
 } from "./runtime-graph-model";
 import { RuntimeViewHeader } from "./runtime-view-header";
 
-const nodeWidth = 240;
-const nodeHeight = 72;
-const columnWidth = 280;
-const rowHeight = 92;
+const nodeWidth = 150;
+const nodeHeight = 64;
+const columnWidth = 190;
+const rowHeight = 84;
 const canvasPadding = 64;
 const minimapWidth = 140;
 const minimapHeight = 100;
@@ -285,7 +285,7 @@ export function FlowView({
   };
 
   return (
-    <div className="isolate relative h-full min-w-0 overflow-hidden bg-(--sidebar)">
+    <div className="isolate relative h-full min-w-0 overflow-hidden bg-(--bg-canvas)">
       <div className="absolute top-0 right-0 left-0 z-2">
         <RuntimeViewHeader
           summary={`${nodes.length} nodes · ${edges.length} ${graphModel.source === "backend" ? "backend" : "derived"} edges · ${Math.round(zoom * 100)}%`}
@@ -385,8 +385,9 @@ export function FlowView({
               return (
                 <button
                   aria-label={`Select graph node ${node.name}`}
+                  aria-pressed={isSelected}
                   className={cn(
-                    "absolute h-18 w-60 cursor-pointer rounded-sm border bg-(--bg-control) text-left transition hover:bg-(--bg-row-hover)",
+                    "absolute h-[64px] w-[150px] cursor-pointer rounded-sm border bg-(--bg-control) text-left transition hover:bg-(--bg-row-hover)",
                     isSelected &&
                       "border-(--line-strong) ring-1 ring-(--line-strong)",
                     !isSelected &&
@@ -405,10 +406,10 @@ export function FlowView({
                     className="absolute top-0 right-0 left-0 h-0.75 rounded-t-sm"
                     style={{ backgroundColor: color }}
                   />
-                  <span className="flex h-full flex-col justify-between px-3 pt-2.5 pb-2">
+                  <span className="flex h-full flex-col justify-between px-2 pt-1.5 pb-1.5">
                     <span className="flex items-start justify-between gap-2">
                       <span
-                        className="rounded-xs border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.06em]"
+                        className="max-w-16 truncate rounded-xs border px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.06em]"
                         style={{
                           backgroundColor: `${color}18`,
                           borderColor: `${color}30`,
@@ -419,7 +420,7 @@ export function FlowView({
                       </span>
                       <span
                         className={cn(
-                          "rounded-xs px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em]",
+                          "max-w-14 truncate rounded-xs px-1 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em]",
                           isError
                             ? "bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-(--error)"
                             : "bg-(--bg-row-hover) text-(--fg-secondary)"
@@ -429,18 +430,18 @@ export function FlowView({
                       </span>
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate font-mono text-[13px] text-(--fg-primary)">
+                      <span className="block truncate font-mono text-[11px] text-(--fg-primary)">
                         {node.name}
                       </span>
-                      <span className="mt-1 flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-(--fg-tertiary)">
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary)">
                         <span>{formatRuntimeDuration(node.durationMs)}</span>
                         {fanoutGroup ? (
-                          <span className="shrink-0 rounded-xs px-1 py-0 text-[10px] tint tint-info">
+                          <span className="shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info">
                             fan-out {fanoutGroup.branchCount}
                           </span>
                         ) : null}
                         {!fanoutGroup && parallelGroup ? (
-                          <span className="shrink-0 rounded-xs px-1 py-0 text-[10px] tint tint-info">
+                          <span className="shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info">
                             parallel
                           </span>
                         ) : null}
@@ -496,7 +497,7 @@ export function FlowView({
         >
           {nodes.map(({ node, x, y }) => (
             <div
-              className="absolute h-18 w-60 rounded-sm"
+              className="absolute h-[64px] w-[150px] rounded-sm"
               key={node.id}
               style={{
                 backgroundColor: serviceColor(node.service),

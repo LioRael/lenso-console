@@ -20,7 +20,9 @@ describe("console host api", () => {
     expect(consoleHostApi.hooks.writeBrowserUrl).toBeTypeOf("function");
     expect(consoleHostApi.data.retryTargetForNode).toBeTypeOf("function");
     expect(consoleHostApi.story.findStoryByCorrelation).toBeTypeOf("function");
-    expect(consoleHostApi.story.executionInspectorTabs.length).toBe(7);
+    expect(
+      consoleHostApi.story.executionInspectorTabs.map((tab) => tab.id)
+    ).toEqual(["overview", "payload", "logs", "events", "operations"]);
     expect(consoleHostApi.ui.runtime.ExecutionInspector).toBeTypeOf("function");
     expect(consoleHostApi.ui.runtime.ResizeHandle).toBeTypeOf("function");
     expect(consoleHostApi.ui.runtime.StoryList).toBeTypeOf("function");

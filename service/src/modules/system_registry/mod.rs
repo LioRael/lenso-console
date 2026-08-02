@@ -136,7 +136,22 @@ mod tests {
             surface_json["required_capabilities"],
             surface_contract["requiredCapabilities"]
         );
-        assert_eq!(surface_json["navigation"], surface_contract["navigation"]);
+        assert_eq!(
+            surface_json["navigation"]["order"],
+            surface_contract["navigation"]["order"]
+        );
+        assert_eq!(
+            surface_json["navigation"]["workspace"]["id"],
+            surface_contract["navigation"]["workspace"]["id"]
+        );
+        assert_eq!(
+            surface_json["navigation"]["workspace"]["label"],
+            surface_contract["navigation"]["workspace"]["label"]
+        );
+        assert_eq!(
+            surface_json["navigation"]["workspace"]["icon"],
+            surface_contract["navigation"]["workspace"]["icon"]
+        );
         assert!(module.http_binding.is_some());
         assert_eq!(module.migrations.len(), 1);
     }

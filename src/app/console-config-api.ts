@@ -20,8 +20,11 @@ function configPath(service: string, key: string) {
 }
 
 export function useConsoleConfigValues() {
+  const apiMode = isApiMode();
+
   return useQuery({
-    enabled: isApiMode(),
+    enabled: apiMode,
+    initialData: apiMode ? undefined : { data: [] },
     queryKey: consoleConfigQueryKeys.values,
     queryFn: () =>
       httpClient.get("admin/config/values").json<ConfigValueListResponse>(),

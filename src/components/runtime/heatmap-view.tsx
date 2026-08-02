@@ -58,7 +58,7 @@ export function HeatmapView({
         <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 p-3">
           {Array.from({ length: 120 }, (_, index) => (
             <div
-              className="aspect-5/4 rounded-[1px] border border-(--line) bg-(--bg-control)"
+              className="h-6 min-h-6 rounded-[1px] border border-(--line) bg-(--bg-control)"
               key={index}
             />
           ))}
@@ -135,13 +135,14 @@ export function HeatmapView({
                 <button
                   aria-label={`${cell.service} ${cell.nodeType} heatmap cell with ${cell.totalCount} executions`}
                   className={cn(
-                    "relative aspect-5/4 rounded-[1px] border border-(--line) transition hover:z-1 hover:border-(--fg-secondary) focus-visible:z-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--accent)",
+                    "relative h-6 min-h-6 w-full rounded-[1px] border border-(--line) transition hover:z-1 hover:border-(--fg-secondary) focus-visible:z-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--accent)",
                     heatmapCellColor(cell),
                     selected && "border-(--line-strong)",
                     drilldownEnabled ? "cursor-pointer" : "cursor-default"
                   )}
                   disabled={!drilldownEnabled}
                   key={key}
+                  aria-pressed={selected}
                   onClick={() => {
                     if (!drilldownEnabled) {
                       return;

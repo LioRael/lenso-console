@@ -1,8 +1,10 @@
-/* eslint-disable func-style */
+/* eslint-disable func-style, jsx-a11y/prefer-tag-over-role */
 
 import type {
   ButtonHTMLAttributes,
   ComponentPropsWithoutRef,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
   PropsWithChildren,
   ReactNode,
   SelectHTMLAttributes,
@@ -221,6 +223,72 @@ export type StatusMarkerProps = PropsWithChildren<
   }
 >;
 
+export type IconSlotSize = 12 | 16 | 20;
+
+export type IconSlotProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"span"> & { size?: IconSlotSize }
+>;
+
+export function IconSlot({
+  children,
+  className,
+  size = 16,
+  ...props
+}: IconSlotProps) {
+  return (
+    <span
+      className={classes("lenso-ui-icon-slot", className)}
+      data-size={size}
+      {...props}
+    >
+      {children}
+    </span>
+  );
+}
+
+export type InlineStatusProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"span"> & {
+    align?: "center" | "first-line" | "top";
+    tone?: SemanticTone;
+  }
+>;
+
+function InlineStatusMarkup({
+  align = "center",
+  children,
+  className,
+  tone = "neutral",
+  ...props
+}: InlineStatusProps) {
+  return (
+    <span
+      className={classes("lenso-ui-inline-status", className)}
+      data-align={align}
+      data-tone={tone}
+      {...props}
+    >
+      <span aria-hidden="true" className="lenso-ui-inline-status__dot" />
+      <span className="lenso-ui-inline-status__label">{children}</span>
+    </span>
+  );
+}
+
+export function InlineStatus({
+  align = "center",
+  children,
+  className,
+  tone = "neutral",
+  ...props
+}: InlineStatusProps) {
+  return InlineStatusMarkup({
+    align,
+    children,
+    className,
+    tone,
+    ...props,
+  });
+}
+
 export function StatusMarker({
   align = "center",
   children,
@@ -228,16 +296,197 @@ export function StatusMarker({
   tone = "neutral",
   ...props
 }: StatusMarkerProps) {
+  return InlineStatusMarkup({
+    align,
+    children,
+    className: classes("lenso-ui-status", className),
+    tone,
+    ...props,
+  });
+}
+
+export type FilterControlProps = PropsWithChildren<
+  ButtonHTMLAttributes<HTMLButtonElement> & { icon?: ReactNode }
+>;
+
+export function FilterControl({
+  children,
+  className,
+  icon,
+  type = "button",
+  ...props
+}: FilterControlProps) {
   return (
-    <span
-      className={classes("lenso-ui-status", className)}
-      data-align={align}
-      data-tone={tone}
+    <button
+      className={classes("lenso-ui-filter-control", className)}
+      type={type}
       {...props}
     >
-      <span aria-hidden="true" className="lenso-ui-status__dot" />
-      <span>{children}</span>
-    </span>
+      <span className="lenso-ui-filter-control__label">{children}</span>
+      {icon ? <IconSlot size={12}>{icon}</IconSlot> : null}
+    </button>
+  );
+}
+
+export type PaneHeaderProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"header"> & {
+    meta?: ReactNode;
+    title?: ReactNode;
+  }
+>;
+
+export function PaneHeader({
+  children,
+  className,
+  meta,
+  title,
+  ...props
+}: PaneHeaderProps) {
+  return (
+    <header className={classes("lenso-ui-pane-header", className)} {...props}>
+      <span className="lenso-ui-pane-header__title">{title ?? children}</span>
+      {meta === undefined ? null : (
+        <span className="lenso-ui-pane-header__meta">{meta}</span>
+      )}
+    </header>
+  );
+}
+
+export type SurfaceGroupLabelProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    icon?: ReactNode;
+    label: ReactNode;
+  }
+>;
+
+export function SurfaceGroupLabel({
+  children,
+  className,
+  icon,
+  label,
+  ...props
+}: SurfaceGroupLabelProps) {
+  return (
+    <div
+      className={classes("lenso-ui-surface-group-label", className)}
+      {...props}
+    >
+      {icon ? <IconSlot size={16}>{icon}</IconSlot> : null}
+      <span className="lenso-ui-surface-group-label__text">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+export type ConsoleTableVariant = "generic" | "provider" | "runtime";
+
+export type TableHeaderProps = ComponentPropsWithoutRef<"div"> & {
+  columns?: readonly ReactNode[];
+  variant?: ConsoleTableVariant;
+};
+
+const defaultTableColumns = ["Capability", "Kind", "Owner", "State"] as const;
+
+export function TableHeader({
+  children,
+  className,
+  columns = defaultTableColumns,
+  variant = "generic",
+  ...props
+}: TableHeaderProps) {
+  const labels = children ? [children] : columns;
+  return (
+    <div
+      className={classes("lenso-ui-table-header", className)}
+      data-variant={variant}
+      role="row"
+      {...props}
+    >
+      {labels.map((column, index) => (
+        <span
+          className="lenso-ui-table-header__cell"
+          key={`table-header-${index}`}
+        >
+          {column}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export type DataRowProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    cells?: readonly ReactNode[];
+    column2?: ReactNode;
+    column3?: ReactNode;
+    interactive?: boolean;
+    primary?: ReactNode;
+    secondary?: ReactNode;
+    selected?: boolean;
+    status?: ReactNode;
+    variant?: ConsoleTableVariant;
+    onActivate?: () => void;
+  }
+>;
+
+export function DataRow({
+  cells,
+  children,
+  className,
+  column2,
+  column3,
+  interactive = false,
+  onClick,
+  onActivate,
+  onKeyDown,
+  primary,
+  secondary,
+  selected = false,
+  status,
+  variant = "generic",
+  ...props
+}: DataRowProps) {
+  const trailingCells = cells ?? [column2, column3, status ?? children];
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (
+      interactive &&
+      onActivate &&
+      (event.key === "Enter" || event.key === " ")
+    ) {
+      event.preventDefault();
+      onActivate();
+    }
+    onKeyDown?.(event);
+  };
+  const handleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (interactive && onActivate) {
+      onActivate();
+    }
+    onClick?.(event);
+  };
+
+  return (
+    <div
+      className={classes("lenso-ui-data-row", className)}
+      aria-selected={selected}
+      data-selected={selected ? "true" : "false"}
+      data-variant={variant}
+      role="row"
+      tabIndex={interactive ? 0 : undefined}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      {...props}
+    >
+      <span className="lenso-ui-data-row__primary">
+        <strong>{primary}</strong>
+        {secondary === undefined ? null : <small>{secondary}</small>}
+      </span>
+      {trailingCells.map((cell, index) => (
+        <span className="lenso-ui-data-row__cell" key={`data-row-${index}`}>
+          {cell}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -364,10 +613,28 @@ export const SummaryStrip = Object.assign(SummaryStripRoot, {
 function SplitViewRoot({
   children,
   className,
+  inset = "default",
+  inspectorWidth,
+  style,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    inset?: "default" | "none";
+    inspectorWidth?: number;
+  }
+>) {
   return (
-    <div className={classes("lenso-ui-split-view", className)} {...props}>
+    <div
+      className={classes("lenso-ui-split-view", className)}
+      data-inset={inset}
+      style={{
+        ...style,
+        ...(inspectorWidth
+          ? { gridTemplateColumns: `minmax(0, 1fr) ${inspectorWidth}px` }
+          : {}),
+      }}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -406,6 +673,98 @@ function SplitViewInspector({
 export const SplitView = Object.assign(SplitViewRoot, {
   Inspector: SplitViewInspector,
   Main: SplitViewMain,
+});
+
+export type InspectorProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    headerAction?: ReactNode;
+    status?: ReactNode;
+    subtitle?: ReactNode;
+    title?: ReactNode;
+  }
+>;
+
+function InspectorRoot({
+  children,
+  className,
+  headerAction,
+  status,
+  subtitle,
+  title,
+  ...props
+}: InspectorProps) {
+  return (
+    <div className={classes("lenso-ui-inspector", className)} {...props}>
+      {title === undefined &&
+      subtitle === undefined &&
+      !status &&
+      !headerAction ? null : (
+        <header
+          className="lenso-ui-inspector__header"
+          data-has-action={headerAction ? "true" : undefined}
+        >
+          <div className="lenso-ui-inspector__header-content">
+            {title === undefined ? null : (
+              <h2 className="lenso-ui-inspector__title">{title}</h2>
+            )}
+            {subtitle === undefined ? null : (
+              <p className="lenso-ui-inspector__subtitle">{subtitle}</p>
+            )}
+            {status ? (
+              <div className="lenso-ui-inspector__status">{status}</div>
+            ) : null}
+          </div>
+          {headerAction ? (
+            <div className="lenso-ui-inspector__header-action">
+              {headerAction}
+            </div>
+          ) : null}
+        </header>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function InspectorSection({
+  children,
+  className,
+  title,
+  ...props
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"section"> & { title?: ReactNode }
+>) {
+  return (
+    <section
+      className={classes("lenso-ui-inspector__section", className)}
+      {...props}
+    >
+      {title === undefined ? null : (
+        <h3 className="lenso-ui-inspector__section-title">{title}</h3>
+      )}
+      <div className="lenso-ui-inspector__section-body">{children}</div>
+    </section>
+  );
+}
+
+function InspectorActions({
+  children,
+  className,
+  ...props
+}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+  return (
+    <div
+      className={classes("lenso-ui-inspector__actions", className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export const Inspector = Object.assign(InspectorRoot, {
+  Actions: InspectorActions,
+  Section: InspectorSection,
 });
 
 function SectionRoot({
@@ -537,10 +896,22 @@ export function StateView({
 function TabsRoot({
   children,
   className,
+  density = "default",
+  inset = "default",
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    density?: "default" | "page" | "inspector";
+    inset?: "default" | "none" | "sm";
+  }
+>) {
   return (
-    <div className={classes("lenso-ui-tabs", className)} {...props}>
+    <div
+      className={classes("lenso-ui-tabs", className)}
+      data-density={density}
+      data-inset={inset}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -549,11 +920,20 @@ function TabsRoot({
 function TabsList({
   children,
   className,
+  inset,
+  leadingIcon,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    inset?: "default" | "none" | "sm";
+    leadingIcon?: boolean;
+  }
+>) {
   return (
     <div
       className={classes("lenso-ui-tabs__list", className)}
+      data-inset={inset}
+      data-leading={leadingIcon ? "icon" : undefined}
       role="tablist"
       {...props}
     >
@@ -565,18 +945,56 @@ function TabsList({
 function TabsTab({
   children,
   className,
+  onKeyDown,
   selected,
   type = "button",
   ...props
 }: PropsWithChildren<
   ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }
 >) {
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    onKeyDown?.(event);
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    const tabs = [
+      ...(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+        '[role="tab"]'
+      ) ?? []),
+    ];
+    const currentIndex = tabs.indexOf(event.currentTarget);
+    if (currentIndex === -1 || tabs.length < 2) {
+      return;
+    }
+
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = tabs.length - 1;
+    }
+
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
+  };
+
   return (
     <button
       aria-selected={selected}
       className={classes("lenso-ui-tabs__tab", className)}
       role="tab"
       type={type}
+      onKeyDown={handleKeyDown}
       {...props}
     >
       {children}
@@ -923,21 +1341,29 @@ export interface ConsoleUiComponents {
   Badge: typeof Badge;
   Button: typeof Button;
   ConsolePage: typeof ConsolePage;
+  DataRow: typeof DataRow;
   DataTable: typeof DataTable;
   EmptyState: typeof EmptyState;
   Field: typeof Field;
+  FilterControl: typeof FilterControl;
   IconButton: typeof IconButton;
+  IconSlot: typeof IconSlot;
   Input: typeof Input;
+  InlineStatus: typeof InlineStatus;
+  Inspector: typeof Inspector;
   KeyValueList: typeof KeyValueList;
   Panel: typeof Panel;
+  PaneHeader: typeof PaneHeader;
   Section: typeof Section;
   Select: typeof Select;
   SettingsGroup: typeof SettingsGroup;
   SettingsRow: typeof SettingsRow;
+  SurfaceGroupLabel: typeof SurfaceGroupLabel;
   StatusMarker: typeof StatusMarker;
   StateView: typeof StateView;
   SummaryStrip: typeof SummaryStrip;
   SplitView: typeof SplitView;
+  TableHeader: typeof TableHeader;
   Tabs: typeof Tabs;
   Textarea: typeof Textarea;
 }
@@ -946,12 +1372,18 @@ export const consoleUi: ConsoleUiComponents = {
   Badge,
   Button,
   ConsolePage,
+  DataRow,
   DataTable,
   EmptyState,
   Field,
+  FilterControl,
   IconButton,
+  IconSlot,
+  InlineStatus,
   Input,
+  Inspector,
   KeyValueList,
+  PaneHeader,
   Panel,
   Section,
   Select,
@@ -961,6 +1393,8 @@ export const consoleUi: ConsoleUiComponents = {
   StateView,
   StatusMarker,
   SummaryStrip,
+  SurfaceGroupLabel,
+  TableHeader,
   Tabs,
   Textarea,
 };

@@ -493,7 +493,7 @@ export function RuntimeStoriesPage() {
 
   if (modulesQuery.isLoading || storiesQuery.isLoading) {
     return (
-      <div className="grid h-full grid-cols-[260px_8px_minmax(0,1fr)] overflow-hidden bg-(--background)">
+      <div className="runtime-stories-page grid h-full grid-cols-[260px_8px_minmax(0,1fr)] overflow-hidden bg-(--background)">
         <StoryListSkeleton />
         <div className="bg-(--border-subtle)" />
         <EmptyState className="h-full bg-(--surface)">
@@ -532,10 +532,13 @@ export function RuntimeStoriesPage() {
   }
 
   return (
-    <div className="h-full overflow-hidden bg-(--background) text-(--foreground)">
+    <div
+      className="runtime-stories-page h-full overflow-hidden bg-(--background) text-(--foreground)"
+      id="story-workbench"
+    >
       <div
         ref={workbenchRef}
-        className="grid h-full min-w-0 overflow-hidden"
+        className="runtime-stories-workbench grid h-full min-w-0 overflow-hidden"
         style={
           {
             "--story-inspector-open": previousInspectorOpenRef.current ? 1 : 0,
@@ -553,12 +556,13 @@ export function RuntimeStoriesPage() {
 
         <ResizeHandle
           ariaLabel="Resize story list panel"
+          className="runtime-stories-list-resize"
           onReset={resetLayout}
           onResize={resizeStoryList}
         />
 
         <main
-          className="grid min-h-0 min-w-0 overflow-hidden"
+          className="runtime-stories-main grid min-h-0 min-w-0 overflow-hidden"
           style={{
             gridTemplateRows: mainGridTemplateRows,
           }}
@@ -643,6 +647,7 @@ export function RuntimeStoriesPage() {
           <>
             <ResizeHandle
               ariaLabel="Resize story inspector panel"
+              className="runtime-stories-inspector-resize"
               onReset={resetLayout}
               onResize={resizeInspector}
             />

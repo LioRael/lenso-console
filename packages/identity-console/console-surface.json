@@ -4,6 +4,7 @@
   "icon": "database",
   "id": "identity",
   "label": "Identity",
+  "localizedLabels": { "zh-CN": "身份" },
   "navigation": {
     "order": 60,
     "workspace": {

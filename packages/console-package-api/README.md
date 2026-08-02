@@ -85,12 +85,23 @@ export const billingConsoleModule = billingConsoleExtension.module;
 
 The package exports `ConsolePage`, `SummaryStrip`, `SplitView`, `Section`,
 `KeyValueList`, `StateView`, `Panel`, `Button`, `IconButton`, `Badge`,
-`StatusMarker`, `Tabs`, `SettingsGroup`, `SettingsRow`, `Field`, `Input`,
-`Select`, `Textarea`, `EmptyState`, and `DataTable`. Use the workspace
+`IconSlot`, `InlineStatus`, `FilterControl`, `PaneHeader`, `TableHeader`,
+`DataRow`, `Inspector`, `SurfaceGroupLabel`, `StatusMarker`, `Tabs`,
+`SettingsGroup`, `SettingsRow`, `Field`, `Input`, `Select`, `Textarea`,
+`EmptyState`, and `DataTable`. Use the workspace
 primitives for edge-to-edge operational surfaces instead of nesting cards or
 copying page layout classes. These primitives are also present in the runtime host bundle, so a
 dynamically loaded extension does not ship a second design system or React
 runtime.
+
+Exact operational primitives use the shared geometry contract: `FilterControl`
+is 28px high, `PaneHeader` is 50px, `TableHeader` is 38px, and `DataRow` is
+64px. `DataRow` uses the generic `320 / 120 / 170 / 122` columns by default or
+the provider `260 / 220 / 160 / 92` columns when `variant="provider"`, or the
+runtime `250 / 110 / 140 / 120 / 86` columns when `variant="runtime"`. `Inspector`
+also accepts an optional `headerAction` slot for a single operational decision
+control. Status color belongs to the dot; `InlineStatus` keeps the label on the
+shared text color and supports `align="first-line"` for decision or gate lists.
 
 Import the complete theme from an extension stylesheet:
 

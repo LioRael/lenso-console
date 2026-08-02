@@ -123,8 +123,9 @@ function TimelineRow({
   return (
     <button
       aria-label={`Open ${row.kind} ${row.name}`}
+      aria-pressed={selected}
       className={cn(
-        "group grid min-w-0 grid-cols-[minmax(180px,260px)_minmax(0,1fr)] gap-4 text-left transition max-md:grid-cols-1",
+        "group grid min-h-[69px] min-w-0 grid-cols-[minmax(180px,260px)_minmax(0,1fr)] gap-4 text-left transition max-md:grid-cols-1",
         selected && "scale-[1.004]",
         !node && "cursor-default"
       )}
@@ -138,7 +139,7 @@ function TimelineRow({
     >
       <span
         className={cn(
-          "relative min-w-0 border bg-(--bg-panel) px-3 py-2.5 shadow-(--elevation-raised) transition group-hover:border-(--line)",
+          "relative min-h-[69px] min-w-0 overflow-hidden border bg-(--bg-panel) px-3 py-2 shadow-(--elevation-raised) transition group-hover:border-(--line)",
           tone.card,
           selected && "border-(--line-strong) bg-(--bg-row-hover)"
         )}
@@ -176,7 +177,7 @@ function TimelineRow({
                   className={cn(
                     "min-w-0 truncate",
                     partIndex > 0 && "before:mr-1.5 before:content-['/']",
-                    partIndex > 2 && "max-lg:hidden"
+                    partIndex > 2 && "max-[1100px]:hidden"
                   )}
                   key={`${row.id}:${partIndex}:${part}`}
                 >
@@ -196,7 +197,7 @@ function TimelineRow({
         ) : null}
       </span>
 
-      <span className="grid min-h-18 min-w-0 items-center max-md:hidden">
+      <span className="grid min-h-[69px] min-w-0 items-center max-md:hidden">
         <span className="relative h-9 min-w-0 overflow-hidden border border-(--line) bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line)_25%,transparent_25.2%,transparent_49.8%,var(--line)_50%,transparent_50.2%,transparent_74.8%,var(--line)_75%,transparent_75.2%)]">
           <span
             className={cn(

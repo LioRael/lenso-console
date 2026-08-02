@@ -2,6 +2,7 @@ import {
   Button,
   Input,
   Select,
+  SettingsRow,
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "@lenso/console-package-api";
@@ -48,6 +49,7 @@ export function SettingsPage() {
   );
   const [draft, setDraft] = useState(storedSettings);
   const [saved, setSaved] = useState(false);
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(storedSettings);
 
   const update = <Key extends keyof GeneralSettings>(
     key: Key,
@@ -59,22 +61,16 @@ export function SettingsPage() {
 
   return (
     <ProductPage
-      description={
-        zh
-          ? "管理工作区策略、审批、证据保留以及 Console 偏好。"
-          : "Workspace policy, approvals, evidence retention, and Console preferences."
-      }
+      description={copy.settings.description}
       title={copy.settings.title}
     >
-      <div className="grid min-h-[calc(100vh-192px)] grid-cols-[236px_minmax(0,1fr)]">
+      <div className="settings-page">
         <SettingsNavigation zh={zh} />
-        <div className="min-w-0 pl-9">
-          <header className="flex min-h-[68px] items-center justify-between gap-6 border-b border-(--line)">
-            <div>
-              <h2 className="text-[18px] leading-6 font-semibold">
-                {zh ? "通用" : "General"}
-              </h2>
-              <p className="mt-0.5 text-[12px] text-(--fg-secondary)">
+        <div className="settings-page__content">
+          <header className="settings-page__header">
+            <div className="settings-page__header-copy">
+              <h2>{zh ? "通用" : "General"}</h2>
+              <p>
                 {zh
                   ? "当前 Console 工作区的身份与默认设置。"
                   : "Identity and defaults for this Console workspace."}
@@ -82,7 +78,7 @@ export function SettingsPage() {
             </div>
             <Select
               aria-label={copy.settings.theme}
-              className="h-8! min-h-8! w-32! text-[12px]!"
+              className="settings-page__theme-select"
               onChange={(event) =>
                 appearance.setPreference(
                   event.target.value as ConsoleThemePreference
@@ -97,6 +93,7 @@ export function SettingsPage() {
           </header>
 
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "显示给操作员，并写入导出的证据。"
@@ -106,12 +103,13 @@ export function SettingsPage() {
           >
             <Input
               aria-label={zh ? "工作区名称" : "Workspace name"}
-              className="h-8! min-h-8! w-[300px]! text-[12px]!"
+              className="settings-page__input"
               onChange={(event) => update("workspaceName", event.target.value)}
               value={draft.workspaceName}
             />
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "API 客户端使用的稳定标识符。"
@@ -121,12 +119,13 @@ export function SettingsPage() {
           >
             <Input
               aria-label={zh ? "工作区标识" : "Workspace slug"}
-              className="h-8! min-h-8! w-[300px]! font-mono text-[12px]!"
+              className="settings-page__input settings-page__input--mono"
               onChange={(event) => update("workspaceSlug", event.target.value)}
               value={draft.workspaceSlug}
             />
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "运营视图的初始环境。"
@@ -146,6 +145,7 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "用于时间线显示与证据导出。"
@@ -165,12 +165,13 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={copy.settings.languageDescription}
             label={copy.settings.consoleLanguage}
           >
             <Select
               aria-label={copy.settings.consoleLanguage}
-              className="h-8! min-h-8! w-[300px]! text-[12px]!"
+              className="settings-page__select"
               onChange={(event) =>
                 locale.setPreference(
                   event.target.value as ConsoleLanguagePreference
@@ -184,6 +185,7 @@ export function SettingsPage() {
             </Select>
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "流式更新不可用时的轮询间隔。"
@@ -202,6 +204,7 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "操作员必须在审批前记录简明理由。"
@@ -222,6 +225,7 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "Agent 可以准备有边界的草稿，但不能批准。"
@@ -244,6 +248,7 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
+            className="settings-page__row"
             description={
               zh
                 ? "显示标记为实验性的 Console 页面。"
@@ -257,8 +262,16 @@ export function SettingsPage() {
               value={draft.experimentalSurfaces}
             />
           </SettingsRow>
-          <div className="flex h-16 items-center justify-end">
+          <div className="settings-page__actions">
+            <span aria-live="polite">
+              {saved
+                ? copy.settings.saved
+                : isDirty
+                  ? copy.settings.unsaved
+                  : copy.settings.noChanges}
+            </span>
             <Button
+              disabled={!isDirty}
               onClick={() => {
                 setStoredSettings(draft);
                 setSaved(true);
@@ -296,24 +309,28 @@ function SettingsNavigation({ zh }: { zh: boolean }) {
       ];
   return (
     <nav
-      className="border-r border-(--line) pr-6 pt-4"
+      className="settings-page__navigation"
       aria-label={zh ? "设置分类" : "Settings categories"}
     >
       {groups.map(([label, items], groupIndex) => (
-        <div className={groupIndex === 0 ? "" : "mt-5"} key={label as string}>
-          <div className="px-2 text-[10px] text-(--fg-tertiary)">
+        <div
+          className="settings-page__navigation-group"
+          data-first={groupIndex === 0 ? "true" : "false"}
+          key={label as string}
+        >
+          <div className="settings-page__navigation-label">
             {label as string}
           </div>
-          <div className="mt-1 grid gap-0.5">
+          <div className="settings-page__navigation-items">
             {(items as string[]).map((item, itemIndex) => (
               <button
                 aria-current={
                   groupIndex === 0 && itemIndex === 0 ? "page" : undefined
                 }
-                className={`h-8 rounded-[var(--radius-control)] px-2 text-left text-[12px] ${
+                className={`settings-page__navigation-item ${
                   groupIndex === 0 && itemIndex === 0
-                    ? "bg-(--bg-row-hover) text-(--fg-primary)"
-                    : "text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary)"
+                    ? "settings-page__navigation-item--active"
+                    : ""
                 }`}
                 key={item}
                 type="button"
@@ -325,24 +342,6 @@ function SettingsNavigation({ zh }: { zh: boolean }) {
         </div>
       ))}
     </nav>
-  );
-}
-
-function SettingsRow({
-  children,
-  description,
-  label,
-}: React.PropsWithChildren<{ description: string; label: string }>) {
-  return (
-    <div className="grid min-h-[70px] grid-cols-[minmax(0,1fr)_auto] items-center gap-8 border-b border-(--line)">
-      <div className="min-w-0">
-        <h3 className="text-[12px] font-medium">{label}</h3>
-        <p className="mt-0.5 text-[11px] text-(--fg-secondary)">
-          {description}
-        </p>
-      </div>
-      {children}
-    </div>
   );
 }
 
@@ -359,7 +358,7 @@ function SettingsSelect({
   return (
     <Select
       aria-label={label}
-      className="h-8! min-h-8! w-[300px]! text-[12px]!"
+      className="settings-page__select"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -381,7 +380,7 @@ function SettingsToggle({
     <button
       aria-checked={value}
       aria-label={label}
-      className={`relative h-4 w-7 rounded-full border transition-colors ${
+      className={`settings-page__toggle relative rounded-full border transition-colors ${
         value
           ? "border-(--fg-primary) bg-(--fg-primary)"
           : "border-(--line-strong) bg-(--bg-control)"
@@ -391,7 +390,7 @@ function SettingsToggle({
       type="button"
     >
       <span
-        className={`absolute top-0.5 size-2.5 rounded-full transition-transform ${
+        className={`settings-page__toggle-knob absolute rounded-full transition-transform ${
           value
             ? "translate-x-[13px] bg-(--bg-canvas)"
             : "translate-x-0.5 bg-(--fg-tertiary)"

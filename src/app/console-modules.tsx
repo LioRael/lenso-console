@@ -1,3 +1,4 @@
+import { authConsoleManifest } from "@lenso/auth-console";
 import {
   consoleSurfacesFromPackageManifest,
   type ConsoleModule,
@@ -145,6 +146,7 @@ remoteCrmBuildTimeMetadata.console?.push({
   area: "data",
   icon: "boxes",
   label: "Companies",
+  localizedLabels: { "zh-CN": "公司" },
   name: "companies",
   navigation: {
     group: remoteCrmConsoleManifest.navigation!.group!,
@@ -161,6 +163,7 @@ remoteCrmBuildTimeMetadata.console?.push({
 
 export const buildTimeConsoleModuleMetadata = [
   consoleModuleMetadataFromManifest(storyConsoleManifest),
+  consoleModuleMetadataFromManifest(authConsoleManifest),
   consoleModuleMetadataFromManifest(identityConsoleManifest),
   remoteCrmBuildTimeMetadata,
   consoleModuleMetadataFromManifest(systemRegistryConsoleManifest),

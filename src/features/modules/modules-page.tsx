@@ -1,108 +1,297 @@
-import { useConsoleLocale } from "@lenso/console-package-api";
-import { useState } from "react";
+import {
+  DataRow,
+  IconSlot,
+  PaneHeader,
+  Select,
+  TableHeader,
+  useConsoleLocale,
+} from "@lenso/console-package-api";
+import { ChevronDown, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { useModuleRegistry } from "../console-data/use-console-product-data";
-import { ProductPage, StatusDot } from "../console-design/components";
+import {
+  Inspector,
+  InspectorSection,
+  ProductPage,
+  SplitWorkspace,
+  StatusDot,
+} from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
+
+type SourceFilter = "all" | "linked" | "remote";
+type AreaFilter = "all" | "runtime" | "operations" | "data" | "configuration";
+type StateFilter = "all" | "loaded" | "error";
+
+type SurfaceRegistration = {
+  area: string;
+  capabilities: readonly string[];
+  error: string | null | undefined;
+  exportName: string;
+  group: string;
+  id: string;
+  moduleId: string;
+  moduleName: string;
+  order: number;
+  packageName: string;
+  route: string;
+  source: string;
+  state: string;
+  surface: string;
+  workspace: string;
+};
 
 export function ModulesPage() {
   const { locale } = useConsoleLocale();
   const copy = consoleProductCopy(locale);
   const registry = useModuleRegistry();
   const modules = registry.rows;
+  const registrations = useMemo<SurfaceRegistration[]>(
+    () =>
+      modules.flatMap((module) =>
+        module.surfaces.map((surface) => {
+          const { navigation } = surface;
+          return {
+            area: surface.area,
+            capabilities: surface.requiredCapabilities ?? [],
+            error: module.error,
+            exportName: surface.package?.export ?? "consoleSurface",
+            group: navigation?.group?.label ?? "—",
+            id: `${module.id}:${surface.route}`,
+            moduleId: module.id,
+            moduleName: module.name,
+            order: navigation?.order ?? 0,
+            packageName: surface.package?.name ?? module.id,
+            route: surface.route,
+            source: module.source,
+            state: module.state,
+            surface: surface.label,
+            workspace: navigation?.workspace.label ?? "System",
+          };
+        })
+      ),
+    [modules]
+  );
+  const [source, setSource] = useState<SourceFilter>("all");
+  const [area, setArea] = useState<AreaFilter>("all");
+  const [state, setState] = useState<StateFilter>("all");
+  const filteredRegistrations = useMemo(
+    () =>
+      registrations.filter(
+        (registration) =>
+          (source === "all" || registration.source === source) &&
+          (area === "all" || registration.area === area) &&
+          (state === "all" || registration.state === state)
+      ),
+    [area, registrations, source, state]
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected =
-    modules.find((module) => module.id === selectedId) ?? modules[0];
+    filteredRegistrations.find(
+      (registration) => registration.id === selectedId
+    ) ??
+    filteredRegistrations[0] ??
+    registrations.find((registration) => registration.id === selectedId) ??
+    registrations[0];
+  const surfaceCount = registrations.length;
+
   return (
     <ProductPage
       description={copy.modules.description}
-      meta={`${modules.length} registered · ${modules.filter((module) => module.state === "loaded").length} loaded · ${registry.mode === "live" ? copy.common.live : copy.common.demo}`}
+      meta={`${modules.length} ${copy.modules.title.toLowerCase()} · ${surfaceCount} ${copy.modules.surfaces.toLowerCase()}`}
       title={copy.modules.title}
     >
-      <div className="grid min-h-[744px] grid-cols-[minmax(0,1fr)_376px] border-t border-(--line)">
-        <section className="border-r border-(--line) pr-7">
-          <header className="flex h-[58px] items-center px-2.5">
-            <h2 className="text-[14px] font-medium">{copy.modules.registry}</h2>
-            <span className="ml-auto text-[11px] text-(--fg-tertiary)">
-              manifest declarations
-            </span>
-          </header>
-          <div className="grid h-10 grid-cols-[minmax(180px,1fr)_120px_120px_160px] items-center border-b border-(--line) px-2.5 text-[11px] text-(--fg-tertiary)">
-            <span>{copy.modules.module}</span>
-            <span>{copy.modules.source}</span>
-            <span>{copy.modules.state}</span>
-            <span>{copy.modules.surfaces}</span>
-          </div>
-          {modules.map((item) => (
-            <button
-              className={`grid h-[68px] w-full grid-cols-[minmax(180px,1fr)_120px_120px_160px] items-center border-b border-(--line) px-2.5 text-left text-[12px] ${selected?.id === item.id ? "bg-(--bg-row-hover)" : "hover:bg-(--bg-row-hover)"}`}
-              key={item.id}
-              onClick={() => setSelectedId(item.id)}
-              type="button"
-            >
-              <span>
-                <strong className="block font-medium">{item.name}</strong>
-                <span className="font-mono text-[10px] text-(--fg-tertiary)">
-                  {item.id}
-                </span>
-              </span>
-              <span>{item.source}</span>
-              <StatusDot
-                label={item.state}
-                tone={item.state === "loaded" ? "success" : "error"}
-              />
-              <span className="truncate text-(--fg-secondary)">
-                {item.surfaces.map((surface) => surface.label).join(" · ") ||
-                  "—"}
-              </span>
-            </button>
-          ))}
-        </section>
-        <aside className="px-7 pt-7">
-          {selected ? (
-            <>
-              <h2 className="text-[18px] font-semibold">{selected.name}</h2>
-              <p className="font-mono text-[10px] text-(--fg-tertiary)">
-                module.{selected.id}
-              </p>
-              <ModuleDetail label={copy.modules.source}>
-                {selected.source}
-              </ModuleDetail>
-              <ModuleDetail label={copy.modules.manifest}>
-                Serializable declaration · v1
-              </ModuleDetail>
-              <ModuleDetail label={copy.modules.surfaces}>
-                {selected.surfaces
-                  .map((surface) => `${surface.label} · ${surface.route}`)
-                  .join("\n") || "—"}
-              </ModuleDetail>
-              <ModuleDetail label={copy.modules.authority}>
-                Module owns business rules; Console renders registered surfaces
-                and invokes capability-gated actions.
-              </ModuleDetail>
-            </>
-          ) : (
-            <p className="text-[12px] text-(--fg-tertiary)">
-              {copy.common.noData}
-            </p>
-          )}
-        </aside>
+      <div className="modules-page__filters">
+        <ModulesFilterSelect
+          ariaLabel={copy.modules.source}
+          className="modules-page__filter-control--source"
+          onChange={(value) => setSource(value as SourceFilter)}
+          options={[
+            { label: copy.modules.allSources, value: "all" },
+            { label: copy.modules.sourceLinked, value: "linked" },
+            { label: copy.modules.sourceRemote, value: "remote" },
+          ]}
+          value={source}
+        />
+        <ModulesFilterSelect
+          ariaLabel={copy.modules.placement}
+          className="modules-page__filter-control--area"
+          onChange={(value) => setArea(value as AreaFilter)}
+          options={[
+            { label: copy.modules.allAreas, value: "all" },
+            { label: "Runtime", value: "runtime" },
+            { label: "Operations", value: "operations" },
+            { label: "Data", value: "data" },
+            { label: "Configuration", value: "configuration" },
+          ]}
+          value={area}
+        />
+        <ModulesFilterSelect
+          ariaLabel={copy.modules.state}
+          className="modules-page__filter-control--state"
+          onChange={(value) => setState(value as StateFilter)}
+          options={[
+            { label: copy.modules.allStates, value: "all" },
+            { label: copy.modules.registeredState, value: "loaded" },
+            { label: "Error", value: "error" },
+          ]}
+          value={state}
+        />
       </div>
+      <SplitWorkspace
+        className="modules-page__workspace"
+        inspector={
+          selected ? (
+            <Inspector
+              className="product-inspector modules-inspector"
+              status={
+                <div className="modules-inspector__status">
+                  <StatusDot
+                    label={copy.modules.registeredState}
+                    tone={selected.state === "loaded" ? "success" : "error"}
+                  />
+                  <span aria-hidden="true">·</span>
+                  <a href={selected.route}>
+                    {copy.modules.openSystem}
+                    <IconSlot aria-hidden="true" size={12}>
+                      <ExternalLink size={12} strokeWidth={1.5} />
+                    </IconSlot>
+                  </a>
+                </div>
+              }
+              subtitle={selected.route}
+              title={selected.surface}
+            >
+              <InspectorSection title={copy.modules.manifest}>
+                <p>ModuleManifest.console</p>
+                <p>Area: {selected.area}</p>
+                <p>Surface: {selected.surface.toLowerCase()}</p>
+              </InspectorSection>
+              <InspectorSection title={copy.modules.ownership}>
+                <p>{selected.packageName}</p>
+                <p>Export: {selected.exportName}</p>
+                <p>Source: {sourceLabel(selected.source, copy.modules)}</p>
+              </InspectorSection>
+              <InspectorSection title={copy.modules.navigation}>
+                <p>Workspace: {selected.workspace}</p>
+                <p>Group: {selected.group}</p>
+                <p>Order: {selected.order}</p>
+              </InspectorSection>
+              <InspectorSection title={copy.modules.evidence}>
+                <p>
+                  Access gate:{" "}
+                  {selected.capabilities[0] ?? copy.modules.noCapabilities}
+                </p>
+                <p>
+                  {selected.state === "loaded"
+                    ? copy.modules.registeredState
+                    : (selected.error ?? "Module unavailable")}
+                </p>
+                <p>Route registered: {selected.route}</p>
+              </InspectorSection>
+            </Inspector>
+          ) : (
+            <p className="modules-page__no-data">{copy.modules.noMatches}</p>
+          )
+        }
+      >
+        <section className="modules-page__table-pane">
+          <PaneHeader
+            meta={`${filteredRegistrations.length} ${copy.modules.registered}`}
+            title={copy.modules.registry}
+          />
+          <div className="lenso-ui-data-grid">
+            <TableHeader
+              columns={[
+                copy.modules.surface,
+                copy.modules.module,
+                copy.modules.placement,
+                copy.modules.registration,
+              ]}
+            />
+            {filteredRegistrations.length === 0 ? (
+              <div className="modules-page__empty">
+                {copy.modules.noMatches}
+              </div>
+            ) : (
+              filteredRegistrations.map((registration) => (
+                <DataRow
+                  cells={[
+                    registration.moduleName,
+                    `${registration.workspace} · ${registration.group}`,
+                    <StatusDot
+                      label={copy.modules.registeredState}
+                      key={`${registration.id}-status`}
+                      tone={
+                        registration.state === "loaded" ? "success" : "error"
+                      }
+                    />,
+                  ]}
+                  interactive
+                  key={registration.id}
+                  onActivate={() => setSelectedId(registration.id)}
+                  onClick={() => setSelectedId(registration.id)}
+                  primary={registration.surface}
+                  secondary={registration.route}
+                  selected={selected?.id === registration.id}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      </SplitWorkspace>
     </ProductPage>
   );
 }
 
-function ModuleDetail({
-  children,
-  label,
+function ModulesFilterSelect({
+  ariaLabel,
+  className,
+  onChange,
+  options,
+  value,
 }: {
-  children: React.ReactNode;
-  label: string;
+  ariaLabel: string;
+  className?: string;
+  onChange: (value: string) => void;
+  options: readonly { label: string; value: string }[];
+  value: string;
 }) {
   return (
-    <section className="mt-5 border-t border-(--line) pt-4">
-      <h3 className="mb-2 text-[11px] text-(--fg-tertiary)">{label}</h3>
-      <div className="text-[12px] leading-5">{children}</div>
-    </section>
+    <label className={`modules-page__filter-control ${className ?? ""}`}>
+      <span className="sr-only">{ariaLabel}</span>
+      <Select
+        aria-label={ariaLabel}
+        className="modules-page__filter-select"
+        onChange={(event) => onChange(event.currentTarget.value)}
+        value={value}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+      <IconSlot
+        aria-hidden="true"
+        className="modules-page__filter-icon"
+        size={12}
+      >
+        <ChevronDown size={12} strokeWidth={1.5} />
+      </IconSlot>
+    </label>
   );
+}
+
+function sourceLabel(
+  source: string,
+  copy: ReturnType<typeof consoleProductCopy>["modules"]
+) {
+  if (source === "linked") {
+    return copy.sourceLinked;
+  }
+  if (source === "remote") {
+    return copy.sourceRemote;
+  }
+  return copy.sourceFirstParty;
 }

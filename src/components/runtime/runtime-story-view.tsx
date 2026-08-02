@@ -46,8 +46,8 @@ export function RuntimeStoryView({
         title="Runtime Story"
       />
 
-      <div className="min-h-0 overflow-auto px-4 py-4">
-        <div className="mx-auto grid w-full max-w-4xl gap-2">
+      <div className="min-h-0 overflow-auto px-3 py-3">
+        <div className="mx-auto grid w-full max-w-[530px] gap-2">
           {storySummary.nodes.length === 0 ? (
             <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
               No runtime story nodes were derived for this story.
@@ -117,7 +117,7 @@ function GraphNode({
 
       <div
         className={cn(
-          "group relative min-w-0 border bg-(--bg-panel) px-3 py-2.5 text-left shadow-(--elevation-raised) transition hover:border-(--line) hover:bg-(--bg-control)",
+          "group relative min-h-[66px] min-w-0 overflow-hidden border bg-(--bg-panel) px-3 py-2 text-left shadow-(--elevation-raised) transition hover:border-(--line) hover:bg-(--bg-control)",
           type.cardClass,
           selected && "border-(--line-strong) bg-(--bg-row-hover)",
           (node.status === "failed" || node.status === "dead") &&
@@ -126,6 +126,7 @@ function GraphNode({
       >
         <button
           aria-label={`Select ${node.typeLabel} ${node.name}`}
+          aria-pressed={selected}
           className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
           onClick={onSelect}
           type="button"

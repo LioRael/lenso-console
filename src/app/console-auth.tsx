@@ -210,7 +210,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
             <input
               aria-label="Identifier"
               autoComplete="username"
-              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover)"
+              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
               onChange={(event) => setIdentifier(event.target.value)}
               required
               value={identifier}
@@ -221,7 +221,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
             <input
               aria-label="Password"
               autoComplete="current-password"
-              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover)"
+              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
               onChange={(event) => setPassword(event.target.value)}
               required
               type="password"

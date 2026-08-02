@@ -8,6 +8,7 @@ const consoleSurfaceContract = consoleSurface as unknown as {
   readonly icon: "database";
   readonly id: "identity";
   readonly label: "Identity";
+  readonly localizedLabels: { readonly "zh-CN": "身份" };
   readonly navigation: {
     readonly order: 60;
     readonly workspace: {

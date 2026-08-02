@@ -59,7 +59,7 @@ describe("flow view layout", () => {
 
   test("frames the graph content into the center of the viewport", () => {
     const position = getFrameScrollPosition({
-      bounds: { height: 72, width: 240, x: 0, y: 0 },
+      bounds: { height: 64, width: 150, x: 0, y: 0 },
       marginLeft: 186,
       marginTop: 260,
       viewportHeight: 520,
@@ -67,13 +67,13 @@ describe("flow view layout", () => {
       zoom: 0.55,
     });
 
-    expect(position.scrollLeft).toBe(66);
-    expect(position.scrollTop).toBe(20);
+    expect(position.scrollLeft).toBe(41);
+    expect(position.scrollTop).toBe(18);
   });
 
   test("centers a single node instead of the empty canvas around it", () => {
     const position = getFrameScrollPosition({
-      bounds: { height: 72, width: 240, x: 0, y: 0 },
+      bounds: { height: 64, width: 150, x: 0, y: 0 },
       marginLeft: 183,
       marginTop: 260,
       viewportHeight: 520,
@@ -81,8 +81,8 @@ describe("flow view layout", () => {
       zoom: 1,
     });
 
-    expect(position.scrollLeft).toBe(120);
-    expect(position.scrollTop).toBe(36);
+    expect(position.scrollLeft).toBe(75);
+    expect(position.scrollTop).toBe(32);
   });
 
   test("builds graph bounds from node positions", () => {
@@ -91,6 +91,6 @@ describe("flow view layout", () => {
         { x: 0, y: 0 },
         { x: 280, y: 92 },
       ])
-    ).toEqual({ height: 164, width: 520, x: 0, y: 0 });
+    ).toEqual({ height: 156, width: 430, x: 0, y: 0 });
   });
 });

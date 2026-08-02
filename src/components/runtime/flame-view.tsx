@@ -30,7 +30,7 @@ export function FlameView({
       <div className="min-h-0 flex-1 overflow-auto">
         {levels.map((level) => (
           <div
-            className="relative isolate h-7 overflow-hidden border-b border-(--line-subtle)"
+            className="relative isolate h-[60px] overflow-hidden border-b border-(--line-subtle)"
             key={level.map((node) => node.id).join(":")}
           >
             {level.map((node) => {
@@ -42,8 +42,10 @@ export function FlameView({
               });
               return (
                 <button
+                  aria-label={`Select flame node ${node.name}`}
+                  aria-pressed={selectedNodeId === node.id}
                   className={cn(
-                    "absolute top-0.5 h-6 overflow-hidden rounded-[2px] border px-1.5 text-left font-mono text-[11px] text-(--fg-primary) transition-[filter] hover:brightness-110",
+                    "absolute top-1 h-[56px] overflow-hidden rounded-[2px] border px-1.5 text-left font-mono text-[10px] text-(--fg-primary) transition-[filter] hover:brightness-110",
                     selectedNodeId === node.id &&
                       "shadow-[0_0_0_1px_var(--line-strong)]"
                   )}

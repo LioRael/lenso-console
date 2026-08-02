@@ -4,12 +4,14 @@
   "icon": "network",
   "id": "lenso/system-registry",
   "label": "Managed Services",
+  "localizedLabels": { "zh-CN": "托管服务" },
   "navigation": {
     "order": 70,
     "workspace": {
       "icon": "shield",
       "id": "system",
-      "label": "System"
+      "label": "System",
+      "localizedLabels": { "zh-CN": "系统" }
     }
   },
   "packageName": "@lenso/system-registry-console",

@@ -29,7 +29,7 @@ export function RuntimeSearch() {
               setOpen(false);
             }
           }}
-          className="w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
+          className="w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
           placeholder="story / node / correlation / outbox / function"
           value={query}
         />
