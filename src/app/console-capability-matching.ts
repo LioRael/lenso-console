@@ -1,4 +1,5 @@
 export const consoleCapabilityWildcard = "*";
+export const consoleSuperadminScope = "console.superadmin";
 
 export function hasConsoleCapability(
   availableCapabilities: ReadonlySet<string>,
@@ -6,6 +7,7 @@ export function hasConsoleCapability(
 ) {
   return (
     availableCapabilities.has(consoleCapabilityWildcard) ||
+    availableCapabilities.has(consoleSuperadminScope) ||
     availableCapabilities.has(requiredCapability)
   );
 }

@@ -201,8 +201,11 @@ export function selectConsoleModulePackageReferences(
   const availableCapabilities = options.availableCapabilities
     ? new Set(options.availableCapabilities)
     : null;
-  return modules.flatMap((module) =>
-    (module.console ?? []).flatMap((surface) => {
+  return modules.flatMap((module) => {
+    if (module.status === "error") {
+      return [];
+    }
+    return (module.console ?? []).flatMap((surface) => {
       const packageName = surface.package?.name;
       const exportName = surface.package?.export;
       if (!(packageName && exportName)) {
@@ -247,8 +250,8 @@ export function selectConsoleModulePackageReferences(
         return [];
       }
       return [reference];
-    })
-  );
+    });
+  });
 }
 
 function referenceHasBackendSurface(

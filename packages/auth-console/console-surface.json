@@ -19,7 +19,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth",
+      "route": "/data/auth",
       "surfaceName": "overview"
     },
     {
@@ -44,7 +44,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/users",
+      "route": "/data/auth/users",
       "surfaceName": "users"
     },
     {
@@ -69,7 +69,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/sessions",
+      "route": "/data/auth/sessions",
       "surfaceName": "sessions"
     },
     {
@@ -94,7 +94,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/credentials",
+      "route": "/data/auth/credentials",
       "surfaceName": "credentials"
     },
     {
@@ -119,7 +119,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/providers",
+      "route": "/data/auth/providers",
       "surfaceName": "providers"
     },
     {
@@ -144,7 +144,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/providers/github",
+      "route": "/data/auth/providers/github",
       "surfaceName": "github"
     },
     {
@@ -169,7 +169,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/providers/google",
+      "route": "/data/auth/providers/google",
       "surfaceName": "google"
     },
     {
@@ -194,7 +194,7 @@
         }
       },
       "requiredCapabilities": ["auth.users.read"],
-      "route": "/auth/providers/oidc",
+      "route": "/data/auth/providers/oidc",
       "surfaceName": "oidc"
     }
   ],
