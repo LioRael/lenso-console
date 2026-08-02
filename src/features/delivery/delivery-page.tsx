@@ -1,4 +1,4 @@
-import { Button, useConsoleLocale } from "@lenso/console-package-api";
+import { Button, useConsoleLocale } from "@lenso/console-ui-internal";
 import { useMemo, useState } from "react";
 
 import { useDeliveryEvidence } from "../console-data/use-console-product-data";

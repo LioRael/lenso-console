@@ -1,7 +1,7 @@
 import ky, { isHTTPError } from "ky";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
-const runtimeConsoleMode = import.meta.env.VITE_RUNTIME_CONSOLE_MODE as
+const consoleMode = import.meta.env.VITE_CONSOLE_MODE as
   | "api"
   | "mock"
   | undefined;
@@ -9,17 +9,16 @@ const developmentApiAuthScopes = [
   "runtime.stories.read",
   "auth.users.read",
   "identity.users.read",
-  "remote_crm.contacts.read",
-  "remote_crm.contacts.sync",
+  "crm_service.contacts.read",
+  "crm_service.contacts.sync",
   "hello-action:greetings:write",
   "console.system-registry.read",
-  "console.system-registry.revoke",
 ] as const;
 const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =
   (import.meta.env.VITE_API_AUTH_TOKEN as string | undefined) ??
   (import.meta.env.DEV ? developmentApiAuthToken : undefined);
-export const consoleAccessTokenStorageKey = "runtime-console:access-token";
+export const consoleAccessTokenStorageKey = "lenso-console:access-token";
 
 export function storedConsoleAccessToken() {
   return typeof window === "undefined"
@@ -45,7 +44,7 @@ export function runtimeConsoleApiPrefix(value = apiBaseUrl) {
 }
 
 export function isApiMode() {
-  return runtimeConsoleMode === "api" && Boolean(runtimeConsoleApiPrefix());
+  return consoleMode === "api" && Boolean(runtimeConsoleApiPrefix());
 }
 
 export function runtimeConsoleDataSource() {

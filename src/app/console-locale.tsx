@@ -2,7 +2,7 @@ import {
   ConsoleLocaleProvider,
   type ConsoleLanguagePreference,
   type ConsoleLocale,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import { useLayoutEffect, useMemo, type PropsWithChildren } from "react";
 
 import { usePersistedLayout } from "../hooks/use-persisted-layout";
@@ -10,7 +10,7 @@ import { usePersistedLayout } from "../hooks/use-persisted-layout";
 export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] =
     usePersistedLayout<ConsoleLanguagePreference>(
-      "runtime-console:language-preference",
+      "lenso-console:language-preference",
       "system"
     );
   const locale = resolveLocale(preference);

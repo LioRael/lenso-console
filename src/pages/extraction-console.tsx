@@ -218,8 +218,8 @@ export function ExtractionConsolePanel({
         ))}
       </details>
       <footer className="flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)">
-        <ShieldCheck aria-hidden="true" size={12} /> Runtime Console is
-        read-only and does not evaluate or apply Cutover rules.
+        <ShieldCheck aria-hidden="true" size={12} /> Console is read-only and
+        does not evaluate or apply Cutover rules.
       </footer>
     </section>
   );

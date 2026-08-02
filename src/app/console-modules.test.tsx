@@ -3,630 +3,72 @@ import { describe, expect, test } from "vitest";
 import {
   buildConsoleNavigation,
   buildConsoleRoutes,
-  consoleModuleMetadataFromManifest,
-  consoleModulePackageReferences,
   consoleModules,
   defineConsoleModule,
   selectDefaultConsoleRoute,
 } from "./console-modules";
-import { buildWorkspaceNavigation } from "./console-workspace-navigation";
 
 function TestPage() {
-  return <div>Story module</div>;
+  return <div>Test</div>;
 }
 
-describe("console module registry", () => {
-  test("turns build-time module contributions into navigation and routes", () => {
+describe("Console Module composition", () => {
+  test("derives routes and navigation from composed Modules", () => {
     const module = defineConsoleModule({
-      id: "lenso/platform-story",
+      id: "lenso/test",
       surfaces: [
         {
           area: "runtime",
           component: TestPage,
           icon: "workflow",
-          label: "Stories",
-          path: "/runtime/stories",
+          label: "Test",
+          path: "/test",
         },
       ],
     });
 
-    expect(buildConsoleNavigation([module])).toEqual([
-      {
-        icon: "workflow",
-        label: "Stories",
-        moduleId: "lenso/platform-story",
-        navigation: {
-          order: -10,
-          workspace: {
-            icon: "settings",
-            id: "system",
-            label: "System",
-            localizedLabels: { "zh-CN": "系统" },
-          },
-        },
-        path: "/runtime/stories",
-      },
+    expect(buildConsoleRoutes([module])).toMatchObject([
+      { moduleId: "lenso/test", path: "/test" },
     ]);
-    expect(buildConsoleRoutes([module])).toHaveLength(1);
-    expect(buildConsoleRoutes([module])[0]?.path).toBe("/runtime/stories");
+    expect(buildConsoleNavigation([module])).toMatchObject([
+      { moduleId: "lenso/test", path: "/test" },
+    ]);
   });
 
-  test("accepts optional workspace navigation metadata on module surfaces", () => {
-    const navigation = {
-      group: {
-        id: "customers",
-        label: "Customers",
-        order: 20,
-      },
-      order: 10,
-      workspace: {
-        icon: "briefcase",
-        id: "crm",
-        label: "CRM",
-      },
-    } as const;
-    const module = defineConsoleModule({
-      id: "crm",
+  test("rejects duplicate routes", () => {
+    const first = defineConsoleModule({
+      id: "lenso/first",
       surfaces: [
-        {
-          area: "data",
-          component: TestPage,
-          icon: "database",
-          label: "Contacts",
-          navigation,
-          path: "/crm/contacts",
-        },
+        { area: "runtime", component: TestPage, label: "First", path: "/same" },
       ],
     });
-
-    expect(module.surfaces[0]?.navigation).toEqual(navigation);
-    expect(buildConsoleRoutes([module])[0]?.navigation).toEqual(navigation);
-    expect(buildConsoleNavigation([module])[0]?.navigation).toEqual(navigation);
-  });
-
-  test("rejects duplicate contribution paths before router creation", () => {
-    const storyModule = defineConsoleModule({
-      id: "lenso/platform-story",
+    const second = defineConsoleModule({
+      id: "lenso/second",
       surfaces: [
         {
           area: "runtime",
           component: TestPage,
-          label: "Stories",
-          path: "/runtime/stories",
-        },
-      ],
-    });
-    const duplicateModule = defineConsoleModule({
-      id: "other-story",
-      surfaces: [
-        {
-          area: "runtime",
-          component: TestPage,
-          label: "Other Stories",
-          path: "/runtime/stories",
+          label: "Second",
+          path: "/same",
         },
       ],
     });
 
-    expect(() => buildConsoleRoutes([storyModule, duplicateModule])).toThrow(
-      "Duplicate console module route: /runtime/stories"
+    expect(() => buildConsoleRoutes([first, second])).toThrow(
+      "Duplicate console module route: /same"
     );
   });
 
-  test("rejects module routes that collide with host routes", () => {
-    const module = defineConsoleModule({
-      id: "module-registry",
-      surfaces: [
-        {
-          area: "data",
-          component: TestPage,
-          label: "Module Registry",
-          path: "/modules",
-        },
-      ],
-    });
-
-    expect(() => buildConsoleRoutes([module])).toThrow(
-      "Reserved host console route: /modules"
+  test("composes linked Console-owned Modules without package exports", () => {
+    expect(consoleModules.map((module) => module.id)).toEqual(
+      expect.arrayContaining([
+        "lenso/console-workbench",
+        "lenso/platform-story",
+        "lenso/system-registry",
+      ])
     );
-  });
-
-  test("uses the first registered route as the default console route", () => {
-    const storyModule = defineConsoleModule({
-      id: "lenso/platform-story",
-      surfaces: [
-        {
-          area: "runtime",
-          component: TestPage,
-          label: "Stories",
-          path: "/runtime/stories",
-        },
-      ],
-    });
-    const identityModule = defineConsoleModule({
-      id: "identity",
-      surfaces: [
-        {
-          area: "data",
-          component: TestPage,
-          label: "Identity",
-          path: "/data/identity",
-        },
-      ],
-    });
-
     expect(
-      selectDefaultConsoleRoute(
-        buildConsoleRoutes([storyModule, identityModule])
-      )
-    ).toMatchObject({
-      moduleId: "lenso/platform-story",
-      path: "/runtime/stories",
-    });
-  });
-
-  test("rejects an empty default route registry", () => {
-    expect(() => selectDefaultConsoleRoute([])).toThrow(
-      "No console module routes are registered"
-    );
-  });
-
-  test("loads build-time module metadata through installed package registry", () => {
-    expect(
-      consoleModulePackageReferences.filter(
-        (reference) => reference.packageName !== "@lenso/auth-console"
-      )
-    ).toEqual([
-      {
-        area: "runtime",
-        exportName: "storyConsoleModule",
-        icon: "workflow",
-        label: "Stories",
-        moduleName: "lenso/platform-story",
-        navigation: null,
-        packageName: "@lenso/story-console",
-        route: "/runtime/stories",
-        surfaceName: "stories",
-      },
-      {
-        area: "data",
-        exportName: "identityConsoleModule",
-        icon: "database",
-        label: "Identity",
-        localizedLabels: { "zh-CN": "身份" },
-        moduleName: "identity",
-        navigation: {
-          order: 60,
-          workspace: {
-            icon: "database",
-            id: "identity",
-            label: "Identity",
-          },
-        },
-        packageName: "@lenso/identity-console",
-        route: "/data/identity",
-        surfaceName: "identity",
-      },
-      {
-        area: "data",
-        exportName: "remoteCrmConsoleModule",
-        icon: "users",
-        label: "Contacts",
-        localizedLabels: { "zh-CN": "联系人" },
-        moduleName: "remote-crm",
-        navigation: {
-          group: {
-            id: "customer-data",
-            label: "Customers",
-            localizedLabels: { "zh-CN": "客户" },
-            order: 10,
-          },
-          order: 70,
-          workspace: {
-            icon: "network",
-            id: "crm",
-            label: "CRM",
-          },
-        },
-        packageName: "@lenso/remote-crm-console",
-        route: "/data/remote-crm",
-        surfaceName: "remote-crm",
-      },
-      {
-        area: "data",
-        exportName: "remoteCrmConsoleModule",
-        icon: "boxes",
-        label: "Companies",
-        localizedLabels: { "zh-CN": "公司" },
-        moduleName: "remote-crm",
-        navigation: {
-          group: {
-            id: "customer-data",
-            label: "Customers",
-            localizedLabels: { "zh-CN": "客户" },
-            order: 10,
-          },
-          order: 80,
-          workspace: {
-            icon: "network",
-            id: "crm",
-            label: "CRM",
-          },
-        },
-        packageName: "@lenso/remote-crm-console",
-        route: "/data/remote-crm/companies",
-        surfaceName: "companies",
-      },
-      {
-        area: "operations",
-        exportName: "systemRegistryConsoleModule",
-        icon: "network",
-        label: "Managed Services",
-        localizedLabels: { "zh-CN": "托管服务" },
-        moduleName: "lenso/system-registry",
-        navigation: {
-          order: 70,
-          workspace: {
-            icon: "shield",
-            id: "system",
-            label: "System",
-            localizedLabels: { "zh-CN": "系统" },
-          },
-        },
-        packageName: "@lenso/system-registry-console",
-        route: "/system/services",
-        surfaceName: "managed-services",
-      },
-    ]);
-    expect(
-      consoleModulePackageReferences.filter(
-        (reference) => reference.packageName === "@lenso/auth-console"
-      )
-    ).toHaveLength(8);
-    expect(consoleModules.map((module) => module.id)).toContain(
-      "lenso/platform-story"
-    );
-    expect(consoleModules.map((module) => module.id)).toContain("identity");
-    expect(consoleModules.map((module) => module.id)).toContain("auth");
-    expect(
-      buildConsoleRoutes(consoleModules)
-        .filter((route) => route.moduleId !== "auth")
-        .map((route) => ({
-          navigation: route.navigation,
-          path: route.path,
-        }))
-    ).toEqual([
-      {
-        navigation: undefined,
-        path: "/runtime/stories",
-      },
-      {
-        navigation: {
-          order: 60,
-          workspace: {
-            icon: "database",
-            id: "identity",
-            label: "Identity",
-          },
-        },
-        path: "/data/identity",
-      },
-      {
-        navigation: {
-          group: {
-            id: "customer-data",
-            label: "Customers",
-            localizedLabels: { "zh-CN": "客户" },
-            order: 10,
-          },
-          order: 70,
-          workspace: {
-            icon: "network",
-            id: "crm",
-            label: "CRM",
-          },
-        },
-        path: "/data/remote-crm",
-      },
-      {
-        navigation: {
-          group: {
-            id: "customer-data",
-            label: "Customers",
-            localizedLabels: { "zh-CN": "客户" },
-            order: 10,
-          },
-          order: 80,
-          workspace: {
-            icon: "network",
-            id: "crm",
-            label: "CRM",
-          },
-        },
-        path: "/data/remote-crm/companies",
-      },
-      {
-        navigation: {
-          order: 70,
-          workspace: {
-            icon: "shield",
-            id: "system",
-            label: "System",
-            localizedLabels: { "zh-CN": "系统" },
-          },
-        },
-        path: "/system/services",
-      },
-    ]);
-    expect(
-      buildConsoleNavigation(consoleModules)
-        .filter((item) => item.moduleId !== "auth")
-        .map((item) => ({
-          navigation: item.navigation,
-          path: item.path,
-        }))
-    ).toEqual([
-      {
-        navigation: {
-          order: -10,
-          workspace: {
-            icon: "settings",
-            id: "system",
-            label: "System",
-            localizedLabels: { "zh-CN": "系统" },
-          },
-        },
-        path: "/runtime/stories",
-      },
-      {
-        navigation: {
-          order: 60,
-          workspace: {
-            icon: "database",
-            id: "identity",
-            label: "Identity",
-          },
-        },
-        path: "/data/identity",
-      },
-      {
-        navigation: {
-          group: {
-            id: "customer-data",
-            label: "Customers",
-            localizedLabels: { "zh-CN": "客户" },
-            order: 10,
-          },
-          order: 70,
-          workspace: {
-            icon: "network",
-            id: "crm",
-            label: "CRM",
-          },
-        },
-        path: "/data/remote-crm",
-      },
-      {
-        navigation: {
-          group: {
-            id: "customer-data",
-            label: "Customers",
-            localizedLabels: { "zh-CN": "客户" },
-            order: 10,
-          },
-          order: 80,
-          workspace: {
-            icon: "network",
-            id: "crm",
-            label: "CRM",
-          },
-        },
-        path: "/data/remote-crm/companies",
-      },
-      {
-        navigation: {
-          order: 70,
-          workspace: {
-            icon: "shield",
-            id: "system",
-            label: "System",
-            localizedLabels: { "zh-CN": "系统" },
-          },
-        },
-        path: "/system/services",
-      },
-    ]);
-    expect(
-      buildConsoleRoutes(consoleModules)
-        .filter((route) => route.moduleId !== "auth")
-        .map((route) => route.path)
-    ).toEqual([
-      "/runtime/stories",
-      "/data/identity",
-      "/data/remote-crm",
-      "/data/remote-crm/companies",
-      "/system/services",
-    ]);
-  });
-
-  test("build-time module metadata creates switchable workspaces", () => {
-    expect(
-      buildWorkspaceNavigation(
-        buildConsoleNavigation(consoleModules).filter(
-          (item) => item.moduleId !== "auth"
-        )
-      ).map((workspace) => ({
-        groups: workspace.groups.map((group) => ({
-          id: group.id,
-          items: group.items.map((item) => item.path),
-        })),
-        id: workspace.id,
-        items: workspace.items.map((item) => item.path),
-        label: workspace.label,
-      }))
-    ).toEqual([
-      {
-        id: "system",
-        groups: [],
-        items: ["/runtime/stories", "/system/services"],
-        label: "System",
-      },
-      {
-        id: "crm",
-        groups: [
-          {
-            id: "customer-data",
-            items: ["/data/remote-crm", "/data/remote-crm/companies"],
-          },
-        ],
-        items: [],
-        label: "CRM",
-      },
-      {
-        id: "identity",
-        groups: [],
-        items: ["/data/identity"],
-        label: "Identity",
-      },
-    ]);
-    const authWorkspace = buildWorkspaceNavigation(
-      buildConsoleNavigation(consoleModules)
-    ).find((workspace) => workspace.id === "auth");
-    expect(
-      authWorkspace && {
-        groups: authWorkspace.groups.map((group) => ({
-          id: group.id,
-          items: group.items.map((item) => item.path),
-        })),
-        id: authWorkspace.id,
-        items: authWorkspace.items.map((item) => item.path),
-        label: authWorkspace.label,
-      }
-    ).toEqual({
-      groups: [
-        {
-          id: "directory",
-          items: ["/auth/users", "/auth/sessions", "/auth/credentials"],
-        },
-        {
-          id: "sign-in",
-          items: [
-            "/auth/providers",
-            "/auth/providers/github",
-            "/auth/providers/google",
-            "/auth/providers/oidc",
-          ],
-        },
-      ],
-      id: "auth",
-      items: ["/auth"],
-      label: "Auth",
-    });
-  });
-
-  test("derives fallback metadata from a package manifest", () => {
-    expect(
-      consoleModuleMetadataFromManifest({
-        area: "data",
-        exportName: "billingConsoleModule",
-        icon: "database",
-        id: "billing",
-        label: "Billing",
-        navigation: {
-          order: 10,
-          workspace: {
-            icon: "database",
-            id: "billing",
-            label: "Billing",
-          },
-        },
-        packageName: "@lenso/billing-console",
-        requiredCapabilities: ["billing.read"],
-        route: "/data/billing",
-        source: "installed",
-        surfaceName: "billing",
-        version: "workspace",
-      })
-    ).toEqual({
-      console: [
-        {
-          area: "data",
-          icon: "database",
-          label: "Billing",
-          name: "billing",
-          navigation: {
-            order: 10,
-            workspace: {
-              icon: "database",
-              id: "billing",
-              label: "Billing",
-            },
-          },
-          package: {
-            export: "billingConsoleModule",
-            name: "@lenso/billing-console",
-          },
-          required_capabilities: ["billing.read"],
-          route: "/data/billing",
-        },
-      ],
-      module_name: "billing",
-    });
-  });
-
-  test("derives fallback metadata from a multi-surface package manifest", () => {
-    expect(
-      consoleModuleMetadataFromManifest({
-        exportName: "billingConsoleModule",
-        id: "billing",
-        packageName: "@lenso/billing-console",
-        source: "installed",
-        surfaces: [
-          {
-            area: "data",
-            icon: "database",
-            label: "Invoices",
-            requiredCapabilities: ["billing.invoices.read"],
-            route: "/billing/invoices",
-            surfaceName: "invoices",
-          },
-          {
-            area: "configuration",
-            label: "Billing Settings",
-            requiredCapabilities: ["billing.settings.read"],
-            route: "/billing/settings",
-            surfaceName: "settings",
-          },
-        ],
-        version: "workspace",
-      })
-    ).toEqual({
-      console: [
-        {
-          area: "data",
-          icon: "database",
-          label: "Invoices",
-          name: "invoices",
-          package: {
-            export: "billingConsoleModule",
-            name: "@lenso/billing-console",
-          },
-          required_capabilities: ["billing.invoices.read"],
-          route: "/billing/invoices",
-        },
-        {
-          area: "configuration",
-          label: "Billing Settings",
-          name: "settings",
-          package: {
-            export: "billingConsoleModule",
-            name: "@lenso/billing-console",
-          },
-          required_capabilities: ["billing.settings.read"],
-          route: "/billing/settings",
-        },
-      ],
-      module_name: "billing",
-    });
+      selectDefaultConsoleRoute(buildConsoleRoutes(consoleModules)).path
+    ).toBe("/");
   });
 });

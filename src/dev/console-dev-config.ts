@@ -4,7 +4,6 @@ export type ConsoleDevConfig = {
   diagnosticsUrl: string | null;
   enabled: boolean;
   mode: ConsoleDevMode;
-  registryUrl: string | null;
   targetLabel: string | null;
 };
 
@@ -12,7 +11,6 @@ export type ConsoleDevEnv = Partial<
   Record<
     | "VITE_CONSOLE_DEV_DIAGNOSTICS_URL"
     | "VITE_CONSOLE_DEV_MODE"
-    | "VITE_CONSOLE_DEV_REGISTRY_URL"
     | "VITE_CONSOLE_DEV_TARGET_LABEL",
     string | undefined
   >
@@ -20,13 +18,10 @@ export type ConsoleDevEnv = Partial<
 
 export function consoleDevConfigFromEnv(env: ConsoleDevEnv): ConsoleDevConfig {
   const mode = consoleDevMode(env.VITE_CONSOLE_DEV_MODE);
-  const registryUrl = cleanString(env.VITE_CONSOLE_DEV_REGISTRY_URL) ?? null;
-
   return {
     diagnosticsUrl: cleanString(env.VITE_CONSOLE_DEV_DIAGNOSTICS_URL) ?? null,
     enabled: mode !== "production",
     mode,
-    registryUrl,
     targetLabel: cleanString(env.VITE_CONSOLE_DEV_TARGET_LABEL) ?? null,
   };
 }
@@ -37,8 +32,6 @@ export const consoleDevConfig = consoleDevConfigFromEnv({
   VITE_CONSOLE_DEV_MODE: import.meta.env.VITE_CONSOLE_DEV_MODE as
     | string
     | undefined,
-  VITE_CONSOLE_DEV_REGISTRY_URL: import.meta.env
-    .VITE_CONSOLE_DEV_REGISTRY_URL as string | undefined,
   VITE_CONSOLE_DEV_TARGET_LABEL: import.meta.env
     .VITE_CONSOLE_DEV_TARGET_LABEL as string | undefined,
 });

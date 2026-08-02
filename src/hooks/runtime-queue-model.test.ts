@@ -60,11 +60,11 @@ describe("runtime queue model", () => {
           {
             ...run("fn_remote", "failed", "2026-06-01T10:00:03.000Z"),
             runtimeDeclaration: {
-              inputSchema: "remote_crm.sync_contact.v1",
-              moduleName: "remote-crm",
+              inputSchema: "crm_service.sync_contact.v1",
+              moduleName: "crm-service",
               moduleSource: "remote",
-              name: "remote_crm.sync_contact.v1",
-              queue: "remote-crm",
+              name: "crm_service.sync_contact.v1",
+              queue: "crm-service",
               version: 1,
             },
           },
@@ -73,8 +73,8 @@ describe("runtime queue model", () => {
       }).map((row) => row.name)
     ).toEqual([
       "outbox",
+      "runtime.functions:crm-service",
       "runtime.functions:identity",
-      "runtime.functions:remote-crm",
     ]);
   });
 });

@@ -1,4 +1,4 @@
-import type { ConsoleManagedService } from "@lenso/console-package-api";
+import type { ConsoleManagedService } from "@lenso/console-ui-internal";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import type { ConsoleAdminRecord } from "../app/console-admin-data-api";
@@ -275,7 +275,6 @@ export function createMockConsoleHostApi(
     routing: baseHostApi.routing,
     story: baseHostApi.story,
     systemRegistry: {
-      useRevokeEnrollment: baseHostApi.systemRegistry.useRevokeEnrollment,
       useServices: () => mockSuccessQueryResult(fixtures.managedServices ?? []),
     },
     ui: baseHostApi.ui,

@@ -1,12 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-describe("console module boundaries", () => {
+describe("Console Module boundaries", () => {
   test("keeps story-console internals behind the module entrypoint", () => {
     expect(findConsoleModuleBoundaryViolations()).toEqual([]);
-  });
-
-  test("covers installed console packages with boundary checks", () => {
-    expect(consolePackageNames()).toEqual(installedConsolePackageNames());
   });
 });
 
@@ -23,31 +19,13 @@ const consolePackageFiles = import.meta.glob<string>(
     query: "?raw",
   }
 );
-const consoleSurfaceFiles = import.meta.glob<string>(
-  "../../packages/*/console-surface.json",
-  {
-    eager: true,
-    import: "default",
-    query: "?raw",
-  }
-);
 const modulePrefix = "../modules/";
 const consolePackagePrefix = "../../packages/";
-const hostApiPackagePrefix = "../../packages/console-package-api/src/";
+const hostApiPackagePrefix = "../../packages/console-ui-internal/src/";
 const storyPackagePrefix = "../../packages/story-console/src/";
 const storyModulePrefix = "../modules/story-console/";
 const importPattern =
   /\b(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?["']([^"']+)["']/g;
-const runtimeConsolePackageJson =
-  Object.values(
-    import.meta.glob<{ dependencies?: Record<string, string> }>(
-      "../../package.json",
-      {
-        eager: true,
-        import: "default",
-      }
-    )
-  )[0] ?? {};
 
 function findConsoleModuleBoundaryViolations(): string[] {
   const violations: string[] = [];
@@ -73,9 +51,9 @@ function findConsoleModuleBoundaryViolations(): string[] {
         );
       }
 
-      if (inConsoleModule && target === "@lenso/console/console-package-api") {
+      if (inConsoleModule && target === "@lenso/console/console-ui-internal") {
         violations.push(
-          `${displayPath(file)} imports host API through ${specifier}; use @lenso/console-package-api`
+          `${displayPath(file)} imports host API through ${specifier}; use @lenso/console-ui-internal`
         );
       }
 
@@ -130,45 +108,16 @@ function findConsoleModuleBoundaryViolations(): string[] {
       if (
         !inConsolePackage &&
         target.startsWith(consolePackagePrefix) &&
-        !target.includes("/console-package-api/")
+        !target.includes("/console-ui-internal/")
       ) {
         violations.push(
-          `${displayPath(file)} imports console package internals through ${specifier}`
+          `${displayPath(file)} imports linked Console Module internals through ${specifier}`
         );
       }
     }
   }
 
   return violations.sort();
-}
-
-function consolePackageNames(): string[] {
-  return [
-    ...new Set(
-      Object.keys(consoleSurfaceFiles).flatMap((file) => {
-        const surface = JSON.parse(consoleSurfaceFiles[file] ?? "{}") as {
-          source?: string;
-        };
-        if (surface.source === "runtime_bundle") {
-          return [];
-        }
-        const packageName = file.match(
-          /^\.\.\/\.\.\/packages\/([^/]+)\//u
-        )?.[1];
-        return packageName ? [packageName] : [];
-      })
-    ),
-  ].sort();
-}
-
-function installedConsolePackageNames(): string[] {
-  return Object.keys(runtimeConsolePackageJson.dependencies ?? {})
-    .filter((name) => name.includes("/") && name.endsWith("-console"))
-    .flatMap((name) => {
-      const packageSlug = name.split("/").at(-1);
-      return packageSlug ? [packageSlug] : [];
-    })
-    .sort();
 }
 
 function importSpecifiers(source: string): string[] {

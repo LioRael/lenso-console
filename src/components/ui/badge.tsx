@@ -1,4 +1,4 @@
 export {
   Badge,
   type BadgeProps,
-} from "../../../packages/console-package-api/src/index";
+} from "../../../packages/console-ui-internal/src/index";

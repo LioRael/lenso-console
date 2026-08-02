@@ -377,7 +377,7 @@ describe("available modules provider", () => {
         boundary_id: "destructive-change",
         expected_revision: 0,
         nonce: expect.any(String),
-        reason: "Approved in Runtime Console",
+        reason: "Approved in Console",
       },
     });
   });

@@ -1,23 +1,17 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@lenso/console\":\n    type: patch\n  \"@lenso/console-package-api\":\n    type: patch\n---\n\n### Features\n\nShip the redesigned operator workbench and the matching host-provided extension\ncomponents, theme tokens, workspace navigation, and light-mode contract.\n\n### Fixes\n\nAlign Story inspectors and Module surfaces, expose grouped Auth workspaces in the\ndevelopment host, and deduplicate admin-action evidence on Home.\n"
-    filename: console-product-workbench.md
+  - content: "---\npackages:\n  \"@lenso/console-web\":\n    type: patch\n---\n\n### Fixes\n\nClose the Console architecture migration by hosting only operator workflows,\nloading Module UI artifacts in isolated frames through the digest-bound bridge,\nand removing the retired same-origin Console package system.\n"
+    filename: console-architecture.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - console-product-workbench.md
-    id: npm:@lenso/console
+      - console-architecture.md
+    id: npm:@lenso/console-web
     updated: true
   - id: npm:@lenso/console-bridge
     updated: false
-  - changelogIds:
-      - console-product-workbench.md
-    id: npm:@lenso/console-package-api
-    updated: true
+  - id: npm:@lenso/console-ui-internal
+    updated: false
 npm:packages:
-  - id: npm:@lenso/console
+  - id: npm:@lenso/console-web
   - id: npm:@lenso/console-bridge
-  - id: npm:@lenso/console-package-api
-  - id: npm:@lenso/identity-console
-  - id: npm:@lenso/story-console
-  - id: npm:@lenso/remote-crm-console
-  - id: npm:@lenso/system-registry-console
+  - id: npm:@lenso/console-ui-internal

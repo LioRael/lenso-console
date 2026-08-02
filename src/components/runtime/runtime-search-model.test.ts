@@ -79,11 +79,11 @@ const declaredFunctions = [
     logs: [],
     maxAttempts: 3,
     runtimeDeclaration: {
-      inputSchema: "remote_crm.sync_contact.v1",
-      moduleName: "remote-crm",
+      inputSchema: "crm_service.sync_contact.v1",
+      moduleName: "crm-service",
       moduleSource: "remote",
-      name: "remote_crm.sync_contact.v1",
-      queue: "remote-crm",
+      name: "crm_service.sync_contact.v1",
+      queue: "crm-service",
       retryPolicy: {
         initialDelayMs: 1000,
         maxAttempts: 3,
@@ -163,14 +163,14 @@ describe("runtime search model", () => {
     const results = buildRuntimeSearchResults({
       events: [],
       functions: declaredFunctions,
-      query: "remote-crm",
+      query: "crm-service",
       stories: [],
     });
 
     expect(results).toEqual([
       expect.objectContaining({
         kind: "function",
-        subtitle: "running · remote-crm",
+        subtitle: "running · crm-service",
         title: "notifications.retry_email",
       }),
     ]);

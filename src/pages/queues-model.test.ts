@@ -89,14 +89,14 @@ describe("queues model", () => {
       queueRouteTarget({
         dead: 0,
         failed: 4,
-        name: "runtime.functions:remote-crm",
+        name: "runtime.functions:crm-service",
         pending: 0,
         running: 0,
       })
     ).toEqual({
       label: "Open Functions",
-      path: "/operations/functions?queue=remote-crm&status=failed",
-      reason: "runtime function queue remote-crm",
+      path: "/operations/functions?queue=crm-service&status=failed",
+      reason: "runtime function queue crm-service",
     });
   });
 

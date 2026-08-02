@@ -1,1 +1,1 @@
-export { EmptyState } from "../../../packages/console-package-api/src/index";
+export { EmptyState } from "../../../packages/console-ui-internal/src/index";

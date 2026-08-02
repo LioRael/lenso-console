@@ -1,15 +1,20 @@
-import { defineConsoleExtension } from "@lenso/console-package-api";
+import { defineConsoleModule } from "@lenso/console-ui-internal";
 
-import { storyConsoleManifest } from "./manifest";
 import { RuntimeStoriesPage } from "./page";
 
-export const storyConsoleExtension = defineConsoleExtension({
-  components: { stories: RuntimeStoriesPage },
-  manifest: storyConsoleManifest,
+export const storyConsoleModule = defineConsoleModule({
+  id: "lenso/platform-story",
+  surfaces: [
+    {
+      area: "runtime",
+      component: RuntimeStoriesPage,
+      icon: "workflow",
+      label: "Stories",
+      path: "/stories",
+    },
+  ],
 });
-export const storyConsoleModule = storyConsoleExtension.module;
 
-export { storyConsoleManifest } from "./manifest";
 export { RuntimeStoriesPage, runtimeStoriesDefaultViewMode } from "./page";
 export { shouldCloseInspectorOnEscape } from "./keyboard";
 export {

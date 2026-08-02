@@ -21,9 +21,9 @@ This document studies the public iii console frontend as a design and architectu
 - Its surfaces are darker and flatter, with subtle borders and less decorative depth.
 - Its inspector is more operational: telemetry info, attributes, logs, errors, links/baggage, and navigation are separated into focused tabs.
 
-## What Runtime Console Currently Lacks
+## What Console Currently Lacks
 
-- Runtime Console still needs broader real-data polling, server filtering, and backend-driven pagination.
+- Console still needs broader real-data polling, server filtering, and backend-driven pagination.
 - Panels are fixed rather than user-resizable.
 - Story filtering is intentionally lightweight and local.
 - Visualization components are simplified React/CSS views rather than full canvas/SVG graph systems.
@@ -47,7 +47,7 @@ This document studies the public iii console frontend as a design and architectu
 - Exact visual text from iii telemetry controls or help labels.
 - iii's resizable panel implementation.
 - iii's public assets and product identity.
-- Any behavior requiring non-mock data before Runtime Console has a backend contract.
+- Any behavior requiring non-mock data before Console has a backend contract.
 
 ## Current Calibration Decisions
 
@@ -56,4 +56,4 @@ This document studies the public iii console frontend as a design and architectu
 - Use kebab-case component filenames.
 - Prefer small targeted visual refinements over wholesale rewrites.
 - Make heatmap the default runtime visualization so the required heatmap is prominent.
-- Keep the design industrial and utilitarian, but make Runtime Console distinct through its own labels, service colors, and simplified mock workbench behavior.
+- Keep the design industrial and utilitarian, but make Console distinct through its own labels, service colors, and simplified mock workbench behavior.

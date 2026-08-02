@@ -582,7 +582,7 @@ async function fetchStoryHeatmap(
 ): Promise<RuntimeHeatmap> {
   const response = await httpClient
     .get(
-      `admin/runtime/stories/${encodeURIComponent(storyCorrelationId)}/heatmap`
+      `api/console/v1/stories/${encodeURIComponent(storyCorrelationId)}/heatmap`
     )
     .json<ApiRuntimeHeatmapResponse>();
   return normalizeRuntimeHeatmap(response);
@@ -590,7 +590,7 @@ async function fetchStoryHeatmap(
 
 async function fetchRuntimeStories(): Promise<RuntimeStory[]> {
   const response = await httpClient
-    .get("admin/runtime/stories")
+    .get("api/console/v1/stories")
     .json<ApiRuntimeStoryListResponse>();
   const { stories } = normalizeRuntimeStoryListResponse(response);
   return stories;
@@ -740,7 +740,7 @@ async function fetchRuntimeStory(
   storyCorrelationId: string
 ): Promise<RuntimeStory> {
   const response = await httpClient
-    .get(`admin/runtime/stories/${encodeURIComponent(storyCorrelationId)}`)
+    .get(`api/console/v1/stories/${encodeURIComponent(storyCorrelationId)}`)
     .json<ApiRuntimeStoryDetailResponse>();
   if (!response.data) {
     throw new Error("Runtime story detail response did not include data");
@@ -753,7 +753,7 @@ async function fetchStoryTechnicalOperations(
 ): Promise<TechnicalOperation[]> {
   const response = await httpClient
     .get(
-      `admin/runtime/stories/${encodeURIComponent(storyCorrelationId)}/technical-operations`
+      `api/console/v1/stories/${encodeURIComponent(storyCorrelationId)}/technical-operations`
     )
     .json<ApiTechnicalOperationResponse>();
   return normalizeTechnicalOperations(response);

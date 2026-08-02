@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { PropsWithChildren } from "react";
 
-import { Button } from "../../packages/console-package-api/src/index";
+import { Button } from "../../packages/console-ui-internal/src/index";
 import { httpClient, isApiMode } from "../lib/http-client";
 
 export const consoleCompositionSchema =

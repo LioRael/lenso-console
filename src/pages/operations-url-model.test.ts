@@ -54,10 +54,10 @@ describe("operations url model", () => {
     expect(
       queuesPath({
         query: "remote",
-        selectedId: "runtime.functions:remote-crm",
+        selectedId: "runtime.functions:crm-service",
       })
     ).toBe(
-      "/operations/queues?q=remote&selected=runtime.functions%3Aremote-crm"
+      "/operations/queues?q=remote&selected=runtime.functions%3Acrm-service"
     );
   });
 });

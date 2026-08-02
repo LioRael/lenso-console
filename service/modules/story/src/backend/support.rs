@@ -16,7 +16,7 @@ pub(super) fn ensure_story_read_capability(
         AdminActor::User { .. } => Err(ApiErrorResponse::with_context(
             AppError::new(
                 ErrorCode::Forbidden,
-                format!("missing runtime console capability: {STORY_CONSOLE_CAPABILITY}"),
+                format!("missing Console capability: {STORY_CONSOLE_CAPABILITY}"),
             ),
             request_ctx,
         )),

@@ -2,7 +2,7 @@
   "schema": "lenso.repository-config.v1",
   "repository": "LioRael/lenso-console",
   "aliases": {
-    "oci:lenso-console-service": "npm:@lenso/console"
+    "oci:lenso-console-service": "npm:@lenso/console-web"
   },
   "ignore": [
     "@lenso/console-system-plane",

@@ -1,4 +1,3 @@
-import { RuntimeStoriesPage } from "@lenso/story-console";
 import {
   Outlet,
   createRootRoute,
@@ -8,19 +7,13 @@ import {
 } from "@tanstack/react-router";
 import type { FunctionComponent } from "react";
 
-import type { ConsoleModule } from "../../packages/console-package-api/src/index";
+import type { ConsoleModule } from "../../packages/console-ui-internal/src/index";
 import { RuntimeConsoleProvider } from "../components/runtime/runtime-console-context";
-import { RuntimeConsoleShell } from "../components/runtime/runtime-console-shell";
-import { ChangesPage } from "../features/changes/changes-page";
-import { DeliveryPage } from "../features/delivery/delivery-page";
-import { HomePage } from "../features/home/home-page";
-import { ModulesPage } from "../features/modules/modules-page";
-import { RuntimePage } from "../features/runtime/runtime-page";
-import { SettingsPage } from "../features/settings/settings-page";
-import { SystemPage } from "../features/system/system-page";
+import { ConsoleShell } from "../components/runtime/runtime-console-shell";
 import { ConsoleAppearanceProvider } from "./console-appearance";
 import { HostConsoleLocaleProvider } from "./console-locale";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
+import { IsolatedConsoleModulePage } from "./isolated-console-module";
 
 export const rootRedirectPath = "/";
 export const runtimeConsoleBasePath = consoleBasePathFromBaseUrl(
@@ -44,9 +37,9 @@ export function createRuntimeConsoleRouter(
       <ConsoleAppearanceProvider>
         <HostConsoleLocaleProvider>
           <RuntimeConsoleProvider>
-            <RuntimeConsoleShell>
+            <ConsoleShell>
               <Outlet />
-            </RuntimeConsoleShell>
+            </ConsoleShell>
           </RuntimeConsoleProvider>
         </HostConsoleLocaleProvider>
       </ConsoleAppearanceProvider>
@@ -64,20 +57,13 @@ export function createRuntimeConsoleRouter(
       path,
     });
 
-  const consoleRouteNodes = buildConsoleRoutes(modules)
-    .filter((route) => route.moduleId !== "lenso/platform-story")
-    .map((route) => page(route.path, route.component));
+  const consoleRouteNodes = buildConsoleRoutes(modules).map((route) =>
+    page(route.path, route.component)
+  );
 
   const routeTree = rootRoute.addChildren([
-    page("/", HomePage),
-    page("/system", SystemPage),
-    page("/modules", ModulesPage),
-    page("/changes", ChangesPage),
-    page("/runtime", RuntimePage),
-    page("/stories", RuntimeStoriesPage),
-    page("/delivery", DeliveryPage),
-    page("/settings", SettingsPage),
     ...consoleRouteNodes,
+    page("$", IsolatedConsoleModulePage),
     legacy("/launchpad", "/"),
     legacy("/overview", "/runtime"),
     legacy("/operations", "/runtime"),
@@ -89,7 +75,6 @@ export function createRuntimeConsoleRouter(
     legacy("/services", "/runtime"),
     legacy("/data", "/modules"),
     legacy("/config", "/settings"),
-    legacy("/runtime/stories", "/stories"),
   ]);
 
   return createRouter({ basepath, routeTree });

@@ -18,8 +18,6 @@ const hostRoutes = [
 
 const extensionRoutes = [
   { id: "identity", path: "/data/identity" },
-  { id: "crm-contacts", path: "/data/remote-crm" },
-  { id: "crm-companies", path: "/data/remote-crm/companies" },
   { id: "managed-services", path: "/system/services" },
   { id: "auth", path: "/auth" },
   { id: "auth-users", path: "/auth/users" },

@@ -35,9 +35,6 @@ describe("console host api", () => {
     expect(consoleHostApi.ui.SummaryStrip.Item).toBeTypeOf("function");
     expect(consoleHostApi.ui.Tabs.Tab).toBeTypeOf("function");
     expect(consoleHostApi.systemRegistry.useServices).toBeTypeOf("function");
-    expect(consoleHostApi.systemRegistry.useRevokeEnrollment).toBeTypeOf(
-      "function"
-    );
     expect(
       consoleHostApi.routing.buildPath("/runtime/stories", {
         story: "corr_1",

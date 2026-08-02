@@ -3,7 +3,7 @@ import {
   PaneHeader,
   TableHeader,
   useConsoleLocale,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import { useState } from "react";
 
 import {

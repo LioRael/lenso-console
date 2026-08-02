@@ -1,4 +1,4 @@
-import type { ConsoleLocale } from "@lenso/console-package-api";
+import type { ConsoleLocale } from "@lenso/console-ui-internal";
 
 const copy = {
   en: {
@@ -109,7 +109,7 @@ const product = {
       noMatches: "No registrations match these filters.",
       noCapabilities: "No capability gate declared.",
       sourceLinked: "linked",
-      sourceRemote: "remote",
+      sourceService: "service",
       sourceFirstParty: "first_party",
       authority: "Authority",
     },
@@ -267,7 +267,7 @@ const product = {
       noMatches: "没有符合当前筛选条件的注册项。",
       noCapabilities: "未声明能力门禁。",
       sourceLinked: "linked",
-      sourceRemote: "remote",
+      sourceService: "service",
       sourceFirstParty: "first_party",
       authority: "权责边界",
     },

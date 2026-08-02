@@ -1,7 +1,7 @@
 import { LogIn } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
-import { Button } from "../../packages/console-package-api/src/index";
+import { Button } from "../../packages/console-ui-internal/src/index";
 import {
   apiAuthToken,
   consoleAccessTokenStorageKey,
@@ -10,9 +10,9 @@ import {
   runtimeConsoleApiPrefix,
 } from "../lib/http-client";
 
-const oidcStateStorageKey = "runtime-console:oidc-state";
-const oidcVerifierStorageKey = "runtime-console:oidc-verifier";
-const oidcReturnPathStorageKey = "runtime-console:oidc-return-path";
+const oidcStateStorageKey = "lenso-console:oidc-state";
+const oidcVerifierStorageKey = "lenso-console:oidc-verifier";
+const oidcReturnPathStorageKey = "lenso-console:oidc-return-path";
 
 type OidcMetadata = {
   authorization_endpoint: string;

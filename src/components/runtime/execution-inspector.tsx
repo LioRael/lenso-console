@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-package-api";
+import { useConsoleLocale } from "@lenso/console-ui-internal";
 import { Copy, ExternalLink, Network, RotateCcw, X } from "lucide-react";
 
 import type {

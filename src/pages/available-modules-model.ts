@@ -6,18 +6,18 @@ export type AvailableModulesCatalog = {
 export type AvailableModulesEntry = {
   name: string;
   version: string;
-  source: "remote" | string;
+  source: "service" | string;
   manifestReference: string;
   archivedAt?: string;
   archiveReason?: string;
   baseUrl?: string;
   capabilities?: string[];
-  consolePackages?: AvailableModuleConsolePackageHint[];
+  consoleUiArtifacts?: AvailableModuleConsoleUiArtifactHint[];
   compatibility?: AvailableModuleCompatibility;
   summary?: string;
 };
 
-export type AvailableModuleConsolePackageHint = {
+export type AvailableModuleConsoleUiArtifactHint = {
   packageName: string;
   exportName: string;
   route?: string;
@@ -26,8 +26,8 @@ export type AvailableModuleConsolePackageHint = {
 export type AvailableModuleManifestSnapshot = {
   name: string;
   version: string;
-  source: "remote" | string;
-  consolePackages?: AvailableModuleConsolePackageHint[];
+  source: "service" | string;
+  consoleUiArtifacts?: AvailableModuleConsoleUiArtifactHint[];
 };
 
 export type AvailableModulesResponse = {
@@ -49,7 +49,7 @@ export type AvailableModulesIssue = {
 };
 
 export type AvailableModuleCompatibility = {
-  consolePackageApi?: string;
+  consoleBridge?: string;
   lenso?: {
     maxVersion?: string;
     minVersion?: string;
@@ -57,13 +57,13 @@ export type AvailableModuleCompatibility = {
 };
 
 export type AvailableModuleHostCompatibility = {
-  consolePackageApi: string;
+  consoleBridge: string;
   lensoVersion: string;
 };
 
 export type AvailableModulesResponseModule = {
   name: string;
-  source: "remote" | string;
+  source: "service" | string;
   catalogVersion: string;
   manifestReference: string;
   providedBy?: string | null;
@@ -77,7 +77,7 @@ export type AvailableModulesResponseModule = {
   archiveReason?: string;
   baseUrl: string | null;
   capabilities?: string[];
-  consolePackageHints: number;
+  consoleUiArtifactHints: number;
   compatibility?: AvailableModuleCompatibility | null;
   hostCompatibility?: AvailableModuleHostCompatibility;
   installState?: AvailableModuleInstallState;
@@ -613,7 +613,7 @@ export type ServiceModuleLifecycleModule = {
 export type AvailableModuleInstallState = {
   moduleRegistered: boolean;
   linkedSource?: AvailableModuleLinkedSourceInstallState | null;
-  remoteSource?: AvailableModuleRemoteSourceInstallState | null;
+  serviceSource?: AvailableModuleServiceSourceInstallState | null;
 };
 
 export type AvailableModuleLinkedSourceInstallState = {
@@ -626,7 +626,7 @@ export type AvailableModuleLinkedSourceInstallState = {
   error?: string | null;
 };
 
-export type AvailableModuleRemoteSourceInstallState = {
+export type AvailableModuleServiceSourceInstallState = {
   envFile: string;
   configured: boolean;
   desiredBaseUrl?: string | null;
@@ -656,7 +656,7 @@ export type AvailableModuleRow = {
   moduleRelease?: AvailableModuleRelease | null;
   baseUrl: string;
   capabilityCount: number;
-  consolePackageHintCount: number;
+  consoleUiArtifactHintCount: number;
   installState?: AvailableModuleInstallState;
   preflightStatus: AvailableModulePreflightStatus;
   preflightLabel: string;
@@ -748,7 +748,7 @@ export type AvailableModuleInstallEvidence = {
   consoleInstallPlanCount?: number;
   desiredEnabled?: boolean | null;
   installState?: AvailableModuleInstallState;
-  missingConsolePackageCount?: number;
+  missingConsoleUiArtifactCount?: number;
   moduleRegistered?: boolean;
   restartPending?: boolean;
   runningEnabled?: boolean | null;
@@ -798,7 +798,7 @@ export function availableModuleRows(
     return {
       baseUrl: entry.baseUrl ?? "-",
       capabilityCount: entry.capabilities?.length ?? 0,
-      consolePackageHintCount: entry.consolePackages?.length ?? 0,
+      consoleUiArtifactHintCount: entry.consoleUiArtifacts?.length ?? 0,
       key: `${entry.name}:${entry.version}:${entry.manifestReference}`,
       manifestReference: entry.manifestReference,
       name: entry.name,
@@ -824,7 +824,7 @@ export function availableModuleRowsFromResponse(
     return {
       baseUrl: module.baseUrl ?? "-",
       capabilityCount: module.capabilities?.length ?? 0,
-      consolePackageHintCount: module.consolePackageHints,
+      consoleUiArtifactHintCount: module.consoleUiArtifactHints,
       ...(module.installState ? { installState: module.installState } : {}),
       key: `${module.name}:${module.catalogVersion}:${module.manifestReference}`,
       manifestReference: module.manifestReference,
@@ -933,16 +933,16 @@ function linkedSourceForRow(
     : null;
 }
 
-function remoteSourceForRow(
+function serviceSourceForRow(
   row: AvailableModuleRow
-): AvailableModuleRemoteSourceInstallState | null {
+): AvailableModuleServiceSourceInstallState | null {
   return serviceBackedSource(row.source)
-    ? (row.installState?.remoteSource ?? null)
+    ? (row.installState?.serviceSource ?? null)
     : null;
 }
 
 function serviceBackedSource(source: string): boolean {
-  return source === "remote" || source === "service";
+  return source === "service";
 }
 
 function sourceRestartState(row: AvailableModuleRow): {
@@ -958,13 +958,13 @@ function sourceRestartState(row: AvailableModuleRow): {
           restartReason: linkedSource.restartReason,
         };
   }
-  const remoteSource = remoteSourceForRow(row);
-  if (remoteSource) {
-    return remoteSource.restartReason === undefined
-      ? { restartPending: remoteSource.restartPending }
+  const serviceSource = serviceSourceForRow(row);
+  if (serviceSource) {
+    return serviceSource.restartReason === undefined
+      ? { restartPending: serviceSource.restartPending }
       : {
-          restartPending: remoteSource.restartPending,
-          restartReason: remoteSource.restartReason,
+          restartPending: serviceSource.restartPending,
+          restartReason: serviceSource.restartReason,
         };
   }
   return { restartPending: false };
@@ -1128,7 +1128,7 @@ export function availableModuleInstallSteps({
           "restart first",
           undefined,
           undefined,
-          installEvidence(evidence, "console package still missing")
+          installEvidence(evidence, "Console UI artifact still missing")
         ),
       ];
     }
@@ -1239,26 +1239,25 @@ export function availableModuleInstallSteps({
 
 export function availableModuleDoctorChecks({
   commands,
-  missingConsolePackageCount = 0,
+  missingConsoleUiArtifactCount = 0,
   moduleRegistered,
   restartPending,
   row,
   serviceLifecycle,
 }: {
   commands: AvailableModuleInstallCommand[];
-  missingConsolePackageCount?: number;
+  missingConsoleUiArtifactCount?: number;
   moduleRegistered?: boolean;
   restartPending?: boolean;
   row: AvailableModuleRow;
   serviceLifecycle?: ServiceModuleLifecycleResponse | null;
 }): AvailableModuleDoctorCheck[] {
   const addCommand =
-    commandByKey(commands, "add") ??
-    "Install from Marketplace in Runtime Console";
+    commandByKey(commands, "add") ?? "Install from Marketplace in Console";
   const installPackagesCommand =
     commandByKey(commands, "install-packages") ?? "reload Lenso Console";
   const linkedSource = linkedSourceForRow(row);
-  const remoteSource = remoteSourceForRow(row);
+  const serviceSource = serviceSourceForRow(row);
   const sourceRestart = sourceRestartState(row);
   const isModuleRegistered =
     moduleRegistered ?? row.installState?.moduleRegistered ?? false;
@@ -1271,7 +1270,7 @@ export function availableModuleDoctorChecks({
       addCommand,
       isModuleRegistered,
       linkedSource,
-      remoteSource,
+      serviceSource,
       row,
     }),
     planDoctorCheck({
@@ -1281,7 +1280,7 @@ export function availableModuleDoctorChecks({
     }),
     packageDoctorCheck({
       isModuleRegistered,
-      missingConsolePackageCount,
+      missingConsoleUiArtifactCount,
       packageCommand,
       row,
     }),
@@ -1289,14 +1288,14 @@ export function availableModuleDoctorChecks({
       addCommand,
       isModuleRegistered,
       linkedSource,
-      remoteSource,
+      serviceSource,
       row,
     }),
     restartDoctorCheck({
       isModuleRegistered,
       isRestartPending,
       linkedSource,
-      remoteSource,
+      serviceSource,
     }),
   ];
   const serviceCheck = serviceModuleLifecycleDoctorCheck({
@@ -1439,13 +1438,13 @@ function availableModuleCanInstall(row: AvailableModuleRow): boolean {
 function packageStepDoneStatus(
   row: AvailableModuleRow
 ): Extract<AvailableModuleInstallStepStatus, "done" | "skipped"> {
-  return row.consolePackageHintCount > 0 ? "done" : "skipped";
+  return row.consoleUiArtifactHintCount > 0 ? "done" : "skipped";
 }
 
 function packageStepPendingStatus(
   row: AvailableModuleRow
 ): Extract<AvailableModuleInstallStepStatus, "pending" | "skipped"> {
-  return row.consolePackageHintCount > 0 ? "pending" : "skipped";
+  return row.consoleUiArtifactHintCount > 0 ? "pending" : "skipped";
 }
 
 function installStep(
@@ -1481,16 +1480,16 @@ function installEvidence(
   const moduleRegistered =
     evidence.installState?.moduleRegistered ?? evidence.moduleRegistered;
   const linkedSource = evidence.installState?.linkedSource;
-  const remoteSource = evidence.installState?.remoteSource;
-  const transport = remoteSourceTransportLabel(remoteSource);
+  const serviceSource = evidence.installState?.serviceSource;
+  const transport = serviceSourceTransportLabel(serviceSource);
   if (moduleRegistered === true) {
     return "module registered in /admin/data/modules";
   }
   if (linkedSource?.configured) {
     return `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`;
   }
-  if (remoteSource?.configured) {
-    return `service provider source configured in ${remoteSource.envFile}${transport ? ` (${transport})` : ""}`;
+  if (serviceSource?.configured) {
+    return `service provider source configured in ${serviceSource.envFile}${transport ? ` (${transport})` : ""}`;
   }
   if (moduleRegistered === false) {
     return "module not registered in /admin/data/modules";
@@ -1502,18 +1501,18 @@ function packageEvidence(
   evidence: AvailableModuleInstallEvidence,
   row: AvailableModuleRow
 ): string {
-  if (row.consolePackageHintCount === 0) {
-    return "catalog declares no console package hints";
+  if (row.consoleUiArtifactHintCount === 0) {
+    return "catalog declares no Console UI artifact hints";
   }
-  const missingCount = evidence.missingConsolePackageCount ?? null;
+  const missingCount = evidence.missingConsoleUiArtifactCount ?? null;
   const planCount = evidence.consoleInstallPlanCount ?? null;
   if (missingCount !== null && planCount !== null) {
-    return `${missingCount} missing console package${missingCount === 1 ? "" : "s"}; ${planCount} extension entr${planCount === 1 ? "y" : "ies"} derived from backend metadata`;
+    return `${missingCount} missing Console UI artifact${missingCount === 1 ? "" : "s"}; ${planCount} artifact entr${planCount === 1 ? "y" : "ies"} derived from backend metadata`;
   }
   if (missingCount !== null) {
-    return `${missingCount} missing console package${missingCount === 1 ? "" : "s"} from backend metadata`;
+    return `${missingCount} missing Console UI artifact${missingCount === 1 ? "" : "s"} from backend metadata`;
   }
-  return `${row.consolePackageHintCount} console package hint${row.consolePackageHintCount === 1 ? "" : "s"} in catalog`;
+  return `${row.consoleUiArtifactHintCount} Console UI artifact hint${row.consoleUiArtifactHintCount === 1 ? "" : "s"} in catalog`;
 }
 
 function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
@@ -1524,22 +1523,22 @@ function restartEvidence(evidence: AvailableModuleInstallEvidence): string {
   if (linkedSource?.configured) {
     return `LENSO_MODULE_*_ENABLED desired=${String(linkedSource.desiredEnabled)} running=${String(linkedSource.runningEnabled)}`;
   }
-  const remoteSource = evidence.installState?.remoteSource;
-  if (remoteSource?.restartPending) {
+  const serviceSource = evidence.installState?.serviceSource;
+  if (serviceSource?.restartPending) {
     return (
-      remoteSource.restartReason ??
+      serviceSource.restartReason ??
       "service provider source differs from loaded module metadata"
     );
   }
-  if (remoteSource?.configured && remoteSource.runningBaseUrl) {
-    return `REMOTE_MODULES matches running source in ${remoteSource.envFile}`;
+  if (serviceSource?.configured && serviceSource.runningBaseUrl) {
+    return `LENSO_SERVICES matches running source in ${serviceSource.envFile}`;
   }
   if (
-    remoteSource &&
-    !remoteSource.configured &&
-    !remoteSource.runningBaseUrl
+    serviceSource &&
+    !serviceSource.configured &&
+    !serviceSource.runningBaseUrl
   ) {
-    return `service provider source not present in ${remoteSource.envFile}`;
+    return `service provider source not present in ${serviceSource.envFile}`;
   }
   if (
     evidence.desiredEnabled !== undefined &&
@@ -1567,20 +1566,20 @@ function sourceDoctorCheck({
   addCommand,
   isModuleRegistered,
   linkedSource,
-  remoteSource,
+  serviceSource,
   row,
 }: {
   addCommand: string;
   isModuleRegistered: boolean;
   linkedSource: AvailableModuleLinkedSourceInstallState | null;
-  remoteSource: AvailableModuleRemoteSourceInstallState | null;
+  serviceSource: AvailableModuleServiceSourceInstallState | null;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
   if (linkedSource?.error) {
     return doctorCheck("source", "source", "hold", linkedSource.error);
   }
-  if (remoteSource?.error) {
-    return doctorCheck("source", "source", "hold", remoteSource.error);
+  if (serviceSource?.error) {
+    return doctorCheck("source", "source", "hold", serviceSource.error);
   }
   if (linkedSource?.configured) {
     return doctorCheck(
@@ -1590,14 +1589,14 @@ function sourceDoctorCheck({
       `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`
     );
   }
-  if (isModuleRegistered || remoteSource?.configured) {
-    const transport = remoteSourceTransportLabel(remoteSource);
+  if (isModuleRegistered || serviceSource?.configured) {
+    const transport = serviceSourceTransportLabel(serviceSource);
     return doctorCheck(
       "source",
       "source",
       "ok",
-      remoteSource?.desiredBaseUrl
-        ? `REMOTE_MODULES -> ${remoteSource.desiredBaseUrl}${transport ? ` (${transport})` : ""}`
+      serviceSource?.desiredBaseUrl
+        ? `LENSO_SERVICES -> ${serviceSource.desiredBaseUrl}${transport ? ` (${transport})` : ""}`
         : "service provider source registered"
     );
   }
@@ -1617,16 +1616,16 @@ function sourceDoctorCheck({
     "fix",
     row.source === "linked"
       ? "set linked module env override"
-      : `register service provider source in ${remoteSource?.envFile ?? ".env"}`,
+      : `register service provider source in ${serviceSource?.envFile ?? ".env"}`,
     addCommand
   );
 }
 
-function remoteSourceTransportLabel(
-  remoteSource: AvailableModuleRemoteSourceInstallState | null | undefined
+function serviceSourceTransportLabel(
+  serviceSource: AvailableModuleServiceSourceInstallState | null | undefined
 ): string | null {
   const url =
-    remoteSource?.desiredBaseUrl ?? remoteSource?.runningBaseUrl ?? "";
+    serviceSource?.desiredBaseUrl ?? serviceSource?.runningBaseUrl ?? "";
   if (url.startsWith("grpcs://")) {
     return "grpcs";
   }
@@ -1648,14 +1647,19 @@ function planDoctorCheck({
   isModuleRegistered: boolean;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
-  const remoteSource = remoteSourceForRow(row);
-  if (row.consolePackageHintCount === 0) {
-    return doctorCheck("plan", "console", "skip", "no console package hints");
+  const serviceSource = serviceSourceForRow(row);
+  if (row.consoleUiArtifactHintCount === 0) {
+    return doctorCheck(
+      "plan",
+      "console",
+      "skip",
+      "no Console UI artifact hints"
+    );
   }
   if (isModuleRegistered) {
     return doctorCheck("plan", "console", "ok", "module registered");
   }
-  if (remoteSource?.configured) {
+  if (serviceSource?.configured) {
     return doctorCheck(
       "plan",
       "console",
@@ -1669,29 +1673,29 @@ function planDoctorCheck({
 
 function packageDoctorCheck({
   isModuleRegistered,
-  missingConsolePackageCount,
+  missingConsoleUiArtifactCount,
   packageCommand,
   row,
 }: {
   isModuleRegistered: boolean;
-  missingConsolePackageCount: number;
+  missingConsoleUiArtifactCount: number;
   packageCommand: string;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
-  if (row.consolePackageHintCount === 0) {
+  if (row.consoleUiArtifactHintCount === 0) {
     return doctorCheck(
       "package",
       "package",
       "skip",
-      "no console package hints"
+      "no Console UI artifact hints"
     );
   }
-  if (missingConsolePackageCount > 0) {
+  if (missingConsoleUiArtifactCount > 0) {
     return doctorCheck(
       "package",
       "package",
       "fix",
-      `${missingConsolePackageCount} console package export${missingConsolePackageCount === 1 ? "" : "s"} missing`,
+      `${missingConsoleUiArtifactCount} Console UI artifact entry${missingConsoleUiArtifactCount === 1 ? "" : "s"} missing`,
       packageCommand
     );
   }
@@ -1700,7 +1704,7 @@ function packageDoctorCheck({
       "package",
       "bundle",
       "ok",
-      "console package available in this Console release"
+      "Console UI artifact available in this Console release"
     );
   }
   return doctorCheck(
@@ -1715,13 +1719,13 @@ function runtimeDoctorCheck({
   addCommand,
   isModuleRegistered,
   linkedSource,
-  remoteSource,
+  serviceSource,
   row,
 }: {
   addCommand: string;
   isModuleRegistered: boolean;
   linkedSource: AvailableModuleLinkedSourceInstallState | null;
-  remoteSource: AvailableModuleRemoteSourceInstallState | null;
+  serviceSource: AvailableModuleServiceSourceInstallState | null;
   row: AvailableModuleRow;
 }): AvailableModuleDoctorCheck {
   if (isModuleRegistered) {
@@ -1749,16 +1753,16 @@ function runtimeDoctorCheck({
       "linked module override is configured but not active"
     );
   }
-  if (remoteSource?.restartPending) {
+  if (serviceSource?.restartPending) {
     return doctorCheck(
       "runtime",
       "runtime",
       "fix",
-      remoteSource.restartReason ??
+      serviceSource.restartReason ??
         "restart to load configured service provider source"
     );
   }
-  if (remoteSource?.configured) {
+  if (serviceSource?.configured) {
     return doctorCheck(
       "runtime",
       "runtime",
@@ -1782,12 +1786,12 @@ function restartDoctorCheck({
   isModuleRegistered,
   isRestartPending,
   linkedSource,
-  remoteSource,
+  serviceSource,
 }: {
   isModuleRegistered: boolean;
   isRestartPending: boolean;
   linkedSource: AvailableModuleLinkedSourceInstallState | null;
-  remoteSource: AvailableModuleRemoteSourceInstallState | null;
+  serviceSource: AvailableModuleServiceSourceInstallState | null;
 }): AvailableModuleDoctorCheck {
   if (isRestartPending) {
     return doctorCheck(
@@ -1795,7 +1799,7 @@ function restartDoctorCheck({
       "restart",
       "fix",
       linkedSource?.restartReason ??
-        remoteSource?.restartReason ??
+        serviceSource?.restartReason ??
         "restart API and worker"
     );
   }
@@ -1807,18 +1811,18 @@ function restartDoctorCheck({
       `linked override desired=${String(linkedSource.desiredEnabled)} running=${String(linkedSource.runningEnabled)}`
     );
   }
-  if (remoteSource?.configured && remoteSource.runningBaseUrl) {
+  if (serviceSource?.configured && serviceSource.runningBaseUrl) {
     return doctorCheck(
       "restart",
       "restart",
       "ok",
-      `running ${remoteSource.runningBaseUrl}`
+      `running ${serviceSource.runningBaseUrl}`
     );
   }
   if (isModuleRegistered) {
     return doctorCheck("restart", "restart", "ok", "runtime config current");
   }
-  if (remoteSource?.configured) {
+  if (serviceSource?.configured) {
     return doctorCheck("restart", "restart", "skip", "restart state unknown");
   }
   return doctorCheck("restart", "restart", "skip", "source not configured");
@@ -1895,15 +1899,15 @@ function availableModulePreflight(
   }
 
   const manifestPackages = new Set(
-    (manifest.consolePackages ?? []).map(consolePackageKey)
+    (manifest.consoleUiArtifacts ?? []).map(consoleUiArtifactKey)
   );
-  const hasMismatchedPackageHint = (entry.consolePackages ?? []).some(
-    (hint) => !manifestPackages.has(consolePackageKey(hint))
+  const hasMismatchedPackageHint = (entry.consoleUiArtifacts ?? []).some(
+    (hint) => !manifestPackages.has(consoleUiArtifactKey(hint))
   );
   if (hasMismatchedPackageHint) {
     return {
       reason:
-        "catalog console package hints drift from manifest console declarations",
+        "catalog Console UI artifact hints drift from manifest console declarations",
       status: "package_hint_mismatch",
     };
   }
@@ -1994,12 +1998,14 @@ function availableModulePreflightFromResponse({
   };
 }
 
-function consolePackageKey(hint: AvailableModuleConsolePackageHint): string {
+function consoleUiArtifactKey(
+  hint: AvailableModuleConsoleUiArtifactHint
+): string {
   return `${hint.packageName}#${hint.exportName}`;
 }
 
 const defaultHostCompatibility: AvailableModuleHostCompatibility = {
-  consolePackageApi: "1",
+  consoleBridge: "1",
   lensoVersion: "0.1.0",
 };
 
@@ -2057,10 +2063,10 @@ function availableModuleCompatibilityIssue({
     }
   }
   if (
-    compatibility?.consolePackageApi &&
-    compatibility.consolePackageApi !== hostCompatibility.consolePackageApi
+    compatibility?.consoleBridge &&
+    compatibility.consoleBridge !== hostCompatibility.consoleBridge
   ) {
-    return `${moduleName} requires console package API ${compatibility.consolePackageApi}; host supports ${hostCompatibility.consolePackageApi}`;
+    return `${moduleName} requires Console UI artifact API ${compatibility.consoleBridge}; host supports ${hostCompatibility.consoleBridge}`;
   }
   return null;
 }

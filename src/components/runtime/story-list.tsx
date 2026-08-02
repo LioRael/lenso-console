@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-package-api";
+import { useConsoleLocale } from "@lenso/console-ui-internal";
 import { AlertCircle, Boxes, Clock, Search } from "lucide-react";
 
 import type { RuntimeStory } from "../../data/mock-runtime";

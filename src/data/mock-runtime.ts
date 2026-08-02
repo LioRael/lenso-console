@@ -42,7 +42,7 @@ export type FunctionRun = {
   functionName: string;
   runtimeDeclaration?: {
     moduleName: string;
-    moduleSource: "linked" | "remote" | string;
+    moduleSource: "linked" | "service" | string;
     name: string;
     version: number;
     queue: string;
@@ -1134,14 +1134,14 @@ export const functionRuns: FunctionRun[] = [
   },
   {
     id: "fn_01HX9R_REMOTE_SYNC",
-    functionName: "remote_crm.sync_contact.v1",
+    functionName: "crm_service.sync_contact.v1",
     runtimeDeclaration: {
-      moduleName: "remote-crm",
-      moduleSource: "remote",
-      name: "remote_crm.sync_contact.v1",
+      moduleName: "crm-service",
+      moduleSource: "service",
+      name: "crm_service.sync_contact.v1",
       version: 1,
-      queue: "remote-crm",
-      inputSchema: "remote_crm.sync_contact.v1",
+      queue: "crm-service",
+      inputSchema: "crm_service.sync_contact.v1",
       retryPolicy: {
         maxAttempts: 3,
         initialDelayMs: 1000,
@@ -1154,11 +1154,11 @@ export const functionRuns: FunctionRun[] = [
     createdAt: "2026-05-31T09:26:10.000Z",
     startedAt: "2026-05-31T09:26:11.000Z",
     completedAt: "2026-05-31T09:26:11.420Z",
-    lockedBy: "worker-remote-1",
+    lockedBy: "worker-service-1",
     actor: { kind: "system" },
     input: { contact_id: "contact_1" },
     output: { synced: true },
-    logs: ["claimed remote runtime function", "remote module returned success"],
+    logs: ["claimed Service runtime function", "Service returned success"],
   },
 ];
 
@@ -1245,14 +1245,14 @@ export const remoteProxyCalls: RemoteProxyCall[] = [
     error_details: null,
     id: "rpc_01J2REMOTE_OK_ACCOUNTS",
     method: "GET",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T10:12:04.120Z",
     path_params: {
       account_id: "acct_01J2A9",
     },
     remote_path: "/v1/accounts/acct_01J2A9",
     remote_status: 200,
-    request_id: "req_remote_accounts_lookup",
+    request_id: "req_service_accounts_lookup",
     retryable: false,
     span_id: "span_remote_accounts_lookup",
     success: true,
@@ -1265,7 +1265,7 @@ export const remoteProxyCalls: RemoteProxyCall[] = [
     duration_ms: 1420,
     error_code: "remote_http_429",
     error_details: {
-      message: "remote module rate limited the request",
+      message: "Service rate limited the request",
       retry_after_seconds: 45,
       upstream: "billing-sandbox",
     },
@@ -1276,7 +1276,7 @@ export const remoteProxyCalls: RemoteProxyCall[] = [
     path_params: {},
     remote_path: "/api/invoices",
     remote_status: 429,
-    request_id: "req_remote_invoice_create",
+    request_id: "req_service_invoice_create",
     retryable: true,
     span_id: "span_remote_invoice_create",
     success: false,
@@ -1298,7 +1298,7 @@ export const remoteProxyCalls: RemoteProxyCall[] = [
     },
     remote_path: "/v2/shipments/shp_01J2Z8",
     remote_status: 206,
-    request_id: "req_remote_shipment_detail",
+    request_id: "req_service_shipment_detail",
     retryable: false,
     span_id: null,
     success: true,
@@ -1316,14 +1316,14 @@ export const remoteProxyCalls: RemoteProxyCall[] = [
     },
     id: "rpc_01J2REMOTE_TIMEOUT_CONTACT",
     method: "PATCH",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T09:52:32.440Z",
     path_params: {
       contact_id: "con_01J2C4",
     },
     remote_path: "/v1/contacts/con_01J2C4",
     remote_status: null,
-    request_id: "req_remote_contact_sync",
+    request_id: "req_service_contact_sync",
     retryable: true,
     span_id: "span_remote_contact_sync",
     success: false,
@@ -1334,7 +1334,7 @@ export const remoteProxyCalls: RemoteProxyCall[] = [
 export const adminActionInvocations: AdminActionInvocation[] = [
   {
     action_name: "sync_contacts",
-    capability: "remote_crm.contacts.sync",
+    capability: "crm_service.contacts.sync",
     correlation_id: "corr_admin_action_contact_sync",
     duration_ms: 128,
     error_code: null,
@@ -1342,7 +1342,7 @@ export const adminActionInvocations: AdminActionInvocation[] = [
     id: "adminaction_req_admin_contact_sync",
     input_summary: "dry_run: true",
     label: "Sync contacts",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T10:14:22.150Z",
     request_id: "req_admin_contact_sync",
     result_summary: "queued contact sync",

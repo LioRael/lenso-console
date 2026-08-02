@@ -17,7 +17,7 @@ const story = {
     node("remoteproxy_rproxy_1", {
       source_metadata: {
         remote_proxy_call_id: "rproxy_1",
-        request_id: "req_remote",
+        request_id: "req_service",
       },
     }),
   ],
@@ -50,7 +50,7 @@ describe("runtime story target resolution", () => {
       resolveRuntimeStoryTarget([story], {
         correlationId: "corr_story",
         remoteProxyCallId: "rproxy_1",
-        requestId: "req_remote",
+        requestId: "req_service",
       })
     ).toEqual({
       nodeId: "remoteproxy_rproxy_1",

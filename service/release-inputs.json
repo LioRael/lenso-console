@@ -6,8 +6,7 @@
       "service/Cargo.lock",
       "service/Cargo.toml",
       "service/src/composition.rs",
-      "service/src/modules",
-      "packages/system-registry-console/console-surface.json"
+      "service/src/modules"
     ],
     "schema": [
       "service/Cargo.lock",
@@ -23,8 +22,7 @@
       "service/recovery-drill-result.schema.json",
       "service/recovery-set.schema.json",
       "service/src",
-      "packages/console-system-plane/src",
-      "packages/system-registry-console/console-surface.json"
+      "packages/console-system-plane/src"
     ],
     "configuration": [
       "Dockerfile",

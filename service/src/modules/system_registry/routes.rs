@@ -1,14 +1,13 @@
 use lenso::host::http::{
     ApiErrorResponse, ApiOpenApiRouter, AppContext, AppError, ErrorCode, ErrorResponse,
-    HttpRequestContext, Json, JsonBody, OpenApiRouter, Path, RequestContext, State, UserActor,
-    json, routes,
+    HttpRequestContext, Json, OpenApiRouter, Path, RequestContext, State, UserActor, json, routes,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json as json_value};
-use sqlx::{Executor, Postgres, Row, Transaction};
+use serde::Serialize;
+use serde_json::Value;
+use sqlx::{Postgres, Row};
 use utoipa::ToSchema;
 
-use super::{REGISTRY_READ, REGISTRY_REVOKE};
+use super::REGISTRY_READ;
 
 const LIST_SERVICES_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
@@ -20,22 +19,6 @@ const GET_SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document, \
     core_observed_at::text as core_observed_at, last_error_code, version \
     from console.managed_services where service_id = $1";
-const REVOKE_SERVICE_SQL: &str = "update console.managed_services \
-    set enrollment_state = 'revoked', authorization_epoch = authorization_epoch + 1, \
-        version = version + 1, updated_at = now() \
-    where service_id = $1 and version = $2 and enrollment_state = 'active' \
-    returning service_id, service_principal, base_url, enrollment_receipt_digest, \
-        enrollment_grant_revision, authorization_epoch, enrollment_expires_at_unix_ms, \
-        enrollment_state, connection_state, core_document, \
-        core_observed_at::text as core_observed_at, last_error_code, version";
-
-#[derive(Debug, Deserialize, ToSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RevokeEnrollmentRequest {
-    expected_version: u64,
-    reason: String,
-}
-
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 enum EnrollmentState {
@@ -78,7 +61,6 @@ fn router() -> ApiOpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(list_managed_services))
         .routes(routes!(get_managed_service))
-        .routes(routes!(revoke_enrollment))
 }
 
 #[utoipa::path(
@@ -143,136 +125,6 @@ async fn get_managed_service(
             )
         })?;
     Ok(json(managed_service_from_row(&row, &request_ctx)?))
-}
-
-#[utoipa::path(
-    post,
-    path = "/api/console/v1/services/{serviceId}/enrollment/revoke",
-    operation_id = "console_revoke_managed_service_enrollment",
-    tag = "console-system-registry",
-    params(("serviceId" = String, Path, description = "Managed Service identity")),
-    request_body(content = RevokeEnrollmentRequest, content_type = "application/json"),
-    responses(
-        (status = 200, body = ManagedServiceResponse, content_type = "application/json"),
-        (status = 400, body = ErrorResponse, content_type = "application/problem+json"),
-        (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
-        (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
-        (status = 409, body = ErrorResponse, content_type = "application/problem+json"),
-        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
-    )
-)]
-async fn revoke_enrollment(
-    State(ctx): State<AppContext>,
-    actor: UserActor,
-    HttpRequestContext(request_ctx): HttpRequestContext,
-    Path(service_id): Path<String>,
-    JsonBody(input): JsonBody<RevokeEnrollmentRequest>,
-) -> Result<Json<ManagedServiceResponse>, ApiErrorResponse> {
-    require_scope(&actor, REGISTRY_REVOKE, &request_ctx)?;
-    require_management_mutations_allowed(&request_ctx)?;
-    let reason = input.reason.trim();
-    if reason.is_empty() {
-        return Err(api_error(
-            AppError::new(ErrorCode::Validation, "Revocation reason is required"),
-            &request_ctx,
-        ));
-    }
-    let expected_version = i64::try_from(input.expected_version).map_err(|error| {
-        api_error(
-            AppError::new(
-                ErrorCode::Validation,
-                "Expected version exceeds storage range",
-            )
-            .with_source(error),
-            &request_ctx,
-        )
-    })?;
-    let mut tx = ctx
-        .db
-        .begin()
-        .await
-        .map_err(|error| database_error(error, &request_ctx))?;
-    let row = sqlx::query(REVOKE_SERVICE_SQL)
-        .bind(&service_id)
-        .bind(expected_version)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(|error| database_error(error, &request_ctx))?
-        .ok_or_else(|| {
-            api_error(
-                AppError::new(
-                    ErrorCode::Conflict,
-                    "Enrollment is missing, revoked, or changed concurrently",
-                ),
-                &request_ctx,
-            )
-        })?;
-    append_audit(
-        &mut tx,
-        &service_id,
-        &actor.user_id,
-        reason,
-        input.expected_version,
-        &request_ctx,
-    )
-    .await?;
-    let service = managed_service_from_row(&row, &request_ctx)?;
-    tx.commit()
-        .await
-        .map_err(|error| database_error(error, &request_ctx))?;
-    Ok(json(service))
-}
-
-fn require_management_mutations_allowed(
-    request_ctx: &RequestContext,
-) -> Result<(), ApiErrorResponse> {
-    match crate::recovery_mode() {
-        Ok(mode) if management_mutations_allowed(mode) => Ok(()),
-        Ok(_) => Err(api_error(
-            AppError::new(
-                ErrorCode::Conflict,
-                "Console recovery mode blocks management mutations",
-            ),
-            request_ctx,
-        )),
-        Err(_) => Err(api_error(
-            AppError::new(
-                ErrorCode::Internal,
-                "Console recovery mode configuration is invalid",
-            ),
-            request_ctx,
-        )),
-    }
-}
-
-fn management_mutations_allowed(mode: crate::ConsoleRecoveryMode) -> bool {
-    mode == crate::ConsoleRecoveryMode::Normal
-}
-
-async fn append_audit(
-    tx: &mut Transaction<'_, Postgres>,
-    service_id: &str,
-    actor_user_id: &str,
-    reason: &str,
-    previous_version: u64,
-    request_ctx: &RequestContext,
-) -> Result<(), ApiErrorResponse> {
-    tx.execute(
-        sqlx::query(
-            "insert into console.system_registry_audit \
-             (service_id, event_type, actor_user_id, evidence) \
-             values ($1, 'enrollment_revoked', $2, $3)",
-        )
-        .bind(service_id)
-        .bind(actor_user_id)
-        .bind(json_value!({
-            "reason": reason,
-            "previousVersion": previous_version
-        })),
-    )
-    .await
-    .map_err(|error| database_error(error, request_ctx))?;
-    Ok(())
 }
 
 fn managed_service_from_row(
@@ -417,7 +269,6 @@ mod tests {
         for path in [
             "/api/console/v1/services",
             "/api/console/v1/services/{serviceId}",
-            "/api/console/v1/services/{serviceId}/enrollment/revoke",
         ] {
             assert!(document.paths.paths.contains_key(path), "missing {path}");
         }
@@ -454,16 +305,6 @@ mod tests {
             scopes: vec![REGISTRY_READ.to_owned()],
         };
         assert!(has_scope(&reader, REGISTRY_READ));
-        assert!(!has_scope(&reader, REGISTRY_REVOKE));
-    }
-
-    #[test]
-    fn recovery_mode_blocks_registry_mutations() {
-        assert!(management_mutations_allowed(
-            crate::ConsoleRecoveryMode::Normal
-        ));
-        assert!(!management_mutations_allowed(
-            crate::ConsoleRecoveryMode::Restore
-        ));
+        assert_eq!(reader.scopes, [REGISTRY_READ]);
     }
 }

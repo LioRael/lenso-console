@@ -179,7 +179,7 @@ fn remote_proxy_related_node_id(
         .filter(|span| remote_proxy_span_trace_id(span) == Some(trace_id))
         .find_map(|span| related_node_id(&span.attributes, node_index))
         .or_else(|| {
-            let remote_proxy_node_id = platform_core::remote_proxy_call_story_event_id(&call.id);
+            let remote_proxy_node_id = platform_core::provider_call_story_event_id(&call.id);
             node_index
                 .contains(&remote_proxy_node_id)
                 .then_some(remote_proxy_node_id)
@@ -545,7 +545,7 @@ mod tests {
             Some("trace_story_remote_proxy"),
             Some("span_without_matching_telemetry"),
         );
-        let proxy_node_id = platform_core::remote_proxy_call_story_event_id(&call.id);
+        let proxy_node_id = platform_core::provider_call_story_event_id(&call.id);
         let node_index = RuntimeNodeIndex {
             ids: BTreeSet::from(["fnrun_story".to_owned(), proxy_node_id]),
         };
@@ -568,7 +568,7 @@ mod tests {
     #[test]
     fn remote_proxy_falls_back_to_proxy_node_without_execution_span() {
         let call = remote_proxy_call("rproxy_story_external", Some("trace_remote_proxy"), None);
-        let proxy_node_id = platform_core::remote_proxy_call_story_event_id(&call.id);
+        let proxy_node_id = platform_core::provider_call_story_event_id(&call.id);
         let node_index = RuntimeNodeIndex {
             ids: BTreeSet::from([proxy_node_id.clone()]),
         };
@@ -586,11 +586,11 @@ mod tests {
     ) -> AdminRemoteProxyCall {
         AdminRemoteProxyCall {
             id: id.to_owned(),
-            module_name: "remote-crm".to_owned(),
+            module_name: "crm-service".to_owned(),
             method: "GET".to_owned(),
             declared_path: "/contacts/{id}".to_owned(),
             remote_path: "/contacts/contact_1".to_owned(),
-            capability: Some("remote_crm.contacts.read".to_owned()),
+            capability: Some("crm_service.contacts.read".to_owned()),
             remote_status: Some(200),
             duration_ms: 125,
             success: true,
@@ -609,7 +609,7 @@ mod tests {
             attributes,
             ended_at: parse_time("2026-05-31T00:00:03Z"),
             id: id.to_owned(),
-            name: "remote proxy remote-crm".to_owned(),
+            name: "remote proxy crm-service".to_owned(),
             started_at: parse_time("2026-05-31T00:00:02Z"),
             status: Some("ok".to_owned()),
         }

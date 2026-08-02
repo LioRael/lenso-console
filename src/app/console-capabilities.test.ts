@@ -92,8 +92,8 @@ describe("console capabilities", () => {
       "runtime.stories.read",
       "auth.users.read",
       "identity.users.read",
-      "remote_crm.contacts.read",
-      "remote_crm.contacts.sync",
+      "crm_service.contacts.read",
+      "crm_service.contacts.sync",
       "console.system-registry.read",
     ]);
   });

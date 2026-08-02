@@ -152,7 +152,7 @@ VALUES (
 INSERT INTO config.setting_values (service, key, value, updated_at, updated_by)
 VALUES (
   '*', 'auth.console_admin_user_scopes',
-  '{"recovery-drill-operator":["console.admin","console.system-registry.read","console.system-registry.revoke"]}'::jsonb,
+  '{"recovery-drill-operator":["console.admin","console.system-registry.read"]}'::jsonb,
   now(), 'recovery-drill'
 )
 ON CONFLICT (service, key) DO UPDATE

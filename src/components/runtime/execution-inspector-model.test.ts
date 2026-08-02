@@ -178,15 +178,15 @@ describe("execution inspector model", () => {
           duration_ms: 1420,
           error_code: "remote_http_429",
           error_details: {
-            message: "remote module rate limited the request",
+            message: "Service rate limited the request",
           },
           method: "POST",
-          module_name: "remote-crm",
+          module_name: "crm-service",
           path_params: { id: "contact_1" },
           remote_path: "/v1/contacts/contact_1",
           remote_proxy_call_id: "rproxy_1",
           remote_status: 429,
-          request_id: "req_remote_proxy",
+          request_id: "req_service_proxy",
           retryable: true,
           span_id: "span_remote_proxy",
           trace_id: "trace_remote_proxy",
@@ -194,7 +194,7 @@ describe("execution inspector model", () => {
       },
       durationMs: 1500,
       kind: "external" as const,
-      service: "remote-crm",
+      service: "crm-service",
       status: "failed" as const,
     };
 
@@ -202,12 +202,12 @@ describe("execution inspector model", () => {
 
     expect(detail?.rows).toEqual([
       ["result", "retryable failure"],
-      ["module", "remote-crm"],
+      ["module", "crm-service"],
       ["declared route", "POST /contacts/{id}"],
       ["remote path", "/v1/contacts/contact_1"],
       ["remote status", 429],
       ["duration", "1.42s"],
-      ["request id", "req_remote_proxy"],
+      ["request id", "req_service_proxy"],
       ["trace id", "trace_remote_proxy"],
       ["span id", "span_remote_proxy"],
       ["error code", "remote_http_429"],
@@ -215,7 +215,7 @@ describe("execution inspector model", () => {
     ]);
     expect(detail?.pathParams).toEqual({ id: "contact_1" });
     expect(detail?.errorDetails).toEqual({
-      message: "remote module rate limited the request",
+      message: "Service rate limited the request",
     });
   });
 

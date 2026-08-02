@@ -16,7 +16,6 @@ const liveRepositoryIdentityFiles = [
   "Dockerfile",
   "README.md",
   "docs/agents/issue-tracker.md",
-  "packages/console-package-api/package.json",
   "packages/console-bridge/package.json",
   "service/README.md",
 ];
@@ -144,10 +143,10 @@ describe("Lenso Console repository boundary", () => {
     expect(runtime).toContain("ociObservation(name, item.version, artifact");
   });
 
-  test("builds the public package API before release artifacts are packed", async () => {
+  test("builds the private Shell UI before release artifacts are packed", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];
-    const packageBuild = "pnpm --filter @lenso/console-package-api build";
+    const packageBuild = "pnpm --filter @lenso/console-ui-internal build";
 
     expect(build).toContain(packageBuild);
     expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
@@ -175,7 +174,7 @@ describe("Lenso Console repository boundary", () => {
     expect(contents).toMatch(/must\s+not depend on this repository/u);
   });
 
-  test("owns the Runtime Story backend beside its Console package", async () => {
+  test("owns the Runtime Story backend beside its linked Console Module", async () => {
     const storyManifest = await source("service/modules/story/Cargo.toml");
     const storyModule = await source("service/modules/story/src/module.rs");
     const serviceManifest = await source("service/Cargo.toml");
@@ -185,7 +184,8 @@ describe("Lenso Console repository boundary", () => {
     expect(storyManifest).toContain(
       'repository = "https://github.com/LioRael/lenso-console"'
     );
-    expect(storyModule).toContain('"@lenso/story-console"');
+    expect(storyModule).toContain('"component": "lenso/runtime-stories"');
+    expect(storyModule).toContain("ConsoleSurfacePresentation::Declarative");
     expect(serviceManifest).toContain('path = "modules/story"');
   });
 });

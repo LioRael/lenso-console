@@ -223,19 +223,19 @@ describe("runtime API model normalization", () => {
               error_code: null,
               error_details: [],
               method: "GET",
-              module_name: "remote-crm",
+              module_name: "crm-service",
               path_params: { id: "contact_1" },
               remote_path: "/contacts/contact_1",
               remote_proxy_call_id: "rproxy_1",
               remote_status: 200,
-              request_id: "req_remote_proxy",
+              request_id: "req_service_proxy",
               retryable: false,
               span_id: "span_remote_proxy",
               trace_id: "trace_remote_proxy",
             },
           },
           name: "Fetch Contact",
-          service: "remote-crm",
+          service: "crm-service",
           status: "completed",
           timestamp: "2026-06-01T12:00:00.180Z",
           type: "remote_proxy_call",
@@ -275,7 +275,7 @@ describe("runtime API model normalization", () => {
       kind: "external",
       name: "Fetch Contact",
       parentId: "fn_create_user",
-      service: "remote-crm",
+      service: "crm-service",
       status: "completed",
     });
     expect(remoteNode?.attributes.source_metadata).toMatchObject({
@@ -283,12 +283,12 @@ describe("runtime API model normalization", () => {
       duration_ms: 42,
       error_details: [],
       method: "GET",
-      module_name: "remote-crm",
+      module_name: "crm-service",
       path_params: { id: "contact_1" },
       remote_path: "/contacts/contact_1",
       remote_proxy_call_id: "rproxy_1",
       remote_status: 200,
-      request_id: "req_remote_proxy",
+      request_id: "req_service_proxy",
       retryable: false,
       span_id: "span_remote_proxy",
       trace_id: "trace_remote_proxy",
@@ -298,13 +298,13 @@ describe("runtime API model normalization", () => {
         (row) => row.id === "remoteproxy_rproxy_1"
       )
     ).toMatchObject({
-      metaParts: ["ok", "remote-crm", "GET /contacts/{id}", "status 200"],
+      metaParts: ["ok", "crm-service", "GET /contacts/{id}", "status 200"],
     });
     expect(buildRemoteProxyInspectorDetail(remoteNode!)).toMatchObject({
       errorDetails: [],
       pathParams: { id: "contact_1" },
       rows: expect.arrayContaining([
-        ["request id", "req_remote_proxy"],
+        ["request id", "req_service_proxy"],
         ["trace id", "trace_remote_proxy"],
         ["span id", "span_remote_proxy"],
       ]),
@@ -633,7 +633,7 @@ describe("runtime API model normalization", () => {
         {
           attributes: {
             error_code: "external_dependency_failure",
-            module_name: "remote-crm",
+            module_name: "crm-service",
           },
           category: "external",
           correlation_id: "corr_1",
@@ -663,15 +663,15 @@ describe("runtime API model normalization", () => {
       data: [
         {
           attributes: {
-            function_name: "remote_crm.sync_contact.v1",
-            module_name: "remote-crm",
+            function_name: "crm_service.sync_contact.v1",
+            module_name: "crm-service",
           },
           category: "external",
           correlation_id: "corr_1",
           duration_ms: 42,
           ended_at: "2026-06-01T12:00:01.042Z",
           id: "remote_runtime:elog_1",
-          name: "remote-crm remote_crm.sync_contact.v1",
+          name: "crm-service crm_service.sync_contact.v1",
           related_node_id: "fnrun_1",
           source: "remote_runtime",
           started_at: "2026-06-01T12:00:01.000Z",

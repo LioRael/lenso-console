@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import type { ConsoleNavigationItem } from "../../packages/console-package-api/src/index";
+import type { ConsoleNavigationItem } from "../../packages/console-ui-internal/src/index";
 import {
   activeWorkspaceIdForPath,
   buildWorkspaceNavigation,

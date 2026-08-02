@@ -280,7 +280,7 @@ describe("Console Service delivery", () => {
       "node scripts/build-console-release-artifacts.mjs"
     );
     expect(config.aliases).toEqual({
-      "oci:lenso-console-service": "npm:@lenso/console",
+      "oci:lenso-console-service": "npm:@lenso/console-web",
     });
     expect(config.ociImages["oci:lenso-console-service"]).toEqual({
       archivePath: ".artifacts/lenso-console-service.oci.tar",

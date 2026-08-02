@@ -5,7 +5,7 @@ import {
   Select,
   TableHeader,
   useConsoleLocale,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 

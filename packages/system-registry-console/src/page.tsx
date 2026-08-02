@@ -2,7 +2,6 @@
 
 import {
   Badge,
-  Button,
   ConsolePage,
   DataRow,
   InlineStatus,
@@ -12,11 +11,10 @@ import {
   StateView,
   SummaryStrip,
   TableHeader,
-  Textarea,
   consoleHostApi,
   useConsoleLocale,
-} from "@lenso/console-package-api";
-import type { ConsoleManagedService } from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
+import type { ConsoleManagedService } from "@lenso/console-ui-internal";
 import { Ban, Network, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -32,11 +30,6 @@ export function SystemRegistryConsolePage() {
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   const servicesQuery = consoleHostApi.systemRegistry.useServices();
-  const revokeEnrollment = consoleHostApi.systemRegistry.useRevokeEnrollment();
-  const capabilities = consoleHostApi.capabilities.useAvailable();
-  const canRevoke =
-    capabilities.includes("*") ||
-    capabilities.includes("console.system-registry.revoke");
   const services = useMemo(
     () => managedServiceRows(servicesQuery.data ?? []),
     [servicesQuery.data]
@@ -117,20 +110,7 @@ export function SystemRegistryConsolePage() {
             </Section>
           </SplitView.Main>
           <SplitView.Inspector>
-            <ServiceInspector
-              canRevoke={canRevoke}
-              mutationError={revokeEnrollment.error}
-              mutationPending={revokeEnrollment.isPending}
-              onRevoke={(service, reason) => {
-                revokeEnrollment.mutate({
-                  expectedVersion: service.version,
-                  reason,
-                  serviceId: service.serviceId,
-                });
-              }}
-              service={selected}
-              zh={zh}
-            />
+            <ServiceInspector service={selected} zh={zh} />
           </SplitView.Inspector>
         </SplitView>
       </ConsolePage.Body>
@@ -233,17 +213,9 @@ function semanticStatusTone(tone: ReturnType<typeof registryState>["tone"]) {
 }
 
 function ServiceInspector({
-  canRevoke,
-  mutationError,
-  mutationPending,
-  onRevoke,
   service,
   zh,
 }: {
-  canRevoke: boolean;
-  mutationError: Error | null;
-  mutationPending: boolean;
-  onRevoke: (service: ConsoleManagedService, reason: string) => void;
   service: ConsoleManagedService | undefined;
   zh: boolean;
 }) {
@@ -318,116 +290,18 @@ function ServiceInspector({
         />
       </KeyValueList>
 
-      <ServiceEnrollmentForm
-        canRevoke={canRevoke}
-        mutationError={mutationError}
-        mutationPending={mutationPending}
-        onRevoke={onRevoke}
-        service={service}
-        zh={zh}
-      />
-    </div>
-  );
-}
-
-function ServiceEnrollmentForm({
-  canRevoke,
-  mutationError,
-  mutationPending,
-  onRevoke,
-  service,
-  zh,
-}: {
-  canRevoke: boolean;
-  mutationError: Error | null;
-  mutationPending: boolean;
-  onRevoke: (service: ConsoleManagedService, reason: string) => void;
-  service: ConsoleManagedService;
-  zh: boolean;
-}) {
-  const [reason, setReason] = useState("");
-  const revocable = canRevoke && service.enrollmentState === "active";
-
-  return (
-    <form
-      className="border-(--line) border-t p-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const trimmedReason = reason.trim();
-        if (!(revocable && trimmedReason)) {
-          return;
-        }
-        onRevoke(service, trimmedReason);
-        setReason("");
-      }}
-    >
-      <div className="flex items-center gap-2 text-(--fg-secondary) text-[11px]">
-        <Ban aria-hidden="true" size={14} />
-        {zh ? "注册权限" : "Enrollment authority"}
-      </div>
-      <p className="mt-1.5 text-(--fg-tertiary) text-[10px] leading-4">
-        {zh
-          ? "撤销会立即推进权限 epoch，但不会停止服务业务数据面。"
-          : "Revocation immediately advances the authorization epoch. It does not stop the Service business data plane."}
-      </p>
-      {service.enrollmentState === "revoked" ? (
-        <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
-          {zh ? "此注册已经撤销。" : "This enrollment is already revoked."}
-        </p>
-      ) : canRevoke ? (
-        <>
-          <label
-            className="mt-2 grid gap-1.5 text-(--fg-secondary) text-[11px]"
-            htmlFor="service-revocation-reason"
-          >
-            {zh ? "撤销原因" : "Revocation reason"}
-            <Textarea
-              aria-label={zh ? "撤销原因" : "Revocation reason"}
-              className="min-h-16"
-              id="service-revocation-reason"
-              onChange={(event) => setReason(event.target.value)}
-              placeholder={
-                zh
-                  ? "为什么应撤销此服务的权限？"
-                  : "Why should this Service lose authority?"
-              }
-              value={reason}
-            />
-          </label>
-          <Button
-            aria-label={
-              zh
-                ? `撤销 ${service.serviceId} 注册`
-                : `Revoke ${service.serviceId} enrollment`
-            }
-            className="mt-2 w-full"
-            disabled={mutationPending || reason.trim().length === 0}
-            type="submit"
-            variant="danger"
-          >
-            {mutationPending
-              ? zh
-                ? "正在撤销注册…"
-                : "Revoking enrollment…"
-              : zh
-                ? "撤销注册"
-                : "Revoke enrollment"}
-          </Button>
-        </>
-      ) : (
-        <p className="mt-2 border border-(--line) px-2 py-1.5 text-(--fg-tertiary) text-[10px]">
+      <div className="border-(--line) border-t p-3">
+        <div className="flex items-center gap-2 text-(--fg-secondary) text-[11px]">
+          <Ban aria-hidden="true" size={14} />
+          {zh ? "注册权限" : "Enrollment authority"}
+        </div>
+        <p className="mt-1.5 text-(--fg-tertiary) text-[10px] leading-4">
           {zh
-            ? "你的操作员角色可以查看此记录，但不能撤销它。"
-            : "Your operator role can inspect this record but cannot revoke it."}
+            ? "变更注册权限必须通过计划、审批、提交和终态证据流程；此视图只读。"
+            : "Enrollment authority changes require plan, approval, submission, and terminal evidence; this view is read-only."}
         </p>
-      )}
-      {mutationError ? (
-        <p className="mt-2 text-[var(--tone-error-fg)] text-[10px]">
-          {zh ? "撤销失败：" : "Revocation failed: "}
-          {mutationError.message}
-        </p>
-      ) : null}
-    </form>
+      </div>
+    </div>
   );
 }
 

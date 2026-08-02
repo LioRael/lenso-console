@@ -151,7 +151,7 @@ describe("runtime story data model", () => {
             source_metadata: {
               declared_path: "/contacts/{id}",
               method: "GET",
-              module_name: "remote-crm",
+              module_name: "crm-service",
               remote_status: 200,
             },
           },
@@ -163,7 +163,7 @@ describe("runtime story data model", () => {
           logs: [],
           name: "Fetch Contact",
           parentId: "node_a",
-          service: "remote-crm",
+          service: "crm-service",
           startMs: 180,
           status: "completed",
         },
@@ -192,9 +192,9 @@ describe("runtime story data model", () => {
     expect(remoteRow).toMatchObject({
       durationMs: 42,
       kind: "remote_proxy_call",
-      metaParts: ["ok", "remote-crm", "GET /contacts/{id}", "status 200"],
+      metaParts: ["ok", "crm-service", "GET /contacts/{id}", "status 200"],
       name: "Fetch Contact",
-      service: "remote-crm",
+      service: "crm-service",
       source: "backend",
       status: "completed",
     });
@@ -223,7 +223,7 @@ describe("runtime story data model", () => {
           events: [],
           id: "remoteproxy_rproxy_failed",
           kind: "external",
-          logs: ["remote module rate limited the request"],
+          logs: ["Service rate limited the request"],
           name: "Create Invoice",
           parentId: "node_a",
           service: "remote-billing",
@@ -240,7 +240,7 @@ describe("runtime story data model", () => {
           createdAt: "2026-06-01T00:00:00.180Z",
           detailId: "remoteproxy_rproxy_failed",
           id: "remoteproxy_rproxy_failed",
-          lastError: "remote module rate limited the request",
+          lastError: "Service rate limited the request",
           maxAttempts: 1,
           name: "Create Invoice",
           startedAt: "2026-06-01T00:00:00.180Z",
@@ -256,7 +256,7 @@ describe("runtime story data model", () => {
     );
 
     expect(remoteRow).toMatchObject({
-      error: "remote module rate limited the request",
+      error: "Service rate limited the request",
       kind: "remote_proxy_call",
       metaParts: [
         "retryable",
@@ -279,7 +279,7 @@ describe("runtime story data model", () => {
             source_metadata: {
               declared_path: "/contacts/{id}",
               method: "GET",
-              module_name: "remote-crm",
+              module_name: "crm-service",
               remote_proxy_call_id: "rproxy_1",
               remote_status: 502,
             },
@@ -291,7 +291,7 @@ describe("runtime story data model", () => {
           kind: "external",
           logs: ["external dependency failed"],
           name: "Fetch Contact",
-          service: "remote-crm",
+          service: "crm-service",
           startMs: 0,
           status: "failed",
         },
@@ -300,7 +300,7 @@ describe("runtime story data model", () => {
 
     expect(rows[0]).toMatchObject({
       kind: "external",
-      metaParts: ["failed", "remote-crm", "GET /contacts/{id}", "status 502"],
+      metaParts: ["failed", "crm-service", "GET /contacts/{id}", "status 502"],
       source: "node",
     });
   });

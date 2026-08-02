@@ -5,7 +5,7 @@ import {
   Select,
   TableHeader,
   useConsoleLocale,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -19,7 +19,7 @@ import {
 } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
 
-type SourceFilter = "all" | "linked" | "remote";
+type SourceFilter = "all" | "linked" | "service";
 type AreaFilter = "all" | "runtime" | "operations" | "data" | "configuration";
 type StateFilter = "all" | "loaded" | "error";
 
@@ -27,13 +27,12 @@ type SurfaceRegistration = {
   area: string;
   capabilities: readonly string[];
   error: string | null | undefined;
-  exportName: string;
+  presentation: string;
   group: string;
   id: string;
   moduleId: string;
   moduleName: string;
   order: number;
-  packageName: string;
   route: string;
   source: string;
   state: string;
@@ -55,13 +54,15 @@ export function ModulesPage() {
             area: surface.area,
             capabilities: surface.requiredCapabilities ?? [],
             error: module.error,
-            exportName: surface.package?.export ?? "consoleSurface",
-            group: navigation?.group?.label ?? "—",
+            presentation: surface.presentation,
+            group:
+              navigation && "group" in navigation
+                ? (navigation.group?.label ?? "—")
+                : "—",
             id: `${module.id}:${surface.route}`,
             moduleId: module.id,
             moduleName: module.name,
             order: navigation?.order ?? 0,
-            packageName: surface.package?.name ?? module.id,
             route: surface.route,
             source: module.source,
             state: module.state,
@@ -109,7 +110,7 @@ export function ModulesPage() {
           options={[
             { label: copy.modules.allSources, value: "all" },
             { label: copy.modules.sourceLinked, value: "linked" },
-            { label: copy.modules.sourceRemote, value: "remote" },
+            { label: copy.modules.sourceService, value: "service" },
           ]}
           value={source}
         />
@@ -168,8 +169,8 @@ export function ModulesPage() {
                 <p>Surface: {selected.surface.toLowerCase()}</p>
               </InspectorSection>
               <InspectorSection title={copy.modules.ownership}>
-                <p>{selected.packageName}</p>
-                <p>Export: {selected.exportName}</p>
+                <p>Module: {selected.moduleId}</p>
+                <p>Presentation: {selected.presentation}</p>
                 <p>Source: {sourceLabel(selected.source, copy.modules)}</p>
               </InspectorSection>
               <InspectorSection title={copy.modules.navigation}>
@@ -290,8 +291,8 @@ function sourceLabel(
   if (source === "linked") {
     return copy.sourceLinked;
   }
-  if (source === "remote") {
-    return copy.sourceRemote;
+  if (source === "service") {
+    return copy.sourceService;
   }
   return copy.sourceFirstParty;
 }

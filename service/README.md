@@ -74,14 +74,17 @@ the Shell build is absent.
 Module Console UI artifacts are owned by this Service, not by managed Services.
 Operators with the `console.artifacts.manage` capability may reconcile reviewed
 artifacts through `POST /api/console/v1/artifacts/reconcile`. The Service
-downloads each HTTPS artifact with a bounded response size, verifies its exact
-SHA-256 digest and `lenso.console-bridge.v1` contract, and writes a
+downloads each HTTPS npm-style web archive with a bounded response size,
+verifies its exact SHA-256 digest and `lenso.console-bridge.v1` contract,
+rejects unsafe archive paths, materializes only `dist/`, and writes a
 content-addressed object plus an atomic composition receipt. Container
 deployments persist this Console-owned store at
 `/opt/lenso-console/artifacts`; it remains writable only by the container's
-unprivileged UID `10001`. Artifacts are not exposed as same-origin JavaScript;
-isolated UI loading continues through the reviewed composition and sandboxed
-Console Bridge boundary.
+unprivileged UID `10001`. `GET /api/console/v1/artifacts` exposes the applied
+receipt to authenticated Operators. Static entries are never imported by the
+Shell: each is loaded through `/artifacts/<digest>/` in an iframe without
+`allow-same-origin`, under a restrictive artifact CSP and the sandboxed Console
+Bridge boundary.
 
 ## Container installation
 
@@ -286,10 +289,9 @@ may publish the exact image and attest the exact manifest. Until that OCI
 publisher is installed, candidate output is not an official or installable
 Console Release.
 
-Registry reads require `console.system-registry.read`. Explicit revocation
-requires `console.system-registry.revoke`, an expected row version and a reason.
-Revocation advances the authorization epoch and writes append-only audit
-evidence in the same Console Store transaction.
+Registry reads require `console.system-registry.read`. Enrollment changes are
+submitted through the reviewed System Plane workflow; the Console registry is
+read-only and exposes the resulting evidence.
 
 No enrollment creation endpoint is exposed yet. The signed Enrollment
 Offer/Receipt types exist on the framework System Plane branch but are not in a

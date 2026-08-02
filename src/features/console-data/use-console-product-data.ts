@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import type { ConsoleModuleMetadata } from "../../app/console-module-resolver";
-import { buildTimeConsoleModuleMetadata } from "../../app/console-modules";
+import { consoleModules } from "../../app/console-modules";
 import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
@@ -17,7 +17,6 @@ import {
   useRuntimeSummary,
 } from "../../hooks/use-runtime-queries";
 import { httpClient, isApiMode } from "../../lib/http-client";
-import type { AdminModuleMetadata } from "../../pages/data-render-model";
 import type { DeliveryConsoleProjection } from "../../pages/delivery-console";
 import { serviceCenterRows } from "../../pages/services-model";
 
@@ -65,7 +64,7 @@ export function useSystemInventory() {
 }
 
 type ModulesResponse = {
-  modules: AdminModuleMetadata[];
+  modules: ConsoleModuleMetadata[];
   refreshed_at: string | null;
 };
 
@@ -73,28 +72,30 @@ export function useModuleRegistry() {
   const query = useQuery({
     enabled: isApiMode(),
     queryKey: ["modules", "registry"],
-    queryFn: () => httpClient.get("admin/data/modules").json<ModulesResponse>(),
+    queryFn: () =>
+      httpClient.get("api/console/v1/modules").json<ModulesResponse>(),
   });
   const rows = useMemo(
     () =>
       query.data
-        ? query.data.modules.map((module) => ({
-            capabilities: module.capabilities,
-            error: module.error,
-            id: module.module_name,
-            name: titleCase(module.module_name),
-            source: module.source,
-            state: module.status,
-            surfaces: module.console.map((surface) => ({
+        ? query.data.modules.map(moduleMetadataRow)
+        : consoleModules.map((module) => ({
+            capabilities: [] as string[],
+            error: null,
+            id: module.id,
+            name: titleCase(module.id),
+            source: "linked",
+            state: "loaded" as const,
+            surfaces: module.surfaces.map((surface) => ({
               area: surface.area,
               label: surface.label,
-              navigation: surface.navigation,
-              package: surface.package,
-              requiredCapabilities: surface.required_capabilities,
-              route: surface.route,
+              navigation:
+                "navigation" in surface ? surface.navigation : undefined,
+              presentation: "linked",
+              requiredCapabilities: [] as string[],
+              route: surface.path,
             })),
-          }))
-        : buildTimeConsoleModuleMetadata.map(moduleMetadataRow),
+          })),
     [query.data]
   );
   return { ...query, mode: dataMode(), rows };
@@ -180,7 +181,7 @@ function moduleMetadataRow(module: ConsoleModuleMetadata) {
     area: surface.area ?? "runtime",
     label: surface.label ?? surface.name ?? "Surface",
     navigation: surface.navigation,
-    package: surface.package,
+    presentation: surface.presentation?.kind ?? "declarative",
     requiredCapabilities: surface.required_capabilities,
     route: surface.route ?? "-",
   }));

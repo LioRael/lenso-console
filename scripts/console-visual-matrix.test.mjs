@@ -15,7 +15,7 @@ describe("console visual matrix", () => {
     const routeCases = cases.filter((item) => item.kind === "route");
 
     expect(routeCases.length).toBe(
-      19 * visualThemes.length * visualViewports.length
+      17 * visualThemes.length * visualViewports.length
     );
     expect(new Set(routeCases.map((item) => item.route))).toEqual(
       new Set([
@@ -28,8 +28,6 @@ describe("console visual matrix", () => {
         "auth-sessions",
         "auth-users",
         "changes",
-        "crm-companies",
-        "crm-contacts",
         "delivery",
         "home",
         "identity",
@@ -60,9 +58,9 @@ describe("console visual matrix", () => {
 
   test("reports a stable matrix summary", () => {
     expect(matrixSummary()).toEqual({
-      cases: 330,
+      cases: 318,
       inspectorStates: 6,
-      routes: 55,
+      routes: 53,
       themes: 2,
       viewports: 3,
     });

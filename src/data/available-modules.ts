@@ -33,20 +33,20 @@ export const sampleAvailableModulesResponse = {
       capabilities: ["billing.read", "billing.write"],
       catalogVersion: "0.1.0",
       compatibility: {
-        consolePackageApi: "1",
+        consoleBridge: "1",
         lenso: {
           minVersion: "0.1.0",
         },
       },
-      consolePackageHints: 1,
+      consoleUiArtifactHints: 1,
       hostCompatibility: {
-        consolePackageApi: "1",
+        consoleBridge: "1",
         lensoVersion: "0.1.0",
       },
       installState: {
         moduleRegistered: false,
         linkedSource: null,
-        remoteSource: {
+        serviceSource: {
           configured: false,
           desiredBaseUrl: null,
           envFile: "target-owned Service Installation Set",
@@ -78,15 +78,15 @@ export const sampleAvailableModulesResponse = {
       baseUrl: null,
       capabilities: ["crm.contacts.read"],
       catalogVersion: "0.1.0",
-      consolePackageHints: 0,
+      consoleUiArtifactHints: 0,
       hostCompatibility: {
-        consolePackageApi: "1",
+        consoleBridge: "1",
         lensoVersion: "0.1.0",
       },
       installState: {
         moduleRegistered: false,
         linkedSource: null,
-        remoteSource: {
+        serviceSource: {
           configured: false,
           desiredBaseUrl: null,
           envFile: "target-owned Service Installation Set",
@@ -101,7 +101,7 @@ export const sampleAvailableModulesResponse = {
       manifestStatus: "ok",
       manifestVersion: "0.1.0",
       name: "local-crm",
-      source: "remote",
+      source: "service",
       status: "needs_attention",
       summary: "Local CRM manifest awaiting runtime base URL",
     },
@@ -158,13 +158,13 @@ export const sampleServiceModuleLifecycleResponse = {
       ],
       compatibility: {
         declared: {
-          consolePackageApi: "1",
+          consoleBridge: "1",
           lenso: {
             minVersion: "0.1.0",
           },
         },
         host: {
-          consolePackageApi: "1",
+          consoleBridge: "1",
           lensoVersion: "0.1.0",
         },
         issue: null,
@@ -216,10 +216,10 @@ export const sampleServiceModuleLifecycleResponse = {
       restartPending: true,
       compatibility: {
         declared: {
-          consolePackageApi: "1",
+          consoleBridge: "1",
         },
         host: {
-          consolePackageApi: "1",
+          consoleBridge: "1",
           lensoVersion: "0.1.0",
         },
         issue: null,
@@ -930,7 +930,7 @@ async function runAvailableModuleChange({
         json: {
           expected_revision: operation.revision,
           boundary_id: boundary.boundary_id,
-          reason: "Approved in Runtime Console",
+          reason: "Approved in Console",
           nonce: operationKey(),
         },
       })

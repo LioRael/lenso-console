@@ -70,12 +70,12 @@ case "$api_content_type" in
     ;;
 esac
 
-story_status=$(curl --output "$environment_file.story-response" --silent --write-out '%{http_code}' "http://127.0.0.1:$http_port/admin/runtime/stories")
+story_status=$(curl --output "$environment_file.story-response" --silent --write-out '%{http_code}' "http://127.0.0.1:$http_port/api/console/v1/stories")
 if [ "$story_status" != "401" ]; then
   printf 'expected Console-owned Story route to require authentication, got %s\n' "$story_status" >&2
   exit 1
 fi
-story_content_type=$(curl --head --silent "http://127.0.0.1:$http_port/admin/runtime/stories" | tr -d '\r' | awk 'tolower($1) == "content-type:" { print tolower($2) }')
+story_content_type=$(curl --head --silent "http://127.0.0.1:$http_port/api/console/v1/stories" | tr -d '\r' | awk 'tolower($1) == "content-type:" { print tolower($2) }')
 case "$story_content_type" in
   application/problem+json*) ;;
   *)

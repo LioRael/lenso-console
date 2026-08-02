@@ -22,7 +22,7 @@ const AppearanceContext = createContext<{
 export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] =
     usePersistedLayout<ConsoleThemePreference>(
-      "runtime-console:theme-preference",
+      "lenso-console:theme-preference",
       "system"
     );
   const [systemTheme, setSystemTheme] =
