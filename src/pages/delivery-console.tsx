@@ -218,7 +218,7 @@ export function DeliveryConsolePanel({
         />
         <Summary
           label="authority"
-          value="Read-only evidence. Protected changes remain outside Runtime Console."
+          value="Read-only evidence. Protected changes remain outside Console."
         />
       </div>
 
@@ -430,7 +430,7 @@ export function DeliveryConsolePanel({
                         {key === "storyId" ? (
                           <a
                             className="text-(--accent)"
-                            href={`/admin/runtime/stories/${encodeURIComponent(value)}`}
+                            href={`/api/console/v1/stories/${encodeURIComponent(value)}`}
                           >
                             {value}
                           </a>
@@ -531,9 +531,9 @@ export function DeliveryConsolePanel({
       ) : null}
 
       <footer className="flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)">
-        <ShieldCheck aria-hidden="true" size={12} /> Runtime Console only reads
-        redacted delivery evidence and holds no cluster, signing, or Secret
-        Provider authority.
+        <ShieldCheck aria-hidden="true" size={12} /> Console only reads redacted
+        delivery evidence and holds no cluster, signing, or Secret Provider
+        authority.
       </footer>
     </section>
   );
@@ -631,7 +631,7 @@ function EvidenceLinks({ references }: { references: string[] }) {
       {references.map((reference) => (
         <a
           className="text-(--accent)"
-          href={`/admin/runtime/stories/${encodeURIComponent(reference)}`}
+          href={`/api/console/v1/stories/${encodeURIComponent(reference)}`}
           key={reference}
         >
           {reference}

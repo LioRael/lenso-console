@@ -40,7 +40,7 @@ console:
     pnpm dev
 
 console-api:
-    VITE_RUNTIME_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
+    VITE_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3000 pnpm dev
 
 console-preview:
     pnpm preview
@@ -61,7 +61,7 @@ service-serve:
 service-check:
     pnpm service:check
 
-# Console packages
+# Console web
 console-fmt: fmt
 
 console-fmt-check: fmt-check
@@ -75,12 +75,6 @@ console-test: test
 console-build: build
 
 console-check: check
-
-check-console-packages:
-    pnpm check:console-packages
-
-create-console-package name:
-    pnpm create:console-package {{name}}
 
 create-module name:
     pnpm create:module {{name}}

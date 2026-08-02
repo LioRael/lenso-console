@@ -18,7 +18,7 @@ const catalog: AvailableModulesCatalog = {
     {
       baseUrl: "https://example.com/lenso/module/v1",
       capabilities: ["billing.read", "billing.write"],
-      consolePackages: [
+      consoleUiArtifacts: [
         {
           exportName: "billingConsoleModule",
           packageName: "@vendor/lenso-billing-console",
@@ -27,7 +27,7 @@ const catalog: AvailableModulesCatalog = {
       ],
       manifestReference: "https://example.com/lenso/module/v1/manifest",
       name: "billing",
-      source: "remote",
+      source: "service",
       summary: "Billing workspace and operations",
       version: "0.1.0",
     },
@@ -57,7 +57,7 @@ const installCommands = [
 
 const baseInstallState: AvailableModuleInstallState = {
   moduleRegistered: false,
-  remoteSource: {
+  serviceSource: {
     configured: false,
     desiredBaseUrl: null,
     envFile: ".env",
@@ -69,8 +69,8 @@ const baseInstallState: AvailableModuleInstallState = {
 };
 
 function remoteInstallState(
-  overrides: Partial<NonNullable<AvailableModuleInstallState["remoteSource"]>>
-): NonNullable<AvailableModuleInstallState["remoteSource"]> {
+  overrides: Partial<NonNullable<AvailableModuleInstallState["serviceSource"]>>
+): NonNullable<AvailableModuleInstallState["serviceSource"]> {
   return {
     configured: false,
     desiredBaseUrl: null,
@@ -102,11 +102,11 @@ function serviceLifecycle(
         restartPending: status === "restart_pending",
         compatibility: {
           declared: {
-            consolePackageApi: "1",
+            consoleBridge: "1",
           },
           fix: null,
           host: {
-            consolePackageApi: "1",
+            consoleBridge: "1",
             lensoVersion: "0.1.0",
           },
           issue: null,
@@ -144,7 +144,7 @@ describe("available modules model", () => {
       {
         baseUrl: "https://example.com/lenso/module/v1",
         capabilityCount: 2,
-        consolePackageHintCount: 1,
+        consoleUiArtifactHintCount: 1,
         key: "billing:0.1.0:https://example.com/lenso/module/v1/manifest",
         manifestReference: "https://example.com/lenso/module/v1/manifest",
         name: "billing",
@@ -152,7 +152,7 @@ describe("available modules model", () => {
         preflightReason:
           "manifest will be read from the manifest URL during install",
         preflightStatus: "unknown",
-        source: "remote",
+        source: "service",
         summary: "Billing workspace and operations",
         version: "0.1.0",
       },
@@ -163,14 +163,14 @@ describe("available modules model", () => {
     expect(
       availableModuleRows(catalog, {
         billing: {
-          consolePackages: [
+          consoleUiArtifacts: [
             {
               exportName: "billingConsoleModule",
               packageName: "@vendor/lenso-billing-console",
             },
           ],
           name: "billing",
-          source: "remote",
+          source: "service",
           version: "0.1.0",
         },
       })[0]
@@ -269,7 +269,7 @@ describe("available modules model", () => {
       ...baseRow!,
       installState: {
         ...baseInstallState,
-        remoteSource: remoteInstallState({
+        serviceSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
@@ -298,7 +298,7 @@ describe("available modules model", () => {
         row,
       })[1]
     ).toMatchObject({
-      evidence: "1 console package hint in catalog",
+      evidence: "1 Console UI artifact hint in catalog",
       status: "done",
     });
   });
@@ -310,7 +310,7 @@ describe("available modules model", () => {
       ...baseRow!,
       installState: {
         ...baseInstallState,
-        remoteSource: remoteInstallState({
+        serviceSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
@@ -350,7 +350,7 @@ describe("available modules model", () => {
       ...baseRow!,
       installState: {
         ...baseInstallState,
-        remoteSource: remoteInstallState({
+        serviceSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "grpc://example.com:50051",
           restartPending: true,
@@ -363,7 +363,7 @@ describe("available modules model", () => {
     expect(
       availableModuleDoctorChecks({
         commands: installCommands,
-        missingConsolePackageCount: 1,
+        missingConsoleUiArtifactCount: 1,
         restartPending: true,
         row,
       }).map((check) => [check.key, check.status, check.command ?? null])
@@ -384,7 +384,7 @@ describe("available modules model", () => {
         commands: installCommands,
         row,
       })[0]?.detail
-    ).toBe("REMOTE_MODULES -> grpc://example.com:50051 (grpc)");
+    ).toBe("LENSO_SERVICES -> grpc://example.com:50051 (grpc)");
   });
 
   test("builds clean doctor checks for installed service modules", () => {
@@ -395,7 +395,7 @@ describe("available modules model", () => {
       installState: {
         ...baseInstallState,
         moduleRegistered: true,
-        remoteSource: remoteInstallState({
+        serviceSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "https://example.com/lenso/module/v1",
           runningBaseUrl: "https://example.com/lenso/module/v1",
@@ -427,7 +427,7 @@ describe("available modules model", () => {
       installState: {
         ...baseInstallState,
         moduleRegistered: true,
-        remoteSource: remoteInstallState({
+        serviceSource: remoteInstallState({
           configured: true,
           desiredBaseUrl: "https://example.com/lenso/module/v1",
           runningBaseUrl: "https://example.com/lenso/module/v1",
@@ -552,7 +552,7 @@ describe("available modules model", () => {
         commands: installCommands,
         evidence: {
           consoleInstallPlanCount: 1,
-          missingConsolePackageCount: 1,
+          missingConsoleUiArtifactCount: 1,
           moduleRegistered: true,
         },
         handoff: packageInstall,
@@ -570,7 +570,7 @@ describe("available modules model", () => {
         commands: installCommands,
         evidence: {
           consoleInstallPlanCount: 1,
-          missingConsolePackageCount: 1,
+          missingConsoleUiArtifactCount: 1,
           moduleRegistered: true,
         },
         handoff: packageInstall,
@@ -578,7 +578,7 @@ describe("available modules model", () => {
       })[1]
     ).toMatchObject({
       evidence:
-        "1 missing console package; 1 extension entry derived from backend metadata",
+        "1 missing Console UI artifact; 1 artifact entry derived from backend metadata",
     });
 
     const restart = availableModuleHandoffState({
@@ -656,7 +656,7 @@ describe("available modules model", () => {
           {
             manifestReference: "./lenso.module.json",
             name: "billing",
-            source: "remote",
+            source: "service",
             version: "0.1.0",
           },
         ],
@@ -674,7 +674,7 @@ describe("available modules model", () => {
         {
           manifestReference: "./lenso.module.json",
           name: "billing",
-          source: "remote",
+          source: "service",
           version: "0.1.0",
         },
       ],
@@ -719,7 +719,7 @@ describe("available modules model", () => {
             },
             manifestReference: "https://example.com/lenso/module/v1/manifest",
             name: "billing",
-            source: "remote",
+            source: "service",
             version: "0.1.0",
           },
         ],
@@ -737,7 +737,7 @@ describe("available modules model", () => {
       availableModuleRows(catalog, {
         billing: {
           name: "billing-pro",
-          source: "remote",
+          source: "service",
           version: "0.2.0",
         },
       })[0]
@@ -747,18 +747,18 @@ describe("available modules model", () => {
     });
   });
 
-  test("flags console package hint mismatches", () => {
+  test("flags Console UI artifact hint mismatches", () => {
     expect(
       availableModuleRows(catalog, {
         billing: {
-          consolePackages: [
+          consoleUiArtifacts: [
             {
               exportName: "crmConsoleModule",
               packageName: "@vendor/lenso-crm-console",
             },
           ],
           name: "billing",
-          source: "remote",
+          source: "service",
           version: "0.1.0",
         },
       })[0]
@@ -792,14 +792,14 @@ describe("available modules model", () => {
           baseUrl: "https://example.com/lenso/module/v1",
           capabilities: ["billing.read", "billing.write"],
           catalogVersion: "0.1.0",
-          consolePackageHints: 1,
+          consoleUiArtifactHints: 1,
           compatibility: {
             lenso: {
               minVersion: "0.2.0",
             },
           },
           hostCompatibility: {
-            consolePackageApi: "1",
+            consoleBridge: "1",
             lensoVersion: "0.1.0",
           },
           manifestName: "billing",
@@ -816,20 +816,20 @@ describe("available modules model", () => {
           name: "billing",
           providedBy: "support-suite-provider",
           serviceManifest: "http://127.0.0.1:4110/lenso/service/v1/manifest",
-          source: "remote",
+          source: "service",
           status: "needs_attention",
           summary: "Billing workspace and operations",
         },
         {
           baseUrl: null,
           catalogVersion: "0.1.0",
-          consolePackageHints: 0,
+          consoleUiArtifactHints: 0,
           manifestName: "local-crm",
           manifestReference: "./lenso.module.json",
           manifestStatus: "ok",
           manifestVersion: "0.1.0",
           name: "local-crm",
-          source: "remote",
+          source: "service",
           status: "needs_attention",
         },
       ],
@@ -841,7 +841,7 @@ describe("available modules model", () => {
       {
         baseUrl: "https://example.com/lenso/module/v1",
         capabilityCount: 2,
-        consolePackageHintCount: 1,
+        consoleUiArtifactHintCount: 1,
         key: "billing:0.1.0:https://example.com/lenso/module/v1/manifest",
         manifestReference: "https://example.com/lenso/module/v1/manifest",
         name: "billing",
@@ -859,14 +859,14 @@ describe("available modules model", () => {
           servicePackage: "../support/lenso.service-package.json",
           version: "0.1.0",
         },
-        source: "remote",
+        source: "service",
         summary: "Billing workspace and operations",
         version: "0.1.0",
       },
       {
         baseUrl: "-",
         capabilityCount: 0,
-        consolePackageHintCount: 0,
+        consoleUiArtifactHintCount: 0,
         key: "local-crm:0.1.0:./lenso.module.json",
         manifestReference: "./lenso.module.json",
         name: "local-crm",
@@ -876,7 +876,7 @@ describe("available modules model", () => {
         preflightStatus: "needs_base_url",
         providerName: null,
         serviceManifest: null,
-        source: "remote",
+        source: "service",
         summary: "-",
         version: "0.1.0",
       },
@@ -897,13 +897,13 @@ describe("available modules model", () => {
           archiveReason: "replaced by billing-v2",
           baseUrl: "https://example.com/lenso/module/v1",
           catalogVersion: "0.1.0",
-          consolePackageHints: 1,
+          consoleUiArtifactHints: 1,
           manifestName: null,
           manifestReference: "https://example.com/lenso/module/v1/manifest",
           manifestStatus: "archived",
           manifestVersion: null,
           name: "billing",
-          source: "remote",
+          source: "service",
           status: "archived",
         },
       ],

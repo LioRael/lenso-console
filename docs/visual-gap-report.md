@@ -1,4 +1,4 @@
-# Runtime Console Visual Gap Report
+# Console Visual Gap Report
 
 This pass compares the current prototype against the iii console frontend source as a visual reference, without copying implementation code.
 

@@ -1,19 +1,15 @@
 /**
- * Runtime Console packages remain independently versioned. Dependency propagation
+ * Console protocol packages remain independently versioned. Dependency propagation
  * is derived from package manifests; no grouped Version PRs are enabled.
  */
 export default {
-  ignore: [
-    "@lenso/identity-console",
-    "@lenso/remote-crm-console",
-    "@lenso/story-console",
-  ],
+  ignore: ["@lenso/story-console", "@lenso/system-registry-console"],
   npm: {
     // A dependency edge orders publication; it does not force an unrelated SDK bump.
     bumpDep: () => false,
   },
   packages: {
     "@lenso/console-bridge": {},
-    "@lenso/console-package-api": {},
+    "@lenso/console-web": {},
   },
 };

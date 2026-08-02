@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-package-api";
+import { useConsoleLocale } from "@lenso/console-ui-internal";
 import { ArrowRight } from "lucide-react";
 
 import { useHomeEvidence } from "../console-data/use-console-product-data";

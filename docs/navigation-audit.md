@@ -1,4 +1,4 @@
-# Runtime Console Navigation Audit
+# Console Navigation Audit
 
 This audit treats `/runtime/stories` as the primary runtime causality workbench. Pages remain first-class only when they answer a distinct operational question, require a different mental model, and are actionable in mock mode.
 

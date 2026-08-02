@@ -3,7 +3,7 @@ import {
   type ExecutionInspectorTab,
   type RuntimeStory,
   type StoryViewMode,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 
 const defaultStoryViewMode = "waterfall" satisfies StoryViewMode;
 

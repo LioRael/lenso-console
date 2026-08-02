@@ -17,13 +17,13 @@ const runs: FunctionRun[] = [
   functionRun({
     completedAt: "2026-06-03T00:00:01.200Z",
     correlationId: "corr_remote",
-    functionName: "remote_crm.sync_contact.v1",
+    functionName: "crm_service.sync_contact.v1",
     id: "fn_remote",
     runtimeDeclaration: {
-      moduleName: "remote-crm",
+      moduleName: "crm-service",
       moduleSource: "remote",
-      name: "remote_crm.sync_contact.v1",
-      queue: "remote-crm",
+      name: "crm_service.sync_contact.v1",
+      queue: "crm-service",
       version: 1,
     },
     startedAt: "2026-06-03T00:00:00.000Z",
@@ -97,7 +97,7 @@ describe("functions model", () => {
         avgDurationMs: 1200,
         dead: 0,
         failed: 0,
-        key: "remote-crm",
+        key: "crm-service",
         total: 1,
       },
     ]);
@@ -105,12 +105,12 @@ describe("functions model", () => {
 
   test("lists declared module and queue filters", () => {
     expect(distinctFunctionMetadata(runs, "module")).toEqual([
+      "crm-service",
       "identity",
-      "remote-crm",
     ]);
     expect(distinctFunctionMetadata(runs, "queue")).toEqual([
+      "crm-service",
       "identity",
-      "remote-crm",
     ]);
   });
 
@@ -126,7 +126,7 @@ describe("functions model", () => {
     expect(functionStatusTone("failed")).toBe("warning");
     expect(functionStatusTone("dead")).toBe("error");
     expect(functionPrimarySummary(runs[0]!)).toBe(
-      "remote_crm.sync_contact.v1 / remote-crm / 1/3"
+      "crm_service.sync_contact.v1 / crm-service / 1/3"
     );
     expect(functionPrimarySummary(runs[1]!)).toBe("permission denied");
   });
@@ -140,9 +140,9 @@ describe("functions model", () => {
     expect(details.statusTone).toBe("success");
     expect(details.runRows).toContainEqual([
       "function",
-      "remote_crm.sync_contact.v1",
+      "crm_service.sync_contact.v1",
     ]);
-    expect(details.runRows).toContainEqual(["module", "remote-crm"]);
+    expect(details.runRows).toContainEqual(["module", "crm-service"]);
     expect(details.runRows).toContainEqual(["duration", "1.2s"]);
     expect(details.lineageRows).toContainEqual(["id", "fn_remote"]);
     expect(details.lineageRows).toContainEqual(["correlation", "corr_remote"]);

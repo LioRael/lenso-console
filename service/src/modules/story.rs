@@ -31,8 +31,14 @@ mod tests {
         let manifest = (module.manifest)();
 
         assert_eq!(module.module_name, MODULE_NAME);
-        assert_eq!(manifest.name, MODULE_NAME);
-        assert_eq!(manifest.console[0].package.name, "@lenso/story-console");
+        assert_eq!(manifest.module_id, MODULE_NAME);
+        let lenso::ConsoleSurfacePresentation::Declarative { schema } =
+            &manifest.console[0].presentation
+        else {
+            panic!("linked Story UI must use a declarative Console surface");
+        };
+        assert_eq!(schema["component"], "lenso/runtime-stories");
+        assert_eq!(schema["version"], 1);
         assert_eq!(manifest.http_routes.len(), 4);
     }
 }

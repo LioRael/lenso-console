@@ -242,7 +242,7 @@ describe("Console Service delivery", () => {
     expect(drill).toContain("--exclude-table-data=auth.sessions");
     expect(drill).toContain("--format=custom");
     expect(drill).toContain("--volumes --remove-orphans");
-    expect(drill).toContain("post_activation_drift_observed");
+    expect(drill).not.toContain("enrollment/revoke");
     expect(drill).toContain("recovery_fence_reestablished");
     expect(resultSchema.additionalProperties).toBe(false);
     expect(resultSchema.properties.schema.const).toBe(
@@ -252,7 +252,7 @@ describe("Console Service delivery", () => {
     expect(drill).toContain("refenced_restore_mode_reported");
     expect(drill).toContain("lenso.console-authority.v1");
     expect(drill).toContain("refenced_restore_authority_reported");
-    expect(resultSchema.properties.checks.minItems).toBe(16);
+    expect(resultSchema.properties.checks.minItems).toBe(13);
     expect(releaseInputs.groups.contract).toContain(
       "service/recovery-drill-result.schema.json"
     );
@@ -280,7 +280,7 @@ describe("Console Service delivery", () => {
       "node scripts/build-console-release-artifacts.mjs"
     );
     expect(config.aliases).toEqual({
-      "oci:lenso-console-service": "npm:@lenso/console",
+      "oci:lenso-console-service": "npm:@lenso/console-web",
     });
     expect(config.ociImages["oci:lenso-console-service"]).toEqual({
       archivePath: ".artifacts/lenso-console-service.oci.tar",

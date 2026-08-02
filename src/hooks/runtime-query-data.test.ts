@@ -53,9 +53,9 @@ describe("runtime query data helpers", () => {
 describe("admin action query helpers", () => {
   test("filters mock admin actions by module, capability, and result", () => {
     const page = filterAdminActionInvocationsForQuery(adminActionInvocations, {
-      capability: "remote_crm.contacts.sync",
+      capability: "crm_service.contacts.sync",
       limit: 10,
-      moduleName: "remote-crm",
+      moduleName: "crm-service",
       success: true,
     });
 
@@ -134,15 +134,15 @@ describe("runtime function query helpers", () => {
         available_at: "2026-06-03T00:00:00.000Z",
         correlation_id: "corr_remote",
         created_at: "2026-06-03T00:00:00.000Z",
-        function_name: "remote_crm.sync_contact.v1",
+        function_name: "crm_service.sync_contact.v1",
         id: "fn_remote",
         max_attempts: 3,
         runtime_declaration: {
-          input_schema: "remote_crm.sync_contact.v1",
-          module_name: "remote-crm",
+          input_schema: "crm_service.sync_contact.v1",
+          module_name: "crm-service",
           module_source: "remote",
-          name: "remote_crm.sync_contact.v1",
-          queue: "remote-crm",
+          name: "crm_service.sync_contact.v1",
+          queue: "crm-service",
           retry_policy: {
             initial_delay_ms: 1000,
             max_attempts: 3,
@@ -152,11 +152,11 @@ describe("runtime function query helpers", () => {
         status: "completed",
       }).runtimeDeclaration
     ).toEqual({
-      inputSchema: "remote_crm.sync_contact.v1",
-      moduleName: "remote-crm",
+      inputSchema: "crm_service.sync_contact.v1",
+      moduleName: "crm-service",
       moduleSource: "remote",
-      name: "remote_crm.sync_contact.v1",
-      queue: "remote-crm",
+      name: "crm_service.sync_contact.v1",
+      queue: "crm-service",
       retryPolicy: {
         initialDelayMs: 1000,
         maxAttempts: 3,
@@ -178,18 +178,18 @@ describe("runtime function query helpers", () => {
         completed_at: "2026-06-03T00:00:02.000Z",
         correlation_id: "corr_remote",
         created_at: "2026-06-03T00:00:00.000Z",
-        function_name: "remote_crm.sync_contact.v1",
+        function_name: "crm_service.sync_contact.v1",
         id: "fn_remote",
         input_json: {
           contact_id: "contact_1",
         },
         max_attempts: 3,
         runtime_declaration: {
-          input_schema: "remote_crm.sync_contact.v1",
-          module_name: "remote-crm",
+          input_schema: "crm_service.sync_contact.v1",
+          module_name: "crm-service",
           module_source: "remote",
-          name: "remote_crm.sync_contact.v1",
-          queue: "remote-crm",
+          name: "crm_service.sync_contact.v1",
+          queue: "crm-service",
           retry_policy: {
             initial_delay_ms: 1000,
             max_attempts: 3,
@@ -209,9 +209,9 @@ describe("runtime function query helpers", () => {
         contact_id: "contact_1",
       },
       runtimeDeclaration: {
-        moduleName: "remote-crm",
+        moduleName: "crm-service",
         moduleSource: "remote",
-        queue: "remote-crm",
+        queue: "crm-service",
       },
     });
   });

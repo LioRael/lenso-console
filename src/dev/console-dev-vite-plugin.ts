@@ -1,23 +1,18 @@
 import { createReadStream, existsSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import path from "node:path";
 
 import type { PluginOption } from "vite";
 
 interface ConsoleDevPluginOptions {
   diagnosticsFile?: string | undefined;
-  extensionsDir?: string | undefined;
   hostUrl?: string | undefined;
-  registryFile?: string | undefined;
 }
 
 type NextFunction = (error?: unknown) => void;
 
 export function consoleDevPlugin({
   diagnosticsFile,
-  extensionsDir,
   hostUrl,
-  registryFile,
 }: ConsoleDevPluginOptions = {}): PluginOption {
   return {
     name: "lenso-console-dev",
@@ -25,7 +20,7 @@ export function consoleDevPlugin({
       server.middlewares.use((req, res, next) => {
         runConsoleDevRequest({
           next,
-          options: { diagnosticsFile, extensionsDir, hostUrl, registryFile },
+          options: { diagnosticsFile, hostUrl },
           req,
           res,
         });
@@ -73,11 +68,6 @@ async function handleConsoleDevRequest({
   }
 
   const pathname = requestPathname(req.url);
-  if (pathname === "/console/dev/registry.json" && options.registryFile) {
-    sendFile(res, options.registryFile, "application/json");
-    return;
-  }
-
   if (pathname === "/console/dev/diagnostics.json" && options.diagnosticsFile) {
     sendFile(res, options.diagnosticsFile, "application/json");
     return;
@@ -85,14 +75,6 @@ async function handleConsoleDevRequest({
 
   if (pathname === "/api/console/v1/composition" && options.hostUrl) {
     sendJson(res, consoleDevComposition());
-    return;
-  }
-
-  if (
-    pathname.startsWith("/console/dev/extensions/") &&
-    options.extensionsDir
-  ) {
-    sendDevAsset({ extensionsDir: options.extensionsDir, pathname, res });
     return;
   }
 
@@ -109,43 +91,10 @@ function requestPathname(url: string) {
 }
 
 function shouldProxyToHost(pathname: string) {
-  return pathname.startsWith("/admin/") || pathname.startsWith("/v1/");
-}
-
-function sendDevAsset({
-  extensionsDir,
-  pathname,
-  res,
-}: {
-  extensionsDir: string;
-  pathname: string;
-  res: ServerResponse;
-}) {
-  const assetName = pathname.replace("/console/dev/extensions/", "");
-  const assetPath = safeJoin(extensionsDir, assetName);
-  if (!assetPath) {
-    res.statusCode = 404;
-    res.end("not found");
-    return;
-  }
-  const contentType = assetName.endsWith(".css")
-    ? "text/css"
-    : "text/javascript";
-  sendFile(res, assetPath, contentType, {
-    fallbackBody: assetName.endsWith(".css") ? "" : undefined,
-  });
-}
-
-function safeJoin(root: string, relativePath: string) {
-  const resolvedRoot = path.resolve(root);
-  const resolvedPath = path.resolve(resolvedRoot, relativePath);
-  if (
-    resolvedPath === resolvedRoot ||
-    !resolvedPath.startsWith(`${resolvedRoot}${path.sep}`)
-  ) {
-    return null;
-  }
-  return resolvedPath;
+  return (
+    pathname.startsWith("/api/console/") ||
+    pathname.startsWith("/system-plane/")
+  );
 }
 
 function sendFile(

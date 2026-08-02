@@ -20,18 +20,12 @@ importers:
       '@gsap/react':
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.6)
-      '@lenso/auth-console':
+      '@lenso/console-bridge':
         specifier: workspace:*
-        version: link:packages/auth-console
-      '@lenso/console-package-api':
+        version: link:packages/console-bridge
+      '@lenso/console-ui-internal':
         specifier: workspace:*
-        version: link:packages/console-package-api
-      '@lenso/identity-console':
-        specifier: workspace:*
-        version: link:packages/identity-console
-      '@lenso/remote-crm-console':
-        specifier: workspace:*
-        version: link:packages/remote-crm-console
+        version: link:packages/console-ui-internal
       '@lenso/story-console':
         specifier: workspace:*
         version: link:packages/story-console
@@ -100,15 +94,6 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.2)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0))
 
-  packages/auth-console:
-    dependencies:
-      '@lenso/console-package-api':
-        specifier: workspace:*
-        version: link:../console-package-api
-      react:
-        specifier: ^19.1.0
-        version: 19.2.6
-
   packages/console-bridge:
     devDependencies:
       typescript:
@@ -117,12 +102,6 @@ importers:
       vitest:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.2)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0))
-
-  packages/console-package-api:
-    dependencies:
-      react:
-        specifier: ^19.1.0
-        version: 19.2.6
 
   packages/console-system-plane:
     devDependencies:
@@ -133,20 +112,8 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.2)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0))
 
-  packages/identity-console:
+  packages/console-ui-internal:
     dependencies:
-      '@lenso/console-package-api':
-        specifier: workspace:*
-        version: link:../console-package-api
-      react:
-        specifier: ^19.1.0
-        version: 19.2.6
-
-  packages/remote-crm-console:
-    dependencies:
-      '@lenso/console-package-api':
-        specifier: workspace:*
-        version: link:../console-package-api
       react:
         specifier: ^19.1.0
         version: 19.2.6
@@ -156,9 +123,9 @@ importers:
       '@gsap/react':
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.6)
-      '@lenso/console-package-api':
+      '@lenso/console-ui-internal':
         specifier: workspace:*
-        version: link:../console-package-api
+        version: link:../console-ui-internal
       gsap:
         specifier: ^3.15.0
         version: 3.15.0
@@ -168,9 +135,9 @@ importers:
 
   packages/system-registry-console:
     dependencies:
-      '@lenso/console-package-api':
+      '@lenso/console-ui-internal':
         specifier: workspace:*
-        version: link:../console-package-api
+        version: link:../console-ui-internal
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.6)

@@ -63,7 +63,8 @@ export async function cargoRegistryTokenFor(environment, item) {
     const identity = `${item.id}@${item.version}`;
     const normal = await committedJson(environment, environment.releaseCommit, ".lenso-release/cargo-bootstrap.json");
     let selected = normal ? cargoBootstrapSelections(normal, "lenso.cargo-bootstrap.v1").has(identity) : false;
-    if (!selected && process.env.LENSO_CARGO_BOOTSTRAP_RECOVERY === "production-zero-write") {
+    if (!selected &&
+        ["production-zero-write", "production-partial"].includes(process.env.LENSO_CARGO_BOOTSTRAP_RECOVERY ?? "")) {
         const parsed = await committedJson(environment, environment.githubSha, ".lenso-release/cargo-bootstrap-recovery.json");
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
             fail("Cargo bootstrap recovery policy is missing");
@@ -973,7 +974,7 @@ async function publishOnce(environment, item, artifact) {
         if (releaseResponse.status === 404) {
             releaseResponse = await fetch(`${api}/repos/${environment.repository}/releases`, {
                 method: "POST", headers, redirect: "error",
-                body: JSON.stringify({ tag_name: `v${item.version}`, target_commitish: environment.releaseCommit, name: `Lenso Runtime Console ${item.version}`, draft: true, prerelease: false }),
+                body: JSON.stringify({ tag_name: `v${item.version}`, target_commitish: environment.releaseCommit, name: `Lenso Console ${item.version}`, draft: true, prerelease: false }),
             });
         }
         if (!releaseResponse.ok)

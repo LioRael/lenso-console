@@ -4,7 +4,7 @@ import {
   SurfaceGroupLabel,
   type ConsoleLocale,
   useConsoleLocale,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
@@ -47,6 +47,7 @@ import type {
   ConsoleNavigationItem,
   ConsoleSurfaceIcon,
 } from "../../app/console-modules";
+import { consoleNavigation } from "../../app/console-modules";
 import {
   buildWorkspaceNavigation,
   matchedWorkspaceIdForPath,
@@ -90,19 +91,7 @@ const namedIconRegistry: Record<string, ShellIcon> = {
   "layout-dashboard": LayoutDashboard,
 };
 
-const hostPrimaryNavItems = [
-  hostItem("house", "Home", "/", 0),
-  hostItem("server-cog", "System", "/system", 10),
-  hostItem("boxes", "Modules", "/modules", 20),
-  hostItem("git-compare-arrows", "Changes", "/changes", 30),
-  hostItem("activity", "Runtime", "/runtime", 40),
-  hostItem("workflow", "Stories", "/stories", 50),
-  hostItem("rocket", "Delivery", "/delivery", 60),
-] satisfies ConsoleNavigationItem[];
-
-const hostSettingsNavItem = hostItem("settings", "Settings", "/settings", 70);
-
-export function RuntimeConsoleShell({ children }: PropsWithChildren) {
+export function ConsoleShell({ children }: PropsWithChildren) {
   const { locale } = useConsoleLocale();
   const copy = consoleCopy(locale);
   const appearance = useConsoleAppearance();
@@ -111,16 +100,12 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const extensionNavigation = useConsoleNavigation().filter(
-    (item) => item.moduleId !== "lenso/platform-story"
-  );
+  const extensionNavigation = useConsoleNavigation();
   const navigation = useMemo(
     () =>
-      buildWorkspaceNavigation([
-        ...hostPrimaryNavItems,
-        hostSettingsNavItem,
-        ...extensionNavigation,
-      ]),
+      buildWorkspaceNavigation(
+        deduplicateNavigation([...consoleNavigation, ...extensionNavigation])
+      ),
     [extensionNavigation]
   );
   const routeWorkspaceId = useMemo(
@@ -128,11 +113,11 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
     [currentPath, navigation]
   );
   const [selectedWorkspaceId, setSelectedWorkspaceId] = usePersistedLayout(
-    "runtime-console:selected-workspace",
+    "lenso-console:selected-workspace",
     SYSTEM_WORKSPACE.id
   );
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistedLayout(
-    "runtime-console:sidebar-collapsed",
+    "lenso-console:sidebar-collapsed",
     false
   );
   const activeWorkspace = selectedWorkspaceForId(
@@ -208,45 +193,13 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
           {copy.production}
         </div>
         <nav className="mt-0.5 grid gap-0.5">
-          {activeWorkspace.id === SYSTEM_WORKSPACE.id ? (
-            hostPrimaryNavItems.map((item) => (
-              <NavItem
-                item={{ ...item, label: copy.nav[navKey(item.path)] }}
-                collapsed={sidebarCollapsed}
-                key={item.path}
-                locale={locale}
-              />
-            ))
-          ) : (
-            <WorkspaceMenu
-              collapsed={sidebarCollapsed}
-              locale={locale}
-              workspace={activeWorkspace}
-            />
-          )}
+          <WorkspaceMenu
+            collapsed={sidebarCollapsed}
+            locale={locale}
+            workspace={activeWorkspace}
+          />
         </nav>
         <div className="mt-auto">
-          <Link
-            activeProps={{
-              className: "bg-(--bg-row-hover) text-(--fg-primary)",
-            }}
-            className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${sidebarCollapsed ? "justify-center" : ""}`}
-            to={"/settings" as never}
-          >
-            <IconSlot>
-              <Settings size={14} />
-            </IconSlot>
-            <span
-              className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
-            >
-              {copy.nav.settings}
-            </span>
-            <span
-              className={`ml-auto font-mono text-[10px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
-            >
-              G ,
-            </span>
-          </Link>
           <div
             className={`flex h-10 items-center gap-2 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
           >
@@ -626,19 +579,16 @@ function isWorkspaceMenuNavigationKey(
   );
 }
 
-function hostItem(
-  icon: ConsoleSurfaceIcon,
-  label: string,
-  path: string,
-  order: number
-): ConsoleNavigationItem {
-  return {
-    icon,
-    label,
-    moduleId: "host",
-    navigation: { order, workspace: SYSTEM_WORKSPACE },
-    path,
-  };
+function deduplicateNavigation(
+  items: readonly ConsoleNavigationItem[]
+): ConsoleNavigationItem[] {
+  const byPath = new Map<string, ConsoleNavigationItem>();
+  for (const item of items) {
+    if (!byPath.has(item.path)) {
+      byPath.set(item.path, item);
+    }
+  }
+  return [...byPath.values()];
 }
 function iconForName(icon?: string): ShellIcon | undefined {
   return icon
@@ -650,11 +600,6 @@ function iconForName(icon?: string): ShellIcon | undefined {
           .toLowerCase()
       ]
     : undefined;
-}
-function navKey(path: string): keyof ReturnType<typeof consoleCopy>["nav"] {
-  return path === "/"
-    ? "home"
-    : (path.slice(1) as keyof ReturnType<typeof consoleCopy>["nav"]);
 }
 function routeLabel(
   path: string,

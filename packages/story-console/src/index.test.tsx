@@ -6,33 +6,19 @@ import {
   resolveSelectedRuntimeStory,
   runtimeStoriesPath,
   shouldCloseInspectorOnEscape,
-  storyConsoleManifest,
   storyConsoleModule,
 } from ".";
 
 describe("story console module", () => {
   test("exports the Stories route as a first-party console module", () => {
-    expect(storyConsoleManifest).toEqual({
-      area: "runtime",
-      exportName: "storyConsoleModule",
-      icon: "workflow",
-      id: "lenso/platform-story",
-      label: "Stories",
-      packageName: "@lenso/story-console",
-      requiredCapabilities: ["runtime.stories.read"],
-      route: "/runtime/stories",
-      source: "first_party",
-      surfaceName: "stories",
-      version: "workspace",
-    });
     expect(storyConsoleModule).toMatchObject({
-      id: storyConsoleManifest.id,
+      id: "lenso/platform-story",
       surfaces: [
         {
-          area: storyConsoleManifest.area,
-          icon: storyConsoleManifest.icon,
-          label: storyConsoleManifest.label,
-          path: storyConsoleManifest.route,
+          area: "runtime",
+          icon: "workflow",
+          label: "Stories",
+          path: "/stories",
         },
       ],
     });

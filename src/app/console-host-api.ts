@@ -2,7 +2,7 @@ import {
   CONSOLE_HOST_API_VERSION,
   EmptyState,
   consoleUi,
-} from "../../packages/console-package-api/src/index";
+} from "../../packages/console-ui-internal/src/index";
 import { ExecutionInspector } from "../components/runtime/execution-inspector";
 import {
   defaultExecutionInspectorTab,
@@ -43,10 +43,7 @@ import {
 } from "./console-config-api";
 import { useConsoleSlotContributions } from "./console-contributions";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
-import {
-  useConsoleManagedServices,
-  useRevokeConsoleEnrollment,
-} from "./console-system-registry-api";
+import { useConsoleManagedServices } from "./console-system-registry-api";
 
 export const productionConsoleHostApi = {
   version: CONSOLE_HOST_API_VERSION,
@@ -92,7 +89,6 @@ export const productionConsoleHostApi = {
     findStoryByCorrelation,
   },
   systemRegistry: {
-    useRevokeEnrollment: useRevokeConsoleEnrollment,
     useServices: useConsoleManagedServices,
   },
   ui: {

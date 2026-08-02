@@ -5,7 +5,7 @@ import {
   type ExecutionNode,
   type RuntimeStory,
   type StoryViewMode,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import gsap from "gsap";
 import {
   useEffect,
@@ -37,7 +37,7 @@ import {
 gsap.registerPlugin(useGSAP);
 
 const emptyStories: RuntimeStory[] = [];
-const selectedStoryStorageKey = "runtime-console:selected-story-correlation-id";
+const selectedStoryStorageKey = "lenso-console:selected-story-correlation-id";
 export const runtimeStoriesDefaultViewMode =
   "waterfall" satisfies StoryViewMode;
 export type StoryModuleMetadata = {
@@ -108,7 +108,7 @@ export function RuntimeStoriesPage() {
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
   const previousInspectorOpenRef = useRef(false);
   const [layout, setLayout, resetLayout] = usePersistedLayout(
-    "runtime-console:stories-layout",
+    "lenso-console:stories-layout",
     runtimeStoriesLayoutDefaults
   );
   const storiesLayout = { ...runtimeStoriesLayoutDefaults, ...layout };

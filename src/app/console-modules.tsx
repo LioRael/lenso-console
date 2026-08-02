@@ -1,25 +1,23 @@
-import { authConsoleManifest } from "@lenso/auth-console";
-import {
-  consoleSurfacesFromPackageManifest,
-  type ConsoleModule,
-  type ConsoleNavigationItem,
-  type ConsolePackageManifest,
-  type ConsoleRouteContribution,
-  type ConsoleSurfaceArea,
-} from "@lenso/console-package-api";
-import { identityConsoleManifest } from "@lenso/identity-console";
-import { remoteCrmConsoleManifest } from "@lenso/remote-crm-console";
-import { storyConsoleManifest } from "@lenso/story-console";
-import { systemRegistryConsoleManifest } from "@lenso/system-registry-console";
+import type {
+  ConsoleModule,
+  ConsoleNavigationItem,
+  ConsoleRouteContribution,
+  ConsoleSurfaceArea,
+  ConsoleSurfaceIcon,
+} from "@lenso/console-ui-internal";
+import { storyConsoleModule } from "@lenso/story-console";
+import { systemRegistryConsoleModule } from "@lenso/system-registry-console";
 
-import {
-  type ConsoleModuleMetadata,
-  resolveConsoleModules,
-  selectConsoleModulePackageReferences,
-} from "./console-module-resolver";
+import { ChangesPage } from "../features/changes/changes-page";
+import { DeliveryPage } from "../features/delivery/delivery-page";
+import { HomePage } from "../features/home/home-page";
+import { ModulesPage } from "../features/modules/modules-page";
+import { RuntimePage } from "../features/runtime/runtime-page";
+import { SettingsPage } from "../features/settings/settings-page";
+import { SystemPage } from "../features/system/system-page";
 import { SYSTEM_WORKSPACE } from "./console-workspace-navigation";
 
-export { defineConsoleModule } from "@lenso/console-package-api";
+export { defineConsoleModule } from "@lenso/console-ui-internal";
 export type {
   ConsoleModule,
   ConsoleNavigationItem,
@@ -30,7 +28,7 @@ export type {
   ConsoleSurfaceIcon,
   ConsoleWorkspaceRef,
   ConsoleModuleSurface,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 
 export function buildConsoleRoutes(
   modules: ConsoleModule[]
@@ -40,9 +38,6 @@ export function buildConsoleRoutes(
 
   for (const module of modules) {
     for (const surface of module.surfaces) {
-      if (isReservedHostConsoleRoute(surface.path)) {
-        throw new Error(`Reserved host console route: ${surface.path}`);
-      }
       if (seenPaths.has(surface.path)) {
         throw new Error(`Duplicate console module route: ${surface.path}`);
       }
@@ -88,36 +83,12 @@ export function selectDefaultConsoleRoute(
   return route;
 }
 
-const RESERVED_HOST_CONSOLE_ROUTE_PATHS = new Set([
-  "/",
-  "/system",
-  "/changes",
-  "/runtime",
-  "/stories",
-  "/delivery",
-  "/settings",
-  "/overview",
-  "/operations",
-  "/operations/queues",
-  "/operations/dead-letters",
-  "/operations/functions",
-  "/operations/remote-calls",
-  "/operations/admin-actions",
-  "/modules",
-  "/config",
-  "/data",
-]);
-
 const DEFAULT_SYSTEM_NAVIGATION_ORDER = {
   runtime: -10,
   operations: 80,
   data: 100,
   configuration: 120,
 } satisfies Record<ConsoleSurfaceArea, number>;
-
-function isReservedHostConsoleRoute(path: string): boolean {
-  return RESERVED_HOST_CONSOLE_ROUTE_PATHS.has(path);
-}
 
 function defaultSystemNavigationForArea(area: ConsoleSurfaceArea) {
   return {
@@ -130,51 +101,71 @@ function defaultSystemNavigationOrder(area: ConsoleSurfaceArea): number {
   return DEFAULT_SYSTEM_NAVIGATION_ORDER[area];
 }
 
-export function consoleModuleMetadataFromManifest(
-  manifest: ConsolePackageManifest
-): ConsoleModuleMetadata {
+const consoleWorkbenchModule: ConsoleModule = {
+  id: "lenso/console-workbench",
+  surfaces: [
+    workbenchSurface("house", "Home", "首页", "/", HomePage, 0),
+    workbenchSurface("server-cog", "System", "系统", "/system", SystemPage, 10),
+    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 20),
+    workbenchSurface(
+      "git-compare-arrows",
+      "Changes",
+      "变更",
+      "/changes",
+      ChangesPage,
+      30
+    ),
+    workbenchSurface(
+      "activity",
+      "Runtime",
+      "运行时",
+      "/runtime",
+      RuntimePage,
+      40
+    ),
+    workbenchSurface(
+      "rocket",
+      "Delivery",
+      "交付",
+      "/delivery",
+      DeliveryPage,
+      60
+    ),
+    workbenchSurface(
+      "settings",
+      "Settings",
+      "设置",
+      "/settings",
+      SettingsPage,
+      70
+    ),
+  ],
+};
+
+function workbenchSurface(
+  icon: ConsoleSurfaceIcon,
+  label: string,
+  localizedLabel: string,
+  path: string,
+  component: ConsoleModule["surfaces"][number]["component"],
+  order: number
+): ConsoleModule["surfaces"][number] {
   return {
-    console: consoleSurfacesFromPackageManifest(manifest),
-    module_name: manifest.id,
+    area: "operations",
+    component,
+    icon,
+    label,
+    localizedLabels: { "zh-CN": localizedLabel },
+    navigation: { order, workspace: SYSTEM_WORKSPACE },
+    path,
   };
 }
 
-const remoteCrmBuildTimeMetadata = consoleModuleMetadataFromManifest(
-  remoteCrmConsoleManifest
-);
-remoteCrmBuildTimeMetadata.console?.push({
-  area: "data",
-  icon: "boxes",
-  label: "Companies",
-  localizedLabels: { "zh-CN": "公司" },
-  name: "companies",
-  navigation: {
-    group: remoteCrmConsoleManifest.navigation!.group!,
-    order: 80,
-    workspace: remoteCrmConsoleManifest.navigation!.workspace,
-  },
-  package: {
-    export: remoteCrmConsoleManifest.exportName,
-    name: remoteCrmConsoleManifest.packageName,
-  },
-  required_capabilities: remoteCrmConsoleManifest.requiredCapabilities,
-  route: "/data/remote-crm/companies",
-});
-
-export const buildTimeConsoleModuleMetadata = [
-  consoleModuleMetadataFromManifest(storyConsoleManifest),
-  consoleModuleMetadataFromManifest(authConsoleManifest),
-  consoleModuleMetadataFromManifest(identityConsoleManifest),
-  remoteCrmBuildTimeMetadata,
-  consoleModuleMetadataFromManifest(systemRegistryConsoleManifest),
+export const consoleModules = [
+  consoleWorkbenchModule,
+  storyConsoleModule,
+  systemRegistryConsoleModule,
 ];
-
-export const consoleModulePackageReferences =
-  selectConsoleModulePackageReferences(buildTimeConsoleModuleMetadata);
-
-export const consoleModules = resolveConsoleModules(
-  consoleModulePackageReferences
-);
 
 export const consoleRoutes = buildConsoleRoutes(consoleModules);
 export const consoleNavigation = buildConsoleNavigation(consoleModules);

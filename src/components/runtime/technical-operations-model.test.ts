@@ -49,17 +49,17 @@ const operations: TechnicalOperation[] = [
       declared_path: "/contacts/{id}",
       error_code: "external_dependency_failure",
       method: "GET",
-      module_name: "remote-crm",
+      module_name: "crm-service",
       remote_path: "/contacts/contact_1",
       remote_status: 502,
-      request_id: "req_remote_proxy",
+      request_id: "req_service_proxy",
     },
     category: "external",
     correlationId: "corr_1",
     durationMs: 125,
     endedAt: "2026-06-01T10:00:00.425Z",
     id: "remote_proxy:rproxy_1",
-    name: "remote-crm GET /contacts/{id}",
+    name: "crm-service GET /contacts/{id}",
     relatedNodeId: "fnrun_1",
     source: "remote_proxy",
     startedAt: "2026-06-01T10:00:00.300Z",
@@ -182,7 +182,7 @@ describe("technical operations model", () => {
 
     expect(technicalOperationSourceLabel(remoteProxy)).toBe("remote proxy");
     expect(technicalOperationSummary(remoteProxy)).toBe(
-      "remote-crm / GET /contacts/{id} / remote /contacts/contact_1 / status 502 / request req_remote_proxy"
+      "crm-service / GET /contacts/{id} / remote /contacts/contact_1 / status 502 / request req_service_proxy"
     );
   });
 
@@ -190,19 +190,19 @@ describe("technical operations model", () => {
     const remoteRuntime: TechnicalOperation = {
       attributes: {
         error_code: "external_dependency_failure",
-        function_name: "remote_crm.sync_contact.v1",
-        module_name: "remote-crm",
-        remote_path: "/runtime/functions/remote_crm.sync_contact.v1/invoke",
+        function_name: "crm_service.sync_contact.v1",
+        module_name: "crm-service",
+        remote_path: "/runtime/functions/crm_service.sync_contact.v1/invoke",
         request_id: "fnrun_1",
         timeout_ms: 5000,
-        worker_id: "worker-remote-1",
+        worker_id: "worker-service-1",
       },
       category: "external",
       correlationId: "corr_1",
       durationMs: 42,
       endedAt: "2026-06-01T10:00:00.342Z",
       id: "remote_runtime:elog_1",
-      name: "remote-crm remote_crm.sync_contact.v1",
+      name: "crm-service crm_service.sync_contact.v1",
       relatedNodeId: "fnrun_1",
       source: "remote_runtime",
       startedAt: "2026-06-01T10:00:00.300Z",
@@ -212,7 +212,7 @@ describe("technical operations model", () => {
 
     expect(technicalOperationSourceLabel(remoteRuntime)).toBe("remote runtime");
     expect(technicalOperationSummary(remoteRuntime)).toBe(
-      "remote-crm / remote_crm.sync_contact.v1 / remote /runtime/functions/remote_crm.sync_contact.v1/invoke / timeout 5000ms / worker worker-remote-1 / request fnrun_1 / error external_dependency_failure"
+      "crm-service / crm_service.sync_contact.v1 / remote /runtime/functions/crm_service.sync_contact.v1/invoke / timeout 5000ms / worker worker-service-1 / request fnrun_1 / error external_dependency_failure"
     );
   });
 
@@ -220,8 +220,8 @@ describe("technical operations model", () => {
     const adminAction: TechnicalOperation = {
       attributes: {
         action_name: "sync_contacts",
-        capability: "remote_crm.contacts.sync",
-        module_name: "remote-crm",
+        capability: "crm_service.contacts.sync",
+        module_name: "crm-service",
         request_id: "req_admin_action",
       },
       category: "admin",
@@ -239,7 +239,7 @@ describe("technical operations model", () => {
 
     expect(technicalOperationSourceLabel(adminAction)).toBe("admin action");
     expect(technicalOperationSummary(adminAction)).toBe(
-      "remote-crm / sync_contacts / capability remote_crm.contacts.sync / request req_admin_action"
+      "crm-service / sync_contacts / capability crm_service.contacts.sync / request req_admin_action"
     );
   });
 
@@ -257,7 +257,7 @@ describe("technical operations model", () => {
     const adminAction: TechnicalOperation = {
       attributes: {
         action_name: "sync_contacts",
-        module_name: "remote-crm",
+        module_name: "crm-service",
         request_id: "req_admin_action",
       },
       category: "admin",

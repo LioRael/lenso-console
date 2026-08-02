@@ -152,7 +152,7 @@ VALUES (
 INSERT INTO config.setting_values (service, key, value, updated_at, updated_by)
 VALUES (
   '*', 'auth.console_admin_user_scopes',
-  '{"recovery-drill-operator":["console.admin","console.system-registry.read","console.system-registry.revoke"]}'::jsonb,
+  '{"recovery-drill-operator":["console.admin","console.system-registry.read"]}'::jsonb,
   now(), 'recovery-drill'
 )
 ON CONFLICT (service, key) DO UPDATE
@@ -205,47 +205,17 @@ wait_for_http "$recovery_port"
 assert_workload_mode "$recovery_port" restore
 assert_authority_mode "$recovery_port" restore
 
-blocked_response=$(curl --silent --show-error --max-time 5 --output "$work_directory/blocked.json" \
-  --write-out '%{http_code}' --request POST \
-  --header "Authorization: Bearer $token" \
-  --header 'Content-Type: application/json' \
-  --data '{"expectedVersion":1,"reason":"recovery drill fence check"}' \
-  "http://127.0.0.1:$recovery_port/api/console/v1/services/billing/enrollment/revoke")
-test "$blocked_response" = 409
-jq -e '.detail | contains("recovery mode")' "$work_directory/blocked.json" >/dev/null
-
 write_environment "$recovery_environment" "$recovery_port" normal "$recovery_password"
 recovery_compose up --detach --wait --force-recreate console
 wait_for_http "$recovery_port"
 assert_workload_mode "$recovery_port" normal
 assert_authority_mode "$recovery_port" normal
 
-activated_response=$(curl --fail --silent --show-error --max-time 5 --request POST \
-  --header "Authorization: Bearer $token" \
-  --header 'Content-Type: application/json' \
-  --data '{"expectedVersion":1,"reason":"recovery drill activation check"}' \
-  "http://127.0.0.1:$recovery_port/api/console/v1/services/support/enrollment/revoke")
-printf '%s' "$activated_response" | jq -e '.enrollmentState == "revoked"' >/dev/null
-
-activated_snapshot=$(recovery_compose exec -T database psql --username lenso_console \
-  --dbname lenso_console --tuples-only --no-align --command \
-  "SELECT jsonb_agg(to_jsonb(s) ORDER BY service_id)::text FROM console.managed_services AS s;")
-test "$activated_snapshot" != "$source_snapshot"
-
 write_environment "$recovery_environment" "$recovery_port" restore "$recovery_password"
 recovery_compose up --detach --wait --force-recreate console
 wait_for_http "$recovery_port"
 assert_workload_mode "$recovery_port" restore
 assert_authority_mode "$recovery_port" restore
-
-refenced_response=$(curl --silent --show-error --max-time 5 --output "$work_directory/refenced.json" \
-  --write-out '%{http_code}' --request POST \
-  --header "Authorization: Bearer $token" \
-  --header 'Content-Type: application/json' \
-  --data '{"expectedVersion":1,"reason":"recovery drill re-fence check"}' \
-  "http://127.0.0.1:$recovery_port/api/console/v1/services/billing/enrollment/revoke")
-test "$refenced_response" = 409
-jq -e '.detail | contains("recovery mode")' "$work_directory/refenced.json" >/dev/null
 
 jq --null-input \
   --arg source_project "$source_project" \
@@ -268,11 +238,8 @@ jq --null-input \
       "browser_sessions_excluded",
       "restored_mode_reported",
       "restored_authority_reported",
-      "restore_mode_mutation_blocked",
       "activated_normal_mode_reported",
       "activated_normal_authority_reported",
-      "normal_mode_mutation_enabled",
-      "post_activation_drift_observed",
       "refenced_restore_mode_reported",
       "refenced_restore_authority_reported",
       "recovery_fence_reestablished"

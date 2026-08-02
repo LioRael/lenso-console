@@ -58,7 +58,7 @@ pub fn router() -> ApiOpenApiRouter {
 
 #[utoipa::path(
     get,
-    path = "/admin/runtime/stories",
+    path = "/api/console/v1/stories",
     operation_id = "admin_runtime_list_stories",
     tag = "admin-runtime",
     params(
@@ -129,7 +129,7 @@ async fn list_stories(
 
 #[utoipa::path(
     get,
-    path = "/admin/runtime/stories/{correlation_id}",
+    path = "/api/console/v1/stories/{correlation_id}",
     operation_id = "admin_runtime_get_story",
     tag = "admin-runtime",
     params(
@@ -195,7 +195,7 @@ async fn get_story(
 
 #[utoipa::path(
     get,
-    path = "/admin/runtime/stories/{correlation_id}/heatmap",
+    path = "/api/console/v1/stories/{correlation_id}/heatmap",
     operation_id = "admin_runtime_get_story_heatmap",
     tag = "admin-runtime",
     params(
@@ -278,7 +278,7 @@ async fn get_story_heatmap(
 
 #[utoipa::path(
     get,
-    path = "/admin/runtime/stories/{correlation_id}/technical-operations",
+    path = "/api/console/v1/stories/{correlation_id}/technical-operations",
     operation_id = "admin_runtime_get_story_technical_operations",
     tag = "admin-runtime",
     params(

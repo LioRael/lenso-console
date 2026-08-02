@@ -6,7 +6,7 @@ import {
   rootRedirectPath,
 } from "./router";
 
-describe("runtime console router", () => {
+describe("Console router", () => {
   test("uses Home as the root entrypoint", () => {
     expect(rootRedirectPath).toBe("/");
   });

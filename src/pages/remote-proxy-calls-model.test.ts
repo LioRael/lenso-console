@@ -16,7 +16,7 @@ const calls = [
   remoteProxyCall({
     duration_ms: 100,
     id: "rpc_a",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T10:00:00.000Z",
     success: true,
   }),
@@ -25,7 +25,7 @@ const calls = [
     duration_ms: 500,
     error_code: "remote_http_429",
     id: "rpc_b",
-    module_name: "remote-billing",
+    module_name: "billing-service",
     occurred_at: "2026-06-03T10:05:00.000Z",
     remote_status: 429,
     retryable: true,
@@ -34,7 +34,7 @@ const calls = [
   remoteProxyCall({
     duration_ms: 300,
     id: "rpc_c",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T09:55:00.000Z",
     success: false,
   }),
@@ -42,7 +42,7 @@ const calls = [
     duration_ms: 900,
     error_code: "remote_timeout",
     id: "rpc_d",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T09:50:00.000Z",
     remote_status: null,
     retryable: true,
@@ -84,14 +84,14 @@ describe("remote proxy calls model", () => {
       {
         failed: 2,
         failureRate: 2 / 3,
-        key: "remote-crm",
+        key: "crm-service",
         p95DurationMs: 900,
         total: 3,
       },
       {
         failed: 1,
         failureRate: 1,
-        key: "remote-billing",
+        key: "billing-service",
         p95DurationMs: 500,
         total: 1,
       },
@@ -109,8 +109,8 @@ describe("remote proxy calls model", () => {
 
   test("deduplicates module names for filter controls", () => {
     expect(remoteProxyCallModules(calls)).toEqual([
-      "remote-billing",
-      "remote-crm",
+      "billing-service",
+      "crm-service",
     ]);
   });
 
@@ -161,13 +161,13 @@ describe("remote proxy calls model", () => {
     expect(
       remoteProxyCallsPath({
         correlationId: "corr_1",
-        moduleName: "remote-crm",
+        moduleName: "crm-service",
         query: "contact",
         result: "failed",
         selectedId: "rpc_1",
       })
     ).toBe(
-      "/operations/remote-calls?correlation_id=corr_1&module=remote-crm&q=contact&result=failed&selected=rpc_1"
+      "/operations/remote-calls?correlation_id=corr_1&module=crm-service&q=contact&result=failed&selected=rpc_1"
     );
   });
 });

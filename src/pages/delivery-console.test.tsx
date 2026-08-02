@@ -221,7 +221,7 @@ describe("delivery console", () => {
     for (const state of ["unknown", "blocked", "stale", "failed", "passed"]) {
       expect(html).toContain(`>${state}<`);
     }
-    expect(html).toContain("/admin/runtime/stories/runtime-story%3Aga-1");
+    expect(html).toContain("/api/console/v1/stories/runtime-story%3Aga-1");
     expect(html).toContain("exact evidence");
     expect(html).toContain("m6-ga-1");
 

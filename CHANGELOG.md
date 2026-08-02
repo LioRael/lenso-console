@@ -1,3 +1,11 @@
+## @lenso/console-web@0.1.7
+
+### Fixes
+
+Close the Console architecture migration by hosting only operator workflows,
+loading Module UI artifacts in isolated frames through the digest-bound bridge,
+and removing the retired same-origin Console package system.
+
 ## @lenso/console@0.1.6
 
 ### Features

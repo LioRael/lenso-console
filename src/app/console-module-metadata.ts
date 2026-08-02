@@ -1,107 +1,56 @@
-import { isApiMode } from "../lib/http-client";
+import { isConsoleSurfaceIcon } from "../../packages/console-ui-internal/src/index";
 import { useConsoleCapabilities } from "./console-capabilities";
+import { hasConsoleCapability } from "./console-capability-matching";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
-import {
-  type ConsoleModuleMetadata,
-  createDevManualConsolePackageInstaller,
-  missingConsolePackageReferences,
-  planConsolePackageInstall,
-  resolveConsoleModules,
-  selectConsoleModulePackageReferences,
-} from "./console-module-resolver";
-import {
-  buildConsoleNavigation,
-  buildTimeConsoleModuleMetadata,
-} from "./console-modules";
-import type { InstalledConsolePackage } from "./console-package-registry";
-
-const runtimeConsoleModuleMetadata: ConsoleModuleMetadata[] = [];
-
-export function registerRuntimeConsoleModuleMetadata(
-  packages: readonly InstalledConsolePackage[]
-) {
-  runtimeConsoleModuleMetadata.push(
-    ...packages.map((item) => ({
-      console: item.module.surfaces.map((surface) => {
-        const metadata: NonNullable<ConsoleModuleMetadata["console"]>[number] =
-          {
-            area: surface.area,
-            label: surface.label,
-            package: {
-              export: item.exportName,
-              name: item.packageName,
-            },
-            route: surface.path,
-          };
-        if (surface.icon) {
-          metadata.icon = surface.icon;
-        }
-        if (surface.navigation) {
-          metadata.navigation = surface.navigation;
-        }
-        return metadata;
-      }),
-      module_name: item.module.id,
-    }))
-  );
-}
+import type { ConsoleModuleMetadata } from "./console-module-resolver";
+import { buildConsoleNavigation, consoleModules } from "./console-modules";
 
 export function consoleModuleMetadataWithFallback({
-  apiMode,
+  apiMode: _apiMode,
   data,
 }: {
   apiMode: boolean;
   data?: ConsoleModuleMetadata[] | undefined;
 }): ConsoleModuleMetadata[] {
-  if (data) {
-    return data;
-  }
-  if (apiMode) {
-    return [];
-  }
-  return [...buildTimeConsoleModuleMetadata, ...runtimeConsoleModuleMetadata];
+  return data ?? [];
 }
 
 export function navigationFromConsoleModuleMetadata(
   modules: ConsoleModuleMetadata[],
   availableCapabilities: readonly string[]
 ) {
-  return buildConsoleNavigation(
-    resolveConsoleModules(
-      selectConsoleModulePackageReferences(modules, { availableCapabilities })
-    )
+  const available = new Set(availableCapabilities);
+  const linked = buildConsoleNavigation(consoleModules);
+  const isolated = modules.flatMap((module) =>
+    (module.console ?? []).flatMap((surface) => {
+      if (
+        surface.presentation?.kind !== "isolated" ||
+        !(surface.label && surface.route) ||
+        !(surface.required_capabilities ?? []).every((capability) =>
+          hasConsoleCapability(available, capability)
+        )
+      ) {
+        return [];
+      }
+      return [
+        {
+          ...(isConsoleSurfaceIcon(surface.icon) ? { icon: surface.icon } : {}),
+          label: surface.label,
+          moduleId: module.module_name ?? "unknown",
+          ...(surface.navigation ? { navigation: surface.navigation } : {}),
+          path: surface.route,
+        },
+      ];
+    })
   );
-}
-
-export function missingConsolePackagesFromMetadata(
-  modules: ConsoleModuleMetadata[]
-) {
-  return missingConsolePackageReferences(modules);
-}
-
-export function consolePackageInstallPlanFromMetadata(
-  modules: ConsoleModuleMetadata[]
-) {
-  return planConsolePackageInstall(missingConsolePackagesFromMetadata(modules));
-}
-
-export async function previewConsolePackageInstallResults(
-  modules: ConsoleModuleMetadata[]
-) {
-  const installer = createDevManualConsolePackageInstaller();
-  return Promise.all(
-    consolePackageInstallPlanFromMetadata(modules).map((plan) =>
-      installer.install(plan)
-    )
-  );
+  return [...linked, ...isolated];
 }
 
 export function useConsoleNavigation() {
-  const apiMode = isApiMode();
   const availableCapabilities = useConsoleCapabilities();
   const modulesQuery = useConsoleModulesMetadata();
   const modules = consoleModuleMetadataWithFallback({
-    apiMode,
+    apiMode: false,
     data: modulesQuery.data?.modules,
   });
 

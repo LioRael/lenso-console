@@ -1,213 +1,45 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  consolePackageInstallPlanFromMetadata,
   consoleModuleMetadataWithFallback,
-  missingConsolePackagesFromMetadata,
   navigationFromConsoleModuleMetadata,
-  previewConsolePackageInstallResults,
 } from "./console-module-metadata";
 
-describe("console module metadata", () => {
-  test("builds navigation from backend console metadata", () => {
+describe("Console Module metadata", () => {
+  test("keeps missing backend evidence explicit", () => {
     expect(
-      navigationFromConsoleModuleMetadata(
-        [
-          {
-            console: [
-              {
-                navigation: {
-                  order: 5,
-                  workspace: {
-                    icon: "radar",
-                    id: "observability",
-                    label: "Observability",
-                  },
-                },
-                package: {
-                  export: "storyConsoleModule",
-                  name: "@lenso/story-console",
-                },
-                required_capabilities: ["runtime.stories.read"],
-              },
-            ],
-          },
-        ],
-        ["runtime.stories.read", "identity.users.read"]
-      )
-    ).toEqual([
-      {
-        icon: "workflow",
-        label: "Stories",
-        moduleId: "lenso/platform-story",
-        navigation: {
-          order: 5,
-          workspace: {
-            icon: "radar",
-            id: "observability",
-            label: "Observability",
-          },
-        },
-        path: "/runtime/stories",
-      },
-    ]);
-  });
-
-  test("omits navigation when required capabilities are unavailable", () => {
-    expect(
-      navigationFromConsoleModuleMetadata(
-        [
-          {
-            console: [
-              {
-                package: {
-                  export: "storyConsoleModule",
-                  name: "@lenso/story-console",
-                },
-                required_capabilities: ["runtime.stories.read"],
-              },
-            ],
-          },
-        ],
-        []
-      )
+      consoleModuleMetadataWithFallback({ apiMode: true, data: undefined })
     ).toEqual([]);
   });
 
-  test("reports missing console packages from metadata", () => {
-    expect(
-      missingConsolePackagesFromMetadata([
+  test("adds isolated Module UI navigation without package installation", () => {
+    const navigation = navigationFromConsoleModuleMetadata(
+      [
         {
-          module_name: "remote-crm",
+          module_name: "lenso/auth",
           console: [
             {
-              label: "CRM",
-              name: "crm",
-              package: {
-                export: "crmConsoleModule",
-                name: "@lenso/crm-console",
+              area: "operations",
+              label: "Operators",
+              name: "operators",
+              presentation: {
+                bridge_protocol: "lenso.console-bridge.v1",
+                entry: "auth-users",
+                kind: "isolated",
               },
-              route: "/data/crm",
+              route: "/auth/operators",
             },
           ],
         },
-      ]).map((row) => row.key)
-    ).toEqual(["@lenso/crm-console#crmConsoleModule"]);
-  });
+      ],
+      []
+    );
 
-  test("builds console package install plans from metadata", () => {
-    expect(
-      consolePackageInstallPlanFromMetadata([
-        {
-          module_name: "remote-crm",
-          console: [
-            {
-              label: "CRM",
-              name: "crm",
-              package: {
-                export: "crmConsoleModule",
-                name: "@lenso/crm-console",
-              },
-              route: "/data/crm",
-            },
-          ],
-        },
-      ])
-    ).toEqual([
-      {
-        exportName: "crmConsoleModule",
-        key: "@lenso/crm-console#crmConsoleModule",
-        packageName: "@lenso/crm-console",
-        reason: "remote-crm / CRM / /data/crm",
-        request: {
-          exportName: "crmConsoleModule",
-          packageName: "@lenso/crm-console",
-          requestedByModule: "remote-crm",
-          route: "/data/crm",
-        },
-        status: "planned",
-      },
-    ]);
-  });
-
-  test("previews manual install results from metadata", async () => {
-    await expect(
-      previewConsolePackageInstallResults([
-        {
-          module_name: "remote-crm",
-          console: [
-            {
-              package: {
-                export: "crmConsoleModule",
-                name: "@lenso/crm-console",
-              },
-              route: "/data/crm",
-            },
-          ],
-        },
-      ])
-    ).resolves.toEqual([
-      {
-        command: "pnpm --dir apps/runtime-console add @lenso/crm-console",
-        exportName: "crmConsoleModule",
-        key: "@lenso/crm-console#crmConsoleModule",
-        message: "manual dev install required",
-        packageName: "@lenso/crm-console",
-        request: {
-          exportName: "crmConsoleModule",
-          packageName: "@lenso/crm-console",
-          requestedByModule: "remote-crm",
-          route: "/data/crm",
-        },
-        status: "requires_manual_install",
-      },
-    ]);
-  });
-
-  test("uses backend metadata when it is available", () => {
-    const backendMetadata = [{ console: [] }];
-
-    expect(
-      consoleModuleMetadataWithFallback({
-        apiMode: true,
-        data: backendMetadata,
+    expect(navigation).toContainEqual(
+      expect.objectContaining({
+        moduleId: "lenso/auth",
+        path: "/auth/operators",
       })
-    ).toBe(backendMetadata);
-  });
-
-  test("keeps api navigation empty while metadata is loading", () => {
-    expect(
-      navigationFromConsoleModuleMetadata(
-        consoleModuleMetadataWithFallback({
-          apiMode: true,
-          data: undefined,
-        }),
-        ["runtime.stories.read", "identity.users.read"]
-      ).map((item) => item.path)
-    ).toEqual([]);
-  });
-
-  test("keeps api navigation empty after api errors", () => {
-    expect(
-      navigationFromConsoleModuleMetadata(
-        consoleModuleMetadataWithFallback({
-          apiMode: true,
-          data: undefined,
-        }),
-        ["runtime.stories.read", "identity.users.read"]
-      ).map((item) => item.path)
-    ).toEqual([]);
-  });
-
-  test("falls back outside api mode", () => {
-    expect(
-      navigationFromConsoleModuleMetadata(
-        consoleModuleMetadataWithFallback({
-          apiMode: false,
-          data: undefined,
-        }),
-        ["runtime.stories.read", "identity.users.read"]
-      ).map((item) => item.path)
-    ).toEqual(["/runtime/stories", "/data/identity"]);
+    );
   });
 });

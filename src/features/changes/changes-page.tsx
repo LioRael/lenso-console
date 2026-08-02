@@ -3,7 +3,7 @@ import {
   IconSlot,
   Select,
   useConsoleLocale,
-} from "@lenso/console-package-api";
+} from "@lenso/console-ui-internal";
 import { ChevronDown, ListFilter } from "lucide-react";
 import { useMemo, useState } from "react";
 

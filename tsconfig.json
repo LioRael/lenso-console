@@ -14,8 +14,9 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@lenso/console-package-api": [
-        "packages/console-package-api/src/index.ts"
+      "@lenso/console-bridge": ["packages/console-bridge/src/index.ts"],
+      "@lenso/console-ui-internal": [
+        "packages/console-ui-internal/src/index.ts"
       ]
     },
     "types": ["node"],
@@ -29,11 +30,8 @@
   "include": [
     "src",
     "packages/story-console/src",
-    "packages/auth-console/src",
-    "packages/identity-console/src",
-    "packages/remote-crm-console/src",
     "packages/system-registry-console/src",
-    "packages/console-package-api/src",
+    "packages/console-ui-internal/src",
     "packages/console-bridge/src",
     "packages/console-system-plane/src"
   ],

@@ -18,7 +18,7 @@ const actions = [
   adminAction({
     duration_ms: 100,
     id: "admin_a",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T10:00:00.000Z",
     success: true,
   }),
@@ -39,7 +39,7 @@ const actions = [
     duration_ms: 300,
     error_code: "remote_timeout",
     id: "admin_c",
-    module_name: "remote-crm",
+    module_name: "crm-service",
     occurred_at: "2026-06-03T09:55:00.000Z",
     success: false,
   }),
@@ -78,7 +78,7 @@ describe("admin actions model", () => {
       {
         failed: 1,
         failureRate: 1 / 2,
-        key: "remote-crm",
+        key: "crm-service",
         total: 2,
       },
       {
@@ -160,7 +160,7 @@ describe("admin actions model", () => {
     expect(rows[1]).toMatchObject({
       durationLabel: "100ms",
       operationsPath:
-        "/operations/admin-actions?action=sync_contacts&capability=remote_crm.contacts.sync&correlation_id=corr_admin&module=remote-crm&selected=admin_a",
+        "/operations/admin-actions?action=sync_contacts&capability=crm_service.contacts.sync&correlation_id=corr_admin&module=crm-service&selected=admin_a",
       result: "success",
       summary: "ok",
     });
@@ -211,15 +211,15 @@ describe("admin actions model", () => {
     expect(
       adminActionsPath({
         actionName: "sync_contacts",
-        capability: "remote_crm.contacts.sync",
+        capability: "crm_service.contacts.sync",
         correlationId: "corr_1",
-        moduleName: "remote-crm",
+        moduleName: "crm-service",
         query: "contact",
         result: "failed",
         selectedId: "admin_1",
       })
     ).toBe(
-      "/operations/admin-actions?action=sync_contacts&capability=remote_crm.contacts.sync&correlation_id=corr_1&module=remote-crm&q=contact&result=failed&selected=admin_1"
+      "/operations/admin-actions?action=sync_contacts&capability=crm_service.contacts.sync&correlation_id=corr_1&module=crm-service&q=contact&result=failed&selected=admin_1"
     );
   });
 });
@@ -229,7 +229,7 @@ function adminAction(
 ): RuntimeAdminActionInvocation {
   return {
     action_name: "sync_contacts",
-    capability: "remote_crm.contacts.sync",
+    capability: "crm_service.contacts.sync",
     correlation_id: "corr_admin",
     duration_ms: 1,
     error_code: null,

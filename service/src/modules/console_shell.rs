@@ -12,11 +12,15 @@ use lenso::host::prelude::*;
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::Executor;
+use tower::ServiceBuilder;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use utoipa::ToSchema;
 
-use super::console_artifacts::{__path_reconcile_artifacts, ARTIFACTS_MANAGE, reconcile_artifacts};
+use super::console_artifacts::{
+    __path_get_artifacts, __path_reconcile_artifacts, ARTIFACTS_MANAGE, get_artifacts,
+    reconcile_artifacts,
+};
 use crate::composition::{CONSOLE_SERVICE_ID, ConsoleServiceComposition, official_composition};
 
 pub const MODULE_NAME: &str = "lenso/console-shell";
@@ -48,6 +52,22 @@ fn manifest() -> ModuleManifest {
                 story_title: None,
             },
             ModuleHttpRoute {
+                method: ModuleHttpMethod::Get,
+                path: "/api/console/v1/artifacts".to_owned(),
+                capability: None,
+                operation: None,
+                display_name: Some("Inspect Console UI Artifacts".to_owned()),
+                story_title: None,
+            },
+            ModuleHttpRoute {
+                method: ModuleHttpMethod::Get,
+                path: "/artifacts/{digest}/{*path}".to_owned(),
+                capability: None,
+                operation: None,
+                display_name: Some("Load Isolated Console UI Artifact".to_owned()),
+                story_title: None,
+            },
+            ModuleHttpRoute {
                 method: ModuleHttpMethod::Post,
                 path: "/api/console/v1/artifacts/reconcile".to_owned(),
                 capability: Some(ARTIFACTS_MANAGE.to_owned()),
@@ -66,7 +86,9 @@ fn http_binding() -> LinkedBinding {
             public_prefixes: &[
                 "/health/",
                 "/api/console/v1/composition",
+                "/api/console/v1/artifacts",
                 "/api/console/v1/artifacts/reconcile",
+                "/artifacts/",
                 "/bootstrap/v1/status",
             ],
             merge: merge_http,
@@ -86,10 +108,20 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
     let bootstrap = OpenApiRouter::new()
         .routes(routes!(get_console_bootstrap_status))
         .fallback(not_found);
+    let artifacts = ServiceBuilder::new()
+        .layer(SetResponseHeaderLayer::overriding(
+            HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static(
+                "default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
+            ),
+        ))
+        .service(ServeDir::new(console_artifact_root().join("web")));
     let shell = OpenApiRouter::new()
         .routes(routes!(get_console_composition))
+        .routes(routes!(get_artifacts))
         .routes(routes!(reconcile_artifacts))
         .nest("/bootstrap", bootstrap)
+        .nest_service("/artifacts", artifacts)
         .route("/health/live", get(live))
         .route("/health/ready", get(ready))
         .route("/health/startup", get(startup))
@@ -291,20 +323,24 @@ mod tests {
     fn shell_module_declares_artifact_management_capability() {
         let manifest = manifest();
 
-        assert_eq!(manifest.name, MODULE_NAME);
+        assert_eq!(manifest.module_id, MODULE_NAME);
         assert_eq!(manifest.capabilities, [ARTIFACTS_MANAGE]);
         assert!(manifest.console.is_empty());
-        assert_eq!(manifest.http_routes.len(), 3);
+        assert_eq!(manifest.http_routes.len(), 5);
         assert_eq!(manifest.http_routes[0].path, "/api/console/v1/composition");
         assert!(manifest.http_routes[0].capability.is_none());
         assert_eq!(manifest.http_routes[1].path, "/bootstrap/v1/status");
         assert!(manifest.http_routes[1].capability.is_none());
+        assert_eq!(manifest.http_routes[2].path, "/api/console/v1/artifacts");
+        assert!(manifest.http_routes[2].capability.is_none());
+        assert_eq!(manifest.http_routes[3].path, "/artifacts/{digest}/{*path}");
+        assert!(manifest.http_routes[3].capability.is_none());
         assert_eq!(
-            manifest.http_routes[2].path,
+            manifest.http_routes[4].path,
             "/api/console/v1/artifacts/reconcile"
         );
         assert_eq!(
-            manifest.http_routes[2].capability.as_deref(),
+            manifest.http_routes[4].capability.as_deref(),
             Some(ARTIFACTS_MANAGE)
         );
     }

@@ -4,7 +4,7 @@ import type {
   ConsoleNavigationMetadata,
   ConsoleSurfaceIcon,
   ConsoleWorkspaceRef,
-} from "../../packages/console-package-api/src/index";
+} from "../../packages/console-ui-internal/src/index";
 
 export const SYSTEM_WORKSPACE = {
   icon: "settings",

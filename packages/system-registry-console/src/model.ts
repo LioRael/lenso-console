@@ -1,4 +1,4 @@
-import type { ConsoleManagedService } from "@lenso/console-package-api";
+import type { ConsoleManagedService } from "@lenso/console-ui-internal";
 
 export interface RegistrySummary {
   active: number;

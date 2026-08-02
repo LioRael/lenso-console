@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderName, HeaderValue, Request, StatusCode};
-use platform_core::config::ConsoleConfig;
 use platform_core::{
     AppConfig, AppContext, AuthConfig, DatabaseConfig, HttpConfig, LoggingEventPublisher,
     ModuleConfig, ModuleSourcesConfig, RedisConfig, ServiceConfig, TelemetryConfig,
@@ -19,7 +18,7 @@ async fn story_routes_are_owned_by_the_console_composition() {
 
     let unauthenticated = app
         .clone()
-        .oneshot(admin_get("/admin/runtime/stories"))
+        .oneshot(admin_get("/api/console/v1/stories"))
         .await
         .expect("request should complete");
     assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
@@ -27,7 +26,7 @@ async fn story_routes_are_owned_by_the_console_composition() {
     let unscoped_user = app
         .clone()
         .oneshot(
-            admin_get("/admin/runtime/stories")
+            admin_get("/api/console/v1/stories")
                 .with_header("authorization", "Bearer dev-user:user_123"),
         )
         .await
@@ -41,19 +40,19 @@ async fn story_routes_are_owned_by_the_console_composition() {
     assert_eq!(openapi.status(), StatusCode::OK);
     let document = json_body(openapi).await;
     assert_eq!(
-        document["paths"]["/admin/runtime/stories"]["get"]["operationId"],
+        document["paths"]["/api/console/v1/stories"]["get"]["operationId"],
         "admin_runtime_list_stories"
     );
     assert_eq!(
-        document["paths"]["/admin/runtime/stories/{correlation_id}"]["get"]["operationId"],
+        document["paths"]["/api/console/v1/stories/{correlation_id}"]["get"]["operationId"],
         "admin_runtime_get_story"
     );
     assert_eq!(
-        document["paths"]["/admin/runtime/stories/{correlation_id}/heatmap"]["get"]["operationId"],
+        document["paths"]["/api/console/v1/stories/{correlation_id}/heatmap"]["get"]["operationId"],
         "admin_runtime_get_story_heatmap"
     );
     assert_eq!(
-        document["paths"]["/admin/runtime/stories/{correlation_id}/technical-operations"]["get"]["operationId"],
+        document["paths"]["/api/console/v1/stories/{correlation_id}/technical-operations"]["get"]["operationId"],
         "admin_runtime_get_story_technical_operations"
     );
 }
@@ -69,7 +68,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let list = app
         .clone()
         .oneshot(
-            admin_get("/admin/runtime/stories?limit=1")
+            admin_get("/api/console/v1/stories?limit=1")
                 .with_header("authorization", "Bearer dev-service:admin"),
         )
         .await
@@ -86,7 +85,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
         .clone()
         .oneshot(
             admin_get(&format!(
-                "/admin/runtime/stories?limit=1&created_before={cursor}"
+                "/api/console/v1/stories?limit=1&created_before={cursor}"
             ))
             .with_header("authorization", "Bearer dev-service:admin"),
         )
@@ -100,7 +99,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let detail = app
         .clone()
         .oneshot(
-            admin_get("/admin/runtime/stories/corr_story")
+            admin_get("/api/console/v1/stories/corr_story")
                 .with_header("authorization", "Bearer dev-service:admin"),
         )
         .await
@@ -117,7 +116,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let operations = app
         .clone()
         .oneshot(
-            admin_get("/admin/runtime/stories/corr_story/technical-operations")
+            admin_get("/api/console/v1/stories/corr_story/technical-operations")
                 .with_header("authorization", "Bearer dev-service:admin"),
         )
         .await
@@ -128,7 +127,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let heatmap = app
         .clone()
         .oneshot(
-            admin_get("/admin/runtime/stories/corr_story/heatmap?bucket_seconds=60&limit=20")
+            admin_get("/api/console/v1/stories/corr_story/heatmap?bucket_seconds=60&limit=20")
                 .with_header("authorization", "Bearer dev-service:admin"),
         )
         .await
@@ -149,7 +148,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let missing = app
         .clone()
         .oneshot(
-            admin_get("/admin/runtime/stories/missing")
+            admin_get("/api/console/v1/stories/missing")
                 .with_header("authorization", "Bearer dev-service:admin"),
         )
         .await
@@ -158,7 +157,7 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
 
     let missing_heatmap = app
         .oneshot(
-            admin_get("/admin/runtime/stories/missing/heatmap")
+            admin_get("/api/console/v1/stories/missing/heatmap")
                 .with_header("authorization", "Bearer dev-service:admin"),
         )
         .await
@@ -207,7 +206,6 @@ fn test_config() -> AppConfig {
     };
     let module_sources = ModuleSourcesConfig {
         linked_profile: "core".to_owned(),
-        ..ModuleSourcesConfig::default()
     };
 
     AppConfig {
@@ -223,7 +221,6 @@ fn test_config() -> AppConfig {
         http,
         telemetry: TelemetryConfig::default(),
         auth: AuthConfig::default(),
-        console: ConsoleConfig::default(),
         module_sources,
         modules: BTreeMap::from([(
             "platform-story".to_owned(),
