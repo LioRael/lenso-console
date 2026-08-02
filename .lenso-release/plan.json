@@ -1,13 +1,13 @@
 {
   "schema": "lenso.release-plan.v1",
   "repository": "LioRael/lenso-console",
-  "sourceCommit": "d00c44c82b644afbb09473a1a20ba354db1693ba",
+  "sourceCommit": "bfbe7412c613edd519e74c7b032865886c380502",
   "tegamiVersion": "1.2.5",
   "publisher": {
     "workflow": ".github/workflows/publish.yml",
     "workflowSha256": "sha256:e4f83f44c420f2e6fc1b135a644fb20dbe13b4c782310bf85719f52e1616f553",
-    "sharedRevision": "3c2a5b440e0e2bbfb1b22765b36d727bc34c426b",
-    "sharedBundleSha256": "sha256:91829406c8dd411c5bc5e7b0b917cfbf27faad071d454f575fb69411c1d4c97d",
+    "sharedRevision": "adf1b38176e7ec13db63837b98d358f9dfc39847",
+    "sharedBundleSha256": "sha256:1f3582f927478f3af22b79e2c205a6b7ab090a9937b4485174738373249712ee",
     "runner": "ubuntu-24.04",
     "node": "24.18.0",
     "npm": "11.7.0",
@@ -16,31 +16,31 @@
   "generatedFiles": [
     {
       "path": ".tegami/publish-lock.yaml",
-      "sha256": "sha256:cd4319d65a2a770fdb5db77f3d136a032d4a9d839d61ee58eed3ed43761bbf5e"
+      "sha256": "sha256:92991a3a5e19acf558fa5d0b280d0d8e66754027ad2d3f0cf5ffc768413b03b8"
     },
     {
       "path": "CHANGELOG.md",
-      "sha256": "sha256:1c6feabd85c5271b4e1cbc82c1c193884440e182706d43337708ea426a4e6101"
+      "sha256": "sha256:16363adc2e455f68107826d3ad3d806fb72abf0747bf62a751d08203341d0d36"
     },
     {
       "path": "package.json",
-      "sha256": "sha256:c57ed47af4efb0aa082980a9db8a49498eb7ddc1ad3cd3a0e8b1d021bfbc02b5"
+      "sha256": "sha256:6464280892262caceab0d74b6b0bc88de498ca37a0454507292aa8aeadc62d2c"
     },
     {
       "path": "pnpm-lock.yaml",
-      "sha256": "sha256:60c599f98a0acc6319f7cc7ef84918ea6a2d1e56e2bf9cb5af3de57b41220b4a"
+      "sha256": "sha256:1008748666866ef547b0d73414ae2c7f85d4caa7388659e6b3cf88c431abede2"
     }
   ],
   "packages": [
     {
       "id": "oci:lenso-console-service",
-      "previousVersion": "0.1.5",
-      "nextVersion": "0.1.6",
+      "previousVersion": "0.1.6",
+      "nextVersion": "0.1.7",
       "bump": "patch",
       "releaseGroup": "console",
       "userFacing": true,
       "dependencies": []
     }
   ],
-  "planId": "sha256:46590413e99ab9feff807933d7ff4d5d8113a026dedf87da26ba17a952843dd2"
+  "planId": "sha256:1aff7057361b69a0a9bdc672a10990e3ba2486d6af8d9a6bcf6824497cff5e01"
 }
