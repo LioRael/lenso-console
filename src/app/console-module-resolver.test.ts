@@ -100,6 +100,52 @@ describe("console module resolver", () => {
     ]);
   });
 
+  test("ignores console surfaces from modules that failed to load", () => {
+    expect(
+      selectConsoleModulePackageReferences(
+        [
+          {
+            module_name: "lenso/platform-story",
+            console: [
+              {
+                package: {
+                  export: "storyConsoleModule",
+                  name: "@lenso/story-console",
+                },
+                required_capabilities: ["runtime.stories.read"],
+                route: "/runtime/stories",
+              },
+            ],
+            status: "loaded",
+          },
+          {
+            module_name: "platform-story",
+            console: [
+              {
+                package: {
+                  export: "storyConsoleModule",
+                  name: "@lenso/story-console",
+                },
+                required_capabilities: ["runtime.stories.read"],
+                route: "/runtime/stories",
+              },
+            ],
+            status: "error",
+          },
+        ],
+        { availableCapabilities: ["runtime.stories.read"] }
+      )
+    ).toEqual([
+      {
+        exportName: "storyConsoleModule",
+        moduleName: "lenso/platform-story",
+        navigation: null,
+        packageName: "@lenso/story-console",
+        route: "/runtime/stories",
+      },
+    ]);
+  });
+
   test("filters console surfaces when required capabilities are missing", () => {
     const metadata = [
       {

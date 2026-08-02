@@ -49,7 +49,7 @@ type AuthModuleMetadata = {
 const authProviderFixtures: readonly AuthProviderRow[] = [
   {
     configuration: ["client_id", "client_secret", "redirect_uri"],
-    consolePath: "/auth/providers/github",
+    consolePath: "/data/auth/providers/github",
     evidence: [
       "Routes: auth-github",
       "Effects: provider module",
@@ -66,7 +66,7 @@ const authProviderFixtures: readonly AuthProviderRow[] = [
   },
   {
     configuration: ["client_id", "client_secret", "redirect_uri"],
-    consolePath: "/auth/providers/google",
+    consolePath: "/data/auth/providers/google",
     evidence: [
       "Routes: auth-google",
       "Effects: provider module",
@@ -83,7 +83,7 @@ const authProviderFixtures: readonly AuthProviderRow[] = [
   },
   {
     configuration: ["client_id", "client_secret", "redirect_uri"],
-    consolePath: "/auth/providers/oidc",
+    consolePath: "/data/auth/providers/oidc",
     evidence: [
       "Routes: auth-oidc",
       "Effects: provider module",

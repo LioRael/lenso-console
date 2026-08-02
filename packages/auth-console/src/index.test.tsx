@@ -16,7 +16,7 @@ describe("auth console package", () => {
             group: expect.objectContaining({ id: "directory" }),
             workspace: expect.objectContaining({ id: "auth" }),
           }),
-          route: "/auth/users",
+          route: "/data/auth/users",
           surfaceName: "users",
         }),
         expect.objectContaining({
@@ -25,7 +25,7 @@ describe("auth console package", () => {
             group: expect.objectContaining({ id: "sign-in" }),
             workspace: expect.objectContaining({ id: "auth" }),
           }),
-          route: "/auth/providers",
+          route: "/data/auth/providers",
           surfaceName: "providers",
         }),
       ]),
@@ -34,9 +34,9 @@ describe("auth console package", () => {
     expect(authConsoleModule).toMatchObject({
       id: "auth",
       surfaces: expect.arrayContaining([
-        expect.objectContaining({ path: "/auth/providers" }),
-        expect.objectContaining({ path: "/auth/providers/github" }),
-        expect.objectContaining({ path: "/auth/users" }),
+        expect.objectContaining({ path: "/data/auth/providers" }),
+        expect.objectContaining({ path: "/data/auth/providers/github" }),
+        expect.objectContaining({ path: "/data/auth/users" }),
       ]),
     });
     expect(AuthProvidersPage).toBeTypeOf("function");

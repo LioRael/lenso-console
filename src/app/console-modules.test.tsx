@@ -506,20 +506,24 @@ describe("console module registry", () => {
       groups: [
         {
           id: "directory",
-          items: ["/auth/users", "/auth/sessions", "/auth/credentials"],
+          items: [
+            "/data/auth/users",
+            "/data/auth/sessions",
+            "/data/auth/credentials",
+          ],
         },
         {
           id: "sign-in",
           items: [
-            "/auth/providers",
-            "/auth/providers/github",
-            "/auth/providers/google",
-            "/auth/providers/oidc",
+            "/data/auth/providers",
+            "/data/auth/providers/github",
+            "/data/auth/providers/google",
+            "/data/auth/providers/oidc",
           ],
         },
       ],
       id: "auth",
-      items: ["/auth"],
+      items: ["/data/auth"],
       label: "Auth",
     });
   });

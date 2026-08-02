@@ -74,7 +74,7 @@ export function AuthOverviewPage() {
               ? "来自认证模块的目录与会话证据。"
               : "Directory and session evidence from the Auth module."
           }
-          href="/auth/users"
+          href="/data/auth/users"
           title={zh ? "目录" : "Directory"}
         />
         <AuthOverviewCard
@@ -83,7 +83,7 @@ export function AuthOverviewPage() {
               ? "已注册的 OAuth 与 OIDC 页面及其模块归属。"
               : "Registered OAuth and OIDC surfaces with module ownership."
           }
-          href="/auth/providers"
+          href="/data/auth/providers"
           title={zh ? "登录" : "Sign-in"}
         />
         <AuthOverviewCard
@@ -92,7 +92,7 @@ export function AuthOverviewPage() {
               ? "设备与凭据状态保留在模块负责的边界内。"
               : "Device and credential state stays inside module-owned seams."
           }
-          href="/auth/credentials"
+          href="/data/auth/credentials"
           title={zh ? "凭据 / 设备" : "Credentials / Devices"}
         />
       </div>
