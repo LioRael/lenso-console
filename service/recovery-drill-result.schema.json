@@ -28,8 +28,8 @@
     "recoveryPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
     "checks": {
       "type": "array",
-      "minItems": 16,
-      "maxItems": 16,
+      "minItems": 13,
+      "maxItems": 13,
       "uniqueItems": true,
       "items": {
         "enum": [
@@ -41,11 +41,8 @@
           "browser_sessions_excluded",
           "restored_mode_reported",
           "restored_authority_reported",
-          "restore_mode_mutation_blocked",
           "activated_normal_mode_reported",
           "activated_normal_authority_reported",
-          "normal_mode_mutation_enabled",
-          "post_activation_drift_observed",
           "refenced_restore_mode_reported",
           "refenced_restore_authority_reported",
           "recovery_fence_reestablished"
