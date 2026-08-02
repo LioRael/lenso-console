@@ -1,23 +1,20 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@lenso/console\":\n    type: patch\n  \"@lenso/console-package-api\":\n    type: patch\n---\n\n### Features\n\nShip the redesigned operator workbench and the matching host-provided extension\ncomponents, theme tokens, workspace navigation, and light-mode contract.\n\n### Fixes\n\nAlign Story inspectors and Module surfaces, expose grouped Auth workspaces in the\ndevelopment host, and deduplicate admin-action evidence on Home.\n"
-    filename: console-product-workbench.md
+  - content: "---\npackages:\n  \"@lenso/console\":\n    type: patch\n---\n\n### Features\n\nAdd an explicit `console.superadmin` authority marker that grants the current\nConsole operator access across the capabilities exposed by the Console Service.\n\n### Fixes\n\nCorrect authenticated Console data routes and ignore failed duplicate module\nregistrations so Runtime Stories remains available when a disabled module is\nalso present in the registry.\n"
+    filename: console-superadmin.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - console-product-workbench.md
+      - console-superadmin.md
     id: npm:@lenso/console
     updated: true
+  - id: npm:@lenso/auth-console
+    updated: false
   - id: npm:@lenso/console-bridge
     updated: false
-  - changelogIds:
-      - console-product-workbench.md
-    id: npm:@lenso/console-package-api
-    updated: true
+  - id: npm:@lenso/console-package-api
+    updated: false
 npm:packages:
   - id: npm:@lenso/console
+  - id: npm:@lenso/auth-console
   - id: npm:@lenso/console-bridge
   - id: npm:@lenso/console-package-api
-  - id: npm:@lenso/identity-console
-  - id: npm:@lenso/story-console
-  - id: npm:@lenso/remote-crm-console
-  - id: npm:@lenso/system-registry-console
