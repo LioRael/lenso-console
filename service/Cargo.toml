@@ -30,7 +30,7 @@ anyhow = "1.0"
 axum = "0.8"
 dotenvy = "0.15"
 flate2 = "1.1"
-lenso = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77", version = "0.3.36", features = [
+lenso = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78", version = "0.3.36", features = [
   "host",
 ] }
 console-story-backend = { package = "lenso-module-story", path = "modules/story" }
@@ -67,20 +67,20 @@ must_use_candidate = "allow"
 result_large_err = "allow"
 
 [patch.crates-io]
-lenso-api = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-bootstrap = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-contracts = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-module-auth = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-anonymous = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-github = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-google = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-oauth = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-oidc = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-password = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-module-auth-phone = { git = "https://github.com/LioRael/lenso-auth-module", rev = "1a9dd0b28c7d73aee036125ed3e4e68d19acca6c" }
-lenso-platform-core = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-platform-http = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-platform-module = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-platform-runtime = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-platform-testing = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
-lenso-service = { git = "https://github.com/LioRael/lenso", rev = "9f56e8e84a94c80a2df14a40659057fa0672ac77" }
+lenso-api = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-bootstrap = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-contracts = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-module-auth = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-anonymous = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-github = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-google = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-oauth = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-oidc = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-password = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-module-auth-phone = { git = "https://github.com/LioRael/lenso-auth-module", rev = "6f689d6aa38aa74a490d9877287fa6f0aa2aacc1" }
+lenso-platform-core = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-platform-http = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-platform-module = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-platform-runtime = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-platform-testing = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
+lenso-service = { git = "https://github.com/LioRael/lenso", rev = "09d1bfc43cec6932c5831da20db0706646c2ea78" }
