@@ -31,7 +31,36 @@ type WorkspaceRouteMatch = {
   workspaceId: string;
 };
 
+export type WorkspaceMenuNavigationKey =
+  | "ArrowDown"
+  | "ArrowUp"
+  | "End"
+  | "Home";
+
 const DEFAULT_ORDER = Number.MAX_SAFE_INTEGER;
+
+export function workspaceMenuIndexForKey(
+  currentIndex: number,
+  key: WorkspaceMenuNavigationKey,
+  itemCount: number
+): number | null {
+  if (itemCount <= 0) {
+    return null;
+  }
+
+  const normalizedIndex = Math.min(Math.max(currentIndex, 0), itemCount - 1);
+
+  if (key === "ArrowDown") {
+    return (normalizedIndex + 1) % itemCount;
+  }
+  if (key === "ArrowUp") {
+    return (normalizedIndex - 1 + itemCount) % itemCount;
+  }
+  if (key === "End") {
+    return itemCount - 1;
+  }
+  return 0;
+}
 
 export function navigationForItem(
   item: ConsoleNavigationItem

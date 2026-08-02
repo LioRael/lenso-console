@@ -1,3 +1,12 @@
+import {
+  ConsolePage,
+  FilterControl,
+  InlineStatus,
+  Inspector as ConsoleInspector,
+  SplitView,
+  Tabs,
+  type SemanticTone,
+} from "@lenso/console-package-api";
 import { ChevronDown } from "lucide-react";
 import {
   useState,
@@ -17,63 +26,47 @@ export function ProductPage({
   title: string;
 }>) {
   return (
-    <section className="product-page h-full min-h-0 overflow-auto bg-(--bg-canvas) text-(--fg-primary)">
-      <div className="mx-auto min-h-full max-w-[1216px] px-10 pt-8 pb-12 max-md:px-5">
-        <header className="flex min-h-16 items-start gap-6 border-b border-(--line) pb-3">
-          <div className="min-w-0">
-            <h1 className="text-[24px] leading-8 font-semibold tracking-[-0.02em]">
-              {title}
-            </h1>
-            <p className="mt-0.5 text-[14px] leading-5 text-(--fg-secondary)">
-              {description}
-            </p>
-          </div>
-          {meta ? (
-            <div className="ml-auto shrink-0 pt-1 text-[12px] text-(--fg-tertiary)">
-              {meta}
-            </div>
-          ) : null}
-        </header>
+    <ConsolePage className="product-page">
+      <ConsolePage.Header>
+        <ConsolePage.Heading>
+          <ConsolePage.Title>{title}</ConsolePage.Title>
+          <ConsolePage.Description>{description}</ConsolePage.Description>
+        </ConsolePage.Heading>
+        {meta ? <ConsolePage.Actions>{meta}</ConsolePage.Actions> : null}
+      </ConsolePage.Header>
+      <ConsolePage.Body className="product-page__body">
         {children}
-      </div>
-    </section>
+      </ConsolePage.Body>
+    </ConsolePage>
   );
 }
 
 export function ProductTabs({
   active,
+  className,
   items,
   onChange,
 }: {
   active: string;
+  className?: string;
   items: readonly string[];
   onChange: (item: string) => void;
 }) {
   return (
-    <div
-      className="flex h-10 items-end gap-1 border-b border-(--line) pl-1.5"
-      role="tablist"
-    >
-      {items.map((item) => (
-        <button
-          aria-selected={active === item}
-          className={`relative h-10 px-1 text-[12px] transition-colors ${
-            active === item
-              ? "text-(--fg-primary)"
-              : "text-(--fg-tertiary) hover:text-(--fg-secondary)"
-          }`}
-          key={item}
-          onClick={() => onChange(item)}
-          role="tab"
-          type="button"
-        >
-          {item}
-          {active === item ? (
-            <span className="absolute right-1 bottom-0 left-1 h-px bg-(--fg-primary)" />
-          ) : null}
-        </button>
-      ))}
-    </div>
+    <Tabs className={className} density="page" inset="none">
+      <Tabs.List inset="none">
+        {items.map((item) => (
+          <Tabs.Tab
+            aria-label={item}
+            key={item}
+            onClick={() => onChange(item)}
+            selected={active === item}
+          >
+            {item}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+    </Tabs>
   );
 }
 
@@ -82,16 +75,12 @@ export function FilterButton({
   ...props
 }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement>>) {
   return (
-    <button
+    <FilterControl
       {...props}
-      className="inline-flex h-7 items-center gap-2 rounded-[var(--radius-control)] border border-(--line-strong) bg-(--bg-control) px-2.5 text-[12px] text-(--fg-secondary) hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
-      type="button"
+      icon={<ChevronDown size={12} strokeWidth={1.5} />}
     >
       {children}
-      <span className="grid size-3 place-items-center">
-        <ChevronDown size={12} strokeWidth={1.5} />
-      </span>
-    </button>
+    </FilterControl>
   );
 }
 
@@ -102,59 +91,60 @@ export function StatusDot({
   label: string;
   tone?: "neutral" | "success" | "warning" | "error";
 }) {
-  const toneClass = {
-    error: "bg-(--error)",
-    neutral: "bg-(--fg-secondary)",
-    success: "bg-(--success)",
-    warning: "bg-(--warning)",
-  }[tone];
-  return (
-    <span className="inline-flex items-center gap-2 text-[12px] text-(--fg-secondary)">
-      <span className={`size-1.5 shrink-0 rounded-full ${toneClass}`} />
-      {label}
-    </span>
-  );
+  const semanticTone: SemanticTone = tone === "error" ? "danger" : tone;
+  return <InlineStatus tone={semanticTone}>{label}</InlineStatus>;
 }
 
 export function SplitWorkspace({
+  className,
   children,
   inspector,
   inspectorWidth = 376,
-}: PropsWithChildren<{ inspector: ReactNode; inspectorWidth?: number }>) {
+}: PropsWithChildren<{
+  className?: string;
+  inspector: ReactNode;
+  inspectorWidth?: number;
+}>) {
   return (
-    <div
-      className="grid min-h-[620px] border-t border-(--line)"
-      style={{ gridTemplateColumns: `minmax(0,1fr) ${inspectorWidth}px` }}
+    <SplitView
+      className={
+        className
+          ? `product-split-workspace ${className}`
+          : "product-split-workspace"
+      }
+      inset="default"
+      inspectorWidth={inspectorWidth}
     >
-      <div className="min-w-0 border-r border-(--line)">{children}</div>
-      <aside className="min-w-0 bg-(--bg-canvas)">{inspector}</aside>
-    </div>
+      <SplitView.Main>{children}</SplitView.Main>
+      <SplitView.Inspector>{inspector}</SplitView.Inspector>
+    </SplitView>
   );
 }
 
 export function Inspector({
+  className,
   children,
+  headerAction,
   status,
   subtitle,
   title,
 }: PropsWithChildren<{
+  className?: string;
+  headerAction?: ReactNode;
   status?: ReactNode;
   subtitle?: string;
   title: string;
 }>) {
   return (
-    <div className="px-7">
-      <div className="pt-7">
-        <h2 className="text-[18px] leading-6 font-semibold">{title}</h2>
-        {subtitle ? (
-          <p className="mt-0.5 font-mono text-[10px] text-(--fg-tertiary)">
-            {subtitle}
-          </p>
-        ) : null}
-        {status ? <div className="mt-4">{status}</div> : null}
-      </div>
+    <ConsoleInspector
+      className={className ?? "product-inspector"}
+      headerAction={headerAction}
+      status={status}
+      subtitle={subtitle}
+      title={title}
+    >
       {children}
-    </div>
+    </ConsoleInspector>
   );
 }
 
@@ -163,14 +153,9 @@ export function InspectorSection({
   title,
 }: PropsWithChildren<{ title: string }>) {
   return (
-    <section className="mt-0 border-t border-(--line) py-4">
-      <h3 className="mb-2 text-[12px] font-medium text-(--fg-secondary)">
-        {title}
-      </h3>
-      <div className="space-y-1 text-[12px] leading-[1.55] text-(--fg-primary)">
-        {children}
-      </div>
-    </section>
+    <ConsoleInspector.Section title={title}>
+      {children}
+    </ConsoleInspector.Section>
   );
 }
 

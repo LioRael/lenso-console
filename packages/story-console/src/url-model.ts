@@ -66,10 +66,13 @@ function legacyExecutionInspectorTab(
 ): ExecutionInspectorTab | undefined {
   return {
     activity: "events",
-    context: "related",
-    failures: "errors",
-    payload: "input",
-    technical: "related",
+    context: "operations",
+    errors: "events",
+    failures: "events",
+    input: "payload",
+    output: "payload",
+    related: "operations",
+    technical: "operations",
   }[value] as ExecutionInspectorTab | undefined;
 }
 

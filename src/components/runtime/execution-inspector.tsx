@@ -110,17 +110,50 @@ export function ExecutionInspector({
 
       <div className="min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)">
         <HorizontalTabScroll>
-          <div className="flex h-9 w-max min-w-full items-start gap-1 px-3">
-            {executionInspectorTabs.map((tab) => (
+          <div
+            aria-label={zh ? "执行详情标签" : "Execution detail tabs"}
+            className="flex h-9 w-max min-w-full items-start gap-1 px-3"
+            role="tablist"
+          >
+            {executionInspectorTabs.map((tab, index) => (
               <button
+                aria-controls="execution-inspector-panel"
                 aria-selected={activeTab === tab.id}
                 className={cn(
                   "relative flex h-[33px] shrink-0 items-center justify-center gap-1 px-1 text-[12px] text-(--fg-tertiary)",
                   activeTab === tab.id && "font-medium text-(--fg-primary)"
                 )}
+                id={`execution-tab-${tab.id}`}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                onKeyDown={(event) => {
+                  if (
+                    !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                      event.key
+                    )
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  const nextIndex =
+                    event.key === "Home"
+                      ? 0
+                      : event.key === "End"
+                        ? executionInspectorTabs.length - 1
+                        : event.key === "ArrowRight"
+                          ? (index + 1) % executionInspectorTabs.length
+                          : (index - 1 + executionInspectorTabs.length) %
+                            executionInspectorTabs.length;
+                  const next = executionInspectorTabs[nextIndex];
+                  if (next) {
+                    setActiveTab(next.id);
+                    document
+                      .getElementById(`execution-tab-${next.id}`)
+                      ?.focus();
+                  }
+                }}
                 role="tab"
+                tabIndex={activeTab === tab.id ? 0 : -1}
                 type="button"
               >
                 <span>
@@ -142,7 +175,12 @@ export function ExecutionInspector({
         </HorizontalTabScroll>
       </div>
 
-      <div className="min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]">
+      <div
+        aria-labelledby={`execution-tab-${activeTab}`}
+        className="min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]"
+        id="execution-inspector-panel"
+        role="tabpanel"
+      >
         <InspectorBody activeTab={activeTab} node={node} story={story} />
       </div>
     </aside>
@@ -151,12 +189,10 @@ export function ExecutionInspector({
 
 const inspectorTabZh: Record<ExecutionInspectorTab, string> = {
   overview: "概览",
-  input: "输入",
-  output: "输出",
-  events: "事件",
+  payload: "载荷",
   logs: "日志",
-  errors: "错误",
-  related: "相关",
+  events: "事件",
+  operations: "操作",
 };
 
 function InspectorBody({
@@ -172,7 +208,7 @@ function InspectorBody({
   const payloadQuery = useExecutionPayload(
     story,
     node.id,
-    activeTab === "input" || activeTab === "output" || activeTab === "overview"
+    activeTab === "payload" || activeTab === "overview"
   );
   const logsQuery = useExecutionLogs(story, node.id, activeTab === "logs");
   const executionOperationsQuery = useExecutionTechnicalOperations(
@@ -221,24 +257,25 @@ function InspectorBody({
     );
   }
 
-  if (activeTab === "events") {
-    return <ActivityList activity={buildExecutionActivity(story, node)} />;
-  }
-
-  if (activeTab === "input" || activeTab === "output") {
+  if (activeTab === "payload") {
     return (
-      <PayloadSectionPanel
+      <PayloadDocument
         error={payloadQuery.error}
         isError={payloadQuery.isError}
         isLoading={payloadQuery.isLoading}
         payload={payloadQuery.data}
-        section={activeTab}
       />
     );
   }
 
-  if (activeTab === "errors") {
-    return <FailurePanel failures={buildExecutionFailures(node)} node={node} />;
+  if (activeTab === "events") {
+    return (
+      <EventsDocument
+        activity={buildExecutionActivity(story, node)}
+        failures={buildExecutionFailures(node)}
+        node={node}
+      />
+    );
   }
 
   if (activeTab === "logs") {
@@ -255,6 +292,64 @@ function InspectorBody({
 
   const context = buildExecutionContext(story, node);
   return (
+    <OperationsDocument
+      context={context}
+      executionOperations={executionOperationsQuery.data ?? []}
+      error={executionOperationsQuery.error ?? storyOperationsQuery.error}
+      isError={executionOperationsQuery.isError || storyOperationsQuery.isError}
+      isLoading={
+        executionOperationsQuery.isLoading || storyOperationsQuery.isLoading
+      }
+      node={node}
+      story={story}
+      storyOperations={storyOperationsQuery.data ?? []}
+    />
+  );
+}
+
+function EventsDocument({
+  activity,
+  failures,
+  node,
+}: {
+  activity: ExecutionActivityItem[];
+  failures: ReturnType<typeof buildExecutionFailures>;
+  node: ExecutionNode;
+}) {
+  return (
+    <div className="grid min-w-full">
+      <InspectorSectionLabel label="Activity" />
+      <ActivityList activity={activity} />
+      {failures.length > 0 ? (
+        <>
+          <InspectorSectionLabel label="Failure evidence" />
+          <FailurePanel failures={failures} node={node} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function OperationsDocument({
+  context,
+  error,
+  executionOperations,
+  isError,
+  isLoading,
+  node,
+  story,
+  storyOperations,
+}: {
+  context: ReturnType<typeof buildExecutionContext>;
+  executionOperations: TechnicalOperation[];
+  error: unknown;
+  isError: boolean;
+  isLoading: boolean;
+  node: ExecutionNode;
+  story: RuntimeStory;
+  storyOperations: TechnicalOperation[];
+}) {
+  return (
     <div className="grid min-w-full">
       <KeyValueTable rows={context.rows} />
       <RelatedExecutionList
@@ -266,22 +361,26 @@ function InspectorBody({
         nodes={context.downstream}
       />
       <TechnicalPanel
-        executionOperations={executionOperationsQuery.data ?? []}
-        error={executionOperationsQuery.error ?? storyOperationsQuery.error}
-        isError={
-          executionOperationsQuery.isError || storyOperationsQuery.isError
-        }
-        isLoading={
-          executionOperationsQuery.isLoading || storyOperationsQuery.isLoading
-        }
+        executionOperations={executionOperations}
+        error={error}
+        isError={isError}
+        isLoading={isLoading}
         node={node}
         story={story}
-        storyOperations={storyOperationsQuery.data ?? []}
+        storyOperations={storyOperations}
       />
       <JsonViewer
         title="execution context"
         value={{ attributes: node.attributes, context: node.context }}
       />
+    </div>
+  );
+}
+
+function InspectorSectionLabel({ label }: { label: string }) {
+  return (
+    <div className="flex h-[30px] items-center border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-medium uppercase tracking-[0.04em] text-(--fg-tertiary)">
+      {label}
     </div>
   );
 }
@@ -934,18 +1033,16 @@ function FailurePanel({
   );
 }
 
-function PayloadSectionPanel({
+function PayloadDocument({
   error,
   isError,
   isLoading,
   payload,
-  section,
 }: {
   error: unknown;
   isError: boolean;
   isLoading: boolean;
   payload: ExecutionPayload | undefined;
-  section: "input" | "output";
 }) {
   if (isLoading) {
     return <EmptyRows label="Loading captured execution payload..." />;
@@ -958,12 +1055,14 @@ function PayloadSectionPanel({
     );
   }
 
-  const value = section === "input" ? payload?.input : payload?.output;
-  if (!hasPanelValue(value)) {
+  const sections = [
+    ["input", payload?.input],
+    ["output", payload?.output],
+    ["metadata", payload?.metadata],
+  ] as const;
+  if (!sections.some(([, value]) => hasPanelValue(value))) {
     return (
-      <EmptyRows
-        label={`No ${section} payload was captured for this execution.`}
-      />
+      <EmptyRows label="No payload or metadata was captured for this execution." />
     );
   }
 
@@ -976,10 +1075,16 @@ function PayloadSectionPanel({
           {payload.redactedFields.join(", ")}
         </div>
       ) : null}
-      <JsonViewer defaultExpanded title={section} value={value} />
-      {section === "input" && hasPanelValue(payload?.metadata) ? (
-        <JsonViewer title="metadata" value={payload?.metadata} />
-      ) : null}
+      {sections.map(([section, value]) =>
+        hasPanelValue(value) ? (
+          <JsonViewer
+            defaultExpanded={section === "input"}
+            key={section}
+            title={section}
+            value={value}
+          />
+        ) : null
+      )}
     </div>
   );
 }

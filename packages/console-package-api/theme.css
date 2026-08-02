@@ -99,6 +99,13 @@
   --spacing-control-lg: var(--control-height-lg);
   --spacing-content-gutter: var(--content-gutter);
   --spacing-content-max: var(--content-max-width);
+  --spacing-console-sidebar: var(--console-sidebar-width);
+  --spacing-console-sidebar-collapsed: var(--console-sidebar-collapsed-width);
+  --spacing-console-toolbar: var(--console-toolbar-height);
+  --spacing-console-page-gutter: var(--console-page-gutter);
+  --spacing-console-inspector: var(--console-inspector-width);
+  --spacing-console-row: var(--console-table-row-height);
+  --spacing-console-pane-header: var(--console-pane-header-height);
 
   --shadow-control: var(--elevation-control);
   --shadow-raised: var(--elevation-raised);

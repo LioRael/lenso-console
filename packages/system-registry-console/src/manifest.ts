@@ -8,12 +8,14 @@ const contract = consoleSurface as unknown as {
   readonly icon: "network";
   readonly id: "lenso/system-registry";
   readonly label: "Managed Services";
+  readonly localizedLabels: { readonly "zh-CN": "托管服务" };
   readonly navigation: {
     readonly order: 70;
     readonly workspace: {
       readonly icon: "shield";
       readonly id: "system";
       readonly label: "System";
+      readonly localizedLabels: { readonly "zh-CN": "系统" };
     };
   };
   readonly packageName: "@lenso/system-registry-console";

@@ -1,11 +1,9 @@
 :root {
   color-scheme: dark;
   --font-ui:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
-    "Segoe UI", system-ui, sans-serif;
-  --font-code:
-    "SFMono-Regular", "SF Mono", "Cascadia Code", "Roboto Mono", ui-monospace,
-    monospace;
+    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  --font-code: "Roboto Mono", "SFMono-Regular", ui-monospace, monospace;
   --font-mono: var(--font-code);
 
   --bg-canvas: #000000;
@@ -82,6 +80,19 @@
   --control-height-lg: 36px;
   --content-gutter: 20px;
   --content-max-width: 1480px;
+  --console-sidebar-width: 224px;
+  --console-sidebar-collapsed-width: 64px;
+  --console-toolbar-height: 48px;
+  --console-page-gutter: 40px;
+  --console-page-max-width: 1216px;
+  --console-inspector-width: 376px;
+  --console-table-row-height: 64px;
+  --console-table-header-height: 38px;
+  --console-pane-header-height: 50px;
+  --console-tab-height: 33px;
+  --console-generic-columns: 320px 120px 170px 122px;
+  --console-provider-columns: 260px 220px 160px 92px;
+  --console-runtime-columns: 250px 110px 140px 120px 86px;
   --space-1: 4px;
   --space-1-5: 6px;
   --space-2: 8px;

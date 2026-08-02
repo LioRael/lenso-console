@@ -11,12 +11,14 @@ import {
 import { buildRuntimeStory } from "../../lib/story";
 
 export function StoryList({
+  className,
   query,
   selectedStoryId,
   setQuery,
   stories,
   onSelect,
 }: {
+  className?: string;
   stories: RuntimeStory[];
   selectedStoryId: string | null;
   query: string;
@@ -26,7 +28,9 @@ export function StoryList({
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   return (
-    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
+    <aside
+      className={`runtime-stories-explorer grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas) ${className ?? ""}`}
+    >
       <div className="flex h-[60px] items-center justify-between gap-2 border-b border-(--line) bg-(--bg-canvas) px-3.5">
         <div>
           <h2 className="text-sm font-semibold tracking-tight text-(--fg-primary)">
@@ -42,7 +46,7 @@ export function StoryList({
         <Search size={12} />
         <input
           aria-label="Search stories"
-          className="mono w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
+          className="mono w-full bg-transparent text-xs text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
           onChange={(event) => setQuery(event.target.value)}
           placeholder={
             zh
@@ -72,6 +76,7 @@ export function StoryList({
 
           return (
             <button
+              aria-pressed={isSelected}
               className={cn(
                 "relative h-[120px] w-full overflow-hidden border-b border-(--line) p-3 text-left transition-colors",
                 isError &&

@@ -1,5 +1,7 @@
 import {
   consoleLocalizedLabel,
+  IconSlot,
+  SurfaceGroupLabel,
   type ConsoleLocale,
   useConsoleLocale,
 } from "@lenso/console-package-api";
@@ -35,6 +37,7 @@ import {
   useRef,
   useState,
   type ComponentType,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PropsWithChildren,
 } from "react";
 
@@ -50,6 +53,8 @@ import {
   selectedWorkspaceForId,
   SYSTEM_WORKSPACE,
   type ConsoleWorkspaceNavigation,
+  type WorkspaceMenuNavigationKey,
+  workspaceMenuIndexForKey,
 } from "../../app/console-workspace-navigation";
 import { consoleCopy } from "../../features/console-design/copy";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
@@ -174,15 +179,18 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
 
   return (
     <div
-      className={`grid min-h-screen bg-(--bg-canvas) text-(--fg-primary) ${sidebarCollapsed ? "grid-cols-[64px_minmax(0,1fr)]" : "grid-cols-[224px_minmax(0,1fr)] max-md:grid-cols-[64px_minmax(0,1fr)]"}`}
+      className={`runtime-shell grid min-h-screen bg-(--bg-canvas) text-(--fg-primary) ${sidebarCollapsed ? "grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]" : "grid-cols-[var(--console-sidebar-width)_minmax(0,1fr)] max-[1100px]:grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]"}`}
     >
-      <aside className="sticky top-0 z-30 flex h-screen flex-col border-r border-(--line) bg-(--bg-sidebar) p-2">
+      <a className="console-skip-link" href="#console-main">
+        {locale === "zh-CN" ? "跳转到主要内容" : "Skip to main content"}
+      </a>
+      <aside className="sticky top-0 z-30 flex h-screen flex-col border-r border-(--line) bg-(--bg-sidebar) px-2 pt-5 pb-4">
         <div
-          className={`flex h-11 items-center gap-2 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
+          className={`flex h-8 items-center gap-2.5 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
         >
           <span className="size-3.5 rounded-[3px] bg-(--fg-primary)" />
           <strong
-            className={`text-[13px] font-semibold ${sidebarCollapsed ? "hidden" : "max-md:hidden"}`}
+            className={`text-[13px] font-semibold ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
           >
             Lenso
           </strong>
@@ -195,11 +203,11 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
           workspaces={navigation}
         />
         <div
-          className={`px-2 pt-1 text-[10px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-md:hidden"}`}
+          className={`flex h-8 items-center px-2 text-[10px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
         >
           {copy.production}
         </div>
-        <nav className="mt-1 grid gap-0.5">
+        <nav className="mt-0.5 grid gap-0.5">
           {activeWorkspace.id === SYSTEM_WORKSPACE.id ? (
             hostPrimaryNavItems.map((item) => (
               <NavItem
@@ -225,14 +233,16 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
             className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${sidebarCollapsed ? "justify-center" : ""}`}
             to={"/settings" as never}
           >
-            <span className="grid size-4 place-items-center">
+            <IconSlot>
               <Settings size={14} />
-            </span>
-            <span className={sidebarCollapsed ? "hidden" : "max-md:hidden"}>
+            </IconSlot>
+            <span
+              className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
+            >
               {copy.nav.settings}
             </span>
             <span
-              className={`ml-auto font-mono text-[10px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-md:hidden"}`}
+              className={`ml-auto font-mono text-[10px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
             >
               G ,
             </span>
@@ -241,7 +251,9 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
             className={`flex h-10 items-center gap-2 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
           >
             <span className="size-5 rounded-full border border-(--line-strong)" />
-            <span className={sidebarCollapsed ? "hidden" : "max-md:hidden"}>
+            <span
+              className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
+            >
               <strong className="block text-[11px] font-medium">
                 leosouthey&apos;s team
               </strong>
@@ -252,7 +264,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
           </div>
         </div>
       </aside>
-      <main className="min-w-0">
+      <main className="min-w-0" id="console-main" tabIndex={-1}>
         <header className="flex h-12 items-center border-b border-(--line) bg-(--bg-chrome) px-8">
           <div className="text-[11px] text-(--fg-tertiary)">
             {[
@@ -275,6 +287,7 @@ export function RuntimeConsoleShell({ children }: PropsWithChildren) {
             ))}
           </div>
           <button
+            aria-label={`${copy.search} ⌘ K`}
             className="ml-auto flex h-7 w-[210px] items-center rounded-[var(--radius-control)] border border-(--line-strong) px-2 text-[11px] text-(--fg-tertiary) hover:bg-(--bg-control-hover)"
             onClick={openCommandPalette}
             type="button"
@@ -309,51 +322,139 @@ function WorkspaceSwitcher({
   workspaces: ConsoleWorkspaceNavigation[];
 }) {
   const [open, setOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [focusedWorkspaceIndex, setFocusedWorkspaceIndex] = useState(0);
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menuItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const Icon = iconForName(active.icon) ?? ServerCog;
+  const activeWorkspaceIndex = Math.max(
+    0,
+    workspaces.findIndex((workspace) => workspace.id === active.id)
+  );
+
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    window.requestAnimationFrame(() => trigger.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setMenuMounted(true);
+      const frame = window.requestAnimationFrame(() => setMenuVisible(true));
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    setMenuVisible(false);
+    if (!menuMounted) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setMenuMounted(false), 140);
+    return () => window.clearTimeout(timeout);
+  }, [menuMounted, open]);
+
   useEffect(() => {
     if (!open) {
       return;
     }
+    setFocusedWorkspaceIndex(activeWorkspaceIndex);
+    const frame = window.requestAnimationFrame(() => {
+      menuItemRefs.current[activeWorkspaceIndex]?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeWorkspaceIndex, open]);
+
+  useEffect(() => {
     const close = (event: MouseEvent) => {
       if (!root.current?.contains(event.target as Node)) {
-        setOpen(false);
+        closeMenu();
       }
     };
+    if (!open) {
+      return;
+    }
     window.addEventListener("mousedown", close);
     return () => window.removeEventListener("mousedown", close);
-  }, [open]);
+  }, [closeMenu, open]);
+
+  const onWorkspaceKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    index: number
+  ) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMenu();
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      const workspace = workspaces[index];
+      if (workspace) {
+        onSelect(workspace);
+        closeMenu();
+      }
+      return;
+    }
+    if (!isWorkspaceMenuNavigationKey(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    const nextIndex = workspaceMenuIndexForKey(
+      index,
+      event.key,
+      workspaces.length
+    );
+    if (nextIndex === null) {
+      return;
+    }
+    setFocusedWorkspaceIndex(nextIndex);
+    menuItemRefs.current[nextIndex]?.focus();
+  };
+
   return (
     <div className="relative" ref={root}>
       <button
+        aria-label={consoleLocalizedLabel(active, locale)}
+        aria-controls="console-workspace-menu"
         aria-expanded={open}
         aria-haspopup="menu"
         className={`flex h-9 w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-[13px] font-medium hover:bg-(--bg-row-hover) ${collapsed ? "justify-center" : ""}`}
+        id="console-workspace-trigger"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
         onClick={() => setOpen((value) => !value)}
+        ref={trigger}
         type="button"
       >
-        <span
-          className={`size-4 place-items-center ${collapsed ? "grid" : "hidden max-md:grid"}`}
-        >
+        <IconSlot className={collapsed ? "grid" : "hidden max-[1100px]:grid"}>
           <Icon size={14} />
-        </span>
-        <span className={collapsed ? "hidden" : "max-md:hidden"}>
+        </IconSlot>
+        <span className={collapsed ? "hidden" : "max-[1100px]:hidden"}>
           {consoleLocalizedLabel(active, locale)}
         </span>
         <ChevronDown
-          className={collapsed ? "hidden" : "ml-auto max-md:hidden"}
+          className={collapsed ? "hidden" : "ml-auto max-[1100px]:hidden"}
           size={12}
         />
       </button>
-      {open ? (
+      {menuMounted ? (
         <div
-          className={`absolute top-10 z-50 w-[208px] rounded-[8px] border border-(--line-strong) bg-(--bg-overlay) p-1 shadow-(--elevation-overlay) ${collapsed ? "left-12" : "left-0"}`}
+          aria-hidden={!open}
+          aria-labelledby="console-workspace-trigger"
+          className={`workspace-switcher-menu absolute top-10 z-50 w-[208px] rounded-[8px] border border-(--line-strong) bg-(--bg-overlay) p-1 shadow-(--elevation-overlay) ${collapsed ? "left-12" : "left-0"}`}
+          data-open={menuVisible}
+          id="console-workspace-menu"
           role="menu"
         >
           <div className="flex h-6 items-center px-2 text-[10px] text-(--fg-tertiary)">
             {locale === "zh-CN" ? "工作区" : "Workspaces"}
           </div>
-          {workspaces.map((workspace) => {
+          {workspaces.map((workspace, index) => {
             const WorkspaceIcon =
               iconForName(workspace.icon) ?? LayoutDashboard;
             const count =
@@ -365,17 +466,23 @@ function WorkspaceSwitcher({
             return (
               <button
                 className={`grid h-8 w-full grid-cols-[16px_minmax(0,1fr)_16px] items-center gap-2 rounded-[var(--radius-control)] px-2 text-left hover:bg-(--bg-row-hover) ${workspace.id === active.id ? "bg-(--bg-row-hover)" : ""}`}
+                aria-checked={workspace.id === active.id}
                 key={workspace.id}
                 onClick={() => {
                   onSelect(workspace);
-                  setOpen(false);
+                  closeMenu();
                 }}
-                role="menuitem"
+                onKeyDown={(event) => onWorkspaceKeyDown(event, index)}
+                ref={(element) => {
+                  menuItemRefs.current[index] = element;
+                }}
+                role="menuitemradio"
+                tabIndex={index === focusedWorkspaceIndex ? 0 : -1}
                 type="button"
               >
-                <span className="grid size-4 place-items-center">
+                <IconSlot>
                   <WorkspaceIcon size={14} />
-                </span>
+                </IconSlot>
                 <strong className="truncate text-[12px] font-medium">
                   {consoleLocalizedLabel(workspace, locale)}
                 </strong>
@@ -393,13 +500,13 @@ function WorkspaceSwitcher({
           })}
           <div className="my-1 h-px bg-(--line)" />
           <Link
-            className="grid h-[42px] w-full grid-cols-[16px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-control)] px-2 hover:bg-(--bg-row-hover)"
-            onClick={() => setOpen(false)}
+            className="grid h-10 w-full grid-cols-[16px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-control)] px-2 hover:bg-(--bg-row-hover)"
+            onClick={closeMenu}
             to={"/modules" as never}
           >
-            <span className="grid size-4 place-items-center">
+            <IconSlot>
               <Boxes size={14} />
-            </span>
+            </IconSlot>
             <span>
               <strong className="block text-[12px] font-medium">
                 {locale === "zh-CN" ? "模块" : "Modules"}
@@ -458,16 +565,11 @@ function WorkspaceMenuGroup({
   const GroupIcon = iconForName(group.icon);
   return (
     <div className="flex flex-col gap-0.5">
-      <div
-        className={`flex h-5 items-center gap-1.5 pl-2.5 pr-2 text-[10px] font-semibold tracking-[0.04em] text-(--fg-tertiary) ${collapsed ? "hidden" : "max-md:hidden"}`}
-      >
-        {GroupIcon ? (
-          <span className="grid size-3 shrink-0 place-items-center">
-            <GroupIcon size={12} strokeWidth={1.6} />
-          </span>
-        ) : null}
-        <span>{consoleLocalizedLabel(group, locale)}</span>
-      </div>
+      <SurfaceGroupLabel
+        className={collapsed ? "hidden" : "max-[1100px]:hidden"}
+        icon={GroupIcon ? <GroupIcon size={12} strokeWidth={1.6} /> : undefined}
+        label={consoleLocalizedLabel(group, locale)}
+      />
       {group.items.map((item) => (
         <NavItem
           collapsed={collapsed}
@@ -495,24 +597,32 @@ function NavItem({
     <Link
       activeOptions={{ exact: item.path === "/" }}
       activeProps={{ className: "bg-(--bg-row-hover) text-(--fg-primary)" }}
-      aria-label={collapsed ? label : undefined}
+      aria-label={label}
       className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${collapsed ? "justify-center" : ""}`}
       to={item.path}
     >
-      <span className="grid size-4 shrink-0 place-items-center">
+      <IconSlot className="shrink-0">
         <Icon size={14} strokeWidth={1.6} />
-      </span>
+      </IconSlot>
       <span
-        className={`min-w-0 truncate ${collapsed ? "hidden" : "max-md:hidden"}`}
+        className={`min-w-0 truncate ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
       >
         {label}
       </span>
       <span
-        className={`ml-auto font-mono text-[10px] text-(--fg-tertiary) ${collapsed ? "hidden" : "max-md:hidden"}`}
+        className={`ml-auto font-mono text-[10px] text-(--fg-tertiary) ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
       >
         {shortcut(item.path)}
       </span>
     </Link>
+  );
+}
+
+function isWorkspaceMenuNavigationKey(
+  key: string
+): key is WorkspaceMenuNavigationKey {
+  return (
+    key === "ArrowDown" || key === "ArrowUp" || key === "End" || key === "Home"
   );
 }
 

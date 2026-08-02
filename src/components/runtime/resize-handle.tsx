@@ -3,11 +3,13 @@ import { useRef, useState } from "react";
 export function ResizeHandle({
   ariaLabel,
   axis = "horizontal",
+  className,
   onResize,
   onReset,
 }: {
   ariaLabel: string;
   axis?: "horizontal" | "vertical";
+  className?: string;
   onResize: (delta: number) => void;
   onReset?: () => void;
 }) {
@@ -23,9 +25,9 @@ export function ResizeHandle({
   return (
     <button
       aria-label={ariaLabel}
-      className={`group relative z-1 bg-transparent outline-hidden ${
+      className={`group relative z-1 bg-transparent outline-hidden focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-[-2px] ${
         isVertical ? "h-2 min-w-0" : "min-h-0 w-2"
-      }`}
+      } ${className ?? ""}`}
       ref={handleRef}
       style={{ cursor: resizeCursor }}
       onBlur={() => setIsFocused(false)}

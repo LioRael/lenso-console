@@ -291,7 +291,7 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             <CommandMark />
             <input
               aria-label="Command search"
-              className="min-w-0 flex-1 bg-transparent text-sm font-medium leading-none text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary)"
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium leading-none text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
               onChange={(event) => {
                 setQuery(event.target.value);
                 setActiveIndex(0);

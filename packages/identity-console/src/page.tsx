@@ -8,6 +8,7 @@ import {
   StateView,
   SummaryStrip,
   consoleHostApi,
+  useConsoleLocale,
 } from "@lenso/console-package-api";
 
 import { identityUserRows, identityUsersSummary } from "./model";
@@ -35,6 +36,8 @@ const workflowRows = [
 ] as const;
 
 export function IdentityConsolePage() {
+  const { locale } = useConsoleLocale();
+  const zh = locale === "zh-CN";
   const usersQuery = consoleHostApi.adminData.useRecords({
     entityName: "users",
     moduleName: "identity",
@@ -46,58 +49,83 @@ export function IdentityConsolePage() {
     <ConsolePage className="h-full">
       <ConsolePage.Header>
         <ConsolePage.Heading>
-          <ConsolePage.Title>Identity</ConsolePage.Title>
+          <ConsolePage.Title>{zh ? "身份" : "Identity"}</ConsolePage.Title>
           <ConsolePage.Description>
-            Users exposed by the linked Identity module through the shared
-            schema-admin host capability.
+            {zh
+              ? "由已连接的 Identity 模块通过共享 schema-admin 宿主能力提供的用户。"
+              : "Users exposed by the linked Identity module through the shared schema-admin host capability."}
           </ConsolePage.Description>
         </ConsolePage.Heading>
         <ConsolePage.Actions>
-          <Badge>linked module</Badge>
+          <Badge>{zh ? "已连接模块" : "linked module"}</Badge>
           <Badge>schema-admin</Badge>
         </ConsolePage.Actions>
       </ConsolePage.Header>
 
       <ConsolePage.Body className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
         <SummaryStrip>
-          <SummaryStrip.Item label="Records" value={summary.total} />
           <SummaryStrip.Item
-            label="Latest record"
+            label={zh ? "记录" : "Records"}
+            value={summary.total}
+          />
+          <SummaryStrip.Item
+            label={zh ? "最新记录" : "Latest record"}
             value={summary.latestCreatedAt}
           />
-          <SummaryStrip.Item label="Surface" value="schema-admin" />
+          <SummaryStrip.Item
+            label={zh ? "页面" : "Surface"}
+            value="schema-admin"
+          />
         </SummaryStrip>
         <SplitView>
           <SplitView.Main>
             <Section>
               <Section.Header>
-                <Section.Title>Users</Section.Title>
-                <Section.Meta>{summary.total} records</Section.Meta>
+                <Section.Title>{zh ? "用户" : "Users"}</Section.Title>
+                <Section.Meta>
+                  {summary.total} {zh ? "条记录" : "records"}
+                </Section.Meta>
               </Section.Header>
               {usersQuery.isError ? (
                 <StateView
                   description={String(usersQuery.error.message)}
-                  title="Users could not be loaded"
+                  title={zh ? "用户加载失败" : "Users could not be loaded"}
                 />
               ) : usersQuery.isPending ? (
                 <StateView
-                  description="Reading the schema-admin surface."
-                  title="Loading users"
+                  description={
+                    zh
+                      ? "正在读取 schema-admin 页面。"
+                      : "Reading the schema-admin surface."
+                  }
+                  title={zh ? "正在加载用户" : "Loading users"}
                 />
               ) : userRows.length === 0 ? (
                 <StateView
-                  description="The Identity module returned no records."
-                  title="No users"
+                  description={
+                    zh
+                      ? "Identity 模块未返回记录。"
+                      : "The Identity module returned no records."
+                  }
+                  title={zh ? "暂无用户" : "No users"}
                 />
               ) : (
                 <DataTable className="min-w-[720px]">
                   <DataTable.Head>
                     <DataTable.Row>
-                      <DataTable.Header>ID</DataTable.Header>
-                      <DataTable.Header>Email</DataTable.Header>
-                      <DataTable.Header>Display name</DataTable.Header>
-                      <DataTable.Header>Created</DataTable.Header>
-                      <DataTable.Header>Updated</DataTable.Header>
+                      <DataTable.Header>{zh ? "ID" : "ID"}</DataTable.Header>
+                      <DataTable.Header>
+                        {zh ? "邮箱" : "Email"}
+                      </DataTable.Header>
+                      <DataTable.Header>
+                        {zh ? "显示名称" : "Display name"}
+                      </DataTable.Header>
+                      <DataTable.Header>
+                        {zh ? "创建时间" : "Created"}
+                      </DataTable.Header>
+                      <DataTable.Header>
+                        {zh ? "更新时间" : "Updated"}
+                      </DataTable.Header>
                     </DataTable.Row>
                   </DataTable.Head>
                   <DataTable.Body>
@@ -126,14 +154,18 @@ export function IdentityConsolePage() {
           <SplitView.Inspector>
             <Section>
               <Section.Header>
-                <Section.Title>User surface</Section.Title>
-                <Section.Meta>{userFields.length} fields</Section.Meta>
+                <Section.Title>
+                  {zh ? "用户页面" : "User surface"}
+                </Section.Title>
+                <Section.Meta>
+                  {userFields.length} {zh ? "个字段" : "fields"}
+                </Section.Meta>
               </Section.Header>
               <DataTable>
                 <DataTable.Head>
                   <DataTable.Row>
-                    <DataTable.Header>Field</DataTable.Header>
-                    <DataTable.Header>Type</DataTable.Header>
+                    <DataTable.Header>{zh ? "字段" : "Field"}</DataTable.Header>
+                    <DataTable.Header>{zh ? "类型" : "Type"}</DataTable.Header>
                   </DataTable.Row>
                 </DataTable.Head>
                 <DataTable.Body>
@@ -143,7 +175,7 @@ export function IdentityConsolePage() {
                         {field}
                       </DataTable.Cell>
                       <DataTable.Cell>
-                        {type} · {constraint}
+                        {type} · {identityConstraint(constraint, zh)}
                       </DataTable.Cell>
                     </DataTable.Row>
                   ))}
@@ -152,21 +184,33 @@ export function IdentityConsolePage() {
             </Section>
             <Section>
               <Section.Header>
-                <Section.Title>Package contract</Section.Title>
+                <Section.Title>
+                  {zh ? "包契约" : "Package contract"}
+                </Section.Title>
               </Section.Header>
               <KeyValueList>
                 {surfaceRows.map(([label, value]) => (
-                  <KeyValueList.Row key={label} label={label} value={value} />
+                  <KeyValueList.Row
+                    key={label}
+                    label={identityLabel(label, zh)}
+                    value={value}
+                  />
                 ))}
               </KeyValueList>
             </Section>
             <Section>
               <Section.Header>
-                <Section.Title>Execution path</Section.Title>
+                <Section.Title>
+                  {zh ? "执行路径" : "Execution path"}
+                </Section.Title>
               </Section.Header>
               <KeyValueList>
                 {workflowRows.map(([label, value]) => (
-                  <KeyValueList.Row key={label} label={label} value={value} />
+                  <KeyValueList.Row
+                    key={label}
+                    label={identityLabel(label, zh)}
+                    value={identityWorkflowValue(value, zh)}
+                  />
                 ))}
               </KeyValueList>
             </Section>
@@ -175,4 +219,48 @@ export function IdentityConsolePage() {
       </ConsolePage.Body>
     </ConsolePage>
   );
+}
+
+function identityLabel(label: string, zh: boolean) {
+  if (!zh) {
+    return label;
+  }
+  return (
+    {
+      Capability: "能力",
+      Export: "导出",
+      Module: "模块",
+      Package: "包",
+      Route: "路由",
+      Schema: "架构",
+      Stories: "故事",
+      Runtime: "运行时",
+    }[label] ?? label
+  );
+}
+
+function identityConstraint(constraint: string, zh: boolean) {
+  if (!zh) {
+    return constraint;
+  }
+  return constraint === "required" ? "必填" : "可空";
+}
+
+function identityWorkflowValue(value: string, zh: boolean) {
+  if (!zh) {
+    return value;
+  }
+  return value
+    .replace(
+      "Identity exposes Users through schema-admin",
+      "Identity 通过 schema-admin 暴露用户"
+    )
+    .replace(
+      "identity.cleanup_expired_sessions.v1 is declared",
+      "已声明 identity.cleanup_expired_sessions.v1"
+    )
+    .replace(
+      "registration and current-user routes carry story labels",
+      "注册和当前用户路由带有故事标签"
+    );
 }

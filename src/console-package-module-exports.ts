@@ -1,3 +1,4 @@
+import { authConsoleManifest, authConsoleModule } from "@lenso/auth-console";
 import {
   identityConsoleManifest,
   identityConsoleModule,
@@ -18,6 +19,7 @@ import {
 } from "./app/console-package-registry";
 
 export const consolePackageModuleExportsByKey = {
+  [consolePackageKey(authConsoleManifest)]: authConsoleModule,
   [consolePackageKey(identityConsoleManifest)]: identityConsoleModule,
   [consolePackageKey(remoteCrmConsoleManifest)]: remoteCrmConsoleModule,
   [consolePackageKey(storyConsoleManifest)]: storyConsoleModule,

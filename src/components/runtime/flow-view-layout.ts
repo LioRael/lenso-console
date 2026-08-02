@@ -104,8 +104,8 @@ export type FlowBounds = {
 
 export function getNodeBounds(
   nodes: Array<{ x: number; y: number }>,
-  nodeWidth = 240,
-  nodeHeight = 72
+  nodeWidth = 150,
+  nodeHeight = 64
 ): FlowBounds {
   if (nodes.length === 0) {
     return { height: nodeHeight, width: nodeWidth, x: 0, y: 0 };

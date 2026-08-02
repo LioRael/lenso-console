@@ -1,4 +1,9 @@
-import { useConsoleLocale } from "@lenso/console-package-api";
+import {
+  DataRow,
+  PaneHeader,
+  TableHeader,
+  useConsoleLocale,
+} from "@lenso/console-package-api";
 import { useState } from "react";
 
 import {
@@ -9,7 +14,6 @@ import {
 import { useRuntimeServices } from "../console-data/use-console-product-data";
 import {
   Inspector,
-  InspectorSection,
   ProductPage,
   ProductTabs,
   SplitWorkspace,
@@ -30,6 +34,7 @@ export function RuntimePage() {
   const summary = useRuntimeSummary().data;
   const events = useRuntimeEvents().data ?? [];
   const functions = useRuntimeFunctions().data ?? [];
+  const healthyCount = services.filter((item) => item.state === "ready").length;
   const liveRows =
     tabIndex === 1
       ? functions
@@ -51,24 +56,25 @@ export function RuntimePage() {
     <ProductPage
       description={copy.runtime.description}
       meta={
-        <span className="text-(--success)">
-          {services.filter((item) => item.state === "ready").length} /{" "}
-          {services.length} healthy ·{" "}
-          {serviceQuery.mode === "live" ? copy.common.live : copy.common.demo}
+        <span className="runtime-page__meta">
+          {healthyCount} / {services.length} {copy.runtime.healthy}
         </span>
       }
       title={copy.runtime.title}
     >
       <ProductTabs
         active={tab}
+        className="runtime-page__tabs"
         items={copy.runtime.tabs}
         onChange={(item) =>
           setTabIndex(copy.runtime.tabs.indexOf(item as never))
         }
       />
       <SplitWorkspace
+        className="runtime-page__workspace"
         inspector={
           <Inspector
+            className="runtime-inspector"
             subtitle={
               selected
                 ? `${selected.providerName} · ${selected.environments.map((item) => item.name).join(", ") || "local"}`
@@ -76,82 +82,106 @@ export function RuntimePage() {
             }
             title={selected?.providerName ?? copy.runtime.title}
           >
-            <div className="mt-4 flex gap-5 text-[11px]">
-              <span>{selected?.managedServices.length ?? 0} services</span>
-              <span>{selected?.modules.length ?? 0} modules</span>
-              <span>{selected?.state ?? "unknown"}</span>
+            <div className="runtime-inspector__meta">
+              <span>
+                {selected?.managedServices.length ?? 0} {copy.runtime.services}
+              </span>
+              <span>
+                {selected?.modules.length ?? 0} {copy.runtime.modules}
+              </span>
+              <span>{runtimeStatusLabel(selected?.state)}</span>
             </div>
-            <InspectorSection title={copy.runtime.timeline}>
-              {(selected?.deployments ?? []).slice(0, 5).map((deployment) => (
-                <Timeline
-                  key={`${deployment.serviceName}:${deployment.environment}`}
-                  time={
-                    deployment.observedAtUnixMs
-                      ? new Date(
-                          deployment.observedAtUnixMs
-                        ).toLocaleTimeString([], { hour12: false })
-                      : "—"
-                  }
-                  title={`${deployment.serviceName} · ${deployment.state}`}
-                />
-              ))}
-            </InspectorSection>
-            <InspectorSection title={copy.runtime.authority}>
-              <p>Service owns runtime state and effects.</p>
-              <p className="text-(--fg-secondary)">
-                Console observes, coordinates, and retains evidence.
+            <div className="runtime-inspector__divider" />
+            <div className="runtime-inspector__timeline">
+              <p className="runtime-inspector__label">
+                {copy.runtime.timeline}
               </p>
-            </InspectorSection>
+              {selected?.deployments?.length
+                ? selected.deployments
+                    .slice(0, 5)
+                    .map((deployment) => (
+                      <Timeline
+                        key={`${deployment.serviceName}:${deployment.environment}`}
+                        time={
+                          deployment.observedAtUnixMs
+                            ? new Date(
+                                deployment.observedAtUnixMs
+                              ).toLocaleTimeString([], { hour12: false })
+                            : "—"
+                        }
+                        title={`${deployment.serviceName} · ${runtimeStatusLabel(deployment.state)}`}
+                      />
+                    ))
+                : events
+                    .slice(0, 5)
+                    .map((event) => (
+                      <Timeline
+                        key={event.id}
+                        evidenceId={event.id}
+                        time={event.createdAt.slice(11, 19)}
+                        title={event.eventName}
+                      />
+                    ))}
+            </div>
+            <div className="runtime-inspector__divider" />
+            <div className="runtime-inspector__boundary">
+              <p>{copy.runtime.serviceOwns}</p>
+              <p>{copy.runtime.consoleObserves}</p>
+            </div>
           </Inspector>
         }
+        inspectorWidth={406}
       >
         {tabIndex === 0 ? (
           <>
-            <header className="flex h-[50px] items-center px-2.5">
-              <h2 className="text-[14px] font-medium">
-                {copy.runtime.tabs[0]}
-              </h2>
-              <span className="ml-auto text-[11px] text-(--fg-tertiary)">
-                {summary
-                  ? `${summary.recentActivity.length} observed`
-                  : "12 observed"}
-              </span>
-            </header>
-            <div className="grid h-[40px] grid-cols-[minmax(220px,1fr)_110px_140px_120px_90px] items-center border-b border-(--line) px-2.5 text-[11px] text-(--fg-tertiary)">
-              <span>{copy.runtime.service}</span>
-              <span>{copy.runtime.region}</span>
-              <span>{copy.runtime.version}</span>
-              <span>{copy.runtime.state}</span>
-              <span>P95</span>
-            </div>
-            {services.map((service) => (
-              <button
-                className={`grid h-[65px] w-full grid-cols-[minmax(220px,1fr)_110px_140px_120px_90px] items-center border-b border-(--line) px-2.5 text-left text-[12px] ${selected?.providerName === service.providerName ? "bg-(--bg-row-hover)" : "hover:bg-(--bg-row-hover)"}`}
-                key={service.providerName}
-                onClick={() => setSelectedId(service.providerName)}
-                type="button"
-              >
-                <span>
-                  <strong className="block font-medium">
-                    {service.providerName}
-                  </strong>
-                  <span className="font-mono text-[10px] text-(--fg-tertiary)">
-                    {service.modules.join(" · ") || service.providerName}
-                  </span>
-                </span>
-                <span>{service.environments[0]?.name ?? "local"}</span>
-                <span className="font-mono">
-                  {service.latestRelease?.candidateVersion ??
-                    service.latestRelease?.currentVersion ??
-                    "—"}
-                </span>
-                <StatusDot
-                  label={service.state}
-                  tone={service.state === "ready" ? "success" : "warning"}
+            <PaneHeader
+              meta={`${summary?.recentActivity.length ?? services.length} ${copy.runtime.observed}`}
+              title={copy.runtime.tabs[0]}
+            />
+            <div className="lenso-ui-data-grid">
+              <TableHeader
+                columns={[
+                  copy.runtime.service,
+                  copy.runtime.region,
+                  copy.runtime.version,
+                  copy.runtime.state,
+                  "P95",
+                ]}
+                variant="runtime"
+              />
+              {services.map((service) => (
+                <DataRow
+                  cells={[
+                    <span className="runtime-page__mono-cell" key="region">
+                      {service.environments[0]?.name ?? "local"}
+                    </span>,
+                    <span className="runtime-page__mono-cell" key="version">
+                      {service.latestRelease?.candidateVersion ??
+                        service.latestRelease?.currentVersion ??
+                        "—"}
+                    </span>,
+                    <StatusDot
+                      key="state"
+                      label={runtimeStatusLabel(service.state)}
+                      tone={runtimeStatusTone(service.state)}
+                    />,
+                    <span className="runtime-page__mono-cell" key="checks">
+                      {service.healthChecks} {copy.runtime.checks}
+                    </span>,
+                  ]}
+                  interactive
+                  key={service.providerName}
+                  onActivate={() => setSelectedId(service.providerName)}
+                  onClick={() => setSelectedId(service.providerName)}
+                  primary={service.providerName}
+                  secondary={
+                    service.modules.join(" · ") || service.providerName
+                  }
+                  selected={selected?.providerName === service.providerName}
+                  variant="runtime"
                 />
-                <span>{service.healthChecks} checks</span>
-              </button>
-            ))}
+              ))}
+            </div>
           </>
         ) : (
           <RuntimeStream rows={liveRows} title={tab} />
@@ -170,63 +200,78 @@ function RuntimeStream({
 }) {
   return (
     <>
-      <header className="flex h-[50px] items-center px-2.5">
-        <h2 className="text-[14px] font-medium">{title}</h2>
-        <span className="ml-auto text-[11px] text-(--fg-tertiary)">
-          live evidence
-        </span>
-      </header>
-      <div className="grid h-10 grid-cols-[minmax(240px,1fr)_150px_120px] items-center border-b border-(--line) px-2.5 text-[11px] text-(--fg-tertiary)">
-        <span>Name</span>
-        <span>State</span>
-        <span>Observed</span>
-      </div>
-      {rows.length ? (
-        rows.map(([name, id, status, time]) => (
-          <div
-            className="grid min-h-16 grid-cols-[minmax(240px,1fr)_150px_120px] items-center border-b border-(--line) px-2.5 text-[12px]"
-            key={id}
-          >
-            <span>
-              <strong className="block font-medium">{name}</strong>
-              <span className="font-mono text-[10px] text-(--fg-tertiary)">
-                {id}
-              </span>
-            </span>
-            <StatusDot
-              label={status}
-              tone={
-                status === "completed" || status === "published"
-                  ? "success"
-                  : status === "failed" || status === "dead"
-                    ? "error"
-                    : "neutral"
-              }
+      <PaneHeader meta="live evidence" title={title} />
+      <div className="lenso-ui-data-grid">
+        <TableHeader columns={["Name", "State", "Observed", ""]} />
+        {rows.length ? (
+          rows.map(([name, id, status, time]) => (
+            <DataRow
+              cells={[
+                <StatusDot
+                  key="status"
+                  label={status}
+                  tone={runtimeStatusTone(status)}
+                />,
+                <time
+                  className="runtime-page__mono-cell"
+                  key="time"
+                  dateTime={time}
+                >
+                  {time.slice(11, 19)}
+                </time>,
+              ]}
+              key={id}
+              primary={name}
+              secondary={id}
             />
-            <time className="font-mono text-[10px] text-(--fg-tertiary)">
-              {time.slice(11, 19)}
-            </time>
+          ))
+        ) : (
+          <div className="runtime-page__stream-empty">
+            No {title.toLowerCase()} evidence in this window.
           </div>
-        ))
-      ) : (
-        <div className="p-6 text-[12px] text-(--fg-tertiary)">
-          No {title.toLowerCase()} evidence in this window.
-        </div>
-      )}
+        )}
+      </div>
     </>
   );
 }
 
-function Timeline({ time, title }: { time: string; title: string }) {
+function Timeline({
+  evidenceId,
+  time,
+  title,
+}: {
+  evidenceId?: string;
+  time: string;
+  title: string;
+}) {
   return (
-    <div className="grid grid-cols-[8px_minmax(0,1fr)] gap-2 py-2">
-      <span className="mt-1.5 size-1.5 rounded-full bg-(--fg-tertiary)" />
-      <span>
-        <time className="block font-mono text-[10px] text-(--fg-tertiary)">
-          {time}
-        </time>
-        {title}
+    <div className="runtime-inspector__event">
+      <span aria-hidden="true" className="runtime-inspector__rail" />
+      <span className="runtime-inspector__event-copy">
+        <time>{time}</time>
+        <strong>{title}</strong>
+        <small>{evidenceId ?? "runtime evidence"}</small>
       </span>
     </div>
   );
+}
+
+function runtimeStatusLabel(value: string | undefined) {
+  if (value === "ready" || value === "completed" || value === "published") {
+    return "Healthy";
+  }
+  if (value === undefined || value === "") {
+    return "Unknown";
+  }
+  return value === "restart_pending" ? "Degraded" : value;
+}
+
+function runtimeStatusTone(value: string) {
+  if (value === "ready" || value === "completed" || value === "published") {
+    return "success" as const;
+  }
+  if (value === "failed" || value === "dead") {
+    return "error" as const;
+  }
+  return "warning" as const;
 }

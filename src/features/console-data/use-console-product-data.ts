@@ -88,6 +88,9 @@ export function useModuleRegistry() {
             surfaces: module.console.map((surface) => ({
               area: surface.area,
               label: surface.label,
+              navigation: surface.navigation,
+              package: surface.package,
+              requiredCapabilities: surface.required_capabilities,
               route: surface.route,
             })),
           }))
@@ -176,6 +179,9 @@ function moduleMetadataRow(module: ConsoleModuleMetadata) {
   const surfaces = (module.console ?? []).map((surface) => ({
     area: surface.area ?? "runtime",
     label: surface.label ?? surface.name ?? "Surface",
+    navigation: surface.navigation,
+    package: surface.package,
+    requiredCapabilities: surface.required_capabilities,
     route: surface.route ?? "-",
   }));
   const id = module.module_name ?? "unknown";

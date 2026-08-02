@@ -29,7 +29,12 @@ export function RuntimeStoryVisualization({
   return (
     <section className="isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden">
       <StoryTabs mode={mode} onChange={setMode} />
-      <div className="min-h-0 min-w-0 overflow-hidden">
+      <div
+        aria-labelledby={`story-tab-${mode}`}
+        className="min-h-0 min-w-0 overflow-hidden"
+        id="story-view-panel"
+        role="tabpanel"
+      >
         {mode === "story" ? (
           <RuntimeStoryView
             onRetryNode={(node) => onRetryNode(node.node)}

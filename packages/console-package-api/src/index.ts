@@ -15,21 +15,29 @@ export {
   Badge,
   Button,
   ConsolePage,
+  DataRow,
   DataTable,
   EmptyState,
   Field,
+  FilterControl,
   IconButton,
+  IconSlot,
   Input,
+  InlineStatus,
+  Inspector,
   KeyValueList,
   Panel,
+  PaneHeader,
   Section,
   Select,
   SettingsGroup,
   SettingsRow,
+  SurfaceGroupLabel,
   StatusMarker,
   StateView,
   SummaryStrip,
   SplitView,
+  TableHeader,
   Tabs,
   Textarea,
   consoleUi,
@@ -38,9 +46,19 @@ export {
   type ButtonVariant,
   type ConsoleUiComponents,
   type ControlSize,
+  type ConsoleTableVariant,
+  type DataRowProps,
+  type FilterControlProps,
+  type IconSlotProps,
+  type IconSlotSize,
   type IconButtonProps,
+  type InlineStatusProps,
+  type InspectorProps,
+  type PaneHeaderProps,
   type SemanticTone,
   type StatusMarkerProps,
+  type SurfaceGroupLabelProps,
+  type TableHeaderProps,
 } from "./ui.js";
 
 export const CONSOLE_HOST_API_VERSION = "1" as const;
@@ -382,12 +400,10 @@ export interface RuntimeStory {
 
 export type ExecutionInspectorTab =
   | "overview"
-  | "input"
-  | "output"
-  | "events"
+  | "payload"
   | "logs"
-  | "errors"
-  | "related";
+  | "events"
+  | "operations";
 
 export type StoryViewMode =
   | "story"

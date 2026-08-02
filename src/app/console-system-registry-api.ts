@@ -9,8 +9,11 @@ export const consoleSystemRegistryQueryKey = [
 ] as const;
 
 export function useConsoleManagedServices() {
+  const apiMode = isApiMode();
+
   return useQuery({
-    enabled: isApiMode(),
+    enabled: apiMode,
+    initialData: apiMode ? undefined : [],
     queryFn: () =>
       httpClient.get("api/console/v1/services").json<ConsoleManagedService[]>(),
     queryKey: consoleSystemRegistryQueryKey,

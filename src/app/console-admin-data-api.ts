@@ -16,6 +16,14 @@ export type ConsoleAdminListResponse = {
   };
 };
 
+const emptyConsoleAdminListResponse: ConsoleAdminListResponse = {
+  data: [],
+  page: {
+    limit: 50,
+    next_cursor: null,
+  },
+};
+
 export function useConsoleAdminRecords({
   entityName,
   limit = 50,
@@ -25,8 +33,11 @@ export function useConsoleAdminRecords({
   entityName: string;
   limit?: number;
 }) {
+  const apiMode = isApiMode();
+
   return useQuery({
-    enabled: isApiMode(),
+    enabled: apiMode,
+    initialData: apiMode ? undefined : emptyConsoleAdminListResponse,
     queryKey: ["admin-data", "list", moduleName, entityName, limit] as const,
     queryFn: () =>
       httpClient
