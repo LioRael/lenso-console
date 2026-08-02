@@ -1,17 +1,20 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@lenso/console-web\":\n    type: patch\n---\n\n### Fixes\n\nClose the Console architecture migration by hosting only operator workflows,\nloading Module UI artifacts in isolated frames through the digest-bound bridge,\nand removing the retired same-origin Console package system.\n"
-    filename: console-architecture.md
+  - content: "---\npackages:\n  \"@lenso/console\":\n    type: patch\n---\n\n### Features\n\nAdd an explicit `console.superadmin` authority marker that grants the current\nConsole operator access across the capabilities exposed by the Console Service.\n\n### Fixes\n\nCorrect authenticated Console data routes and ignore failed duplicate module\nregistrations so Runtime Stories remains available when a disabled module is\nalso present in the registry.\n"
+    filename: console-superadmin.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - console-architecture.md
-    id: npm:@lenso/console-web
+      - console-superadmin.md
+    id: npm:@lenso/console
     updated: true
+  - id: npm:@lenso/auth-console
+    updated: false
   - id: npm:@lenso/console-bridge
     updated: false
-  - id: npm:@lenso/console-ui-internal
+  - id: npm:@lenso/console-package-api
     updated: false
 npm:packages:
-  - id: npm:@lenso/console-web
+  - id: npm:@lenso/console
+  - id: npm:@lenso/auth-console
   - id: npm:@lenso/console-bridge
-  - id: npm:@lenso/console-ui-internal
+  - id: npm:@lenso/console-package-api

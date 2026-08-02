@@ -4,8 +4,21 @@ import {
   consoleCapabilityProvider,
   parseDevAuthTokenScopes,
 } from "./console-capabilities";
+import {
+  consoleSuperadminScope,
+  hasConsoleCapability,
+} from "./console-capability-matching";
 
 describe("console capabilities", () => {
+  test("treats superadmin as a wildcard for Console surfaces", () => {
+    expect(
+      hasConsoleCapability(
+        new Set([consoleSuperadminScope]),
+        "runtime.stories.read"
+      )
+    ).toBe(true);
+  });
+
   test("parses scopes from development service tokens", () => {
     expect(
       parseDevAuthTokenScopes(
