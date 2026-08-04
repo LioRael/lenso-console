@@ -86,6 +86,79 @@ textarea {
   overflow: visible;
 }
 
+.system-page .product-page__body {
+  height: calc(100vh - 144px);
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 32px;
+}
+
+.system-page .lenso-ui-page__description {
+  color: var(--fg-secondary);
+}
+
+.system-page .lenso-ui-page__actions {
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.system-page__workspace {
+  height: 676px;
+  min-height: 676px;
+}
+
+.system-page .lenso-ui-inline-status {
+  column-gap: 8px;
+}
+
+.system-page .lenso-ui-data-grid {
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.system-page__filters .system-filter-control:nth-child(1) {
+  width: 84px;
+}
+
+.system-page__filters .system-filter-control:nth-child(2) {
+  width: 94px;
+}
+
+.system-page__filters .system-filter-control:nth-child(3) {
+  width: 139px;
+}
+
+.system-page .system-filter-control__select {
+  width: 100%;
+  border-color: var(--line);
+  color: var(--fg-secondary);
+  font-weight: 500;
+}
+
+.home-page .lenso-ui-page__description {
+  color: var(--fg-secondary);
+}
+
+.home-page .product-page__body {
+  height: calc(100vh - 144px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.home-page__evidence-pane {
+  position: relative;
+}
+
+.home-page__evidence-pane::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: var(--line-subtle);
+  content: "";
+  pointer-events: none;
+}
+
 .product-split-workspace {
   border-top: 0;
 }
@@ -718,6 +791,17 @@ textarea {
   border-bottom: 1px solid var(--line-subtle);
 }
 
+.modules-page .lenso-ui-page__actions {
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre;
+}
+
+.modules-page .lenso-ui-split-view__inspector {
+  padding-left: 27px;
+}
+
 .modules-page__filter-control {
   position: relative;
   display: inline-flex;
@@ -766,7 +850,8 @@ textarea {
 .modules-page__table-pane {
   height: 676px;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .modules-page__empty {
@@ -780,7 +865,15 @@ textarea {
 }
 
 .modules-inspector .lenso-ui-inspector__status {
-  margin-top: 14px;
+  margin-top: 16px;
+}
+
+.modules-inspector .lenso-ui-inspector__header {
+  padding-bottom: 16px;
+}
+
+.modules-inspector .lenso-ui-inspector__subtitle {
+  margin-top: 0;
 }
 
 .modules-inspector__status {
@@ -806,10 +899,11 @@ textarea {
 
 .modules-inspector .lenso-ui-inspector__section {
   min-height: 122px;
-  padding: 17px 0 18px;
+  padding: 18px 0;
 }
 
 .modules-inspector .lenso-ui-inspector__section-title {
+  color: var(--fg-tertiary);
   margin-bottom: 5px;
   line-height: 16px;
 }

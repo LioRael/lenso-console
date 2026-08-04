@@ -8,7 +8,7 @@
 
   --bg-canvas: #000000;
   --bg-window: #000000;
-  --bg-sidebar: #050505;
+  --bg-sidebar: #0a0a0a;
   --bg-chrome: #000000;
   --bg-surface: #000000;
   --bg-surface-raised: #0a0a0a;
@@ -26,8 +26,8 @@
   --bg-glass: var(--bg-overlay);
   --bg-glass-control: var(--bg-control);
 
-  --fg-primary: #ededed;
-  --fg-secondary: #a1a1aa;
+  --fg-primary: #ffffff;
+  --fg-secondary: #d4d4d4;
   --fg-tertiary: #737373;
   --fg-quaternary: #525252;
   --fg-on-accent: #000000;
@@ -38,7 +38,7 @@
   --line-strong: #444444;
   --line-glass: var(--line);
 
-  --accent: #ededed;
+  --accent: #ffffff;
   --accent-hover: #ffffff;
   --accent-muted: rgba(255, 255, 255, 0.08);
   --accent-foreground: #000000;
@@ -52,13 +52,13 @@
   --tone-muted-fg: var(--fg-secondary);
   --tone-info-bg: rgba(0, 112, 243, 0.12);
   --tone-info-border: rgba(0, 112, 243, 0.3);
-  --tone-info-fg: #58a6ff;
+  --tone-info-fg: #d4d4d4;
   --tone-success-bg: rgba(0, 166, 62, 0.12);
   --tone-success-border: rgba(0, 166, 62, 0.28);
-  --tone-success-fg: #63d471;
+  --tone-success-fg: #00a63e;
   --tone-warning-bg: rgba(245, 165, 36, 0.12);
   --tone-warning-border: rgba(245, 165, 36, 0.3);
-  --tone-warning-fg: #f2c97d;
+  --tone-warning-fg: #f5a524;
   --tone-error-bg: rgba(229, 72, 77, 0.13);
   --tone-error-border: rgba(229, 72, 77, 0.32);
   --tone-error-fg: #ff8589;

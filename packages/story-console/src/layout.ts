@@ -1,6 +1,6 @@
 export const runtimeStoriesLayoutDefaults = {
   inspectorWidth: 340,
-  listWidth: 260,
+  listWidth: 267,
   servicesHeight: 150,
 };
 

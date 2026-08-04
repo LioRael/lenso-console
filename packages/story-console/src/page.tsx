@@ -177,8 +177,8 @@ export function RuntimeStoriesPage() {
   const listColumn = `clamp(220px,24vw,${storiesLayout.listWidth}px)`;
   const inspectorColumn = `clamp(280px,30vw,${storiesLayout.inspectorWidth}px)`;
   const gridTemplateColumns = hasInspector
-    ? `${listColumn} 8px minmax(0,1fr) calc(8px * var(--story-inspector-open)) minmax(0,calc(${inspectorColumn} * var(--story-inspector-open)))`
-    : `${listColumn} 8px minmax(0,1fr)`;
+    ? `${listColumn} 1px minmax(0,1fr) calc(1px * var(--story-inspector-open)) minmax(0,calc(${inspectorColumn} * var(--story-inspector-open)))`
+    : `${listColumn} 1px minmax(0,1fr)`;
   const showServicesPanel = mode === "waterfall" || mode === "flame";
   const storyDetailLoading =
     Boolean(selectedStoryCorrelationId) && storyDetailQuery.isPending;
@@ -556,7 +556,7 @@ export function RuntimeStoriesPage() {
 
         <ResizeHandle
           ariaLabel="Resize story list panel"
-          className="runtime-stories-list-resize"
+          className="runtime-stories-list-resize w-px"
           onReset={resetLayout}
           onResize={resizeStoryList}
         />
@@ -594,6 +594,7 @@ export function RuntimeStoriesPage() {
                   <ResizeHandle
                     ariaLabel="Resize services panel"
                     axis="vertical"
+                    className="h-px"
                     onReset={resetLayout}
                     onResize={resizeServices}
                   />
@@ -647,7 +648,7 @@ export function RuntimeStoriesPage() {
           <>
             <ResizeHandle
               ariaLabel="Resize story inspector panel"
-              className="runtime-stories-inspector-resize"
+              className="runtime-stories-inspector-resize w-px"
               onReset={resetLayout}
               onResize={resizeInspector}
             />
