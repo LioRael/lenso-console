@@ -11,7 +11,7 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] =
     usePersistedLayout<ConsoleLanguagePreference>(
       "lenso-console:language-preference",
-      "system"
+      "en"
     );
   const locale = resolveLocale(preference);
   const value = useMemo(

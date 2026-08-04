@@ -39,7 +39,7 @@ export function HorizontalScrollArea({
 export function HorizontalTabScroll({ children }: { children: ReactNode }) {
   return (
     <HorizontalScrollArea
-      className="h-8"
+      className="h-full"
       contentClassName="h-full"
       viewportClassName="h-full"
     >

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export const runtimeViewHeaderClassName =
-  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-panel-header) px-3";
+  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-surface) px-3";
 
 export const runtimeViewHeaderContentClassName =
   "flex min-w-0 items-center gap-2 overflow-hidden";

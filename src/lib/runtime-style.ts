@@ -15,6 +15,14 @@ const serviceColors = [
   "#778394",
 ] as const;
 
+const semanticServiceColors: Record<string, string> = {
+  audit: "var(--accent)",
+  billing: "var(--tone-warning-fg)",
+  console: "var(--tone-success-fg)",
+  customer: "var(--tone-info-fg)",
+  ledger: "var(--tone-success-fg)",
+};
+
 export function formatRuntimeDuration(ms: number) {
   if (ms < 1) {
     return `${Math.round(ms * 1000)}us`;
@@ -22,7 +30,21 @@ export function formatRuntimeDuration(ms: number) {
   if (ms < 1000) {
     return `${Math.round(ms)}ms`;
   }
-  return `${(ms / 1000).toFixed(2)}s`;
+
+  const seconds = ms / 1000;
+  if (seconds >= 60) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    if (remainingSeconds === 60) {
+      return `${minutes + 1}m`;
+    }
+    return remainingSeconds > 0
+      ? `${minutes}m ${remainingSeconds}s`
+      : `${minutes}m`;
+  }
+
+  const precision = seconds >= 10 ? 1 : 2;
+  return `${Number(seconds.toFixed(precision))}s`;
 }
 
 export function statusColor(status: RuntimeStatus) {
@@ -36,6 +58,11 @@ export function statusColor(status: RuntimeStatus) {
 }
 
 export function serviceColor(service: string) {
+  const semanticColor = semanticServiceColors[service.toLowerCase()];
+  if (semanticColor) {
+    return semanticColor;
+  }
+
   const hash = [...service].reduce(
     (total, char) => total + (char.codePointAt(0) ?? 0),
     0

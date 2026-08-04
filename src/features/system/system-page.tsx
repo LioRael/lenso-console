@@ -78,6 +78,7 @@ export function SystemPage() {
     return (
       <ProductPage
         description={copy.system.description}
+        pageClassName="system-page"
         title={copy.system.title}
       >
         <div className="py-8 text-[12px] text-(--fg-tertiary)">
@@ -91,9 +92,10 @@ export function SystemPage() {
     <ProductPage
       description={copy.system.description}
       meta={`${capabilities.length} ${copy.system.capabilities.toLowerCase()} · ${serviceCount} ${copy.system.services.toLowerCase()}`}
+      pageClassName="system-page"
       title={copy.system.title}
     >
-      <div className="product-page__filters flex h-12 items-center gap-2">
+      <div className="product-page__filters system-page__filters flex h-12 items-center gap-2">
         <SystemFilterSelect
           ariaLabel={copy.system.kind}
           onChange={(value) => setFilter("kind", value)}
@@ -122,6 +124,7 @@ export function SystemPage() {
         />
       </div>
       <SplitWorkspace
+        className="system-page__workspace"
         inspector={
           <Inspector
             status={

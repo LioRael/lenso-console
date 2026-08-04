@@ -39,12 +39,11 @@ export function StoryTabs({
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   return (
-    <div className="min-w-0 border-b border-(--line) bg-(--bg-panel-header)">
+    <div className="h-full min-w-0 bg-(--bg-canvas)">
       <HorizontalTabScroll>
         <div
           aria-label={zh ? "故事视图" : "Story views"}
-          className="lenso-ui-tabs__list h-full w-max min-w-full border-b-0 px-2"
-          data-leading="icon"
+          className="flex h-full w-max min-w-full items-center gap-0 border-b-0 pl-2 pr-0"
           role="tablist"
         >
           {labels.map(({ icon: Icon, id, label }, index) => (
@@ -52,8 +51,8 @@ export function StoryTabs({
               aria-controls="story-view-panel"
               aria-selected={mode === id}
               className={cn(
-                "lenso-ui-tabs__tab h-full min-h-0 shrink-0 px-1 text-[11px] first:pl-1",
-                mode === id && "text-(--fg-primary)"
+                "flex h-[33px] shrink-0 flex-col items-center gap-2 px-1 pt-2 pb-0 font-sans text-[12px] font-normal leading-4 text-(--fg-tertiary)",
+                mode === id && "font-medium text-(--fg-primary)"
               )}
               id={`story-tab-${id}`}
               key={id}
@@ -85,8 +84,16 @@ export function StoryTabs({
               tabIndex={mode === id ? 0 : -1}
               type="button"
             >
-              <Icon size={12} strokeWidth={1.75} />
-              {zh ? storyTabZh[id] : label}
+              <span className="flex h-4 items-center gap-1 overflow-hidden">
+                <Icon size={12} strokeWidth={1.75} />
+                {zh ? storyTabZh[id] : label}
+              </span>
+              <span
+                className={cn(
+                  "h-px w-full bg-(--accent)",
+                  mode === id ? "opacity-100" : "opacity-0"
+                )}
+              />
             </button>
           ))}
         </div>

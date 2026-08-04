@@ -1,5 +1,15 @@
+import { Tabs } from "@base-ui/react/tabs";
 import { useConsoleLocale } from "@lenso/console-ui-internal";
-import { Copy, ExternalLink, Network, RotateCcw, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Network,
+  RotateCcw,
+  X,
+} from "lucide-react";
+import { useState } from "react";
 
 import type {
   RuntimeStory,
@@ -16,6 +26,7 @@ import {
   useStoryTechnicalOperations,
 } from "../../hooks/use-runtime-queries";
 import { cn } from "../../lib/cn";
+import { prettyJson } from "../../lib/format";
 import { formatRuntimeDuration } from "../../lib/runtime-style";
 import {
   buildExecutionActivity,
@@ -60,8 +71,8 @@ export function ExecutionInspector({
   const routeLabel = buildInspectorPath(story, node);
 
   return (
-    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_36px_minmax(0,1fr)] overflow-hidden border-l border-(--line-subtle) bg-(--bg-canvas)">
-      <div className="relative min-w-0 overflow-hidden border-b border-(--line-subtle) pt-7">
+    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_minmax(0,1fr)] overflow-hidden border-l border-(--line-subtle) bg-(--bg-canvas)">
+      <div className="relative min-w-0 overflow-hidden border-b border-(--line-subtle) pt-3">
         <div className="flex h-4 items-center justify-between px-3 text-[9px] leading-none text-(--fg-tertiary)">
           <span className="truncate font-medium capitalize">
             {typeLabel(node)}&nbsp; / &nbsp;{node.service}
@@ -76,17 +87,17 @@ export function ExecutionInspector({
             <X className="size-2.5 opacity-0 group-hover:opacity-100" />
           </button>
         </div>
-        <div className="flex h-8 min-w-0 items-center gap-2 px-3">
+        <div className="flex h-10 min-w-0 items-center gap-2 px-3">
           <span
             className="size-1.5 shrink-0 rounded-full"
             style={{ backgroundColor: statusColorForInspector(node.status) }}
           />
-          <h2 className="min-w-0 flex-1 truncate text-[14px] font-semibold text-(--fg-primary)">
+          <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-(--fg-primary)">
             {node.canonicalName ?? node.name}
           </h2>
           {retryTarget ? (
             <button
-              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-[12px] font-medium text-(--fg-primary) hover:bg-(--bg-control-hover)"
+              className="inline-flex h-7 w-[68px] shrink-0 items-center justify-center gap-1 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2.5 text-[12px] font-medium text-(--fg-primary) hover:bg-(--bg-control-hover)"
               onClick={() => openRetry(retryTarget)}
               type="button"
             >
@@ -95,7 +106,7 @@ export function ExecutionInspector({
             </button>
           ) : null}
         </div>
-        <div className="flex h-[17px] min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none">
+        <div className="flex h-[25px] min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none">
           <span className="shrink-0 font-medium text-(--fg-tertiary)">
             {zh ? "路径" : "Path"}
           </span>
@@ -108,81 +119,72 @@ export function ExecutionInspector({
         </div>
       </div>
 
-      <div className="min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)">
-        <HorizontalTabScroll>
-          <div
-            aria-label={zh ? "执行详情标签" : "Execution detail tabs"}
-            className="flex h-9 w-max min-w-full items-start gap-1 px-3"
-            role="tablist"
-          >
-            {executionInspectorTabs.map((tab, index) => (
-              <button
-                aria-controls="execution-inspector-panel"
-                aria-selected={activeTab === tab.id}
-                className={cn(
-                  "relative flex h-[33px] shrink-0 items-center justify-center gap-1 px-1 text-[12px] text-(--fg-tertiary)",
-                  activeTab === tab.id && "font-medium text-(--fg-primary)"
-                )}
-                id={`execution-tab-${tab.id}`}
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                onKeyDown={(event) => {
-                  if (
-                    !["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                      event.key
-                    )
-                  ) {
-                    return;
-                  }
-                  event.preventDefault();
-                  const nextIndex =
-                    event.key === "Home"
-                      ? 0
-                      : event.key === "End"
-                        ? executionInspectorTabs.length - 1
-                        : event.key === "ArrowRight"
-                          ? (index + 1) % executionInspectorTabs.length
-                          : (index - 1 + executionInspectorTabs.length) %
-                            executionInspectorTabs.length;
-                  const next = executionInspectorTabs[nextIndex];
-                  if (next) {
-                    setActiveTab(next.id);
-                    document
-                      .getElementById(`execution-tab-${next.id}`)
-                      ?.focus();
-                  }
-                }}
-                role="tab"
-                tabIndex={activeTab === tab.id ? 0 : -1}
-                type="button"
-              >
-                <span>
-                  {zh ? inspectorTabZh[tab.id] : tab.label}
-                  {tabCounts[tab.id] > 0 ? ` ${tabCounts[tab.id]}` : ""}
-                </span>
-                {tabCounts[tab.id] > 0 ? (
-                  <span className="sr-only">items</span>
-                ) : null}
-                <span
-                  className={cn(
-                    "absolute right-1 bottom-0 left-1 h-px bg-(--accent) transition-opacity",
-                    activeTab === tab.id ? "opacity-100" : "opacity-0"
-                  )}
-                />
-              </button>
-            ))}
-          </div>
-        </HorizontalTabScroll>
-      </div>
-
-      <div
-        aria-labelledby={`execution-tab-${activeTab}`}
-        className="min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]"
-        id="execution-inspector-panel"
-        role="tabpanel"
+      <Tabs.Root
+        className="grid h-full min-h-0 min-w-0 grid-rows-[42px_minmax(0,1fr)] overflow-hidden"
+        onValueChange={(value) => {
+          if (typeof value === "string") {
+            setActiveTab(value as ExecutionInspectorTab);
+          }
+        }}
+        value={activeTab}
       >
-        <InspectorBody activeTab={activeTab} node={node} story={story} />
-      </div>
+        <div className="h-full min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)">
+          <HorizontalTabScroll>
+            <Tabs.List
+              aria-label={zh ? "执行详情标签" : "Execution detail tabs"}
+              className="flex h-[42px] w-max min-w-full items-start gap-1 px-1.5"
+            >
+              {executionInspectorTabs.map((tab) => (
+                <Tabs.Tab
+                  className={cn(
+                    "relative flex h-10 shrink-0 items-center justify-center gap-1 px-1 font-sans text-[11px] text-(--fg-tertiary)",
+                    "data-[active]:border-b data-[active]:border-(--accent) data-[active]:font-medium data-[active]:text-(--fg-primary)"
+                  )}
+                  id={`execution-tab-${tab.id}`}
+                  key={tab.id}
+                  value={tab.id}
+                >
+                  <span>{zh ? inspectorTabZh[tab.id] : tab.label}</span>
+                  {tabCounts[tab.id] > 0 ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-[3px] font-sans text-[9px] font-medium",
+                        activeTab === tab.id
+                          ? "text-(--fg-secondary)"
+                          : "text-(--fg-tertiary)"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "size-[2px] rounded-full",
+                          activeTab === tab.id
+                            ? "bg-(--fg-secondary)"
+                            : "bg-(--fg-tertiary)"
+                        )}
+                      />
+                      {tabCounts[tab.id]}
+                    </span>
+                  ) : null}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </HorizontalTabScroll>
+        </div>
+
+        {executionInspectorTabs.map((tab) => (
+          <Tabs.Panel
+            className="min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]"
+            id={`execution-inspector-panel-${tab.id}`}
+            key={`${node.id}-${tab.id}`}
+            keepMounted
+            value={tab.id}
+          >
+            {activeTab === tab.id ? (
+              <InspectorBody activeTab={tab.id} node={node} story={story} />
+            ) : null}
+          </Tabs.Panel>
+        ))}
+      </Tabs.Root>
     </aside>
   );
 }
@@ -220,18 +222,8 @@ function InspectorBody({
   if (activeTab === "overview") {
     const retryTarget = retryTargetForNode(node);
     const remoteProxyDetail = buildRemoteProxyInspectorDetail(node);
-    const technicalGroups = buildTechnicalOperationGroups({
-      executionOperations: executionOperationsQuery.data ?? [],
-      selectedNodeId: node.id,
-      storyOperations: storyOperationsQuery.data ?? [],
-      storyTimestamp: story.timestamp,
-    });
     return (
       <OverviewDocument
-        executionOperationsCount={technicalGroups.reduce(
-          (count, group) => count + group.operations.length,
-          0
-        )}
         logsCount={node.logs.length}
         node={node}
         payload={payloadQuery.data}
@@ -263,6 +255,7 @@ function InspectorBody({
         error={payloadQuery.error}
         isError={payloadQuery.isError}
         isLoading={payloadQuery.isLoading}
+        node={node}
         payload={payloadQuery.data}
       />
     );
@@ -317,12 +310,20 @@ function EventsDocument({
   node: ExecutionNode;
 }) {
   return (
-    <div className="grid min-w-full">
-      <InspectorSectionLabel label="Activity" />
+    <div className="min-w-full">
+      <InspectorDocumentToolbar
+        bordered={false}
+        count={`${activity.length} events`}
+        title="Activity"
+      />
       <ActivityList activity={activity} />
+      <CompletionEvidence activity={activity} node={node} />
       {failures.length > 0 ? (
         <>
-          <InspectorSectionLabel label="Failure evidence" />
+          <InspectorDocumentToolbar
+            count={`${failures.length} items`}
+            title="Failure evidence"
+          />
           <FailurePanel failures={failures} node={node} />
         </>
       ) : null}
@@ -349,16 +350,17 @@ function OperationsDocument({
   story: RuntimeStory;
   storyOperations: TechnicalOperation[];
 }) {
+  const operationCount = executionOperations.length + storyOperations.length;
   return (
-    <div className="grid min-w-full">
-      <KeyValueTable rows={context.rows} />
-      <RelatedExecutionList
-        label="upstream references"
-        nodes={context.upstream}
+    <div className="min-w-full">
+      <InspectorDocumentToolbar
+        count={`${operationCount} operations`}
+        title="Technical execution"
       />
-      <RelatedExecutionList
-        label="downstream references"
-        nodes={context.downstream}
+      <ExecutionContextPanel rows={context.rows} />
+      <ExecutionLineagePanel
+        downstream={context.downstream}
+        upstream={context.upstream}
       />
       <TechnicalPanel
         executionOperations={executionOperations}
@@ -370,31 +372,193 @@ function OperationsDocument({
         storyOperations={storyOperations}
       />
       <JsonViewer
-        title="execution context"
+        bordered={false}
+        countLabel={`${context.rows.length + 3} fields`}
+        title="Execution context JSON"
         value={{ attributes: node.attributes, context: node.context }}
       />
     </div>
   );
 }
 
-function InspectorSectionLabel({ label }: { label: string }) {
+function InspectorDocumentToolbar({
+  bordered = true,
+  count,
+  title,
+}: {
+  bordered?: boolean;
+  count: string;
+  title: string;
+}) {
   return (
-    <div className="flex h-[30px] items-center border-b border-(--line) bg-(--bg-panel-header) px-3 text-[10px] font-medium uppercase tracking-[0.04em] text-(--fg-tertiary)">
-      {label}
+    <div
+      className={cn(
+        "flex h-11 items-center justify-between px-3 pt-2.5 pb-[9px]",
+        bordered && "border-b border-(--line-subtle)"
+      )}
+    >
+      <span className="text-[13px] font-medium text-(--fg-primary)">
+        {title}
+      </span>
+      <span className="font-mono text-[10px] text-(--fg-tertiary)">
+        {count}
+      </span>
+    </div>
+  );
+}
+
+function CompletionEvidence({
+  activity,
+  node,
+}: {
+  activity: ExecutionActivityItem[];
+  node: ExecutionNode;
+}) {
+  const stableEffect = firstString(
+    node.attributes.stable_effect,
+    node.attributes.stableEffect,
+    node.attributes.effect_id,
+    node.attributes.effectId
+  );
+  const completion = activity.at(-1);
+  const completionId = firstString(
+    node.context.completion_id,
+    node.context.completionId,
+    node.attributes.completion_id,
+    node.attributes.completionId,
+    completion?.id
+  );
+  const stable = node.status === "completed" || node.status === "published";
+
+  return (
+    <section className="flex h-[348px] flex-col gap-3 overflow-hidden px-3 py-[14px]">
+      <InspectorEyebrow>Completion evidence</InspectorEyebrow>
+      <h3 className="text-[13px] font-medium text-(--fg-primary)">
+        {stable ? "Stable effect confirmed" : "Completion evidence pending"}
+      </h3>
+      <InspectorEvidenceField
+        label="Completion identity"
+        value={completionId ?? "—"}
+      />
+      <InspectorEvidenceField
+        label="Stable effect"
+        value={stableEffect ?? "—"}
+      />
+      <InspectorEvidenceField
+        label="Publisher"
+        value={`${node.service} / ${typeLabel(node)}`}
+      />
+      <p className="text-[10px] leading-[15px] text-(--fg-secondary)">
+        {stable
+          ? "Published after the execution completed; this evidence confirms the terminal state."
+          : "The execution has not published terminal evidence yet."}
+      </p>
+    </section>
+  );
+}
+
+function InspectorEvidenceField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex h-11 flex-col gap-1 overflow-hidden">
+      <InspectorEyebrow>{label}</InspectorEyebrow>
+      <span className="truncate font-mono text-[10px] text-(--fg-secondary)">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function InspectorEyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[9.5px] font-medium uppercase text-(--fg-tertiary)">
+      {children}
+    </span>
+  );
+}
+
+function ExecutionContextPanel({ rows }: { rows: Array<[string, unknown]> }) {
+  return (
+    <section className="h-[210px] overflow-hidden border-b border-(--line-subtle) px-3 py-3">
+      <InspectorEyebrow>Execution context</InspectorEyebrow>
+      <div>
+        {rows
+          .filter(([key]) => key !== "related executions")
+          .map(([key, value]) => (
+            <div
+              className="flex h-8 items-center justify-between gap-3 overflow-hidden"
+              key={key}
+            >
+              <span className="shrink-0 text-[9px] text-(--fg-tertiary)">
+                {executionContextLabel(key)}
+              </span>
+              <span className="min-w-0 truncate text-right font-mono text-[10px] text-(--fg-secondary)">
+                {formatCell(value)}
+              </span>
+            </div>
+          ))}
+      </div>
+    </section>
+  );
+}
+
+function executionContextLabel(key: string) {
+  return key.endsWith(" id") ? key.slice(0, -3) : key;
+}
+
+function ExecutionLineagePanel({
+  downstream,
+  upstream,
+}: {
+  downstream: ExecutionNode[];
+  upstream: ExecutionNode[];
+}) {
+  return (
+    <section className="flex h-[132px] flex-col gap-[6px] overflow-hidden border-b border-(--line-subtle) px-3 py-2">
+      <InspectorEyebrow>Related executions</InspectorEyebrow>
+      <LineageRow direction="Upstream" node={upstream.at(-1)} />
+      <LineageRow direction="Downstream" node={downstream[0]} />
+    </section>
+  );
+}
+
+function LineageRow({
+  direction,
+  node,
+}: {
+  direction: string;
+  node: ExecutionNode | undefined;
+}) {
+  return (
+    <div className="flex h-[42px] items-center justify-between gap-3 overflow-hidden">
+      <div className="flex h-9 w-[220px] shrink-0 flex-col gap-0.5 overflow-hidden">
+        <span className="text-[9px] font-medium uppercase text-(--fg-tertiary)">
+          {direction}
+        </span>
+        <span className="truncate font-mono text-[11px] text-(--fg-primary)">
+          {node?.name ?? "—"}
+        </span>
+      </div>
+      <span className="shrink-0 font-mono text-[9px] text-(--fg-secondary)">
+        {node ? typeLabel(node) : "—"}
+      </span>
     </div>
   );
 }
 
 function OverviewDocument({
   children,
-  executionOperationsCount,
   logsCount,
   node,
   payload,
   story,
 }: {
   children?: React.ReactNode;
-  executionOperationsCount: number;
   logsCount: number;
   node: ExecutionNode;
   payload: ExecutionPayload | undefined;
@@ -451,7 +615,7 @@ function OverviewDocument({
 
   return (
     <div className="min-w-full text-xs">
-      <section className="h-[104px] border-b border-(--line-subtle) px-3 pt-[11px] pb-2.5">
+      <section className="h-[98px] border-b border-(--line-subtle) px-3 pt-[11px] pb-2.5">
         <div className="flex h-4 items-center justify-between text-[9.5px] font-medium text-(--fg-tertiary)">
           <span>Execution</span>
           <span className={statusTone(node.status)}>
@@ -486,11 +650,11 @@ function OverviewDocument({
         stable={Boolean(stableEffect) || node.status === "completed"}
       />
 
-      <section className="border-b border-(--line-subtle)">
+      <section>
         <div className="flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)">
           <span>Properties</span>
           <button
-            className="inline-flex items-center gap-1 text-[9px] text-(--fg-secondary) hover:text-(--fg-primary)"
+            className="inline-flex items-center gap-1 text-[9.5px] font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
             type="button"
           >
             <Copy size={12} />
@@ -500,36 +664,44 @@ function OverviewDocument({
         {properties.map((property, index) =>
           "label" in property ? (
             <div
-              className="grid h-9 grid-cols-[92px_minmax(0,1fr)] items-center border-b border-(--line-subtle) px-3 font-mono last:border-b-0"
+              className={cn(
+                "grid h-9 grid-cols-[92px_minmax(0,1fr)] items-center px-3 font-mono",
+                index === properties.length - 1 &&
+                  "border-b border-(--line-subtle)"
+              )}
               key={property.label}
             >
-              <span className="text-[8.5px] text-(--fg-tertiary)">
+              <span className="text-[9px] text-(--fg-tertiary)">
                 {property.label}
               </span>
-              <span className="truncate text-[9px] text-(--fg-primary)">
+              <span className="truncate text-[9.5px] text-(--fg-primary)">
                 {property.value}
               </span>
             </div>
           ) : (
             <div
-              className="grid h-9 grid-cols-[60px_102px_62px_minmax(0,1fr)] items-center border-b border-(--line-subtle) px-3 font-mono last:border-b-0"
+              className={cn(
+                "grid h-9 grid-cols-[60px_102px_62px_minmax(0,1fr)] items-center px-3 font-mono",
+                index === properties.length - 1 &&
+                  "border-b border-(--line-subtle)"
+              )}
               key={`${property.left[0]}-${index}`}
             >
-              <span className="text-[8.5px] text-(--fg-tertiary)">
+              <span className="text-[9px] text-(--fg-tertiary)">
                 {property.left[0]}
               </span>
               <span
                 className={cn(
-                  "truncate text-[9px] text-(--fg-primary)",
+                  "truncate text-[9.5px] text-(--fg-primary)",
                   property.left[0] === "status" && statusTone(node.status)
                 )}
               >
                 {property.left[1]}
               </span>
-              <span className="text-[8.5px] text-(--fg-tertiary)">
+              <span className="text-[9px] text-(--fg-tertiary)">
                 {property.right[0]}
               </span>
-              <span className="truncate text-[9px] text-(--fg-primary)">
+              <span className="truncate text-[9.5px] text-(--fg-primary)">
                 {property.right[1]}
               </span>
             </div>
@@ -537,14 +709,11 @@ function OverviewDocument({
         )}
       </section>
 
-      <section className="border-b border-(--line-subtle)">
+      <section>
         <div className="flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)">
           <span>Evidence</span>
-          <span className="font-mono text-[8.5px]">
-            {Number(payloadCount > 0) +
-              Number(logsCount > 0) +
-              Number(executionOperationsCount > 0)}{" "}
-            sources
+          <span className="font-mono text-[8.5px] font-normal">
+            {Number(payloadCount > 0) + Number(logsCount > 0)} sources
           </span>
         </div>
         <EvidenceRow
@@ -558,23 +727,26 @@ function OverviewDocument({
           label="Logs"
           muted
         />
-        <EvidenceRow
-          count={executionOperationsCount}
-          description="trace + correlation"
-          label="Technical"
-          muted
-        />
-        <div className="h-[60px] bg-(--bg-panel-muted) px-3 py-1.5">
-          <div className="text-[9.5px] font-medium text-(--fg-tertiary)">
-            Trace context
+        <div className="flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)">
+          <span>Trace context</span>
+          <span className="font-mono text-[8.5px] font-normal">2 fields</span>
+        </div>
+        <div className="flex h-[60px] flex-col overflow-hidden font-mono">
+          <div className="flex h-[30px] shrink-0 items-center overflow-hidden px-3">
+            <span className="w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)">
+              trace
+            </span>
+            <span className="truncate text-[9px] text-(--fg-secondary)">
+              {traceId ?? "—"}
+            </span>
           </div>
-          <div className="mt-0.5 font-mono text-[9px] leading-[14px] text-(--fg-secondary)">
-            <div className="truncate">
-              trace&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{traceId ?? "—"}
-            </div>
-            <div className="truncate">
-              correlation&nbsp;&nbsp;{story.correlationId}
-            </div>
+          <div className="flex h-[30px] shrink-0 items-center overflow-hidden px-3">
+            <span className="w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)">
+              correlation
+            </span>
+            <span className="truncate text-[9px] text-(--fg-secondary)">
+              {story.correlationId}
+            </span>
           </div>
         </div>
       </section>
@@ -688,7 +860,7 @@ function EvidenceRow({
   muted?: boolean;
 }) {
   return (
-    <div className="mx-3 flex h-[34px] items-center gap-2 border-b border-(--line-subtle)">
+    <div className="flex h-9 items-center gap-2 px-3">
       <span
         className={cn(
           "size-[5px] shrink-0 bg-(--accent)",
@@ -845,77 +1017,85 @@ function TechnicalOperationGroupView({
   group: TechnicalOperationGroup;
 }) {
   return (
-    <section className="border-b border-(--line)">
-      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 text-[11px] text-(--fg-tertiary)">
-        <span className="font-medium text-(--fg-secondary)">{group.label}</span>
-        <span className="rounded-xs border border-(--line) bg-(--bg-canvas) px-1.5 py-0.5 text-[10px] text-(--fg-tertiary)">
-          {group.operations.length}
+    <section className="flex h-[278px] flex-col gap-2 overflow-visible border-b border-(--line-subtle) p-3">
+      <div className="flex h-[26px] items-center justify-between overflow-hidden text-[10px] text-(--fg-tertiary)">
+        <span className="font-medium uppercase">
+          {group.label.replaceAll("-", " ")}
         </span>
+        <span className="font-mono text-[9px]">{group.operations.length}</span>
       </div>
-      {group.operations.map((operation) => (
-        <TechnicalOperationRow operation={operation} key={operation.id} />
+      {group.operations.map((operation, index) => (
+        <TechnicalOperationRow
+          index={index}
+          operation={operation}
+          key={operation.id}
+        />
       ))}
     </section>
   );
 }
 
 function TechnicalOperationRow({
+  index,
   operation,
 }: {
+  index: number;
   operation: TechnicalOperationView;
 }) {
   const { openAdminActions, openRemoteCalls } = useRuntimeConsole();
   const operationsTarget = technicalOperationOperationsTarget(operation);
+  const [attributesVisible, setAttributesVisible] = useState(false);
   return (
-    <div className="border-t border-(--line) bg-(--bg-canvas)">
-      <div className="grid min-w-full grid-cols-[72px_82px_minmax(180px,1fr)_72px_64px_58px_24px] items-start gap-2 px-3 py-2 text-xs">
-        <span className="w-fit border-r border-(--line) pr-1.5 text-[10px] font-medium text-(--fg-secondary)">
-          {operation.category}
-        </span>
-        <span
-          className={cn(
-            "w-fit text-[10px] font-medium",
-            operationSourceTone(operation)
-          )}
-        >
-          {operation.sourceLabel}
-        </span>
-        <div className="min-w-0">
-          <div
-            className="truncate font-mono text-(--fg-primary)"
+    <div className="group relative flex h-[84px] shrink-0 gap-2.5 overflow-visible py-2">
+      <span className="w-[13px] shrink-0 font-mono text-[10px] font-medium text-(--accent)">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <div className="flex h-[68px] w-[256px] shrink-0 flex-col gap-[5px] overflow-hidden">
+        <div className="flex h-[18px] items-start justify-between gap-2">
+          <span
+            className="truncate font-mono text-[11px] font-medium text-(--fg-primary)"
             title={operation.name}
           >
             {operation.name}
-          </div>
-          {operation.summary ? (
-            <div
-              className="mt-1 truncate text-[11px] text-(--fg-tertiary)"
-              title={operation.summary}
-            >
-              {operation.summary}
-            </div>
-          ) : null}
+          </span>
+          <span className="shrink-0 font-mono text-[10px] text-(--fg-tertiary)">
+            {formatRuntimeDuration(operation.durationMs)}
+          </span>
         </div>
-        <span
+        <div
           className={cn(
-            "text-[11px] leading-5",
+            "font-mono text-[9px] font-medium uppercase",
             operation.status === "error"
               ? "text-(--tone-error-fg)"
-              : "text-(--fg-tertiary)"
+              : "text-(--tone-success-fg)"
           )}
         >
           {operation.status}
-        </span>
-        <span className="text-right text-[11px] leading-5 text-(--fg-tertiary)">
-          {formatRuntimeDuration(operation.durationMs)}
-        </span>
-        <span className="text-right text-[11px] leading-5 text-(--fg-tertiary)">
-          +{formatRuntimeDuration(operation.relativeStartMs)}
-        </span>
+        </div>
+        <div
+          className="truncate text-[10px] text-(--fg-secondary)"
+          title={operation.summary}
+        >
+          {operation.summary ?? operation.sourceLabel}
+        </div>
+      </div>
+      <div className="absolute top-2 right-0 flex items-start">
+        {Object.keys(operation.safeAttributes).length > 0 ? (
+          <button
+            aria-expanded={attributesVisible}
+            aria-label={`Toggle ${operation.name} safe attributes`}
+            className="mr-1 grid size-4 place-items-center text-(--fg-tertiary) opacity-0 transition-opacity group-hover:opacity-100"
+            onClick={() => setAttributesVisible((current) => !current)}
+            title="Show safe attributes"
+            type="button"
+          >
+            <Copy size={10} />
+          </button>
+        ) : null}
         {operationsTarget ? (
           <button
             aria-label={`Open ${operation.sourceLabel} operations`}
-            className="grid size-5 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-tertiary) hover:text-(--fg-primary)"
+            className="grid size-4 place-items-center text-(--fg-tertiary) hover:text-(--fg-primary)"
             onClick={() => {
               if (operationsTarget.kind === "remote_calls") {
                 openRemoteCalls(
@@ -938,22 +1118,16 @@ function TechnicalOperationRow({
           <span />
         )}
       </div>
-      <JsonViewer title="safe attributes" value={operation.safeAttributes} />
+      {attributesVisible ? (
+        <JsonViewer
+          className="absolute top-full right-0 left-0 z-10"
+          defaultExpanded
+          title="safe attributes"
+          value={operation.safeAttributes}
+        />
+      ) : null}
     </div>
   );
-}
-
-function operationSourceTone(operation: TechnicalOperationView) {
-  if (operation.source === "remote_proxy") {
-    return "text-(--tone-warning-fg)";
-  }
-  if (operation.source === "remote_runtime") {
-    return "text-(--tone-info-fg)";
-  }
-  if (operation.source === "admin_action") {
-    return "text-(--tone-info-fg)";
-  }
-  return "text-(--fg-tertiary)";
 }
 
 function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
@@ -962,16 +1136,14 @@ function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
   }
 
   return (
-    <div className="w-max min-w-full border-b border-(--line) text-xs">
+    <div className="min-w-full border-b border-(--line-subtle) text-xs">
       {rows.map(([key, value]) => (
         <div
-          className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-b border-(--line) last:border-b-0"
+          className="grid min-h-9 min-w-full grid-cols-[92px_minmax(0,1fr)] border-b border-(--line-subtle) last:border-b-0"
           key={key}
         >
-          <div className="bg-(--bg-panel-header) px-3 py-1.5 text-[11px] font-medium text-(--fg-tertiary)">
-            {key}
-          </div>
-          <div className="whitespace-pre-wrap px-3 py-1.5 font-mono text-[11px] text-(--fg-secondary)">
+          <div className="px-3 py-2 text-[9px] text-(--fg-tertiary)">{key}</div>
+          <div className="whitespace-pre-wrap px-3 py-2 font-mono text-[10px] text-(--fg-secondary)">
             {formatCell(value)}
           </div>
         </div>
@@ -985,27 +1157,91 @@ function ActivityList({ activity }: { activity: ExecutionActivityItem[] }) {
     return <EmptyRows label="No activity recorded" />;
   }
   return (
-    <div className="w-max min-w-full text-xs">
-      {activity.map((item) => (
-        <div
-          className="grid w-max min-w-full grid-cols-[58px_minmax(220px,max-content)] gap-2 border-b border-(--line) px-3 py-2"
+    <div className="min-w-full">
+      {activity.map((item, index) => (
+        <EventActivityRow
+          isLast={index === activity.length - 1}
+          item={item}
           key={item.id}
-        >
-          <span className="whitespace-nowrap font-mono text-(--fg-tertiary)">
-            +{formatRuntimeDuration(item.timestampMs)}
-          </span>
-          <div>
-            <div className="whitespace-nowrap text-(--fg-primary)">
-              {item.label}
-            </div>
-            <div className="whitespace-nowrap font-mono text-[11px] text-(--fg-tertiary)">
-              {item.detail ?? `${item.kind} · ${item.status}`}
-            </div>
-          </div>
-        </div>
+        />
       ))}
     </div>
   );
+}
+
+function EventActivityRow({
+  isLast,
+  item,
+}: {
+  isLast: boolean;
+  item: ExecutionActivityItem;
+}) {
+  const eventKind = eventKindLabel(item);
+  const detailLines = [item.detail ?? item.label, `source · ${item.kind}`];
+
+  return (
+    <div
+      className={cn(
+        "flex h-[108px] w-full gap-3 overflow-hidden px-3",
+        isLast && "border-b border-(--line-subtle)"
+      )}
+    >
+      <div className="relative h-[108px] w-3 shrink-0">
+        <span
+          className={cn(
+            "absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full",
+            isLast ? "bg-(--fg-primary)" : "bg-(--tone-success-fg)"
+          )}
+        />
+        {isLast ? null : (
+          <span className="absolute top-2 bottom-2 left-1/2 w-px -translate-x-1/2 bg-(--line-subtle)" />
+        )}
+      </div>
+      <div className="flex h-[108px] w-[284px] shrink-0 flex-col gap-[7px] pt-0">
+        <div className="flex h-[18px] items-center justify-between gap-2 font-mono text-[10px]">
+          <span className="text-(--fg-tertiary)">
+            +{formatRuntimeDuration(item.timestampMs)}
+          </span>
+          <span className={cn("font-medium", activityStatusTone(item.status))}>
+            {eventKind} · {item.status.toUpperCase()}
+          </span>
+        </div>
+        <div className="truncate text-[12px] font-medium text-(--fg-primary)">
+          {item.label}
+        </div>
+        <div className="h-9 overflow-hidden font-mono text-[10px] leading-[0] text-(--fg-secondary)">
+          {detailLines.map((line) => (
+            <div className="truncate leading-[normal]" key={line}>
+              {line}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function eventKindLabel(item: ExecutionActivityItem) {
+  if (item.kind === "event") {
+    return "EVENT";
+  }
+  if (item.kind.includes("function")) {
+    return "DATABASE";
+  }
+  if (item.kind.includes("http") || item.kind.includes("command")) {
+    return "COMMAND";
+  }
+  return item.kind.toUpperCase();
+}
+
+function activityStatusTone(status: string) {
+  if (status === "failed" || status === "dead" || status === "error") {
+    return "text-(--tone-error-fg)";
+  }
+  if (status === "pending" || status === "processing" || status === "running") {
+    return "text-(--tone-warning-fg)";
+  }
+  return "text-(--tone-success-fg)";
 }
 
 function FailurePanel({
@@ -1037,11 +1273,13 @@ function PayloadDocument({
   error,
   isError,
   isLoading,
+  node,
   payload,
 }: {
   error: unknown;
   isError: boolean;
   isLoading: boolean;
+  node: ExecutionNode;
   payload: ExecutionPayload | undefined;
 }) {
   if (isLoading) {
@@ -1067,25 +1305,145 @@ function PayloadDocument({
   }
 
   return (
-    <div className="grid min-w-full">
+    <div className="flex min-h-full min-w-full flex-col">
       {payload && payload.redactedFields.length > 0 ? (
-        <div className="border-b border-(--line) tint-soft tint-warning px-3 py-2 font-mono text-[11px] leading-5 tint-text">
-          Redacted {payload.redactedFields.length} sensitive field
-          {payload.redactedFields.length === 1 ? "" : "s"}:{" "}
-          {payload.redactedFields.join(", ")}
+        <div className="flex h-11 shrink-0 gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-[7px]">
+          <span className="w-[7px] shrink-0 text-[13px] leading-[17px] font-medium text-(--tone-warning-fg)">
+            ✦
+          </span>
+          <div className="h-[30px] w-[260px] text-[10px] leading-[15px] text-(--fg-secondary)">
+            <div>
+              {payload.redactedFields.length} sensitive field
+              {payload.redactedFields.length === 1 ? "" : "s"} redacted
+            </div>
+            <div>{payload.redactedFields.join(" · ")}</div>
+          </div>
         </div>
       ) : null}
-      {sections.map(([section, value]) =>
-        hasPanelValue(value) ? (
-          <JsonViewer
-            defaultExpanded={section === "input"}
-            key={section}
-            title={section}
-            value={value}
-          />
-        ) : null
-      )}
+      <div className="flex h-[44px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px] leading-normal">
+        <span className="text-[13px] font-medium text-(--fg-primary)">
+          Request payload
+        </span>
+        <span className="font-mono text-[10px] text-(--fg-tertiary)">
+          application/json
+        </span>
+      </div>
+      {hasPanelValue(payload?.input) ? (
+        <PayloadJsonBlock
+          countLabel={`${fieldCount(payload?.input)} fields`}
+          title="input"
+          value={payload?.input}
+        />
+      ) : null}
+      {payload && hasPanelValue(payload.output) ? (
+        <JsonViewer
+          countLabel={`${fieldCount(payload.output)} fields`}
+          title="output"
+          value={payload.output}
+          variant="payload-row"
+        />
+      ) : null}
+      {payload && hasPanelValue(payload.metadata) ? (
+        <JsonViewer
+          countLabel={`${fieldCount(payload.metadata)} fields`}
+          title="metadata"
+          value={payload.metadata}
+          variant="payload-row"
+        />
+      ) : null}
+      <div className="min-h-0 flex-1" />
+      <PayloadContract node={node} payload={payload} />
     </div>
+  );
+}
+
+function PayloadJsonBlock({
+  countLabel,
+  title,
+  value,
+}: {
+  countLabel: string;
+  title: string;
+  value: unknown;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const json = prettyJson(value);
+
+  return (
+    <section className="flex shrink-0 flex-col overflow-hidden">
+      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px]">
+        <button
+          className="flex min-w-0 items-center gap-2 text-left"
+          onClick={() => setExpanded((current) => !current)}
+          type="button"
+        >
+          {expanded ? (
+            <ChevronDown className="size-3 shrink-0 text-(--fg-tertiary)" />
+          ) : (
+            <ChevronRight className="size-3 shrink-0 text-(--fg-tertiary)" />
+          )}
+          <span className="font-sans text-[11px] font-medium text-(--fg-primary)">
+            {title}
+          </span>
+        </button>
+        <div className="flex items-center gap-4 whitespace-nowrap text-[10px]">
+          <span className="font-mono text-(--fg-tertiary)">{countLabel}</span>
+          <button
+            className="font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
+            type="button"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+      {expanded ? (
+        <div className="max-h-[171px] shrink-0 overflow-hidden border-b border-(--line-subtle) px-3 pt-2.5 pb-[11px]">
+          <pre className="max-h-[150px] overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-[15px] text-(--fg-secondary)">
+            {json}
+          </pre>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function PayloadContract({
+  node,
+  payload,
+}: {
+  node: ExecutionNode;
+  payload: ExecutionPayload | undefined;
+}) {
+  const contract =
+    firstString(
+      node.attributes.payload_contract,
+      node.attributes.payloadContract,
+      node.attributes.input_schema,
+      node.attributes.inputSchema
+    ) ?? `${node.canonicalName ?? node.name} / v1`;
+  const isValid = Boolean(payload) && !payload?.redactedFields.length;
+
+  return (
+    <section className="flex h-[80px] shrink-0 flex-col justify-center gap-2 overflow-hidden border-t border-(--line-subtle) p-3">
+      <div className="flex h-4 items-center justify-between font-medium">
+        <span className="w-[97px] shrink-0">
+          <InspectorEyebrow>Payload contract</InspectorEyebrow>
+        </span>
+        <p className="whitespace-nowrap font-mono text-[12px] font-medium text-(--fg-primary)">
+          {contract}
+        </p>
+      </div>
+      <p
+        className={cn(
+          "text-[11px]",
+          isValid ? "text-(--tone-success-fg)" : "text-(--fg-secondary)"
+        )}
+      >
+        {isValid
+          ? "Validated at ingress · 0 schema errors"
+          : "Validation evidence is incomplete"}
+      </p>
+    </section>
   );
 }
 
@@ -1118,51 +1476,129 @@ function LogList({
     );
   }
   return (
-    <div className="w-max min-w-full font-mono text-xs">
+    <div className="min-w-full">
+      <InspectorDocumentToolbar
+        count={`${logs.length} entries`}
+        title="Runtime logs"
+      />
       {logs.map((log) => (
-        <div
-          className="grid w-max min-w-full grid-cols-[58px_58px_minmax(220px,max-content)_minmax(180px,max-content)] gap-2 border-b border-(--line) px-3 py-1.5"
-          key={log.id}
+        <LogEntry key={log.id} log={log} story={story} />
+      ))}
+      {logs.some(logHasAttributes) ? (
+        <LogAttributesPanel
+          log={logs.toReversed().find(logHasAttributes) ?? logs.at(-1)!}
+        />
+      ) : null}
+      <LogDiagnostic logs={logs} />
+    </div>
+  );
+}
+
+function LogEntry({
+  log,
+  story,
+}: {
+  log: ExecutionLogEntry;
+  story: RuntimeStory;
+}) {
+  return (
+    <section className="flex h-[100px] flex-col gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-2.5">
+      <div className="flex h-[18px] items-center gap-2 font-mono text-[10px]">
+        <span className="w-[49px] shrink-0 text-(--fg-tertiary)">
+          +{formatRuntimeDuration(logOffsetMs(story.timestamp, log.occurredAt))}
+        </span>
+        <span
+          className={cn(
+            "font-medium uppercase",
+            logSeverityClass(log.severity)
+          )}
         >
-          <span className="whitespace-nowrap text-(--fg-tertiary)">
-            +
-            {formatRuntimeDuration(
-              logOffsetMs(story.timestamp, log.occurredAt)
-            )}
+          {log.severity}
+        </span>
+      </div>
+      <div className="h-[34px] truncate text-[11px] font-medium text-(--fg-primary)">
+        {log.body || "-"}
+      </div>
+      <div className="truncate font-mono text-[10px] text-(--fg-tertiary)">
+        {log.serviceName}
+        {log.traceId ? ` · trace ${log.traceId.slice(0, 12)}` : ""}
+      </div>
+    </section>
+  );
+}
+
+function logHasAttributes(log: ExecutionLogEntry) {
+  return (
+    Object.keys(log.attributes).length > 0 ||
+    log.redactedFields.length > 0 ||
+    Boolean(log.traceId) ||
+    Boolean(log.spanId)
+  );
+}
+
+function LogAttributesPanel({ log }: { log: ExecutionLogEntry }) {
+  const rows = [
+    ...Object.entries(log.attributes),
+    ...(log.redactedFields.length > 0
+      ? [["redacted_fields", log.redactedFields.join(" · ")] as const]
+      : []),
+    ...(log.traceId ? [["trace_id", log.traceId] as const] : []),
+    ...(log.spanId ? [["span_id", log.spanId] as const] : []),
+  ];
+
+  return (
+    <section className="flex h-[216px] flex-col gap-2.5 overflow-hidden border-b border-(--line-subtle) p-3">
+      <div className="flex h-5 items-center justify-between text-[10px] font-medium uppercase">
+        <InspectorEyebrow>Attributes</InspectorEyebrow>
+        <span className="normal-case text-(--fg-secondary)">Copy JSON</span>
+      </div>
+      {rows.map(([key, value]) => (
+        <div
+          className="flex h-[27px] items-center justify-between gap-3 overflow-hidden font-mono"
+          key={key}
+        >
+          <span className="truncate text-[9px] text-(--fg-tertiary)">
+            {key}
           </span>
-          <span className={cn("uppercase", logSeverityClass(log.severity))}>
-            {log.severity}
+          <span className="truncate text-right text-[10px] text-(--fg-secondary)">
+            {formatCell(value)}
           </span>
-          <span className="whitespace-nowrap text-(--fg-secondary)">
-            {log.body || "-"}
-          </span>
-          <span className="whitespace-nowrap text-[11px] text-(--fg-tertiary)">
-            {log.serviceName}
-            {log.traceId ? ` · trace ${log.traceId.slice(0, 12)}` : ""}
-          </span>
-          {Object.keys(log.attributes).length > 0 ||
-          log.redactedFields.length > 0 ? (
-            <div className="col-span-4 -mx-3 mt-1 border-t border-(--line)">
-              <JsonViewer
-                title={
-                  log.redactedFields.length > 0
-                    ? `attributes · redacted ${log.redactedFields.length}`
-                    : "attributes"
-                }
-                value={{
-                  attributes: log.attributes,
-                  ...(log.redactedFields.length > 0
-                    ? { redacted_fields: log.redactedFields }
-                    : {}),
-                  ...(log.spanId ? { span_id: log.spanId } : {}),
-                  ...(log.traceId ? { trace_id: log.traceId } : {}),
-                }}
-              />
-            </div>
-          ) : null}
         </div>
       ))}
-    </div>
+    </section>
+  );
+}
+
+function LogDiagnostic({ logs }: { logs: ExecutionLogEntry[] }) {
+  const issueCount = logs.filter(
+    (log) => log.severity === "warn" || log.severity === "error"
+  ).length;
+  const service = logs[0]?.serviceName ?? "runtime";
+  const hasIssues = issueCount > 0;
+
+  return (
+    <section className="flex h-[256px] flex-col gap-3 overflow-hidden px-3 py-[14px]">
+      <InspectorEyebrow>Log context</InspectorEyebrow>
+      <h3 className="text-[13px] font-medium text-(--fg-primary)">
+        {hasIssues
+          ? `${issueCount} log issue${issueCount === 1 ? "" : "s"}`
+          : "No warnings or errors"}
+      </h3>
+      <div
+        className={cn(
+          "h-0.5 w-[280px]",
+          hasIssues ? "bg-(--tone-warning-fg)" : "bg-(--tone-success-fg)"
+        )}
+      />
+      <p className="text-[10px] leading-[15px] text-(--fg-secondary)">
+        {hasIssues
+          ? `${issueCount} entries require operator review in ${service}.`
+          : `${logs.length === 2 ? "Both entries" : `${logs.length} entries`} belong to the same trace and were emitted by ${service}.`}
+      </p>
+      <p className="font-mono text-[10px] text-(--fg-tertiary)">
+        Retention 7 days · structured JSON available
+      </p>
+    </section>
   );
 }
 
@@ -1215,39 +1651,14 @@ function hasPanelValue(value: unknown) {
   return true;
 }
 
-function RelatedExecutionList({
-  label,
-  nodes,
-}: {
-  label: string;
-  nodes: ExecutionNode[];
-}) {
-  return (
-    <div className="w-max min-w-full border-b border-(--line) font-mono text-xs">
-      <div className="bg-(--bg-panel-header) px-3 py-1.5 text-(--fg-tertiary)">
-        {label}
-      </div>
-      {nodes.length === 0 ? (
-        <div className="border-t border-(--line) px-3 py-1.5 text-(--fg-tertiary)">
-          None
-        </div>
-      ) : (
-        nodes.map((node) => (
-          <div
-            className="grid w-max min-w-full grid-cols-[124px_minmax(220px,max-content)] border-t border-(--line)"
-            key={node.id}
-          >
-            <div className="px-3 py-1.5 text-(--fg-tertiary)">
-              {typeLabel(node)}
-            </div>
-            <div className="whitespace-pre-wrap px-3 py-1.5 text-(--fg-secondary)">
-              {node.name}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
+function fieldCount(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+  if (value && typeof value === "object") {
+    return Object.keys(value).length;
+  }
+  return 1;
 }
 
 function formatCell(value: unknown) {

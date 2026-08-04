@@ -19,14 +19,18 @@ export function ProductPage({
   children,
   description,
   meta,
+  pageClassName,
   title,
 }: PropsWithChildren<{
   description: string;
   meta?: ReactNode;
+  pageClassName?: string;
   title: string;
 }>) {
   return (
-    <ConsolePage className="product-page">
+    <ConsolePage
+      className={`product-page${pageClassName ? ` ${pageClassName}` : ""}`}
+    >
       <ConsolePage.Header>
         <ConsolePage.Heading>
           <ConsolePage.Title>{title}</ConsolePage.Title>
