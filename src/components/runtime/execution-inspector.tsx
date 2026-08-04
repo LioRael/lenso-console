@@ -1130,19 +1130,6 @@ function TechnicalOperationRow({
   );
 }
 
-function operationSourceTone(operation: TechnicalOperationView) {
-  if (operation.source === "remote_proxy") {
-    return "text-(--tone-warning-fg)";
-  }
-  if (operation.source === "remote_runtime") {
-    return "text-(--tone-info-fg)";
-  }
-  if (operation.source === "admin_action") {
-    return "text-(--tone-info-fg)";
-  }
-  return "text-(--fg-tertiary)";
-}
-
 function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
   if (rows.length === 0) {
     return <EmptyRows label="No execution details recorded" />;
@@ -1206,9 +1193,9 @@ function EventActivityRow({
             isLast ? "bg-(--fg-primary)" : "bg-(--tone-success-fg)"
           )}
         />
-        {!isLast ? (
+        {isLast ? null : (
           <span className="absolute top-2 bottom-2 left-1/2 w-px -translate-x-1/2 bg-(--line-subtle)" />
-        ) : null}
+        )}
       </div>
       <div className="flex h-[108px] w-[284px] shrink-0 flex-col gap-[7px] pt-0">
         <div className="flex h-[18px] items-center justify-between gap-2 font-mono text-[10px]">
@@ -1499,7 +1486,7 @@ function LogList({
       ))}
       {logs.some(logHasAttributes) ? (
         <LogAttributesPanel
-          log={[...logs].reverse().find(logHasAttributes) ?? logs.at(-1)!}
+          log={logs.toReversed().find(logHasAttributes) ?? logs.at(-1)!}
         />
       ) : null}
       <LogDiagnostic logs={logs} />
