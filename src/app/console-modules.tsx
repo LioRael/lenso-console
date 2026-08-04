@@ -84,7 +84,7 @@ export function selectDefaultConsoleRoute(
 }
 
 const DEFAULT_SYSTEM_NAVIGATION_ORDER = {
-  runtime: -10,
+  runtime: 50,
   operations: 80,
   data: 100,
   configuration: 120,

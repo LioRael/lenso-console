@@ -1084,6 +1084,10 @@ textarea {
   white-space: nowrap;
 }
 
+.runtime-page .lenso-ui-page__description {
+  color: var(--fg-secondary);
+}
+
 .runtime-page__tabs,
 .runtime-page__tabs .lenso-ui-tabs__list {
   height: 41px;

@@ -169,13 +169,13 @@ export function ConsoleShell({ children }: PropsWithChildren) {
       <a className="console-skip-link" href="#console-main">
         {locale === "zh-CN" ? "跳转到主要内容" : "Skip to main content"}
       </a>
-      <aside className="sticky top-0 z-30 flex h-screen flex-col border-r border-(--line) bg-(--bg-sidebar) px-2 pt-5 pb-4">
+      <aside className="sticky top-0 z-30 flex h-screen flex-col bg-(--bg-sidebar) px-2 pt-5 pb-4">
         <div
           className={`flex h-8 items-center gap-2.5 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
         >
           <span className="size-3.5 rounded-[3px] bg-(--fg-primary)" />
           <strong
-            className={`text-[13px] font-semibold ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+            className={`text-[14px] font-semibold leading-5 ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
           >
             Lenso
           </strong>
@@ -188,7 +188,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           workspaces={navigation}
         />
         <div
-          className={`flex h-8 items-center px-2 text-[10px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+          className={`flex h-8 items-center px-2 text-[10px] leading-4 text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
         >
           {copy.production}
         </div>
@@ -200,6 +200,27 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           />
         </nav>
         <div className="mt-auto">
+          <Link
+            activeProps={{
+              className: "bg-(--bg-row-selected) text-(--fg-primary)",
+            }}
+            className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${sidebarCollapsed ? "justify-center" : ""}`}
+            to={"/settings" as never}
+          >
+            <IconSlot className="shrink-0">
+              <Settings size={14} strokeWidth={1.6} />
+            </IconSlot>
+            <span
+              className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
+            >
+              {copy.nav.settings}
+            </span>
+            <span
+              className={`ml-auto font-mono text-[10px] leading-4 text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+            >
+              {shortcut("/settings")}
+            </span>
+          </Link>
           <div
             className={`flex h-10 items-center gap-2 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
           >
@@ -207,10 +228,10 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             <span
               className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
             >
-              <strong className="block text-[11px] font-medium">
-                leosouthey&apos;s team
+              <strong className="block text-[11px] font-medium leading-4 text-(--fg-secondary)">
+                Leo&apos;s team
               </strong>
-              <span className="block text-[10px] text-(--fg-tertiary)">
+              <span className="block text-[10px] leading-[14px] text-(--fg-tertiary)">
                 {copy.operator}
               </span>
             </span>
@@ -218,7 +239,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
         </div>
       </aside>
       <main className="min-w-0" id="console-main" tabIndex={-1}>
-        <header className="flex h-12 items-center border-b border-(--line) bg-(--bg-chrome) px-8">
+        <header className="flex h-12 items-center border-b border-(--line-subtle) bg-(--bg-chrome) px-10">
           <div className="text-[11px] text-(--fg-tertiary)">
             {[
               copy.workspace,
@@ -231,17 +252,13 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             ].map((part, index) => (
               <span key={`${part}-${index}`}>
                 {index > 0 ? <span className="px-1">/</span> : null}
-                <span
-                  className={index > 0 ? "text-(--fg-secondary)" : undefined}
-                >
-                  {part}
-                </span>
+                <span>{part}</span>
               </span>
             ))}
           </div>
           <button
             aria-label={`${copy.search} ⌘ K`}
-            className="ml-auto flex h-7 w-[210px] items-center rounded-[var(--radius-control)] border border-(--line-strong) px-2 text-[11px] text-(--fg-tertiary) hover:bg-(--bg-control-hover)"
+            className="ml-auto flex h-7 w-[209px] items-center rounded-[var(--radius-control)] border border-(--line) px-2 text-[11px] text-(--fg-tertiary) hover:bg-(--bg-control-hover)"
             onClick={openCommandPalette}
             type="button"
           >
@@ -372,7 +389,7 @@ function WorkspaceSwitcher({
         aria-controls="console-workspace-menu"
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`flex h-9 w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-[13px] font-medium hover:bg-(--bg-row-hover) ${collapsed ? "justify-center" : ""}`}
+        className={`flex h-9 w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] font-medium leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) ${collapsed ? "justify-center" : ""}`}
         id="console-workspace-trigger"
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -384,9 +401,11 @@ function WorkspaceSwitcher({
         ref={trigger}
         type="button"
       >
-        <IconSlot className={collapsed ? "grid" : "hidden max-[1100px]:grid"}>
-          <Icon size={14} />
-        </IconSlot>
+        {collapsed ? (
+          <IconSlot>
+            <Icon size={14} />
+          </IconSlot>
+        ) : null}
         <span className={collapsed ? "hidden" : "max-[1100px]:hidden"}>
           {consoleLocalizedLabel(active, locale)}
         </span>
@@ -486,14 +505,16 @@ function WorkspaceMenu({
 }) {
   return (
     <>
-      {workspace.items.map((item) => (
-        <NavItem
-          collapsed={collapsed}
-          item={item}
-          key={item.path}
-          locale={locale}
-        />
-      ))}
+      {workspace.items
+        .filter((item) => item.path !== "/settings")
+        .map((item) => (
+          <NavItem
+            collapsed={collapsed}
+            item={item}
+            key={item.path}
+            locale={locale}
+          />
+        ))}
       {workspace.groups.map((group) => (
         <WorkspaceMenuGroup
           collapsed={collapsed}
@@ -549,9 +570,11 @@ function NavItem({
   return (
     <Link
       activeOptions={{ exact: item.path === "/" }}
-      activeProps={{ className: "bg-(--bg-row-hover) text-(--fg-primary)" }}
+      activeProps={{
+        className: "bg-(--bg-row-selected) text-(--fg-primary)",
+      }}
       aria-label={label}
-      className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${collapsed ? "justify-center" : ""}`}
+      className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${collapsed ? "justify-center" : ""}`}
       to={item.path}
     >
       <IconSlot className="shrink-0">

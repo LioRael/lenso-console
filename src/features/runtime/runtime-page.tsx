@@ -60,6 +60,7 @@ export function RuntimePage() {
           {healthyCount} / {services.length} {copy.runtime.healthy}
         </span>
       }
+      pageClassName="runtime-page"
       title={copy.runtime.title}
     >
       <ProductTabs
@@ -165,8 +166,8 @@ export function RuntimePage() {
                       label={runtimeStatusLabel(service.state)}
                       tone={runtimeStatusTone(service.state)}
                     />,
-                    <span className="runtime-page__mono-cell" key="checks">
-                      {service.healthChecks} {copy.runtime.checks}
+                    <span className="runtime-page__mono-cell" key="p95">
+                      —
                     </span>,
                   ]}
                   interactive

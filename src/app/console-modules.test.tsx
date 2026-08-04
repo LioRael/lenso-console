@@ -4,9 +4,11 @@ import {
   buildConsoleNavigation,
   buildConsoleRoutes,
   consoleModules,
+  consoleNavigation,
   defineConsoleModule,
   selectDefaultConsoleRoute,
 } from "./console-modules";
+import { buildWorkspaceNavigation } from "./console-workspace-navigation";
 
 function TestPage() {
   return <div>Test</div>;
@@ -70,5 +72,23 @@ describe("Console Module composition", () => {
     expect(
       selectDefaultConsoleRoute(buildConsoleRoutes(consoleModules)).path
     ).toBe("/");
+  });
+
+  test("places runtime-owned navigation after the host Runtime surface", () => {
+    const systemWorkspace = buildWorkspaceNavigation(consoleNavigation).find(
+      (workspace) => workspace.id === "system"
+    );
+
+    expect(systemWorkspace?.items.slice(0, 7).map((item) => item.path)).toEqual(
+      [
+        "/",
+        "/system",
+        "/modules",
+        "/changes",
+        "/runtime",
+        "/stories",
+        "/delivery",
+      ]
+    );
   });
 });
