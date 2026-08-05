@@ -5,16 +5,6 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      integration_set_url:
-        description: Commit-addressed raw.githubusercontent.com URL for lenso.integration-set.v1
-        required: false
-        type: string
-      integration_set_sha256:
-        description: Lowercase SHA-256 of the exact integration-set bytes
-        required: false
-        type: string
 
 jobs:
   quality:
@@ -25,53 +15,6 @@ jobs:
     steps:
       - name: Checkout Console
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Resolve linked integration commits
-        if: ${{ inputs.integration_set_url != '' || inputs.integration_set_sha256 != '' }}
-        id: integration
-        env:
-          INTEGRATION_SET_URL: ${{ inputs.integration_set_url }}
-          INTEGRATION_SET_SHA256: ${{ inputs.integration_set_sha256 }}
-        run: |
-          node - <<'NODE'
-          const url = new URL(process.env.INTEGRATION_SET_URL);
-          if (url.protocol !== 'https:' || url.hostname !== 'raw.githubusercontent.com') {
-            throw new Error('integration set must use raw.githubusercontent.com over HTTPS');
-          }
-          if (!/^\/LioRael\/lenso-release\/[0-9a-f]{40}\/[A-Za-z0-9._/-]+\.json$/.test(url.pathname)) {
-            throw new Error('integration set URL must be pinned to an exact lenso-release commit');
-          }
-          if (!/^[0-9a-f]{64}$/.test(process.env.INTEGRATION_SET_SHA256 ?? '')) {
-            throw new Error('integration set SHA-256 is required');
-          }
-          NODE
-          curl --fail-with-body --location-trusted=false --proto '=https' "$INTEGRATION_SET_URL" --output /tmp/integration-set.json
-          printf '%s  %s\n' "$INTEGRATION_SET_SHA256" /tmp/integration-set.json | sha256sum --check --strict
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const value = JSON.parse(fs.readFileSync('/tmp/integration-set.json', 'utf8'));
-          if (value.schema !== 'lenso.integration-set.v1') throw new Error('invalid integration set schema');
-          for (const name of ['lenso', 'lenso-auth-module']) {
-            const sha = value.repositories?.[`LioRael/${name}`];
-            if (!/^[0-9a-f]{40}$/.test(sha ?? '')) throw new Error(`missing exact ${name} commit`);
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name.replaceAll('-', '_')}=${sha}\n`);
-          }
-          NODE
-      - name: Checkout exact linked Lenso commit
-        if: ${{ inputs.integration_set_url != '' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          repository: LioRael/lenso
-          ref: ${{ steps.integration.outputs.lenso }}
-          path: integration/lenso
-          persist-credentials: false
-      - name: Checkout exact linked auth commit
-        if: ${{ inputs.integration_set_url != '' }}
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          repository: LioRael/lenso-auth-module
-          ref: ${{ steps.integration.outputs.lenso_auth_module }}
-          path: integration/lenso-auth-module
-          persist-credentials: false
       - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
         with:
           package_json_file: package.json
@@ -84,8 +27,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Run quality gates
-        env:
-          LENSO_REPO_ROOT: ${{ inputs.integration_set_url != '' && format('{0}/integration/lenso', github.workspace) || '' }}
         run: pnpm check
 
   console-service-container:

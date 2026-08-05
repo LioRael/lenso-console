@@ -11,12 +11,9 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
-import {
-  buildReleaseArtifacts,
-  parseReleaseSelection,
-} from "./build-console-release-artifacts.mjs";
+import { buildReleaseArtifacts } from "./build-console-release-artifacts.mjs";
 import { buildReleaseManifest } from "./console-service-release.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -159,55 +156,12 @@ async function artifactFixture() {
   const directory = await fixture();
   await writeFile(
     path.join(directory, "package.json"),
-    JSON.stringify({ name: "@lenso/console", version: "0.2.0" })
+    JSON.stringify({ name: "@lenso/console-web", version: "0.2.0" })
   );
   return directory;
 }
 
 describe("Console Service release manifest", () => {
-  test("selects the reviewed composite OCI component from a mixed plan", () => {
-    expect(
-      parseReleaseSelection(
-        JSON.stringify([{ id: "oci:lenso-console-service", version: "0.2.0" }])
-      )
-    ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
-    expect(
-      parseReleaseSelection(
-        JSON.stringify([
-          { id: "npm:@lenso/console-package-api", version: "0.1.1" },
-          { id: "oci:lenso-console-service", version: "0.2.0" },
-        ])
-      )
-    ).toEqual({ id: "oci:lenso-console-service", version: "0.2.0" });
-    expect(parseReleaseSelection("[]")).toBeNull();
-    expect(
-      parseReleaseSelection(
-        JSON.stringify([{ id: "npm:@lenso/console", version: "0.2.0" }])
-      )
-    ).toBeNull();
-    expect(() =>
-      parseReleaseSelection(
-        JSON.stringify([
-          { id: "oci:lenso-console-service", version: "0.2.0" },
-          { id: "oci:lenso-console-service", version: "0.2.0" },
-        ])
-      )
-    ).toThrow("unique canonical package identities");
-  });
-
-  test("skips OCI assembly when the reviewed plan selects only other packages", async () => {
-    const execute = vi.fn();
-    await expect(
-      buildReleaseArtifacts({
-        execute,
-        packagesJson: JSON.stringify([
-          { id: "npm:@lenso/console-ui", version: "0.1.0" },
-        ]),
-      })
-    ).resolves.toBeNull();
-    expect(execute).not.toHaveBeenCalled();
-  });
-
   test("builds and verifies the exact OCI graph before exposing release artifacts", async () => {
     const directory = await artifactFixture();
     const archive = ociArchive("0.2.0", sourceCommit);
@@ -236,11 +190,9 @@ describe("Console Service release manifest", () => {
     };
     const result = await buildReleaseArtifacts({
       execute,
-      packagesJson: JSON.stringify([
-        { id: "oci:lenso-console-service", version: "0.2.0" },
-      ]),
       releaseCommit: sourceCommit,
       root: directory,
+      version: "0.2.0",
     });
     expect(result.imageDigest).toBe(archive.digest);
     await expect(readFile(result.archive)).resolves.toEqual(archive.bytes);
@@ -284,11 +236,9 @@ describe("Console Service release manifest", () => {
     await expect(
       buildReleaseArtifacts({
         execute,
-        packagesJson: JSON.stringify([
-          { id: "oci:lenso-console-service", version: "0.2.0" },
-        ]),
         releaseCommit: sourceCommit,
         root: directory,
+        version: "0.2.0",
       })
     ).rejects.toThrow("install manifest does not bind the OCI image");
     await expect(

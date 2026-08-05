@@ -129,12 +129,13 @@ and non-secret configuration contract. It also declares which prior Store
 schema digests may be upgraded and names every irreversible migration.
 
 The external CLI verifies that attestation before producing a deterministic
-plan. Applying a plan requires approval of its exact digest; releases declaring
-irreversible migrations require a second explicit approval. The local adapter
-requires an explicit `normal` workload mode, pulls the digest-pinned image,
-completes its migration workload, starts the Console workload, waits for
-container health, and verifies the running `/health/authority` identity and mode
-before recording the applied release state:
+installation plan. Applying a plan requires approval of its exact digest;
+releases declaring irreversible migrations require a second explicit approval.
+The local adapter requires an explicit `normal` workload mode, pulls the
+digest-pinned image, completes its migration workload, starts the Console
+workload, waits for container health, and verifies the running
+`/health/authority` identity and mode before recording the applied release
+state:
 
 ```sh
 lenso console install --manifest lenso-console-release.json \
@@ -266,11 +267,12 @@ Release manifests, plans, and installation state must never contain database
 credentials, signing material, passwords, or other secrets; those stay in the
 operator-owned environment file.
 
-`service/release-inputs.json` is the reviewed inventory used to derive the
-composition, Store schema, contract, and configuration digests.
+`service/release-inputs.json` is the repository-owned inventory used to derive
+the composition, Store schema, contract, and configuration digests.
 `service/release-policy.json` declares upgrade-compatible prior schema digests
-and names irreversible migrations. Generate a deterministic manifest after an
-OCI build has produced its canonical digest:
+and names irreversible migrations. The local OCI workflow generates a
+deterministic manifest after its build has produced a canonical digest. The
+same operation can be run locally:
 
 ```sh
 pnpm service:release-manifest \
@@ -280,13 +282,13 @@ pnpm service:release-manifest \
   --output .artifacts/lenso-console-release.json
 ```
 
-The reusable `build-console-service-release.yml` workflow builds an OCI archive
-and this manifest as a seven-day release candidate. It intentionally has no
-manual dispatch, package-write permission, OIDC permission, or attestation step.
-Only the reviewed coordinator-driven `.github/workflows/publish.yml` authority
-may publish the exact image and attest the exact manifest. Until that OCI
-publisher is installed, candidate output is not an official or installable
-Console Release.
+The repository-local release workflow builds and pushes
+`ghcr.io/liorael/lenso-console:<version>` only after the private root package
+version changes through a merged Changesets version update. It refuses to
+overwrite an existing version tag, emits a digest-pinned release manifest,
+publishes a GitHub build attestation, and attaches the manifest to the
+`lenso-console-service@<version>` GitHub Release. There is no shared shadow
+registry, central publisher, release nonce, or cross-repository receipt channel.
 
 Registry reads require `console.system-registry.read`. Enrollment changes are
 submitted through the reviewed System Plane workflow; the Console registry is
