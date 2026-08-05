@@ -6,6 +6,7 @@ import {
   runtimeStoriesPath,
   storyUrlId,
 } from "./url-model";
+import "./test-host-api";
 
 describe("runtime stories url model", () => {
   test("builds compact story deep links", () => {

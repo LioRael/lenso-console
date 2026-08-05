@@ -30,8 +30,9 @@ struct ConsoleCompositionArtifact {
     locator: String,
     digest: String,
     format: String,
+    entry: String,
     entries: Vec<ConsoleUiArtifactEntry>,
-    bridge_protocol: String,
+    manifest: ConsoleModuleManifest,
     requested_permissions: Vec<serde_json::Value>,
 }
 
@@ -40,6 +41,33 @@ struct ConsoleCompositionArtifact {
 struct ConsoleUiArtifactEntry {
     name: String,
     path: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleModuleManifest {
+    protocol: String,
+    module_id: String,
+    host_api: String,
+    console_ui: String,
+    surfaces: Vec<ConsoleSurfaceManifest>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleSurfaceManifest {
+    id: String,
+    path: String,
+    label: String,
+    area: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    required_capabilities: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    localized_labels: Option<BTreeMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    icon: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    navigation: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -55,9 +83,12 @@ struct MaterializedArtifact {
     module_id: String,
     module_release_digest: String,
     artifact_digest: String,
+    format: String,
     stored_path: String,
     base_path: String,
+    entry: String,
     entries: Vec<ConsoleUiArtifactEntry>,
+    manifest: ConsoleModuleManifest,
     granted_permissions: Vec<String>,
 }
 
@@ -181,19 +212,75 @@ fn validate_request(request: &ConsoleCompositionRequest) -> Result<(), String> {
         }
         validate_digest(&artifact.module_release_digest)?;
         validate_digest(&artifact.digest)?;
-        if artifact.format != "isolated_web" {
-            return Err("only isolated_web Console artifacts are supported".to_owned());
+        if artifact.format != "console_ui_esm" {
+            return Err("only console_ui_esm Console artifacts are supported".to_owned());
         }
-        if artifact.bridge_protocol != "lenso.console-bridge.v1" {
-            return Err("unsupported Console Bridge protocol".to_owned());
+        if !safe_entry_path(&artifact.entry) {
+            return Err("Console Module UI entry must be a safe relative path".to_owned());
         }
+        let mut entry_names = BTreeSet::new();
+        let mut entry_paths = BTreeSet::new();
         if artifact.entries.is_empty()
-            || artifact
-                .entries
-                .iter()
-                .any(|entry| entry.name.trim().is_empty() || !safe_entry_path(&entry.path))
+            || artifact.entries.iter().any(|entry| {
+                entry.name.trim().is_empty()
+                    || !safe_entry_path(&entry.path)
+                    || !entry_names.insert(&entry.name)
+                    || !entry_paths.insert(&entry.path)
+            })
         {
             return Err("Console artifact entries must be safe relative paths".to_owned());
+        }
+        if !artifact
+            .entries
+            .iter()
+            .any(|entry| entry.path == artifact.entry)
+        {
+            return Err("Console Module UI entry must be declared in entries".to_owned());
+        }
+        validate_manifest(&artifact.manifest, &artifact.module_id)?;
+    }
+    Ok(())
+}
+
+fn validate_manifest(
+    manifest: &ConsoleModuleManifest,
+    expected_module_id: &str,
+) -> Result<(), String> {
+    if manifest.protocol != "lenso.console-module.v1" {
+        return Err("unsupported Console Module protocol".to_owned());
+    }
+    if manifest.module_id != expected_module_id || manifest.module_id.trim().is_empty() {
+        return Err("Console Module manifest identity does not match artifact".to_owned());
+    }
+    if manifest.host_api.trim().is_empty() || manifest.console_ui.trim().is_empty() {
+        return Err("Console Module API and UI versions are required".to_owned());
+    }
+    if manifest.surfaces.is_empty() {
+        return Err("Console Module must declare at least one surface".to_owned());
+    }
+    let mut ids = BTreeSet::new();
+    let mut paths = BTreeSet::new();
+    for surface in &manifest.surfaces {
+        if surface.id.trim().is_empty()
+            || surface.label.trim().is_empty()
+            || !ids.insert(&surface.id)
+        {
+            return Err("Console Module surface ids must be non-empty and unique".to_owned());
+        }
+        if !surface.path.starts_with('/')
+            || surface.path.contains('\\')
+            || surface.path.contains('?')
+            || surface.path.contains('#')
+            || surface.path.split('/').any(|segment| segment == "..")
+            || !paths.insert(&surface.path)
+        {
+            return Err("Console Module surface paths must be absolute and unique".to_owned());
+        }
+        if !matches!(
+            surface.area.as_str(),
+            "runtime" | "operations" | "data" | "configuration"
+        ) {
+            return Err("Console Module surface area is invalid".to_owned());
         }
     }
     Ok(())
@@ -231,9 +318,12 @@ fn materialize_downloads(
             module_id: artifact.module_id.clone(),
             module_release_digest: artifact.module_release_digest.clone(),
             artifact_digest: artifact.digest.clone(),
+            format: artifact.format.clone(),
             stored_path: stored_path.to_string_lossy().into_owned(),
             base_path,
+            entry: artifact.entry.clone(),
             entries: artifact.entries.clone(),
+            manifest: artifact.manifest.clone(),
             granted_permissions,
         });
     }
@@ -427,12 +517,28 @@ mod tests {
                 module_release_digest: format!("sha256:{}", "b".repeat(64)),
                 locator: "https://modules.example/crm.artifact".to_owned(),
                 digest: sha256(bytes),
-                format: "isolated_web".to_owned(),
+                format: "console_ui_esm".to_owned(),
+                entry: "index.js".to_owned(),
                 entries: vec![ConsoleUiArtifactEntry {
                     name: "main".to_owned(),
-                    path: "index.html".to_owned(),
+                    path: "index.js".to_owned(),
                 }],
-                bridge_protocol: "lenso.console-bridge.v1".to_owned(),
+                manifest: ConsoleModuleManifest {
+                    protocol: "lenso.console-module.v1".to_owned(),
+                    module_id: "acme/crm".to_owned(),
+                    host_api: "^1.0.0".to_owned(),
+                    console_ui: "^1.0.0".to_owned(),
+                    surfaces: vec![ConsoleSurfaceManifest {
+                        id: "contacts".to_owned(),
+                        path: "/contacts".to_owned(),
+                        label: "Contacts".to_owned(),
+                        area: "data".to_owned(),
+                        required_capabilities: None,
+                        localized_labels: None,
+                        icon: None,
+                        navigation: None,
+                    }],
+                },
                 requested_permissions: vec![serde_json::json!({
                     "permission_id": "crm.contacts.read",
                     "operations": ["admin_data_list"]
@@ -444,13 +550,13 @@ mod tests {
     fn artifact() -> Vec<u8> {
         let encoder = GzEncoder::new(Vec::new(), Compression::default());
         let mut archive = tar::Builder::new(encoder);
-        let content = b"<!doctype html><title>CRM</title>";
+        let content = b"export default { manifest: {}, surfaces: [] };";
         let mut header = tar::Header::new_gnu();
         header.set_mode(0o644);
         header.set_size(content.len() as u64);
         header.set_cksum();
         archive
-            .append_data(&mut header, "package/dist/index.html", &content[..])
+            .append_data(&mut header, "package/dist/index.js", &content[..])
             .unwrap();
         archive.into_inner().unwrap().finish().unwrap()
     }
@@ -473,13 +579,16 @@ mod tests {
                         .artifact_digest
                         .trim_start_matches("sha256:"),
                 )
-                .join("index.html")
+                .join("index.js")
                 .is_file()
         );
         assert_eq!(
             receipt.artifacts[0].granted_permissions,
             ["crm.contacts.read"]
         );
+        assert_eq!(receipt.artifacts[0].format, "console_ui_esm");
+        assert_eq!(receipt.artifacts[0].entry, "index.js");
+        assert_eq!(receipt.artifacts[0].manifest.module_id, "acme/crm");
         assert!(root.join("composition-receipt.json").is_file());
         std::fs::remove_dir_all(root).unwrap();
     }

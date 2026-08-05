@@ -278,13 +278,21 @@ packages:
       - cargo:lenso-platform-core
       - cargo:lenso-platform-http
       - cargo:lenso-platform-module
-  - id: npm:@lenso/console-bridge
+  - id: npm:@lenso/console-module-api
     repository: LioRael/lenso-console
     registry: npm
     releaseGroup: console
     userFacing: true
     publishable: true
     dependencies: []
+  - id: npm:@lenso/console-ui
+    repository: LioRael/lenso-console
+    registry: npm
+    releaseGroup: console
+    userFacing: true
+    publishable: true
+    dependencies:
+      - npm:@lenso/console-module-api
   - id: npm:@lenso/service-kit
     repository: LioRael/lenso
     registry: npm

@@ -1,4 +1,4 @@
-import type { ConsoleManagedService } from "@lenso/console-ui-internal";
+import type { ConsoleManagedService } from "@lenso/console-ui";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import type { ConsoleAdminRecord } from "../app/console-admin-data-api";

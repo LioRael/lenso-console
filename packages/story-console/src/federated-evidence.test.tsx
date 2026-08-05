@@ -1,7 +1,4 @@
-import type {
-  FederatedStoryEvidence,
-  RuntimeStory,
-} from "@lenso/console-ui-internal";
+import type { FederatedStoryEvidence, RuntimeStory } from "@lenso/console-ui";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 

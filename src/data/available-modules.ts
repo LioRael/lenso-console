@@ -33,14 +33,14 @@ export const sampleAvailableModulesResponse = {
       capabilities: ["billing.read", "billing.write"],
       catalogVersion: "0.1.0",
       compatibility: {
-        consoleBridge: "1",
+        consoleModuleApi: "1",
         lenso: {
           minVersion: "0.1.0",
         },
       },
       consoleUiArtifactHints: 1,
       hostCompatibility: {
-        consoleBridge: "1",
+        consoleModuleApi: "1",
         lensoVersion: "0.1.0",
       },
       installState: {
@@ -80,7 +80,7 @@ export const sampleAvailableModulesResponse = {
       catalogVersion: "0.1.0",
       consoleUiArtifactHints: 0,
       hostCompatibility: {
-        consoleBridge: "1",
+        consoleModuleApi: "1",
         lensoVersion: "0.1.0",
       },
       installState: {
@@ -158,13 +158,13 @@ export const sampleServiceModuleLifecycleResponse = {
       ],
       compatibility: {
         declared: {
-          consoleBridge: "1",
+          consoleModuleApi: "1",
           lenso: {
             minVersion: "0.1.0",
           },
         },
         host: {
-          consoleBridge: "1",
+          consoleModuleApi: "1",
           lensoVersion: "0.1.0",
         },
         issue: null,
@@ -216,10 +216,10 @@ export const sampleServiceModuleLifecycleResponse = {
       restartPending: true,
       compatibility: {
         declared: {
-          consoleBridge: "1",
+          consoleModuleApi: "1",
         },
         host: {
-          consoleBridge: "1",
+          consoleModuleApi: "1",
           lensoVersion: "0.1.0",
         },
         issue: null,

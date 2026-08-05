@@ -4,9 +4,7 @@ import type {
   ConsoleRouteContribution,
   ConsoleSurfaceArea,
   ConsoleSurfaceIcon,
-} from "@lenso/console-ui-internal";
-import { storyConsoleModule } from "@lenso/story-console";
-import { systemRegistryConsoleModule } from "@lenso/system-registry-console";
+} from "@lenso/console-ui";
 
 import { ChangesPage } from "../features/changes/changes-page";
 import { DeliveryPage } from "../features/delivery/delivery-page";
@@ -17,7 +15,7 @@ import { SettingsPage } from "../features/settings/settings-page";
 import { SystemPage } from "../features/system/system-page";
 import { SYSTEM_WORKSPACE } from "./console-workspace-navigation";
 
-export { defineConsoleModule } from "@lenso/console-ui-internal";
+export { defineConsoleModule } from "@lenso/console-ui";
 export type {
   ConsoleModule,
   ConsoleNavigationItem,
@@ -28,7 +26,7 @@ export type {
   ConsoleSurfaceIcon,
   ConsoleWorkspaceRef,
   ConsoleModuleSurface,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 
 export function buildConsoleRoutes(
   modules: ConsoleModule[]
@@ -161,11 +159,11 @@ function workbenchSurface(
   };
 }
 
-export const consoleModules = [
-  consoleWorkbenchModule,
-  storyConsoleModule,
-  systemRegistryConsoleModule,
-];
+/**
+ * Only Console-owned pages are linked into the Shell. Module UI packages are
+ * published as ESM artifacts and discovered from the server registry.
+ */
+export const consoleModules = [consoleWorkbenchModule];
 
 export const consoleRoutes = buildConsoleRoutes(consoleModules);
 export const consoleNavigation = buildConsoleNavigation(consoleModules);

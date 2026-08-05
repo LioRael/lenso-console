@@ -1,8 +1,14 @@
-import { CONSOLE_MODULE_API_PROTOCOL } from "@lenso/console-module-api";
+import {
+  CONSOLE_MODULE_API_PROTOCOL,
+  type ConsoleSha256Digest,
+} from "@lenso/console-module-api";
 import { defineConsoleUiModule } from "@lenso/console-ui";
 import { describe, expect, test, vi } from "vitest";
 
-import { loadConsoleUiModule } from "./console-module-runtime";
+import {
+  loadConsoleUiModule,
+  type ConsoleUiArtifactReceipt,
+} from "./console-module-runtime";
 
 const manifest = {
   consoleUi: "^1.0.0",
@@ -20,14 +26,15 @@ const manifest = {
 };
 
 const receipt = {
-  artifactDigest: `sha256:${"a".repeat(64)}`,
+  artifactDigest: `sha256:${"a".repeat(64)}` as ConsoleSha256Digest,
   basePath: "/artifacts/billing/",
   entry: "entry.js",
+  entries: [{ name: "module", path: "entry.js" }],
   format: "console_ui_esm" as const,
   manifest,
   moduleId: "acme/billing",
-  moduleReleaseDigest: `sha256:${"b".repeat(64)}`,
-};
+  moduleReleaseDigest: `sha256:${"b".repeat(64)}` as ConsoleSha256Digest,
+} satisfies ConsoleUiArtifactReceipt;
 
 describe("Console Module runtime loader", () => {
   test("loads a same-origin module entry after receipt validation", async () => {

@@ -14,5 +14,5 @@
       "@lenso/console-module-api": ["../console-module-api/dist/index.d.ts"]
     }
   },
-  "include": ["src/index.tsx", "src/locale.tsx", "src/ui.tsx"]
+  "include": ["src/index.tsx", "src/locale.tsx", "src/ui.tsx", "src/host.ts"]
 }

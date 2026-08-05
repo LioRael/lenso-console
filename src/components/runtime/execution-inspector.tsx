@@ -1,5 +1,5 @@
 import { Tabs } from "@base-ui/react/tabs";
-import { useConsoleLocale } from "@lenso/console-ui-internal";
+import { useConsoleLocale } from "@lenso/console-ui";
 import {
   ChevronDown,
   ChevronRight,

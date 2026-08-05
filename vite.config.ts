@@ -23,10 +23,6 @@ export default defineConfig({
         import.meta.dirname,
         "packages/console-ui/src/index.tsx"
       ),
-      "@lenso/console-ui-internal": resolve(
-        import.meta.dirname,
-        "src/app/linked-console-ui.ts"
-      ),
     },
   },
   build: {

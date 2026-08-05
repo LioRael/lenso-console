@@ -5,7 +5,7 @@ import {
   SettingsRow,
   useConsoleLocale,
   type ConsoleLanguagePreference,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 import { useState } from "react";
 
 import {

@@ -1,5 +1,8 @@
-import { defineConsoleModule } from "@lenso/console-ui-internal";
+import { defineConsoleManifest } from "@lenso/console-module-api";
+import type { ConsoleModuleManifest } from "@lenso/console-module-api";
+import { defineConsoleModule, defineConsoleUiModule } from "@lenso/console-ui";
 
+import manifestDefinition from "../console-module.json";
 import { RuntimeStoriesPage } from "./page";
 
 export const storyConsoleModule = defineConsoleModule({
@@ -23,6 +26,13 @@ export const storyConsoleModule = defineConsoleModule({
     },
   ],
 });
+
+export const storyConsoleUiModule = defineConsoleUiModule({
+  manifest: defineConsoleManifest(manifestDefinition as ConsoleModuleManifest),
+  surfaces: { "runtime-stories": RuntimeStoriesPage },
+});
+
+export default storyConsoleUiModule;
 
 export { RuntimeStoriesPage, runtimeStoriesDefaultViewMode } from "./page";
 export { shouldCloseInspectorOnEscape } from "./keyboard";

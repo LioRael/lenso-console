@@ -6,7 +6,7 @@ import {
   SplitView,
   Tabs,
   type SemanticTone,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 import { ChevronDown } from "lucide-react";
 import {
   useState,

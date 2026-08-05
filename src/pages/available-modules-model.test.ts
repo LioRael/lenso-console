@@ -102,11 +102,11 @@ function serviceLifecycle(
         restartPending: status === "restart_pending",
         compatibility: {
           declared: {
-            consoleBridge: "1",
+            consoleModuleApi: "1",
           },
           fix: null,
           host: {
-            consoleBridge: "1",
+            consoleModuleApi: "1",
             lensoVersion: "0.1.0",
           },
           issue: null,
@@ -799,7 +799,7 @@ describe("available modules model", () => {
             },
           },
           hostCompatibility: {
-            consoleBridge: "1",
+            consoleModuleApi: "1",
             lensoVersion: "0.1.0",
           },
           manifestName: "billing",

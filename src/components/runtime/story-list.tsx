@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-ui-internal";
+import { useConsoleLocale } from "@lenso/console-ui";
 import { RefreshCcw, Search } from "lucide-react";
 
 import type { RuntimeStory } from "../../data/mock-runtime";

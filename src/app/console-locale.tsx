@@ -2,7 +2,7 @@ import {
   ConsoleLocaleProvider,
   type ConsoleLanguagePreference,
   type ConsoleLocale,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 import { useLayoutEffect, useMemo, type PropsWithChildren } from "react";
 
 import { usePersistedLayout } from "../hooks/use-persisted-layout";

@@ -13,7 +13,7 @@ import {
   TableHeader,
   consoleHostApi,
   useConsoleLocale,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 import { Ban, ChevronDown, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";

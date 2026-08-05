@@ -42,8 +42,9 @@ export default defineConsoleUiModule({
 The Console Shell is built once and loads a reviewed `console_ui_esm` artifact
 from a same-origin receipt. This is trusted ESM execution, not a browser
 sandbox; capability checks and artifact review remain host responsibilities.
-The existing isolated Bridge artifact is a compatibility path while its service
-receipt and delivery protocol are migrated.
+The receipt carries the Module identity, release digest, UI digest, entry, and
+manifest. The Shell refuses an artifact whose loaded export does not match that
+receipt.
 
 Import the shared visual language from the package CSS entry points when
 building a Module UI:

@@ -1,6 +1,7 @@
 import {
   ConsoleHostError,
   isConsoleSha256Digest,
+  type ConsoleSha256Digest,
   type ConsoleModuleManifest,
   validateConsoleManifest,
 } from "@lenso/console-module-api";
@@ -9,10 +10,11 @@ import { type ConsoleUiModule, defineConsoleUiModule } from "@lenso/console-ui";
 export interface ConsoleUiArtifactReceipt {
   format: "console_ui_esm";
   moduleId: string;
-  moduleReleaseDigest: string;
-  artifactDigest: string;
+  moduleReleaseDigest: ConsoleSha256Digest;
+  artifactDigest: ConsoleSha256Digest;
   basePath: string;
   entry: string;
+  entries: readonly { name: string; path: string }[];
   manifest: ConsoleModuleManifest;
 }
 
@@ -99,7 +101,9 @@ function validateReceipt(
     !isConsoleSha256Digest(receipt.moduleReleaseDigest) ||
     !isConsoleSha256Digest(receipt.artifactDigest) ||
     !receipt.basePath ||
-    !receipt.entry
+    !receipt.entry ||
+    !Array.isArray(receipt.entries) ||
+    receipt.entries.length === 0
   ) {
     throw new ConsoleHostError(
       "invalid_request",
@@ -118,6 +122,16 @@ function validateReceipt(
     throw new ConsoleHostError(
       "incompatible",
       `Console artifact manifest does not match receipt: ${receipt.moduleId}`
+    );
+  }
+  if (
+    !receipt.entries.some(
+      (entry) => entry.name.trim() && entry.path === receipt.entry
+    )
+  ) {
+    throw new ConsoleHostError(
+      "invalid_request",
+      `Console Module UI entry is not declared by the receipt: ${receipt.moduleId}`
     );
   }
   artifactEntryUrl(receipt, origin);

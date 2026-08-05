@@ -1,0 +1,26 @@
+{
+  "protocol": "lenso.console-module.v1",
+  "moduleId": "lenso/system-registry",
+  "hostApi": "^1.0.0",
+  "consoleUi": "^1.0.0",
+  "surfaces": [
+    {
+      "id": "managed-services",
+      "path": "/services",
+      "label": "Services",
+      "area": "operations",
+      "requiredCapabilities": ["console.system-registry.read"],
+      "icon": "blocks",
+      "localizedLabels": { "zh-CN": "服务" },
+      "navigation": {
+        "order": 10,
+        "workspace": {
+          "id": "system",
+          "label": "System",
+          "localizedLabels": { "zh-CN": "系统" },
+          "icon": "shield"
+        }
+      }
+    }
+  ]
+}

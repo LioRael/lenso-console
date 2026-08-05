@@ -4,7 +4,7 @@ The framework-neutral public contract for a Lenso Console Module.
 
 This package contains the Module manifest, the host identity and capability
 surfaces, transport-neutral query and command descriptors, and stable host
-errors. It has no React, DOM, HTTP, iframe, or Console Bridge dependency.
+errors. It has no React, DOM, HTTP, or browser-runtime dependency.
 
 ```ts
 import {

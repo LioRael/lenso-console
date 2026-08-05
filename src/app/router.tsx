@@ -1,3 +1,4 @@
+import type { ConsoleModule } from "@lenso/console-ui";
 import {
   Outlet,
   createRootRoute,
@@ -7,13 +8,12 @@ import {
 } from "@tanstack/react-router";
 import type { FunctionComponent } from "react";
 
-import type { ConsoleModule } from "../../packages/console-ui-internal/src/index";
 import { ConsoleProvider } from "../components/runtime/console-context";
 import { ConsoleShell } from "../components/runtime/console-shell";
 import { ConsoleAppearanceProvider } from "./console-appearance";
 import { HostConsoleLocaleProvider } from "./console-locale";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
-import { IsolatedConsoleModulePage } from "./isolated-console-module";
+import { DynamicConsoleModulePage } from "./dynamic-console-module";
 
 export const rootRedirectPath = "/";
 export const consoleBasePath = consoleBasePathFromBaseUrl(
@@ -63,7 +63,7 @@ export function createConsoleRouter(
 
   const routeTree = rootRoute.addChildren([
     ...consoleRouteNodes,
-    page("$", IsolatedConsoleModulePage),
+    page("$", DynamicConsoleModulePage),
     legacy("/launchpad", "/"),
     legacy("/overview", "/runtime"),
     legacy("/operations", "/runtime"),

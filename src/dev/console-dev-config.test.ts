@@ -12,7 +12,7 @@ describe("console dev config", () => {
     });
   });
 
-  test("enables mock isolated Module UI development", () => {
+  test("enables mock ESM Module UI development", () => {
     expect(
       consoleDevConfigFromEnv({
         VITE_CONSOLE_DEV_DIAGNOSTICS_URL: "/console/dev/diagnostics.json",
@@ -27,7 +27,7 @@ describe("console dev config", () => {
     });
   });
 
-  test("enables real host isolated Module UI development", () => {
+  test("enables real host ESM Module UI development", () => {
     expect(
       consoleDevConfigFromEnv({
         VITE_CONSOLE_DEV_MODE: "host",
