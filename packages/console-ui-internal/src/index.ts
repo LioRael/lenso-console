@@ -1,7 +1,5 @@
+import type { ConsoleLocale, ConsoleUiComponents } from "@lenso/console-ui";
 import type { ComponentType, FunctionComponent, ReactNode } from "react";
-
-import type { ConsoleLocale } from "./locale.js";
-import type { ConsoleUiComponents } from "./ui.js";
 
 export {
   ConsoleLocaleProvider,
@@ -9,7 +7,7 @@ export {
   type ConsoleLanguagePreference,
   type ConsoleLocale,
   type ConsoleLocaleContextValue,
-} from "./locale.js";
+} from "@lenso/console-ui";
 
 export {
   Badge,
@@ -59,7 +57,7 @@ export {
   type StatusMarkerProps,
   type SurfaceGroupLabelProps,
   type TableHeaderProps,
-} from "./ui.js";
+} from "@lenso/console-ui";
 
 export const CONSOLE_HOST_API_VERSION = "1" as const;
 

@@ -1,8 +1,10 @@
-# Console UI Internal
+# Console UI Internal Compatibility
 
-Private UI primitives and linked-module composition types used by the Lenso
-Console Shell. This workspace is not published and is not an extension SDK.
+This private workspace preserves the legacy `@lenso/console-ui-internal` import
+surface while the public UI implementation lives in `@lenso/console-ui`.
 
-Module-owned executable UI is carried inside its owning Module Release, runs in
-a sandboxed iframe, and communicates through `@lenso/console-bridge` with an
-exact composition grant. External UI must not import this workspace.
+New Module UI must depend on `@lenso/console-module-api` and
+`@lenso/console-ui`; it must not import this compatibility package.
+
+The compatibility package is not an extension SDK and should disappear after
+the built-in Console Modules migrate to the public package seam.

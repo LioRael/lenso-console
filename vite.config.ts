@@ -15,6 +15,14 @@ export default defineConfig({
   base: "/",
   resolve: {
     alias: {
+      "@lenso/console-module-api": resolve(
+        import.meta.dirname,
+        "packages/console-module-api/src/index.ts"
+      ),
+      "@lenso/console-ui": resolve(
+        import.meta.dirname,
+        "packages/console-ui/src/index.tsx"
+      ),
       "@lenso/console-ui-internal": resolve(
         import.meta.dirname,
         "src/app/linked-console-ui.ts"

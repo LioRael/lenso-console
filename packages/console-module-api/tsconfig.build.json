@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "declaration": true,
     "emitDeclarationOnly": false,
     "module": "NodeNext",
@@ -9,11 +8,7 @@
     "noEmit": false,
     "outDir": "dist",
     "rootDir": "src",
-    "sourceMap": false,
-    "paths": {
-      "@lenso/console-module-api": ["../console-module-api/dist/index.d.ts"],
-      "@lenso/console-ui": ["../console-ui/dist/index.d.ts"]
-    }
+    "sourceMap": false
   },
-  "include": ["src/index.ts", "src/ui.tsx"]
+  "include": ["src/index.ts"]
 }

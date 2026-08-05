@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../packages/console-ui-internal/theme.css";
+@import "../packages/console-ui/theme.css";
 
 * {
   box-sizing: border-box;

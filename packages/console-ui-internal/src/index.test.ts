@@ -14,15 +14,15 @@ import {
 describe("private Console UI primitives", () => {
   test("ships the Shell theme and controls", () => {
     const theme = readFileSync(
-      new URL("../theme.css", import.meta.url),
+      new URL("../../console-ui/theme.css", import.meta.url),
       "utf-8"
     );
     const tokens = readFileSync(
-      new URL("../tokens.css", import.meta.url),
+      new URL("../../console-ui/tokens.css", import.meta.url),
       "utf-8"
     );
     const components = readFileSync(
-      new URL("../components.css", import.meta.url),
+      new URL("../../console-ui/components.css", import.meta.url),
       "utf-8"
     );
 

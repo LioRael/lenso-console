@@ -1,0 +1,49 @@
+{
+  "name": "@lenso/console-ui",
+  "version": "0.1.0",
+  "description": "React adapter for dynamically loaded Lenso Console Module UI.",
+  "keywords": [
+    "console",
+    "lenso",
+    "module",
+    "react",
+    "ui"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "components.css",
+    "theme.css",
+    "tokens.css"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./components.css",
+    "./theme.css",
+    "./tokens.css"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./components.css": "./components.css",
+    "./theme.css": "./theme.css",
+    "./tokens.css": "./tokens.css"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsc -p tsconfig.build.json",
+    "test": "vitest run src"
+  },
+  "dependencies": {
+    "@lenso/console-module-api": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  }
+}

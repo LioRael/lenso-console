@@ -103,6 +103,8 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.2)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0))
 
+  packages/console-module-api: {}
+
   packages/console-system-plane:
     devDependencies:
       typescript:
@@ -112,8 +114,20 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.2)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0))
 
+  packages/console-ui:
+    dependencies:
+      '@lenso/console-module-api':
+        specifier: workspace:*
+        version: link:../console-module-api
+      react:
+        specifier: ^19.1.0
+        version: 19.2.6
+
   packages/console-ui-internal:
     dependencies:
+      '@lenso/console-ui':
+        specifier: workspace:*
+        version: link:../console-ui
       react:
         specifier: ^19.1.0
         version: 19.2.6
