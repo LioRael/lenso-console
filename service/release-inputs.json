@@ -11,8 +11,7 @@
     "schema": [
       "service/Cargo.lock",
       "service/Cargo.toml",
-      "service/src",
-      "packages/console-system-plane/migrations"
+      "service/src"
     ],
     "contract": [
       "service/activation-evidence.schema.json",
@@ -21,8 +20,7 @@
       "service/reconciliation-input.schema.json",
       "service/recovery-drill-result.schema.json",
       "service/recovery-set.schema.json",
-      "service/src",
-      "packages/console-system-plane/src"
+      "service/src"
     ],
     "configuration": [
       "Dockerfile",

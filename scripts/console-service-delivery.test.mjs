@@ -15,9 +15,6 @@ describe("Console Service delivery", () => {
     expect(dockerfile).toContain("id=lenso-console-cargo-registry");
     expect(dockerfile).toContain("id=lenso-console-service-target");
     expect(dockerfile).toContain("/workspace/service-bin/");
-    expect(dockerfile).toContain(
-      "COPY packages/console-system-plane/migrations ./packages/console-system-plane/migrations"
-    );
     expect(dockerfile).toContain("lenso-console-api /usr/local/bin/");
     expect(dockerfile).toContain("lenso-console-migrate /usr/local/bin/");
     expect(dockerfile).toContain("lenso-console-serve /usr/local/bin/");
