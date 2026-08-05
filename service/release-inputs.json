@@ -8,11 +8,7 @@
       "service/src/composition.rs",
       "service/src/modules"
     ],
-    "schema": [
-      "service/Cargo.lock",
-      "service/Cargo.toml",
-      "service/src"
-    ],
+    "schema": ["service/Cargo.lock", "service/Cargo.toml", "service/src"],
     "contract": [
       "service/activation-evidence.schema.json",
       "service/activation-recovery-evidence.schema.json",
