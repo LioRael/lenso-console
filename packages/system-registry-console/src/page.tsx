@@ -1,340 +1,439 @@
-/* eslint-disable func-style, no-nested-ternary, no-use-before-define, unicorn/no-nested-ternary */
+/* eslint-disable func-style, no-nested-ternary, no-use-before-define */
 
 import {
-  Badge,
   ConsolePage,
   DataRow,
+  IconSlot,
   InlineStatus,
-  KeyValueList,
-  Section,
+  Inspector,
+  PaneHeader,
+  Select,
   SplitView,
   StateView,
-  SummaryStrip,
   TableHeader,
   consoleHostApi,
   useConsoleLocale,
 } from "@lenso/console-ui-internal";
-import type { ConsoleManagedService } from "@lenso/console-ui-internal";
-import { Ban, Network, RefreshCw } from "lucide-react";
+import { Ban, ChevronDown, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 import {
-  enrollmentExpiryLabel,
+  filterServiceRows,
   managedServiceRows,
-  registryState,
   registrySummary,
-  serviceEndpointLabel,
+  servicePresentation,
 } from "./model";
+import type {
+  RegistryStatePresentation,
+  ServiceFilters,
+  ServiceFilterValue,
+  ServiceListRow,
+} from "./model";
+
+interface ServicesCopy {
+  allEnvironments: string;
+  allOwners: string;
+  allPostures: string;
+  attention: string;
+  composition: string;
+  description: string;
+  environment: string;
+  healthy: string;
+  identityAuthority: string;
+  nextSafeAction: string;
+  noData: string;
+  noMatches: string;
+  posture: string;
+  runtimePosture: string;
+  service: string;
+  title: string;
+  total: string;
+  version: string;
+}
+
+interface ServiceFilterOption {
+  label: string;
+  value: ServiceFilterValue;
+}
 
 export function SystemRegistryConsolePage() {
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
+  const copy = getServicesCopy(zh);
   const servicesQuery = consoleHostApi.systemRegistry.useServices();
   const services = useMemo(
     () => managedServiceRows(servicesQuery.data ?? []),
     [servicesQuery.data]
   );
+  const rows = useMemo<ServiceListRow[]>(
+    () =>
+      services.map((service) => ({
+        presentation: servicePresentation(service),
+        service,
+      })),
+    [services]
+  );
   const summary = registrySummary(services);
+  const [filters, setFilters] = useState<ServiceFilters>({
+    environment: "all",
+    owner: "all",
+    posture: "all",
+  });
+  const filteredRows = useMemo(
+    () => filterServiceRows(rows, filters),
+    [filters, rows]
+  );
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
     null
   );
-  const selected =
-    services.find((service) => service.serviceId === selectedServiceId) ??
-    services[0];
+  const selected = useMemo(
+    () =>
+      filteredRows.find((row) => row.service.serviceId === selectedServiceId) ??
+      filteredRows[0] ??
+      rows.find((row) => row.service.serviceId === selectedServiceId) ??
+      rows[0],
+    [filteredRows, rows, selectedServiceId]
+  );
+  const environmentOptions = useMemo<ServiceFilterOption[]>(
+    () => [
+      { label: copy.allEnvironments, value: "all" },
+      ...uniqueValues(rows.map((row) => row.presentation.environment)).map(
+        (value) => ({ label: value, value })
+      ),
+    ],
+    [copy.allEnvironments, rows]
+  );
+  const ownerOptions = useMemo<ServiceFilterOption[]>(
+    () => [
+      { label: copy.allOwners, value: "all" },
+      ...uniqueValues(rows.map((row) => row.presentation.owner)).map(
+        (value) => ({ label: value, value })
+      ),
+    ],
+    [copy.allOwners, rows]
+  );
+  const postureOptions = useMemo<ServiceFilterOption[]>(
+    () => [
+      { label: copy.allPostures, value: "all" },
+      ...uniqueValues(rows.map((row) => row.presentation.posture.label)).map(
+        (value) => ({ label: localizePosture(value, zh), value })
+      ),
+    ],
+    [copy.allPostures, rows, zh]
+  );
+
+  const setFilter = (key: keyof ServiceFilters, value: ServiceFilterValue) => {
+    setFilters((current) => ({ ...current, [key]: value }));
+  };
 
   return (
-    <ConsolePage className="h-full">
+    <ConsolePage className="product-page services-page">
       <ConsolePage.Header>
-        <Network aria-hidden="true" className="text-(--accent)" size={14} />
         <ConsolePage.Heading>
-          <ConsolePage.Title>
-            {zh ? "托管服务" : "Managed Services"}
-          </ConsolePage.Title>
-          <ConsolePage.Description>
-            {zh
-              ? "注册权限与观测到的连接状态"
-              : "Enrollment authority and observed connection state"}
-          </ConsolePage.Description>
+          <ConsolePage.Title>{copy.title}</ConsolePage.Title>
+          <ConsolePage.Description>{copy.description}</ConsolePage.Description>
         </ConsolePage.Heading>
         <ConsolePage.Actions>
-          <Badge>
-            {services.length} {zh ? "个服务" : "services"}
-          </Badge>
+          {summary.total} {zh ? "个服务" : "services"} · {summary.ready}{" "}
+          {copy.healthy.toLowerCase()} · {summary.attention} {copy.attention}
         </ConsolePage.Actions>
       </ConsolePage.Header>
 
-      <ConsolePage.Body className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
-        <SummaryStrip>
-          <SummaryStrip.Item
-            label={zh ? "已注册" : "Registered"}
-            value={summary.total}
+      <ConsolePage.Body className="product-page__body services-page__body">
+        {servicesQuery.isPending ? (
+          <RegistryMessage
+            description={
+              zh ? "正在加载服务注册表…" : "Loading Service registry…"
+            }
+            icon={<RefreshCw size={15} />}
+            title={zh ? "服务注册表" : "Service registry"}
           />
-          <SummaryStrip.Item
-            label={zh ? "活跃" : "Active"}
-            value={summary.active}
+        ) : servicesQuery.isError ? (
+          <RegistryMessage
+            description={`${zh ? "服务注册表加载失败：" : "Registry could not be loaded: "}${servicesQuery.error instanceof Error ? servicesQuery.error.message : String(servicesQuery.error)}`}
+            icon={<Ban size={15} />}
+            title={zh ? "服务注册表" : "Service registry"}
           />
-          <SummaryStrip.Item
-            label={zh ? "已连接" : "Connected"}
-            value={summary.ready}
-          />
-          <SummaryStrip.Item
-            label={zh ? "需关注" : "Attention"}
-            tone={summary.attention > 0 ? "warning" : "neutral"}
-            value={summary.attention}
-          />
-        </SummaryStrip>
-
-        <SplitView>
-          <SplitView.Main>
-            <Section>
-              <Section.Header>
-                <Network aria-hidden="true" size={13} />
-                <Section.Title>
-                  {zh ? "服务连接" : "Service connections"}
-                </Section.Title>
-                <Section.Meta>
-                  {zh
-                    ? "权限与观测状态分别报告"
-                    : "authority and observation are reported independently"}
-                </Section.Meta>
-              </Section.Header>
-              <RegistryContent
-                error={servicesQuery.error}
-                isError={servicesQuery.isError}
-                isPending={servicesQuery.isPending}
-                onSelect={setSelectedServiceId}
-                selectedServiceId={selected?.serviceId}
-                services={services}
-                zh={zh}
+        ) : (
+          <>
+            <div className="product-page__filters services-page__filters flex h-12 items-center gap-2">
+              <ServiceFilterSelect
+                ariaLabel={copy.allEnvironments}
+                onChange={(value) => setFilter("environment", value)}
+                options={environmentOptions}
+                value={filters.environment}
               />
-            </Section>
-          </SplitView.Main>
-          <SplitView.Inspector>
-            <ServiceInspector service={selected} zh={zh} />
-          </SplitView.Inspector>
-        </SplitView>
+              <ServiceFilterSelect
+                ariaLabel={copy.allOwners}
+                onChange={(value) => setFilter("owner", value)}
+                options={ownerOptions}
+                value={filters.owner}
+              />
+              <ServiceFilterSelect
+                ariaLabel={copy.allPostures}
+                onChange={(value) => setFilter("posture", value)}
+                options={postureOptions}
+                value={filters.posture}
+              />
+            </div>
+
+            <SplitView
+              className="services-page__workspace"
+              inspectorWidth={376}
+            >
+              <SplitView.Main>
+                <PaneHeader
+                  meta={`${services.length} ${copy.total}`}
+                  title={copy.title}
+                />
+                <div className="lenso-ui-data-grid">
+                  <TableHeader
+                    columns={[
+                      copy.service,
+                      copy.environment,
+                      copy.version,
+                      copy.posture,
+                    ]}
+                  />
+                  {filteredRows.length === 0 ? (
+                    <div className="services-page__empty">
+                      {services.length === 0 ? copy.noData : copy.noMatches}
+                    </div>
+                  ) : (
+                    filteredRows.map((row) => (
+                      <ServiceDataRow
+                        key={row.service.serviceId}
+                        onSelect={setSelectedServiceId}
+                        row={row}
+                        selected={
+                          selected?.service.serviceId === row.service.serviceId
+                        }
+                        zh={zh}
+                      />
+                    ))
+                  )}
+                </div>
+              </SplitView.Main>
+              <SplitView.Inspector>
+                <ServiceInspector copy={copy} row={selected} zh={zh} />
+              </SplitView.Inspector>
+            </SplitView>
+          </>
+        )}
       </ConsolePage.Body>
     </ConsolePage>
   );
 }
 
-function RegistryContent({
-  error,
-  isError,
-  isPending,
+function ServiceDataRow({
   onSelect,
-  selectedServiceId,
-  services,
+  row,
+  selected,
   zh,
 }: {
-  error: unknown;
-  isError: boolean;
-  isPending: boolean;
   onSelect: (serviceId: string) => void;
-  selectedServiceId: string | undefined;
-  services: ConsoleManagedService[];
-  zh: boolean;
-}) {
-  if (isPending) {
-    return (
-      <RegistryMessage
-        icon={<RefreshCw size={15} />}
-        text={zh ? "正在加载服务注册表…" : "Loading Service registry…"}
-        zh={zh}
-      />
-    );
-  }
-  if (isError) {
-    return (
-      <RegistryMessage
-        icon={<Ban size={15} />}
-        text={`${zh ? "服务注册表加载失败：" : "Registry could not be loaded: "}${error instanceof Error ? error.message : String(error)}`}
-        zh={zh}
-      />
-    );
-  }
-  if (services.length === 0) {
-    return (
-      <RegistryMessage
-        icon={<Network size={15} />}
-        text={
-          zh
-            ? "暂无已注册服务。请从 Console 安装权威创建带签名的注册提议。"
-            : "No Service is enrolled. Create a signed enrollment offer from the Console installation authority."
-        }
-        zh={zh}
-      />
-    );
-  }
-
-  return (
-    <div className="lenso-ui-data-grid">
-      <TableHeader
-        columns={
-          zh
-            ? ["服务", "端点", "状态", "权限"]
-            : ["Service", "Endpoint", "State", "Authority"]
-        }
-        variant="generic"
-      />
-      {services.map((service) => {
-        const state = registryState(service);
-        const selected = service.serviceId === selectedServiceId;
-        return (
-          <DataRow
-            cells={[
-              <span className="font-mono text-[10px]" key="endpoint">
-                {serviceEndpointLabel(service.baseUrl)}
-              </span>,
-              <InlineStatus key="state" tone={semanticStatusTone(state.tone)}>
-                {registryStateLabel(state.label, zh)}
-              </InlineStatus>,
-              <span className="font-mono text-[10px]" key="authority">
-                {zh ? "epoch" : "epoch"} {service.authorizationEpoch} ·{" "}
-                {zh ? "修订" : "rev"} {service.enrollmentGrantRevision}
-              </span>,
-            ]}
-            interactive
-            key={service.serviceId}
-            onActivate={() => onSelect(service.serviceId)}
-            primary={service.serviceId}
-            secondary={service.servicePrincipal}
-            selected={selected}
-            variant="generic"
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function semanticStatusTone(tone: ReturnType<typeof registryState>["tone"]) {
-  return tone === "error" ? "danger" : tone === "muted" ? "neutral" : tone;
-}
-
-function ServiceInspector({
-  service,
-  zh,
-}: {
-  service: ConsoleManagedService | undefined;
-  zh: boolean;
-}) {
-  if (!service) {
-    return (
-      <StateView
-        description={
-          zh
-            ? "选择服务行查看注册权限与最近一次观测到的连接。"
-            : "Select a Service row to inspect enrollment authority and the latest observed connection."
-        }
-        icon={<Network size={15} />}
-        title={zh ? "未选择服务" : "No Service selected"}
-      />
-    );
-  }
-  const state = registryState(service);
-
-  return (
-    <div className="min-h-full bg-(--bg-panel)">
-      <div className="border-(--line) border-b bg-(--bg-panel-header) px-3 py-2">
-        <div className="flex items-center gap-2">
-          <h2 className="min-w-0 truncate font-medium text-[12px]">
-            {service.serviceId}
-          </h2>
-          <Badge
-            className="ml-auto"
-            tone={
-              state.tone === "error"
-                ? "danger"
-                : state.tone === "muted"
-                  ? "neutral"
-                  : state.tone
-            }
-          >
-            {registryStateLabel(state.label, zh)}
-          </Badge>
-        </div>
-        <div className="truncate font-mono text-(--fg-tertiary) text-[10px]">
-          {service.servicePrincipal}
-        </div>
-      </div>
-
-      <KeyValueList>
-        <KeyValueList.Row
-          label={zh ? "端点" : "Endpoint"}
-          value={service.baseUrl}
-        />
-        <KeyValueList.Row
-          label={zh ? "注册" : "Enrollment"}
-          value={`${zh ? "修订" : "revision"} ${service.enrollmentGrantRevision} · ${enrollmentExpiryLabel(
-            service.enrollmentExpiresAtUnixMs
-          )}`}
-        />
-        <KeyValueList.Row
-          label={zh ? "权限" : "Authority"}
-          value={`${zh ? "epoch" : "epoch"} ${service.authorizationEpoch} · ${zh ? "记录" : "record"} v${service.version}`}
-        />
-        <KeyValueList.Row
-          label={zh ? "最后观测" : "Last observed"}
-          value={service.coreObservedAt ?? (zh ? "从未观测" : "Never observed")}
-        />
-        {service.lastErrorCode ? (
-          <KeyValueList.Row
-            label={zh ? "最后错误" : "Last error"}
-            value={service.lastErrorCode}
-          />
-        ) : null}
-        <KeyValueList.Row
-          label={zh ? "收据" : "Receipt"}
-          value={`${service.enrollmentReceiptDigest.slice(0, 22)}…`}
-        />
-      </KeyValueList>
-
-      <div className="border-(--line) border-t p-3">
-        <div className="flex items-center gap-2 text-(--fg-secondary) text-[11px]">
-          <Ban aria-hidden="true" size={14} />
-          {zh ? "注册权限" : "Enrollment authority"}
-        </div>
-        <p className="mt-1.5 text-(--fg-tertiary) text-[10px] leading-4">
-          {zh
-            ? "变更注册权限必须通过计划、审批、提交和终态证据流程；此视图只读。"
-            : "Enrollment authority changes require plan, approval, submission, and terminal evidence; this view is read-only."}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function RegistryMessage({
-  icon,
-  text,
-  zh,
-}: {
-  icon: React.ReactNode;
-  text: string;
+  row: ServiceListRow;
+  selected: boolean;
   zh: boolean;
 }) {
   return (
-    <StateView
-      description={text}
-      icon={icon}
-      title={zh ? "服务注册表" : "Service registry"}
+    <DataRow
+      cells={[
+        row.presentation.environment,
+        row.presentation.version,
+        <InlineStatus
+          key={`${row.service.serviceId}-posture`}
+          tone={semanticStatusTone(row.presentation.posture)}
+        >
+          {localizePosture(row.presentation.posture.label, zh)}
+        </InlineStatus>,
+      ]}
+      interactive
+      onActivate={() => onSelect(row.service.serviceId)}
+      primary={row.service.serviceId}
+      secondary={row.presentation.secondary}
+      selected={selected}
     />
   );
 }
 
-function registryStateLabel(label: string, zh: boolean) {
+function ServiceFilterSelect({
+  ariaLabel,
+  onChange,
+  options,
+  value,
+}: {
+  ariaLabel: string;
+  onChange: (value: ServiceFilterValue) => void;
+  options: readonly ServiceFilterOption[];
+  value: ServiceFilterValue;
+}) {
+  return (
+    <label className="services-filter-control">
+      <span className="sr-only">{ariaLabel}</span>
+      <Select
+        aria-label={ariaLabel}
+        className="services-filter-control__select"
+        onChange={(event) => onChange(event.currentTarget.value)}
+        value={value}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+      <IconSlot
+        aria-hidden="true"
+        className="services-filter-control__icon"
+        size={12}
+      >
+        <ChevronDown size={12} strokeWidth={1.5} />
+      </IconSlot>
+    </label>
+  );
+}
+
+function ServiceInspector({
+  copy,
+  row,
+  zh,
+}: {
+  copy: ServicesCopy;
+  row: ServiceListRow | undefined;
+  zh: boolean;
+}) {
+  if (!row) {
+    return (
+      <StateView
+        description={
+          zh
+            ? "选择服务行查看身份、运行姿态与下一步安全操作。"
+            : "Select a Service row to inspect identity, runtime posture, and the next safe action."
+        }
+        title={zh ? "未选择服务" : "No Service selected"}
+      />
+    );
+  }
+
+  const { presentation, service } = row;
+  return (
+    <Inspector
+      className="product-inspector services-inspector"
+      status={
+        <InlineStatus tone={semanticStatusTone(presentation.posture)}>
+          {presentation.observed}
+        </InlineStatus>
+      }
+      subtitle={presentation.secondary}
+      title={service.serviceId}
+    >
+      <Inspector.Section title={copy.identityAuthority}>
+        {presentation.identity.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </Inspector.Section>
+      <Inspector.Section title={copy.runtimePosture}>
+        {presentation.runtime.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </Inspector.Section>
+      <Inspector.Section title={copy.composition}>
+        {presentation.composition.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </Inspector.Section>
+      <Inspector.Section title={copy.nextSafeAction}>
+        {presentation.nextSafeAction.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </Inspector.Section>
+    </Inspector>
+  );
+}
+
+function RegistryMessage({
+  description,
+  icon,
+  title,
+}: {
+  description: string;
+  icon: ReactNode;
+  title: string;
+}) {
+  return <StateView description={description} icon={icon} title={title} />;
+}
+
+function semanticStatusTone(
+  posture: RegistryStatePresentation
+): "neutral" | "success" | "warning" | "danger" {
+  return posture.tone === "error"
+    ? "danger"
+    : posture.tone === "muted"
+      ? "neutral"
+      : posture.tone;
+}
+
+function localizePosture(label: string, zh: boolean) {
   if (!zh) {
     return label;
   }
   return (
     {
-      Active: "活跃",
-      Connected: "已连接",
       Degraded: "降级",
-      Incompatible: "不兼容",
-      Revoked: "已撤销",
-      Unavailable: "不可用",
+      Drifted: "漂移",
+      "Enrollment required": "需要注册",
+      Healthy: "健康",
     }[label] ?? label
   );
+}
+
+function uniqueValues(values: readonly string[]) {
+  return [...new Set(values)];
+}
+
+function getServicesCopy(zh: boolean): ServicesCopy {
+  return zh
+    ? {
+        allEnvironments: "全部环境",
+        allOwners: "全部所有者",
+        allPostures: "全部状态",
+        attention: "需关注",
+        composition: "组成",
+        description: "独立运行单元、权责、姿态、组成与下一步安全操作。",
+        environment: "环境",
+        healthy: "健康",
+        identityAuthority: "身份与权责",
+        nextSafeAction: "下一步安全操作",
+        noData: "暂无已注册服务。",
+        noMatches: "没有符合这些筛选条件的服务。",
+        posture: "状态",
+        runtimePosture: "运行姿态",
+        service: "服务",
+        title: "服务",
+        total: "总计",
+        version: "版本",
+      }
+    : {
+        allEnvironments: "All environments",
+        allOwners: "All owners",
+        allPostures: "All postures",
+        attention: "attention",
+        composition: "Composition",
+        description:
+          "Independent runtime units, their authority, posture, composition, and next safe action.",
+        environment: "Environment",
+        healthy: "Healthy",
+        identityAuthority: "Identity & authority",
+        nextSafeAction: "Next safe action",
+        noData: "No Service is enrolled.",
+        noMatches: "No services match these filters.",
+        posture: "Posture",
+        runtimePosture: "Runtime posture",
+        service: "Service",
+        title: "Services",
+        total: "total",
+        version: "Version",
+      };
 }

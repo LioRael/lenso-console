@@ -3,13 +3,13 @@ import {
   EmptyState,
   consoleUi,
 } from "../../packages/console-ui-internal/src/index";
+import { useConsole } from "../components/runtime/console-context";
 import { ExecutionInspector } from "../components/runtime/execution-inspector";
 import {
   defaultExecutionInspectorTab,
   executionInspectorTabs,
 } from "../components/runtime/execution-inspector-model";
 import { ResizeHandle } from "../components/runtime/resize-handle";
-import { useRuntimeConsole } from "../components/runtime/runtime-console-context";
 import { findStoryByCorrelation } from "../components/runtime/runtime-story-target";
 import { RuntimeStoryVisualization } from "../components/runtime/runtime-story-visualization";
 import { ServiceSummaryStrip } from "../components/runtime/service-summary-strip";
@@ -65,7 +65,8 @@ export const productionConsoleHostApi = {
     useMetadata: useConsoleModulesMetadata,
   },
   context: {
-    useRuntimeConsole,
+    useConsole,
+    useRuntimeConsole: useConsole,
   },
   data: {
     retryTargetForNode,

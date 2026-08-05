@@ -3,10 +3,12 @@ import { describe, expect, test } from "vitest";
 
 import {
   enrollmentExpiryLabel,
+  filterServiceRows,
   managedServiceRows,
   registryState,
   registrySummary,
   serviceEndpointLabel,
+  servicePresentation,
 } from "./model";
 
 const service = (
@@ -63,5 +65,57 @@ describe("system registry console model", () => {
     );
     expect(enrollmentExpiryLabel(3_600_001, 1)).toBe("1h remaining");
     expect(enrollmentExpiryLabel(1, 1)).toBe("Expired");
+  });
+
+  test("projects the product inventory order and inspector details", () => {
+    const lensoApi = service({
+      presentation: {
+        composition: [
+          "4 Linked modules · 2 workloads",
+          "Provides 7 capabilities",
+          "Depends on auth + audit-evidence",
+        ],
+        environment: "prod-eu1",
+        owner: "Core",
+        posture: { label: "Healthy", tone: "success" },
+        secondary: "svc.lenso-api · Core",
+        version: "0.3.34",
+      },
+      serviceId: "lenso-api",
+      servicePrincipal: "svc.lenso-api",
+    });
+    const billing = service({
+      serviceId: "billing",
+      servicePrincipal: "svc.billing",
+    });
+    const rows = [
+      { presentation: servicePresentation(lensoApi), service: lensoApi },
+      { presentation: servicePresentation(billing), service: billing },
+    ];
+
+    expect(
+      managedServiceRows([
+        service({ serviceId: "webhook-relay" }),
+        lensoApi,
+        service({ serviceId: "billing" }),
+      ]).map((item) => item.serviceId)
+    ).toEqual(["lenso-api", "billing", "webhook-relay"]);
+    expect(servicePresentation(lensoApi)).toMatchObject({
+      composition: [
+        "4 Linked modules · 2 workloads",
+        "Provides 7 capabilities",
+        "Depends on auth + audit-evidence",
+      ],
+      environment: "prod-eu1",
+      owner: "Core",
+      version: "0.3.34",
+    });
+    expect(
+      filterServiceRows(rows, {
+        environment: "prod-eu1",
+        owner: "Core",
+        posture: "Healthy",
+      })
+    ).toHaveLength(1);
   });
 });

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import type { ConsoleNavigationMetadata } from "../../../packages/console-ui-internal/src/index";
 import type { ConsoleModuleMetadata } from "../../app/console-module-resolver";
-import { consoleModules } from "../../app/console-modules";
 import {
   fetchServiceModuleLifecycle,
   fetchServiceSystem,
@@ -68,6 +68,127 @@ type ModulesResponse = {
   refreshed_at: string | null;
 };
 
+export type ModuleRegistrySurfaceRow = {
+  area: string;
+  defaultFromArea?: boolean;
+  exportName?: string;
+  label: string;
+  navigation?: ConsoleNavigationMetadata;
+  packageName?: string;
+  presentation: string;
+  requiredCapabilities?: readonly string[];
+  route: string;
+};
+
+export type ModuleRegistryRow = {
+  capabilities: readonly string[];
+  error: string | null;
+  id: string;
+  name: string;
+  source: string;
+  state: "loaded" | "error";
+  surfaces: ModuleRegistrySurfaceRow[];
+};
+
+export const demoModuleRegistryRows = [
+  {
+    capabilities: [],
+    error: null,
+    id: "platform-story",
+    name: "platform-story",
+    source: "first_party",
+    state: "loaded",
+    surfaces: [
+      {
+        area: "runtime",
+        defaultFromArea: true,
+        exportName: "storyConsoleModule",
+        label: "Stories",
+        navigation: {
+          order: -10,
+          workspace: { id: "system", label: "System" },
+        },
+        packageName: "@lenso/story-console",
+        presentation: "declarative",
+        requiredCapabilities: ["runtime.stories.read"],
+        route: "/stories",
+      },
+    ],
+  },
+  {
+    capabilities: [],
+    error: null,
+    id: "identity",
+    name: "identity",
+    source: "first_party",
+    state: "loaded",
+    surfaces: [
+      {
+        area: "data",
+        exportName: "identityConsoleModule",
+        label: "Identity",
+        navigation: {
+          group: { id: "overview", label: "Overview" },
+          order: 10,
+          workspace: { id: "identity", label: "Identity" },
+        },
+        packageName: "@lenso/identity-console",
+        presentation: "declarative",
+        requiredCapabilities: [],
+        route: "/data/identity",
+      },
+    ],
+  },
+  {
+    capabilities: [],
+    error: null,
+    id: "remote-crm",
+    name: "remote-crm",
+    source: "service",
+    state: "loaded",
+    surfaces: [
+      {
+        area: "data",
+        exportName: "remoteCrmConsoleModule",
+        label: "Remote CRM",
+        navigation: {
+          group: { id: "customers", label: "Customers" },
+          order: 20,
+          workspace: { id: "crm", label: "CRM" },
+        },
+        packageName: "@lenso/remote-crm-console",
+        presentation: "isolated",
+        requiredCapabilities: [],
+        route: "/data/remote-crm",
+      },
+    ],
+  },
+  {
+    capabilities: [],
+    error: null,
+    id: "lenso/system-registry",
+    name: "lenso/system-registry",
+    source: "first_party",
+    state: "loaded",
+    surfaces: [
+      {
+        area: "operations",
+        exportName: "systemRegistryConsoleModule",
+        label: "Managed Services",
+        navigation: {
+          group: { id: "operations", label: "Operations" },
+          order: 30,
+          workspace: { id: "system", label: "System" },
+        },
+        packageName: "@lenso/system-registry-console",
+        presentation: "declarative",
+        requiredCapabilities: ["console.system-registry.read"],
+        route: "/services",
+      },
+    ],
+  },
+] satisfies ModuleRegistryRow[];
+
 export function useModuleRegistry() {
   const query = useQuery({
     enabled: isApiMode(),
@@ -75,27 +196,11 @@ export function useModuleRegistry() {
     queryFn: () =>
       httpClient.get("api/console/v1/modules").json<ModulesResponse>(),
   });
-  const rows = useMemo(
+  const rows = useMemo<ModuleRegistryRow[]>(
     () =>
       query.data
         ? query.data.modules.map(moduleMetadataRow)
-        : consoleModules.map((module) => ({
-            capabilities: [] as string[],
-            error: null,
-            id: module.id,
-            name: titleCase(module.id),
-            source: "linked",
-            state: "loaded" as const,
-            surfaces: module.surfaces.map((surface) => ({
-              area: surface.area,
-              label: surface.label,
-              navigation:
-                "navigation" in surface ? surface.navigation : undefined,
-              presentation: "linked",
-              requiredCapabilities: [] as string[],
-              route: surface.path,
-            })),
-          })),
+        : demoModuleRegistryRows,
     [query.data]
   );
   return { ...query, mode: dataMode(), rows };
@@ -176,14 +281,16 @@ export function mergeHomeEvidence(
     .slice(0, 8);
 }
 
-function moduleMetadataRow(module: ConsoleModuleMetadata) {
+function moduleMetadataRow(module: ConsoleModuleMetadata): ModuleRegistryRow {
   const surfaces = (module.console ?? []).map((surface) => ({
     area: surface.area ?? "runtime",
     label: surface.label ?? surface.name ?? "Surface",
-    navigation: surface.navigation,
     presentation: surface.presentation?.kind ?? "declarative",
-    requiredCapabilities: surface.required_capabilities,
     route: surface.route ?? "-",
+    ...(surface.navigation ? { navigation: surface.navigation } : {}),
+    ...(surface.required_capabilities
+      ? { requiredCapabilities: surface.required_capabilities }
+      : {}),
   }));
   const id = module.module_name ?? "unknown";
   return {

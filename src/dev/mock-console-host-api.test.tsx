@@ -11,6 +11,8 @@ import {
   mockSlotContributions,
 } from "./mock-console-host-api";
 
+const delegatedUseConsole =
+  notCalled as ConsoleHostApi["context"]["useConsole"];
 const delegatedUseRuntimeConsole =
   notCalled as ConsoleHostApi["context"]["useRuntimeConsole"];
 const delegatedWriteBrowserUrl: ConsoleHostApi["hooks"]["writeBrowserUrl"] =
@@ -103,6 +105,7 @@ describe("mock console host api", () => {
         useSlot: notCalled,
       },
       context: {
+        useConsole: delegatedUseConsole,
         useRuntimeConsole: delegatedUseRuntimeConsole,
       },
       data: {
@@ -160,6 +163,7 @@ describe("mock console host api", () => {
       data: configValues,
     });
     expect(hostApi.modules.useMetadata().data).toEqual({ modules: [] });
+    expect(hostApi.context.useConsole).toBe(delegatedUseConsole);
     expect(hostApi.context.useRuntimeConsole).toBe(delegatedUseRuntimeConsole);
     expect(hostApi.hooks.writeBrowserUrl).toBe(delegatedWriteBrowserUrl);
   });

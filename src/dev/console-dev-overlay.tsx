@@ -1,7 +1,7 @@
 import type { ConsoleDevConfig } from "./console-dev-config";
 
 export function ConsoleDevOverlay({ config }: { config: ConsoleDevConfig }) {
-  if (!config.enabled) {
+  if (!config.enabled || (!config.diagnosticsUrl && !config.targetLabel)) {
     return null;
   }
 

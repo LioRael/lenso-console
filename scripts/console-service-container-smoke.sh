@@ -53,7 +53,7 @@ until curl --fail --silent --show-error "http://127.0.0.1:$http_port/health/read
 done
 
 curl --fail --silent --show-error "http://127.0.0.1:$http_port/" | grep -q '<title>Lenso Console</title>'
-curl --fail --silent --show-error "http://127.0.0.1:$http_port/system/services" | grep -q '<title>Lenso Console</title>'
+curl --fail --silent --show-error "http://127.0.0.1:$http_port/services" | grep -q '<title>Lenso Console</title>'
 
 unknown_status=$(curl --output /dev/null --silent --write-out '%{http_code}' "http://127.0.0.1:$http_port/api/console/v1/unknown")
 if [ "$unknown_status" != "404" ]; then

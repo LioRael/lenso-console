@@ -1,4 +1,4 @@
-import { isApiMode, runtimeApiAuthToken } from "../lib/http-client";
+import { consoleApiAuthToken, isApiMode } from "../lib/http-client";
 import {
   type ConsoleAdminContext,
   useConsoleAdminContext,
@@ -58,7 +58,7 @@ export function consoleCapabilityProvider(
 
   const resolvedApiMode = options.apiMode ?? isApiMode();
   const resolvedAuthToken =
-    "authToken" in options ? options.authToken : runtimeApiAuthToken();
+    "authToken" in options ? options.authToken : consoleApiAuthToken();
   if (!resolvedApiMode) {
     return localConsoleCapabilities;
   }
@@ -74,7 +74,7 @@ export function consoleCapabilityProvider(
 export function useConsoleCapabilities(): readonly string[] {
   const adminContextQuery = useConsoleAdminContext();
   const apiMode = isApiMode();
-  const authToken = runtimeApiAuthToken();
+  const authToken = consoleApiAuthToken();
 
   if (adminContextQuery.data) {
     return adminContextQuery.data.capabilities;

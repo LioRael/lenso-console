@@ -18,7 +18,7 @@ const hostRoutes = [
 
 const extensionRoutes = [
   { id: "identity", path: "/data/identity" },
-  { id: "managed-services", path: "/system/services" },
+  { id: "managed-services", path: "/services" },
   { id: "auth", path: "/auth" },
   { id: "auth-users", path: "/auth/users" },
   { id: "auth-sessions", path: "/auth/sessions" },

@@ -1,14 +1,14 @@
 import { describe, expect, test } from "vitest";
 
-import { lensoApiErrorMessage, runtimeConsoleApiPrefix } from "./http-client";
+import { consoleApiPrefix, lensoApiErrorMessage } from "./http-client";
 
-describe("runtimeConsoleApiPrefix", () => {
+describe("consoleApiPrefix", () => {
   test("keeps hosted console requests origin-rooted", () => {
-    expect(runtimeConsoleApiPrefix("/")).toBe("/");
-    expect(runtimeConsoleApiPrefix("http://localhost:3000/")).toBe(
+    expect(consoleApiPrefix("/")).toBe("/");
+    expect(consoleApiPrefix("http://localhost:3000/")).toBe(
       "http://localhost:3000"
     );
-    expect(runtimeConsoleApiPrefix("")).toBeUndefined();
+    expect(consoleApiPrefix("")).toBeUndefined();
   });
 });
 

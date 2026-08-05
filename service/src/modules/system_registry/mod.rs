@@ -60,7 +60,7 @@ fn manifest() -> ModuleManifest {
         .console(vec![ConsoleSurface {
             name: "managed-services".to_owned(),
             label: "Managed Services".to_owned(),
-            route: "/system/services".to_owned(),
+            route: "/services".to_owned(),
             presentation: ConsoleSurfacePresentation::Declarative {
                 schema: json!({
                     "component": "lenso/system-registry",
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!(manifest.console.len(), 1);
         let surface = &manifest.console[0];
         assert_eq!(surface.name, "managed-services");
-        assert_eq!(surface.route, "/system/services");
+        assert_eq!(surface.route, "/services");
         assert_eq!(surface.required_capabilities, [REGISTRY_READ]);
         assert!(matches!(
             &surface.presentation,

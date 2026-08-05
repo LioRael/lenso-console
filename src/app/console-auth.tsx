@@ -6,8 +6,8 @@ import {
   apiAuthToken,
   consoleAccessTokenStorageKey,
   isApiMode,
-  runtimeApiAuthToken,
-  runtimeConsoleApiPrefix,
+  consoleApiAuthToken,
+  consoleApiPrefix,
 } from "../lib/http-client";
 
 const oidcStateStorageKey = "lenso-console:oidc-state";
@@ -68,7 +68,7 @@ export function base64UrlNoPadding(bytes: Uint8Array) {
 }
 
 export function oidcAuthIsRequired() {
-  return isApiMode() && !runtimeApiAuthToken();
+  return isApiMode() && !consoleApiAuthToken();
 }
 
 export function ConsoleAuthGate({ children }: { children: ReactNode }) {
@@ -271,18 +271,14 @@ function ConsoleOperatorBootstrapRequired({
   );
 }
 
-export function consolePasswordLoginUrl(
-  prefix = runtimeConsoleApiPrefix()
-): string {
+export function consolePasswordLoginUrl(prefix = consoleApiPrefix()): string {
   if (!prefix) {
     throw new Error("Lenso Console API base URL is not configured");
   }
   return `${prefix === "/" ? "" : prefix}/v1/auth/password/login`;
 }
 
-export function consoleBootstrapStatusUrl(
-  prefix = runtimeConsoleApiPrefix()
-): string {
+export function consoleBootstrapStatusUrl(prefix = consoleApiPrefix()): string {
   if (!prefix) {
     throw new Error("Lenso Console API base URL is not configured");
   }
@@ -424,7 +420,7 @@ async function completeConsoleOidcLogin() {
 }
 
 async function fetchOidcMetadata() {
-  const prefix = runtimeConsoleApiPrefix();
+  const prefix = consoleApiPrefix();
   if (!prefix) {
     throw new Error("Lenso Console API base URL is not configured");
   }

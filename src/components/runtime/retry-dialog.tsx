@@ -3,11 +3,11 @@ import { AlertTriangle, RotateCcw, X } from "lucide-react";
 import { useRetryRuntimeWork } from "../../hooks/use-runtime-queries";
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
-import { useRuntimeConsole } from "./runtime-console-context";
+import { useConsole } from "./console-context";
 import { StatusPill } from "./status-pill";
 
 export function RetryDialog() {
-  const { closeRetry, retryTarget } = useRuntimeConsole();
+  const { closeRetry, retryTarget } = useConsole();
   const retryMutation = useRetryRuntimeWork();
 
   return (

@@ -5,6 +5,7 @@ import type { ConsoleAdminRecord } from "../app/console-admin-data-api";
 import type { ConsoleConfigValue } from "../app/console-config-api";
 import type { ConsoleHostApi } from "../app/console-host-api";
 import type { ConsoleModuleMetadata } from "../app/console-module-resolver";
+import { mockManagedServices } from "../data/mock-services";
 
 type ConsoleSlotContributions = ReturnType<
   ConsoleHostApi["contributions"]["useSlot"]
@@ -158,6 +159,7 @@ export const authConsoleMockFixtures: MockConsoleFixtures = {
       },
     ],
   },
+  managedServices: mockManagedServices,
   modules: [
     mockProviderModule("auth-github", [
       ["GET", "/v1/auth/github/start", "Start GitHub Login"],

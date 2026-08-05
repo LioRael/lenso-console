@@ -26,11 +26,11 @@ export function storedConsoleAccessToken() {
     : (window.localStorage.getItem(consoleAccessTokenStorageKey) ?? undefined);
 }
 
-export function runtimeApiAuthToken() {
+export function consoleApiAuthToken() {
   return apiAuthToken ?? storedConsoleAccessToken();
 }
 
-export function runtimeConsoleApiPrefix(value = apiBaseUrl) {
+export function consoleApiPrefix(value = apiBaseUrl) {
   if (!value) {
     return undefined;
   }
@@ -44,10 +44,10 @@ export function runtimeConsoleApiPrefix(value = apiBaseUrl) {
 }
 
 export function isApiMode() {
-  return consoleMode === "api" && Boolean(runtimeConsoleApiPrefix());
+  return consoleMode === "api" && Boolean(consoleApiPrefix());
 }
 
-export function runtimeConsoleDataSource() {
+export function consoleDataSource() {
   return isApiMode() ? "api" : "mock";
 }
 
@@ -65,15 +65,15 @@ export function lensoApiErrorMessage(body: unknown): string | undefined {
   return undefined;
 }
 
-const runtimeConsolePrefix = runtimeConsoleApiPrefix();
+const consoleApiPrefixValue = consoleApiPrefix();
 
 export const httpClient = ky.create({
-  ...(runtimeConsolePrefix ? { prefix: runtimeConsolePrefix } : {}),
+  ...(consoleApiPrefixValue ? { prefix: consoleApiPrefixValue } : {}),
   hooks: {
     beforeRequest: [
       ({ request }) => {
         request.headers.set("Accept", "application/json");
-        const token = runtimeApiAuthToken();
+        const token = consoleApiAuthToken();
         if (token) {
           request.headers.set("Authorization", `Bearer ${token}`);
         }

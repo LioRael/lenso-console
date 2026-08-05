@@ -56,10 +56,18 @@ see [service/README.md](service/README.md).
 
 ## Shell development
 
-Run Vite separately when working on the Shell with hot reload:
+Run Vite separately when working on the Shell with hot reload. `bun dev` and
+`pnpm dev` use the seeded mock Console by default:
 
 ```bash
-VITE_CONSOLE_MODE=api VITE_API_BASE_URL=http://localhost:3030 pnpm dev
+bun dev
+```
+
+To use the local Console Service instead, explicitly enable API mode and turn
+off the mock host:
+
+```bash
+VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production VITE_API_BASE_URL=http://localhost:3030 bun dev
 ```
 
 The production build always uses `/` because the Shell and Console API share one

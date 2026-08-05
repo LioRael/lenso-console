@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "VITE_CONSOLE_DEV_MODE=${VITE_CONSOLE_DEV_MODE:-mock} VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-mock} vite --host 0.0.0.0",
     "format": "ultracite fix --unsafe",
     "format:check": "oxfmt --check .",
     "lint": "ultracite check --deny-warnings",

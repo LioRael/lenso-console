@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { httpClient, isApiMode, runtimeApiAuthToken } from "../lib/http-client";
+import { consoleApiAuthToken, httpClient, isApiMode } from "../lib/http-client";
 
 export type ConsoleAdminActor =
   | {
@@ -24,7 +24,7 @@ export type ConsoleAdminContext = {
 export const consoleAdminContextQueryKey = ["admin", "context"] as const;
 
 export function useConsoleAdminContext() {
-  const token = runtimeApiAuthToken();
+  const token = consoleApiAuthToken();
 
   return useQuery({
     enabled: isApiMode() && Boolean(token),

@@ -9,7 +9,7 @@ import "@fontsource/roboto-mono/400.css";
 
 import { consoleModules } from "./app/console-modules";
 import { Providers } from "./app/providers";
-import { createRuntimeConsoleRouter } from "./app/router";
+import { createConsoleRouter } from "./app/router";
 import { consoleDevConfig } from "./dev/console-dev-config";
 import { ConsoleDevOverlay } from "./dev/console-dev-overlay";
 
@@ -18,7 +18,7 @@ import "./styles.css";
 void startConsole();
 
 async function startConsole() {
-  const router = createRuntimeConsoleRouter(consoleModules);
+  const router = createConsoleRouter(consoleModules);
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

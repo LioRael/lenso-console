@@ -8,6 +8,7 @@ import {
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
+  Blocks,
   Boxes,
   Building2,
   Check,
@@ -60,13 +61,14 @@ import {
 import { consoleCopy } from "../../features/console-design/copy";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
 import { CommandPalette } from "./command-palette";
+import { useConsole } from "./console-context";
 import { RetryDialog } from "./retry-dialog";
-import { useRuntimeConsole } from "./runtime-console-context";
 
 type ShellIcon = ComponentType<{ size?: number; strokeWidth?: number }>;
 
 const iconRegistry = {
   activity: Activity,
+  blocks: Blocks,
   boxes: Boxes,
   chrome: Globe,
   database: Database,
@@ -95,7 +97,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const { locale } = useConsoleLocale();
   const copy = consoleCopy(locale);
   const appearance = useConsoleAppearance();
-  const { openCommandPalette } = useRuntimeConsole();
+  const { openCommandPalette } = useConsole();
   const navigate = useNavigate();
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
@@ -164,14 +166,14 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 
   return (
     <div
-      className={`runtime-shell grid min-h-screen bg-(--bg-canvas) text-(--fg-primary) ${sidebarCollapsed ? "grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]" : "grid-cols-[var(--console-sidebar-width)_minmax(0,1fr)] max-[1100px]:grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]"}`}
+      className={`console-shell grid min-h-screen bg-(--bg-canvas) text-(--fg-primary) ${sidebarCollapsed ? "grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]" : "grid-cols-[var(--console-sidebar-width)_minmax(0,1fr)] max-[1100px]:grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]"}`}
     >
       <a className="console-skip-link" href="#console-main">
         {locale === "zh-CN" ? "跳转到主要内容" : "Skip to main content"}
       </a>
       <aside className="sticky top-0 z-30 flex h-screen flex-col bg-(--bg-sidebar) px-2 pt-5 pb-4">
         <div
-          className={`flex h-8 items-center gap-2.5 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
+          className={`flex h-8 items-center gap-2.5 px-2.5 ${sidebarCollapsed ? "justify-center" : ""}`}
         >
           <span className="size-3.5 rounded-[3px] bg-(--fg-primary)" />
           <strong
@@ -188,7 +190,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           workspaces={navigation}
         />
         <div
-          className={`flex h-8 items-center px-2 text-[10px] leading-4 text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+          className={`flex h-8 items-center px-2.5 text-[10px] font-semibold leading-[14px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
         >
           {copy.production}
         </div>
@@ -202,13 +204,14 @@ export function ConsoleShell({ children }: PropsWithChildren) {
         <div className="mt-auto">
           <Link
             activeProps={{
-              className: "bg-(--bg-row-selected) text-(--fg-primary)",
+              className:
+                "bg-(--bg-row-selected) text-(--fg-primary) font-medium",
             }}
-            className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${sidebarCollapsed ? "justify-center" : ""}`}
+            className={`flex h-8 items-center gap-[7px] rounded-[var(--radius-control)] px-2.5 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${sidebarCollapsed ? "justify-center" : ""}`}
             to={"/settings" as never}
           >
             <IconSlot className="shrink-0">
-              <Settings size={14} strokeWidth={1.6} />
+              <Settings size={16} strokeWidth={1.6} />
             </IconSlot>
             <span
               className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
@@ -216,15 +219,15 @@ export function ConsoleShell({ children }: PropsWithChildren) {
               {copy.nav.settings}
             </span>
             <span
-              className={`ml-auto font-mono text-[10px] leading-4 text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+              className={`ml-auto text-[11px] leading-4 font-normal text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
             >
               {shortcut("/settings")}
             </span>
           </Link>
           <div
-            className={`flex h-10 items-center gap-2 px-2 ${sidebarCollapsed ? "justify-center" : ""}`}
+            className={`flex h-10 items-center gap-2.5 pl-2.5 ${sidebarCollapsed ? "justify-center" : ""}`}
           >
-            <span className="size-5 rounded-full border border-(--line-strong)" />
+            <span className="size-5 shrink-0 rounded-full border border-(--line-strong)" />
             <span
               className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
             >
@@ -389,7 +392,7 @@ function WorkspaceSwitcher({
         aria-controls="console-workspace-menu"
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`flex h-9 w-full items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] font-medium leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) ${collapsed ? "justify-center" : ""}`}
+        className={`flex h-9 w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-[12px] font-medium leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) ${collapsed ? "justify-center" : ""}`}
         id="console-workspace-trigger"
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -569,16 +572,16 @@ function NavItem({
   const label = consoleLocalizedLabel(item, locale);
   return (
     <Link
-      activeOptions={{ exact: item.path === "/" }}
+      activeOptions={{ exact: item.path === "/" || item.path === "/system" }}
       activeProps={{
-        className: "bg-(--bg-row-selected) text-(--fg-primary)",
+        className: "bg-(--bg-row-selected) text-(--fg-primary) font-medium",
       }}
       aria-label={label}
-      className={`flex h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${collapsed ? "justify-center" : ""}`}
+      className={`flex h-8 items-center gap-[7px] rounded-[var(--radius-control)] px-2.5 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${collapsed ? "justify-center" : ""}`}
       to={item.path}
     >
       <IconSlot className="shrink-0">
-        <Icon size={14} strokeWidth={1.6} />
+        <Icon size={16} strokeWidth={1.6} />
       </IconSlot>
       <span
         className={`min-w-0 truncate ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
@@ -586,7 +589,7 @@ function NavItem({
         {label}
       </span>
       <span
-        className={`ml-auto font-mono text-[10px] text-(--fg-tertiary) ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
+        className={`ml-auto text-[11px] leading-4 font-normal text-(--fg-tertiary) ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
       >
         {shortcut(item.path)}
       </span>
@@ -629,7 +632,8 @@ function routeLabel(
   fallback: string,
   nav: ReturnType<typeof consoleCopy>["nav"]
 ) {
-  const hostKey = path === "/" ? "home" : path.slice(1);
+  const hostKey =
+    path === "/" ? "home" : path === "/services" ? "services" : path.slice(1);
   if (hostKey in nav) {
     return nav[hostKey as keyof typeof nav];
   }
@@ -643,7 +647,8 @@ function workspaceBreadcrumb(
   locale: ConsoleLocale
 ) {
   if (workspace.id === SYSTEM_WORKSPACE.id) {
-    return [routeLabel(path, workspace.label, nav)];
+    const directItem = workspace.items.find((item) => item.path === path);
+    return [consoleLocalizedLabel(directItem ?? workspace, locale)];
   }
   const directItem = workspace.items.find((item) => item.path === path);
   if (directItem) {
@@ -683,6 +688,10 @@ function shortcut(path: string) {
                 ? "T"
                 : path === "/delivery"
                   ? "D"
-                  : "";
+                  : path === "/services"
+                    ? "V"
+                    : path === "/settings"
+                      ? ","
+                      : "";
   return key ? `G ${key}` : "";
 }
