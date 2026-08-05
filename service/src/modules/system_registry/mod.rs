@@ -10,9 +10,7 @@ pub const REGISTRY_READ: &str = "console.system-registry.read";
 
 const MIGRATIONS: &[Migration] = &[Migration {
     name: "lenso/system-registry/0001_create_managed_service_registry",
-    sql: include_str!(
-        "../../../../packages/console-system-plane/migrations/0002_create_managed_service_registry.sql"
-    ),
+    sql: include_str!("migrations/0001_create_managed_service_registry.sql"),
 }];
 
 pub fn linked_module() -> HostLinkedModule {

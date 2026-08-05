@@ -84,15 +84,6 @@ importers:
 
   packages/console-module-api: {}
 
-  packages/console-system-plane:
-    devDependencies:
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.7
-        version: 4.1.7(@types/node@25.9.2)(vite@8.0.16(@types/node@25.9.2)(jiti@2.7.0)(yaml@2.9.0))
-
   packages/console-ui:
     dependencies:
       '@lenso/console-module-api':

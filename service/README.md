@@ -298,8 +298,8 @@ published `lenso-service` release. Adding a direct unsigned registry-write route
 would violate the bilateral enrollment boundary, so the Console Service remains
 fail-closed until it can consume that public contract.
 
-The private `@lenso/console-system-plane` package already provides strict
-Offer/Receipt parsing, canonical digests, Ed25519 verification and fail-closed
-capability-grant validation. Its golden Offer digest is shared with the Rust
-System Plane test suite, so publishing the framework contract can unlock service
-wiring without introducing a second enrollment protocol.
+The Console Service does not maintain a second TypeScript backend for the System
+Plane. Its backend capabilities are implemented as ordinary Rust Lenso Service
+and Module code. System Plane wire contracts and verification primitives belong
+to the public Lenso framework; enrollment remains fail-closed here until the
+Console Service can consume the corresponding published framework contract.

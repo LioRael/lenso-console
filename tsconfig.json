@@ -30,8 +30,7 @@
     "packages/story-console/src",
     "packages/system-registry-console/src",
     "packages/console-module-api/src",
-    "packages/console-ui/src",
-    "packages/console-system-plane/src"
+    "packages/console-ui/src"
   ],
   "references": []
 }

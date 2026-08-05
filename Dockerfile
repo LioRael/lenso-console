@@ -17,7 +17,6 @@ FROM rust:1.94-bookworm AS service-builder
 
 WORKDIR /workspace
 COPY service ./service
-COPY packages/console-system-plane/migrations ./packages/console-system-plane/migrations
 RUN --mount=type=cache,id=lenso-console-cargo-registry,sharing=locked,target=/usr/local/cargo/registry \
     --mount=type=cache,id=lenso-console-service-target,sharing=locked,target=/workspace/service/target \
     cargo build --locked --release --manifest-path service/Cargo.toml --bins \
