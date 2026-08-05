@@ -71,6 +71,7 @@ export type ConsoleSurfaceArea =
 
 export type ConsoleSurfaceIcon =
   | "activity"
+  | "blocks"
   | "boxes"
   | "chrome"
   | "database"
@@ -415,6 +416,22 @@ export interface ConsoleModuleMetadata {
   console_contributions?: ConsoleContribution[];
 }
 
+export interface ConsoleManagedServicePresentation {
+  composition?: readonly string[];
+  environment?: string;
+  identity?: readonly string[];
+  nextSafeAction?: readonly string[];
+  observed?: string;
+  owner?: string;
+  posture?: {
+    label: string;
+    tone: "error" | "muted" | "success" | "warning";
+  };
+  runtime?: readonly string[];
+  secondary?: string;
+  version?: string;
+}
+
 export interface ConsoleQueryResult<T> {
   data?: T;
   error: Error;
@@ -434,9 +451,16 @@ export interface ConsoleManagedService {
   enrollmentReceiptDigest: string;
   enrollmentState: "active" | "revoked";
   lastErrorCode?: string | null;
+  presentation?: ConsoleManagedServicePresentation;
   serviceId: string;
   servicePrincipal: string;
   version: number;
+}
+
+export interface ConsoleContextApi {
+  activeStoryTarget: { nodeId?: string; storyId: string } | null;
+  clearStoryTarget: () => void;
+  openRetry: (target: unknown) => void;
 }
 
 export interface ConsoleHostApi {
@@ -481,11 +505,9 @@ export interface ConsoleHostApi {
     };
   };
   context: {
-    useRuntimeConsole: () => {
-      activeStoryTarget: { nodeId?: string; storyId: string } | null;
-      clearStoryTarget: () => void;
-      openRetry: (target: unknown) => void;
-    };
+    useConsole: () => ConsoleContextApi;
+    /** @deprecated Use useConsole instead. */
+    useRuntimeConsole: () => ConsoleContextApi;
   };
   data: {
     retryTargetForNode: (node: ExecutionNode) => unknown;
@@ -573,6 +595,7 @@ export const isConsoleSurfaceIcon = (
   value: unknown
 ): value is ConsoleSurfaceIcon =>
   value === "activity" ||
+  value === "blocks" ||
   value === "boxes" ||
   value === "chrome" ||
   value === "database" ||

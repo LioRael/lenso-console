@@ -28,6 +28,7 @@ import {
 import { cn } from "../../lib/cn";
 import { prettyJson } from "../../lib/format";
 import { formatRuntimeDuration } from "../../lib/runtime-style";
+import { useConsole } from "./console-context";
 import {
   buildExecutionActivity,
   buildExecutionContext,
@@ -40,7 +41,6 @@ import {
 } from "./execution-inspector-model";
 import { HorizontalTabScroll } from "./horizontal-tab-scroll";
 import { JsonViewer } from "./json-viewer";
-import { useRuntimeConsole } from "./runtime-console-context";
 import {
   buildTechnicalOperationGroups,
   technicalOperationOperationsTarget,
@@ -63,7 +63,7 @@ export function ExecutionInspector({
   setActiveTab: (tab: ExecutionInspectorTab) => void;
 }) {
   const { locale } = useConsoleLocale();
-  const { openRetry } = useRuntimeConsole();
+  const { openRetry } = useConsole();
   const zh = locale === "zh-CN";
   const node = selectedNode;
   const tabCounts = getExecutionInspectorTabCounts(story, node);
@@ -206,7 +206,7 @@ function InspectorBody({
   node: ExecutionNode;
   activeTab: ExecutionInspectorTab;
 }) {
-  const { openRemoteCalls, openRetry } = useRuntimeConsole();
+  const { openRemoteCalls, openRetry } = useConsole();
   const payloadQuery = useExecutionPayload(
     story,
     node.id,
@@ -1042,7 +1042,7 @@ function TechnicalOperationRow({
   index: number;
   operation: TechnicalOperationView;
 }) {
-  const { openAdminActions, openRemoteCalls } = useRuntimeConsole();
+  const { openAdminActions, openRemoteCalls } = useConsole();
   const operationsTarget = technicalOperationOperationsTarget(operation);
   const [attributesVisible, setAttributesVisible] = useState(false);
   return (

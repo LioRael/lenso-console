@@ -8,15 +8,15 @@ import {
 import type { FunctionComponent } from "react";
 
 import type { ConsoleModule } from "../../packages/console-ui-internal/src/index";
-import { RuntimeConsoleProvider } from "../components/runtime/runtime-console-context";
-import { ConsoleShell } from "../components/runtime/runtime-console-shell";
+import { ConsoleProvider } from "../components/runtime/console-context";
+import { ConsoleShell } from "../components/runtime/console-shell";
 import { ConsoleAppearanceProvider } from "./console-appearance";
 import { HostConsoleLocaleProvider } from "./console-locale";
 import { buildConsoleRoutes, consoleModules } from "./console-modules";
 import { IsolatedConsoleModulePage } from "./isolated-console-module";
 
 export const rootRedirectPath = "/";
-export const runtimeConsoleBasePath = consoleBasePathFromBaseUrl(
+export const consoleBasePath = consoleBasePathFromBaseUrl(
   import.meta.env.BASE_URL
 );
 
@@ -28,19 +28,19 @@ export function consoleBasePathFromBaseUrl(baseUrl: string) {
   return basePath.startsWith("/") ? basePath : `/${basePath}`;
 }
 
-export function createRuntimeConsoleRouter(
+export function createConsoleRouter(
   modules: ConsoleModule[],
-  { basepath = runtimeConsoleBasePath } = {}
+  { basepath = consoleBasePath } = {}
 ) {
   const rootRoute = createRootRoute({
     component: () => (
       <ConsoleAppearanceProvider>
         <HostConsoleLocaleProvider>
-          <RuntimeConsoleProvider>
+          <ConsoleProvider>
             <ConsoleShell>
               <Outlet />
             </ConsoleShell>
-          </RuntimeConsoleProvider>
+          </ConsoleProvider>
         </HostConsoleLocaleProvider>
       </ConsoleAppearanceProvider>
     ),
@@ -72,7 +72,6 @@ export function createRuntimeConsoleRouter(
     legacy("/operations/functions", "/runtime"),
     legacy("/operations/remote-calls", "/runtime"),
     legacy("/operations/admin-actions", "/changes"),
-    legacy("/services", "/runtime"),
     legacy("/data", "/modules"),
     legacy("/config", "/settings"),
   ]);
@@ -80,7 +79,7 @@ export function createRuntimeConsoleRouter(
   return createRouter({ basepath, routeTree });
 }
 
-export const router = createRuntimeConsoleRouter(consoleModules);
+export const router = createConsoleRouter(consoleModules);
 
 declare module "@tanstack/react-router" {
   interface Register {

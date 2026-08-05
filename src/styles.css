@@ -136,6 +136,98 @@ textarea {
   font-weight: 500;
 }
 
+.services-page .product-page__body {
+  height: calc(100vh - 144px);
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 32px;
+}
+
+.services-page .lenso-ui-page__description {
+  color: var(--fg-secondary);
+}
+
+.services-page .lenso-ui-page__actions {
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.services-page__workspace {
+  height: 676px;
+  min-height: 676px;
+}
+
+.services-page .lenso-ui-inline-status {
+  column-gap: 8px;
+}
+
+.services-page .lenso-ui-data-grid {
+  max-height: 430px;
+  border-bottom: 1px solid var(--line-subtle);
+  overflow-y: auto;
+}
+
+.services-filter-control {
+  position: relative;
+  display: inline-flex;
+  height: 28px;
+}
+
+.services-filter-control__select {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  min-height: 28px;
+  appearance: none;
+  padding: 0 28px 0 10px;
+  border-color: var(--line-strong);
+  border-radius: 6px;
+  color: var(--fg-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.services-page__filters .services-filter-control:nth-child(1) {
+  width: 126px;
+}
+
+.services-page__filters .services-filter-control:nth-child(2) {
+  width: 93px;
+}
+
+.services-page__filters .services-filter-control:nth-child(3) {
+  width: 101px;
+}
+
+.services-filter-control__icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  pointer-events: none;
+  color: var(--fg-tertiary);
+}
+
+.services-page__empty {
+  display: grid;
+  min-width: 732px;
+  min-height: 64px;
+  place-items: center;
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.services-inspector .lenso-ui-inspector__section-body p {
+  margin: 0;
+}
+
+.services-inspector .lenso-ui-inspector__section-body p + p {
+  margin-top: 5px;
+}
+
 .home-page .lenso-ui-page__description {
   color: var(--fg-secondary);
 }
@@ -560,14 +652,24 @@ textarea {
   margin-top: 1px;
 }
 
-.delivery-page__workspace::before {
-  position: absolute;
-  top: -1px;
-  right: 0;
-  left: 0;
-  height: 1px;
-  background: var(--line-subtle);
-  content: "";
+.delivery-page .lenso-ui-page__description {
+  color: var(--fg-secondary);
+}
+
+.delivery-page .lenso-ui-page__header {
+  box-shadow: 0 1px 0 var(--line-subtle);
+}
+
+.delivery-page .lenso-ui-page__actions {
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.delivery-page .lenso-ui-split-view__inspector {
+  padding-left: 27px;
 }
 
 .delivery-page__workspace .lenso-ui-split-view__main {
@@ -617,7 +719,7 @@ textarea {
   min-height: 110px;
   flex-direction: column;
   align-items: stretch;
-  padding: 14px 10px;
+  padding: 14px 20px 14px 10px;
   border: 0;
   border-radius: 0;
   background: var(--bg-canvas);
@@ -672,6 +774,12 @@ textarea {
 
 .delivery-page__candidate > .lenso-ui-inline-status {
   margin-top: 6px;
+}
+
+.delivery-page__candidate
+  .lenso-ui-inline-status[data-tone="neutral"]
+  .lenso-ui-inline-status__dot {
+  background: var(--fg-primary);
 }
 
 .delivery-page__candidate-id {
@@ -752,6 +860,10 @@ textarea {
   line-height: 18px;
 }
 
+.delivery-page__gate .lenso-ui-inline-status__label {
+  font-weight: 500;
+}
+
 .delivery-page__authority {
   display: flex;
   min-height: 80px;
@@ -769,10 +881,14 @@ textarea {
 }
 
 .delivery-page__authority h3 {
-  color: var(--fg-primary);
+  color: var(--fg-tertiary);
   font-size: 11px;
   font-weight: 500;
   line-height: 16px;
+}
+
+.delivery-page__authority p:first-of-type {
+  color: var(--fg-primary);
 }
 
 .delivery-page__no-data,
@@ -1330,7 +1446,7 @@ code,
   box-shadow: var(--elevation-panel);
 }
 
-.runtime-shell {
+.console-shell {
   --sidebar-collapse: 0;
   --sidebar-width: calc(228px - (176px * var(--sidebar-collapse)));
   --sidebar-item-width: calc(212px - (184px * var(--sidebar-collapse)));

@@ -105,15 +105,15 @@ const consoleWorkbenchModule: ConsoleModule = {
   id: "lenso/console-workbench",
   surfaces: [
     workbenchSurface("house", "Home", "首页", "/", HomePage, 0),
-    workbenchSurface("server-cog", "System", "系统", "/system", SystemPage, 10),
-    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 20),
+    workbenchSurface("server-cog", "System", "系统", "/system", SystemPage, 20),
+    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 30),
     workbenchSurface(
       "git-compare-arrows",
       "Changes",
       "变更",
       "/changes",
       ChangesPage,
-      30
+      40
     ),
     workbenchSurface(
       "activity",
@@ -121,7 +121,7 @@ const consoleWorkbenchModule: ConsoleModule = {
       "运行时",
       "/runtime",
       RuntimePage,
-      40
+      50
     ),
     workbenchSurface(
       "rocket",
@@ -129,7 +129,7 @@ const consoleWorkbenchModule: ConsoleModule = {
       "交付",
       "/delivery",
       DeliveryPage,
-      60
+      70
     ),
     workbenchSurface(
       "settings",
@@ -137,7 +137,7 @@ const consoleWorkbenchModule: ConsoleModule = {
       "设置",
       "/settings",
       SettingsPage,
-      70
+      80
     ),
   ],
 };

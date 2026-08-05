@@ -1,11 +1,10 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { useRuntimeConsole } from "./runtime-console-context";
+import { useConsole } from "./console-context";
 
 export function RuntimeSearch() {
-  const { searchInputRef, searchRuntime, selectSearchResult } =
-    useRuntimeConsole();
+  const { searchInputRef, searchRuntime, selectSearchResult } = useConsole();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 

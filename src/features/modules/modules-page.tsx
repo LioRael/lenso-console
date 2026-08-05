@@ -9,7 +9,10 @@ import {
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { useModuleRegistry } from "../console-data/use-console-product-data";
+import {
+  useModuleRegistry,
+  type ModuleRegistrySurfaceRow,
+} from "../console-data/use-console-product-data";
 import {
   Inspector,
   InspectorSection,
@@ -19,20 +22,30 @@ import {
 } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
 
-type SourceFilter = "all" | "linked" | "service";
+type SourceFilter =
+  | "all"
+  | "first_party"
+  | "installed"
+  | "linked"
+  | "runtime_bundle"
+  | "service";
 type AreaFilter = "all" | "runtime" | "operations" | "data" | "configuration";
 type StateFilter = "all" | "loaded" | "error";
 
 type SurfaceRegistration = {
   area: string;
   capabilities: readonly string[];
+  defaultFromArea: boolean;
   error: string | null | undefined;
+  exportName: string | undefined;
   presentation: string;
   group: string;
   id: string;
   moduleId: string;
   moduleName: string;
   order: number;
+  packageName: string | undefined;
+  placement: string;
   route: string;
   source: string;
   state: string;
@@ -53,7 +66,10 @@ export function ModulesPage() {
           return {
             area: surface.area,
             capabilities: surface.requiredCapabilities ?? [],
+            defaultFromArea:
+              surface.defaultFromArea ?? !(navigation && "group" in navigation),
             error: module.error,
+            exportName: surface.exportName,
             presentation: surface.presentation,
             group:
               navigation && "group" in navigation
@@ -63,6 +79,8 @@ export function ModulesPage() {
             moduleId: module.id,
             moduleName: module.name,
             order: navigation?.order ?? 0,
+            packageName: surface.packageName,
+            placement: placementForSurface(surface),
             route: surface.route,
             source: module.source,
             state: module.state,
@@ -99,7 +117,8 @@ export function ModulesPage() {
   return (
     <ProductPage
       description={copy.modules.description}
-      meta={`${modules.length} ${copy.modules.title.toLowerCase()} · ${surfaceCount} ${copy.modules.surfaces.toLowerCase()}`}
+      meta={`${modules.length} ${copy.modules.moduleCount} · ${surfaceCount} ${copy.modules.surfaces.toLowerCase()}`}
+      pageClassName="modules-page"
       title={copy.modules.title}
     >
       <div className="modules-page__filters">
@@ -109,8 +128,14 @@ export function ModulesPage() {
           onChange={(value) => setSource(value as SourceFilter)}
           options={[
             { label: copy.modules.allSources, value: "all" },
+            { label: copy.modules.sourceFirstParty, value: "first_party" },
             { label: copy.modules.sourceLinked, value: "linked" },
             { label: copy.modules.sourceService, value: "service" },
+            { label: copy.modules.sourceInstalled, value: "installed" },
+            {
+              label: copy.modules.sourceRuntimeBundle,
+              value: "runtime_bundle",
+            },
           ]}
           value={source}
         />
@@ -169,26 +194,41 @@ export function ModulesPage() {
                 <p>Surface: {selected.surface.toLowerCase()}</p>
               </InspectorSection>
               <InspectorSection title={copy.modules.ownership}>
-                <p>Module: {selected.moduleId}</p>
-                <p>Presentation: {selected.presentation}</p>
+                <p>{selected.packageName ?? `Module: ${selected.moduleId}`}</p>
+                <p>
+                  {selected.exportName
+                    ? `Export: ${selected.exportName}`
+                    : `Presentation: ${selected.presentation}`}
+                </p>
                 <p>Source: {sourceLabel(selected.source, copy.modules)}</p>
               </InspectorSection>
               <InspectorSection title={copy.modules.navigation}>
                 <p>Workspace: {selected.workspace}</p>
-                <p>Group: {selected.group}</p>
+                {selected.defaultFromArea ? (
+                  <p>
+                    {copy.modules.defaultFromArea}: {selected.area}
+                  </p>
+                ) : (
+                  <p>
+                    {copy.modules.group}: {selected.group}
+                  </p>
+                )}
                 <p>Order: {selected.order}</p>
               </InspectorSection>
               <InspectorSection title={copy.modules.evidence}>
-                <p>
-                  Access gate:{" "}
-                  {selected.capabilities[0] ?? copy.modules.noCapabilities}
-                </p>
+                {selected.capabilities[0] ? (
+                  <>
+                    <p>{selected.capabilities[0]}</p>
+                    <p>{copy.modules.capabilityGranted}</p>
+                  </>
+                ) : (
+                  <p>Access gate: {copy.modules.noCapabilities}</p>
+                )}
                 <p>
                   {selected.state === "loaded"
-                    ? copy.modules.registeredState
+                    ? copy.modules.routeRegistered
                     : (selected.error ?? "Module unavailable")}
                 </p>
-                <p>Route registered: {selected.route}</p>
               </InspectorSection>
             </Inspector>
           ) : (
@@ -219,7 +259,7 @@ export function ModulesPage() {
                 <DataRow
                   cells={[
                     registration.moduleName,
-                    `${registration.workspace} · ${registration.group}`,
+                    registration.placement,
                     <StatusDot
                       label={copy.modules.registeredState}
                       key={`${registration.id}-status`}
@@ -295,4 +335,17 @@ function sourceLabel(
     return copy.sourceService;
   }
   return copy.sourceFirstParty;
+}
+
+function placementForSurface(surface: ModuleRegistrySurfaceRow) {
+  const workspace = surface.navigation?.workspace.label ?? "System";
+  const group =
+    surface.navigation && "group" in surface.navigation
+      ? surface.navigation.group?.label
+      : undefined;
+  return `${workspace} / ${group ?? areaLabel(surface.area)}`;
+}
+
+function areaLabel(area: string) {
+  return area.charAt(0).toUpperCase() + area.slice(1);
 }

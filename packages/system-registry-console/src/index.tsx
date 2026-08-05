@@ -8,11 +8,11 @@ export const systemRegistryConsoleModule = defineConsoleModule({
     {
       area: "operations",
       component: SystemRegistryConsolePage,
-      icon: "network",
-      label: "Managed Services",
-      localizedLabels: { "zh-CN": "托管服务" },
+      icon: "blocks",
+      label: "Services",
+      localizedLabels: { "zh-CN": "服务" },
       navigation: {
-        order: 70,
+        order: 10,
         workspace: {
           icon: "shield",
           id: "system",
@@ -20,7 +20,7 @@ export const systemRegistryConsoleModule = defineConsoleModule({
           localizedLabels: { "zh-CN": "系统" },
         },
       },
-      path: "/system/services",
+      path: "/services",
     },
   ],
 });

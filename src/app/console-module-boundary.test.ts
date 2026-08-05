@@ -69,9 +69,9 @@ function findConsoleModuleBoundaryViolations(): string[] {
         );
       }
 
-      if (inStoryModule && target.endsWith("/runtime-console-context")) {
+      if (inStoryModule && target.endsWith("/console-context")) {
         violations.push(
-          `${displayPath(file)} imports host runtime context through ${specifier}`
+          `${displayPath(file)} imports host Console context through ${specifier}`
         );
       }
 

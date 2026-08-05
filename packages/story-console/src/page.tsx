@@ -53,7 +53,7 @@ export function storyModuleIsUnavailable(
 
 export function RuntimeStoriesPage() {
   const {
-    context: { useRuntimeConsole },
+    context: { useConsole },
     data: { retryTargetForNode },
     hooks: { useBrowserUrlPopState, useListKeyboard, usePersistedLayout },
     modules: { useMetadata: useConsoleModulesMetadata },
@@ -72,8 +72,7 @@ export function RuntimeStoriesPage() {
       },
     },
   } = consoleHostApi;
-  const { activeStoryTarget, clearStoryTarget, openRetry } =
-    useRuntimeConsole();
+  const { activeStoryTarget, clearStoryTarget, openRetry } = useConsole();
   const modulesQuery = useConsoleModulesMetadata();
   const storyModule = modulesQuery.data?.modules.find(
     (module) => module.module_name === "lenso/platform-story"

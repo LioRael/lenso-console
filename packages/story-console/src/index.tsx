@@ -10,6 +10,15 @@ export const storyConsoleModule = defineConsoleModule({
       component: RuntimeStoriesPage,
       icon: "workflow",
       label: "Stories",
+      navigation: {
+        order: 60,
+        workspace: {
+          icon: "settings",
+          id: "system",
+          label: "System",
+          localizedLabels: { "zh-CN": "系统" },
+        },
+      },
       path: "/stories",
     },
   ],

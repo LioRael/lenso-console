@@ -40,7 +40,7 @@ import {
 
 export type SearchResult = RuntimeSearchResult;
 
-type RuntimeConsoleContextValue = {
+type ConsoleContextValue = {
   retryTarget: RetryTarget | null;
   commandOpen: boolean;
   activeStoryTarget: { storyId: string; nodeId?: string } | null;
@@ -60,9 +60,7 @@ type RuntimeConsoleContextValue = {
   selectSearchResult: (result: SearchResult) => void;
 };
 
-const RuntimeConsoleContext = createContext<RuntimeConsoleContextValue | null>(
-  null
-);
+const ConsoleContext = createContext<ConsoleContextValue | null>(null);
 
 function runtimeStoriesPath(filters: {
   nodeId?: string | null;
@@ -74,7 +72,7 @@ function runtimeStoriesPath(filters: {
   });
 }
 
-export function RuntimeConsoleProvider({ children }: PropsWithChildren) {
+export function ConsoleProvider({ children }: PropsWithChildren) {
   const navigate = useNavigate();
   const eventsQuery = useRuntimeEvents();
   const functionsQuery = useRuntimeFunctions();
@@ -234,7 +232,7 @@ export function RuntimeConsoleProvider({ children }: PropsWithChildren) {
     [navigate, openTimeline, openStory, openStoryTarget]
   );
 
-  const value = useMemo<RuntimeConsoleContextValue>(
+  const value = useMemo<ConsoleContextValue>(
     () => ({
       retryTarget,
       commandOpen,
@@ -270,18 +268,14 @@ export function RuntimeConsoleProvider({ children }: PropsWithChildren) {
   );
 
   return (
-    <RuntimeConsoleContext.Provider value={value}>
-      {children}
-    </RuntimeConsoleContext.Provider>
+    <ConsoleContext.Provider value={value}>{children}</ConsoleContext.Provider>
   );
 }
 
-export function useRuntimeConsole() {
-  const context = useContext(RuntimeConsoleContext);
+export function useConsole() {
+  const context = useContext(ConsoleContext);
   if (!context) {
-    throw new Error(
-      "useRuntimeConsole must be used within RuntimeConsoleProvider"
-    );
+    throw new Error("useConsole must be used within ConsoleProvider");
   }
   return context;
 }

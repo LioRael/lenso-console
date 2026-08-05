@@ -25,7 +25,7 @@ import {
   buildStoryCommandItems,
   type CommandItem,
 } from "./command-palette-model";
-import { useRuntimeConsole } from "./runtime-console-context";
+import { useConsole } from "./console-context";
 
 type CommandPaletteProps = {
   theme: "dark" | "light";
@@ -137,7 +137,7 @@ const systemCommandNavigationItems = [
 export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { closeCommandPalette, commandOpen, focusGlobalSearch, openStory } =
-    useRuntimeConsole();
+    useConsole();
   const consoleNavigation = useConsoleNavigation();
   const storiesQuery = useRuntimeStories();
   const inputRef = useRef<HTMLInputElement>(null);

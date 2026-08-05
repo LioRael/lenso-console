@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   consoleBasePathFromBaseUrl,
-  createRuntimeConsoleRouter,
+  createConsoleRouter,
   rootRedirectPath,
 } from "./router";
 
@@ -14,7 +14,7 @@ describe("Console router", () => {
   test("mounts routes under the built console base path", () => {
     expect(consoleBasePathFromBaseUrl("/console/")).toBe("/console");
     expect(
-      createRuntimeConsoleRouter([], { basepath: "/console" }).options
+      createConsoleRouter([], { basepath: "/console" }).options
     ).toMatchObject({ basepath: "/console" });
   });
 });

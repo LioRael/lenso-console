@@ -8,7 +8,6 @@ import { useState } from "react";
 
 import {
   useRuntimeEvents,
-  useRuntimeFunctions,
   useRuntimeSummary,
 } from "../../hooks/use-runtime-queries";
 import { useRuntimeServices } from "../console-data/use-console-product-data";
@@ -20,44 +19,51 @@ import {
   StatusDot,
 } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
+import {
+  runtimeDemoServices,
+  runtimeServiceRowsFromCenterRows,
+  type RuntimeServiceRow,
+} from "./runtime-service-model";
 
 export function RuntimePage() {
   const { locale } = useConsoleLocale();
   const copy = consoleProductCopy(locale);
   const serviceQuery = useRuntimeServices();
-  const services = serviceQuery.rows;
+  const services: readonly RuntimeServiceRow[] =
+    serviceQuery.mode === "demo"
+      ? runtimeDemoServices
+      : runtimeServiceRowsFromCenterRows(serviceQuery.rows);
   const [tabIndex, setTabIndex] = useState(0);
   const tab = copy.runtime.tabs[tabIndex]!;
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected =
-    services.find((row) => row.providerName === selectedId) ?? services[0];
+  const selected = services.find((row) => row.id === selectedId) ?? services[0];
   const summary = useRuntimeSummary().data;
   const events = useRuntimeEvents().data ?? [];
-  const functions = useRuntimeFunctions().data ?? [];
-  const healthyCount = services.filter((item) => item.state === "ready").length;
+  const healthyCount =
+    serviceQuery.mode === "demo"
+      ? 12
+      : services.filter((item) => item.state === "ready").length;
+  const totalCount = serviceQuery.mode === "demo" ? 12 : services.length;
+  const observedCount =
+    serviceQuery.mode === "demo"
+      ? 12
+      : (summary?.recentActivity.length ?? services.length);
   const liveRows =
-    tabIndex === 1
-      ? functions
+    tabIndex === 1 || tabIndex === 2
+      ? events
           .slice(0, 8)
           .map(
             (item) =>
-              [item.functionName, item.id, item.status, item.createdAt] as const
+              [item.eventName, item.id, item.status, item.createdAt] as const
           )
-      : tabIndex === 2 || tabIndex === 3
-        ? events
-            .slice(0, 8)
-            .map(
-              (item) =>
-                [item.eventName, item.id, item.status, item.createdAt] as const
-            )
-        : [];
+      : [];
 
   return (
     <ProductPage
       description={copy.runtime.description}
       meta={
         <span className="runtime-page__meta">
-          {healthyCount} / {services.length} {copy.runtime.healthy}
+          {healthyCount} / {totalCount} {copy.runtime.healthy}
         </span>
       }
       pageClassName="runtime-page"
@@ -78,41 +84,38 @@ export function RuntimePage() {
             className="runtime-inspector"
             subtitle={
               selected
-                ? `${selected.providerName} · ${selected.environments.map((item) => item.name).join(", ") || "local"}`
+                ? `${selected.serviceId} · ${selected.region} · ${selected.version}`
                 : "—"
             }
             title={selected?.providerName ?? copy.runtime.title}
           >
             <div className="runtime-inspector__meta">
+              <span>{selected?.replicas ?? "—"} replicas</span>
               <span>
-                {selected?.managedServices.length ?? 0} {copy.runtime.services}
+                {selected?.p95Ms === null || selected?.p95Ms === undefined
+                  ? "— p95"
+                  : `${selected.p95Ms} ms p95`}
               </span>
               <span>
-                {selected?.modules.length ?? 0} {copy.runtime.modules}
+                {selected?.errorRate
+                  ? `${selected.errorRate} error`
+                  : "— error"}
               </span>
-              <span>{runtimeStatusLabel(selected?.state)}</span>
             </div>
             <div className="runtime-inspector__divider" />
             <div className="runtime-inspector__timeline">
               <p className="runtime-inspector__label">
                 {copy.runtime.timeline}
               </p>
-              {selected?.deployments?.length
-                ? selected.deployments
-                    .slice(0, 5)
-                    .map((deployment) => (
-                      <Timeline
-                        key={`${deployment.serviceName}:${deployment.environment}`}
-                        time={
-                          deployment.observedAtUnixMs
-                            ? new Date(
-                                deployment.observedAtUnixMs
-                              ).toLocaleTimeString([], { hour12: false })
-                            : "—"
-                        }
-                        title={`${deployment.serviceName} · ${runtimeStatusLabel(deployment.state)}`}
-                      />
-                    ))
+              {selected?.timeline.length
+                ? selected.timeline.map((event) => (
+                    <Timeline
+                      evidenceId={event.evidenceId}
+                      key={event.evidenceId}
+                      time={event.time}
+                      title={event.title}
+                    />
+                  ))
                 : events
                     .slice(0, 5)
                     .map((event) => (
@@ -136,7 +139,7 @@ export function RuntimePage() {
         {tabIndex === 0 ? (
           <>
             <PaneHeader
-              meta={`${summary?.recentActivity.length ?? services.length} ${copy.runtime.observed}`}
+              meta={`${observedCount} ${copy.runtime.observed}`}
               title={copy.runtime.tabs[0]}
             />
             <div className="lenso-ui-data-grid">
@@ -154,12 +157,10 @@ export function RuntimePage() {
                 <DataRow
                   cells={[
                     <span className="runtime-page__mono-cell" key="region">
-                      {service.environments[0]?.name ?? "local"}
+                      {service.region}
                     </span>,
                     <span className="runtime-page__mono-cell" key="version">
-                      {service.latestRelease?.candidateVersion ??
-                        service.latestRelease?.currentVersion ??
-                        "—"}
+                      {service.version}
                     </span>,
                     <StatusDot
                       key="state"
@@ -167,18 +168,16 @@ export function RuntimePage() {
                       tone={runtimeStatusTone(service.state)}
                     />,
                     <span className="runtime-page__mono-cell" key="p95">
-                      —
+                      {service.p95Ms === null ? "—" : `${service.p95Ms} ms`}
                     </span>,
                   ]}
                   interactive
-                  key={service.providerName}
-                  onActivate={() => setSelectedId(service.providerName)}
-                  onClick={() => setSelectedId(service.providerName)}
+                  key={service.id}
+                  onActivate={() => setSelectedId(service.id)}
+                  onClick={() => setSelectedId(service.id)}
                   primary={service.providerName}
-                  secondary={
-                    service.modules.join(" · ") || service.providerName
-                  }
-                  selected={selected?.providerName === service.providerName}
+                  secondary={service.serviceId}
+                  selected={selected?.id === service.id}
                   variant="runtime"
                 />
               ))}

@@ -13,6 +13,7 @@ describe("console host api", () => {
     expect(consoleHostApi.config.useWriteValue).toBeTypeOf("function");
     expect(consoleHostApi.contributions.useSlot).toBeTypeOf("function");
     expect(consoleHostApi.modules.useMetadata).toBeTypeOf("function");
+    expect(consoleHostApi.context.useConsole).toBeTypeOf("function");
     expect(consoleHostApi.context.useRuntimeConsole).toBeTypeOf("function");
     expect(consoleHostApi.hooks.useBrowserUrlPopState).toBeTypeOf("function");
     expect(consoleHostApi.hooks.useListKeyboard).toBeTypeOf("function");
