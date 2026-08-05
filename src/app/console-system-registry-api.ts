@@ -1,4 +1,4 @@
-import type { ConsoleManagedService } from "@lenso/console-ui-internal";
+import type { ConsoleManagedService } from "@lenso/console-ui";
 import { useQuery } from "@tanstack/react-query";
 
 import { httpClient, isApiMode } from "../lib/http-client";

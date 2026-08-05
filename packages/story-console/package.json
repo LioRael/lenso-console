@@ -8,7 +8,8 @@
   },
   "peerDependencies": {
     "@gsap/react": "^2.1.2",
-    "@lenso/console-ui-internal": "workspace:*",
+    "@lenso/console-module-api": "workspace:*",
+    "@lenso/console-ui": "workspace:*",
     "gsap": "^3.15.0",
     "react": "^19.1.0"
   }

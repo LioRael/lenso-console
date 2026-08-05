@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import "./test-host-api";
 import {
   resizeStoryListWidth,
   RuntimeStoriesPage,

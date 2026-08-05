@@ -1,4 +1,4 @@
-import type { ConsoleManagedService } from "@lenso/console-ui-internal";
+import type { ConsoleManagedService } from "@lenso/console-ui";
 import { describe, expect, test } from "vitest";
 
 import {

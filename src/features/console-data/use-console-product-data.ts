@@ -1,7 +1,7 @@
+import type { ConsoleNavigationMetadata } from "@lenso/console-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import type { ConsoleNavigationMetadata } from "../../../packages/console-ui-internal/src/index";
 import type { ConsoleModuleMetadata } from "../../app/console-module-resolver";
 import {
   fetchServiceModuleLifecycle,
@@ -102,14 +102,12 @@ export const demoModuleRegistryRows = [
       {
         area: "runtime",
         defaultFromArea: true,
-        exportName: "storyConsoleModule",
         label: "Stories",
         navigation: {
           order: -10,
           workspace: { id: "system", label: "System" },
         },
-        packageName: "@lenso/story-console",
-        presentation: "declarative",
+        presentation: "esm",
         requiredCapabilities: ["runtime.stories.read"],
         route: "/stories",
       },
@@ -157,7 +155,7 @@ export const demoModuleRegistryRows = [
           workspace: { id: "crm", label: "CRM" },
         },
         packageName: "@lenso/remote-crm-console",
-        presentation: "isolated",
+        presentation: "esm",
         requiredCapabilities: [],
         route: "/data/remote-crm",
       },
@@ -173,15 +171,13 @@ export const demoModuleRegistryRows = [
     surfaces: [
       {
         area: "operations",
-        exportName: "systemRegistryConsoleModule",
         label: "Managed Services",
         navigation: {
           group: { id: "operations", label: "Operations" },
           order: 30,
           workspace: { id: "system", label: "System" },
         },
-        packageName: "@lenso/system-registry-console",
-        presentation: "declarative",
+        presentation: "esm",
         requiredCapabilities: ["console.system-registry.read"],
         route: "/services",
       },

@@ -201,7 +201,7 @@ describe("Console Service release manifest", () => {
       buildReleaseArtifacts({
         execute,
         packagesJson: JSON.stringify([
-          { id: "npm:@lenso/console-bridge", version: "0.1.2" },
+          { id: "npm:@lenso/console-ui", version: "0.1.0" },
         ]),
       })
     ).resolves.toBeNull();

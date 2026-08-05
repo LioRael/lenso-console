@@ -16,7 +16,6 @@ const liveRepositoryIdentityFiles = [
   "Dockerfile",
   "README.md",
   "docs/agents/issue-tracker.md",
-  "packages/console-bridge/package.json",
   "service/README.md",
 ];
 
@@ -143,13 +142,21 @@ describe("Lenso Console repository boundary", () => {
     expect(runtime).toContain("ociObservation(name, item.version, artifact");
   });
 
-  test("builds the private Shell UI before release artifacts are packed", async () => {
+  test("builds the public Shell UI before release artifacts are packed", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];
-    const packageBuild = "pnpm --filter @lenso/console-ui-internal build";
+    const packageBuild = "pnpm --filter @lenso/console-ui build";
 
     expect(build).toContain(packageBuild);
     expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
+  });
+
+  test("publishes the public Module API and UI packages", async () => {
+    const components = await source(".lenso-release/runtime/components.yaml");
+
+    expect(components).toContain("id: npm:@lenso/console-module-api");
+    expect(components).toContain("id: npm:@lenso/console-ui");
+    expect(components).not.toContain("npm:@lenso/console-bridge");
   });
 
   test("does not retain retired service SDK packages", async () => {

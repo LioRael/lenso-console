@@ -1,6 +1,6 @@
 /* eslint-disable no-use-before-define */
 
-import type { ConsoleManagedService } from "@lenso/console-ui-internal";
+import type { ConsoleManagedService } from "@lenso/console-ui";
 
 export interface RegistrySummary {
   active: number;

@@ -1,7 +1,7 @@
+import { Button } from "@lenso/console-ui";
 import { LogIn } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
-import { Button } from "../../packages/console-ui-internal/src/index";
 import {
   apiAuthToken,
   consoleAccessTokenStorageKey,

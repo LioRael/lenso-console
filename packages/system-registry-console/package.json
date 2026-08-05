@@ -7,7 +7,8 @@
     ".": "./src/index.tsx"
   },
   "peerDependencies": {
-    "@lenso/console-ui-internal": "workspace:*",
+    "@lenso/console-module-api": "workspace:*",
+    "@lenso/console-ui": "workspace:*",
     "lucide-react": "^1.17.0",
     "react": "^19.1.0"
   }

@@ -1,6 +1,6 @@
+import type { ConsoleNavigationItem } from "@lenso/console-ui";
 import { describe, expect, test } from "vitest";
 
-import type { ConsoleNavigationItem } from "../../packages/console-ui-internal/src/index";
 import {
   activeWorkspaceIdForPath,
   buildWorkspaceNavigation,

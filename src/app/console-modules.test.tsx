@@ -61,14 +61,10 @@ describe("Console Module composition", () => {
     );
   });
 
-  test("composes linked Console-owned Modules without package exports", () => {
-    expect(consoleModules.map((module) => module.id)).toEqual(
-      expect.arrayContaining([
-        "lenso/console-workbench",
-        "lenso/platform-story",
-        "lenso/system-registry",
-      ])
-    );
+  test("keeps Module UI out of the prebuilt Shell bundle", () => {
+    expect(consoleModules.map((module) => module.id)).toEqual([
+      "lenso/console-workbench",
+    ]);
     expect(
       selectDefaultConsoleRoute(buildConsoleRoutes(consoleModules)).path
     ).toBe("/");
@@ -79,16 +75,15 @@ describe("Console Module composition", () => {
       (workspace) => workspace.id === "system"
     );
 
-    expect(systemWorkspace?.items.slice(0, 8).map((item) => item.path)).toEqual(
+    expect(systemWorkspace?.items.slice(0, 7).map((item) => item.path)).toEqual(
       [
         "/",
-        "/services",
         "/system",
         "/modules",
         "/changes",
         "/runtime",
-        "/stories",
         "/delivery",
+        "/settings",
       ]
     );
   });

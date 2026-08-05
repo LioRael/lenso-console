@@ -14,10 +14,8 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@lenso/console-bridge": ["packages/console-bridge/src/index.ts"],
-      "@lenso/console-ui-internal": [
-        "packages/console-ui-internal/src/index.ts"
-      ]
+      "@lenso/console-module-api": ["packages/console-module-api/src/index.ts"],
+      "@lenso/console-ui": ["packages/console-ui/src/index.tsx"]
     },
     "types": ["node"],
     "resolveJsonModule": true,
@@ -31,8 +29,8 @@
     "src",
     "packages/story-console/src",
     "packages/system-registry-console/src",
-    "packages/console-ui-internal/src",
-    "packages/console-bridge/src",
+    "packages/console-module-api/src",
+    "packages/console-ui/src",
     "packages/console-system-plane/src"
   ],
   "references": []

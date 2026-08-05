@@ -2,7 +2,7 @@ import type {
   ConsoleLocalizedLabels,
   ConsoleNavigationMetadata,
   ConsoleSurfaceArea,
-} from "../../packages/console-ui-internal/src/index";
+} from "@lenso/console-ui";
 
 export type ConsoleModuleMetadata = {
   module_name?: string;
@@ -22,9 +22,9 @@ export type ConsoleSurfaceMetadata = {
   presentation?:
     | { kind?: "declarative"; schema?: unknown }
     | {
-        kind?: "isolated";
+        kind?: "esm";
         entry?: string;
-        bridge_protocol?: string;
+        artifact_digest?: string;
       };
   required_capabilities?: readonly string[];
   icon?: string | null;

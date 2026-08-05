@@ -1,5 +1,8 @@
-import { defineConsoleModule } from "@lenso/console-ui-internal";
+import { defineConsoleManifest } from "@lenso/console-module-api";
+import type { ConsoleModuleManifest } from "@lenso/console-module-api";
+import { defineConsoleModule, defineConsoleUiModule } from "@lenso/console-ui";
 
+import manifestDefinition from "../console-module.json";
 import { SystemRegistryConsolePage } from "./page";
 
 export const systemRegistryConsoleModule = defineConsoleModule({
@@ -24,5 +27,12 @@ export const systemRegistryConsoleModule = defineConsoleModule({
     },
   ],
 });
+
+export const systemRegistryConsoleUiModule = defineConsoleUiModule({
+  manifest: defineConsoleManifest(manifestDefinition as ConsoleModuleManifest),
+  surfaces: { "managed-services": SystemRegistryConsolePage },
+});
+
+export default systemRegistryConsoleUiModule;
 
 export { SystemRegistryConsolePage } from "./page";

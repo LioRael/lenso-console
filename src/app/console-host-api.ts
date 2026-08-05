@@ -1,8 +1,11 @@
 import {
   CONSOLE_HOST_API_VERSION,
   EmptyState,
+  configureConsoleHostApi,
   consoleUi,
-} from "../../packages/console-ui-internal/src/index";
+  type ConsoleHostApi as PublicConsoleHostApi,
+} from "@lenso/console-ui";
+
 import { useConsole } from "../components/runtime/console-context";
 import { ExecutionInspector } from "../components/runtime/execution-inspector";
 import {
@@ -116,6 +119,8 @@ export const consoleHostApi =
         authConsoleMockFixtures
       )
     : productionConsoleHostApi;
+
+configureConsoleHostApi(consoleHostApi as unknown as PublicConsoleHostApi);
 
 export type ConsoleHostApi = typeof productionConsoleHostApi;
 export type {

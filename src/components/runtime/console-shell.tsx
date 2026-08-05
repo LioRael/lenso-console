@@ -4,7 +4,7 @@ import {
   SurfaceGroupLabel,
   type ConsoleLocale,
   useConsoleLocale,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,

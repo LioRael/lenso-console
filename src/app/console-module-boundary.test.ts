@@ -21,7 +21,6 @@ const consolePackageFiles = import.meta.glob<string>(
 );
 const modulePrefix = "../modules/";
 const consolePackagePrefix = "../../packages/";
-const hostApiPackagePrefix = "../../packages/console-ui-internal/src/";
 const storyPackagePrefix = "../../packages/story-console/src/";
 const storyModulePrefix = "../modules/story-console/";
 const importPattern =
@@ -35,8 +34,7 @@ function findConsoleModuleBoundaryViolations(): string[] {
     ...consolePackageFiles,
   })) {
     const inConsolePackage = file.startsWith(consolePackagePrefix);
-    const inHostApiPackage = file.startsWith(hostApiPackagePrefix);
-    const inInstalledConsolePackage = inConsolePackage && !inHostApiPackage;
+    const inInstalledConsolePackage = inConsolePackage;
     const inConsoleModule =
       file.startsWith(modulePrefix) || inInstalledConsolePackage;
     const inStoryModule =
@@ -48,12 +46,6 @@ function findConsoleModuleBoundaryViolations(): string[] {
       if (inConsoleModule && target.includes("/app/")) {
         violations.push(
           `${displayPath(file)} imports host app internals through ${specifier}`
-        );
-      }
-
-      if (inConsoleModule && target === "@lenso/console/console-ui-internal") {
-        violations.push(
-          `${displayPath(file)} imports host API through ${specifier}; use @lenso/console-ui-internal`
         );
       }
 
@@ -108,7 +100,8 @@ function findConsoleModuleBoundaryViolations(): string[] {
       if (
         !inConsolePackage &&
         target.startsWith(consolePackagePrefix) &&
-        !target.includes("/console-ui-internal/")
+        !target.includes("/console-ui/") &&
+        !target.includes("/console-module-api/")
       ) {
         violations.push(
           `${displayPath(file)} imports linked Console Module internals through ${specifier}`

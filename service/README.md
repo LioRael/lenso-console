@@ -75,16 +75,15 @@ Module Console UI artifacts are owned by this Service, not by managed Services.
 Operators with the `console.artifacts.manage` capability may reconcile reviewed
 artifacts through `POST /api/console/v1/artifacts/reconcile`. The Service
 downloads each HTTPS npm-style web archive with a bounded response size,
-verifies its exact SHA-256 digest and `lenso.console-bridge.v1` contract,
+verifies its exact SHA-256 digest and `lenso.console-module.v1` manifest,
 rejects unsafe archive paths, materializes only `dist/`, and writes a
 content-addressed object plus an atomic composition receipt. Container
 deployments persist this Console-owned store at
 `/opt/lenso-console/artifacts`; it remains writable only by the container's
 unprivileged UID `10001`. `GET /api/console/v1/artifacts` exposes the applied
-receipt to authenticated Operators. Static entries are never imported by the
-Shell: each is loaded through `/artifacts/<digest>/` in an iframe without
-`allow-same-origin`, under a restrictive artifact CSP and the sandboxed Console
-Bridge boundary.
+receipt to authenticated Operators. Entries are loaded by the prebuilt Shell
+through `/artifacts/<digest>/` as same-origin ESM. No embedded browsing context
+or separate bridge runtime is required.
 
 ## Container installation
 

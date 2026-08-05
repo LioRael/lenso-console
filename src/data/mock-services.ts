@@ -1,7 +1,7 @@
 import type {
   ConsoleManagedService,
   ConsoleManagedServicePresentation,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 
 const receiptDigest = `sha256:${"a".repeat(64)}`;
 

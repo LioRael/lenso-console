@@ -10,5 +10,5 @@
     "rootDir": "src",
     "sourceMap": false
   },
-  "include": ["src/index.ts", "src/ui.tsx"]
+  "include": ["src/index.ts"]
 }

@@ -11,8 +11,8 @@ local backend when `VITE_CONSOLE_MODE=api` and `VITE_API_BASE_URL` are set.
 
 ## Repository shape
 
-- Lenso Console: this repository owns the standalone Lenso Service, Console Shell,
-  System Registry Module, isolated UI artifact host, and delivery gates.
+- Lenso Console: this repository owns the standalone Lenso Service, prebuilt
+  Console Shell, ESM UI artifact host, and delivery gates.
 - Lenso framework: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the
   public framework and host crates consumed by the Console Service.
 
@@ -82,16 +82,16 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,crm_service.contacts.
 ## Architecture
 
 - `src/app`: router and root providers.
-- `src/app/isolated-console-module.tsx`: digest-bound sandbox and Console Bridge host.
+- `src/app/dynamic-console-module.tsx`: receipt-bound ESM Module loader and route host.
+- `src/app/console-module-runtime.ts`: same-origin ESM Module UI receipt validation and loader.
 - `src/components/ui`: small Tailwind-composed primitives.
 - `src/components/runtime`: Console Shell, search, command palette, drawer, timeline nodes.
 - `src/data`: seeded mock runtime data.
 - `src/hooks`: keyboard and runtime query hooks with API/mock switching.
 - `src/lib`: formatting, query client, and ky HTTP client foundation.
 - `src/pages`: route-level screens.
-- `packages/console-ui-internal`: private UI primitives for the Shell and linked
-  Console Modules; it is not an authoring or runtime extension SDK.
-- `packages/console-bridge`: the public protocol used by isolated Module UI.
+- `packages/console-module-api`: public framework-neutral Module contract.
+- `packages/console-ui`: public React adapter and shared Module UI primitives.
 - `packages/story-console`: linked Runtime Stories Console Module UI.
 - `service/modules/story`: Console-owned Story backend, federation, projections,
   and Store migrations released with the Story workbench.
@@ -100,21 +100,18 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,crm_service.contacts.
 
 ## Module Console UI
 
-Installable Modules may bind an immutable isolated `ConsoleUiArtifact` to the
-same Module Release. The authenticated
-`POST /api/console/v1/artifacts/reconcile` endpoint downloads reviewed
-artifacts, verifies their SHA-256 digests and Console Bridge contract, and
-materializes content-addressed objects plus an atomic composition receipt.
-Container deployments give only the Console Service write access to this
-persistent artifact store. Executable UI is never dynamically imported as a
-same-origin Shell extension. The artifact has no independent product identity
-or version: its Module ID, Module Release digest, artifact digest, semantic
-entries, requested permissions, and Bridge revision are verified together.
+The intended installable Module path binds an immutable `console_ui_esm` UI
+artifact to the same Module Release. The prebuilt Console Shell validates its
+receipt, verifies the public Module manifest, and dynamically imports the
+same-origin ESM entry without rebuilding the Shell. `@lenso/console-module-api`
+and `@lenso/console-ui` are the authoring boundary for that path.
 
-The private `@lenso/console-ui-internal` workspace is only for linked Modules
-owned by this Console Service. External Module UI communicates exclusively
-through `lenso.console-bridge.v1` and the exact permissions granted by the
-reviewed Console composition.
+The authenticated `POST /api/console/v1/artifacts/reconcile` endpoint downloads
+reviewed `console_ui_esm` artifacts, verifies their SHA-256 digests and public
+Module manifest, and materializes content-addressed objects plus an atomic
+composition receipt. The prebuilt Shell reads that receipt and dynamically
+imports the declared same-origin ESM entry; Module UI is never compiled into the
+Shell release.
 
 Generate a Module and its Console UI artifact scaffold with the framework CLI:
 
@@ -134,8 +131,16 @@ lenso module install <module-release-reference>
 Runnable third-party Service examples use the framework-owned
 `@lenso/service-kit` package and live in
 [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). Use
-`lenso module dev --console-ui` to preview UI through the same isolated Bridge
-boundary used by a materialized release.
+`lenso module dev --console-ui` to preview UI through the same ESM entry contract
+used by a materialized release.
+
+Build first-party UI artifacts only when the reviewed Module Release digests are
+available; the command refuses to invent release identity:
+
+```bash
+LENSO_MODULE_RELEASE_DIGESTS='{"lenso/platform-story":"sha256:<64-hex>","lenso/system-registry":"sha256:<64-hex>"}' \
+  pnpm build:module-artifacts
+```
 
 ## Checks
 

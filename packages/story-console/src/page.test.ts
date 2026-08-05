@@ -1,6 +1,7 @@
-import { consoleHostApi } from "@lenso/console-ui-internal";
+import { consoleHostApi } from "@lenso/console-ui";
 import { describe, expect, test } from "vitest";
 
+import "./test-host-api";
 import { shouldCloseInspectorOnEscape } from "./keyboard";
 import {
   runtimeStoriesDefaultViewMode,

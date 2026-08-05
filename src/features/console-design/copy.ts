@@ -1,4 +1,4 @@
-import type { ConsoleLocale } from "@lenso/console-ui-internal";
+import type { ConsoleLocale } from "@lenso/console-ui";
 
 const copy = {
   en: {

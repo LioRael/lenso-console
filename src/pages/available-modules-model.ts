@@ -49,7 +49,7 @@ export type AvailableModulesIssue = {
 };
 
 export type AvailableModuleCompatibility = {
-  consoleBridge?: string;
+  consoleModuleApi?: string;
   lenso?: {
     maxVersion?: string;
     minVersion?: string;
@@ -57,7 +57,7 @@ export type AvailableModuleCompatibility = {
 };
 
 export type AvailableModuleHostCompatibility = {
-  consoleBridge: string;
+  consoleModuleApi: string;
   lensoVersion: string;
 };
 
@@ -2005,7 +2005,7 @@ function consoleUiArtifactKey(
 }
 
 const defaultHostCompatibility: AvailableModuleHostCompatibility = {
-  consoleBridge: "1",
+  consoleModuleApi: "1",
   lensoVersion: "0.1.0",
 };
 
@@ -2063,10 +2063,10 @@ function availableModuleCompatibilityIssue({
     }
   }
   if (
-    compatibility?.consoleBridge &&
-    compatibility.consoleBridge !== hostCompatibility.consoleBridge
+    compatibility?.consoleModuleApi &&
+    compatibility.consoleModuleApi !== hostCompatibility.consoleModuleApi
   ) {
-    return `${moduleName} requires Console UI artifact API ${compatibility.consoleBridge}; host supports ${hostCompatibility.consoleBridge}`;
+    return `${moduleName} requires Console Module API ${compatibility.consoleModuleApi}; host supports ${hostCompatibility.consoleModuleApi}`;
   }
   return null;
 }

@@ -3,64 +3,13 @@ import type { ComponentType, FunctionComponent, ReactNode } from "react";
 import type { ConsoleLocale } from "./locale.js";
 import type { ConsoleUiComponents } from "./ui.js";
 
-export {
-  ConsoleLocaleProvider,
-  useConsoleLocale,
-  type ConsoleLanguagePreference,
-  type ConsoleLocale,
-  type ConsoleLocaleContextValue,
-} from "./locale.js";
-
-export {
-  Badge,
-  Button,
-  ConsolePage,
-  DataRow,
-  DataTable,
-  EmptyState,
-  Field,
-  FilterControl,
-  IconButton,
-  IconSlot,
-  Input,
-  InlineStatus,
-  Inspector,
-  KeyValueList,
-  Panel,
-  PaneHeader,
-  Section,
-  Select,
-  SettingsGroup,
-  SettingsRow,
-  SurfaceGroupLabel,
-  StatusMarker,
-  StateView,
-  SummaryStrip,
-  SplitView,
-  TableHeader,
-  Tabs,
-  Textarea,
-  consoleUi,
-  type BadgeProps,
-  type ButtonProps,
-  type ButtonVariant,
-  type ConsoleUiComponents,
-  type ControlSize,
-  type ConsoleTableVariant,
-  type DataRowProps,
-  type FilterControlProps,
-  type IconSlotProps,
-  type IconSlotSize,
-  type IconButtonProps,
-  type InlineStatusProps,
-  type InspectorProps,
-  type PaneHeaderProps,
-  type SemanticTone,
-  type StatusMarkerProps,
-  type SurfaceGroupLabelProps,
-  type TableHeaderProps,
-} from "./ui.js";
-
+/**
+ * The host-facing API used by Console UI modules.
+ *
+ * This adapter deliberately lives in the public UI package.  A module may be
+ * loaded after the Shell has been built, so it must not import an app-private
+ * alias to reach the host.
+ */
 export const CONSOLE_HOST_API_VERSION = "1" as const;
 
 export type ConsoleSurfaceArea =
@@ -182,6 +131,7 @@ export interface ConsoleResolvedAdminActionContribution {
 export type ConsoleResolvedContribution =
   ConsoleResolvedAdminActionContribution;
 
+/** @deprecated Use ConsoleUiModule from the public module API for new modules. */
 export interface ConsoleModule {
   id: string;
   surfaces: readonly ConsoleModuleSurface[];
@@ -534,9 +484,7 @@ export interface ConsoleHostApi {
   queries: {
     useRuntimeStoryDetail: (
       storyCorrelationId: string | null | undefined,
-      options?: {
-        enabled?: boolean;
-      }
+      options?: { enabled?: boolean }
     ) => ConsoleQueryResult<RuntimeStory>;
     useRuntimeStories: (options?: {
       enabled?: boolean;
@@ -653,13 +601,35 @@ export const defineConsoleModule = <Module extends ConsoleModule>(
   return module;
 };
 
-const missingHostApi = () => {
+let configuredHostApi: ConsoleHostApi | null = null;
+
+const hostApiGlobalKey = "__LENSO_CONSOLE_HOST_API__";
+
+const globallyConfiguredHostApi = (): ConsoleHostApi | null => {
+  const value = (globalThis as Record<string, unknown>)[hostApiGlobalKey];
+  return value && typeof value === "object" ? (value as ConsoleHostApi) : null;
+};
+
+/** Register the Shell-owned implementation before loading module entries. */
+export const configureConsoleHostApi = (api: ConsoleHostApi): void => {
+  configuredHostApi = api;
+  (globalThis as Record<string, unknown>)[hostApiGlobalKey] = api;
+};
+
+const missingHostApi = (): never => {
   throw new Error("Console host API is only available inside Lenso Console.");
 };
 
+/** A stable proxy lets separately loaded ESM modules share the Shell API. */
 export const consoleHostApi: ConsoleHostApi = new Proxy(
   {},
   {
-    get: missingHostApi,
+    get: (_target, property) => {
+      const hostApi = configuredHostApi ?? globallyConfiguredHostApi();
+      if (!hostApi) {
+        return missingHostApi();
+      }
+      return Reflect.get(hostApi, property);
+    },
   }
 ) as ConsoleHostApi;

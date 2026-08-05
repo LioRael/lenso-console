@@ -5,7 +5,7 @@ import {
   type ExecutionNode,
   type RuntimeStory,
   type StoryViewMode,
-} from "@lenso/console-ui-internal";
+} from "@lenso/console-ui";
 import gsap from "gsap";
 import {
   useEffect,

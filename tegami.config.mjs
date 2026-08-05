@@ -9,7 +9,8 @@ export default {
     bumpDep: () => false,
   },
   packages: {
-    "@lenso/console-bridge": {},
+    "@lenso/console-module-api": {},
+    "@lenso/console-ui": {},
     "@lenso/console-web": {},
   },
 };

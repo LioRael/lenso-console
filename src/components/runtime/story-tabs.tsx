@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-ui-internal";
+import { useConsoleLocale } from "@lenso/console-ui";
 import { Flame, GitBranch, Grid3X3, List, Workflow } from "lucide-react";
 
 import { cn } from "../../lib/cn";

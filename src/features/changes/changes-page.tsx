@@ -1,9 +1,4 @@
-import {
-  Button,
-  IconSlot,
-  Select,
-  useConsoleLocale,
-} from "@lenso/console-ui-internal";
+import { Button, IconSlot, Select, useConsoleLocale } from "@lenso/console-ui";
 import { ChevronDown, ListFilter } from "lucide-react";
 import { useMemo, useState } from "react";
 
