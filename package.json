@@ -11,9 +11,6 @@
     "lint": "ultracite check --deny-warnings",
     "check": "ultracite check --deny-warnings && pnpm test:local && pnpm typecheck:local && pnpm build:local && pnpm service:check",
     "check:repository-boundary": "vitest run scripts/repository-boundary.test.mjs",
-    "release:intent-check": "node scripts/release-plan.mjs --check-intent",
-    "release:plan": "node scripts/release-plan.mjs",
-    "release:verify": "pnpm check && node scripts/release-plan.mjs --verify",
     "create:module": "node scripts/run-lenso-cli.mjs module create",
     "service:api": "cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-api",
     "service:worker": "cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-worker",
@@ -64,7 +61,6 @@
     "oxfmt": "^0.52.0",
     "oxlint": "^1.67.0",
     "playwright": "1.52.0",
-    "tegami": "1.2.5",
     "typescript": "^6.0.3",
     "ultracite": "^7.8.1",
     "vitest": "^4.1.7"
