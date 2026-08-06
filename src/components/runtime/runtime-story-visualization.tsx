@@ -1,3 +1,5 @@
+import { stylexClassName } from "@lenso/console-ui";
+
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
 import { useStoryHeatmap } from "../../hooks/use-runtime-queries";
 import { FlameView } from "./flame-view";
@@ -27,11 +29,15 @@ export function RuntimeStoryVisualization({
   const heatmapQuery = useStoryHeatmap(story);
 
   return (
-    <section className="isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden">
+    <section
+      className={stylexClassName(
+        "isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden"
+      )}
+    >
       <StoryTabs mode={mode} onChange={setMode} />
       <div
         aria-labelledby={`story-tab-${mode}`}
-        className="min-h-0 min-w-0 overflow-hidden"
+        className={stylexClassName("min-h-0 min-w-0 overflow-hidden")}
         id="story-view-panel"
         role="tabpanel"
       >

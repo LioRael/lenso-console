@@ -20,6 +20,8 @@ pub struct ConsoleCompositionRequest {
     console_service_id: String,
     candidate_lock_digest: String,
     artifacts: Vec<ConsoleCompositionArtifact>,
+    #[serde(default)]
+    theme_bundles: Vec<ConsoleThemeBundleArtifact>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -32,7 +34,23 @@ struct ConsoleCompositionArtifact {
     format: String,
     entry: String,
     entries: Vec<ConsoleUiArtifactEntry>,
+    #[serde(default, alias = "styleAssets")]
+    style_assets: Vec<ConsoleUiStyleAsset>,
     manifest: ConsoleModuleManifest,
+    requested_permissions: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleThemeBundleArtifact {
+    bundle_id: String,
+    version: String,
+    locator: String,
+    digest: String,
+    format: String,
+    entries: Vec<ConsoleUiArtifactEntry>,
+    manifest: serde_json::Value,
+    #[serde(default)]
     requested_permissions: Vec<serde_json::Value>,
 }
 
@@ -41,6 +59,16 @@ struct ConsoleCompositionArtifact {
 struct ConsoleUiArtifactEntry {
     name: String,
     path: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleUiStyleAsset {
+    path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    order: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    media: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -75,6 +103,8 @@ struct ConsoleSurfaceManifest {
 pub struct ConsoleCompositionReceipt {
     candidate_lock_digest: String,
     artifacts: Vec<MaterializedArtifact>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    theme_bundles: Vec<MaterializedThemeBundle>,
 }
 
 #[derive(Debug, Deserialize, Serialize, ToSchema)]
@@ -88,7 +118,23 @@ struct MaterializedArtifact {
     base_path: String,
     entry: String,
     entries: Vec<ConsoleUiArtifactEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    style_assets: Vec<ConsoleUiStyleAsset>,
     manifest: ConsoleModuleManifest,
+    granted_permissions: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+struct MaterializedThemeBundle {
+    bundle_id: String,
+    version: String,
+    artifact_digest: String,
+    format: String,
+    stored_path: String,
+    base_path: String,
+    entries: Vec<ConsoleUiArtifactEntry>,
+    manifest: serde_json::Value,
     granted_permissions: Vec<String>,
 }
 
@@ -149,8 +195,8 @@ pub async fn reconcile_artifacts(
         .build()
         .map_err(internal_error)?;
     let mut downloads = BTreeMap::new();
-    for artifact in &request.artifacts {
-        let url = reqwest::Url::parse(&artifact.locator).map_err(bad_request)?;
+    for locator in artifact_locators(&request) {
+        let url = reqwest::Url::parse(&locator).map_err(bad_request)?;
         if url.scheme() != "https"
             && !(url.scheme() == "http"
                 && url.host_str().is_some_and(|host| {
@@ -184,7 +230,7 @@ pub async fn reconcile_artifacts(
             }
             bytes.extend_from_slice(&chunk);
         }
-        downloads.insert(artifact.locator.clone(), bytes);
+        downloads.insert(locator, bytes);
     }
     let root = super::console_shell::console_artifact_root();
     tokio::task::spawn_blocking(move || materialize_downloads(&root, &request, &downloads))
@@ -237,9 +283,128 @@ fn validate_request(request: &ConsoleCompositionRequest) -> Result<(), String> {
         {
             return Err("Console Module UI entry must be declared in entries".to_owned());
         }
+        let mut style_paths = BTreeSet::new();
+        for asset in &artifact.style_assets {
+            if !safe_entry_path(&asset.path) || !style_paths.insert(&asset.path) {
+                return Err("Console Module style assets must be safe and unique".to_owned());
+            }
+            if !artifact
+                .entries
+                .iter()
+                .any(|entry| entry.path == asset.path)
+            {
+                return Err(format!(
+                    "Console Module style asset must be declared in entries: {}",
+                    asset.path
+                ));
+            }
+        }
         validate_manifest(&artifact.manifest, &artifact.module_id)?;
     }
+    let mut bundles = BTreeSet::new();
+    for bundle in &request.theme_bundles {
+        if !bundles.insert(&bundle.bundle_id) {
+            return Err(format!(
+                "duplicate Console Theme Bundle for {}",
+                bundle.bundle_id
+            ));
+        }
+        validate_theme_bundle(bundle)?;
+    }
     Ok(())
+}
+
+fn artifact_locators(request: &ConsoleCompositionRequest) -> Vec<String> {
+    request
+        .artifacts
+        .iter()
+        .map(|artifact| artifact.locator.clone())
+        .chain(
+            request
+                .theme_bundles
+                .iter()
+                .map(|bundle| bundle.locator.clone()),
+        )
+        .collect()
+}
+
+fn validate_theme_bundle(bundle: &ConsoleThemeBundleArtifact) -> Result<(), String> {
+    if bundle.format != "console_theme_bundle"
+        || !publisher_namespaced_id(&bundle.bundle_id)
+        || bundle.version.trim().is_empty()
+    {
+        return Err("Console Theme Bundle identity is invalid".to_owned());
+    }
+    validate_digest(&bundle.digest)?;
+    if bundle.entries.is_empty() {
+        return Err("Console Theme Bundle must declare entries".to_owned());
+    }
+    let mut names = BTreeSet::new();
+    let mut paths = BTreeSet::<String>::new();
+    if bundle.entries.iter().any(|entry| {
+        entry.name.trim().is_empty()
+            || !safe_entry_path(&entry.path)
+            || !names.insert(&entry.name)
+            || !paths.insert(entry.path.clone())
+    }) {
+        return Err("Console Theme Bundle entries must be safe and unique".to_owned());
+    }
+    let manifest = bundle
+        .manifest
+        .as_object()
+        .ok_or_else(|| "Console Theme Bundle manifest must be an object".to_owned())?;
+    if manifest.get("format").and_then(serde_json::Value::as_str) != Some("console_theme_bundle")
+        || manifest.get("bundleId").and_then(serde_json::Value::as_str)
+            != Some(bundle.bundle_id.as_str())
+    {
+        return Err("Console Theme Bundle manifest identity is invalid".to_owned());
+    }
+    let variants = manifest
+        .get("variants")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "Console Theme Bundle variants are required".to_owned())?;
+    if variants.is_empty()
+        || manifest
+            .get("defaultVariant")
+            .and_then(serde_json::Value::as_str)
+            .is_none_or(|default| {
+                !variants.iter().any(|variant| {
+                    variant.get("id").and_then(serde_json::Value::as_str) == Some(default)
+                })
+            })
+    {
+        return Err("Console Theme Bundle default variant is invalid".to_owned());
+    }
+    let assets = manifest
+        .get("assets")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "Console Theme Bundle assets are required".to_owned())?;
+    for asset in assets {
+        let path = asset
+            .get("path")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| "Console Theme Bundle asset path is required".to_owned())?;
+        if !paths.contains(path) {
+            return Err(format!("Console Theme Bundle asset is undeclared: {path}"));
+        }
+    }
+    if let Some(composition) = manifest.get("composition") {
+        let entry = composition
+            .get("entry")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| "Console Theme Bundle composition entry is required".to_owned())?;
+        if !paths.contains(entry) {
+            return Err("Console Theme Bundle composition entry is undeclared".to_owned());
+        }
+    }
+    Ok(())
+}
+
+fn publisher_namespaced_id(value: &str) -> bool {
+    let Some((publisher, name)) = value.split_once('/') else {
+        return false;
+    };
+    !publisher.is_empty() && !name.is_empty() && !value.chars().any(char::is_whitespace)
 }
 
 fn validate_manifest(
@@ -323,13 +488,49 @@ fn materialize_downloads(
             base_path,
             entry: artifact.entry.clone(),
             entries: artifact.entries.clone(),
+            style_assets: artifact.style_assets.clone(),
             manifest: artifact.manifest.clone(),
+            granted_permissions,
+        });
+    }
+    let mut materialized_theme_bundles = Vec::new();
+    for bundle in &request.theme_bundles {
+        let bytes = downloads
+            .get(&bundle.locator)
+            .ok_or_else(|| format!("missing downloaded Theme Bundle for {}", bundle.bundle_id))?;
+        if sha256(bytes) != bundle.digest {
+            return Err(format!(
+                "Console Theme Bundle integrity mismatch for {}",
+                bundle.bundle_id
+            ));
+        }
+        let stored_path = PathBuf::from("objects")
+            .join(bundle.digest.trim_start_matches("sha256:"))
+            .with_extension("theme-bundle");
+        atomic_write(&root.join(&stored_path), bytes)?;
+        let base_path = materialize_web_entries(root, &bundle.digest, &bundle.entries, bytes)?;
+        let granted_permissions = bundle
+            .requested_permissions
+            .iter()
+            .filter_map(|permission| permission.get("permission_id")?.as_str())
+            .map(ToOwned::to_owned)
+            .collect();
+        materialized_theme_bundles.push(MaterializedThemeBundle {
+            bundle_id: bundle.bundle_id.clone(),
+            version: bundle.version.clone(),
+            artifact_digest: bundle.digest.clone(),
+            format: bundle.format.clone(),
+            stored_path: stored_path.to_string_lossy().into_owned(),
+            base_path,
+            entries: bundle.entries.clone(),
+            manifest: bundle.manifest.clone(),
             granted_permissions,
         });
     }
     let receipt = ConsoleCompositionReceipt {
         candidate_lock_digest: request.candidate_lock_digest.clone(),
         artifacts: materialized,
+        theme_bundles: materialized_theme_bundles,
     };
     let receipt_bytes = serde_json::to_vec_pretty(&receipt).map_err(|error| error.to_string())?;
     atomic_write(&root.join("composition-receipt.json"), &receipt_bytes)?;
@@ -351,14 +552,23 @@ fn materialize_web_artifact(
     artifact: &ConsoleCompositionArtifact,
     bytes: &[u8],
 ) -> Result<String, String> {
+    materialize_web_entries(root, &artifact.digest, &artifact.entries, bytes)
+}
+
+fn materialize_web_entries(
+    root: &Path,
+    digest_value: &str,
+    entries: &[ConsoleUiArtifactEntry],
+    bytes: &[u8],
+) -> Result<String, String> {
     const MAX_EXPANDED_BYTES: u64 = 128 * 1024 * 1024;
     const MAX_FILES: usize = 4_096;
 
-    let digest = artifact.digest.trim_start_matches("sha256:");
+    let digest = digest_value.trim_start_matches("sha256:");
     let relative = PathBuf::from("web").join(digest);
     let destination = root.join(&relative);
     if destination.is_dir() {
-        validate_materialized_entries(&destination, &artifact.entries)?;
+        validate_materialized_entries(&destination, entries)?;
         return Ok(format!("/artifacts/{digest}/"));
     }
     let temporary = root.join(format!(".web-{digest}-{}", std::process::id()));
@@ -394,7 +604,7 @@ fn materialize_web_artifact(
             std::io::copy(&mut item.by_ref().take(size), &mut output)
                 .map_err(|error| error.to_string())?;
         }
-        validate_materialized_entries(&temporary, &artifact.entries)
+        validate_materialized_entries(&temporary, entries)
     })();
     if let Err(error) = result {
         let _ = std::fs::remove_dir_all(&temporary);
@@ -523,6 +733,7 @@ mod tests {
                     name: "main".to_owned(),
                     path: "index.js".to_owned(),
                 }],
+                style_assets: Vec::new(),
                 manifest: ConsoleModuleManifest {
                     protocol: "lenso.console-module.v1".to_owned(),
                     module_id: "acme/crm".to_owned(),
@@ -544,6 +755,7 @@ mod tests {
                     "operations": ["admin_data_list"]
                 })],
             }],
+            theme_bundles: Vec::new(),
         }
     }
 
@@ -589,6 +801,7 @@ mod tests {
         assert_eq!(receipt.artifacts[0].format, "console_ui_esm");
         assert_eq!(receipt.artifacts[0].entry, "index.js");
         assert_eq!(receipt.artifacts[0].manifest.module_id, "acme/crm");
+        assert!(receipt.theme_bundles.is_empty());
         assert!(root.join("composition-receipt.json").is_file());
         std::fs::remove_dir_all(root).unwrap();
     }

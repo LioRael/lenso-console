@@ -1,3 +1,5 @@
+import { stylexClassName } from "@lenso/console-ui";
+
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
 import { cn } from "../../lib/cn";
 import {
@@ -21,16 +23,22 @@ export function FlameView({
   const levels = buildFlameLevels(story.nodes);
   const timelineEnd = runtimeTimelineEnd(story);
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
+    <div
+      className={stylexClassName(
+        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
+      )}
+    >
       <RuntimeViewHeader
         meta={formatRuntimeDuration(timelineEnd)}
         summary="color by service and status"
         title="Flame"
       />
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className={stylexClassName("min-h-0 flex-1 overflow-auto")}>
         {levels.map((level) => (
           <div
-            className="relative isolate h-[60px] overflow-hidden border-b border-(--line-subtle)"
+            className={stylexClassName(
+              "relative isolate h-[60px] overflow-hidden border-b border-(--line-subtle)"
+            )}
             key={level.map((node) => node.id).join(":")}
           >
             {level.map((node) => {
@@ -65,7 +73,7 @@ export function FlameView({
                   }}
                   type="button"
                 >
-                  <span className="truncate">
+                  <span className={stylexClassName("truncate")}>
                     {node.name} · {formatRuntimeDuration(node.durationMs)}
                   </span>
                 </button>

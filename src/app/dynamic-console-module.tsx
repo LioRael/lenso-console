@@ -1,5 +1,8 @@
 import {
   ConsoleModuleProvider,
+  mergeStyleProps,
+  SurfaceRoot,
+  styles,
   type ConsoleUiSurface,
 } from "@lenso/console-ui";
 import { useQuery } from "@tanstack/react-query";
@@ -79,7 +82,9 @@ export function DynamicConsoleModulePage() {
   });
   return (
     <ConsoleModuleProvider client={client}>
-      <surface.component />
+      <SurfaceRoot moduleId={selectedArtifact.moduleId} surfaceId={surface.id}>
+        <surface.component />
+      </SurfaceRoot>
     </ConsoleModuleProvider>
   );
 }
@@ -108,10 +113,20 @@ function ModuleState({
   title: string;
 }) {
   return (
-    <section className="m-6 rounded-xl border border-(--line) bg-(--bg-panel) p-6">
-      <h1 className="text-base font-semibold">{title}</h1>
+    <section {...mergeStyleProps(undefined, undefined, styles.moduleState)}>
+      <h1 {...mergeStyleProps(undefined, undefined, styles.moduleStateTitle)}>
+        {title}
+      </h1>
       {children ? (
-        <p className="mt-2 text-sm text-(--fg-secondary)">{children}</p>
+        <p
+          {...mergeStyleProps(
+            undefined,
+            undefined,
+            styles.moduleStateDescription
+          )}
+        >
+          {children}
+        </p>
       ) : null}
     </section>
   );

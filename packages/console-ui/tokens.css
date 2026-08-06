@@ -1,3 +1,5 @@
+/* Host-only aliases for the document/page contract layer. Public consumers
+ * should use @lenso/console-tokens and the generated StyleX stylesheet. */
 :root {
   color-scheme: dark;
   --font-ui:
@@ -129,6 +131,81 @@
   --inverse: var(--fg-inverse);
   --shadow-strong: var(--shadow-color);
   --shadow-soft: var(--shadow-color-soft);
+
+  /* Stable names consumed by the package-local StyleX token bridge.  They
+   * intentionally point at the Host contract so built-in light/dark themes
+   * and third-party token overrides update the extracted UI stylesheet too. */
+  --lenso-token-canvas: var(--bg-canvas);
+  --lenso-token-window: var(--bg-window);
+  --lenso-token-panel: var(--bg-panel);
+  --lenso-token-panelHeader: var(--bg-panel-header);
+  --lenso-token-rowHover: var(--bg-row-hover);
+  --lenso-token-rowSelected: var(--bg-row-selected);
+  --lenso-token-control: var(--bg-control);
+  --lenso-token-controlHover: var(--bg-control-hover);
+  --lenso-token-controlActive: var(--bg-control-active);
+  --lenso-token-overlay: var(--bg-overlay);
+  --lenso-token-sidebar: var(--bg-sidebar);
+  --lenso-token-foreground: var(--fg-primary);
+  --lenso-token-foregroundSecondary: var(--fg-secondary);
+  --lenso-token-foregroundTertiary: var(--fg-tertiary);
+  --lenso-token-foregroundQuaternary: var(--fg-quaternary);
+  --lenso-token-line: var(--line);
+  --lenso-token-lineSubtle: var(--line-subtle);
+  --lenso-token-lineStrong: var(--line-strong);
+  --lenso-token-accent: var(--accent);
+  --lenso-token-accentHover: var(--accent-hover);
+  --lenso-token-accentForeground: var(--accent-foreground);
+  --lenso-token-success: var(--success);
+  --lenso-token-warning: var(--warning);
+  --lenso-token-error: var(--error);
+  --lenso-token-info: var(--info);
+  --lenso-token-toneMutedBg: var(--tone-muted-bg);
+  --lenso-token-toneMutedBorder: var(--tone-muted-border);
+  --lenso-token-toneMutedForeground: var(--tone-muted-fg);
+  --lenso-token-toneInfoBg: var(--tone-info-bg);
+  --lenso-token-toneInfoBorder: var(--tone-info-border);
+  --lenso-token-toneInfoForeground: var(--tone-info-fg);
+  --lenso-token-toneSuccessBg: var(--tone-success-bg);
+  --lenso-token-toneSuccessBorder: var(--tone-success-border);
+  --lenso-token-toneSuccessForeground: var(--tone-success-fg);
+  --lenso-token-toneWarningBg: var(--tone-warning-bg);
+  --lenso-token-toneWarningBorder: var(--tone-warning-border);
+  --lenso-token-toneWarningForeground: var(--tone-warning-fg);
+  --lenso-token-toneErrorBg: var(--tone-error-bg);
+  --lenso-token-toneErrorBorder: var(--tone-error-border);
+  --lenso-token-toneErrorForeground: var(--tone-error-fg);
+  --lenso-token-focusRing: var(--focus-ring);
+  --lenso-token-focusRingMuted: var(--focus-ring-muted);
+  --lenso-token-radiusControl: var(--radius-control);
+  --lenso-token-radiusPanel: var(--radius-panel);
+  --lenso-token-radiusPopover: var(--radius-popover);
+  --lenso-token-radiusPill: var(--radius-pill);
+  --lenso-token-controlHeightSm: var(--control-height-sm);
+  --lenso-token-controlHeightMd: var(--control-height-md);
+  --lenso-token-space1: var(--space-1);
+  --lenso-token-space1_5: var(--space-1-5);
+  --lenso-token-space2: var(--space-2);
+  --lenso-token-space3: var(--space-3);
+  --lenso-token-space4: var(--space-4);
+  --lenso-token-space5: var(--space-5);
+  --lenso-token-space6: var(--space-6);
+  --lenso-token-space8: var(--space-8);
+  --lenso-token-fontCode: var(--font-code);
+  --lenso-token-contentGutter: var(--content-gutter);
+  --lenso-token-pageGutter: var(--console-page-gutter);
+  --lenso-token-pageMaxWidth: var(--console-page-max-width);
+  --lenso-token-sidebarWidth: var(--console-sidebar-width);
+  --lenso-token-sidebarCollapsedWidth: var(--console-sidebar-collapsed-width);
+  --lenso-token-toolbarHeight: var(--console-toolbar-height);
+  --lenso-token-inspectorWidth: var(--console-inspector-width);
+  --lenso-token-tableRowHeight: var(--console-table-row-height);
+  --lenso-token-tableHeaderHeight: var(--console-table-header-height);
+  --lenso-token-paneHeaderHeight: var(--console-pane-header-height);
+  --lenso-token-tabHeight: var(--console-tab-height);
+  --lenso-token-shadowControl: var(--elevation-control);
+  --lenso-token-shadowPanel: var(--elevation-panel);
+  --lenso-token-shadowOverlay: var(--elevation-overlay);
   accent-color: var(--accent);
   font-family: var(--font-ui);
   font-synthesis: none;

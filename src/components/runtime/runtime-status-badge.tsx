@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import {
   Activity,
   AlertTriangle,
@@ -47,7 +48,7 @@ export function RuntimeStatusBadge({
           strokeWidth={2.2}
         />
       ) : null}
-      <span className="truncate">{tone.label}</span>
+      <span className={stylexClassName("truncate")}>{tone.label}</span>
     </span>
   );
 }

@@ -1,14 +1,18 @@
 /* eslint-disable func-style, no-nested-ternary, no-use-before-define */
 
 import {
+  stylexClassName,
   ConsolePage,
+  DataGrid,
   DataRow,
   IconSlot,
   InlineStatus,
   Inspector,
+  mergeStyleProps,
   PaneHeader,
   Select,
   SplitView,
+  styles,
   StateView,
   TableHeader,
   consoleHostApi,
@@ -128,7 +132,7 @@ export function SystemRegistryConsolePage() {
   };
 
   return (
-    <ConsolePage className="product-page services-page">
+    <ConsolePage className={stylexClassName("product-page services-page")}>
       <ConsolePage.Header>
         <ConsolePage.Heading>
           <ConsolePage.Title>{copy.title}</ConsolePage.Title>
@@ -140,7 +144,9 @@ export function SystemRegistryConsolePage() {
         </ConsolePage.Actions>
       </ConsolePage.Header>
 
-      <ConsolePage.Body className="product-page__body services-page__body">
+      <ConsolePage.Body
+        className={stylexClassName("product-page__body services-page__body")}
+      >
         {servicesQuery.isPending ? (
           <RegistryMessage
             description={
@@ -157,7 +163,13 @@ export function SystemRegistryConsolePage() {
           />
         ) : (
           <>
-            <div className="product-page__filters services-page__filters flex h-12 items-center gap-2">
+            <div
+              {...mergeStyleProps(
+                undefined,
+                "product-page__filters services-page__filters",
+                styles.pageFilters
+              )}
+            >
               <ServiceFilterSelect
                 ariaLabel={copy.allEnvironments}
                 onChange={(value) => setFilter("environment", value)}
@@ -179,7 +191,7 @@ export function SystemRegistryConsolePage() {
             </div>
 
             <SplitView
-              className="services-page__workspace"
+              className={stylexClassName("services-page__workspace")}
               inspectorWidth={376}
             >
               <SplitView.Main>
@@ -187,7 +199,7 @@ export function SystemRegistryConsolePage() {
                   meta={`${services.length} ${copy.total}`}
                   title={copy.title}
                 />
-                <div className="lenso-ui-data-grid">
+                <DataGrid>
                   <TableHeader
                     columns={[
                       copy.service,
@@ -197,7 +209,7 @@ export function SystemRegistryConsolePage() {
                     ]}
                   />
                   {filteredRows.length === 0 ? (
-                    <div className="services-page__empty">
+                    <div className={stylexClassName("services-page__empty")}>
                       {services.length === 0 ? copy.noData : copy.noMatches}
                     </div>
                   ) : (
@@ -213,7 +225,7 @@ export function SystemRegistryConsolePage() {
                       />
                     ))
                   )}
-                </div>
+                </DataGrid>
               </SplitView.Main>
               <SplitView.Inspector>
                 <ServiceInspector copy={copy} row={selected} zh={zh} />
@@ -270,11 +282,11 @@ function ServiceFilterSelect({
   value: ServiceFilterValue;
 }) {
   return (
-    <label className="services-filter-control">
-      <span className="sr-only">{ariaLabel}</span>
+    <label className={stylexClassName("services-filter-control")}>
+      <span className={stylexClassName("sr-only")}>{ariaLabel}</span>
       <Select
         aria-label={ariaLabel}
-        className="services-filter-control__select"
+        className={stylexClassName("services-filter-control__select")}
         onChange={(event) => onChange(event.currentTarget.value)}
         value={value}
       >
@@ -286,7 +298,7 @@ function ServiceFilterSelect({
       </Select>
       <IconSlot
         aria-hidden="true"
-        className="services-filter-control__icon"
+        className={stylexClassName("services-filter-control__icon")}
         size={12}
       >
         <ChevronDown size={12} strokeWidth={1.5} />
@@ -320,7 +332,7 @@ function ServiceInspector({
   const { presentation, service } = row;
   return (
     <Inspector
-      className="product-inspector services-inspector"
+      className={stylexClassName("product-inspector services-inspector")}
       status={
         <InlineStatus tone={semanticStatusTone(presentation.posture)}>
           {presentation.observed}

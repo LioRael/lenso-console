@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -88,24 +89,36 @@ export function ExtractionConsolePanel({
   return (
     <section
       aria-labelledby="extraction-heading"
-      className="border-b border-(--line) bg-(--bg-panel)"
+      className={stylexClassName("border-b border-(--line) bg-(--bg-panel)")}
     >
-      <header className="flex items-center gap-2 border-b border-(--line) px-3 py-2">
-        <StateIcon aria-hidden="true" className="text-(--accent)" size={14} />
+      <header
+        className={stylexClassName(
+          "flex items-center gap-2 border-b border-(--line) px-3 py-2"
+        )}
+      >
+        <StateIcon
+          aria-hidden="true"
+          className={stylexClassName("text-(--accent)")}
+          size={14}
+        />
         <h2
-          className="font-mono text-[12px] font-semibold"
+          className={stylexClassName("font-mono text-[12px] font-semibold")}
           id="extraction-heading"
         >
           Module extraction
         </h2>
         <span
           aria-label={`Extraction state: ${data.state}`}
-          className="ml-auto font-mono text-[10px] uppercase text-(--fg-secondary)"
+          className={stylexClassName(
+            "ml-auto font-mono text-[10px] uppercase text-(--fg-secondary)"
+          )}
         >
           {data.state.replaceAll("_", " ")}
         </span>
       </header>
-      <div className="grid gap-px bg-(--line) md:grid-cols-3">
+      <div
+        className={stylexClassName("grid gap-px bg-(--line) md:grid-cols-3")}
+      >
         <Summary label="readiness" value={data.readinessSummary} />
         <Summary
           label="current authority"
@@ -118,23 +131,35 @@ export function ExtractionConsolePanel({
       </div>
       <ol
         aria-label="Extraction phase timeline"
-        className="divide-y divide-(--line)"
+        className={stylexClassName("grid")}
       >
         {data.timeline.length === 0 ? (
-          <li className="text-[11px] text-(--fg-tertiary)">
+          <li className={stylexClassName("text-[11px] text-(--fg-tertiary)")}>
             No phase evidence yet.
           </li>
         ) : (
           data.timeline.map((phase) => (
             <li
-              className="grid min-h-9 grid-cols-[96px_minmax(0,1fr)_minmax(140px,0.7fr)] items-center gap-3 px-3 py-1.5 text-[10px] hover:bg-(--bg-row-hover)"
+              className={stylexClassName(
+                "grid min-h-9 grid-cols-[96px_minmax(0,1fr)_minmax(140px,0.7fr)] items-center gap-3 border-t border-(--line) px-3 py-1.5 text-[10px] first:border-t-0 hover:bg-(--bg-row-hover)"
+              )}
               key={`${phase.phaseId}:${phase.artifactId}`}
             >
-              <div className="text-(--fg-tertiary)">{phase.state}</div>
-              <div className="truncate text-[11px] text-(--fg-primary)">
+              <div className={stylexClassName("text-(--fg-tertiary)")}>
+                {phase.state}
+              </div>
+              <div
+                className={stylexClassName(
+                  "truncate text-[11px] text-(--fg-primary)"
+                )}
+              >
                 {phase.phaseId}
               </div>
-              <div className="truncate font-mono text-[9px] text-(--fg-tertiary)">
+              <div
+                className={stylexClassName(
+                  "truncate font-mono text-[9px] text-(--fg-tertiary)"
+                )}
+              >
                 <ArtifactLink
                   artifactId={phase.artifactId}
                   planId={data.planId}
@@ -147,22 +172,32 @@ export function ExtractionConsolePanel({
       {data.blockers.length > 0 ? (
         <div
           aria-label="Extraction blockers"
-          className="border-t border-(--line) p-3"
+          className={stylexClassName("border-t border-(--line) p-3")}
         >
           {data.blockers.map((blocker) => (
             <article
-              className="mb-2 border-l-2 border-(--danger) pl-2"
+              className={stylexClassName(
+                "mb-2 border-l-2 border-(--danger) pl-2"
+              )}
               key={`${blocker.artifactId}:${blocker.code}:${blocker.subject}`}
             >
-              <h3 className="font-mono text-[10px] font-semibold">
+              <h3
+                className={stylexClassName(
+                  "font-mono text-[10px] font-semibold"
+                )}
+              >
                 {blocker.code} / {blocker.subject}
               </h3>
-              <p className="text-[11px] text-(--fg-secondary)">
+              <p
+                className={stylexClassName("text-[11px] text-(--fg-secondary)")}
+              >
                 {blocker.detail}
               </p>
               {blocker.nextActions.map((action) => (
                 <p
-                  className="font-mono text-[9px] text-(--fg-tertiary)"
+                  className={stylexClassName(
+                    "font-mono text-[9px] text-(--fg-tertiary)"
+                  )}
                   key={action}
                 >
                   next: {action}
@@ -175,49 +210,69 @@ export function ExtractionConsolePanel({
       {data.approvalBoundaries.length > 0 ? (
         <div
           aria-label="Extraction approval boundaries"
-          className="border-t border-(--line) p-3"
+          className={stylexClassName("border-t border-(--line) p-3")}
         >
-          <h3 className="mb-2 font-mono text-[10px] uppercase">
+          <h3
+            className={stylexClassName("mb-2 font-mono text-[10px] uppercase")}
+          >
             Approval boundaries
           </h3>
           {data.approvalBoundaries.map((boundary) => (
             <article
-              className="grid grid-cols-[minmax(140px,0.6fr)_minmax(0,1fr)_minmax(140px,0.7fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
+              className={stylexClassName(
+                "grid grid-cols-[minmax(140px,0.6fr)_minmax(0,1fr)_minmax(140px,0.7fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
+              )}
               key={boundary.boundaryId}
             >
-              <div className="font-mono text-[10px]">
+              <div className={stylexClassName("font-mono text-[10px]")}>
                 {boundary.action} · {boundary.phaseId}
               </div>
-              <p className="text-[11px] text-(--fg-secondary)">
+              <p
+                className={stylexClassName("text-[11px] text-(--fg-secondary)")}
+              >
                 {boundary.reason}
               </p>
-              <p className="font-mono text-[9px] text-(--fg-tertiary)">
+              <p
+                className={stylexClassName(
+                  "font-mono text-[9px] text-(--fg-tertiary)"
+                )}
+              >
                 required pins: {boundary.requiredPins.join(", ") || "none"}
               </p>
             </article>
           ))}
         </div>
       ) : null}
-      <details className="border-t border-(--line) p-3">
-        <summary className="cursor-pointer font-mono text-[10px] uppercase">
+      <details className={stylexClassName("border-t border-(--line) p-3")}>
+        <summary
+          className={stylexClassName(
+            "cursor-pointer font-mono text-[10px] uppercase"
+          )}
+        >
           Evidence provenance ({data.evidence.length})
         </summary>
         {data.evidence.map((item) => (
           <div
-            className="mt-2 text-[10px]"
+            className={stylexClassName("mt-2 text-[10px]")}
             key={`${item.artifactId}:${item.kind}:${item.digest}`}
           >
-            <span className="font-mono">
+            <span className={stylexClassName("font-mono")}>
               {item.kind} / {item.subject}
             </span>
-            <span className="ml-2 text-(--fg-tertiary)">{item.detail}</span>
-            <span className="ml-2 font-mono text-(--accent)">
+            <span className={stylexClassName("ml-2 text-(--fg-tertiary)")}>
+              {item.detail}
+            </span>
+            <span className={stylexClassName("ml-2 font-mono text-(--accent)")}>
               <ArtifactLink artifactId={item.artifactId} planId={data.planId} />
             </span>
           </div>
         ))}
       </details>
-      <footer className="flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)">
+      <footer
+        className={stylexClassName(
+          "flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)"
+        )}
+      >
         <ShieldCheck aria-hidden="true" size={12} /> Console is read-only and
         does not evaluate or apply Cutover rules.
       </footer>
@@ -246,11 +301,15 @@ function ArtifactLink({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-(--bg-panel) p-3">
-      <div className="font-mono text-[9px] uppercase text-(--fg-tertiary)">
+    <div className={stylexClassName("bg-(--bg-panel) p-3")}>
+      <div
+        className={stylexClassName(
+          "font-mono text-[9px] uppercase text-(--fg-tertiary)"
+        )}
+      >
         {label}
       </div>
-      <div className="mt-1 text-[11px]">{value}</div>
+      <div className={stylexClassName("mt-1 text-[11px]")}>{value}</div>
     </div>
   );
 }
@@ -258,7 +317,9 @@ function ExtractionMessage({ role, text }: { role?: "alert"; text: string }) {
   return (
     <section
       aria-label="Module extraction"
-      className="border-b border-(--line) bg-(--bg-panel) p-3 text-[11px] text-(--fg-tertiary)"
+      className={stylexClassName(
+        "border-b border-(--line) bg-(--bg-panel) p-3 text-[11px] text-(--fg-tertiary)"
+      )}
       role={role}
     >
       {text}

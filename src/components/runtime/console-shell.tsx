@@ -1,7 +1,13 @@
+import type {
+  ConsoleUiCompositionContext,
+  ConsoleUiNavigationModel,
+} from "@lenso/console-composition-api";
 import {
   consoleLocalizedLabel,
   IconSlot,
+  mergeStyleProps,
   SurfaceGroupLabel,
+  styles,
   type ConsoleLocale,
   useConsoleLocale,
 } from "@lenso/console-ui";
@@ -93,6 +99,12 @@ const namedIconRegistry: Record<string, ShellIcon> = {
   "layout-dashboard": LayoutDashboard,
 };
 
+const shellActiveLinkClassName = mergeStyleProps(
+  undefined,
+  undefined,
+  styles.shellNavLinkActive
+).className;
+
 export function ConsoleShell({ children }: PropsWithChildren) {
   const { locale } = useConsoleLocale();
   const copy = consoleCopy(locale);
@@ -125,6 +137,54 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const activeWorkspace = selectedWorkspaceForId(
     navigation,
     routeWorkspaceId ?? selectedWorkspaceId
+  );
+  const compositionNavigation = useMemo<ConsoleUiNavigationModel>(() => {
+    const model: ConsoleUiNavigationModel = {
+      items: navigation
+        .flatMap((workspace) => [
+          ...workspace.items,
+          ...workspace.groups.flatMap((group) => group.items),
+        ])
+        .map((item) => ({
+          id: `${item.moduleId}:${item.path}`,
+          path: item.path,
+          label: consoleLocalizedLabel(item, locale),
+          ...(item.navigation?.group
+            ? { group: item.navigation.group.id }
+            : {}),
+          ...(item.navigation?.order === undefined
+            ? {}
+            : { order: item.navigation.order }),
+          ...(item.icon ? { icon: item.icon } : {}),
+        })),
+    };
+    const arrange = appearance.composition?.arrangeNavigation;
+    if (!arrange) {
+      return model;
+    }
+    try {
+      return arrange(model);
+    } catch {
+      return model;
+    }
+  }, [appearance.composition, locale, navigation]);
+  const compositionContext = useMemo<ConsoleUiCompositionContext>(
+    () => ({
+      bundleId: appearance.bundleId ?? "lenso/default",
+      variantId: appearance.variantId ?? "default",
+      navigation: compositionNavigation,
+      slots: {
+        root: null,
+        shell: null,
+        navigation: null,
+        workspaceSwitcher: null,
+        header: null,
+        content: children,
+        loading: null,
+        error: null,
+      },
+    }),
+    [appearance.bundleId, appearance.variantId, children, compositionNavigation]
   );
 
   useEffect(() => {
@@ -164,20 +224,42 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     appearance.setPreference(appearance.theme === "dark" ? "light" : "dark");
   }, [appearance]);
 
-  return (
+  const defaultShell = (
     <div
-      className={`console-shell grid min-h-screen bg-(--bg-canvas) text-(--fg-primary) ${sidebarCollapsed ? "grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]" : "grid-cols-[var(--console-sidebar-width)_minmax(0,1fr)] max-[1100px]:grid-cols-[var(--console-sidebar-collapsed-width)_minmax(0,1fr)]"}`}
+      {...mergeStyleProps(
+        undefined,
+        "console-shell",
+        styles.shell,
+        sidebarCollapsed ? styles.shellCollapsed : styles.shellExpanded
+      )}
     >
-      <a className="console-skip-link" href="#console-main">
+      <a
+        {...mergeStyleProps(undefined, "console-skip-link", styles.skipLink)}
+        href="#console-main"
+      >
         {locale === "zh-CN" ? "跳转到主要内容" : "Skip to main content"}
       </a>
-      <aside className="sticky top-0 z-30 flex h-screen flex-col bg-(--bg-sidebar) px-2 pt-5 pb-4">
+      <aside {...mergeStyleProps(undefined, undefined, styles.shellSidebar)}>
         <div
-          className={`flex h-8 items-center gap-2.5 px-2.5 ${sidebarCollapsed ? "justify-center" : ""}`}
+          {...mergeStyleProps(
+            undefined,
+            undefined,
+            styles.shellBrand,
+            sidebarCollapsed ? styles.shellBrandCollapsed : null
+          )}
         >
-          <span className="size-3.5 rounded-[3px] bg-(--fg-primary)" />
+          <span
+            {...mergeStyleProps(undefined, undefined, styles.shellBrandMark)}
+          />
           <strong
-            className={`text-[14px] font-semibold leading-5 ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.shellBrandName,
+              sidebarCollapsed
+                ? styles.shellCollapsedOnly
+                : styles.shellExpandedOnly
+            )}
           >
             Lenso
           </strong>
@@ -190,60 +272,124 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           workspaces={navigation}
         />
         <div
-          className={`flex h-8 items-center px-2.5 text-[10px] font-semibold leading-[14px] text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+          {...mergeStyleProps(
+            undefined,
+            undefined,
+            styles.shellProduction,
+            sidebarCollapsed
+              ? styles.shellCollapsedOnly
+              : styles.shellExpandedOnly
+          )}
         >
           {copy.production}
         </div>
-        <nav className="mt-0.5 grid gap-0.5">
+        <nav {...mergeStyleProps(undefined, undefined, styles.shellNav)}>
           <WorkspaceMenu
             collapsed={sidebarCollapsed}
             locale={locale}
             workspace={activeWorkspace}
           />
         </nav>
-        <div className="mt-auto">
+        <div {...mergeStyleProps(undefined, undefined, styles.shellBottom)}>
           <Link
             activeProps={{
-              className:
-                "bg-(--bg-row-selected) text-(--fg-primary) font-medium",
+              className: shellActiveLinkClassName,
             }}
-            className={`flex h-8 items-center gap-[7px] rounded-[var(--radius-control)] px-2.5 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${sidebarCollapsed ? "justify-center" : ""}`}
+            className={
+              mergeStyleProps(
+                undefined,
+                undefined,
+                styles.shellNavLink,
+                sidebarCollapsed ? styles.shellNavLinkCollapsed : null
+              ).className
+            }
             to={"/settings" as never}
           >
-            <IconSlot className="shrink-0">
+            <IconSlot>
               <Settings size={16} strokeWidth={1.6} />
             </IconSlot>
             <span
-              className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
+              className={
+                mergeStyleProps(
+                  undefined,
+                  undefined,
+                  sidebarCollapsed
+                    ? styles.shellCollapsedOnly
+                    : styles.shellExpandedOnly
+                ).className
+              }
             >
               {copy.nav.settings}
             </span>
             <span
-              className={`ml-auto text-[11px] leading-4 font-normal text-(--fg-tertiary) ${sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}`}
+              className={
+                mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.shellShortcut,
+                  sidebarCollapsed
+                    ? styles.shellCollapsedOnly
+                    : styles.shellExpandedOnly
+                ).className
+              }
             >
               {shortcut("/settings")}
             </span>
           </Link>
           <div
-            className={`flex h-10 items-center gap-2.5 pl-2.5 ${sidebarCollapsed ? "justify-center" : ""}`}
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.shellProfile,
+              sidebarCollapsed ? styles.shellProfileCollapsed : null
+            )}
           >
-            <span className="size-5 shrink-0 rounded-full border border-(--line-strong)" />
             <span
-              className={sidebarCollapsed ? "hidden" : "max-[1100px]:hidden"}
+              {...mergeStyleProps(undefined, undefined, styles.shellAvatar)}
+            />
+            <span
+              className={
+                mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.shellProfileCopy,
+                  sidebarCollapsed
+                    ? styles.shellCollapsedOnly
+                    : styles.shellExpandedOnly
+                ).className
+              }
             >
-              <strong className="block text-[11px] font-medium leading-4 text-(--fg-secondary)">
+              <strong
+                {...mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.shellProfileName
+                )}
+              >
                 Leo&apos;s team
               </strong>
-              <span className="block text-[10px] leading-[14px] text-(--fg-tertiary)">
+              <span
+                {...mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.shellProfileRole
+                )}
+              >
                 {copy.operator}
               </span>
             </span>
           </div>
         </div>
       </aside>
-      <main className="min-w-0" id="console-main" tabIndex={-1}>
-        <header className="flex h-12 items-center border-b border-(--line-subtle) bg-(--bg-chrome) px-10">
-          <div className="text-[11px] text-(--fg-tertiary)">
+      <main
+        {...mergeStyleProps(undefined, undefined, styles.shellMain)}
+        id="console-main"
+        tabIndex={-1}
+      >
+        <header {...mergeStyleProps(undefined, undefined, styles.shellToolbar)}>
+          <div
+            {...mergeStyleProps(undefined, undefined, styles.shellBreadcrumb)}
+          >
             {[
               copy.workspace,
               ...workspaceBreadcrumb(
@@ -254,30 +400,66 @@ export function ConsoleShell({ children }: PropsWithChildren) {
               ),
             ].map((part, index) => (
               <span key={`${part}-${index}`}>
-                {index > 0 ? <span className="px-1">/</span> : null}
+                {index > 0 ? (
+                  <span
+                    {...mergeStyleProps(
+                      undefined,
+                      undefined,
+                      styles.shellBreadcrumbSeparator
+                    )}
+                  >
+                    /
+                  </span>
+                ) : null}
                 <span>{part}</span>
               </span>
             ))}
           </div>
           <button
             aria-label={`${copy.search} ⌘ K`}
-            className="ml-auto flex h-7 w-[209px] items-center rounded-[var(--radius-control)] border border-(--line) px-2 text-[11px] text-(--fg-tertiary) hover:bg-(--bg-control-hover)"
+            {...mergeStyleProps(undefined, undefined, styles.shellSearch)}
             onClick={openCommandPalette}
             type="button"
           >
             <Search size={12} />
-            <span className="ml-5">{copy.search}</span>
-            <span className="ml-auto font-mono">⌘ K</span>
+            <span
+              {...mergeStyleProps(
+                undefined,
+                undefined,
+                styles.shellSearchLabel
+              )}
+            >
+              {copy.search}
+            </span>
+            <span
+              {...mergeStyleProps(
+                undefined,
+                undefined,
+                styles.shellSearchShortcut
+              )}
+            >
+              ⌘ K
+            </span>
           </button>
-          <span className="ml-3 text-[11px] text-(--fg-tertiary)">
+          <span {...mergeStyleProps(undefined, undefined, styles.shellUpdated)}>
             {copy.updated}
           </span>
         </header>
-        <div className="h-[calc(100vh-48px)] overflow-hidden">{children}</div>
+        <div {...mergeStyleProps(undefined, undefined, styles.shellContent)}>
+          {children}
+        </div>
       </main>
       <RetryDialog />
       <CommandPalette onToggleTheme={toggleTheme} theme={appearance.theme} />
     </div>
+  );
+  const ShellComposition = appearance.composition?.slots?.shell;
+  return ShellComposition ? (
+    <ShellComposition context={compositionContext}>
+      {defaultShell}
+    </ShellComposition>
+  ) : (
+    defaultShell
   );
 }
 
@@ -386,13 +568,21 @@ function WorkspaceSwitcher({
   };
 
   return (
-    <div className="relative" ref={root}>
+    <div
+      {...mergeStyleProps(undefined, undefined, styles.workspaceRoot)}
+      ref={root}
+    >
       <button
         aria-label={consoleLocalizedLabel(active, locale)}
         aria-controls="console-workspace-menu"
         aria-expanded={open}
         aria-haspopup="menu"
-        className={`flex h-9 w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-[12px] font-medium leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) ${collapsed ? "justify-center" : ""}`}
+        {...mergeStyleProps(
+          undefined,
+          undefined,
+          styles.workspaceTrigger,
+          collapsed ? styles.workspaceTriggerCollapsed : null
+        )}
         id="console-workspace-trigger"
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -409,11 +599,23 @@ function WorkspaceSwitcher({
             <Icon size={14} />
           </IconSlot>
         ) : null}
-        <span className={collapsed ? "hidden" : "max-[1100px]:hidden"}>
+        <span
+          {...mergeStyleProps(
+            undefined,
+            undefined,
+            styles.workspaceTriggerLabel,
+            collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+          )}
+        >
           {consoleLocalizedLabel(active, locale)}
         </span>
         <ChevronDown
-          className={collapsed ? "hidden" : "ml-auto max-[1100px]:hidden"}
+          {...mergeStyleProps(
+            undefined,
+            undefined,
+            styles.workspaceTriggerChevron,
+            collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+          )}
           size={12}
         />
       </button>
@@ -421,12 +623,24 @@ function WorkspaceSwitcher({
         <div
           aria-hidden={!open}
           aria-labelledby="console-workspace-trigger"
-          className={`workspace-switcher-menu absolute top-10 z-50 w-[208px] rounded-[8px] border border-(--line-strong) bg-(--bg-overlay) p-1 shadow-(--elevation-overlay) ${collapsed ? "left-12" : "left-0"}`}
+          {...mergeStyleProps(
+            undefined,
+            "workspace-switcher-menu",
+            styles.workspaceMenu,
+            menuVisible ? styles.workspaceMenuVisible : null,
+            collapsed ? styles.workspaceMenuCollapsed : null
+          )}
           data-open={menuVisible}
           id="console-workspace-menu"
           role="menu"
         >
-          <div className="flex h-6 items-center px-2 text-[10px] text-(--fg-tertiary)">
+          <div
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.workspaceMenuLabel
+            )}
+          >
             {locale === "zh-CN" ? "工作区" : "Workspaces"}
           </div>
           {workspaces.map((workspace, index) => {
@@ -440,7 +654,14 @@ function WorkspaceSwitcher({
               );
             return (
               <button
-                className={`grid h-8 w-full grid-cols-[16px_minmax(0,1fr)_16px] items-center gap-2 rounded-[var(--radius-control)] px-2 text-left hover:bg-(--bg-row-hover) ${workspace.id === active.id ? "bg-(--bg-row-hover)" : ""}`}
+                {...mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.workspaceMenuItem,
+                  workspace.id === active.id
+                    ? styles.workspaceMenuItemActive
+                    : null
+                )}
                 aria-checked={workspace.id === active.id}
                 key={workspace.id}
                 onClick={() => {
@@ -458,14 +679,32 @@ function WorkspaceSwitcher({
                 <IconSlot>
                   <WorkspaceIcon size={14} />
                 </IconSlot>
-                <strong className="truncate text-[12px] font-medium">
+                <strong
+                  {...mergeStyleProps(
+                    undefined,
+                    undefined,
+                    styles.workspaceMenuItemTitle
+                  )}
+                >
                   {consoleLocalizedLabel(workspace, locale)}
                 </strong>
-                <span className="grid size-4 place-items-center">
+                <span
+                  {...mergeStyleProps(
+                    undefined,
+                    undefined,
+                    styles.workspaceMenuItemCount
+                  )}
+                >
                   {workspace.id === active.id ? (
                     <Check size={12} />
                   ) : (
-                    <span className="font-mono text-[10px] text-(--fg-tertiary)">
+                    <span
+                      {...mergeStyleProps(
+                        undefined,
+                        undefined,
+                        styles.workspaceMenuItemCountText
+                      )}
+                    >
                       {count}
                     </span>
                   )}
@@ -473,9 +712,19 @@ function WorkspaceSwitcher({
               </button>
             );
           })}
-          <div className="my-1 h-px bg-(--line)" />
+          <div
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.workspaceMenuDivider
+            )}
+          />
           <Link
-            className="grid h-10 w-full grid-cols-[16px_minmax(0,1fr)] items-center gap-2 rounded-[var(--radius-control)] px-2 hover:bg-(--bg-row-hover)"
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.workspaceMenuModules
+            )}
             onClick={closeMenu}
             to={"/modules" as never}
           >
@@ -483,10 +732,22 @@ function WorkspaceSwitcher({
               <Boxes size={14} />
             </IconSlot>
             <span>
-              <strong className="block text-[12px] font-medium">
+              <strong
+                {...mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.workspaceMenuModulesTitle
+                )}
+              >
                 {locale === "zh-CN" ? "模块" : "Modules"}
               </strong>
-              <span className="block text-[10px] text-(--fg-tertiary)">
+              <span
+                {...mergeStyleProps(
+                  undefined,
+                  undefined,
+                  styles.workspaceMenuModulesDescription
+                )}
+              >
                 {locale === "zh-CN" ? "模块管理" : "Module management"}
               </span>
             </span>
@@ -541,9 +802,15 @@ function WorkspaceMenuGroup({
 }) {
   const GroupIcon = iconForName(group.icon);
   return (
-    <div className="flex flex-col gap-0.5">
+    <div {...mergeStyleProps(undefined, undefined, styles.shellNavGroup)}>
       <SurfaceGroupLabel
-        className={collapsed ? "hidden" : "max-[1100px]:hidden"}
+        className={
+          mergeStyleProps(
+            undefined,
+            undefined,
+            collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+          ).className
+        }
         icon={GroupIcon ? <GroupIcon size={12} strokeWidth={1.6} /> : undefined}
         label={consoleLocalizedLabel(group, locale)}
       />
@@ -574,22 +841,39 @@ function NavItem({
     <Link
       activeOptions={{ exact: item.path === "/" || item.path === "/system" }}
       activeProps={{
-        className: "bg-(--bg-row-selected) text-(--fg-primary) font-medium",
+        className: shellActiveLinkClassName,
       }}
       aria-label={label}
-      className={`flex h-8 items-center gap-[7px] rounded-[var(--radius-control)] px-2.5 text-[12px] leading-4 text-(--fg-secondary) hover:bg-(--bg-row-hover) hover:text-(--fg-primary) ${collapsed ? "justify-center" : ""}`}
+      className={
+        mergeStyleProps(
+          undefined,
+          undefined,
+          styles.shellNavLink,
+          collapsed ? styles.shellNavLinkCollapsed : null
+        ).className
+      }
       to={item.path}
     >
-      <IconSlot className="shrink-0">
+      <IconSlot>
         <Icon size={16} strokeWidth={1.6} />
       </IconSlot>
       <span
-        className={`min-w-0 truncate ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
+        {...mergeStyleProps(
+          undefined,
+          undefined,
+          styles.shellNavLabel,
+          collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+        )}
       >
         {label}
       </span>
       <span
-        className={`ml-auto text-[11px] leading-4 font-normal text-(--fg-tertiary) ${collapsed ? "hidden" : "max-[1100px]:hidden"}`}
+        {...mergeStyleProps(
+          undefined,
+          undefined,
+          styles.shellShortcut,
+          collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+        )}
       >
         {shortcut(item.path)}
       </span>

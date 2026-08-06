@@ -46,10 +46,25 @@ The receipt carries the Module identity, release digest, UI digest, entry, and
 manifest. The Shell refuses an artifact whose loaded export does not match that
 receipt.
 
-Import the shared visual language from the package CSS entry points when
-building a Module UI:
+The package ships precompiled StyleX CSS for consumers that do not run the
+Console compiler themselves. Module authors should prefer the typed StyleX
+slots and shared token contract:
 
 ```css
-@import "@lenso/console-ui/theme.css";
-@import "@lenso/console-ui/components.css";
+@import "@lenso/console-ui/stylex.css";
 ```
+
+```tsx
+import { SurfaceRoot, styles } from "@lenso/console-ui";
+
+function Invoices() {
+  return (
+    <SurfaceRoot moduleId="acme/billing" surfaceId="invoices">
+      <ConsolePage stylex={styles.page}>Invoices</ConsolePage>
+    </SurfaceRoot>
+  );
+}
+```
+
+Use `@lenso/console-tokens` for typed semantic tokens. Legacy global CSS is not
+part of the public `@lenso/console-ui` surface.

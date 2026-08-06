@@ -4,7 +4,7 @@ This document studies the public iii console frontend as a design and architectu
 
 ## iii Source Findings
 
-- Tech stack: React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Router, TanStack Query, Radix UI primitives, lucide-react, class-variance-authority, clsx, tailwind-merge, cmdk, zod, dagre, @xyflow/react, Vitest, and Biome.
+- Tech stack: React 19, TypeScript, Vite, StyleX, TanStack Router, TanStack Query, Base UI primitives, lucide-react, cnfast, cmdk, zod, dagre, @xyflow/react, Vitest, and Oxlint/Oxford tooling.
 - Folder structure: feature routes live under `src/routes`; telemetry-specific UI lives under feature component folders; reusable controls live under `src/components/ui`; API domains live under `src/api`; telemetry transforms and color helpers live under `src/lib`; route generation is committed as `routeTree.gen.ts`.
 - Styling approach: Tailwind utility classes backed by CSS custom properties. The design system defines black surfaces, subtle borders, a restrained yellow accent, semantic status colors, compact radii, and separate sans/mono roles.
 - Telemetry workbench components: the route composes a list/detail workbench with filters, grouped records, selectable visualization, optional detail inspector, service breakdown, waterfall, flame graph, map, and flow views.
@@ -51,7 +51,8 @@ This document studies the public iii console frontend as a design and architectu
 
 ## Current Calibration Decisions
 
-- Keep Tailwind CSS and the existing Base UI/TanStack Query/ky foundations.
+- Keep StyleX as the Console authoring API and the existing Base UI/TanStack
+  Query/ky foundations.
 - Stay mock-mode only.
 - Use kebab-case component filenames.
 - Prefer small targeted visual refinements over wholesale rewrites.

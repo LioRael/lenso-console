@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { useRef, useState } from "react";
 
 export function ResizeHandle({
@@ -25,9 +26,11 @@ export function ResizeHandle({
   return (
     <button
       aria-label={ariaLabel}
-      className={`group relative z-1 bg-transparent outline-hidden focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-[-2px] ${
-        isVertical ? "h-2 min-w-0" : "min-h-0 w-2"
-      } ${className ?? ""}`}
+      className={stylexClassName(
+        `group relative z-1 bg-transparent outline-hidden focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-[-2px] ${
+          isVertical ? "h-2 min-w-0" : "min-h-0 w-2"
+        } ${className ?? ""}`
+      )}
       ref={handleRef}
       style={{ cursor: resizeCursor }}
       onBlur={() => setIsFocused(false)}
@@ -101,15 +104,17 @@ export function ResizeHandle({
         }
       />
       <span
-        className={`absolute transition ${
-          isVertical ? "inset-x-0 top-1/2 h-px" : "inset-y-0 left-1/2 w-px"
-        } ${
-          isDragging
-            ? "bg-(--fg-tertiary)"
-            : isActive
-              ? "bg-(--line-strong)"
-              : "bg-(--border-subtle)"
-        }`}
+        className={stylexClassName(
+          `absolute transition ${
+            isVertical ? "inset-x-0 top-1/2 h-px" : "inset-y-0 left-1/2 w-px"
+          } ${
+            isDragging
+              ? "bg-(--fg-tertiary)"
+              : isActive
+                ? "bg-(--line-strong)"
+                : "bg-(--border-subtle)"
+          }`
+        )}
       />
     </button>
   );

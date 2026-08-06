@@ -1,19 +1,25 @@
+import { stylexClassName } from "@lenso/console-ui";
 import type { ReactNode } from "react";
 
-export const runtimeViewHeaderClassName =
-  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-surface) px-3";
+export const runtimeViewHeaderClassName = stylexClassName(
+  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-surface) px-3"
+);
 
-export const runtimeViewHeaderContentClassName =
-  "flex min-w-0 items-center gap-2 overflow-hidden";
+export const runtimeViewHeaderContentClassName = stylexClassName(
+  "flex min-w-0 items-center gap-2 overflow-hidden"
+);
 
-export const runtimeViewHeaderLabelClassName =
-  "font-sans text-[12px] font-medium text-(--fg-primary)";
+export const runtimeViewHeaderLabelClassName = stylexClassName(
+  "font-sans text-[12px] font-medium text-(--fg-primary)"
+);
 
-export const runtimeViewHeaderSummaryClassName =
-  "min-w-0 truncate font-mono text-[10px] text-(--fg-tertiary)";
+export const runtimeViewHeaderSummaryClassName = stylexClassName(
+  "min-w-0 truncate font-mono text-[10px] text-(--fg-tertiary)"
+);
 
-export const runtimeViewHeaderMetaClassName =
-  "shrink-0 font-mono text-[10px] text-(--fg-secondary)";
+export const runtimeViewHeaderMetaClassName = stylexClassName(
+  "shrink-0 font-mono text-[10px] text-(--fg-secondary)"
+);
 
 export function RuntimeViewHeader({
   children,

@@ -1,8 +1,12 @@
 import {
+  stylexClassName,
+  DataGrid,
   DataRow,
   IconSlot,
+  mergeStyleProps,
   PaneHeader,
   Select,
+  styles,
   TableHeader,
   useConsoleLocale,
 } from "@lenso/console-ui";
@@ -81,7 +85,7 @@ export function SystemPage() {
         pageClassName="system-page"
         title={copy.system.title}
       >
-        <div className="py-8 text-[12px] text-(--fg-tertiary)">
+        <div {...mergeStyleProps(undefined, undefined, styles.pageNoData)}>
           {copy.common.noData}
         </div>
       </ProductPage>
@@ -95,7 +99,13 @@ export function SystemPage() {
       pageClassName="system-page"
       title={copy.system.title}
     >
-      <div className="product-page__filters system-page__filters flex h-12 items-center gap-2">
+      <div
+        {...mergeStyleProps(
+          undefined,
+          "product-page__filters system-page__filters",
+          styles.pageFilters
+        )}
+      >
         <SystemFilterSelect
           ariaLabel={copy.system.kind}
           onChange={(value) => setFilter("kind", value)}
@@ -124,7 +134,7 @@ export function SystemPage() {
         />
       </div>
       <SplitWorkspace
-        className="system-page__workspace"
+        className={stylexClassName("system-page__workspace")}
         inspector={
           <Inspector
             status={
@@ -167,7 +177,7 @@ export function SystemPage() {
           meta={`${filteredCapabilities.length} total`}
           title={copy.system.capabilities}
         />
-        <div className="lenso-ui-data-grid">
+        <DataGrid>
           <TableHeader
             columns={[
               copy.system.capability,
@@ -177,7 +187,9 @@ export function SystemPage() {
             ]}
           />
           {filteredCapabilities.length === 0 ? (
-            <div className="system-page__empty">{copy.system.noMatches}</div>
+            <div className={stylexClassName("system-page__empty")}>
+              {copy.system.noMatches}
+            </div>
           ) : (
             filteredCapabilities.map((item) => (
               <DataRow
@@ -200,7 +212,7 @@ export function SystemPage() {
               />
             ))
           )}
-        </div>
+        </DataGrid>
       </SplitWorkspace>
     </ProductPage>
   );
@@ -218,11 +230,11 @@ function SystemFilterSelect({
   value: SystemInventoryFilterValue;
 }) {
   return (
-    <label className="system-filter-control">
-      <span className="sr-only">{ariaLabel}</span>
+    <label className={stylexClassName("system-filter-control")}>
+      <span className={stylexClassName("sr-only")}>{ariaLabel}</span>
       <Select
         aria-label={ariaLabel}
-        className="system-filter-control__select"
+        className={stylexClassName("system-filter-control__select")}
         onChange={(event) => onChange(event.currentTarget.value)}
         value={value}
       >
@@ -234,7 +246,7 @@ function SystemFilterSelect({
       </Select>
       <IconSlot
         aria-hidden="true"
-        className="system-filter-control__icon"
+        className={stylexClassName("system-filter-control__icon")}
         size={12}
       >
         <ChevronDown size={12} strokeWidth={1.5} />

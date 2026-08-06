@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { X } from "lucide-react";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
@@ -29,22 +30,40 @@ export function StoryHeader({
     storySummary.status === "failed" || storySummary.status === "dead";
 
   return (
-    <header className="flex h-[112px] min-w-0 flex-col gap-1 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas) px-3.5 pt-2.5 pb-2">
-      <div className="flex h-[22px] min-w-0 items-center gap-2 overflow-hidden">
-        <h1 className="min-w-0 truncate text-[16px] font-semibold leading-[22px] text-(--foreground)">
+    <header
+      className={stylexClassName(
+        "flex h-[112px] min-w-0 flex-col gap-1 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas) px-3.5 pt-2.5 pb-2"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-[22px] min-w-0 items-center gap-2 overflow-hidden"
+        )}
+      >
+        <h1
+          className={stylexClassName(
+            "min-w-0 truncate text-[16px] font-semibold leading-[22px] text-(--foreground)"
+          )}
+        >
           {storySummary.title}
         </h1>
-        <span className="inline-flex shrink-0 items-center gap-1.5 font-sans text-[10px] text-(--fg-secondary)">
+        <span
+          className={stylexClassName(
+            "inline-flex shrink-0 items-center gap-1.5 font-sans text-[10px] text-(--fg-secondary)"
+          )}
+        >
           <span
-            className="size-1.5 rounded-full"
+            className={stylexClassName("size-1.5 rounded-full")}
             style={{ backgroundColor: statusColor(storySummary.status) }}
           />
           {storySummary.status}
         </span>
-        <span className="min-w-0 flex-1" />
+        <span className={stylexClassName("min-w-0 flex-1")} />
         <button
           aria-label="Close story detail"
-          className="grid size-[13px] shrink-0 place-items-center rounded-xs text-(--muted) transition hover:bg-(--hover) hover:text-(--foreground)"
+          className={stylexClassName(
+            "grid size-[13px] shrink-0 place-items-center rounded-xs text-(--muted) transition hover:bg-(--hover) hover:text-(--foreground)"
+          )}
           onClick={onClose}
           type="button"
         >
@@ -52,7 +71,11 @@ export function StoryHeader({
         </button>
       </div>
 
-      <div className="flex h-[14px] min-w-0 items-center gap-3 overflow-hidden font-mono text-[10px] text-(--fg-secondary)">
+      <div
+        className={stylexClassName(
+          "flex h-[14px] min-w-0 items-center gap-3 overflow-hidden font-mono text-[10px] text-(--fg-secondary)"
+        )}
+      >
         <Metric tone="muted">
           {formatRuntimeDuration(storySummary.duration)}
         </Metric>
@@ -68,15 +91,23 @@ export function StoryHeader({
         ) : null}
       </div>
 
-      <div className="flex h-[20px] min-w-0 items-center gap-1.5 overflow-hidden">
+      <div
+        className={stylexClassName(
+          "flex h-[20px] min-w-0 items-center gap-1.5 overflow-hidden"
+        )}
+      >
         <HorizontalScrollArea
-          className="h-5 min-w-0 flex-1"
+          className={stylexClassName("h-5 min-w-0 flex-1")}
           viewportClassName="h-full"
         >
-          <div className="flex h-full w-max min-w-full items-center gap-1.5">
+          <div
+            className={stylexClassName(
+              "flex h-full w-max min-w-full items-center gap-1.5"
+            )}
+          >
             {storySummary.services.map((service) => (
               <span
-                className="shrink-0 font-mono text-[8.5px]"
+                className={stylexClassName("shrink-0 font-mono text-[8.5px]")}
                 key={service}
                 style={{ color: serviceColor(service) }}
               >
@@ -87,14 +118,26 @@ export function StoryHeader({
         </HorizontalScrollArea>
       </div>
 
-      <div className="flex h-4 min-w-0 items-center justify-between gap-3 overflow-hidden font-mono text-[9px]">
-        <div className="flex min-w-0 flex-1 items-center gap-x-2 overflow-hidden">
-          <span className="min-w-0 truncate text-(--fg-secondary)">
+      <div
+        className={stylexClassName(
+          "flex h-4 min-w-0 items-center justify-between gap-3 overflow-hidden font-mono text-[9px]"
+        )}
+      >
+        <div
+          className={stylexClassName(
+            "flex min-w-0 flex-1 items-center gap-x-2 overflow-hidden"
+          )}
+        >
+          <span
+            className={stylexClassName(
+              "min-w-0 truncate text-(--fg-secondary)"
+            )}
+          >
             {storySummary.patternLabel || "No execution pattern"}
           </span>
           {storySummary.rootError ? (
             <>
-              <span className="text-(--muted-deep)">·</span>
+              <span className={stylexClassName("text-(--muted-deep)")}>·</span>
               <button
                 className={cn(
                   "min-w-0 truncate text-left text-(--tone-error-fg) transition hover:text-(--error)",
@@ -113,7 +156,9 @@ export function StoryHeader({
             </>
           ) : null}
         </div>
-        <span className="shrink-0 truncate text-(--fg-tertiary)">
+        <span
+          className={stylexClassName("shrink-0 truncate text-(--fg-tertiary)")}
+        >
           {storySummary.correlationId}
         </span>
       </div>
