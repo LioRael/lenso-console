@@ -56,8 +56,8 @@ see [service/README.md](service/README.md).
 
 ## Shell development
 
-Run Vite separately when working on the Shell with hot reload. `bun dev` and
-`pnpm dev` use the seeded mock Console by default:
+Run TanStack Start (through Vite) separately when working on the Shell with hot
+reload. `bun dev` and `pnpm dev` use the seeded mock Console by default:
 
 ```bash
 bun dev
@@ -81,15 +81,18 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,crm_service.contacts.
 
 ## Architecture
 
-- `src/app`: router and root providers.
+- `src/routes` and `src/router.tsx`: TanStack Start SPA file routes, document
+  shell, and the single router factory; `src/app`: root providers, route
+  lifecycle states, and Console Module runtime seams.
 - `src/app/dynamic-console-module.tsx`: receipt-bound ESM Module loader and route host.
 - `src/app/console-module-runtime.ts`: same-origin ESM Module UI receipt validation and loader.
-- `src/components/ui`: small Tailwind-composed primitives.
+- `src/components/ui`: small StyleX-composed primitives.
 - `src/components/runtime`: Console Shell, search, command palette, drawer, timeline nodes.
 - `src/data`: seeded mock runtime data.
 - `src/hooks`: keyboard and runtime query hooks with API/mock switching.
 - `src/lib`: formatting, query client, and ky HTTP client foundation.
-- `src/pages`: route-level screens.
+- `src/features`: route-level Console screens and product data.
+- `src/pages`: shared page models and test fixtures.
 - `packages/console-module-api`: public framework-neutral Module contract.
 - `packages/console-ui`: public React adapter and shared Module UI primitives.
 - `packages/story-console`: linked Runtime Stories Console Module UI.

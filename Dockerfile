@@ -10,7 +10,7 @@ COPY packages ./packages
 COPY config ./config
 RUN pnpm install --frozen-lockfile
 
-COPY index.html tsconfig.json vite.config.ts ./
+COPY tsconfig.json vite.config.ts ./
 COPY src ./src
 RUN pnpm service:web-build
 
@@ -47,7 +47,7 @@ COPY --from=service-builder /workspace/service-bin/lenso-console-api /usr/local/
 COPY --from=service-builder /workspace/service-bin/lenso-console-migrate /usr/local/bin/
 COPY --from=service-builder /workspace/service-bin/lenso-console-serve /usr/local/bin/
 COPY --from=service-builder /workspace/service-bin/lenso-console-worker /usr/local/bin/
-COPY --from=web-builder --chown=10001:10001 /workspace/dist /opt/lenso-console/web
+COPY --from=web-builder --chown=10001:10001 /workspace/dist/client /opt/lenso-console/web
 RUN install -d -o 10001 -g 10001 /opt/lenso-console/artifacts
 
 ENV CONSOLE_WEB_ROOT=/opt/lenso-console/web \

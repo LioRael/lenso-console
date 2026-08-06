@@ -1,37 +1,55 @@
-import { resolve } from "node:path";
+import path from "node:path";
 
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-import { consoleStylex } from "./config/console-stylex";
-import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin";
+import { consoleStylex } from "./config/console-stylex.ts";
+import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin.ts";
 
 const consoleDevMiddleware = consoleDevPlugin({
   diagnosticsFile: process.env.LENSO_CONSOLE_DEV_DIAGNOSTICS_FILE,
   hostUrl: process.env.LENSO_CONSOLE_DEV_HOST,
 });
 
+const isVitest = process.env.VITEST === "true";
+const startPlugin = isVitest
+  ? []
+  : [
+      tanstackStart({
+        spa: {
+          enabled: true,
+          prerender: {
+            crawlLinks: false,
+            outputPath: "/index.html",
+            retryCount: 0,
+          },
+        },
+      }),
+    ];
+const devPlugin = isVitest ? [] : [consoleDevMiddleware];
+
 export default defineConfig({
   base: "/",
   resolve: {
     alias: {
-      "@lenso/console-module-api": resolve(
+      "@lenso/console-module-api": path.resolve(
         import.meta.dirname,
         "packages/console-module-api/src/index.ts"
       ),
-      "@lenso/console-ui": resolve(
+      "@lenso/console-ui": path.resolve(
         import.meta.dirname,
         "packages/console-ui/src/index.tsx"
       ),
-      "@lenso/console-tokens/tokens.stylex": resolve(
+      "@lenso/console-tokens/tokens.stylex": path.resolve(
         import.meta.dirname,
         "packages/console-tokens/src/tokens.stylex.ts"
       ),
-      "@lenso/console-tokens": resolve(
+      "@lenso/console-tokens": path.resolve(
         import.meta.dirname,
         "packages/console-tokens/src/index.ts"
       ),
-      "@lenso/console-composition-api": resolve(
+      "@lenso/console-composition-api": path.resolve(
         import.meta.dirname,
         "packages/console-composition-api/src/index.ts"
       ),
@@ -40,15 +58,9 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        entryFileNames: "assets/[name]-[hash].js",
-        chunkFileNames: "assets/[name]-[hash].js",
-        assetFileNames: "assets/[name]-[hash][extname]",
         manualChunks(id) {
           if (id.includes("node_modules/react")) {
             return "react";
-          }
-          if (id.includes("node_modules/@tanstack")) {
-            return "tanstack";
           }
           if (id.includes("node_modules/gsap")) {
             return "gsap";
@@ -64,7 +76,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react(), consoleStylex(), consoleDevMiddleware],
+  plugins: [...startPlugin, react(), consoleStylex(), ...devPlugin],
   server: {
     port: 5174,
   },
