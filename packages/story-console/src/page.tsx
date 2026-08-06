@@ -1,5 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import {
+  stylexClassName,
   consoleHostApi,
   type ExecutionInspectorTab,
   type ExecutionNode,
@@ -492,10 +493,14 @@ export function RuntimeStoriesPage() {
 
   if (modulesQuery.isLoading || storiesQuery.isLoading) {
     return (
-      <div className="runtime-stories-page grid h-full grid-cols-[260px_8px_minmax(0,1fr)] overflow-hidden bg-(--background)">
+      <div
+        className={stylexClassName(
+          "runtime-stories-page grid h-full grid-cols-[260px_8px_minmax(0,1fr)] overflow-hidden bg-(--background)"
+        )}
+      >
         <StoryListSkeleton />
-        <div className="bg-(--border-subtle)" />
-        <EmptyState className="h-full bg-(--surface)">
+        <div className={stylexClassName("bg-(--border-subtle)")} />
+        <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
           <EmptyState.Title>Loading stories</EmptyState.Title>
           <EmptyState.Description>
             Runtime executions are being loaded from the selected data source.
@@ -507,7 +512,7 @@ export function RuntimeStoriesPage() {
 
   if (storyModuleUnavailable) {
     return (
-      <EmptyState className="h-full bg-(--surface)">
+      <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
         <EmptyState.Title>Story module disabled</EmptyState.Title>
         <EmptyState.Description>
           Enable lenso/platform-story in Modules, then restart the API to use
@@ -519,7 +524,7 @@ export function RuntimeStoriesPage() {
 
   if (storiesQuery.isError) {
     return (
-      <EmptyState className="h-full bg-(--surface)">
+      <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
         <EmptyState.Title>Story Explorer unavailable</EmptyState.Title>
         <EmptyState.Description>
           {storiesQuery.error instanceof Error
@@ -532,12 +537,16 @@ export function RuntimeStoriesPage() {
 
   return (
     <div
-      className="runtime-stories-page h-full overflow-hidden bg-(--background) text-(--foreground)"
+      className={stylexClassName(
+        "runtime-stories-page h-full overflow-hidden bg-(--background) text-(--foreground)"
+      )}
       id="story-workbench"
     >
       <div
         ref={workbenchRef}
-        className="runtime-stories-workbench grid h-full min-w-0 overflow-hidden"
+        className={stylexClassName(
+          "runtime-stories-workbench grid h-full min-w-0 overflow-hidden"
+        )}
         style={
           {
             "--story-inspector-open": previousInspectorOpenRef.current ? 1 : 0,
@@ -555,13 +564,15 @@ export function RuntimeStoriesPage() {
 
         <ResizeHandle
           ariaLabel="Resize story list panel"
-          className="runtime-stories-list-resize w-px"
+          className={stylexClassName("runtime-stories-list-resize w-px")}
           onReset={resetLayout}
           onResize={resizeStoryList}
         />
 
         <main
-          className="runtime-stories-main grid min-h-0 min-w-0 overflow-hidden"
+          className={stylexClassName(
+            "runtime-stories-main grid min-h-0 min-w-0 overflow-hidden"
+          )}
           style={{
             gridTemplateRows: mainGridTemplateRows,
           }}
@@ -593,7 +604,7 @@ export function RuntimeStoriesPage() {
                   <ResizeHandle
                     ariaLabel="Resize services panel"
                     axis="vertical"
-                    className="h-px"
+                    className={stylexClassName("h-px")}
                     onReset={resetLayout}
                     onResize={resizeServices}
                   />
@@ -608,14 +619,14 @@ export function RuntimeStoriesPage() {
               ) : null}
             </>
           ) : storyDetailLoading ? (
-            <EmptyState className="h-full bg-(--surface)">
+            <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
               <EmptyState.Title>Loading story detail</EmptyState.Title>
               <EmptyState.Description>
                 The selected runtime story is being loaded.
               </EmptyState.Description>
             </EmptyState>
           ) : storyDetailQuery.isError ? (
-            <EmptyState className="h-full bg-(--surface)">
+            <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
               <EmptyState.Title>Story detail unavailable</EmptyState.Title>
               <EmptyState.Description>
                 {storyDetailQuery.error instanceof Error
@@ -624,7 +635,7 @@ export function RuntimeStoriesPage() {
               </EmptyState.Description>
             </EmptyState>
           ) : (
-            <EmptyState className="h-full bg-(--surface)">
+            <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
               <EmptyState.Title>
                 {stories.length === 0
                   ? "No runtime stories"
@@ -647,14 +658,18 @@ export function RuntimeStoriesPage() {
           <>
             <ResizeHandle
               ariaLabel="Resize story inspector panel"
-              className="runtime-stories-inspector-resize w-px"
+              className={stylexClassName(
+                "runtime-stories-inspector-resize w-px"
+              )}
               onReset={resetLayout}
               onResize={resizeInspector}
             />
 
             <div
               ref={inspectorPanelRef}
-              className="relative z-0 min-h-0 min-w-0 overflow-hidden"
+              className={stylexClassName(
+                "relative z-0 min-h-0 min-w-0 overflow-hidden"
+              )}
               style={{
                 pointerEvents: inspectorOpen ? "auto" : "none",
               }}
@@ -683,26 +698,47 @@ export function RuntimeStoriesPage() {
 
 function StoryListSkeleton() {
   return (
-    <aside className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background)">
-      <div className="border-b border-(--border-subtle) bg-(--surface) px-3 py-2">
-        <div className="h-4 w-20 bg-(--elevated)" />
-        <div className="mt-1 h-3 w-28 bg-(--elevated)" />
+    <aside
+      className={stylexClassName(
+        "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background)"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "border-b border-(--border-subtle) bg-(--surface) px-3 py-2"
+        )}
+      >
+        <div className={stylexClassName("h-4 w-20 bg-(--elevated)")} />
+        <div className={stylexClassName("mt-1 h-3 w-28 bg-(--elevated)")} />
       </div>
-      <div className="h-8 border-b border-(--border-subtle) px-3 py-2">
-        <div className="h-3 w-full bg-(--elevated)" />
+      <div
+        className={stylexClassName(
+          "h-8 border-b border-(--border-subtle) px-3 py-2"
+        )}
+      >
+        <div className={stylexClassName("h-3 w-full bg-(--elevated)")} />
       </div>
-      <div className="h-6 border-b border-(--border-subtle) px-3 py-2">
-        <div className="h-2 w-24 bg-(--elevated)" />
+      <div
+        className={stylexClassName(
+          "h-6 border-b border-(--border-subtle) px-3 py-2"
+        )}
+      >
+        <div className={stylexClassName("h-2 w-24 bg-(--elevated)")} />
       </div>
-      <div className="grid content-start gap-0">
+      <div className={stylexClassName("grid content-start gap-0")}>
         {Array.from({ length: 6 }, (_, index) => (
-          <div className="border-b border-(--border-subtle) p-3" key={index}>
-            <div className="h-3 w-3/4 bg-(--elevated)" />
-            <div className="mt-2 h-2 w-5/6 bg-(--elevated)" />
-            <div className="mt-3 flex gap-1.5">
-              <span className="h-3 w-12 bg-(--elevated)" />
-              <span className="h-3 w-14 bg-(--elevated)" />
-              <span className="h-3 w-10 bg-(--elevated)" />
+          <div
+            className={stylexClassName("border-b border-(--border-subtle) p-3")}
+            key={index}
+          >
+            <div className={stylexClassName("h-3 w-3/4 bg-(--elevated)")} />
+            <div
+              className={stylexClassName("mt-2 h-2 w-5/6 bg-(--elevated)")}
+            />
+            <div className={stylexClassName("mt-3 flex gap-1.5")}>
+              <span className={stylexClassName("h-3 w-12 bg-(--elevated)")} />
+              <span className={stylexClassName("h-3 w-14 bg-(--elevated)")} />
+              <span className={stylexClassName("h-3 w-10 bg-(--elevated)")} />
             </div>
           </div>
         ))}

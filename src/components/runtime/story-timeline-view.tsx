@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { Cloud, Mail, Route, ServerCog, Workflow } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -38,7 +39,11 @@ export function StoryTimelineView({
     story.timelineItems === undefined ? "execution nodes" : "backend timeline";
 
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
+    <div
+      className={stylexClassName(
+        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
+      )}
+    >
       <RuntimeViewHeader
         meta={`total ${formatRuntimeDuration(timelineEnd)}`}
         summary={`${rows.length} rows from ${rowSource}`}
@@ -47,23 +52,31 @@ export function StoryTimelineView({
 
       <div className={runtimeTimelineTableHeaderClassName}>
         <span>Story Flow</span>
-        <div className="grid min-w-0 grid-cols-5 overflow-hidden font-mono">
+        <div
+          className={stylexClassName(
+            "grid min-w-0 grid-cols-5 overflow-hidden font-mono"
+          )}
+        >
           {[0, 25, 50, 75, 100].map((tick) => (
-            <span className="normal-case" key={tick}>
+            <span className={stylexClassName("normal-case")} key={tick}>
               {formatRuntimeDuration((timelineEnd * tick) / 100)}
             </span>
           ))}
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        <div className="mx-auto w-full max-w-5xl">
+      <div className={stylexClassName("min-h-0 flex-1 overflow-auto p-4")}>
+        <div className={stylexClassName("mx-auto w-full max-w-5xl")}>
           {rows.length === 0 ? (
-            <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
+            <div
+              className={stylexClassName(
+                "border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)"
+              )}
+            >
               No timeline items were returned for this story.
             </div>
           ) : (
-            <div className="grid gap-3">
+            <div className={stylexClassName("grid gap-3")}>
               {rows.map((row, index) => {
                 const node = findExecutionNodeForRow(story, row);
                 const marker = node
@@ -71,7 +84,7 @@ export function StoryTimelineView({
                   : undefined;
 
                 return (
-                  <div className="grid gap-2" key={row.id}>
+                  <div className={stylexClassName("grid gap-2")} key={row.id}>
                     {marker ? (
                       <ParallelStartMarker label={marker.label} />
                     ) : null}
@@ -145,9 +158,13 @@ function TimelineRow({
         )}
       >
         {index > 0 ? (
-          <span className="-top-3.5 absolute left-6 h-3.5 w-px bg-(--line)" />
+          <span
+            className={stylexClassName(
+              "-top-3.5 absolute left-6 h-3.5 w-px bg-(--line)"
+            )}
+          />
         ) : null}
-        <span className="flex min-w-0 items-start gap-2">
+        <span className={stylexClassName("flex min-w-0 items-start gap-2")}>
           <span
             className={cn(
               "grid size-8 shrink-0 place-items-center border",
@@ -156,49 +173,82 @@ function TimelineRow({
           >
             <Icon size={15} strokeWidth={1.8} />
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.06em]">
+          <span className={stylexClassName("min-w-0 flex-1")}>
+            <span
+              className={stylexClassName("flex min-w-0 items-center gap-2")}
+            >
+              <span
+                className={stylexClassName(
+                  "truncate font-mono text-[10px] font-semibold uppercase tracking-[0.06em]"
+                )}
+              >
                 {rowKindLabel(row.kind)}
               </span>
               <span
-                className="size-1.5 shrink-0 rounded-full"
+                className={stylexClassName("size-1.5 shrink-0 rounded-full")}
                 style={{
                   backgroundColor: statusColor(row.status),
                 }}
               />
             </span>
-            <span className="mt-1 block truncate text-[13px] font-semibold text-(--fg-primary)">
+            <span
+              className={stylexClassName(
+                "mt-1 block truncate text-[13px] font-semibold text-(--fg-primary)"
+              )}
+            >
               {row.name}
             </span>
-            <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-(--fg-tertiary)">
+            <span
+              className={stylexClassName(
+                "mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-(--fg-tertiary)"
+              )}
+            >
               {row.metaParts.map((part, partIndex) => (
                 <span
                   className={cn(
                     "min-w-0 truncate",
-                    partIndex > 0 && "before:mr-1.5 before:content-['/']",
                     partIndex > 2 && "max-[1100px]:hidden"
                   )}
                   key={`${row.id}:${partIndex}:${part}`}
                 >
+                  {partIndex > 0 ? (
+                    <span
+                      aria-hidden="true"
+                      className={stylexClassName("mr-1.5")}
+                    >
+                      /
+                    </span>
+                  ) : null}
                   {part}
                 </span>
               ))}
-              <span className="ml-auto shrink-0">
+              <span className={stylexClassName("ml-auto shrink-0")}>
                 {formatRuntimeDuration(row.durationMs)}
               </span>
             </span>
           </span>
         </span>
         {row.error ? (
-          <span className="mt-2 block truncate border-l-2 border-[var(--error)] pl-2 font-mono text-[11px] text-[var(--tone-error-fg)]">
+          <span
+            className={stylexClassName(
+              "mt-2 block truncate border-l-2 border-[var(--error)] pl-2 font-mono text-[11px] text-[var(--tone-error-fg)]"
+            )}
+          >
             {row.error}
           </span>
         ) : null}
       </span>
 
-      <span className="grid min-h-[69px] min-w-0 items-center max-md:hidden">
-        <span className="relative h-9 min-w-0 overflow-hidden border border-(--line) bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line)_25%,transparent_25.2%,transparent_49.8%,var(--line)_50%,transparent_50.2%,transparent_74.8%,var(--line)_75%,transparent_75.2%)]">
+      <span
+        className={stylexClassName(
+          "grid min-h-[69px] min-w-0 items-center max-md:hidden"
+        )}
+      >
+        <span
+          className={stylexClassName(
+            "relative h-9 min-w-0 overflow-hidden border border-(--line) bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line)_25%,transparent_25.2%,transparent_49.8%,var(--line)_50%,transparent_50.2%,transparent_74.8%,var(--line)_75%,transparent_75.2%)]"
+          )}
+        >
           <span
             className={cn(
               "absolute top-2 h-5 min-w-1 transition",
@@ -222,12 +272,22 @@ function TimelineRow({
 
 function ParallelStartMarker({ label }: { label: string }) {
   return (
-    <div className="grid min-w-0 grid-cols-[minmax(180px,260px)_minmax(0,1fr)] gap-4 max-md:grid-cols-1">
-      <div className="tint tint-info px-3 py-1.5 font-mono text-[11px]">
+    <div
+      className={stylexClassName(
+        "grid min-w-0 grid-cols-[minmax(180px,260px)_minmax(0,1fr)] gap-4 max-md:grid-cols-1"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "tint tint-info px-3 py-1.5 font-mono text-[11px]"
+        )}
+      >
         {label}
       </div>
-      <div className="grid min-w-0 items-center max-md:hidden">
-        <div className="h-px tint-soft tint-info" />
+      <div
+        className={stylexClassName("grid min-w-0 items-center max-md:hidden")}
+      >
+        <div className={stylexClassName("h-px tint-soft tint-info")} />
       </div>
     </div>
   );

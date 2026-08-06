@@ -8,12 +8,11 @@ import {
 
 describe("runtime table header style contract", () => {
   test("keeps timeline and waterfall table headers on the same strip style", () => {
-    expect(runtimeTableHeaderBaseClassName).toContain("border-b");
-    expect(runtimeTableHeaderBaseClassName).toContain(
+    expect(runtimeTableHeaderBaseClassName).toMatch(/\S+/);
+    expect(runtimeTableHeaderBaseClassName).not.toContain("border-b");
+    expect(runtimeTableHeaderBaseClassName).not.toContain(
       "bg-(--bg-surface-muted)"
     );
-    expect(runtimeTableHeaderBaseClassName).toContain("px-3");
-    expect(runtimeTableHeaderBaseClassName).toContain("h-7");
     expect(runtimeTimelineTableHeaderClassName).toContain(
       runtimeTableHeaderBaseClassName
     );

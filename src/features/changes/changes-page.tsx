@@ -1,4 +1,10 @@
-import { Button, IconSlot, Select, useConsoleLocale } from "@lenso/console-ui";
+import {
+  stylexClassName,
+  Button,
+  IconSlot,
+  Select,
+  useConsoleLocale,
+} from "@lenso/console-ui";
 import { ChevronDown, ListFilter } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -40,7 +46,7 @@ export function ChangesPage() {
     <ProductPage
       description={copy.changes.description}
       meta={
-        <span className="changes-page__meta">
+        <span className={stylexClassName("changes-page__meta")}>
           {plans.length} {copy.changes.active} · {awaitingCount}{" "}
           {copy.changes.awaitingYou}
         </span>
@@ -49,18 +55,18 @@ export function ChangesPage() {
     >
       <ProductTabs
         active={copy.changes.tabs[tabIndex]!}
-        className="changes-page__tabs"
+        className={stylexClassName("changes-page__tabs")}
         items={copy.changes.tabs}
         onChange={(item) =>
           setTabIndex(copy.changes.tabs.indexOf(item as never))
         }
       />
       <SplitWorkspace
-        className="changes-page__workspace"
+        className={stylexClassName("changes-page__workspace")}
         inspector={
           selected ? (
             <Inspector
-              className="changes-inspector"
+              className={stylexClassName("changes-inspector")}
               headerAction={
                 <Button disabled variant="primary">
                   {copy.changes.approve}
@@ -94,24 +100,28 @@ export function ChangesPage() {
               </InspectorSection>
             </Inspector>
           ) : (
-            <div className="changes-page__no-data">{copy.common.noData}</div>
+            <div className={stylexClassName("changes-page__no-data")}>
+              {copy.common.noData}
+            </div>
           )
         }
         inspectorWidth={616}
       >
-        <div className="changes-page__list">
-          <div className="changes-page__list-header">
-            <span className="changes-page__toolbar-control">
+        <div className={stylexClassName("changes-page__list")}>
+          <div className={stylexClassName("changes-page__list-header")}>
+            <span className={stylexClassName("changes-page__toolbar-control")}>
               {copy.changes.priority}
               <IconSlot aria-hidden="true" size={16}>
                 <ListFilter size={12} strokeWidth={1.5} />
               </IconSlot>
             </span>
-            <span className="changes-page__toolbar-control">
-              <span className="sr-only">{copy.changes.filter}</span>
+            <span className={stylexClassName("changes-page__toolbar-control")}>
+              <span className={stylexClassName("sr-only")}>
+                {copy.changes.filter}
+              </span>
               <Select
                 aria-label={copy.changes.filter}
-                className="changes-page__toolbar-select"
+                className={stylexClassName("changes-page__toolbar-select")}
                 onChange={(event) =>
                   setFilter(event.currentTarget.value as ChangeFilterValue)
                 }
@@ -128,31 +138,33 @@ export function ChangesPage() {
               </IconSlot>
             </span>
           </div>
-          <div className="changes-page__rows">
+          <div className={stylexClassName("changes-page__rows")}>
             {visiblePlans.length === 0 ? (
-              <div className="changes-page__empty">
+              <div className={stylexClassName("changes-page__empty")}>
                 {copy.changes.noRecords}
               </div>
             ) : null}
             {visiblePlans.map((plan) => (
               <button
                 aria-pressed={selected?.id === plan.id}
-                className="changes-page__row"
+                className={stylexClassName("changes-page__row")}
                 data-selected={selected?.id === plan.id ? "true" : undefined}
                 key={plan.id}
                 onClick={() => setSelectedId(plan.id)}
                 type="button"
               >
-                <span className="changes-page__row-copy">
-                  <strong className="changes-page__row-name">
+                <span className={stylexClassName("changes-page__row-copy")}>
+                  <strong className={stylexClassName("changes-page__row-name")}>
                     {plan.name}
                   </strong>
-                  <span className="changes-page__row-detail">
+                  <span className={stylexClassName("changes-page__row-detail")}>
                     {plan.detail}
                   </span>
-                  <span className="changes-page__row-id">{plan.id}</span>
+                  <span className={stylexClassName("changes-page__row-id")}>
+                    {plan.id}
+                  </span>
                 </span>
-                <span className="changes-page__row-status">
+                <span className={stylexClassName("changes-page__row-status")}>
                   <StatusDot label={plan.state} tone={plan.tone} />
                 </span>
               </button>

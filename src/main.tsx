@@ -9,13 +9,16 @@ import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/roboto-mono/400.css";
 
 import "./app/console-host-api";
-import { consoleModules } from "./app/console-modules";
+import { consoleRuntimeModules } from "./app/console-modules";
+import { applyGlobalStyles } from "./app/global-styles";
 import { Providers } from "./app/providers";
 import { createConsoleRouter } from "./app/router";
 import { consoleDevConfig } from "./dev/console-dev-config";
 import { ConsoleDevOverlay } from "./dev/console-dev-overlay";
 
 import "./styles.css";
+
+applyGlobalStyles();
 
 const consoleRuntime = globalThis as Record<string, unknown>;
 consoleRuntime.__LENSO_CONSOLE_REACT_RUNTIME__ = ReactRuntime;
@@ -24,7 +27,7 @@ consoleRuntime.__LENSO_CONSOLE_REACT_JSX_RUNTIME__ = ReactJsxRuntime;
 void startConsole();
 
 async function startConsole() {
-  const router = createConsoleRouter(consoleModules);
+  const router = createConsoleRouter(consoleRuntimeModules);
 
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

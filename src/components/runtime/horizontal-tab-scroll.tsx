@@ -1,4 +1,5 @@
 import { ScrollArea } from "@base-ui/react/scroll-area";
+import { stylexClassName } from "@lenso/console-ui";
 import type { ReactNode, WheelEvent } from "react";
 
 import { cn } from "../../lib/cn";
@@ -39,7 +40,7 @@ export function HorizontalScrollArea({
 export function HorizontalTabScroll({ children }: { children: ReactNode }) {
   return (
     <HorizontalScrollArea
-      className="h-full"
+      className={stylexClassName("h-full")}
       contentClassName="h-full"
       viewportClassName="h-full"
     >

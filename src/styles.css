@@ -1,27 +1,11 @@
-@import "tailwindcss";
-@import "../packages/console-ui/theme.css";
-
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
-
-html {
-  background: var(--background);
-  font-feature-settings:
-    "liga" 1,
-    "calt" 1;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: var(--background);
-  color: var(--foreground);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Host-only document reset and page contracts. Component primitives are
+ * authored and compiled by StyleX; this layer does not invoke Tailwind. */
+@import "../packages/console-ui/tokens.css";
+@import "./styles-reset.css";
+/* Host-private parity layer: preserves the approved pre-StyleX component
+ * geometry while the equivalent named StyleX slots are validated. It is not
+ * exported from @lenso/console-ui or available as a Module Surface API. */
+@import "../packages/console-ui/components.css";
 
 ::selection {
   background: var(--bg-row-selected);
@@ -61,25 +45,6 @@ input,
 select,
 textarea {
   caret-color: var(--accent);
-}
-
-.console-skip-link {
-  position: fixed;
-  z-index: 100;
-  top: 8px;
-  left: 8px;
-  transform: translateY(-160%);
-  padding: 8px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
-  background: var(--bg-overlay);
-  color: var(--fg-primary);
-  font-size: 12px;
-  transition: transform 120ms ease;
-}
-
-.console-skip-link:focus-visible {
-  transform: translateY(0);
 }
 
 .product-page__body {
@@ -1417,98 +1382,33 @@ code,
   animation: panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.workspace-switcher-menu {
-  transform: translateY(-4px) scale(0.985);
-  transform-origin: top left;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 140ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.workspace-switcher-menu[data-open="true"] {
-  transform: translateY(0) scale(1);
+/* These two host interactions replace the former Tailwind group variant.
+ * The utility bridge intentionally leaves the marker classes readable so
+ * independently-authored surfaces can opt into the same interaction. */
+.group:hover [class~="group-hover:opacity-100"] {
   opacity: 1;
-  pointer-events: auto;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .workspace-switcher-menu {
-    transform: none;
-    transition: none;
-  }
+.group:hover [class~="group-hover:border-(--line)"] {
+  border-color: var(--line);
+}
+
+/* The command palette's legacy dark-theme icon variant is retained as a
+ * readable marker while the theme itself is owned by the host StyleX root. */
+[data-theme="dark"] [class~="[[data-theme=dark]_&]:block"],
+[data-stylex-theme="dark"] [class~="[[data-theme=dark]_&]:block"] {
+  display: block;
+}
+
+[data-theme="dark"] [class~="[[data-theme=dark]_&]:hidden"],
+[data-stylex-theme="dark"] [class~="[[data-theme=dark]_&]:hidden"] {
+  display: none;
 }
 
 .soft-panel {
   border-color: var(--line);
   background: var(--bg-panel);
   box-shadow: var(--elevation-panel);
-}
-
-.console-shell {
-  --sidebar-collapse: 0;
-  --sidebar-width: calc(228px - (176px * var(--sidebar-collapse)));
-  --sidebar-item-width: calc(212px - (184px * var(--sidebar-collapse)));
-  --sidebar-item-x: calc(4px * var(--sidebar-collapse));
-  --sidebar-item-gap: calc(8px * (1 - var(--sidebar-collapse)));
-  --sidebar-item-padding: calc(8px - (0.5px * var(--sidebar-collapse)));
-  --sidebar-header-content-width: calc(
-    204px - (180px * var(--sidebar-collapse))
-  );
-  --sidebar-status-height: calc(32px - (4px * var(--sidebar-collapse)));
-  --sidebar-status-x: 4px;
-  --sidebar-status-padding: calc(8px + (3px * var(--sidebar-collapse)));
-  --sidebar-copy-opacity: calc(1 - var(--sidebar-collapse));
-  --sidebar-copy-x: calc(-4px * var(--sidebar-collapse));
-  --sidebar-copy-max: calc(180px * (1 - var(--sidebar-collapse)));
-  --sidebar-group-label-height: calc(14px * (1 - var(--sidebar-collapse)));
-  --sidebar-group-label-margin: calc(4px * (1 - var(--sidebar-collapse)));
-}
-
-.sidebar-header {
-  justify-content: space-between;
-  margin-left: auto;
-  margin-right: auto;
-  width: var(--sidebar-header-content-width);
-}
-
-.sidebar-nav-item {
-  gap: var(--sidebar-item-gap);
-  padding-left: var(--sidebar-item-padding);
-  padding-right: var(--sidebar-item-padding);
-  transform: translateX(var(--sidebar-item-x));
-  width: var(--sidebar-item-width);
-}
-
-.sidebar-status-item {
-  gap: var(--sidebar-item-gap);
-  height: var(--sidebar-status-height);
-  padding-left: var(--sidebar-status-padding);
-  padding-right: var(--sidebar-status-padding);
-  transform: translateX(var(--sidebar-status-x));
-  width: var(--sidebar-item-width);
-}
-
-.sidebar-copy {
-  max-width: var(--sidebar-copy-max);
-  opacity: var(--sidebar-copy-opacity);
-  transform: translateX(var(--sidebar-copy-x));
-}
-
-.sidebar-group-label {
-  height: var(--sidebar-group-label-height);
-  margin-bottom: var(--sidebar-group-label-margin);
-}
-
-@media (max-width: 1023px) {
-  .sidebar-nav-item {
-    gap: 0;
-    padding-left: 8px;
-    padding-right: 8px;
-    transform: none;
-    width: 32px;
-  }
 }
 
 .native-selection {

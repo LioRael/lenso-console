@@ -1,4 +1,6 @@
 import {
+  stylexClassName,
+  DataGrid,
   DataRow,
   PaneHeader,
   TableHeader,
@@ -62,7 +64,7 @@ export function RuntimePage() {
     <ProductPage
       description={copy.runtime.description}
       meta={
-        <span className="runtime-page__meta">
+        <span className={stylexClassName("runtime-page__meta")}>
           {healthyCount} / {totalCount} {copy.runtime.healthy}
         </span>
       }
@@ -71,17 +73,17 @@ export function RuntimePage() {
     >
       <ProductTabs
         active={tab}
-        className="runtime-page__tabs"
+        className={stylexClassName("runtime-page__tabs")}
         items={copy.runtime.tabs}
         onChange={(item) =>
           setTabIndex(copy.runtime.tabs.indexOf(item as never))
         }
       />
       <SplitWorkspace
-        className="runtime-page__workspace"
+        className={stylexClassName("runtime-page__workspace")}
         inspector={
           <Inspector
-            className="runtime-inspector"
+            className={stylexClassName("runtime-inspector")}
             subtitle={
               selected
                 ? `${selected.serviceId} · ${selected.region} · ${selected.version}`
@@ -89,7 +91,7 @@ export function RuntimePage() {
             }
             title={selected?.providerName ?? copy.runtime.title}
           >
-            <div className="runtime-inspector__meta">
+            <div className={stylexClassName("runtime-inspector__meta")}>
               <span>{selected?.replicas ?? "—"} replicas</span>
               <span>
                 {selected?.p95Ms === null || selected?.p95Ms === undefined
@@ -102,9 +104,9 @@ export function RuntimePage() {
                   : "— error"}
               </span>
             </div>
-            <div className="runtime-inspector__divider" />
-            <div className="runtime-inspector__timeline">
-              <p className="runtime-inspector__label">
+            <div className={stylexClassName("runtime-inspector__divider")} />
+            <div className={stylexClassName("runtime-inspector__timeline")}>
+              <p className={stylexClassName("runtime-inspector__label")}>
                 {copy.runtime.timeline}
               </p>
               {selected?.timeline.length
@@ -127,8 +129,8 @@ export function RuntimePage() {
                       />
                     ))}
             </div>
-            <div className="runtime-inspector__divider" />
-            <div className="runtime-inspector__boundary">
+            <div className={stylexClassName("runtime-inspector__divider")} />
+            <div className={stylexClassName("runtime-inspector__boundary")}>
               <p>{copy.runtime.serviceOwns}</p>
               <p>{copy.runtime.consoleObserves}</p>
             </div>
@@ -142,7 +144,7 @@ export function RuntimePage() {
               meta={`${observedCount} ${copy.runtime.observed}`}
               title={copy.runtime.tabs[0]}
             />
-            <div className="lenso-ui-data-grid">
+            <DataGrid>
               <TableHeader
                 columns={[
                   copy.runtime.service,
@@ -156,10 +158,16 @@ export function RuntimePage() {
               {services.map((service) => (
                 <DataRow
                   cells={[
-                    <span className="runtime-page__mono-cell" key="region">
+                    <span
+                      className={stylexClassName("runtime-page__mono-cell")}
+                      key="region"
+                    >
                       {service.region}
                     </span>,
-                    <span className="runtime-page__mono-cell" key="version">
+                    <span
+                      className={stylexClassName("runtime-page__mono-cell")}
+                      key="version"
+                    >
                       {service.version}
                     </span>,
                     <StatusDot
@@ -167,7 +175,10 @@ export function RuntimePage() {
                       label={runtimeStatusLabel(service.state)}
                       tone={runtimeStatusTone(service.state)}
                     />,
-                    <span className="runtime-page__mono-cell" key="p95">
+                    <span
+                      className={stylexClassName("runtime-page__mono-cell")}
+                      key="p95"
+                    >
                       {service.p95Ms === null ? "—" : `${service.p95Ms} ms`}
                     </span>,
                   ]}
@@ -181,7 +192,7 @@ export function RuntimePage() {
                   variant="runtime"
                 />
               ))}
-            </div>
+            </DataGrid>
           </>
         ) : (
           <RuntimeStream rows={liveRows} title={tab} />
@@ -201,7 +212,7 @@ function RuntimeStream({
   return (
     <>
       <PaneHeader meta="live evidence" title={title} />
-      <div className="lenso-ui-data-grid">
+      <DataGrid>
         <TableHeader columns={["Name", "State", "Observed", ""]} />
         {rows.length ? (
           rows.map(([name, id, status, time]) => (
@@ -213,7 +224,7 @@ function RuntimeStream({
                   tone={runtimeStatusTone(status)}
                 />,
                 <time
-                  className="runtime-page__mono-cell"
+                  className={stylexClassName("runtime-page__mono-cell")}
                   key="time"
                   dateTime={time}
                 >
@@ -226,11 +237,11 @@ function RuntimeStream({
             />
           ))
         ) : (
-          <div className="runtime-page__stream-empty">
+          <div className={stylexClassName("runtime-page__stream-empty")}>
             No {title.toLowerCase()} evidence in this window.
           </div>
         )}
-      </div>
+      </DataGrid>
     </>
   );
 }
@@ -245,9 +256,12 @@ function Timeline({
   title: string;
 }) {
   return (
-    <div className="runtime-inspector__event">
-      <span aria-hidden="true" className="runtime-inspector__rail" />
-      <span className="runtime-inspector__event-copy">
+    <div className={stylexClassName("runtime-inspector__event")}>
+      <span
+        aria-hidden="true"
+        className={stylexClassName("runtime-inspector__rail")}
+      />
+      <span className={stylexClassName("runtime-inspector__event-copy")}>
         <time>{time}</time>
         <strong>{title}</strong>
         <small>{evidenceId ?? "runtime evidence"}</small>

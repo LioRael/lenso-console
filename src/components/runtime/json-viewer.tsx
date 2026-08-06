@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -47,24 +48,44 @@ export function JsonViewer({
         type="button"
       >
         {payloadRow ? (
-          <span className="flex items-center gap-2">
+          <span className={stylexClassName("flex items-center gap-2")}>
             {expanded ? (
-              <ChevronDown className="size-3 shrink-0 text-(--fg-tertiary)" />
+              <ChevronDown
+                className={stylexClassName(
+                  "size-3 shrink-0 text-(--fg-tertiary)"
+                )}
+              />
             ) : (
-              <ChevronRight className="size-3 shrink-0 text-(--fg-tertiary)" />
+              <ChevronRight
+                className={stylexClassName(
+                  "size-3 shrink-0 text-(--fg-tertiary)"
+                )}
+              />
             )}
-            <span className="font-sans text-[11px] font-medium text-(--fg-primary)">
+            <span
+              className={stylexClassName(
+                "font-sans text-[11px] font-medium text-(--fg-primary)"
+              )}
+            >
               {title}
             </span>
           </span>
         ) : (
           <>
             {expanded ? (
-              <ChevronDown className="size-3 text-(--fg-tertiary)" />
+              <ChevronDown
+                className={stylexClassName("size-3 text-(--fg-tertiary)")}
+              />
             ) : (
-              <ChevronRight className="size-3 text-(--fg-tertiary)" />
+              <ChevronRight
+                className={stylexClassName("size-3 text-(--fg-tertiary)")}
+              />
             )}
-            <span className="font-sans text-[11px] font-medium text-(--fg-primary)">
+            <span
+              className={stylexClassName(
+                "font-sans text-[11px] font-medium text-(--fg-primary)"
+              )}
+            >
               {title}
             </span>
           </>
@@ -79,8 +100,12 @@ export function JsonViewer({
         </span>
       </button>
       {expanded ? (
-        <div className="max-h-[320px] overflow-auto border-t border-(--line-subtle) px-3 py-2.5 font-mono text-[11px] leading-[15px] text-(--fg-secondary)">
-          <pre className="whitespace-pre-wrap">{json}</pre>
+        <div
+          className={stylexClassName(
+            "max-h-[320px] overflow-auto border-t border-(--line-subtle) px-3 py-2.5 font-mono text-[11px] leading-[15px] text-(--fg-secondary)"
+          )}
+        >
+          <pre className={stylexClassName("whitespace-pre-wrap")}>{json}</pre>
         </div>
       ) : null}
     </section>

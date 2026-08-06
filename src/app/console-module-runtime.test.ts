@@ -141,4 +141,19 @@ describe("Console Module runtime loader", () => {
     ).rejects.toMatchObject({ code: "invalid_request" });
     expect(importer).not.toHaveBeenCalled();
   });
+
+  test("rejects a style asset that is not declared in the receipt", async () => {
+    const importer = vi.fn();
+
+    await expect(
+      loadConsoleUiModule(
+        {
+          ...receipt,
+          styleAssets: [{ path: "theme.css" }],
+        },
+        { importModule: importer, origin: "https://console.example" }
+      )
+    ).rejects.toMatchObject({ code: "invalid_request" });
+    expect(importer).not.toHaveBeenCalled();
+  });
 });

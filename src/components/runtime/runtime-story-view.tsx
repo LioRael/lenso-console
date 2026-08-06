@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import {
   AlertTriangle,
   Check,
@@ -39,17 +40,27 @@ export function RuntimeStoryView({
   const storySummary = buildRuntimeStory(story);
 
   return (
-    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)">
+    <div
+      className={stylexClassName(
+        "grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)"
+      )}
+    >
       <RuntimeViewHeader
         meta={`${storySummary.nodeCount} nodes · ${formatRuntimeDuration(storySummary.duration)}`}
         summary={storySummary.patternLabel || "No execution pattern"}
         title="Runtime Story"
       />
 
-      <div className="min-h-0 overflow-auto px-3 py-3">
-        <div className="mx-auto grid w-full max-w-[530px] gap-2">
+      <div className={stylexClassName("min-h-0 overflow-auto px-3 py-3")}>
+        <div
+          className={stylexClassName("mx-auto grid w-full max-w-[530px] gap-2")}
+        >
           {storySummary.nodes.length === 0 ? (
-            <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
+            <div
+              className={stylexClassName(
+                "border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)"
+              )}
+            >
               No runtime story nodes were derived for this story.
             </div>
           ) : null}
@@ -90,8 +101,12 @@ function GraphNode({
   const retryable = retryTargetForNode(node.node) !== null;
 
   return (
-    <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3">
-      <div className="relative flex justify-center">
+    <div
+      className={stylexClassName(
+        "grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3"
+      )}
+    >
+      <div className={stylexClassName("relative flex justify-center")}>
         <span
           className={cn(
             "relative z-10 mt-1 grid size-9 place-items-center border bg-(--bg-panel)",
@@ -111,7 +126,11 @@ function GraphNode({
           </span>
         </span>
         {showConnector ? (
-          <span className="absolute top-11 bottom-[-0.5rem] w-px bg-(--line)" />
+          <span
+            className={stylexClassName(
+              "absolute top-11 bottom-[-0.5rem] w-px bg-(--line)"
+            )}
+          />
         ) : null}
       </div>
 
@@ -127,13 +146,17 @@ function GraphNode({
         <button
           aria-label={`Select ${node.typeLabel} ${node.name}`}
           aria-pressed={selected}
-          className="absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+          className={stylexClassName(
+            "absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+          )}
           onClick={onSelect}
           type="button"
         />
-        <span className="flex min-w-0 items-start gap-3">
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center gap-2">
+        <span className={stylexClassName("flex min-w-0 items-start gap-3")}>
+          <span className={stylexClassName("min-w-0 flex-1")}>
+            <span
+              className={stylexClassName("flex min-w-0 items-center gap-2")}
+            >
               <span
                 className={cn(
                   "shrink-0 border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em]",
@@ -145,29 +168,49 @@ function GraphNode({
               <span className={cn("font-mono text-[10px]", status.textClass)}>
                 {status.label}
               </span>
-              <span className="ml-auto shrink-0 font-mono text-[10px] text-(--fg-tertiary)">
+              <span
+                className={stylexClassName(
+                  "ml-auto shrink-0 font-mono text-[10px] text-(--fg-tertiary)"
+                )}
+              >
                 {formatRuntimeDuration(node.duration)}
               </span>
             </span>
-            <span className="mt-1.5 block truncate text-[14px] font-semibold text-(--fg-primary)">
+            <span
+              className={stylexClassName(
+                "mt-1.5 block truncate text-[14px] font-semibold text-(--fg-primary)"
+              )}
+            >
               {node.name}
             </span>
-            <span className="mt-1 flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)">
-              <span className="truncate">{node.service}</span>
-              <span className="text-(--fg-quaternary)">·</span>
-              <span className="shrink-0" title={node.id}>
+            <span
+              className={stylexClassName(
+                "mt-1 flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)"
+              )}
+            >
+              <span className={stylexClassName("truncate")}>
+                {node.service}
+              </span>
+              <span className={stylexClassName("text-(--fg-quaternary)")}>
+                ·
+              </span>
+              <span className={stylexClassName("shrink-0")} title={node.id}>
                 {shortId(node.id)}
               </span>
             </span>
             {node.error ? (
-              <span className="mt-2 block truncate font-mono text-[11px] text-[var(--tone-error-fg)]">
+              <span
+                className={stylexClassName(
+                  "mt-2 block truncate font-mono text-[11px] text-[var(--tone-error-fg)]"
+                )}
+              >
                 {node.error}
               </span>
             ) : null}
           </span>
 
           {retryable ? (
-            <span className="relative z-10 shrink-0">
+            <span className={stylexClassName("relative z-10 shrink-0")}>
               <Button
                 onClick={(event) => {
                   event.stopPropagation();

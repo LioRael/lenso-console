@@ -15,7 +15,14 @@ export interface ConsoleUiArtifactReceipt {
   basePath: string;
   entry: string;
   entries: readonly { name: string; path: string }[];
+  styleAssets?: readonly ConsoleUiStyleAsset[];
   manifest: ConsoleModuleManifest;
+}
+
+export interface ConsoleUiStyleAsset {
+  path: string;
+  order?: number;
+  media?: string;
 }
 
 export interface ConsoleModuleRuntimeOptions {
@@ -28,6 +35,7 @@ export async function loadConsoleUiModule(
   options: ConsoleModuleRuntimeOptions = {}
 ): Promise<ConsoleUiModule> {
   validateReceipt(receipt, options.origin);
+  await loadStyleAssets(receipt, options.origin);
   const entryUrl = artifactEntryUrl(receipt, options.origin);
   const importModule = options.importModule ?? dynamicImport;
   let namespace: Record<string, unknown>;
@@ -103,7 +111,18 @@ function validateReceipt(
     !receipt.basePath ||
     !receipt.entry ||
     !Array.isArray(receipt.entries) ||
-    receipt.entries.length === 0
+    receipt.entries.length === 0 ||
+    (receipt.styleAssets !== undefined &&
+      (!Array.isArray(receipt.styleAssets) ||
+        receipt.styleAssets.some(
+          (asset) =>
+            !asset ||
+            typeof asset !== "object" ||
+            typeof asset.path !== "string" ||
+            !asset.path.trim() ||
+            (asset.order !== undefined && typeof asset.order !== "number") ||
+            (asset.media !== undefined && typeof asset.media !== "string")
+        )))
   ) {
     throw new ConsoleHostError(
       "invalid_request",
@@ -134,7 +153,61 @@ function validateReceipt(
       `Console Module UI entry is not declared by the receipt: ${receipt.moduleId}`
     );
   }
+  for (const asset of receipt.styleAssets ?? []) {
+    artifactAssetUrl(receipt, asset.path, origin);
+  }
   artifactEntryUrl(receipt, origin);
+}
+
+async function loadStyleAssets(
+  receipt: ConsoleUiArtifactReceipt,
+  origin = globalThis.location?.origin
+): Promise<void> {
+  if (
+    !receipt.styleAssets?.length ||
+    typeof document === "undefined" ||
+    document.head === undefined
+  ) {
+    return;
+  }
+  const assets = [...receipt.styleAssets].sort(
+    (left, right) => (left.order ?? 0) - (right.order ?? 0)
+  );
+  for (const asset of assets) {
+    const href = artifactAssetUrl(receipt, asset.path, origin);
+    const existing = Array.from(
+      document.head.querySelectorAll("link[data-lenso-console-artifact-style]")
+    ).some(
+      (link) =>
+        (link as HTMLLinkElement).dataset.lensoConsoleArtifactStyle === href
+    );
+    if (existing) {
+      continue;
+    }
+    await new Promise<void>((resolve, reject) => {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      if (asset.media) {
+        link.media = asset.media;
+      }
+      link.dataset.lensoConsoleArtifactStyle = href;
+      link.addEventListener("load", () => resolve(), { once: true });
+      link.addEventListener(
+        "error",
+        () =>
+          reject(
+            new ConsoleHostError(
+              "unavailable",
+              `Console Module style asset failed to load: ${asset.path}`,
+              { retryable: true, status: 503 }
+            )
+          ),
+        { once: true }
+      );
+      document.head.append(link);
+    });
+  }
 }
 
 function artifactEntryUrl(
@@ -171,6 +244,49 @@ function artifactEntryUrl(
     );
   }
   return `${entry.pathname}${entry.search}${entry.hash}`;
+}
+
+function artifactAssetUrl(
+  receipt: ConsoleUiArtifactReceipt,
+  assetPath: string,
+  origin = globalThis.location?.origin
+): string {
+  if (
+    !assetPath ||
+    assetPath.startsWith("/") ||
+    assetPath.split("/").some((segment) => segment === "..")
+  ) {
+    throw new ConsoleHostError(
+      "invalid_request",
+      "Console Module style asset must be a safe relative path"
+    );
+  }
+  if (!receipt.entries.some((entry) => entry.path === assetPath)) {
+    throw new ConsoleHostError(
+      "invalid_request",
+      `Console Module style asset is not declared by the receipt: ${assetPath}`
+    );
+  }
+  const expectedOrigin =
+    origin ?? globalThis.location?.origin ?? "http://lenso.local";
+  let base: URL;
+  let asset: URL;
+  try {
+    base = new URL(receipt.basePath, expectedOrigin);
+    asset = new URL(assetPath, base);
+  } catch {
+    throw new ConsoleHostError(
+      "invalid_request",
+      "Console Module style asset URL is invalid"
+    );
+  }
+  if (base.origin !== asset.origin || asset.origin !== expectedOrigin) {
+    throw new ConsoleHostError(
+      "forbidden",
+      "Console Module style asset must be same-origin"
+    );
+  }
+  return `${asset.pathname}${asset.search}${asset.hash}`;
 }
 
 function isConsoleUiModuleShape(value: unknown): value is ConsoleUiModule {

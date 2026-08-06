@@ -1,4 +1,4 @@
-/* eslint-disable func-style, jsx-a11y/prefer-tag-over-role */
+/* eslint-disable func-style, jsx-a11y/prefer-tag-over-role, no-negated-condition, sort-keys */
 
 import type {
   ButtonHTMLAttributes,
@@ -10,24 +10,70 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
+import { createContext, useContext } from "react";
+
+import { mergeStyleProps, styles } from "./styles.js";
+import type { ConsoleStyle } from "./styles.js";
 
 type ClassValue = string | false | null | undefined;
 
 const classes = (...values: ClassValue[]) => values.filter(Boolean).join(" ");
 
+export type ConsoleSurfaceRootProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & {
+    moduleId?: string;
+    surfaceId?: string;
+    stylex?: ConsoleStyle;
+  }
+>;
+
+/** Stable root node for Module Surface styling and Figma-frame targeting. */
+export function SurfaceRoot({
+  children,
+  className,
+  moduleId,
+  stylex: stylexStyle,
+  surfaceId,
+  ...props
+}: ConsoleSurfaceRootProps) {
+  return (
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-surface-root", className),
+        styles.surfaceRoot
+      )}
+      data-lenso-surface-root="true"
+      data-module-id={moduleId}
+      data-surface-id={surfaceId}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
 type ConsolePageProps = PropsWithChildren<
-  ComponentPropsWithoutRef<"main"> & { scroll?: boolean }
+  ComponentPropsWithoutRef<"main"> & {
+    scroll?: boolean;
+    stylex?: ConsoleStyle;
+  }
 >;
 
 function ConsolePageRoot({
   children,
   className,
   scroll = true,
+  stylex: stylexStyle,
   ...props
 }: ConsolePageProps) {
   return (
     <main
-      className={classes("lenso-ui-page", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page", className),
+        styles.page
+      )}
       data-scroll={scroll ? "true" : "false"}
       {...props}
     >
@@ -39,10 +85,20 @@ function ConsolePageRoot({
 function ConsolePageHeader({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"header">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"header"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <header className={classes("lenso-ui-page__header", className)} {...props}>
+    <header
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__header", className),
+        styles.pageHeader
+      )}
+      {...props}
+    >
       {children}
     </header>
   );
@@ -51,10 +107,20 @@ function ConsolePageHeader({
 function ConsolePageHeading({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-page__heading", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__heading", className),
+        styles.pageHeading
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -63,10 +129,20 @@ function ConsolePageHeading({
 function ConsolePageEyebrow({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <p className={classes("lenso-ui-page__eyebrow", className)} {...props}>
+    <p
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__eyebrow", className),
+        styles.pageEyebrow
+      )}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -75,10 +151,20 @@ function ConsolePageEyebrow({
 function ConsolePageTitle({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"h1">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"h1"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <h1 className={classes("lenso-ui-page__title", className)} {...props}>
+    <h1
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__title", className),
+        styles.pageTitle
+      )}
+      {...props}
+    >
       {children}
     </h1>
   );
@@ -87,10 +173,20 @@ function ConsolePageTitle({
 function ConsolePageDescription({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <p className={classes("lenso-ui-page__description", className)} {...props}>
+    <p
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__description", className),
+        styles.pageDescription
+      )}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -99,10 +195,20 @@ function ConsolePageDescription({
 function ConsolePageActions({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-page__actions", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__actions", className),
+        styles.pageActions
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -111,10 +217,20 @@ function ConsolePageActions({
 function ConsolePageBody({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-page__body", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-page__body", className),
+        styles.pageBody
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -141,6 +257,7 @@ export type ControlSize = "sm" | "md";
 export type ButtonProps = PropsWithChildren<
   ButtonHTMLAttributes<HTMLButtonElement> & {
     size?: ControlSize;
+    stylex?: ConsoleStyle;
     variant?: ButtonVariant;
   }
 >;
@@ -149,13 +266,22 @@ export function Button({
   children,
   className,
   size = "sm",
+  stylex: stylexStyle,
   type = "button",
   variant = "default",
   ...props
 }: ButtonProps) {
   return (
     <button
-      className={classes("lenso-ui-button", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-button", className),
+        styles.button,
+        size === "md" ? styles.buttonMd : null,
+        variant === "primary" ? styles.buttonPrimary : null,
+        variant === "ghost" ? styles.buttonGhost : null,
+        variant === "danger" ? styles.buttonDanger : null
+      )}
       data-size={size}
       data-variant={variant === "default" ? "secondary" : variant}
       type={type}
@@ -174,12 +300,19 @@ export function IconButton({
   children,
   className,
   label,
+  stylex: stylexStyle,
+  size = "sm",
   ...props
 }: IconButtonProps) {
   return (
     <Button
       aria-label={label}
       className={classes("lenso-ui-icon-button", className)}
+      size={size}
+      stylex={[
+        stylexStyle,
+        size === "md" ? styles.iconButtonMd : styles.iconButton,
+      ]}
       title={props.title ?? label}
       {...props}
     >
@@ -196,18 +329,30 @@ export type SemanticTone =
   | "danger";
 
 export type BadgeProps = PropsWithChildren<
-  ComponentPropsWithoutRef<"span"> & { tone?: SemanticTone }
+  ComponentPropsWithoutRef<"span"> & {
+    stylex?: ConsoleStyle;
+    tone?: SemanticTone;
+  }
 >;
 
 export function Badge({
   children,
   className,
+  stylex: stylexStyle,
   tone = "neutral",
   ...props
 }: BadgeProps) {
   return (
     <span
-      className={classes("lenso-ui-badge", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-badge", className),
+        styles.badge,
+        tone === "info" ? styles.badgeInfo : null,
+        tone === "success" ? styles.badgeSuccess : null,
+        tone === "warning" ? styles.badgeWarning : null,
+        tone === "danger" ? styles.badgeDanger : null
+      )}
       data-tone={tone}
       {...props}
     >
@@ -226,18 +371,28 @@ export type StatusMarkerProps = PropsWithChildren<
 export type IconSlotSize = 12 | 16 | 20;
 
 export type IconSlotProps = PropsWithChildren<
-  ComponentPropsWithoutRef<"span"> & { size?: IconSlotSize }
+  ComponentPropsWithoutRef<"span"> & {
+    size?: IconSlotSize;
+    stylex?: ConsoleStyle;
+  }
 >;
 
 export function IconSlot({
   children,
   className,
   size = 16,
+  stylex: stylexStyle,
   ...props
 }: IconSlotProps) {
   return (
     <span
-      className={classes("lenso-ui-icon-slot", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-icon-slot", className),
+        styles.iconSlot,
+        size === 12 ? styles.iconSlot12 : null,
+        size === 20 ? styles.iconSlot20 : null
+      )}
       data-size={size}
       {...props}
     >
@@ -262,13 +417,38 @@ function InlineStatusMarkup({
 }: InlineStatusProps) {
   return (
     <span
-      className={classes("lenso-ui-inline-status", className)}
+      {...mergeStyleProps(
+        undefined,
+        classes("lenso-ui-inline-status", className),
+        styles.inlineStatus,
+        align !== "center" ? styles.inlineStatusTop : null
+      )}
       data-align={align}
       data-tone={tone}
       {...props}
     >
-      <span aria-hidden="true" className="lenso-ui-inline-status__dot" />
-      <span className="lenso-ui-inline-status__label">{children}</span>
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-inline-status__dot",
+          styles.inlineStatusDot,
+          align !== "center" ? styles.inlineStatusDotTop : null,
+          tone === "info" ? styles.inlineStatusDotInfo : null,
+          tone === "success" ? styles.inlineStatusDotSuccess : null,
+          tone === "warning" ? styles.inlineStatusDotWarning : null,
+          tone === "danger" ? styles.inlineStatusDotDanger : null
+        )}
+        aria-hidden="true"
+      />
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-inline-status__label",
+          styles.inlineStatusLabel
+        )}
+      >
+        {children}
+      </span>
     </span>
   );
 }
@@ -318,11 +498,23 @@ export function FilterControl({
 }: FilterControlProps) {
   return (
     <button
-      className={classes("lenso-ui-filter-control", className)}
+      {...mergeStyleProps(
+        undefined,
+        classes("lenso-ui-filter-control", className),
+        styles.filterControl
+      )}
       type={type}
       {...props}
     >
-      <span className="lenso-ui-filter-control__label">{children}</span>
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-filter-control__label",
+          styles.filterControlLabel
+        )}
+      >
+        {children}
+      </span>
       {icon ? <IconSlot size={12}>{icon}</IconSlot> : null}
     </button>
   );
@@ -343,10 +535,33 @@ export function PaneHeader({
   ...props
 }: PaneHeaderProps) {
   return (
-    <header className={classes("lenso-ui-pane-header", className)} {...props}>
-      <span className="lenso-ui-pane-header__title">{title ?? children}</span>
+    <header
+      {...mergeStyleProps(
+        undefined,
+        classes("lenso-ui-pane-header", className),
+        styles.paneHeader
+      )}
+      {...props}
+    >
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-pane-header__title",
+          styles.paneHeaderTitle
+        )}
+      >
+        {title ?? children}
+      </span>
       {meta === undefined ? null : (
-        <span className="lenso-ui-pane-header__meta">{meta}</span>
+        <span
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-pane-header__meta",
+            styles.paneHeaderMeta
+          )}
+        >
+          {meta}
+        </span>
       )}
     </header>
   );
@@ -368,11 +583,23 @@ export function SurfaceGroupLabel({
 }: SurfaceGroupLabelProps) {
   return (
     <div
-      className={classes("lenso-ui-surface-group-label", className)}
+      {...mergeStyleProps(
+        undefined,
+        classes("lenso-ui-surface-group-label", className),
+        styles.surfaceGroupLabel
+      )}
       {...props}
     >
       {icon ? <IconSlot size={16}>{icon}</IconSlot> : null}
-      <span className="lenso-ui-surface-group-label__text">{label}</span>
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-surface-group-label__text",
+          styles.surfaceGroupLabelText
+        )}
+      >
+        {label}
+      </span>
       {children}
     </div>
   );
@@ -397,14 +624,25 @@ export function TableHeader({
   const labels = children ? [children] : columns;
   return (
     <div
-      className={classes("lenso-ui-table-header", className)}
+      {...mergeStyleProps(
+        undefined,
+        classes("lenso-ui-table-header", className),
+        styles.tableHeader,
+        variant === "provider" ? styles.tableHeaderProvider : null,
+        variant === "runtime" ? styles.tableHeaderRuntime : null
+      )}
       data-variant={variant}
       role="row"
       {...props}
     >
       {labels.map((column, index) => (
         <span
-          className="lenso-ui-table-header__cell"
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-table-header__cell",
+            styles.tableHeaderCell,
+            index === 0 ? styles.tableHeaderCellFirst : null
+          )}
           key={`table-header-${index}`}
         >
           {column}
@@ -467,7 +705,15 @@ export function DataRow({
 
   return (
     <div
-      className={classes("lenso-ui-data-row", className)}
+      {...mergeStyleProps(
+        undefined,
+        classes("lenso-ui-data-row", className),
+        styles.dataRow,
+        variant === "provider" ? styles.dataRowProvider : null,
+        variant === "runtime" ? styles.dataRowRuntime : null,
+        selected ? styles.dataRowSelected : null,
+        interactive ? (styles.dataRowInteractive as ConsoleStyle) : null
+      )}
       aria-selected={selected}
       data-selected={selected ? "true" : "false"}
       data-variant={variant}
@@ -477,12 +723,39 @@ export function DataRow({
       onKeyDown={handleKeyDown}
       {...props}
     >
-      <span className="lenso-ui-data-row__primary">
-        <strong>{primary}</strong>
-        {secondary === undefined ? null : <small>{secondary}</small>}
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-data-row__primary",
+          styles.dataRowPrimary
+        )}
+      >
+        <strong
+          {...mergeStyleProps(undefined, undefined, styles.dataRowPrimaryText)}
+        >
+          {primary}
+        </strong>
+        {secondary === undefined ? null : (
+          <small
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.dataRowSecondaryText
+            )}
+          >
+            {secondary}
+          </small>
+        )}
       </span>
       {trailingCells.map((cell, index) => (
-        <span className="lenso-ui-data-row__cell" key={`data-row-${index}`}>
+        <span
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-data-row__cell",
+            styles.dataRowCell
+          )}
+          key={`data-row-${index}`}
+        >
           {cell}
         </span>
       ))}
@@ -490,13 +763,48 @@ export function DataRow({
   );
 }
 
+export type DataGridProps = PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>;
+
+/** Scrollable table surface used by official and third-party Module Surfaces. */
+export function DataGrid({
+  children,
+  className,
+  stylex: stylexStyle,
+  ...props
+}: DataGridProps) {
+  return (
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-data-grid", className),
+        styles.dataGrid
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
 function PanelRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"section">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"section"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <section className={classes("lenso-ui-panel", className)} {...props}>
+    <section
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-panel", className),
+        styles.panel
+      )}
+      {...props}
+    >
       {children}
     </section>
   );
@@ -505,10 +813,20 @@ function PanelRoot({
 function PanelHeader({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"header">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"header"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <header className={classes("lenso-ui-panel__header", className)} {...props}>
+    <header
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-panel__header", className),
+        styles.panelHeader
+      )}
+      {...props}
+    >
       {children}
     </header>
   );
@@ -517,10 +835,20 @@ function PanelHeader({
 function PanelTitle({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"h2">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"h2"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <h2 className={classes("lenso-ui-panel__title", className)} {...props}>
+    <h2
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-panel__title", className),
+        styles.panelTitle
+      )}
+      {...props}
+    >
       {children}
     </h2>
   );
@@ -529,10 +857,20 @@ function PanelTitle({
 function PanelDescription({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <p className={classes("lenso-ui-panel__description", className)} {...props}>
+    <p
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-panel__description", className),
+        styles.panelDescription
+      )}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -542,13 +880,22 @@ function PanelContent({
   children,
   className,
   padding = "none",
+  stylex: stylexStyle,
   ...props
 }: PropsWithChildren<
-  ComponentPropsWithoutRef<"div"> & { padding?: "none" | "sm" | "md" }
+  ComponentPropsWithoutRef<"div"> & {
+    padding?: "none" | "sm" | "md";
+    stylex?: ConsoleStyle;
+  }
 >) {
   return (
     <div
-      className={classes("lenso-ui-panel__content", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-panel__content", className),
+        padding === "sm" ? styles.panelContentSm : null,
+        padding === "md" ? styles.panelContentMd : null
+      )}
       data-padding={padding}
       {...props}
     >
@@ -567,10 +914,20 @@ export const Panel = Object.assign(PanelRoot, {
 function SummaryStripRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-summary", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-summary", className),
+        styles.summary
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -581,6 +938,7 @@ function SummaryStripItem({
   className,
   label,
   note,
+  stylex: stylexStyle,
   tone = "neutral",
   value,
   ...props
@@ -588,19 +946,53 @@ function SummaryStripItem({
   ComponentPropsWithoutRef<"div"> & {
     label: ReactNode;
     note?: ReactNode;
+    stylex?: ConsoleStyle;
     tone?: SemanticTone;
     value: ReactNode;
   }
 >) {
   return (
     <div
-      className={classes("lenso-ui-summary__item", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-summary__item", className),
+        styles.summaryItem
+      )}
       data-tone={tone}
       {...props}
     >
-      <span className="lenso-ui-summary__label">{label}</span>
-      <strong className="lenso-ui-summary__value">{value}</strong>
-      {note ? <span className="lenso-ui-summary__note">{note}</span> : null}
+      <span
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-summary__label",
+          styles.summaryLabel
+        )}
+      >
+        {label}
+      </span>
+      <strong
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-summary__value",
+          styles.summaryValue,
+          tone === "warning" ? styles.summaryValueWarning : null,
+          tone === "danger" ? styles.summaryValueDanger : null,
+          tone === "success" ? styles.summaryValueSuccess : null
+        )}
+      >
+        {value}
+      </strong>
+      {note ? (
+        <span
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-summary__note",
+            styles.summaryNote
+          )}
+        >
+          {note}
+        </span>
+      ) : null}
       {children}
     </div>
   );
@@ -616,16 +1008,23 @@ function SplitViewRoot({
   inset = "default",
   inspectorWidth,
   style,
+  stylex: stylexStyle,
   ...props
 }: PropsWithChildren<
   ComponentPropsWithoutRef<"div"> & {
     inset?: "default" | "none";
     inspectorWidth?: number;
+    stylex?: ConsoleStyle;
   }
 >) {
   return (
     <div
-      className={classes("lenso-ui-split-view", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-split-view", className),
+        styles.splitView,
+        inset === "none" ? styles.splitViewNone : null
+      )}
       data-inset={inset}
       style={{
         ...style,
@@ -643,11 +1042,19 @@ function SplitViewRoot({
 function SplitViewMain({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"section">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"section"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <section
-      className={classes("lenso-ui-split-view__main", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-split-view__main", className),
+        styles.splitViewPane,
+        styles.splitViewMain
+      )}
       {...props}
     >
       {children}
@@ -658,11 +1065,19 @@ function SplitViewMain({
 function SplitViewInspector({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"aside">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"aside"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <aside
-      className={classes("lenso-ui-split-view__inspector", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-split-view__inspector", className),
+        styles.splitViewPane,
+        styles.splitViewInspector
+      )}
       {...props}
     >
       {children}
@@ -691,31 +1106,80 @@ function InspectorRoot({
   status,
   subtitle,
   title,
+  stylex: stylexStyle,
   ...props
-}: InspectorProps) {
+}: InspectorProps & { stylex?: ConsoleStyle }) {
   return (
-    <div className={classes("lenso-ui-inspector", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-inspector", className),
+        styles.inspector
+      )}
+      {...props}
+    >
       {title === undefined &&
       subtitle === undefined &&
       !status &&
       !headerAction ? null : (
         <header
-          className="lenso-ui-inspector__header"
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-inspector__header",
+            styles.inspectorHeader,
+            headerAction ? styles.inspectorHeaderWithAction : null
+          )}
           data-has-action={headerAction ? "true" : undefined}
         >
-          <div className="lenso-ui-inspector__header-content">
+          <div
+            {...mergeStyleProps(
+              undefined,
+              "lenso-ui-inspector__header-content",
+              styles.inspectorHeaderContent
+            )}
+          >
             {title === undefined ? null : (
-              <h2 className="lenso-ui-inspector__title">{title}</h2>
+              <h2
+                {...mergeStyleProps(
+                  undefined,
+                  "lenso-ui-inspector__title",
+                  styles.inspectorTitle
+                )}
+              >
+                {title}
+              </h2>
             )}
             {subtitle === undefined ? null : (
-              <p className="lenso-ui-inspector__subtitle">{subtitle}</p>
+              <p
+                {...mergeStyleProps(
+                  undefined,
+                  "lenso-ui-inspector__subtitle",
+                  styles.inspectorSubtitle
+                )}
+              >
+                {subtitle}
+              </p>
             )}
             {status ? (
-              <div className="lenso-ui-inspector__status">{status}</div>
+              <div
+                {...mergeStyleProps(
+                  undefined,
+                  "lenso-ui-inspector__status",
+                  styles.inspectorStatus
+                )}
+              >
+                {status}
+              </div>
             ) : null}
           </div>
           {headerAction ? (
-            <div className="lenso-ui-inspector__header-action">
+            <div
+              {...mergeStyleProps(
+                undefined,
+                "lenso-ui-inspector__header-action",
+                styles.inspectorHeaderAction
+              )}
+            >
               {headerAction}
             </div>
           ) : null}
@@ -730,19 +1194,43 @@ function InspectorSection({
   children,
   className,
   title,
+  stylex: stylexStyle,
   ...props
 }: PropsWithChildren<
-  ComponentPropsWithoutRef<"section"> & { title?: ReactNode }
+  ComponentPropsWithoutRef<"section"> & {
+    title?: ReactNode;
+    stylex?: ConsoleStyle;
+  }
 >) {
   return (
     <section
-      className={classes("lenso-ui-inspector__section", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-inspector__section", className),
+        styles.inspectorSection
+      )}
       {...props}
     >
       {title === undefined ? null : (
-        <h3 className="lenso-ui-inspector__section-title">{title}</h3>
+        <h3
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-inspector__section-title",
+            styles.inspectorSectionTitle
+          )}
+        >
+          {title}
+        </h3>
       )}
-      <div className="lenso-ui-inspector__section-body">{children}</div>
+      <div
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-inspector__section-body",
+          styles.inspectorSectionBody
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }
@@ -750,11 +1238,18 @@ function InspectorSection({
 function InspectorActions({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <div
-      className={classes("lenso-ui-inspector__actions", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-inspector__actions", className),
+        styles.inspectorActions
+      )}
       {...props}
     >
       {children}
@@ -770,10 +1265,20 @@ export const Inspector = Object.assign(InspectorRoot, {
 function SectionRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"section">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"section"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <section className={classes("lenso-ui-section", className)} {...props}>
+    <section
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-section", className),
+        styles.section
+      )}
+      {...props}
+    >
       {children}
     </section>
   );
@@ -782,11 +1287,18 @@ function SectionRoot({
 function SectionHeader({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"header">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"header"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <header
-      className={classes("lenso-ui-section__header", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-section__header", className),
+        styles.sectionHeader
+      )}
       {...props}
     >
       {children}
@@ -797,10 +1309,20 @@ function SectionHeader({
 function SectionTitle({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"h2">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"h2"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <h2 className={classes("lenso-ui-section__title", className)} {...props}>
+    <h2
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-section__title", className),
+        styles.sectionTitle
+      )}
+      {...props}
+    >
       {children}
     </h2>
   );
@@ -809,10 +1331,20 @@ function SectionTitle({
 function SectionMeta({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"span">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"span"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <span className={classes("lenso-ui-section__meta", className)} {...props}>
+    <span
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-section__meta", className),
+        styles.sectionMeta
+      )}
+      {...props}
+    >
       {children}
     </span>
   );
@@ -821,10 +1353,20 @@ function SectionMeta({
 function SectionBody({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-section__body", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-section__body", className),
+        styles.sectionBody
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -840,10 +1382,19 @@ export const Section = Object.assign(SectionRoot, {
 function KeyValueListRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"dl">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"dl"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <dl className={classes("lenso-ui-key-values", className)} {...props}>
+    <dl
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-key-values", className)
+      )}
+      {...props}
+    >
       {children}
     </dl>
   );
@@ -853,15 +1404,40 @@ function KeyValueListRow({
   className,
   label,
   value,
+  stylex: stylexStyle,
   ...props
 }: ComponentPropsWithoutRef<"div"> & {
   label: ReactNode;
   value: ReactNode;
+  stylex?: ConsoleStyle;
 }) {
   return (
-    <div className={classes("lenso-ui-key-values__row", className)} {...props}>
-      <dt className="lenso-ui-key-values__label">{label}</dt>
-      <dd className="lenso-ui-key-values__value">{value}</dd>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-key-values__row", className),
+        styles.keyValuesRow
+      )}
+      {...props}
+    >
+      <dt
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-key-values__label",
+          styles.keyValuesLabel
+        )}
+      >
+        {label}
+      </dt>
+      <dd
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-key-values__value",
+          styles.keyValuesValue
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -875,6 +1451,7 @@ export function StateView({
   className,
   description,
   icon,
+  stylex: stylexStyle,
   title,
   ...props
 }: ComponentPropsWithoutRef<"div"> & {
@@ -882,38 +1459,94 @@ export function StateView({
   description: ReactNode;
   icon?: ReactNode;
   title: ReactNode;
+  stylex?: ConsoleStyle;
 }) {
   return (
-    <div className={classes("lenso-ui-state", className)} {...props}>
-      {icon ? <span className="lenso-ui-state__icon">{icon}</span> : null}
-      <strong className="lenso-ui-state__title">{title}</strong>
-      <p className="lenso-ui-state__description">{description}</p>
-      {action ? <div className="lenso-ui-state__action">{action}</div> : null}
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-state", className),
+        styles.state
+      )}
+      {...props}
+    >
+      {icon ? (
+        <span
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-state__icon",
+            styles.stateIcon
+          )}
+        >
+          {icon}
+        </span>
+      ) : null}
+      <strong
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-state__title",
+          styles.stateTitle
+        )}
+      >
+        {title}
+      </strong>
+      <p
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-state__description",
+          styles.stateDescription
+        )}
+      >
+        {description}
+      </p>
+      {action ? (
+        <div
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-state__action",
+            styles.stateAction
+          )}
+        >
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }
+
+type TabsDensity = "default" | "page" | "inspector";
+
+const TabsContext = createContext<{
+  density: TabsDensity;
+  leadingIcon: boolean;
+}>({ density: "default", leadingIcon: false });
 
 function TabsRoot({
   children,
   className,
   density = "default",
   inset = "default",
+  stylex: stylexStyle,
   ...props
 }: PropsWithChildren<
   ComponentPropsWithoutRef<"div"> & {
     density?: "default" | "page" | "inspector";
     inset?: "default" | "none" | "sm";
+    stylex?: ConsoleStyle;
   }
 >) {
+  const context = { density, leadingIcon: false } as const;
   return (
-    <div
-      className={classes("lenso-ui-tabs", className)}
-      data-density={density}
-      data-inset={inset}
-      {...props}
-    >
-      {children}
-    </div>
+    <TabsContext.Provider value={context}>
+      <div
+        {...mergeStyleProps(stylexStyle, classes("lenso-ui-tabs", className))}
+        data-density={density}
+        data-inset={inset}
+        {...props}
+      >
+        {children}
+      </div>
+    </TabsContext.Provider>
   );
 }
 
@@ -922,23 +1555,37 @@ function TabsList({
   className,
   inset,
   leadingIcon,
+  stylex: stylexStyle,
   ...props
 }: PropsWithChildren<
   ComponentPropsWithoutRef<"div"> & {
     inset?: "default" | "none" | "sm";
     leadingIcon?: boolean;
+    stylex?: ConsoleStyle;
   }
 >) {
+  const context = useContext(TabsContext);
   return (
-    <div
-      className={classes("lenso-ui-tabs__list", className)}
-      data-inset={inset}
-      data-leading={leadingIcon ? "icon" : undefined}
-      role="tablist"
-      {...props}
+    <TabsContext.Provider
+      value={{ ...context, leadingIcon: Boolean(leadingIcon) }}
     >
-      {children}
-    </div>
+      <div
+        {...mergeStyleProps(
+          stylexStyle,
+          classes("lenso-ui-tabs__list", className),
+          styles.tabsList,
+          context.density === "page" ? styles.tabsListPage : null,
+          context.density === "inspector" ? styles.tabsListInspector : null,
+          inset === "sm" ? styles.tabsListInsetSm : null
+        )}
+        data-inset={inset}
+        data-leading={leadingIcon ? "icon" : undefined}
+        role="tablist"
+        {...props}
+      >
+        {children}
+      </div>
+    </TabsContext.Provider>
   );
 }
 
@@ -947,11 +1594,16 @@ function TabsTab({
   className,
   onKeyDown,
   selected,
+  stylex: stylexStyle,
   type = "button",
   ...props
 }: PropsWithChildren<
-  ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    selected: boolean;
+    stylex?: ConsoleStyle;
+  }
 >) {
+  const { density, leadingIcon } = useContext(TabsContext);
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     onKeyDown?.(event);
     if (event.defaultPrevented) {
@@ -991,7 +1643,15 @@ function TabsTab({
   return (
     <button
       aria-selected={selected}
-      className={classes("lenso-ui-tabs__tab", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-tabs__tab", className),
+        styles.tabsTab,
+        density !== "default" ? styles.tabsTabDense : null,
+        selected ? styles.tabsTabSelected : null,
+        selected && density !== "default" ? styles.tabsTabSelectedDense : null,
+        selected && leadingIcon ? styles.tabsTabSelectedLeadingIcon : null
+      )}
       role="tab"
       type={type}
       onKeyDown={handleKeyDown}
@@ -1005,11 +1665,18 @@ function TabsTab({
 function TabsPanel({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <div
-      className={classes("lenso-ui-tabs__panel", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-tabs__panel", className),
+        styles.tabsPanel
+      )}
       role="tabpanel"
       {...props}
     >
@@ -1027,11 +1694,18 @@ export const Tabs = Object.assign(TabsRoot, {
 function SettingsGroupRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"section">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"section"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <section
-      className={classes("lenso-ui-settings-group", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-settings-group", className),
+        styles.settingsGroup
+      )}
       {...props}
     >
       {children}
@@ -1042,11 +1716,18 @@ function SettingsGroupRoot({
 function SettingsGroupHeader({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"header">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"header"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <header
-      className={classes("lenso-ui-settings-group__header", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-settings-group__header", className),
+        styles.settingsGroupHeader
+      )}
       {...props}
     >
       {children}
@@ -1057,11 +1738,18 @@ function SettingsGroupHeader({
 function SettingsGroupTitle({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"h2">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"h2"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <h2
-      className={classes("lenso-ui-settings-group__title", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-settings-group__title", className),
+        styles.settingsGroupTitle
+      )}
       {...props}
     >
       {children}
@@ -1072,11 +1760,18 @@ function SettingsGroupTitle({
 function SettingsGroupDescription({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <p
-      className={classes("lenso-ui-settings-group__description", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-settings-group__description", className),
+        styles.settingsGroupDescription
+      )}
       {...props}
     >
       {children}
@@ -1095,24 +1790,61 @@ export function SettingsRow({
   className,
   description,
   label,
+  stylex: stylexStyle,
   ...props
 }: PropsWithChildren<
   ComponentPropsWithoutRef<"div"> & {
     description?: ReactNode;
     label: ReactNode;
+    stylex?: ConsoleStyle;
   }
 >) {
   return (
-    <div className={classes("lenso-ui-settings-row", className)} {...props}>
-      <div className="lenso-ui-settings-row__copy">
-        <div className="lenso-ui-settings-row__label">{label}</div>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-settings-row", className),
+        styles.settingsRow
+      )}
+      {...props}
+    >
+      <div
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-settings-row__copy",
+          styles.settingsRowCopy
+        )}
+      >
+        <div
+          {...mergeStyleProps(
+            undefined,
+            "lenso-ui-settings-row__label",
+            styles.settingsRowLabel
+          )}
+        >
+          {label}
+        </div>
         {description ? (
-          <div className="lenso-ui-settings-row__description">
+          <div
+            {...mergeStyleProps(
+              undefined,
+              "lenso-ui-settings-row__description",
+              styles.settingsRowDescription
+            )}
+          >
             {description}
           </div>
         ) : null}
       </div>
-      <div className="lenso-ui-settings-row__control">{children}</div>
+      <div
+        {...mergeStyleProps(
+          undefined,
+          "lenso-ui-settings-row__control",
+          styles.settingsRowControl
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -1120,10 +1852,20 @@ export function SettingsRow({
 function FieldRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-field", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-field", className),
+        styles.field
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -1132,10 +1874,20 @@ function FieldRoot({
 function FieldLabel({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"label">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"label"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <label className={classes("lenso-ui-field__label", className)} {...props}>
+    <label
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-field__label", className),
+        styles.fieldLabel
+      )}
+      {...props}
+    >
       {children}
     </label>
   );
@@ -1144,10 +1896,20 @@ function FieldLabel({
 function FieldHint({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <p className={classes("lenso-ui-field__hint", className)} {...props}>
+    <p
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-field__hint", className),
+        styles.fieldHint
+      )}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -1156,11 +1918,18 @@ function FieldHint({
 function FieldError({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <p
-      className={classes("lenso-ui-field__error", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-field__error", className),
+        styles.fieldError
+      )}
       role="alert"
       {...props}
     >
@@ -1177,18 +1946,38 @@ export const Field = Object.assign(FieldRoot, {
 
 export function Input({
   className,
+  stylex: stylexStyle,
   ...props
-}: ComponentPropsWithoutRef<"input">) {
-  return <input className={classes("lenso-ui-input", className)} {...props} />;
+}: ComponentPropsWithoutRef<"input"> & { stylex?: ConsoleStyle }) {
+  return (
+    <input
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-input", className),
+        styles.input
+      )}
+      {...props}
+    />
+  );
 }
 
 export function Select({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<SelectHTMLAttributes<HTMLSelectElement>>) {
+}: PropsWithChildren<
+  SelectHTMLAttributes<HTMLSelectElement> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <select className={classes("lenso-ui-select", className)} {...props}>
+    <select
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-select", className),
+        styles.input
+      )}
+      {...props}
+    >
       {children}
     </select>
   );
@@ -1196,37 +1985,79 @@ export function Select({
 
 export function Textarea({
   className,
+  stylex: stylexStyle,
   ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { stylex?: ConsoleStyle }) {
   return (
-    <textarea className={classes("lenso-ui-textarea", className)} {...props} />
+    <textarea
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-textarea", className),
+        styles.input,
+        styles.textarea
+      )}
+      {...props}
+    />
   );
 }
 
 function EmptyStateRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"div">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"div"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className={classes("lenso-ui-empty-state", className)} {...props}>
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-empty-state", className),
+        styles.emptyState
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
 }
 
-function EmptyStateIcon({ children }: { children: ReactNode }) {
-  return <div className="lenso-ui-empty-state__icon">{children}</div>;
+function EmptyStateIcon({
+  children,
+  stylex: stylexStyle,
+}: {
+  children: ReactNode;
+  stylex?: ConsoleStyle;
+}) {
+  return (
+    <div
+      {...mergeStyleProps(
+        stylexStyle,
+        "lenso-ui-empty-state__icon",
+        styles.emptyStateIcon
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 function EmptyStateTitle({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"h2">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"h2"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <h2
-      className={classes("lenso-ui-empty-state__title", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-empty-state__title", className),
+        styles.emptyStateTitle
+      )}
       {...props}
     >
       {children}
@@ -1237,11 +2068,18 @@ function EmptyStateTitle({
 function EmptyStateDescription({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"p">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"p"> & { stylex?: ConsoleStyle }
+>) {
   return (
     <p
-      className={classes("lenso-ui-empty-state__description", className)}
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-empty-state__description", className),
+        styles.emptyStateDescription
+      )}
       {...props}
     >
       {children}
@@ -1258,11 +2096,23 @@ export const EmptyState = Object.assign(EmptyStateRoot, {
 function DataTableRoot({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"table">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"table"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <div className="lenso-ui-table-wrap">
-      <table className={classes("lenso-ui-table", className)} {...props}>
+    <div
+      {...mergeStyleProps(undefined, "lenso-ui-table-wrap", styles.tableWrap)}
+    >
+      <table
+        {...mergeStyleProps(
+          stylexStyle,
+          classes("lenso-ui-table", className),
+          styles.table
+        )}
+        {...props}
+      >
         {children}
       </table>
     </div>
@@ -1272,10 +2122,20 @@ function DataTableRoot({
 function DataTableHead({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"thead">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"thead"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <thead className={classes("lenso-ui-table__head", className)} {...props}>
+    <thead
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-table__head", className),
+        styles.tableHead
+      )}
+      {...props}
+    >
       {children}
     </thead>
   );
@@ -1284,10 +2144,19 @@ function DataTableHead({
 function DataTableBody({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"tbody">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"tbody"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <tbody className={classes("lenso-ui-table__body", className)} {...props}>
+    <tbody
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-table__body", className)
+      )}
+      {...props}
+    >
       {children}
     </tbody>
   );
@@ -1296,10 +2165,20 @@ function DataTableBody({
 function DataTableRow({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"tr">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"tr"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <tr className={classes("lenso-ui-table__row", className)} {...props}>
+    <tr
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-table__row", className),
+        styles.tableRow
+      )}
+      {...props}
+    >
       {children}
     </tr>
   );
@@ -1308,10 +2187,20 @@ function DataTableRow({
 function DataTableHeader({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"th">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"th"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <th className={classes("lenso-ui-table__header", className)} {...props}>
+    <th
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-table__header", className),
+        styles.dataTableHeaderCell
+      )}
+      {...props}
+    >
       {children}
     </th>
   );
@@ -1320,10 +2209,20 @@ function DataTableHeader({
 function DataTableCell({
   children,
   className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<ComponentPropsWithoutRef<"td">>) {
+}: PropsWithChildren<
+  ComponentPropsWithoutRef<"td"> & { stylex?: ConsoleStyle }
+>) {
   return (
-    <td className={classes("lenso-ui-table__cell", className)} {...props}>
+    <td
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-table__cell", className),
+        styles.dataTableCell
+      )}
+      {...props}
+    >
       {children}
     </td>
   );
@@ -1366,6 +2265,7 @@ export interface ConsoleUiComponents {
   TableHeader: typeof TableHeader;
   Tabs: typeof Tabs;
   Textarea: typeof Textarea;
+  SurfaceRoot: typeof SurfaceRoot;
 }
 
 export const consoleUi: ConsoleUiComponents = {
@@ -1397,4 +2297,5 @@ export const consoleUi: ConsoleUiComponents = {
   TableHeader,
   Tabs,
   Textarea,
+  SurfaceRoot,
 };

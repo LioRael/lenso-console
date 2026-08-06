@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import type { PointerEvent, WheelEvent } from "react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -285,14 +286,20 @@ export function FlowView({
   };
 
   return (
-    <div className="isolate relative h-full min-w-0 overflow-hidden bg-(--bg-canvas)">
-      <div className="absolute top-0 right-0 left-0 z-2">
+    <div
+      className={stylexClassName(
+        "isolate relative h-full min-w-0 overflow-hidden bg-(--bg-canvas)"
+      )}
+    >
+      <div className={stylexClassName("absolute top-0 right-0 left-0 z-2")}>
         <RuntimeViewHeader
           summary={`${nodes.length} nodes · ${edges.length} ${graphModel.source === "backend" ? "backend" : "derived"} edges · ${Math.round(zoom * 100)}%`}
           title="Execution Graph"
         >
           <button
-            className="flex items-center gap-1.5 transition hover:text-(--fg-primary)"
+            className={stylexClassName(
+              "flex items-center gap-1.5 transition hover:text-(--fg-primary)"
+            )}
             onClick={frameCanvas}
             type="button"
           >
@@ -303,15 +310,27 @@ export function FlowView({
       </div>
 
       {graphModel.state === "missing-edges" ? (
-        <div className="absolute top-12 left-1/2 z-3 w-[min(520px,calc(100%-32px))] -translate-x-1/2 border tint-border tint-warning bg-[color-mix(in_srgb,var(--bg-canvas)_92%,transparent)] p-3 font-mono text-[11px] tint-text shadow-(--elevation-overlay)">
+        <div
+          className={stylexClassName(
+            "absolute top-12 left-1/2 z-3 w-[min(520px,calc(100%-32px))] -translate-x-1/2 border tint-border tint-warning bg-[color-mix(in_srgb,var(--bg-canvas)_92%,transparent)] p-3 font-mono text-[11px] tint-text shadow-(--elevation-overlay)"
+          )}
+        >
           This story includes execution nodes, but the backend did not return
           graph edges.
         </div>
       ) : null}
 
       {graphModel.state === "empty-nodes" ? (
-        <div className="absolute inset-0 z-3 grid place-items-center p-4">
-          <div className="border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "absolute inset-0 z-3 grid place-items-center p-4"
+          )}
+        >
+          <div
+            className={stylexClassName(
+              "border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)"
+            )}
+          >
             This story does not include execution nodes yet.
           </div>
         </div>
@@ -330,14 +349,14 @@ export function FlowView({
         ref={setViewportNode}
       >
         <div
-          className="relative"
+          className={stylexClassName("relative")}
           style={{
             height: workspaceLayout.workspaceHeight,
             width: workspaceLayout.workspaceWidth,
           }}
         >
           <div
-            className="absolute top-0 left-0"
+            className={stylexClassName("absolute top-0 left-0")}
             style={{
               height: canvasHeight,
               left: workspaceLayout.marginLeft,
@@ -349,7 +368,9 @@ export function FlowView({
           >
             <svg
               aria-label="Story flow connectors"
-              className="pointer-events-none absolute inset-0 size-full"
+              className={stylexClassName(
+                "pointer-events-none absolute inset-0 size-full"
+              )}
             >
               <title>Story flow connectors</title>
               {edges.map((edge) => {
@@ -403,13 +424,25 @@ export function FlowView({
                   type="button"
                 >
                   <span
-                    className="absolute top-0 right-0 left-0 h-0.75 rounded-t-sm"
+                    className={stylexClassName(
+                      "absolute top-0 right-0 left-0 h-0.75 rounded-t-sm"
+                    )}
                     style={{ backgroundColor: color }}
                   />
-                  <span className="flex h-full flex-col justify-between px-2 pt-1.5 pb-1.5">
-                    <span className="flex items-start justify-between gap-2">
+                  <span
+                    className={stylexClassName(
+                      "flex h-full flex-col justify-between px-2 pt-1.5 pb-1.5"
+                    )}
+                  >
+                    <span
+                      className={stylexClassName(
+                        "flex items-start justify-between gap-2"
+                      )}
+                    >
                       <span
-                        className="max-w-16 truncate rounded-xs border px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.06em]"
+                        className={stylexClassName(
+                          "max-w-16 truncate rounded-xs border px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.06em]"
+                        )}
                         style={{
                           backgroundColor: `${color}18`,
                           borderColor: `${color}30`,
@@ -429,19 +462,35 @@ export function FlowView({
                         {flowNodeKindLabel(node)}
                       </span>
                     </span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-mono text-[11px] text-(--fg-primary)">
+                    <span className={stylexClassName("min-w-0")}>
+                      <span
+                        className={stylexClassName(
+                          "block truncate font-mono text-[11px] text-(--fg-primary)"
+                        )}
+                      >
                         {node.name}
                       </span>
-                      <span className="mt-0.5 flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary)">
+                      <span
+                        className={stylexClassName(
+                          "mt-0.5 flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary)"
+                        )}
+                      >
                         <span>{formatRuntimeDuration(node.durationMs)}</span>
                         {fanoutGroup ? (
-                          <span className="shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info">
+                          <span
+                            className={stylexClassName(
+                              "shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info"
+                            )}
+                          >
                             fan-out {fanoutGroup.branchCount}
                           </span>
                         ) : null}
                         {!fanoutGroup && parallelGroup ? (
-                          <span className="shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info">
+                          <span
+                            className={stylexClassName(
+                              "shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info"
+                            )}
+                          >
                             parallel
                           </span>
                         ) : null}
@@ -449,7 +498,11 @@ export function FlowView({
                     </span>
                   </span>
                   {isError ? (
-                    <span className="absolute -top-1 -right-1 size-2.5 rounded-full border border-(--bg-control) bg-[var(--error)]" />
+                    <span
+                      className={stylexClassName(
+                        "absolute -top-1 -right-1 size-2.5 rounded-full border border-(--bg-control) bg-[var(--error)]"
+                      )}
+                    />
                   ) : null}
                 </button>
               );
@@ -458,10 +511,16 @@ export function FlowView({
         </div>
       </div>
 
-      <div className="absolute bottom-10 left-4 z-2 flex flex-col gap-1">
+      <div
+        className={stylexClassName(
+          "absolute bottom-10 left-4 z-2 flex flex-col gap-1"
+        )}
+      >
         <button
           aria-label="Zoom graph in"
-          className="grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
+          className={stylexClassName(
+            "grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
+          )}
           onClick={() => zoomBy(flowViewDefaults.zoomStep)}
           type="button"
         >
@@ -469,7 +528,9 @@ export function FlowView({
         </button>
         <button
           aria-label="Zoom graph out"
-          className="grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
+          className={stylexClassName(
+            "grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
+          )}
           onClick={() => zoomBy(-flowViewDefaults.zoomStep)}
           type="button"
         >
@@ -477,7 +538,9 @@ export function FlowView({
         </button>
         <button
           aria-label="Frame graph"
-          className="grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
+          className={stylexClassName(
+            "grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
+          )}
           onClick={frameCanvas}
           type="button"
         >
@@ -485,9 +548,13 @@ export function FlowView({
         </button>
       </div>
 
-      <div className="absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_90%,transparent)]">
+      <div
+        className={stylexClassName(
+          "absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_90%,transparent)]"
+        )}
+      >
         <div
-          className="absolute top-2 left-2"
+          className={stylexClassName("absolute top-2 left-2")}
           style={{
             height: canvasHeight,
             transform: `scale(${minimapScale})`,
@@ -497,7 +564,9 @@ export function FlowView({
         >
           {nodes.map(({ node, x, y }) => (
             <div
-              className="absolute h-[64px] w-[150px] rounded-sm"
+              className={stylexClassName(
+                "absolute h-[64px] w-[150px] rounded-sm"
+              )}
               key={node.id}
               style={{
                 backgroundColor: serviceColor(node.service),
@@ -510,7 +579,11 @@ export function FlowView({
         </div>
       </div>
 
-      <div className="absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)">
+      <div
+        className={stylexClassName(
+          "absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)"
+        )}
+      >
         <span>Select nodes</span>
         <span>{Math.round(zoom * 100)}%</span>
         <span>Ctrl wheel zoom</span>

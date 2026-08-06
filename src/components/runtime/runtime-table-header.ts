@@ -1,6 +1,13 @@
-export const runtimeTableHeaderBaseClassName =
-  "relative grid h-7 min-w-0 items-center gap-4 border-b border-(--line) bg-(--bg-surface-muted) px-3 font-sans text-[10px] font-medium normal-case tracking-normal text-(--fg-tertiary)";
+import { stylexClassName } from "@lenso/console-ui";
 
-export const runtimeTimelineTableHeaderClassName = `${runtimeTableHeaderBaseClassName} grid-cols-[minmax(180px,260px)_minmax(0,1fr)] max-md:grid-cols-1`;
+export const runtimeTableHeaderBaseClassName = stylexClassName(
+  "relative grid h-7 min-w-0 items-center gap-4 border-b border-(--line) bg-(--bg-surface-muted) px-3 font-sans text-[10px] font-medium normal-case tracking-normal text-(--fg-tertiary)"
+);
 
-export const runtimeWaterfallTableHeaderClassName = `${runtimeTableHeaderBaseClassName} grid-cols-[332px_232px] gap-3`;
+export const runtimeTimelineTableHeaderClassName = stylexClassName(
+  `${runtimeTableHeaderBaseClassName} grid-cols-[minmax(180px,260px)_minmax(0,1fr)] max-md:grid-cols-1`
+);
+
+export const runtimeWaterfallTableHeaderClassName = stylexClassName(
+  `${runtimeTableHeaderBaseClassName} grid-cols-[332px_232px] gap-3`
+);

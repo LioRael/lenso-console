@@ -1,3 +1,5 @@
+import { stylexClassName } from "@lenso/console-ui";
+
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
 import { cn } from "../../lib/cn";
 import {
@@ -30,7 +32,11 @@ export function WaterfallView({
   const unlinkedCount = rows.filter((row) => row.group === "unlinked").length;
 
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)">
+    <div
+      className={stylexClassName(
+        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)"
+      )}
+    >
       <RuntimeViewHeader
         meta={`total ${formatRuntimeDuration(timelineEnd)}`}
         summary={`${rows.length} execution rows · ${unlinkedCount} unlinked`}
@@ -38,23 +44,37 @@ export function WaterfallView({
       />
       <div className={runtimeWaterfallTableHeaderClassName}>
         <span>Node</span>
-        <div className="flex min-w-0 items-center justify-between overflow-hidden">
+        <div
+          className={stylexClassName(
+            "flex min-w-0 items-center justify-between overflow-hidden"
+          )}
+        >
           {[0, 25, 50, 75, 100].map((tick) => (
             <span
-              className="font-mono text-[9px] font-normal normal-case"
+              className={stylexClassName(
+                "font-mono text-[9px] font-normal normal-case"
+              )}
               key={tick}
             >
               {formatRuntimeDuration((timelineEnd * tick) / 100)}
             </span>
           ))}
         </div>
-        <span className="absolute top-[7.5px] left-[344px] w-[332px] -translate-x-full text-right">
+        <span
+          className={stylexClassName(
+            "absolute top-[7.5px] left-[344px] w-[332px] -translate-x-full text-right"
+          )}
+        >
           Duration
         </span>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className={stylexClassName("min-h-0 flex-1 overflow-auto")}>
         {rows.length === 0 ? (
-          <div className="border-b border-(--border-subtle) p-4 font-mono text-xs text-(--muted)">
+          <div
+            className={stylexClassName(
+              "border-b border-(--border-subtle) p-4 font-mono text-xs text-(--muted)"
+            )}
+          >
             No waterfall rows were returned for this story.
           </div>
         ) : null}
@@ -65,7 +85,11 @@ export function WaterfallView({
           return (
             <div key={row.id}>
               {showUnlinkedHeader ? (
-                <div className="border-y border-(--border-subtle) bg-(--sidebar) px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--muted)">
+                <div
+                  className={stylexClassName(
+                    "border-y border-(--border-subtle) bg-(--sidebar) px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--muted)"
+                  )}
+                >
                   Unlinked
                 </div>
               ) : null}
@@ -75,7 +99,7 @@ export function WaterfallView({
                 selectedNodeId={selectedNodeId}
                 timelineEnd={timelineEnd}
               />
-              <div className="h-px bg-(--line-subtle)" />
+              <div className={stylexClassName("h-px bg-(--line-subtle)")} />
             </div>
           );
         })}
@@ -127,33 +151,47 @@ function WaterfallRowButton({
       }}
       type="button"
     >
-      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+      <span
+        className={stylexClassName(
+          "flex min-w-0 items-center gap-1.5 overflow-hidden"
+        )}
+      >
         <span
-          className="relative h-[49px] shrink-0"
+          className={stylexClassName("relative h-[49px] shrink-0")}
           style={{ width: row.depth * 14 + 4 }}
         >
           <span
-            className="absolute top-0 h-full w-px bg-(--line-subtle)"
+            className={stylexClassName(
+              "absolute top-0 h-full w-px bg-(--line-subtle)"
+            )}
             style={{ left: row.depth > 0 ? row.depth * 14 : 1 }}
           />
           {row.depth > 0 ? (
             <span
-              className="absolute top-6 h-px w-3 bg-(--line-subtle)"
+              className={stylexClassName(
+                "absolute top-6 h-px w-3 bg-(--line-subtle)"
+              )}
               style={{ left: (row.depth - 1) * 14 + 3 }}
             />
           ) : null}
         </span>
         <span
-          className="size-[7px] shrink-0 rounded-[1px]"
+          className={stylexClassName("size-[7px] shrink-0 rounded-[1px]")}
           style={{ backgroundColor: dotColor }}
         />
         <span
-          className="w-[58px] shrink-0 truncate whitespace-nowrap font-mono text-[9px]"
+          className={stylexClassName(
+            "w-[58px] shrink-0 truncate whitespace-nowrap font-mono text-[9px]"
+          )}
           style={{ color }}
         >
           {row.service}
         </span>
-        <span className="w-[48px] shrink-0 truncate font-mono text-[9px] text-(--fg-tertiary)">
+        <span
+          className={stylexClassName(
+            "w-[48px] shrink-0 truncate font-mono text-[9px] text-(--fg-tertiary)"
+          )}
+        >
           {row.kind}
         </span>
         <span
@@ -164,14 +202,24 @@ function WaterfallRowButton({
         >
           {row.name}
         </span>
-        <span className="min-w-0 flex-1 text-right font-mono text-[9px] text-(--fg-secondary)">
+        <span
+          className={stylexClassName(
+            "min-w-0 flex-1 text-right font-mono text-[9px] text-(--fg-secondary)"
+          )}
+        >
           {formatRuntimeDuration(row.durationMs)}
         </span>
       </span>
-      <span className="relative isolate h-[32px] min-w-0 overflow-hidden bg-(--bg-canvas)">
+      <span
+        className={stylexClassName(
+          "relative isolate h-[32px] min-w-0 overflow-hidden bg-(--bg-canvas)"
+        )}
+      >
         {[58, 116, 174].map((left) => (
           <span
-            className="absolute top-0 h-full w-px bg-(--line-subtle) opacity-[0.65]"
+            className={stylexClassName(
+              "absolute top-0 h-full w-px bg-(--line-subtle) opacity-[0.65]"
+            )}
             key={left}
             style={{ left }}
           />
@@ -193,7 +241,9 @@ function WaterfallRowButton({
         />
         {row.fanoutGroupSize ? (
           <span
-            className="absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
+            className={stylexClassName(
+              "absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
+            )}
             style={{ color, left: `${segment.left}%` }}
           >
             fan-out {row.fanoutGroupSize}
@@ -201,7 +251,9 @@ function WaterfallRowButton({
         ) : null}
         {row.group === "linked" && row.depth === 0 ? (
           <span
-            className="absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
+            className={stylexClassName(
+              "absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
+            )}
             style={{ color, left: `${segment.left}%` }}
           >
             root
@@ -221,29 +273,55 @@ function CriticalPathSummary({ story }: { story: RuntimeStory }) {
     : 0;
   return (
     <>
-      <div className="flex h-[48px] items-center gap-3 border-t border-(--line-subtle) bg-(--bg-surface-muted) px-3 py-[7px]">
-        <div className="min-w-0 flex-1">
-          <div className="text-[9.5px] font-medium text-(--fg-tertiary)">
+      <div
+        className={stylexClassName(
+          "flex h-[48px] items-center gap-3 border-t border-(--line-subtle) bg-(--bg-surface-muted) px-3 py-[7px]"
+        )}
+      >
+        <div className={stylexClassName("min-w-0 flex-1")}>
+          <div
+            className={stylexClassName(
+              "text-[9.5px] font-medium text-(--fg-tertiary)"
+            )}
+          >
             Critical path
           </div>
-          <div className="truncate font-mono text-[11px] text-(--fg-primary)">
+          <div
+            className={stylexClassName(
+              "truncate font-mono text-[11px] text-(--fg-primary)"
+            )}
+          >
             {path.map((node) => node.name).join("  →  ") || "—"}
           </div>
         </div>
-        <div className="shrink-0 text-right">
-          <div className="font-mono text-[13px] text-(--fg-primary)">
+        <div className={stylexClassName("shrink-0 text-right")}>
+          <div
+            className={stylexClassName(
+              "font-mono text-[13px] text-(--fg-primary)"
+            )}
+          >
             {formatRuntimeDuration(duration)}
           </div>
-          <div className="font-sans text-[9.5px] text-(--fg-secondary)">
+          <div
+            className={stylexClassName(
+              "font-sans text-[9.5px] text-(--fg-secondary)"
+            )}
+          >
             {percentage}% of execution
           </div>
         </div>
       </div>
-      <div className="flex h-[37px] items-center gap-[14px] px-3 font-mono text-[9.5px] text-(--fg-tertiary)">
+      <div
+        className={stylexClassName(
+          "flex h-[37px] items-center gap-[14px] px-3 font-mono text-[9.5px] text-(--fg-tertiary)"
+        )}
+      >
         <Legend swatch="var(--tone-info-fg)" text="service identity" />
         <Legend swatch="var(--fg-primary)" text="selected node" />
         <Legend marker swatch="var(--fg-primary)" text="timeline marker" />
-        <span className="ml-auto whitespace-nowrap text-[9px]">
+        <span
+          className={stylexClassName("ml-auto whitespace-nowrap text-[9px]")}
+        >
           Select a row to inspect execution context
         </span>
       </div>
@@ -261,7 +339,11 @@ function Legend({
   text: string;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+    <span
+      className={stylexClassName(
+        "inline-flex items-center gap-1.5 whitespace-nowrap"
+      )}
+    >
       <span
         className={marker ? "size-1" : "size-[7px]"}
         style={{ backgroundColor: swatch }}
@@ -339,7 +421,9 @@ function TimelineMarker({
       />
       {showLabel ? (
         <span
-          className="absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
+          className={stylexClassName(
+            "absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
+          )}
           style={{ color: labelColor, left: `${segment.left}%` }}
         >
           stable effect

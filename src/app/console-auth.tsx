@@ -1,4 +1,4 @@
-import { Button } from "@lenso/console-ui";
+import { Button, mergeStyleProps, styles } from "@lenso/console-ui";
 import { LogIn } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
@@ -173,8 +173,10 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
 
   if (bootstrapStatus === "checking" && !isCallback) {
     return (
-      <main className="grid min-h-screen place-items-center bg-(--bg-app) px-4 text-(--fg-primary)">
-        <p className="text-xs text-(--fg-secondary)">
+      <main {...mergeStyleProps(undefined, undefined, styles.statusScreen)}>
+        <p
+          {...mergeStyleProps(undefined, undefined, styles.statusScreenMessage)}
+        >
           Inspecting Console bootstrap status…
         </p>
       </main>
@@ -191,52 +193,70 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-(--bg-app) px-4 text-(--fg-primary)">
-      <section className="w-full max-w-sm rounded-[var(--radius-panel)] border border-(--line) bg-(--bg-panel) p-5 shadow-(--elevation-panel)">
-        <div className="space-y-1">
-          <h1 className="text-sm font-semibold">Lenso Console</h1>
-          <p className="text-xs text-(--fg-secondary)">
+    <main {...mergeStyleProps(undefined, undefined, styles.statusScreen)}>
+      <section
+        {...mergeStyleProps(
+          undefined,
+          undefined,
+          styles.statusCard,
+          styles.statusCardNarrow
+        )}
+      >
+        <div {...mergeStyleProps(undefined, undefined, styles.statusCopy)}>
+          <h1 {...mergeStyleProps(undefined, undefined, styles.panelTitle)}>
+            Lenso Console
+          </h1>
+          <p
+            {...mergeStyleProps(undefined, undefined, styles.statusDescription)}
+          >
             Sign in with the configured Lenso identity provider.
           </p>
         </div>
         {authError ? (
-          <p className="mt-4 text-xs text-[var(--tone-error-fg)]">
+          <p {...mergeStyleProps(undefined, undefined, styles.statusError)}>
             {authError}
           </p>
         ) : null}
-        <form className="mt-5 grid gap-3" onSubmit={handlePasswordSignIn}>
-          <label className="grid gap-1.5 text-xs font-medium text-(--fg-secondary)">
+        <form
+          {...mergeStyleProps(undefined, undefined, styles.statusForm)}
+          onSubmit={handlePasswordSignIn}
+        >
+          <label {...mergeStyleProps(undefined, undefined, styles.statusLabel)}>
             <span>Identifier</span>
             <input
               aria-label="Identifier"
               autoComplete="username"
-              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
+              {...mergeStyleProps(undefined, undefined, styles.statusInput)}
               onChange={(event) => setIdentifier(event.target.value)}
               required
               value={identifier}
             />
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-(--fg-secondary)">
+          <label {...mergeStyleProps(undefined, undefined, styles.statusLabel)}>
             <span>Password</span>
             <input
               aria-label="Password"
               autoComplete="current-password"
-              className="h-9 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-3 text-sm text-(--fg-primary) outline-none transition-colors placeholder:text-(--fg-tertiary) focus:border-(--accent) focus:bg-(--bg-control-hover) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
+              {...mergeStyleProps(undefined, undefined, styles.statusInput)}
               onChange={(event) => setPassword(event.target.value)}
               required
               type="password"
               value={password}
             />
           </label>
-          <Button className="w-full" disabled={busy} type="submit">
-            <LogIn aria-hidden="true" className="size-3.5" />
+          <Button
+            disabled={busy}
+            stylex={styles.statusButtonFull}
+            type="submit"
+          >
+            <LogIn aria-hidden="true" size={14} />
             {busy ? "Signing in" : "Sign in"}
           </Button>
         </form>
         <Button
-          className="mt-2 w-full"
           disabled={busy}
           onClick={handleSignIn}
+          stylex={styles.statusButtonSpaced}
           variant="ghost"
         >
           Continue with existing session
@@ -252,20 +272,31 @@ function ConsoleOperatorBootstrapRequired({
   status: ConsoleBootstrapStatus;
 }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-(--bg-app) px-4 text-(--fg-primary)">
-      <section className="w-full max-w-lg rounded-[var(--radius-panel)] border border-(--line) bg-(--bg-panel) p-5 shadow-(--elevation-panel)">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--fg-tertiary)">
+    <main {...mergeStyleProps(undefined, undefined, styles.statusScreen)}>
+      <section
+        {...mergeStyleProps(
+          undefined,
+          undefined,
+          styles.statusCard,
+          styles.statusCardWide
+        )}
+      >
+        <p {...mergeStyleProps(undefined, undefined, styles.statusEyebrow)}>
           Console Bootstrap
         </p>
-        <h1 className="mt-1 text-lg font-semibold">Operator required</h1>
-        <p className="mt-2 text-sm text-(--fg-secondary)">
+        <h1 {...mergeStyleProps(undefined, undefined, styles.statusTitle)}>
+          Operator required
+        </h1>
+        <p {...mergeStyleProps(undefined, undefined, styles.statusDescription)}>
           This Console has no operator yet. Run the installation-authority
           command below, then restart the Console Service.
         </p>
-        <pre className="mt-4 overflow-x-auto rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) p-3 text-xs text-(--fg-primary)">
+        <pre {...mergeStyleProps(undefined, undefined, styles.statusPre)}>
           <code>{`lenso console operator bootstrap \\\n+  --console-url ${window.location.origin} \\\n+  --identifier admin@example.com`}</code>
         </pre>
-        <p className="mt-3 text-xs text-(--fg-tertiary)">{status.nextAction}</p>
+        <p {...mergeStyleProps(undefined, undefined, styles.statusFootnote)}>
+          {status.nextAction}
+        </p>
       </section>
     </main>
   );

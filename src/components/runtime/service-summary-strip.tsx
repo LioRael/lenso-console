@@ -1,4 +1,5 @@
 import { useGSAP } from "@gsap/react";
+import { stylexClassName } from "@lenso/console-ui";
 import gsap from "gsap";
 import { ChevronDown } from "lucide-react";
 import { useRef } from "react";
@@ -109,7 +110,9 @@ export function ServiceSummaryStrip({
   return (
     <div
       ref={containerRef}
-      className="grid min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-t border-(--border-subtle) bg-(--surface)"
+      className={stylexClassName(
+        "grid min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-t border-(--border-subtle) bg-(--surface)"
+      )}
       style={{ height: initialPanelLayoutRef.current.panelHeight }}
     >
       <div
@@ -121,23 +124,37 @@ export function ServiceSummaryStrip({
         <button
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse services" : "Expand services"}
-          className="flex min-w-0 items-center gap-1.5 text-left transition hover:text-(--foreground)"
+          className={stylexClassName(
+            "flex min-w-0 items-center gap-1.5 text-left transition hover:text-(--foreground)"
+          )}
           onClick={() => onExpandedChange(!expanded)}
           type="button"
         >
           <ChevronDown
             ref={iconRef}
-            className="shrink-0 text-(--muted)"
+            className={stylexClassName("shrink-0 text-(--muted)")}
             size={12}
           />
-          <span className="font-sans text-[9.5px] font-medium text-(--fg-secondary)">
+          <span
+            className={stylexClassName(
+              "font-sans text-[9.5px] font-medium text-(--fg-secondary)"
+            )}
+          >
             Services
           </span>
-          <span className="grid h-4 min-w-4.5 place-items-center border border-(--line) bg-(--bg-panel-muted) px-1 font-mono text-[8px] text-(--fg-tertiary)">
+          <span
+            className={stylexClassName(
+              "grid h-4 min-w-4.5 place-items-center border border-(--line) bg-(--bg-panel-muted) px-1 font-mono text-[8px] text-(--fg-tertiary)"
+            )}
+          >
             {services.length}
           </span>
         </button>
-        <div className="ml-auto flex min-w-0 items-center gap-[7px] overflow-hidden font-mono text-[8.5px] text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "ml-auto flex min-w-0 items-center gap-[7px] overflow-hidden font-mono text-[8.5px] text-(--fg-tertiary)"
+          )}
+        >
           <span>p50 {formatRuntimeDuration(serviceSummary.p50)}</span>
           <span>p95 {formatRuntimeDuration(serviceSummary.p95)}</span>
           <span>max {formatRuntimeDuration(serviceSummary.max)}</span>
@@ -145,36 +162,42 @@ export function ServiceSummaryStrip({
       </div>
       <div
         ref={contentRef}
-        className="min-h-0 overflow-hidden"
+        className={stylexClassName("min-h-0 overflow-hidden")}
         style={{
           height: initialPanelLayoutRef.current.contentHeight,
           opacity: initialPanelLayoutRef.current.contentHeight > 0 ? 1 : 0,
         }}
       >
-        <div className="h-full min-h-0 overflow-auto">
+        <div className={stylexClassName("h-full min-h-0 overflow-auto")}>
           {services.map((item) => (
             <div
-              className="grid h-10 min-w-[600px] grid-cols-[8px_94px_46px_56px_56px_56px_38px_minmax(96px,1fr)] items-center gap-2 border-b border-(--line-subtle) px-3 font-mono text-[8.5px] last:border-b-0"
+              className={stylexClassName(
+                "grid h-10 min-w-[600px] grid-cols-[8px_94px_46px_56px_56px_56px_38px_minmax(96px,1fr)] items-center gap-2 border-b border-(--line-subtle) px-3 font-mono text-[8.5px] last:border-b-0"
+              )}
               key={item.service}
             >
               <div
-                className="size-2 rounded-xs"
+                className={stylexClassName("size-2 rounded-xs")}
                 style={{ backgroundColor: serviceColor(item.service) }}
               />
               <span
-                className="min-w-0 truncate font-sans text-[10px] font-medium"
+                className={stylexClassName(
+                  "min-w-0 truncate font-sans text-[10px] font-medium"
+                )}
                 style={{ color: serviceColor(item.service) }}
               >
                 {item.service}
               </span>
-              <span className="text-(--muted)">{item.nodes} nodes</span>
-              <span className="text-(--muted)">
+              <span className={stylexClassName("text-(--muted)")}>
+                {item.nodes} nodes
+              </span>
+              <span className={stylexClassName("text-(--muted)")}>
                 p50 {formatRuntimeDuration(item.p50)}
               </span>
-              <span className="text-(--muted)">
+              <span className={stylexClassName("text-(--muted)")}>
                 p95 {formatRuntimeDuration(item.p95)}
               </span>
-              <span className="text-(--muted)">
+              <span className={stylexClassName("text-(--muted)")}>
                 p99 {formatRuntimeDuration(item.p99)}
               </span>
               <span
@@ -186,9 +209,13 @@ export function ServiceSummaryStrip({
               >
                 {item.errors} err
               </span>
-              <div className="h-1.5 min-w-0 overflow-hidden rounded-[1px] bg-(--bg-panel-muted)">
+              <div
+                className={stylexClassName(
+                  "h-1.5 min-w-0 overflow-hidden rounded-[1px] bg-(--bg-panel-muted)"
+                )}
+              >
                 <div
-                  className="h-full rounded-[1px]"
+                  className={stylexClassName("h-full rounded-[1px]")}
                   style={{
                     backgroundColor: serviceColor(item.service),
                     width: `${Math.max(2, (item.duration / story.durationMs) * 100)}%`,
