@@ -1,8 +1,10 @@
 # Agent instructions
 
-Before planning, changing, or executing a framework release, read the authoritative
-[Lenso release runbook](https://github.com/LioRael/lenso-release/blob/main/docs/release-runbook.md).
-Do not infer production authority from repository write access or bypass the reviewed release plan.
+Before planning or changing a release, read the repository-local
+[`docs/release-process.md`](docs/release-process.md). Registry publication and
+OCI writes still require the repository's approved Trusted Publisher workflows;
+do not infer production authority from repository write access or restore the
+retired central release runtime.
 
 ## Agent skills
 

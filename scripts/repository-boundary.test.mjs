@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -8,141 +7,103 @@ const root = path.resolve(import.meta.dirname, "..");
 const currentRepository = "LioRael/lenso-console";
 const legacyRepository = "LioRael/lenso-runtime-console";
 
-const liveRepositoryIdentityFiles = [
-  ".lenso-release/config.json",
-  ".lenso-release/runtime/components.yaml",
-  ".lenso-release/runtime/lib/config/components.js",
-  ".lenso-release/runtime/lib/registry/oci.js",
-  "Dockerfile",
-  "README.md",
-  "docs/agents/issue-tracker.md",
-  "service/README.md",
-];
-
 const source = (file) => readFile(path.join(root, file), "utf-8");
+const missing = (file) =>
+  expect(access(path.join(root, file))).rejects.toMatchObject({
+    code: "ENOENT",
+  });
 
 describe("Lenso Console repository boundary", () => {
-  test.each(liveRepositoryIdentityFiles)(
-    "%s uses the renamed repository identity",
-    async (file) => {
-      const contents = await source(file);
+  test.each([
+    "Dockerfile",
+    "README.md",
+    "docs/agents/issue-tracker.md",
+    "docs/release-process.md",
+    "docs/repository-operations.md",
+    "service/README.md",
+  ])("%s uses the renamed repository identity", async (file) => {
+    const contents = await source(file);
 
-      expect(contents).toContain(currentRepository);
-      expect(contents).not.toContain(legacyRepository);
-    }
-  );
-
-  test("uses only the coordinator-authorized publisher", async () => {
-    await expect(
-      access(path.join(root, ".github/workflows/publish-remote-module-kit.yml"))
-    ).rejects.toThrow();
-
-    const publisher = await source(".github/workflows/publish.yml");
-    expect(publisher).toContain("workflow_dispatch:");
-    expect(publisher).toContain("LENSO_COORDINATOR_PREFLIGHT_URL");
-    expect(publisher).toContain("LENSO_COORDINATOR_RECEIPT_URL");
-    expect(publisher).toContain("LENSO_OCI_TOKEN");
-    expect(publisher).toContain(
-      "node .lenso-release/runtime/lib/repository/cli.js publish"
-    );
-    expect(publisher).not.toContain("docker/setup-buildx-action");
+    expect(contents).toContain(currentRepository);
+    expect(contents).not.toContain(legacyRepository);
   });
 
-  test("accepts every release mode enabled by reviewed repository config", async () => {
-    const config = JSON.parse(await source(".lenso-release/shadow.json"));
+  test("does not retain the retired central release machinery", async () => {
+    for (const file of [
+      ".lenso-release",
+      ".tegami",
+      ".github/workflows/publish.yml",
+      ".github/workflows/recover-partial-production.yml",
+      ".github/workflows/release-plan.yml",
+      ".github/workflows/verify-production-oci-absence.yml",
+      ".github/workflows/verify-production-prepublish-failure.yml",
+      ".github/workflows/verify-production-zero-write-failure.yml",
+      "scripts/publish-cargo.sh",
+      "scripts/publish-node.mjs",
+      "scripts/release-mode.mjs",
+      "scripts/release-plan.mjs",
+      "tegami.config.mjs",
+    ]) {
+      await missing(file);
+    }
 
-    for (const mode of config.allowedModes) {
-      const output = execFileSync(
-        process.execPath,
-        ["scripts/release-mode.mjs"],
-        {
-          cwd: root,
-          encoding: "utf-8",
-          env: {
-            ...process.env,
-            LENSO_SHADOW_ATTESTATION_URL: "https://shadow.example/attestations",
-            LENSO_SHADOW_CRATES_API_URL: "https://shadow.example/cargo",
-            LENSO_SHADOW_CRATES_UPLOAD_URL:
-              "https://shadow.example/cargo/upload",
-            LENSO_SHADOW_GITHUB_API_URL: "https://shadow.example/github",
-            LENSO_SHADOW_NPM_REGISTRY_URL: "https://shadow.example/npm",
-            LENSO_SHADOW_OCI_REGISTRY_URL: "https://shadow.example/oci",
-            REQUESTED_MODE: mode,
-          },
-        }
-      );
-      expect(output).toContain(`LENSO_RELEASE_MODE=${mode}`);
+    const trackedReleaseSources = await Promise.all([
+      source("AGENTS.md"),
+      source("package.json"),
+      source(".github/workflows/release-changesets.yml"),
+      source(".github/workflows/release-oci.yml"),
+      source("scripts/build-console-release-artifacts.mjs"),
+      source("scripts/oci-release-artifact.mjs"),
+    ]);
+    for (const contents of trackedReleaseSources) {
+      expect(contents).not.toContain("lenso-release");
+      expect(contents).not.toContain("tegami");
     }
   });
 
-  test("proves only exact failures that precede preflight and registry access", async () => {
-    const proof = await source(
-      ".github/workflows/verify-production-prepublish-failure.yml"
+  test("uses Changesets for the public npm workspace", async () => {
+    const manifest = JSON.parse(await source("package.json"));
+    const config = JSON.parse(await source(".changeset/config.json"));
+    const workflow = await source(".github/workflows/release-changesets.yml");
+    const moduleApi = JSON.parse(
+      await source("packages/console-module-api/package.json")
+    );
+    const consoleUi = JSON.parse(
+      await source("packages/console-ui/package.json")
     );
 
-    expect(proof).toContain(
-      'Build composite release artifacts when configured" and .conclusion == "failure"'
-    );
-    expect(proof).toContain(
-      'Complete fail-closed preflight before any registry OIDC" and .conclusion == "skipped"'
-    );
-    expect(proof).toContain(
-      'Atomically consume proof and seal exact registry artifacts" and .conclusion == "skipped"'
-    );
-    expect(proof).toContain(
-      'Publish and confirm receipts" and .conclusion == "skipped"'
-    );
+    expect(manifest.private).toBe(true);
+    expect(manifest.scripts.changeset).toBe("changeset");
+    expect(manifest.scripts.version).toBe("changeset version");
+    expect(manifest.scripts.release).toContain("changeset publish");
+    expect(manifest.devDependencies["@changesets/cli"]).toBe("2.31.1");
+    expect(config.privatePackages).toEqual({ tag: false, version: true });
+    expect(workflow).toContain("changesets/action@");
+    expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("NPM_CONFIG_PROVENANCE");
+    expect(workflow).not.toContain("NPM_TOKEN");
+    expect(moduleApi.publishConfig).toEqual({ access: "public" });
+    expect(consoleUi.publishConfig).toEqual({ access: "public" });
   });
 
-  test("proves exact zero-write failures after proof consumption", async () => {
-    const proof = await source(
-      ".github/workflows/verify-production-zero-write-failure.yml"
-    );
+  test("owns OCI publication in the Console repository", async () => {
+    const workflow = await source(".github/workflows/release-oci.yml");
+    const builder = await source("scripts/build-console-release-artifacts.mjs");
+    const inspector = await source("scripts/oci-release-artifact.mjs");
 
-    expect(proof).toContain(
-      'Complete fail-closed preflight before any registry OIDC" and .conclusion == "success"'
-    );
-    expect(proof).toContain(
-      'Atomically consume proof and seal exact registry artifacts" and .conclusion == "success"'
-    );
-    expect(proof).toContain("npm error code ENEEDAUTH");
-    expect(proof).toContain(
-      "https://registry.npmjs.org/%40lenso%2Fconsole-package-api/0.1.2"
-    );
-    expect(proof).toContain(
-      "https://ghcr.io/v2/liorael/lenso-console/manifests/0.1.4"
-    );
+    expect(workflow).toContain("ghcr.io/liorael/lenso-console");
+    expect(workflow).toContain("docker/build-push-action@");
+    expect(workflow).toContain("actions/attest-build-provenance@");
+    expect(workflow).toContain("gh release create");
+    expect(workflow).toContain("Refuse an existing immutable version tag");
+    expect(workflow).not.toContain("LENSO_COORDINATOR");
+    expect(workflow).not.toContain("NONCE");
+    expect(builder).toContain('from "./oci-release-artifact.mjs"');
+    expect(builder).not.toContain(".lenso-release");
+    expect(inspector).toContain("inspectOciInstallManifest");
   });
 
-  test("uses the reviewed publication recovery for npm and OCI", async () => {
-    const publisher = await source(".github/workflows/publish.yml");
-    const standaloneRecovery = await source(
-      ".github/workflows/recover-partial-production.yml"
-    );
-    const runtime = await source(
-      ".lenso-release/runtime/lib/repository/runtime.js"
-    );
-
-    expect(publisher).toContain("packages: write");
-    expect(publisher).toMatch(/LENSO_OCI_TOKEN: \$\{\{ github\.token \}\}/u);
-    for (const recovery of [publisher, standaloneRecovery]) {
-      expect(recovery).toContain("working-directory: recovery-candidate");
-      expect(recovery).toContain("pnpm run --if-present release:artifacts");
-      expect(recovery).toMatch(
-        /RELEASE_COMMIT: \$\{\{ inputs\.release_commit \}\}/u
-      );
-      expect(recovery).toMatch(
-        /RELEASE_PACKAGES_JSON: \$\{\{ inputs\.packages_json \}\}/u
-      );
-    }
-    expect(runtime).toContain('"production-zero-write"');
-    expect(runtime).toContain(
-      "publication recovery supports Cargo, npm, and OCI packages only"
-    );
-    expect(runtime).toContain("ociObservation(name, item.version, artifact");
-  });
-
-  test("builds the public Shell UI before release artifacts are packed", async () => {
+  test("builds the public Shell UI before the application bundle", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];
     const packageBuild = "pnpm --filter @lenso/console-ui build";
@@ -151,34 +112,19 @@ describe("Lenso Console repository boundary", () => {
     expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
   });
 
-  test("publishes the public Module API and UI packages", async () => {
-    const components = await source(".lenso-release/runtime/components.yaml");
-
-    expect(components).toContain("id: npm:@lenso/console-module-api");
-    expect(components).toContain("id: npm:@lenso/console-ui");
-    expect(components).not.toContain("npm:@lenso/console-bridge");
-  });
-
   test("does not retain retired service SDK packages", async () => {
-    await expect(
-      access(path.join(root, "packages/remote-module-kit"))
-    ).rejects.toThrow();
-    await expect(
-      access(path.join(root, "packages/service-kit"))
-    ).rejects.toThrow();
+    await missing("packages/remote-module-kit");
+    await missing("packages/service-kit");
   });
 
-  test("documents the live identity and cross-repository responsibilities", async () => {
+  test("documents the local release boundary", async () => {
     const contents = await source("docs/repository-operations.md");
 
     expect(contents).toContain(currentRepository);
     expect(contents).not.toContain(legacyRepository);
-    expect(contents).toContain("Console Service API");
-    expect(contents).toContain("System Registry Module");
-    expect(contents).toContain(
-      "managed-Service System Plane Capability Providers"
-    );
-    expect(contents).toMatch(/must\s+not depend on this repository/u);
+    expect(contents).toContain("Changesets");
+    expect(contents).toContain("GHCR");
+    expect(contents).not.toContain("shadow release");
   });
 
   test("owns the Runtime Story backend beside its linked Console Module", async () => {
@@ -194,5 +140,6 @@ describe("Lenso Console repository boundary", () => {
     expect(storyModule).toContain('"component": "lenso/runtime-stories"');
     expect(storyModule).toContain("ConsoleSurfacePresentation::Declarative");
     expect(serviceManifest).toContain('path = "modules/story"');
+    expect(serviceManifest).toContain("publish = false");
   });
 });

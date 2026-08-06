@@ -4,15 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "changeset": "changeset",
     "dev": "VITE_CONSOLE_DEV_MODE=${VITE_CONSOLE_DEV_MODE:-mock} VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-mock} vite --host 0.0.0.0",
     "format": "ultracite fix --unsafe",
     "format:check": "oxfmt --check .",
     "lint": "ultracite check --deny-warnings",
     "check": "ultracite check --deny-warnings && pnpm test:local && pnpm typecheck:local && pnpm build:local && pnpm service:check",
     "check:repository-boundary": "vitest run scripts/repository-boundary.test.mjs",
-    "release:intent-check": "node scripts/release-plan.mjs --check-intent",
-    "release:plan": "node scripts/release-plan.mjs",
-    "release:verify": "pnpm check && node scripts/release-plan.mjs --verify",
     "create:module": "node scripts/run-lenso-cli.mjs module create",
     "service:api": "cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-api",
     "service:worker": "cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-worker",
@@ -24,6 +22,8 @@
     "service:recovery:smoke": "sh scripts/console-service-recovery-smoke.sh",
     "service:release-manifest": "node scripts/console-service-release.mjs",
     "release:artifacts": "node scripts/build-console-release-artifacts.mjs",
+    "release": "pnpm --filter @lenso/console-module-api build && pnpm --filter @lenso/console-ui build && changeset publish",
+    "version": "changeset version",
     "build:module-artifacts": "node scripts/build-console-module-artifacts.mjs",
     "build": "pnpm build:local",
     "build:local": "pnpm --filter @lenso/console-module-api build && pnpm --filter @lenso/console-tokens build && pnpm --filter @lenso/console-composition-api build && pnpm --filter @lenso/console-ui build && tsc -b && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} VITE_API_AUTH_TOKEN=${VITE_API_AUTH_TOKEN:-dev-service:admin:runtime.stories.read,hello-action:greetings:write,console.system-registry.read} vite build",
@@ -52,6 +52,7 @@
     "vite": "^8.0.16"
   },
   "devDependencies": {
+    "@changesets/cli": "2.31.1",
     "@stylexjs/unplugin": "0.19.0",
     "@types/node": "^25.9.2",
     "@types/react": "^19.1.0",
@@ -60,7 +61,6 @@
     "oxfmt": "^0.52.0",
     "oxlint": "^1.67.0",
     "playwright": "1.52.0",
-    "tegami": "1.2.5",
     "typescript": "^6.0.3",
     "ultracite": "^7.8.1",
     "vitest": "^4.1.7"

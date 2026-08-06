@@ -1,5 +1,0 @@
-.lenso-release/
-.github/workflows/publish.yml
-.github/workflows/release-plan.yml
-scripts/release-mode.mjs
-scripts/release-plan.mjs

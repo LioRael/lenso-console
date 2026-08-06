@@ -60,25 +60,16 @@ The `quality` job runs:
 pnpm check
 ```
 
-The workflow checks out both repositories:
+The workflow checks out only `lenso-console` at the workflow SHA. Cross-repository
+compatibility is validated through published package and contract versions rather
+than a central integration-set checkout. The workflow uses Node 24 with Node
+24-native GitHub Actions.
 
-- `lenso-console` at the workflow SHA.
-- `lenso` from `LioRael/lenso` so this workspace can consume the backend SDK.
+## Backend Compatibility
 
-The workflow uses Node 24 with Node 24-native GitHub Actions.
-
-## Backend Checkout Secret
-
-Lenso Console CI reads the private framework repository through a read-only
-deploy key:
-
-- Backend deploy key: the existing read-only Console CI key on `LioRael/lenso`
-- Backend deploy key mode: read-only
-- Lenso Console secret: `LENSO_REPO_DEPLOY_KEY`
-
-If the backend repository is recreated, transferred, or renamed, recreate the
-read-only deploy key on `LioRael/lenso` and update the
-`LENSO_REPO_DEPLOY_KEY` secret in this repository with the matching private key.
+The Console Service consumes published framework and Module contracts. Local
+development may still use sibling checkouts, but CI does not fetch a central
+integration set or depend on a shared release repository.
 
 ## GitHub Repository Metadata
 
@@ -89,27 +80,27 @@ Current repository metadata should stay aligned with the README:
 
 Update GitHub metadata when the repository role changes materially.
 
-## Completed Rename Checklist
+## Release and Rename Invariants
 
-The coordinated rename completed with these invariants:
+The coordinated rename and independent-release cutover keep these invariants:
 
-1. Retire or migrate the legacy manually dispatched SDK publisher to the
-   coordinator-owned reviewed publisher; do not preserve direct publication as
-   a normal post-rename path.
-2. Update the component entry in `LioRael/lenso-release` through its reviewed
-   change path before attempting another release plan.
-3. The GitHub repository is `LioRael/lenso-console`; repository write access
-   alone is not release authority.
-4. The cutover change updates release config, generated runtime, package
-   metadata, OCI source labels, CI checkout paths, and the repository-boundary
-   test together; never leave old and new live identities mixed.
+1. `LioRael/lenso-console` owns its public npm packages and Console Service OCI
+   image; no central publisher is a normal release dependency.
+2. Update the repository-local Changesets and OCI release configuration before
+   attempting another release.
+3. Repository write access alone is not release authority; registry writes use
+   the approved Trusted Publisher workflows.
+4. Package metadata, OCI source labels, CI checkout paths, and the
+   repository-boundary test must change together; never leave old and new live
+   identities mixed.
 5. Verify `main` branch protection and the required `quality` check after the
    rename.
-6. Keep the backend deploy key read-only; rotate `LENSO_REPO_DEPLOY_KEY` only
-   when its key material changes.
-7. Update npm trusted-publisher repository bindings before the next production
-   release for packages published from this repository.
-8. Verify CI checks out `lenso` and all package fixtures successfully.
-9. Run the Console and framework main-branch quality gates.
-10. Use the reviewed Lenso release workflow for a post-rename shadow
-    release and verify its receipt and attestation before production activation.
+6. Configure npm Trusted Publisher bindings for both public packages before
+   the next production release; do not add a long-lived npm token.
+7. CI validates this checkout against published framework and Module contracts;
+   it does not require a deploy key or a central integration-set checkout.
+8. Run the Console quality gate and the framework's main-branch gate when a
+   release consumes a new framework contract.
+9. Use the repository-local Changesets and OCI workflows for a post-rename
+   release. Verify public npm metadata, the digest-pinned GHCR image, the
+   release manifest, and the GitHub attestation before production activation.

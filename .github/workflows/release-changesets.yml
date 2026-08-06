@@ -1,0 +1,60 @@
+name: Changesets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".changeset/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "packages/**"
+      - "src/**"
+      - "service/**"
+      - "Dockerfile"
+      - ".github/workflows/release-changesets.yml"
+
+permissions: {}
+
+concurrency:
+  group: changesets-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version or publish npm packages
+    if: ${{ github.repository_owner == 'LioRael' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
+        with:
+          version: 11.5.0
+          run_install: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v6
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build public packages
+        run: |
+          pnpm --filter @lenso/console-module-api build
+          pnpm --filter @lenso/console-ui build
+      - name: Create version PR or publish merged versions
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          publish: pnpm release
+          createGithubReleases: false
+        env:
+          NPM_CONFIG_PROVENANCE: "true"

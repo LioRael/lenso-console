@@ -255,35 +255,19 @@ describe("Console Service delivery", () => {
     );
   });
 
-  test("keeps release candidates unsigned and coordinator-only", async () => {
-    const workflow = await read(
-      ".github/workflows/build-console-service-release.yml"
-    );
-
-    expect(workflow).toContain("workflow_call:");
-    expect(workflow).not.toContain("workflow_dispatch:");
-    expect(workflow).not.toMatch(/attest|id-token:\s*write|packages:\s*write/u);
-    expect(workflow).toContain("persist-credentials: false");
-    expect(workflow).toContain("scripts/build-console-release-artifacts.mjs");
-    expect(workflow).toContain("oci:lenso-console-service");
-  });
-
-  test("joins the reviewed composite OCI publisher", async () => {
+  test("owns the OCI release workflow in this repository", async () => {
     const packageJson = JSON.parse(await read("package.json"));
-    const config = JSON.parse(await read(".lenso-release/config.json"));
+    const workflow = await read(".github/workflows/release-oci.yml");
     const builder = await read("scripts/build-console-release-artifacts.mjs");
 
     expect(packageJson.scripts["release:artifacts"]).toBe(
       "node scripts/build-console-release-artifacts.mjs"
     );
-    expect(config.aliases).toEqual({
-      "oci:lenso-console-service": "npm:@lenso/console-web",
-    });
-    expect(config.ociImages["oci:lenso-console-service"]).toEqual({
-      archivePath: ".artifacts/lenso-console-service.oci.tar",
-      installManifestPath: ".artifacts/lenso-console-release.json",
-      registryRepository: "liorael/lenso-console",
-    });
+    expect(workflow).toContain("ghcr.io/liorael/lenso-console");
+    expect(workflow).toContain("docker/build-push-action@");
+    expect(workflow).toContain("actions/attest-build-provenance@");
+    expect(workflow).toContain("gh release create");
+    expect(workflow).toContain("RELEASE_VERSION");
     expect(builder).toContain('"--platform",\n        "linux/amd64"');
     expect(builder).toContain('"--provenance=false"');
     expect(builder).toContain('"--sbom=false"');

@@ -1,0 +1,144 @@
+name: Release Console Service OCI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "packages/**"
+      - "src/**"
+      - "service/**"
+      - "Dockerfile"
+      - ".github/workflows/release-oci.yml"
+
+permissions: {}
+
+concurrency:
+  group: console-oci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish Console Service OCI
+    if: ${{ github.repository == 'LioRael/lenso-console' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect a new Console Service version
+        id: version
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          current="$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version')"
+          if [[ "$BEFORE" =~ ^0+$ ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          previous="$(git show "$BEFORE:package.json" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')"
+          if [[ "$previous" == "$current" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$current" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=$current" >> "$GITHUB_OUTPUT"
+          echo "source_commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Log in to GHCR
+        if: steps.version.outputs.changed == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        if: steps.version.outputs.changed == 'true'
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Refuse an existing immutable version tag
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/liorael/lenso-console
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then
+            echo "GHCR version tag already exists: $IMAGE:$VERSION" >&2
+            exit 1
+          fi
+          tag="lenso-console-service@$VERSION"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+            echo "Git tag already exists: $tag" >&2
+            exit 1
+          fi
+      - name: Build and push the OCI image
+        if: steps.version.outputs.changed == 'true'
+        id: image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ghcr.io/liorael/lenso-console:${{ steps.version.outputs.version }}
+            ghcr.io/liorael/lenso-console:${{ steps.version.outputs.source_commit }}
+          build-args: |
+            RELEASE_VERSION=${{ steps.version.outputs.version }}
+            RELEASE_COMMIT=${{ steps.version.outputs.source_commit }}
+      - name: Attest the published image
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v2
+        with:
+          subject-name: ghcr.io/liorael/lenso-console
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+      - name: Generate the digest-pinned release manifest
+        if: steps.version.outputs.changed == 'true'
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          SOURCE_COMMIT: ${{ steps.version.outputs.source_commit }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p .artifacts
+          pnpm service:release-manifest \
+            --version "$VERSION" \
+            --source-commit "$SOURCE_COMMIT" \
+            --image "ghcr.io/liorael/lenso-console@$IMAGE_DIGEST" \
+            --output .artifacts/lenso-console-release.json
+          jq -e \
+            --arg version "$VERSION" \
+            --arg commit "$SOURCE_COMMIT" \
+            --arg digest "$IMAGE_DIGEST" \
+            '.releaseId == ("lenso-console@" + $version) and .sourceCommit == $commit and .image.digest == $digest' \
+            .artifacts/lenso-console-release.json
+      - name: Upload the release manifest
+        if: steps.version.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lenso-console-service-${{ steps.version.outputs.version }}
+          path: .artifacts/lenso-console-release.json
+          if-no-files-found: error
+      - name: Create the immutable Service release
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          SOURCE_COMMIT: ${{ steps.version.outputs.source_commit }}
+        run: |
+          gh release create "lenso-console-service@$VERSION" \
+            .artifacts/lenso-console-release.json \
+            --target "$SOURCE_COMMIT" \
+            --title "Console Service $VERSION" \
+            --notes "Digest-pinned Console Service OCI release owned by LioRael/lenso-console."

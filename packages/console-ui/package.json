@@ -28,6 +28,9 @@
     },
     "./stylex.css": "./dist/assets/stylex.css"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "pnpm clean && vite build --config vite.config.ts && tsc -p tsconfig.types.json",
