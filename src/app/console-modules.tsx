@@ -6,6 +6,12 @@ import type {
   ConsoleSurfaceIcon,
 } from "@lenso/console-ui";
 
+import { storyConsoleModule } from "../../packages/story-console/src/index";
+import { systemRegistryConsoleModule } from "../../packages/system-registry-console/src/index";
+import {
+  consoleDevConfig,
+  type ConsoleDevMode,
+} from "../dev/console-dev-config";
 import { ChangesPage } from "../features/changes/changes-page";
 import { DeliveryPage } from "../features/delivery/delivery-page";
 import { HomePage } from "../features/home/home-page";
@@ -165,5 +171,22 @@ function workbenchSurface(
  */
 export const consoleModules = [consoleWorkbenchModule];
 
-export const consoleRoutes = buildConsoleRoutes(consoleModules);
-export const consoleNavigation = buildConsoleNavigation(consoleModules);
+export function consoleModulesForDevMode(
+  mode: ConsoleDevMode
+): ConsoleModule[] {
+  return mode === "mock"
+    ? [...consoleModules, storyConsoleModule, systemRegistryConsoleModule]
+    : consoleModules;
+}
+
+/**
+ * The seeded mock host has no artifact registry to discover Module UI from.
+ * Keep the local preview useful by linking the two workspace modules only in
+ * that mode; API and production builds continue to use receipt-bound ESM.
+ */
+export const consoleRuntimeModules = consoleModulesForDevMode(
+  consoleDevConfig.mode
+);
+
+export const consoleRoutes = buildConsoleRoutes(consoleRuntimeModules);
+export const consoleNavigation = buildConsoleNavigation(consoleRuntimeModules);

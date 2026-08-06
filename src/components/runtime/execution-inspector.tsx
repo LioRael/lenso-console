@@ -1,5 +1,5 @@
 import { Tabs } from "@base-ui/react/tabs";
-import { useConsoleLocale } from "@lenso/console-ui";
+import { stylexClassName, useConsoleLocale } from "@lenso/console-ui";
 import {
   ChevronDown,
   ChevronRight,
@@ -71,33 +71,63 @@ export function ExecutionInspector({
   const routeLabel = buildInspectorPath(story, node);
 
   return (
-    <aside className="grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_minmax(0,1fr)] overflow-hidden border-l border-(--line-subtle) bg-(--bg-canvas)">
-      <div className="relative min-w-0 overflow-hidden border-b border-(--line-subtle) pt-3">
-        <div className="flex h-4 items-center justify-between px-3 text-[9px] leading-none text-(--fg-tertiary)">
-          <span className="truncate font-medium capitalize">
+    <aside
+      className={stylexClassName(
+        "grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_minmax(0,1fr)] overflow-hidden border-l border-(--line-subtle) bg-(--bg-canvas)"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "relative min-w-0 overflow-hidden border-b border-(--line-subtle) pt-3"
+        )}
+      >
+        <div
+          className={stylexClassName(
+            "flex h-4 items-center justify-between px-3 text-[9px] leading-none text-(--fg-tertiary)"
+          )}
+        >
+          <span className={stylexClassName("truncate font-medium capitalize")}>
             {typeLabel(node)}&nbsp; / &nbsp;{node.service}
           </span>
           <button
             aria-label="Clear inspector selection"
-            className="group flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary) hover:text-(--fg-primary)"
+            className={stylexClassName(
+              "group flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary) hover:text-(--fg-primary)"
+            )}
             onClick={onClearSelection}
             type="button"
           >
-            <span className="max-w-22 truncate">{node.id}</span>
-            <X className="size-2.5 opacity-0 group-hover:opacity-100" />
+            <span className={stylexClassName("max-w-22 truncate")}>
+              {node.id}
+            </span>
+            <X
+              className={stylexClassName(
+                "size-2.5 opacity-0 group-hover:opacity-100"
+              )}
+            />
           </button>
         </div>
-        <div className="flex h-10 min-w-0 items-center gap-2 px-3">
+        <div
+          className={stylexClassName(
+            "flex h-10 min-w-0 items-center gap-2 px-3"
+          )}
+        >
           <span
-            className="size-1.5 shrink-0 rounded-full"
+            className={stylexClassName("size-1.5 shrink-0 rounded-full")}
             style={{ backgroundColor: statusColorForInspector(node.status) }}
           />
-          <h2 className="min-w-0 flex-1 truncate text-[13px] font-semibold text-(--fg-primary)">
+          <h2
+            className={stylexClassName(
+              "min-w-0 flex-1 truncate text-[13px] font-semibold text-(--fg-primary)"
+            )}
+          >
             {node.canonicalName ?? node.name}
           </h2>
           {retryTarget ? (
             <button
-              className="inline-flex h-7 w-[68px] shrink-0 items-center justify-center gap-1 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2.5 text-[12px] font-medium text-(--fg-primary) hover:bg-(--bg-control-hover)"
+              className={stylexClassName(
+                "inline-flex h-7 w-[68px] shrink-0 items-center justify-center gap-1 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2.5 text-[12px] font-medium text-(--fg-primary) hover:bg-(--bg-control-hover)"
+              )}
               onClick={() => openRetry(retryTarget)}
               type="button"
             >
@@ -106,12 +136,22 @@ export function ExecutionInspector({
             </button>
           ) : null}
         </div>
-        <div className="flex h-[25px] min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none">
-          <span className="shrink-0 font-medium text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "flex h-[25px] min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none"
+          )}
+        >
+          <span
+            className={stylexClassName(
+              "shrink-0 font-medium text-(--fg-tertiary)"
+            )}
+          >
             {zh ? "路径" : "Path"}
           </span>
           <span
-            className="truncate font-mono text-(--fg-secondary)"
+            className={stylexClassName(
+              "truncate font-mono text-(--fg-secondary)"
+            )}
             title={routeLabel}
           >
             {routeLabel}
@@ -120,7 +160,9 @@ export function ExecutionInspector({
       </div>
 
       <Tabs.Root
-        className="grid h-full min-h-0 min-w-0 grid-rows-[42px_minmax(0,1fr)] overflow-hidden"
+        className={stylexClassName(
+          "grid h-full min-h-0 min-w-0 grid-rows-[42px_minmax(0,1fr)] overflow-hidden"
+        )}
         onValueChange={(value) => {
           if (typeof value === "string") {
             setActiveTab(value as ExecutionInspectorTab);
@@ -128,11 +170,17 @@ export function ExecutionInspector({
         }}
         value={activeTab}
       >
-        <div className="h-full min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)">
+        <div
+          className={stylexClassName(
+            "h-full min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)"
+          )}
+        >
           <HorizontalTabScroll>
             <Tabs.List
               aria-label={zh ? "执行详情标签" : "Execution detail tabs"}
-              className="flex h-[42px] w-max min-w-full items-start gap-1 px-1.5"
+              className={stylexClassName(
+                "flex h-[42px] w-max min-w-full items-start gap-1 px-1.5"
+              )}
             >
               {executionInspectorTabs.map((tab) => (
                 <Tabs.Tab
@@ -173,7 +221,9 @@ export function ExecutionInspector({
 
         {executionInspectorTabs.map((tab) => (
           <Tabs.Panel
-            className="min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]"
+            className={stylexClassName(
+              "min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]"
+            )}
             id={`execution-inspector-panel-${tab.id}`}
             key={`${node.id}-${tab.id}`}
             keepMounted
@@ -237,7 +287,9 @@ function InspectorBody({
         ) : null}
         {retryTarget && (node.status === "failed" || node.status === "dead") ? (
           <button
-            className="mx-3 mb-3 inline-flex h-7 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--tone-error-border)] bg-(--bg-control) px-2 text-[11px] font-medium text-(--tone-error-fg) hover:bg-(--bg-control-hover)"
+            className={stylexClassName(
+              "mx-3 mb-3 inline-flex h-7 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--tone-error-border)] bg-(--bg-control) px-2 text-[11px] font-medium text-(--tone-error-fg) hover:bg-(--bg-control-hover)"
+            )}
             onClick={() => openRetry(retryTarget)}
             type="button"
           >
@@ -310,7 +362,7 @@ function EventsDocument({
   node: ExecutionNode;
 }) {
   return (
-    <div className="min-w-full">
+    <div className={stylexClassName("min-w-full")}>
       <InspectorDocumentToolbar
         bordered={false}
         count={`${activity.length} events`}
@@ -352,7 +404,7 @@ function OperationsDocument({
 }) {
   const operationCount = executionOperations.length + storyOperations.length;
   return (
-    <div className="min-w-full">
+    <div className={stylexClassName("min-w-full")}>
       <InspectorDocumentToolbar
         count={`${operationCount} operations`}
         title="Technical execution"
@@ -397,10 +449,18 @@ function InspectorDocumentToolbar({
         bordered && "border-b border-(--line-subtle)"
       )}
     >
-      <span className="text-[13px] font-medium text-(--fg-primary)">
+      <span
+        className={stylexClassName(
+          "text-[13px] font-medium text-(--fg-primary)"
+        )}
+      >
         {title}
       </span>
-      <span className="font-mono text-[10px] text-(--fg-tertiary)">
+      <span
+        className={stylexClassName(
+          "font-mono text-[10px] text-(--fg-tertiary)"
+        )}
+      >
         {count}
       </span>
     </div>
@@ -431,9 +491,17 @@ function CompletionEvidence({
   const stable = node.status === "completed" || node.status === "published";
 
   return (
-    <section className="flex h-[348px] flex-col gap-3 overflow-hidden px-3 py-[14px]">
+    <section
+      className={stylexClassName(
+        "flex h-[348px] flex-col gap-3 overflow-hidden px-3 py-[14px]"
+      )}
+    >
       <InspectorEyebrow>Completion evidence</InspectorEyebrow>
-      <h3 className="text-[13px] font-medium text-(--fg-primary)">
+      <h3
+        className={stylexClassName(
+          "text-[13px] font-medium text-(--fg-primary)"
+        )}
+      >
         {stable ? "Stable effect confirmed" : "Completion evidence pending"}
       </h3>
       <InspectorEvidenceField
@@ -448,7 +516,11 @@ function CompletionEvidence({
         label="Publisher"
         value={`${node.service} / ${typeLabel(node)}`}
       />
-      <p className="text-[10px] leading-[15px] text-(--fg-secondary)">
+      <p
+        className={stylexClassName(
+          "text-[10px] leading-[15px] text-(--fg-secondary)"
+        )}
+      >
         {stable
           ? "Published after the execution completed; this evidence confirms the terminal state."
           : "The execution has not published terminal evidence yet."}
@@ -465,9 +537,15 @@ function InspectorEvidenceField({
   value: string;
 }) {
   return (
-    <div className="flex h-11 flex-col gap-1 overflow-hidden">
+    <div
+      className={stylexClassName("flex h-11 flex-col gap-1 overflow-hidden")}
+    >
       <InspectorEyebrow>{label}</InspectorEyebrow>
-      <span className="truncate font-mono text-[10px] text-(--fg-secondary)">
+      <span
+        className={stylexClassName(
+          "truncate font-mono text-[10px] text-(--fg-secondary)"
+        )}
+      >
         {value}
       </span>
     </div>
@@ -476,7 +554,11 @@ function InspectorEvidenceField({
 
 function InspectorEyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[9.5px] font-medium uppercase text-(--fg-tertiary)">
+    <span
+      className={stylexClassName(
+        "text-[9.5px] font-medium uppercase text-(--fg-tertiary)"
+      )}
+    >
       {children}
     </span>
   );
@@ -484,20 +566,34 @@ function InspectorEyebrow({ children }: { children: React.ReactNode }) {
 
 function ExecutionContextPanel({ rows }: { rows: Array<[string, unknown]> }) {
   return (
-    <section className="h-[210px] overflow-hidden border-b border-(--line-subtle) px-3 py-3">
+    <section
+      className={stylexClassName(
+        "h-[210px] overflow-hidden border-b border-(--line-subtle) px-3 py-3"
+      )}
+    >
       <InspectorEyebrow>Execution context</InspectorEyebrow>
       <div>
         {rows
           .filter(([key]) => key !== "related executions")
           .map(([key, value]) => (
             <div
-              className="flex h-8 items-center justify-between gap-3 overflow-hidden"
+              className={stylexClassName(
+                "flex h-8 items-center justify-between gap-3 overflow-hidden"
+              )}
               key={key}
             >
-              <span className="shrink-0 text-[9px] text-(--fg-tertiary)">
+              <span
+                className={stylexClassName(
+                  "shrink-0 text-[9px] text-(--fg-tertiary)"
+                )}
+              >
                 {executionContextLabel(key)}
               </span>
-              <span className="min-w-0 truncate text-right font-mono text-[10px] text-(--fg-secondary)">
+              <span
+                className={stylexClassName(
+                  "min-w-0 truncate text-right font-mono text-[10px] text-(--fg-secondary)"
+                )}
+              >
                 {formatCell(value)}
               </span>
             </div>
@@ -519,7 +615,11 @@ function ExecutionLineagePanel({
   upstream: ExecutionNode[];
 }) {
   return (
-    <section className="flex h-[132px] flex-col gap-[6px] overflow-hidden border-b border-(--line-subtle) px-3 py-2">
+    <section
+      className={stylexClassName(
+        "flex h-[132px] flex-col gap-[6px] overflow-hidden border-b border-(--line-subtle) px-3 py-2"
+      )}
+    >
       <InspectorEyebrow>Related executions</InspectorEyebrow>
       <LineageRow direction="Upstream" node={upstream.at(-1)} />
       <LineageRow direction="Downstream" node={downstream[0]} />
@@ -535,16 +635,36 @@ function LineageRow({
   node: ExecutionNode | undefined;
 }) {
   return (
-    <div className="flex h-[42px] items-center justify-between gap-3 overflow-hidden">
-      <div className="flex h-9 w-[220px] shrink-0 flex-col gap-0.5 overflow-hidden">
-        <span className="text-[9px] font-medium uppercase text-(--fg-tertiary)">
+    <div
+      className={stylexClassName(
+        "flex h-[42px] items-center justify-between gap-3 overflow-hidden"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-9 w-[220px] shrink-0 flex-col gap-0.5 overflow-hidden"
+        )}
+      >
+        <span
+          className={stylexClassName(
+            "text-[9px] font-medium uppercase text-(--fg-tertiary)"
+          )}
+        >
           {direction}
         </span>
-        <span className="truncate font-mono text-[11px] text-(--fg-primary)">
+        <span
+          className={stylexClassName(
+            "truncate font-mono text-[11px] text-(--fg-primary)"
+          )}
+        >
           {node?.name ?? "—"}
         </span>
       </div>
-      <span className="shrink-0 font-mono text-[9px] text-(--fg-secondary)">
+      <span
+        className={stylexClassName(
+          "shrink-0 font-mono text-[9px] text-(--fg-secondary)"
+        )}
+      >
         {node ? typeLabel(node) : "—"}
       </span>
     </div>
@@ -614,23 +734,43 @@ function OverviewDocument({
   ];
 
   return (
-    <div className="min-w-full text-xs">
-      <section className="h-[98px] border-b border-(--line-subtle) px-3 pt-[11px] pb-2.5">
-        <div className="flex h-4 items-center justify-between text-[9.5px] font-medium text-(--fg-tertiary)">
+    <div className={stylexClassName("min-w-full text-xs")}>
+      <section
+        className={stylexClassName(
+          "h-[98px] border-b border-(--line-subtle) px-3 pt-[11px] pb-2.5"
+        )}
+      >
+        <div
+          className={stylexClassName(
+            "flex h-4 items-center justify-between text-[9.5px] font-medium text-(--fg-tertiary)"
+          )}
+        >
           <span>Execution</span>
           <span className={statusTone(node.status)}>
             {statusLabel(node.status)}
           </span>
         </div>
-        <h3 className="mt-1.5 truncate text-[13px] font-medium text-(--fg-primary)">
+        <h3
+          className={stylexClassName(
+            "mt-1.5 truncate text-[13px] font-medium text-(--fg-primary)"
+          )}
+        >
           {signal.title}
         </h3>
-        <p className="mt-1 max-w-full text-[10px] leading-[15px] text-(--fg-secondary)">
+        <p
+          className={stylexClassName(
+            "mt-1 max-w-full text-[10px] leading-[15px] text-(--fg-secondary)"
+          )}
+        >
           {signal.description}
         </p>
       </section>
 
-      <section className="grid h-[58px] grid-cols-3 gap-4 border-b border-(--line-subtle) px-3 py-2.5">
+      <section
+        className={stylexClassName(
+          "grid h-[58px] grid-cols-3 gap-4 border-b border-(--line-subtle) px-3 py-2.5"
+        )}
+      >
         <InspectorMetric
           accent
           label="Duration"
@@ -651,10 +791,16 @@ function OverviewDocument({
       />
 
       <section>
-        <div className="flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)"
+          )}
+        >
           <span>Properties</span>
           <button
-            className="inline-flex items-center gap-1 text-[9.5px] font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
+            className={stylexClassName(
+              "inline-flex items-center gap-1 text-[9.5px] font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
+            )}
             type="button"
           >
             <Copy size={12} />
@@ -671,10 +817,16 @@ function OverviewDocument({
               )}
               key={property.label}
             >
-              <span className="text-[9px] text-(--fg-tertiary)">
+              <span
+                className={stylexClassName("text-[9px] text-(--fg-tertiary)")}
+              >
                 {property.label}
               </span>
-              <span className="truncate text-[9.5px] text-(--fg-primary)">
+              <span
+                className={stylexClassName(
+                  "truncate text-[9.5px] text-(--fg-primary)"
+                )}
+              >
                 {property.value}
               </span>
             </div>
@@ -687,7 +839,9 @@ function OverviewDocument({
               )}
               key={`${property.left[0]}-${index}`}
             >
-              <span className="text-[9px] text-(--fg-tertiary)">
+              <span
+                className={stylexClassName("text-[9px] text-(--fg-tertiary)")}
+              >
                 {property.left[0]}
               </span>
               <span
@@ -698,10 +852,16 @@ function OverviewDocument({
               >
                 {property.left[1]}
               </span>
-              <span className="text-[9px] text-(--fg-tertiary)">
+              <span
+                className={stylexClassName("text-[9px] text-(--fg-tertiary)")}
+              >
                 {property.right[0]}
               </span>
-              <span className="truncate text-[9.5px] text-(--fg-primary)">
+              <span
+                className={stylexClassName(
+                  "truncate text-[9.5px] text-(--fg-primary)"
+                )}
+              >
                 {property.right[1]}
               </span>
             </div>
@@ -710,9 +870,15 @@ function OverviewDocument({
       </section>
 
       <section>
-        <div className="flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)"
+          )}
+        >
           <span>Evidence</span>
-          <span className="font-mono text-[8.5px] font-normal">
+          <span
+            className={stylexClassName("font-mono text-[8.5px] font-normal")}
+          >
             {Number(payloadCount > 0) + Number(logsCount > 0)} sources
           </span>
         </div>
@@ -727,24 +893,60 @@ function OverviewDocument({
           label="Logs"
           muted
         />
-        <div className="flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)"
+          )}
+        >
           <span>Trace context</span>
-          <span className="font-mono text-[8.5px] font-normal">2 fields</span>
+          <span
+            className={stylexClassName("font-mono text-[8.5px] font-normal")}
+          >
+            2 fields
+          </span>
         </div>
-        <div className="flex h-[60px] flex-col overflow-hidden font-mono">
-          <div className="flex h-[30px] shrink-0 items-center overflow-hidden px-3">
-            <span className="w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)">
+        <div
+          className={stylexClassName(
+            "flex h-[60px] flex-col overflow-hidden font-mono"
+          )}
+        >
+          <div
+            className={stylexClassName(
+              "flex h-[30px] shrink-0 items-center overflow-hidden px-3"
+            )}
+          >
+            <span
+              className={stylexClassName(
+                "w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)"
+              )}
+            >
               trace
             </span>
-            <span className="truncate text-[9px] text-(--fg-secondary)">
+            <span
+              className={stylexClassName(
+                "truncate text-[9px] text-(--fg-secondary)"
+              )}
+            >
               {traceId ?? "—"}
             </span>
           </div>
-          <div className="flex h-[30px] shrink-0 items-center overflow-hidden px-3">
-            <span className="w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)">
+          <div
+            className={stylexClassName(
+              "flex h-[30px] shrink-0 items-center overflow-hidden px-3"
+            )}
+          >
+            <span
+              className={stylexClassName(
+                "w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)"
+              )}
+            >
               correlation
             </span>
-            <span className="truncate text-[9px] text-(--fg-secondary)">
+            <span
+              className={stylexClassName(
+                "truncate text-[9px] text-(--fg-secondary)"
+              )}
+            >
               {story.correlationId}
             </span>
           </div>
@@ -765,7 +967,7 @@ function InspectorMetric({
   value: string;
 }) {
   return (
-    <div className="min-w-0">
+    <div className={stylexClassName("min-w-0")}>
       <div
         className={cn(
           "truncate font-mono text-[13px] leading-[17px] text-(--fg-primary)",
@@ -774,7 +976,11 @@ function InspectorMetric({
       >
         {value}
       </div>
-      <div className="mt-[3px] text-[9px] font-medium text-(--fg-tertiary)">
+      <div
+        className={stylexClassName(
+          "mt-[3px] text-[9px] font-medium text-(--fg-tertiary)"
+        )}
+      >
         {label}
       </div>
     </div>
@@ -794,19 +1000,38 @@ function ExecutionRoute({
 }) {
   const route = [parent, node, child];
   return (
-    <section className="relative h-[122px] overflow-hidden border-b border-(--line-subtle)">
-      <div className="flex items-center justify-between px-3 pt-2.5 text-[9.5px] font-medium text-(--fg-tertiary)">
+    <section
+      className={stylexClassName(
+        "relative h-[122px] overflow-hidden border-b border-(--line-subtle)"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex items-center justify-between px-3 pt-2.5 text-[9.5px] font-medium text-(--fg-tertiary)"
+        )}
+      >
         <span>Execution route</span>
-        <span className="font-mono text-[8.5px] font-normal">
+        <span className={stylexClassName("font-mono text-[8.5px] font-normal")}>
           {parent ? 1 : 0} upstream&nbsp; · &nbsp;{child ? 1 : 0} downstream
         </span>
       </div>
-      <div className="absolute top-[60px] right-7 left-7 h-px bg-(--line-subtle)" />
-      <div className="absolute top-[37px] right-3 left-3 grid grid-cols-3">
+      <div
+        className={stylexClassName(
+          "absolute top-[60px] right-7 left-7 h-px bg-(--line-subtle)"
+        )}
+      />
+      <div
+        className={stylexClassName(
+          "absolute top-[37px] right-3 left-3 grid grid-cols-3"
+        )}
+      >
         {route.map((item, index) => {
           const selected = index === 1;
           return (
-            <div className="min-w-0 text-center" key={item?.id ?? index}>
+            <div
+              className={stylexClassName("min-w-0 text-center")}
+              key={item?.id ?? index}
+            >
               <div
                 className={cn(
                   "truncate px-1 text-[10px] text-(--fg-secondary)",
@@ -839,7 +1064,11 @@ function ExecutionRoute({
           );
         })}
       </div>
-      <div className="absolute right-3 bottom-3 left-3 truncate font-mono text-[9px] text-(--fg-secondary)">
+      <div
+        className={stylexClassName(
+          "absolute right-3 bottom-3 left-3 truncate font-mono text-[9px] text-(--fg-secondary)"
+        )}
+      >
         {stable
           ? "selected effect is stable; completion evidence received"
           : "selected execution is awaiting stable completion evidence"}
@@ -860,20 +1089,30 @@ function EvidenceRow({
   muted?: boolean;
 }) {
   return (
-    <div className="flex h-9 items-center gap-2 px-3">
+    <div className={stylexClassName("flex h-9 items-center gap-2 px-3")}>
       <span
         className={cn(
           "size-[5px] shrink-0 bg-(--accent)",
           muted && "bg-(--fg-tertiary)"
         )}
       />
-      <span className="text-[10px] font-medium text-(--fg-primary)">
+      <span
+        className={stylexClassName(
+          "text-[10px] font-medium text-(--fg-primary)"
+        )}
+      >
         {label}
       </span>
-      <span className="font-mono text-[9px] text-(--fg-tertiary)">
+      <span
+        className={stylexClassName("font-mono text-[9px] text-(--fg-tertiary)")}
+      >
         {description}
       </span>
-      <span className="ml-auto font-mono text-[9px] text-(--fg-secondary)">
+      <span
+        className={stylexClassName(
+          "ml-auto font-mono text-[9px] text-(--fg-secondary)"
+        )}
+      >
         {count}
       </span>
     </div>
@@ -946,11 +1185,21 @@ function RemoteProxyDetail({
   }
 
   return (
-    <section className="grid min-w-full border-b border-(--line)">
-      <div className="flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 text-[11px] text-(--fg-tertiary)">
-        <span className="font-medium text-(--fg-secondary)">Remote proxy</span>
+    <section
+      className={stylexClassName("grid min-w-full border-b border-(--line)")}
+    >
+      <div
+        className={stylexClassName(
+          "flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 text-[11px] text-(--fg-tertiary)"
+        )}
+      >
+        <span className={stylexClassName("font-medium text-(--fg-secondary)")}>
+          Remote proxy
+        </span>
         <button
-          className="ml-auto inline-flex h-5 items-center gap-1 border border-(--line) bg-(--bg-control) px-1.5 text-[10px] text-(--fg-secondary) hover:text-(--fg-primary)"
+          className={stylexClassName(
+            "ml-auto inline-flex h-5 items-center gap-1 border border-(--line) bg-(--bg-control) px-1.5 text-[10px] text-(--fg-secondary) hover:text-(--fg-primary)"
+          )}
           onClick={onOpenRemoteCalls}
           type="button"
         >
@@ -994,7 +1243,7 @@ function TechnicalPanel({
   });
   if (groups.length === 0 || isLoading || isError) {
     return (
-      <div className="grid min-w-full">
+      <div className={stylexClassName("grid min-w-full")}>
         <EmptyRows
           label={technicalOperationsStateLabel({ error, isError, isLoading })}
         />
@@ -1003,7 +1252,7 @@ function TechnicalPanel({
   }
 
   return (
-    <div className="grid min-w-full">
+    <div className={stylexClassName("grid min-w-full")}>
       {groups.map((group) => (
         <TechnicalOperationGroupView group={group} key={group.id} />
       ))}
@@ -1017,12 +1266,22 @@ function TechnicalOperationGroupView({
   group: TechnicalOperationGroup;
 }) {
   return (
-    <section className="flex h-[278px] flex-col gap-2 overflow-visible border-b border-(--line-subtle) p-3">
-      <div className="flex h-[26px] items-center justify-between overflow-hidden text-[10px] text-(--fg-tertiary)">
-        <span className="font-medium uppercase">
+    <section
+      className={stylexClassName(
+        "flex h-[278px] flex-col gap-2 overflow-visible border-b border-(--line-subtle) p-3"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-[26px] items-center justify-between overflow-hidden text-[10px] text-(--fg-tertiary)"
+        )}
+      >
+        <span className={stylexClassName("font-medium uppercase")}>
           {group.label.replaceAll("-", " ")}
         </span>
-        <span className="font-mono text-[9px]">{group.operations.length}</span>
+        <span className={stylexClassName("font-mono text-[9px]")}>
+          {group.operations.length}
+        </span>
       </div>
       {group.operations.map((operation, index) => (
         <TechnicalOperationRow
@@ -1046,19 +1305,41 @@ function TechnicalOperationRow({
   const operationsTarget = technicalOperationOperationsTarget(operation);
   const [attributesVisible, setAttributesVisible] = useState(false);
   return (
-    <div className="group relative flex h-[84px] shrink-0 gap-2.5 overflow-visible py-2">
-      <span className="w-[13px] shrink-0 font-mono text-[10px] font-medium text-(--accent)">
+    <div
+      className={stylexClassName(
+        "group relative flex h-[84px] shrink-0 gap-2.5 overflow-visible py-2"
+      )}
+    >
+      <span
+        className={stylexClassName(
+          "w-[13px] shrink-0 font-mono text-[10px] font-medium text-(--accent)"
+        )}
+      >
         {String(index + 1).padStart(2, "0")}
       </span>
-      <div className="flex h-[68px] w-[256px] shrink-0 flex-col gap-[5px] overflow-hidden">
-        <div className="flex h-[18px] items-start justify-between gap-2">
+      <div
+        className={stylexClassName(
+          "flex h-[68px] w-[256px] shrink-0 flex-col gap-[5px] overflow-hidden"
+        )}
+      >
+        <div
+          className={stylexClassName(
+            "flex h-[18px] items-start justify-between gap-2"
+          )}
+        >
           <span
-            className="truncate font-mono text-[11px] font-medium text-(--fg-primary)"
+            className={stylexClassName(
+              "truncate font-mono text-[11px] font-medium text-(--fg-primary)"
+            )}
             title={operation.name}
           >
             {operation.name}
           </span>
-          <span className="shrink-0 font-mono text-[10px] text-(--fg-tertiary)">
+          <span
+            className={stylexClassName(
+              "shrink-0 font-mono text-[10px] text-(--fg-tertiary)"
+            )}
+          >
             {formatRuntimeDuration(operation.durationMs)}
           </span>
         </div>
@@ -1073,18 +1354,24 @@ function TechnicalOperationRow({
           {operation.status}
         </div>
         <div
-          className="truncate text-[10px] text-(--fg-secondary)"
+          className={stylexClassName(
+            "truncate text-[10px] text-(--fg-secondary)"
+          )}
           title={operation.summary}
         >
           {operation.summary ?? operation.sourceLabel}
         </div>
       </div>
-      <div className="absolute top-2 right-0 flex items-start">
+      <div
+        className={stylexClassName("absolute top-2 right-0 flex items-start")}
+      >
         {Object.keys(operation.safeAttributes).length > 0 ? (
           <button
             aria-expanded={attributesVisible}
             aria-label={`Toggle ${operation.name} safe attributes`}
-            className="mr-1 grid size-4 place-items-center text-(--fg-tertiary) opacity-0 transition-opacity group-hover:opacity-100"
+            className={stylexClassName(
+              "mr-1 grid size-4 place-items-center text-(--fg-tertiary) opacity-0 transition-opacity group-hover:opacity-100"
+            )}
             onClick={() => setAttributesVisible((current) => !current)}
             title="Show safe attributes"
             type="button"
@@ -1095,7 +1382,9 @@ function TechnicalOperationRow({
         {operationsTarget ? (
           <button
             aria-label={`Open ${operation.sourceLabel} operations`}
-            className="grid size-4 place-items-center text-(--fg-tertiary) hover:text-(--fg-primary)"
+            className={stylexClassName(
+              "grid size-4 place-items-center text-(--fg-tertiary) hover:text-(--fg-primary)"
+            )}
             onClick={() => {
               if (operationsTarget.kind === "remote_calls") {
                 openRemoteCalls(
@@ -1120,7 +1409,7 @@ function TechnicalOperationRow({
       </div>
       {attributesVisible ? (
         <JsonViewer
-          className="absolute top-full right-0 left-0 z-10"
+          className={stylexClassName("absolute top-full right-0 left-0 z-10")}
           defaultExpanded
           title="safe attributes"
           value={operation.safeAttributes}
@@ -1136,14 +1425,30 @@ function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
   }
 
   return (
-    <div className="min-w-full border-b border-(--line-subtle) text-xs">
+    <div
+      className={stylexClassName(
+        "min-w-full border-b border-(--line-subtle) text-xs"
+      )}
+    >
       {rows.map(([key, value]) => (
         <div
-          className="grid min-h-9 min-w-full grid-cols-[92px_minmax(0,1fr)] border-b border-(--line-subtle) last:border-b-0"
+          className={stylexClassName(
+            "grid min-h-9 min-w-full grid-cols-[92px_minmax(0,1fr)] border-b border-(--line-subtle) last:border-b-0"
+          )}
           key={key}
         >
-          <div className="px-3 py-2 text-[9px] text-(--fg-tertiary)">{key}</div>
-          <div className="whitespace-pre-wrap px-3 py-2 font-mono text-[10px] text-(--fg-secondary)">
+          <div
+            className={stylexClassName(
+              "px-3 py-2 text-[9px] text-(--fg-tertiary)"
+            )}
+          >
+            {key}
+          </div>
+          <div
+            className={stylexClassName(
+              "whitespace-pre-wrap px-3 py-2 font-mono text-[10px] text-(--fg-secondary)"
+            )}
+          >
             {formatCell(value)}
           </div>
         </div>
@@ -1157,7 +1462,7 @@ function ActivityList({ activity }: { activity: ExecutionActivityItem[] }) {
     return <EmptyRows label="No activity recorded" />;
   }
   return (
-    <div className="min-w-full">
+    <div className={stylexClassName("min-w-full")}>
       {activity.map((item, index) => (
         <EventActivityRow
           isLast={index === activity.length - 1}
@@ -1186,7 +1491,7 @@ function EventActivityRow({
         isLast && "border-b border-(--line-subtle)"
       )}
     >
-      <div className="relative h-[108px] w-3 shrink-0">
+      <div className={stylexClassName("relative h-[108px] w-3 shrink-0")}>
         <span
           className={cn(
             "absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full",
@@ -1194,24 +1499,47 @@ function EventActivityRow({
           )}
         />
         {isLast ? null : (
-          <span className="absolute top-2 bottom-2 left-1/2 w-px -translate-x-1/2 bg-(--line-subtle)" />
+          <span
+            className={stylexClassName(
+              "absolute top-2 bottom-2 left-1/2 w-px -translate-x-1/2 bg-(--line-subtle)"
+            )}
+          />
         )}
       </div>
-      <div className="flex h-[108px] w-[284px] shrink-0 flex-col gap-[7px] pt-0">
-        <div className="flex h-[18px] items-center justify-between gap-2 font-mono text-[10px]">
-          <span className="text-(--fg-tertiary)">
+      <div
+        className={stylexClassName(
+          "flex h-[108px] w-[284px] shrink-0 flex-col gap-[7px] pt-0"
+        )}
+      >
+        <div
+          className={stylexClassName(
+            "flex h-[18px] items-center justify-between gap-2 font-mono text-[10px]"
+          )}
+        >
+          <span className={stylexClassName("text-(--fg-tertiary)")}>
             +{formatRuntimeDuration(item.timestampMs)}
           </span>
           <span className={cn("font-medium", activityStatusTone(item.status))}>
             {eventKind} · {item.status.toUpperCase()}
           </span>
         </div>
-        <div className="truncate text-[12px] font-medium text-(--fg-primary)">
+        <div
+          className={stylexClassName(
+            "truncate text-[12px] font-medium text-(--fg-primary)"
+          )}
+        >
           {item.label}
         </div>
-        <div className="h-9 overflow-hidden font-mono text-[10px] leading-[0] text-(--fg-secondary)">
+        <div
+          className={stylexClassName(
+            "h-9 overflow-hidden font-mono text-[10px] leading-[0] text-(--fg-secondary)"
+          )}
+        >
           {detailLines.map((line) => (
-            <div className="truncate leading-[normal]" key={line}>
+            <div
+              className={stylexClassName("truncate leading-[normal]")}
+              key={line}
+            >
               {line}
             </div>
           ))}
@@ -1256,7 +1584,7 @@ function FailurePanel({
   }
 
   return (
-    <div className="grid min-w-full">
+    <div className={stylexClassName("grid min-w-full")}>
       <KeyValueTable rows={failures.map((item) => [item.label, item.value])} />
       <KeyValueTable
         rows={[
@@ -1305,13 +1633,25 @@ function PayloadDocument({
   }
 
   return (
-    <div className="flex min-h-full min-w-full flex-col">
+    <div className={stylexClassName("flex min-h-full min-w-full flex-col")}>
       {payload && payload.redactedFields.length > 0 ? (
-        <div className="flex h-11 shrink-0 gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-[7px]">
-          <span className="w-[7px] shrink-0 text-[13px] leading-[17px] font-medium text-(--tone-warning-fg)">
+        <div
+          className={stylexClassName(
+            "flex h-11 shrink-0 gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-[7px]"
+          )}
+        >
+          <span
+            className={stylexClassName(
+              "w-[7px] shrink-0 text-[13px] leading-[17px] font-medium text-(--tone-warning-fg)"
+            )}
+          >
             ✦
           </span>
-          <div className="h-[30px] w-[260px] text-[10px] leading-[15px] text-(--fg-secondary)">
+          <div
+            className={stylexClassName(
+              "h-[30px] w-[260px] text-[10px] leading-[15px] text-(--fg-secondary)"
+            )}
+          >
             <div>
               {payload.redactedFields.length} sensitive field
               {payload.redactedFields.length === 1 ? "" : "s"} redacted
@@ -1320,11 +1660,23 @@ function PayloadDocument({
           </div>
         </div>
       ) : null}
-      <div className="flex h-[44px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px] leading-normal">
-        <span className="text-[13px] font-medium text-(--fg-primary)">
+      <div
+        className={stylexClassName(
+          "flex h-[44px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px] leading-normal"
+        )}
+      >
+        <span
+          className={stylexClassName(
+            "text-[13px] font-medium text-(--fg-primary)"
+          )}
+        >
           Request payload
         </span>
-        <span className="font-mono text-[10px] text-(--fg-tertiary)">
+        <span
+          className={stylexClassName(
+            "font-mono text-[10px] text-(--fg-tertiary)"
+          )}
+        >
           application/json
         </span>
       </div>
@@ -1351,7 +1703,7 @@ function PayloadDocument({
           variant="payload-row"
         />
       ) : null}
-      <div className="min-h-0 flex-1" />
+      <div className={stylexClassName("min-h-0 flex-1")} />
       <PayloadContract node={node} payload={payload} />
     </div>
   );
@@ -1370,26 +1722,54 @@ function PayloadJsonBlock({
   const json = prettyJson(value);
 
   return (
-    <section className="flex shrink-0 flex-col overflow-hidden">
-      <div className="flex h-[52px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px]">
+    <section
+      className={stylexClassName("flex shrink-0 flex-col overflow-hidden")}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-[52px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px]"
+        )}
+      >
         <button
-          className="flex min-w-0 items-center gap-2 text-left"
+          className={stylexClassName(
+            "flex min-w-0 items-center gap-2 text-left"
+          )}
           onClick={() => setExpanded((current) => !current)}
           type="button"
         >
           {expanded ? (
-            <ChevronDown className="size-3 shrink-0 text-(--fg-tertiary)" />
+            <ChevronDown
+              className={stylexClassName(
+                "size-3 shrink-0 text-(--fg-tertiary)"
+              )}
+            />
           ) : (
-            <ChevronRight className="size-3 shrink-0 text-(--fg-tertiary)" />
+            <ChevronRight
+              className={stylexClassName(
+                "size-3 shrink-0 text-(--fg-tertiary)"
+              )}
+            />
           )}
-          <span className="font-sans text-[11px] font-medium text-(--fg-primary)">
+          <span
+            className={stylexClassName(
+              "font-sans text-[11px] font-medium text-(--fg-primary)"
+            )}
+          >
             {title}
           </span>
         </button>
-        <div className="flex items-center gap-4 whitespace-nowrap text-[10px]">
-          <span className="font-mono text-(--fg-tertiary)">{countLabel}</span>
+        <div
+          className={stylexClassName(
+            "flex items-center gap-4 whitespace-nowrap text-[10px]"
+          )}
+        >
+          <span className={stylexClassName("font-mono text-(--fg-tertiary)")}>
+            {countLabel}
+          </span>
           <button
-            className="font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
+            className={stylexClassName(
+              "font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
+            )}
             type="button"
           >
             Copy
@@ -1397,8 +1777,16 @@ function PayloadJsonBlock({
         </div>
       </div>
       {expanded ? (
-        <div className="max-h-[171px] shrink-0 overflow-hidden border-b border-(--line-subtle) px-3 pt-2.5 pb-[11px]">
-          <pre className="max-h-[150px] overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-[15px] text-(--fg-secondary)">
+        <div
+          className={stylexClassName(
+            "max-h-[171px] shrink-0 overflow-hidden border-b border-(--line-subtle) px-3 pt-2.5 pb-[11px]"
+          )}
+        >
+          <pre
+            className={stylexClassName(
+              "max-h-[150px] overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-[15px] text-(--fg-secondary)"
+            )}
+          >
             {json}
           </pre>
         </div>
@@ -1424,12 +1812,24 @@ function PayloadContract({
   const isValid = Boolean(payload) && !payload?.redactedFields.length;
 
   return (
-    <section className="flex h-[80px] shrink-0 flex-col justify-center gap-2 overflow-hidden border-t border-(--line-subtle) p-3">
-      <div className="flex h-4 items-center justify-between font-medium">
-        <span className="w-[97px] shrink-0">
+    <section
+      className={stylexClassName(
+        "flex h-[80px] shrink-0 flex-col justify-center gap-2 overflow-hidden border-t border-(--line-subtle) p-3"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-4 items-center justify-between font-medium"
+        )}
+      >
+        <span className={stylexClassName("w-[97px] shrink-0")}>
           <InspectorEyebrow>Payload contract</InspectorEyebrow>
         </span>
-        <p className="whitespace-nowrap font-mono text-[12px] font-medium text-(--fg-primary)">
+        <p
+          className={stylexClassName(
+            "whitespace-nowrap font-mono text-[12px] font-medium text-(--fg-primary)"
+          )}
+        >
           {contract}
         </p>
       </div>
@@ -1476,7 +1876,7 @@ function LogList({
     );
   }
   return (
-    <div className="min-w-full">
+    <div className={stylexClassName("min-w-full")}>
       <InspectorDocumentToolbar
         count={`${logs.length} entries`}
         title="Runtime logs"
@@ -1502,9 +1902,19 @@ function LogEntry({
   story: RuntimeStory;
 }) {
   return (
-    <section className="flex h-[100px] flex-col gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-2.5">
-      <div className="flex h-[18px] items-center gap-2 font-mono text-[10px]">
-        <span className="w-[49px] shrink-0 text-(--fg-tertiary)">
+    <section
+      className={stylexClassName(
+        "flex h-[100px] flex-col gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-2.5"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-[18px] items-center gap-2 font-mono text-[10px]"
+        )}
+      >
+        <span
+          className={stylexClassName("w-[49px] shrink-0 text-(--fg-tertiary)")}
+        >
           +{formatRuntimeDuration(logOffsetMs(story.timestamp, log.occurredAt))}
         </span>
         <span
@@ -1516,10 +1926,18 @@ function LogEntry({
           {log.severity}
         </span>
       </div>
-      <div className="h-[34px] truncate text-[11px] font-medium text-(--fg-primary)">
+      <div
+        className={stylexClassName(
+          "h-[34px] truncate text-[11px] font-medium text-(--fg-primary)"
+        )}
+      >
         {log.body || "-"}
       </div>
-      <div className="truncate font-mono text-[10px] text-(--fg-tertiary)">
+      <div
+        className={stylexClassName(
+          "truncate font-mono text-[10px] text-(--fg-tertiary)"
+        )}
+      >
         {log.serviceName}
         {log.traceId ? ` · trace ${log.traceId.slice(0, 12)}` : ""}
       </div>
@@ -1547,20 +1965,40 @@ function LogAttributesPanel({ log }: { log: ExecutionLogEntry }) {
   ];
 
   return (
-    <section className="flex h-[216px] flex-col gap-2.5 overflow-hidden border-b border-(--line-subtle) p-3">
-      <div className="flex h-5 items-center justify-between text-[10px] font-medium uppercase">
+    <section
+      className={stylexClassName(
+        "flex h-[216px] flex-col gap-2.5 overflow-hidden border-b border-(--line-subtle) p-3"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex h-5 items-center justify-between text-[10px] font-medium uppercase"
+        )}
+      >
         <InspectorEyebrow>Attributes</InspectorEyebrow>
-        <span className="normal-case text-(--fg-secondary)">Copy JSON</span>
+        <span className={stylexClassName("normal-case text-(--fg-secondary)")}>
+          Copy JSON
+        </span>
       </div>
       {rows.map(([key, value]) => (
         <div
-          className="flex h-[27px] items-center justify-between gap-3 overflow-hidden font-mono"
+          className={stylexClassName(
+            "flex h-[27px] items-center justify-between gap-3 overflow-hidden font-mono"
+          )}
           key={key}
         >
-          <span className="truncate text-[9px] text-(--fg-tertiary)">
+          <span
+            className={stylexClassName(
+              "truncate text-[9px] text-(--fg-tertiary)"
+            )}
+          >
             {key}
           </span>
-          <span className="truncate text-right text-[10px] text-(--fg-secondary)">
+          <span
+            className={stylexClassName(
+              "truncate text-right text-[10px] text-(--fg-secondary)"
+            )}
+          >
             {formatCell(value)}
           </span>
         </div>
@@ -1577,9 +2015,17 @@ function LogDiagnostic({ logs }: { logs: ExecutionLogEntry[] }) {
   const hasIssues = issueCount > 0;
 
   return (
-    <section className="flex h-[256px] flex-col gap-3 overflow-hidden px-3 py-[14px]">
+    <section
+      className={stylexClassName(
+        "flex h-[256px] flex-col gap-3 overflow-hidden px-3 py-[14px]"
+      )}
+    >
       <InspectorEyebrow>Log context</InspectorEyebrow>
-      <h3 className="text-[13px] font-medium text-(--fg-primary)">
+      <h3
+        className={stylexClassName(
+          "text-[13px] font-medium text-(--fg-primary)"
+        )}
+      >
         {hasIssues
           ? `${issueCount} log issue${issueCount === 1 ? "" : "s"}`
           : "No warnings or errors"}
@@ -1590,12 +2036,20 @@ function LogDiagnostic({ logs }: { logs: ExecutionLogEntry[] }) {
           hasIssues ? "bg-(--tone-warning-fg)" : "bg-(--tone-success-fg)"
         )}
       />
-      <p className="text-[10px] leading-[15px] text-(--fg-secondary)">
+      <p
+        className={stylexClassName(
+          "text-[10px] leading-[15px] text-(--fg-secondary)"
+        )}
+      >
         {hasIssues
           ? `${issueCount} entries require operator review in ${service}.`
           : `${logs.length === 2 ? "Both entries" : `${logs.length} entries`} belong to the same trace and were emitted by ${service}.`}
       </p>
-      <p className="font-mono text-[10px] text-(--fg-tertiary)">
+      <p
+        className={stylexClassName(
+          "font-mono text-[10px] text-(--fg-tertiary)"
+        )}
+      >
         Retention 7 days · structured JSON available
       </p>
     </section>
@@ -1630,7 +2084,11 @@ function logSeverityClass(severity: string) {
 
 function EmptyRows({ label }: { label: string }) {
   return (
-    <div className="p-4 font-mono text-xs text-(--fg-tertiary)">{label}</div>
+    <div
+      className={stylexClassName("p-4 font-mono text-xs text-(--fg-tertiary)")}
+    >
+      {label}
+    </div>
   );
 }
 

@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { AlertTriangle, RotateCcw, X } from "lucide-react";
 
 import { useRetryRuntimeWork } from "../../hooks/use-runtime-queries";
@@ -19,21 +20,37 @@ export function RetryDialog() {
         <Dialog.Portal>
           <Dialog.Backdrop />
           <Dialog.Popup>
-            <header className="flex items-center gap-3 border-b border-(--border-subtle) p-3">
-              <div className="grid size-8 place-items-center border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-(--warning)">
+            <header
+              className={stylexClassName(
+                "flex items-center gap-3 border-b border-(--border-subtle) p-3"
+              )}
+            >
+              <div
+                className={stylexClassName(
+                  "grid size-8 place-items-center border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-(--warning)"
+                )}
+              >
                 <AlertTriangle size={18} />
               </div>
-              <div className="min-w-0">
-                <p className="mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--muted)">
+              <div className={stylexClassName("min-w-0")}>
+                <p
+                  className={stylexClassName(
+                    "mb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--muted)"
+                  )}
+                >
                   Retry confirmation
                 </p>
-                <Dialog.Title className="font-mono text-sm font-semibold text-(--foreground)">
+                <Dialog.Title
+                  className={stylexClassName(
+                    "font-mono text-sm font-semibold text-(--foreground)"
+                  )}
+                >
                   Replay runtime work?
                 </Dialog.Title>
               </div>
               <Button
                 aria-label="Close retry dialog"
-                className="ml-auto"
+                className={stylexClassName("ml-auto")}
                 onClick={closeRetry}
                 variant="ghost"
               >
@@ -41,37 +58,63 @@ export function RetryDialog() {
               </Button>
             </header>
 
-            <div className="grid gap-3 p-3">
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border border-(--border-subtle) bg-(--elevated) p-2.5">
+            <div className={stylexClassName("grid gap-3 p-3")}>
+              <div
+                className={stylexClassName(
+                  "grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border border-(--border-subtle) bg-(--elevated) p-2.5"
+                )}
+              >
                 <StatusPill status={retryTarget.status} />
-                <div className="min-w-0">
-                  <div className="truncate font-mono text-[11px] font-semibold text-(--foreground)">
+                <div className={stylexClassName("min-w-0")}>
+                  <div
+                    className={stylexClassName(
+                      "truncate font-mono text-[11px] font-semibold text-(--foreground)"
+                    )}
+                  >
                     {retryTarget.name}
                   </div>
-                  <div className="mono mt-0.5 truncate text-[10px] text-(--muted)">
+                  <div
+                    className={stylexClassName(
+                      "mono mt-0.5 truncate text-[10px] text-(--muted)"
+                    )}
+                  >
                     {retryTarget.kind} · {retryTarget.id}
                   </div>
                 </div>
               </div>
 
-              <dl className="grid grid-cols-[120px_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 font-mono text-[11px] text-(--secondary) [&_dd]:m-0 [&_dt]:text-(--muted)">
-                <dt>attempts</dt>
+              <dl
+                className={stylexClassName(
+                  "grid grid-cols-[120px_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 font-mono text-[11px] text-(--secondary)"
+                )}
+              >
+                <dt className={stylexClassName("text-(--muted)")}>attempts</dt>
                 <dd>
                   {retryTarget.attempts}/{retryTarget.maxAttempts}
                 </dd>
-                <dt>current status</dt>
+                <dt className={stylexClassName("text-(--muted)")}>
+                  current status
+                </dt>
                 <dd>{retryTarget.status}</dd>
-                <dt>operation</dt>
+                <dt className={stylexClassName("text-(--muted)")}>operation</dt>
                 <dd>reset to pending and make available now</dd>
               </dl>
 
-              <Dialog.Description className="border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] bg-[color-mix(in_srgb,var(--warning)_9%,transparent)] p-2.5 font-mono text-[11px] leading-5 text-[color-mix(in_srgb,var(--warning)_72%,var(--foreground))]">
+              <Dialog.Description
+                className={stylexClassName(
+                  "border border-[color-mix(in_srgb,var(--warning)_28%,transparent)] bg-[color-mix(in_srgb,var(--warning)_9%,transparent)] p-2.5 font-mono text-[11px] leading-5 text-[color-mix(in_srgb,var(--warning)_72%,var(--foreground))]"
+                )}
+              >
                 Retry is safe only when the handler is idempotent. Check
                 downstream side effects before replaying this work.
               </Dialog.Description>
             </div>
 
-            <footer className="flex justify-end gap-2 border-t border-(--border-subtle) p-3">
+            <footer
+              className={stylexClassName(
+                "flex justify-end gap-2 border-t border-(--border-subtle) p-3"
+              )}
+            >
               <Button onClick={closeRetry} variant="ghost">
                 Cancel
               </Button>
@@ -90,7 +133,11 @@ export function RetryDialog() {
               </Button>
             </footer>
             {retryMutation.isError ? (
-              <div className="mono mx-3 mb-3 border border-[color-mix(in_srgb,var(--error)_30%,transparent)] bg-[color-mix(in_srgb,var(--error)_8%,transparent)] p-2.5 text-[11px] text-(--error)">
+              <div
+                className={stylexClassName(
+                  "mono mx-3 mb-3 border border-[color-mix(in_srgb,var(--error)_30%,transparent)] bg-[color-mix(in_srgb,var(--error)_8%,transparent)] p-2.5 text-[11px] text-(--error)"
+                )}
+              >
                 {errorMessage(retryMutation.error)}
               </div>
             ) : null}

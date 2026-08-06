@@ -15,7 +15,14 @@
     "baseUrl": ".",
     "paths": {
       "@lenso/console-module-api": ["packages/console-module-api/src/index.ts"],
-      "@lenso/console-ui": ["packages/console-ui/src/index.tsx"]
+      "@lenso/console-ui": ["packages/console-ui/src/index.tsx"],
+      "@lenso/console-tokens": ["packages/console-tokens/src/index.ts"],
+      "@lenso/console-tokens/tokens.stylex": [
+        "packages/console-tokens/src/tokens.stylex.ts"
+      ],
+      "@lenso/console-composition-api": [
+        "packages/console-composition-api/src/index.ts"
+      ]
     },
     "types": ["node"],
     "resolveJsonModule": true,
@@ -30,7 +37,9 @@
     "packages/story-console/src",
     "packages/system-registry-console/src",
     "packages/console-module-api/src",
-    "packages/console-ui/src"
+    "packages/console-ui/src",
+    "packages/console-tokens/src",
+    "packages/console-composition-api/src"
   ],
   "references": []
 }

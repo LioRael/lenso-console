@@ -1,3 +1,5 @@
+import { stylexClassName } from "@lenso/console-ui";
+
 import type { RuntimeStatus } from "../../data/mock-runtime";
 import { cn } from "../../lib/cn";
 
@@ -14,7 +16,9 @@ export function StatusPill({ status }: StatusPillProps) {
         tone.className
       )}
     >
-      <span className="status-pill-dot size-1.5 rounded-full" />
+      <span
+        className={stylexClassName("status-pill-dot size-1.5 rounded-full")}
+      />
       {status}
     </span>
   );

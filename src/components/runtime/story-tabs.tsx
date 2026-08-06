@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-ui";
+import { stylexClassName, useConsoleLocale } from "@lenso/console-ui";
 import { Flame, GitBranch, Grid3X3, List, Workflow } from "lucide-react";
 
 import { cn } from "../../lib/cn";
@@ -39,11 +39,13 @@ export function StoryTabs({
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   return (
-    <div className="h-full min-w-0 bg-(--bg-canvas)">
+    <div className={stylexClassName("h-full min-w-0 bg-(--bg-canvas)")}>
       <HorizontalTabScroll>
         <div
           aria-label={zh ? "故事视图" : "Story views"}
-          className="flex h-full w-max min-w-full items-center gap-0 border-b-0 pl-2 pr-0"
+          className={stylexClassName(
+            "flex h-full w-max min-w-full items-center gap-0 border-b-0 pl-2 pr-0"
+          )}
           role="tablist"
         >
           {labels.map(({ icon: Icon, id, label }, index) => (
@@ -84,7 +86,11 @@ export function StoryTabs({
               tabIndex={mode === id ? 0 : -1}
               type="button"
             >
-              <span className="flex h-4 items-center gap-1 overflow-hidden">
+              <span
+                className={stylexClassName(
+                  "flex h-4 items-center gap-1 overflow-hidden"
+                )}
+              >
                 <Icon size={12} strokeWidth={1.75} />
                 {zh ? storyTabZh[id] : label}
               </span>

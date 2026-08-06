@@ -4,6 +4,7 @@ import {
   buildConsoleNavigation,
   buildConsoleRoutes,
   consoleModules,
+  consoleModulesForDevMode,
   consoleNavigation,
   defineConsoleModule,
   selectDefaultConsoleRoute,
@@ -68,6 +69,31 @@ describe("Console Module composition", () => {
     expect(
       selectDefaultConsoleRoute(buildConsoleRoutes(consoleModules)).path
     ).toBe("/");
+  });
+
+  test("restores linked Module UI surfaces for the seeded mock preview", () => {
+    expect(consoleModulesForDevMode("mock").map((module) => module.id)).toEqual(
+      [
+        "lenso/console-workbench",
+        "lenso/platform-story",
+        "lenso/system-registry",
+      ]
+    );
+    const systemWorkspace = buildWorkspaceNavigation(
+      buildConsoleNavigation(consoleModulesForDevMode("mock"))
+    ).find((workspace) => workspace.id === "system");
+
+    expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
+      "/",
+      "/services",
+      "/system",
+      "/modules",
+      "/changes",
+      "/runtime",
+      "/stories",
+      "/delivery",
+      "/settings",
+    ]);
   });
 
   test("places runtime-owned navigation after the host Runtime surface", () => {

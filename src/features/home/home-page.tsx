@@ -1,4 +1,4 @@
-import { useConsoleLocale } from "@lenso/console-ui";
+import { stylexClassName, useConsoleLocale } from "@lenso/console-ui";
 import { ArrowRight } from "lucide-react";
 
 import {
@@ -135,7 +135,11 @@ export function HomePage() {
       pageClassName="home-page"
       title={copy.home.title}
     >
-      <div className="grid h-[74px] grid-cols-4 items-center border-y border-(--line-subtle)">
+      <div
+        className={stylexClassName(
+          "grid h-[74px] grid-cols-4 items-center border-y border-(--line-subtle)"
+        )}
+      >
         <Metric
           label={copy.home.runtime}
           note={
@@ -169,14 +173,32 @@ export function HomePage() {
           }
         />
       </div>
-      <div className="grid h-[618px] min-h-0 grid-cols-[minmax(0,1fr)_376px] overflow-hidden">
-        <section className="h-[618px] min-h-0 overflow-hidden pr-7 pt-7">
-          <header className="flex h-[38px] items-center border-b border-(--line-subtle)">
-            <h2 className="text-[15px] font-medium leading-[22px]">
+      <div
+        className={stylexClassName(
+          "grid h-[618px] min-h-0 grid-cols-[minmax(0,1fr)_376px] overflow-hidden"
+        )}
+      >
+        <section
+          className={stylexClassName(
+            "h-[618px] min-h-0 overflow-hidden pr-7 pt-7"
+          )}
+        >
+          <header
+            className={stylexClassName(
+              "flex h-[38px] items-center border-b border-(--line-subtle)"
+            )}
+          >
+            <h2
+              className={stylexClassName(
+                "text-[15px] font-medium leading-[22px]"
+              )}
+            >
               {copy.home.decisionQueue}
             </h2>
             <a
-              className="ml-auto inline-flex items-center gap-1 text-[11px] leading-4 text-(--fg-secondary) hover:text-(--fg-primary)"
+              className={stylexClassName(
+                "ml-auto inline-flex items-center gap-1 text-[11px] leading-4 text-(--fg-secondary) hover:text-(--fg-primary)"
+              )}
               href="/changes"
             >
               {copy.home.viewAll} <ArrowRight size={12} />
@@ -184,32 +206,54 @@ export function HomePage() {
           </header>
           {decisions.map((item) => (
             <article
-              className="grid h-[88px] min-h-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-(--line-subtle)"
+              className={stylexClassName(
+                "grid h-[88px] min-h-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-(--line-subtle)"
+              )}
               key={item.id}
             >
-              <div className="flex min-w-0 items-start gap-3">
+              <div
+                className={stylexClassName("flex min-w-0 items-start gap-3")}
+              >
                 <span
                   aria-hidden="true"
-                  className="relative h-[18px] w-[7px] shrink-0"
+                  className={stylexClassName(
+                    "relative h-[18px] w-[7px] shrink-0"
+                  )}
                 >
                   <span
-                    className={`absolute left-0 top-[5.5px] size-[7px] rounded-full ${decisionToneClass(item.tone)}`}
+                    className={stylexClassName(
+                      `absolute left-0 top-[5.5px] size-[7px] rounded-full ${decisionToneClass(item.tone)}`
+                    )}
                   />
                 </span>
-                <div className="min-w-0">
-                  <h3 className="text-[13px] font-medium leading-[18px]">
+                <div className={stylexClassName("min-w-0")}>
+                  <h3
+                    className={stylexClassName(
+                      "text-[13px] font-medium leading-[18px]"
+                    )}
+                  >
                     {item.name}
                   </h3>
-                  <p className="mt-[3px] text-[11px] leading-4 text-(--fg-secondary)">
+                  <p
+                    className={stylexClassName(
+                      "mt-[3px] text-[11px] leading-4 text-(--fg-secondary)"
+                    )}
+                  >
                     {item.detail}
                   </p>
-                  <p className="mt-[3px] font-mono text-[10px] leading-[14px] text-(--fg-tertiary)">
+                  <p
+                    className={stylexClassName(
+                      "mt-[3px] font-mono text-[10px] leading-[14px] text-(--fg-tertiary)"
+                    )}
+                  >
                     {item.id}
                   </p>
                 </div>
               </div>
               <a
-                className="flex items-center gap-1 self-center text-[11px] leading-4 text-(--fg-secondary) hover:text-(--fg-primary)"
+                className={stylexClassName(
+                  "flex items-center gap-1 self-center text-[11px] leading-4 text-(--fg-secondary) hover:text-(--fg-primary)"
+                )}
                 href="/changes"
               >
                 {item.action} <ArrowRight size={12} />
@@ -217,43 +261,92 @@ export function HomePage() {
             </article>
           ))}
         </section>
-        <aside className="home-page__evidence-pane h-[618px] min-h-0 overflow-hidden pl-7 pt-7">
-          <header className="flex h-[38px] items-center border-b border-(--line-subtle)">
-            <h2 className="text-[15px] font-medium leading-[22px]">
+        <aside
+          className={stylexClassName(
+            "home-page__evidence-pane h-[618px] min-h-0 overflow-hidden pl-7 pt-7"
+          )}
+        >
+          <header
+            className={stylexClassName(
+              "flex h-[38px] items-center border-b border-(--line-subtle)"
+            )}
+          >
+            <h2
+              className={stylexClassName(
+                "text-[15px] font-medium leading-[22px]"
+              )}
+            >
               {copy.home.liveEvidence}
             </h2>
-            <span className="ml-auto text-[11px] leading-4 text-(--success)">
+            <span
+              className={stylexClassName(
+                "ml-auto text-[11px] leading-4 text-(--success)"
+              )}
+            >
               {copy.home.streaming}
             </span>
           </header>
           <ol>
             {displayedEvidence.map((item) => (
               <li
-                className="grid h-[72px] min-h-0 grid-cols-[8px_minmax(0,1fr)] gap-3 overflow-hidden pt-4"
+                className={stylexClassName(
+                  "grid h-[72px] min-h-0 grid-cols-[8px_minmax(0,1fr)] gap-3 overflow-hidden pt-4"
+                )}
                 key={item.id}
               >
-                <span aria-hidden="true" className="relative h-12 w-2">
-                  <span className="absolute left-0 top-1 size-[6px] rounded-full bg-(--fg-tertiary)" />
+                <span
+                  aria-hidden="true"
+                  className={stylexClassName("relative h-12 w-2")}
+                >
+                  <span
+                    className={stylexClassName(
+                      "absolute left-0 top-1 size-[6px] rounded-full bg-(--fg-tertiary)"
+                    )}
+                  />
                 </span>
-                <div className="min-w-0 overflow-hidden whitespace-nowrap">
-                  <time className="block font-mono text-[10px] leading-[14px] text-(--fg-tertiary)">
+                <div
+                  className={stylexClassName(
+                    "min-w-0 overflow-hidden whitespace-nowrap"
+                  )}
+                >
+                  <time
+                    className={stylexClassName(
+                      "block font-mono text-[10px] leading-[14px] text-(--fg-tertiary)"
+                    )}
+                  >
                     {item.displayTime ?? timeLabel(item.occurredAt)}
                   </time>
-                  <div className="mt-[2px] overflow-hidden text-ellipsis text-[12px] font-medium leading-4">
+                  <div
+                    className={stylexClassName(
+                      "mt-[2px] overflow-hidden text-ellipsis text-[12px] font-medium leading-4"
+                    )}
+                  >
                     {item.title}
                   </div>
-                  <div className="mt-[2px] overflow-hidden text-ellipsis text-[11px] leading-4 text-(--fg-secondary)">
+                  <div
+                    className={stylexClassName(
+                      "mt-[2px] overflow-hidden text-ellipsis text-[11px] leading-4 text-(--fg-secondary)"
+                    )}
+                  >
                     {item.detail}
                   </div>
                 </div>
               </li>
             ))}
           </ol>
-          <div className="border-t border-(--line-subtle) pt-[14px] text-[11px] leading-4 text-(--fg-secondary)">
-            <p className="font-medium leading-4 text-(--fg-primary)">
+          <div
+            className={stylexClassName(
+              "border-t border-(--line-subtle) pt-[14px] text-[11px] leading-4 text-(--fg-secondary)"
+            )}
+          >
+            <p
+              className={stylexClassName(
+                "font-medium leading-4 text-(--fg-primary)"
+              )}
+            >
               Console coordinates intent and evidence.
             </p>
-            <p className="mt-1 leading-4">
+            <p className={stylexClassName("mt-1 leading-4")}>
               Services remain authoritative for state and effects.
             </p>
           </div>
@@ -295,13 +388,17 @@ function ScopeBadge({
   return (
     <span
       aria-label={mode === "demo" ? `${label}, demo projection` : label}
-      className="inline-flex h-[30px] items-center gap-2 rounded-[var(--radius-control)] border border-(--line) px-[10px] text-[11px] font-medium leading-4 text-(--fg-secondary)"
+      className={stylexClassName(
+        "inline-flex h-[30px] items-center gap-2 rounded-[var(--radius-control)] border border-(--line) px-[10px] text-[11px] font-medium leading-4 text-(--fg-secondary)"
+      )}
       data-console-data-mode={mode}
       title={mode === "demo" ? "Demo projection" : undefined}
     >
       <span
         aria-hidden="true"
-        className={`size-1.5 rounded-full ${tone === "success" ? "bg-(--success)" : "bg-(--fg-tertiary)"}`}
+        className={stylexClassName(
+          `size-1.5 rounded-full ${tone === "success" ? "bg-(--success)" : "bg-(--fg-tertiary)"}`
+        )}
       />
       {label}
     </span>
@@ -333,15 +430,29 @@ function Metric({
   value: string;
 }) {
   return (
-    <div className="flex h-12 flex-col justify-between border-r border-(--line-subtle) px-4 first:pl-0 last:border-r-0">
-      <div className="flex h-5 items-baseline gap-2">
-        <strong className="text-[15px] font-medium leading-5">{value}</strong>
-        <span className="text-[11px] leading-4 text-(--fg-tertiary)">
+    <div
+      className={stylexClassName(
+        "flex h-12 flex-col justify-between border-r border-(--line-subtle) px-4 first:pl-0 last:border-r-0"
+      )}
+    >
+      <div className={stylexClassName("flex h-5 items-baseline gap-2")}>
+        <strong
+          className={stylexClassName("text-[15px] font-medium leading-5")}
+        >
+          {value}
+        </strong>
+        <span
+          className={stylexClassName(
+            "text-[11px] leading-4 text-(--fg-tertiary)"
+          )}
+        >
           {label}
         </span>
       </div>
       <div
-        className={`text-[11px] leading-4 ${note.includes("review") ? "text-(--warning)" : "text-(--fg-secondary)"}`}
+        className={stylexClassName(
+          `text-[11px] leading-4 ${note.includes("review") ? "text-(--warning)" : "text-(--fg-secondary)"}`
+        )}
       >
         {note}
       </div>

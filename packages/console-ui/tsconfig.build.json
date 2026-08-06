@@ -11,7 +11,11 @@
     "rootDir": "src",
     "sourceMap": false,
     "paths": {
-      "@lenso/console-module-api": ["../console-module-api/dist/index.d.ts"]
+      "@lenso/console-module-api": ["../console-module-api/dist/index.d.ts"],
+      "@lenso/console-tokens": ["../console-tokens/dist/index.d.ts"],
+      "@lenso/console-tokens/tokens.stylex": [
+        "../console-tokens/dist/tokens.stylex.d.ts"
+      ]
     }
   },
   "include": ["src/index.tsx", "src/locale.tsx", "src/ui.tsx", "src/host.ts"]

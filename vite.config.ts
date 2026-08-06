@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
+import { consoleStylex } from "./config/console-stylex";
 import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin";
 
 const consoleDevMiddleware = consoleDevPlugin({
@@ -22,6 +22,18 @@ export default defineConfig({
       "@lenso/console-ui": resolve(
         import.meta.dirname,
         "packages/console-ui/src/index.tsx"
+      ),
+      "@lenso/console-tokens/tokens.stylex": resolve(
+        import.meta.dirname,
+        "packages/console-tokens/src/tokens.stylex.ts"
+      ),
+      "@lenso/console-tokens": resolve(
+        import.meta.dirname,
+        "packages/console-tokens/src/index.ts"
+      ),
+      "@lenso/console-composition-api": resolve(
+        import.meta.dirname,
+        "packages/console-composition-api/src/index.ts"
       ),
     },
   },
@@ -52,7 +64,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react(), tailwindcss(), consoleDevMiddleware],
+  plugins: [react(), consoleStylex(), consoleDevMiddleware],
   server: {
     port: 5174,
   },

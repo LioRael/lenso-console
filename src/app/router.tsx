@@ -12,7 +12,7 @@ import { ConsoleProvider } from "../components/runtime/console-context";
 import { ConsoleShell } from "../components/runtime/console-shell";
 import { ConsoleAppearanceProvider } from "./console-appearance";
 import { HostConsoleLocaleProvider } from "./console-locale";
-import { buildConsoleRoutes, consoleModules } from "./console-modules";
+import { buildConsoleRoutes, consoleRuntimeModules } from "./console-modules";
 import { DynamicConsoleModulePage } from "./dynamic-console-module";
 
 export const rootRedirectPath = "/";
@@ -79,7 +79,7 @@ export function createConsoleRouter(
   return createRouter({ basepath, routeTree });
 }
 
-export const router = createConsoleRouter(consoleModules);
+export const router = createConsoleRouter(consoleRuntimeModules);
 
 declare module "@tanstack/react-router" {
   interface Register {

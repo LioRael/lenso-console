@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -177,25 +178,37 @@ export function DeliveryConsolePanel({
   return (
     <section
       aria-labelledby="delivery-heading"
-      className="border-b border-(--line) bg-(--bg-panel)"
+      className={stylexClassName("border-b border-(--line) bg-(--bg-panel)")}
     >
-      <header className="flex items-center gap-2 border-b border-(--line) px-3 py-2">
-        <StateIcon aria-hidden="true" className="text-(--accent)" size={14} />
+      <header
+        className={stylexClassName(
+          "flex items-center gap-2 border-b border-(--line) px-3 py-2"
+        )}
+      >
+        <StateIcon
+          aria-hidden="true"
+          className={stylexClassName("text-(--accent)")}
+          size={14}
+        />
         <h2
-          className="font-mono text-[12px] font-semibold"
+          className={stylexClassName("font-mono text-[12px] font-semibold")}
           id="delivery-heading"
         >
           Production delivery
         </h2>
         <span
           aria-label={`Production delivery state: ${data.state}`}
-          className="ml-auto font-mono text-[10px] uppercase text-(--fg-secondary)"
+          className={stylexClassName(
+            "ml-auto font-mono text-[10px] uppercase text-(--fg-secondary)"
+          )}
         >
           {data.state.replaceAll("_", " ")}
         </span>
       </header>
 
-      <div className="grid gap-px bg-(--line) md:grid-cols-4">
+      <div
+        className={stylexClassName("grid gap-px bg-(--line) md:grid-cols-4")}
+      >
         <Summary
           label="release"
           value={
@@ -222,31 +235,55 @@ export function DeliveryConsolePanel({
         />
       </div>
 
-      <div className="grid gap-px border-t border-(--line) bg-(--line) lg:grid-cols-2">
+      <div
+        className={stylexClassName(
+          "grid gap-px border-t border-(--line) bg-(--line) lg:grid-cols-2"
+        )}
+      >
         <EvidenceSection label="Supply-chain evidence">
           {data.supplyChain.length === 0 ? (
             <EmptyLine text="No Workload trust evidence recorded." />
           ) : (
             data.supplyChain.map((workload) => (
               <article
-                className="border border-(--line) bg-(--bg-panel-muted) p-2"
+                className={stylexClassName(
+                  "border border-(--line) bg-(--bg-panel-muted) p-2"
+                )}
                 key={workload.workloadId}
               >
-                <div className="flex items-center gap-2 font-mono text-[10px]">
+                <div
+                  className={stylexClassName(
+                    "flex items-center gap-2 font-mono text-[10px]"
+                  )}
+                >
                   <PackageCheck aria-hidden="true" size={12} />
                   <span>{workload.workloadId}</span>
-                  <span className="ml-auto uppercase text-(--fg-tertiary)">
+                  <span
+                    className={stylexClassName(
+                      "ml-auto uppercase text-(--fg-tertiary)"
+                    )}
+                  >
                     {workload.signatureStatus}
                   </span>
                 </div>
-                <div className="mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)">
+                <div
+                  className={stylexClassName(
+                    "mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)"
+                  )}
+                >
                   {workload.artifactDigest}
                 </div>
-                <dl className="mt-2 grid grid-cols-[80px_minmax(0,1fr)] gap-x-2 text-[10px]">
+                <dl
+                  className={stylexClassName(
+                    "mt-2 grid grid-cols-[80px_minmax(0,1fr)] gap-x-2 text-[10px]"
+                  )}
+                >
                   <dt>SBOM</dt>
-                  <dd className="break-all">{workload.sbomReference}</dd>
+                  <dd className={stylexClassName("break-all")}>
+                    {workload.sbomReference}
+                  </dd>
                   <dt>provenance</dt>
-                  <dd className="break-all">
+                  <dd className={stylexClassName("break-all")}>
                     {workload.provenanceReference} · subject{" "}
                     {workload.provenanceSubjectMatches ? "matches" : "mismatch"}
                   </dd>
@@ -257,7 +294,11 @@ export function DeliveryConsolePanel({
         </EvidenceSection>
 
         <EvidenceSection label="Configuration and references">
-          <dl className="grid grid-cols-[90px_minmax(0,1fr)] gap-x-2 text-[10px]">
+          <dl
+            className={stylexClassName(
+              "grid grid-cols-[90px_minmax(0,1fr)] gap-x-2 text-[10px]"
+            )}
+          >
             <dt>desired</dt>
             <dd>{data.configuration.desiredRevisionId ?? "unknown"}</dd>
             <dt>active</dt>
@@ -267,17 +308,21 @@ export function DeliveryConsolePanel({
             <dt>drift</dt>
             <dd>{data.configuration.drifted ? "detected" : "none"}</dd>
           </dl>
-          <div className="mt-2 space-y-2">
+          <div className={stylexClassName("mt-2 flex flex-col gap-2")}>
             {data.configuration.secretReferences.length === 0 ? (
               <EmptyLine text="No Secret References recorded." />
             ) : (
               data.configuration.secretReferences.map((reference) => (
                 <article
-                  className="border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                  className={stylexClassName(
+                    "border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                  )}
                   key={reference.referenceId}
                 >
-                  <div className="font-mono">{reference.referenceId}</div>
-                  <div className="text-(--fg-tertiary)">
+                  <div className={stylexClassName("font-mono")}>
+                    {reference.referenceId}
+                  </div>
+                  <div className={stylexClassName("text-(--fg-tertiary)")}>
                     {reference.provider} · {reference.purpose} ·{" "}
                     {reference.scope} · {reference.status}
                     {reference.rotationRevision
@@ -292,18 +337,24 @@ export function DeliveryConsolePanel({
       </div>
 
       <EvidenceSection label="Environment Deployments">
-        <div className="grid gap-2 md:grid-cols-2">
+        <div className={stylexClassName("grid gap-2 md:grid-cols-2")}>
           {data.deployments.length === 0 ? (
             <EmptyLine text="No environment Deployment observation recorded." />
           ) : (
             data.deployments.map((deployment) => (
               <article
-                className="border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                className={stylexClassName(
+                  "border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                )}
                 key={`${deployment.environment}:${deployment.observedReleaseId}`}
               >
-                <div className="flex font-mono">
+                <div className={stylexClassName("flex font-mono")}>
                   <span>{deployment.environment}</span>
-                  <span className="ml-auto uppercase text-(--fg-tertiary)">
+                  <span
+                    className={stylexClassName(
+                      "ml-auto uppercase text-(--fg-tertiary)"
+                    )}
+                  >
                     {deployment.drifted
                       ? "drifted"
                       : deployment.fresh
@@ -311,7 +362,11 @@ export function DeliveryConsolePanel({
                         : "stale"}
                   </span>
                 </div>
-                <div className="mt-1 break-all text-(--fg-tertiary)">
+                <div
+                  className={stylexClassName(
+                    "mt-1 break-all text-(--fg-tertiary)"
+                  )}
+                >
                   desired {deployment.desiredReleaseId}
                   <br />
                   observed {deployment.observedReleaseId}
@@ -323,7 +378,11 @@ export function DeliveryConsolePanel({
           )}
         </div>
         {data.edge ? (
-          <p className="mt-2 text-[10px] text-(--fg-secondary)">
+          <p
+            className={stylexClassName(
+              "mt-2 text-[10px] text-(--fg-secondary)"
+            )}
+          >
             Edge {data.edge.contractId}:{" "}
             {data.edge.publicRoutes.join(", ") || "no public routes"}
           </p>
@@ -334,19 +393,29 @@ export function DeliveryConsolePanel({
         {data.canaryObservations.length === 0 ? (
           <EmptyLine text="No content-addressed canary Reliability Observation recorded." />
         ) : (
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className={stylexClassName("grid gap-2 md:grid-cols-2")}>
             {data.canaryObservations.map((observation) => (
               <article
-                className="border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                className={stylexClassName(
+                  "border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
+                )}
                 key={observation.observationId}
               >
-                <div className="flex font-mono">
+                <div className={stylexClassName("flex font-mono")}>
                   <span>revision {observation.observedRevision}</span>
-                  <span className="ml-auto uppercase text-(--fg-tertiary)">
+                  <span
+                    className={stylexClassName(
+                      "ml-auto uppercase text-(--fg-tertiary)"
+                    )}
+                  >
                     {observation.fresh ? "fresh" : "stale"}
                   </span>
                 </div>
-                <dl className="mt-2 grid grid-cols-[110px_minmax(0,1fr)] gap-x-2">
+                <dl
+                  className={stylexClassName(
+                    "mt-2 grid grid-cols-[110px_minmax(0,1fr)] gap-x-2"
+                  )}
+                >
                   <dt>window / samples</dt>
                   <dd>
                     {observation.observationWindowSeconds}s /{" "}
@@ -379,7 +448,7 @@ export function DeliveryConsolePanel({
                     {String(observation.availabilityCheckPassed)}
                   </dd>
                 </dl>
-                <p className="mt-2 text-(--fg-tertiary)">
+                <p className={stylexClassName("mt-2 text-(--fg-tertiary)")}>
                   workloads{" "}
                   {Object.entries(observation.workloadReadiness)
                     .map(
@@ -387,7 +456,7 @@ export function DeliveryConsolePanel({
                     )
                     .join(", ") || "none"}
                 </p>
-                <p className="text-(--fg-tertiary)">
+                <p className={stylexClassName("text-(--fg-tertiary)")}>
                   dependencies{" "}
                   {observation.dependencies
                     .map(
@@ -404,32 +473,46 @@ export function DeliveryConsolePanel({
       </EvidenceSection>
 
       <EvidenceSection label="GA support and operations">
-        <div className="divide-y divide-(--line)">
+        <div className={stylexClassName("grid")}>
           {gaEvidenceItems(data.gaOperations).length === 0 ? (
             <EmptyLine text="No GA support, recovery, performance, disaster, Contract, or security evidence recorded." />
           ) : (
             gaEvidenceItems(data.gaOperations).map(({ label, evidence }) => (
               <article
-                className="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-2 text-[10px] hover:bg-(--bg-row-hover)"
+                className={stylexClassName(
+                  "grid grid-cols-[150px_minmax(0,1fr)] gap-3 border-t border-(--line) px-3 py-2 text-[10px] first:border-t-0 hover:bg-(--bg-row-hover)"
+                )}
                 key={`${label}:${evidence.protocol}:${evidence.evidenceId}`}
               >
-                <div className="grid content-start gap-1 font-mono">
+                <div
+                  className={stylexClassName(
+                    "grid content-start gap-1 font-mono"
+                  )}
+                >
                   <span>{label}</span>
                   <span className={gaStatusClass(evidence)}>
                     {evidence.stale ? "stale" : evidence.status}
                   </span>
                 </div>
-                <div className="break-all font-mono text-[9px] text-(--fg-tertiary)">
+                <div
+                  className={stylexClassName(
+                    "break-all font-mono text-[9px] text-(--fg-tertiary)"
+                  )}
+                >
                   {evidence.evidenceId}
                 </div>
-                <dl className="grid grid-cols-[90px_minmax(0,1fr)] gap-x-2">
+                <dl
+                  className={stylexClassName(
+                    "grid grid-cols-[90px_minmax(0,1fr)] gap-x-2"
+                  )}
+                >
                   {Object.entries(evidence.subjects).map(([key, value]) => (
-                    <div className="contents" key={key}>
+                    <div className={stylexClassName("contents")} key={key}>
                       <dt>{key}</dt>
-                      <dd className="break-all">
+                      <dd className={stylexClassName("break-all")}>
                         {key === "storyId" ? (
                           <a
-                            className="text-(--accent)"
+                            className={stylexClassName("text-(--accent)")}
                             href={`/api/console/v1/stories/${encodeURIComponent(value)}`}
                           >
                             {value}
@@ -442,22 +525,37 @@ export function DeliveryConsolePanel({
                   ))}
                 </dl>
                 {Object.keys(evidence.details ?? {}).length > 0 ? (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-(--accent)">
+                  <details className={stylexClassName("mt-2")}>
+                    <summary
+                      className={stylexClassName(
+                        "cursor-pointer text-(--accent)"
+                      )}
+                    >
                       exact evidence
                     </summary>
-                    <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all border border-(--line) p-2 text-[9px] text-(--fg-tertiary)">
+                    <pre
+                      className={stylexClassName(
+                        "mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all border border-(--line) p-2 text-[9px] text-(--fg-tertiary)"
+                      )}
+                    >
                       {JSON.stringify(evidence.details, null, 2)}
                     </pre>
                   </details>
                 ) : null}
                 {evidence.issueCodes.length > 0 ? (
-                  <p className="mt-2 font-mono text-[9px] text-(--danger)">
+                  <p
+                    className={stylexClassName(
+                      "mt-2 font-mono text-[9px] text-(--danger)"
+                    )}
+                  >
                     {evidence.issueCodes.join(", ")}
                   </p>
                 ) : null}
                 {evidence.nextActions.map((action) => (
-                  <p className="mt-1 text-(--accent)" key={action}>
+                  <p
+                    className={stylexClassName("mt-1 text-(--accent)")}
+                    key={action}
+                  >
                     next: {action}
                   </p>
                 ))}
@@ -469,25 +567,37 @@ export function DeliveryConsolePanel({
 
       <div
         aria-label="Production delivery timeline"
-        className="border-t border-(--line) p-3"
+        className={stylexClassName("border-t border-(--line) p-3")}
       >
-        <h3 className="mb-2 font-mono text-[10px] uppercase">
+        <h3 className={stylexClassName("mb-2 font-mono text-[10px] uppercase")}>
           Promotion, canary, and rollback timeline
         </h3>
         {timeline.length === 0 ? (
           <EmptyLine text="No rollout timeline evidence recorded." />
         ) : (
-          <ol className="divide-y divide-(--line)">
+          <ol className={stylexClassName("grid")}>
             {timeline.map((entry) => (
               <li
-                className="grid grid-cols-[96px_minmax(0,1fr)_minmax(120px,0.7fr)] gap-3 px-3 py-2"
+                className={stylexClassName(
+                  "grid grid-cols-[96px_minmax(0,1fr)_minmax(120px,0.7fr)] gap-3 border-t border-(--line) px-3 py-2 first:border-t-0"
+                )}
                 key={`${entry.protocol}:${entry.artifactId}`}
               >
-                <div className="font-mono text-[9px] text-(--fg-tertiary)">
+                <div
+                  className={stylexClassName(
+                    "font-mono text-[9px] text-(--fg-tertiary)"
+                  )}
+                >
                   {entry.state}
                 </div>
-                <div className="break-all text-[10px]">{entry.protocol}</div>
-                <div className="font-mono text-[9px] text-(--fg-tertiary)">
+                <div className={stylexClassName("break-all text-[10px]")}>
+                  {entry.protocol}
+                </div>
+                <div
+                  className={stylexClassName(
+                    "font-mono text-[9px] text-(--fg-tertiary)"
+                  )}
+                >
                   {entry.artifactId}
                 </div>
                 <EvidenceLinks references={entry.evidenceReferences} />
@@ -500,25 +610,37 @@ export function DeliveryConsolePanel({
       {data.issues.length > 0 ? (
         <div
           aria-label="Production delivery issues"
-          className="border-t border-(--line) p-3"
+          className={stylexClassName("border-t border-(--line) p-3")}
         >
           {data.issues.map((issue) => (
             <article
-              className="grid grid-cols-[minmax(140px,0.5fr)_minmax(0,1fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
+              className={stylexClassName(
+                "grid grid-cols-[minmax(140px,0.5fr)_minmax(0,1fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
+              )}
               key={`${issue.code}:${issue.message}`}
             >
-              <h3 className="font-mono text-[10px] font-semibold">
+              <h3
+                className={stylexClassName(
+                  "font-mono text-[10px] font-semibold"
+                )}
+              >
                 {issue.code}
               </h3>
-              <p className="text-[11px] text-(--fg-secondary)">
+              <p
+                className={stylexClassName("text-[11px] text-(--fg-secondary)")}
+              >
                 {issue.message}
               </p>
-              <p className="text-[10px] text-(--fg-tertiary)">
+              <p
+                className={stylexClassName("text-[10px] text-(--fg-tertiary)")}
+              >
                 remediation: {issue.remediation}
               </p>
               {issue.nextActions.map((action) => (
                 <p
-                  className="font-mono text-[9px] text-(--accent)"
+                  className={stylexClassName(
+                    "font-mono text-[9px] text-(--accent)"
+                  )}
                   key={action}
                 >
                   next: {action}
@@ -530,7 +652,11 @@ export function DeliveryConsolePanel({
         </div>
       ) : null}
 
-      <footer className="flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)">
+      <footer
+        className={stylexClassName(
+          "flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)"
+        )}
+      >
         <ShieldCheck aria-hidden="true" size={12} /> Console only reads redacted
         delivery evidence and holds no cluster, signing, or Secret Provider
         authority.
@@ -615,8 +741,10 @@ function EvidenceSection({
   label: string;
 }) {
   return (
-    <section className="bg-(--bg-panel) p-3">
-      <h3 className="mb-2 font-mono text-[10px] uppercase">{label}</h3>
+    <section className={stylexClassName("bg-(--bg-panel) p-3")}>
+      <h3 className={stylexClassName("mb-2 font-mono text-[10px] uppercase")}>
+        {label}
+      </h3>
       {children}
     </section>
   );
@@ -627,10 +755,14 @@ function EvidenceLinks({ references }: { references: string[] }) {
     return null;
   }
   return (
-    <div className="mt-1 flex flex-wrap gap-2 font-mono text-[9px]">
+    <div
+      className={stylexClassName(
+        "mt-1 flex flex-wrap gap-2 font-mono text-[9px]"
+      )}
+    >
       {references.map((reference) => (
         <a
-          className="text-(--accent)"
+          className={stylexClassName("text-(--accent)")}
           href={`/api/console/v1/stories/${encodeURIComponent(reference)}`}
           key={reference}
         >
@@ -643,24 +775,36 @@ function EvidenceLinks({ references }: { references: string[] }) {
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-(--bg-panel) p-3">
-      <div className="font-mono text-[9px] uppercase text-(--fg-tertiary)">
+    <div className={stylexClassName("bg-(--bg-panel) p-3")}>
+      <div
+        className={stylexClassName(
+          "font-mono text-[9px] uppercase text-(--fg-tertiary)"
+        )}
+      >
         {label}
       </div>
-      <div className="mt-1 break-all text-[11px]">{value}</div>
+      <div className={stylexClassName("mt-1 break-all text-[11px]")}>
+        {value}
+      </div>
     </div>
   );
 }
 
 function EmptyLine({ text }: { text: string }) {
-  return <p className="text-[10px] text-(--fg-tertiary)">{text}</p>;
+  return (
+    <p className={stylexClassName("text-[10px] text-(--fg-tertiary)")}>
+      {text}
+    </p>
+  );
 }
 
 function DeliveryMessage({ role, text }: { role?: "alert"; text: string }) {
   return (
     <section
       aria-label="Production delivery"
-      className="border-b border-(--line) bg-(--bg-panel) p-3 text-[11px] text-(--fg-tertiary)"
+      className={stylexClassName(
+        "border-b border-(--line) bg-(--bg-panel) p-3 text-[11px] text-(--fg-tertiary)"
+      )}
       role={role}
     >
       {text}

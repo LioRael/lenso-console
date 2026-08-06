@@ -1,8 +1,11 @@
 import {
+  stylexClassName,
   Button,
   Input,
+  mergeStyleProps,
   Select,
   SettingsRow,
+  styles,
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "@lenso/console-ui";
@@ -64,11 +67,11 @@ export function SettingsPage() {
       description={copy.settings.description}
       title={copy.settings.title}
     >
-      <div className="settings-page">
+      <div className={stylexClassName("settings-page")}>
         <SettingsNavigation zh={zh} />
-        <div className="settings-page__content">
-          <header className="settings-page__header">
-            <div className="settings-page__header-copy">
+        <div className={stylexClassName("settings-page__content")}>
+          <header className={stylexClassName("settings-page__header")}>
+            <div className={stylexClassName("settings-page__header-copy")}>
               <h2>{zh ? "通用" : "General"}</h2>
               <p>
                 {zh
@@ -78,7 +81,7 @@ export function SettingsPage() {
             </div>
             <Select
               aria-label={copy.settings.theme}
-              className="settings-page__theme-select"
+              className={stylexClassName("settings-page__theme-select")}
               onChange={(event) =>
                 appearance.setPreference(
                   event.target.value as ConsoleThemePreference
@@ -92,8 +95,74 @@ export function SettingsPage() {
             </Select>
           </header>
 
+          {appearance.themeBundles.length > 0 ? (
+            <>
+              <SettingsRow
+                className={stylexClassName("settings-page__row")}
+                description={
+                  zh
+                    ? "主题包由 Console 管理员安装；操作员可以随时切换。"
+                    : "Theme Bundles are installed by Console administrators and can be switched by operators."
+                }
+                label={zh ? "主题包" : "Theme Bundle"}
+              >
+                <Select
+                  aria-label={zh ? "主题包" : "Theme Bundle"}
+                  value={appearance.bundleId ?? ""}
+                  onChange={(event) => {
+                    appearance.setBundleId(event.target.value || null);
+                    appearance.setVariantId(null);
+                    reloadThemeSelection();
+                  }}
+                >
+                  {appearance.themeBundles.map((bundle) => (
+                    <option key={bundle.bundleId} value={bundle.bundleId}>
+                      {bundle.manifest.displayName} ({bundle.bundleId})
+                    </option>
+                  ))}
+                </Select>
+              </SettingsRow>
+              {(() => {
+                const bundle = appearance.themeBundles.find(
+                  (candidate) => candidate.bundleId === appearance.bundleId
+                );
+                if (!bundle || bundle.manifest.variants.length < 2) {
+                  return null;
+                }
+                return (
+                  <SettingsRow
+                    className={stylexClassName("settings-page__row")}
+                    description={
+                      zh
+                        ? "主题包可以提供深色、浅色或自定义变体。"
+                        : "A Theme Bundle may provide dark, light, or custom variants."
+                    }
+                    label={zh ? "主题变体" : "Theme Variant"}
+                  >
+                    <Select
+                      aria-label={zh ? "主题变体" : "Theme Variant"}
+                      value={
+                        appearance.variantId ?? bundle.manifest.defaultVariant
+                      }
+                      onChange={(event) => {
+                        appearance.setVariantId(event.target.value);
+                        reloadThemeSelection();
+                      }}
+                    >
+                      {bundle.manifest.variants.map((variant) => (
+                        <option key={variant.id} value={variant.id}>
+                          {variant.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </SettingsRow>
+                );
+              })()}
+            </>
+          ) : null}
+
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "显示给操作员，并写入导出的证据。"
@@ -103,13 +172,13 @@ export function SettingsPage() {
           >
             <Input
               aria-label={zh ? "工作区名称" : "Workspace name"}
-              className="settings-page__input"
+              className={stylexClassName("settings-page__input")}
               onChange={(event) => update("workspaceName", event.target.value)}
               value={draft.workspaceName}
             />
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "API 客户端使用的稳定标识符。"
@@ -119,13 +188,15 @@ export function SettingsPage() {
           >
             <Input
               aria-label={zh ? "工作区标识" : "Workspace slug"}
-              className="settings-page__input settings-page__input--mono"
+              className={stylexClassName(
+                "settings-page__input settings-page__input--mono"
+              )}
               onChange={(event) => update("workspaceSlug", event.target.value)}
               value={draft.workspaceSlug}
             />
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "运营视图的初始环境。"
@@ -145,7 +216,7 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "用于时间线显示与证据导出。"
@@ -165,13 +236,13 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={copy.settings.languageDescription}
             label={copy.settings.consoleLanguage}
           >
             <Select
               aria-label={copy.settings.consoleLanguage}
-              className="settings-page__select"
+              className={stylexClassName("settings-page__select")}
               onChange={(event) =>
                 locale.setPreference(
                   event.target.value as ConsoleLanguagePreference
@@ -185,7 +256,7 @@ export function SettingsPage() {
             </Select>
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "流式更新不可用时的轮询间隔。"
@@ -204,7 +275,7 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "操作员必须在审批前记录简明理由。"
@@ -225,7 +296,7 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "Agent 可以准备有边界的草稿，但不能批准。"
@@ -248,7 +319,7 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
-            className="settings-page__row"
+            className={stylexClassName("settings-page__row")}
             description={
               zh
                 ? "显示标记为实验性的 Console 页面。"
@@ -262,7 +333,7 @@ export function SettingsPage() {
               value={draft.experimentalSurfaces}
             />
           </SettingsRow>
-          <div className="settings-page__actions">
+          <div className={stylexClassName("settings-page__actions")}>
             <span aria-live="polite">
               {saved
                 ? copy.settings.saved
@@ -293,6 +364,12 @@ export function SettingsPage() {
   );
 }
 
+function reloadThemeSelection() {
+  if (typeof window !== "undefined") {
+    window.location.reload();
+  }
+}
+
 function SettingsNavigation({ zh }: { zh: boolean }) {
   const groups = zh
     ? [
@@ -309,29 +386,31 @@ function SettingsNavigation({ zh }: { zh: boolean }) {
       ];
   return (
     <nav
-      className="settings-page__navigation"
+      className={stylexClassName("settings-page__navigation")}
       aria-label={zh ? "设置分类" : "Settings categories"}
     >
       {groups.map(([label, items], groupIndex) => (
         <div
-          className="settings-page__navigation-group"
+          className={stylexClassName("settings-page__navigation-group")}
           data-first={groupIndex === 0 ? "true" : "false"}
           key={label as string}
         >
-          <div className="settings-page__navigation-label">
+          <div className={stylexClassName("settings-page__navigation-label")}>
             {label as string}
           </div>
-          <div className="settings-page__navigation-items">
+          <div className={stylexClassName("settings-page__navigation-items")}>
             {(items as string[]).map((item, itemIndex) => (
               <button
                 aria-current={
                   groupIndex === 0 && itemIndex === 0 ? "page" : undefined
                 }
-                className={`settings-page__navigation-item ${
-                  groupIndex === 0 && itemIndex === 0
-                    ? "settings-page__navigation-item--active"
-                    : ""
-                }`}
+                className={stylexClassName(
+                  `settings-page__navigation-item ${
+                    groupIndex === 0 && itemIndex === 0
+                      ? "settings-page__navigation-item--active"
+                      : ""
+                  }`
+                )}
                 key={item}
                 type="button"
               >
@@ -358,7 +437,7 @@ function SettingsSelect({
   return (
     <Select
       aria-label={label}
-      className="settings-page__select"
+      className={stylexClassName("settings-page__select")}
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -380,21 +459,23 @@ function SettingsToggle({
     <button
       aria-checked={value}
       aria-label={label}
-      className={`settings-page__toggle relative rounded-full border transition-colors ${
-        value
-          ? "border-(--fg-primary) bg-(--fg-primary)"
-          : "border-(--line-strong) bg-(--bg-control)"
-      }`}
+      {...mergeStyleProps(
+        undefined,
+        "settings-page__toggle",
+        styles.settingsToggle,
+        value ? styles.settingsToggleOn : styles.settingsToggleOff
+      )}
       onClick={() => onChange(!value)}
       role="switch"
       type="button"
     >
       <span
-        className={`settings-page__toggle-knob absolute rounded-full transition-transform ${
-          value
-            ? "translate-x-[13px] bg-(--bg-canvas)"
-            : "translate-x-0.5 bg-(--fg-tertiary)"
-        }`}
+        {...mergeStyleProps(
+          undefined,
+          "settings-page__toggle-knob",
+          styles.settingsToggleKnob,
+          value ? styles.settingsToggleKnobOn : styles.settingsToggleKnobOff
+        )}
       />
     </button>
   );

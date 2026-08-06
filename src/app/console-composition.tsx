@@ -1,4 +1,4 @@
-import { Button } from "@lenso/console-ui";
+import { Button, mergeStyleProps, styles } from "@lenso/console-ui";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { PropsWithChildren } from "react";
@@ -261,8 +261,17 @@ export function ConsoleCompositionGate({ children }: PropsWithChildren) {
 
 function CompositionStatus({ message }: { message: string }) {
   return (
-    <main className="grid min-h-screen place-items-center bg-(--background) p-6 text-(--foreground)">
-      <p className="text-sm text-(--muted)">{message}</p>
+    <main
+      {...mergeStyleProps(
+        undefined,
+        undefined,
+        styles.statusScreen,
+        styles.statusScreenPadded
+      )}
+    >
+      <p {...mergeStyleProps(undefined, undefined, styles.statusScreenMessage)}>
+        {message}
+      </p>
     </main>
   );
 }
@@ -278,26 +287,56 @@ function ConsoleRecoveryMode({
     (issue) => issue.code === "restore_workload_active"
   );
   return (
-    <main className="grid min-h-screen place-items-center bg-(--background) p-6 text-(--foreground)">
-      <section className="w-full max-w-3xl overflow-hidden rounded-[var(--radius-overlay)] border border-(--border) bg-(--surface)">
-        <div className="flex items-start gap-3 border-b border-(--border) p-5">
+    <main
+      {...mergeStyleProps(
+        undefined,
+        undefined,
+        styles.statusScreen,
+        styles.statusScreenPadded
+      )}
+    >
+      <section
+        {...mergeStyleProps(
+          undefined,
+          undefined,
+          styles.statusCard,
+          styles.statusCardOverlay
+        )}
+      >
+        <div {...mergeStyleProps(undefined, undefined, styles.recoveryHeader)}>
           <AlertTriangle
             aria-hidden="true"
-            className="mt-1 text-(--warning)"
+            {...mergeStyleProps(
+              undefined,
+              undefined,
+              styles.recoveryHeaderIcon
+            )}
             size={22}
           />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-(--muted)">
+            <p {...mergeStyleProps(undefined, undefined, styles.statusEyebrow)}>
               {restoreWorkloadActive
                 ? "Console Recovery Authority"
                 : "Console Bootstrap Diagnostics"}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold">
+            <h1
+              {...mergeStyleProps(
+                undefined,
+                undefined,
+                styles.statusTitleLarge
+              )}
+            >
               {restoreWorkloadActive
                 ? "Restore workload active"
                 : "Recovery Mode"}
             </h1>
-            <p className="mt-2 text-sm text-(--muted)">
+            <p
+              {...mergeStyleProps(
+                undefined,
+                undefined,
+                styles.statusDescription
+              )}
+            >
               {restoreWorkloadActive
                 ? "Management mutations and background processing remain disabled until reconciliation evidence is reviewed and activation transfers authority to the normal workload."
                 : "Management capabilities are disabled until every mandatory Console role has exactly one compatible Module binding."}
@@ -328,7 +367,7 @@ function ConsoleRecoveryMode({
           )}
         </div>
 
-        <div className="flex justify-end border-t border-(--border) p-3">
+        <div {...mergeStyleProps(undefined, undefined, styles.recoveryFooter)}>
           <Button onClick={onRetry} type="button">
             <RefreshCw aria-hidden="true" size={15} />
             Retry diagnostics
@@ -341,19 +380,27 @@ function ConsoleRecoveryMode({
 
 function RecoveryIssue({ issue }: { issue: ConsoleCompositionIssue }) {
   return (
-    <article className="border-b border-(--border-subtle) bg-(--background) px-5 py-4 last:border-b-0">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-(--muted)">
+    <article {...mergeStyleProps(undefined, undefined, styles.recoveryIssue)}>
+      <div {...mergeStyleProps(undefined, undefined, styles.recoveryIssueMeta)}>
         <code>{issue.code}</code>
         <span aria-hidden="true">·</span>
         <span>{roleLabel(issue.role)}</span>
       </div>
-      <p className="mt-2 text-sm font-medium">{issue.message}</p>
+      <p
+        {...mergeStyleProps(undefined, undefined, styles.recoveryIssueMessage)}
+      >
+        {issue.message}
+      </p>
       {issue.moduleIds.length > 0 ? (
-        <p className="mt-2 text-xs text-(--muted)">
+        <p
+          {...mergeStyleProps(undefined, undefined, styles.recoveryIssueDetail)}
+        >
           Modules: {issue.moduleIds.join(", ")}
         </p>
       ) : null}
-      <p className="mt-3 text-sm text-(--muted)">{issue.nextAction}</p>
+      <p {...mergeStyleProps(undefined, undefined, styles.recoveryIssueAction)}>
+        {issue.nextAction}
+      </p>
     </article>
   );
 }

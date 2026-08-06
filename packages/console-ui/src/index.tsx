@@ -183,6 +183,7 @@ export {
   Button,
   ConsolePage,
   DataRow,
+  DataGrid,
   DataTable,
   EmptyState,
   Field,
@@ -202,6 +203,7 @@ export {
   SurfaceGroupLabel,
   StatusMarker,
   StateView,
+  SurfaceRoot,
   SummaryStrip,
   SplitView,
   TableHeader,
@@ -215,6 +217,7 @@ export {
   type ConsoleUiComponents,
   type ControlSize,
   type DataRowProps,
+  type DataGridProps,
   type FilterControlProps,
   type IconButtonProps,
   type IconSlotProps,
@@ -224,8 +227,12 @@ export {
   type PaneHeaderProps,
   type SemanticTone,
   type StatusMarkerProps,
+  type ConsoleSurfaceRootProps,
   type SurfaceGroupLabelProps,
   type TableHeaderProps,
 } from "./ui.js";
 
 export * from "./host.js";
+
+export { mergeStyleProps, styles, type ConsoleStyle } from "./styles.js";
+export { stylexClassName } from "./stylex-utilities.js";

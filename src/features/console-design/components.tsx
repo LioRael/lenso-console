@@ -1,4 +1,5 @@
 import {
+  stylexClassName,
   ConsolePage,
   FilterControl,
   InlineStatus,
@@ -29,7 +30,9 @@ export function ProductPage({
 }>) {
   return (
     <ConsolePage
-      className={`product-page${pageClassName ? ` ${pageClassName}` : ""}`}
+      className={stylexClassName(
+        `product-page${pageClassName ? ` ${pageClassName}` : ""}`
+      )}
     >
       <ConsolePage.Header>
         <ConsolePage.Heading>
@@ -38,7 +41,7 @@ export function ProductPage({
         </ConsolePage.Heading>
         {meta ? <ConsolePage.Actions>{meta}</ConsolePage.Actions> : null}
       </ConsolePage.Header>
-      <ConsolePage.Body className="product-page__body">
+      <ConsolePage.Body className={stylexClassName("product-page__body")}>
         {children}
       </ConsolePage.Body>
     </ConsolePage>

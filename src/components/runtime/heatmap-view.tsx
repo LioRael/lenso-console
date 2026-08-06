@@ -1,3 +1,4 @@
+import { stylexClassName } from "@lenso/console-ui";
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -49,16 +50,26 @@ export function HeatmapView({
 
   if (loading) {
     return (
-      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
+      <div
+        className={stylexClassName(
+          "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
+        )}
+      >
         <RuntimeViewHeader
           meta="loading"
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 p-3">
+        <div
+          className={stylexClassName(
+            "grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 p-3"
+          )}
+        >
           {Array.from({ length: 120 }, (_, index) => (
             <div
-              className="h-6 min-h-6 rounded-[1px] border border-(--line) bg-(--bg-control)"
+              className={stylexClassName(
+                "h-6 min-h-6 rounded-[1px] border border-(--line) bg-(--bg-control)"
+              )}
               key={index}
             />
           ))}
@@ -69,13 +80,17 @@ export function HeatmapView({
 
   if (queryError) {
     return (
-      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
+      <div
+        className={stylexClassName(
+          "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
+        )}
+      >
         <RuntimeViewHeader
           meta="error"
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <EmptyState className="h-full bg-(--bg-panel)">
+        <EmptyState className={stylexClassName("h-full bg-(--bg-panel)")}>
           <EmptyState.Title>Heatmap unavailable</EmptyState.Title>
           <EmptyState.Description>{queryError.message}</EmptyState.Description>
         </EmptyState>
@@ -85,13 +100,17 @@ export function HeatmapView({
 
   if (!heatmap || heatmap.cells.length === 0) {
     return (
-      <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
+      <div
+        className={stylexClassName(
+          "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
+        )}
+      >
         <RuntimeViewHeader
           meta={heatmap ? `${heatmap.bucketSeconds}s buckets` : "no data"}
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <EmptyState className="h-full bg-(--bg-panel)">
+        <EmptyState className={stylexClassName("h-full bg-(--bg-panel)")}>
           <EmptyState.Title>No runtime heatmap data</EmptyState.Title>
           <EmptyState.Description>
             The backend returned an empty heatmap for the current runtime
@@ -105,7 +124,11 @@ export function HeatmapView({
   const maxCount = Math.max(1, ...heatmap.cells.map((cell) => cell.totalCount));
 
   return (
-    <div className="isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)">
+    <div
+      className={stylexClassName(
+        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
+      )}
+    >
       <RuntimeViewHeader
         meta={`${heatmap.bucketSeconds}s buckets`}
         summary={`${heatmap.cells.length} backend cells`}
@@ -119,8 +142,16 @@ export function HeatmapView({
             : "grid-cols-1"
         )}
       >
-        <div className="min-h-0 overflow-auto bg-(--bg-canvas) p-3">
-          <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5">
+        <div
+          className={stylexClassName(
+            "min-h-0 overflow-auto bg-(--bg-canvas) p-3"
+          )}
+        >
+          <div
+            className={stylexClassName(
+              "grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5"
+            )}
+          >
             {heatmap.cells.map((cell, index) => {
               const key = heatmapCellKey(cell, index);
               const nodes =
@@ -161,14 +192,22 @@ export function HeatmapView({
                   type="button"
                 >
                   {aggregateSelectable ? (
-                    <span className="absolute right-0.5 bottom-0.5 rounded-[1px] bg-(--bg-canvas)/80 px-1 font-mono text-[9px] text-(--fg-primary)">
+                    <span
+                      className={stylexClassName(
+                        "absolute right-0.5 bottom-0.5 rounded-[1px] bg-(--bg-canvas)/80 px-1 font-mono text-[9px] text-(--fg-primary)"
+                      )}
+                    >
                       {nodes.length}
                     </span>
                   ) : null}
                   {directlySelectable &&
                   selectedNodeId &&
                   selectedNodeId === nodes[0]?.id ? (
-                    <span className="absolute inset-1 border border-(--bg-canvas)" />
+                    <span
+                      className={stylexClassName(
+                        "absolute inset-1 border border-(--bg-canvas)"
+                      )}
+                    />
                   ) : null}
                 </button>
               );
@@ -204,28 +243,48 @@ function HeatmapCellInspector({
   onSelectNode: (node: ExecutionNode) => void;
 }) {
   return (
-    <aside className="min-h-0 overflow-hidden border-l border-(--line) bg-(--bg-panel)">
-      <div className="flex min-w-0 items-start gap-2 border-b border-(--line) px-3 py-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-mono text-[11px] font-semibold text-(--fg-primary)">
+    <aside
+      className={stylexClassName(
+        "min-h-0 overflow-hidden border-l border-(--line) bg-(--bg-panel)"
+      )}
+    >
+      <div
+        className={stylexClassName(
+          "flex min-w-0 items-start gap-2 border-b border-(--line) px-3 py-2"
+        )}
+      >
+        <div className={stylexClassName("min-w-0 flex-1")}>
+          <div
+            className={stylexClassName(
+              "truncate font-mono text-[11px] font-semibold text-(--fg-primary)"
+            )}
+          >
             {selected.cell.service} · {selected.cell.nodeType}
           </div>
-          <div className="mt-0.5 truncate font-mono text-[10px] text-(--fg-tertiary)">
+          <div
+            className={stylexClassName(
+              "mt-0.5 truncate font-mono text-[10px] text-(--fg-tertiary)"
+            )}
+          >
             {selected.cell.totalCount} total · {selected.cell.errorCount} errors
           </div>
         </div>
         <Button
           aria-label="Clear heatmap cell selection"
-          className="size-7 p-0"
+          className={stylexClassName("size-7 p-0")}
           onClick={onClear}
           variant="ghost"
         >
           <X size={13} />
         </Button>
       </div>
-      <div className="min-h-0 overflow-auto">
+      <div className={stylexClassName("min-h-0 overflow-auto")}>
         {selected.nodes.length === 0 ? (
-          <div className="p-3 font-mono text-[11px] text-(--fg-tertiary)">
+          <div
+            className={stylexClassName(
+              "p-3 font-mono text-[11px] text-(--fg-tertiary)"
+            )}
+          >
             No matching story nodes were found for this cell.
           </div>
         ) : (
@@ -241,18 +300,30 @@ function HeatmapCellInspector({
               onClick={() => onSelectNode(node)}
               type="button"
             >
-              <span className="flex min-w-0 items-center gap-2">
+              <span
+                className={stylexClassName("flex min-w-0 items-center gap-2")}
+              >
                 <span
-                  className="size-1.5 shrink-0 rounded-full"
+                  className={stylexClassName("size-1.5 shrink-0 rounded-full")}
                   style={{ backgroundColor: statusColor(node.status) }}
                 />
-                <span className="truncate text-[12px] font-semibold text-(--fg-primary)">
+                <span
+                  className={stylexClassName(
+                    "truncate text-[12px] font-semibold text-(--fg-primary)"
+                  )}
+                >
                   {node.name}
                 </span>
               </span>
-              <span className="flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)">
-                <span className="truncate">{node.service}</span>
-                <span className="ml-auto shrink-0">
+              <span
+                className={stylexClassName(
+                  "flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)"
+                )}
+              >
+                <span className={stylexClassName("truncate")}>
+                  {node.service}
+                </span>
+                <span className={stylexClassName("ml-auto shrink-0")}>
                   {formatRuntimeDuration(node.durationMs)}
                 </span>
               </span>

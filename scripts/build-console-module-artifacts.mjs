@@ -1,9 +1,12 @@
+/* eslint-disable func-style, sort-keys, unicorn/no-array-sort */
+
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import stylex from "@stylexjs/unplugin/vite";
 import react from "@vitejs/plugin-react";
 import { build } from "vite";
 
@@ -45,6 +48,21 @@ const releaseDigests = parseReleaseDigests(
   process.env.LENSO_MODULE_RELEASE_DIGESTS
 );
 const locatorBase = process.env.LENSO_CONSOLE_MODULE_ARTIFACT_BASE_URL;
+
+async function listFiles(directory, prefix = "") {
+  const files = [];
+  for (const entry of await readdir(join(directory, prefix), {
+    withFileTypes: true,
+  })) {
+    const relative = prefix ? join(prefix, entry.name) : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...(await listFiles(directory, relative)));
+    } else if (entry.isFile()) {
+      files.push(relative.replaceAll("\\", "/"));
+    }
+  }
+  return files;
+}
 
 const modules = [
   {
@@ -97,7 +115,24 @@ for (const module of modules) {
         },
       },
       configFile: false,
-      plugins: [react()],
+      plugins: [
+        react(),
+        stylex({
+          aliases: {
+            "@lenso/console-tokens/tokens.stylex": [
+              join(
+                root,
+                "packages",
+                "console-tokens",
+                "src",
+                "tokens.stylex.ts"
+              ),
+            ],
+          },
+          useCSSLayers: true,
+          devMode: "off",
+        }),
+      ],
       publicDir: false,
       resolve: {
         alias: [
@@ -137,6 +172,26 @@ for (const module of modules) {
               "index.tsx"
             ),
           },
+          {
+            find: /^@lenso\/console-tokens\/tokens\.stylex$/u,
+            replacement: join(
+              root,
+              "packages",
+              "console-tokens",
+              "src",
+              "tokens.stylex.ts"
+            ),
+          },
+          {
+            find: "@lenso/console-tokens",
+            replacement: join(
+              root,
+              "packages",
+              "console-tokens",
+              "src",
+              "index.ts"
+            ),
+          },
         ],
       },
       root,
@@ -150,10 +205,23 @@ for (const module of modules) {
     const locator = locatorBase
       ? `${locatorBase.replace(/\/+$/u, "")}/${archiveName}`
       : null;
+    const distRoot = join(packageRoot, "dist");
+    const outputFiles = await listFiles(distRoot);
+    const styleAssets = outputFiles
+      .filter((file) => file.endsWith(".css"))
+      .sort()
+      .map((path, order) => ({ order, path }));
+    const entries = [
+      { name: "module", path: "index.js" },
+      ...styleAssets.map((asset) => ({
+        name: `style-${asset.order}`,
+        path: asset.path,
+      })),
+    ];
     artifacts.push({
       artifactDigest,
       artifactFile: archiveName,
-      entries: [{ name: "module", path: "index.js" }],
+      entries,
       entry: "index.js",
       format: "console_ui_esm",
       locator,
@@ -161,6 +229,7 @@ for (const module of modules) {
       moduleId: module.id,
       moduleReleaseDigest: releaseDigest,
       requestedPermissions: [],
+      styleAssets,
     });
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });
