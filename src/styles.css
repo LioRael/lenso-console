@@ -94,18 +94,13 @@ textarea {
   width: 139px;
 }
 
-.system-page .system-filter-control__select {
-  width: 100%;
-  border-color: var(--line);
-  color: var(--fg-secondary);
-  font-weight: 500;
-}
-
 .services-page .product-page__body {
+  display: flex;
+  flex-direction: column;
   height: calc(100vh - 144px);
   min-height: 0;
   overflow: hidden;
-  padding-bottom: 32px;
+  padding-bottom: 0;
 }
 
 .services-page .lenso-ui-page__description {
@@ -120,8 +115,8 @@ textarea {
 }
 
 .services-page__workspace {
-  height: 676px;
-  min-height: 676px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .services-page .lenso-ui-inline-status {
@@ -129,30 +124,30 @@ textarea {
 }
 
 .services-page .lenso-ui-data-grid {
-  max-height: 430px;
+  flex: 1 1 auto;
+  gap: 0;
+  min-height: 0;
+  max-height: none;
   border-bottom: 1px solid var(--line-subtle);
+  background: var(--bg-canvas);
+  overscroll-behavior-y: none;
   overflow-y: auto;
 }
 
-.services-filter-control {
-  position: relative;
-  display: inline-flex;
-  height: 28px;
+.services-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.services-page .lenso-ui-data-grid > .lenso-ui-data-row {
+  border-bottom: 1px solid var(--line-subtle);
 }
 
-.services-filter-control__select {
-  width: 100%;
-  min-width: 0;
-  height: 28px;
-  min-height: 28px;
-  appearance: none;
-  padding: 0 28px 0 10px;
-  border-color: var(--line-strong);
-  border-radius: 6px;
-  color: var(--fg-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 16px;
+.services-page,
+.services-page__workspace .lenso-ui-split-view__main {
+  overscroll-behavior-y: none;
+}
+
+.services-page__workspace .lenso-ui-split-view__main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .services-page__filters .services-filter-control:nth-child(1) {
@@ -167,12 +162,8 @@ textarea {
   width: 101px;
 }
 
-.services-filter-control__icon {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  pointer-events: none;
-  color: var(--fg-tertiary);
+.services-page__filters {
+  flex: 0 0 48px;
 }
 
 .services-page__empty {
@@ -370,33 +361,6 @@ textarea {
 .product-page__filters {
   border-top: 1px solid var(--line-subtle);
   border-bottom: 1px solid var(--line-subtle);
-}
-
-.system-filter-control {
-  position: relative;
-  display: inline-flex;
-  height: 28px;
-}
-
-.system-filter-control__select {
-  width: max-content;
-  min-width: 0;
-  height: 28px;
-  min-height: 28px;
-  appearance: none;
-  padding: 0 28px 0 10px;
-  border-color: var(--line-strong);
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.system-filter-control__icon {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  pointer-events: none;
-  color: var(--fg-tertiary);
 }
 
 .system-page__empty {
@@ -883,13 +847,6 @@ textarea {
   padding-left: 27px;
 }
 
-.modules-page__filter-control {
-  position: relative;
-  display: inline-flex;
-  height: 28px;
-  min-width: 0;
-}
-
 .modules-page__filter-control--source {
   width: 96px;
 }
@@ -900,27 +857,6 @@ textarea {
 
 .modules-page__filter-control--state {
   width: 87px;
-}
-
-.modules-page__filter-select {
-  width: 100%;
-  min-width: 0;
-  height: 28px;
-  min-height: 28px;
-  appearance: none;
-  padding: 0 27px 0 10px;
-  border-color: var(--line-strong);
-  border-radius: 6px;
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.modules-page__filter-icon {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  pointer-events: none;
-  color: var(--fg-tertiary);
 }
 
 .modules-page__workspace {
@@ -1004,42 +940,44 @@ textarea {
 
 .settings-page {
   display: grid;
-  min-height: calc(100vh - 192px);
   grid-template-columns: 236px minmax(0, 1fr);
+  min-height: calc(100vh - 153px);
+  margin-top: 1px;
 }
 
 .settings-page__navigation {
   min-width: 0;
-  padding: 16px 24px 0 0;
-  border-right: 1px solid var(--line);
+  padding: 20px 24px 0 0;
 }
 
 .settings-page__navigation-group[data-first="false"] {
-  margin-top: 20px;
+  margin-top: 18px;
 }
 
 .settings-page__navigation-label {
-  padding: 0 8px;
+  padding: 0 10px;
   color: var(--fg-tertiary);
   font-size: 10px;
-  line-height: 16px;
+  font-weight: 500;
+  line-height: 14px;
 }
 
 .settings-page__navigation-items {
   display: grid;
   gap: 2px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .settings-page__navigation-item {
   height: 32px;
-  padding: 0 8px;
+  padding: 0 10px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
   color: var(--fg-secondary);
   font: inherit;
   font-size: 12px;
+  font-weight: 400;
   line-height: 16px;
   text-align: left;
 }
@@ -1049,6 +987,7 @@ textarea {
 .settings-page__navigation-item--active {
   background: var(--bg-row-hover);
   color: var(--fg-primary);
+  font-weight: 500;
 }
 
 .settings-page__navigation-item:focus-visible {
@@ -1057,17 +996,24 @@ textarea {
 }
 
 .settings-page__content {
+  position: relative;
   min-width: 0;
   padding-left: 36px;
 }
 
+.settings-page__content::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: var(--line-subtle);
+  content: "";
+}
+
 .settings-page__header {
-  display: flex;
-  min-height: 68px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  border-bottom: 1px solid var(--line);
+  min-height: 83px;
+  padding-top: 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .settings-page__header-copy {
@@ -1079,26 +1025,22 @@ textarea {
   color: var(--fg-primary);
   font-size: 18px;
   font-weight: 600;
-  line-height: 24px;
+  line-height: 26px;
 }
 
 .settings-page__header-copy p {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--fg-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.settings-page__theme-select,
 .settings-page__select,
 .settings-page__input {
   height: 32px;
   min-height: 32px;
-  font-size: 12px;
-}
-
-.settings-page__theme-select {
-  width: 128px;
+  font-size: 11px;
+  line-height: 16px;
 }
 
 .settings-page__select,
@@ -1106,33 +1048,63 @@ textarea {
   width: 300px;
 }
 
+.settings-page__select {
+  line-height: 16px !important;
+}
+
 .settings-page__input--mono {
   font-family: var(--font-code);
 }
 
 .settings-page__row {
-  min-height: 70px;
+  min-height: 68px;
+  margin-bottom: 1px;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 32px;
   padding: 0;
+  position: relative;
   border-top: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.settings-page__row::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: var(--line-subtle);
+  content: "";
+}
+
+.settings-page__row--toggle {
+  min-height: 60px;
+}
+
+.settings-page__row--toggle .lenso-ui-settings-row__control {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-page__row--toggle .settings-page__toggle {
+  margin-right: 36px;
 }
 
 .settings-page__row .lenso-ui-settings-row__label {
   font-size: 12px;
-  line-height: 17px;
+  line-height: 18px;
 }
 
 .settings-page__row .lenso-ui-settings-row__description {
   margin-top: 2px;
   font-size: 11px;
   line-height: 16px;
+  color: var(--fg-secondary);
 }
 
 .settings-page__actions {
   display: flex;
-  height: 64px;
+  height: 48px;
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
@@ -1143,19 +1115,64 @@ textarea {
 
 .settings-page__actions .lenso-ui-button {
   min-height: 32px;
+  width: 99px;
   padding: 0 12px;
+  line-height: 16px;
 }
 
 .settings-page__toggle {
-  width: 28px;
-  height: 16px;
+  width: 30px;
+  height: 18px;
 }
 
 .settings-page__toggle-knob {
-  top: 2px;
-  left: 2px;
+  top: 3px;
+  left: 3px;
   width: 10px;
   height: 10px;
+}
+
+.settings-page__toggle[aria-checked="true"] .settings-page__toggle-knob {
+  transform: translateX(14px);
+}
+
+.settings-page__toggle[aria-checked="false"] .settings-page__toggle-knob {
+  transform: translateX(0.5px);
+}
+
+.settings-page__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.settings-product-page .lenso-ui-page__header {
+  position: relative;
+  border-bottom: 0;
+}
+
+.settings-product-page .lenso-ui-page__header::after {
+  position: absolute;
+  right: 40px;
+  bottom: -1px;
+  left: 40px;
+  height: 1px;
+  background: var(--line-subtle);
+  content: "";
+}
+
+.settings-product-page .product-page__body {
+  padding-bottom: 8px;
+}
+
+.settings-product-page .lenso-ui-page__description {
+  color: var(--fg-secondary);
 }
 
 .runtime-page__meta {
@@ -1590,6 +1607,173 @@ code,
 .runtime-stories-explorer,
 .runtime-stories-main {
   min-width: 0;
+}
+
+/* Keep list-oriented product pages inside the viewport. The page owns the
+ * available height; only the data/list surface is allowed to scroll. */
+.system-page .product-page__body,
+.modules-page .product-page__body,
+.changes-page .product-page__body,
+.delivery-page .product-page__body,
+.runtime-page .product-page__body {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 144px);
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.system-page__workspace,
+.modules-page__workspace,
+.changes-page__workspace,
+.delivery-page__workspace,
+.runtime-page__workspace {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.system-page__filters,
+.modules-page__filters {
+  flex: 0 0 48px;
+}
+
+.changes-page__tabs,
+.runtime-page__tabs {
+  flex: 0 0 41px;
+}
+
+.system-page,
+.modules-page,
+.changes-page,
+.delivery-page,
+.runtime-page,
+.services-page {
+  overscroll-behavior-y: none;
+  overflow: hidden;
+}
+
+.services-page__workspace .lenso-ui-split-view__main,
+.system-page__workspace .lenso-ui-split-view__main,
+.modules-page__workspace .lenso-ui-split-view__main,
+.changes-page__workspace .lenso-ui-split-view__main,
+.delivery-page__workspace .lenso-ui-split-view__main,
+.runtime-page__workspace .lenso-ui-split-view__main {
+  overscroll-behavior-y: none;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.services-page .lenso-ui-data-grid,
+.system-page .lenso-ui-data-grid,
+.modules-page .lenso-ui-data-grid,
+.runtime-page .lenso-ui-data-grid {
+  flex: 1 1 auto;
+  gap: 0;
+  min-height: 0;
+  max-height: none;
+  border-bottom: 1px solid var(--line-subtle);
+  background: var(--bg-canvas);
+  overscroll-behavior-y: none;
+  overflow: visible;
+}
+
+.services-page .lenso-ui-pane-header,
+.system-page .lenso-ui-pane-header,
+.modules-page .lenso-ui-pane-header,
+.runtime-page .lenso-ui-pane-header,
+.changes-page__list-header,
+.delivery-page__candidate-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-canvas);
+}
+
+.services-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.system-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.modules-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.runtime-page .lenso-ui-data-grid > .lenso-ui-table-header {
+  position: sticky;
+  top: var(--console-pane-header-height);
+  z-index: 1;
+  background: var(--bg-canvas);
+}
+
+.system-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.system-page .lenso-ui-data-grid > .lenso-ui-data-row,
+.modules-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.modules-page .lenso-ui-data-grid > .lenso-ui-data-row,
+.runtime-page .lenso-ui-data-grid > .lenso-ui-table-header,
+.runtime-page .lenso-ui-data-grid > .lenso-ui-data-row {
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.modules-page__table-pane {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  height: auto;
+  overflow: visible;
+}
+
+.changes-page__list {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  height: auto;
+  overflow: visible;
+}
+
+.changes-page__list-header {
+  flex: 0 0 58px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.changes-page__rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  padding-bottom: 0;
+  background: var(--bg-canvas);
+  overscroll-behavior-y: none;
+  overflow: visible;
+}
+
+.changes-page__empty,
+.changes-page__row {
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.delivery-page__candidate-pane {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  height: auto;
+  overflow: visible;
+}
+
+.delivery-page__candidate-header {
+  flex: 0 0 68px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.delivery-page__candidate-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  background: var(--bg-canvas);
+  overscroll-behavior-y: none;
+  overflow: visible;
+}
+
+.delivery-page__candidate {
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 @media (max-width: 720px) {

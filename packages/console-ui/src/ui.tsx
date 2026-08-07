@@ -520,6 +520,47 @@ export function FilterControl({
   );
 }
 
+export type FilterSelectProps = PropsWithChildren<
+  SelectHTMLAttributes<HTMLSelectElement> & {
+    icon: ReactNode;
+    selectClassName?: string;
+    stylex?: ConsoleStyle;
+  }
+>;
+
+export function FilterSelect({
+  children,
+  className,
+  icon,
+  selectClassName,
+  stylex: stylexStyle,
+  ...props
+}: FilterSelectProps) {
+  return (
+    <label
+      {...mergeStyleProps(
+        stylexStyle,
+        classes("lenso-ui-filter-select", className),
+        styles.filterSelectRoot
+      )}
+    >
+      <select
+        {...mergeStyleProps(
+          undefined,
+          classes("lenso-ui-filter-select__select", selectClassName),
+          styles.filterSelect
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      <IconSlot aria-hidden="true" size={12} stylex={styles.filterSelectIcon}>
+        {icon}
+      </IconSlot>
+    </label>
+  );
+}
+
 export type PaneHeaderProps = PropsWithChildren<
   ComponentPropsWithoutRef<"header"> & {
     meta?: ReactNode;
@@ -2245,6 +2286,7 @@ export interface ConsoleUiComponents {
   EmptyState: typeof EmptyState;
   Field: typeof Field;
   FilterControl: typeof FilterControl;
+  FilterSelect: typeof FilterSelect;
   IconButton: typeof IconButton;
   IconSlot: typeof IconSlot;
   Input: typeof Input;
@@ -2277,6 +2319,7 @@ export const consoleUi: ConsoleUiComponents = {
   EmptyState,
   Field,
   FilterControl,
+  FilterSelect,
   IconButton,
   IconSlot,
   InlineStatus,

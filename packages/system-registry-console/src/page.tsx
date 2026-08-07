@@ -5,12 +5,11 @@ import {
   ConsolePage,
   DataGrid,
   DataRow,
-  IconSlot,
+  FilterSelect,
   InlineStatus,
   Inspector,
   mergeStyleProps,
   PaneHeader,
-  Select,
   SplitView,
   styles,
   StateView,
@@ -282,28 +281,19 @@ function ServiceFilterSelect({
   value: ServiceFilterValue;
 }) {
   return (
-    <label className={stylexClassName("services-filter-control")}>
-      <span className={stylexClassName("sr-only")}>{ariaLabel}</span>
-      <Select
-        aria-label={ariaLabel}
-        className={stylexClassName("services-filter-control__select")}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </Select>
-      <IconSlot
-        aria-hidden="true"
-        className={stylexClassName("services-filter-control__icon")}
-        size={12}
-      >
-        <ChevronDown size={12} strokeWidth={1.5} />
-      </IconSlot>
-    </label>
+    <FilterSelect
+      aria-label={ariaLabel}
+      className={stylexClassName("services-filter-control")}
+      icon={<ChevronDown size={12} strokeWidth={1.5} />}
+      onChange={(event) => onChange(event.currentTarget.value)}
+      value={value}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </FilterSelect>
   );
 }
 

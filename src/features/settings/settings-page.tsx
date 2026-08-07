@@ -11,10 +11,7 @@ import {
 } from "@lenso/console-ui";
 import { useState } from "react";
 
-import {
-  useConsoleAppearance,
-  type ConsoleThemePreference,
-} from "../../app/console-appearance";
+import { useConsoleAppearance } from "../../app/console-appearance";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
 import { ProductPage } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
@@ -37,8 +34,8 @@ const defaultGeneralSettings: GeneralSettings = {
   manualApprovalReason: true,
   refreshInterval: "15",
   timeZone: "Asia/Shanghai",
-  workspaceName: "leosouthey's team",
-  workspaceSlug: "leosouthey-team",
+  workspaceName: "Leo's team",
+  workspaceSlug: "leos-team",
 };
 
 export function SettingsPage() {
@@ -65,6 +62,7 @@ export function SettingsPage() {
   return (
     <ProductPage
       description={copy.settings.description}
+      pageClassName="settings-product-page"
       title={copy.settings.title}
     >
       <div className={stylexClassName("settings-page")}>
@@ -79,20 +77,6 @@ export function SettingsPage() {
                   : "Identity and defaults for this Console workspace."}
               </p>
             </div>
-            <Select
-              aria-label={copy.settings.theme}
-              className={stylexClassName("settings-page__theme-select")}
-              onChange={(event) =>
-                appearance.setPreference(
-                  event.target.value as ConsoleThemePreference
-                )
-              }
-              value={appearance.preference}
-            >
-              <option value="system">{copy.settings.followSystem}</option>
-              <option value="dark">{copy.settings.dark}</option>
-              <option value="light">{copy.settings.light}</option>
-            </Select>
           </header>
 
           {appearance.themeBundles.length > 0 ? (
@@ -275,7 +259,9 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            className={stylexClassName(
+              "settings-page__row settings-page__row--toggle"
+            )}
             description={
               zh
                 ? "操作员必须在审批前记录简明理由。"
@@ -296,7 +282,9 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            className={stylexClassName(
+              "settings-page__row settings-page__row--toggle"
+            )}
             description={
               zh
                 ? "Agent 可以准备有边界的草稿，但不能批准。"
@@ -319,7 +307,9 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            className={stylexClassName(
+              "settings-page__row settings-page__row--toggle"
+            )}
             description={
               zh
                 ? "显示标记为实验性的 Console 页面。"
@@ -334,7 +324,10 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <div className={stylexClassName("settings-page__actions")}>
-            <span aria-live="polite">
+            <span
+              aria-live="polite"
+              className={stylexClassName("settings-page__status")}
+            >
               {saved
                 ? copy.settings.saved
                 : isDirty

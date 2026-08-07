@@ -7,6 +7,7 @@ import {
   consoleModulesForDevMode,
   consoleNavigation,
   defineConsoleModule,
+  findConsoleRoute,
   selectDefaultConsoleRoute,
 } from "./console-modules";
 import { buildWorkspaceNavigation } from "./console-workspace-navigation";
@@ -94,6 +95,15 @@ describe("Console Module composition", () => {
       "/delivery",
       "/settings",
     ]);
+  });
+
+  test("resolves a linked Module Surface by path for the mock route", () => {
+    const routes = buildConsoleRoutes(consoleModulesForDevMode("mock"));
+
+    expect(findConsoleRoute("/services", routes)).toMatchObject({
+      moduleId: "lenso/system-registry",
+      path: "/services",
+    });
   });
 
   test("places runtime-owned navigation after the host Runtime surface", () => {

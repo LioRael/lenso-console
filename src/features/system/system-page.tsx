@@ -2,10 +2,9 @@ import {
   stylexClassName,
   DataGrid,
   DataRow,
-  IconSlot,
+  FilterSelect,
   mergeStyleProps,
   PaneHeader,
-  Select,
   styles,
   TableHeader,
   useConsoleLocale,
@@ -230,27 +229,18 @@ function SystemFilterSelect({
   value: SystemInventoryFilterValue;
 }) {
   return (
-    <label className={stylexClassName("system-filter-control")}>
-      <span className={stylexClassName("sr-only")}>{ariaLabel}</span>
-      <Select
-        aria-label={ariaLabel}
-        className={stylexClassName("system-filter-control__select")}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </Select>
-      <IconSlot
-        aria-hidden="true"
-        className={stylexClassName("system-filter-control__icon")}
-        size={12}
-      >
-        <ChevronDown size={12} strokeWidth={1.5} />
-      </IconSlot>
-    </label>
+    <FilterSelect
+      aria-label={ariaLabel}
+      className={stylexClassName("system-filter-control")}
+      icon={<ChevronDown size={12} strokeWidth={1.5} />}
+      onChange={(event) => onChange(event.currentTarget.value)}
+      value={value}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </FilterSelect>
   );
 }
