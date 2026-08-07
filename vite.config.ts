@@ -22,7 +22,12 @@ const startPlugin = isVitest
           prerender: {
             crawlLinks: false,
             outputPath: "/index.html",
-            retryCount: 0,
+            // The preview server is started asynchronously by TanStack Start.
+            // CI runners can need a few hundred milliseconds before its port is
+            // accepting connections; retry the shell request without hiding
+            // genuine render failures.
+            retryCount: 5,
+            retryDelay: 250,
           },
         },
       }),
