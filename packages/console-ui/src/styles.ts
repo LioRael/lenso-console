@@ -11,6 +11,7 @@ import { tokens } from "./console-ui-tokens.stylex.js";
  */
 export const styles = stylex.create({
   surfaceRoot: {
+    height: "100%",
     minHeight: 0,
     minWidth: 0,
   },
@@ -1083,7 +1084,7 @@ export const styles = stylex.create({
     borderBottomWidth: 1,
     display: "flex",
     height: tokens.toolbarHeight,
-    paddingInline: 40,
+    paddingInline: 32,
   },
   shellBreadcrumb: {
     color: tokens.foregroundTertiary,

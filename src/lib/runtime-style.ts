@@ -4,19 +4,7 @@ import type {
   ExecutionNode,
 } from "../data/mock-runtime";
 
-const serviceColors = [
-  "#45c7dd",
-  "#2fbf71",
-  "#4f8cff",
-  "#a78bfa",
-  "#d89b25",
-  "#14b8a6",
-  "#f472b6",
-  "#778394",
-] as const;
-
 const semanticServiceColors: Record<string, string> = {
-  audit: "var(--accent)",
   billing: "var(--tone-warning-fg)",
   console: "var(--tone-success-fg)",
   customer: "var(--tone-info-fg)",
@@ -63,11 +51,7 @@ export function serviceColor(service: string) {
     return semanticColor;
   }
 
-  const hash = [...service].reduce(
-    (total, char) => total + (char.codePointAt(0) ?? 0),
-    0
-  );
-  return serviceColors[hash % serviceColors.length];
+  return "var(--fg-secondary)";
 }
 
 export function runtimeStoryStats(story: RuntimeStory) {

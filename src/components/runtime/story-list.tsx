@@ -41,7 +41,7 @@ export function StoryList({
         <div>
           <h2
             className={stylexClassName(
-              "text-sm font-semibold tracking-tight text-(--fg-primary)"
+              "text-sm font-semibold text-(--fg-primary)"
             )}
           >
             {zh ? "业务故事" : "Stories"}
@@ -81,8 +81,8 @@ export function StoryList({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={
             zh
-              ? "筛选故事 / 服务 / 关联..."
-              : "filter story / service / correlation..."
+              ? "筛选故事 / 服务 / 关联…"
+              : "filter story / service / correlation…"
           }
           value={query}
         />
@@ -130,7 +130,7 @@ export function StoryList({
               >
                 <div
                   className={stylexClassName(
-                    "flex h-[18px] items-center gap-1.5"
+                    "flex h-[18px] w-full items-center gap-1.5"
                   )}
                 >
                   <span
@@ -145,16 +145,22 @@ export function StoryList({
                     className={stylexClassName(
                       "w-[120px] shrink-0 truncate text-[12px] font-medium text-(--fg-primary)"
                     )}
+                    style={{
+                      fontVariationSettings: '"wdth" 100',
+                      height: 16,
+                      lineHeight: "16px",
+                    }}
                   >
                     {storySummary.title}
                   </span>
                   <span
                     className={cn(
-                      "ml-auto text-[8.5px] font-medium",
+                      "font-sans text-[8.5px] font-medium leading-[14px]",
                       isError
                         ? "text-(--tone-error-fg)"
                         : "text-(--fg-tertiary)"
                     )}
+                    style={{ fontVariationSettings: '"wdth" 100' }}
                   >
                     {storySummary.status}
                   </span>
@@ -164,10 +170,9 @@ export function StoryList({
                   className={stylexClassName(
                     "font-mono text-[10px] leading-[14px] text-(--fg-secondary)"
                   )}
+                  style={{ whiteSpace: "pre" }}
                 >
-                  {formatRuntimeDuration(storySummary.duration)} ·{" "}
-                  {storySummary.nodeCount} nodes · {storySummary.errorCount}{" "}
-                  errors
+                  {`${formatRuntimeDuration(storySummary.duration)}  ·  ${storySummary.nodeCount} nodes  ·  ${storySummary.errorCount} errors`}
                 </p>
 
                 <div
@@ -177,6 +182,7 @@ export function StoryList({
                       ? "text-(--tone-error-fg)"
                       : "text-(--fg-secondary)"
                   )}
+                  style={{ fontVariationSettings: '"wdth" 100' }}
                 >
                   {isError && storySummary.rootError
                     ? storySummary.rootError
@@ -206,6 +212,10 @@ export function StoryList({
                     className={stylexClassName(
                       "max-w-18 truncate text-[7.5px] text-(--fg-tertiary)"
                     )}
+                    style={{
+                      fontVariationSettings: '"wdth" 100',
+                      lineHeight: "12px",
+                    }}
                     title={storySummary.correlationId}
                   >
                     {shortCorrelation(storySummary.correlationId)}

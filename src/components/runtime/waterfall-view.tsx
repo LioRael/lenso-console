@@ -140,7 +140,7 @@ function WaterfallRowButton({
       aria-pressed={selected}
       className={cn(
         "grid h-[49px] w-full min-w-0 grid-cols-[332px_232px] items-center gap-3 px-3 text-left transition-colors hover:bg-(--bg-row-hover) disabled:cursor-default",
-        selected && "bg-(--bg-row-selected) shadow-[inset_2px_0_0_#008545]",
+        selected && "bg-(--bg-row-selected)",
         row.group === "unlinked" && "opacity-82"
       )}
       disabled={!node}
@@ -162,14 +162,14 @@ function WaterfallRowButton({
         >
           <span
             className={stylexClassName(
-              "absolute top-0 h-full w-px bg-(--line-subtle)"
+              "absolute top-0 h-full w-px bg-(--bg-canvas)"
             )}
             style={{ left: row.depth > 0 ? row.depth * 14 : 1 }}
           />
           {row.depth > 0 ? (
             <span
               className={stylexClassName(
-                "absolute top-6 h-px w-3 bg-(--line-subtle)"
+                "absolute top-6 h-px w-3 bg-(--bg-canvas)"
               )}
               style={{ left: (row.depth - 1) * 14 + 3 }}
             />
