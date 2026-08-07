@@ -12,6 +12,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json vite.config.ts ./
 COPY src ./src
+COPY scripts/clean-console-web.mjs ./scripts/clean-console-web.mjs
 RUN pnpm service:web-build
 
 FROM rust:1.94-bookworm AS service-builder

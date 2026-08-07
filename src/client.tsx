@@ -5,6 +5,7 @@ import * as ReactJsxRuntime from "react/jsx-runtime";
 
 import "./app/console-host-api";
 import { applyGlobalStyles } from "./app/global-styles";
+
 import "./styles.css";
 
 const consoleRuntime = globalThis as Record<string, unknown>;

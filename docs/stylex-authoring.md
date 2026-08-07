@@ -67,7 +67,7 @@ Use JavaScript expressions for conditional styling:
     styles.base,
     isActive && styles.active,
     isDisabled && styles.disabled,
-    variant === "primary" ? styles.primary : styles.secondary,
+    variant === "primary" ? styles.primary : styles.secondary
   )}
 />
 ```

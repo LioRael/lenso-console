@@ -12,7 +12,9 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@lenso/console-module-api": ["./packages/console-module-api/src/index.ts"],
+      "@lenso/console-module-api": [
+        "./packages/console-module-api/src/index.ts"
+      ],
       "@lenso/console-ui": ["./packages/console-ui/src/index.tsx"],
       "@lenso/console-tokens": ["./packages/console-tokens/src/index.ts"],
       "@lenso/console-tokens/tokens.stylex": [
