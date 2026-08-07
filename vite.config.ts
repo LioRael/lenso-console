@@ -82,6 +82,11 @@ export default defineConfig({
     },
   },
   plugins: [...startPlugin, react(), consoleStylex(), ...devPlugin],
+  preview: {
+    // TanStack Start prerenders through a build-time Vite preview server.
+    // Bind it explicitly so CI/Docker resolve the same loopback address.
+    host: "127.0.0.1",
+  },
   server: {
     port: 5174,
   },

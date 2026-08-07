@@ -16,7 +16,7 @@
     "service:worker": "cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-worker",
     "service:migrate": "cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-migrate",
     "clean:web": "node scripts/clean-console-web.mjs",
-    "service:web-build": "pnpm --filter @lenso/console-module-api build && pnpm --filter @lenso/console-tokens build && pnpm --filter @lenso/console-ui build && pnpm clean:web && tsc -b && VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ vite build",
+    "service:web-build": "pnpm --filter @lenso/console-module-api build && pnpm --filter @lenso/console-tokens build && pnpm --filter @lenso/console-ui build && pnpm clean:web && tsc -b && VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ vite build && test -s dist/client/index.html",
     "service:serve": "pnpm service:web-build && cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-serve",
     "service:check": "cargo fmt --manifest-path service/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path service/Cargo.toml --workspace --all-targets -- -D warnings && cargo test --locked --manifest-path service/Cargo.toml --workspace",
     "service:container:smoke": "sh scripts/console-service-container-smoke.sh",
