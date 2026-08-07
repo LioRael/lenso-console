@@ -1,33 +1,33 @@
 /* eslint-disable sort-keys */
 
-import { resolve } from "node:path";
+import path from "node:path";
 
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
-import { consoleStylex } from "./config/console-stylex";
+import { consoleStylex } from "./config/console-stylex.ts";
 
 export default defineConfig({
   resolve: {
     alias: {
-      "@lenso/console-module-api": resolve(
+      "@lenso/console-module-api": path.resolve(
         import.meta.dirname,
         "packages/console-module-api/src/index.ts"
       ),
-      "@lenso/console-ui": resolve(
+      "@lenso/console-ui": path.resolve(
         import.meta.dirname,
         "packages/console-ui/src/index.tsx"
       ),
-      "@lenso/console-tokens/tokens.stylex": resolve(
+      "@lenso/console-tokens/tokens.stylex": path.resolve(
         import.meta.dirname,
         "packages/console-tokens/src/tokens.stylex.ts"
       ),
-      "@lenso/console-tokens": resolve(
+      "@lenso/console-tokens": path.resolve(
         import.meta.dirname,
         "packages/console-tokens/src/index.ts"
       ),
-      "@lenso/console-composition-api": resolve(
+      "@lenso/console-composition-api": path.resolve(
         import.meta.dirname,
         "packages/console-composition-api/src/index.ts"
       ),

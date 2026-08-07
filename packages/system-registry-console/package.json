@@ -9,7 +9,7 @@
   "peerDependencies": {
     "@lenso/console-module-api": "workspace:*",
     "@lenso/console-ui": "workspace:*",
-    "lucide-react": "^1.17.0",
-    "react": "^19.1.0"
+    "lucide-react": "^1.28.0",
+    "react": "^19.2.8"
   }
 }

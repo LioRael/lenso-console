@@ -13,12 +13,13 @@ import { useConsoleArtifacts } from "./console-artifact-query";
 import { useConsoleCapabilities } from "./console-capabilities";
 import { createConsoleModuleClient } from "./console-module-client";
 import { loadConsoleUiModule } from "./console-module-runtime";
+import { consolePathFromLocation } from "./console-router-config";
 
 export function DynamicConsoleModulePage() {
   const locationPath = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const path = surfacePathFromLocation(locationPath);
+  const path = consolePathFromLocation(locationPath);
   const navigate = useNavigate();
   const capabilities = useConsoleCapabilities();
   const artifacts = useConsoleArtifacts();
@@ -87,18 +88,6 @@ export function DynamicConsoleModulePage() {
       </SurfaceRoot>
     </ConsoleModuleProvider>
   );
-}
-
-function surfacePathFromLocation(pathname: string): string {
-  const basePath = import.meta.env.BASE_URL.replace(/\/+$/u, "");
-  if (
-    basePath &&
-    basePath !== "/" &&
-    (pathname === basePath || pathname.startsWith(`${basePath}/`))
-  ) {
-    return pathname.slice(basePath.length) || "/";
-  }
-  return pathname;
 }
 
 function findSurface(surfaces: readonly ConsoleUiSurface[], id: string) {

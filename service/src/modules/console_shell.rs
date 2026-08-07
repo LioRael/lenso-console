@@ -154,6 +154,7 @@ fn console_web_root() -> PathBuf {
                 .parent()
                 .expect("Console Service crate must live below the Console workspace")
                 .join("dist")
+                .join("client")
         },
         PathBuf::from,
     )
@@ -356,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    fn default_web_root_is_the_workspace_dist_directory() {
+    fn default_web_root_is_the_workspace_client_directory() {
         if std::env::var_os("CONSOLE_WEB_ROOT").is_none() {
             assert_eq!(
                 console_web_root(),
@@ -364,6 +365,7 @@ mod tests {
                     .parent()
                     .expect("service directory has a parent")
                     .join("dist")
+                    .join("client")
             );
         }
     }

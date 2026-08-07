@@ -14,12 +14,12 @@ jobs:
         working-directory: .
     steps:
       - name: Checkout Console
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
         with:
           package_json_file: package.json
           run_install: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Lenso Console
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build and smoke Console Service image
         run: sh scripts/console-service-container-smoke.sh
       - name: Run Console Service recovery drill
