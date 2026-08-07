@@ -9,10 +9,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
 
+import { isApiMode } from "../lib/http-client";
 import { useConsoleArtifacts } from "./console-artifact-query";
 import { useConsoleCapabilities } from "./console-capabilities";
 import { createConsoleModuleClient } from "./console-module-client";
 import { loadConsoleUiModule } from "./console-module-runtime";
+import { consoleRoutes, findConsoleRoute } from "./console-modules";
 import { consolePathFromLocation } from "./console-router-config";
 
 export function DynamicConsoleModulePage() {
@@ -22,7 +24,12 @@ export function DynamicConsoleModulePage() {
   const path = consolePathFromLocation(locationPath);
   const navigate = useNavigate();
   const capabilities = useConsoleCapabilities();
+  const apiMode = isApiMode();
   const artifacts = useConsoleArtifacts();
+  const localRoute = useMemo(
+    () => (apiMode ? undefined : findConsoleRoute(path, consoleRoutes)),
+    [apiMode, path]
+  );
   const selection = useMemo(() => {
     for (const artifact of artifacts.data?.artifacts ?? []) {
       const surface = artifact.manifest.surfaces.find(
@@ -46,6 +53,18 @@ export function DynamicConsoleModulePage() {
     queryFn: () =>
       loadConsoleUiModule(artifact!, { origin: window.location.origin }),
   });
+
+  if (!apiMode) {
+    if (!localRoute) {
+      return <ModuleState title="Console page not found" />;
+    }
+    const LocalSurface = localRoute.component;
+    return (
+      <SurfaceRoot moduleId={localRoute.moduleId} surfaceId={localRoute.path}>
+        <LocalSurface />
+      </SurfaceRoot>
+    );
+  }
 
   if (artifacts.isPending) {
     return <ModuleState title="Loading Module UI" />;

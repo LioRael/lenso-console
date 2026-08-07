@@ -2,9 +2,9 @@ import {
   stylexClassName,
   DataGrid,
   DataRow,
+  FilterSelect,
   IconSlot,
   PaneHeader,
-  Select,
   TableHeader,
   useConsoleLocale,
 } from "@lenso/console-ui";
@@ -303,32 +303,21 @@ function ModulesFilterSelect({
   value: string;
 }) {
   return (
-    <label
+    <FilterSelect
+      aria-label={ariaLabel}
       className={stylexClassName(
         `modules-page__filter-control ${className ?? ""}`
       )}
+      icon={<ChevronDown size={12} strokeWidth={1.5} />}
+      onChange={(event) => onChange(event.currentTarget.value)}
+      value={value}
     >
-      <span className={stylexClassName("sr-only")}>{ariaLabel}</span>
-      <Select
-        aria-label={ariaLabel}
-        className={stylexClassName("modules-page__filter-select")}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        value={value}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </Select>
-      <IconSlot
-        aria-hidden="true"
-        className={stylexClassName("modules-page__filter-icon")}
-        size={12}
-      >
-        <ChevronDown size={12} strokeWidth={1.5} />
-      </IconSlot>
-    </label>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </FilterSelect>
   );
 }
 

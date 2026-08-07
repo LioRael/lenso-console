@@ -56,6 +56,13 @@ export function buildConsoleRoutes(
   return routes;
 }
 
+export function findConsoleRoute(
+  path: string,
+  routes: readonly ConsoleRouteContribution[]
+): ConsoleRouteContribution | undefined {
+  return routes.find((route) => route.path === path);
+}
+
 export function buildConsoleNavigation(
   modules: ConsoleModule[]
 ): ConsoleNavigationItem[] {

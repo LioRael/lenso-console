@@ -51,6 +51,7 @@ export function ChangesPage() {
           {copy.changes.awaitingYou}
         </span>
       }
+      pageClassName="changes-page"
       title={copy.changes.title}
     >
       <ProductTabs

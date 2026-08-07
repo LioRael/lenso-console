@@ -196,16 +196,15 @@ const product = {
     settings: {
       title: "Settings",
       description:
-        "Personalize the Console without changing service-owned runtime state.",
+        "Workspace policy, approvals, evidence retention, and Console preferences.",
       appearance: "Appearance",
       theme: "Theme",
       themeDescription: "Choose a theme or follow your operating system.",
       language: "Language",
-      consoleLanguage: "Console language",
-      languageDescription:
-        "Applies to host navigation and extensions using the Console locale interface.",
+      consoleLanguage: "Language",
+      languageDescription: "Controls Console navigation and operator text.",
       locale: "Locale",
-      timeZone: "Time zone",
+      timeZone: "Timezone",
       timeZoneDescription:
         "Used to present timestamps without changing the source evidence.",
       followSystem: "System",
