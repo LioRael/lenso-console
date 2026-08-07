@@ -31,7 +31,7 @@ export function RuntimeStoryVisualization({
   return (
     <section
       className={stylexClassName(
-        "isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden"
+        "isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden bg-(--bg-surface)"
       )}
     >
       <StoryTabs mode={mode} onChange={setMode} />

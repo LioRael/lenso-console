@@ -111,16 +111,11 @@ export function ServiceSummaryStrip({
     <div
       ref={containerRef}
       className={stylexClassName(
-        "grid min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-t border-(--border-subtle) bg-(--surface)"
+        "grid min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-t border-(--line-subtle) bg-(--surface)"
       )}
       style={{ height: initialPanelLayoutRef.current.panelHeight }}
     >
-      <div
-        className={cn(
-          "flex h-[30px] min-w-0 items-center gap-[7px] px-3",
-          expanded && "border-b border-(--border-subtle)"
-        )}
-      >
+      <div className={cn("flex h-[30px] min-w-0 items-center gap-[7px] px-3")}>
         <button
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse services" : "Expand services"}
@@ -144,7 +139,7 @@ export function ServiceSummaryStrip({
           </span>
           <span
             className={stylexClassName(
-              "grid h-4 min-w-4.5 place-items-center border border-(--line) bg-(--bg-panel-muted) px-1 font-mono text-[8px] text-(--fg-tertiary)"
+              "grid h-4 min-w-4.5 place-items-center border border-(--line) bg-(--bg-surface-raised) px-1 font-mono text-[8px] text-(--fg-tertiary)"
             )}
           >
             {services.length}
@@ -172,12 +167,12 @@ export function ServiceSummaryStrip({
           {services.map((item) => (
             <div
               className={stylexClassName(
-                "grid h-10 min-w-[600px] grid-cols-[8px_94px_46px_56px_56px_56px_38px_minmax(96px,1fr)] items-center gap-2 border-b border-(--line-subtle) px-3 font-mono text-[8.5px] last:border-b-0"
+                "grid h-10 min-w-[600px] grid-cols-[8px_94px_46px_56px_56px_56px_38px_minmax(96px,1fr)] items-center gap-2 border-b border-(--bg-canvas) px-3 font-mono text-[8.5px] last:border-b-0"
               )}
               key={item.service}
             >
               <div
-                className={stylexClassName("size-2 rounded-xs")}
+                className={stylexClassName("size-2 rounded-[1px]")}
                 style={{ backgroundColor: serviceColor(item.service) }}
               />
               <span
@@ -211,7 +206,7 @@ export function ServiceSummaryStrip({
               </span>
               <div
                 className={stylexClassName(
-                  "h-1.5 min-w-0 overflow-hidden rounded-[1px] bg-(--bg-panel-muted)"
+                  "h-1.5 min-w-0 overflow-hidden rounded-[1px] bg-(--bg-surface-muted)"
                 )}
               >
                 <div

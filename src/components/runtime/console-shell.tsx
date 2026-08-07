@@ -932,7 +932,13 @@ function workspaceBreadcrumb(
 ) {
   if (workspace.id === SYSTEM_WORKSPACE.id) {
     const directItem = workspace.items.find((item) => item.path === path);
-    return [consoleLocalizedLabel(directItem ?? workspace, locale)];
+    if (directItem?.path === "/system" || !directItem) {
+      return [consoleLocalizedLabel(directItem ?? workspace, locale)];
+    }
+    return [
+      consoleLocalizedLabel(workspace, locale),
+      consoleLocalizedLabel(directItem, locale),
+    ];
   }
   const directItem = workspace.items.find((item) => item.path === path);
   if (directItem) {

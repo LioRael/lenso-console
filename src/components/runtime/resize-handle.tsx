@@ -1,5 +1,6 @@
 import { stylexClassName } from "@lenso/console-ui";
 import { useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 export function ResizeHandle({
   ariaLabel,
@@ -7,12 +8,14 @@ export function ResizeHandle({
   className,
   onResize,
   onReset,
+  style,
 }: {
   ariaLabel: string;
   axis?: "horizontal" | "vertical";
   className?: string;
   onResize: (delta: number) => void;
   onReset?: () => void;
+  style?: CSSProperties;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -32,7 +35,7 @@ export function ResizeHandle({
         } ${className ?? ""}`
       )}
       ref={handleRef}
-      style={{ cursor: resizeCursor }}
+      style={{ cursor: resizeCursor, ...style }}
       onBlur={() => setIsFocused(false)}
       onDoubleClick={onReset}
       onFocus={() => setIsFocused(true)}
@@ -97,16 +100,16 @@ export function ResizeHandle({
       type="button"
     >
       <span
-        className={
+        className={stylexClassName(
           isVertical
             ? "absolute -bottom-1.5 -top-1.5 inset-x-0"
             : "absolute inset-y-0 -left-1.5 -right-1.5"
-        }
+        )}
       />
       <span
         className={stylexClassName(
           `absolute transition ${
-            isVertical ? "inset-x-0 top-1/2 h-px" : "inset-y-0 left-1/2 w-px"
+            isVertical ? "inset-x-0 top-1/2 h-px" : "inset-y-0 left-0 w-px"
           } ${
             isDragging
               ? "bg-(--fg-tertiary)"

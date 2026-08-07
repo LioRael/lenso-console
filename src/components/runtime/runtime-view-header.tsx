@@ -2,7 +2,7 @@ import { stylexClassName } from "@lenso/console-ui";
 import type { ReactNode } from "react";
 
 export const runtimeViewHeaderClassName = stylexClassName(
-  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden border-b border-(--line) bg-(--bg-surface) px-3"
+  "flex h-[38px] min-w-0 items-center justify-between gap-3 overflow-hidden bg-(--bg-surface) px-3"
 );
 
 export const runtimeViewHeaderContentClassName = stylexClassName(

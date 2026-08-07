@@ -32,7 +32,7 @@ export function StoryHeader({
   return (
     <header
       className={stylexClassName(
-        "flex h-[112px] min-w-0 flex-col gap-1 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas) px-3.5 pt-2.5 pb-2"
+        "flex h-[112px] min-w-0 flex-col gap-1 overflow-hidden bg-(--bg-surface) px-3.5 pt-2.5 pb-2"
       )}
     >
       <div

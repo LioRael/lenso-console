@@ -107,6 +107,7 @@ export function RuntimeStoriesPage() {
   const workbenchRef = useRef<HTMLDivElement | null>(null);
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
   const previousInspectorOpenRef = useRef(false);
+  const skipNextInspectorOpenAnimationRef = useRef(true);
   const [layout, setLayout, resetLayout] = usePersistedLayout(
     "lenso-console:stories-layout",
     runtimeStoriesLayoutDefaults
@@ -185,9 +186,10 @@ export function RuntimeStoriesPage() {
   const mainGridTemplateRows = selectedStory
     ? [
         "auto",
+        "1px",
         ...(selectedStory.federation ? ["auto"] : []),
         "minmax(0,1fr)",
-        ...(showServicesPanel ? ["auto", "auto"] : []),
+        ...(showServicesPanel ? ["auto"] : []),
       ].join(" ")
     : "minmax(0,1fr)";
 
@@ -200,6 +202,7 @@ export function RuntimeStoriesPage() {
     setInspectorTab(readExecutionInspectorTab(search.get("tab") ?? ""));
     setInspectorDismissed(false);
     setStoryDetailClosed(false);
+    skipNextInspectorOpenAnimationRef.current = true;
   });
 
   const storyUrl = (
@@ -305,13 +308,20 @@ export function RuntimeStoriesPage() {
         "(prefers-reduced-motion: reduce)"
       ).matches;
       const nextOpen = inspectorOpen ? 1 : 0;
+      const skipOpenAnimation =
+        inspectorOpen &&
+        !previousInspectorOpenRef.current &&
+        skipNextInspectorOpenAnimationRef.current;
       const hasOpenStateChanged =
         previousInspectorOpenRef.current !== inspectorOpen;
+      if (skipOpenAnimation) {
+        skipNextInspectorOpenAnimationRef.current = false;
+      }
       previousInspectorOpenRef.current = inspectorOpen;
       gsap.killTweensOf(workbench);
       gsap.killTweensOf(inspectorPanel);
 
-      if (!hasOpenStateChanged) {
+      if (!hasOpenStateChanged || skipOpenAnimation) {
         gsap.set(workbench, {
           "--story-inspector-open": nextOpen,
         });
@@ -373,6 +383,7 @@ export function RuntimeStoriesPage() {
 
   const selectStory = (story: RuntimeStory) => {
     setStoryDetailClosed(false);
+    skipNextInspectorOpenAnimationRef.current = true;
     clearStoryTarget();
     pushStoryUrl({
       inspectorTab: "overview",
@@ -440,6 +451,9 @@ export function RuntimeStoriesPage() {
 
   const selectNode = (node: ExecutionNode) => {
     setStoryDetailClosed(false);
+    if (!inspectorOpen) {
+      skipNextInspectorOpenAnimationRef.current = false;
+    }
     const nextStoryId =
       selectedStory?.correlationId ??
       selectedStoryCorrelationId ??
@@ -549,7 +563,11 @@ export function RuntimeStoriesPage() {
         )}
         style={
           {
-            "--story-inspector-open": previousInspectorOpenRef.current ? 1 : 0,
+            "--story-inspector-open":
+              previousInspectorOpenRef.current ||
+              (inspectorOpen && skipNextInspectorOpenAnimationRef.current)
+                ? 1
+                : 0,
             gridTemplateColumns,
           } as CSSProperties
         }
@@ -567,6 +585,7 @@ export function RuntimeStoriesPage() {
           className={stylexClassName("runtime-stories-list-resize w-px")}
           onReset={resetLayout}
           onResize={resizeStoryList}
+          style={{ width: 1 }}
         />
 
         <main
@@ -585,6 +604,11 @@ export function RuntimeStoriesPage() {
                 story={selectedStory}
               />
 
+              <div
+                aria-hidden="true"
+                className={stylexClassName("h-px bg-(--line-subtle)")}
+              />
+
               <FederatedStoryEvidencePanel
                 onSelectNode={selectNode}
                 story={selectedStory}
@@ -600,13 +624,19 @@ export function RuntimeStoriesPage() {
               />
 
               {showServicesPanel ? (
-                <>
+                <div className={stylexClassName("relative min-h-0 min-w-0")}>
                   <ResizeHandle
                     ariaLabel="Resize services panel"
                     axis="vertical"
                     className={stylexClassName("h-px")}
                     onReset={resetLayout}
                     onResize={resizeServices}
+                    style={{
+                      height: 1,
+                      insetInline: 0,
+                      position: "absolute",
+                      top: 0,
+                    }}
                   />
 
                   <ServiceSummaryStrip
@@ -615,7 +645,7 @@ export function RuntimeStoriesPage() {
                     onExpandedChange={setServicesExpanded}
                     story={selectedStory}
                   />
-                </>
+                </div>
               ) : null}
             </>
           ) : storyDetailLoading ? (
@@ -663,6 +693,7 @@ export function RuntimeStoriesPage() {
               )}
               onReset={resetLayout}
               onResize={resizeInspector}
+              style={{ width: 1 }}
             />
 
             <div

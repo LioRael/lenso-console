@@ -1,7 +1,7 @@
 import { stylexClassName } from "@lenso/console-ui";
 
 export const runtimeTableHeaderBaseClassName = stylexClassName(
-  "relative grid h-7 min-w-0 items-center gap-4 border-b border-(--line) bg-(--bg-surface-muted) px-3 font-sans text-[10px] font-medium normal-case tracking-normal text-(--fg-tertiary)"
+  "relative grid h-7 min-w-0 items-center gap-4 bg-(--bg-surface-muted) px-3 font-sans text-[9px] font-medium normal-case tracking-normal text-(--fg-tertiary)"
 );
 
 export const runtimeTimelineTableHeaderClassName = stylexClassName(

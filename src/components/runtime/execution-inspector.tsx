@@ -73,21 +73,22 @@ export function ExecutionInspector({
   return (
     <aside
       className={stylexClassName(
-        "grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_minmax(0,1fr)] overflow-hidden border-l border-(--line-subtle) bg-(--bg-canvas)"
+        "grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)"
       )}
     >
       <div
         className={stylexClassName(
-          "relative min-w-0 overflow-hidden border-b border-(--line-subtle) pt-3"
+          "relative min-w-0 overflow-hidden border-b border-(--line-subtle)"
         )}
+        style={{ paddingBottom: 10, paddingTop: 18 }}
       >
         <div
           className={stylexClassName(
             "flex h-4 items-center justify-between px-3 text-[9px] leading-none text-(--fg-tertiary)"
           )}
         >
-          <span className={stylexClassName("truncate font-medium capitalize")}>
-            {typeLabel(node)}&nbsp; / &nbsp;{node.service}
+          <span className={stylexClassName("truncate font-medium")}>
+            {inspectorKindLabel(node)}&nbsp; / &nbsp;{node.service}
           </span>
           <button
             aria-label="Clear inspector selection"
@@ -109,7 +110,7 @@ export function ExecutionInspector({
         </div>
         <div
           className={stylexClassName(
-            "flex h-10 min-w-0 items-center gap-2 px-3"
+            "flex h-8 min-w-0 items-center gap-2 px-3"
           )}
         >
           <span
@@ -138,8 +139,9 @@ export function ExecutionInspector({
         </div>
         <div
           className={stylexClassName(
-            "flex h-[25px] min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none"
+            "flex h-4 min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none"
           )}
+          style={{ height: 17 }}
         >
           <span
             className={stylexClassName(
@@ -2158,4 +2160,9 @@ function typeLabel(node: ExecutionNode) {
     return "outbox";
   }
   return "node";
+}
+
+function inspectorKindLabel(node: ExecutionNode) {
+  const label = typeLabel(node);
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
