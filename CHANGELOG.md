@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 0.1.8
+
+### Patch Changes
+
+- 1c2cc9d: Release the current Console module and UI contracts together with the Console Service image.
+
 ### Fixes
 
 Close the Console architecture migration by hosting only operator workflows,
