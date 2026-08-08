@@ -211,7 +211,7 @@ export const controlStyles = stylex.create({
   inlineStatus: {
     alignItems: "center",
     color: tokens.foregroundSecondary,
-    columnGap: 7,
+    columnGap: 8,
     display: "inline-grid",
     fontSize: 11,
     gridTemplateColumns: "6px minmax(0, auto)",
@@ -585,29 +585,48 @@ export const layoutStyles = stylex.create({
     borderInlineStartStyle: "solid",
     borderInlineStartWidth: 1,
     paddingBlockStart: 28,
-    paddingInlineStart: 28,
+    paddingInlineStart: 27,
     "@media (max-width: 720px)": {
-      borderBlockStartColor: tokens.line,
+      borderBlockStartColor: tokens.lineSubtle,
       borderBlockStartStyle: "solid",
       borderBlockStartWidth: 1,
       borderInlineStartStyle: "none",
       borderInlineStartWidth: 0,
+      paddingInlineStart: 28,
     },
   },
   splitViewNone: { padding: 0 },
   inspector: {
+    alignItems: "stretch",
     backgroundColor: tokens.canvas,
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "100%",
     minWidth: 0,
-    overflow: "hidden",
+    overflow: "visible",
+    width: "100%",
   },
-  inspectorHeader: { minWidth: 0, padding: 28 },
+  inspectorHeader: {
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0,
+    width: "100%",
+  },
   inspectorHeaderWithAction: {
     alignItems: "flex-start",
     display: "flex",
+    flexDirection: "row",
     gap: tokens.space4,
+    height: 58,
     justifyContent: "space-between",
   },
-  inspectorHeaderContent: { minWidth: 0 },
+  inspectorHeaderContent: {
+    display: "flex",
+    flexDirection: "column",
+    flex: "1 1 auto",
+    minWidth: 0,
+  },
+  inspectorHeaderContentWithAction: { gap: 2 },
   inspectorHeaderAction: { flex: "none" },
   inspectorTitle: {
     color: tokens.foreground,
@@ -624,43 +643,68 @@ export const layoutStyles = stylex.create({
     fontFamily: tokens.fontCode,
     fontSize: 10,
     lineHeight: "14px",
-    marginBlockEnd: 0,
-    marginBlockStart: 2,
+    margin: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  inspectorStatus: { marginBlockStart: 16 },
+  inspectorStatus: {
+    alignItems: "flex-start",
+    display: "flex",
+    minHeight: 48,
+    paddingBlockEnd: 18,
+    paddingBlockStart: 14,
+    width: "100%",
+  },
   inspectorSection: {
-    borderBlockStartColor: tokens.line,
+    borderBlockStartColor: tokens.lineSubtle,
     borderBlockStartStyle: "solid",
     borderBlockStartWidth: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
     minWidth: 0,
-    paddingBlock: tokens.space4,
-    paddingInline: 28,
+    paddingBlock: 18,
+    paddingInline: 0,
+    width: "100%",
+    ":last-child": {
+      borderBlockEndColor: tokens.lineSubtle,
+      borderBlockEndStyle: "solid",
+      borderBlockEndWidth: 1,
+    },
+  },
+  inspectorSectionWithAction: {
+    gap: 6,
+    paddingBlock: 14,
   },
   inspectorSectionTitle: {
-    color: tokens.foregroundSecondary,
+    color: tokens.foregroundTertiary,
     fontSize: 11,
     fontWeight: 500,
     lineHeight: "16px",
-    marginBlockEnd: tokens.space2,
-    marginBlockStart: 0,
+    margin: 0,
   },
   inspectorSectionBody: {
     color: tokens.foreground,
+    display: "flex",
+    flexDirection: "column",
     fontSize: 12,
-    lineHeight: 1.55,
+    gap: 5,
+    lineHeight: "18px",
+  },
+  inspectorSectionBodyWithAction: {
+    gap: 0,
+    lineHeight: "19px",
   },
   inspectorActions: {
-    borderBlockStartColor: tokens.line,
+    borderBlockStartColor: tokens.lineSubtle,
     borderBlockStartStyle: "solid",
     borderBlockStartWidth: 1,
     display: "flex",
     flexWrap: "wrap",
     gap: tokens.space2,
     paddingBlock: tokens.space4,
-    paddingInline: 28,
+    paddingInline: 0,
   },
   section: {
     backgroundColor: tokens.canvas,
@@ -2004,6 +2048,8 @@ export type InspectorProps = PropsWithChildren<
   }
 >;
 
+const InspectorContext = createContext({ hasHeaderAction: false });
+
 function InspectorRoot({
   children,
   headerAction,
@@ -2013,65 +2059,74 @@ function InspectorRoot({
   stylex: stylexStyle,
   ...props
 }: InspectorProps & { stylex?: ConsoleStyle }) {
+  const hasHeaderAction = Boolean(headerAction);
+
   return (
-    <div
-      {...stylex.props(stylexStyle, componentStyles.inspector)}
-      data-ui="inspector"
-      {...props}
-    >
-      {title === undefined &&
-      subtitle === undefined &&
-      !status &&
-      !headerAction ? null : (
-        <header
-          {...stylex.props(
-            componentStyles.inspectorHeader,
-            headerAction ? componentStyles.inspectorHeaderWithAction : null
-          )}
-          data-ui="inspector__header"
-          data-has-action={headerAction ? "true" : undefined}
-        >
-          <div
-            {...stylex.props(componentStyles.inspectorHeaderContent)}
-            data-ui="inspector__header-content"
+    <InspectorContext.Provider value={{ hasHeaderAction }}>
+      <div
+        {...stylex.props(stylexStyle, componentStyles.inspector)}
+        data-ui="inspector"
+        {...props}
+      >
+        {title === undefined &&
+        subtitle === undefined &&
+        !status &&
+        !headerAction ? null : (
+          <header
+            {...stylex.props(
+              componentStyles.inspectorHeader,
+              headerAction ? componentStyles.inspectorHeaderWithAction : null
+            )}
+            data-ui="inspector__header"
+            data-has-action={headerAction ? "true" : undefined}
           >
-            {title === undefined ? null : (
-              <h2
-                {...stylex.props(componentStyles.inspectorTitle)}
-                data-ui="inspector__title"
-              >
-                {title}
-              </h2>
-            )}
-            {subtitle === undefined ? null : (
-              <p
-                {...stylex.props(componentStyles.inspectorSubtitle)}
-                data-ui="inspector__subtitle"
-              >
-                {subtitle}
-              </p>
-            )}
-            {status ? (
+            <div
+              {...stylex.props(
+                componentStyles.inspectorHeaderContent,
+                headerAction
+                  ? componentStyles.inspectorHeaderContentWithAction
+                  : null
+              )}
+              data-ui="inspector__header-content"
+            >
+              {title === undefined ? null : (
+                <h2
+                  {...stylex.props(componentStyles.inspectorTitle)}
+                  data-ui="inspector__title"
+                >
+                  {title}
+                </h2>
+              )}
+              {subtitle === undefined ? null : (
+                <p
+                  {...stylex.props(componentStyles.inspectorSubtitle)}
+                  data-ui="inspector__subtitle"
+                >
+                  {subtitle}
+                </p>
+              )}
+              {status ? (
+                <div
+                  {...stylex.props(componentStyles.inspectorStatus)}
+                  data-ui="inspector__status"
+                >
+                  {status}
+                </div>
+              ) : null}
+            </div>
+            {headerAction ? (
               <div
-                {...stylex.props(componentStyles.inspectorStatus)}
-                data-ui="inspector__status"
+                {...stylex.props(componentStyles.inspectorHeaderAction)}
+                data-ui="inspector__header-action"
               >
-                {status}
+                {headerAction}
               </div>
             ) : null}
-          </div>
-          {headerAction ? (
-            <div
-              {...stylex.props(componentStyles.inspectorHeaderAction)}
-              data-ui="inspector__header-action"
-            >
-              {headerAction}
-            </div>
-          ) : null}
-        </header>
-      )}
-      {children}
-    </div>
+          </header>
+        )}
+        {children}
+      </div>
+    </InspectorContext.Provider>
   );
 }
 
@@ -2086,9 +2141,15 @@ function InspectorSection({
     stylex?: ConsoleStyle;
   }
 >) {
+  const { hasHeaderAction } = useContext(InspectorContext);
+
   return (
     <section
-      {...stylex.props(stylexStyle, componentStyles.inspectorSection)}
+      {...stylex.props(
+        stylexStyle,
+        componentStyles.inspectorSection,
+        hasHeaderAction ? componentStyles.inspectorSectionWithAction : null
+      )}
       data-ui="inspector__section"
       {...props}
     >
@@ -2101,7 +2162,12 @@ function InspectorSection({
         </h3>
       )}
       <div
-        {...stylex.props(componentStyles.inspectorSectionBody)}
+        {...stylex.props(
+          componentStyles.inspectorSectionBody,
+          hasHeaderAction
+            ? componentStyles.inspectorSectionBodyWithAction
+            : null
+        )}
         data-ui="inspector__section-body"
       >
         {children}
