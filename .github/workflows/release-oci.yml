@@ -90,6 +90,14 @@ jobs:
           echo "recovery=false" >> "$GITHUB_OUTPUT"
           echo "version=$current" >> "$GITHUB_OUTPUT"
           echo "source_commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Create release app token
+        id: release-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.LENSO_RELEASE_APP_ID }}
+          private-key: ${{ secrets.LENSO_RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
       - name: Log in to GHCR
         if: steps.version.outputs.changed == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -103,7 +111,7 @@ jobs:
       - name: Refuse an existing immutable version tag
         if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           IMAGE: ghcr.io/liorael/lenso-console
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -169,7 +177,7 @@ jobs:
       - name: Create the immutable Service release
         if: steps.version.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
           SOURCE_COMMIT: ${{ steps.version.outputs.source_commit }}
         run: |
