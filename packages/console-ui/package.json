@@ -33,7 +33,7 @@
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "pnpm clean && vite build --config vite.config.ts && tsc -p tsconfig.types.json",
+    "build": "pnpm clean && tsdown --config tsdown.config.ts",
     "test": "vitest run --config ../../vite.config.ts src"
   },
   "dependencies": {

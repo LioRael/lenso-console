@@ -1,9 +1,8 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { Cloud, Mail, Route, ServerCog, Workflow } from "lucide-react";
 import type { ComponentType } from "react";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 import {
   formatRuntimeDuration,
   serviceColor,
@@ -17,8 +16,299 @@ import {
   type ExecutionTimelineRow,
 } from "./execution-timeline-model";
 import { buildTimelineParallelMarkers } from "./parallel-execution-model";
-import { runtimeTimelineTableHeaderClassName } from "./runtime-table-header";
+import { runtimeTimelineTableHeaderProps } from "./runtime-table-header";
 import { RuntimeViewHeader } from "./runtime-view-header";
+
+const localStyles = stylex.create({
+  utilityIsolate: {
+    isolation: "isolate",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityGridCols5: {
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityNormalCase: {
+    textTransform: "none",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityP4: {
+    padding: "calc(0.25rem * 4)",
+  },
+  utilityMxAuto: {
+    marginInline: "auto",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityMaxW5xl: {
+    maxWidth: "var(--container-5xl, 64rem)",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgPanel: {
+    backgroundColor: "var(--bg-panel)",
+  },
+  utilityTextXs: {
+    fontSize: "var(--text-xs, 0.75rem)",
+    lineHeight: "var(--text-xs--line-height, 1rem)",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityMinH69px: {
+    minHeight: "69px",
+  },
+  utilityGridColsMinmax180px260pxMinmax01fr: {
+    gridTemplateColumns: "minmax(180px,260px) minmax(0,1fr)",
+  },
+  utilityGap4: {
+    gap: "calc(0.25rem * 4)",
+  },
+  utilityTextLeft: {
+    textAlign: "left",
+  },
+  utilityTransition: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityMaxMdGridCols1: {
+    "@media (max-width: 767px)": {
+      gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+    },
+  },
+  utilityScale1004: {
+    scale: "1.004",
+  },
+  utilityCursorDefault: {
+    cursor: "default",
+  },
+  utilityTop35: {
+    top: "calc(0.25rem * -3.5)",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityLeft6: {
+    left: "calc(0.25rem * 6)",
+  },
+  utilityH35: {
+    height: "calc(0.25rem * 3.5)",
+  },
+  utilityWPx: {
+    width: "1px",
+  },
+  utilityBgLine: {
+    backgroundColor: "var(--line)",
+  },
+  utilityItemsStart: {
+    alignItems: "flex-start",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityTracking006em: {
+    letterSpacing: "0.06em",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+  utilityBlock: {
+    display: "block",
+  },
+  utilityText13px: {
+    fontSize: "13px",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityMax1100pxHidden: {
+    "@media (max-width: 1100px)": {
+      display: "none",
+    },
+  },
+  utilityMr15: {
+    marginRight: "0.375rem",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityBorderL2: {
+    borderLeftStyle: "solid",
+    borderLeftWidth: "2px",
+  },
+  utilityBorderVarError: {
+    borderColor: "var(--error)",
+  },
+  utilityPl2: {
+    paddingLeft: "calc(0.25rem * 2)",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityTextVarToneErrorFg: {
+    color: "var(--tone-error-fg)",
+  },
+  utilityMaxMdHidden: {
+    "@media (max-width: 767px)": {
+      display: "none",
+    },
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityH9: {
+    height: "calc(0.25rem * 9)",
+  },
+  utilityBgLinearGradient90degTransparent0Transparent248VarLine25Transparent252Transparent498VarLine50Transparent502Transparent748VarLine75Transparent752:
+    {
+      backgroundImage:
+        "linear-gradient(90deg,transparent 0%,transparent 24.8%,var(--line) 25%,transparent 25.2%,transparent 49.8%,var(--line) 50%,transparent 50.2%,transparent 74.8%,var(--line) 75%,transparent 75.2%)",
+    },
+});
+
+const styles = stylex.create({
+  statusDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "9999px",
+    flexShrink: 0,
+    height: 6,
+    width: 6,
+  }),
+  timelineCard: (props: {
+    borderColor: string;
+    color: string;
+    selected: boolean;
+  }) => ({
+    backgroundColor: props.selected ? "var(--bg-row-hover)" : "var(--bg-panel)",
+    borderColor: props.selected ? "var(--line-strong)" : props.borderColor,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "var(--elevation-raised)",
+    color: props.color,
+    minHeight: 69,
+    minWidth: 0,
+    overflow: "hidden",
+    paddingBlock: 8,
+    paddingInline: 12,
+    position: "relative",
+    transitionProperty: "border-color, background-color",
+    ":hover": { borderColor: "var(--line)" },
+  }),
+  timelineIcon: (props: {
+    backgroundColor: string;
+    borderColor: string;
+    color: string;
+  }) => ({
+    alignItems: "center",
+    backgroundColor: props.backgroundColor,
+    borderColor: props.borderColor,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: props.color,
+    display: "grid",
+    flexShrink: 0,
+    height: 32,
+    placeItems: "center",
+    width: 32,
+  }),
+  parallelLabel: {
+    backgroundColor: "var(--tone-info-bg)",
+    color: "var(--tone-info-fg)",
+    fontFamily: "var(--font-code)",
+    fontSize: 11,
+    paddingBlock: 6,
+    paddingInline: 12,
+  },
+  parallelLine: {
+    backgroundColor: "var(--tone-info-bg)",
+    height: 1,
+  },
+  timelineSegment: (props: {
+    backgroundColor: string;
+    left: string;
+    opacity: number;
+    width: string;
+  }) => ({
+    backgroundColor: props.backgroundColor,
+    height: 20,
+    left: props.left,
+    minWidth: 4,
+    opacity: props.opacity,
+    position: "absolute",
+    top: 8,
+    transitionProperty: "all",
+    width: props.width,
+  }),
+  timelineSegmentSelected: { transform: "scaleY(1.22)" },
+});
 
 export function StoryTimelineView({
   selectedNodeId,
@@ -40,9 +330,15 @@ export function StoryTimelineView({
 
   return (
     <div
-      className={stylexClassName(
-        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
-      )}
+      {...stylex.props([
+        localStyles.utilityIsolate,
+        localStyles.utilityFlex,
+        localStyles.utilityHFull,
+        localStyles.utilityMinW0,
+        localStyles.utilityFlexCol,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBgCanvas,
+      ])}
     >
       <RuntimeViewHeader
         meta={`total ${formatRuntimeDuration(timelineEnd)}`}
@@ -50,33 +346,61 @@ export function StoryTimelineView({
         title="Business Timeline"
       />
 
-      <div className={runtimeTimelineTableHeaderClassName}>
+      <div {...runtimeTimelineTableHeaderProps}>
         <span>Story Flow</span>
         <div
-          className={stylexClassName(
-            "grid min-w-0 grid-cols-5 overflow-hidden font-mono"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilityMinW0,
+            localStyles.utilityGridCols5,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityFontMono,
+          ])}
         >
           {[0, 25, 50, 75, 100].map((tick) => (
-            <span className={stylexClassName("normal-case")} key={tick}>
+            <span {...stylex.props([localStyles.utilityNormalCase])} key={tick}>
               {formatRuntimeDuration((timelineEnd * tick) / 100)}
             </span>
           ))}
         </div>
       </div>
 
-      <div className={stylexClassName("min-h-0 flex-1 overflow-auto p-4")}>
-        <div className={stylexClassName("mx-auto w-full max-w-5xl")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityMinH0,
+          localStyles.utilityFlex1,
+          localStyles.utilityOverflowAuto,
+          localStyles.utilityP4,
+        ])}
+      >
+        <div
+          {...stylex.props([
+            localStyles.utilityMxAuto,
+            localStyles.utilityWFull,
+            localStyles.utilityMaxW5xl,
+          ])}
+        >
           {rows.length === 0 ? (
             <div
-              className={stylexClassName(
-                "border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityBorder,
+                localStyles.utilityBorderLine,
+                localStyles.utilityBgBgPanel,
+                localStyles.utilityP4,
+                localStyles.utilityFontMono,
+                localStyles.utilityTextXs,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
               No timeline items were returned for this story.
             </div>
           ) : (
-            <div className={stylexClassName("grid gap-3")}>
+            <div
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilityGap3,
+              ])}
+            >
               {rows.map((row, index) => {
                 const node = findExecutionNodeForRow(story, row);
                 const marker = node
@@ -84,7 +408,13 @@ export function StoryTimelineView({
                   : undefined;
 
                 return (
-                  <div className={stylexClassName("grid gap-2")} key={row.id}>
+                  <div
+                    {...stylex.props([
+                      localStyles.utilityGrid,
+                      localStyles.utilityGap2,
+                    ])}
+                    key={row.id}
+                  >
                     {marker ? (
                       <ParallelStartMarker label={marker.label} />
                     ) : null}
@@ -137,10 +467,19 @@ function TimelineRow({
     <button
       aria-label={`Open ${row.kind} ${row.name}`}
       aria-pressed={selected}
-      className={cn(
-        "group grid min-h-[69px] min-w-0 grid-cols-[minmax(180px,260px)_minmax(0,1fr)] gap-4 text-left transition max-md:grid-cols-1",
-        selected && "scale-[1.004]",
-        !node && "cursor-default"
+      {...stylex.props(
+        [
+          localStyles.utilityGrid,
+          localStyles.utilityMinH69px,
+          localStyles.utilityMinW0,
+          localStyles.utilityGridColsMinmax180px260pxMinmax01fr,
+          localStyles.utilityGap4,
+          localStyles.utilityTextLeft,
+          localStyles.utilityTransition,
+          localStyles.utilityMaxMdGridCols1,
+        ],
+        selected && [localStyles.utilityScale1004],
+        !node && [localStyles.utilityCursorDefault]
       )}
       disabled={!node}
       onClick={() => {
@@ -151,70 +490,112 @@ function TimelineRow({
       type="button"
     >
       <span
-        className={cn(
-          "relative min-h-[69px] min-w-0 overflow-hidden border bg-(--bg-panel) px-3 py-2 shadow-(--elevation-raised) transition group-hover:border-(--line)",
-          tone.card,
-          selected && "border-(--line-strong) bg-(--bg-row-hover)"
+        {...stylex.props(
+          styles.timelineCard({
+            borderColor: tone.borderColor,
+            color: tone.color,
+            selected,
+          })
         )}
       >
         {index > 0 ? (
           <span
-            className={stylexClassName(
-              "-top-3.5 absolute left-6 h-3.5 w-px bg-(--line)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTop35,
+              localStyles.utilityAbsolute,
+              localStyles.utilityLeft6,
+              localStyles.utilityH35,
+              localStyles.utilityWPx,
+              localStyles.utilityBgLine,
+            ])}
           />
         ) : null}
-        <span className={stylexClassName("flex min-w-0 items-start gap-2")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsStart,
+            localStyles.utilityGap2,
+          ])}
+        >
           <span
-            className={cn(
-              "grid size-8 shrink-0 place-items-center border",
-              tone.icon
+            {...stylex.props(
+              styles.timelineIcon({
+                backgroundColor: tone.backgroundColor,
+                borderColor: tone.borderColor,
+                color: tone.color,
+              })
             )}
           >
             <Icon size={15} strokeWidth={1.8} />
           </span>
-          <span className={stylexClassName("min-w-0 flex-1")}>
+          <span
+            {...stylex.props([
+              localStyles.utilityMinW0,
+              localStyles.utilityFlex1,
+            ])}
+          >
             <span
-              className={stylexClassName("flex min-w-0 items-center gap-2")}
+              {...stylex.props([
+                localStyles.utilityFlex,
+                localStyles.utilityMinW0,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap2,
+              ])}
             >
               <span
-                className={stylexClassName(
-                  "truncate font-mono text-[10px] font-semibold uppercase tracking-[0.06em]"
-                )}
+                {...stylex.props([
+                  localStyles.utilityTruncate,
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                  localStyles.utilityFontSemibold,
+                  localStyles.utilityUppercase,
+                  localStyles.utilityTracking006em,
+                ])}
               >
                 {rowKindLabel(row.kind)}
               </span>
               <span
-                className={stylexClassName("size-1.5 shrink-0 rounded-full")}
-                style={{
-                  backgroundColor: statusColor(row.status),
-                }}
+                {...stylex.props(styles.statusDot(statusColor(row.status)))}
               />
             </span>
             <span
-              className={stylexClassName(
-                "mt-1 block truncate text-[13px] font-semibold text-(--fg-primary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityMt1,
+                localStyles.utilityBlock,
+                localStyles.utilityTruncate,
+                localStyles.utilityText13px,
+                localStyles.utilityFontSemibold,
+                localStyles.utilityTextFgPrimary,
+              ])}
             >
               {row.name}
             </span>
             <span
-              className={stylexClassName(
-                "mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden font-mono text-[10px] text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityMt1,
+                localStyles.utilityFlex,
+                localStyles.utilityMinW0,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap15,
+                localStyles.utilityOverflowHidden,
+                localStyles.utilityFontMono,
+                localStyles.utilityText10px,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
               {row.metaParts.map((part, partIndex) => (
                 <span
-                  className={cn(
-                    "min-w-0 truncate",
-                    partIndex > 2 && "max-[1100px]:hidden"
+                  {...stylex.props(
+                    [localStyles.utilityMinW0, localStyles.utilityTruncate],
+                    partIndex > 2 && [localStyles.utilityMax1100pxHidden]
                   )}
                   key={`${row.id}:${partIndex}:${part}`}
                 >
                   {partIndex > 0 ? (
                     <span
                       aria-hidden="true"
-                      className={stylexClassName("mr-1.5")}
+                      {...stylex.props([localStyles.utilityMr15])}
                     >
                       /
                     </span>
@@ -222,7 +603,12 @@ function TimelineRow({
                   {part}
                 </span>
               ))}
-              <span className={stylexClassName("ml-auto shrink-0")}>
+              <span
+                {...stylex.props([
+                  localStyles.utilityMlAuto,
+                  localStyles.utilityShrink0,
+                ])}
+              >
                 {formatRuntimeDuration(row.durationMs)}
               </span>
             </span>
@@ -230,9 +616,17 @@ function TimelineRow({
         </span>
         {row.error ? (
           <span
-            className={stylexClassName(
-              "mt-2 block truncate border-l-2 border-[var(--error)] pl-2 font-mono text-[11px] text-[var(--tone-error-fg)]"
-            )}
+            {...stylex.props([
+              localStyles.utilityMt2,
+              localStyles.utilityBlock,
+              localStyles.utilityTruncate,
+              localStyles.utilityBorderL2,
+              localStyles.utilityBorderVarError,
+              localStyles.utilityPl2,
+              localStyles.utilityFontMono,
+              localStyles.utilityText11px,
+              localStyles.utilityTextVarToneErrorFg,
+            ])}
           >
             {row.error}
           </span>
@@ -240,29 +634,37 @@ function TimelineRow({
       </span>
 
       <span
-        className={stylexClassName(
-          "grid min-h-[69px] min-w-0 items-center max-md:hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityMinH69px,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityMaxMdHidden,
+        ])}
       >
         <span
-          className={stylexClassName(
-            "relative h-9 min-w-0 overflow-hidden border border-(--line) bg-[linear-gradient(90deg,transparent_0%,transparent_24.8%,var(--line)_25%,transparent_25.2%,transparent_49.8%,var(--line)_50%,transparent_50.2%,transparent_74.8%,var(--line)_75%,transparent_75.2%)]"
-          )}
+          {...stylex.props([
+            localStyles.utilityRelative,
+            localStyles.utilityH9,
+            localStyles.utilityMinW0,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityBorder,
+            localStyles.utilityBorderLine,
+            localStyles.utilityBgLinearGradient90degTransparent0Transparent248VarLine25Transparent252Transparent498VarLine50Transparent502Transparent748VarLine75Transparent752,
+          ])}
         >
           <span
-            className={cn(
-              "absolute top-2 h-5 min-w-1 transition",
-              errored && "opacity-90"
+            {...stylex.props(
+              styles.timelineSegment({
+                backgroundColor: errored
+                  ? "var(--error)"
+                  : serviceColor(row.service),
+                left: `${segment.left}%`,
+                opacity: selected ? 1 : errored ? 0.9 : 0.82,
+                width: `${segment.width}%`,
+              }),
+              selected && styles.timelineSegmentSelected
             )}
-            style={{
-              backgroundColor: errored
-                ? "var(--error)"
-                : serviceColor(row.service),
-              left: `${segment.left}%`,
-              opacity: selected ? 1 : 0.82,
-              transform: selected ? "scaleY(1.22)" : undefined,
-              width: `${segment.width}%`,
-            }}
           />
         </span>
       </span>
@@ -273,21 +675,24 @@ function TimelineRow({
 function ParallelStartMarker({ label }: { label: string }) {
   return (
     <div
-      className={stylexClassName(
-        "grid min-w-0 grid-cols-[minmax(180px,260px)_minmax(0,1fr)] gap-4 max-md:grid-cols-1"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilityMinW0,
+        localStyles.utilityGridColsMinmax180px260pxMinmax01fr,
+        localStyles.utilityGap4,
+        localStyles.utilityMaxMdGridCols1,
+      ])}
     >
+      <div {...stylex.props(styles.parallelLabel)}>{label}</div>
       <div
-        className={stylexClassName(
-          "tint tint-info px-3 py-1.5 font-mono text-[11px]"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityMaxMdHidden,
+        ])}
       >
-        {label}
-      </div>
-      <div
-        className={stylexClassName("grid min-w-0 items-center max-md:hidden")}
-      >
-        <div className={stylexClassName("h-px tint-soft tint-info")} />
+        <div {...stylex.props(styles.parallelLine)} />
       </div>
     </div>
   );
@@ -295,26 +700,34 @@ function ParallelStartMarker({ label }: { label: string }) {
 
 const rowToneByKind = {
   event: {
-    card: "tint-border tint-text tint-info",
-    icon: "tint tint-info",
+    backgroundColor: "var(--tone-info-bg)",
+    borderColor: "var(--tone-info-border)",
+    color: "var(--tone-info-fg)",
   },
   external: {
-    card: "tint-border tint-text tint-error",
-    icon: "tint tint-error",
+    backgroundColor: "var(--tone-error-bg)",
+    borderColor: "var(--tone-error-border)",
+    color: "var(--tone-error-fg)",
   },
   function: {
-    card: "tint-border tint-text tint-success",
-    icon: "tint tint-success",
+    backgroundColor: "var(--tone-success-bg)",
+    borderColor: "var(--tone-success-border)",
+    color: "var(--tone-success-fg)",
   },
   request: {
-    card: "tint-border tint-text tint-info",
-    icon: "tint tint-info",
+    backgroundColor: "var(--tone-info-bg)",
+    borderColor: "var(--tone-info-border)",
+    color: "var(--tone-info-fg)",
   },
   worker: {
-    card: "tint-border tint-text tint-warning",
-    icon: "tint tint-warning",
+    backgroundColor: "var(--tone-warning-bg)",
+    borderColor: "var(--tone-warning-border)",
+    color: "var(--tone-warning-fg)",
   },
-} satisfies Record<string, { card: string; icon: string }>;
+} satisfies Record<
+  string,
+  { backgroundColor: string; borderColor: string; color: string }
+>;
 
 function rowTone(kind: ExecutionTimelineRow["kind"]) {
   if (kind === "outbox_event" || kind === "event") {

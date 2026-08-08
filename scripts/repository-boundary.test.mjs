@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { describe, expect, test } from "vitest";
@@ -12,6 +12,66 @@ const missing = (file) =>
   expect(access(path.join(root, file))).rejects.toMatchObject({
     code: "ENOENT",
   });
+
+const sourceFiles = async (directory) => {
+  const entries = await readdir(path.join(root, directory), {
+    withFileTypes: true,
+  });
+  const files = [];
+
+  for (const entry of entries) {
+    const relativePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "dist" && entry.name !== "node_modules") {
+        files.push(...(await sourceFiles(relativePath)));
+      }
+      continue;
+    }
+
+    if (/\.(?:css|js|jsx|mjs|ts|tsx)$/u.test(entry.name)) {
+      files.push(relativePath);
+    }
+  }
+
+  return files;
+};
+
+const borderWidthsWithoutStyles = (file, contents) => {
+  const lines = contents.split("\n");
+  const failures = [];
+
+  for (const [index, line] of lines.entries()) {
+    const match = line.match(
+      /^(\s*)(border(?:Block|Inline|Top|Bottom|Left|Right)?Width):\s*(.+),$/u
+    );
+    if (!match || /:\s*(?:0|["']0(?:px)?["'])\s*,?$/u.test(line)) {
+      continue;
+    }
+
+    const indentation = match[1].length;
+    let start = index;
+    while (
+      start > 0 &&
+      (lines[start].match(/^\s*/u)?.[0].length ?? 0) >= indentation
+    ) {
+      start -= 1;
+    }
+    let end = index + 1;
+    while (
+      end < lines.length &&
+      (lines[end].match(/^\s*/u)?.[0].length ?? 0) >= indentation
+    ) {
+      end += 1;
+    }
+
+    const matchingStyle = match[2].replace("Width", "Style");
+    if (!lines.slice(start, end).join("\n").includes(`${matchingStyle}:`)) {
+      failures.push(`${file}:${index + 1} (${matchingStyle})`);
+    }
+  }
+
+  return failures;
+};
 
 describe("Lenso Console repository boundary", () => {
   test.each([
@@ -115,6 +175,65 @@ describe("Lenso Console repository boundary", () => {
   test("does not retain retired service SDK packages", async () => {
     await missing("packages/remote-module-kit");
     await missing("packages/service-kit");
+  });
+
+  test("keeps component styling local to StyleX owners", async () => {
+    for (const file of [
+      "packages/console-ui/components.css",
+      "packages/console-ui/src/styles.ts",
+      "packages/console-ui/src/stylex-utilities.ts",
+      "src/lib/cn.ts",
+    ]) {
+      await missing(file);
+    }
+
+    const files = [
+      ...(await sourceFiles("src")),
+      ...(await sourceFiles("packages")),
+    ];
+    const contents = await Promise.all(files.map((file) => source(file)));
+    const joined = contents.join("\n");
+
+    expect(joined).not.toContain("mergeStyleProps");
+    expect(joined).not.toContain("legacyClassNameProps");
+    expect(joined).not.toContain("stylexClassName");
+    expect(joined).not.toContain("utilityProps(");
+    expect(joined).not.toMatch(
+      /(?:from\s*|import\s*(?:\(\s*)?)["'][^"']+\.(?:js|ts)["']/u
+    );
+  });
+
+  test("keeps authored borders independent from the browser reset", async () => {
+    const sourceFileList = [
+      ...(await sourceFiles("src")),
+      ...(await sourceFiles("packages")),
+    ];
+    const files = sourceFileList.filter((file) => /\.(?:ts|tsx)$/u.test(file));
+    const failureGroups = await Promise.all(
+      files.map(async (file) =>
+        borderWidthsWithoutStyles(file, await source(file))
+      )
+    );
+    const failures = failureGroups.flat();
+
+    expect(failures).toEqual([]);
+  });
+
+  test("keeps the Delivery divider inside the page gutter", async () => {
+    const styles = await source("src/styles.css");
+    const deliveryHeaderRule = styles.match(
+      /\[data-page~="delivery-page"\] \[data-ui~="page__header"\] \{([^}]*)\}/u
+    )?.[1];
+    const deliveryWorkspaceRule = styles.match(
+      /\[data-page-slot~="delivery-page__workspace"\] \{([^}]*)\}/u
+    )?.[1];
+
+    expect(deliveryHeaderRule ?? "").not.toMatch(
+      /\b(?:box-shadow|border-(?:bottom|block-end))\s*:/u
+    );
+    expect(deliveryWorkspaceRule ?? "").toContain(
+      "border-top: 1px solid var(--line-subtle)"
+    );
   });
 
   test("documents the local release boundary", async () => {

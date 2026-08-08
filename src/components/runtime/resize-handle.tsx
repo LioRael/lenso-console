@@ -1,21 +1,74 @@
-import { stylexClassName } from "@lenso/console-ui";
+import type { ConsoleStyle } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { useRef, useState } from "react";
-import type { CSSProperties } from "react";
+
+const localStyles = stylex.create({
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityBottom15: {
+    bottom: "-0.375rem",
+  },
+  utilityTop15: {
+    top: "-0.375rem",
+  },
+  utilityInsetX0: {
+    insetInline: "calc(0.25rem * 0)",
+  },
+  utilityInsetY0: {
+    insetBlock: "calc(0.25rem * 0)",
+  },
+  utilityLeft15: {
+    left: "-0.375rem",
+  },
+  utilityRight15: {
+    right: "-0.375rem",
+  },
+});
+
+const styles = stylex.create({
+  handle: {
+    backgroundColor: "transparent",
+    outlineStyle: "none",
+    position: "relative",
+    zIndex: 1,
+    ":focus-visible": {
+      outlineColor: "var(--focus-ring)",
+      outlineOffset: -2,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  handleHorizontal: { cursor: "col-resize", minHeight: 0, width: 8 },
+  handleVertical: { cursor: "ns-resize", height: 8, minWidth: 0 },
+  line: {
+    position: "absolute",
+    transitionDuration: "150ms",
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionTimingFunction: "ease",
+  },
+  lineActive: { backgroundColor: "var(--line-strong)" },
+  lineDragging: { backgroundColor: "var(--fg-tertiary)" },
+  lineHorizontal: { insetBlock: 0, left: 0, width: 1 },
+  lineIdle: { backgroundColor: "var(--border-subtle)" },
+  lineVertical: { height: 1, insetInline: 0, top: "50%" },
+});
 
 export function ResizeHandle({
   ariaLabel,
   axis = "horizontal",
-  className,
   onResize,
   onReset,
-  style,
+  slot,
+  stylex: stylexStyle,
 }: {
   ariaLabel: string;
   axis?: "horizontal" | "vertical";
-  className?: string;
   onResize: (delta: number) => void;
   onReset?: () => void;
-  style?: CSSProperties;
+  slot?: string;
+  stylex?: ConsoleStyle;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -29,13 +82,13 @@ export function ResizeHandle({
   return (
     <button
       aria-label={ariaLabel}
-      className={stylexClassName(
-        `group relative z-1 bg-transparent outline-hidden focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-[-2px] ${
-          isVertical ? "h-2 min-w-0" : "min-h-0 w-2"
-        } ${className ?? ""}`
+      {...stylex.props(
+        styles.handle,
+        axis === "vertical" ? styles.handleVertical : styles.handleHorizontal,
+        stylexStyle
       )}
+      data-resize-slot={slot}
       ref={handleRef}
-      style={{ cursor: resizeCursor, ...style }}
       onBlur={() => setIsFocused(false)}
       onDoubleClick={onReset}
       onFocus={() => setIsFocused(true)}
@@ -100,23 +153,31 @@ export function ResizeHandle({
       type="button"
     >
       <span
-        className={stylexClassName(
+        {...stylex.props(
           isVertical
-            ? "absolute -bottom-1.5 -top-1.5 inset-x-0"
-            : "absolute inset-y-0 -left-1.5 -right-1.5"
+            ? [
+                localStyles.utilityAbsolute,
+                localStyles.utilityBottom15,
+                localStyles.utilityTop15,
+                localStyles.utilityInsetX0,
+              ]
+            : [
+                localStyles.utilityAbsolute,
+                localStyles.utilityInsetY0,
+                localStyles.utilityLeft15,
+                localStyles.utilityRight15,
+              ]
         )}
       />
       <span
-        className={stylexClassName(
-          `absolute transition ${
-            isVertical ? "inset-x-0 top-1/2 h-px" : "inset-y-0 left-0 w-px"
-          } ${
-            isDragging
-              ? "bg-(--fg-tertiary)"
-              : isActive
-                ? "bg-(--line-strong)"
-                : "bg-(--border-subtle)"
-          }`
+        {...stylex.props(
+          styles.line,
+          isVertical ? styles.lineVertical : styles.lineHorizontal,
+          isDragging
+            ? styles.lineDragging
+            : isActive
+              ? styles.lineActive
+              : styles.lineIdle
         )}
       />
     </button>

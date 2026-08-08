@@ -1,10 +1,157 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import {
   AlertTriangle,
   CheckCircle2,
   GitPullRequestArrow,
   ShieldCheck,
 } from "lucide-react";
+
+const localStyles = stylex.create({
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgPanel: {
+    backgroundColor: "var(--bg-panel)",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy2: {
+    paddingBlock: "calc(0.25rem * 2)",
+  },
+  utilityTextAccent: {
+    color: "var(--accent)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityText12px: {
+    fontSize: "12px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityGapPx: {
+    gap: "1px",
+  },
+  utilityBgLine: {
+    backgroundColor: "var(--line)",
+  },
+  utilityMdGridCols3: {
+    "@media (min-width: 768px)": {
+      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    },
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityMinH9: {
+    minHeight: "calc(0.25rem * 9)",
+  },
+  utilityGridCols96pxMinmax01frMinmax140px07fr: {
+    gridTemplateColumns: "96px minmax(0,1fr) minmax(140px,0.7fr)",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityBorderT: {
+    borderTopStyle: "solid",
+    borderTopWidth: "1px",
+  },
+  utilityPy15: {
+    paddingBlock: "calc(0.25rem * 1.5)",
+  },
+  utilityFirstBorderT0: {
+    ":first-child": {
+      borderTopWidth: "0px",
+    },
+  },
+  utilityHoverBgBgRowHover: {
+    ":hover": {
+      backgroundColor: "var(--bg-row-hover)",
+    },
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityP3: {
+    padding: "calc(0.25rem * 3)",
+  },
+  utilityMb2: {
+    marginBottom: "calc(0.25rem * 2)",
+  },
+  utilityBorderL2: {
+    borderLeftStyle: "solid",
+    borderLeftWidth: "2px",
+  },
+  utilityBorderDanger: {
+    borderColor: "var(--danger)",
+  },
+  utilityPl2: {
+    paddingLeft: "calc(0.25rem * 2)",
+  },
+  utilityGridColsMinmax140px06frMinmax01frMinmax140px07fr: {
+    gridTemplateColumns:
+      "minmax(140px,0.6fr) minmax(0,1fr) minmax(140px,0.7fr)",
+  },
+  utilityLastBorderB0: {
+    ":last-child": {
+      borderBottomWidth: "0px",
+    },
+  },
+  utilityCursorPointer: {
+    cursor: "pointer",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityMl2: {
+    marginLeft: "calc(0.25rem * 2)",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+});
 
 export type ExtractionConsoleState =
   | "planned"
@@ -89,35 +236,58 @@ export function ExtractionConsolePanel({
   return (
     <section
       aria-labelledby="extraction-heading"
-      className={stylexClassName("border-b border-(--line) bg-(--bg-panel)")}
+      {...stylex.props([
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgPanel,
+      ])}
     >
       <header
-        className={stylexClassName(
-          "flex items-center gap-2 border-b border-(--line) px-3 py-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLine,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+        ])}
       >
         <StateIcon
           aria-hidden="true"
-          className={stylexClassName("text-(--accent)")}
+          {...stylex.props([localStyles.utilityTextAccent])}
           size={14}
         />
         <h2
-          className={stylexClassName("font-mono text-[12px] font-semibold")}
+          {...stylex.props([
+            localStyles.utilityFontMono,
+            localStyles.utilityText12px,
+            localStyles.utilityFontSemibold,
+          ])}
           id="extraction-heading"
         >
           Module extraction
         </h2>
         <span
           aria-label={`Extraction state: ${data.state}`}
-          className={stylexClassName(
-            "ml-auto font-mono text-[10px] uppercase text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMlAuto,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityUppercase,
+            localStyles.utilityTextFgSecondary,
+          ])}
         >
           {data.state.replaceAll("_", " ")}
         </span>
       </header>
       <div
-        className={stylexClassName("grid gap-px bg-(--line) md:grid-cols-3")}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityGapPx,
+          localStyles.utilityBgLine,
+          localStyles.utilityMdGridCols3,
+        ])}
       >
         <Summary label="readiness" value={data.readinessSummary} />
         <Summary
@@ -131,34 +301,55 @@ export function ExtractionConsolePanel({
       </div>
       <ol
         aria-label="Extraction phase timeline"
-        className={stylexClassName("grid")}
+        {...stylex.props([localStyles.utilityGrid])}
       >
         {data.timeline.length === 0 ? (
-          <li className={stylexClassName("text-[11px] text-(--fg-tertiary)")}>
+          <li
+            {...stylex.props([
+              localStyles.utilityText11px,
+              localStyles.utilityTextFgTertiary,
+            ])}
+          >
             No phase evidence yet.
           </li>
         ) : (
           data.timeline.map((phase) => (
             <li
-              className={stylexClassName(
-                "grid min-h-9 grid-cols-[96px_minmax(0,1fr)_minmax(140px,0.7fr)] items-center gap-3 border-t border-(--line) px-3 py-1.5 text-[10px] first:border-t-0 hover:bg-(--bg-row-hover)"
-              )}
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilityMinH9,
+                localStyles.utilityGridCols96pxMinmax01frMinmax140px07fr,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap3,
+                localStyles.utilityBorderT,
+                localStyles.utilityBorderLine,
+                localStyles.utilityPx3,
+                localStyles.utilityPy15,
+                localStyles.utilityText10px,
+                localStyles.utilityFirstBorderT0,
+                localStyles.utilityHoverBgBgRowHover,
+              ])}
               key={`${phase.phaseId}:${phase.artifactId}`}
             >
-              <div className={stylexClassName("text-(--fg-tertiary)")}>
+              <div {...stylex.props([localStyles.utilityTextFgTertiary])}>
                 {phase.state}
               </div>
               <div
-                className={stylexClassName(
-                  "truncate text-[11px] text-(--fg-primary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityTruncate,
+                  localStyles.utilityText11px,
+                  localStyles.utilityTextFgPrimary,
+                ])}
               >
                 {phase.phaseId}
               </div>
               <div
-                className={stylexClassName(
-                  "truncate font-mono text-[9px] text-(--fg-tertiary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityTruncate,
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText9px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 <ArtifactLink
                   artifactId={phase.artifactId}
@@ -172,32 +363,46 @@ export function ExtractionConsolePanel({
       {data.blockers.length > 0 ? (
         <div
           aria-label="Extraction blockers"
-          className={stylexClassName("border-t border-(--line) p-3")}
+          {...stylex.props([
+            localStyles.utilityBorderT,
+            localStyles.utilityBorderLine,
+            localStyles.utilityP3,
+          ])}
         >
           {data.blockers.map((blocker) => (
             <article
-              className={stylexClassName(
-                "mb-2 border-l-2 border-(--danger) pl-2"
-              )}
+              {...stylex.props([
+                localStyles.utilityMb2,
+                localStyles.utilityBorderL2,
+                localStyles.utilityBorderDanger,
+                localStyles.utilityPl2,
+              ])}
               key={`${blocker.artifactId}:${blocker.code}:${blocker.subject}`}
             >
               <h3
-                className={stylexClassName(
-                  "font-mono text-[10px] font-semibold"
-                )}
+                {...stylex.props([
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                  localStyles.utilityFontSemibold,
+                ])}
               >
                 {blocker.code} / {blocker.subject}
               </h3>
               <p
-                className={stylexClassName("text-[11px] text-(--fg-secondary)")}
+                {...stylex.props([
+                  localStyles.utilityText11px,
+                  localStyles.utilityTextFgSecondary,
+                ])}
               >
                 {blocker.detail}
               </p>
               {blocker.nextActions.map((action) => (
                 <p
-                  className={stylexClassName(
-                    "font-mono text-[9px] text-(--fg-tertiary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText9px,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
                   key={action}
                 >
                   next: {action}
@@ -210,32 +415,58 @@ export function ExtractionConsolePanel({
       {data.approvalBoundaries.length > 0 ? (
         <div
           aria-label="Extraction approval boundaries"
-          className={stylexClassName("border-t border-(--line) p-3")}
+          {...stylex.props([
+            localStyles.utilityBorderT,
+            localStyles.utilityBorderLine,
+            localStyles.utilityP3,
+          ])}
         >
           <h3
-            className={stylexClassName("mb-2 font-mono text-[10px] uppercase")}
+            {...stylex.props([
+              localStyles.utilityMb2,
+              localStyles.utilityFontMono,
+              localStyles.utilityText10px,
+              localStyles.utilityUppercase,
+            ])}
           >
             Approval boundaries
           </h3>
           {data.approvalBoundaries.map((boundary) => (
             <article
-              className={stylexClassName(
-                "grid grid-cols-[minmax(140px,0.6fr)_minmax(0,1fr)_minmax(140px,0.7fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
-              )}
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilityGridColsMinmax140px06frMinmax01frMinmax140px07fr,
+                localStyles.utilityGap3,
+                localStyles.utilityBorderB,
+                localStyles.utilityBorderLine,
+                localStyles.utilityPx3,
+                localStyles.utilityPy2,
+                localStyles.utilityLastBorderB0,
+              ])}
               key={boundary.boundaryId}
             >
-              <div className={stylexClassName("font-mono text-[10px]")}>
+              <div
+                {...stylex.props([
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                ])}
+              >
                 {boundary.action} · {boundary.phaseId}
               </div>
               <p
-                className={stylexClassName("text-[11px] text-(--fg-secondary)")}
+                {...stylex.props([
+                  localStyles.utilityText11px,
+                  localStyles.utilityTextFgSecondary,
+                ])}
               >
                 {boundary.reason}
               </p>
               <p
-                className={stylexClassName(
-                  "font-mono text-[9px] text-(--fg-tertiary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText9px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 required pins: {boundary.requiredPins.join(", ") || "none"}
               </p>
@@ -243,35 +474,66 @@ export function ExtractionConsolePanel({
           ))}
         </div>
       ) : null}
-      <details className={stylexClassName("border-t border-(--line) p-3")}>
+      <details
+        {...stylex.props([
+          localStyles.utilityBorderT,
+          localStyles.utilityBorderLine,
+          localStyles.utilityP3,
+        ])}
+      >
         <summary
-          className={stylexClassName(
-            "cursor-pointer font-mono text-[10px] uppercase"
-          )}
+          {...stylex.props([
+            localStyles.utilityCursorPointer,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityUppercase,
+          ])}
         >
           Evidence provenance ({data.evidence.length})
         </summary>
         {data.evidence.map((item) => (
           <div
-            className={stylexClassName("mt-2 text-[10px]")}
+            {...stylex.props([
+              localStyles.utilityMt2,
+              localStyles.utilityText10px,
+            ])}
             key={`${item.artifactId}:${item.kind}:${item.digest}`}
           >
-            <span className={stylexClassName("font-mono")}>
+            <span {...stylex.props([localStyles.utilityFontMono])}>
               {item.kind} / {item.subject}
             </span>
-            <span className={stylexClassName("ml-2 text-(--fg-tertiary)")}>
+            <span
+              {...stylex.props([
+                localStyles.utilityMl2,
+                localStyles.utilityTextFgTertiary,
+              ])}
+            >
               {item.detail}
             </span>
-            <span className={stylexClassName("ml-2 font-mono text-(--accent)")}>
+            <span
+              {...stylex.props([
+                localStyles.utilityMl2,
+                localStyles.utilityFontMono,
+                localStyles.utilityTextAccent,
+              ])}
+            >
               <ArtifactLink artifactId={item.artifactId} planId={data.planId} />
             </span>
           </div>
         ))}
       </details>
       <footer
-        className={stylexClassName(
-          "flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityBorderT,
+          localStyles.utilityBorderLine,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         <ShieldCheck aria-hidden="true" size={12} /> Console is read-only and
         does not evaluate or apply Cutover rules.
@@ -301,15 +563,24 @@ function ArtifactLink({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className={stylexClassName("bg-(--bg-panel) p-3")}>
+    <div
+      {...stylex.props([localStyles.utilityBgBgPanel, localStyles.utilityP3])}
+    >
       <div
-        className={stylexClassName(
-          "font-mono text-[9px] uppercase text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+          localStyles.utilityUppercase,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         {label}
       </div>
-      <div className={stylexClassName("mt-1 text-[11px]")}>{value}</div>
+      <div
+        {...stylex.props([localStyles.utilityMt1, localStyles.utilityText11px])}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -317,9 +588,14 @@ function ExtractionMessage({ role, text }: { role?: "alert"; text: string }) {
   return (
     <section
       aria-label="Module extraction"
-      className={stylexClassName(
-        "border-b border-(--line) bg-(--bg-panel) p-3 text-[11px] text-(--fg-tertiary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgPanel,
+        localStyles.utilityP3,
+        localStyles.utilityText11px,
+        localStyles.utilityTextFgTertiary,
+      ])}
       role={role}
     >
       {text}

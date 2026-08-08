@@ -1,13 +1,200 @@
 import { useGSAP } from "@gsap/react";
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import gsap from "gsap";
 import { ChevronDown } from "lucide-react";
 import { useRef } from "react";
 
 import type { RuntimeStory } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 import { formatRuntimeDuration, serviceColor } from "../../lib/runtime-style";
 import { getServiceSummaryPanelLayout } from "./service-summary-strip-layout";
+
+const localStyles = stylex.create({
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityH30px: {
+    height: "30px",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap7px: {
+    gap: "7px",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityTextLeft: {
+    textAlign: "left",
+  },
+  utilityTransition: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityHoverTextForeground: {
+    ":hover": {
+      color: "var(--foreground)",
+    },
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityTextMuted: {
+    color: "var(--muted)",
+  },
+  utilityFontSans: {
+    fontFamily:
+      "var(--font-sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',\n    'Noto Color Emoji')",
+  },
+  utilityText95px: {
+    fontSize: "9.5px",
+  },
+  utilityFontMedium: {
+    fontWeight: "500",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityH4: {
+    height: "calc(0.25rem * 4)",
+  },
+  utilityMinW45: {
+    minWidth: "calc(0.25rem * 4.5)",
+  },
+  utilityPlaceItemsCenter: {
+    placeItems: "center",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgSurfaceRaised: {
+    backgroundColor: "var(--bg-surface-raised)",
+  },
+  utilityPx1: {
+    paddingInline: "calc(0.25rem * 1)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityText8px: {
+    fontSize: "8px",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityText85px: {
+    fontSize: "8.5px",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityH10: {
+    height: "calc(0.25rem * 10)",
+  },
+  utilityMinW600px: {
+    minWidth: "600px",
+  },
+  utilityGridCols8px94px46px56px56px56px38pxMinmax96px1fr: {
+    gridTemplateColumns: "8px 94px 46px 56px 56px 56px 38px minmax(96px,1fr)",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBorderBgCanvas: {
+    borderColor: "var(--bg-canvas)",
+  },
+  utilityLastBorderB0: {
+    ":last-child": {
+      borderBottomWidth: "0px",
+    },
+  },
+  utilityH15: {
+    height: "calc(0.25rem * 1.5)",
+  },
+  utilityRounded1px: {
+    borderRadius: "1px",
+  },
+  utilityBgBgSurfaceMuted: {
+    backgroundColor: "var(--bg-surface-muted)",
+  },
+});
+
+const styles = stylex.create({
+  container: (height: number) => ({
+    backgroundColor: "var(--surface)",
+    borderBlockStartColor: "var(--line-subtle)",
+    borderBlockStartStyle: "solid",
+    borderBlockStartWidth: 1,
+    display: "grid",
+    gridTemplateRows: "auto minmax(0, 1fr)",
+    height,
+    minWidth: 0,
+    overflow: "hidden",
+  }),
+  content: (height: number, opacity: number) => ({
+    height,
+    minHeight: 0,
+    opacity,
+    overflow: "hidden",
+  }),
+  errorCount: (hasErrors: boolean) => ({
+    color: hasErrors ? "var(--tone-error-fg)" : "var(--fg-tertiary)",
+  }),
+  serviceBar: (color: string, width: string) => ({
+    backgroundColor: color,
+    borderRadius: "1px",
+    height: "100%",
+    width,
+  }),
+  serviceDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "1px",
+    height: 8,
+    width: 8,
+  }),
+  serviceName: (color: string) => ({
+    color,
+    fontFamily: "var(--font-ui)",
+    fontSize: 10,
+    fontWeight: 500,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  }),
+});
 
 gsap.registerPlugin(useGSAP);
 
@@ -110,45 +297,83 @@ export function ServiceSummaryStrip({
   return (
     <div
       ref={containerRef}
-      className={stylexClassName(
-        "grid min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden border-t border-(--line-subtle) bg-(--surface)"
+      {...stylex.props(
+        styles.container(initialPanelLayoutRef.current.panelHeight)
       )}
-      style={{ height: initialPanelLayoutRef.current.panelHeight }}
     >
-      <div className={cn("flex h-[30px] min-w-0 items-center gap-[7px] px-3")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH30px,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap7px,
+          localStyles.utilityPx3,
+        ])}
+      >
         <button
           aria-expanded={expanded}
           aria-label={expanded ? "Collapse services" : "Expand services"}
-          className={stylexClassName(
-            "flex min-w-0 items-center gap-1.5 text-left transition hover:text-(--foreground)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap15,
+            localStyles.utilityTextLeft,
+            localStyles.utilityTransition,
+            localStyles.utilityHoverTextForeground,
+          ])}
           onClick={() => onExpandedChange(!expanded)}
           type="button"
         >
           <ChevronDown
             ref={iconRef}
-            className={stylexClassName("shrink-0 text-(--muted)")}
+            {...stylex.props([
+              localStyles.utilityShrink0,
+              localStyles.utilityTextMuted,
+            ])}
             size={12}
           />
           <span
-            className={stylexClassName(
-              "font-sans text-[9.5px] font-medium text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFontSans,
+              localStyles.utilityText95px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             Services
           </span>
           <span
-            className={stylexClassName(
-              "grid h-4 min-w-4.5 place-items-center border border-(--line) bg-(--bg-surface-raised) px-1 font-mono text-[8px] text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityGrid,
+              localStyles.utilityH4,
+              localStyles.utilityMinW45,
+              localStyles.utilityPlaceItemsCenter,
+              localStyles.utilityBorder,
+              localStyles.utilityBorderLine,
+              localStyles.utilityBgBgSurfaceRaised,
+              localStyles.utilityPx1,
+              localStyles.utilityFontMono,
+              localStyles.utilityText8px,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             {services.length}
           </span>
         </button>
         <div
-          className={stylexClassName(
-            "ml-auto flex min-w-0 items-center gap-[7px] overflow-hidden font-mono text-[8.5px] text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMlAuto,
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap7px,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityFontMono,
+            localStyles.utilityText85px,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           <span>p50 {formatRuntimeDuration(serviceSummary.p50)}</span>
           <span>p95 {formatRuntimeDuration(serviceSummary.p95)}</span>
@@ -157,64 +382,79 @@ export function ServiceSummaryStrip({
       </div>
       <div
         ref={contentRef}
-        className={stylexClassName("min-h-0 overflow-hidden")}
-        style={{
-          height: initialPanelLayoutRef.current.contentHeight,
-          opacity: initialPanelLayoutRef.current.contentHeight > 0 ? 1 : 0,
-        }}
+        {...stylex.props(
+          styles.content(
+            initialPanelLayoutRef.current.contentHeight,
+            initialPanelLayoutRef.current.contentHeight > 0 ? 1 : 0
+          )
+        )}
       >
-        <div className={stylexClassName("h-full min-h-0 overflow-auto")}>
+        <div
+          {...stylex.props([
+            localStyles.utilityHFull,
+            localStyles.utilityMinH0,
+            localStyles.utilityOverflowAuto,
+          ])}
+        >
           {services.map((item) => (
             <div
-              className={stylexClassName(
-                "grid h-10 min-w-[600px] grid-cols-[8px_94px_46px_56px_56px_56px_38px_minmax(96px,1fr)] items-center gap-2 border-b border-(--bg-canvas) px-3 font-mono text-[8.5px] last:border-b-0"
-              )}
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilityH10,
+                localStyles.utilityMinW600px,
+                localStyles.utilityGridCols8px94px46px56px56px56px38pxMinmax96px1fr,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap2,
+                localStyles.utilityBorderB,
+                localStyles.utilityBorderBgCanvas,
+                localStyles.utilityPx3,
+                localStyles.utilityFontMono,
+                localStyles.utilityText85px,
+                localStyles.utilityLastBorderB0,
+              ])}
               key={item.service}
             >
               <div
-                className={stylexClassName("size-2 rounded-[1px]")}
-                style={{ backgroundColor: serviceColor(item.service) }}
+                {...stylex.props(styles.serviceDot(serviceColor(item.service)))}
               />
               <span
-                className={stylexClassName(
-                  "min-w-0 truncate font-sans text-[10px] font-medium"
+                {...stylex.props(
+                  styles.serviceName(serviceColor(item.service))
                 )}
-                style={{ color: serviceColor(item.service) }}
               >
                 {item.service}
               </span>
-              <span className={stylexClassName("text-(--muted)")}>
+              <span {...stylex.props([localStyles.utilityTextMuted])}>
                 {item.nodes} nodes
               </span>
-              <span className={stylexClassName("text-(--muted)")}>
+              <span {...stylex.props([localStyles.utilityTextMuted])}>
                 p50 {formatRuntimeDuration(item.p50)}
               </span>
-              <span className={stylexClassName("text-(--muted)")}>
+              <span {...stylex.props([localStyles.utilityTextMuted])}>
                 p95 {formatRuntimeDuration(item.p95)}
               </span>
-              <span className={stylexClassName("text-(--muted)")}>
+              <span {...stylex.props([localStyles.utilityTextMuted])}>
                 p99 {formatRuntimeDuration(item.p99)}
               </span>
-              <span
-                className={
-                  item.errors > 0
-                    ? "text-(--tone-error-fg)"
-                    : "text-(--fg-tertiary)"
-                }
-              >
+              <span {...stylex.props(styles.errorCount(item.errors > 0))}>
                 {item.errors} err
               </span>
               <div
-                className={stylexClassName(
-                  "h-1.5 min-w-0 overflow-hidden rounded-[1px] bg-(--bg-surface-muted)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityH15,
+                  localStyles.utilityMinW0,
+                  localStyles.utilityOverflowHidden,
+                  localStyles.utilityRounded1px,
+                  localStyles.utilityBgBgSurfaceMuted,
+                ])}
               >
                 <div
-                  className={stylexClassName("h-full rounded-[1px]")}
-                  style={{
-                    backgroundColor: serviceColor(item.service),
-                    width: `${Math.max(2, (item.duration / story.durationMs) * 100)}%`,
-                  }}
+                  {...stylex.props(
+                    styles.serviceBar(
+                      serviceColor(item.service),
+                      `${Math.max(2, (item.duration / story.durationMs) * 100)}%`
+                    )
+                  )}
                 />
               </div>
             </div>

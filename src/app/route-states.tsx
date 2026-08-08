@@ -1,4 +1,5 @@
-import { Button, StateView, mergeStyleProps, styles } from "@lenso/console-ui";
+import { Button, StateView, controlStyles } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { Link, useRouter } from "@tanstack/react-router";
 import { AlertTriangle, House, LoaderCircle } from "lucide-react";
 
@@ -19,12 +20,7 @@ export const RouteNotFound = () => (
     action={
       <Link
         to="/"
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.button,
-          styles.buttonPrimary
-        )}
+        {...stylex.props(controlStyles.button, controlStyles.buttonPrimary)}
       >
         <House aria-hidden="true" size={14} />
         Back to Home

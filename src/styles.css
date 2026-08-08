@@ -1,100 +1,61 @@
-/* Host-only document reset and page contracts. Component primitives are
- * authored and compiled by StyleX; this layer does not invoke Tailwind. */
+/* Host-only page contracts. Component primitives are authored and compiled by
+ * StyleX; document reset/base styles live in their own layers. */
+@layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;
 @import "../packages/console-ui/tokens.css";
 @import "./styles-reset.css";
-/* Host-private parity layer: preserves the approved pre-StyleX component
- * geometry while the equivalent named StyleX slots are validated. It is not
- * exported from @lenso/console-ui or available as a Module Surface API. */
-@import "../packages/console-ui/components.css";
+@import "./styles-base.css";
 
-::selection {
-  background: var(--bg-row-selected);
-  color: var(--fg-primary);
-}
-
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
-}
-
-button,
-a {
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: default;
-}
-
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
-}
-
-input,
-select,
-textarea {
-  caret-color: var(--accent);
-}
-
-.product-page__body {
+[data-page-slot~="product-page__body"] {
   overflow: visible;
 }
 
-.system-page .product-page__body {
+[data-page~="system-page"] [data-page-slot~="product-page__body"] {
   height: calc(100vh - 144px);
   min-height: 0;
   overflow: hidden;
   padding-bottom: 32px;
 }
 
-.system-page .lenso-ui-page__description {
+[data-page~="system-page"] [data-ui~="page__description"] {
   color: var(--fg-secondary);
 }
 
-.system-page .lenso-ui-page__actions {
+[data-page~="system-page"] [data-ui~="page__actions"] {
   color: var(--fg-tertiary);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
 }
 
-.system-page__workspace {
+[data-page-slot~="system-page__workspace"] {
   height: 676px;
   min-height: 676px;
 }
 
-.system-page .lenso-ui-inline-status {
+[data-page~="system-page"] [data-ui~="inline-status"] {
   column-gap: 8px;
 }
 
-.system-page .lenso-ui-data-grid {
+[data-page~="system-page"] [data-ui~="data-grid"] {
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.system-page__filters .system-filter-control:nth-child(1) {
+[data-page-slot~="system-page__filters"]
+  [data-page-slot~="system-filter-control"]:nth-child(1) {
   width: 84px;
 }
 
-.system-page__filters .system-filter-control:nth-child(2) {
+[data-page-slot~="system-page__filters"]
+  [data-page-slot~="system-filter-control"]:nth-child(2) {
   width: 94px;
 }
 
-.system-page__filters .system-filter-control:nth-child(3) {
+[data-page-slot~="system-page__filters"]
+  [data-page-slot~="system-filter-control"]:nth-child(3) {
   width: 139px;
 }
 
-.services-page .product-page__body {
+[data-page~="services-page"] [data-page-slot~="product-page__body"] {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 144px);
@@ -103,27 +64,27 @@ textarea {
   padding-bottom: 0;
 }
 
-.services-page .lenso-ui-page__description {
+[data-page~="services-page"] [data-ui~="page__description"] {
   color: var(--fg-secondary);
 }
 
-.services-page .lenso-ui-page__actions {
+[data-page~="services-page"] [data-ui~="page__actions"] {
   color: var(--fg-tertiary);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
 }
 
-.services-page__workspace {
+[data-page-slot~="services-page__workspace"] {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.services-page .lenso-ui-inline-status {
+[data-page~="services-page"] [data-ui~="inline-status"] {
   column-gap: 8px;
 }
 
-.services-page .lenso-ui-data-grid {
+[data-page~="services-page"] [data-ui~="data-grid"] {
   flex: 1 1 auto;
   gap: 0;
   min-height: 0;
@@ -134,39 +95,42 @@ textarea {
   overflow-y: auto;
 }
 
-.services-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.services-page .lenso-ui-data-grid > .lenso-ui-data-row {
+[data-page~="services-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="services-page"] [data-ui~="data-grid"] > [data-ui~="data-row"] {
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.services-page,
-.services-page__workspace .lenso-ui-split-view__main {
+[data-page~="services-page"],
+[data-page-slot~="services-page__workspace"] [data-ui~="split-view__main"] {
   overscroll-behavior-y: none;
 }
 
-.services-page__workspace .lenso-ui-split-view__main {
+[data-page-slot~="services-page__workspace"] [data-ui~="split-view__main"] {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.services-page__filters .services-filter-control:nth-child(1) {
+[data-page-slot~="services-page__filters"]
+  [data-page-slot~="services-filter-control"]:nth-child(1) {
   width: 126px;
 }
 
-.services-page__filters .services-filter-control:nth-child(2) {
+[data-page-slot~="services-page__filters"]
+  [data-page-slot~="services-filter-control"]:nth-child(2) {
   width: 93px;
 }
 
-.services-page__filters .services-filter-control:nth-child(3) {
+[data-page-slot~="services-page__filters"]
+  [data-page-slot~="services-filter-control"]:nth-child(3) {
   width: 101px;
 }
 
-.services-page__filters {
+[data-page-slot~="services-page__filters"] {
   flex: 0 0 48px;
 }
 
-.services-page__empty {
+[data-page-slot~="services-page__empty"] {
   display: grid;
   min-width: 732px;
   min-height: 64px;
@@ -176,29 +140,32 @@ textarea {
   line-height: 16px;
 }
 
-.services-inspector .lenso-ui-inspector__section-body p {
+[data-page-slot~="services-inspector"] [data-ui~="inspector__section-body"] p {
   margin: 0;
 }
 
-.services-inspector .lenso-ui-inspector__section-body p + p {
+[data-page-slot~="services-inspector"]
+  [data-ui~="inspector__section-body"]
+  p
+  + p {
   margin-top: 5px;
 }
 
-.home-page .lenso-ui-page__description {
+[data-page~="home-page"] [data-ui~="page__description"] {
   color: var(--fg-secondary);
 }
 
-.home-page .product-page__body {
+[data-page~="home-page"] [data-page-slot~="product-page__body"] {
   height: calc(100vh - 144px);
   min-height: 0;
   overflow: hidden;
 }
 
-.home-page__evidence-pane {
+[data-page-slot~="home-page__evidence-pane"] {
   position: relative;
 }
 
-.home-page__evidence-pane::before {
+[data-page-slot~="home-page__evidence-pane"]::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 1px;
@@ -207,163 +174,20 @@ textarea {
   pointer-events: none;
 }
 
-.product-split-workspace {
+[data-page-slot~="product-split-workspace"] {
   border-top: 0;
 }
 
-.product-page .lenso-ui-page__header {
+[data-page~="product-page"] [data-ui~="page__header"] {
   border-bottom: 0;
 }
 
-.auth-page {
-  overflow: hidden;
-}
-
-.auth-page__body {
-  height: 756px;
-  overflow: hidden;
-  padding-bottom: 32px;
-}
-
-.auth-page__body > .lenso-ui-summary {
-  margin-bottom: 24px;
-}
-
-.auth-overview-card {
-  display: flex;
-  min-height: 152px;
-  flex-direction: column;
-  gap: 8px;
-  padding: 20px;
-  background: var(--bg-canvas);
-  color: var(--fg-secondary);
-  text-decoration: none;
-}
-
-.auth-overview-card:hover,
-.auth-overview-card:focus-visible {
-  background: var(--bg-row-hover);
-  color: var(--fg-primary);
-}
-
-.auth-overview-card strong {
-  color: var(--fg-primary);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 18px;
-}
-
-.auth-overview-card span {
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.auth-list-workspace,
-.auth-provider-detail {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.auth-list-workspace .lenso-ui-split-view__main,
-.auth-provider-detail .lenso-ui-split-view__main {
-  min-width: 0;
-  padding-right: 28px;
-}
-
-.auth-list-workspace .lenso-ui-split-view__inspector,
-.auth-provider-detail .lenso-ui-split-view__inspector {
-  min-width: 0;
-  overflow: auto;
-}
-
-.auth-providers-page__filters {
-  display: flex;
-  height: 48px;
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid var(--line-subtle);
-  border-bottom: 1px solid var(--line-subtle);
-  overflow: hidden;
-}
-
-.auth-providers-page__workspace {
-  height: 676px;
-  min-height: 676px;
-  overflow: hidden;
-}
-
-.auth-providers-page__main {
-  min-width: 0;
-  overflow: hidden;
-  padding-right: 28px !important;
-}
-
-.auth-providers-page__table {
-  min-width: 732px;
-}
-
-.auth-providers-page__inspector,
-.auth-provider-detail__inspector {
-  min-width: 0;
-  overflow: hidden !important;
-  padding: 28px 0 0 28px !important;
-}
-
-.auth-providers-inspector {
-  width: 348px;
-}
-
-.auth-providers-inspector .lenso-ui-inspector__header {
-  padding: 0 0 18px;
-}
-
-.auth-providers-inspector .lenso-ui-inspector__section {
-  width: 348px;
-  padding: 18px 0;
-  border-top-color: var(--line-subtle);
-}
-
-.auth-providers-inspector .lenso-ui-inspector__section-title {
-  margin-bottom: 5px;
-  color: var(--fg-tertiary);
-}
-
-.auth-providers-inspector__tabs {
-  width: 320px;
-  height: 33px;
-  overflow: hidden;
-}
-
-.auth-providers-inspector__tabs .lenso-ui-tabs__list {
-  height: 33px;
-  border-bottom: 0;
-}
-
-.auth-providers-inspector__rule {
-  width: 348px;
-  height: 1px;
-  background: var(--line-subtle);
-}
-
-.auth-providers-inspector__copy {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  color: var(--fg-primary);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.auth-providers-inspector__copy p {
-  margin: 0;
-}
-
-.product-page__filters {
+[data-page-slot~="product-page__filters"] {
   border-top: 1px solid var(--line-subtle);
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.system-page__empty {
+[data-page-slot~="system-page__empty"] {
   display: grid;
   min-width: 732px;
   min-height: 64px;
@@ -373,44 +197,44 @@ textarea {
   line-height: 16px;
 }
 
-.changes-page__meta {
+[data-page-slot~="changes-page__meta"] {
   color: var(--tone-warning-fg);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
 }
 
-.changes-page__tabs,
-.changes-page__tabs .lenso-ui-tabs__list {
+[data-page-slot~="changes-page__tabs"],
+[data-page-slot~="changes-page__tabs"] [data-ui~="tabs__list"] {
   height: 41px;
 }
 
-.changes-page__tabs .lenso-ui-tabs__list {
+[data-page-slot~="changes-page__tabs"] [data-ui~="tabs__list"] {
   align-items: flex-end;
   border-bottom-color: var(--line-subtle);
 }
 
-.changes-page__tabs .lenso-ui-tabs__tab {
+[data-page-slot~="changes-page__tabs"] [data-ui~="tabs__tab"] {
   height: 33px;
   min-height: 33px;
 }
 
-.changes-page__workspace {
+[data-page-slot~="changes-page__workspace"] {
   height: 683px;
   min-height: 683px;
 }
 
-.changes-page__workspace .lenso-ui-split-view__main {
+[data-page-slot~="changes-page__workspace"] [data-ui~="split-view__main"] {
   padding-right: 24px;
 }
 
-.changes-page__list {
+[data-page-slot~="changes-page__list"] {
   height: 683px;
   min-width: 0;
   overflow: hidden;
 }
 
-.changes-page__list-header {
+[data-page-slot~="changes-page__list-header"] {
   display: flex;
   height: 58px;
   align-items: center;
@@ -418,7 +242,7 @@ textarea {
   padding: 0 10px;
 }
 
-.changes-page__toolbar-control {
+[data-page-slot~="changes-page__toolbar-control"] {
   display: inline-flex;
   height: 16px;
   align-items: center;
@@ -429,7 +253,7 @@ textarea {
   white-space: nowrap;
 }
 
-.changes-page__toolbar-select {
+[data-page-slot~="changes-page__toolbar-select"] {
   width: max-content;
   min-width: 0;
   height: 16px;
@@ -445,7 +269,7 @@ textarea {
   line-height: 16px;
 }
 
-.changes-page__rows {
+[data-page-slot~="changes-page__rows"] {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -454,7 +278,7 @@ textarea {
   background: var(--line-subtle);
 }
 
-.changes-page__empty {
+[data-page-slot~="changes-page__empty"] {
   display: grid;
   height: 108px;
   min-height: 108px;
@@ -465,7 +289,7 @@ textarea {
   line-height: 16px;
 }
 
-.changes-page__row {
+[data-page-slot~="changes-page__row"] {
   display: grid;
   width: 100%;
   height: 108px;
@@ -482,21 +306,21 @@ textarea {
   text-align: left;
 }
 
-.changes-page__row[data-selected="true"] {
+[data-page-slot~="changes-page__row"][data-selected="true"] {
   background: var(--bg-row-selected);
 }
 
-.changes-page__row:hover,
-.changes-page__row:focus-visible {
+[data-page-slot~="changes-page__row"]:hover,
+[data-page-slot~="changes-page__row"]:focus-visible {
   background: var(--bg-row-hover);
 }
 
-.changes-page__row:focus-visible {
+[data-page-slot~="changes-page__row"]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
-.changes-page__row-copy {
+[data-page-slot~="changes-page__row-copy"] {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -505,7 +329,7 @@ textarea {
   overflow: hidden;
 }
 
-.changes-page__row-name {
+[data-page-slot~="changes-page__row-name"] {
   overflow: hidden;
   color: var(--fg-primary);
   font-size: 13px;
@@ -515,7 +339,7 @@ textarea {
   white-space: nowrap;
 }
 
-.changes-page__row-detail {
+[data-page-slot~="changes-page__row-detail"] {
   overflow: hidden;
   color: var(--fg-secondary);
   font-size: 11px;
@@ -524,7 +348,7 @@ textarea {
   white-space: nowrap;
 }
 
-.changes-page__row-id {
+[data-page-slot~="changes-page__row-id"] {
   overflow: hidden;
   color: var(--fg-tertiary);
   font-family: var(--font-code);
@@ -534,62 +358,59 @@ textarea {
   white-space: nowrap;
 }
 
-.changes-page__row-status {
+[data-page-slot~="changes-page__row-status"] {
   align-self: start;
   padding-top: 1px;
 }
 
-.changes-page__no-data {
+[data-page-slot~="changes-page__no-data"] {
   color: var(--fg-tertiary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.changes-inspector .lenso-ui-inspector__header {
+[data-page-slot~="changes-inspector"] [data-ui~="inspector__header"] {
   height: 58px;
   padding: 0 0 18px;
 }
 
-.changes-inspector .lenso-ui-inspector__section {
+[data-page-slot~="changes-inspector"] [data-ui~="inspector__section"] {
   padding: 14px 0;
   border-top-color: var(--line-subtle);
 }
 
-.changes-inspector .lenso-ui-inspector__section:last-child {
+[data-page-slot~="changes-inspector"]
+  [data-ui~="inspector__section"]:last-child {
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.changes-inspector .lenso-ui-inspector__section-title {
+[data-page-slot~="changes-inspector"] [data-ui~="inspector__section-title"] {
   margin-bottom: 6px;
 }
 
-.changes-inspector .lenso-ui-inspector__section-body {
+[data-page-slot~="changes-inspector"] [data-ui~="inspector__section-body"] {
   font-size: 12px;
   line-height: 19px;
 }
 
-.changes-inspector .lenso-ui-button {
+[data-page-slot~="changes-inspector"] [data-ui~="button"] {
   min-height: 32px;
   padding: 0 12px;
   line-height: 16px;
 }
 
-.delivery-page__workspace {
+[data-page-slot~="delivery-page__workspace"] {
   position: relative;
   height: 747px;
   min-height: 747px;
-  margin-top: 1px;
+  border-top: 1px solid var(--line-subtle);
 }
 
-.delivery-page .lenso-ui-page__description {
+[data-page~="delivery-page"] [data-ui~="page__description"] {
   color: var(--fg-secondary);
 }
 
-.delivery-page .lenso-ui-page__header {
-  box-shadow: 0 1px 0 var(--line-subtle);
-}
-
-.delivery-page .lenso-ui-page__actions {
+[data-page~="delivery-page"] [data-ui~="page__actions"] {
   color: var(--fg-tertiary);
   font-size: 11px;
   font-weight: 500;
@@ -597,21 +418,21 @@ textarea {
   white-space: nowrap;
 }
 
-.delivery-page .lenso-ui-split-view__inspector {
+[data-page~="delivery-page"] [data-ui~="split-view__inspector"] {
   padding-left: 27px;
 }
 
-.delivery-page__workspace .lenso-ui-split-view__main {
+[data-page-slot~="delivery-page__workspace"] [data-ui~="split-view__main"] {
   padding-right: 24px;
 }
 
-.delivery-page__candidate-pane {
+[data-page-slot~="delivery-page__candidate-pane"] {
   height: 747px;
   min-width: 0;
   overflow: hidden;
 }
 
-.delivery-page__candidate-header {
+[data-page-slot~="delivery-page__candidate-header"] {
   display: flex;
   height: 68px;
   align-items: center;
@@ -619,7 +440,7 @@ textarea {
   padding: 0 10px;
 }
 
-.delivery-page__candidate-header h2 {
+[data-page-slot~="delivery-page__candidate-header"] h2 {
   margin: 0;
   color: var(--fg-primary);
   font-size: 14px;
@@ -627,21 +448,21 @@ textarea {
   line-height: 20px;
 }
 
-.delivery-page__candidate-header span {
+[data-page-slot~="delivery-page__candidate-header"] span {
   color: var(--fg-tertiary);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
 }
 
-.delivery-page__candidate-rows {
+[data-page-slot~="delivery-page__candidate-rows"] {
   display: flex;
   flex-direction: column;
   gap: 1px;
   background: var(--line-subtle);
 }
 
-.delivery-page__candidate {
+[data-page-slot~="delivery-page__candidate"] {
   display: flex;
   width: 100%;
   height: 110px;
@@ -657,21 +478,21 @@ textarea {
   text-align: left;
 }
 
-.delivery-page__candidate[data-selected="true"] {
+[data-page-slot~="delivery-page__candidate"][data-selected="true"] {
   background: var(--bg-row-selected);
 }
 
-.delivery-page__candidate:hover,
-.delivery-page__candidate:focus-visible {
+[data-page-slot~="delivery-page__candidate"]:hover,
+[data-page-slot~="delivery-page__candidate"]:focus-visible {
   background: var(--bg-row-hover);
 }
 
-.delivery-page__candidate:focus-visible {
+[data-page-slot~="delivery-page__candidate"]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
-.delivery-page__candidate-top {
+[data-page-slot~="delivery-page__candidate-top"] {
   display: grid;
   width: 100%;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -679,7 +500,7 @@ textarea {
   gap: 8px;
 }
 
-.delivery-page__candidate-top strong {
+[data-page-slot~="delivery-page__candidate-top"] strong {
   overflow: hidden;
   font-size: 13px;
   font-weight: 500;
@@ -688,8 +509,8 @@ textarea {
   white-space: nowrap;
 }
 
-.delivery-page__candidate-gates,
-.delivery-page__candidate-id {
+[data-page-slot~="delivery-page__candidate-gates"],
+[data-page-slot~="delivery-page__candidate-id"] {
   color: var(--fg-tertiary);
   font-family: var(--font-code);
   font-size: 10px;
@@ -697,46 +518,48 @@ textarea {
   white-space: nowrap;
 }
 
-.delivery-page__candidate-gates {
+[data-page-slot~="delivery-page__candidate-gates"] {
   color: var(--fg-primary);
 }
 
-.delivery-page__candidate > .lenso-ui-inline-status {
+[data-page-slot~="delivery-page__candidate"] > [data-ui~="inline-status"] {
   margin-top: 6px;
 }
 
-.delivery-page__candidate
-  .lenso-ui-inline-status[data-tone="neutral"]
-  .lenso-ui-inline-status__dot {
+[data-page-slot~="delivery-page__candidate"]
+  [data-ui~="inline-status"][data-tone="neutral"]
+  [data-ui~="inline-status__dot"] {
   background: var(--fg-primary);
 }
 
-.delivery-page__candidate-id {
+[data-page-slot~="delivery-page__candidate-id"] {
   margin-top: 4px;
 }
 
-.delivery-inspector .lenso-ui-inspector__header {
+[data-page-slot~="delivery-inspector"] [data-ui~="inspector__header"] {
   height: 68px;
   padding: 0;
 }
 
-.delivery-inspector .lenso-ui-inspector__header-action .lenso-ui-button {
+[data-page-slot~="delivery-inspector"]
+  [data-ui~="inspector__header-action"]
+  [data-ui~="button"] {
   min-height: 32px;
   padding: 0 12px;
 }
 
-.delivery-page__divider {
+[data-page-slot~="delivery-page__divider"] {
   height: 1px;
   background: var(--line-subtle);
 }
 
-.delivery-page__summary {
+[data-page-slot~="delivery-page__summary"] {
   display: grid;
   height: 70px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.delivery-page__metric {
+[data-page-slot~="delivery-page__metric"] {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -744,7 +567,7 @@ textarea {
   padding-top: 14px;
 }
 
-.delivery-page__metric strong {
+[data-page-slot~="delivery-page__metric"] strong {
   overflow: hidden;
   color: var(--fg-primary);
   font-size: 15px;
@@ -754,7 +577,7 @@ textarea {
   white-space: nowrap;
 }
 
-.delivery-page__metric span {
+[data-page-slot~="delivery-page__metric"] span {
   overflow: hidden;
   color: var(--fg-tertiary);
   font-size: 10px;
@@ -763,7 +586,7 @@ textarea {
   white-space: nowrap;
 }
 
-.delivery-page__readiness-title {
+[data-page-slot~="delivery-page__readiness-title"] {
   height: 16px;
   margin: 0;
   color: var(--fg-tertiary);
@@ -772,12 +595,12 @@ textarea {
   line-height: 16px;
 }
 
-.delivery-page__gates {
+[data-page-slot~="delivery-page__gates"] {
   display: flex;
   flex-direction: column;
 }
 
-.delivery-page__gate {
+[data-page-slot~="delivery-page__gate"] {
   display: flex;
   height: 48px;
   min-height: 48px;
@@ -789,11 +612,11 @@ textarea {
   line-height: 18px;
 }
 
-.delivery-page__gate .lenso-ui-inline-status__label {
+[data-page-slot~="delivery-page__gate"] [data-ui~="inline-status__label"] {
   font-weight: 500;
 }
 
-.delivery-page__authority {
+[data-page-slot~="delivery-page__authority"] {
   display: flex;
   min-height: 80px;
   flex-direction: column;
@@ -804,30 +627,30 @@ textarea {
   line-height: 18px;
 }
 
-.delivery-page__authority h3,
-.delivery-page__authority p {
+[data-page-slot~="delivery-page__authority"] h3,
+[data-page-slot~="delivery-page__authority"] p {
   margin: 0;
 }
 
-.delivery-page__authority h3 {
+[data-page-slot~="delivery-page__authority"] h3 {
   color: var(--fg-tertiary);
   font-size: 11px;
   font-weight: 500;
   line-height: 16px;
 }
 
-.delivery-page__authority p:first-of-type {
+[data-page-slot~="delivery-page__authority"] p:first-of-type {
   color: var(--fg-primary);
 }
 
-.delivery-page__no-data,
-.modules-page__no-data {
+[data-page-slot~="delivery-page__no-data"],
+[data-page-slot~="modules-page__no-data"] {
   color: var(--fg-tertiary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.modules-page__filters {
+[data-page-slot~="modules-page__filters"] {
   display: flex;
   height: 48px;
   align-items: center;
@@ -836,42 +659,42 @@ textarea {
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.modules-page .lenso-ui-page__actions {
+[data-page~="modules-page"] [data-ui~="page__actions"] {
   color: var(--fg-tertiary);
   font-size: 11px;
   line-height: 16px;
   white-space: pre;
 }
 
-.modules-page .lenso-ui-split-view__inspector {
+[data-page~="modules-page"] [data-ui~="split-view__inspector"] {
   padding-left: 27px;
 }
 
-.modules-page__filter-control--source {
+[data-page-slot~="modules-page__filter-control--source"] {
   width: 96px;
 }
 
-.modules-page__filter-control--area {
+[data-page-slot~="modules-page__filter-control--area"] {
   width: 84px;
 }
 
-.modules-page__filter-control--state {
+[data-page-slot~="modules-page__filter-control--state"] {
   width: 87px;
 }
 
-.modules-page__workspace {
+[data-page-slot~="modules-page__workspace"] {
   height: 676px;
   min-height: 676px;
 }
 
-.modules-page__table-pane {
+[data-page-slot~="modules-page__table-pane"] {
   height: 676px;
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-.modules-page__empty {
+[data-page-slot~="modules-page__empty"] {
   display: grid;
   min-width: 732px;
   min-height: 64px;
@@ -881,19 +704,19 @@ textarea {
   line-height: 16px;
 }
 
-.modules-inspector .lenso-ui-inspector__status {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__status"] {
   margin-top: 16px;
 }
 
-.modules-inspector .lenso-ui-inspector__header {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__header"] {
   padding-bottom: 16px;
 }
 
-.modules-inspector .lenso-ui-inspector__subtitle {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__subtitle"] {
   margin-top: 0;
 }
 
-.modules-inspector__status {
+[data-page-slot~="modules-inspector__status"] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -903,58 +726,61 @@ textarea {
   white-space: nowrap;
 }
 
-.modules-inspector__status a {
+[data-page-slot~="modules-inspector__status"] a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--fg-secondary);
 }
 
-.modules-inspector__status a:hover {
+[data-page-slot~="modules-inspector__status"] a:hover {
   color: var(--fg-primary);
 }
 
-.modules-inspector .lenso-ui-inspector__section {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__section"] {
   min-height: 122px;
   padding: 18px 0;
 }
 
-.modules-inspector .lenso-ui-inspector__section-title {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__section-title"] {
   color: var(--fg-tertiary);
   margin-bottom: 5px;
   line-height: 16px;
 }
 
-.modules-inspector .lenso-ui-inspector__section-body {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__section-body"] {
   font-size: 12px;
   line-height: 18px;
 }
 
-.modules-inspector .lenso-ui-inspector__section-body p {
+[data-page-slot~="modules-inspector"] [data-ui~="inspector__section-body"] p {
   margin: 0;
 }
 
-.modules-inspector .lenso-ui-inspector__section-body p + p {
+[data-page-slot~="modules-inspector"]
+  [data-ui~="inspector__section-body"]
+  p
+  + p {
   margin-top: 5px;
 }
 
-.settings-page {
+[data-page-slot~="settings-page"] {
   display: grid;
   grid-template-columns: 236px minmax(0, 1fr);
   min-height: calc(100vh - 153px);
   margin-top: 1px;
 }
 
-.settings-page__navigation {
+[data-page-slot~="settings-page__navigation"] {
   min-width: 0;
   padding: 20px 24px 0 0;
 }
 
-.settings-page__navigation-group[data-first="false"] {
+[data-page-slot~="settings-page__navigation-group"][data-first="false"] {
   margin-top: 18px;
 }
 
-.settings-page__navigation-label {
+[data-page-slot~="settings-page__navigation-label"] {
   padding: 0 10px;
   color: var(--fg-tertiary);
   font-size: 10px;
@@ -962,13 +788,13 @@ textarea {
   line-height: 14px;
 }
 
-.settings-page__navigation-items {
+[data-page-slot~="settings-page__navigation-items"] {
   display: grid;
   gap: 2px;
   margin-top: 2px;
 }
 
-.settings-page__navigation-item {
+[data-page-slot~="settings-page__navigation-item"] {
   height: 32px;
   padding: 0 10px;
   border: 0;
@@ -982,26 +808,26 @@ textarea {
   text-align: left;
 }
 
-.settings-page__navigation-item:hover,
-.settings-page__navigation-item:focus-visible,
-.settings-page__navigation-item--active {
+[data-page-slot~="settings-page__navigation-item"]:hover,
+[data-page-slot~="settings-page__navigation-item"]:focus-visible,
+[data-page-slot~="settings-page__navigation-item--active"] {
   background: var(--bg-row-hover);
   color: var(--fg-primary);
   font-weight: 500;
 }
 
-.settings-page__navigation-item:focus-visible {
+[data-page-slot~="settings-page__navigation-item"]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 
-.settings-page__content {
+[data-page-slot~="settings-page__content"] {
   position: relative;
   min-width: 0;
   padding-left: 36px;
 }
 
-.settings-page__content::before {
+[data-page-slot~="settings-page__content"]::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 1px;
@@ -1009,18 +835,18 @@ textarea {
   content: "";
 }
 
-.settings-page__header {
+[data-page-slot~="settings-page__header"] {
   min-height: 83px;
   padding-top: 20px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.settings-page__header-copy {
+[data-page-slot~="settings-page__header-copy"] {
   min-width: 0;
 }
 
-.settings-page__header-copy h2 {
+[data-page-slot~="settings-page__header-copy"] h2 {
   margin: 0;
   color: var(--fg-primary);
   font-size: 18px;
@@ -1028,35 +854,35 @@ textarea {
   line-height: 26px;
 }
 
-.settings-page__header-copy p {
+[data-page-slot~="settings-page__header-copy"] p {
   margin: 0;
   color: var(--fg-secondary);
   font-size: 12px;
   line-height: 18px;
 }
 
-.settings-page__select,
-.settings-page__input {
+[data-page-slot~="settings-page__select"],
+[data-page-slot~="settings-page__input"] {
   height: 32px;
   min-height: 32px;
   font-size: 11px;
   line-height: 16px;
 }
 
-.settings-page__select,
-.settings-page__input {
+[data-page-slot~="settings-page__select"],
+[data-page-slot~="settings-page__input"] {
   width: 300px;
 }
 
-.settings-page__select {
+[data-page-slot~="settings-page__select"] {
   line-height: 16px !important;
 }
 
-.settings-page__input--mono {
+[data-page-slot~="settings-page__input--mono"] {
   font-family: var(--font-code);
 }
 
-.settings-page__row {
+[data-page-slot~="settings-page__row"] {
   min-height: 68px;
   margin-bottom: 1px;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -1067,7 +893,7 @@ textarea {
   border-bottom: 0;
 }
 
-.settings-page__row::after {
+[data-page-slot~="settings-page__row"]::after {
   position: absolute;
   right: 0;
   bottom: -1px;
@@ -1077,32 +903,34 @@ textarea {
   content: "";
 }
 
-.settings-page__row--toggle {
+[data-page-slot~="settings-page__row--toggle"] {
   min-height: 60px;
 }
 
-.settings-page__row--toggle .lenso-ui-settings-row__control {
+[data-page-slot~="settings-page__row--toggle"]
+  [data-ui~="settings-row__control"] {
   display: flex;
   justify-content: flex-end;
 }
 
-.settings-page__row--toggle .settings-page__toggle {
+[data-page-slot~="settings-page__row--toggle"]
+  [data-page-slot~="settings-page__toggle"] {
   margin-right: 36px;
 }
 
-.settings-page__row .lenso-ui-settings-row__label {
+[data-page-slot~="settings-page__row"] [data-ui~="settings-row__label"] {
   font-size: 12px;
   line-height: 18px;
 }
 
-.settings-page__row .lenso-ui-settings-row__description {
+[data-page-slot~="settings-page__row"] [data-ui~="settings-row__description"] {
   margin-top: 2px;
   font-size: 11px;
   line-height: 16px;
   color: var(--fg-secondary);
 }
 
-.settings-page__actions {
+[data-page-slot~="settings-page__actions"] {
   display: flex;
   height: 48px;
   align-items: center;
@@ -1113,34 +941,36 @@ textarea {
   line-height: 16px;
 }
 
-.settings-page__actions .lenso-ui-button {
+[data-page-slot~="settings-page__actions"] [data-ui~="button"] {
   min-height: 32px;
   width: 99px;
   padding: 0 12px;
   line-height: 16px;
 }
 
-.settings-page__toggle {
+[data-page-slot~="settings-page__toggle"] {
   width: 30px;
   height: 18px;
 }
 
-.settings-page__toggle-knob {
+[data-page-slot~="settings-page__toggle-knob"] {
   top: 3px;
   left: 3px;
   width: 10px;
   height: 10px;
 }
 
-.settings-page__toggle[aria-checked="true"] .settings-page__toggle-knob {
+[data-page-slot~="settings-page__toggle"][aria-checked="true"]
+  [data-page-slot~="settings-page__toggle-knob"] {
   transform: translateX(14px);
 }
 
-.settings-page__toggle[aria-checked="false"] .settings-page__toggle-knob {
+[data-page-slot~="settings-page__toggle"][aria-checked="false"]
+  [data-page-slot~="settings-page__toggle-knob"] {
   transform: translateX(0.5px);
 }
 
-.settings-page__status {
+[data-page-slot~="settings-page__status"] {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1152,12 +982,12 @@ textarea {
   border: 0;
 }
 
-.settings-product-page .lenso-ui-page__header {
+[data-page~="settings-product-page"] [data-ui~="page__header"] {
   position: relative;
   border-bottom: 0;
 }
 
-.settings-product-page .lenso-ui-page__header::after {
+[data-page~="settings-product-page"] [data-ui~="page__header"]::after {
   position: absolute;
   right: 40px;
   bottom: -1px;
@@ -1167,56 +997,56 @@ textarea {
   content: "";
 }
 
-.settings-product-page .product-page__body {
+[data-page~="settings-product-page"] [data-page-slot~="product-page__body"] {
   padding-bottom: 8px;
 }
 
-.settings-product-page .lenso-ui-page__description {
+[data-page~="settings-product-page"] [data-ui~="page__description"] {
   color: var(--fg-secondary);
 }
 
-.runtime-page__meta {
+[data-page-slot~="runtime-page__meta"] {
   color: var(--tone-success-fg);
   font-size: 11px;
   line-height: 16px;
   white-space: nowrap;
 }
 
-.runtime-page .lenso-ui-page__description {
+[data-page~="runtime-page"] [data-ui~="page__description"] {
   color: var(--fg-secondary);
 }
 
-.runtime-page__tabs,
-.runtime-page__tabs .lenso-ui-tabs__list {
+[data-page-slot~="runtime-page__tabs"],
+[data-page-slot~="runtime-page__tabs"] [data-ui~="tabs__list"] {
   height: 41px;
 }
 
-.runtime-page__tabs .lenso-ui-tabs__list {
+[data-page-slot~="runtime-page__tabs"] [data-ui~="tabs__list"] {
   align-items: flex-end;
   border-bottom-color: var(--line-subtle);
 }
 
-.runtime-page__tabs .lenso-ui-tabs__tab {
+[data-page-slot~="runtime-page__tabs"] [data-ui~="tabs__tab"] {
   height: 33px;
   min-height: 33px;
 }
 
-.runtime-page__workspace {
+[data-page-slot~="runtime-page__workspace"] {
   height: 683px;
   min-height: 683px;
 }
 
-.runtime-page__workspace .lenso-ui-split-view__main {
+[data-page-slot~="runtime-page__workspace"] [data-ui~="split-view__main"] {
   padding-right: 24px;
 }
 
-.runtime-page__mono-cell {
+[data-page-slot~="runtime-page__mono-cell"] {
   font-family: var(--font-code);
   font-size: 11px;
   line-height: 16px;
 }
 
-.runtime-page__stream-empty {
+[data-page-slot~="runtime-page__stream-empty"] {
   display: grid;
   min-height: 64px;
   place-items: center;
@@ -1225,11 +1055,11 @@ textarea {
   line-height: 16px;
 }
 
-.runtime-inspector .lenso-ui-inspector__header {
+[data-page-slot~="runtime-inspector"] [data-ui~="inspector__header"] {
   padding: 0;
 }
 
-.runtime-inspector__meta {
+[data-page-slot~="runtime-inspector__meta"] {
   display: flex;
   align-items: flex-start;
   gap: 18px;
@@ -1241,12 +1071,12 @@ textarea {
   white-space: nowrap;
 }
 
-.runtime-inspector__divider {
+[data-page-slot~="runtime-inspector__divider"] {
   height: 1px;
   background: var(--line-subtle);
 }
 
-.runtime-inspector__label {
+[data-page-slot~="runtime-inspector__label"] {
   height: 16px;
   margin: 0;
   color: var(--fg-tertiary);
@@ -1255,7 +1085,7 @@ textarea {
   line-height: 16px;
 }
 
-.runtime-inspector__event {
+[data-page-slot~="runtime-inspector__event"] {
   display: flex;
   height: 72px;
   align-items: flex-start;
@@ -1264,7 +1094,7 @@ textarea {
   overflow: hidden;
 }
 
-.runtime-inspector__rail {
+[data-page-slot~="runtime-inspector__rail"] {
   position: relative;
   display: block;
   width: 8px;
@@ -1272,7 +1102,7 @@ textarea {
   flex: 0 0 8px;
 }
 
-.runtime-inspector__rail::before {
+[data-page-slot~="runtime-inspector__rail"]::before {
   position: absolute;
   top: 3px;
   bottom: 0;
@@ -1282,7 +1112,7 @@ textarea {
   content: "";
 }
 
-.runtime-inspector__rail::after {
+[data-page-slot~="runtime-inspector__rail"]::after {
   position: absolute;
   top: 0;
   left: 1px;
@@ -1293,7 +1123,7 @@ textarea {
   content: "";
 }
 
-.runtime-inspector__event-copy {
+[data-page-slot~="runtime-inspector__event-copy"] {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -1302,8 +1132,8 @@ textarea {
   white-space: nowrap;
 }
 
-.runtime-inspector__event-copy time,
-.runtime-inspector__event-copy small {
+[data-page-slot~="runtime-inspector__event-copy"] time,
+[data-page-slot~="runtime-inspector__event-copy"] small {
   overflow: hidden;
   color: var(--fg-tertiary);
   font-family: var(--font-code);
@@ -1312,7 +1142,7 @@ textarea {
   text-overflow: ellipsis;
 }
 
-.runtime-inspector__event-copy strong {
+[data-page-slot~="runtime-inspector__event-copy"] strong {
   overflow: hidden;
   color: var(--fg-primary);
   font-size: 12px;
@@ -1321,7 +1151,7 @@ textarea {
   text-overflow: ellipsis;
 }
 
-.runtime-inspector__boundary {
+[data-page-slot~="runtime-inspector__boundary"] {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1331,11 +1161,11 @@ textarea {
   line-height: 16px;
 }
 
-.runtime-inspector__boundary p {
+[data-page-slot~="runtime-inspector__boundary"] p {
   margin: 0;
 }
 
-.runtime-inspector__boundary p:first-child {
+[data-page-slot~="runtime-inspector__boundary"] p:first-child {
   color: var(--fg-primary);
   font-weight: 500;
 }
@@ -1348,8 +1178,7 @@ textarea:focus-visible {
 }
 
 code,
-pre,
-.mono {
+pre {
   font-family: var(--font-code);
 }
 
@@ -1376,246 +1205,26 @@ code,
   user-select: text;
 }
 
-.scrollbar-none {
-  scrollbar-width: none;
-}
-
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-
-@keyframes panel-in {
-  from {
-    opacity: 0;
-    transform: translateX(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.animate-panel-in {
-  animation: panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* These two host interactions replace the former Tailwind group variant.
- * The utility bridge intentionally leaves the marker classes readable so
- * independently-authored surfaces can opt into the same interaction. */
-.group:hover [class~="group-hover:opacity-100"] {
-  opacity: 1;
-}
-
-.group:hover [class~="group-hover:border-(--line)"] {
-  border-color: var(--line);
-}
-
-/* The command palette's legacy dark-theme icon variant is retained as a
- * readable marker while the theme itself is owned by the host StyleX root. */
-[data-theme="dark"] [class~="[[data-theme=dark]_&]:block"],
-[data-stylex-theme="dark"] [class~="[[data-theme=dark]_&]:block"] {
-  display: block;
-}
-
-[data-theme="dark"] [class~="[[data-theme=dark]_&]:hidden"],
-[data-stylex-theme="dark"] [class~="[[data-theme=dark]_&]:hidden"] {
-  display: none;
-}
-
-.soft-panel {
-  border-color: var(--line);
-  background: var(--bg-panel);
-  box-shadow: var(--elevation-panel);
-}
-
-.native-selection {
-  background: var(--bg-row-hover);
-  color: var(--fg-primary);
-  box-shadow: none;
-}
-
-.native-selection * {
-  color: inherit;
-}
-
-.status-pill {
-  background: var(--status-bg);
-  border-color: var(--status-border);
-  color: var(--status-text);
-}
-
-.status-pill-dot {
-  background: var(--status-dot);
-  color: var(--status-dot);
-}
-
-.theme-toggle-button {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  max-width: 28px;
-  max-height: 28px;
-  flex: 0 0 28px;
-  aspect-ratio: 1 / 1;
-  padding: 0 !important;
-}
-
-.theme-toggle-button svg {
-  width: 15px;
-  height: 15px;
-  min-width: 15px;
-  min-height: 15px;
-}
-
-.status-pill-pending {
-  --status-bg: var(--tone-muted-bg);
-  --status-border: var(--tone-muted-border);
-  --status-dot: var(--fg-tertiary);
-  --status-text: var(--tone-muted-fg);
-}
-
-.status-pill-processing {
-  --status-bg: var(--tone-info-bg);
-  --status-border: var(--tone-info-border);
-  --status-dot: var(--info);
-  --status-text: var(--tone-info-fg);
-}
-
-.status-pill-running {
-  --status-bg: var(--tone-info-bg);
-  --status-border: var(--tone-info-border);
-  --status-dot: var(--info);
-  --status-text: var(--tone-info-fg);
-}
-
-.status-pill-published,
-.status-pill-completed {
-  --status-bg: var(--tone-success-bg);
-  --status-border: var(--tone-success-border);
-  --status-dot: var(--success);
-  --status-text: var(--tone-success-fg);
-}
-
-.status-pill-failed {
-  --status-bg: var(--tone-warning-bg);
-  --status-border: var(--tone-warning-border);
-  --status-dot: var(--warning);
-  --status-text: var(--tone-warning-fg);
-}
-
-.status-pill-dead {
-  --status-bg: var(--tone-error-bg);
-  --status-border: var(--tone-error-border);
-  --status-dot: var(--error);
-  --status-text: var(--tone-error-fg);
-}
-
-.runtime-status-badge {
-  background: var(--runtime-status-bg);
-  border-color: var(--runtime-status-border);
-  color: var(--runtime-status-text);
-}
-
-.runtime-status-label {
-  background: var(--runtime-status-bg);
-  border-color: var(--runtime-status-border);
-}
-
-.runtime-status-pending {
-  --runtime-status-bg: var(--tone-muted-bg);
-  --runtime-status-border: var(--tone-muted-border);
-  --runtime-status-text: var(--tone-muted-fg);
-}
-
-.runtime-status-processing,
-.runtime-status-running {
-  --runtime-status-bg: var(--tone-info-bg);
-  --runtime-status-border: var(--tone-info-border);
-  --runtime-status-text: var(--tone-info-fg);
-}
-
-.runtime-status-published,
-.runtime-status-completed {
-  --runtime-status-bg: var(--tone-success-bg);
-  --runtime-status-border: var(--tone-success-border);
-  --runtime-status-text: var(--tone-success-fg);
-}
-
-.runtime-status-failed {
-  --runtime-status-bg: var(--tone-warning-bg);
-  --runtime-status-border: var(--tone-warning-border);
-  --runtime-status-text: var(--tone-warning-fg);
-}
-
-.runtime-status-dead {
-  --runtime-status-bg: var(--tone-error-bg);
-  --runtime-status-border: var(--tone-error-border);
-  --runtime-status-text: var(--tone-error-fg);
-}
-
-.tint {
-  background: var(--tint-bg);
-  border-color: var(--tint-border);
-  color: var(--tint-text);
-}
-
-.tint-soft {
-  background: var(--tint-bg);
-}
-
-.tint-text {
-  color: var(--tint-text);
-}
-
-.tint-border {
-  border-color: var(--tint-border);
-}
-
-.tint-info {
-  --tint-bg: var(--tone-info-bg);
-  --tint-border: var(--tone-info-border);
-  --tint-text: var(--tone-info-fg);
-}
-
-.tint-success {
-  --tint-bg: var(--tone-success-bg);
-  --tint-border: var(--tone-success-border);
-  --tint-text: var(--tone-success-fg);
-}
-
-.tint-warning {
-  --tint-bg: var(--tone-warning-bg);
-  --tint-border: var(--tone-warning-border);
-  --tint-text: var(--tone-warning-fg);
-}
-
-.tint-error {
-  --tint-bg: var(--tone-error-bg);
-  --tint-border: var(--tone-error-border);
-  --tint-text: var(--tone-error-fg);
-}
-
-.runtime-stories-page {
+[data-runtime-page="true"] {
   min-width: 0;
 }
 
-.runtime-stories-workbench {
+[data-runtime-slot~="workbench"] {
   min-width: 0;
 }
 
-.runtime-stories-explorer,
-.runtime-stories-main {
+[data-runtime-slot~="explorer"],
+[data-runtime-slot~="main"] {
   min-width: 0;
 }
 
 /* Keep list-oriented product pages inside the viewport. The page owns the
  * available height; only the data/list surface is allowed to scroll. */
-.system-page .product-page__body,
-.modules-page .product-page__body,
-.changes-page .product-page__body,
-.delivery-page .product-page__body,
-.runtime-page .product-page__body {
+[data-page~="system-page"] [data-page-slot~="product-page__body"],
+[data-page~="modules-page"] [data-page-slot~="product-page__body"],
+[data-page~="changes-page"] [data-page-slot~="product-page__body"],
+[data-page~="delivery-page"] [data-page-slot~="product-page__body"],
+[data-page~="runtime-page"] [data-page-slot~="product-page__body"] {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 144px);
@@ -1624,52 +1233,52 @@ code,
   padding-bottom: 0;
 }
 
-.system-page__workspace,
-.modules-page__workspace,
-.changes-page__workspace,
-.delivery-page__workspace,
-.runtime-page__workspace {
+[data-page-slot~="system-page__workspace"],
+[data-page-slot~="modules-page__workspace"],
+[data-page-slot~="changes-page__workspace"],
+[data-page-slot~="delivery-page__workspace"],
+[data-page-slot~="runtime-page__workspace"] {
   flex: 1 1 auto;
   height: auto;
   min-height: 0;
 }
 
-.system-page__filters,
-.modules-page__filters {
+[data-page-slot~="system-page__filters"],
+[data-page-slot~="modules-page__filters"] {
   flex: 0 0 48px;
 }
 
-.changes-page__tabs,
-.runtime-page__tabs {
+[data-page-slot~="changes-page__tabs"],
+[data-page-slot~="runtime-page__tabs"] {
   flex: 0 0 41px;
 }
 
-.system-page,
-.modules-page,
-.changes-page,
-.delivery-page,
-.runtime-page,
-.services-page {
+[data-page~="system-page"],
+[data-page~="modules-page"],
+[data-page~="changes-page"],
+[data-page~="delivery-page"],
+[data-page~="runtime-page"],
+[data-page~="services-page"] {
   overscroll-behavior-y: none;
   overflow: hidden;
 }
 
-.services-page__workspace .lenso-ui-split-view__main,
-.system-page__workspace .lenso-ui-split-view__main,
-.modules-page__workspace .lenso-ui-split-view__main,
-.changes-page__workspace .lenso-ui-split-view__main,
-.delivery-page__workspace .lenso-ui-split-view__main,
-.runtime-page__workspace .lenso-ui-split-view__main {
+[data-page-slot~="services-page__workspace"] [data-ui~="split-view__main"],
+[data-page-slot~="system-page__workspace"] [data-ui~="split-view__main"],
+[data-page-slot~="modules-page__workspace"] [data-ui~="split-view__main"],
+[data-page-slot~="changes-page__workspace"] [data-ui~="split-view__main"],
+[data-page-slot~="delivery-page__workspace"] [data-ui~="split-view__main"],
+[data-page-slot~="runtime-page__workspace"] [data-ui~="split-view__main"] {
   overscroll-behavior-y: none;
   display: flex;
   flex-direction: column;
   overflow: auto;
 }
 
-.services-page .lenso-ui-data-grid,
-.system-page .lenso-ui-data-grid,
-.modules-page .lenso-ui-data-grid,
-.runtime-page .lenso-ui-data-grid {
+[data-page~="services-page"] [data-ui~="data-grid"],
+[data-page~="system-page"] [data-ui~="data-grid"],
+[data-page~="modules-page"] [data-ui~="data-grid"],
+[data-page~="runtime-page"] [data-ui~="data-grid"] {
   flex: 1 1 auto;
   gap: 0;
   min-height: 0;
@@ -1680,38 +1289,38 @@ code,
   overflow: visible;
 }
 
-.services-page .lenso-ui-pane-header,
-.system-page .lenso-ui-pane-header,
-.modules-page .lenso-ui-pane-header,
-.runtime-page .lenso-ui-pane-header,
-.changes-page__list-header,
-.delivery-page__candidate-header {
+[data-page~="services-page"] [data-ui~="pane-header"],
+[data-page~="system-page"] [data-ui~="pane-header"],
+[data-page~="modules-page"] [data-ui~="pane-header"],
+[data-page~="runtime-page"] [data-ui~="pane-header"],
+[data-page-slot~="changes-page__list-header"],
+[data-page-slot~="delivery-page__candidate-header"] {
   position: sticky;
   top: 0;
   z-index: 2;
   background: var(--bg-canvas);
 }
 
-.services-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.system-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.modules-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.runtime-page .lenso-ui-data-grid > .lenso-ui-table-header {
+[data-page~="services-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="system-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="modules-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="runtime-page"] [data-ui~="data-grid"] > [data-ui~="table-header"] {
   position: sticky;
   top: var(--console-pane-header-height);
   z-index: 1;
   background: var(--bg-canvas);
 }
 
-.system-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.system-page .lenso-ui-data-grid > .lenso-ui-data-row,
-.modules-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.modules-page .lenso-ui-data-grid > .lenso-ui-data-row,
-.runtime-page .lenso-ui-data-grid > .lenso-ui-table-header,
-.runtime-page .lenso-ui-data-grid > .lenso-ui-data-row {
+[data-page~="system-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="system-page"] [data-ui~="data-grid"] > [data-ui~="data-row"],
+[data-page~="modules-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="modules-page"] [data-ui~="data-grid"] > [data-ui~="data-row"],
+[data-page~="runtime-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
+[data-page~="runtime-page"] [data-ui~="data-grid"] > [data-ui~="data-row"] {
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.modules-page__table-pane {
+[data-page-slot~="modules-page__table-pane"] {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
@@ -1720,7 +1329,7 @@ code,
   overflow: visible;
 }
 
-.changes-page__list {
+[data-page-slot~="changes-page__list"] {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
@@ -1729,12 +1338,12 @@ code,
   overflow: visible;
 }
 
-.changes-page__list-header {
+[data-page-slot~="changes-page__list-header"] {
   flex: 0 0 58px;
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.changes-page__rows {
+[data-page-slot~="changes-page__rows"] {
   flex: 1 1 auto;
   min-height: 0;
   gap: 0;
@@ -1744,12 +1353,12 @@ code,
   overflow: visible;
 }
 
-.changes-page__empty,
-.changes-page__row {
+[data-page-slot~="changes-page__empty"],
+[data-page-slot~="changes-page__row"] {
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.delivery-page__candidate-pane {
+[data-page-slot~="delivery-page__candidate-pane"] {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
@@ -1758,12 +1367,12 @@ code,
   overflow: visible;
 }
 
-.delivery-page__candidate-header {
+[data-page-slot~="delivery-page__candidate-header"] {
   flex: 0 0 68px;
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.delivery-page__candidate-rows {
+[data-page-slot~="delivery-page__candidate-rows"] {
   flex: 1 1 auto;
   min-height: 0;
   gap: 0;
@@ -1772,16 +1381,16 @@ code,
   overflow: visible;
 }
 
-.delivery-page__candidate {
+[data-page-slot~="delivery-page__candidate"] {
   border-bottom: 1px solid var(--line-subtle);
 }
 
 @media (max-width: 720px) {
-  .runtime-stories-page {
+  [data-runtime-page="true"] {
     overflow: auto;
   }
 
-  .runtime-stories-workbench {
+  [data-runtime-slot~="workbench"] {
     grid-template-columns: minmax(0, 1fr) !important;
     grid-template-rows: minmax(220px, 42vh) minmax(420px, 1fr) auto !important;
     height: auto;
@@ -1789,16 +1398,16 @@ code,
     overflow: visible;
   }
 
-  .runtime-stories-explorer {
+  [data-runtime-slot~="explorer"] {
     min-height: 220px;
   }
 
-  .runtime-stories-list-resize,
-  .runtime-stories-inspector-resize {
+  [data-resize-slot="list-resize"],
+  [data-resize-slot="inspector-resize"] {
     display: none;
   }
 
-  .runtime-stories-main {
+  [data-runtime-slot~="main"] {
     min-height: 420px;
   }
 }

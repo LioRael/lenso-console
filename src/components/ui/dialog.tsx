@@ -1,7 +1,39 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
+import type { ConsoleStyle } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import type { HTMLAttributes, PropsWithChildren } from "react";
 
-import { cn } from "../../lib/cn";
+const styles = stylex.create({
+  backdrop: {
+    backgroundColor: "var(--bg-scrim)",
+    inset: 0,
+    position: "fixed",
+    zIndex: 40,
+  },
+  popup: {
+    backgroundColor: "var(--bg-overlay)",
+    borderColor: "var(--line)",
+    borderRadius: "var(--radius-overlay)",
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: "var(--elevation-overlay)",
+    left: "50%",
+    overflow: "hidden",
+    position: "fixed",
+    top: "12vh",
+    transform: "translateX(-50%)",
+    transitionDuration: "150ms",
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionTimingFunction: "ease",
+    width: "min(560px, calc(100vw - 28px))",
+    zIndex: 50,
+    "[data-starting-style]": {
+      opacity: "0%",
+      transform: "translate(-50%, -0.25rem)",
+    },
+  },
+});
 
 function DialogRoot({
   children,
@@ -22,27 +54,23 @@ function DialogPortal({ children }: PropsWithChildren) {
   return <BaseDialog.Portal>{children}</BaseDialog.Portal>;
 }
 
-function DialogBackdrop({ className }: { className?: string }) {
+function DialogBackdrop({ stylex: stylexStyle }: { stylex?: ConsoleStyle }) {
   return (
-    <BaseDialog.Backdrop
-      className={cn("fixed inset-0 z-40 bg-(--bg-scrim)", className)}
-    />
+    <BaseDialog.Backdrop {...stylex.props(styles.backdrop, stylexStyle)} />
   );
 }
 
 function DialogPopup({
   children,
-  className,
+  stylex: stylexStyle,
   ...props
-}: PropsWithChildren<HTMLAttributes<HTMLDivElement> & { className?: string }>) {
+}: PropsWithChildren<
+  Omit<HTMLAttributes<HTMLDivElement>, "className" | "style"> & {
+    stylex?: ConsoleStyle;
+  }
+>) {
   return (
-    <BaseDialog.Popup
-      className={cn(
-        "fixed left-1/2 top-[12vh] z-50 w-[min(560px,calc(100vw-28px))] -translate-x-1/2 overflow-hidden rounded-[var(--radius-overlay)] border border-(--line) bg-(--bg-overlay) shadow-(--elevation-overlay) transition duration-150 data-[starting-style]:-translate-y-1 data-[starting-style]:opacity-0",
-        className
-      )}
-      {...props}
-    >
+    <BaseDialog.Popup {...stylex.props(styles.popup, stylexStyle)} {...props}>
       {children}
     </BaseDialog.Popup>
   );

@@ -23,7 +23,7 @@ import { ConsoleDevOverlay } from "../dev/console-dev-overlay";
 
 import "../styles.css";
 
-const consoleLayerStyle = `@layer console-reset, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;`;
+const consoleLayerStyle = `@layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;`;
 
 const RootComponent = () => (
   <Providers>

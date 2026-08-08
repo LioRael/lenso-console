@@ -1,5 +1,4 @@
 import {
-  stylexClassName,
   ConsolePage,
   FilterControl,
   InlineStatus,
@@ -20,20 +19,16 @@ export function ProductPage({
   children,
   description,
   meta,
-  pageClassName,
+  pageKind,
   title,
 }: PropsWithChildren<{
   description: string;
   meta?: ReactNode;
-  pageClassName?: string;
+  pageKind?: string;
   title: string;
 }>) {
   return (
-    <ConsolePage
-      className={stylexClassName(
-        `product-page${pageClassName ? ` ${pageClassName}` : ""}`
-      )}
-    >
+    <ConsolePage data-page={`product-page${pageKind ? ` ${pageKind}` : ""}`}>
       <ConsolePage.Header>
         <ConsolePage.Heading>
           <ConsolePage.Title>{title}</ConsolePage.Title>
@@ -41,7 +36,7 @@ export function ProductPage({
         </ConsolePage.Heading>
         {meta ? <ConsolePage.Actions>{meta}</ConsolePage.Actions> : null}
       </ConsolePage.Header>
-      <ConsolePage.Body className={stylexClassName("product-page__body")}>
+      <ConsolePage.Body data-page-slot="product-page__body">
         {children}
       </ConsolePage.Body>
     </ConsolePage>
@@ -50,17 +45,17 @@ export function ProductPage({
 
 export function ProductTabs({
   active,
-  className,
+  pageSlot,
   items,
   onChange,
 }: {
   active: string;
-  className?: string;
+  pageSlot?: string;
   items: readonly string[];
   onChange: (item: string) => void;
 }) {
   return (
-    <Tabs className={className} density="page" inset="none">
+    <Tabs data-page-slot={pageSlot} density="page" inset="none">
       <Tabs.List inset="none">
         {items.map((item) => (
           <Tabs.Tab
@@ -103,22 +98,18 @@ export function StatusDot({
 }
 
 export function SplitWorkspace({
-  className,
+  pageSlot,
   children,
   inspector,
   inspectorWidth = 376,
 }: PropsWithChildren<{
-  className?: string;
+  pageSlot?: string;
   inspector: ReactNode;
   inspectorWidth?: number;
 }>) {
   return (
     <SplitView
-      className={
-        className
-          ? `product-split-workspace ${className}`
-          : "product-split-workspace"
-      }
+      data-page-slot={`product-split-workspace${pageSlot ? ` ${pageSlot}` : ""}`}
       inset="default"
       inspectorWidth={inspectorWidth}
     >
@@ -129,14 +120,14 @@ export function SplitWorkspace({
 }
 
 export function Inspector({
-  className,
+  pageSlot,
   children,
   headerAction,
   status,
   subtitle,
   title,
 }: PropsWithChildren<{
-  className?: string;
+  pageSlot?: string;
   headerAction?: ReactNode;
   status?: ReactNode;
   subtitle?: string;
@@ -144,7 +135,7 @@ export function Inspector({
 }>) {
   return (
     <ConsoleInspector
-      className={className ?? "product-inspector"}
+      data-page-slot={`product-inspector${pageSlot ? ` ${pageSlot}` : ""}`}
       headerAction={headerAction}
       status={status}
       subtitle={subtitle}

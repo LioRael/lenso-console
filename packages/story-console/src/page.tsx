@@ -1,12 +1,12 @@
 import { useGSAP } from "@gsap/react";
 import {
-  stylexClassName,
   consoleHostApi,
   type ExecutionInspectorTab,
   type ExecutionNode,
   type RuntimeStory,
   type StoryViewMode,
 } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import gsap from "gsap";
 import {
   useEffect,
@@ -35,12 +35,186 @@ import {
   storyUrlId,
 } from "./url-model";
 
+const localStyles = stylex.create({
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityGridCols260px8pxMinmax01fr: {
+    gridTemplateColumns: "260px 8px minmax(0,1fr)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBackground: {
+    backgroundColor: "var(--background)",
+  },
+  utilityBgBorderSubtle: {
+    backgroundColor: "var(--border-subtle)",
+  },
+  utilityTextForeground: {
+    color: "var(--foreground)",
+  },
+  utilityHPx: {
+    height: "1px",
+  },
+  utilityBgLineSubtle: {
+    backgroundColor: "var(--line-subtle)",
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityGridRowsAutoAutoAutoMinmax01fr: {
+    gridTemplateRows: "auto auto auto minmax(0,1fr)",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBorderBorderSubtle: {
+    borderColor: "var(--border-subtle)",
+  },
+  utilityBgSurface: {
+    backgroundColor: "var(--surface)",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy2: {
+    paddingBlock: "calc(0.25rem * 2)",
+  },
+  utilityH4: {
+    height: "calc(0.25rem * 4)",
+  },
+  utilityW20: {
+    width: "calc(0.25rem * 20)",
+  },
+  utilityBgElevated: {
+    backgroundColor: "var(--elevated)",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+  utilityH3: {
+    height: "calc(0.25rem * 3)",
+  },
+  utilityW28: {
+    width: "calc(0.25rem * 28)",
+  },
+  utilityH8: {
+    height: "calc(0.25rem * 8)",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityH6: {
+    height: "calc(0.25rem * 6)",
+  },
+  utilityH2: {
+    height: "calc(0.25rem * 2)",
+  },
+  utilityW24: {
+    width: "calc(0.25rem * 24)",
+  },
+  utilityContentStart: {
+    alignContent: "flex-start",
+  },
+  utilityGap0: {
+    gap: "calc(0.25rem * 0)",
+  },
+  utilityP3: {
+    padding: "calc(0.25rem * 3)",
+  },
+  utilityW34: {
+    width: "calc(3 / 4 * 100%)",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityW56: {
+    width: "calc(5 / 6 * 100%)",
+  },
+  utilityMt3: {
+    marginTop: "calc(0.25rem * 3)",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityW12: {
+    width: "calc(0.25rem * 12)",
+  },
+  utilityW14: {
+    width: "calc(0.25rem * 14)",
+  },
+  utilityW10: {
+    width: "calc(0.25rem * 10)",
+  },
+});
+
 gsap.registerPlugin(useGSAP);
+
+const styles = stylex.create({
+  emptyState: {
+    backgroundColor: "var(--surface)",
+    height: "100%",
+  },
+  inspector: (open: boolean) => ({
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "hidden",
+    pointerEvents: open ? "auto" : "none",
+    position: "relative",
+    zIndex: 0,
+  }),
+  main: (gridTemplateRows: string) => ({
+    display: "grid",
+    gridTemplateRows,
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "hidden",
+  }),
+  resizeList: { width: 1 },
+  resizeInspector: { width: 1 },
+  resizeServices: {
+    height: 1,
+    insetInline: 0,
+    position: "absolute",
+    top: 0,
+  },
+  workbench: {
+    display: "grid",
+    height: "100%",
+    minWidth: 0,
+    overflow: "hidden",
+  },
+});
 
 const emptyStories: RuntimeStory[] = [];
 const selectedStoryStorageKey = "lenso-console:selected-story-correlation-id";
 export const runtimeStoriesDefaultViewMode =
   "waterfall" satisfies StoryViewMode;
+
+export function runtimeStoriesWorkbenchStyle(
+  gridTemplateColumns: string,
+  inspectorOpenProgress: number
+) {
+  return {
+    "--story-inspector-open": inspectorOpenProgress,
+    gridTemplateColumns,
+  } as CSSProperties;
+}
+
 export type StoryModuleMetadata = {
   module_name?: string;
   status?: "loaded" | "error";
@@ -508,13 +682,18 @@ export function RuntimeStoriesPage() {
   if (modulesQuery.isLoading || storiesQuery.isLoading) {
     return (
       <div
-        className={stylexClassName(
-          "runtime-stories-page grid h-full grid-cols-[260px_8px_minmax(0,1fr)] overflow-hidden bg-(--background)"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityHFull,
+          localStyles.utilityGridCols260px8pxMinmax01fr,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityBgBackground,
+        ])}
+        data-runtime-page="true"
       >
         <StoryListSkeleton />
-        <div className={stylexClassName("bg-(--border-subtle)")} />
-        <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
+        <div {...stylex.props([localStyles.utilityBgBorderSubtle])} />
+        <EmptyState stylex={styles.emptyState}>
           <EmptyState.Title>Loading stories</EmptyState.Title>
           <EmptyState.Description>
             Runtime executions are being loaded from the selected data source.
@@ -526,7 +705,7 @@ export function RuntimeStoriesPage() {
 
   if (storyModuleUnavailable) {
     return (
-      <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
+      <EmptyState stylex={styles.emptyState}>
         <EmptyState.Title>Story module disabled</EmptyState.Title>
         <EmptyState.Description>
           Enable lenso/platform-story in Modules, then restart the API to use
@@ -538,7 +717,7 @@ export function RuntimeStoriesPage() {
 
   if (storiesQuery.isError) {
     return (
-      <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
+      <EmptyState stylex={styles.emptyState}>
         <EmptyState.Title>Story Explorer unavailable</EmptyState.Title>
         <EmptyState.Description>
           {storiesQuery.error instanceof Error
@@ -551,26 +730,26 @@ export function RuntimeStoriesPage() {
 
   return (
     <div
-      className={stylexClassName(
-        "runtime-stories-page h-full overflow-hidden bg-(--background) text-(--foreground)"
-      )}
+      {...stylex.props([
+        localStyles.utilityHFull,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBackground,
+        localStyles.utilityTextForeground,
+      ])}
+      data-runtime-page="true"
       id="story-workbench"
     >
       <div
         ref={workbenchRef}
-        className={stylexClassName(
-          "runtime-stories-workbench grid h-full min-w-0 overflow-hidden"
+        {...stylex.props(styles.workbench)}
+        data-runtime-slot="workbench"
+        style={runtimeStoriesWorkbenchStyle(
+          gridTemplateColumns,
+          previousInspectorOpenRef.current ||
+            (inspectorOpen && skipNextInspectorOpenAnimationRef.current)
+            ? 1
+            : 0
         )}
-        style={
-          {
-            "--story-inspector-open":
-              previousInspectorOpenRef.current ||
-              (inspectorOpen && skipNextInspectorOpenAnimationRef.current)
-                ? 1
-                : 0,
-            gridTemplateColumns,
-          } as CSSProperties
-        }
       >
         <StoryList
           onSelect={selectStory}
@@ -582,19 +761,15 @@ export function RuntimeStoriesPage() {
 
         <ResizeHandle
           ariaLabel="Resize story list panel"
-          className={stylexClassName("runtime-stories-list-resize w-px")}
           onReset={resetLayout}
           onResize={resizeStoryList}
-          style={{ width: 1 }}
+          slot="list-resize"
+          stylex={styles.resizeList}
         />
 
         <main
-          className={stylexClassName(
-            "runtime-stories-main grid min-h-0 min-w-0 overflow-hidden"
-          )}
-          style={{
-            gridTemplateRows: mainGridTemplateRows,
-          }}
+          {...stylex.props(styles.main(mainGridTemplateRows))}
+          data-runtime-slot="main"
         >
           {selectedStory ? (
             <>
@@ -606,7 +781,10 @@ export function RuntimeStoriesPage() {
 
               <div
                 aria-hidden="true"
-                className={stylexClassName("h-px bg-(--line-subtle)")}
+                {...stylex.props([
+                  localStyles.utilityHPx,
+                  localStyles.utilityBgLineSubtle,
+                ])}
               />
 
               <FederatedStoryEvidencePanel
@@ -624,19 +802,20 @@ export function RuntimeStoriesPage() {
               />
 
               {showServicesPanel ? (
-                <div className={stylexClassName("relative min-h-0 min-w-0")}>
+                <div
+                  {...stylex.props([
+                    localStyles.utilityRelative,
+                    localStyles.utilityMinH0,
+                    localStyles.utilityMinW0,
+                  ])}
+                >
                   <ResizeHandle
                     ariaLabel="Resize services panel"
                     axis="vertical"
-                    className={stylexClassName("h-px")}
                     onReset={resetLayout}
                     onResize={resizeServices}
-                    style={{
-                      height: 1,
-                      insetInline: 0,
-                      position: "absolute",
-                      top: 0,
-                    }}
+                    slot="services-resize"
+                    stylex={styles.resizeServices}
                   />
 
                   <ServiceSummaryStrip
@@ -649,14 +828,14 @@ export function RuntimeStoriesPage() {
               ) : null}
             </>
           ) : storyDetailLoading ? (
-            <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
+            <EmptyState stylex={styles.emptyState}>
               <EmptyState.Title>Loading story detail</EmptyState.Title>
               <EmptyState.Description>
                 The selected runtime story is being loaded.
               </EmptyState.Description>
             </EmptyState>
           ) : storyDetailQuery.isError ? (
-            <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
+            <EmptyState stylex={styles.emptyState}>
               <EmptyState.Title>Story detail unavailable</EmptyState.Title>
               <EmptyState.Description>
                 {storyDetailQuery.error instanceof Error
@@ -665,7 +844,7 @@ export function RuntimeStoriesPage() {
               </EmptyState.Description>
             </EmptyState>
           ) : (
-            <EmptyState className={stylexClassName("h-full bg-(--surface)")}>
+            <EmptyState stylex={styles.emptyState}>
               <EmptyState.Title>
                 {stories.length === 0
                   ? "No runtime stories"
@@ -688,22 +867,16 @@ export function RuntimeStoriesPage() {
           <>
             <ResizeHandle
               ariaLabel="Resize story inspector panel"
-              className={stylexClassName(
-                "runtime-stories-inspector-resize w-px"
-              )}
               onReset={resetLayout}
               onResize={resizeInspector}
-              style={{ width: 1 }}
+              slot="inspector-resize"
+              stylex={styles.resizeInspector}
             />
 
             <div
               ref={inspectorPanelRef}
-              className={stylexClassName(
-                "relative z-0 min-h-0 min-w-0 overflow-hidden"
-              )}
-              style={{
-                pointerEvents: inspectorOpen ? "auto" : "none",
-              }}
+              {...stylex.props(styles.inspector(inspectorOpen))}
+              data-runtime-slot="inspector"
             >
               <ExecutionInspector
                 activeTab={inspectorTab}
@@ -730,46 +903,134 @@ export function RuntimeStoriesPage() {
 function StoryListSkeleton() {
   return (
     <aside
-      className={stylexClassName(
-        "grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] overflow-hidden bg-(--background)"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilityHFull,
+        localStyles.utilityMinH0,
+        localStyles.utilityMinW0,
+        localStyles.utilityGridRowsAutoAutoAutoMinmax01fr,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBackground,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "border-b border-(--border-subtle) bg-(--surface) px-3 py-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderBorderSubtle,
+          localStyles.utilityBgSurface,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+        ])}
       >
-        <div className={stylexClassName("h-4 w-20 bg-(--elevated)")} />
-        <div className={stylexClassName("mt-1 h-3 w-28 bg-(--elevated)")} />
+        <div
+          {...stylex.props([
+            localStyles.utilityH4,
+            localStyles.utilityW20,
+            localStyles.utilityBgElevated,
+          ])}
+        />
+        <div
+          {...stylex.props([
+            localStyles.utilityMt1,
+            localStyles.utilityH3,
+            localStyles.utilityW28,
+            localStyles.utilityBgElevated,
+          ])}
+        />
       </div>
       <div
-        className={stylexClassName(
-          "h-8 border-b border-(--border-subtle) px-3 py-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityH8,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderBorderSubtle,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+        ])}
       >
-        <div className={stylexClassName("h-3 w-full bg-(--elevated)")} />
+        <div
+          {...stylex.props([
+            localStyles.utilityH3,
+            localStyles.utilityWFull,
+            localStyles.utilityBgElevated,
+          ])}
+        />
       </div>
       <div
-        className={stylexClassName(
-          "h-6 border-b border-(--border-subtle) px-3 py-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityH6,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderBorderSubtle,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+        ])}
       >
-        <div className={stylexClassName("h-2 w-24 bg-(--elevated)")} />
+        <div
+          {...stylex.props([
+            localStyles.utilityH2,
+            localStyles.utilityW24,
+            localStyles.utilityBgElevated,
+          ])}
+        />
       </div>
-      <div className={stylexClassName("grid content-start gap-0")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityContentStart,
+          localStyles.utilityGap0,
+        ])}
+      >
         {Array.from({ length: 6 }, (_, index) => (
           <div
-            className={stylexClassName("border-b border-(--border-subtle) p-3")}
+            {...stylex.props([
+              localStyles.utilityBorderB,
+              localStyles.utilityBorderBorderSubtle,
+              localStyles.utilityP3,
+            ])}
             key={index}
           >
-            <div className={stylexClassName("h-3 w-3/4 bg-(--elevated)")} />
             <div
-              className={stylexClassName("mt-2 h-2 w-5/6 bg-(--elevated)")}
+              {...stylex.props([
+                localStyles.utilityH3,
+                localStyles.utilityW34,
+                localStyles.utilityBgElevated,
+              ])}
             />
-            <div className={stylexClassName("mt-3 flex gap-1.5")}>
-              <span className={stylexClassName("h-3 w-12 bg-(--elevated)")} />
-              <span className={stylexClassName("h-3 w-14 bg-(--elevated)")} />
-              <span className={stylexClassName("h-3 w-10 bg-(--elevated)")} />
+            <div
+              {...stylex.props([
+                localStyles.utilityMt2,
+                localStyles.utilityH2,
+                localStyles.utilityW56,
+                localStyles.utilityBgElevated,
+              ])}
+            />
+            <div
+              {...stylex.props([
+                localStyles.utilityMt3,
+                localStyles.utilityFlex,
+                localStyles.utilityGap15,
+              ])}
+            >
+              <span
+                {...stylex.props([
+                  localStyles.utilityH3,
+                  localStyles.utilityW12,
+                  localStyles.utilityBgElevated,
+                ])}
+              />
+              <span
+                {...stylex.props([
+                  localStyles.utilityH3,
+                  localStyles.utilityW14,
+                  localStyles.utilityBgElevated,
+                ])}
+              />
+              <span
+                {...stylex.props([
+                  localStyles.utilityH3,
+                  localStyles.utilityW10,
+                  localStyles.utilityBgElevated,
+                ])}
+              />
             </div>
           </div>
         ))}

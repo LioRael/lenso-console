@@ -1,5 +1,6 @@
 import { Tabs } from "@base-ui/react/tabs";
-import { stylexClassName, useConsoleLocale } from "@lenso/console-ui";
+import { useConsoleLocale } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import {
   ChevronDown,
   ChevronRight,
@@ -25,7 +26,6 @@ import {
   useExecutionTechnicalOperations,
   useStoryTechnicalOperations,
 } from "../../hooks/use-runtime-queries";
-import { cn } from "../../lib/cn";
 import { prettyJson } from "../../lib/format";
 import { formatRuntimeDuration } from "../../lib/runtime-style";
 import { useConsole } from "./console-context";
@@ -49,6 +49,711 @@ import {
   type TechnicalOperationView,
 } from "./technical-operations-model";
 
+const localStyles = stylex.create({
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityH4: {
+    height: "calc(0.25rem * 4)",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityJustifyBetween: {
+    justifyContent: "space-between",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityLeadingNone: {
+    lineHeight: "1",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityFontMedium: {
+    fontWeight: "500",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityHoverTextFgPrimary: {
+    ":hover": {
+      color: "var(--fg-primary)",
+    },
+  },
+  utilityMaxW22: {
+    maxWidth: "calc(0.25rem * 22)",
+  },
+  utilitySize25: {
+    width: "calc(0.25rem * 2.5)",
+    height: "calc(0.25rem * 2.5)",
+  },
+  utilityH8: {
+    height: "calc(0.25rem * 8)",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityText13px: {
+    fontSize: "13px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityInlineFlex: {
+    display: "inline-flex",
+  },
+  utilityH7: {
+    height: "calc(0.25rem * 7)",
+  },
+  utilityW68px: {
+    width: "68px",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityJustifyCenter: {
+    justifyContent: "center",
+  },
+  utilityRoundedVarRadiusControl: {
+    borderRadius: "var(--radius-control)",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgControl: {
+    backgroundColor: "var(--bg-control)",
+  },
+  utilityPx25: {
+    paddingInline: "calc(0.25rem * 2.5)",
+  },
+  utilityText12px: {
+    fontSize: "12px",
+  },
+  utilityHoverBgBgControlHover: {
+    ":hover": {
+      backgroundColor: "var(--bg-control-hover)",
+    },
+  },
+  utilityH17px: {
+    height: "17px",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBorderLineSubtle: {
+    borderColor: "var(--line-subtle)",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityGap3px: {
+    gap: "3px",
+  },
+  utilityFontSans: {
+    fontFamily:
+      "var(--font-sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',\n    'Noto Color Emoji')",
+  },
+  utilitySize2px: {
+    width: "2px",
+    height: "2px",
+  },
+  utilityRoundedFull: {
+    borderRadius: "calc(infinity * 1px)",
+  },
+  utilityBgFgSecondary: {
+    backgroundColor: "var(--fg-secondary)",
+  },
+  utilityBgFgTertiary: {
+    backgroundColor: "var(--fg-tertiary)",
+  },
+  utilityMx3: {
+    marginInline: "calc(0.25rem * 3)",
+  },
+  utilityMb3: {
+    marginBottom: "calc(0.25rem * 3)",
+  },
+  utilityBorderVarToneErrorBorder: {
+    borderColor: "var(--tone-error-border)",
+  },
+  utilityPx2: {
+    paddingInline: "calc(0.25rem * 2)",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityTextToneErrorFg: {
+    color: "var(--tone-error-fg)",
+  },
+  utilityMinWFull: {
+    minWidth: "100%",
+  },
+  utilityH11: {
+    height: "calc(0.25rem * 11)",
+  },
+  utilityPt25: {
+    paddingTop: "calc(0.25rem * 2.5)",
+  },
+  utilityPb9px: {
+    paddingBottom: "9px",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityH348px: {
+    height: "348px",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityPy14px: {
+    paddingBlock: "14px",
+  },
+  utilityLeading15px: {
+    lineHeight: "15px",
+  },
+  utilityText95px: {
+    fontSize: "9.5px",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityH210px: {
+    height: "210px",
+  },
+  utilityPy3: {
+    paddingBlock: "calc(0.25rem * 3)",
+  },
+  utilityTextRight: {
+    textAlign: "right",
+  },
+  utilityH132px: {
+    height: "132px",
+  },
+  utilityGap6px: {
+    gap: "6px",
+  },
+  utilityPy2: {
+    paddingBlock: "calc(0.25rem * 2)",
+  },
+  utilityH42px: {
+    height: "42px",
+  },
+  utilityH9: {
+    height: "calc(0.25rem * 9)",
+  },
+  utilityW220px: {
+    width: "220px",
+  },
+  utilityGap05: {
+    gap: "calc(0.25rem * 0.5)",
+  },
+  utilityTextXs: {
+    fontSize: "var(--text-xs, 0.75rem)",
+    lineHeight: "var(--text-xs--line-height, 1rem)",
+  },
+  utilityH98px: {
+    height: "98px",
+  },
+  utilityPt11px: {
+    paddingTop: "11px",
+  },
+  utilityPb25: {
+    paddingBottom: "calc(0.25rem * 2.5)",
+  },
+  utilityMt15: {
+    marginTop: "calc(0.25rem * 1.5)",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+  utilityMaxWFull: {
+    maxWidth: "100%",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityH58px: {
+    height: "58px",
+  },
+  utilityGridCols3: {
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+  },
+  utilityGap4: {
+    gap: "calc(0.25rem * 4)",
+  },
+  utilityPy25: {
+    paddingBlock: "calc(0.25rem * 2.5)",
+  },
+  utilityH30px: {
+    height: "30px",
+  },
+  utilityGridCols92pxMinmax01fr: {
+    gridTemplateColumns: "92px minmax(0,1fr)",
+  },
+  utilityGridCols60px102px62pxMinmax01fr: {
+    gridTemplateColumns: "60px 102px 62px minmax(0,1fr)",
+  },
+  utilityText85px: {
+    fontSize: "8.5px",
+  },
+  utilityFontNormal: {
+    fontWeight: "400",
+  },
+  utilityH60px: {
+    height: "60px",
+  },
+  utilityW92px: {
+    width: "92px",
+  },
+  utilityLeading17px: {
+    lineHeight: "17px",
+  },
+  utilityTextToneSuccessFg: {
+    color: "var(--tone-success-fg)",
+  },
+  utilityMt3px: {
+    marginTop: "3px",
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityH122px: {
+    height: "122px",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityTop60px: {
+    top: "60px",
+  },
+  utilityRight7: {
+    right: "calc(0.25rem * 7)",
+  },
+  utilityLeft7: {
+    left: "calc(0.25rem * 7)",
+  },
+  utilityHPx: {
+    height: "1px",
+  },
+  utilityBgLineSubtle: {
+    backgroundColor: "var(--line-subtle)",
+  },
+  utilityTop37px: {
+    top: "37px",
+  },
+  utilityRight3: {
+    right: "calc(0.25rem * 3)",
+  },
+  utilityLeft3: {
+    left: "calc(0.25rem * 3)",
+  },
+  utilityTextCenter: {
+    textAlign: "center",
+  },
+  utilityPx1: {
+    paddingInline: "calc(0.25rem * 1)",
+  },
+  utilityMxAuto: {
+    marginInline: "auto",
+  },
+  utilityMt3: {
+    marginTop: "calc(0.25rem * 3)",
+  },
+  utilityBlock: {
+    display: "block",
+  },
+  utilitySize15: {
+    width: "calc(0.25rem * 1.5)",
+    height: "calc(0.25rem * 1.5)",
+  },
+  utilitySize2: {
+    width: "calc(0.25rem * 2)",
+    height: "calc(0.25rem * 2)",
+  },
+  utilityTranslateYPx: {
+    transform: "translateY(-1px)",
+  },
+  utilityBgToneSuccessFg: {
+    backgroundColor: "var(--tone-success-fg)",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityBottom3: {
+    bottom: "calc(0.25rem * 3)",
+  },
+  utilitySize5px: {
+    width: "5px",
+    height: "5px",
+  },
+  utilityBgAccent: {
+    backgroundColor: "var(--accent)",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityBgBgPanelHeader: {
+    backgroundColor: "var(--bg-panel-header)",
+  },
+  utilityPy15: {
+    paddingBlock: "calc(0.25rem * 1.5)",
+  },
+  utilityH5: {
+    height: "calc(0.25rem * 5)",
+  },
+  utilityPx15: {
+    paddingInline: "calc(0.25rem * 1.5)",
+  },
+  utilityH278px: {
+    height: "278px",
+  },
+  utilityOverflowVisible: {
+    overflow: "visible",
+  },
+  utilityP3: {
+    padding: "calc(0.25rem * 3)",
+  },
+  utilityH26px: {
+    height: "26px",
+  },
+  utilityH84px: {
+    height: "84px",
+  },
+  utilityGap25: {
+    gap: "calc(0.25rem * 2.5)",
+  },
+  utilityW13px: {
+    width: "13px",
+  },
+  utilityTextAccent: {
+    color: "var(--accent)",
+  },
+  utilityH68px: {
+    height: "68px",
+  },
+  utilityW256px: {
+    width: "256px",
+  },
+  utilityGap5px: {
+    gap: "5px",
+  },
+  utilityH18px: {
+    height: "18px",
+  },
+  utilityItemsStart: {
+    alignItems: "flex-start",
+  },
+  utilityTop2: {
+    top: "calc(0.25rem * 2)",
+  },
+  utilityRight0: {
+    right: "calc(0.25rem * 0)",
+  },
+  utilityMr1: {
+    marginRight: "calc(0.25rem * 1)",
+  },
+  utilitySize4: {
+    width: "calc(0.25rem * 4)",
+    height: "calc(0.25rem * 4)",
+  },
+  utilityPlaceItemsCenter: {
+    placeItems: "center",
+  },
+  utilityTransitionOpacity: {
+    transitionProperty: "opacity",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityTopFull: {
+    top: "100%",
+  },
+  utilityLeft0: {
+    left: "calc(0.25rem * 0)",
+  },
+  utilityZ10: {
+    zIndex: "10",
+  },
+  utilityMinH9: {
+    minHeight: "calc(0.25rem * 9)",
+  },
+  utilityLastBorderB0: {
+    ":last-child": {
+      borderBottomWidth: "0px",
+    },
+  },
+  utilityWhitespacePreWrap: {
+    whiteSpace: "pre-wrap",
+  },
+  utilityH108px: {
+    height: "108px",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityW3: {
+    width: "calc(0.25rem * 3)",
+  },
+  utilityTop0: {
+    top: "calc(0.25rem * 0)",
+  },
+  utilityLeft12: {
+    left: "calc(1 / 2 * 100%)",
+  },
+  utilityTranslateX12: {
+    transform: "translateX(calc(50% * -1))",
+  },
+  utilityBgFgPrimary: {
+    backgroundColor: "var(--fg-primary)",
+  },
+  utilityBottom2: {
+    bottom: "calc(0.25rem * 2)",
+  },
+  utilityWPx: {
+    width: "1px",
+  },
+  utilityW284px: {
+    width: "284px",
+  },
+  utilityGap7px: {
+    gap: "7px",
+  },
+  utilityPt0: {
+    paddingTop: "calc(0.25rem * 0)",
+  },
+  utilityLeading0: {
+    lineHeight: "0",
+  },
+  utilityLeadingNormal: {
+    lineHeight: "normal",
+  },
+  utilityMinHFull: {
+    minHeight: "100%",
+  },
+  utilityPy7px: {
+    paddingBlock: "7px",
+  },
+  utilityW7px: {
+    width: "7px",
+  },
+  utilityTextToneWarningFg: {
+    color: "var(--tone-warning-fg)",
+  },
+  utilityW260px: {
+    width: "260px",
+  },
+  utilityH44px: {
+    height: "44px",
+  },
+  utilityLeadingNormal2: {
+    lineHeight: "var(--leading-normal, 1.5)",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityH52px: {
+    height: "52px",
+  },
+  utilityTextLeft: {
+    textAlign: "left",
+  },
+  utilitySize3: {
+    width: "calc(0.25rem * 3)",
+    height: "calc(0.25rem * 3)",
+  },
+  utilityWhitespaceNowrap: {
+    whiteSpace: "nowrap",
+  },
+  utilityMaxH171px: {
+    maxHeight: "171px",
+  },
+  utilityPb11px: {
+    paddingBottom: "11px",
+  },
+  utilityMaxH150px: {
+    maxHeight: "150px",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityH80px: {
+    height: "80px",
+  },
+  utilityBorderT: {
+    borderTopStyle: "solid",
+    borderTopWidth: "1px",
+  },
+  utilityW97px: {
+    width: "97px",
+  },
+  utilityH100px: {
+    height: "100px",
+  },
+  utilityW49px: {
+    width: "49px",
+  },
+  utilityH34px: {
+    height: "34px",
+  },
+  utilityH216px: {
+    height: "216px",
+  },
+  utilityNormalCase: {
+    textTransform: "none",
+  },
+  utilityH27px: {
+    height: "27px",
+  },
+  utilityH256px: {
+    height: "256px",
+  },
+  utilityH05: {
+    height: "calc(0.25rem * 0.5)",
+  },
+  utilityW280px: {
+    width: "280px",
+  },
+  utilityBgToneWarningFg: {
+    backgroundColor: "var(--tone-warning-fg)",
+  },
+  utilityP4: {
+    padding: "calc(0.25rem * 4)",
+  },
+});
+
+const styles = stylex.create({
+  header: {
+    borderBlockEndColor: "var(--line-subtle)",
+    borderBlockEndStyle: "solid",
+    borderBlockEndWidth: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    paddingBlockEnd: 10,
+    paddingBlockStart: 18,
+    position: "relative",
+  },
+  clearIcon: {
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover")]: 1,
+      ":focus-visible": 1,
+    },
+  },
+  path: { height: 17 },
+  root: {
+    backgroundColor: "var(--bg-canvas)",
+    display: "grid",
+    gridTemplateRows: "94px minmax(0, 1fr)",
+    height: "100%",
+    minHeight: 0,
+    minWidth: 0,
+    maxWidth: "100%",
+    overflow: "hidden",
+    width: "100%",
+  },
+  statusDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "9999px",
+    flexShrink: 0,
+    height: 6,
+    width: 6,
+  }),
+  statusText: (color: string) => ({ color }),
+  tabsRoot: {
+    display: "grid",
+    gridTemplateRows: "42px minmax(0, 1fr)",
+    height: "100%",
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "hidden",
+  },
+  tabsList: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 4,
+    height: 42,
+    minWidth: "100%",
+    paddingInline: 6,
+    width: "max-content",
+  },
+  tab: {
+    alignItems: "center",
+    display: "inline-flex",
+    flexShrink: 0,
+    fontFamily: "inherit",
+    fontSize: 11,
+    gap: 4,
+    height: 40,
+    justifyContent: "center",
+    paddingInline: 4,
+    position: "relative",
+    color: "var(--fg-tertiary)",
+  },
+  tabActive: {
+    borderBlockEndColor: "var(--accent)",
+    borderBlockEndStyle: "solid",
+    borderBlockEndWidth: 1,
+    color: "var(--fg-primary)",
+    fontWeight: 500,
+  },
+  panel: {
+    backgroundColor: "var(--bg-canvas)",
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "auto",
+    scrollbarWidth: "thin",
+  },
+  technicalOperationAttributeToggle: {
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover")]: 1,
+      ":focus-visible": 1,
+    },
+  },
+});
+
 export function ExecutionInspector({
   activeTab,
   onClearSelection,
@@ -71,64 +776,105 @@ export function ExecutionInspector({
   const routeLabel = buildInspectorPath(story, node);
 
   return (
-    <aside
-      className={stylexClassName(
-        "grid h-full min-h-0 w-full min-w-0 max-w-full grid-rows-[94px_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)"
-      )}
-    >
-      <div
-        className={stylexClassName(
-          "relative min-w-0 overflow-hidden border-b border-(--line-subtle)"
-        )}
-        style={{ paddingBottom: 10, paddingTop: 18 }}
-      >
+    <aside {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.header)}>
         <div
-          className={stylexClassName(
-            "flex h-4 items-center justify-between px-3 text-[9px] leading-none text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH4,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityPx3,
+            localStyles.utilityText9px,
+            localStyles.utilityLeadingNone,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
-          <span className={stylexClassName("truncate font-medium")}>
+          <span
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMedium,
+            ])}
+          >
             {inspectorKindLabel(node)}&nbsp; / &nbsp;{node.service}
           </span>
           <button
             aria-label="Clear inspector selection"
-            className={stylexClassName(
-              "group flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary) hover:text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityMinW0,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityGap1,
+              localStyles.utilityFontMono,
+              localStyles.utilityText9px,
+              localStyles.utilityTextFgTertiary,
+              localStyles.utilityHoverTextFgPrimary,
+            ])}
+            {...stylex.props(stylex.defaultMarker())}
             onClick={onClearSelection}
             type="button"
           >
-            <span className={stylexClassName("max-w-22 truncate")}>
+            <span
+              {...stylex.props([
+                localStyles.utilityMaxW22,
+                localStyles.utilityTruncate,
+              ])}
+            >
               {node.id}
             </span>
             <X
-              className={stylexClassName(
-                "size-2.5 opacity-0 group-hover:opacity-100"
-              )}
+              {...stylex.props([localStyles.utilitySize25])}
+              {...stylex.props(styles.clearIcon)}
             />
           </button>
         </div>
         <div
-          className={stylexClassName(
-            "flex h-8 min-w-0 items-center gap-2 px-3"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH8,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap2,
+            localStyles.utilityPx3,
+          ])}
         >
           <span
-            className={stylexClassName("size-1.5 shrink-0 rounded-full")}
-            style={{ backgroundColor: statusColorForInspector(node.status) }}
+            {...stylex.props(
+              styles.statusDot(statusColorForInspector(node.status))
+            )}
           />
           <h2
-            className={stylexClassName(
-              "min-w-0 flex-1 truncate text-[13px] font-semibold text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityMinW0,
+              localStyles.utilityFlex1,
+              localStyles.utilityTruncate,
+              localStyles.utilityText13px,
+              localStyles.utilityFontSemibold,
+              localStyles.utilityTextFgPrimary,
+            ])}
           >
             {node.canonicalName ?? node.name}
           </h2>
           {retryTarget ? (
             <button
-              className={stylexClassName(
-                "inline-flex h-7 w-[68px] shrink-0 items-center justify-center gap-1 rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) px-2.5 text-[12px] font-medium text-(--fg-primary) hover:bg-(--bg-control-hover)"
-              )}
+              {...stylex.props([
+                localStyles.utilityInlineFlex,
+                localStyles.utilityH7,
+                localStyles.utilityW68px,
+                localStyles.utilityShrink0,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityJustifyCenter,
+                localStyles.utilityGap1,
+                localStyles.utilityRoundedVarRadiusControl,
+                localStyles.utilityBorder,
+                localStyles.utilityBorderLine,
+                localStyles.utilityBgBgControl,
+                localStyles.utilityPx25,
+                localStyles.utilityText12px,
+                localStyles.utilityFontMedium,
+                localStyles.utilityTextFgPrimary,
+                localStyles.utilityHoverBgBgControlHover,
+              ])}
               onClick={() => openRetry(retryTarget)}
               type="button"
             >
@@ -138,22 +884,33 @@ export function ExecutionInspector({
           ) : null}
         </div>
         <div
-          className={stylexClassName(
-            "flex h-4 min-w-0 items-center gap-1.5 overflow-hidden px-3 text-[9px] leading-none"
-          )}
-          style={{ height: 17 }}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH17px,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap15,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityPx3,
+            localStyles.utilityText9px,
+            localStyles.utilityLeadingNone,
+          ])}
         >
           <span
-            className={stylexClassName(
-              "shrink-0 font-medium text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityShrink0,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             {zh ? "路径" : "Path"}
           </span>
           <span
-            className={stylexClassName(
-              "truncate font-mono text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMono,
+              localStyles.utilityTextFgSecondary,
+            ])}
             title={routeLabel}
           >
             {routeLabel}
@@ -162,9 +919,7 @@ export function ExecutionInspector({
       </div>
 
       <Tabs.Root
-        className={stylexClassName(
-          "grid h-full min-h-0 min-w-0 grid-rows-[42px_minmax(0,1fr)] overflow-hidden"
-        )}
+        {...stylex.props(styles.tabsRoot)}
         onValueChange={(value) => {
           if (typeof value === "string") {
             setActiveTab(value as ExecutionInspectorTab);
@@ -173,22 +928,25 @@ export function ExecutionInspector({
         value={activeTab}
       >
         <div
-          className={stylexClassName(
-            "h-full min-w-0 overflow-hidden border-b border-(--line-subtle) bg-(--bg-canvas)"
-          )}
+          {...stylex.props([
+            localStyles.utilityHFull,
+            localStyles.utilityMinW0,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityBorderB,
+            localStyles.utilityBorderLineSubtle,
+            localStyles.utilityBgBgCanvas,
+          ])}
         >
           <HorizontalTabScroll>
             <Tabs.List
               aria-label={zh ? "执行详情标签" : "Execution detail tabs"}
-              className={stylexClassName(
-                "flex h-[42px] w-max min-w-full items-start gap-1 px-1.5"
-              )}
+              {...stylex.props(styles.tabsList)}
             >
               {executionInspectorTabs.map((tab) => (
                 <Tabs.Tab
-                  className={cn(
-                    "relative flex h-10 shrink-0 items-center justify-center gap-1 px-1 font-sans text-[11px] text-(--fg-tertiary)",
-                    "data-[active]:border-b data-[active]:border-(--accent) data-[active]:font-medium data-[active]:text-(--fg-primary)"
+                  {...stylex.props(
+                    styles.tab,
+                    activeTab === tab.id && styles.tabActive
                   )}
                   id={`execution-tab-${tab.id}`}
                   key={tab.id}
@@ -197,19 +955,29 @@ export function ExecutionInspector({
                   <span>{zh ? inspectorTabZh[tab.id] : tab.label}</span>
                   {tabCounts[tab.id] > 0 ? (
                     <span
-                      className={cn(
-                        "inline-flex items-center gap-[3px] font-sans text-[9px] font-medium",
+                      {...stylex.props(
+                        [
+                          localStyles.utilityInlineFlex,
+                          localStyles.utilityItemsCenter,
+                          localStyles.utilityGap3px,
+                          localStyles.utilityFontSans,
+                          localStyles.utilityText9px,
+                          localStyles.utilityFontMedium,
+                        ],
                         activeTab === tab.id
-                          ? "text-(--fg-secondary)"
-                          : "text-(--fg-tertiary)"
+                          ? [localStyles.utilityTextFgSecondary]
+                          : [localStyles.utilityTextFgTertiary]
                       )}
                     >
                       <span
-                        className={cn(
-                          "size-[2px] rounded-full",
+                        {...stylex.props(
+                          [
+                            localStyles.utilitySize2px,
+                            localStyles.utilityRoundedFull,
+                          ],
                           activeTab === tab.id
-                            ? "bg-(--fg-secondary)"
-                            : "bg-(--fg-tertiary)"
+                            ? [localStyles.utilityBgFgSecondary]
+                            : [localStyles.utilityBgFgTertiary]
                         )}
                       />
                       {tabCounts[tab.id]}
@@ -223,9 +991,7 @@ export function ExecutionInspector({
 
         {executionInspectorTabs.map((tab) => (
           <Tabs.Panel
-            className={stylexClassName(
-              "min-h-0 min-w-0 overflow-auto bg-(--bg-canvas) [scrollbar-width:thin]"
-            )}
+            {...stylex.props(styles.panel)}
             id={`execution-inspector-panel-${tab.id}`}
             key={`${node.id}-${tab.id}`}
             keepMounted
@@ -289,9 +1055,23 @@ function InspectorBody({
         ) : null}
         {retryTarget && (node.status === "failed" || node.status === "dead") ? (
           <button
-            className={stylexClassName(
-              "mx-3 mb-3 inline-flex h-7 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--tone-error-border)] bg-(--bg-control) px-2 text-[11px] font-medium text-(--tone-error-fg) hover:bg-(--bg-control-hover)"
-            )}
+            {...stylex.props([
+              localStyles.utilityMx3,
+              localStyles.utilityMb3,
+              localStyles.utilityInlineFlex,
+              localStyles.utilityH7,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityGap2,
+              localStyles.utilityRoundedVarRadiusControl,
+              localStyles.utilityBorder,
+              localStyles.utilityBorderVarToneErrorBorder,
+              localStyles.utilityBgBgControl,
+              localStyles.utilityPx2,
+              localStyles.utilityText11px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextToneErrorFg,
+              localStyles.utilityHoverBgBgControlHover,
+            ])}
             onClick={() => openRetry(retryTarget)}
             type="button"
           >
@@ -364,7 +1144,7 @@ function EventsDocument({
   node: ExecutionNode;
 }) {
   return (
-    <div className={stylexClassName("min-w-full")}>
+    <div {...stylex.props([localStyles.utilityMinWFull])}>
       <InspectorDocumentToolbar
         bordered={false}
         count={`${activity.length} events`}
@@ -406,7 +1186,7 @@ function OperationsDocument({
 }) {
   const operationCount = executionOperations.length + storyOperations.length;
   return (
-    <div className={stylexClassName("min-w-full")}>
+    <div {...stylex.props([localStyles.utilityMinWFull])}>
       <InspectorDocumentToolbar
         count={`${operationCount} operations`}
         title="Technical execution"
@@ -446,22 +1226,37 @@ function InspectorDocumentToolbar({
 }) {
   return (
     <div
-      className={cn(
-        "flex h-11 items-center justify-between px-3 pt-2.5 pb-[9px]",
-        bordered && "border-b border-(--line-subtle)"
+      {...stylex.props(
+        [
+          localStyles.utilityFlex,
+          localStyles.utilityH11,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityPx3,
+          localStyles.utilityPt25,
+          localStyles.utilityPb9px,
+        ],
+        bordered && [
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLineSubtle,
+        ]
       )}
     >
       <span
-        className={stylexClassName(
-          "text-[13px] font-medium text-(--fg-primary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityText13px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgPrimary,
+        ])}
       >
         {title}
       </span>
       <span
-        className={stylexClassName(
-          "font-mono text-[10px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         {count}
       </span>
@@ -494,15 +1289,23 @@ function CompletionEvidence({
 
   return (
     <section
-      className={stylexClassName(
-        "flex h-[348px] flex-col gap-3 overflow-hidden px-3 py-[14px]"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH348px,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap3,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityPx3,
+        localStyles.utilityPy14px,
+      ])}
     >
       <InspectorEyebrow>Completion evidence</InspectorEyebrow>
       <h3
-        className={stylexClassName(
-          "text-[13px] font-medium text-(--fg-primary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityText13px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgPrimary,
+        ])}
       >
         {stable ? "Stable effect confirmed" : "Completion evidence pending"}
       </h3>
@@ -519,9 +1322,11 @@ function CompletionEvidence({
         value={`${node.service} / ${typeLabel(node)}`}
       />
       <p
-        className={stylexClassName(
-          "text-[10px] leading-[15px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityText10px,
+          localStyles.utilityLeading15px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         {stable
           ? "Published after the execution completed; this evidence confirms the terminal state."
@@ -540,13 +1345,22 @@ function InspectorEvidenceField({
 }) {
   return (
     <div
-      className={stylexClassName("flex h-11 flex-col gap-1 overflow-hidden")}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH11,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap1,
+        localStyles.utilityOverflowHidden,
+      ])}
     >
       <InspectorEyebrow>{label}</InspectorEyebrow>
       <span
-        className={stylexClassName(
-          "truncate font-mono text-[10px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityTruncate,
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         {value}
       </span>
@@ -557,9 +1371,12 @@ function InspectorEvidenceField({
 function InspectorEyebrow({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className={stylexClassName(
-        "text-[9.5px] font-medium uppercase text-(--fg-tertiary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityText95px,
+        localStyles.utilityFontMedium,
+        localStyles.utilityUppercase,
+        localStyles.utilityTextFgTertiary,
+      ])}
     >
       {children}
     </span>
@@ -569,9 +1386,14 @@ function InspectorEyebrow({ children }: { children: React.ReactNode }) {
 function ExecutionContextPanel({ rows }: { rows: Array<[string, unknown]> }) {
   return (
     <section
-      className={stylexClassName(
-        "h-[210px] overflow-hidden border-b border-(--line-subtle) px-3 py-3"
-      )}
+      {...stylex.props([
+        localStyles.utilityH210px,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityPx3,
+        localStyles.utilityPy3,
+      ])}
     >
       <InspectorEyebrow>Execution context</InspectorEyebrow>
       <div>
@@ -579,22 +1401,34 @@ function ExecutionContextPanel({ rows }: { rows: Array<[string, unknown]> }) {
           .filter(([key]) => key !== "related executions")
           .map(([key, value]) => (
             <div
-              className={stylexClassName(
-                "flex h-8 items-center justify-between gap-3 overflow-hidden"
-              )}
+              {...stylex.props([
+                localStyles.utilityFlex,
+                localStyles.utilityH8,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityJustifyBetween,
+                localStyles.utilityGap3,
+                localStyles.utilityOverflowHidden,
+              ])}
               key={key}
             >
               <span
-                className={stylexClassName(
-                  "shrink-0 text-[9px] text-(--fg-tertiary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityShrink0,
+                  localStyles.utilityText9px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 {executionContextLabel(key)}
               </span>
               <span
-                className={stylexClassName(
-                  "min-w-0 truncate text-right font-mono text-[10px] text-(--fg-secondary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityMinW0,
+                  localStyles.utilityTruncate,
+                  localStyles.utilityTextRight,
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                  localStyles.utilityTextFgSecondary,
+                ])}
               >
                 {formatCell(value)}
               </span>
@@ -618,9 +1452,17 @@ function ExecutionLineagePanel({
 }) {
   return (
     <section
-      className={stylexClassName(
-        "flex h-[132px] flex-col gap-[6px] overflow-hidden border-b border-(--line-subtle) px-3 py-2"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH132px,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap6px,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityPx3,
+        localStyles.utilityPy2,
+      ])}
     >
       <InspectorEyebrow>Related executions</InspectorEyebrow>
       <LineageRow direction="Upstream" node={upstream.at(-1)} />
@@ -638,34 +1480,54 @@ function LineageRow({
 }) {
   return (
     <div
-      className={stylexClassName(
-        "flex h-[42px] items-center justify-between gap-3 overflow-hidden"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH42px,
+        localStyles.utilityItemsCenter,
+        localStyles.utilityJustifyBetween,
+        localStyles.utilityGap3,
+        localStyles.utilityOverflowHidden,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-9 w-[220px] shrink-0 flex-col gap-0.5 overflow-hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH9,
+          localStyles.utilityW220px,
+          localStyles.utilityShrink0,
+          localStyles.utilityFlexCol,
+          localStyles.utilityGap05,
+          localStyles.utilityOverflowHidden,
+        ])}
       >
         <span
-          className={stylexClassName(
-            "text-[9px] font-medium uppercase text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityText9px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityUppercase,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           {direction}
         </span>
         <span
-          className={stylexClassName(
-            "truncate font-mono text-[11px] text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityTruncate,
+            localStyles.utilityFontMono,
+            localStyles.utilityText11px,
+            localStyles.utilityTextFgPrimary,
+          ])}
         >
           {node?.name ?? "—"}
         </span>
       </div>
       <span
-        className={stylexClassName(
-          "shrink-0 font-mono text-[9px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityShrink0,
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         {node ? typeLabel(node) : "—"}
       </span>
@@ -736,42 +1598,77 @@ function OverviewDocument({
   ];
 
   return (
-    <div className={stylexClassName("min-w-full text-xs")}>
+    <div
+      {...stylex.props([
+        localStyles.utilityMinWFull,
+        localStyles.utilityTextXs,
+      ])}
+    >
       <section
-        className={stylexClassName(
-          "h-[98px] border-b border-(--line-subtle) px-3 pt-[11px] pb-2.5"
-        )}
+        {...stylex.props([
+          localStyles.utilityH98px,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLineSubtle,
+          localStyles.utilityPx3,
+          localStyles.utilityPt11px,
+          localStyles.utilityPb25,
+        ])}
       >
         <div
-          className={stylexClassName(
-            "flex h-4 items-center justify-between text-[9.5px] font-medium text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH4,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityText95px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           <span>Execution</span>
-          <span className={statusTone(node.status)}>
+          <span
+            {...stylex.props(
+              styles.statusText(statusColorForInspector(node.status))
+            )}
+          >
             {statusLabel(node.status)}
           </span>
         </div>
         <h3
-          className={stylexClassName(
-            "mt-1.5 truncate text-[13px] font-medium text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMt15,
+            localStyles.utilityTruncate,
+            localStyles.utilityText13px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgPrimary,
+          ])}
         >
           {signal.title}
         </h3>
         <p
-          className={stylexClassName(
-            "mt-1 max-w-full text-[10px] leading-[15px] text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMt1,
+            localStyles.utilityMaxWFull,
+            localStyles.utilityText10px,
+            localStyles.utilityLeading15px,
+            localStyles.utilityTextFgSecondary,
+          ])}
         >
           {signal.description}
         </p>
       </section>
 
       <section
-        className={stylexClassName(
-          "grid h-[58px] grid-cols-3 gap-4 border-b border-(--line-subtle) px-3 py-2.5"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityH58px,
+          localStyles.utilityGridCols3,
+          localStyles.utilityGap4,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLineSubtle,
+          localStyles.utilityPx3,
+          localStyles.utilityPy25,
+        ])}
       >
         <InspectorMetric
           accent
@@ -794,15 +1691,28 @@ function OverviewDocument({
 
       <section>
         <div
-          className={stylexClassName(
-            "flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH30px,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityPx3,
+            localStyles.utilityText95px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           <span>Properties</span>
           <button
-            className={stylexClassName(
-              "inline-flex items-center gap-1 text-[9.5px] font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityInlineFlex,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityGap1,
+              localStyles.utilityText95px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgSecondary,
+              localStyles.utilityHoverTextFgPrimary,
+            ])}
             type="button"
           >
             <Copy size={12} />
@@ -812,57 +1722,94 @@ function OverviewDocument({
         {properties.map((property, index) =>
           "label" in property ? (
             <div
-              className={cn(
-                "grid h-9 grid-cols-[92px_minmax(0,1fr)] items-center px-3 font-mono",
-                index === properties.length - 1 &&
-                  "border-b border-(--line-subtle)"
+              {...stylex.props(
+                [
+                  localStyles.utilityGrid,
+                  localStyles.utilityH9,
+                  localStyles.utilityGridCols92pxMinmax01fr,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityPx3,
+                  localStyles.utilityFontMono,
+                ],
+                index === properties.length - 1 && [
+                  localStyles.utilityBorderB,
+                  localStyles.utilityBorderLineSubtle,
+                ]
               )}
               key={property.label}
             >
               <span
-                className={stylexClassName("text-[9px] text-(--fg-tertiary)")}
+                {...stylex.props([
+                  localStyles.utilityText9px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 {property.label}
               </span>
               <span
-                className={stylexClassName(
-                  "truncate text-[9.5px] text-(--fg-primary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityTruncate,
+                  localStyles.utilityText95px,
+                  localStyles.utilityTextFgPrimary,
+                ])}
               >
                 {property.value}
               </span>
             </div>
           ) : (
             <div
-              className={cn(
-                "grid h-9 grid-cols-[60px_102px_62px_minmax(0,1fr)] items-center px-3 font-mono",
-                index === properties.length - 1 &&
-                  "border-b border-(--line-subtle)"
+              {...stylex.props(
+                [
+                  localStyles.utilityGrid,
+                  localStyles.utilityH9,
+                  localStyles.utilityGridCols60px102px62pxMinmax01fr,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityPx3,
+                  localStyles.utilityFontMono,
+                ],
+                index === properties.length - 1 && [
+                  localStyles.utilityBorderB,
+                  localStyles.utilityBorderLineSubtle,
+                ]
               )}
               key={`${property.left[0]}-${index}`}
             >
               <span
-                className={stylexClassName("text-[9px] text-(--fg-tertiary)")}
+                {...stylex.props([
+                  localStyles.utilityText9px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 {property.left[0]}
               </span>
               <span
-                className={cn(
-                  "truncate text-[9.5px] text-(--fg-primary)",
-                  property.left[0] === "status" && statusTone(node.status)
-                )}
+                {...stylex.props([
+                  localStyles.utilityTruncate,
+                  localStyles.utilityText95px,
+                  localStyles.utilityTextFgPrimary,
+                ])}
+                {...(property.left[0] === "status"
+                  ? stylex.props(
+                      styles.statusText(statusColorForInspector(node.status))
+                    )
+                  : {})}
               >
                 {property.left[1]}
               </span>
               <span
-                className={stylexClassName("text-[9px] text-(--fg-tertiary)")}
+                {...stylex.props([
+                  localStyles.utilityText9px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 {property.right[0]}
               </span>
               <span
-                className={stylexClassName(
-                  "truncate text-[9.5px] text-(--fg-primary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityTruncate,
+                  localStyles.utilityText95px,
+                  localStyles.utilityTextFgPrimary,
+                ])}
               >
                 {property.right[1]}
               </span>
@@ -873,13 +1820,24 @@ function OverviewDocument({
 
       <section>
         <div
-          className={stylexClassName(
-            "flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH30px,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityPx3,
+            localStyles.utilityText95px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           <span>Evidence</span>
           <span
-            className={stylexClassName("font-mono text-[8.5px] font-normal")}
+            {...stylex.props([
+              localStyles.utilityFontMono,
+              localStyles.utilityText85px,
+              localStyles.utilityFontNormal,
+            ])}
           >
             {Number(payloadCount > 0) + Number(logsCount > 0)} sources
           </span>
@@ -896,58 +1854,93 @@ function OverviewDocument({
           muted
         />
         <div
-          className={stylexClassName(
-            "flex h-[30px] items-center justify-between px-3 text-[9.5px] font-medium text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH30px,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityPx3,
+            localStyles.utilityText95px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           <span>Trace context</span>
           <span
-            className={stylexClassName("font-mono text-[8.5px] font-normal")}
+            {...stylex.props([
+              localStyles.utilityFontMono,
+              localStyles.utilityText85px,
+              localStyles.utilityFontNormal,
+            ])}
           >
             2 fields
           </span>
         </div>
         <div
-          className={stylexClassName(
-            "flex h-[60px] flex-col overflow-hidden font-mono"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH60px,
+            localStyles.utilityFlexCol,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityFontMono,
+          ])}
         >
           <div
-            className={stylexClassName(
-              "flex h-[30px] shrink-0 items-center overflow-hidden px-3"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityH30px,
+              localStyles.utilityShrink0,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityOverflowHidden,
+              localStyles.utilityPx3,
+            ])}
           >
             <span
-              className={stylexClassName(
-                "w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityW92px,
+                localStyles.utilityShrink0,
+                localStyles.utilityText85px,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
               trace
             </span>
             <span
-              className={stylexClassName(
-                "truncate text-[9px] text-(--fg-secondary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityTruncate,
+                localStyles.utilityText9px,
+                localStyles.utilityTextFgSecondary,
+              ])}
             >
               {traceId ?? "—"}
             </span>
           </div>
           <div
-            className={stylexClassName(
-              "flex h-[30px] shrink-0 items-center overflow-hidden px-3"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityH30px,
+              localStyles.utilityShrink0,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityOverflowHidden,
+              localStyles.utilityPx3,
+            ])}
           >
             <span
-              className={stylexClassName(
-                "w-[92px] shrink-0 text-[8.5px] text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityW92px,
+                localStyles.utilityShrink0,
+                localStyles.utilityText85px,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
               correlation
             </span>
             <span
-              className={stylexClassName(
-                "truncate text-[9px] text-(--fg-secondary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityTruncate,
+                localStyles.utilityText9px,
+                localStyles.utilityTextFgSecondary,
+              ])}
             >
               {story.correlationId}
             </span>
@@ -969,19 +1962,28 @@ function InspectorMetric({
   value: string;
 }) {
   return (
-    <div className={stylexClassName("min-w-0")}>
+    <div {...stylex.props([localStyles.utilityMinW0])}>
       <div
-        className={cn(
-          "truncate font-mono text-[13px] leading-[17px] text-(--fg-primary)",
-          accent && "text-(--tone-success-fg)"
+        {...stylex.props(
+          [
+            localStyles.utilityTruncate,
+            localStyles.utilityFontMono,
+            localStyles.utilityText13px,
+            localStyles.utilityLeading17px,
+            localStyles.utilityTextFgPrimary,
+          ],
+          accent && [localStyles.utilityTextToneSuccessFg]
         )}
       >
         {value}
       </div>
       <div
-        className={stylexClassName(
-          "mt-[3px] text-[9px] font-medium text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityMt3px,
+          localStyles.utilityText9px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         {label}
       </div>
@@ -1003,57 +2005,117 @@ function ExecutionRoute({
   const route = [parent, node, child];
   return (
     <section
-      className={stylexClassName(
-        "relative h-[122px] overflow-hidden border-b border-(--line-subtle)"
-      )}
+      {...stylex.props([
+        localStyles.utilityRelative,
+        localStyles.utilityH122px,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex items-center justify-between px-3 pt-2.5 text-[9.5px] font-medium text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityPx3,
+          localStyles.utilityPt25,
+          localStyles.utilityText95px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         <span>Execution route</span>
-        <span className={stylexClassName("font-mono text-[8.5px] font-normal")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityFontMono,
+            localStyles.utilityText85px,
+            localStyles.utilityFontNormal,
+          ])}
+        >
           {parent ? 1 : 0} upstream&nbsp; · &nbsp;{child ? 1 : 0} downstream
         </span>
       </div>
       <div
-        className={stylexClassName(
-          "absolute top-[60px] right-7 left-7 h-px bg-(--line-subtle)"
-        )}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityTop60px,
+          localStyles.utilityRight7,
+          localStyles.utilityLeft7,
+          localStyles.utilityHPx,
+          localStyles.utilityBgLineSubtle,
+        ])}
       />
       <div
-        className={stylexClassName(
-          "absolute top-[37px] right-3 left-3 grid grid-cols-3"
-        )}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityTop37px,
+          localStyles.utilityRight3,
+          localStyles.utilityLeft3,
+          localStyles.utilityGrid,
+          localStyles.utilityGridCols3,
+        ])}
       >
         {route.map((item, index) => {
           const selected = index === 1;
           return (
             <div
-              className={stylexClassName("min-w-0 text-center")}
+              {...stylex.props([
+                localStyles.utilityMinW0,
+                localStyles.utilityTextCenter,
+              ])}
               key={item?.id ?? index}
             >
               <div
-                className={cn(
-                  "truncate px-1 text-[10px] text-(--fg-secondary)",
-                  selected && "font-medium text-(--fg-primary)"
+                {...stylex.props(
+                  [
+                    localStyles.utilityTruncate,
+                    localStyles.utilityPx1,
+                    localStyles.utilityText10px,
+                    localStyles.utilityTextFgSecondary,
+                  ],
+                  selected && [
+                    localStyles.utilityFontMedium,
+                    localStyles.utilityTextFgPrimary,
+                  ]
                 )}
                 title={item?.name}
               >
                 {item?.name ?? "—"}
               </div>
               <span
-                className={cn(
-                  "mx-auto mt-3 block size-1.5 rounded-full bg-(--fg-tertiary)",
-                  selected && "size-2 -translate-y-px bg-(--tone-success-fg)"
+                {...stylex.props(
+                  [
+                    localStyles.utilityMxAuto,
+                    localStyles.utilityMt3,
+                    localStyles.utilityBlock,
+                    localStyles.utilitySize15,
+                    localStyles.utilityRoundedFull,
+                    localStyles.utilityBgFgTertiary,
+                  ],
+                  selected && [
+                    localStyles.utilitySize2,
+                    localStyles.utilityTranslateYPx,
+                    localStyles.utilityBgToneSuccessFg,
+                  ]
                 )}
               />
               <div
-                className={cn(
-                  "mt-2 truncate px-1 font-mono text-[8.5px] text-(--fg-tertiary)",
-                  selected &&
-                    "font-sans text-[9px] font-medium text-(--tone-success-fg)"
+                {...stylex.props(
+                  [
+                    localStyles.utilityMt2,
+                    localStyles.utilityTruncate,
+                    localStyles.utilityPx1,
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText85px,
+                    localStyles.utilityTextFgTertiary,
+                  ],
+                  selected && [
+                    localStyles.utilityFontSans,
+                    localStyles.utilityText9px,
+                    localStyles.utilityFontMedium,
+                    localStyles.utilityTextToneSuccessFg,
+                  ]
                 )}
               >
                 {selected
@@ -1067,9 +2129,16 @@ function ExecutionRoute({
         })}
       </div>
       <div
-        className={stylexClassName(
-          "absolute right-3 bottom-3 left-3 truncate font-mono text-[9px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityRight3,
+          localStyles.utilityBottom3,
+          localStyles.utilityLeft3,
+          localStyles.utilityTruncate,
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         {stable
           ? "selected effect is stable; completion evidence received"
@@ -1091,29 +2160,50 @@ function EvidenceRow({
   muted?: boolean;
 }) {
   return (
-    <div className={stylexClassName("flex h-9 items-center gap-2 px-3")}>
+    <div
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH9,
+        localStyles.utilityItemsCenter,
+        localStyles.utilityGap2,
+        localStyles.utilityPx3,
+      ])}
+    >
       <span
-        className={cn(
-          "size-[5px] shrink-0 bg-(--accent)",
-          muted && "bg-(--fg-tertiary)"
+        {...stylex.props(
+          [
+            localStyles.utilitySize5px,
+            localStyles.utilityShrink0,
+            localStyles.utilityBgAccent,
+          ],
+          muted && [localStyles.utilityBgFgTertiary]
         )}
       />
       <span
-        className={stylexClassName(
-          "text-[10px] font-medium text-(--fg-primary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityText10px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgPrimary,
+        ])}
       >
         {label}
       </span>
       <span
-        className={stylexClassName("font-mono text-[9px] text-(--fg-tertiary)")}
+        {...stylex.props([
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         {description}
       </span>
       <span
-        className={stylexClassName(
-          "ml-auto font-mono text-[9px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityMlAuto,
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         {count}
       </span>
@@ -1144,16 +2234,6 @@ function statusColorForInspector(status: ExecutionNode["status"]) {
     return "var(--tone-warning-fg)";
   }
   return "var(--tone-success-fg)";
-}
-
-function statusTone(status: ExecutionNode["status"]) {
-  if (status === "failed" || status === "dead") {
-    return "text-(--tone-error-fg)";
-  }
-  if (status === "pending" || status === "processing" || status === "running") {
-    return "text-(--tone-warning-fg)";
-  }
-  return "text-(--tone-success-fg)";
 }
 
 function statusLabel(status: ExecutionNode["status"]) {
@@ -1188,20 +2268,48 @@ function RemoteProxyDetail({
 
   return (
     <section
-      className={stylexClassName("grid min-w-full border-b border-(--line)")}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilityMinWFull,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLine,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex items-center gap-2 bg-(--bg-panel-header) px-3 py-1.5 text-[11px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityBgBgPanelHeader,
+          localStyles.utilityPx3,
+          localStyles.utilityPy15,
+          localStyles.utilityText11px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
-        <span className={stylexClassName("font-medium text-(--fg-secondary)")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgSecondary,
+          ])}
+        >
           Remote proxy
         </span>
         <button
-          className={stylexClassName(
-            "ml-auto inline-flex h-5 items-center gap-1 border border-(--line) bg-(--bg-control) px-1.5 text-[10px] text-(--fg-secondary) hover:text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMlAuto,
+            localStyles.utilityInlineFlex,
+            localStyles.utilityH5,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap1,
+            localStyles.utilityBorder,
+            localStyles.utilityBorderLine,
+            localStyles.utilityBgBgControl,
+            localStyles.utilityPx15,
+            localStyles.utilityText10px,
+            localStyles.utilityTextFgSecondary,
+            localStyles.utilityHoverTextFgPrimary,
+          ])}
           onClick={onOpenRemoteCalls}
           type="button"
         >
@@ -1245,7 +2353,12 @@ function TechnicalPanel({
   });
   if (groups.length === 0 || isLoading || isError) {
     return (
-      <div className={stylexClassName("grid min-w-full")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityMinWFull,
+        ])}
+      >
         <EmptyRows
           label={technicalOperationsStateLabel({ error, isError, isLoading })}
         />
@@ -1254,7 +2367,9 @@ function TechnicalPanel({
   }
 
   return (
-    <div className={stylexClassName("grid min-w-full")}>
+    <div
+      {...stylex.props([localStyles.utilityGrid, localStyles.utilityMinWFull])}
+    >
       {groups.map((group) => (
         <TechnicalOperationGroupView group={group} key={group.id} />
       ))}
@@ -1269,19 +2384,42 @@ function TechnicalOperationGroupView({
 }) {
   return (
     <section
-      className={stylexClassName(
-        "flex h-[278px] flex-col gap-2 overflow-visible border-b border-(--line-subtle) p-3"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH278px,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap2,
+        localStyles.utilityOverflowVisible,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityP3,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-[26px] items-center justify-between overflow-hidden text-[10px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH26px,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
-        <span className={stylexClassName("font-medium uppercase")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityFontMedium,
+            localStyles.utilityUppercase,
+          ])}
+        >
           {group.label.replaceAll("-", " ")}
         </span>
-        <span className={stylexClassName("font-mono text-[9px]")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityFontMono,
+            localStyles.utilityText9px,
+          ])}
+        >
           {group.operations.length}
         </span>
       </div>
@@ -1308,72 +2446,120 @@ function TechnicalOperationRow({
   const [attributesVisible, setAttributesVisible] = useState(false);
   return (
     <div
-      className={stylexClassName(
-        "group relative flex h-[84px] shrink-0 gap-2.5 overflow-visible py-2"
-      )}
+      {...stylex.props([
+        localStyles.utilityRelative,
+        localStyles.utilityFlex,
+        localStyles.utilityH84px,
+        localStyles.utilityShrink0,
+        localStyles.utilityGap25,
+        localStyles.utilityOverflowVisible,
+        localStyles.utilityPy2,
+      ])}
+      {...stylex.props(stylex.defaultMarker())}
     >
       <span
-        className={stylexClassName(
-          "w-[13px] shrink-0 font-mono text-[10px] font-medium text-(--accent)"
-        )}
+        {...stylex.props([
+          localStyles.utilityW13px,
+          localStyles.utilityShrink0,
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextAccent,
+        ])}
       >
         {String(index + 1).padStart(2, "0")}
       </span>
       <div
-        className={stylexClassName(
-          "flex h-[68px] w-[256px] shrink-0 flex-col gap-[5px] overflow-hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH68px,
+          localStyles.utilityW256px,
+          localStyles.utilityShrink0,
+          localStyles.utilityFlexCol,
+          localStyles.utilityGap5px,
+          localStyles.utilityOverflowHidden,
+        ])}
       >
         <div
-          className={stylexClassName(
-            "flex h-[18px] items-start justify-between gap-2"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH18px,
+            localStyles.utilityItemsStart,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityGap2,
+          ])}
         >
           <span
-            className={stylexClassName(
-              "truncate font-mono text-[11px] font-medium text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMono,
+              localStyles.utilityText11px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgPrimary,
+            ])}
             title={operation.name}
           >
             {operation.name}
           </span>
           <span
-            className={stylexClassName(
-              "shrink-0 font-mono text-[10px] text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityShrink0,
+              localStyles.utilityFontMono,
+              localStyles.utilityText10px,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             {formatRuntimeDuration(operation.durationMs)}
           </span>
         </div>
         <div
-          className={cn(
-            "font-mono text-[9px] font-medium uppercase",
+          {...stylex.props(
+            [
+              localStyles.utilityFontMono,
+              localStyles.utilityText9px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityUppercase,
+            ],
             operation.status === "error"
-              ? "text-(--tone-error-fg)"
-              : "text-(--tone-success-fg)"
+              ? [localStyles.utilityTextToneErrorFg]
+              : [localStyles.utilityTextToneSuccessFg]
           )}
         >
           {operation.status}
         </div>
         <div
-          className={stylexClassName(
-            "truncate text-[10px] text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityTruncate,
+            localStyles.utilityText10px,
+            localStyles.utilityTextFgSecondary,
+          ])}
           title={operation.summary}
         >
           {operation.summary ?? operation.sourceLabel}
         </div>
       </div>
       <div
-        className={stylexClassName("absolute top-2 right-0 flex items-start")}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityTop2,
+          localStyles.utilityRight0,
+          localStyles.utilityFlex,
+          localStyles.utilityItemsStart,
+        ])}
       >
         {Object.keys(operation.safeAttributes).length > 0 ? (
           <button
             aria-expanded={attributesVisible}
             aria-label={`Toggle ${operation.name} safe attributes`}
-            className={stylexClassName(
-              "mr-1 grid size-4 place-items-center text-(--fg-tertiary) opacity-0 transition-opacity group-hover:opacity-100"
-            )}
+            {...stylex.props([
+              localStyles.utilityMr1,
+              localStyles.utilityGrid,
+              localStyles.utilitySize4,
+              localStyles.utilityPlaceItemsCenter,
+              localStyles.utilityTextFgTertiary,
+              localStyles.utilityTransitionOpacity,
+            ])}
+            {...stylex.props(styles.technicalOperationAttributeToggle)}
             onClick={() => setAttributesVisible((current) => !current)}
             title="Show safe attributes"
             type="button"
@@ -1384,9 +2570,13 @@ function TechnicalOperationRow({
         {operationsTarget ? (
           <button
             aria-label={`Open ${operation.sourceLabel} operations`}
-            className={stylexClassName(
-              "grid size-4 place-items-center text-(--fg-tertiary) hover:text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityGrid,
+              localStyles.utilitySize4,
+              localStyles.utilityPlaceItemsCenter,
+              localStyles.utilityTextFgTertiary,
+              localStyles.utilityHoverTextFgPrimary,
+            ])}
             onClick={() => {
               if (operationsTarget.kind === "remote_calls") {
                 openRemoteCalls(
@@ -1411,8 +2601,14 @@ function TechnicalOperationRow({
       </div>
       {attributesVisible ? (
         <JsonViewer
-          className={stylexClassName("absolute top-full right-0 left-0 z-10")}
           defaultExpanded
+          stylex={[
+            localStyles.utilityAbsolute,
+            localStyles.utilityTopFull,
+            localStyles.utilityRight0,
+            localStyles.utilityLeft0,
+            localStyles.utilityZ10,
+          ]}
           title="safe attributes"
           value={operation.safeAttributes}
         />
@@ -1428,28 +2624,45 @@ function KeyValueTable({ rows }: { rows: Array<[string, unknown]> }) {
 
   return (
     <div
-      className={stylexClassName(
-        "min-w-full border-b border-(--line-subtle) text-xs"
-      )}
+      {...stylex.props([
+        localStyles.utilityMinWFull,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityTextXs,
+      ])}
     >
       {rows.map(([key, value]) => (
         <div
-          className={stylexClassName(
-            "grid min-h-9 min-w-full grid-cols-[92px_minmax(0,1fr)] border-b border-(--line-subtle) last:border-b-0"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilityMinH9,
+            localStyles.utilityMinWFull,
+            localStyles.utilityGridCols92pxMinmax01fr,
+            localStyles.utilityBorderB,
+            localStyles.utilityBorderLineSubtle,
+            localStyles.utilityLastBorderB0,
+          ])}
           key={key}
         >
           <div
-            className={stylexClassName(
-              "px-3 py-2 text-[9px] text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityPx3,
+              localStyles.utilityPy2,
+              localStyles.utilityText9px,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             {key}
           </div>
           <div
-            className={stylexClassName(
-              "whitespace-pre-wrap px-3 py-2 font-mono text-[10px] text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityWhitespacePreWrap,
+              localStyles.utilityPx3,
+              localStyles.utilityPy2,
+              localStyles.utilityFontMono,
+              localStyles.utilityText10px,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             {formatCell(value)}
           </div>
@@ -1464,7 +2677,7 @@ function ActivityList({ activity }: { activity: ExecutionActivityItem[] }) {
     return <EmptyRows label="No activity recorded" />;
   }
   return (
-    <div className={stylexClassName("min-w-full")}>
+    <div {...stylex.props([localStyles.utilityMinWFull])}>
       {activity.map((item, index) => (
         <EventActivityRow
           isLast={index === activity.length - 1}
@@ -1488,58 +2701,118 @@ function EventActivityRow({
 
   return (
     <div
-      className={cn(
-        "flex h-[108px] w-full gap-3 overflow-hidden px-3",
-        isLast && "border-b border-(--line-subtle)"
+      {...stylex.props(
+        [
+          localStyles.utilityFlex,
+          localStyles.utilityH108px,
+          localStyles.utilityWFull,
+          localStyles.utilityGap3,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityPx3,
+        ],
+        isLast && [
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLineSubtle,
+        ]
       )}
     >
-      <div className={stylexClassName("relative h-[108px] w-3 shrink-0")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityRelative,
+          localStyles.utilityH108px,
+          localStyles.utilityW3,
+          localStyles.utilityShrink0,
+        ])}
+      >
         <span
-          className={cn(
-            "absolute top-0 left-1/2 size-2 -translate-x-1/2 rounded-full",
-            isLast ? "bg-(--fg-primary)" : "bg-(--tone-success-fg)"
+          {...stylex.props(
+            [
+              localStyles.utilityAbsolute,
+              localStyles.utilityTop0,
+              localStyles.utilityLeft12,
+              localStyles.utilitySize2,
+              localStyles.utilityTranslateX12,
+              localStyles.utilityRoundedFull,
+            ],
+            isLast
+              ? [localStyles.utilityBgFgPrimary]
+              : [localStyles.utilityBgToneSuccessFg]
           )}
         />
         {isLast ? null : (
           <span
-            className={stylexClassName(
-              "absolute top-2 bottom-2 left-1/2 w-px -translate-x-1/2 bg-(--line-subtle)"
-            )}
+            {...stylex.props([
+              localStyles.utilityAbsolute,
+              localStyles.utilityTop2,
+              localStyles.utilityBottom2,
+              localStyles.utilityLeft12,
+              localStyles.utilityWPx,
+              localStyles.utilityTranslateX12,
+              localStyles.utilityBgLineSubtle,
+            ])}
           />
         )}
       </div>
       <div
-        className={stylexClassName(
-          "flex h-[108px] w-[284px] shrink-0 flex-col gap-[7px] pt-0"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH108px,
+          localStyles.utilityW284px,
+          localStyles.utilityShrink0,
+          localStyles.utilityFlexCol,
+          localStyles.utilityGap7px,
+          localStyles.utilityPt0,
+        ])}
       >
         <div
-          className={stylexClassName(
-            "flex h-[18px] items-center justify-between gap-2 font-mono text-[10px]"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH18px,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityGap2,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+          ])}
         >
-          <span className={stylexClassName("text-(--fg-tertiary)")}>
+          <span {...stylex.props([localStyles.utilityTextFgTertiary])}>
             +{formatRuntimeDuration(item.timestampMs)}
           </span>
-          <span className={cn("font-medium", activityStatusTone(item.status))}>
+          <span
+            {...stylex.props(
+              localStyles.utilityFontMedium,
+              styles.statusText(activityStatusColor(item.status))
+            )}
+          >
             {eventKind} · {item.status.toUpperCase()}
           </span>
         </div>
         <div
-          className={stylexClassName(
-            "truncate text-[12px] font-medium text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityTruncate,
+            localStyles.utilityText12px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgPrimary,
+          ])}
         >
           {item.label}
         </div>
         <div
-          className={stylexClassName(
-            "h-9 overflow-hidden font-mono text-[10px] leading-[0] text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityH9,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityLeading0,
+            localStyles.utilityTextFgSecondary,
+          ])}
         >
           {detailLines.map((line) => (
             <div
-              className={stylexClassName("truncate leading-[normal]")}
+              {...stylex.props([
+                localStyles.utilityTruncate,
+                localStyles.utilityLeadingNormal,
+              ])}
               key={line}
             >
               {line}
@@ -1564,14 +2837,14 @@ function eventKindLabel(item: ExecutionActivityItem) {
   return item.kind.toUpperCase();
 }
 
-function activityStatusTone(status: string) {
+function activityStatusColor(status: string) {
   if (status === "failed" || status === "dead" || status === "error") {
-    return "text-(--tone-error-fg)";
+    return "var(--tone-error-fg)";
   }
   if (status === "pending" || status === "processing" || status === "running") {
-    return "text-(--tone-warning-fg)";
+    return "var(--tone-warning-fg)";
   }
-  return "text-(--tone-success-fg)";
+  return "var(--tone-success-fg)";
 }
 
 function FailurePanel({
@@ -1586,7 +2859,9 @@ function FailurePanel({
   }
 
   return (
-    <div className={stylexClassName("grid min-w-full")}>
+    <div
+      {...stylex.props([localStyles.utilityGrid, localStyles.utilityMinWFull])}
+    >
       <KeyValueTable rows={failures.map((item) => [item.label, item.value])} />
       <KeyValueTable
         rows={[
@@ -1635,24 +2910,48 @@ function PayloadDocument({
   }
 
   return (
-    <div className={stylexClassName("flex min-h-full min-w-full flex-col")}>
+    <div
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityMinHFull,
+        localStyles.utilityMinWFull,
+        localStyles.utilityFlexCol,
+      ])}
+    >
       {payload && payload.redactedFields.length > 0 ? (
         <div
-          className={stylexClassName(
-            "flex h-11 shrink-0 gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-[7px]"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH11,
+            localStyles.utilityShrink0,
+            localStyles.utilityGap2,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityBorderB,
+            localStyles.utilityBorderLineSubtle,
+            localStyles.utilityPx3,
+            localStyles.utilityPy7px,
+          ])}
         >
           <span
-            className={stylexClassName(
-              "w-[7px] shrink-0 text-[13px] leading-[17px] font-medium text-(--tone-warning-fg)"
-            )}
+            {...stylex.props([
+              localStyles.utilityW7px,
+              localStyles.utilityShrink0,
+              localStyles.utilityText13px,
+              localStyles.utilityLeading17px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextToneWarningFg,
+            ])}
           >
             ✦
           </span>
           <div
-            className={stylexClassName(
-              "h-[30px] w-[260px] text-[10px] leading-[15px] text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityH30px,
+              localStyles.utilityW260px,
+              localStyles.utilityText10px,
+              localStyles.utilityLeading15px,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             <div>
               {payload.redactedFields.length} sensitive field
@@ -1663,21 +2962,35 @@ function PayloadDocument({
         </div>
       ) : null}
       <div
-        className={stylexClassName(
-          "flex h-[44px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px] leading-normal"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH44px,
+          localStyles.utilityShrink0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLineSubtle,
+          localStyles.utilityPx3,
+          localStyles.utilityPt25,
+          localStyles.utilityPb9px,
+          localStyles.utilityLeadingNormal2,
+        ])}
       >
         <span
-          className={stylexClassName(
-            "text-[13px] font-medium text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityText13px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgPrimary,
+          ])}
         >
           Request payload
         </span>
         <span
-          className={stylexClassName(
-            "font-mono text-[10px] text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           application/json
         </span>
@@ -1705,7 +3018,9 @@ function PayloadDocument({
           variant="payload-row"
         />
       ) : null}
-      <div className={stylexClassName("min-h-0 flex-1")} />
+      <div
+        {...stylex.props([localStyles.utilityMinH0, localStyles.utilityFlex1])}
+      />
       <PayloadContract node={node} payload={payload} />
     </div>
   );
@@ -1725,53 +3040,89 @@ function PayloadJsonBlock({
 
   return (
     <section
-      className={stylexClassName("flex shrink-0 flex-col overflow-hidden")}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityShrink0,
+        localStyles.utilityFlexCol,
+        localStyles.utilityOverflowHidden,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-[52px] shrink-0 items-center justify-between border-b border-(--line-subtle) px-3 pt-2.5 pb-[9px]"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH52px,
+          localStyles.utilityShrink0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLineSubtle,
+          localStyles.utilityPx3,
+          localStyles.utilityPt25,
+          localStyles.utilityPb9px,
+        ])}
       >
         <button
-          className={stylexClassName(
-            "flex min-w-0 items-center gap-2 text-left"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap2,
+            localStyles.utilityTextLeft,
+          ])}
           onClick={() => setExpanded((current) => !current)}
           type="button"
         >
           {expanded ? (
             <ChevronDown
-              className={stylexClassName(
-                "size-3 shrink-0 text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilitySize3,
+                localStyles.utilityShrink0,
+                localStyles.utilityTextFgTertiary,
+              ])}
             />
           ) : (
             <ChevronRight
-              className={stylexClassName(
-                "size-3 shrink-0 text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilitySize3,
+                localStyles.utilityShrink0,
+                localStyles.utilityTextFgTertiary,
+              ])}
             />
           )}
           <span
-            className={stylexClassName(
-              "font-sans text-[11px] font-medium text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFontSans,
+              localStyles.utilityText11px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgPrimary,
+            ])}
           >
             {title}
           </span>
         </button>
         <div
-          className={stylexClassName(
-            "flex items-center gap-4 whitespace-nowrap text-[10px]"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap4,
+            localStyles.utilityWhitespaceNowrap,
+            localStyles.utilityText10px,
+          ])}
         >
-          <span className={stylexClassName("font-mono text-(--fg-tertiary)")}>
+          <span
+            {...stylex.props([
+              localStyles.utilityFontMono,
+              localStyles.utilityTextFgTertiary,
+            ])}
+          >
             {countLabel}
           </span>
           <button
-            className={stylexClassName(
-              "font-medium text-(--fg-secondary) hover:text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgSecondary,
+              localStyles.utilityHoverTextFgPrimary,
+            ])}
             type="button"
           >
             Copy
@@ -1780,14 +3131,27 @@ function PayloadJsonBlock({
       </div>
       {expanded ? (
         <div
-          className={stylexClassName(
-            "max-h-[171px] shrink-0 overflow-hidden border-b border-(--line-subtle) px-3 pt-2.5 pb-[11px]"
-          )}
+          {...stylex.props([
+            localStyles.utilityMaxH171px,
+            localStyles.utilityShrink0,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityBorderB,
+            localStyles.utilityBorderLineSubtle,
+            localStyles.utilityPx3,
+            localStyles.utilityPt25,
+            localStyles.utilityPb11px,
+          ])}
         >
           <pre
-            className={stylexClassName(
-              "max-h-[150px] overflow-auto whitespace-pre-wrap font-mono text-[11px] leading-[15px] text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityMaxH150px,
+              localStyles.utilityOverflowAuto,
+              localStyles.utilityWhitespacePreWrap,
+              localStyles.utilityFontMono,
+              localStyles.utilityText11px,
+              localStyles.utilityLeading15px,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             {json}
           </pre>
@@ -1815,30 +3179,54 @@ function PayloadContract({
 
   return (
     <section
-      className={stylexClassName(
-        "flex h-[80px] shrink-0 flex-col justify-center gap-2 overflow-hidden border-t border-(--line-subtle) p-3"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH80px,
+        localStyles.utilityShrink0,
+        localStyles.utilityFlexCol,
+        localStyles.utilityJustifyCenter,
+        localStyles.utilityGap2,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderT,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityP3,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-4 items-center justify-between font-medium"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH4,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityFontMedium,
+        ])}
       >
-        <span className={stylexClassName("w-[97px] shrink-0")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityW97px,
+            localStyles.utilityShrink0,
+          ])}
+        >
           <InspectorEyebrow>Payload contract</InspectorEyebrow>
         </span>
         <p
-          className={stylexClassName(
-            "whitespace-nowrap font-mono text-[12px] font-medium text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityWhitespaceNowrap,
+            localStyles.utilityFontMono,
+            localStyles.utilityText12px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityTextFgPrimary,
+          ])}
         >
           {contract}
         </p>
       </div>
       <p
-        className={cn(
-          "text-[11px]",
-          isValid ? "text-(--tone-success-fg)" : "text-(--fg-secondary)"
+        {...stylex.props(
+          [localStyles.utilityText11px],
+          isValid
+            ? [localStyles.utilityTextToneSuccessFg]
+            : [localStyles.utilityTextFgSecondary]
         )}
       >
         {isValid
@@ -1878,7 +3266,7 @@ function LogList({
     );
   }
   return (
-    <div className={stylexClassName("min-w-full")}>
+    <div {...stylex.props([localStyles.utilityMinWFull])}>
       <InspectorDocumentToolbar
         count={`${logs.length} entries`}
         title="Runtime logs"
@@ -1905,40 +3293,65 @@ function LogEntry({
 }) {
   return (
     <section
-      className={stylexClassName(
-        "flex h-[100px] flex-col gap-2 overflow-hidden border-b border-(--line-subtle) px-3 py-2.5"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH100px,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap2,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityPx3,
+        localStyles.utilityPy25,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-[18px] items-center gap-2 font-mono text-[10px]"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH18px,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+        ])}
       >
         <span
-          className={stylexClassName("w-[49px] shrink-0 text-(--fg-tertiary)")}
+          {...stylex.props([
+            localStyles.utilityW49px,
+            localStyles.utilityShrink0,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           +{formatRuntimeDuration(logOffsetMs(story.timestamp, log.occurredAt))}
         </span>
         <span
-          className={cn(
-            "font-medium uppercase",
-            logSeverityClass(log.severity)
-          )}
+          {...stylex.props([
+            localStyles.utilityFontMedium,
+            localStyles.utilityUppercase,
+          ])}
+          {...stylex.props(styles.statusText(logSeverityColor(log.severity)))}
         >
           {log.severity}
         </span>
       </div>
       <div
-        className={stylexClassName(
-          "h-[34px] truncate text-[11px] font-medium text-(--fg-primary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityH34px,
+          localStyles.utilityTruncate,
+          localStyles.utilityText11px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgPrimary,
+        ])}
       >
         {log.body || "-"}
       </div>
       <div
-        className={stylexClassName(
-          "truncate font-mono text-[10px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityTruncate,
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         {log.serviceName}
         {log.traceId ? ` · trace ${log.traceId.slice(0, 12)}` : ""}
@@ -1968,38 +3381,67 @@ function LogAttributesPanel({ log }: { log: ExecutionLogEntry }) {
 
   return (
     <section
-      className={stylexClassName(
-        "flex h-[216px] flex-col gap-2.5 overflow-hidden border-b border-(--line-subtle) p-3"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH216px,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap25,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityP3,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-5 items-center justify-between text-[10px] font-medium uppercase"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH5,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityText10px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityUppercase,
+        ])}
       >
         <InspectorEyebrow>Attributes</InspectorEyebrow>
-        <span className={stylexClassName("normal-case text-(--fg-secondary)")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityNormalCase,
+            localStyles.utilityTextFgSecondary,
+          ])}
+        >
           Copy JSON
         </span>
       </div>
       {rows.map(([key, value]) => (
         <div
-          className={stylexClassName(
-            "flex h-[27px] items-center justify-between gap-3 overflow-hidden font-mono"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityH27px,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityGap3,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityFontMono,
+          ])}
           key={key}
         >
           <span
-            className={stylexClassName(
-              "truncate text-[9px] text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityText9px,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             {key}
           </span>
           <span
-            className={stylexClassName(
-              "truncate text-right text-[10px] text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityTextRight,
+              localStyles.utilityText10px,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             {formatCell(value)}
           </span>
@@ -2018,39 +3460,53 @@ function LogDiagnostic({ logs }: { logs: ExecutionLogEntry[] }) {
 
   return (
     <section
-      className={stylexClassName(
-        "flex h-[256px] flex-col gap-3 overflow-hidden px-3 py-[14px]"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH256px,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap3,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityPx3,
+        localStyles.utilityPy14px,
+      ])}
     >
       <InspectorEyebrow>Log context</InspectorEyebrow>
       <h3
-        className={stylexClassName(
-          "text-[13px] font-medium text-(--fg-primary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityText13px,
+          localStyles.utilityFontMedium,
+          localStyles.utilityTextFgPrimary,
+        ])}
       >
         {hasIssues
           ? `${issueCount} log issue${issueCount === 1 ? "" : "s"}`
           : "No warnings or errors"}
       </h3>
       <div
-        className={cn(
-          "h-0.5 w-[280px]",
-          hasIssues ? "bg-(--tone-warning-fg)" : "bg-(--tone-success-fg)"
+        {...stylex.props(
+          [localStyles.utilityH05, localStyles.utilityW280px],
+          hasIssues
+            ? [localStyles.utilityBgToneWarningFg]
+            : [localStyles.utilityBgToneSuccessFg]
         )}
       />
       <p
-        className={stylexClassName(
-          "text-[10px] leading-[15px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityText10px,
+          localStyles.utilityLeading15px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         {hasIssues
           ? `${issueCount} entries require operator review in ${service}.`
           : `${logs.length === 2 ? "Both entries" : `${logs.length} entries`} belong to the same trace and were emitted by ${service}.`}
       </p>
       <p
-        className={stylexClassName(
-          "font-mono text-[10px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         Retention 7 days · structured JSON available
       </p>
@@ -2066,20 +3522,20 @@ function logOffsetMs(baseTimestamp: string, occurredAt: string) {
     : 0;
 }
 
-function logSeverityClass(severity: string) {
+function logSeverityColor(severity: string) {
   switch (severity) {
     case "error": {
-      return "text-(--tone-error-fg)";
+      return "var(--tone-error-fg)";
     }
     case "warn": {
-      return "tint-text tint-warning";
+      return "var(--tone-warning-fg)";
     }
     case "debug":
     case "trace": {
-      return "text-(--fg-tertiary)";
+      return "var(--fg-tertiary)";
     }
     default: {
-      return "text-(--tone-success-fg)";
+      return "var(--tone-success-fg)";
     }
   }
 }
@@ -2087,7 +3543,12 @@ function logSeverityClass(severity: string) {
 function EmptyRows({ label }: { label: string }) {
   return (
     <div
-      className={stylexClassName("p-4 font-mono text-xs text-(--fg-tertiary)")}
+      {...stylex.props([
+        localStyles.utilityP4,
+        localStyles.utilityFontMono,
+        localStyles.utilityTextXs,
+        localStyles.utilityTextFgTertiary,
+      ])}
     >
       {label}
     </div>

@@ -1,15 +1,248 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ExecutionNode, RuntimeStory } from "../../data/mock-runtime";
 import type { RuntimeHeatmap } from "../../hooks/use-runtime-queries";
-import { cn } from "../../lib/cn";
 import { formatRuntimeDuration, statusColor } from "../../lib/runtime-style";
 import { Button } from "../ui/button";
 import { EmptyState } from "../ui/empty-state";
 import { heatmapCellKey, resolveHeatmapCellNodes } from "./heatmap-model";
 import { RuntimeViewHeader } from "./runtime-view-header";
+
+const localStyles = stylex.create({
+  utilityIsolate: {
+    isolation: "isolate",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityGridColsRepeat20Minmax01fr: {
+    gridTemplateColumns: "repeat(20,minmax(0,1fr))",
+  },
+  utilityGap05: {
+    gap: "calc(0.25rem * 0.5)",
+  },
+  utilityP3: {
+    padding: "calc(0.25rem * 3)",
+  },
+  utilityH6: {
+    height: "calc(0.25rem * 6)",
+  },
+  utilityMinH6: {
+    minHeight: "calc(0.25rem * 6)",
+  },
+  utilityRounded1px: {
+    borderRadius: "1px",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgControl: {
+    backgroundColor: "var(--bg-control)",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityGridColsMinmax01frMinmax0280px: {
+    gridTemplateColumns: "minmax(0,1fr) minmax(0,280px)",
+  },
+  utilityMaxXlGridCols1: {
+    "@media (max-width: 1279px)": {
+      gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+    },
+  },
+  utilityGridCols1: {
+    gridTemplateColumns: "repeat(1, minmax(0, 1fr))",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityRight05: {
+    right: "calc(0.25rem * 0.5)",
+  },
+  utilityBottom05: {
+    bottom: "calc(0.25rem * 0.5)",
+  },
+  utilityBgBgCanvas80: {
+    backgroundColor: "color-mix(in oklab, var(--bg-canvas) 80%, transparent)",
+  },
+  utilityPx1: {
+    paddingInline: "calc(0.25rem * 1)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityInset1: {
+    inset: "calc(0.25rem * 1)",
+  },
+  utilityBorderBgCanvas: {
+    borderColor: "var(--bg-canvas)",
+  },
+  utilityBorderL: {
+    borderLeftStyle: "solid",
+    borderLeftWidth: "1px",
+  },
+  utilityBgBgPanel: {
+    backgroundColor: "var(--bg-panel)",
+  },
+  utilityItemsStart: {
+    alignItems: "flex-start",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy2: {
+    paddingBlock: "calc(0.25rem * 2)",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityMt05: {
+    marginTop: "calc(0.25rem * 0.5)",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityTextLeft: {
+    textAlign: "left",
+  },
+  utilityTransition: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityHoverBgBgRowHover: {
+    ":hover": {
+      backgroundColor: "var(--bg-row-hover)",
+    },
+  },
+  utilityBgAccentSoft: {
+    backgroundColor: "var(--accent-soft)",
+  },
+  utilityShadowInset2px00VarAccent: {
+    boxShadow: "inset 2px 0 0 var(--accent)",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityText12px: {
+    fontSize: "12px",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+});
+
+const styles = stylex.create({
+  emptyState: {
+    backgroundColor: "var(--bg-panel)",
+    height: "100%",
+  },
+  iconButton: {
+    padding: 0,
+  },
+  heatmapCell: (props: {
+    backgroundColor: string;
+    cursor: "default" | "pointer";
+    opacity: number;
+    selected: boolean;
+  }) => ({
+    backgroundColor: props.backgroundColor,
+    borderColor: props.selected ? "var(--line-strong)" : "var(--line)",
+    borderRadius: "1px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    cursor: props.cursor,
+    height: 24,
+    minHeight: 24,
+    opacity: props.opacity,
+    position: "relative",
+    transitionProperty: "all",
+    width: "100%",
+    ":focus-visible": {
+      outlineColor: "var(--accent)",
+      outlineOffset: 1,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+      zIndex: 1,
+    },
+    ":hover": {
+      borderColor: "var(--fg-secondary)",
+      zIndex: 1,
+    },
+  }),
+  statusDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "9999px",
+    flexShrink: 0,
+    height: 6,
+    width: 6,
+  }),
+});
 
 export function HeatmapView({
   heatmap,
@@ -51,9 +284,15 @@ export function HeatmapView({
   if (loading) {
     return (
       <div
-        className={stylexClassName(
-          "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
-        )}
+        {...stylex.props([
+          localStyles.utilityIsolate,
+          localStyles.utilityFlex,
+          localStyles.utilityHFull,
+          localStyles.utilityMinW0,
+          localStyles.utilityFlexCol,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityBgBgCanvas,
+        ])}
       >
         <RuntimeViewHeader
           meta="loading"
@@ -61,15 +300,23 @@ export function HeatmapView({
           title="Heatmap"
         />
         <div
-          className={stylexClassName(
-            "grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5 p-3"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilityGridColsRepeat20Minmax01fr,
+            localStyles.utilityGap05,
+            localStyles.utilityP3,
+          ])}
         >
           {Array.from({ length: 120 }, (_, index) => (
             <div
-              className={stylexClassName(
-                "h-6 min-h-6 rounded-[1px] border border-(--line) bg-(--bg-control)"
-              )}
+              {...stylex.props([
+                localStyles.utilityH6,
+                localStyles.utilityMinH6,
+                localStyles.utilityRounded1px,
+                localStyles.utilityBorder,
+                localStyles.utilityBorderLine,
+                localStyles.utilityBgBgControl,
+              ])}
               key={index}
             />
           ))}
@@ -81,16 +328,22 @@ export function HeatmapView({
   if (queryError) {
     return (
       <div
-        className={stylexClassName(
-          "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
-        )}
+        {...stylex.props([
+          localStyles.utilityIsolate,
+          localStyles.utilityFlex,
+          localStyles.utilityHFull,
+          localStyles.utilityMinW0,
+          localStyles.utilityFlexCol,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityBgBgCanvas,
+        ])}
       >
         <RuntimeViewHeader
           meta="error"
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <EmptyState className={stylexClassName("h-full bg-(--bg-panel)")}>
+        <EmptyState stylex={styles.emptyState}>
           <EmptyState.Title>Heatmap unavailable</EmptyState.Title>
           <EmptyState.Description>{queryError.message}</EmptyState.Description>
         </EmptyState>
@@ -101,16 +354,22 @@ export function HeatmapView({
   if (!heatmap || heatmap.cells.length === 0) {
     return (
       <div
-        className={stylexClassName(
-          "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
-        )}
+        {...stylex.props([
+          localStyles.utilityIsolate,
+          localStyles.utilityFlex,
+          localStyles.utilityHFull,
+          localStyles.utilityMinW0,
+          localStyles.utilityFlexCol,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityBgBgCanvas,
+        ])}
       >
         <RuntimeViewHeader
           meta={heatmap ? `${heatmap.bucketSeconds}s buckets` : "no data"}
           summary="Backend runtime heatmap"
           title="Heatmap"
         />
-        <EmptyState className={stylexClassName("h-full bg-(--bg-panel)")}>
+        <EmptyState stylex={styles.emptyState}>
           <EmptyState.Title>No runtime heatmap data</EmptyState.Title>
           <EmptyState.Description>
             The backend returned an empty heatmap for the current runtime
@@ -125,9 +384,15 @@ export function HeatmapView({
 
   return (
     <div
-      className={stylexClassName(
-        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--bg-canvas)"
-      )}
+      {...stylex.props([
+        localStyles.utilityIsolate,
+        localStyles.utilityFlex,
+        localStyles.utilityHFull,
+        localStyles.utilityMinW0,
+        localStyles.utilityFlexCol,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBgCanvas,
+      ])}
     >
       <RuntimeViewHeader
         meta={`${heatmap.bucketSeconds}s buckets`}
@@ -135,22 +400,35 @@ export function HeatmapView({
         title="Heatmap"
       />
       <div
-        className={cn(
-          "grid min-h-0 flex-1 overflow-hidden",
+        {...stylex.props(
+          [
+            localStyles.utilityGrid,
+            localStyles.utilityMinH0,
+            localStyles.utilityFlex1,
+            localStyles.utilityOverflowHidden,
+          ],
           drilldownEnabled && selectedCell
-            ? "grid-cols-[minmax(0,1fr)_minmax(0,280px)] max-xl:grid-cols-1"
-            : "grid-cols-1"
+            ? [
+                localStyles.utilityGridColsMinmax01frMinmax0280px,
+                localStyles.utilityMaxXlGridCols1,
+              ]
+            : [localStyles.utilityGridCols1]
         )}
       >
         <div
-          className={stylexClassName(
-            "min-h-0 overflow-auto bg-(--bg-canvas) p-3"
-          )}
+          {...stylex.props([
+            localStyles.utilityMinH0,
+            localStyles.utilityOverflowAuto,
+            localStyles.utilityBgBgCanvas,
+            localStyles.utilityP3,
+          ])}
         >
           <div
-            className={stylexClassName(
-              "grid grid-cols-[repeat(20,minmax(0,1fr))] gap-0.5"
-            )}
+            {...stylex.props([
+              localStyles.utilityGrid,
+              localStyles.utilityGridColsRepeat20Minmax01fr,
+              localStyles.utilityGap05,
+            ])}
           >
             {heatmap.cells.map((cell, index) => {
               const key = heatmapCellKey(cell, index);
@@ -165,11 +443,13 @@ export function HeatmapView({
               return (
                 <button
                   aria-label={`${cell.service} ${cell.nodeType} heatmap cell with ${cell.totalCount} executions`}
-                  className={cn(
-                    "relative h-6 min-h-6 w-full rounded-[1px] border border-(--line) transition hover:z-1 hover:border-(--fg-secondary) focus-visible:z-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--accent)",
-                    heatmapCellColor(cell),
-                    selected && "border-(--line-strong)",
-                    drilldownEnabled ? "cursor-pointer" : "cursor-default"
+                  {...stylex.props(
+                    styles.heatmapCell({
+                      backgroundColor: heatmapCellBackground(cell),
+                      cursor: drilldownEnabled ? "pointer" : "default",
+                      opacity: Math.max(0.28, cell.totalCount / maxCount),
+                      selected,
+                    })
                   )}
                   disabled={!drilldownEnabled}
                   key={key}
@@ -185,17 +465,22 @@ export function HeatmapView({
                     }
                     setSelectedCellKey(selected ? null : key);
                   }}
-                  style={{
-                    opacity: Math.max(0.28, cell.totalCount / maxCount),
-                  }}
                   title={`${cell.service} · ${cell.nodeType} · ${cell.totalCount} executions`}
                   type="button"
                 >
                   {aggregateSelectable ? (
                     <span
-                      className={stylexClassName(
-                        "absolute right-0.5 bottom-0.5 rounded-[1px] bg-(--bg-canvas)/80 px-1 font-mono text-[9px] text-(--fg-primary)"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityAbsolute,
+                        localStyles.utilityRight05,
+                        localStyles.utilityBottom05,
+                        localStyles.utilityRounded1px,
+                        localStyles.utilityBgBgCanvas80,
+                        localStyles.utilityPx1,
+                        localStyles.utilityFontMono,
+                        localStyles.utilityText9px,
+                        localStyles.utilityTextFgPrimary,
+                      ])}
                     >
                       {nodes.length}
                     </span>
@@ -204,9 +489,12 @@ export function HeatmapView({
                   selectedNodeId &&
                   selectedNodeId === nodes[0]?.id ? (
                     <span
-                      className={stylexClassName(
-                        "absolute inset-1 border border-(--bg-canvas)"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityAbsolute,
+                        localStyles.utilityInset1,
+                        localStyles.utilityBorder,
+                        localStyles.utilityBorderBgCanvas,
+                      ])}
                     />
                   ) : null}
                 </button>
@@ -244,46 +532,78 @@ function HeatmapCellInspector({
 }) {
   return (
     <aside
-      className={stylexClassName(
-        "min-h-0 overflow-hidden border-l border-(--line) bg-(--bg-panel)"
-      )}
+      {...stylex.props([
+        localStyles.utilityMinH0,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBorderL,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgPanel,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex min-w-0 items-start gap-2 border-b border-(--line) px-3 py-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsStart,
+          localStyles.utilityGap2,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLine,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+        ])}
       >
-        <div className={stylexClassName("min-w-0 flex-1")}>
+        <div
+          {...stylex.props([
+            localStyles.utilityMinW0,
+            localStyles.utilityFlex1,
+          ])}
+        >
           <div
-            className={stylexClassName(
-              "truncate font-mono text-[11px] font-semibold text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMono,
+              localStyles.utilityText11px,
+              localStyles.utilityFontSemibold,
+              localStyles.utilityTextFgPrimary,
+            ])}
           >
             {selected.cell.service} · {selected.cell.nodeType}
           </div>
           <div
-            className={stylexClassName(
-              "mt-0.5 truncate font-mono text-[10px] text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityMt05,
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMono,
+              localStyles.utilityText10px,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             {selected.cell.totalCount} total · {selected.cell.errorCount} errors
           </div>
         </div>
         <Button
           aria-label="Clear heatmap cell selection"
-          className={stylexClassName("size-7 p-0")}
+          stylex={styles.iconButton}
           onClick={onClear}
           variant="ghost"
         >
           <X size={13} />
         </Button>
       </div>
-      <div className={stylexClassName("min-h-0 overflow-auto")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityMinH0,
+          localStyles.utilityOverflowAuto,
+        ])}
+      >
         {selected.nodes.length === 0 ? (
           <div
-            className={stylexClassName(
-              "p-3 font-mono text-[11px] text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityP3,
+              localStyles.utilityFontMono,
+              localStyles.utilityText11px,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             No matching story nodes were found for this cell.
           </div>
@@ -291,39 +611,71 @@ function HeatmapCellInspector({
           selected.nodes.map((node) => (
             <button
               aria-label={`Open heatmap node ${node.name}`}
-              className={cn(
-                "grid w-full min-w-0 gap-1 border-b border-(--line) px-3 py-2 text-left transition hover:bg-(--bg-row-hover)",
-                selectedNodeId === node.id &&
-                  "bg-(--accent-soft) shadow-[inset_2px_0_0_var(--accent)]"
+              {...stylex.props(
+                [
+                  localStyles.utilityGrid,
+                  localStyles.utilityWFull,
+                  localStyles.utilityMinW0,
+                  localStyles.utilityGap1,
+                  localStyles.utilityBorderB,
+                  localStyles.utilityBorderLine,
+                  localStyles.utilityPx3,
+                  localStyles.utilityPy2,
+                  localStyles.utilityTextLeft,
+                  localStyles.utilityTransition,
+                  localStyles.utilityHoverBgBgRowHover,
+                ],
+                selectedNodeId === node.id && [
+                  localStyles.utilityBgAccentSoft,
+                  localStyles.utilityShadowInset2px00VarAccent,
+                ]
               )}
               key={node.id}
               onClick={() => onSelectNode(node)}
               type="button"
             >
               <span
-                className={stylexClassName("flex min-w-0 items-center gap-2")}
+                {...stylex.props([
+                  localStyles.utilityFlex,
+                  localStyles.utilityMinW0,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityGap2,
+                ])}
               >
                 <span
-                  className={stylexClassName("size-1.5 shrink-0 rounded-full")}
-                  style={{ backgroundColor: statusColor(node.status) }}
+                  {...stylex.props(styles.statusDot(statusColor(node.status)))}
                 />
                 <span
-                  className={stylexClassName(
-                    "truncate text-[12px] font-semibold text-(--fg-primary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityTruncate,
+                    localStyles.utilityText12px,
+                    localStyles.utilityFontSemibold,
+                    localStyles.utilityTextFgPrimary,
+                  ])}
                 >
                   {node.name}
                 </span>
               </span>
               <span
-                className={stylexClassName(
-                  "flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityFlex,
+                  localStyles.utilityMinW0,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityGap2,
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
-                <span className={stylexClassName("truncate")}>
+                <span {...stylex.props([localStyles.utilityTruncate])}>
                   {node.service}
                 </span>
-                <span className={stylexClassName("ml-auto shrink-0")}>
+                <span
+                  {...stylex.props([
+                    localStyles.utilityMlAuto,
+                    localStyles.utilityShrink0,
+                  ])}
+                >
                   {formatRuntimeDuration(node.durationMs)}
                 </span>
               </span>
@@ -335,15 +687,15 @@ function HeatmapCellInspector({
   );
 }
 
-function heatmapCellColor(cell: RuntimeHeatmap["cells"][number]) {
+function heatmapCellBackground(cell: RuntimeHeatmap["cells"][number]) {
   if (cell.errorCount > 0 || cell.deadCount > 0) {
-    return "bg-(--error)";
+    return "var(--error)";
   }
   if (cell.avgDurationMs && cell.avgDurationMs > 1000) {
-    return "bg-(--data-accent)";
+    return "var(--data-accent)";
   }
   if (cell.avgDurationMs && cell.avgDurationMs > 200) {
-    return "bg-(--data-success)";
+    return "var(--data-success)";
   }
-  return "bg-(--data-info)";
+  return "var(--data-info)";
 }

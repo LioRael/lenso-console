@@ -80,7 +80,7 @@ export const tokens = stylex.defineVars({
   fontCode: 'var(--lenso-token-fontCode, "Roboto Mono", monospace)',
   contentGutter: "var(--lenso-token-contentGutter, 20px)",
   contentMaxWidth: "var(--lenso-token-contentMaxWidth, 1480px)",
-  pageGutter: "var(--lenso-token-pageGutter, 40px)",
+  pageGutter: "var(--lenso-token-pageGutter, 32px)",
   pageMaxWidth: "var(--lenso-token-pageMaxWidth, 1216px)",
   sidebarWidth: "var(--lenso-token-sidebarWidth, 224px)",
   sidebarCollapsedWidth: "var(--lenso-token-sidebarCollapsedWidth, 64px)",

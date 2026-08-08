@@ -2,7 +2,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 
-export * from "./theme-bundle.js";
+export * from "./theme-bundle";
 
 export const CONSOLE_UI_COMPOSITION_PROTOCOL =
   "lenso.console-ui-composition.v1" as const;

@@ -1,10 +1,9 @@
 import {
   ConsoleModuleProvider,
-  mergeStyleProps,
   SurfaceRoot,
-  styles,
   type ConsoleUiSurface,
 } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -16,6 +15,7 @@ import { createConsoleModuleClient } from "./console-module-client";
 import { loadConsoleUiModule } from "./console-module-runtime";
 import { consoleRoutes, findConsoleRoute } from "./console-modules";
 import { consolePathFromLocation } from "./console-router-config";
+import { statusStyles } from "./console-status-styles";
 
 export function DynamicConsoleModulePage() {
   const locationPath = useRouterState({
@@ -121,20 +121,10 @@ function ModuleState({
   title: string;
 }) {
   return (
-    <section {...mergeStyleProps(undefined, undefined, styles.moduleState)}>
-      <h1 {...mergeStyleProps(undefined, undefined, styles.moduleStateTitle)}>
-        {title}
-      </h1>
+    <section {...stylex.props(statusStyles.moduleState)}>
+      <h1 {...stylex.props(statusStyles.moduleStateTitle)}>{title}</h1>
       {children ? (
-        <p
-          {...mergeStyleProps(
-            undefined,
-            undefined,
-            styles.moduleStateDescription
-          )}
-        >
-          {children}
-        </p>
+        <p {...stylex.props(statusStyles.moduleStateDescription)}>{children}</p>
       ) : null}
     </section>
   );

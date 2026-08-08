@@ -1,4 +1,5 @@
-import { stylexClassName, useConsoleLocale } from "@lenso/console-ui";
+import { useConsoleLocale } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { ArrowRight } from "lucide-react";
 
 import {
@@ -7,6 +8,279 @@ import {
 } from "../console-data/use-console-product-data";
 import { ProductPage } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
+
+const localStyles = stylex.create({
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityH74px: {
+    height: "74px",
+  },
+  utilityGridCols4: {
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityBorderY: {
+    borderBlockStyle: "solid",
+    borderBlockWidth: "1px",
+  },
+  utilityBorderLineSubtle: {
+    borderColor: "var(--line-subtle)",
+  },
+  utilityH618px: {
+    height: "618px",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityGridColsMinmax01fr376px: {
+    gridTemplateColumns: "minmax(0,1fr) 376px",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityPr7: {
+    paddingRight: "calc(0.25rem * 7)",
+  },
+  utilityPt7: {
+    paddingTop: "calc(0.25rem * 7)",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityH38px: {
+    height: "38px",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityText15px: {
+    fontSize: "15px",
+  },
+  utilityFontMedium: {
+    fontWeight: "500",
+  },
+  utilityLeading22px: {
+    lineHeight: "22px",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityInlineFlex: {
+    display: "inline-flex",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityLeading4: {
+    lineHeight: "calc(0.25rem * 4)",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityHoverTextFgPrimary: {
+    ":hover": {
+      color: "var(--fg-primary)",
+    },
+  },
+  utilityH88px: {
+    height: "88px",
+  },
+  utilityGridColsMinmax01frAuto: {
+    gridTemplateColumns: "minmax(0,1fr) auto",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityItemsStart: {
+    alignItems: "flex-start",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityH18px: {
+    height: "18px",
+  },
+  utilityW7px: {
+    width: "7px",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityText13px: {
+    fontSize: "13px",
+  },
+  utilityLeading18px: {
+    lineHeight: "18px",
+  },
+  utilityMt3px: {
+    marginTop: "3px",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityLeading14px: {
+    lineHeight: "14px",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilitySelfCenter: {
+    alignSelf: "center",
+  },
+  utilityPl7: {
+    paddingLeft: "calc(0.25rem * 7)",
+  },
+  utilityTextSuccess: {
+    color: "var(--success)",
+  },
+  utilityH72px: {
+    height: "72px",
+  },
+  utilityGridCols8pxMinmax01fr: {
+    gridTemplateColumns: "8px minmax(0,1fr)",
+  },
+  utilityPt4: {
+    paddingTop: "calc(0.25rem * 4)",
+  },
+  utilityH12: {
+    height: "calc(0.25rem * 12)",
+  },
+  utilityW2: {
+    width: "calc(0.25rem * 2)",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityLeft0: {
+    left: "calc(0.25rem * 0)",
+  },
+  utilityTop1: {
+    top: "calc(0.25rem * 1)",
+  },
+  utilitySize6px: {
+    width: "6px",
+    height: "6px",
+  },
+  utilityRoundedFull: {
+    borderRadius: "calc(infinity * 1px)",
+  },
+  utilityBgFgTertiary: {
+    backgroundColor: "var(--fg-tertiary)",
+  },
+  utilityWhitespaceNowrap: {
+    whiteSpace: "nowrap",
+  },
+  utilityBlock: {
+    display: "block",
+  },
+  utilityMt2px: {
+    marginTop: "2px",
+  },
+  utilityTextEllipsis: {
+    textOverflow: "ellipsis",
+  },
+  utilityText12px: {
+    fontSize: "12px",
+  },
+  utilityBorderT: {
+    borderTopStyle: "solid",
+    borderTopWidth: "1px",
+  },
+  utilityPt14px: {
+    paddingTop: "14px",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+  utilityH30px: {
+    height: "30px",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityRoundedVarRadiusControl: {
+    borderRadius: "var(--radius-control)",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityPx10px: {
+    paddingInline: "10px",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityJustifyBetween: {
+    justifyContent: "space-between",
+  },
+  utilityBorderR: {
+    borderRightStyle: "solid",
+    borderRightWidth: "1px",
+  },
+  utilityPx4: {
+    paddingInline: "calc(0.25rem * 4)",
+  },
+  utilityFirstPl0: {
+    ":first-child": {
+      paddingLeft: "calc(0.25rem * 0)",
+    },
+  },
+  utilityLastBorderR0: {
+    ":last-child": {
+      borderRightWidth: "0px",
+    },
+  },
+  utilityH5: {
+    height: "calc(0.25rem * 5)",
+  },
+  utilityItemsBaseline: {
+    alignItems: "baseline",
+  },
+  utilityLeading5: {
+    lineHeight: "calc(0.25rem * 5)",
+  },
+  decisionDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "9999px",
+    height: 7,
+    left: 0,
+    position: "absolute",
+    top: "5.5px",
+    width: 7,
+  }),
+  metricNote: (color: string) => ({
+    color,
+    fontSize: 11,
+    lineHeight: "16px",
+  }),
+  scopeDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "9999px",
+    height: 6,
+    width: 6,
+  }),
+});
 
 type HomeDecision = {
   action: string;
@@ -132,13 +406,18 @@ export function HomePage() {
     <ProductPage
       description={copy.home.description}
       meta={<ScopeBadge label="Production" mode={mode} tone="success" />}
-      pageClassName="home-page"
+      pageKind="home-page"
       title={copy.home.title}
     >
       <div
-        className={stylexClassName(
-          "grid h-[74px] grid-cols-4 items-center border-y border-(--line-subtle)"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityH74px,
+          localStyles.utilityGridCols4,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityBorderY,
+          localStyles.utilityBorderLineSubtle,
+        ])}
       >
         <Metric
           label={copy.home.runtime}
@@ -174,31 +453,52 @@ export function HomePage() {
         />
       </div>
       <div
-        className={stylexClassName(
-          "grid h-[618px] min-h-0 grid-cols-[minmax(0,1fr)_376px] overflow-hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityH618px,
+          localStyles.utilityMinH0,
+          localStyles.utilityGridColsMinmax01fr376px,
+          localStyles.utilityOverflowHidden,
+        ])}
       >
         <section
-          className={stylexClassName(
-            "h-[618px] min-h-0 overflow-hidden pr-7 pt-7"
-          )}
+          {...stylex.props([
+            localStyles.utilityH618px,
+            localStyles.utilityMinH0,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityPr7,
+            localStyles.utilityPt7,
+          ])}
         >
           <header
-            className={stylexClassName(
-              "flex h-[38px] items-center border-b border-(--line-subtle)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityH38px,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityBorderB,
+              localStyles.utilityBorderLineSubtle,
+            ])}
           >
             <h2
-              className={stylexClassName(
-                "text-[15px] font-medium leading-[22px]"
-              )}
+              {...stylex.props([
+                localStyles.utilityText15px,
+                localStyles.utilityFontMedium,
+                localStyles.utilityLeading22px,
+              ])}
             >
               {copy.home.decisionQueue}
             </h2>
             <a
-              className={stylexClassName(
-                "ml-auto inline-flex items-center gap-1 text-[11px] leading-4 text-(--fg-secondary) hover:text-(--fg-primary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityMlAuto,
+                localStyles.utilityInlineFlex,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap1,
+                localStyles.utilityText11px,
+                localStyles.utilityLeading4,
+                localStyles.utilityTextFgSecondary,
+                localStyles.utilityHoverTextFgPrimary,
+              ])}
               href="/changes"
             >
               {copy.home.viewAll} <ArrowRight size={12} />
@@ -206,54 +506,84 @@ export function HomePage() {
           </header>
           {decisions.map((item) => (
             <article
-              className={stylexClassName(
-                "grid h-[88px] min-h-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b border-(--line-subtle)"
-              )}
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilityH88px,
+                localStyles.utilityMinH0,
+                localStyles.utilityGridColsMinmax01frAuto,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityBorderB,
+                localStyles.utilityBorderLineSubtle,
+              ])}
               key={item.id}
             >
               <div
-                className={stylexClassName("flex min-w-0 items-start gap-3")}
+                {...stylex.props([
+                  localStyles.utilityFlex,
+                  localStyles.utilityMinW0,
+                  localStyles.utilityItemsStart,
+                  localStyles.utilityGap3,
+                ])}
               >
                 <span
                   aria-hidden="true"
-                  className={stylexClassName(
-                    "relative h-[18px] w-[7px] shrink-0"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityRelative,
+                    localStyles.utilityH18px,
+                    localStyles.utilityW7px,
+                    localStyles.utilityShrink0,
+                  ])}
                 >
                   <span
-                    className={stylexClassName(
-                      `absolute left-0 top-[5.5px] size-[7px] rounded-full ${decisionToneClass(item.tone)}`
+                    {...stylex.props(
+                      localStyles.decisionDot(decisionToneColor(item.tone))
                     )}
                   />
                 </span>
-                <div className={stylexClassName("min-w-0")}>
+                <div {...stylex.props([localStyles.utilityMinW0])}>
                   <h3
-                    className={stylexClassName(
-                      "text-[13px] font-medium leading-[18px]"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityText13px,
+                      localStyles.utilityFontMedium,
+                      localStyles.utilityLeading18px,
+                    ])}
                   >
                     {item.name}
                   </h3>
                   <p
-                    className={stylexClassName(
-                      "mt-[3px] text-[11px] leading-4 text-(--fg-secondary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMt3px,
+                      localStyles.utilityText11px,
+                      localStyles.utilityLeading4,
+                      localStyles.utilityTextFgSecondary,
+                    ])}
                   >
                     {item.detail}
                   </p>
                   <p
-                    className={stylexClassName(
-                      "mt-[3px] font-mono text-[10px] leading-[14px] text-(--fg-tertiary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMt3px,
+                      localStyles.utilityFontMono,
+                      localStyles.utilityText10px,
+                      localStyles.utilityLeading14px,
+                      localStyles.utilityTextFgTertiary,
+                    ])}
                   >
                     {item.id}
                   </p>
                 </div>
               </div>
               <a
-                className={stylexClassName(
-                  "flex items-center gap-1 self-center text-[11px] leading-4 text-(--fg-secondary) hover:text-(--fg-primary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityFlex,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityGap1,
+                  localStyles.utilitySelfCenter,
+                  localStyles.utilityText11px,
+                  localStyles.utilityLeading4,
+                  localStyles.utilityTextFgSecondary,
+                  localStyles.utilityHoverTextFgPrimary,
+                ])}
                 href="/changes"
               >
                 {item.action} <ArrowRight size={12} />
@@ -262,26 +592,40 @@ export function HomePage() {
           ))}
         </section>
         <aside
-          className={stylexClassName(
-            "home-page__evidence-pane h-[618px] min-h-0 overflow-hidden pl-7 pt-7"
-          )}
+          data-page-slot="home-page__evidence-pane"
+          {...stylex.props([
+            localStyles.utilityH618px,
+            localStyles.utilityMinH0,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityPl7,
+            localStyles.utilityPt7,
+          ])}
         >
           <header
-            className={stylexClassName(
-              "flex h-[38px] items-center border-b border-(--line-subtle)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityH38px,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityBorderB,
+              localStyles.utilityBorderLineSubtle,
+            ])}
           >
             <h2
-              className={stylexClassName(
-                "text-[15px] font-medium leading-[22px]"
-              )}
+              {...stylex.props([
+                localStyles.utilityText15px,
+                localStyles.utilityFontMedium,
+                localStyles.utilityLeading22px,
+              ])}
             >
               {copy.home.liveEvidence}
             </h2>
             <span
-              className={stylexClassName(
-                "ml-auto text-[11px] leading-4 text-(--success)"
-              )}
+              {...stylex.props([
+                localStyles.utilityMlAuto,
+                localStyles.utilityText11px,
+                localStyles.utilityLeading4,
+                localStyles.utilityTextSuccess,
+              ])}
             >
               {copy.home.streaming}
             </span>
@@ -289,44 +633,75 @@ export function HomePage() {
           <ol>
             {displayedEvidence.map((item) => (
               <li
-                className={stylexClassName(
-                  "grid h-[72px] min-h-0 grid-cols-[8px_minmax(0,1fr)] gap-3 overflow-hidden pt-4"
-                )}
+                {...stylex.props([
+                  localStyles.utilityGrid,
+                  localStyles.utilityH72px,
+                  localStyles.utilityMinH0,
+                  localStyles.utilityGridCols8pxMinmax01fr,
+                  localStyles.utilityGap3,
+                  localStyles.utilityOverflowHidden,
+                  localStyles.utilityPt4,
+                ])}
                 key={item.id}
               >
                 <span
                   aria-hidden="true"
-                  className={stylexClassName("relative h-12 w-2")}
+                  {...stylex.props([
+                    localStyles.utilityRelative,
+                    localStyles.utilityH12,
+                    localStyles.utilityW2,
+                  ])}
                 >
                   <span
-                    className={stylexClassName(
-                      "absolute left-0 top-1 size-[6px] rounded-full bg-(--fg-tertiary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityAbsolute,
+                      localStyles.utilityLeft0,
+                      localStyles.utilityTop1,
+                      localStyles.utilitySize6px,
+                      localStyles.utilityRoundedFull,
+                      localStyles.utilityBgFgTertiary,
+                    ])}
                   />
                 </span>
                 <div
-                  className={stylexClassName(
-                    "min-w-0 overflow-hidden whitespace-nowrap"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityMinW0,
+                    localStyles.utilityOverflowHidden,
+                    localStyles.utilityWhitespaceNowrap,
+                  ])}
                 >
                   <time
-                    className={stylexClassName(
-                      "block font-mono text-[10px] leading-[14px] text-(--fg-tertiary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityBlock,
+                      localStyles.utilityFontMono,
+                      localStyles.utilityText10px,
+                      localStyles.utilityLeading14px,
+                      localStyles.utilityTextFgTertiary,
+                    ])}
                   >
                     {item.displayTime ?? timeLabel(item.occurredAt)}
                   </time>
                   <div
-                    className={stylexClassName(
-                      "mt-[2px] overflow-hidden text-ellipsis text-[12px] font-medium leading-4"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMt2px,
+                      localStyles.utilityOverflowHidden,
+                      localStyles.utilityTextEllipsis,
+                      localStyles.utilityText12px,
+                      localStyles.utilityFontMedium,
+                      localStyles.utilityLeading4,
+                    ])}
                   >
                     {item.title}
                   </div>
                   <div
-                    className={stylexClassName(
-                      "mt-[2px] overflow-hidden text-ellipsis text-[11px] leading-4 text-(--fg-secondary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMt2px,
+                      localStyles.utilityOverflowHidden,
+                      localStyles.utilityTextEllipsis,
+                      localStyles.utilityText11px,
+                      localStyles.utilityLeading4,
+                      localStyles.utilityTextFgSecondary,
+                    ])}
                   >
                     {item.detail}
                   </div>
@@ -335,18 +710,30 @@ export function HomePage() {
             ))}
           </ol>
           <div
-            className={stylexClassName(
-              "border-t border-(--line-subtle) pt-[14px] text-[11px] leading-4 text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityBorderT,
+              localStyles.utilityBorderLineSubtle,
+              localStyles.utilityPt14px,
+              localStyles.utilityText11px,
+              localStyles.utilityLeading4,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             <p
-              className={stylexClassName(
-                "font-medium leading-4 text-(--fg-primary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityFontMedium,
+                localStyles.utilityLeading4,
+                localStyles.utilityTextFgPrimary,
+              ])}
             >
               Console coordinates intent and evidence.
             </p>
-            <p className={stylexClassName("mt-1 leading-4")}>
+            <p
+              {...stylex.props([
+                localStyles.utilityMt1,
+                localStyles.utilityLeading4,
+              ])}
+            >
               Services remain authoritative for state and effects.
             </p>
           </div>
@@ -356,22 +743,22 @@ export function HomePage() {
   );
 }
 
-function decisionToneClass(tone: HomeDecision["tone"]) {
+function decisionToneColor(tone: HomeDecision["tone"]) {
   switch (tone) {
     case "error": {
-      return "bg-(--error)";
+      return "var(--error)";
     }
     case "success": {
-      return "bg-(--success)";
+      return "var(--success)";
     }
     case "warning": {
-      return "bg-(--warning)";
+      return "var(--warning)";
     }
     case "primary": {
-      return "bg-(--fg-primary)";
+      return "var(--fg-primary)";
     }
     default: {
-      return "bg-(--fg-secondary)";
+      return "var(--fg-secondary)";
     }
   }
 }
@@ -388,16 +775,29 @@ function ScopeBadge({
   return (
     <span
       aria-label={mode === "demo" ? `${label}, demo projection` : label}
-      className={stylexClassName(
-        "inline-flex h-[30px] items-center gap-2 rounded-[var(--radius-control)] border border-(--line) px-[10px] text-[11px] font-medium leading-4 text-(--fg-secondary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityInlineFlex,
+        localStyles.utilityH30px,
+        localStyles.utilityItemsCenter,
+        localStyles.utilityGap2,
+        localStyles.utilityRoundedVarRadiusControl,
+        localStyles.utilityBorder,
+        localStyles.utilityBorderLine,
+        localStyles.utilityPx10px,
+        localStyles.utilityText11px,
+        localStyles.utilityFontMedium,
+        localStyles.utilityLeading4,
+        localStyles.utilityTextFgSecondary,
+      ])}
       data-console-data-mode={mode}
       title={mode === "demo" ? "Demo projection" : undefined}
     >
       <span
         aria-hidden="true"
-        className={stylexClassName(
-          `size-1.5 rounded-full ${tone === "success" ? "bg-(--success)" : "bg-(--fg-tertiary)"}`
+        {...stylex.props(
+          localStyles.scopeDot(
+            tone === "success" ? "var(--success)" : "var(--fg-tertiary)"
+          )
         )}
       />
       {label}
@@ -431,27 +831,50 @@ function Metric({
 }) {
   return (
     <div
-      className={stylexClassName(
-        "flex h-12 flex-col justify-between border-r border-(--line-subtle) px-4 first:pl-0 last:border-r-0"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH12,
+        localStyles.utilityFlexCol,
+        localStyles.utilityJustifyBetween,
+        localStyles.utilityBorderR,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityPx4,
+        localStyles.utilityFirstPl0,
+        localStyles.utilityLastBorderR0,
+      ])}
     >
-      <div className={stylexClassName("flex h-5 items-baseline gap-2")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH5,
+          localStyles.utilityItemsBaseline,
+          localStyles.utilityGap2,
+        ])}
+      >
         <strong
-          className={stylexClassName("text-[15px] font-medium leading-5")}
+          {...stylex.props([
+            localStyles.utilityText15px,
+            localStyles.utilityFontMedium,
+            localStyles.utilityLeading5,
+          ])}
         >
           {value}
         </strong>
         <span
-          className={stylexClassName(
-            "text-[11px] leading-4 text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityText11px,
+            localStyles.utilityLeading4,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           {label}
         </span>
       </div>
       <div
-        className={stylexClassName(
-          `text-[11px] leading-4 ${note.includes("review") ? "text-(--warning)" : "text-(--fg-secondary)"}`
+        {...stylex.props(
+          localStyles.metricNote(
+            note.includes("review") ? "var(--warning)" : "var(--fg-secondary)"
+          )
         )}
       >
         {note}

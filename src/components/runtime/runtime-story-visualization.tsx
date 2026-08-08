@@ -1,4 +1,4 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
 import { useStoryHeatmap } from "../../hooks/use-runtime-queries";
@@ -10,6 +10,33 @@ import type { StoryViewMode } from "./story-tabs";
 import { StoryTabs } from "./story-tabs";
 import { StoryTimelineView } from "./story-timeline-view";
 import { WaterfallView } from "./waterfall-view";
+
+const localStyles = stylex.create({
+  utilityIsolate: {
+    isolation: "isolate",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityGridRows38pxMinmax01fr: {
+    gridTemplateRows: "38px minmax(0,1fr)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBgSurface: {
+    backgroundColor: "var(--bg-surface)",
+  },
+});
 
 export function RuntimeStoryVisualization({
   mode,
@@ -30,14 +57,25 @@ export function RuntimeStoryVisualization({
 
   return (
     <section
-      className={stylexClassName(
-        "isolate grid h-full min-h-0 min-w-0 grid-rows-[38px_minmax(0,1fr)] overflow-hidden bg-(--bg-surface)"
-      )}
+      {...stylex.props([
+        localStyles.utilityIsolate,
+        localStyles.utilityGrid,
+        localStyles.utilityHFull,
+        localStyles.utilityMinH0,
+        localStyles.utilityMinW0,
+        localStyles.utilityGridRows38pxMinmax01fr,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBgSurface,
+      ])}
     >
       <StoryTabs mode={mode} onChange={setMode} />
       <div
         aria-labelledby={`story-tab-${mode}`}
-        className={stylexClassName("min-h-0 min-w-0 overflow-hidden")}
+        {...stylex.props([
+          localStyles.utilityMinH0,
+          localStyles.utilityMinW0,
+          localStyles.utilityOverflowHidden,
+        ])}
         id="story-view-panel"
         role="tabpanel"
       >

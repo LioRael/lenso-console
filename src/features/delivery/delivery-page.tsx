@@ -1,4 +1,4 @@
-import { stylexClassName, Button, useConsoleLocale } from "@lenso/console-ui";
+import { Button, useConsoleLocale } from "@lenso/console-ui";
 import { useMemo, useState } from "react";
 
 import { useDeliveryEvidence } from "../console-data/use-console-product-data";
@@ -113,17 +113,13 @@ export function DeliveryPage() {
     <ProductPage
       description={copy.delivery.description}
       meta={copy.delivery.authority}
-      pageClassName="delivery-page"
+      pageKind="delivery-page"
       title={copy.delivery.title}
     >
       <SplitWorkspace
-        className={stylexClassName("delivery-page__workspace")}
         inspector={
           selected ? (
             <Inspector
-              className={stylexClassName(
-                "product-inspector delivery-inspector"
-              )}
               headerAction={
                 <Button
                   disabled={projection ? projection.readOnly : !isDemoPreview}
@@ -134,9 +130,10 @@ export function DeliveryPage() {
               }
               subtitle={`${selected.id} · ${projection?.projectionDigest ?? metrics?.subtitle ?? delivery.releaseTrain.data?.status ?? "recorded"}`}
               title={selected.name}
+              pageSlot="delivery-inspector"
             >
-              <div className={stylexClassName("delivery-page__divider")} />
-              <div className={stylexClassName("delivery-page__summary")}>
+              <div data-page-slot="delivery-page__divider" />
+              <div data-page-slot="delivery-page__summary">
                 <Metric
                   label={copy.delivery.readiness}
                   value={selected.gates}
@@ -158,16 +155,13 @@ export function DeliveryPage() {
                   }
                 />
               </div>
-              <div className={stylexClassName("delivery-page__divider")} />
-              <h3 className={stylexClassName("delivery-page__readiness-title")}>
+              <div data-page-slot="delivery-page__divider" />
+              <h3 data-page-slot="delivery-page__readiness-title">
                 {copy.delivery.readiness}
               </h3>
-              <div className={stylexClassName("delivery-page__gates")}>
+              <div data-page-slot="delivery-page__gates">
                 {gates.map((gate) => (
-                  <div
-                    className={stylexClassName("delivery-page__gate")}
-                    key={gate.label}
-                  >
+                  <div data-page-slot="delivery-page__gate" key={gate.label}>
                     <span>{gate.label}</span>
                     <StatusDot
                       label={
@@ -181,55 +175,46 @@ export function DeliveryPage() {
                   </div>
                 ))}
               </div>
-              <section className={stylexClassName("delivery-page__authority")}>
+              <section data-page-slot="delivery-page__authority">
                 <h3>{copy.delivery.handoffTitle}</h3>
                 <p>{copy.delivery.handoffDescription}</p>
                 <p>{copy.delivery.authorityDescription}</p>
               </section>
             </Inspector>
           ) : (
-            <p className={stylexClassName("delivery-page__no-data")}>
+            <p data-page-slot="delivery-page__no-data">
               {copy.delivery.noRelease}
             </p>
           )
         }
         inspectorWidth={716}
+        pageSlot="delivery-page__workspace"
       >
-        <section className={stylexClassName("delivery-page__candidate-pane")}>
-          <header
-            className={stylexClassName("delivery-page__candidate-header")}
-          >
+        <section data-page-slot="delivery-page__candidate-pane">
+          <header data-page-slot="delivery-page__candidate-header">
             <h2>{copy.delivery.candidates}</h2>
             <span>
               {releases.length} {copy.delivery.open}
             </span>
           </header>
-          <div className={stylexClassName("delivery-page__candidate-rows")}>
+          <div data-page-slot="delivery-page__candidate-rows">
             {releases.map((release) => (
               <button
                 aria-pressed={selected?.id === release.id}
-                className={stylexClassName("delivery-page__candidate")}
+                data-page-slot="delivery-page__candidate"
                 data-selected={selected?.id === release.id}
                 key={release.id}
                 onClick={() => setSelectedId(release.id)}
                 type="button"
               >
-                <div
-                  className={stylexClassName("delivery-page__candidate-top")}
-                >
+                <div data-page-slot="delivery-page__candidate-top">
                   <strong>{release.name}</strong>
-                  <span
-                    className={stylexClassName(
-                      "delivery-page__candidate-gates"
-                    )}
-                  >
+                  <span data-page-slot="delivery-page__candidate-gates">
                     {release.gates} gates
                   </span>
                 </div>
                 <StatusDot label={release.state} tone={release.tone} />
-                <span
-                  className={stylexClassName("delivery-page__candidate-id")}
-                >
+                <span data-page-slot="delivery-page__candidate-id">
                   {release.id}
                 </span>
               </button>
@@ -243,7 +228,7 @@ export function DeliveryPage() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className={stylexClassName("delivery-page__metric")}>
+    <div data-page-slot="delivery-page__metric">
       <strong>{value}</strong>
       <span>{label}</span>
     </div>

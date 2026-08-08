@@ -1,5 +1,4 @@
 import {
-  stylexClassName,
   DataGrid,
   DataRow,
   PaneHeader,
@@ -64,34 +63,33 @@ export function RuntimePage() {
     <ProductPage
       description={copy.runtime.description}
       meta={
-        <span className={stylexClassName("runtime-page__meta")}>
+        <span data-page-slot="runtime-page__meta">
           {healthyCount} / {totalCount} {copy.runtime.healthy}
         </span>
       }
-      pageClassName="runtime-page"
+      pageKind="runtime-page"
       title={copy.runtime.title}
     >
       <ProductTabs
         active={tab}
-        className={stylexClassName("runtime-page__tabs")}
         items={copy.runtime.tabs}
         onChange={(item) =>
           setTabIndex(copy.runtime.tabs.indexOf(item as never))
         }
+        pageSlot="runtime-page__tabs"
       />
       <SplitWorkspace
-        className={stylexClassName("runtime-page__workspace")}
         inspector={
           <Inspector
-            className={stylexClassName("runtime-inspector")}
             subtitle={
               selected
                 ? `${selected.serviceId} · ${selected.region} · ${selected.version}`
                 : "—"
             }
             title={selected?.providerName ?? copy.runtime.title}
+            pageSlot="runtime-inspector"
           >
-            <div className={stylexClassName("runtime-inspector__meta")}>
+            <div data-page-slot="runtime-inspector__meta">
               <span>{selected?.replicas ?? "—"} replicas</span>
               <span>
                 {selected?.p95Ms === null || selected?.p95Ms === undefined
@@ -104,9 +102,9 @@ export function RuntimePage() {
                   : "— error"}
               </span>
             </div>
-            <div className={stylexClassName("runtime-inspector__divider")} />
-            <div className={stylexClassName("runtime-inspector__timeline")}>
-              <p className={stylexClassName("runtime-inspector__label")}>
+            <div data-page-slot="runtime-inspector__divider" />
+            <div data-page-slot="runtime-inspector__timeline">
+              <p data-page-slot="runtime-inspector__label">
                 {copy.runtime.timeline}
               </p>
               {selected?.timeline.length
@@ -129,14 +127,15 @@ export function RuntimePage() {
                       />
                     ))}
             </div>
-            <div className={stylexClassName("runtime-inspector__divider")} />
-            <div className={stylexClassName("runtime-inspector__boundary")}>
+            <div data-page-slot="runtime-inspector__divider" />
+            <div data-page-slot="runtime-inspector__boundary">
               <p>{copy.runtime.serviceOwns}</p>
               <p>{copy.runtime.consoleObserves}</p>
             </div>
           </Inspector>
         }
         inspectorWidth={406}
+        pageSlot="runtime-page__workspace"
       >
         {tabIndex === 0 ? (
           <>
@@ -158,14 +157,11 @@ export function RuntimePage() {
               {services.map((service) => (
                 <DataRow
                   cells={[
-                    <span
-                      className={stylexClassName("runtime-page__mono-cell")}
-                      key="region"
-                    >
+                    <span data-page-slot="runtime-page__mono-cell" key="region">
                       {service.region}
                     </span>,
                     <span
-                      className={stylexClassName("runtime-page__mono-cell")}
+                      data-page-slot="runtime-page__mono-cell"
                       key="version"
                     >
                       {service.version}
@@ -175,10 +171,7 @@ export function RuntimePage() {
                       label={runtimeStatusLabel(service.state)}
                       tone={runtimeStatusTone(service.state)}
                     />,
-                    <span
-                      className={stylexClassName("runtime-page__mono-cell")}
-                      key="p95"
-                    >
+                    <span data-page-slot="runtime-page__mono-cell" key="p95">
                       {service.p95Ms === null ? "—" : `${service.p95Ms} ms`}
                     </span>,
                   ]}
@@ -224,7 +217,7 @@ function RuntimeStream({
                   tone={runtimeStatusTone(status)}
                 />,
                 <time
-                  className={stylexClassName("runtime-page__mono-cell")}
+                  data-page-slot="runtime-page__mono-cell"
                   key="time"
                   dateTime={time}
                 >
@@ -237,7 +230,7 @@ function RuntimeStream({
             />
           ))
         ) : (
-          <div className={stylexClassName("runtime-page__stream-empty")}>
+          <div data-page-slot="runtime-page__stream-empty">
             No {title.toLowerCase()} evidence in this window.
           </div>
         )}
@@ -256,12 +249,9 @@ function Timeline({
   title: string;
 }) {
   return (
-    <div className={stylexClassName("runtime-inspector__event")}>
-      <span
-        aria-hidden="true"
-        className={stylexClassName("runtime-inspector__rail")}
-      />
-      <span className={stylexClassName("runtime-inspector__event-copy")}>
+    <div data-page-slot="runtime-inspector__event">
+      <span aria-hidden="true" data-page-slot="runtime-inspector__rail" />
+      <span data-page-slot="runtime-inspector__event-copy">
         <time>{time}</time>
         <strong>{title}</strong>
         <small>{evidenceId ?? "runtime evidence"}</small>

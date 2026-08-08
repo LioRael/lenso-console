@@ -1,4 +1,4 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import {
   AlertTriangle,
   Check,
@@ -15,7 +15,6 @@ import type { ComponentType } from "react";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
 import { retryTargetForNode } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 import { formatRuntimeDuration } from "../../lib/runtime-style";
 import {
   buildRuntimeStory,
@@ -25,6 +24,272 @@ import {
 } from "../../lib/story";
 import { Button } from "../ui/button";
 import { RuntimeViewHeader } from "./runtime-view-header";
+
+const localStyles = stylex.create({
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityGridRowsAutoMinmax01fr: {
+    gridTemplateRows: "auto minmax(0,1fr)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy3: {
+    paddingBlock: "calc(0.25rem * 3)",
+  },
+  utilityMxAuto: {
+    marginInline: "auto",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityMaxW530px: {
+    maxWidth: "530px",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgPanel: {
+    backgroundColor: "var(--bg-panel)",
+  },
+  utilityP4: {
+    padding: "calc(0.25rem * 4)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityTextXs: {
+    fontSize: "var(--text-xs, 0.75rem)",
+    lineHeight: "var(--text-xs--line-height, 1rem)",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityGridCols40pxMinmax01fr: {
+    gridTemplateColumns: "40px minmax(0,1fr)",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityJustifyCenter: {
+    justifyContent: "center",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityTop11: {
+    top: "calc(0.25rem * 11)",
+  },
+  utilityBottom05rem: {
+    bottom: "-0.5rem",
+  },
+  utilityWPx: {
+    width: "1px",
+  },
+  utilityBgLine: {
+    backgroundColor: "var(--line)",
+  },
+  utilityInset0: {
+    inset: "calc(0.25rem * 0)",
+  },
+  utilityZ0: {
+    zIndex: "0",
+  },
+  utilityCursorPointer: {
+    cursor: "pointer",
+  },
+  utilityFocusVisibleOutline2: {
+    ":focus-visible": {
+      outlineStyle: "solid",
+      outlineWidth: "2px",
+    },
+  },
+  utilityFocusVisibleOutlineOffset2: {
+    ":focus-visible": {
+      outlineOffset: "2px",
+    },
+  },
+  utilityFocusVisibleOutlineFocusRing: {
+    ":focus-visible": {
+      outlineColor: "var(--focus-ring)",
+    },
+  },
+  utilityItemsStart: {
+    alignItems: "flex-start",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityMt15: {
+    marginTop: "calc(0.25rem * 1.5)",
+  },
+  utilityBlock: {
+    display: "block",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityText14px: {
+    fontSize: "14px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+  utilityTextFgQuaternary: {
+    color: "var(--fg-quaternary)",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityTextVarToneErrorFg: {
+    color: "var(--tone-error-fg)",
+  },
+  utilityZ10: {
+    zIndex: "10",
+  },
+});
+
+const styles = stylex.create({
+  card: (props: {
+    borderColor: string;
+    showError: boolean;
+    selected: boolean;
+  }) => ({
+    backgroundColor: props.selected ? "var(--bg-row-hover)" : "var(--bg-panel)",
+    borderColor: props.selected ? "var(--line-strong)" : props.borderColor,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: props.showError
+      ? "inset 0 0 0 1px color-mix(in srgb,var(--error) 20%,transparent),var(--elevation-raised)"
+      : "var(--elevation-raised)",
+    minHeight: 66,
+    minWidth: 0,
+    overflow: "hidden",
+    paddingBlock: 8,
+    paddingInline: 12,
+    position: "relative",
+    textAlign: "left",
+    transitionProperty: "border-color, background-color",
+    ":hover": {
+      backgroundColor: "var(--bg-control)",
+      borderColor: "var(--line)",
+    },
+  }),
+  icon: (props: {
+    borderColor: string;
+    borderStyle: "solid" | "dashed" | "double";
+    color: string;
+  }) => ({
+    backgroundColor: "var(--bg-panel)",
+    borderColor: props.borderColor,
+    borderStyle: props.borderStyle,
+    borderWidth: 1,
+    color: props.color,
+    display: "grid",
+    height: 36,
+    marginTop: 4,
+    placeItems: "center",
+    position: "relative",
+    width: 36,
+    zIndex: 10,
+  }),
+  iconSelected: { boxShadow: "0 0 0 1px var(--line-strong)" },
+  statusBadge: (props: { backgroundColor: string }) => ({
+    alignItems: "center",
+    backgroundColor: props.backgroundColor,
+    borderColor: "var(--bg-canvas)",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    bottom: -4,
+    display: "grid",
+    height: 16,
+    placeItems: "center",
+    position: "absolute",
+    right: -4,
+    width: 16,
+  }),
+  statusText: (color: string) => ({
+    color,
+    fontFamily: "var(--font-code)",
+    fontSize: 10,
+  }),
+  typeLabel: (props: {
+    backgroundColor: string;
+    borderColor: string;
+    color: string;
+  }) => ({
+    backgroundColor: props.backgroundColor,
+    borderColor: props.borderColor,
+    borderRadius: "2px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: props.color,
+    fontFamily: "var(--font-code)",
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: "0.06em",
+    paddingBlock: 2,
+    paddingInline: 6,
+    textTransform: "uppercase",
+  }),
+});
 
 export function RuntimeStoryView({
   selectedNodeId,
@@ -41,9 +306,15 @@ export function RuntimeStoryView({
 
   return (
     <div
-      className={stylexClassName(
-        "grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden bg-(--bg-canvas)"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilityHFull,
+        localStyles.utilityMinH0,
+        localStyles.utilityMinW0,
+        localStyles.utilityGridRowsAutoMinmax01fr,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBgCanvas,
+      ])}
     >
       <RuntimeViewHeader
         meta={`${storySummary.nodeCount} nodes · ${formatRuntimeDuration(storySummary.duration)}`}
@@ -51,15 +322,34 @@ export function RuntimeStoryView({
         title="Runtime Story"
       />
 
-      <div className={stylexClassName("min-h-0 overflow-auto px-3 py-3")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityMinH0,
+          localStyles.utilityOverflowAuto,
+          localStyles.utilityPx3,
+          localStyles.utilityPy3,
+        ])}
+      >
         <div
-          className={stylexClassName("mx-auto grid w-full max-w-[530px] gap-2")}
+          {...stylex.props([
+            localStyles.utilityMxAuto,
+            localStyles.utilityGrid,
+            localStyles.utilityWFull,
+            localStyles.utilityMaxW530px,
+            localStyles.utilityGap2,
+          ])}
         >
           {storySummary.nodes.length === 0 ? (
             <div
-              className={stylexClassName(
-                "border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityBorder,
+                localStyles.utilityBorderLine,
+                localStyles.utilityBgBgPanel,
+                localStyles.utilityP4,
+                localStyles.utilityFontMono,
+                localStyles.utilityTextXs,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
               No runtime story nodes were derived for this story.
             </div>
@@ -102,23 +392,34 @@ function GraphNode({
 
   return (
     <div
-      className={stylexClassName(
-        "grid min-w-0 grid-cols-[40px_minmax(0,1fr)] gap-3"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilityMinW0,
+        localStyles.utilityGridCols40pxMinmax01fr,
+        localStyles.utilityGap3,
+      ])}
     >
-      <div className={stylexClassName("relative flex justify-center")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityRelative,
+          localStyles.utilityFlex,
+          localStyles.utilityJustifyCenter,
+        ])}
+      >
         <span
-          className={cn(
-            "relative z-10 mt-1 grid size-9 place-items-center border bg-(--bg-panel)",
-            type.iconClass,
-            selected && "ring-1 ring-(--line-strong)"
+          {...stylex.props(
+            styles.icon({
+              borderColor: type.borderColor,
+              borderStyle: type.iconBorderStyle,
+              color: type.color,
+            }),
+            selected && styles.iconSelected
           )}
         >
           <Icon size={16} strokeWidth={1.8} />
           <span
-            className={cn(
-              "-right-1 -bottom-1 absolute grid size-4 place-items-center rounded-full border border-(--bg-canvas)",
-              status.badgeClass
+            {...stylex.props(
+              styles.statusBadge({ backgroundColor: status.badgeColor })
             )}
             title={status.label}
           >
@@ -127,82 +428,136 @@ function GraphNode({
         </span>
         {showConnector ? (
           <span
-            className={stylexClassName(
-              "absolute top-11 bottom-[-0.5rem] w-px bg-(--line)"
-            )}
+            {...stylex.props([
+              localStyles.utilityAbsolute,
+              localStyles.utilityTop11,
+              localStyles.utilityBottom05rem,
+              localStyles.utilityWPx,
+              localStyles.utilityBgLine,
+            ])}
           />
         ) : null}
       </div>
 
       <div
-        className={cn(
-          "group relative min-h-[66px] min-w-0 overflow-hidden border bg-(--bg-panel) px-3 py-2 text-left shadow-(--elevation-raised) transition hover:border-(--line) hover:bg-(--bg-control)",
-          type.cardClass,
-          selected && "border-(--line-strong) bg-(--bg-row-hover)",
-          (node.status === "failed" || node.status === "dead") &&
-            "shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--error)_20%,transparent),var(--elevation-raised)]"
+        {...stylex.props(
+          styles.card({
+            borderColor: type.borderColor,
+            selected,
+            showError: node.status === "failed" || node.status === "dead",
+          })
         )}
       >
         <button
           aria-label={`Select ${node.typeLabel} ${node.name}`}
           aria-pressed={selected}
-          className={stylexClassName(
-            "absolute inset-0 z-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
-          )}
+          {...stylex.props([
+            localStyles.utilityAbsolute,
+            localStyles.utilityInset0,
+            localStyles.utilityZ0,
+            localStyles.utilityCursorPointer,
+            localStyles.utilityFocusVisibleOutline2,
+            localStyles.utilityFocusVisibleOutlineOffset2,
+            localStyles.utilityFocusVisibleOutlineFocusRing,
+          ])}
           onClick={onSelect}
           type="button"
         />
-        <span className={stylexClassName("flex min-w-0 items-start gap-3")}>
-          <span className={stylexClassName("min-w-0 flex-1")}>
+        <span
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsStart,
+            localStyles.utilityGap3,
+          ])}
+        >
+          <span
+            {...stylex.props([
+              localStyles.utilityMinW0,
+              localStyles.utilityFlex1,
+            ])}
+          >
             <span
-              className={stylexClassName("flex min-w-0 items-center gap-2")}
+              {...stylex.props([
+                localStyles.utilityFlex,
+                localStyles.utilityMinW0,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap2,
+              ])}
             >
               <span
-                className={cn(
-                  "shrink-0 border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.06em]",
-                  type.labelClass
+                {...stylex.props(
+                  styles.typeLabel({
+                    backgroundColor: type.backgroundColor,
+                    borderColor: type.borderColor,
+                    color: type.color,
+                  })
                 )}
               >
                 {node.typeLabel}
               </span>
-              <span className={cn("font-mono text-[10px]", status.textClass)}>
+              <span {...stylex.props(styles.statusText(status.textColor))}>
                 {status.label}
               </span>
               <span
-                className={stylexClassName(
-                  "ml-auto shrink-0 font-mono text-[10px] text-(--fg-tertiary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityMlAuto,
+                  localStyles.utilityShrink0,
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 {formatRuntimeDuration(node.duration)}
               </span>
             </span>
             <span
-              className={stylexClassName(
-                "mt-1.5 block truncate text-[14px] font-semibold text-(--fg-primary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityMt15,
+                localStyles.utilityBlock,
+                localStyles.utilityTruncate,
+                localStyles.utilityText14px,
+                localStyles.utilityFontSemibold,
+                localStyles.utilityTextFgPrimary,
+              ])}
             >
               {node.name}
             </span>
             <span
-              className={stylexClassName(
-                "mt-1 flex min-w-0 items-center gap-2 font-mono text-[10px] text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityMt1,
+                localStyles.utilityFlex,
+                localStyles.utilityMinW0,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap2,
+                localStyles.utilityFontMono,
+                localStyles.utilityText10px,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
-              <span className={stylexClassName("truncate")}>
+              <span {...stylex.props([localStyles.utilityTruncate])}>
                 {node.service}
               </span>
-              <span className={stylexClassName("text-(--fg-quaternary)")}>
+              <span {...stylex.props([localStyles.utilityTextFgQuaternary])}>
                 ·
               </span>
-              <span className={stylexClassName("shrink-0")} title={node.id}>
+              <span
+                {...stylex.props([localStyles.utilityShrink0])}
+                title={node.id}
+              >
                 {shortId(node.id)}
               </span>
             </span>
             {node.error ? (
               <span
-                className={stylexClassName(
-                  "mt-2 block truncate font-mono text-[11px] text-[var(--tone-error-fg)]"
-                )}
+                {...stylex.props([
+                  localStyles.utilityMt2,
+                  localStyles.utilityBlock,
+                  localStyles.utilityTruncate,
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText11px,
+                  localStyles.utilityTextVarToneErrorFg,
+                ])}
               >
                 {node.error}
               </span>
@@ -210,7 +565,13 @@ function GraphNode({
           </span>
 
           {retryable ? (
-            <span className={stylexClassName("relative z-10 shrink-0")}>
+            <span
+              {...stylex.props([
+                localStyles.utilityRelative,
+                localStyles.utilityZ10,
+                localStyles.utilityShrink0,
+              ])}
+            >
               <Button
                 onClick={(event) => {
                   event.stopPropagation();
@@ -237,81 +598,87 @@ function shortId(id: string) {
 const nodeStyle: Record<
   RuntimeNodeType,
   {
+    backgroundColor: string;
+    borderColor: string;
+    color: string;
     icon: ComponentType<{ size?: number; strokeWidth?: number }>;
-    iconClass: string;
-    cardClass: string;
-    labelClass: string;
+    iconBorderStyle: "solid" | "dashed" | "double";
   }
 > = {
   event: {
-    cardClass: "tint-border tint-info",
+    backgroundColor: "var(--tone-info-bg)",
+    borderColor: "var(--tone-info-border)",
+    color: "var(--tone-info-fg)",
     icon: Mail,
-    iconClass: "border-dashed tint-border tint-text tint-info",
-    labelClass: "tint tint-info",
+    iconBorderStyle: "dashed",
   },
   external: {
-    cardClass: "tint-border tint-error",
+    backgroundColor: "var(--tone-error-bg)",
+    borderColor: "var(--tone-error-border)",
+    color: "var(--tone-error-fg)",
     icon: Cloud,
-    iconClass: "tint-border tint-text tint-error",
-    labelClass: "tint tint-error",
+    iconBorderStyle: "solid",
   },
   function: {
-    cardClass: "tint-border tint-success",
+    backgroundColor: "var(--tone-success-bg)",
+    borderColor: "var(--tone-success-border)",
+    color: "var(--tone-success-fg)",
     icon: Workflow,
-    iconClass: "tint-border tint-text tint-success",
-    labelClass: "tint tint-success",
+    iconBorderStyle: "solid",
   },
   request: {
-    cardClass: "tint-border tint-info",
+    backgroundColor: "var(--tone-info-bg)",
+    borderColor: "var(--tone-info-border)",
+    color: "var(--tone-info-fg)",
     icon: Route,
-    iconClass: "tint-border tint-text tint-info",
-    labelClass: "tint tint-info",
+    iconBorderStyle: "solid",
   },
   worker: {
-    cardClass: "tint-border tint-warning",
+    backgroundColor: "var(--tone-warning-bg)",
+    borderColor: "var(--tone-warning-border)",
+    color: "var(--tone-warning-fg)",
     icon: ServerCog,
-    iconClass: "border-double tint-border tint-text tint-warning",
-    labelClass: "tint tint-warning",
+    iconBorderStyle: "double",
   },
 };
 
 const statusStyle: Record<
   ReturnType<typeof runtimeStatusIntent>,
   {
+    badgeColor: string;
     icon: ComponentType<{ size?: number; strokeWidth?: number }>;
     label: string;
-    badgeClass: string;
-    textClass: string;
+    textColor: string;
   }
 > = {
   dead: {
-    badgeClass: "bg-(--error) text-white",
+    badgeColor: "var(--error)",
     icon: XCircle,
     label: "dead",
-    textClass: "text-[var(--tone-error-fg)]",
+    textColor: "var(--tone-error-fg)",
   },
   failed: {
-    badgeClass: "bg-(--warning) text-white",
+    badgeColor: "var(--warning)",
     icon: AlertTriangle,
     label: "failed",
-    textClass: "tint-text tint-warning",
+    textColor: "var(--tone-warning-fg)",
   },
   retrying: {
-    badgeClass: "bg-(--info) text-white",
+    badgeColor: "var(--info)",
     icon: RefreshCcw,
     label: "retrying",
-    textClass: "tint-text tint-info",
+    textColor: "var(--tone-info-fg)",
   },
   running: {
-    badgeClass: "bg-(--info) text-white",
+    badgeColor: "var(--info)",
     icon: Play,
     label: "running",
-    textClass: "tint-text tint-info",
+    textColor: "var(--tone-info-fg)",
   },
   success: {
-    badgeClass: "bg-(--success) text-white",
+    badgeColor: "var(--success)",
     icon: Check,
     label: "success",
-    textClass: "tint-text tint-success",
+    textColor: "var(--tone-success-fg)",
   },
 };

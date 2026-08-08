@@ -1,8 +1,7 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { X } from "lucide-react";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 import {
   formatRuntimeDuration,
   serviceColor,
@@ -11,6 +10,189 @@ import {
 import { buildRuntimeStory } from "../../lib/story";
 import { HorizontalScrollArea } from "./horizontal-tab-scroll";
 import { buildParallelExecutionGroups } from "./parallel-execution-model";
+
+const localStyles = stylex.create({
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityH112px: {
+    height: "112px",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBgSurface: {
+    backgroundColor: "var(--bg-surface)",
+  },
+  utilityPx35: {
+    paddingInline: "calc(0.25rem * 3.5)",
+  },
+  utilityPt25: {
+    paddingTop: "calc(0.25rem * 2.5)",
+  },
+  utilityPb2: {
+    paddingBottom: "calc(0.25rem * 2)",
+  },
+  utilityH22px: {
+    height: "22px",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityText16px: {
+    fontSize: "16px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityLeading22px: {
+    lineHeight: "22px",
+  },
+  utilityTextForeground: {
+    color: "var(--foreground)",
+  },
+  utilityInlineFlex: {
+    display: "inline-flex",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityFontSans: {
+    fontFamily:
+      "var(--font-sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',\n    'Noto Color Emoji')",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilitySize13px: {
+    width: "13px",
+    height: "13px",
+  },
+  utilityPlaceItemsCenter: {
+    placeItems: "center",
+  },
+  utilityRoundedXs: {
+    borderRadius: "var(--radius-xs, 0.125rem)",
+  },
+  utilityTextMuted: {
+    color: "var(--muted)",
+  },
+  utilityTransition: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityHoverBgHover: {
+    ":hover": {
+      backgroundColor: "var(--hover)",
+    },
+  },
+  utilityHoverTextForeground: {
+    ":hover": {
+      color: "var(--foreground)",
+    },
+  },
+  utilityH14px: {
+    height: "14px",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityH20px: {
+    height: "20px",
+  },
+  utilityH5: {
+    height: "calc(0.25rem * 5)",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityWMax: {
+    width: "max-content",
+  },
+  utilityMinWFull: {
+    minWidth: "100%",
+  },
+  utilityH4: {
+    height: "calc(0.25rem * 4)",
+  },
+  utilityJustifyBetween: {
+    justifyContent: "space-between",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityGapX2: {
+    columnGap: "calc(0.25rem * 2)",
+  },
+  utilityTextMutedDeep: {
+    color: "var(--muted-deep)",
+  },
+  utilityTextLeft: {
+    textAlign: "left",
+  },
+  utilityTextToneErrorFg: {
+    color: "var(--tone-error-fg)",
+  },
+  utilityHoverTextError: {
+    ":hover": {
+      color: "var(--error)",
+    },
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+});
+
+const styles = stylex.create({
+  metricTone: (color: string) => ({ color }),
+  service: (color: string) => ({
+    color,
+    flexShrink: 0,
+    fontFamily: "var(--font-code)",
+    fontSize: 8.5,
+  }),
+  statusDot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "9999px",
+    height: 6,
+    width: 6,
+  }),
+});
 
 export function StoryHeader({
   onClose,
@@ -31,39 +213,78 @@ export function StoryHeader({
 
   return (
     <header
-      className={stylexClassName(
-        "flex h-[112px] min-w-0 flex-col gap-1 overflow-hidden bg-(--bg-surface) px-3.5 pt-2.5 pb-2"
-      )}
+      {...stylex.props([
+        localStyles.utilityFlex,
+        localStyles.utilityH112px,
+        localStyles.utilityMinW0,
+        localStyles.utilityFlexCol,
+        localStyles.utilityGap1,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBgSurface,
+        localStyles.utilityPx35,
+        localStyles.utilityPt25,
+        localStyles.utilityPb2,
+      ])}
     >
       <div
-        className={stylexClassName(
-          "flex h-[22px] min-w-0 items-center gap-2 overflow-hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH22px,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityOverflowHidden,
+        ])}
       >
         <h1
-          className={stylexClassName(
-            "min-w-0 truncate text-[16px] font-semibold leading-[22px] text-(--foreground)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMinW0,
+            localStyles.utilityTruncate,
+            localStyles.utilityText16px,
+            localStyles.utilityFontSemibold,
+            localStyles.utilityLeading22px,
+            localStyles.utilityTextForeground,
+          ])}
         >
           {storySummary.title}
         </h1>
         <span
-          className={stylexClassName(
-            "inline-flex shrink-0 items-center gap-1.5 font-sans text-[10px] text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityInlineFlex,
+            localStyles.utilityShrink0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap15,
+            localStyles.utilityFontSans,
+            localStyles.utilityText10px,
+            localStyles.utilityTextFgSecondary,
+          ])}
         >
           <span
-            className={stylexClassName("size-1.5 rounded-full")}
-            style={{ backgroundColor: statusColor(storySummary.status) }}
+            {...stylex.props(
+              styles.statusDot(statusColor(storySummary.status))
+            )}
           />
           {storySummary.status}
         </span>
-        <span className={stylexClassName("min-w-0 flex-1")} />
+        <span
+          {...stylex.props([
+            localStyles.utilityMinW0,
+            localStyles.utilityFlex1,
+          ])}
+        />
         <button
           aria-label="Close story detail"
-          className={stylexClassName(
-            "grid size-[13px] shrink-0 place-items-center rounded-xs text-(--muted) transition hover:bg-(--hover) hover:text-(--foreground)"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilitySize13px,
+            localStyles.utilityShrink0,
+            localStyles.utilityPlaceItemsCenter,
+            localStyles.utilityRoundedXs,
+            localStyles.utilityTextMuted,
+            localStyles.utilityTransition,
+            localStyles.utilityHoverBgHover,
+            localStyles.utilityHoverTextForeground,
+          ])}
           onClick={onClose}
           type="button"
         >
@@ -72,9 +293,17 @@ export function StoryHeader({
       </div>
 
       <div
-        className={stylexClassName(
-          "flex h-[14px] min-w-0 items-center gap-3 overflow-hidden font-mono text-[10px] text-(--fg-secondary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH14px,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap3,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgSecondary,
+        ])}
       >
         <Metric tone="muted">
           {formatRuntimeDuration(storySummary.duration)}
@@ -92,24 +321,37 @@ export function StoryHeader({
       </div>
 
       <div
-        className={stylexClassName(
-          "flex h-[20px] min-w-0 items-center gap-1.5 overflow-hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH20px,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap15,
+          localStyles.utilityOverflowHidden,
+        ])}
       >
         <HorizontalScrollArea
-          className={stylexClassName("h-5 min-w-0 flex-1")}
-          viewportClassName="h-full"
+          stylex={[
+            localStyles.utilityH5,
+            localStyles.utilityMinW0,
+            localStyles.utilityFlex1,
+          ]}
+          viewportStylex={localStyles.utilityHFull}
         >
           <div
-            className={stylexClassName(
-              "flex h-full w-max min-w-full items-center gap-1.5"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityHFull,
+              localStyles.utilityWMax,
+              localStyles.utilityMinWFull,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityGap15,
+            ])}
           >
             {storySummary.services.map((service) => (
               <span
-                className={stylexClassName("shrink-0 font-mono text-[8.5px]")}
+                {...stylex.props(styles.service(serviceColor(service)))}
                 key={service}
-                style={{ color: serviceColor(service) }}
               >
                 {service}
               </span>
@@ -119,29 +361,53 @@ export function StoryHeader({
       </div>
 
       <div
-        className={stylexClassName(
-          "flex h-4 min-w-0 items-center justify-between gap-3 overflow-hidden font-mono text-[9px]"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH4,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityJustifyBetween,
+          localStyles.utilityGap3,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+        ])}
       >
         <div
-          className={stylexClassName(
-            "flex min-w-0 flex-1 items-center gap-x-2 overflow-hidden"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityFlex1,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGapX2,
+            localStyles.utilityOverflowHidden,
+          ])}
         >
           <span
-            className={stylexClassName(
-              "min-w-0 truncate text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityMinW0,
+              localStyles.utilityTruncate,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             {storySummary.patternLabel || "No execution pattern"}
           </span>
           {storySummary.rootError ? (
             <>
-              <span className={stylexClassName("text-(--muted-deep)")}>·</span>
+              <span {...stylex.props([localStyles.utilityTextMutedDeep])}>
+                ·
+              </span>
               <button
-                className={cn(
-                  "min-w-0 truncate text-left text-(--tone-error-fg) transition hover:text-(--error)",
-                  isError && "font-semibold"
+                {...stylex.props(
+                  [
+                    localStyles.utilityMinW0,
+                    localStyles.utilityTruncate,
+                    localStyles.utilityTextLeft,
+                    localStyles.utilityTextToneErrorFg,
+                    localStyles.utilityTransition,
+                    localStyles.utilityHoverTextError,
+                  ],
+                  isError && [localStyles.utilityFontSemibold]
                 )}
                 onClick={() => {
                   const errorNode = lastErrorNode(storySummary.nodes);
@@ -157,7 +423,11 @@ export function StoryHeader({
           ) : null}
         </div>
         <span
-          className={stylexClassName("shrink-0 truncate text-(--fg-tertiary)")}
+          {...stylex.props([
+            localStyles.utilityShrink0,
+            localStyles.utilityTruncate,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           {storySummary.correlationId}
         </span>
@@ -184,14 +454,21 @@ function Metric({
   children: React.ReactNode;
   tone?: "accent" | "error" | "muted";
 }) {
-  const toneClass = {
-    accent: "text-(--accent)",
-    error: "text-(--tone-error-fg)",
-    muted: "text-(--secondary)",
+  const toneColor = {
+    accent: "var(--accent)",
+    error: "var(--tone-error-fg)",
+    muted: "var(--secondary)",
   }[tone];
 
   return (
-    <span className={cn("inline-flex shrink-0 items-center", toneClass)}>
+    <span
+      {...stylex.props(
+        localStyles.utilityInlineFlex,
+        localStyles.utilityShrink0,
+        localStyles.utilityItemsCenter,
+        styles.metricTone(toneColor)
+      )}
+    >
       {children}
     </span>
   );
