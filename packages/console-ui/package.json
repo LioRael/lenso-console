@@ -20,6 +20,11 @@
   ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LioRael/lenso-console",
+    "directory": "packages/console-ui"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
