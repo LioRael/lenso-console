@@ -9,6 +9,11 @@
     "module"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LioRael/lenso-console",
+    "directory": "packages/console-module-api"
+  },
   "files": [
     "dist",
     "README.md"

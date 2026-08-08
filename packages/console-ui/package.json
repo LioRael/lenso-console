@@ -10,6 +10,11 @@
     "ui"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LioRael/lenso-console",
+    "directory": "packages/console-ui"
+  },
   "files": [
     "dist",
     "README.md"

@@ -11,6 +11,20 @@ on:
       - "service/**"
       - "Dockerfile"
       - ".github/workflows/release-oci.yml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing immutable Console Service version to finish publishing"
+        required: true
+        type: string
+      source_commit:
+        description: "Source commit recorded in the already-pushed image"
+        required: true
+        type: string
+      image_digest:
+        description: "Digest of the already-pushed and attested image"
+        required: true
+        type: string
 
 permissions: {}
 
@@ -34,24 +48,46 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
+        with:
+          package_json_file: package.json
+          run_install: false
       - name: Detect a new Console Service version
         id: version
         shell: bash
         env:
           BEFORE: ${{ github.event.before }}
+          DISPATCH_IMAGE_DIGEST: ${{ inputs.image_digest }}
+          DISPATCH_SOURCE_COMMIT: ${{ inputs.source_commit }}
+          DISPATCH_VERSION: ${{ inputs.version }}
         run: |
+          if [[ -n "$DISPATCH_VERSION" ]]; then
+            [[ "$DISPATCH_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+            [[ "$DISPATCH_SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+            [[ "$DISPATCH_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "recovery=true" >> "$GITHUB_OUTPUT"
+            echo "version=$DISPATCH_VERSION" >> "$GITHUB_OUTPUT"
+            echo "source_commit=$DISPATCH_SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
+            echo "image_digest=$DISPATCH_IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           current="$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version')"
           if [[ "$BEFORE" =~ ^0+$ ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "recovery=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           previous="$(git show "$BEFORE:package.json" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')"
           if [[ "$previous" == "$current" ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "recovery=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           [[ "$current" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "recovery=false" >> "$GITHUB_OUTPUT"
           echo "version=$current" >> "$GITHUB_OUTPUT"
           echo "source_commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - name: Log in to GHCR
@@ -62,10 +98,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Docker Buildx
-        if: steps.version.outputs.changed == 'true'
+        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       - name: Refuse an existing immutable version tag
-        if: steps.version.outputs.changed == 'true'
+        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ghcr.io/liorael/lenso-console
@@ -81,7 +117,7 @@ jobs:
             exit 1
           fi
       - name: Build and push the OCI image
-        if: steps.version.outputs.changed == 'true'
+        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
         id: image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -98,7 +134,7 @@ jobs:
             RELEASE_VERSION=${{ steps.version.outputs.version }}
             RELEASE_COMMIT=${{ steps.version.outputs.source_commit }}
       - name: Attest the published image
-        if: steps.version.outputs.changed == 'true'
+        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v2
         with:
           subject-name: ghcr.io/liorael/lenso-console
@@ -107,7 +143,7 @@ jobs:
       - name: Generate the digest-pinned release manifest
         if: steps.version.outputs.changed == 'true'
         env:
-          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          IMAGE_DIGEST: ${{ steps.version.outputs.image_digest || steps.image.outputs.digest }}
           SOURCE_COMMIT: ${{ steps.version.outputs.source_commit }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
