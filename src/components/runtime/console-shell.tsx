@@ -49,6 +49,7 @@ import {
 } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
+import { ConsoleCompositionErrorBoundary } from "../../app/console-composition-boundary";
 import { useConsoleNavigation } from "../../app/console-module-metadata";
 import type {
   ConsoleNavigationItem,
@@ -467,6 +468,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const { locale } = useConsoleLocale();
   const copy = consoleCopy(locale);
   const appearance = useConsoleAppearance();
+  const handleCompositionError = appearance.recoverToOfficialDefault;
   const { openCommandPalette } = useConsole();
   const navigate = useNavigate();
   const currentPath = useRouterState({
@@ -496,36 +498,37 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     navigation,
     routeWorkspaceId ?? selectedWorkspaceId
   );
-  const compositionNavigation = useMemo<ConsoleUiNavigationModel>(() => {
-    const model: ConsoleUiNavigationModel = {
-      items: navigation
-        .flatMap((workspace) => [
-          ...workspace.items,
-          ...workspace.groups.flatMap((group) => group.items),
-        ])
-        .map((item) => ({
-          id: `${item.moduleId}:${item.path}`,
-          path: item.path,
-          label: consoleLocalizedLabel(item, locale),
-          ...(item.navigation?.group
-            ? { group: item.navigation.group.id }
-            : {}),
-          ...(item.navigation?.order === undefined
-            ? {}
-            : { order: item.navigation.order }),
-          ...(item.icon ? { icon: item.icon } : {}),
-        })),
-    };
-    const arrange = appearance.composition?.arrangeNavigation;
-    if (!arrange) {
-      return model;
-    }
-    try {
-      return arrange(model);
-    } catch {
-      return model;
-    }
-  }, [appearance.composition, locale, navigation]);
+  const { model: compositionNavigation, error: compositionNavigationError } =
+    useMemo<{ model: ConsoleUiNavigationModel; error: unknown }>(() => {
+      const model: ConsoleUiNavigationModel = {
+        items: navigation
+          .flatMap((workspace) => [
+            ...workspace.items,
+            ...workspace.groups.flatMap((group) => group.items),
+          ])
+          .map((item) => ({
+            id: `${item.moduleId}:${item.path}`,
+            path: item.path,
+            label: consoleLocalizedLabel(item, locale),
+            ...(item.navigation?.group
+              ? { group: item.navigation.group.id }
+              : {}),
+            ...(item.navigation?.order === undefined
+              ? {}
+              : { order: item.navigation.order }),
+            ...(item.icon ? { icon: item.icon } : {}),
+          })),
+      };
+      const arrange = appearance.composition?.arrangeNavigation;
+      if (!arrange) {
+        return { error: null, model };
+      }
+      try {
+        return { error: null, model: arrange(model) };
+      } catch (error: unknown) {
+        return { error, model };
+      }
+    }, [appearance.composition, locale, navigation]);
   const compositionContext = useMemo<ConsoleUiCompositionContext>(
     () => ({
       bundleId: appearance.bundleId ?? "lenso/default",
@@ -544,6 +547,12 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     }),
     [appearance.bundleId, appearance.variantId, children, compositionNavigation]
   );
+
+  useEffect(() => {
+    if (compositionNavigationError !== null) {
+      handleCompositionError(compositionNavigationError);
+    }
+  }, [compositionNavigationError, handleCompositionError]);
 
   useEffect(() => {
     if (routeWorkspaceId) {
@@ -757,9 +766,15 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   );
   const ShellComposition = appearance.composition?.slots?.shell;
   return ShellComposition ? (
-    <ShellComposition context={compositionContext}>
-      {defaultShell}
-    </ShellComposition>
+    <ConsoleCompositionErrorBoundary
+      fallback={defaultShell}
+      key={`${appearance.bundleId}:${appearance.variantId}`}
+      onError={handleCompositionError}
+    >
+      <ShellComposition context={compositionContext}>
+        {defaultShell}
+      </ShellComposition>
+    </ConsoleCompositionErrorBoundary>
   ) : (
     defaultShell
   );

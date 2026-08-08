@@ -11,6 +11,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
+import { embeddedOfficialDefaultThemeBundle } from "../../app/console-theme-bundle";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
 import { ProductPage } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
@@ -91,13 +92,28 @@ export function SettingsPage() {
               >
                 <Select
                   aria-label={zh ? "主题包" : "Theme Bundle"}
-                  value={appearance.bundleId ?? ""}
+                  value={
+                    appearance.bundleId ??
+                    embeddedOfficialDefaultThemeBundle.manifest.bundleId
+                  }
                   onChange={(event) => {
-                    appearance.setBundleId(event.target.value || null);
-                    appearance.setVariantId(null);
+                    if (
+                      event.target.value ===
+                      embeddedOfficialDefaultThemeBundle.manifest.bundleId
+                    ) {
+                      appearance.recoverToOfficialDefault();
+                    } else {
+                      appearance.setBundleId(event.target.value || null);
+                      appearance.setVariantId(null);
+                    }
                     reloadThemeSelection();
                   }}
                 >
+                  <option
+                    value={embeddedOfficialDefaultThemeBundle.manifest.bundleId}
+                  >
+                    {zh ? "Lenso 官方默认" : "Lenso Official Default"}
+                  </option>
                   {appearance.themeBundles.map((bundle) => (
                     <option key={bundle.bundleId} value={bundle.bundleId}>
                       {bundle.manifest.displayName} ({bundle.bundleId})

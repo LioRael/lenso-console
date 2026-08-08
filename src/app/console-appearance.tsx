@@ -10,6 +10,7 @@ import {
 } from "@lenso/console-tokens/tokens.stylex";
 import * as stylex from "@stylexjs/stylex";
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
@@ -23,7 +24,13 @@ import {
 
 import { usePersistedLayout } from "../hooks/use-persisted-layout";
 import { useConsoleThemeBundles } from "./console-artifact-query";
-import { loadConsoleThemeBundle } from "./console-theme-bundle";
+import {
+  createConsoleThemeBundleActivation,
+  embeddedOfficialDefaultThemeBundle,
+  prepareConsoleThemeBundleActivation,
+  type ConsoleThemeBundleActivation,
+  type ConsoleThemeBundleActivationTransaction,
+} from "./console-theme-bundle";
 
 const styles = stylex.create({
   themeRoot: {
@@ -48,6 +55,7 @@ const AppearanceContext = createContext<{
   bundleLoading: boolean;
   bundleError: string | null;
   composition: ConsoleUiComposition | undefined;
+  recoverToOfficialDefault: (error?: unknown) => void;
   themeBundles: readonly ConsoleThemeBundleReceipt[];
 }>({
   preference: "dark",
@@ -60,6 +68,7 @@ const AppearanceContext = createContext<{
   bundleLoading: false,
   bundleError: null,
   composition: undefined,
+  recoverToOfficialDefault: () => undefined,
   themeBundles: [],
 });
 
@@ -89,37 +98,58 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
   );
   const [bundleLoading, setBundleLoading] = useState(false);
   const [bundleError, setBundleError] = useState<string | null>(null);
-  const [activeBundle, setActiveBundle] = useState<{
-    bundleId: string;
-    mode: "dark" | "light" | "custom";
-    tokenOverrides: Readonly<Record<string, string | number>>;
-    variantId: string;
-    composition?: ConsoleUiComposition;
-  } | null>(null);
+  const [activeBundle, setActiveBundle] =
+    useState<ConsoleThemeBundleActivation | null>(null);
+  const committedBundleTransaction =
+    useRef<ConsoleThemeBundleActivationTransaction | null>(null);
+  const embeddedDefault = useMemo(
+    () =>
+      createConsoleThemeBundleActivation(
+        embeddedOfficialDefaultThemeBundle,
+        preferredTheme
+      ),
+    [preferredTheme]
+  );
+  const presentation = activeBundle ?? embeddedDefault;
   const theme =
-    activeBundle?.mode && activeBundle.mode !== "custom"
-      ? activeBundle.mode
-      : preferredTheme;
+    presentation.mode === "custom" ? preferredTheme : presentation.mode;
+
+  const recoverToOfficialDefault = useCallback(
+    (error?: unknown) => {
+      committedBundleTransaction.current?.rollback();
+      committedBundleTransaction.current = null;
+      setActiveBundle(null);
+      setBundleLoading(false);
+      if (error === undefined) {
+        setBundleError(null);
+      } else {
+        setBundleError(consoleThemeBundleErrorMessage(error));
+      }
+      setBundleId(null);
+      setVariantId(null);
+    },
+    [setBundleId, setVariantId]
+  );
 
   useEffect(() => {
-    if (!bundlesQuery.data || bundlesQuery.data.length === 0) {
-      setActiveBundle(null);
+    if (bundlesQuery.data === undefined) {
       return;
     }
-    if (!selectedBundle) {
-      const [fallback] = bundlesQuery.data;
-      setBundleId(fallback?.bundleId ?? null);
-      setVariantId(fallback?.manifest.defaultVariant ?? null);
+    if (bundleId && !selectedBundle) {
+      recoverToOfficialDefault(
+        new Error(`Console Theme Bundle is unavailable: ${bundleId}`)
+      );
       return;
     }
-    if (!selectedVariant) {
+    if (selectedBundle && !selectedVariant) {
       setVariantId(selectedBundle.manifest.defaultVariant);
     }
   }, [
+    bundleId,
     bundlesQuery.data,
+    recoverToOfficialDefault,
     selectedBundle,
     selectedVariant,
-    setBundleId,
     setVariantId,
   ]);
 
@@ -130,33 +160,26 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
     const bundle = selectedBundle;
     const variant = selectedVariant;
     let active = true;
+    let committed = false;
+    let transaction: ConsoleThemeBundleActivationTransaction | null = null;
     async function loadBundle() {
       setBundleLoading(true);
       setBundleError(null);
       try {
-        const loaded = await loadConsoleThemeBundle(bundle, {
+        transaction = await prepareConsoleThemeBundleActivation(bundle, {
           variantId: variant.id,
         });
-        if (active) {
-          setActiveBundle({
-            bundleId: bundle.bundleId,
-            mode: variant.mode,
-            tokenOverrides: {
-              ...bundle.manifest.tokenOverrides,
-              ...variant.tokenOverrides,
-            },
-            variantId: variant.id,
-            ...(loaded.composition ? { composition: loaded.composition } : {}),
-          });
+        if (!active) {
+          transaction.rollback();
+          return;
         }
+        transaction.commit();
+        committed = true;
+        committedBundleTransaction.current = transaction;
+        setActiveBundle(transaction.activation);
       } catch (error: unknown) {
         if (active) {
-          setActiveBundle(null);
-          setBundleError(
-            error instanceof Error
-              ? error.message
-              : "Console Theme Bundle could not be loaded"
-          );
+          recoverToOfficialDefault(error);
         }
       } finally {
         if (active) {
@@ -167,8 +190,11 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
     void loadBundle();
     return () => {
       active = false;
+      if (!committed) {
+        transaction?.rollback();
+      }
     };
-  }, [selectedBundle, selectedVariant]);
+  }, [recoverToOfficialDefault, selectedBundle, selectedVariant]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)");
@@ -187,19 +213,18 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
       preference,
       setPreference,
       theme,
-      bundleId: activeBundle?.bundleId ?? bundleId,
+      bundleId: presentation.bundleId,
       setBundleId,
-      variantId: activeBundle?.variantId ?? variantId,
+      variantId: presentation.variantId,
       setVariantId,
       bundleLoading,
       bundleError,
-      composition: activeBundle?.composition,
+      composition: presentation.composition,
+      recoverToOfficialDefault,
       themeBundles: bundlesQuery.data ?? [],
     }),
     [
-      activeBundle,
       bundleError,
-      bundleId,
       bundleLoading,
       preference,
       setBundleId,
@@ -207,11 +232,14 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
       setVariantId,
       theme,
       bundlesQuery.data,
-      variantId,
+      presentation.bundleId,
+      presentation.composition,
+      presentation.variantId,
+      recoverToOfficialDefault,
     ]
   );
   const themeOverrides = useMemo(() => {
-    const overrides = activeBundle?.tokenOverrides ?? {};
+    const overrides = presentation.tokenOverrides;
     const style: Record<string, string | number> = {};
     for (const [name, overrideValue] of Object.entries(overrides)) {
       const key = name.includes(".") ? name.split(".").at(-1) : name;
@@ -224,7 +252,7 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
       }
     }
     return style as CSSProperties;
-  }, [activeBundle]);
+  }, [presentation]);
   const previousThemeOverrideKeys = useRef<string[]>([]);
   const themeClassName = stylex.props(
     theme === "light" ? lightTheme : darkTheme
@@ -272,8 +300,8 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
           theme === "light" ? lightTheme : darkTheme
         )}
         data-stylex-theme={theme}
-        data-theme-bundle={activeBundle?.bundleId ?? undefined}
-        data-theme-variant={activeBundle?.variantId ?? undefined}
+        data-theme-bundle={presentation.bundleId}
+        data-theme-variant={presentation.variantId}
         style={themeOverrides}
       >
         {children}
@@ -291,4 +319,10 @@ function systemThemeValue(): ConsoleTheme {
     window.matchMedia("(prefers-color-scheme: light)").matches
     ? "light"
     : "dark";
+}
+
+function consoleThemeBundleErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Console Theme Bundle could not be activated";
 }
