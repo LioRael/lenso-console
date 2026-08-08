@@ -34,6 +34,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
+        with:
+          package_json_file: package.json
+          run_install: false
       - name: Detect a new Console Service version
         id: version
         shell: bash
