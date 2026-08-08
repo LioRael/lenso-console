@@ -123,6 +123,7 @@ export function DeliveryPage() {
               headerAction={
                 <Button
                   disabled={projection ? projection.readOnly : !isDemoPreview}
+                  size="md"
                   variant="primary"
                 >
                   {copy.delivery.handoff}

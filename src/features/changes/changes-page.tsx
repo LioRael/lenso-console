@@ -76,7 +76,7 @@ export function ChangesPage() {
           selected ? (
             <Inspector
               headerAction={
-                <Button disabled variant="primary">
+                <Button disabled size="md" variant="primary">
                   {copy.changes.approve}
                 </Button>
               }
