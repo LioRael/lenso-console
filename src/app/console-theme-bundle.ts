@@ -1,7 +1,11 @@
 import {
+  CONSOLE_UI_COMPOSITION_PROTOCOL,
   defineConsoleThemeBundle,
   defineConsoleThemeBundleManifest,
+  defineConsoleUiComposition,
   type ConsoleThemeBundleReceipt,
+  type ConsoleThemeBundleManifest,
+  type ConsoleThemeVariantMode,
   type ConsoleUiComposition,
 } from "@lenso/console-composition-api";
 import {
@@ -15,6 +19,121 @@ export interface ConsoleThemeBundleRuntimeOptions {
   variantId?: string;
 }
 
+export interface ConsoleThemeBundleActivation {
+  bundleId: string;
+  mode: ConsoleThemeVariantMode;
+  tokenOverrides: Readonly<Record<string, string | number>>;
+  variantId: string;
+  composition?: ConsoleUiComposition;
+}
+
+export interface ConsoleThemeBundleActivationTransaction {
+  readonly activation: ConsoleThemeBundleActivation;
+  commit(): void;
+  rollback(): void;
+}
+
+const hostConsoleUiMajor = 1;
+let themeStyleTransactionSequence = 0;
+
+const embeddedOfficialDefaultManifest = {
+  assets: [],
+  bundleId: "lenso/default",
+  consoleUi: "^1.0.0",
+  defaultVariant: "dark",
+  displayName: "Lenso Official Default",
+  format: "console_theme_bundle",
+  tokenOverrides: {},
+  variants: [
+    { id: "dark", label: "Dark", mode: "dark" },
+    { id: "light", label: "Light", mode: "light" },
+  ],
+  version: "1.0.0",
+} as const satisfies ConsoleThemeBundleManifest;
+
+/**
+ * The recovery bundle is deliberately part of the Host build. It uses the
+ * same public composition contract as an installed bundle but has no external
+ * artifact or same-origin load dependency.
+ */
+export const embeddedOfficialDefaultThemeBundle = defineConsoleThemeBundle(
+  defineConsoleThemeBundleManifest(embeddedOfficialDefaultManifest),
+  defineConsoleUiComposition({
+    consoleUi: "^1.0.0",
+    protocol: CONSOLE_UI_COMPOSITION_PROTOCOL,
+  })
+);
+
+export function createConsoleThemeBundleActivation(
+  bundle: {
+    manifest: ConsoleThemeBundleManifest;
+    composition: ConsoleUiComposition | undefined;
+  },
+  variantId: string
+): ConsoleThemeBundleActivation {
+  const variant = bundle.manifest.variants.find(
+    (candidate) => candidate.id === variantId
+  );
+  if (!variant) {
+    throw new ConsoleHostError(
+      "incompatible",
+      `Console Theme Bundle variant is not declared: ${bundle.manifest.bundleId}/${variantId}`
+    );
+  }
+  return {
+    bundleId: bundle.manifest.bundleId,
+    mode: variant.mode,
+    tokenOverrides: {
+      ...bundle.manifest.tokenOverrides,
+      ...variant.tokenOverrides,
+    },
+    variantId: variant.id,
+    ...(bundle.composition ? { composition: bundle.composition } : {}),
+  };
+}
+
+export async function prepareConsoleThemeBundleActivation(
+  receipt: ConsoleThemeBundleReceipt,
+  options: ConsoleThemeBundleRuntimeOptions = {}
+): Promise<ConsoleThemeBundleActivationTransaction> {
+  validateReceipt(receipt, options.origin);
+  const variantId = options.variantId ?? receipt.manifest.defaultVariant;
+  const styleTransaction = await stageStyleAssets(
+    receipt,
+    options.origin,
+    variantId
+  );
+
+  try {
+    const composition = await loadComposition(receipt, options);
+    const activation = createConsoleThemeBundleActivation(
+      { manifest: receipt.manifest, composition },
+      variantId
+    );
+    let state: "prepared" | "committed" | "rolled_back" = "prepared";
+    return {
+      activation,
+      commit() {
+        if (state !== "prepared") {
+          return;
+        }
+        styleTransaction.commit();
+        state = "committed";
+      },
+      rollback() {
+        if (state === "rolled_back") {
+          return;
+        }
+        styleTransaction.rollback();
+        state = "rolled_back";
+      },
+    };
+  } catch (error: unknown) {
+    styleTransaction.rollback();
+    throw error;
+  }
+}
+
 export async function loadConsoleThemeBundle(
   receipt: ConsoleThemeBundleReceipt,
   options: ConsoleThemeBundleRuntimeOptions = {}
@@ -22,11 +141,26 @@ export async function loadConsoleThemeBundle(
   manifest: ConsoleThemeBundleReceipt["manifest"];
   composition?: ConsoleUiComposition;
 }> {
-  validateReceipt(receipt, options.origin);
-  await loadStyleAssets(receipt, options.origin, options.variantId);
+  const transaction = await prepareConsoleThemeBundleActivation(
+    receipt,
+    options
+  );
+  transaction.commit();
+  const loadedBundle = transaction.activation.composition
+    ? {
+        manifest: receipt.manifest,
+        composition: transaction.activation.composition,
+      }
+    : { manifest: receipt.manifest };
+  return loadedBundle;
+}
 
+async function loadComposition(
+  receipt: ConsoleThemeBundleReceipt,
+  options: ConsoleThemeBundleRuntimeOptions
+): Promise<ConsoleUiComposition | undefined> {
   if (!receipt.manifest.composition) {
-    return { manifest: receipt.manifest };
+    return undefined;
   }
   const entryUrl = artifactUrl(
     receipt,
@@ -53,13 +187,19 @@ export async function loadConsoleThemeBundle(
     );
   }
   try {
-    const bundle = defineConsoleThemeBundle(
-      receipt.manifest,
+    const validatedComposition = defineConsoleUiComposition(
       composition as ConsoleUiComposition
     );
-    return bundle.composition
-      ? { composition: bundle.composition, manifest: bundle.manifest }
-      : { manifest: bundle.manifest };
+    if (validatedComposition.consoleUi !== receipt.manifest.consoleUi) {
+      throw new TypeError(
+        "Composition Console UI range does not match manifest"
+      );
+    }
+    const bundle = defineConsoleThemeBundle(
+      receipt.manifest,
+      validatedComposition
+    );
+    return bundle.composition;
   } catch {
     throw new ConsoleHostError(
       "incompatible",
@@ -118,6 +258,12 @@ function validateReceipt(
       );
     }
   }
+  if (!consoleUiRangeSupportsHost(receipt.manifest.consoleUi)) {
+    throw new ConsoleHostError(
+      "incompatible",
+      `Console Theme Bundle requires unsupported Console UI range: ${receipt.manifest.consoleUi}`
+    );
+  }
   artifactUrl(
     receipt,
     receipt.manifest.composition?.entry ?? receipt.entries[0]!.path,
@@ -125,13 +271,16 @@ function validateReceipt(
   );
 }
 
-async function loadStyleAssets(
+async function stageStyleAssets(
   receipt: ConsoleThemeBundleReceipt,
   origin?: string,
   variantId?: string
-): Promise<void> {
+): Promise<{ commit(): void; rollback(): void }> {
   if (typeof document === "undefined" || !document.head) {
-    return;
+    return {
+      commit: () => undefined,
+      rollback: () => undefined,
+    };
   }
   const assets = receipt.manifest.assets
     .filter(
@@ -140,41 +289,112 @@ async function loadStyleAssets(
         (asset.variantId === undefined || asset.variantId === variantId)
     )
     .toSorted((left, right) => (left.order ?? 0) - (right.order ?? 0));
-  for (const asset of assets) {
-    const href = artifactUrl(receipt, asset.path, origin);
-    const existing = Array.from(
-      document.head.querySelectorAll("link[data-lenso-console-theme-style]")
-    ).some(
-      (link) =>
-        (link as HTMLLinkElement).dataset.lensoConsoleThemeStyle === href
-    );
-    if (existing) {
-      continue;
+  const transactionId = `theme-${(themeStyleTransactionSequence += 1)}`;
+  const stagedLinks: HTMLLinkElement[] = [];
+  const removeStagedLinks = () => {
+    for (const link of stagedLinks) {
+      link.remove();
     }
-    await new Promise<void>((resolve, reject) => {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = href;
-      if (asset.media) {
-        link.media = asset.media;
+  };
+  const existingHrefs = new Set(
+    Array.from(
+      document.head.querySelectorAll("link[data-lenso-console-theme-style]")
+    )
+      .filter(
+        (link) =>
+          (link as HTMLLinkElement).dataset.lensoConsoleThemeStyleState !==
+          "staged"
+      )
+      .map((link) => (link as HTMLLinkElement).dataset.lensoConsoleThemeStyle)
+  );
+  const nextHrefs = new Set<string>();
+  try {
+    for (const asset of assets) {
+      const href = artifactUrl(receipt, asset.path, origin);
+      nextHrefs.add(href);
+      if (existingHrefs.has(href)) {
+        continue;
       }
-      link.dataset.lensoConsoleThemeStyle = href;
-      link.addEventListener("load", () => resolve(), { once: true });
-      link.addEventListener(
-        "error",
-        () =>
-          reject(
-            new ConsoleHostError(
-              "unavailable",
-              `Console Theme Bundle style asset failed to load: ${asset.path}`,
-              { retryable: true, status: 503 }
-            )
-          ),
-        { once: true }
-      );
-      document.head.append(link);
-    });
+      const link = await appendStagedStyleLink(href, asset, transactionId);
+      stagedLinks.push(link);
+    }
+  } catch (error: unknown) {
+    removeStagedLinks();
+    throw error;
   }
+
+  return {
+    commit() {
+      for (const link of stagedLinks) {
+        const media = link.dataset.lensoConsoleThemeStyleMedia;
+        if (media) {
+          link.media = media;
+        } else {
+          link.removeAttribute("media");
+        }
+        delete link.dataset.lensoConsoleThemeStyleMedia;
+        delete link.dataset.lensoConsoleThemeStyleState;
+        delete link.dataset.lensoConsoleThemeStyleOwner;
+      }
+      for (const link of Array.from(
+        document.head.querySelectorAll("link[data-lenso-console-theme-style]")
+      )) {
+        if (
+          (link as HTMLLinkElement).dataset.lensoConsoleThemeStyleState ===
+          "staged"
+        ) {
+          continue;
+        }
+        const href = (link as HTMLLinkElement).dataset.lensoConsoleThemeStyle;
+        if (href && !nextHrefs.has(href)) {
+          link.remove();
+        }
+      }
+    },
+    rollback() {
+      removeStagedLinks();
+    },
+  };
+}
+
+async function appendStagedStyleLink(
+  href: string,
+  asset: ConsoleThemeBundleReceipt["manifest"]["assets"][number],
+  transactionId: string
+): Promise<HTMLLinkElement> {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  link.media = "not all";
+  link.dataset.lensoConsoleThemeStyle = href;
+  link.dataset.lensoConsoleThemeStyleState = "staged";
+  link.dataset.lensoConsoleThemeStyleOwner = transactionId;
+  if (asset.media) {
+    link.dataset.lensoConsoleThemeStyleMedia = asset.media;
+  }
+  const loaded = new Promise<void>((resolve, reject) => {
+    link.addEventListener("load", () => resolve(), { once: true });
+    link.addEventListener(
+      "error",
+      () =>
+        reject(
+          new ConsoleHostError(
+            "unavailable",
+            `Console Theme Bundle style asset failed to load: ${asset.path}`,
+            { retryable: true, status: 503 }
+          )
+        ),
+      { once: true }
+    );
+  });
+  document.head.append(link);
+  try {
+    await loaded;
+  } catch (error: unknown) {
+    link.remove();
+    throw error;
+  }
+  return link;
 }
 
 function artifactUrl(
@@ -209,6 +429,11 @@ function artifactUrl(
       "Console Theme Bundle must be same-origin"
     );
   }
+}
+
+function consoleUiRangeSupportsHost(range: string): boolean {
+  const match = /^\s*(?:\^|~|>=|<=|>|<|=)?\s*(\d+)/u.exec(range);
+  return match !== null && Number(match[1]) === hostConsoleUiMajor;
 }
 
 function safeRelativePath(value: string): boolean {
