@@ -2,6 +2,9 @@ packages:
   - .
   - packages/*
 
+allowBuilds:
+  esbuild: true
+
 minimumReleaseAgeExclude:
   - vite@8.2.0
   - "@tanstack/history@1.162.1"
