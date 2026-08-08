@@ -1,6 +1,6 @@
 /* eslint-disable complexity, func-style, no-use-before-define */
 
-import type { ConsoleUiComposition } from "./index.js";
+import type { ConsoleUiComposition } from "./index";
 
 export const CONSOLE_THEME_BUNDLE_FORMAT = "console_theme_bundle" as const;
 

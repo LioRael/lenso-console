@@ -1,10 +1,9 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import type { PointerEvent, WheelEvent } from "react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 import { formatRuntimeDuration, serviceColor } from "../../lib/runtime-style";
 import { runtimeNodeType, runtimeNodeTypeLabel } from "../../lib/story";
 import {
@@ -23,6 +22,265 @@ import {
 } from "./runtime-graph-model";
 import { RuntimeViewHeader } from "./runtime-view-header";
 
+const localStyles = stylex.create({
+  utilityIsolate: {
+    isolation: "isolate",
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityTop0: {
+    top: "calc(0.25rem * 0)",
+  },
+  utilityRight0: {
+    right: "calc(0.25rem * 0)",
+  },
+  utilityLeft0: {
+    left: "calc(0.25rem * 0)",
+  },
+  utilityZ2: {
+    zIndex: "2",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityTransition: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityHoverTextFgPrimary: {
+    ":hover": {
+      color: "var(--fg-primary)",
+    },
+  },
+  utilityInset0: {
+    inset: "calc(0.25rem * 0)",
+  },
+  utilityZ3: {
+    zIndex: "3",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityPlaceItemsCenter: {
+    placeItems: "center",
+  },
+  utilityP4: {
+    padding: "calc(0.25rem * 4)",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgPanel: {
+    backgroundColor: "var(--bg-panel)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityTextXs: {
+    fontSize: "var(--text-xs, 0.75rem)",
+    lineHeight: "var(--text-xs--line-height, 1rem)",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityZ0: {
+    zIndex: "0",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityCursorGrabbing: {
+    cursor: "grabbing",
+  },
+  utilitySelectNone: {
+    WebkitUserSelect: "none",
+    userSelect: "none",
+  },
+  utilityCursorGrab: {
+    cursor: "grab",
+  },
+  utilityPointerEventsNone: {
+    pointerEvents: "none",
+  },
+  utilitySizeFull: {
+    width: "100%",
+    height: "100%",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityJustifyBetween: {
+    justifyContent: "space-between",
+  },
+  utilityPx2: {
+    paddingInline: "calc(0.25rem * 2)",
+  },
+  utilityPt15: {
+    paddingTop: "calc(0.25rem * 1.5)",
+  },
+  utilityPb15: {
+    paddingBottom: "calc(0.25rem * 1.5)",
+  },
+  utilityItemsStart: {
+    alignItems: "flex-start",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityMaxW14: {
+    maxWidth: "calc(0.25rem * 14)",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityRoundedXs: {
+    borderRadius: "var(--radius-xs, 0.125rem)",
+  },
+  utilityPx1: {
+    paddingInline: "calc(0.25rem * 1)",
+  },
+  utilityPy05: {
+    paddingBlock: "calc(0.25rem * 0.5)",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityTracking006em: {
+    letterSpacing: "0.06em",
+  },
+  utilityBgColorMixInSrgbVarError10Transparent: {
+    backgroundColor: "color-mix(in srgb,var(--error) 10%,transparent)",
+  },
+  utilityTextError: {
+    color: "var(--error)",
+  },
+  utilityBgBgRowHover: {
+    backgroundColor: "var(--bg-row-hover)",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityBlock: {
+    display: "block",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityMt05: {
+    marginTop: "calc(0.25rem * 0.5)",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityTop1: {
+    top: "calc(0.25rem * -1)",
+  },
+  utilityRight1: {
+    right: "calc(0.25rem * -1)",
+  },
+  utilitySize25: {
+    width: "calc(0.25rem * 2.5)",
+    height: "calc(0.25rem * 2.5)",
+  },
+  utilityRoundedFull: {
+    borderRadius: "calc(infinity * 1px)",
+  },
+  utilityBorderBgControl: {
+    borderColor: "var(--bg-control)",
+  },
+  utilityBgVarError: {
+    backgroundColor: "var(--error)",
+  },
+  utilityBottom10: {
+    bottom: "calc(0.25rem * 10)",
+  },
+  utilityLeft4: {
+    left: "calc(0.25rem * 4)",
+  },
+  utilitySize7: {
+    width: "calc(0.25rem * 7)",
+    height: "calc(0.25rem * 7)",
+  },
+  utilityBgBgControl: {
+    backgroundColor: "var(--bg-control)",
+  },
+  utilityHoverBorderFgQuaternary: {
+    ":hover": {
+      borderColor: "var(--fg-quaternary)",
+    },
+  },
+  utilityRight4: {
+    right: "calc(0.25rem * 4)",
+  },
+  utilityH25: {
+    height: "calc(0.25rem * 25)",
+  },
+  utilityW35: {
+    width: "calc(0.25rem * 35)",
+  },
+  utilityBgColorMixInSrgbVarBgCanvas90Transparent: {
+    backgroundColor: "color-mix(in srgb,var(--bg-canvas) 90%,transparent)",
+  },
+  utilityBottom2: {
+    bottom: "calc(0.25rem * 2)",
+  },
+  utilityLeft12: {
+    left: "calc(1 / 2 * 100%)",
+  },
+  utilityTranslateX12: {
+    transform: "translateX(calc(50% * -1))",
+  },
+  utilityGap4: {
+    gap: "calc(0.25rem * 4)",
+  },
+  utilityBgColorMixInSrgbVarBgCanvas84Transparent: {
+    backgroundColor: "color-mix(in srgb,var(--bg-canvas) 84%,transparent)",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy15: {
+    paddingBlock: "calc(0.25rem * 1.5)",
+  },
+});
+
 const nodeWidth = 150;
 const nodeHeight = 64;
 const columnWidth = 190;
@@ -30,6 +288,121 @@ const rowHeight = 84;
 const canvasPadding = 64;
 const minimapWidth = 140;
 const minimapHeight = 100;
+
+const styles = stylex.create({
+  canvas: (props: {
+    height: number;
+    left: number;
+    top: number;
+    transform: string;
+    width: number;
+  }) => ({
+    height: props.height,
+    left: props.left,
+    position: "absolute",
+    top: props.top,
+    transform: props.transform,
+    transformOrigin: "top left",
+    width: props.width,
+  }),
+  graphNode: (props: { borderColor: string; left: number; top: number }) => ({
+    backgroundColor: "var(--bg-control)",
+    borderColor: props.borderColor,
+    borderRadius: "2px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    cursor: "pointer",
+    height: 64,
+    left: props.left,
+    position: "absolute",
+    textAlign: "left",
+    top: props.top,
+    transitionProperty: "background-color",
+    width: 150,
+    ":hover": { backgroundColor: "var(--bg-row-hover)" },
+  }),
+  graphNodeSelected: { boxShadow: "0 0 0 1px var(--line-strong)" },
+  minimapCanvas: (props: { height: number; scale: number; width: number }) => ({
+    height: props.height,
+    left: 8,
+    position: "absolute",
+    top: 8,
+    transform: `scale(${props.scale})`,
+    transformOrigin: "top left",
+    width: props.width,
+  }),
+  minimapNode: (props: {
+    color: string;
+    left: number;
+    opacity: number;
+    top: number;
+  }) => ({
+    backgroundColor: props.color,
+    borderRadius: "2px",
+    height: 64,
+    left: props.left,
+    opacity: props.opacity,
+    position: "absolute",
+    top: props.top,
+    width: 150,
+  }),
+  missingEdges: {
+    backgroundColor: "color-mix(in srgb,var(--bg-canvas) 92%,transparent)",
+    borderColor: "var(--tone-warning-border)",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: "var(--tone-warning-fg)",
+    fontFamily: "var(--font-code)",
+    fontSize: 11,
+    left: "50%",
+    padding: 12,
+    position: "absolute",
+    top: 48,
+    transform: "translateX(-50%)",
+    width: "min(520px, calc(100% - 32px))",
+    zIndex: 3,
+    boxShadow: "var(--elevation-overlay)",
+  },
+  parallelTag: {
+    backgroundColor: "var(--tone-info-bg)",
+    borderRadius: "2px",
+    color: "var(--tone-info-fg)",
+    fontSize: 9,
+    paddingInline: 4,
+  },
+  serviceBadge: (color: string) => ({
+    backgroundColor: `${color}18`,
+    borderColor: `${color}30`,
+    borderRadius: "2px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    color,
+    fontFamily: "var(--font-code)",
+    fontSize: 9,
+    fontWeight: 700,
+    maxWidth: 64,
+    overflow: "hidden",
+    paddingBlock: 2,
+    paddingInline: 4,
+    textOverflow: "ellipsis",
+    textTransform: "uppercase",
+    whiteSpace: "nowrap",
+  }),
+  serviceBar: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "2px 2px 0 0",
+    height: 3,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  }),
+  workspace: (height: number, width: number) => ({
+    height,
+    position: "relative",
+    width,
+  }),
+});
 
 export function FlowView({
   selectedNodeId,
@@ -287,19 +660,36 @@ export function FlowView({
 
   return (
     <div
-      className={stylexClassName(
-        "isolate relative h-full min-w-0 overflow-hidden bg-(--bg-canvas)"
-      )}
+      {...stylex.props([
+        localStyles.utilityIsolate,
+        localStyles.utilityRelative,
+        localStyles.utilityHFull,
+        localStyles.utilityMinW0,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBgCanvas,
+      ])}
     >
-      <div className={stylexClassName("absolute top-0 right-0 left-0 z-2")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityTop0,
+          localStyles.utilityRight0,
+          localStyles.utilityLeft0,
+          localStyles.utilityZ2,
+        ])}
+      >
         <RuntimeViewHeader
           summary={`${nodes.length} nodes · ${edges.length} ${graphModel.source === "backend" ? "backend" : "derived"} edges · ${Math.round(zoom * 100)}%`}
           title="Execution Graph"
         >
           <button
-            className={stylexClassName(
-              "flex items-center gap-1.5 transition hover:text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityGap15,
+              localStyles.utilityTransition,
+              localStyles.utilityHoverTextFgPrimary,
+            ])}
             onClick={frameCanvas}
             type="button"
           >
@@ -310,11 +700,7 @@ export function FlowView({
       </div>
 
       {graphModel.state === "missing-edges" ? (
-        <div
-          className={stylexClassName(
-            "absolute top-12 left-1/2 z-3 w-[min(520px,calc(100%-32px))] -translate-x-1/2 border tint-border tint-warning bg-[color-mix(in_srgb,var(--bg-canvas)_92%,transparent)] p-3 font-mono text-[11px] tint-text shadow-(--elevation-overlay)"
-          )}
-        >
+        <div {...stylex.props(styles.missingEdges)}>
           This story includes execution nodes, but the backend did not return
           graph edges.
         </div>
@@ -322,14 +708,25 @@ export function FlowView({
 
       {graphModel.state === "empty-nodes" ? (
         <div
-          className={stylexClassName(
-            "absolute inset-0 z-3 grid place-items-center p-4"
-          )}
+          {...stylex.props([
+            localStyles.utilityAbsolute,
+            localStyles.utilityInset0,
+            localStyles.utilityZ3,
+            localStyles.utilityGrid,
+            localStyles.utilityPlaceItemsCenter,
+            localStyles.utilityP4,
+          ])}
         >
           <div
-            className={stylexClassName(
-              "border border-(--line) bg-(--bg-panel) p-4 font-mono text-xs text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityBorder,
+              localStyles.utilityBorderLine,
+              localStyles.utilityBgBgPanel,
+              localStyles.utilityP4,
+              localStyles.utilityFontMono,
+              localStyles.utilityTextXs,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             This story does not include execution nodes yet.
           </div>
@@ -337,9 +734,16 @@ export function FlowView({
       ) : null}
 
       <div
-        className={cn(
-          "relative z-0 h-full overflow-auto",
-          isPanning ? "cursor-grabbing select-none" : "cursor-grab"
+        {...stylex.props(
+          [
+            localStyles.utilityRelative,
+            localStyles.utilityZ0,
+            localStyles.utilityHFull,
+            localStyles.utilityOverflowAuto,
+          ],
+          isPanning
+            ? [localStyles.utilityCursorGrabbing, localStyles.utilitySelectNone]
+            : [localStyles.utilityCursorGrab]
         )}
         onPointerCancel={stopPan}
         onPointerDown={startPan}
@@ -349,28 +753,32 @@ export function FlowView({
         ref={setViewportNode}
       >
         <div
-          className={stylexClassName("relative")}
-          style={{
-            height: workspaceLayout.workspaceHeight,
-            width: workspaceLayout.workspaceWidth,
-          }}
+          {...stylex.props(
+            styles.workspace(
+              workspaceLayout.workspaceHeight,
+              workspaceLayout.workspaceWidth
+            )
+          )}
         >
           <div
-            className={stylexClassName("absolute top-0 left-0")}
-            style={{
-              height: canvasHeight,
-              left: workspaceLayout.marginLeft,
-              top: workspaceLayout.marginTop,
-              transform: `scale(${zoom})`,
-              transformOrigin: "top left",
-              width: canvasWidth,
-            }}
+            {...stylex.props(
+              styles.canvas({
+                height: canvasHeight,
+                left: workspaceLayout.marginLeft,
+                top: workspaceLayout.marginTop,
+                transform: `scale(${zoom})`,
+                width: canvasWidth,
+              })
+            )}
           >
             <svg
               aria-label="Story flow connectors"
-              className={stylexClassName(
-                "pointer-events-none absolute inset-0 size-full"
-              )}
+              {...stylex.props([
+                localStyles.utilityPointerEventsNone,
+                localStyles.utilityAbsolute,
+                localStyles.utilityInset0,
+                localStyles.utilitySizeFull,
+              ])}
             >
               <title>Story flow connectors</title>
               {edges.map((edge) => {
@@ -407,90 +815,104 @@ export function FlowView({
                 <button
                   aria-label={`Select graph node ${node.name}`}
                   aria-pressed={isSelected}
-                  className={cn(
-                    "absolute h-[64px] w-[150px] cursor-pointer rounded-sm border bg-(--bg-control) text-left transition hover:bg-(--bg-row-hover)",
-                    isSelected &&
-                      "border-(--line-strong) ring-1 ring-(--line-strong)",
-                    !isSelected &&
-                      isError &&
-                      "border-[color-mix(in_srgb,var(--error)_45%,transparent)]",
-                    !isSelected &&
-                      !isError &&
-                      "border-(--line) hover:border-(--fg-quaternary)"
+                  {...stylex.props(
+                    styles.graphNode({
+                      borderColor: isSelected
+                        ? "var(--line-strong)"
+                        : isError
+                          ? "color-mix(in srgb,var(--error) 45%,transparent)"
+                          : "var(--line)",
+                      left: x,
+                      top: y,
+                    }),
+                    isSelected && styles.graphNodeSelected
                   )}
                   key={node.id}
                   onClick={() => onSelectNode(node)}
-                  style={{ left: x, top: y }}
                   type="button"
                 >
+                  <span {...stylex.props(styles.serviceBar(color))} />
                   <span
-                    className={stylexClassName(
-                      "absolute top-0 right-0 left-0 h-0.75 rounded-t-sm"
-                    )}
-                    style={{ backgroundColor: color }}
-                  />
-                  <span
-                    className={stylexClassName(
-                      "flex h-full flex-col justify-between px-2 pt-1.5 pb-1.5"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityFlex,
+                      localStyles.utilityHFull,
+                      localStyles.utilityFlexCol,
+                      localStyles.utilityJustifyBetween,
+                      localStyles.utilityPx2,
+                      localStyles.utilityPt15,
+                      localStyles.utilityPb15,
+                    ])}
                   >
                     <span
-                      className={stylexClassName(
-                        "flex items-start justify-between gap-2"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityFlex,
+                        localStyles.utilityItemsStart,
+                        localStyles.utilityJustifyBetween,
+                        localStyles.utilityGap2,
+                      ])}
                     >
-                      <span
-                        className={stylexClassName(
-                          "max-w-16 truncate rounded-xs border px-1 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.06em]"
-                        )}
-                        style={{
-                          backgroundColor: `${color}18`,
-                          borderColor: `${color}30`,
-                          color,
-                        }}
-                      >
+                      <span {...stylex.props(styles.serviceBadge(color))}>
                         {node.service}
                       </span>
                       <span
-                        className={cn(
-                          "max-w-14 truncate rounded-xs px-1 py-0.5 font-mono text-[9px] uppercase tracking-[0.06em]",
+                        {...stylex.props(
+                          [
+                            localStyles.utilityMaxW14,
+                            localStyles.utilityTruncate,
+                            localStyles.utilityRoundedXs,
+                            localStyles.utilityPx1,
+                            localStyles.utilityPy05,
+                            localStyles.utilityFontMono,
+                            localStyles.utilityText9px,
+                            localStyles.utilityUppercase,
+                            localStyles.utilityTracking006em,
+                          ],
                           isError
-                            ? "bg-[color-mix(in_srgb,var(--error)_10%,transparent)] text-(--error)"
-                            : "bg-(--bg-row-hover) text-(--fg-secondary)"
+                            ? [
+                                localStyles.utilityBgColorMixInSrgbVarError10Transparent,
+                                localStyles.utilityTextError,
+                              ]
+                            : [
+                                localStyles.utilityBgBgRowHover,
+                                localStyles.utilityTextFgSecondary,
+                              ]
                         )}
                       >
                         {flowNodeKindLabel(node)}
                       </span>
                     </span>
-                    <span className={stylexClassName("min-w-0")}>
+                    <span {...stylex.props([localStyles.utilityMinW0])}>
                       <span
-                        className={stylexClassName(
-                          "block truncate font-mono text-[11px] text-(--fg-primary)"
-                        )}
+                        {...stylex.props([
+                          localStyles.utilityBlock,
+                          localStyles.utilityTruncate,
+                          localStyles.utilityFontMono,
+                          localStyles.utilityText11px,
+                          localStyles.utilityTextFgPrimary,
+                        ])}
                       >
                         {node.name}
                       </span>
                       <span
-                        className={stylexClassName(
-                          "mt-0.5 flex min-w-0 items-center gap-1 font-mono text-[9px] text-(--fg-tertiary)"
-                        )}
+                        {...stylex.props([
+                          localStyles.utilityMt05,
+                          localStyles.utilityFlex,
+                          localStyles.utilityMinW0,
+                          localStyles.utilityItemsCenter,
+                          localStyles.utilityGap1,
+                          localStyles.utilityFontMono,
+                          localStyles.utilityText9px,
+                          localStyles.utilityTextFgTertiary,
+                        ])}
                       >
                         <span>{formatRuntimeDuration(node.durationMs)}</span>
                         {fanoutGroup ? (
-                          <span
-                            className={stylexClassName(
-                              "shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info"
-                            )}
-                          >
+                          <span {...stylex.props(styles.parallelTag)}>
                             fan-out {fanoutGroup.branchCount}
                           </span>
                         ) : null}
                         {!fanoutGroup && parallelGroup ? (
-                          <span
-                            className={stylexClassName(
-                              "shrink-0 rounded-xs px-1 py-0 text-[9px] tint tint-info"
-                            )}
-                          >
+                          <span {...stylex.props(styles.parallelTag)}>
                             parallel
                           </span>
                         ) : null}
@@ -499,9 +921,16 @@ export function FlowView({
                   </span>
                   {isError ? (
                     <span
-                      className={stylexClassName(
-                        "absolute -top-1 -right-1 size-2.5 rounded-full border border-(--bg-control) bg-[var(--error)]"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityAbsolute,
+                        localStyles.utilityTop1,
+                        localStyles.utilityRight1,
+                        localStyles.utilitySize25,
+                        localStyles.utilityRoundedFull,
+                        localStyles.utilityBorder,
+                        localStyles.utilityBorderBgControl,
+                        localStyles.utilityBgVarError,
+                      ])}
                     />
                   ) : null}
                 </button>
@@ -512,15 +941,31 @@ export function FlowView({
       </div>
 
       <div
-        className={stylexClassName(
-          "absolute bottom-10 left-4 z-2 flex flex-col gap-1"
-        )}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityBottom10,
+          localStyles.utilityLeft4,
+          localStyles.utilityZ2,
+          localStyles.utilityFlex,
+          localStyles.utilityFlexCol,
+          localStyles.utilityGap1,
+        ])}
       >
         <button
           aria-label="Zoom graph in"
-          className={stylexClassName(
-            "grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilitySize7,
+            localStyles.utilityPlaceItemsCenter,
+            localStyles.utilityRoundedXs,
+            localStyles.utilityBorder,
+            localStyles.utilityBorderLine,
+            localStyles.utilityBgBgControl,
+            localStyles.utilityTextFgSecondary,
+            localStyles.utilityTransition,
+            localStyles.utilityHoverBorderFgQuaternary,
+            localStyles.utilityHoverTextFgPrimary,
+          ])}
           onClick={() => zoomBy(flowViewDefaults.zoomStep)}
           type="button"
         >
@@ -528,9 +973,19 @@ export function FlowView({
         </button>
         <button
           aria-label="Zoom graph out"
-          className={stylexClassName(
-            "grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilitySize7,
+            localStyles.utilityPlaceItemsCenter,
+            localStyles.utilityRoundedXs,
+            localStyles.utilityBorder,
+            localStyles.utilityBorderLine,
+            localStyles.utilityBgBgControl,
+            localStyles.utilityTextFgSecondary,
+            localStyles.utilityTransition,
+            localStyles.utilityHoverBorderFgQuaternary,
+            localStyles.utilityHoverTextFgPrimary,
+          ])}
           onClick={() => zoomBy(-flowViewDefaults.zoomStep)}
           type="button"
         >
@@ -538,9 +993,19 @@ export function FlowView({
         </button>
         <button
           aria-label="Frame graph"
-          className={stylexClassName(
-            "grid size-7 place-items-center rounded-xs border border-(--line) bg-(--bg-control) text-(--fg-secondary) transition hover:border-(--fg-quaternary) hover:text-(--fg-primary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilitySize7,
+            localStyles.utilityPlaceItemsCenter,
+            localStyles.utilityRoundedXs,
+            localStyles.utilityBorder,
+            localStyles.utilityBorderLine,
+            localStyles.utilityBgBgControl,
+            localStyles.utilityTextFgSecondary,
+            localStyles.utilityTransition,
+            localStyles.utilityHoverBorderFgQuaternary,
+            localStyles.utilityHoverTextFgPrimary,
+          ])}
           onClick={frameCanvas}
           type="button"
         >
@@ -549,40 +1014,65 @@ export function FlowView({
       </div>
 
       <div
-        className={stylexClassName(
-          "absolute right-4 bottom-10 z-2 h-25 w-35 overflow-hidden rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_90%,transparent)]"
-        )}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityRight4,
+          localStyles.utilityBottom10,
+          localStyles.utilityZ2,
+          localStyles.utilityH25,
+          localStyles.utilityW35,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityRoundedXs,
+          localStyles.utilityBorder,
+          localStyles.utilityBorderLine,
+          localStyles.utilityBgColorMixInSrgbVarBgCanvas90Transparent,
+        ])}
       >
         <div
-          className={stylexClassName("absolute top-2 left-2")}
-          style={{
-            height: canvasHeight,
-            transform: `scale(${minimapScale})`,
-            transformOrigin: "top left",
-            width: canvasWidth,
-          }}
+          {...stylex.props(
+            styles.minimapCanvas({
+              height: canvasHeight,
+              scale: minimapScale,
+              width: canvasWidth,
+            })
+          )}
         >
           {nodes.map(({ node, x, y }) => (
             <div
-              className={stylexClassName(
-                "absolute h-[64px] w-[150px] rounded-sm"
+              {...stylex.props(
+                styles.minimapNode({
+                  color: serviceColor(node.service),
+                  left: x,
+                  opacity: selectedNodeId === node.id ? 1 : 0.45,
+                  top: y,
+                })
               )}
               key={node.id}
-              style={{
-                backgroundColor: serviceColor(node.service),
-                left: x,
-                opacity: selectedNodeId === node.id ? 1 : 0.45,
-                top: y,
-              }}
             />
           ))}
         </div>
       </div>
 
       <div
-        className={stylexClassName(
-          "absolute bottom-2 left-1/2 z-2 flex -translate-x-1/2 items-center gap-4 rounded-xs border border-(--line) bg-[color-mix(in_srgb,var(--bg-canvas)_84%,transparent)] px-3 py-1.5 font-mono text-[11px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityAbsolute,
+          localStyles.utilityBottom2,
+          localStyles.utilityLeft12,
+          localStyles.utilityZ2,
+          localStyles.utilityFlex,
+          localStyles.utilityTranslateX12,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap4,
+          localStyles.utilityRoundedXs,
+          localStyles.utilityBorder,
+          localStyles.utilityBorderLine,
+          localStyles.utilityBgColorMixInSrgbVarBgCanvas84Transparent,
+          localStyles.utilityPx3,
+          localStyles.utilityPy15,
+          localStyles.utilityFontMono,
+          localStyles.utilityText11px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         <span>Select nodes</span>
         <span>{Math.round(zoom * 100)}%</span>

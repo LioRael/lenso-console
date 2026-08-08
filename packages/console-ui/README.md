@@ -55,12 +55,12 @@ slots and shared token contract:
 ```
 
 ```tsx
-import { SurfaceRoot, styles } from "@lenso/console-ui";
+import { ConsolePage, SurfaceRoot, pageStyles } from "@lenso/console-ui";
 
 function Invoices() {
   return (
     <SurfaceRoot moduleId="acme/billing" surfaceId="invoices">
-      <ConsolePage stylex={styles.page}>Invoices</ConsolePage>
+      <ConsolePage stylex={pageStyles.page}>Invoices</ConsolePage>
     </SurfaceRoot>
   );
 }

@@ -1,14 +1,13 @@
 import {
-  stylexClassName,
   Button,
   Input,
-  mergeStyleProps,
   Select,
   SettingsRow,
-  styles,
+  settingsStyles,
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
@@ -62,14 +61,14 @@ export function SettingsPage() {
   return (
     <ProductPage
       description={copy.settings.description}
-      pageClassName="settings-product-page"
+      pageKind="settings-product-page"
       title={copy.settings.title}
     >
-      <div className={stylexClassName("settings-page")}>
+      <div data-page-slot="settings-page">
         <SettingsNavigation zh={zh} />
-        <div className={stylexClassName("settings-page__content")}>
-          <header className={stylexClassName("settings-page__header")}>
-            <div className={stylexClassName("settings-page__header-copy")}>
+        <div data-page-slot="settings-page__content">
+          <header data-page-slot="settings-page__header">
+            <div data-page-slot="settings-page__header-copy">
               <h2>{zh ? "通用" : "General"}</h2>
               <p>
                 {zh
@@ -82,7 +81,7 @@ export function SettingsPage() {
           {appearance.themeBundles.length > 0 ? (
             <>
               <SettingsRow
-                className={stylexClassName("settings-page__row")}
+                data-page-slot="settings-page__row"
                 description={
                   zh
                     ? "主题包由 Console 管理员安装；操作员可以随时切换。"
@@ -115,7 +114,7 @@ export function SettingsPage() {
                 }
                 return (
                   <SettingsRow
-                    className={stylexClassName("settings-page__row")}
+                    data-page-slot="settings-page__row"
                     description={
                       zh
                         ? "主题包可以提供深色、浅色或自定义变体。"
@@ -146,7 +145,7 @@ export function SettingsPage() {
           ) : null}
 
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            data-page-slot="settings-page__row"
             description={
               zh
                 ? "显示给操作员，并写入导出的证据。"
@@ -156,13 +155,13 @@ export function SettingsPage() {
           >
             <Input
               aria-label={zh ? "工作区名称" : "Workspace name"}
-              className={stylexClassName("settings-page__input")}
+              data-page-slot="settings-page__input"
               onChange={(event) => update("workspaceName", event.target.value)}
               value={draft.workspaceName}
             />
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            data-page-slot="settings-page__row"
             description={
               zh
                 ? "API 客户端使用的稳定标识符。"
@@ -172,15 +171,13 @@ export function SettingsPage() {
           >
             <Input
               aria-label={zh ? "工作区标识" : "Workspace slug"}
-              className={stylexClassName(
-                "settings-page__input settings-page__input--mono"
-              )}
+              data-page-slot="settings-page__input settings-page__input--mono"
               onChange={(event) => update("workspaceSlug", event.target.value)}
               value={draft.workspaceSlug}
             />
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            data-page-slot="settings-page__row"
             description={
               zh
                 ? "运营视图的初始环境。"
@@ -200,7 +197,7 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            data-page-slot="settings-page__row"
             description={
               zh
                 ? "用于时间线显示与证据导出。"
@@ -220,13 +217,13 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            data-page-slot="settings-page__row"
             description={copy.settings.languageDescription}
             label={copy.settings.consoleLanguage}
           >
             <Select
               aria-label={copy.settings.consoleLanguage}
-              className={stylexClassName("settings-page__select")}
+              data-page-slot="settings-page__select"
               onChange={(event) =>
                 locale.setPreference(
                   event.target.value as ConsoleLanguagePreference
@@ -240,7 +237,7 @@ export function SettingsPage() {
             </Select>
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName("settings-page__row")}
+            data-page-slot="settings-page__row"
             description={
               zh
                 ? "流式更新不可用时的轮询间隔。"
@@ -259,9 +256,7 @@ export function SettingsPage() {
             </SettingsSelect>
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName(
-              "settings-page__row settings-page__row--toggle"
-            )}
+            data-page-slot="settings-page__row settings-page__row--toggle"
             description={
               zh
                 ? "操作员必须在审批前记录简明理由。"
@@ -282,9 +277,7 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName(
-              "settings-page__row settings-page__row--toggle"
-            )}
+            data-page-slot="settings-page__row settings-page__row--toggle"
             description={
               zh
                 ? "Agent 可以准备有边界的草稿，但不能批准。"
@@ -307,9 +300,7 @@ export function SettingsPage() {
             />
           </SettingsRow>
           <SettingsRow
-            className={stylexClassName(
-              "settings-page__row settings-page__row--toggle"
-            )}
+            data-page-slot="settings-page__row settings-page__row--toggle"
             description={
               zh
                 ? "显示标记为实验性的 Console 页面。"
@@ -323,11 +314,8 @@ export function SettingsPage() {
               value={draft.experimentalSurfaces}
             />
           </SettingsRow>
-          <div className={stylexClassName("settings-page__actions")}>
-            <span
-              aria-live="polite"
-              className={stylexClassName("settings-page__status")}
-            >
+          <div data-page-slot="settings-page__actions">
+            <span aria-live="polite" data-page-slot="settings-page__status">
               {saved
                 ? copy.settings.saved
                 : isDirty
@@ -379,31 +367,29 @@ function SettingsNavigation({ zh }: { zh: boolean }) {
       ];
   return (
     <nav
-      className={stylexClassName("settings-page__navigation")}
+      data-page-slot="settings-page__navigation"
       aria-label={zh ? "设置分类" : "Settings categories"}
     >
       {groups.map(([label, items], groupIndex) => (
         <div
-          className={stylexClassName("settings-page__navigation-group")}
+          data-page-slot="settings-page__navigation-group"
           data-first={groupIndex === 0 ? "true" : "false"}
           key={label as string}
         >
-          <div className={stylexClassName("settings-page__navigation-label")}>
+          <div data-page-slot="settings-page__navigation-label">
             {label as string}
           </div>
-          <div className={stylexClassName("settings-page__navigation-items")}>
+          <div data-page-slot="settings-page__navigation-items">
             {(items as string[]).map((item, itemIndex) => (
               <button
                 aria-current={
                   groupIndex === 0 && itemIndex === 0 ? "page" : undefined
                 }
-                className={stylexClassName(
-                  `settings-page__navigation-item ${
-                    groupIndex === 0 && itemIndex === 0
-                      ? "settings-page__navigation-item--active"
-                      : ""
-                  }`
-                )}
+                data-page-slot={`settings-page__navigation-item ${
+                  groupIndex === 0 && itemIndex === 0
+                    ? "settings-page__navigation-item--active"
+                    : ""
+                }`}
                 key={item}
                 type="button"
               >
@@ -430,7 +416,7 @@ function SettingsSelect({
   return (
     <Select
       aria-label={label}
-      className={stylexClassName("settings-page__select")}
+      data-page-slot="settings-page__select"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -448,28 +434,28 @@ function SettingsToggle({
   onChange: (value: boolean) => void;
   value: boolean;
 }) {
+  const toggleStyleProps = stylex.props(
+    settingsStyles.settingsToggle,
+    value ? settingsStyles.settingsToggleOn : settingsStyles.settingsToggleOff
+  );
+  const knobStyleProps = stylex.props(
+    settingsStyles.settingsToggleKnob,
+    value
+      ? settingsStyles.settingsToggleKnobOn
+      : settingsStyles.settingsToggleKnobOff
+  );
+
   return (
     <button
       aria-checked={value}
       aria-label={label}
-      {...mergeStyleProps(
-        undefined,
-        "settings-page__toggle",
-        styles.settingsToggle,
-        value ? styles.settingsToggleOn : styles.settingsToggleOff
-      )}
+      {...toggleStyleProps}
+      data-page-slot="settings-page__toggle"
       onClick={() => onChange(!value)}
       role="switch"
       type="button"
     >
-      <span
-        {...mergeStyleProps(
-          undefined,
-          "settings-page__toggle-knob",
-          styles.settingsToggleKnob,
-          value ? styles.settingsToggleKnobOn : styles.settingsToggleKnobOff
-        )}
-      />
+      <span {...knobStyleProps} data-page-slot="settings-page__toggle-knob" />
     </button>
   );
 }

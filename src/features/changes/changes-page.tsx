@@ -1,10 +1,5 @@
-import {
-  stylexClassName,
-  Button,
-  IconSlot,
-  Select,
-  useConsoleLocale,
-} from "@lenso/console-ui";
+import { Button, IconSlot, Select, useConsoleLocale } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { ChevronDown, ListFilter } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -18,6 +13,20 @@ import {
   StatusDot,
 } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
+
+const localStyles = stylex.create({
+  utilitySrOnly: {
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    padding: "0",
+    margin: "-1px",
+    overflow: "hidden",
+    clipPath: "inset(50%)",
+    whiteSpace: "nowrap",
+    borderWidth: "0",
+  },
+});
 
 export function ChangesPage() {
   const { locale } = useConsoleLocale();
@@ -46,28 +55,26 @@ export function ChangesPage() {
     <ProductPage
       description={copy.changes.description}
       meta={
-        <span className={stylexClassName("changes-page__meta")}>
+        <span data-page-slot="changes-page__meta">
           {plans.length} {copy.changes.active} · {awaitingCount}{" "}
           {copy.changes.awaitingYou}
         </span>
       }
-      pageClassName="changes-page"
+      pageKind="changes-page"
       title={copy.changes.title}
     >
       <ProductTabs
         active={copy.changes.tabs[tabIndex]!}
-        className={stylexClassName("changes-page__tabs")}
         items={copy.changes.tabs}
         onChange={(item) =>
           setTabIndex(copy.changes.tabs.indexOf(item as never))
         }
+        pageSlot="changes-page__tabs"
       />
       <SplitWorkspace
-        className={stylexClassName("changes-page__workspace")}
         inspector={
           selected ? (
             <Inspector
-              className={stylexClassName("changes-inspector")}
               headerAction={
                 <Button disabled variant="primary">
                   {copy.changes.approve}
@@ -75,6 +82,7 @@ export function ChangesPage() {
               }
               subtitle={`${selected.id} · ${selected.module} · ${timeLabel(selected.occurredAt)}`}
               title={selected.name}
+              pageSlot="changes-inspector"
             >
               <InspectorSection title={copy.changes.intent}>
                 <p>{selected.detail}</p>
@@ -101,28 +109,29 @@ export function ChangesPage() {
               </InspectorSection>
             </Inspector>
           ) : (
-            <div className={stylexClassName("changes-page__no-data")}>
+            <div data-page-slot="changes-page__no-data">
               {copy.common.noData}
             </div>
           )
         }
         inspectorWidth={616}
+        pageSlot="changes-page__workspace"
       >
-        <div className={stylexClassName("changes-page__list")}>
-          <div className={stylexClassName("changes-page__list-header")}>
-            <span className={stylexClassName("changes-page__toolbar-control")}>
+        <div data-page-slot="changes-page__list">
+          <div data-page-slot="changes-page__list-header">
+            <span data-page-slot="changes-page__toolbar-control">
               {copy.changes.priority}
               <IconSlot aria-hidden="true" size={16}>
                 <ListFilter size={12} strokeWidth={1.5} />
               </IconSlot>
             </span>
-            <span className={stylexClassName("changes-page__toolbar-control")}>
-              <span className={stylexClassName("sr-only")}>
+            <span data-page-slot="changes-page__toolbar-control">
+              <span {...stylex.props([localStyles.utilitySrOnly])}>
                 {copy.changes.filter}
               </span>
               <Select
                 aria-label={copy.changes.filter}
-                className={stylexClassName("changes-page__toolbar-select")}
+                data-page-slot="changes-page__toolbar-select"
                 onChange={(event) =>
                   setFilter(event.currentTarget.value as ChangeFilterValue)
                 }
@@ -139,33 +148,31 @@ export function ChangesPage() {
               </IconSlot>
             </span>
           </div>
-          <div className={stylexClassName("changes-page__rows")}>
+          <div data-page-slot="changes-page__rows">
             {visiblePlans.length === 0 ? (
-              <div className={stylexClassName("changes-page__empty")}>
+              <div data-page-slot="changes-page__empty">
                 {copy.changes.noRecords}
               </div>
             ) : null}
             {visiblePlans.map((plan) => (
               <button
                 aria-pressed={selected?.id === plan.id}
-                className={stylexClassName("changes-page__row")}
+                data-page-slot="changes-page__row"
                 data-selected={selected?.id === plan.id ? "true" : undefined}
                 key={plan.id}
                 onClick={() => setSelectedId(plan.id)}
                 type="button"
               >
-                <span className={stylexClassName("changes-page__row-copy")}>
-                  <strong className={stylexClassName("changes-page__row-name")}>
+                <span data-page-slot="changes-page__row-copy">
+                  <strong data-page-slot="changes-page__row-name">
                     {plan.name}
                   </strong>
-                  <span className={stylexClassName("changes-page__row-detail")}>
+                  <span data-page-slot="changes-page__row-detail">
                     {plan.detail}
                   </span>
-                  <span className={stylexClassName("changes-page__row-id")}>
-                    {plan.id}
-                  </span>
+                  <span data-page-slot="changes-page__row-id">{plan.id}</span>
                 </span>
-                <span className={stylexClassName("changes-page__row-status")}>
+                <span data-page-slot="changes-page__row-status">
                   <StatusDot label={plan.state} tone={plan.tone} />
                 </span>
               </button>

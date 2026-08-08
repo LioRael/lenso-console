@@ -1,4 +1,4 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Command as CommandGlyph,
@@ -27,6 +27,314 @@ import {
   type CommandItem,
 } from "./command-palette-model";
 import { useConsole } from "./console-context";
+
+const localStyles = stylex.create({
+  utilityZ60: {
+    zIndex: "60",
+  },
+  utilityBgBgScrim: {
+    backgroundColor: "var(--bg-scrim)",
+  },
+  utilityZ70: {
+    zIndex: "70",
+  },
+  utilityTop12vh: {
+    top: "12vh",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityHMin560pxCalc100vh72px: {
+    height: "min(560px, calc(100vh - 72px))",
+  },
+  utilityWMin760pxCalc100vw40px: {
+    width: "min(760px, calc(100vw - 40px))",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityRoundedVarRadiusOverlay: {
+    borderRadius: "var(--radius-overlay)",
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgOverlay: {
+    backgroundColor: "var(--bg-overlay)",
+  },
+  utilityP0: {
+    padding: "calc(0.25rem * 0)",
+  },
+  utilityShadowElevationOverlay: {
+    boxShadow: "var(--elevation-overlay)",
+  },
+  utilityMaxSmTop3: {
+    "@media (max-width: 639px)": {
+      top: "calc(0.25rem * 3)",
+    },
+  },
+  utilityMaxSmHMin520pxCalc100vh24px: {
+    "@media (max-width: 639px)": {
+      height: "min(520px, calc(100vh - 24px))",
+    },
+  },
+  utilityMaxSmWCalc100vw20px: {
+    "@media (max-width: 639px)": {
+      width: "calc(100vw - 20px)",
+    },
+  },
+  utilityH12: {
+    height: "calc(0.25rem * 12)",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBgBgPanelHeader: {
+    backgroundColor: "var(--bg-panel-header)",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityBgTransparent: {
+    backgroundColor: "transparent",
+  },
+  utilityTextSm: {
+    fontSize: "var(--text-sm, 0.875rem)",
+    lineHeight: "var(--text-sm--line-height, 1.25rem)",
+  },
+  utilityFontMedium: {
+    fontWeight: "500",
+  },
+  utilityLeadingNone: {
+    lineHeight: "1",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityOutlineHidden: {
+    outlineStyle: "none",
+    outline: "2px solid transparent",
+    outlineOffset: "2px",
+  },
+  utilityPlaceholderTextFgQuaternary: {
+    "::placeholder": {
+      color: "var(--fg-quaternary)",
+    },
+  },
+  utilityFocusVisibleOutline2: {
+    ":focus-visible": {
+      outlineStyle: "solid",
+      outlineWidth: "2px",
+    },
+  },
+  utilityFocusVisibleOutlineFocusRing: {
+    ":focus-visible": {
+      outlineColor: "var(--focus-ring)",
+    },
+  },
+  utilityFocusVisibleOutlineOffset1: {
+    ":focus-visible": {
+      outlineOffset: "1px",
+    },
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityMaxSmHidden: {
+    "@media (max-width: 639px)": {
+      display: "none",
+    },
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityP2: {
+    padding: "calc(0.25rem * 2)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityPlaceItemsCenter: {
+    placeItems: "center",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityFirstMt0: {
+    ":first-child": {
+      marginTop: "calc(0.25rem * 0)",
+    },
+  },
+  utilityPx2: {
+    paddingInline: "calc(0.25rem * 2)",
+  },
+  utilityPy1: {
+    paddingBlock: "calc(0.25rem * 1)",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityTracking004em: {
+    letterSpacing: "0.04em",
+  },
+  utilityGapPx: {
+    gap: "1px",
+  },
+  utilityItemsBaseline: {
+    alignItems: "baseline",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityMaxSmBlock: {
+    "@media (max-width: 639px)": {
+      display: "block",
+    },
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityTextXs: {
+    fontSize: "var(--text-xs, 0.75rem)",
+    lineHeight: "var(--text-xs--line-height, 1rem)",
+  },
+  utilityMaxSmMt1: {
+    "@media (max-width: 639px)": {
+      marginTop: "calc(0.25rem * 1)",
+    },
+  },
+  utilityH10: {
+    height: "calc(0.25rem * 10)",
+  },
+  utilityJustifyBetween: {
+    justifyContent: "space-between",
+  },
+  utilityBorderT: {
+    borderTopStyle: "solid",
+    borderTopWidth: "1px",
+  },
+  utilitySize7: {
+    width: "calc(0.25rem * 7)",
+    height: "calc(0.25rem * 7)",
+  },
+  utilityRoundedVarRadiusControl: {
+    borderRadius: "var(--radius-control)",
+  },
+  utilityBgBgControl: {
+    backgroundColor: "var(--bg-control)",
+  },
+  utilityTransitionColors: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityHoverBgBgControlHover: {
+    ":hover": {
+      backgroundColor: "var(--bg-control-hover)",
+    },
+  },
+  utilityHoverTextFgPrimary: {
+    ":hover": {
+      color: "var(--fg-primary)",
+    },
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilitySize45: {
+    width: "calc(0.25rem * 4.5)",
+    height: "calc(0.25rem * 4.5)",
+  },
+  utilityMinH5: {
+    minHeight: "calc(0.25rem * 5)",
+  },
+  utilityMinW5: {
+    minWidth: "calc(0.25rem * 5)",
+  },
+  utilityRounded4px: {
+    borderRadius: "4px",
+  },
+  utilityPx1: {
+    paddingInline: "calc(0.25rem * 1)",
+  },
+  utilityFontSans: {
+    fontFamily:
+      "var(--font-sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',\n    'Noto Color Emoji')",
+  },
+});
+
+const styles = stylex.create({
+  commandItem: {
+    alignItems: "center",
+    borderColor: "transparent",
+    borderRadius: "var(--radius-control)",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "grid",
+    gap: 8,
+    gridTemplateColumns: {
+      default: "28px minmax(0,1fr) auto",
+      "@media (max-width: 639px)": "28px minmax(0,1fr)",
+    },
+    height: 40,
+    paddingInline: 8,
+    textAlign: "left",
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+    width: "100%",
+    ":hover": { backgroundColor: "var(--bg-row-hover)" },
+  },
+  commandItemActive: {
+    backgroundColor: "var(--accent-muted)",
+    borderColor: "var(--accent)",
+  },
+});
 
 type CommandPaletteProps = {
   theme: "dark" | "light";
@@ -262,13 +570,31 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
     >
       <Dialog.Portal>
         <Dialog.Backdrop
-          className={stylexClassName("z-[60] bg-(--bg-scrim)")}
+          {...stylex.props([
+            localStyles.utilityZ60,
+            localStyles.utilityBgBgScrim,
+          ])}
         />
         <Dialog.Popup
           aria-label="Command palette"
-          className={stylexClassName(
-            "z-[70] top-[12vh] flex h-[min(560px,calc(100vh-72px))] w-[min(760px,calc(100vw-40px))] flex-col overflow-hidden rounded-[var(--radius-overlay)] border border-(--line) bg-(--bg-overlay) p-0 shadow-(--elevation-overlay) max-sm:top-3 max-sm:h-[min(520px,calc(100vh-24px))] max-sm:w-[calc(100vw-20px)]"
-          )}
+          {...stylex.props([
+            localStyles.utilityZ70,
+            localStyles.utilityTop12vh,
+            localStyles.utilityFlex,
+            localStyles.utilityHMin560pxCalc100vh72px,
+            localStyles.utilityWMin760pxCalc100vw40px,
+            localStyles.utilityFlexCol,
+            localStyles.utilityOverflowHidden,
+            localStyles.utilityRoundedVarRadiusOverlay,
+            localStyles.utilityBorder,
+            localStyles.utilityBorderLine,
+            localStyles.utilityBgBgOverlay,
+            localStyles.utilityP0,
+            localStyles.utilityShadowElevationOverlay,
+            localStyles.utilityMaxSmTop3,
+            localStyles.utilityMaxSmHMin520pxCalc100vh24px,
+            localStyles.utilityMaxSmWCalc100vw20px,
+          ])}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               closeCommandPalette();
@@ -293,16 +619,35 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
           }}
         >
           <div
-            className={stylexClassName(
-              "flex h-12 items-center gap-2 border-b border-(--line) bg-(--bg-panel-header) px-3 text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityH12,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityGap2,
+              localStyles.utilityBorderB,
+              localStyles.utilityBorderLine,
+              localStyles.utilityBgBgPanelHeader,
+              localStyles.utilityPx3,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             <CommandMark />
             <input
               aria-label="Command search"
-              className={stylexClassName(
-                "min-w-0 flex-1 bg-transparent text-sm font-medium leading-none text-(--fg-primary) outline-hidden placeholder:text-(--fg-quaternary) focus-visible:outline-2 focus-visible:outline-(--focus-ring) focus-visible:outline-offset-1"
-              )}
+              {...stylex.props([
+                localStyles.utilityMinW0,
+                localStyles.utilityFlex1,
+                localStyles.utilityBgTransparent,
+                localStyles.utilityTextSm,
+                localStyles.utilityFontMedium,
+                localStyles.utilityLeadingNone,
+                localStyles.utilityTextFgPrimary,
+                localStyles.utilityOutlineHidden,
+                localStyles.utilityPlaceholderTextFgQuaternary,
+                localStyles.utilityFocusVisibleOutline2,
+                localStyles.utilityFocusVisibleOutlineFocusRing,
+                localStyles.utilityFocusVisibleOutlineOffset1,
+              ])}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setActiveIndex(0);
@@ -313,9 +658,16 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
               value={query}
             />
             <div
-              className={stylexClassName(
-                "flex shrink-0 items-center gap-2 text-[11px] font-medium text-(--fg-tertiary) max-sm:hidden"
-              )}
+              {...stylex.props([
+                localStyles.utilityFlex,
+                localStyles.utilityShrink0,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap2,
+                localStyles.utilityText11px,
+                localStyles.utilityFontMedium,
+                localStyles.utilityTextFgTertiary,
+                localStyles.utilityMaxSmHidden,
+              ])}
             >
               <span>Command</span>
               <Keycap>
@@ -324,14 +676,24 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             </div>
           </div>
           <div
-            className={stylexClassName("min-h-0 flex-1 overflow-auto p-2")}
+            {...stylex.props([
+              localStyles.utilityMinH0,
+              localStyles.utilityFlex1,
+              localStyles.utilityOverflowAuto,
+              localStyles.utilityP2,
+            ])}
             ref={listRef}
           >
             {visible.length === 0 ? (
               <div
-                className={stylexClassName(
-                  "grid h-full place-items-center text-sm font-medium text-(--fg-tertiary)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityGrid,
+                  localStyles.utilityHFull,
+                  localStyles.utilityPlaceItemsCenter,
+                  localStyles.utilityTextSm,
+                  localStyles.utilityFontMedium,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 No commands found
               </div>
@@ -339,55 +701,84 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
               groupedCommands.map((group) =>
                 group.items.length > 0 ? (
                   <section
-                    className={stylexClassName("mt-2 first:mt-0")}
+                    {...stylex.props([
+                      localStyles.utilityMt2,
+                      localStyles.utilityFirstMt0,
+                    ])}
                     key={group.label}
                   >
                     <h2
-                      className={stylexClassName(
-                        "px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.04em] text-(--fg-tertiary)"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityPx2,
+                        localStyles.utilityPy1,
+                        localStyles.utilityText10px,
+                        localStyles.utilityFontSemibold,
+                        localStyles.utilityUppercase,
+                        localStyles.utilityTracking004em,
+                        localStyles.utilityTextFgTertiary,
+                      ])}
                     >
                       {group.label}
                     </h2>
-                    <div className={stylexClassName("grid gap-px")}>
+                    <div
+                      {...stylex.props([
+                        localStyles.utilityGrid,
+                        localStyles.utilityGapPx,
+                      ])}
+                    >
                       {group.items.map(({ command, index }) => (
                         <button
-                          className={stylexClassName(
-                            `grid h-10 w-full grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-control)] border px-2 text-left transition-colors max-sm:grid-cols-[28px_minmax(0,1fr)] ${
-                              index === activeIndex
-                                ? "border-(--accent) bg-(--accent-muted)"
-                                : "border-transparent hover:bg-(--bg-row-hover)"
-                            }`
+                          {...stylex.props(
+                            styles.commandItem,
+                            index === activeIndex && styles.commandItemActive
                           )}
                           key={command.id}
                           onClick={() => runCommand(command)}
                           type="button"
                         >
-                          <CommandIcon id={command.id} />
+                          <CommandIcon id={command.id} theme={theme} />
                           <span
-                            className={stylexClassName(
-                              "flex min-w-0 items-baseline gap-3 max-sm:block"
-                            )}
+                            {...stylex.props([
+                              localStyles.utilityFlex,
+                              localStyles.utilityMinW0,
+                              localStyles.utilityItemsBaseline,
+                              localStyles.utilityGap3,
+                              localStyles.utilityMaxSmBlock,
+                            ])}
                           >
                             <strong
-                              className={stylexClassName(
-                                "truncate text-xs font-semibold leading-none text-(--fg-primary) max-sm:block"
-                              )}
+                              {...stylex.props([
+                                localStyles.utilityTruncate,
+                                localStyles.utilityTextXs,
+                                localStyles.utilityFontSemibold,
+                                localStyles.utilityLeadingNone,
+                                localStyles.utilityTextFgPrimary,
+                                localStyles.utilityMaxSmBlock,
+                              ])}
                             >
                               {command.title}
                             </strong>
                             <small
-                              className={stylexClassName(
-                                "truncate text-xs font-medium leading-none text-(--fg-tertiary) max-sm:mt-1 max-sm:block"
-                              )}
+                              {...stylex.props([
+                                localStyles.utilityTruncate,
+                                localStyles.utilityTextXs,
+                                localStyles.utilityFontMedium,
+                                localStyles.utilityLeadingNone,
+                                localStyles.utilityTextFgTertiary,
+                                localStyles.utilityMaxSmMt1,
+                                localStyles.utilityMaxSmBlock,
+                              ])}
                             >
                               {command.subtitle}
                             </small>
                           </span>
                           <span
-                            className={stylexClassName(
-                              "text-[11px] font-medium text-(--fg-tertiary) max-sm:hidden"
-                            )}
+                            {...stylex.props([
+                              localStyles.utilityText11px,
+                              localStyles.utilityFontMedium,
+                              localStyles.utilityTextFgTertiary,
+                              localStyles.utilityMaxSmHidden,
+                            ])}
                           >
                             {commandKind(command.id)}
                           </span>
@@ -400,32 +791,62 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             )}
           </div>
           <div
-            className={stylexClassName(
-              "flex h-10 items-center justify-between gap-3 border-t border-(--line) bg-(--bg-panel-header) px-3"
-            )}
+            {...stylex.props([
+              localStyles.utilityFlex,
+              localStyles.utilityH10,
+              localStyles.utilityItemsCenter,
+              localStyles.utilityJustifyBetween,
+              localStyles.utilityGap3,
+              localStyles.utilityBorderT,
+              localStyles.utilityBorderLine,
+              localStyles.utilityBgBgPanelHeader,
+              localStyles.utilityPx3,
+            ])}
           >
             <button
               aria-label="Command options"
-              className={stylexClassName(
-                "grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-tertiary) transition-colors hover:bg-(--bg-control-hover) hover:text-(--fg-primary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilitySize7,
+                localStyles.utilityShrink0,
+                localStyles.utilityPlaceItemsCenter,
+                localStyles.utilityRoundedVarRadiusControl,
+                localStyles.utilityBorder,
+                localStyles.utilityBorderLine,
+                localStyles.utilityBgBgControl,
+                localStyles.utilityTextFgTertiary,
+                localStyles.utilityTransitionColors,
+                localStyles.utilityHoverBgBgControlHover,
+                localStyles.utilityHoverTextFgPrimary,
+              ])}
               type="button"
             >
               <Menu size={14} strokeWidth={1.8} />
             </button>
             <div
-              className={stylexClassName(
-                "flex items-center gap-2 text-[11px] font-medium text-(--fg-tertiary)"
-              )}
+              {...stylex.props([
+                localStyles.utilityFlex,
+                localStyles.utilityItemsCenter,
+                localStyles.utilityGap2,
+                localStyles.utilityText11px,
+                localStyles.utilityFontMedium,
+                localStyles.utilityTextFgTertiary,
+              ])}
             >
-              <span className={stylexClassName("text-(--fg-secondary)")}>
+              <span {...stylex.props([localStyles.utilityTextFgSecondary])}>
                 Open Command
               </span>
               <Keycap>
                 <CornerDownLeft size={13} strokeWidth={2.2} />
               </Keycap>
               <span>Actions</span>
-              <span className={stylexClassName("flex items-center gap-1.5")}>
+              <span
+                {...stylex.props([
+                  localStyles.utilityFlex,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityGap15,
+                ])}
+              >
                 <Keycap>⌘</Keycap>
                 <Keycap>K</Keycap>
               </span>
@@ -445,23 +866,30 @@ function copyCurrentLink() {
   void window.navigator.clipboard?.writeText(url);
 }
 
-function CommandIcon({ id }: { id: string }) {
-  const icon = iconForCommand(id);
+function CommandIcon({ id, theme }: { id: string; theme: "dark" | "light" }) {
+  const icon = iconForCommand(id, theme);
 
   return (
     <span
-      className={stylexClassName(
-        "grid size-7 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-secondary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilitySize7,
+        localStyles.utilityPlaceItemsCenter,
+        localStyles.utilityRoundedVarRadiusControl,
+        localStyles.utilityBorder,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgControl,
+        localStyles.utilityTextFgSecondary,
+      ])}
     >
       {icon}
     </span>
   );
 }
 
-function iconForCommand(id: string) {
+function iconForCommand(id: string, theme: "dark" | "light") {
   if (id === "theme-toggle") {
-    return <ThemeCommandIcon />;
+    return <ThemeCommandIcon theme={theme} />;
   }
   if (id === "search") {
     return <Search size={18} />;
@@ -475,17 +903,16 @@ function iconForCommand(id: string) {
   return <GitBranch size={18} />;
 }
 
-function ThemeCommandIcon() {
+function ThemeCommandIcon({ theme }: { theme: "dark" | "light" }) {
   return (
-    <span className={stylexClassName("grid size-4.5 place-items-center")}>
-      <Sun
-        className={stylexClassName("hidden [[data-theme=dark]_&]:block")}
-        size={18}
-      />
-      <Moon
-        className={stylexClassName("block [[data-theme=dark]_&]:hidden")}
-        size={18}
-      />
+    <span
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilitySize45,
+        localStyles.utilityPlaceItemsCenter,
+      ])}
+    >
+      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
     </span>
   );
 }
@@ -503,9 +930,17 @@ function commandKind(id: string) {
 function CommandMark() {
   return (
     <span
-      className={stylexClassName(
-        "grid size-7 shrink-0 place-items-center rounded-[var(--radius-control)] border border-(--line) bg-(--bg-control) text-(--fg-tertiary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilitySize7,
+        localStyles.utilityShrink0,
+        localStyles.utilityPlaceItemsCenter,
+        localStyles.utilityRoundedVarRadiusControl,
+        localStyles.utilityBorder,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgControl,
+        localStyles.utilityTextFgTertiary,
+      ])}
     >
       <CommandGlyph size={15} strokeWidth={1.9} />
     </span>
@@ -515,9 +950,22 @@ function CommandMark() {
 function Keycap({ children }: { children: ReactNode }) {
   return (
     <kbd
-      className={stylexClassName(
-        "grid min-h-5 min-w-5 place-items-center rounded-[4px] border border-(--line) bg-(--bg-control) px-1 font-sans text-[11px] font-semibold leading-none text-(--fg-tertiary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityGrid,
+        localStyles.utilityMinH5,
+        localStyles.utilityMinW5,
+        localStyles.utilityPlaceItemsCenter,
+        localStyles.utilityRounded4px,
+        localStyles.utilityBorder,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgControl,
+        localStyles.utilityPx1,
+        localStyles.utilityFontSans,
+        localStyles.utilityText11px,
+        localStyles.utilityFontSemibold,
+        localStyles.utilityLeadingNone,
+        localStyles.utilityTextFgTertiary,
+      ])}
     >
       {children}
     </kbd>

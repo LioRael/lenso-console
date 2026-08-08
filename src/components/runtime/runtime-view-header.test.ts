@@ -1,21 +1,21 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  runtimeViewHeaderClassName,
-  runtimeViewHeaderContentClassName,
-  runtimeViewHeaderLabelClassName,
-  runtimeViewHeaderMetaClassName,
-  runtimeViewHeaderSummaryClassName,
+  runtimeViewHeaderProps,
+  runtimeViewHeaderContentProps,
+  runtimeViewHeaderLabelProps,
+  runtimeViewHeaderMetaProps,
+  runtimeViewHeaderSummaryProps,
 } from "./runtime-view-header";
 
 describe("runtime view header style contract", () => {
   test("uses one shared style contract for runtime tab titles", () => {
-    expect(runtimeViewHeaderClassName).toMatch(/\S+/);
-    expect(runtimeViewHeaderClassName).not.toContain("border-b");
-    expect(runtimeViewHeaderClassName).not.toContain("bg-(--bg-surface)");
-    expect(runtimeViewHeaderContentClassName).toMatch(/\S+/);
-    expect(runtimeViewHeaderLabelClassName).toMatch(/\S+/);
-    expect(runtimeViewHeaderSummaryClassName).toMatch(/\S+/);
-    expect(runtimeViewHeaderMetaClassName).toMatch(/\S+/);
+    expect(runtimeViewHeaderProps.className).toMatch(/\S+/);
+    expect(runtimeViewHeaderProps.className).not.toContain("border-b");
+    expect(runtimeViewHeaderProps.className).not.toContain("bg-(--bg-surface)");
+    expect(runtimeViewHeaderContentProps.className).toMatch(/\S+/);
+    expect(runtimeViewHeaderLabelProps.className).toMatch(/\S+/);
+    expect(runtimeViewHeaderSummaryProps.className).toMatch(/\S+/);
+    expect(runtimeViewHeaderMetaProps.className).toMatch(/\S+/);
   });
 });

@@ -1,8 +1,111 @@
-import { stylexClassName, useConsoleLocale } from "@lenso/console-ui";
+import { useConsoleLocale } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { Flame, GitBranch, Grid3X3, List, Workflow } from "lucide-react";
 
-import { cn } from "../../lib/cn";
 import { HorizontalTabScroll } from "./horizontal-tab-scroll";
+
+const localStyles = stylex.create({
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityWMax: {
+    width: "max-content",
+  },
+  utilityMinWFull: {
+    minWidth: "100%",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap0: {
+    gap: "calc(0.25rem * 0)",
+  },
+  utilityBorderB0: {
+    borderBottomWidth: "0px",
+  },
+  utilityPl2: {
+    paddingLeft: "calc(0.25rem * 2)",
+  },
+  utilityPr0: {
+    paddingRight: "calc(0.25rem * 0)",
+  },
+  utilityH33px: {
+    height: "33px",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityPx1: {
+    paddingInline: "calc(0.25rem * 1)",
+  },
+  utilityPt2: {
+    paddingBlockStart: "0.5rem",
+  },
+  utilityPb0: {
+    paddingBlockEnd: 0,
+  },
+  utilityFontSans: {
+    fontFamily:
+      "var(--font-sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',\n    'Noto Color Emoji')",
+  },
+  utilityText12px: {
+    fontSize: "12px",
+  },
+  utilityFontNormal: {
+    fontWeight: "400",
+  },
+  utilityLeading4: {
+    lineHeight: "calc(0.25rem * 4)",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityFontMedium: {
+    fontWeight: "500",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityH4: {
+    height: "calc(0.25rem * 4)",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityHPx: {
+    height: "1px",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityBgAccent: {
+    backgroundColor: "var(--accent)",
+  },
+  utilityOpacity100: {
+    opacity: "100%",
+  },
+  utilityOpacity0: {
+    opacity: "0%",
+  },
+});
 
 export type StoryViewMode =
   | "story"
@@ -16,7 +119,6 @@ const labels: Array<{
   id: StoryViewMode;
   label: string;
   icon: React.ComponentType<{
-    className?: string;
     size?: number;
     strokeWidth?: number;
   }>;
@@ -39,22 +141,54 @@ export function StoryTabs({
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   return (
-    <div className={stylexClassName("h-full min-w-0 bg-(--bg-canvas)")}>
+    <div
+      {...stylex.props([
+        localStyles.utilityHFull,
+        localStyles.utilityMinW0,
+        localStyles.utilityBgBgCanvas,
+      ])}
+    >
       <HorizontalTabScroll>
         <div
           aria-label={zh ? "故事视图" : "Story views"}
-          className={stylexClassName(
-            "flex h-full w-max min-w-full items-center gap-0 border-b-0 pl-2 pr-0"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityHFull,
+            localStyles.utilityWMax,
+            localStyles.utilityMinWFull,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityGap0,
+            localStyles.utilityBorderB0,
+            localStyles.utilityPl2,
+            localStyles.utilityPr0,
+          ])}
           role="tablist"
         >
           {labels.map(({ icon: Icon, id, label }, index) => (
             <button
               aria-controls="story-view-panel"
               aria-selected={mode === id}
-              className={cn(
-                "flex h-[33px] shrink-0 flex-col items-center gap-2 px-1 pt-2 pb-0 font-sans text-[12px] font-normal leading-4 text-(--fg-tertiary)",
-                mode === id && "font-medium text-(--fg-primary)"
+              {...stylex.props(
+                [
+                  localStyles.utilityFlex,
+                  localStyles.utilityH33px,
+                  localStyles.utilityShrink0,
+                  localStyles.utilityFlexCol,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityGap2,
+                  localStyles.utilityPx1,
+                  localStyles.utilityPt2,
+                  localStyles.utilityPb0,
+                  localStyles.utilityFontSans,
+                  localStyles.utilityText12px,
+                  localStyles.utilityFontNormal,
+                  localStyles.utilityLeading4,
+                  localStyles.utilityTextFgTertiary,
+                ],
+                mode === id && [
+                  localStyles.utilityFontMedium,
+                  localStyles.utilityTextFgPrimary,
+                ]
               )}
               id={`story-tab-${id}`}
               key={id}
@@ -87,17 +221,27 @@ export function StoryTabs({
               type="button"
             >
               <span
-                className={stylexClassName(
-                  "flex h-4 items-center gap-1 overflow-hidden"
-                )}
+                {...stylex.props([
+                  localStyles.utilityFlex,
+                  localStyles.utilityH4,
+                  localStyles.utilityItemsCenter,
+                  localStyles.utilityGap1,
+                  localStyles.utilityOverflowHidden,
+                ])}
               >
                 <Icon size={12} strokeWidth={1.75} />
                 {zh ? storyTabZh[id] : label}
               </span>
               <span
-                className={cn(
-                  "h-px w-full bg-(--accent)",
-                  mode === id ? "opacity-100" : "opacity-0"
+                {...stylex.props(
+                  [
+                    localStyles.utilityHPx,
+                    localStyles.utilityWFull,
+                    localStyles.utilityBgAccent,
+                  ],
+                  mode === id
+                    ? [localStyles.utilityOpacity100]
+                    : [localStyles.utilityOpacity0]
                 )}
               />
             </button>

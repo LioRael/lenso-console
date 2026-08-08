@@ -1,35 +1,47 @@
 import { ScrollArea } from "@base-ui/react/scroll-area";
-import { stylexClassName } from "@lenso/console-ui";
+import type { ConsoleStyle } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import type { ReactNode, WheelEvent } from "react";
 
-import { cn } from "../../lib/cn";
+const styles = stylex.create({
+  content: {
+    minWidth: "100%",
+    width: "max-content",
+  },
+  heightFull: { height: "100%" },
+  root: {
+    minWidth: 0,
+    position: "relative",
+  },
+  viewport: {
+    minWidth: 0,
+    overflowX: "auto",
+    overflowY: "hidden",
+    scrollbarWidth: "none",
+  },
+});
 
 export function HorizontalScrollArea({
   children,
-  className,
-  contentClassName,
-  viewportClassName,
+  contentStylex,
+  stylex: rootStylex,
+  viewportStylex,
 }: {
   children: ReactNode;
-  className?: string;
-  contentClassName?: string;
-  viewportClassName?: string;
+  contentStylex?: ConsoleStyle;
+  stylex?: ConsoleStyle;
+  viewportStylex?: ConsoleStyle;
 }) {
   return (
     <ScrollArea.Root
-      className={cn("relative min-w-0", className)}
+      {...stylex.props(styles.root, rootStylex)}
       overflowEdgeThreshold={1}
     >
       <ScrollArea.Viewport
-        className={cn(
-          "scrollbar-none min-w-0 overflow-x-auto overflow-y-hidden",
-          viewportClassName
-        )}
+        {...stylex.props(styles.viewport, viewportStylex)}
         onWheel={handleWheel}
       >
-        <ScrollArea.Content
-          className={cn("w-max min-w-full", contentClassName)}
-        >
+        <ScrollArea.Content {...stylex.props(styles.content, contentStylex)}>
           {children}
         </ScrollArea.Content>
       </ScrollArea.Viewport>
@@ -40,9 +52,9 @@ export function HorizontalScrollArea({
 export function HorizontalTabScroll({ children }: { children: ReactNode }) {
   return (
     <HorizontalScrollArea
-      className={stylexClassName("h-full")}
-      contentClassName="h-full"
-      viewportClassName="h-full"
+      contentStylex={styles.heightFull}
+      stylex={styles.heightFull}
+      viewportStylex={styles.heightFull}
     >
       {children}
     </HorizontalScrollArea>

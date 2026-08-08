@@ -2,15 +2,15 @@ import type {
   ConsoleUiCompositionContext,
   ConsoleUiNavigationModel,
 } from "@lenso/console-composition-api";
+import { tokens } from "@lenso/console-tokens/tokens.stylex";
 import {
   consoleLocalizedLabel,
   IconSlot,
-  mergeStyleProps,
   SurfaceGroupLabel,
-  styles,
   type ConsoleLocale,
   useConsoleLocale,
 } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
@@ -70,6 +70,366 @@ import { CommandPalette } from "./command-palette";
 import { useConsole } from "./console-context";
 import { RetryDialog } from "./retry-dialog";
 
+export const shellStyles = stylex.create({
+  shell: {
+    backgroundColor: tokens.canvas,
+    color: tokens.foreground,
+    display: "grid",
+    minHeight: "100vh",
+  },
+  shellExpanded: {
+    gridTemplateColumns:
+      "var(--lenso-token-sidebarWidth, 224px) minmax(0, 1fr)",
+    "@media (max-width: 1100px)": {
+      gridTemplateColumns:
+        "var(--lenso-token-sidebarCollapsedWidth, 64px) minmax(0, 1fr)",
+    },
+  },
+  shellCollapsed: {
+    gridTemplateColumns:
+      "var(--lenso-token-sidebarCollapsedWidth, 64px) minmax(0, 1fr)",
+  },
+  shellSidebar: {
+    backgroundColor: tokens.sidebar,
+    display: "flex",
+    flexDirection: "column",
+    height: "100vh",
+    paddingBlockEnd: 16,
+    paddingBlockStart: 20,
+    paddingInline: 8,
+    position: "sticky",
+    top: 0,
+    zIndex: 30,
+  },
+  shellBrand: {
+    alignItems: "center",
+    display: "flex",
+    gap: 10,
+    height: 32,
+    paddingInline: 10,
+  },
+  shellBrandCollapsed: { justifyContent: "center" },
+  shellBrandMark: {
+    backgroundColor: tokens.foreground,
+    borderRadius: 3,
+    flex: "none",
+    height: 14,
+    width: 14,
+  },
+  shellBrandName: {
+    color: tokens.foreground,
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: "20px",
+  },
+  shellCollapsedOnly: { display: "none" },
+  shellExpandedOnly: {
+    "@media (max-width: 1100px)": { display: "none" },
+  },
+  shellProduction: {
+    alignItems: "center",
+    color: tokens.foregroundTertiary,
+    display: "flex",
+    fontSize: 10,
+    fontWeight: 600,
+    height: 32,
+    lineHeight: "14px",
+    paddingInline: 10,
+  },
+  shellNav: { display: "grid", gap: 2, marginBlockStart: 2 },
+  shellNavGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  shellNavLink: {
+    alignItems: "center",
+    borderRadius: tokens.radiusControl,
+    color: tokens.foregroundSecondary,
+    display: "flex",
+    fontSize: 12,
+    gap: 7,
+    height: 32,
+    lineHeight: "16px",
+    paddingInline: 10,
+    textDecoration: "none",
+    transitionDuration: "120ms",
+    transitionProperty: "background-color, color",
+    transitionTimingFunction: "ease",
+    ":hover": {
+      backgroundColor: tokens.rowHover,
+      color: tokens.foreground,
+    },
+    ":focus-visible": {
+      outlineColor: tokens.focusRing,
+      outlineOffset: 1,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  shellNavLinkCollapsed: { justifyContent: "center" },
+  shellNavLinkActive: {
+    backgroundColor: tokens.rowSelected,
+    color: tokens.foreground,
+    fontWeight: 500,
+  },
+  shellNavLabel: {
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  shellShortcut: {
+    color: tokens.foregroundTertiary,
+    fontSize: 11,
+    fontWeight: 400,
+    lineHeight: "16px",
+    marginInlineStart: "auto",
+  },
+  shellBottom: { marginBlockStart: "auto" },
+  shellProfile: {
+    alignItems: "center",
+    display: "flex",
+    gap: 10,
+    height: 40,
+    paddingInlineStart: 10,
+  },
+  shellProfileCollapsed: { justifyContent: "center" },
+  shellAvatar: {
+    borderColor: tokens.lineStrong,
+    borderRadius: tokens.radiusPill,
+    borderStyle: "solid",
+    borderWidth: 1,
+    flex: "none",
+    height: 20,
+    width: 20,
+  },
+  shellProfileCopy: { minWidth: 0 },
+  shellProfileName: {
+    color: tokens.foregroundSecondary,
+    display: "block",
+    fontSize: 11,
+    fontWeight: 500,
+    lineHeight: "16px",
+  },
+  shellProfileRole: {
+    color: tokens.foregroundTertiary,
+    display: "block",
+    fontSize: 10,
+    lineHeight: "14px",
+  },
+  shellMain: { minWidth: 0 },
+  shellToolbar: {
+    alignItems: "center",
+    backgroundColor: tokens.window,
+    borderBottomColor: tokens.lineSubtle,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    height: tokens.toolbarHeight,
+    paddingInline: tokens.pageGutter,
+  },
+  shellBreadcrumb: {
+    color: tokens.foregroundTertiary,
+    fontSize: 11,
+    lineHeight: "16px",
+  },
+  shellBreadcrumbSeparator: { paddingInline: 4 },
+  shellSearch: {
+    alignItems: "center",
+    backgroundColor: tokens.control,
+    borderColor: tokens.line,
+    borderRadius: tokens.radiusControl,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.foregroundTertiary,
+    display: "flex",
+    fontFamily: "inherit",
+    fontSize: 11,
+    gap: 0,
+    height: 28,
+    marginInlineStart: "auto",
+    paddingInline: 8,
+    transitionDuration: "120ms",
+    transitionProperty: "background-color, border-color",
+    transitionTimingFunction: "ease",
+    width: 209,
+    ":hover": { backgroundColor: tokens.controlHover },
+    ":focus-visible": {
+      outlineColor: tokens.focusRing,
+      outlineOffset: 1,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  shellSearchLabel: { marginInlineStart: 20 },
+  shellSearchShortcut: {
+    fontFamily: tokens.fontCode,
+    marginInlineStart: "auto",
+  },
+  shellUpdated: {
+    color: tokens.foregroundTertiary,
+    fontSize: 11,
+    marginInlineStart: 12,
+  },
+  shellContent: { height: "calc(100vh - 48px)", overflow: "hidden" },
+  skipLink: {
+    backgroundColor: tokens.overlay,
+    borderColor: tokens.lineStrong,
+    borderRadius: tokens.radiusControl,
+    borderStyle: "solid",
+    borderWidth: 1,
+    color: tokens.foreground,
+    fontSize: 12,
+    left: 8,
+    paddingBlock: 8,
+    paddingInline: 12,
+    position: "fixed",
+    top: 8,
+    transform: "translateY(-160%)",
+    transitionDuration: "120ms",
+    transitionProperty: "transform",
+    transitionTimingFunction: "ease",
+    zIndex: 100,
+    ":focus-visible": { transform: "translateY(0)" },
+  },
+  workspaceRoot: { position: "relative" },
+  workspaceTrigger: {
+    alignItems: "center",
+    borderRadius: tokens.radiusControl,
+    color: tokens.foregroundSecondary,
+    display: "flex",
+    fontFamily: "inherit",
+    fontSize: 12,
+    fontWeight: 500,
+    gap: tokens.space2,
+    height: 36,
+    lineHeight: "16px",
+    paddingInline: 10,
+    textAlign: "left",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.rowHover },
+    ":focus-visible": {
+      outlineColor: tokens.focusRing,
+      outlineOffset: 1,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  workspaceTriggerCollapsed: { justifyContent: "center" },
+  workspaceTriggerLabel: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  workspaceTriggerChevron: { marginInlineStart: "auto" },
+  workspaceMenu: {
+    backgroundColor: tokens.overlay,
+    borderColor: tokens.lineStrong,
+    borderRadius: tokens.radiusPopover,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxShadow: tokens.shadowOverlay,
+    left: 0,
+    opacity: 0,
+    padding: 4,
+    pointerEvents: "none",
+    position: "absolute",
+    top: 40,
+    transform: "translateY(-4px) scale(0.985)",
+    transformOrigin: "top left",
+    transitionDuration: "140ms",
+    transitionProperty: "opacity, transform",
+    transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+    width: 208,
+    zIndex: 50,
+    "@media (prefers-reduced-motion: reduce)": {
+      transform: "none",
+      transition: "none",
+    },
+  },
+  workspaceMenuVisible: {
+    opacity: 1,
+    pointerEvents: "auto",
+    transform: "translateY(0) scale(1)",
+  },
+  workspaceMenuCollapsed: { left: 48 },
+  workspaceMenuLabel: {
+    alignItems: "center",
+    color: tokens.foregroundTertiary,
+    display: "flex",
+    fontSize: 10,
+    height: 24,
+    paddingInline: 8,
+  },
+  workspaceMenuItem: {
+    alignItems: "center",
+    borderRadius: tokens.radiusControl,
+    display: "grid",
+    fontFamily: "inherit",
+    gap: tokens.space2,
+    gridTemplateColumns: "16px minmax(0, 1fr) 16px",
+    height: 32,
+    paddingInline: 8,
+    textAlign: "left",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.rowHover },
+    ":focus-visible": {
+      outlineColor: tokens.focusRing,
+      outlineOffset: -2,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  workspaceMenuItemActive: { backgroundColor: tokens.rowHover },
+  workspaceMenuItemTitle: {
+    fontSize: 12,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  workspaceMenuItemCount: {
+    alignItems: "center",
+    display: "grid",
+    height: 16,
+    justifyItems: "center",
+    width: 16,
+  },
+  workspaceMenuItemCountText: {
+    color: tokens.foregroundTertiary,
+    fontFamily: tokens.fontCode,
+    fontSize: 10,
+  },
+  workspaceMenuDivider: {
+    backgroundColor: tokens.line,
+    height: 1,
+    marginBlock: 4,
+  },
+  workspaceMenuModules: {
+    alignItems: "center",
+    borderRadius: tokens.radiusControl,
+    display: "grid",
+    gap: tokens.space2,
+    gridTemplateColumns: "16px minmax(0, 1fr)",
+    height: 40,
+    paddingInline: 8,
+    textDecoration: "none",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.rowHover },
+  },
+  workspaceMenuModulesTitle: {
+    display: "block",
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  workspaceMenuModulesDescription: {
+    color: tokens.foregroundTertiary,
+    display: "block",
+    fontSize: 10,
+  },
+});
+
 type ShellIcon = ComponentType<{ size?: number; strokeWidth?: number }>;
 
 const iconRegistry = {
@@ -99,10 +459,8 @@ const namedIconRegistry: Record<string, ShellIcon> = {
   "layout-dashboard": LayoutDashboard,
 };
 
-const shellActiveLinkClassName = mergeStyleProps(
-  undefined,
-  undefined,
-  styles.shellNavLinkActive
+const shellActiveLinkClassName = stylex.props(
+  shellStyles.shellNavLinkActive
 ).className;
 
 export function ConsoleShell({ children }: PropsWithChildren) {
@@ -224,41 +582,35 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     appearance.setPreference(appearance.theme === "dark" ? "light" : "dark");
   }, [appearance]);
 
+  const shellStyleProps = stylex.props(
+    shellStyles.shell,
+    sidebarCollapsed ? shellStyles.shellCollapsed : shellStyles.shellExpanded
+  );
+  const skipLinkStyleProps = stylex.props(shellStyles.skipLink);
+
   const defaultShell = (
-    <div
-      {...mergeStyleProps(
-        undefined,
-        "console-shell",
-        styles.shell,
-        sidebarCollapsed ? styles.shellCollapsed : styles.shellExpanded
-      )}
-    >
+    <div {...shellStyleProps} data-ui="console-shell">
       <a
-        {...mergeStyleProps(undefined, "console-skip-link", styles.skipLink)}
+        {...skipLinkStyleProps}
+        data-ui="console-skip-link"
         href="#console-main"
       >
         {locale === "zh-CN" ? "跳转到主要内容" : "Skip to main content"}
       </a>
-      <aside {...mergeStyleProps(undefined, undefined, styles.shellSidebar)}>
+      <aside {...stylex.props(shellStyles.shellSidebar)}>
         <div
-          {...mergeStyleProps(
-            undefined,
-            undefined,
-            styles.shellBrand,
-            sidebarCollapsed ? styles.shellBrandCollapsed : null
+          {...stylex.props(
+            shellStyles.shellBrand,
+            sidebarCollapsed ? shellStyles.shellBrandCollapsed : null
           )}
         >
-          <span
-            {...mergeStyleProps(undefined, undefined, styles.shellBrandMark)}
-          />
+          <span {...stylex.props(shellStyles.shellBrandMark)} />
           <strong
-            {...mergeStyleProps(
-              undefined,
-              undefined,
-              styles.shellBrandName,
+            {...stylex.props(
+              shellStyles.shellBrandName,
               sidebarCollapsed
-                ? styles.shellCollapsedOnly
-                : styles.shellExpandedOnly
+                ? shellStyles.shellCollapsedOnly
+                : shellStyles.shellExpandedOnly
             )}
           >
             Lenso
@@ -272,35 +624,31 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           workspaces={navigation}
         />
         <div
-          {...mergeStyleProps(
-            undefined,
-            undefined,
-            styles.shellProduction,
+          {...stylex.props(
+            shellStyles.shellProduction,
             sidebarCollapsed
-              ? styles.shellCollapsedOnly
-              : styles.shellExpandedOnly
+              ? shellStyles.shellCollapsedOnly
+              : shellStyles.shellExpandedOnly
           )}
         >
           {copy.production}
         </div>
-        <nav {...mergeStyleProps(undefined, undefined, styles.shellNav)}>
+        <nav {...stylex.props(shellStyles.shellNav)}>
           <WorkspaceMenu
             collapsed={sidebarCollapsed}
             locale={locale}
             workspace={activeWorkspace}
           />
         </nav>
-        <div {...mergeStyleProps(undefined, undefined, styles.shellBottom)}>
+        <div {...stylex.props(shellStyles.shellBottom)}>
           <Link
             activeProps={{
               className: shellActiveLinkClassName,
             }}
             className={
-              mergeStyleProps(
-                undefined,
-                undefined,
-                styles.shellNavLink,
-                sidebarCollapsed ? styles.shellNavLinkCollapsed : null
+              stylex.props(
+                shellStyles.shellNavLink,
+                sidebarCollapsed ? shellStyles.shellNavLinkCollapsed : null
               ).className
             }
             to={"/settings" as never}
@@ -310,12 +658,10 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             </IconSlot>
             <span
               className={
-                mergeStyleProps(
-                  undefined,
-                  undefined,
+                stylex.props(
                   sidebarCollapsed
-                    ? styles.shellCollapsedOnly
-                    : styles.shellExpandedOnly
+                    ? shellStyles.shellCollapsedOnly
+                    : shellStyles.shellExpandedOnly
                 ).className
               }
             >
@@ -323,13 +669,11 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             </span>
             <span
               className={
-                mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.shellShortcut,
+                stylex.props(
+                  shellStyles.shellShortcut,
                   sidebarCollapsed
-                    ? styles.shellCollapsedOnly
-                    : styles.shellExpandedOnly
+                    ? shellStyles.shellCollapsedOnly
+                    : shellStyles.shellExpandedOnly
                 ).className
               }
             >
@@ -337,44 +681,26 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             </span>
           </Link>
           <div
-            {...mergeStyleProps(
-              undefined,
-              undefined,
-              styles.shellProfile,
-              sidebarCollapsed ? styles.shellProfileCollapsed : null
+            {...stylex.props(
+              shellStyles.shellProfile,
+              sidebarCollapsed ? shellStyles.shellProfileCollapsed : null
             )}
           >
-            <span
-              {...mergeStyleProps(undefined, undefined, styles.shellAvatar)}
-            />
+            <span {...stylex.props(shellStyles.shellAvatar)} />
             <span
               className={
-                mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.shellProfileCopy,
+                stylex.props(
+                  shellStyles.shellProfileCopy,
                   sidebarCollapsed
-                    ? styles.shellCollapsedOnly
-                    : styles.shellExpandedOnly
+                    ? shellStyles.shellCollapsedOnly
+                    : shellStyles.shellExpandedOnly
                 ).className
               }
             >
-              <strong
-                {...mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.shellProfileName
-                )}
-              >
+              <strong {...stylex.props(shellStyles.shellProfileName)}>
                 Leo&apos;s team
               </strong>
-              <span
-                {...mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.shellProfileRole
-                )}
-              >
+              <span {...stylex.props(shellStyles.shellProfileRole)}>
                 {copy.operator}
               </span>
             </span>
@@ -382,14 +708,12 @@ export function ConsoleShell({ children }: PropsWithChildren) {
         </div>
       </aside>
       <main
-        {...mergeStyleProps(undefined, undefined, styles.shellMain)}
+        {...stylex.props(shellStyles.shellMain)}
         id="console-main"
         tabIndex={-1}
       >
-        <header {...mergeStyleProps(undefined, undefined, styles.shellToolbar)}>
-          <div
-            {...mergeStyleProps(undefined, undefined, styles.shellBreadcrumb)}
-          >
+        <header {...stylex.props(shellStyles.shellToolbar)}>
+          <div {...stylex.props(shellStyles.shellBreadcrumb)}>
             {[
               copy.workspace,
               ...workspaceBreadcrumb(
@@ -401,13 +725,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             ].map((part, index) => (
               <span key={`${part}-${index}`}>
                 {index > 0 ? (
-                  <span
-                    {...mergeStyleProps(
-                      undefined,
-                      undefined,
-                      styles.shellBreadcrumbSeparator
-                    )}
-                  >
+                  <span {...stylex.props(shellStyles.shellBreadcrumbSeparator)}>
                     /
                   </span>
                 ) : null}
@@ -417,37 +735,21 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           </div>
           <button
             aria-label={`${copy.search} ⌘ K`}
-            {...mergeStyleProps(undefined, undefined, styles.shellSearch)}
+            {...stylex.props(shellStyles.shellSearch)}
             onClick={openCommandPalette}
             type="button"
           >
             <Search size={12} />
-            <span
-              {...mergeStyleProps(
-                undefined,
-                undefined,
-                styles.shellSearchLabel
-              )}
-            >
+            <span {...stylex.props(shellStyles.shellSearchLabel)}>
               {copy.search}
             </span>
-            <span
-              {...mergeStyleProps(
-                undefined,
-                undefined,
-                styles.shellSearchShortcut
-              )}
-            >
-              ⌘ K
-            </span>
+            <span {...stylex.props(shellStyles.shellSearchShortcut)}>⌘ K</span>
           </button>
-          <span {...mergeStyleProps(undefined, undefined, styles.shellUpdated)}>
+          <span {...stylex.props(shellStyles.shellUpdated)}>
             {copy.updated}
           </span>
         </header>
-        <div {...mergeStyleProps(undefined, undefined, styles.shellContent)}>
-          {children}
-        </div>
+        <div {...stylex.props(shellStyles.shellContent)}>{children}</div>
       </main>
       <RetryDialog />
       <CommandPalette onToggleTheme={toggleTheme} theme={appearance.theme} />
@@ -567,21 +869,22 @@ function WorkspaceSwitcher({
     menuItemRefs.current[nextIndex]?.focus();
   };
 
+  const workspaceMenuStyleProps = stylex.props(
+    shellStyles.workspaceMenu,
+    menuVisible ? shellStyles.workspaceMenuVisible : null,
+    collapsed ? shellStyles.workspaceMenuCollapsed : null
+  );
+
   return (
-    <div
-      {...mergeStyleProps(undefined, undefined, styles.workspaceRoot)}
-      ref={root}
-    >
+    <div {...stylex.props(shellStyles.workspaceRoot)} ref={root}>
       <button
         aria-label={consoleLocalizedLabel(active, locale)}
         aria-controls="console-workspace-menu"
         aria-expanded={open}
         aria-haspopup="menu"
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.workspaceTrigger,
-          collapsed ? styles.workspaceTriggerCollapsed : null
+        {...stylex.props(
+          shellStyles.workspaceTrigger,
+          collapsed ? shellStyles.workspaceTriggerCollapsed : null
         )}
         id="console-workspace-trigger"
         onKeyDown={(event) => {
@@ -600,21 +903,21 @@ function WorkspaceSwitcher({
           </IconSlot>
         ) : null}
         <span
-          {...mergeStyleProps(
-            undefined,
-            undefined,
-            styles.workspaceTriggerLabel,
-            collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+          {...stylex.props(
+            shellStyles.workspaceTriggerLabel,
+            collapsed
+              ? shellStyles.shellCollapsedOnly
+              : shellStyles.shellExpandedOnly
           )}
         >
           {consoleLocalizedLabel(active, locale)}
         </span>
         <ChevronDown
-          {...mergeStyleProps(
-            undefined,
-            undefined,
-            styles.workspaceTriggerChevron,
-            collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+          {...stylex.props(
+            shellStyles.workspaceTriggerChevron,
+            collapsed
+              ? shellStyles.shellCollapsedOnly
+              : shellStyles.shellExpandedOnly
           )}
           size={12}
         />
@@ -623,24 +926,13 @@ function WorkspaceSwitcher({
         <div
           aria-hidden={!open}
           aria-labelledby="console-workspace-trigger"
-          {...mergeStyleProps(
-            undefined,
-            "workspace-switcher-menu",
-            styles.workspaceMenu,
-            menuVisible ? styles.workspaceMenuVisible : null,
-            collapsed ? styles.workspaceMenuCollapsed : null
-          )}
+          {...workspaceMenuStyleProps}
+          data-ui="workspace-switcher-menu"
           data-open={menuVisible}
           id="console-workspace-menu"
           role="menu"
         >
-          <div
-            {...mergeStyleProps(
-              undefined,
-              undefined,
-              styles.workspaceMenuLabel
-            )}
-          >
+          <div {...stylex.props(shellStyles.workspaceMenuLabel)}>
             {locale === "zh-CN" ? "工作区" : "Workspaces"}
           </div>
           {workspaces.map((workspace, index) => {
@@ -654,12 +946,10 @@ function WorkspaceSwitcher({
               );
             return (
               <button
-                {...mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.workspaceMenuItem,
+                {...stylex.props(
+                  shellStyles.workspaceMenuItem,
                   workspace.id === active.id
-                    ? styles.workspaceMenuItemActive
+                    ? shellStyles.workspaceMenuItemActive
                     : null
                 )}
                 aria-checked={workspace.id === active.id}
@@ -679,31 +969,15 @@ function WorkspaceSwitcher({
                 <IconSlot>
                   <WorkspaceIcon size={14} />
                 </IconSlot>
-                <strong
-                  {...mergeStyleProps(
-                    undefined,
-                    undefined,
-                    styles.workspaceMenuItemTitle
-                  )}
-                >
+                <strong {...stylex.props(shellStyles.workspaceMenuItemTitle)}>
                   {consoleLocalizedLabel(workspace, locale)}
                 </strong>
-                <span
-                  {...mergeStyleProps(
-                    undefined,
-                    undefined,
-                    styles.workspaceMenuItemCount
-                  )}
-                >
+                <span {...stylex.props(shellStyles.workspaceMenuItemCount)}>
                   {workspace.id === active.id ? (
                     <Check size={12} />
                   ) : (
                     <span
-                      {...mergeStyleProps(
-                        undefined,
-                        undefined,
-                        styles.workspaceMenuItemCountText
-                      )}
+                      {...stylex.props(shellStyles.workspaceMenuItemCountText)}
                     >
                       {count}
                     </span>
@@ -712,19 +986,9 @@ function WorkspaceSwitcher({
               </button>
             );
           })}
-          <div
-            {...mergeStyleProps(
-              undefined,
-              undefined,
-              styles.workspaceMenuDivider
-            )}
-          />
+          <div {...stylex.props(shellStyles.workspaceMenuDivider)} />
           <Link
-            {...mergeStyleProps(
-              undefined,
-              undefined,
-              styles.workspaceMenuModules
-            )}
+            {...stylex.props(shellStyles.workspaceMenuModules)}
             onClick={closeMenu}
             to={"/modules" as never}
           >
@@ -732,21 +996,11 @@ function WorkspaceSwitcher({
               <Boxes size={14} />
             </IconSlot>
             <span>
-              <strong
-                {...mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.workspaceMenuModulesTitle
-                )}
-              >
+              <strong {...stylex.props(shellStyles.workspaceMenuModulesTitle)}>
                 {locale === "zh-CN" ? "模块" : "Modules"}
               </strong>
               <span
-                {...mergeStyleProps(
-                  undefined,
-                  undefined,
-                  styles.workspaceMenuModulesDescription
-                )}
+                {...stylex.props(shellStyles.workspaceMenuModulesDescription)}
               >
                 {locale === "zh-CN" ? "模块管理" : "Module management"}
               </span>
@@ -802,17 +1056,15 @@ function WorkspaceMenuGroup({
 }) {
   const GroupIcon = iconForName(group.icon);
   return (
-    <div {...mergeStyleProps(undefined, undefined, styles.shellNavGroup)}>
+    <div {...stylex.props(shellStyles.shellNavGroup)}>
       <SurfaceGroupLabel
-        className={
-          mergeStyleProps(
-            undefined,
-            undefined,
-            collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
-          ).className
-        }
         icon={GroupIcon ? <GroupIcon size={12} strokeWidth={1.6} /> : undefined}
         label={consoleLocalizedLabel(group, locale)}
+        stylex={
+          collapsed
+            ? shellStyles.shellCollapsedOnly
+            : shellStyles.shellExpandedOnly
+        }
       />
       {group.items.map((item) => (
         <NavItem
@@ -845,11 +1097,9 @@ function NavItem({
       }}
       aria-label={label}
       className={
-        mergeStyleProps(
-          undefined,
-          undefined,
-          styles.shellNavLink,
-          collapsed ? styles.shellNavLinkCollapsed : null
+        stylex.props(
+          shellStyles.shellNavLink,
+          collapsed ? shellStyles.shellNavLinkCollapsed : null
         ).className
       }
       to={item.path}
@@ -858,21 +1108,21 @@ function NavItem({
         <Icon size={16} strokeWidth={1.6} />
       </IconSlot>
       <span
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.shellNavLabel,
-          collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+        {...stylex.props(
+          shellStyles.shellNavLabel,
+          collapsed
+            ? shellStyles.shellCollapsedOnly
+            : shellStyles.shellExpandedOnly
         )}
       >
         {label}
       </span>
       <span
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.shellShortcut,
-          collapsed ? styles.shellCollapsedOnly : styles.shellExpandedOnly
+        {...stylex.props(
+          shellStyles.shellShortcut,
+          collapsed
+            ? shellStyles.shellCollapsedOnly
+            : shellStyles.shellExpandedOnly
         )}
       >
         {shortcut(item.path)}

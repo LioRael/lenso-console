@@ -1,5 +1,4 @@
 import {
-  stylexClassName,
   DataGrid,
   DataRow,
   FilterSelect,
@@ -120,13 +119,12 @@ export function ModulesPage() {
     <ProductPage
       description={copy.modules.description}
       meta={`${modules.length} ${copy.modules.moduleCount} · ${surfaceCount} ${copy.modules.surfaces.toLowerCase()}`}
-      pageClassName="modules-page"
+      pageKind="modules-page"
       title={copy.modules.title}
     >
-      <div className={stylexClassName("modules-page__filters")}>
+      <div data-page-slot="modules-page__filters">
         <ModulesFilterSelect
           ariaLabel={copy.modules.source}
-          className={stylexClassName("modules-page__filter-control--source")}
           onChange={(value) => setSource(value as SourceFilter)}
           options={[
             { label: copy.modules.allSources, value: "all" },
@@ -139,11 +137,11 @@ export function ModulesPage() {
               value: "runtime_bundle",
             },
           ]}
+          pageSlot="modules-page__filter-control--source"
           value={source}
         />
         <ModulesFilterSelect
           ariaLabel={copy.modules.placement}
-          className={stylexClassName("modules-page__filter-control--area")}
           onChange={(value) => setArea(value as AreaFilter)}
           options={[
             { label: copy.modules.allAreas, value: "all" },
@@ -152,28 +150,27 @@ export function ModulesPage() {
             { label: "Data", value: "data" },
             { label: "Configuration", value: "configuration" },
           ]}
+          pageSlot="modules-page__filter-control--area"
           value={area}
         />
         <ModulesFilterSelect
           ariaLabel={copy.modules.state}
-          className={stylexClassName("modules-page__filter-control--state")}
           onChange={(value) => setState(value as StateFilter)}
           options={[
             { label: copy.modules.allStates, value: "all" },
             { label: copy.modules.registeredState, value: "loaded" },
             { label: "Error", value: "error" },
           ]}
+          pageSlot="modules-page__filter-control--state"
           value={state}
         />
       </div>
       <SplitWorkspace
-        className={stylexClassName("modules-page__workspace")}
         inspector={
           selected ? (
             <Inspector
-              className={stylexClassName("product-inspector modules-inspector")}
               status={
-                <div className={stylexClassName("modules-inspector__status")}>
+                <div data-page-slot="modules-inspector__status">
                   <StatusDot
                     label={copy.modules.registeredState}
                     tone={selected.state === "loaded" ? "success" : "error"}
@@ -189,6 +186,7 @@ export function ModulesPage() {
               }
               subtitle={selected.route}
               title={selected.surface}
+              pageSlot="modules-inspector"
             >
               <InspectorSection title={copy.modules.manifest}>
                 <p>ModuleManifest.console</p>
@@ -234,13 +232,14 @@ export function ModulesPage() {
               </InspectorSection>
             </Inspector>
           ) : (
-            <p className={stylexClassName("modules-page__no-data")}>
+            <p data-page-slot="modules-page__no-data">
               {copy.modules.noMatches}
             </p>
           )
         }
+        pageSlot="modules-page__workspace"
       >
-        <section className={stylexClassName("modules-page__table-pane")}>
+        <section data-page-slot="modules-page__table-pane">
           <PaneHeader
             meta={`${filteredRegistrations.length} ${copy.modules.registered}`}
             title={copy.modules.registry}
@@ -255,7 +254,7 @@ export function ModulesPage() {
               ]}
             />
             {filteredRegistrations.length === 0 ? (
-              <div className={stylexClassName("modules-page__empty")}>
+              <div data-page-slot="modules-page__empty">
                 {copy.modules.noMatches}
               </div>
             ) : (
@@ -291,13 +290,13 @@ export function ModulesPage() {
 
 function ModulesFilterSelect({
   ariaLabel,
-  className,
+  pageSlot,
   onChange,
   options,
   value,
 }: {
   ariaLabel: string;
-  className?: string;
+  pageSlot?: string;
   onChange: (value: string) => void;
   options: readonly { label: string; value: string }[];
   value: string;
@@ -305,9 +304,7 @@ function ModulesFilterSelect({
   return (
     <FilterSelect
       aria-label={ariaLabel}
-      className={stylexClassName(
-        `modules-page__filter-control ${className ?? ""}`
-      )}
+      data-page-slot={`modules-page__filter-control${pageSlot ? ` ${pageSlot}` : ""}`}
       icon={<ChevronDown size={12} strokeWidth={1.5} />}
       onChange={(event) => onChange(event.currentTarget.value)}
       value={value}

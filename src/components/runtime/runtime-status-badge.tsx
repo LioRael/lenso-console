@@ -1,4 +1,5 @@
-import { stylexClassName } from "@lenso/console-ui";
+import type { ConsoleStyle } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import {
   Activity,
   AlertTriangle,
@@ -10,17 +11,57 @@ import {
 } from "lucide-react";
 
 import type { RuntimeStatus } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 
 type RuntimeStatusBadgeProps = {
-  className?: string;
   status: RuntimeStatus;
+  stylex?: ConsoleStyle;
   variant?: "default" | "compact" | "label" | "table";
 };
 
+const styles = stylex.create({
+  base: {
+    alignItems: "center",
+    borderRadius: "9999px",
+    borderStyle: "solid",
+    borderWidth: 1,
+    display: "inline-flex",
+    fontSize: 11,
+    fontWeight: 500,
+    gap: 4,
+    lineHeight: 1,
+    maxWidth: "100%",
+    minHeight: 20,
+    paddingInline: 8,
+    width: "fit-content",
+  },
+  compact: { fontSize: 10, minHeight: 18, paddingInline: 6 },
+  icon: (size: "compact" | "default") => ({
+    flexShrink: 0,
+    height: size === "compact" ? 10 : 12,
+    width: size === "compact" ? 10 : 12,
+  }),
+  label: { fontSize: 11, paddingBlock: 2 },
+  table: {
+    justifyContent: "center",
+    minHeight: 18,
+    paddingInline: 4,
+    width: 72,
+  },
+  tone: (props: StatusTone) => ({
+    backgroundColor: props.backgroundColor,
+    borderColor: props.borderColor,
+    color: props.color,
+  }),
+  text: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+});
+
 export function RuntimeStatusBadge({
-  className,
   status,
+  stylex: stylexStyle,
   variant = "default",
 }: RuntimeStatusBadgeProps) {
   const tone = runtimeStatusTone[status];
@@ -29,78 +70,85 @@ export function RuntimeStatusBadge({
 
   return (
     <span
-      className={cn(
-        runtimeStatusBadgeBaseClassName,
-        tone.className,
-        variant === "compact" && runtimeStatusBadgeCompactClassName,
-        variant === "label" && runtimeStatusBadgeLabelClassName,
-        variant === "table" && runtimeStatusBadgeTableClassName,
-        className
+      {...stylex.props(
+        stylexStyle,
+        styles.base,
+        styles.tone(tone),
+        variant === "compact" && styles.compact,
+        variant === "label" && styles.label,
+        variant === "table" && styles.table
       )}
       title={tone.label}
     >
       {showIcon ? (
         <StatusIcon
-          className={cn(
-            "shrink-0",
-            variant === "compact" ? "size-2.5" : "size-3"
+          {...stylex.props(
+            styles.icon(variant === "compact" ? "compact" : "default")
           )}
           strokeWidth={2.2}
         />
       ) : null}
-      <span className={stylexClassName("truncate")}>{tone.label}</span>
+      <span {...stylex.props(styles.text)}>{tone.label}</span>
     </span>
   );
 }
 
-export const runtimeStatusBadgeBaseClassName =
-  "runtime-status-badge inline-flex min-h-5 w-fit max-w-full items-center gap-1 rounded-full border px-2 text-[11px] font-medium leading-none";
-
-export const runtimeStatusBadgeCompactClassName =
-  "min-h-4.5 px-1.5 text-[10px]";
-
-export const runtimeStatusBadgeLabelClassName =
-  "runtime-status-label py-0.5 text-[11px]";
-
-export const runtimeStatusBadgeTableClassName =
-  "min-h-4.5 w-[72px] justify-center px-1 text-[10px]";
+type StatusTone = {
+  backgroundColor: string;
+  borderColor: string;
+  color: string;
+};
 
 const runtimeStatusTone: Record<
   RuntimeStatus,
-  { className: string; icon: typeof Clock3; label: string }
+  StatusTone & { icon: typeof Clock3; label: string }
 > = {
   pending: {
-    className: "runtime-status-pending",
+    backgroundColor: "var(--tone-muted-bg)",
+    borderColor: "var(--tone-muted-border)",
+    color: "var(--tone-muted-fg)",
     icon: Clock3,
     label: "pending",
   },
   processing: {
-    className: "runtime-status-processing",
+    backgroundColor: "var(--tone-info-bg)",
+    borderColor: "var(--tone-info-border)",
+    color: "var(--tone-info-fg)",
     icon: LoaderCircle,
     label: "processing",
   },
   running: {
-    className: "runtime-status-running",
+    backgroundColor: "var(--tone-info-bg)",
+    borderColor: "var(--tone-info-border)",
+    color: "var(--tone-info-fg)",
     icon: Activity,
     label: "running",
   },
   published: {
-    className: "runtime-status-published",
+    backgroundColor: "var(--tone-success-bg)",
+    borderColor: "var(--tone-success-border)",
+    color: "var(--tone-success-fg)",
     icon: CircleDot,
     label: "published",
   },
   completed: {
-    className: "runtime-status-completed",
+    backgroundColor: "var(--tone-success-bg)",
+    borderColor: "var(--tone-success-border)",
+    color: "var(--tone-success-fg)",
     icon: CheckCircle2,
     label: "completed",
   },
   failed: {
-    className: "runtime-status-failed",
+    backgroundColor: "var(--tone-warning-bg)",
+    borderColor: "var(--tone-warning-border)",
+    color: "var(--tone-warning-fg)",
     icon: AlertTriangle,
     label: "failed",
   },
   dead: {
-    className: "runtime-status-dead",
+    backgroundColor: "var(--tone-error-bg)",
+    borderColor: "var(--tone-error-border)",
+    color: "var(--tone-error-fg)",
     icon: OctagonX,
     label: "dead",
   },

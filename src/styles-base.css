@@ -1,0 +1,171 @@
+/* Intentional Host document defaults. This is not a component style catalog;
+ * it owns the semantic and native-element baseline for the Console document. */
+@layer console-base {
+  html {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+    font-family: var(--font-ui);
+    font-feature-settings:
+      "liga" 1,
+      "calt" 1;
+    font-variation-settings: normal;
+    background: var(--background);
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+    line-height: inherit;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: var(--bg-row-selected);
+    color: var(--fg-primary);
+  }
+
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  pre,
+  blockquote,
+  dl,
+  dd,
+  figure,
+  fieldset,
+  legend {
+    margin: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+
+  b,
+  strong {
+    font-weight: bolder;
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-code);
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    font-size: 1em;
+  }
+
+  small {
+    font-size: 80%;
+  }
+
+  ol,
+  ul,
+  menu {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  button,
+  input,
+  optgroup,
+  select,
+  textarea,
+  ::file-selector-button {
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+    border-radius: 0;
+    background: transparent;
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    opacity: 1;
+  }
+
+  button,
+  select {
+    text-transform: none;
+  }
+
+  button,
+  [role="button"],
+  ::file-selector-button,
+  a {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+
+  button,
+  input:where([type="button"], [type="reset"], [type="submit"]),
+  ::file-selector-button {
+    appearance: button;
+    background-color: transparent;
+    background-image: none;
+  }
+
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+
+  summary {
+    display: list-item;
+  }
+}
+
+/* These are Host fallbacks for native or legacy surfaces. First-party
+ * components provide their own StyleX focus and form states, which win in
+ * the later generated StyleX layers. */
+@layer console-base {
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+  }
+
+  input,
+  select,
+  textarea {
+    caret-color: var(--accent);
+  }
+}

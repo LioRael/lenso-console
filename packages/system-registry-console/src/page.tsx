@@ -1,22 +1,21 @@
 /* eslint-disable func-style, no-nested-ternary, no-use-before-define */
 
 import {
-  stylexClassName,
   ConsolePage,
   DataGrid,
   DataRow,
   FilterSelect,
   InlineStatus,
   Inspector,
-  mergeStyleProps,
   PaneHeader,
   SplitView,
-  styles,
+  pageStyles,
   StateView,
   TableHeader,
   consoleHostApi,
   useConsoleLocale,
 } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { Ban, ChevronDown, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -129,9 +128,10 @@ export function SystemRegistryConsolePage() {
   const setFilter = (key: keyof ServiceFilters, value: ServiceFilterValue) => {
     setFilters((current) => ({ ...current, [key]: value }));
   };
+  const pageFiltersStyleProps = stylex.props(pageStyles.pageFilters);
 
   return (
-    <ConsolePage className={stylexClassName("product-page services-page")}>
+    <ConsolePage data-page="product-page services-page">
       <ConsolePage.Header>
         <ConsolePage.Heading>
           <ConsolePage.Title>{copy.title}</ConsolePage.Title>
@@ -143,9 +143,7 @@ export function SystemRegistryConsolePage() {
         </ConsolePage.Actions>
       </ConsolePage.Header>
 
-      <ConsolePage.Body
-        className={stylexClassName("product-page__body services-page__body")}
-      >
+      <ConsolePage.Body data-page-slot="product-page__body services-page__body">
         {servicesQuery.isPending ? (
           <RegistryMessage
             description={
@@ -163,11 +161,8 @@ export function SystemRegistryConsolePage() {
         ) : (
           <>
             <div
-              {...mergeStyleProps(
-                undefined,
-                "product-page__filters services-page__filters",
-                styles.pageFilters
-              )}
+              {...pageFiltersStyleProps}
+              data-page-slot="product-page__filters services-page__filters"
             >
               <ServiceFilterSelect
                 ariaLabel={copy.allEnvironments}
@@ -190,7 +185,7 @@ export function SystemRegistryConsolePage() {
             </div>
 
             <SplitView
-              className={stylexClassName("services-page__workspace")}
+              data-page-slot="services-page__workspace"
               inspectorWidth={376}
             >
               <SplitView.Main>
@@ -208,7 +203,7 @@ export function SystemRegistryConsolePage() {
                     ]}
                   />
                   {filteredRows.length === 0 ? (
-                    <div className={stylexClassName("services-page__empty")}>
+                    <div data-page-slot="services-page__empty">
                       {services.length === 0 ? copy.noData : copy.noMatches}
                     </div>
                   ) : (
@@ -283,7 +278,7 @@ function ServiceFilterSelect({
   return (
     <FilterSelect
       aria-label={ariaLabel}
-      className={stylexClassName("services-filter-control")}
+      data-page-slot="services-filter-control"
       icon={<ChevronDown size={12} strokeWidth={1.5} />}
       onChange={(event) => onChange(event.currentTarget.value)}
       value={value}
@@ -322,7 +317,7 @@ function ServiceInspector({
   const { presentation, service } = row;
   return (
     <Inspector
-      className={stylexClassName("product-inspector services-inspector")}
+      data-page-slot="product-inspector services-inspector"
       status={
         <InlineStatus tone={semanticStatusTone(presentation.posture)}>
           {presentation.observed}

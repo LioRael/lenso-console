@@ -45,6 +45,32 @@ function Component() {
 }
 ```
 
+### Co-locate component styles
+
+Keep a component's StyleX definitions beside the component markup when the
+styles have one DOM owner. This makes base, variant, state, responsive, and
+consumer composition order visible in one file. Use a separate module only for
+shared token variables, a genuinely shared primitive contract, or a public
+named style slot. A public UI barrel should re-export named slots for that API;
+it should not become a second implementation catalog.
+
+```tsx
+const styles = stylex.create({
+  root: { display: "grid", gap: 8 },
+  selected: { backgroundColor: "var(--bg-row-selected)" },
+});
+
+function Result({ selected }: { selected: boolean }) {
+  return (
+    <article {...stylex.props(styles.root, selected && styles.selected)} />
+  );
+}
+```
+
+The Console migration does not expose a project-wide utility-class bridge. If a
+component owns the DOM, define a local StyleX slot instead of introducing a
+string-based styling helper.
+
 ### Merging styles
 
 Pass multiple styles to merge them. The last style wins for conflicting properties:
@@ -67,7 +93,7 @@ Use JavaScript expressions for conditional styling:
     styles.base,
     isActive && styles.active,
     isDisabled && styles.disabled,
-    variant === "primary" ? styles.primary : styles.secondary
+    variant === "primary" ? styles.primary : styles.secondary,
   )}
 />
 ```
@@ -81,7 +107,7 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 
 type Props = {
   children: React.ReactNode;
-  style?: StyleXStyles;
+  stylex?: StyleXStyles;
 };
 
 const styles = stylex.create({
@@ -91,9 +117,9 @@ const styles = stylex.create({
   },
 });
 
-function Card({ children, style }: Props) {
-  // Local styles first, then prop styles (so props can override)
-  return <div {...stylex.props(styles.card, style)}>{children}</div>;
+function Card({ children, stylex: stylexStyle }: Props) {
+  // Local styles first, then the named StyleX slot (so the slot can override)
+  return <div {...stylex.props(styles.card, stylexStyle)}>{children}</div>;
 }
 ```
 
@@ -393,8 +419,12 @@ const fadeInUp = stylex.keyframes({
 });
 
 const transitionClass = stylex.viewTransitionClass({
-  group: {/* ::view-transition-group styles */},
-  imagePair: {/* ::view-transition-image-pair styles */},
+  group: {
+    /* ::view-transition-group styles */
+  },
+  imagePair: {
+    /* ::view-transition-image-pair styles */
+  },
   old: { animationDuration: "2s" },
   new: { animationName: fadeInUp },
 });
@@ -438,7 +468,7 @@ Accept any StyleX styles:
 import type { StyleXStyles } from "@stylexjs/stylex";
 
 type Props = {
-  style?: StyleXStyles;
+  stylex?: StyleXStyles;
 };
 ```
 
@@ -446,7 +476,7 @@ Constrain to specific properties:
 
 ```tsx
 type Props = {
-  style?: StyleXStyles<{
+  stylex?: StyleXStyles<{
     color?: string;
     backgroundColor?: string;
   }>;
@@ -462,7 +492,7 @@ import type { StyleXStylesWithout } from "@stylexjs/stylex";
 
 type Props = {
   // Allow all styles except layout properties
-  style?: StyleXStylesWithout<{
+  stylex?: StyleXStylesWithout<{
     margin: unknown;
     padding: unknown;
     width: unknown;
@@ -517,6 +547,28 @@ Do not apply `style` or `className` props on an element with a `stylex.props()` 
 // valid
 <div {...stylex.props(styles.container)} />
 ```
+
+There are two explicit exceptions in this repository: a runtime CSS-variable
+boundary such as theme overrides, and imperative interaction state such as a
+temporary document cursor. Keep those exceptions narrow, documented, and out
+of component-owned static styling.
+
+An exception must still have exactly one inline-style owner. Dynamic
+`stylex.create` functions can make `stylex.props()` return a generated `style`
+object containing runtime CSS variables; a later JSX `style={...}` prop replaces
+that object rather than merging it. When an element needs imperative runtime
+geometry or CSS variables, keep its StyleX declarations static and place all
+runtime values in one explicit inline object. Do not add a generic style-prop
+merge helper to compensate for two competing owners.
+
+### Don't rely on the reset to make borders visible
+
+A component that declares a non-zero border width must declare the matching
+border style in the same StyleX owner. For example, pair
+`borderBottomWidth: 1` with `borderBottomStyle: "solid"`. Do not rely on a
+global `border: 0 solid` reset: that hides part of the component contract and
+causes dividers to disappear when the reset is narrowed. Zero-width state
+overrides may continue to change only the width.
 
 ### Don't use media queries or pseudo-classes at the top level
 

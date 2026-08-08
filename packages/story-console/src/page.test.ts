@@ -5,6 +5,7 @@ import "./test-host-api";
 import { shouldCloseInspectorOnEscape } from "./keyboard";
 import {
   runtimeStoriesDefaultViewMode,
+  runtimeStoriesWorkbenchStyle,
   storyModuleIsUnavailable,
 } from "./page";
 
@@ -13,6 +14,18 @@ describe("story workbench page contracts", () => {
     const defaultViewMode: "waterfall" = runtimeStoriesDefaultViewMode;
 
     expect(defaultViewMode).toBe("waterfall");
+  });
+
+  test("keeps workbench columns and inspector progress in one style owner", () => {
+    expect(
+      runtimeStoriesWorkbenchStyle(
+        "267px 1px minmax(0,1fr) 1px minmax(0,340px)",
+        1
+      )
+    ).toEqual({
+      "--story-inspector-open": 1,
+      gridTemplateColumns: "267px 1px minmax(0,1fr) 1px minmax(0,340px)",
+    });
   });
 
   test("keeps story header props aligned with story data", () => {

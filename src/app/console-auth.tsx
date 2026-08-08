@@ -1,4 +1,5 @@
-import { Button, mergeStyleProps, styles } from "@lenso/console-ui";
+import { Button, dataStyles } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { LogIn } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
@@ -9,6 +10,7 @@ import {
   consoleApiAuthToken,
   consoleApiPrefix,
 } from "../lib/http-client";
+import { statusStyles } from "./console-status-styles";
 
 const oidcStateStorageKey = "lenso-console:oidc-state";
 const oidcVerifierStorageKey = "lenso-console:oidc-verifier";
@@ -173,10 +175,8 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
 
   if (bootstrapStatus === "checking" && !isCallback) {
     return (
-      <main {...mergeStyleProps(undefined, undefined, styles.statusScreen)}>
-        <p
-          {...mergeStyleProps(undefined, undefined, styles.statusScreenMessage)}
-        >
+      <main {...stylex.props(statusStyles.statusScreen)}>
+        <p {...stylex.props(statusStyles.statusScreenMessage)}>
           Inspecting Console bootstrap status…
         </p>
       </main>
@@ -193,51 +193,43 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main {...mergeStyleProps(undefined, undefined, styles.statusScreen)}>
+    <main {...stylex.props(statusStyles.statusScreen)}>
       <section
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.statusCard,
-          styles.statusCardNarrow
+        {...stylex.props(
+          statusStyles.statusCard,
+          statusStyles.statusCardNarrow
         )}
       >
-        <div {...mergeStyleProps(undefined, undefined, styles.statusCopy)}>
-          <h1 {...mergeStyleProps(undefined, undefined, styles.panelTitle)}>
-            Lenso Console
-          </h1>
-          <p
-            {...mergeStyleProps(undefined, undefined, styles.statusDescription)}
-          >
+        <div {...stylex.props(statusStyles.statusCopy)}>
+          <h1 {...stylex.props(dataStyles.panelTitle)}>Lenso Console</h1>
+          <p {...stylex.props(statusStyles.statusDescription)}>
             Sign in with the configured Lenso identity provider.
           </p>
         </div>
         {authError ? (
-          <p {...mergeStyleProps(undefined, undefined, styles.statusError)}>
-            {authError}
-          </p>
+          <p {...stylex.props(statusStyles.statusError)}>{authError}</p>
         ) : null}
         <form
-          {...mergeStyleProps(undefined, undefined, styles.statusForm)}
+          {...stylex.props(statusStyles.statusForm)}
           onSubmit={handlePasswordSignIn}
         >
-          <label {...mergeStyleProps(undefined, undefined, styles.statusLabel)}>
+          <label {...stylex.props(statusStyles.statusLabel)}>
             <span>Identifier</span>
             <input
               aria-label="Identifier"
               autoComplete="username"
-              {...mergeStyleProps(undefined, undefined, styles.statusInput)}
+              {...stylex.props(statusStyles.statusInput)}
               onChange={(event) => setIdentifier(event.target.value)}
               required
               value={identifier}
             />
           </label>
-          <label {...mergeStyleProps(undefined, undefined, styles.statusLabel)}>
+          <label {...stylex.props(statusStyles.statusLabel)}>
             <span>Password</span>
             <input
               aria-label="Password"
               autoComplete="current-password"
-              {...mergeStyleProps(undefined, undefined, styles.statusInput)}
+              {...stylex.props(statusStyles.statusInput)}
               onChange={(event) => setPassword(event.target.value)}
               required
               type="password"
@@ -246,7 +238,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
           </label>
           <Button
             disabled={busy}
-            stylex={styles.statusButtonFull}
+            stylex={statusStyles.statusButtonFull}
             type="submit"
           >
             <LogIn aria-hidden="true" size={14} />
@@ -256,7 +248,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
         <Button
           disabled={busy}
           onClick={handleSignIn}
-          stylex={styles.statusButtonSpaced}
+          stylex={statusStyles.statusButtonSpaced}
           variant="ghost"
         >
           Continue with existing session
@@ -272,29 +264,20 @@ function ConsoleOperatorBootstrapRequired({
   status: ConsoleBootstrapStatus;
 }) {
   return (
-    <main {...mergeStyleProps(undefined, undefined, styles.statusScreen)}>
+    <main {...stylex.props(statusStyles.statusScreen)}>
       <section
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.statusCard,
-          styles.statusCardWide
-        )}
+        {...stylex.props(statusStyles.statusCard, statusStyles.statusCardWide)}
       >
-        <p {...mergeStyleProps(undefined, undefined, styles.statusEyebrow)}>
-          Console Bootstrap
-        </p>
-        <h1 {...mergeStyleProps(undefined, undefined, styles.statusTitle)}>
-          Operator required
-        </h1>
-        <p {...mergeStyleProps(undefined, undefined, styles.statusDescription)}>
+        <p {...stylex.props(statusStyles.statusEyebrow)}>Console Bootstrap</p>
+        <h1 {...stylex.props(statusStyles.statusTitle)}>Operator required</h1>
+        <p {...stylex.props(statusStyles.statusDescription)}>
           This Console has no operator yet. Run the installation-authority
           command below, then restart the Console Service.
         </p>
-        <pre {...mergeStyleProps(undefined, undefined, styles.statusPre)}>
+        <pre {...stylex.props(statusStyles.statusPre)}>
           <code>{`lenso console operator bootstrap \\\n+  --console-url ${window.location.origin} \\\n+  --identifier admin@example.com`}</code>
         </pre>
-        <p {...mergeStyleProps(undefined, undefined, styles.statusFootnote)}>
+        <p {...stylex.props(statusStyles.statusFootnote)}>
           {status.nextAction}
         </p>
       </section>

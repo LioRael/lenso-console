@@ -1,13 +1,12 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 
 import type { RuntimeStory, ExecutionNode } from "../../data/mock-runtime";
-import { cn } from "../../lib/cn";
 import {
   formatRuntimeDuration,
   serviceColor,
   statusColor,
 } from "../../lib/runtime-style";
-import { runtimeWaterfallTableHeaderClassName } from "./runtime-table-header";
+import { runtimeWaterfallTableHeaderProps } from "./runtime-table-header";
 import { RuntimeViewHeader } from "./runtime-view-header";
 import {
   buildWaterfallRows,
@@ -17,6 +16,344 @@ import {
   type WaterfallRow,
   type WaterfallTimelineMarker,
 } from "./waterfall-model";
+
+const localStyles = stylex.create({
+  utilityIsolate: {
+    isolation: "isolate",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityHFull: {
+    height: "100%",
+  },
+  utilityMinW0: {
+    minWidth: "calc(0.25rem * 0)",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityOverflowHidden: {
+    overflow: "hidden",
+  },
+  utilityBgBackground: {
+    backgroundColor: "var(--background)",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityJustifyBetween: {
+    justifyContent: "space-between",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityFontNormal: {
+    fontWeight: "400",
+  },
+  utilityNormalCase: {
+    textTransform: "none",
+  },
+  utilityAbsolute: {
+    position: "absolute",
+  },
+  utilityTop75px: {
+    top: "7.5px",
+  },
+  utilityLeft344px: {
+    left: "344px",
+  },
+  utilityW332px: {
+    width: "332px",
+  },
+  utilityTranslateXFull: {
+    transform: "translateX(calc(100% * -1))",
+  },
+  utilityTextRight: {
+    textAlign: "right",
+  },
+  utilityMinH0: {
+    minHeight: "calc(0.25rem * 0)",
+  },
+  utilityFlex1: {
+    flex: "1",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBorderBorderSubtle: {
+    borderColor: "var(--border-subtle)",
+  },
+  utilityP4: {
+    padding: "calc(0.25rem * 4)",
+  },
+  utilityTextXs: {
+    fontSize: "var(--text-xs, 0.75rem)",
+    lineHeight: "var(--text-xs--line-height, 1rem)",
+  },
+  utilityTextMuted: {
+    color: "var(--muted)",
+  },
+  utilityBorderY: {
+    borderBlockStyle: "solid",
+    borderBlockWidth: "1px",
+  },
+  utilityBgSidebar: {
+    backgroundColor: "var(--sidebar)",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy15: {
+    paddingBlock: "calc(0.25rem * 1.5)",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityTracking008em: {
+    letterSpacing: "0.08em",
+  },
+  utilityHPx: {
+    height: "1px",
+  },
+  utilityBgLineSubtle: {
+    backgroundColor: "var(--line-subtle)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityH49px: {
+    height: "49px",
+  },
+  utilityWFull: {
+    width: "100%",
+  },
+  utilityGridCols332px232px: {
+    gridTemplateColumns: "332px 232px",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityTextLeft: {
+    textAlign: "left",
+  },
+  utilityTransitionColors: {
+    transitionProperty:
+      "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke",
+    transitionDuration: "150ms",
+    transitionTimingFunction: "ease",
+  },
+  utilityHoverBgBgRowHover: {
+    ":hover": {
+      backgroundColor: "var(--bg-row-hover)",
+    },
+  },
+  utilityDisabledCursorDefault: {
+    ":disabled": {
+      cursor: "default",
+    },
+  },
+  utilityBgBgRowSelected: {
+    backgroundColor: "var(--bg-row-selected)",
+  },
+  utilityOpacity82: {
+    opacity: "82%",
+  },
+  utilityGap15: {
+    gap: "calc(0.25rem * 1.5)",
+  },
+  utilityW48px: {
+    width: "48px",
+  },
+  utilityShrink0: {
+    flexShrink: "0",
+  },
+  utilityTruncate: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityW80px: {
+    width: "80px",
+  },
+  utilityTextFgPrimary: {
+    color: "var(--fg-primary)",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityRelative: {
+    position: "relative",
+  },
+  utilityH32px: {
+    height: "32px",
+  },
+  utilityBgBgCanvas: {
+    backgroundColor: "var(--bg-canvas)",
+  },
+  utilityH48px: {
+    height: "48px",
+  },
+  utilityBorderT: {
+    borderTopStyle: "solid",
+    borderTopWidth: "1px",
+  },
+  utilityBorderLineSubtle: {
+    borderColor: "var(--line-subtle)",
+  },
+  utilityBgBgSurfaceMuted: {
+    backgroundColor: "var(--bg-surface-muted)",
+  },
+  utilityPy7px: {
+    paddingBlock: "7px",
+  },
+  utilityText95px: {
+    fontSize: "9.5px",
+  },
+  utilityFontMedium: {
+    fontWeight: "500",
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityText13px: {
+    fontSize: "13px",
+  },
+  utilityFontSans: {
+    fontFamily:
+      "var(--font-sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',\n    'Noto Color Emoji')",
+  },
+  utilityH37px: {
+    height: "37px",
+  },
+  utilityGap14px: {
+    gap: "14px",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityWhitespaceNowrap: {
+    whiteSpace: "nowrap",
+  },
+  utilityInlineFlex: {
+    display: "inline-flex",
+  },
+});
+
+const styles = stylex.create({
+  branchLine: (left: number) => ({
+    backgroundColor: "var(--bg-canvas)",
+    height: 1,
+    left,
+    position: "absolute",
+    top: 24,
+    width: 12,
+  }),
+  depth: (width: number) => ({
+    flexShrink: 0,
+    height: 49,
+    position: "relative",
+    width,
+  }),
+  depthLine: (left: number) => ({
+    backgroundColor: "var(--bg-canvas)",
+    height: "100%",
+    left,
+    position: "absolute",
+    top: 0,
+    width: 1,
+  }),
+  dot: (color: string) => ({
+    backgroundColor: color,
+    borderRadius: "1px",
+    flexShrink: 0,
+    height: 7,
+    width: 7,
+  }),
+  legendSwatch: (color: string, marker: boolean) => ({
+    backgroundColor: color,
+    height: marker ? 4 : 7,
+    width: marker ? 4 : 7,
+  }),
+  marker: (props: {
+    backgroundColor: string;
+    left: string;
+    opacity: number;
+    width: string;
+  }) => ({
+    backgroundColor: props.backgroundColor,
+    borderRadius: "2px",
+    height: 4,
+    left: props.left,
+    opacity: props.opacity,
+    position: "absolute",
+    top: 5,
+    width: props.width,
+  }),
+  markerLabel: (color: string, left: string) => ({
+    color,
+    fontFamily: "var(--font-code)",
+    fontSize: 9,
+    left,
+    position: "absolute",
+    top: 22,
+    whiteSpace: "nowrap",
+  }),
+  segment: (props: {
+    backgroundColor: string;
+    left: string;
+    opacity: number;
+    selected: boolean;
+    width: string;
+  }) => ({
+    backgroundColor: props.backgroundColor,
+    borderRadius: "2px",
+    height: props.selected ? 12 : 8,
+    left: props.left,
+    minWidth: "3px",
+    opacity: props.opacity,
+    position: "absolute",
+    top: props.selected ? 10 : 12,
+    transitionProperty: "all",
+    width: props.width,
+  }),
+  service: (color: string) => ({
+    color,
+    flexShrink: 0,
+    fontFamily: "var(--font-code)",
+    fontSize: 9,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    width: 58,
+  }),
+  timelineGridline: (left: number) => ({
+    backgroundColor: "var(--line-subtle)",
+    height: "100%",
+    left,
+    opacity: 0.65,
+    position: "absolute",
+    top: 0,
+    width: 1,
+  }),
+});
 
 export function WaterfallView({
   selectedNodeId,
@@ -33,27 +370,40 @@ export function WaterfallView({
 
   return (
     <div
-      className={stylexClassName(
-        "isolate flex h-full min-w-0 flex-col overflow-hidden bg-(--background)"
-      )}
+      {...stylex.props([
+        localStyles.utilityIsolate,
+        localStyles.utilityFlex,
+        localStyles.utilityHFull,
+        localStyles.utilityMinW0,
+        localStyles.utilityFlexCol,
+        localStyles.utilityOverflowHidden,
+        localStyles.utilityBgBackground,
+      ])}
     >
       <RuntimeViewHeader
         meta={`total ${formatRuntimeDuration(timelineEnd)}`}
         summary={`${rows.length} execution rows · ${unlinkedCount} unlinked`}
         title="Waterfall"
       />
-      <div className={runtimeWaterfallTableHeaderClassName}>
+      <div {...runtimeWaterfallTableHeaderProps}>
         <span>Node</span>
         <div
-          className={stylexClassName(
-            "flex min-w-0 items-center justify-between overflow-hidden"
-          )}
+          {...stylex.props([
+            localStyles.utilityFlex,
+            localStyles.utilityMinW0,
+            localStyles.utilityItemsCenter,
+            localStyles.utilityJustifyBetween,
+            localStyles.utilityOverflowHidden,
+          ])}
         >
           {[0, 25, 50, 75, 100].map((tick) => (
             <span
-              className={stylexClassName(
-                "font-mono text-[9px] font-normal normal-case"
-              )}
+              {...stylex.props([
+                localStyles.utilityFontMono,
+                localStyles.utilityText9px,
+                localStyles.utilityFontNormal,
+                localStyles.utilityNormalCase,
+              ])}
               key={tick}
             >
               {formatRuntimeDuration((timelineEnd * tick) / 100)}
@@ -61,19 +411,35 @@ export function WaterfallView({
           ))}
         </div>
         <span
-          className={stylexClassName(
-            "absolute top-[7.5px] left-[344px] w-[332px] -translate-x-full text-right"
-          )}
+          {...stylex.props([
+            localStyles.utilityAbsolute,
+            localStyles.utilityTop75px,
+            localStyles.utilityLeft344px,
+            localStyles.utilityW332px,
+            localStyles.utilityTranslateXFull,
+            localStyles.utilityTextRight,
+          ])}
         >
           Duration
         </span>
       </div>
-      <div className={stylexClassName("min-h-0 flex-1 overflow-auto")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityMinH0,
+          localStyles.utilityFlex1,
+          localStyles.utilityOverflowAuto,
+        ])}
+      >
         {rows.length === 0 ? (
           <div
-            className={stylexClassName(
-              "border-b border-(--border-subtle) p-4 font-mono text-xs text-(--muted)"
-            )}
+            {...stylex.props([
+              localStyles.utilityBorderB,
+              localStyles.utilityBorderBorderSubtle,
+              localStyles.utilityP4,
+              localStyles.utilityFontMono,
+              localStyles.utilityTextXs,
+              localStyles.utilityTextMuted,
+            ])}
           >
             No waterfall rows were returned for this story.
           </div>
@@ -86,9 +452,19 @@ export function WaterfallView({
             <div key={row.id}>
               {showUnlinkedHeader ? (
                 <div
-                  className={stylexClassName(
-                    "border-y border-(--border-subtle) bg-(--sidebar) px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-(--muted)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityBorderY,
+                    localStyles.utilityBorderBorderSubtle,
+                    localStyles.utilityBgSidebar,
+                    localStyles.utilityPx3,
+                    localStyles.utilityPy15,
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText10px,
+                    localStyles.utilityFontSemibold,
+                    localStyles.utilityUppercase,
+                    localStyles.utilityTracking008em,
+                    localStyles.utilityTextMuted,
+                  ])}
                 >
                   Unlinked
                 </div>
@@ -99,7 +475,12 @@ export function WaterfallView({
                 selectedNodeId={selectedNodeId}
                 timelineEnd={timelineEnd}
               />
-              <div className={stylexClassName("h-px bg-(--line-subtle)")} />
+              <div
+                {...stylex.props([
+                  localStyles.utilityHPx,
+                  localStyles.utilityBgLineSubtle,
+                ])}
+              />
             </div>
           );
         })}
@@ -138,10 +519,23 @@ function WaterfallRowButton({
     <button
       aria-label={`Select row ${row.name}`}
       aria-pressed={selected}
-      className={cn(
-        "grid h-[49px] w-full min-w-0 grid-cols-[332px_232px] items-center gap-3 px-3 text-left transition-colors hover:bg-(--bg-row-hover) disabled:cursor-default",
-        selected && "bg-(--bg-row-selected)",
-        row.group === "unlinked" && "opacity-82"
+      {...stylex.props(
+        [
+          localStyles.utilityGrid,
+          localStyles.utilityH49px,
+          localStyles.utilityWFull,
+          localStyles.utilityMinW0,
+          localStyles.utilityGridCols332px232px,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap3,
+          localStyles.utilityPx3,
+          localStyles.utilityTextLeft,
+          localStyles.utilityTransitionColors,
+          localStyles.utilityHoverBgBgRowHover,
+          localStyles.utilityDisabledCursorDefault,
+        ],
+        selected && [localStyles.utilityBgBgRowSelected],
+        row.group === "unlinked" && [localStyles.utilityOpacity82]
       )}
       disabled={!node}
       onClick={() => {
@@ -152,109 +546,106 @@ function WaterfallRowButton({
       type="button"
     >
       <span
-        className={stylexClassName(
-          "flex min-w-0 items-center gap-1.5 overflow-hidden"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityMinW0,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap15,
+          localStyles.utilityOverflowHidden,
+        ])}
       >
-        <span
-          className={stylexClassName("relative h-[49px] shrink-0")}
-          style={{ width: row.depth * 14 + 4 }}
-        >
+        <span {...stylex.props(styles.depth(row.depth * 14 + 4))}>
           <span
-            className={stylexClassName(
-              "absolute top-0 h-full w-px bg-(--bg-canvas)"
+            {...stylex.props(
+              styles.depthLine(row.depth > 0 ? row.depth * 14 : 1)
             )}
-            style={{ left: row.depth > 0 ? row.depth * 14 : 1 }}
           />
           {row.depth > 0 ? (
             <span
-              className={stylexClassName(
-                "absolute top-6 h-px w-3 bg-(--bg-canvas)"
-              )}
-              style={{ left: (row.depth - 1) * 14 + 3 }}
+              {...stylex.props(styles.branchLine((row.depth - 1) * 14 + 3))}
             />
           ) : null}
         </span>
+        <span {...stylex.props(styles.dot(dotColor))} />
+        <span {...stylex.props(styles.service(color))}>{row.service}</span>
         <span
-          className={stylexClassName("size-[7px] shrink-0 rounded-[1px]")}
-          style={{ backgroundColor: dotColor }}
-        />
-        <span
-          className={stylexClassName(
-            "w-[58px] shrink-0 truncate whitespace-nowrap font-mono text-[9px]"
-          )}
-          style={{ color }}
-        >
-          {row.service}
-        </span>
-        <span
-          className={stylexClassName(
-            "w-[48px] shrink-0 truncate font-mono text-[9px] text-(--fg-tertiary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityW48px,
+            localStyles.utilityShrink0,
+            localStyles.utilityTruncate,
+            localStyles.utilityFontMono,
+            localStyles.utilityText9px,
+            localStyles.utilityTextFgTertiary,
+          ])}
         >
           {row.kind}
         </span>
         <span
-          className={cn(
-            "w-[80px] shrink-0 truncate font-mono text-[10px]",
-            selected ? "text-(--fg-primary)" : "text-(--fg-secondary)"
+          {...stylex.props(
+            [
+              localStyles.utilityW80px,
+              localStyles.utilityShrink0,
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMono,
+              localStyles.utilityText10px,
+            ],
+            selected
+              ? [localStyles.utilityTextFgPrimary]
+              : [localStyles.utilityTextFgSecondary]
           )}
         >
           {row.name}
         </span>
         <span
-          className={stylexClassName(
-            "min-w-0 flex-1 text-right font-mono text-[9px] text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMinW0,
+            localStyles.utilityFlex1,
+            localStyles.utilityTextRight,
+            localStyles.utilityFontMono,
+            localStyles.utilityText9px,
+            localStyles.utilityTextFgSecondary,
+          ])}
         >
           {formatRuntimeDuration(row.durationMs)}
         </span>
       </span>
       <span
-        className={stylexClassName(
-          "relative isolate h-[32px] min-w-0 overflow-hidden bg-(--bg-canvas)"
-        )}
+        {...stylex.props([
+          localStyles.utilityRelative,
+          localStyles.utilityIsolate,
+          localStyles.utilityH32px,
+          localStyles.utilityMinW0,
+          localStyles.utilityOverflowHidden,
+          localStyles.utilityBgBgCanvas,
+        ])}
       >
         {[58, 116, 174].map((left) => (
-          <span
-            className={stylexClassName(
-              "absolute top-0 h-full w-px bg-(--line-subtle) opacity-[0.65]"
-            )}
-            key={left}
-            style={{ left }}
-          />
+          <span {...stylex.props(styles.timelineGridline(left))} key={left} />
         ))}
         <span
-          className={cn(
-            "absolute top-[12px] h-2 min-w-0.75 rounded-[2px] transition-all",
-            selected && "top-[10px] h-3"
+          {...stylex.props(
+            styles.segment({
+              backgroundColor:
+                row.status === "failed" || row.status === "dead"
+                  ? "var(--error)"
+                  : color,
+              left: `${segment.left}%`,
+              opacity: selected ? 1 : 0.82,
+              selected,
+              width: `${segment.width}%`,
+            })
           )}
-          style={{
-            backgroundColor:
-              row.status === "failed" || row.status === "dead"
-                ? "var(--error)"
-                : color,
-            left: `${segment.left}%`,
-            opacity: selected ? 1 : 0.82,
-            width: `${segment.width}%`,
-          }}
         />
         {row.fanoutGroupSize ? (
           <span
-            className={stylexClassName(
-              "absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
-            )}
-            style={{ color, left: `${segment.left}%` }}
+            {...stylex.props(styles.markerLabel(color, `${segment.left}%`))}
           >
             fan-out {row.fanoutGroupSize}
           </span>
         ) : null}
         {row.group === "linked" && row.depth === 0 ? (
           <span
-            className={stylexClassName(
-              "absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
-            )}
-            style={{ color, left: `${segment.left}%` }}
+            {...stylex.props(styles.markerLabel(color, `${segment.left}%`))}
           >
             root
           </span>
@@ -274,53 +665,91 @@ function CriticalPathSummary({ story }: { story: RuntimeStory }) {
   return (
     <>
       <div
-        className={stylexClassName(
-          "flex h-[48px] items-center gap-3 border-t border-(--line-subtle) bg-(--bg-surface-muted) px-3 py-[7px]"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH48px,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap3,
+          localStyles.utilityBorderT,
+          localStyles.utilityBorderLineSubtle,
+          localStyles.utilityBgBgSurfaceMuted,
+          localStyles.utilityPx3,
+          localStyles.utilityPy7px,
+        ])}
       >
-        <div className={stylexClassName("min-w-0 flex-1")}>
+        <div
+          {...stylex.props([
+            localStyles.utilityMinW0,
+            localStyles.utilityFlex1,
+          ])}
+        >
           <div
-            className={stylexClassName(
-              "text-[9.5px] font-medium text-(--fg-tertiary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityText95px,
+              localStyles.utilityFontMedium,
+              localStyles.utilityTextFgTertiary,
+            ])}
           >
             Critical path
           </div>
           <div
-            className={stylexClassName(
-              "truncate font-mono text-[11px] text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityTruncate,
+              localStyles.utilityFontMono,
+              localStyles.utilityText11px,
+              localStyles.utilityTextFgPrimary,
+            ])}
           >
             {path.map((node) => node.name).join("  →  ") || "—"}
           </div>
         </div>
-        <div className={stylexClassName("shrink-0 text-right")}>
+        <div
+          {...stylex.props([
+            localStyles.utilityShrink0,
+            localStyles.utilityTextRight,
+          ])}
+        >
           <div
-            className={stylexClassName(
-              "font-mono text-[13px] text-(--fg-primary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFontMono,
+              localStyles.utilityText13px,
+              localStyles.utilityTextFgPrimary,
+            ])}
           >
             {formatRuntimeDuration(duration)}
           </div>
           <div
-            className={stylexClassName(
-              "font-sans text-[9.5px] text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityFontSans,
+              localStyles.utilityText95px,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             {percentage}% of execution
           </div>
         </div>
       </div>
       <div
-        className={stylexClassName(
-          "flex h-[37px] items-center gap-[14px] px-3 font-mono text-[9.5px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityH37px,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap14px,
+          localStyles.utilityPx3,
+          localStyles.utilityFontMono,
+          localStyles.utilityText95px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         <Legend swatch="var(--tone-info-fg)" text="service identity" />
         <Legend swatch="var(--fg-primary)" text="selected node" />
         <Legend marker swatch="var(--fg-primary)" text="timeline marker" />
         <span
-          className={stylexClassName("ml-auto whitespace-nowrap text-[9px]")}
+          {...stylex.props([
+            localStyles.utilityMlAuto,
+            localStyles.utilityWhitespaceNowrap,
+            localStyles.utilityText9px,
+          ])}
         >
           Select a row to inspect execution context
         </span>
@@ -340,14 +769,14 @@ function Legend({
 }) {
   return (
     <span
-      className={stylexClassName(
-        "inline-flex items-center gap-1.5 whitespace-nowrap"
-      )}
+      {...stylex.props([
+        localStyles.utilityInlineFlex,
+        localStyles.utilityItemsCenter,
+        localStyles.utilityGap15,
+        localStyles.utilityWhitespaceNowrap,
+      ])}
     >
-      <span
-        className={marker ? "size-1" : "size-[7px]"}
-        style={{ backgroundColor: swatch }}
-      />
+      <span {...stylex.props(styles.legendSwatch(swatch, marker))} />
       {text}
     </span>
   );
@@ -408,23 +837,19 @@ function TimelineMarker({
   return (
     <>
       <span
-        className={cn(
-          "absolute top-[5px] h-1 rounded-xs bg-(--foreground)",
-          errored && "bg-(--error)"
+        {...stylex.props(
+          styles.marker({
+            backgroundColor: errored ? "var(--error)" : "var(--foreground)",
+            left: `${segment.left}%`,
+            opacity: errored ? 0.9 : 0.5,
+            width: `${segment.width}%`,
+          })
         )}
-        style={{
-          left: `${segment.left}%`,
-          opacity: errored ? 0.9 : 0.5,
-          width: `${segment.width}%`,
-        }}
         title={`${marker.kind}: ${marker.name} · ${formatRuntimeDuration(marker.durationMs)}`}
       />
       {showLabel ? (
         <span
-          className={stylexClassName(
-            "absolute top-[22px] whitespace-nowrap font-mono text-[9px]"
-          )}
-          style={{ color: labelColor, left: `${segment.left}%` }}
+          {...stylex.props(styles.markerLabel(labelColor, `${segment.left}%`))}
         >
           stable effect
         </span>

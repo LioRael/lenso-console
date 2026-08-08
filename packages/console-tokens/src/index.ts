@@ -6,4 +6,4 @@ export {
   tokenNames,
   tokens,
   type ConsoleTokenName,
-} from "./tokens.stylex.js";
+} from "./tokens.stylex";

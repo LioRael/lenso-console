@@ -176,7 +176,7 @@ export {
   type ConsoleLanguagePreference,
   type ConsoleLocale,
   type ConsoleLocaleContextValue,
-} from "./locale.js";
+} from "./locale";
 
 export {
   Badge,
@@ -232,9 +232,17 @@ export {
   type ConsoleSurfaceRootProps,
   type SurfaceGroupLabelProps,
   type TableHeaderProps,
-} from "./ui.js";
+  type ConsoleStyle,
+} from "./ui";
 
-export * from "./host.js";
+export * from "./host";
 
-export { mergeStyleProps, styles, type ConsoleStyle } from "./styles.js";
-export { stylexClassName } from "./stylex-utilities.js";
+export {
+  controlStyles,
+  dataStyles,
+  formStyles,
+  layoutStyles,
+  pageStyles,
+  settingsStyles,
+  tableStyles,
+} from "./ui";

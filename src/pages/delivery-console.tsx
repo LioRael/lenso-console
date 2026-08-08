@@ -1,4 +1,4 @@
-import { stylexClassName } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -6,6 +6,191 @@ import {
   PackageCheck,
   ShieldCheck,
 } from "lucide-react";
+
+const localStyles = stylex.create({
+  utilityBorderB: {
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+  },
+  utilityBorderLine: {
+    borderColor: "var(--line)",
+  },
+  utilityBgBgPanel: {
+    backgroundColor: "var(--bg-panel)",
+  },
+  utilityFlex: {
+    display: "flex",
+  },
+  utilityItemsCenter: {
+    alignItems: "center",
+  },
+  utilityGap2: {
+    gap: "calc(0.25rem * 2)",
+  },
+  utilityPx3: {
+    paddingInline: "calc(0.25rem * 3)",
+  },
+  utilityPy2: {
+    paddingBlock: "calc(0.25rem * 2)",
+  },
+  utilityTextAccent: {
+    color: "var(--accent)",
+  },
+  utilityFontMono: {
+    fontFamily:
+      "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',\n    monospace)",
+  },
+  utilityText12px: {
+    fontSize: "12px",
+  },
+  utilityFontSemibold: {
+    fontWeight: "600",
+  },
+  utilityMlAuto: {
+    marginLeft: "auto",
+  },
+  utilityText10px: {
+    fontSize: "10px",
+  },
+  utilityUppercase: {
+    textTransform: "uppercase",
+  },
+  utilityTextFgSecondary: {
+    color: "var(--fg-secondary)",
+  },
+  utilityGrid: {
+    display: "grid",
+  },
+  utilityGapPx: {
+    gap: "1px",
+  },
+  utilityBgLine: {
+    backgroundColor: "var(--line)",
+  },
+  utilityMdGridCols4: {
+    "@media (min-width: 768px)": {
+      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    },
+  },
+  utilityBorderT: {
+    borderTopStyle: "solid",
+    borderTopWidth: "1px",
+  },
+  utilityLgGridCols2: {
+    "@media (min-width: 1024px)": {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
+  },
+  utilityBorder: {
+    borderStyle: "solid",
+    borderWidth: "1px",
+  },
+  utilityBgBgPanelMuted: {
+    backgroundColor: "var(--bg-panel-muted)",
+  },
+  utilityP2: {
+    padding: "calc(0.25rem * 2)",
+  },
+  utilityTextFgTertiary: {
+    color: "var(--fg-tertiary)",
+  },
+  utilityMt1: {
+    marginTop: "calc(0.25rem * 1)",
+  },
+  utilityBreakAll: {
+    wordBreak: "break-all",
+  },
+  utilityText9px: {
+    fontSize: "9px",
+  },
+  utilityMt2: {
+    marginTop: "calc(0.25rem * 2)",
+  },
+  utilityGridCols80pxMinmax01fr: {
+    gridTemplateColumns: "80px minmax(0,1fr)",
+  },
+  utilityGapX2: {
+    columnGap: "calc(0.25rem * 2)",
+  },
+  utilityGridCols90pxMinmax01fr: {
+    gridTemplateColumns: "90px minmax(0,1fr)",
+  },
+  utilityFlexCol: {
+    flexDirection: "column",
+  },
+  utilityMdGridCols2: {
+    "@media (min-width: 768px)": {
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    },
+  },
+  utilityGridCols110pxMinmax01fr: {
+    gridTemplateColumns: "110px minmax(0,1fr)",
+  },
+  utilityGridCols150pxMinmax01fr: {
+    gridTemplateColumns: "150px minmax(0,1fr)",
+  },
+  utilityGap3: {
+    gap: "calc(0.25rem * 3)",
+  },
+  utilityFirstBorderT0: {
+    ":first-child": {
+      borderTopWidth: "0px",
+    },
+  },
+  utilityHoverBgBgRowHover: {
+    ":hover": {
+      backgroundColor: "var(--bg-row-hover)",
+    },
+  },
+  utilityContentStart: {
+    alignContent: "flex-start",
+  },
+  utilityGap1: {
+    gap: "calc(0.25rem * 1)",
+  },
+  utilityContents: {
+    display: "contents",
+  },
+  utilityCursorPointer: {
+    cursor: "pointer",
+  },
+  utilityMaxH48: {
+    maxHeight: "calc(0.25rem * 48)",
+  },
+  utilityOverflowAuto: {
+    overflow: "auto",
+  },
+  utilityWhitespacePreWrap: {
+    whiteSpace: "pre-wrap",
+  },
+  utilityTextDanger: {
+    color: "var(--danger)",
+  },
+  utilityP3: {
+    padding: "calc(0.25rem * 3)",
+  },
+  utilityMb2: {
+    marginBottom: "calc(0.25rem * 2)",
+  },
+  utilityGridCols96pxMinmax01frMinmax120px07fr: {
+    gridTemplateColumns: "96px minmax(0,1fr) minmax(120px,0.7fr)",
+  },
+  utilityGridColsMinmax140px05frMinmax01fr: {
+    gridTemplateColumns: "minmax(140px,0.5fr) minmax(0,1fr)",
+  },
+  utilityLastBorderB0: {
+    ":last-child": {
+      borderBottomWidth: "0px",
+    },
+  },
+  utilityText11px: {
+    fontSize: "11px",
+  },
+  utilityFlexWrap: {
+    flexWrap: "wrap",
+  },
+  gaStatus: (color: string) => ({ color }),
+});
 
 export type DeliveryConsoleState =
   | "planned"
@@ -178,36 +363,59 @@ export function DeliveryConsolePanel({
   return (
     <section
       aria-labelledby="delivery-heading"
-      className={stylexClassName("border-b border-(--line) bg-(--bg-panel)")}
+      {...stylex.props([
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgPanel,
+      ])}
     >
       <header
-        className={stylexClassName(
-          "flex items-center gap-2 border-b border-(--line) px-3 py-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityBorderB,
+          localStyles.utilityBorderLine,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+        ])}
       >
         <StateIcon
           aria-hidden="true"
-          className={stylexClassName("text-(--accent)")}
+          {...stylex.props([localStyles.utilityTextAccent])}
           size={14}
         />
         <h2
-          className={stylexClassName("font-mono text-[12px] font-semibold")}
+          {...stylex.props([
+            localStyles.utilityFontMono,
+            localStyles.utilityText12px,
+            localStyles.utilityFontSemibold,
+          ])}
           id="delivery-heading"
         >
           Production delivery
         </h2>
         <span
           aria-label={`Production delivery state: ${data.state}`}
-          className={stylexClassName(
-            "ml-auto font-mono text-[10px] uppercase text-(--fg-secondary)"
-          )}
+          {...stylex.props([
+            localStyles.utilityMlAuto,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityUppercase,
+            localStyles.utilityTextFgSecondary,
+          ])}
         >
           {data.state.replaceAll("_", " ")}
         </span>
       </header>
 
       <div
-        className={stylexClassName("grid gap-px bg-(--line) md:grid-cols-4")}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityGapPx,
+          localStyles.utilityBgLine,
+          localStyles.utilityMdGridCols4,
+        ])}
       >
         <Summary
           label="release"
@@ -236,9 +444,14 @@ export function DeliveryConsolePanel({
       </div>
 
       <div
-        className={stylexClassName(
-          "grid gap-px border-t border-(--line) bg-(--line) lg:grid-cols-2"
-        )}
+        {...stylex.props([
+          localStyles.utilityGrid,
+          localStyles.utilityGapPx,
+          localStyles.utilityBorderT,
+          localStyles.utilityBorderLine,
+          localStyles.utilityBgLine,
+          localStyles.utilityLgGridCols2,
+        ])}
       >
         <EvidenceSection label="Supply-chain evidence">
           {data.supplyChain.length === 0 ? (
@@ -246,44 +459,61 @@ export function DeliveryConsolePanel({
           ) : (
             data.supplyChain.map((workload) => (
               <article
-                className={stylexClassName(
-                  "border border-(--line) bg-(--bg-panel-muted) p-2"
-                )}
+                {...stylex.props([
+                  localStyles.utilityBorder,
+                  localStyles.utilityBorderLine,
+                  localStyles.utilityBgBgPanelMuted,
+                  localStyles.utilityP2,
+                ])}
                 key={workload.workloadId}
               >
                 <div
-                  className={stylexClassName(
-                    "flex items-center gap-2 font-mono text-[10px]"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityFlex,
+                    localStyles.utilityItemsCenter,
+                    localStyles.utilityGap2,
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText10px,
+                  ])}
                 >
                   <PackageCheck aria-hidden="true" size={12} />
                   <span>{workload.workloadId}</span>
                   <span
-                    className={stylexClassName(
-                      "ml-auto uppercase text-(--fg-tertiary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMlAuto,
+                      localStyles.utilityUppercase,
+                      localStyles.utilityTextFgTertiary,
+                    ])}
                   >
                     {workload.signatureStatus}
                   </span>
                 </div>
                 <div
-                  className={stylexClassName(
-                    "mt-1 break-all font-mono text-[9px] text-(--fg-tertiary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityMt1,
+                    localStyles.utilityBreakAll,
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText9px,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
                 >
                   {workload.artifactDigest}
                 </div>
                 <dl
-                  className={stylexClassName(
-                    "mt-2 grid grid-cols-[80px_minmax(0,1fr)] gap-x-2 text-[10px]"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityMt2,
+                    localStyles.utilityGrid,
+                    localStyles.utilityGridCols80pxMinmax01fr,
+                    localStyles.utilityGapX2,
+                    localStyles.utilityText10px,
+                  ])}
                 >
                   <dt>SBOM</dt>
-                  <dd className={stylexClassName("break-all")}>
+                  <dd {...stylex.props([localStyles.utilityBreakAll])}>
                     {workload.sbomReference}
                   </dd>
                   <dt>provenance</dt>
-                  <dd className={stylexClassName("break-all")}>
+                  <dd {...stylex.props([localStyles.utilityBreakAll])}>
                     {workload.provenanceReference} · subject{" "}
                     {workload.provenanceSubjectMatches ? "matches" : "mismatch"}
                   </dd>
@@ -295,9 +525,12 @@ export function DeliveryConsolePanel({
 
         <EvidenceSection label="Configuration and references">
           <dl
-            className={stylexClassName(
-              "grid grid-cols-[90px_minmax(0,1fr)] gap-x-2 text-[10px]"
-            )}
+            {...stylex.props([
+              localStyles.utilityGrid,
+              localStyles.utilityGridCols90pxMinmax01fr,
+              localStyles.utilityGapX2,
+              localStyles.utilityText10px,
+            ])}
           >
             <dt>desired</dt>
             <dd>{data.configuration.desiredRevisionId ?? "unknown"}</dd>
@@ -308,21 +541,32 @@ export function DeliveryConsolePanel({
             <dt>drift</dt>
             <dd>{data.configuration.drifted ? "detected" : "none"}</dd>
           </dl>
-          <div className={stylexClassName("mt-2 flex flex-col gap-2")}>
+          <div
+            {...stylex.props([
+              localStyles.utilityMt2,
+              localStyles.utilityFlex,
+              localStyles.utilityFlexCol,
+              localStyles.utilityGap2,
+            ])}
+          >
             {data.configuration.secretReferences.length === 0 ? (
               <EmptyLine text="No Secret References recorded." />
             ) : (
               data.configuration.secretReferences.map((reference) => (
                 <article
-                  className={stylexClassName(
-                    "border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityBorder,
+                    localStyles.utilityBorderLine,
+                    localStyles.utilityBgBgPanelMuted,
+                    localStyles.utilityP2,
+                    localStyles.utilityText10px,
+                  ])}
                   key={reference.referenceId}
                 >
-                  <div className={stylexClassName("font-mono")}>
+                  <div {...stylex.props([localStyles.utilityFontMono])}>
                     {reference.referenceId}
                   </div>
-                  <div className={stylexClassName("text-(--fg-tertiary)")}>
+                  <div {...stylex.props([localStyles.utilityTextFgTertiary])}>
                     {reference.provider} · {reference.purpose} ·{" "}
                     {reference.scope} · {reference.status}
                     {reference.rotationRevision
@@ -337,23 +581,40 @@ export function DeliveryConsolePanel({
       </div>
 
       <EvidenceSection label="Environment Deployments">
-        <div className={stylexClassName("grid gap-2 md:grid-cols-2")}>
+        <div
+          {...stylex.props([
+            localStyles.utilityGrid,
+            localStyles.utilityGap2,
+            localStyles.utilityMdGridCols2,
+          ])}
+        >
           {data.deployments.length === 0 ? (
             <EmptyLine text="No environment Deployment observation recorded." />
           ) : (
             data.deployments.map((deployment) => (
               <article
-                className={stylexClassName(
-                  "border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
-                )}
+                {...stylex.props([
+                  localStyles.utilityBorder,
+                  localStyles.utilityBorderLine,
+                  localStyles.utilityBgBgPanelMuted,
+                  localStyles.utilityP2,
+                  localStyles.utilityText10px,
+                ])}
                 key={`${deployment.environment}:${deployment.observedReleaseId}`}
               >
-                <div className={stylexClassName("flex font-mono")}>
+                <div
+                  {...stylex.props([
+                    localStyles.utilityFlex,
+                    localStyles.utilityFontMono,
+                  ])}
+                >
                   <span>{deployment.environment}</span>
                   <span
-                    className={stylexClassName(
-                      "ml-auto uppercase text-(--fg-tertiary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMlAuto,
+                      localStyles.utilityUppercase,
+                      localStyles.utilityTextFgTertiary,
+                    ])}
                   >
                     {deployment.drifted
                       ? "drifted"
@@ -363,9 +624,11 @@ export function DeliveryConsolePanel({
                   </span>
                 </div>
                 <div
-                  className={stylexClassName(
-                    "mt-1 break-all text-(--fg-tertiary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityMt1,
+                    localStyles.utilityBreakAll,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
                 >
                   desired {deployment.desiredReleaseId}
                   <br />
@@ -379,9 +642,11 @@ export function DeliveryConsolePanel({
         </div>
         {data.edge ? (
           <p
-            className={stylexClassName(
-              "mt-2 text-[10px] text-(--fg-secondary)"
-            )}
+            {...stylex.props([
+              localStyles.utilityMt2,
+              localStyles.utilityText10px,
+              localStyles.utilityTextFgSecondary,
+            ])}
           >
             Edge {data.edge.contractId}:{" "}
             {data.edge.publicRoutes.join(", ") || "no public routes"}
@@ -393,28 +658,48 @@ export function DeliveryConsolePanel({
         {data.canaryObservations.length === 0 ? (
           <EmptyLine text="No content-addressed canary Reliability Observation recorded." />
         ) : (
-          <div className={stylexClassName("grid gap-2 md:grid-cols-2")}>
+          <div
+            {...stylex.props([
+              localStyles.utilityGrid,
+              localStyles.utilityGap2,
+              localStyles.utilityMdGridCols2,
+            ])}
+          >
             {data.canaryObservations.map((observation) => (
               <article
-                className={stylexClassName(
-                  "border border-(--line) bg-(--bg-panel-muted) p-2 text-[10px]"
-                )}
+                {...stylex.props([
+                  localStyles.utilityBorder,
+                  localStyles.utilityBorderLine,
+                  localStyles.utilityBgBgPanelMuted,
+                  localStyles.utilityP2,
+                  localStyles.utilityText10px,
+                ])}
                 key={observation.observationId}
               >
-                <div className={stylexClassName("flex font-mono")}>
+                <div
+                  {...stylex.props([
+                    localStyles.utilityFlex,
+                    localStyles.utilityFontMono,
+                  ])}
+                >
                   <span>revision {observation.observedRevision}</span>
                   <span
-                    className={stylexClassName(
-                      "ml-auto uppercase text-(--fg-tertiary)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMlAuto,
+                      localStyles.utilityUppercase,
+                      localStyles.utilityTextFgTertiary,
+                    ])}
                   >
                     {observation.fresh ? "fresh" : "stale"}
                   </span>
                 </div>
                 <dl
-                  className={stylexClassName(
-                    "mt-2 grid grid-cols-[110px_minmax(0,1fr)] gap-x-2"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityMt2,
+                    localStyles.utilityGrid,
+                    localStyles.utilityGridCols110pxMinmax01fr,
+                    localStyles.utilityGapX2,
+                  ])}
                 >
                   <dt>window / samples</dt>
                   <dd>
@@ -448,7 +733,12 @@ export function DeliveryConsolePanel({
                     {String(observation.availabilityCheckPassed)}
                   </dd>
                 </dl>
-                <p className={stylexClassName("mt-2 text-(--fg-tertiary)")}>
+                <p
+                  {...stylex.props([
+                    localStyles.utilityMt2,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
+                >
                   workloads{" "}
                   {Object.entries(observation.workloadReadiness)
                     .map(
@@ -456,7 +746,7 @@ export function DeliveryConsolePanel({
                     )
                     .join(", ") || "none"}
                 </p>
-                <p className={stylexClassName("text-(--fg-tertiary)")}>
+                <p {...stylex.props([localStyles.utilityTextFgTertiary])}>
                   dependencies{" "}
                   {observation.dependencies
                     .map(
@@ -473,46 +763,70 @@ export function DeliveryConsolePanel({
       </EvidenceSection>
 
       <EvidenceSection label="GA support and operations">
-        <div className={stylexClassName("grid")}>
+        <div {...stylex.props([localStyles.utilityGrid])}>
           {gaEvidenceItems(data.gaOperations).length === 0 ? (
             <EmptyLine text="No GA support, recovery, performance, disaster, Contract, or security evidence recorded." />
           ) : (
             gaEvidenceItems(data.gaOperations).map(({ label, evidence }) => (
               <article
-                className={stylexClassName(
-                  "grid grid-cols-[150px_minmax(0,1fr)] gap-3 border-t border-(--line) px-3 py-2 text-[10px] first:border-t-0 hover:bg-(--bg-row-hover)"
-                )}
+                {...stylex.props([
+                  localStyles.utilityGrid,
+                  localStyles.utilityGridCols150pxMinmax01fr,
+                  localStyles.utilityGap3,
+                  localStyles.utilityBorderT,
+                  localStyles.utilityBorderLine,
+                  localStyles.utilityPx3,
+                  localStyles.utilityPy2,
+                  localStyles.utilityText10px,
+                  localStyles.utilityFirstBorderT0,
+                  localStyles.utilityHoverBgBgRowHover,
+                ])}
                 key={`${label}:${evidence.protocol}:${evidence.evidenceId}`}
               >
                 <div
-                  className={stylexClassName(
-                    "grid content-start gap-1 font-mono"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityGrid,
+                    localStyles.utilityContentStart,
+                    localStyles.utilityGap1,
+                    localStyles.utilityFontMono,
+                  ])}
                 >
                   <span>{label}</span>
-                  <span className={gaStatusClass(evidence)}>
+                  <span
+                    {...stylex.props(
+                      localStyles.gaStatus(gaStatusColor(evidence))
+                    )}
+                  >
                     {evidence.stale ? "stale" : evidence.status}
                   </span>
                 </div>
                 <div
-                  className={stylexClassName(
-                    "break-all font-mono text-[9px] text-(--fg-tertiary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityBreakAll,
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText9px,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
                 >
                   {evidence.evidenceId}
                 </div>
                 <dl
-                  className={stylexClassName(
-                    "grid grid-cols-[90px_minmax(0,1fr)] gap-x-2"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityGrid,
+                    localStyles.utilityGridCols90pxMinmax01fr,
+                    localStyles.utilityGapX2,
+                  ])}
                 >
                   {Object.entries(evidence.subjects).map(([key, value]) => (
-                    <div className={stylexClassName("contents")} key={key}>
+                    <div
+                      {...stylex.props([localStyles.utilityContents])}
+                      key={key}
+                    >
                       <dt>{key}</dt>
-                      <dd className={stylexClassName("break-all")}>
+                      <dd {...stylex.props([localStyles.utilityBreakAll])}>
                         {key === "storyId" ? (
                           <a
-                            className={stylexClassName("text-(--accent)")}
+                            {...stylex.props([localStyles.utilityTextAccent])}
                             href={`/api/console/v1/stories/${encodeURIComponent(value)}`}
                           >
                             {value}
@@ -525,18 +839,28 @@ export function DeliveryConsolePanel({
                   ))}
                 </dl>
                 {Object.keys(evidence.details ?? {}).length > 0 ? (
-                  <details className={stylexClassName("mt-2")}>
+                  <details {...stylex.props([localStyles.utilityMt2])}>
                     <summary
-                      className={stylexClassName(
-                        "cursor-pointer text-(--accent)"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityCursorPointer,
+                        localStyles.utilityTextAccent,
+                      ])}
                     >
                       exact evidence
                     </summary>
                     <pre
-                      className={stylexClassName(
-                        "mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all border border-(--line) p-2 text-[9px] text-(--fg-tertiary)"
-                      )}
+                      {...stylex.props([
+                        localStyles.utilityMt1,
+                        localStyles.utilityMaxH48,
+                        localStyles.utilityOverflowAuto,
+                        localStyles.utilityWhitespacePreWrap,
+                        localStyles.utilityBreakAll,
+                        localStyles.utilityBorder,
+                        localStyles.utilityBorderLine,
+                        localStyles.utilityP2,
+                        localStyles.utilityText9px,
+                        localStyles.utilityTextFgTertiary,
+                      ])}
                     >
                       {JSON.stringify(evidence.details, null, 2)}
                     </pre>
@@ -544,16 +868,22 @@ export function DeliveryConsolePanel({
                 ) : null}
                 {evidence.issueCodes.length > 0 ? (
                   <p
-                    className={stylexClassName(
-                      "mt-2 font-mono text-[9px] text-(--danger)"
-                    )}
+                    {...stylex.props([
+                      localStyles.utilityMt2,
+                      localStyles.utilityFontMono,
+                      localStyles.utilityText9px,
+                      localStyles.utilityTextDanger,
+                    ])}
                   >
                     {evidence.issueCodes.join(", ")}
                   </p>
                 ) : null}
                 {evidence.nextActions.map((action) => (
                   <p
-                    className={stylexClassName("mt-1 text-(--accent)")}
+                    {...stylex.props([
+                      localStyles.utilityMt1,
+                      localStyles.utilityTextAccent,
+                    ])}
                     key={action}
                   >
                     next: {action}
@@ -567,36 +897,63 @@ export function DeliveryConsolePanel({
 
       <div
         aria-label="Production delivery timeline"
-        className={stylexClassName("border-t border-(--line) p-3")}
+        {...stylex.props([
+          localStyles.utilityBorderT,
+          localStyles.utilityBorderLine,
+          localStyles.utilityP3,
+        ])}
       >
-        <h3 className={stylexClassName("mb-2 font-mono text-[10px] uppercase")}>
+        <h3
+          {...stylex.props([
+            localStyles.utilityMb2,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityUppercase,
+          ])}
+        >
           Promotion, canary, and rollback timeline
         </h3>
         {timeline.length === 0 ? (
           <EmptyLine text="No rollout timeline evidence recorded." />
         ) : (
-          <ol className={stylexClassName("grid")}>
+          <ol {...stylex.props([localStyles.utilityGrid])}>
             {timeline.map((entry) => (
               <li
-                className={stylexClassName(
-                  "grid grid-cols-[96px_minmax(0,1fr)_minmax(120px,0.7fr)] gap-3 border-t border-(--line) px-3 py-2 first:border-t-0"
-                )}
+                {...stylex.props([
+                  localStyles.utilityGrid,
+                  localStyles.utilityGridCols96pxMinmax01frMinmax120px07fr,
+                  localStyles.utilityGap3,
+                  localStyles.utilityBorderT,
+                  localStyles.utilityBorderLine,
+                  localStyles.utilityPx3,
+                  localStyles.utilityPy2,
+                  localStyles.utilityFirstBorderT0,
+                ])}
                 key={`${entry.protocol}:${entry.artifactId}`}
               >
                 <div
-                  className={stylexClassName(
-                    "font-mono text-[9px] text-(--fg-tertiary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText9px,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
                 >
                   {entry.state}
                 </div>
-                <div className={stylexClassName("break-all text-[10px]")}>
+                <div
+                  {...stylex.props([
+                    localStyles.utilityBreakAll,
+                    localStyles.utilityText10px,
+                  ])}
+                >
                   {entry.protocol}
                 </div>
                 <div
-                  className={stylexClassName(
-                    "font-mono text-[9px] text-(--fg-tertiary)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText9px,
+                    localStyles.utilityTextFgTertiary,
+                  ])}
                 >
                   {entry.artifactId}
                 </div>
@@ -610,37 +967,58 @@ export function DeliveryConsolePanel({
       {data.issues.length > 0 ? (
         <div
           aria-label="Production delivery issues"
-          className={stylexClassName("border-t border-(--line) p-3")}
+          {...stylex.props([
+            localStyles.utilityBorderT,
+            localStyles.utilityBorderLine,
+            localStyles.utilityP3,
+          ])}
         >
           {data.issues.map((issue) => (
             <article
-              className={stylexClassName(
-                "grid grid-cols-[minmax(140px,0.5fr)_minmax(0,1fr)] gap-3 border-b border-(--line) px-3 py-2 last:border-b-0"
-              )}
+              {...stylex.props([
+                localStyles.utilityGrid,
+                localStyles.utilityGridColsMinmax140px05frMinmax01fr,
+                localStyles.utilityGap3,
+                localStyles.utilityBorderB,
+                localStyles.utilityBorderLine,
+                localStyles.utilityPx3,
+                localStyles.utilityPy2,
+                localStyles.utilityLastBorderB0,
+              ])}
               key={`${issue.code}:${issue.message}`}
             >
               <h3
-                className={stylexClassName(
-                  "font-mono text-[10px] font-semibold"
-                )}
+                {...stylex.props([
+                  localStyles.utilityFontMono,
+                  localStyles.utilityText10px,
+                  localStyles.utilityFontSemibold,
+                ])}
               >
                 {issue.code}
               </h3>
               <p
-                className={stylexClassName("text-[11px] text-(--fg-secondary)")}
+                {...stylex.props([
+                  localStyles.utilityText11px,
+                  localStyles.utilityTextFgSecondary,
+                ])}
               >
                 {issue.message}
               </p>
               <p
-                className={stylexClassName("text-[10px] text-(--fg-tertiary)")}
+                {...stylex.props([
+                  localStyles.utilityText10px,
+                  localStyles.utilityTextFgTertiary,
+                ])}
               >
                 remediation: {issue.remediation}
               </p>
               {issue.nextActions.map((action) => (
                 <p
-                  className={stylexClassName(
-                    "font-mono text-[9px] text-(--accent)"
-                  )}
+                  {...stylex.props([
+                    localStyles.utilityFontMono,
+                    localStyles.utilityText9px,
+                    localStyles.utilityTextAccent,
+                  ])}
                   key={action}
                 >
                   next: {action}
@@ -653,9 +1031,17 @@ export function DeliveryConsolePanel({
       ) : null}
 
       <footer
-        className={stylexClassName(
-          "flex items-center gap-2 border-t border-(--line) px-3 py-2 text-[10px] text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFlex,
+          localStyles.utilityItemsCenter,
+          localStyles.utilityGap2,
+          localStyles.utilityBorderT,
+          localStyles.utilityBorderLine,
+          localStyles.utilityPx3,
+          localStyles.utilityPy2,
+          localStyles.utilityText10px,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         <ShieldCheck aria-hidden="true" size={12} /> Console only reads redacted
         delivery evidence and holds no cluster, signing, or Secret Provider
@@ -665,19 +1051,19 @@ export function DeliveryConsolePanel({
   );
 }
 
-function gaStatusClass(evidence: DeliveryConsoleGaEvidence): string {
+function gaStatusColor(evidence: DeliveryConsoleGaEvidence): string {
   if (evidence.stale || evidence.status === "partial") {
-    return "text-(--warning)";
+    return "var(--warning)";
   }
   if (
     ["passed", "supported", "general_availability"].includes(evidence.status)
   ) {
-    return "text-(--success)";
+    return "var(--success)";
   }
   if (["unknown", "unavailable"].includes(evidence.status)) {
-    return "text-(--fg-tertiary)";
+    return "var(--fg-tertiary)";
   }
-  return "text-(--danger)";
+  return "var(--danger)";
 }
 
 function gaEvidenceItems(
@@ -741,8 +1127,17 @@ function EvidenceSection({
   label: string;
 }) {
   return (
-    <section className={stylexClassName("bg-(--bg-panel) p-3")}>
-      <h3 className={stylexClassName("mb-2 font-mono text-[10px] uppercase")}>
+    <section
+      {...stylex.props([localStyles.utilityBgBgPanel, localStyles.utilityP3])}
+    >
+      <h3
+        {...stylex.props([
+          localStyles.utilityMb2,
+          localStyles.utilityFontMono,
+          localStyles.utilityText10px,
+          localStyles.utilityUppercase,
+        ])}
+      >
         {label}
       </h3>
       {children}
@@ -756,13 +1151,18 @@ function EvidenceLinks({ references }: { references: string[] }) {
   }
   return (
     <div
-      className={stylexClassName(
-        "mt-1 flex flex-wrap gap-2 font-mono text-[9px]"
-      )}
+      {...stylex.props([
+        localStyles.utilityMt1,
+        localStyles.utilityFlex,
+        localStyles.utilityFlexWrap,
+        localStyles.utilityGap2,
+        localStyles.utilityFontMono,
+        localStyles.utilityText9px,
+      ])}
     >
       {references.map((reference) => (
         <a
-          className={stylexClassName("text-(--accent)")}
+          {...stylex.props([localStyles.utilityTextAccent])}
           href={`/api/console/v1/stories/${encodeURIComponent(reference)}`}
           key={reference}
         >
@@ -775,15 +1175,26 @@ function EvidenceLinks({ references }: { references: string[] }) {
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className={stylexClassName("bg-(--bg-panel) p-3")}>
+    <div
+      {...stylex.props([localStyles.utilityBgBgPanel, localStyles.utilityP3])}
+    >
       <div
-        className={stylexClassName(
-          "font-mono text-[9px] uppercase text-(--fg-tertiary)"
-        )}
+        {...stylex.props([
+          localStyles.utilityFontMono,
+          localStyles.utilityText9px,
+          localStyles.utilityUppercase,
+          localStyles.utilityTextFgTertiary,
+        ])}
       >
         {label}
       </div>
-      <div className={stylexClassName("mt-1 break-all text-[11px]")}>
+      <div
+        {...stylex.props([
+          localStyles.utilityMt1,
+          localStyles.utilityBreakAll,
+          localStyles.utilityText11px,
+        ])}
+      >
         {value}
       </div>
     </div>
@@ -792,7 +1203,12 @@ function Summary({ label, value }: { label: string; value: string }) {
 
 function EmptyLine({ text }: { text: string }) {
   return (
-    <p className={stylexClassName("text-[10px] text-(--fg-tertiary)")}>
+    <p
+      {...stylex.props([
+        localStyles.utilityText10px,
+        localStyles.utilityTextFgTertiary,
+      ])}
+    >
       {text}
     </p>
   );
@@ -802,9 +1218,14 @@ function DeliveryMessage({ role, text }: { role?: "alert"; text: string }) {
   return (
     <section
       aria-label="Production delivery"
-      className={stylexClassName(
-        "border-b border-(--line) bg-(--bg-panel) p-3 text-[11px] text-(--fg-tertiary)"
-      )}
+      {...stylex.props([
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLine,
+        localStyles.utilityBgBgPanel,
+        localStyles.utilityP3,
+        localStyles.utilityText11px,
+        localStyles.utilityTextFgTertiary,
+      ])}
       role={role}
     >
       {text}

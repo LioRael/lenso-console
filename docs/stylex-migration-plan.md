@@ -9,13 +9,12 @@ merging, and production changes require separate authorization.
 
 ## Outcome
 
-Replace Tailwind and Console-owned component/utility styling with StyleX while
-preserving current appearance and behavior strictly. Keep the Host-owned reset,
-page-contract, and temporary private parity stylesheet explicit: they preserve
-document-wide behavior and the approved pre-StyleX component geometry during
-visual validation, while the public UI package exposes only precompiled StyleX
-CSS. The parity stylesheet is not a Module Surface API and is retired only
-after visual equivalence is approved. Deliver a generated, typed token contract
+Replace Tailwind and Console-owned component styling with StyleX while
+preserving current appearance and behavior strictly. Keep the Host-owned reset
+and page-contract CSS explicit: they preserve document-wide behavior and
+product-specific layout, while the public UI package exposes only precompiled
+StyleX CSS. Component parity CSS is not retained as a second implementation.
+Deliver a generated, typed token contract
 for Module Surface authors and a complete Theme Bundle system with installable themes and
 executable Console UI compositions.
 
@@ -48,9 +47,9 @@ not an admission rule.
 - Use `@stylexjs/unplugin/vite` and pin its version.
 - Allow StyleX-generated CSS assets; remove Tailwind dependencies,
   configuration, directives, utilities, and the former public CSS entry points.
-  Keep `src/styles.css`, the token variable layer, and the restored
-  Host-private component parity layer as Host-only global implementation
-  contracts; they are not part of the public Module Surface styling API.
+  Keep `src/styles.css` and the token variable layer as Host-only global
+  implementation contracts; they are not part of the public Module Surface
+  styling API. Component primitives are compiled from StyleX.
 - Remove static inline styles. Express runtime styles through StyleX dynamic
   styles; retain SVG geometry as SVG attributes and keep only documented runtime
   exceptions.
@@ -141,11 +140,11 @@ reachable.
    the frontend loader.
 7. Add Theme Bundle contract, inventory management, audit evidence, bootstrap,
    Theme Variants, `@lenso/console-composition-api`, Settings UI, and fallback.
-8. Remove Tailwind, old public CSS exports, unused compatibility code, and the
+8. Remove Tailwind, old public CSS exports, utility bridges, and unused
+   compatibility code, and the
    visual-matrix generator/tests. Keep only the documented Host reset/page
-   contract layer, its token aliases, and the non-public parity layer until
-   Approved Figma visual equivalence is accepted; Module Surface CSS remains
-   external to the Host build.
+   contract layer and its token aliases; Module Surface CSS remains external
+   to the Host build.
 9. Run all automatic gates, then perform agent Figma comparison and user visual
    approval.
 
@@ -173,9 +172,10 @@ existing high-cost container and recovery smoke tests for later script cleanup.
 
 The automated completion gate is:
 
-- no Tailwind dependency, directive, configuration, or utility usage remains;
-- Host-only global CSS is limited to the documented reset/page contract and
-  temporary private parity layers;
+- no Tailwind dependency, directive, configuration, utility call, or project
+  utility bridge remains;
+  - Host-only global CSS is limited to the documented reset/page contract and
+  explicit page refinements targeting `data-ui` slots;
 - generated outputs are deterministic and fresh;
 - package build, type checking, unit/contract tests, browser suite, artifact
   checks, and existing service gates pass;

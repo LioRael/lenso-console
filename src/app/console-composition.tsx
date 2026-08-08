@@ -1,9 +1,11 @@
-import { Button, mergeStyleProps, styles } from "@lenso/console-ui";
+import { Button } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { PropsWithChildren } from "react";
 
 import { httpClient, isApiMode } from "../lib/http-client";
+import { statusStyles } from "./console-status-styles";
 
 export const consoleCompositionSchema =
   "lenso.console-service-composition.v2" as const;
@@ -262,16 +264,12 @@ export function ConsoleCompositionGate({ children }: PropsWithChildren) {
 function CompositionStatus({ message }: { message: string }) {
   return (
     <main
-      {...mergeStyleProps(
-        undefined,
-        undefined,
-        styles.statusScreen,
-        styles.statusScreenPadded
+      {...stylex.props(
+        statusStyles.statusScreen,
+        statusStyles.statusScreenPadded
       )}
     >
-      <p {...mergeStyleProps(undefined, undefined, styles.statusScreenMessage)}>
-        {message}
-      </p>
+      <p {...stylex.props(statusStyles.statusScreenMessage)}>{message}</p>
     </main>
   );
 }
@@ -288,55 +286,35 @@ function ConsoleRecoveryMode({
   );
   return (
     <main
-      {...mergeStyleProps(
-        undefined,
-        undefined,
-        styles.statusScreen,
-        styles.statusScreenPadded
+      {...stylex.props(
+        statusStyles.statusScreen,
+        statusStyles.statusScreenPadded
       )}
     >
       <section
-        {...mergeStyleProps(
-          undefined,
-          undefined,
-          styles.statusCard,
-          styles.statusCardOverlay
+        {...stylex.props(
+          statusStyles.statusCard,
+          statusStyles.statusCardOverlay
         )}
       >
-        <div {...mergeStyleProps(undefined, undefined, styles.recoveryHeader)}>
+        <div {...stylex.props(statusStyles.recoveryHeader)}>
           <AlertTriangle
             aria-hidden="true"
-            {...mergeStyleProps(
-              undefined,
-              undefined,
-              styles.recoveryHeaderIcon
-            )}
+            {...stylex.props(statusStyles.recoveryHeaderIcon)}
             size={22}
           />
           <div>
-            <p {...mergeStyleProps(undefined, undefined, styles.statusEyebrow)}>
+            <p {...stylex.props(statusStyles.statusEyebrow)}>
               {restoreWorkloadActive
                 ? "Console Recovery Authority"
                 : "Console Bootstrap Diagnostics"}
             </p>
-            <h1
-              {...mergeStyleProps(
-                undefined,
-                undefined,
-                styles.statusTitleLarge
-              )}
-            >
+            <h1 {...stylex.props(statusStyles.statusTitleLarge)}>
               {restoreWorkloadActive
                 ? "Restore workload active"
                 : "Recovery Mode"}
             </h1>
-            <p
-              {...mergeStyleProps(
-                undefined,
-                undefined,
-                styles.statusDescription
-              )}
-            >
+            <p {...stylex.props(statusStyles.statusDescription)}>
               {restoreWorkloadActive
                 ? "Management mutations and background processing remain disabled until reconciliation evidence is reviewed and activation transfers authority to the normal workload."
                 : "Management capabilities are disabled until every mandatory Console role has exactly one compatible Module binding."}
@@ -367,7 +345,7 @@ function ConsoleRecoveryMode({
           )}
         </div>
 
-        <div {...mergeStyleProps(undefined, undefined, styles.recoveryFooter)}>
+        <div {...stylex.props(statusStyles.recoveryFooter)}>
           <Button onClick={onRetry} type="button">
             <RefreshCw aria-hidden="true" size={15} />
             Retry diagnostics
@@ -380,25 +358,21 @@ function ConsoleRecoveryMode({
 
 function RecoveryIssue({ issue }: { issue: ConsoleCompositionIssue }) {
   return (
-    <article {...mergeStyleProps(undefined, undefined, styles.recoveryIssue)}>
-      <div {...mergeStyleProps(undefined, undefined, styles.recoveryIssueMeta)}>
+    <article {...stylex.props(statusStyles.recoveryIssue)}>
+      <div {...stylex.props(statusStyles.recoveryIssueMeta)}>
         <code>{issue.code}</code>
         <span aria-hidden="true">·</span>
         <span>{roleLabel(issue.role)}</span>
       </div>
-      <p
-        {...mergeStyleProps(undefined, undefined, styles.recoveryIssueMessage)}
-      >
+      <p {...stylex.props(statusStyles.recoveryIssueMessage)}>
         {issue.message}
       </p>
       {issue.moduleIds.length > 0 ? (
-        <p
-          {...mergeStyleProps(undefined, undefined, styles.recoveryIssueDetail)}
-        >
+        <p {...stylex.props(statusStyles.recoveryIssueDetail)}>
           Modules: {issue.moduleIds.join(", ")}
         </p>
       ) : null}
-      <p {...mergeStyleProps(undefined, undefined, styles.recoveryIssueAction)}>
+      <p {...stylex.props(statusStyles.recoveryIssueAction)}>
         {issue.nextAction}
       </p>
     </article>

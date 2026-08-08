@@ -1,14 +1,13 @@
 import {
-  stylexClassName,
   DataGrid,
   DataRow,
   FilterSelect,
-  mergeStyleProps,
   PaneHeader,
-  styles,
+  pageStyles,
   TableHeader,
   useConsoleLocale,
 } from "@lenso/console-ui";
+import * as stylex from "@stylexjs/stylex";
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -76,17 +75,16 @@ export function SystemPage() {
   ) => {
     setFilters((current) => ({ ...current, [key]: value }));
   };
+  const pageFiltersStyleProps = stylex.props(pageStyles.pageFilters);
 
   if (!capabilities.length || !selected) {
     return (
       <ProductPage
         description={copy.system.description}
-        pageClassName="system-page"
+        pageKind="system-page"
         title={copy.system.title}
       >
-        <div {...mergeStyleProps(undefined, undefined, styles.pageNoData)}>
-          {copy.common.noData}
-        </div>
+        <div {...stylex.props(pageStyles.pageNoData)}>{copy.common.noData}</div>
       </ProductPage>
     );
   }
@@ -95,15 +93,12 @@ export function SystemPage() {
     <ProductPage
       description={copy.system.description}
       meta={`${capabilities.length} ${copy.system.capabilities.toLowerCase()} · ${serviceCount} ${copy.system.services.toLowerCase()}`}
-      pageClassName="system-page"
+      pageKind="system-page"
       title={copy.system.title}
     >
       <div
-        {...mergeStyleProps(
-          undefined,
-          "product-page__filters system-page__filters",
-          styles.pageFilters
-        )}
+        {...pageFiltersStyleProps}
+        data-page-slot="product-page__filters system-page__filters"
       >
         <SystemFilterSelect
           ariaLabel={copy.system.kind}
@@ -133,7 +128,6 @@ export function SystemPage() {
         />
       </div>
       <SplitWorkspace
-        className={stylexClassName("system-page__workspace")}
         inspector={
           <Inspector
             status={
@@ -144,6 +138,7 @@ export function SystemPage() {
             }
             subtitle={selected.id}
             title={selected.name}
+            pageSlot="system-inspector"
           >
             <InspectorSection title={copy.system.execution}>
               <p>{selected.kind}</p>
@@ -171,6 +166,7 @@ export function SystemPage() {
             </InspectorSection>
           </Inspector>
         }
+        pageSlot="system-page__workspace"
       >
         <PaneHeader
           meta={`${filteredCapabilities.length} total`}
@@ -186,7 +182,7 @@ export function SystemPage() {
             ]}
           />
           {filteredCapabilities.length === 0 ? (
-            <div className={stylexClassName("system-page__empty")}>
+            <div data-page-slot="system-page__empty">
               {copy.system.noMatches}
             </div>
           ) : (
@@ -231,7 +227,7 @@ function SystemFilterSelect({
   return (
     <FilterSelect
       aria-label={ariaLabel}
-      className={stylexClassName("system-filter-control")}
+      data-page-slot="system-filter-control"
       icon={<ChevronDown size={12} strokeWidth={1.5} />}
       onChange={(event) => onChange(event.currentTarget.value)}
       value={value}

@@ -1,7 +1,7 @@
 import type { ComponentType, FunctionComponent, ReactNode } from "react";
 
-import type { ConsoleLocale } from "./locale.js";
-import type { ConsoleUiComponents } from "./ui.js";
+import type { ConsoleLocale } from "./locale";
+import type { ConsoleUiComponents } from "./ui";
 
 /**
  * The host-facing API used by Console UI modules.
