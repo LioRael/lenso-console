@@ -1,18 +1,25 @@
-export const CONSOLE_MODULE_API_PROTOCOL = "lenso.console-module.v1" as const;
+import { CONSOLE_MODULE_PROTOCOL } from "./contracts";
+import type {
+  FrameworkConsoleModuleManifest,
+  FrameworkConsoleModuleSurface,
+  FrameworkConsoleNavigation,
+  FrameworkConsoleNavigationGroup,
+  FrameworkConsoleWorkspaceRef,
+  ActionContributionResolution,
+  ActionContributionResolutionRequest,
+  ManagedServiceContext,
+  ModuleConfigReadRequest,
+  ModuleConfigReadResponse,
+  ModuleConfigWriteRequest,
+  ModuleConfigWriteResponse,
+  ModuleInventoryRequest,
+  ModuleInventorySnapshot,
+} from "./contracts";
+
+export * from "./contracts";
+
+export const CONSOLE_MODULE_API_PROTOCOL = CONSOLE_MODULE_PROTOCOL;
 export const CONSOLE_MODULE_API_VERSION = "1.0.0" as const;
-
-export type ConsoleSha256Digest = `sha256:${string}`;
-
-export const isConsoleSha256Digest = (
-  value: unknown
-): value is ConsoleSha256Digest =>
-  typeof value === "string" && /^sha256:[a-f0-9]{64}$/u.test(value);
-
-export type ConsoleSurfaceArea =
-  | "runtime"
-  | "operations"
-  | "data"
-  | "configuration";
 
 export type ConsoleSurfaceIcon =
   | "activity"
@@ -33,45 +40,12 @@ export type ConsoleSurfaceIcon =
   | "users"
   | "workflow";
 
-export interface ConsoleWorkspaceRef {
-  id: string;
-  label: string;
-  localizedLabels?: Readonly<Record<string, string>>;
-  icon?: string;
-}
-
-export interface ConsoleNavigationGroup {
-  id: string;
-  label: string;
-  localizedLabels?: Readonly<Record<string, string>>;
-  icon?: string;
-  order?: number;
-}
-
-export interface ConsoleNavigationMetadata {
-  workspace: ConsoleWorkspaceRef;
-  group?: ConsoleNavigationGroup;
-  order?: number;
-}
-
-export interface ConsoleSurfaceManifest {
-  id: string;
-  path: string;
-  label: string;
-  area: ConsoleSurfaceArea;
-  requiredCapabilities?: readonly string[];
-  localizedLabels?: Readonly<Record<string, string>>;
-  icon?: ConsoleSurfaceIcon;
-  navigation?: ConsoleNavigationMetadata;
-}
-
-export interface ConsoleModuleManifest {
-  protocol: typeof CONSOLE_MODULE_API_PROTOCOL;
-  moduleId: string;
-  hostApi: string;
-  consoleUi: string;
-  surfaces: readonly ConsoleSurfaceManifest[];
-}
+export type ConsoleSurfaceArea = FrameworkConsoleModuleSurface["area"];
+export type ConsoleWorkspaceRef = FrameworkConsoleWorkspaceRef;
+export type ConsoleNavigationGroup = FrameworkConsoleNavigationGroup;
+export type ConsoleNavigationMetadata = FrameworkConsoleNavigation;
+export type ConsoleSurfaceManifest = FrameworkConsoleModuleSurface;
+export type ConsoleModuleManifest = FrameworkConsoleModuleManifest;
 
 export interface ConsoleModuleIdentity {
   readonly moduleId: string;
@@ -150,7 +124,24 @@ export const consoleCommands = {
 export interface ConsoleClient {
   readonly identity: ConsoleModuleIdentity;
   readonly capabilities: ConsoleCapabilities;
+  readonly managedServiceContext: ManagedServiceContext;
+  /** Read the authoritative inventory from the selected Managed Service. */
+  inventory(request: ModuleInventoryRequest): Promise<ModuleInventorySnapshot>;
+  /** Resolve declarative, data-only Action Contributions from the target. */
+  resolveActionContributions(
+    request: ActionContributionResolutionRequest
+  ): Promise<ActionContributionResolution>;
+  /** Read only descriptor-declared configuration keys. */
+  readConfig(
+    request: ModuleConfigReadRequest
+  ): Promise<ModuleConfigReadResponse>;
+  /** Write descriptor-declared configuration and return audit evidence. */
+  writeConfig(
+    request: ModuleConfigWriteRequest
+  ): Promise<ModuleConfigWriteResponse>;
+  /** @deprecated Use the typed Managed Service operations above. */
   query<Result>(operation: ConsoleQueryOperation<Result>): Promise<Result>;
+  /** @deprecated Use resolveActionContributions or writeConfig. */
   command<Input, Result>(
     operation: ConsoleCommandOperation<Input, Result>,
     options?: { readonly idempotencyKey?: string }

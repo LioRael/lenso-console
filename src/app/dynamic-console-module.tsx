@@ -4,11 +4,18 @@ import {
   type ConsoleUiSurface,
 } from "@lenso/console-ui";
 import * as stylex from "@stylexjs/stylex";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { isApiMode } from "../lib/http-client";
+import { useConsoleAdminContext } from "./console-admin-context";
+import {
+  getConsoleArtifactQuarantine,
+  getConsoleArtifactQuarantines,
+  quarantineConsoleArtifact,
+  subscribeConsoleArtifactQuarantine,
+} from "./console-artifact-quarantine";
 import { useConsoleArtifacts } from "./console-artifact-query";
 import { useConsoleCapabilities } from "./console-capabilities";
 import { createConsoleModuleClient } from "./console-module-client";
@@ -16,6 +23,12 @@ import { loadConsoleUiModule } from "./console-module-runtime";
 import { consoleRoutes, findConsoleRoute } from "./console-modules";
 import { consolePathFromLocation } from "./console-router-config";
 import { statusStyles } from "./console-status-styles";
+import { useConsoleManagedServices } from "./console-system-registry-api";
+import {
+  createManagedServiceContext,
+  managedServiceContextKey,
+} from "./managed-service-context";
+import { useSelectedManagedServiceId } from "./managed-service-selection";
 
 export function DynamicConsoleModulePage() {
   const locationPath = useRouterState({
@@ -26,12 +39,30 @@ export function DynamicConsoleModulePage() {
   const capabilities = useConsoleCapabilities();
   const apiMode = isApiMode();
   const artifacts = useConsoleArtifacts();
+  const adminContext = useConsoleAdminContext();
+  const managedServices = useConsoleManagedServices();
+  const selectedManagedServiceId = useSelectedManagedServiceId();
+  const queryClient = useQueryClient();
+  const quarantines = useSyncExternalStore(
+    subscribeConsoleArtifactQuarantine,
+    getConsoleArtifactQuarantines,
+    getConsoleArtifactQuarantines
+  );
+  const quarantineKeys = useMemo(
+    () => new Set(quarantines.map((quarantine) => quarantine.key)),
+    [quarantines]
+  );
   const localRoute = useMemo(
     () => (apiMode ? undefined : findConsoleRoute(path, consoleRoutes)),
     [apiMode, path]
   );
   const selection = useMemo(() => {
     for (const artifact of artifacts.data?.artifacts ?? []) {
+      if (
+        quarantineKeys.has(`${artifact.moduleId}:${artifact.artifactDigest}`)
+      ) {
+        continue;
+      }
       const surface = artifact.manifest.surfaces.find(
         (candidate) => candidate.path === path
       );
@@ -40,19 +71,67 @@ export function DynamicConsoleModulePage() {
       }
     }
     return null;
-  }, [artifacts.data?.artifacts, path]);
+  }, [artifacts.data?.artifacts, path, quarantineKeys]);
   const artifact = selection?.artifact;
+  const selectedManagedService = useMemo(() => {
+    const ready = managedServices.data?.filter(
+      (service) =>
+        service.enrollmentState === "active" &&
+        service.connectionState === "ready" &&
+        service.enrollmentExpiresAtUnixMs > Date.now()
+    );
+    return (
+      ready?.find(
+        (service) => service.serviceId === selectedManagedServiceId
+      ) ?? ready?.[0]
+    );
+  }, [managedServices.data, selectedManagedServiceId]);
+  const managedServiceContext = useMemo(
+    () =>
+      artifact && selectedManagedService && adminContext.data
+        ? createManagedServiceContext({
+            actor: adminContext.data.actor,
+            callerModuleId: artifact.moduleId,
+            capabilities,
+            service: selectedManagedService,
+          })
+        : null,
+    [adminContext.data, artifact, capabilities, selectedManagedService]
+  );
+  const contextKey = managedServiceContext
+    ? managedServiceContextKey(managedServiceContext)
+    : null;
+  const previousContextKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      previousContextKey.current !== null &&
+      previousContextKey.current !== contextKey
+    ) {
+      queryClient.removeQueries({
+        queryKey: ["managed-service", previousContextKey.current],
+      });
+      queryClient.removeQueries({ queryKey: ["console", "module-ui"] });
+      queryClient.removeQueries({ queryKey: ["console", "artifacts"] });
+    }
+    previousContextKey.current = contextKey;
+  }, [contextKey, queryClient]);
   const moduleQuery = useQuery({
     enabled: Boolean(artifact && selection),
     queryKey: [
       "console",
       "module-ui",
+      contextKey,
       artifact?.moduleId,
       artifact?.artifactDigest,
     ],
     queryFn: () =>
       loadConsoleUiModule(artifact!, { origin: window.location.origin }),
   });
+  useEffect(() => {
+    if (artifact && moduleQuery.isError) {
+      quarantineConsoleArtifact(artifact, moduleQuery.error);
+    }
+  }, [artifact, moduleQuery.error, moduleQuery.isError]);
 
   if (!apiMode) {
     if (!localRoute) {
@@ -80,7 +159,30 @@ export function DynamicConsoleModulePage() {
     return <ModuleState title="Loading Module UI artifact" />;
   }
   if (moduleQuery.isError || !moduleQuery.data) {
-    return <ModuleState title="Module UI could not be loaded" />;
+    const quarantine = artifact
+      ? getConsoleArtifactQuarantine(artifact)
+      : undefined;
+    return (
+      <ModuleState
+        title={
+          quarantine
+            ? "Module UI artifact quarantined"
+            : "Module UI could not be loaded"
+        }
+      >
+        {quarantine
+          ? `${quarantine.evidence.join("; ")} ${quarantine.nextAction}`
+          : undefined}
+      </ModuleState>
+    );
+  }
+  if (!managedServiceContext) {
+    return (
+      <ModuleState title="Managed Service Context is unavailable">
+        Select an enrolled, compatible Managed Service before opening this
+        Module Surface.
+      </ModuleState>
+    );
   }
   const surface = findSurface(moduleQuery.data.surfaces, selection.surface.id);
   if (!surface) {
@@ -99,6 +201,7 @@ export function DynamicConsoleModulePage() {
     requiredCapabilities:
       selection.surface.requiredCapabilities ?? surface.requiredCapabilities,
     uiArtifactDigest: selectedArtifact.artifactDigest,
+    managedServiceContext,
   });
   return (
     <ConsoleModuleProvider client={client}>

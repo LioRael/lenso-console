@@ -1,22 +1,26 @@
 import {
   ConsoleHostError,
-  type ConsoleClient,
-  type ConsoleCommandOperation,
-  type ConsoleQueryOperation,
   type ConsoleSha256Digest,
+  type ConsoleClient,
+  type ActionContributionResolution,
+  type ActionContributionResolutionRequest,
+  type ManagedServiceContext,
+  type ModuleConfigReadRequest,
+  type ModuleConfigReadResponse,
+  type ModuleConfigWriteRequest,
+  type ModuleConfigWriteResponse,
+  type ModuleInventoryRequest,
+  type ModuleInventorySnapshot,
 } from "@lenso/console-module-api";
 
 import { httpClient } from "../lib/http-client";
-
-type AdminRecordsResponse = {
-  data: Record<string, unknown>[];
-  page: { limit: number; next_cursor: string | null };
-};
+import { sameManagedServiceContext } from "./managed-service-context";
 
 type ConsoleModuleClientOptions = {
   moduleId: string;
   moduleReleaseDigest: ConsoleSha256Digest;
   uiArtifactDigest: ConsoleSha256Digest;
+  managedServiceContext: ManagedServiceContext;
   capabilities: readonly string[];
   requiredCapabilities?: readonly string[] | undefined;
   navigate: (path: string, options?: { replace?: boolean }) => void;
@@ -29,6 +33,7 @@ export function createConsoleModuleClient({
   navigate,
   requiredCapabilities = [],
   uiArtifactDigest,
+  managedServiceContext,
 }: ConsoleModuleClientOptions): ConsoleClient {
   const available = new Set(capabilities);
   const required = new Set(requiredCapabilities);
@@ -45,82 +50,104 @@ export function createConsoleModuleClient({
     }
   };
 
+  const assertContext = (context: ManagedServiceContext) => {
+    if (
+      context.callerModuleId !== moduleId ||
+      !sameManagedServiceContext(context, managedServiceContext)
+    ) {
+      throw new ConsoleHostError(
+        "forbidden",
+        "Managed Service Context does not match the selected Module and Service",
+        { status: 403 }
+      );
+    }
+  };
+
+  const operation = async <Request, Response>(
+    suffix: string,
+    request: Request & { context: ManagedServiceContext }
+  ): Promise<Response> => {
+    assertCapabilities();
+    assertContext(request.context);
+    return httpClient
+      .post(
+        `api/console/v1/services/${encodeURIComponent(managedServiceContext.serviceId)}/system-plane/v1/modules${suffix}`,
+        { json: request }
+      )
+      .json<Response>();
+  };
+
   return {
     identity: { moduleId, moduleReleaseDigest, uiArtifactDigest },
+    managedServiceContext,
     capabilities: {
       has: (capability) => available.has(capability),
       list: () => capabilities,
     },
-    async query<Result>(
-      operation: ConsoleQueryOperation<Result>
-    ): Promise<Result> {
-      assertCapabilities();
-      if (operation.name !== "admin.records.list") {
-        throw new ConsoleHostError(
-          "not_found",
-          `Console query operation is not supported: ${operation.name}`,
-          { status: 404 }
-        );
-      }
-      const { input } = operation;
-      if (!input || typeof input !== "object" || !("entity" in input)) {
-        throw new ConsoleHostError(
-          "invalid_request",
-          "admin.records.list requires an entity",
-          { status: 400 }
-        );
-      }
-      const query = input as {
-        entity: string;
-        limit?: number;
-        cursor?: string;
-      };
-      if (!query.entity.trim()) {
-        throw new ConsoleHostError(
-          "invalid_request",
-          "admin.records.list requires a non-empty entity",
-          { status: 400 }
-        );
-      }
-      const search = new URLSearchParams();
-      if (query.limit !== undefined) {
-        search.set("limit", String(query.limit));
-      }
-      if (query.cursor) {
-        search.set("cursor", query.cursor);
-      }
-      const suffix = search.toString();
-      const response = await httpClient
-        .get(
-          `admin/data/${encodeURIComponent(moduleId)}/${encodeURIComponent(query.entity)}${suffix ? `?${suffix}` : ""}`
-        )
-        .json<AdminRecordsResponse>();
-      return {
-        data: response.data,
-        page: {
-          limit: response.page.limit,
-          nextCursor: response.page.next_cursor,
-        },
-      } as Result;
+    inventory(
+      request: ModuleInventoryRequest
+    ): Promise<ModuleInventorySnapshot> {
+      return operation<ModuleInventoryRequest, ModuleInventorySnapshot>(
+        "",
+        request
+      );
     },
-    async command<Input, Result>(
-      operation: ConsoleCommandOperation<Input, Result>,
-      options?: { idempotencyKey?: string }
+    resolveActionContributions(
+      request: ActionContributionResolutionRequest
+    ): Promise<ActionContributionResolution> {
+      return operation<
+        ActionContributionResolutionRequest,
+        ActionContributionResolution
+      >("/action-contributions/resolve", request);
+    },
+    readConfig(
+      request: ModuleConfigReadRequest
+    ): Promise<ModuleConfigReadResponse> {
+      assertModuleConfigTarget(request.moduleId, moduleId);
+      return operation<ModuleConfigReadRequest, ModuleConfigReadResponse>(
+        "/config/read",
+        request
+      );
+    },
+    writeConfig(
+      request: ModuleConfigWriteRequest
+    ): Promise<ModuleConfigWriteResponse> {
+      assertModuleConfigTarget(request.moduleId, moduleId);
+      return operation<ModuleConfigWriteRequest, ModuleConfigWriteResponse>(
+        "/config/write",
+        request
+      );
+    },
+    async query<Result>(_operation: {
+      readonly name: string;
+    }): Promise<Result> {
+      throw new ConsoleHostError(
+        "incompatible",
+        `Generic Console query operations are not part of the framework contract: ${_operation.name}`
+      );
+    },
+    async command<_Input, Result>(
+      descriptor: { readonly name: string },
+      _options?: { idempotencyKey?: string }
     ): Promise<Result> {
-      assertCapabilities();
-      const response = await httpClient
-        .post(
-          `admin/data/${encodeURIComponent(moduleId)}/actions/${encodeURIComponent(operation.name)}`,
-          {
-            json: { input: operation.input },
-            ...(options?.idempotencyKey
-              ? { headers: { "Idempotency-Key": options.idempotencyKey } }
-              : {}),
-          }
-        )
-        .json<Result>();
-      return response;
+      throw new ConsoleHostError(
+        "incompatible",
+        `Generic Console command operations are not part of the framework contract: ${descriptor.name}`
+      );
     },
     navigate,
   };
+}
+
+function assertModuleConfigTarget(
+  moduleId: string,
+  expectedModuleId: string
+): void {
+  if (!moduleId.trim() || moduleId !== expectedModuleId) {
+    throw new ConsoleHostError(
+      "invalid_request",
+      "Managed Service Module configuration must target the calling Module",
+      { status: 400 }
+    );
+  }
 }

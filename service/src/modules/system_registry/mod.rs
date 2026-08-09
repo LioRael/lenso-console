@@ -7,6 +7,11 @@ use serde_json::json;
 
 pub const MODULE_NAME: &str = "lenso/system-registry";
 pub const REGISTRY_READ: &str = "console.system-registry.read";
+pub const MODULE_INVENTORY_READ: &str = "console.managed-service.module.inventory.read";
+pub const MODULE_CONTRIBUTIONS_RESOLVE: &str =
+    "console.managed-service.module.contributions.resolve";
+pub const MODULE_CONFIG_READ: &str = "console.managed-service.module.config.read";
+pub const MODULE_CONFIG_WRITE: &str = "console.managed-service.module.config.write";
 
 const MIGRATIONS: &[Migration] = &[Migration {
     name: "lenso/system-registry/0001_create_managed_service_registry",
@@ -19,7 +24,7 @@ pub fn linked_module() -> HostLinkedModule {
 }
 
 pub fn http_routes() -> Vec<ModuleHttpRoute> {
-    vec![
+    let mut routes = vec![
         route(
             ModuleHttpMethod::Get,
             "/api/console/v1/services",
@@ -31,6 +36,37 @@ pub fn http_routes() -> Vec<ModuleHttpRoute> {
             "/api/console/v1/services/{serviceId}",
             REGISTRY_READ,
             "Get Managed Service",
+        ),
+    ];
+    routes.extend(operation_http_routes());
+    routes
+}
+
+fn operation_http_routes() -> Vec<ModuleHttpRoute> {
+    vec![
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/services/{serviceId}/system-plane/v1/modules",
+            MODULE_INVENTORY_READ,
+            "Read Managed Service Module Inventory",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/services/{serviceId}/system-plane/v1/modules/action-contributions/resolve",
+            MODULE_CONTRIBUTIONS_RESOLVE,
+            "Resolve Managed Service Action Contributions",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/services/{serviceId}/system-plane/v1/modules/config/read",
+            MODULE_CONFIG_READ,
+            "Read Managed Service Module Configuration",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/services/{serviceId}/system-plane/v1/modules/config/write",
+            MODULE_CONFIG_WRITE,
+            "Write Managed Service Module Configuration",
         ),
     ]
 }
@@ -53,7 +89,13 @@ fn route(
 
 fn manifest() -> ModuleManifest {
     ModuleManifest::builder(MODULE_NAME)
-        .capabilities(vec![REGISTRY_READ.to_owned()])
+        .capabilities(vec![
+            REGISTRY_READ.to_owned(),
+            MODULE_INVENTORY_READ.to_owned(),
+            MODULE_CONTRIBUTIONS_RESOLVE.to_owned(),
+            MODULE_CONFIG_READ.to_owned(),
+            MODULE_CONFIG_WRITE.to_owned(),
+        ])
         .http_routes(http_routes())
         .console(vec![ConsoleSurface {
             name: "managed-services".to_owned(),
@@ -99,7 +141,16 @@ mod tests {
         let manifest = (module.manifest)();
 
         assert_eq!(module.module_name, MODULE_NAME);
-        assert_eq!(manifest.capabilities, [REGISTRY_READ]);
+        assert_eq!(
+            manifest.capabilities,
+            [
+                MODULE_CONFIG_READ,
+                MODULE_CONFIG_WRITE,
+                MODULE_CONTRIBUTIONS_RESOLVE,
+                MODULE_INVENTORY_READ,
+                REGISTRY_READ,
+            ]
+        );
         assert_eq!(manifest.http_routes, http_routes());
         assert_eq!(manifest.console.len(), 1);
         let surface = &manifest.console[0];

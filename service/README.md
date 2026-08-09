@@ -290,18 +290,22 @@ publishes a GitHub build attestation, and attaches the manifest to the
 `lenso-console-service@<version>` GitHub Release. There is no shared shadow
 registry, central publisher, release nonce, or cross-repository receipt channel.
 
-Registry reads require `console.system-registry.read`. Enrollment changes are
-submitted through the reviewed System Plane workflow; the Console registry is
-read-only and exposes the resulting evidence.
+Registry reads require `console.system-registry.read`. Typed Module Operations
+are exposed only through the fixed Console proxy paths and require an
+operation-specific Console scope. Each request rechecks the current enrollment,
+Core advertisement, capability/schema digest, explicit Managed Service Context,
+and typed response before returning inventory, Action Contributions, or
+descriptor-bound configuration evidence.
 
-No enrollment creation endpoint is exposed yet. The signed Enrollment
-Offer/Receipt types exist on the framework System Plane branch but are not in a
-published `lenso-service` release. Adding a direct unsigned registry-write route
-would violate the bilateral enrollment boundary, so the Console Service remains
-fail-closed until it can consume that public contract.
+No enrollment creation endpoint is exposed yet. Enrollment changes remain the
+reviewed bilateral System Plane workflow; adding a direct unsigned
+registry-write route would violate that boundary. Module Operations consume the
+published framework contract from `lenso@0.3.38` without creating a second
+TypeScript wire schema.
 
 The Console Service does not maintain a second TypeScript backend for the System
 Plane. Its backend capabilities are implemented as ordinary Rust Lenso Service
 and Module code. System Plane wire contracts and verification primitives belong
-to the public Lenso framework; enrollment remains fail-closed here until the
-Console Service can consume the corresponding published framework contract.
+to the public Lenso framework; the Console Service is now a typed consumer of
+the published Module Operations contract while enrollment authority remains
+fail-closed here.

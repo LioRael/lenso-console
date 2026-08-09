@@ -156,4 +156,39 @@ describe("Console Module runtime loader", () => {
     ).rejects.toMatchObject({ code: "invalid_request" });
     expect(importer).not.toHaveBeenCalled();
   });
+
+  test("quarantines an exact artifact before import when its UI range is incompatible", async () => {
+    const importer = vi.fn();
+    const exactManifest = {
+      ...manifest,
+      consoleUi: "^9.0.0",
+    };
+    const exactReceipt: ConsoleUiArtifactReceipt = {
+      ...receipt,
+      contract: {
+        artifact: {
+          locator: "oci://registry.example/acme/billing-ui",
+          digest: receipt.artifactDigest,
+        },
+        format: "console_ui_esm",
+        protocolMajor: 1,
+        entry: receipt.entry,
+        entries: receipt.entries,
+        manifest: exactManifest,
+      },
+      manifest: exactManifest,
+      protocolMajor: 1,
+    };
+
+    await expect(
+      loadConsoleUiModule(exactReceipt, {
+        importModule: importer,
+        origin: "https://console.example",
+      })
+    ).rejects.toMatchObject({
+      code: "incompatible",
+      name: "ConsoleArtifactQuarantineError",
+    });
+    expect(importer).not.toHaveBeenCalled();
+  });
 });

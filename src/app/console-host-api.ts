@@ -47,6 +47,7 @@ import {
 import { useConsoleSlotContributions } from "./console-contributions";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 import { useConsoleManagedServices } from "./console-system-registry-api";
+import { selectManagedService } from "./managed-service-selection";
 
 export const productionConsoleHostApi = {
   version: CONSOLE_HOST_API_VERSION,
@@ -93,6 +94,7 @@ export const productionConsoleHostApi = {
     findStoryByCorrelation,
   },
   systemRegistry: {
+    selectService: selectManagedService,
     useServices: useConsoleManagedServices,
   },
   ui: {

@@ -210,7 +210,12 @@ export function SystemRegistryConsolePage() {
                     filteredRows.map((row) => (
                       <ServiceDataRow
                         key={row.service.serviceId}
-                        onSelect={setSelectedServiceId}
+                        onSelect={(serviceId) => {
+                          setSelectedServiceId(serviceId);
+                          consoleHostApi.systemRegistry.selectService(
+                            serviceId
+                          );
+                        }}
                         row={row}
                         selected={
                           selected?.service.serviceId === row.service.serviceId
