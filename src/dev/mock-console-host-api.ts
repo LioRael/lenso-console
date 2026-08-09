@@ -127,16 +127,6 @@ export const authConsoleMockFixtures: MockConsoleFixtures = {
       ],
     },
   },
-  configValues: [
-    {
-      desired_value: { usr_01J4Y2Q8: ["console.admin", "auth.users.read"] },
-      effective_value: { usr_01J4Y2Q8: ["console.admin", "auth.users.read"] },
-      key: "auth.console_admin_user_scopes",
-      pending_restart: false,
-      source: "fixture",
-      value: { usr_01J4Y2Q8: ["console.admin", "auth.users.read"] },
-    },
-  ],
   contributions: {
     "auth.users.detail.actions": [
       {

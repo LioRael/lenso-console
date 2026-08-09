@@ -149,14 +149,13 @@ VALUES (
   now(), now() + interval '1 day'
 );
 
-INSERT INTO config.setting_values (service, key, value, updated_at, updated_by)
+INSERT INTO console.console_administrators
+  (user_id, role, source, created_by, created_at)
 VALUES (
-  '*', 'auth.console_admin_user_scopes',
-  '{"recovery-drill-operator":["console.admin","console.system-registry.read"]}'::jsonb,
-  now(), 'recovery-drill'
+  'recovery-drill-operator', 'superadmin', 'local_recovery',
+  'recovery-drill', now()
 )
-ON CONFLICT (service, key) DO UPDATE
-SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by;
+ON CONFLICT (user_id) DO NOTHING;
 \q
 SQL
 

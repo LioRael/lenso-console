@@ -102,6 +102,17 @@ describe("console capabilities", () => {
         authToken: "dev-service:admin",
       })
     ).toEqual([
+      "console.superadmin",
+      "console.access.read",
+      "console.access.manage",
+      "console.users.read",
+      "console.users.manage",
+      "console.sessions.read",
+      "console.sessions.revoke",
+      "console.organizations.read",
+      "console.organizations.manage",
+      "console.managed-service.access-grants.read",
+      "console.managed-service.access-grants.manage",
       "runtime.stories.read",
       "auth.users.read",
       "identity.users.read",

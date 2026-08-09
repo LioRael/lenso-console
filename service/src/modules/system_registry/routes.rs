@@ -9,6 +9,8 @@ use sqlx::{Postgres, Row};
 use std::time::{SystemTime, UNIX_EPOCH};
 use utoipa::ToSchema;
 
+use crate::composition::CONSOLE_SERVICE_ID;
+use crate::modules::console_access;
 use lenso::system_plane::{
     ActionContributionResolution, ActionContributionResolutionRequest, CoreDocument,
     MODULE_OPERATIONS_FEATURE_CONFIG_READ, MODULE_OPERATIONS_FEATURE_CONFIG_WRITE,
@@ -25,12 +27,12 @@ const LIST_SERVICES_SQL: &str = "select service_id, service_principal, base_url,
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document, \
     core_observed_at::text as core_observed_at, last_error_code, version \
-    from console.managed_services order by service_id";
+    from console.managed_services where service_id <> 'lenso-console' order by service_id";
 const GET_SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document, \
     core_observed_at::text as core_observed_at, last_error_code, version \
-    from console.managed_services where service_id = $1";
+    from console.managed_services where service_id = $1 and service_id <> 'lenso-console'";
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 enum EnrollmentState {
@@ -96,15 +98,33 @@ async fn list_managed_services(
     actor: UserActor,
     HttpRequestContext(request_ctx): HttpRequestContext,
 ) -> Result<Json<Vec<ManagedServiceResponse>>, ApiErrorResponse> {
-    require_scope(&actor, REGISTRY_READ, &request_ctx)?;
+    console_access::require_managed_service_capability(
+        &ctx,
+        &actor,
+        None,
+        REGISTRY_READ,
+        &request_ctx,
+    )
+    .await?;
     let rows = sqlx::query(LIST_SERVICES_SQL)
         .fetch_all(&ctx.db)
         .await
         .map_err(|error| database_error(error, &request_ctx))?;
-    let services = rows
-        .iter()
-        .map(|row| managed_service_from_row(row, &request_ctx))
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut services = Vec::new();
+    for row in &rows {
+        let service_id: String = value(row, "service_id", &request_ctx)?;
+        if console_access::has_managed_service_capability(
+            &ctx,
+            &actor,
+            Some(&service_id),
+            REGISTRY_READ,
+        )
+        .await
+        .map_err(|error| api_error(error, &request_ctx))?
+        {
+            services.push(managed_service_from_row(row, &request_ctx)?);
+        }
+    }
     Ok(json(services))
 }
 
@@ -128,7 +148,20 @@ async fn get_managed_service(
     HttpRequestContext(request_ctx): HttpRequestContext,
     Path(service_id): Path<String>,
 ) -> Result<Json<ManagedServiceResponse>, ApiErrorResponse> {
-    require_scope(&actor, REGISTRY_READ, &request_ctx)?;
+    console_access::require_managed_service_capability(
+        &ctx,
+        &actor,
+        Some(&service_id),
+        REGISTRY_READ,
+        &request_ctx,
+    )
+    .await?;
+    if service_id == CONSOLE_SERVICE_ID {
+        return Err(api_error(
+            AppError::new(ErrorCode::NotFound, "Managed Service was not found"),
+            &request_ctx,
+        ));
+    }
     let row = sqlx::query(GET_SERVICE_SQL)
         .bind(&service_id)
         .fetch_optional(&ctx.db)
@@ -146,7 +179,7 @@ async fn get_managed_service(
 const OPERATION_SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document \
-    from console.managed_services where service_id = $1";
+    from console.managed_services where service_id = $1 and service_id <> 'lenso-console'";
 
 struct ManagedServiceTarget {
     service_id: String,
@@ -394,7 +427,14 @@ async fn authorize_operation(
     console_scope: &str,
     feature_id: &str,
 ) -> Result<ManagedServiceTarget, ApiErrorResponse> {
-    require_scope(actor, console_scope, request_ctx)?;
+    console_access::require_managed_service_capability(
+        ctx,
+        actor,
+        Some(service_id),
+        console_scope,
+        request_ctx,
+    )
+    .await?;
     let target = load_target(ctx, request_ctx, service_id).await?;
     if context.service_id != target.service_id
         || context.target_service_principal != target.service_principal
@@ -454,6 +494,12 @@ async fn load_target(
     request_ctx: &RequestContext,
     service_id: &str,
 ) -> Result<ManagedServiceTarget, ApiErrorResponse> {
+    if service_id == CONSOLE_SERVICE_ID {
+        return Err(api_error(
+            AppError::new(ErrorCode::NotFound, "Managed Service was not found"),
+            request_ctx,
+        ));
+    }
     let row = sqlx::query(OPERATION_SERVICE_SQL)
         .bind(service_id)
         .fetch_optional(&ctx.db)
@@ -759,23 +805,7 @@ fn non_negative_integer(
     u64::try_from(value).map_err(|_| stored_integer_error(field, request_ctx))
 }
 
-fn require_scope(
-    actor: &UserActor,
-    required: &str,
-    request_ctx: &RequestContext,
-) -> Result<(), ApiErrorResponse> {
-    if has_scope(actor, required) {
-        return Ok(());
-    }
-    Err(api_error(
-        AppError::new(
-            ErrorCode::Forbidden,
-            format!("Missing required scope: {required}"),
-        ),
-        request_ctx,
-    ))
-}
-
+#[cfg(test)]
 fn has_scope(actor: &UserActor, required: &str) -> bool {
     actor.scopes.iter().any(|scope| scope == required)
 }

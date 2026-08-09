@@ -58,6 +58,36 @@ async fn story_routes_are_owned_by_the_console_composition() {
 }
 
 #[tokio::test]
+async fn console_access_routes_are_published_by_host_composition() {
+    let app = app_with_lazy_database();
+    let response = app
+        .oneshot(public_get("/openapi.json"))
+        .await
+        .expect("OpenAPI request should complete");
+    assert_eq!(response.status(), StatusCode::OK);
+    let document = json_body(response).await;
+
+    for path in [
+        "/bootstrap/v1/status",
+        "/bootstrap/v1/recovery",
+        "/api/console/v1/access/users",
+        "/api/console/v1/access/organizations",
+        "/api/console/v1/access/grants",
+        "/api/console/v1/access/effective/{serviceId}",
+    ] {
+        assert!(document["paths"].get(path).is_some(), "missing {path}");
+    }
+    assert_eq!(
+        document["paths"]["/bootstrap/v1/recovery"]["post"]["operationId"],
+        "console_create_bootstrap_superadmin"
+    );
+    assert_eq!(
+        document["paths"]["/api/console/v1/access/grants"]["post"]["operationId"],
+        "console_access_create_managed_service_grant"
+    );
+}
+
+#[tokio::test]
 async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let Some(db) = TestDatabase::create().await else {
         return;

@@ -16,9 +16,10 @@ pub enum ConsoleRecoveryMode {
 
 /// Exact Console Service Composition.
 ///
-/// The Console owns an independent Auth domain and exactly one mandatory
-/// System Registry implementation. Optional Console Modules are added here by
-/// a reviewed Console Service Release rather than discovered at runtime.
+/// The Console owns independent Auth and Organization domains, Host-owned
+/// Console Access, and exactly one mandatory System Registry implementation.
+/// Optional Console Modules are added here by a reviewed Console Service
+/// Release rather than discovered at runtime.
 pub fn host_composition() -> HostComposition {
     let composition = composition::official_host_composition();
     modules::story::install_default_story_display(&composition);
@@ -119,7 +120,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn composition_has_independent_auth_and_one_system_registry() {
+    fn composition_has_independent_identity_organization_and_one_system_registry() {
         let composition = host_composition();
         let names = composition
             .linked_modules()
@@ -133,7 +134,9 @@ mod tests {
                 "lenso/console-shell",
                 "auth",
                 "auth-password",
+                "organization",
                 "lenso/system-registry",
+                "lenso/console-access",
                 "lenso/platform-story"
             ]
         );

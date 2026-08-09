@@ -53,8 +53,8 @@ export function DynamicConsoleModulePage() {
     [quarantines]
   );
   const localRoute = useMemo(
-    () => (apiMode ? undefined : findConsoleRoute(path, consoleRoutes)),
-    [apiMode, path]
+    () => findConsoleRoute(path, consoleRoutes),
+    [path]
   );
   const selection = useMemo(() => {
     for (const artifact of artifacts.data?.artifacts ?? []) {
@@ -137,6 +137,18 @@ export function DynamicConsoleModulePage() {
     if (!localRoute) {
       return <ModuleState title="Console page not found" />;
     }
+    const LocalSurface = localRoute.component;
+    return (
+      <SurfaceRoot moduleId={localRoute.moduleId} surfaceId={localRoute.path}>
+        <LocalSurface />
+      </SurfaceRoot>
+    );
+  }
+
+  if (
+    localRoute?.moduleId === "lenso/console-workbench" &&
+    path === "/access"
+  ) {
     const LocalSurface = localRoute.component;
     return (
       <SurfaceRoot moduleId={localRoute.moduleId} surfaceId={localRoute.path}>

@@ -271,11 +271,19 @@ function ConsoleOperatorBootstrapRequired({
         <p {...stylex.props(statusStyles.statusEyebrow)}>Console Bootstrap</p>
         <h1 {...stylex.props(statusStyles.statusTitle)}>Operator required</h1>
         <p {...stylex.props(statusStyles.statusDescription)}>
-          This Console has no operator yet. Run the installation-authority
-          command below, then restart the Console Service.
+          This Console has no operator yet. Enable the explicitly fenced local
+          recovery mode, call the recovery endpoint once, then return the
+          service to normal mode.
         </p>
         <pre {...stylex.props(statusStyles.statusPre)}>
-          <code>{`lenso console operator bootstrap \\\n+  --console-url ${window.location.origin} \\\n+  --identifier admin@example.com`}</code>
+          <code>
+            {[
+              "CONSOLE_RECOVERY_MODE=restore",
+              "CONSOLE_BOOTSTRAP_RECOVERY_TOKEN='<strong-local-secret>'",
+              "",
+              consoleBootstrapRecoveryExample(window.location.origin),
+            ].join("\n")}
+          </code>
         </pre>
         <p {...stylex.props(statusStyles.statusFootnote)}>
           {status.nextAction}
@@ -283,6 +291,10 @@ function ConsoleOperatorBootstrapRequired({
       </section>
     </main>
   );
+}
+
+function consoleBootstrapRecoveryExample(origin: string) {
+  return `curl -X POST ${origin}/bootstrap/v1/recovery -H 'content-type: application/json' -H 'x-lenso-console-recovery-token: $CONSOLE_BOOTSTRAP_RECOVERY_TOKEN' --data '{"identifier":"admin@example.com","password":"<one-time-password>"}'`;
 }
 
 export function consolePasswordLoginUrl(prefix = consoleApiPrefix()): string {
