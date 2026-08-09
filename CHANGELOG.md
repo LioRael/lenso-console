@@ -1,5 +1,13 @@
 ## @lenso/console-web@0.1.7
 
+## 0.1.9
+
+### Patch Changes
+
+- a6749bd: Allow the statically served TanStack Start bootstrap script through a
+  content-hashed Content-Security-Policy so the Console Service can hydrate and
+  authenticate in a real browser.
+
 ## 0.1.8
 
 ### Patch Changes
