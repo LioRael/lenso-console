@@ -28,6 +28,7 @@ path = "src/bin/migrate.rs"
 [dependencies]
 anyhow = "1.0"
 axum = "0.8"
+base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 flate2 = "1.1"
