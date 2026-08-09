@@ -1,16 +1,18 @@
 # Lenso Console Service
 
 This directory is the independently installed Lenso Service behind Lenso
-Console. It owns a dedicated Auth domain, Service Store, API, Worker and
-Migration Workload. It is never embedded in or registered as one of its managed
-Services.
+Console. It owns dedicated Auth and Organization domains, a Host-owned Console
+Access store, Service Store, API, Worker and Migration Workload. It is never
+embedded in or registered as one of its managed Services.
 
 The initial exact composition is:
 
 - the capability-neutral `lenso/console-shell` linked Module;
 - the first-party Auth anchor;
 - the first-party password provider;
+- the first-party Organization Module;
 - the mandatory `lenso/system-registry` linked Module;
+- the Host-owned `lenso/console-access` linked Module;
 - the optional `lenso/platform-story` linked Module, including Story query,
   federation, projection, and Store migration ownership.
 
@@ -29,28 +31,28 @@ cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-migrat
 pnpm service:serve
 ```
 
-After the Console Service starts, use the external CLI to create its first
-password user through the Console Auth Module, then write the audited first
-Console Operator grant. In an interactive terminal, the CLI securely prompts
-for and confirms the password without echoing it:
+After the Console Service starts, the first operator is created only through an
+explicitly fenced local recovery request. Set a strong, temporary
+`CONSOLE_BOOTSTRAP_RECOVERY_TOKEN`, start the service with
+`CONSOLE_RECOVERY_MODE=restore`, and call the recovery endpoint once:
 
 ```sh
-lenso console operator bootstrap \
-  --console-root . \
-  --console-url http://127.0.0.1:3030 \
-  --identifier admin@example.com
+export CONSOLE_BOOTSTRAP_RECOVERY_TOKEN="replace-with-a-random-one-time-secret"
+curl -X POST http://127.0.0.1:3030/bootstrap/v1/recovery \
+  -H 'content-type: application/json' \
+  -H "x-lenso-console-recovery-token: $CONSOLE_BOOTSTRAP_RECOVERY_TOKEN" \
+  --data '{"identifier":"admin@example.com","password":"replace-with-a-strong-password"}'
 ```
 
-The command grants the Console Minimum operator scopes, writes append-only
-configuration audit evidence, and refuses to run once an operator grant exists.
-It verifies the mandatory System Registry state before writing, so a business
-Service Store is rejected. Additional operators are managed through the identity
-Module. Remote Console URLs must use HTTPS; loopback HTTP is accepted for local
-installation. Non-interactive automation must use `--password-stdin` or a
-private regular file through `--password-file`. If Auth registration succeeds
-but the grant fails, rerun without `--console-url` or a password option to select
-the existing identity. Restart the Console API and Worker after the initial
-bootstrap so the Auth resolver adopts the new grant.
+The endpoint refuses normal-mode requests, missing or mismatched recovery
+tokens, and any request after a Console administrator exists. It creates a
+local-recovery Bootstrap Superadmin through the Console Auth and Password
+Modules and returns a short-lived login token. Store that token only for the
+initial sign-in, remove the recovery secret, and restart in
+`CONSOLE_RECOVERY_MODE=normal`. Additional Console identities, organizations,
+memberships, and Managed Service Access Grants are managed through the
+Host-owned Console Access API under `/api/console/v1/access`; no
+shared Auth configuration key is used.
 
 The Console Shell and API share `http://127.0.0.1:3030` by default. The Shell is
 served at `/`, the System Registry API is under `/api/console/v1/services`, and

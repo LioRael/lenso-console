@@ -5,6 +5,17 @@ import {
 } from "./console-admin-context";
 
 const localConsoleCapabilities = [
+  "console.superadmin",
+  "console.access.read",
+  "console.access.manage",
+  "console.users.read",
+  "console.users.manage",
+  "console.sessions.read",
+  "console.sessions.revoke",
+  "console.organizations.read",
+  "console.organizations.manage",
+  "console.managed-service.access-grants.read",
+  "console.managed-service.access-grants.manage",
   "runtime.stories.read",
   "auth.users.read",
   "identity.users.read",

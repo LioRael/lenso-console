@@ -28,12 +28,16 @@ path = "src/bin/migrate.rs"
 [dependencies]
 anyhow = "1.0"
 axum = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 flate2 = "1.1"
+lenso-module-auth = { version = "0.1.13" }
+lenso-module-auth-password = { version = "0.1.14" }
 lenso = { git = "https://github.com/LioRael/lenso", rev = "72cb484027dd6efb986f9829e7c972eaa5577328", version = "0.3.38", features = [
   "host",
 ] }
 lenso-module-management = { git = "https://github.com/LioRael/lenso", rev = "72cb484027dd6efb986f9829e7c972eaa5577328", version = "0.2.0" }
+lenso-module-organization = { version = "0.1.2" }
 console-story-backend = { package = "lenso-module-story", path = "modules/story" }
 reqwest = { version = "0.13", default-features = false, features = [
   "json",

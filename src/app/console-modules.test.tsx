@@ -86,6 +86,7 @@ describe("Console Module composition", () => {
 
     expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
       "/",
+      "/access",
       "/services",
       "/system",
       "/modules",
@@ -111,9 +112,10 @@ describe("Console Module composition", () => {
       (workspace) => workspace.id === "system"
     );
 
-    expect(systemWorkspace?.items.slice(0, 7).map((item) => item.path)).toEqual(
+    expect(systemWorkspace?.items.slice(0, 8).map((item) => item.path)).toEqual(
       [
         "/",
+        "/access",
         "/system",
         "/modules",
         "/changes",

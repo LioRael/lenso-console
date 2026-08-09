@@ -12,6 +12,7 @@ import {
   consoleDevConfig,
   type ConsoleDevMode,
 } from "../dev/console-dev-config";
+import { ConsoleAccessPage } from "../features/access/access-page";
 import { ChangesPage } from "../features/changes/changes-page";
 import { DeliveryPage } from "../features/delivery/delivery-page";
 import { HomePage } from "../features/home/home-page";
@@ -116,6 +117,14 @@ const consoleWorkbenchModule: ConsoleModule = {
   id: "lenso/console-workbench",
   surfaces: [
     workbenchSurface("house", "Home", "首页", "/", HomePage, 0),
+    workbenchSurface(
+      "shield",
+      "Console Access",
+      "Console Access",
+      "/access",
+      ConsoleAccessPage,
+      10
+    ),
     workbenchSurface("server-cog", "System", "系统", "/system", SystemPage, 20),
     workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 30),
     workbenchSurface(

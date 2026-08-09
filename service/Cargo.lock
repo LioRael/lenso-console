@@ -1793,12 +1793,16 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "chrono",
  "dotenvy",
  "flate2",
  "lenso",
  "lenso-api",
  "lenso-bootstrap",
+ "lenso-module-auth",
+ "lenso-module-auth-password",
  "lenso-module-management",
+ "lenso-module-organization",
  "lenso-module-story",
  "lenso-platform-core",
  "lenso-platform-testing",
@@ -2029,6 +2033,27 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "thiserror",
+]
+
+[[package]]
+name = "lenso-module-organization"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78325ca8dce9307e724a91917549bf678aab1a483c6d213e1616f83b8c2e870a"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "getrandom 0.4.3",
+ "lenso-module-auth",
+ "lenso-platform-core",
+ "lenso-platform-http",
+ "lenso-platform-module",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "utoipa",
 ]
 
 [[package]]
