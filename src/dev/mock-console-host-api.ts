@@ -277,6 +277,7 @@ export function createMockConsoleHostApi(
     routing: baseHostApi.routing,
     story: baseHostApi.story,
     systemRegistry: {
+      selectService: () => undefined,
       useServices: () => mockSuccessQueryResult(fixtures.managedServices ?? []),
     },
     ui: baseHostApi.ui,

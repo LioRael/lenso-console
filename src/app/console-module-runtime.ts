@@ -1,14 +1,21 @@
 import {
+  CONSOLE_HOST_API_VERSION,
+  CONSOLE_UI_VERSION,
   ConsoleHostError,
+  isSemverRangeCompatible,
   isConsoleSha256Digest,
+  validateConsoleUiEsmArtifact,
+  validateFrameworkConsoleModuleManifest,
   type ConsoleSha256Digest,
   type ConsoleModuleManifest,
+  type FrameworkConsoleUiEsmArtifact,
   validateConsoleManifest,
 } from "@lenso/console-module-api";
 import { type ConsoleUiModule, defineConsoleUiModule } from "@lenso/console-ui";
 
 export interface ConsoleUiArtifactReceipt {
   format: "console_ui_esm";
+  protocolMajor?: number;
   moduleId: string;
   moduleReleaseDigest: ConsoleSha256Digest;
   artifactDigest: ConsoleSha256Digest;
@@ -17,6 +24,8 @@ export interface ConsoleUiArtifactReceipt {
   entries: readonly { name: string; path: string }[];
   styleAssets?: readonly ConsoleUiStyleAsset[];
   manifest: ConsoleModuleManifest;
+  /** Exact framework-published artifact contract, present on API receipts. */
+  contract?: FrameworkConsoleUiEsmArtifact;
 }
 
 export interface ConsoleUiStyleAsset {
@@ -28,6 +37,25 @@ export interface ConsoleUiStyleAsset {
 export interface ConsoleModuleRuntimeOptions {
   importModule?: (url: string) => Promise<Record<string, unknown>>;
   origin?: string;
+}
+
+export class ConsoleArtifactQuarantineError extends ConsoleHostError {
+  readonly evidence: readonly string[];
+  readonly nextAction: string;
+
+  constructor(
+    moduleId: string,
+    evidence: readonly string[],
+    nextAction: string
+  ) {
+    super(
+      "incompatible",
+      `Console UI artifact quarantined before import: ${moduleId}`
+    );
+    this.name = "ConsoleArtifactQuarantineError";
+    this.evidence = evidence;
+    this.nextAction = nextAction;
+  }
 }
 
 export async function loadConsoleUiModule(
@@ -56,6 +84,18 @@ export async function loadConsoleUiModule(
       `Console Module UI export is invalid: ${receipt.moduleId}`
     );
   }
+  if (receipt.contract) {
+    try {
+      validateFrameworkConsoleModuleManifest(exported.manifest);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new ConsoleArtifactQuarantineError(
+        receipt.moduleId,
+        [detail],
+        "Publish an ESM entry whose exported manifest is the exact framework Console Module manifest."
+      );
+    }
+  }
   if (exported.manifest.moduleId !== receipt.moduleId) {
     throw new ConsoleHostError(
       "incompatible",
@@ -71,7 +111,6 @@ export async function loadConsoleUiModule(
       `Console Module UI version does not match receipt: ${receipt.moduleId}`
     );
   }
-
   if (!manifestsMatch(exported.manifest, receipt.manifest)) {
     throw new ConsoleHostError(
       "incompatible",
@@ -142,6 +181,42 @@ function validateReceipt(
       "incompatible",
       `Console artifact manifest does not match receipt: ${receipt.moduleId}`
     );
+  }
+  if (receipt.contract) {
+    try {
+      validateConsoleUiEsmArtifact(receipt.contract);
+      if (
+        receipt.contract.artifact.digest !== receipt.artifactDigest ||
+        receipt.contract.manifest.moduleId !== receipt.moduleId ||
+        receipt.contract.entry !== receipt.entry ||
+        stableSerialize(receipt.contract.entries ?? []) !==
+          stableSerialize(receipt.entries) ||
+        stableSerialize(receipt.contract.styleAssets ?? []) !==
+          stableSerialize(receipt.styleAssets ?? []) ||
+        !manifestsMatch(receipt.contract.manifest, receipt.manifest) ||
+        receipt.contract.protocolMajor !==
+          (receipt.protocolMajor ?? receipt.contract.protocolMajor) ||
+        !isSemverRangeCompatible(
+          receipt.contract.manifest.hostApi,
+          CONSOLE_HOST_API_VERSION
+        ) ||
+        !isSemverRangeCompatible(
+          receipt.contract.manifest.consoleUi,
+          CONSOLE_UI_VERSION
+        )
+      ) {
+        throw new TypeError(
+          "artifact identity or compatibility range is not accepted by this Console"
+        );
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new ConsoleArtifactQuarantineError(
+        receipt.moduleId,
+        [detail],
+        "Publish a compatible framework Module Release and reconcile its exact Console UI artifact."
+      );
+    }
   }
   if (
     !receipt.entries.some(
@@ -349,7 +424,6 @@ function surfaceFingerprint(
     icon: surface.icon ?? null,
     id: surface.id,
     label: surface.label,
-    localizedLabels: surface.localizedLabels ?? null,
     navigation: surface.navigation ?? null,
     path: surface.path,
     requiredCapabilities: surface.requiredCapabilities ?? null,

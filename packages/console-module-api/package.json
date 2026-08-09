@@ -1,7 +1,7 @@
 {
   "name": "@lenso/console-module-api",
   "version": "0.1.1",
-  "description": "Framework-neutral contract for dynamically loaded Lenso Console Module UI.",
+  "description": "Framework-owned contract for dynamically loaded Lenso Console Module UI and Managed Service operations.",
   "keywords": [
     "api",
     "console",

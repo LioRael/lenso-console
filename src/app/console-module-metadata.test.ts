@@ -83,4 +83,49 @@ describe("Console Module metadata", () => {
       })
     );
   });
+
+  test("hides every Surface from a quarantined artifact", () => {
+    const artifactDigest = `sha256:${"c".repeat(64)}` as `sha256:${string}`;
+    const navigation = navigationFromConsoleModuleMetadata(
+      [],
+      [],
+      [
+        {
+          artifactDigest,
+          basePath: "/artifacts/billing/",
+          entry: "index.js",
+          entries: [{ name: "module", path: "index.js" }],
+          format: "console_ui_esm",
+          grantedPermissions: [],
+          manifest: {
+            consoleUi: "^1.0.0",
+            hostApi: "^1.0.0",
+            moduleId: "acme/billing",
+            protocol: CONSOLE_MODULE_API_PROTOCOL,
+            surfaces: [
+              {
+                area: "data",
+                id: "invoices",
+                label: "Invoices",
+                path: "/billing/invoices",
+              },
+              {
+                area: "operations",
+                id: "settings",
+                label: "Settings",
+                path: "/billing/settings",
+              },
+            ],
+          },
+          moduleId: "acme/billing",
+          moduleReleaseDigest: `sha256:${"d".repeat(64)}`,
+        },
+      ],
+      new Set([`acme/billing:${artifactDigest}`])
+    );
+
+    expect(navigation).not.toContainEqual(
+      expect.objectContaining({ moduleId: "acme/billing" })
+    );
+  });
 });

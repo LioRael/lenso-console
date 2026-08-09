@@ -1,5 +1,10 @@
 import { isConsoleSurfaceIcon } from "@lenso/console-ui";
+import { useSyncExternalStore } from "react";
 
+import {
+  getConsoleArtifactQuarantines,
+  subscribeConsoleArtifactQuarantine,
+} from "./console-artifact-quarantine";
 import {
   useConsoleArtifacts,
   type ConsoleArtifactReceipt,
@@ -23,7 +28,8 @@ export function consoleModuleMetadataWithFallback({
 export function navigationFromConsoleModuleMetadata(
   modules: ConsoleModuleMetadata[],
   availableCapabilities: readonly string[],
-  artifacts: readonly ConsoleArtifactReceipt[] = []
+  artifacts: readonly ConsoleArtifactReceipt[] = [],
+  quarantinedArtifactKeys: ReadonlySet<string> = new Set()
 ) {
   const available = new Set(availableCapabilities);
   const linked = buildConsoleNavigation(consoleModules);
@@ -52,6 +58,13 @@ export function navigationFromConsoleModuleMetadata(
   const artifactNavigation = artifacts.flatMap((artifact) =>
     artifact.manifest.surfaces.flatMap((surface) => {
       if (
+        quarantinedArtifactKeys.has(
+          `${artifact.moduleId}:${artifact.artifactDigest}`
+        )
+      ) {
+        return [];
+      }
+      if (
         !(surface.requiredCapabilities ?? []).every((capability) =>
           hasConsoleCapability(available, capability)
         )
@@ -63,9 +76,6 @@ export function navigationFromConsoleModuleMetadata(
           ...(isConsoleSurfaceIcon(surface.icon) ? { icon: surface.icon } : {}),
           label: surface.label,
           moduleId: artifact.moduleId,
-          ...(surface.localizedLabels
-            ? { localizedLabels: surface.localizedLabels }
-            : {}),
           ...(surface.navigation ? { navigation: surface.navigation } : {}),
           path: surface.path,
         },
@@ -83,6 +93,11 @@ export function useConsoleNavigation() {
   const availableCapabilities = useConsoleCapabilities();
   const modulesQuery = useConsoleModulesMetadata();
   const artifactsQuery = useConsoleArtifacts();
+  const quarantines = useSyncExternalStore(
+    subscribeConsoleArtifactQuarantine,
+    getConsoleArtifactQuarantines,
+    getConsoleArtifactQuarantines
+  );
   const modules = consoleModuleMetadataWithFallback({
     apiMode: false,
     data: modulesQuery.data?.modules,
@@ -91,6 +106,7 @@ export function useConsoleNavigation() {
   return navigationFromConsoleModuleMetadata(
     modules,
     availableCapabilities,
-    artifactsQuery.data?.artifacts ?? []
+    artifactsQuery.data?.artifacts ?? [],
+    new Set(quarantines.map((quarantine) => quarantine.key))
   );
 }

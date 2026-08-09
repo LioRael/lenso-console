@@ -1,5 +1,8 @@
 import type { ConsoleThemeBundleReceipt } from "@lenso/console-composition-api";
-import type { ConsoleModuleManifest } from "@lenso/console-module-api";
+import type {
+  ConsoleModuleManifest,
+  FrameworkConsoleUiEsmArtifact,
+} from "@lenso/console-module-api";
 import { useQuery } from "@tanstack/react-query";
 
 import { httpClient, isApiMode } from "../lib/http-client";
@@ -12,7 +15,10 @@ export type ConsoleArtifactStyleAsset = {
 };
 
 export type ConsoleArtifactReceipt = {
+  /** Local serving metadata is bound to this exact framework artifact. */
+  contract?: FrameworkConsoleUiEsmArtifact;
   format: "console_ui_esm";
+  protocolMajor?: number;
   moduleId: string;
   moduleReleaseDigest: `sha256:${string}`;
   artifactDigest: `sha256:${string}`;

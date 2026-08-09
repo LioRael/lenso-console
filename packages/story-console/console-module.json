@@ -2,7 +2,7 @@
   "protocol": "lenso.console-module.v1",
   "moduleId": "lenso/platform-story",
   "hostApi": "^1.0.0",
-  "consoleUi": "^1.0.0",
+  "consoleUi": "^2.0.0",
   "surfaces": [
     {
       "id": "runtime-stories",
@@ -16,7 +16,6 @@
         "workspace": {
           "id": "system",
           "label": "System",
-          "localizedLabels": { "zh-CN": "系统" },
           "icon": "settings"
         }
       }

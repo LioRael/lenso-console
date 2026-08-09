@@ -504,6 +504,7 @@ export interface ConsoleHostApi {
     ) => RuntimeStory | null;
   };
   systemRegistry: {
+    selectService: (serviceId: string) => void;
     useServices: () => ConsoleQueryResult<ConsoleManagedService[]>;
   };
   ui: ConsoleUiComponents & {

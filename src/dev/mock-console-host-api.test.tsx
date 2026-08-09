@@ -133,6 +133,7 @@ describe("mock console host api", () => {
         findStoryByCorrelation,
       },
       systemRegistry: {
+        selectService: notCalled,
         useServices: notCalled,
       },
       ui: {} as ConsoleHostApi["ui"],
