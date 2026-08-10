@@ -21,7 +21,7 @@ use lenso::system_plane::{
     module_operations_schema_digest, validate_core_document,
 };
 
-use super::REGISTRY_READ;
+use super::{REGISTRY_READ, SYSTEM_CONNECT, SYSTEM_READ, connection};
 
 const LIST_SERVICES_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
@@ -33,6 +33,12 @@ const GET_SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document, \
     core_observed_at::text as core_observed_at, last_error_code, version \
     from console.managed_services where service_id = $1 and service_id <> 'lenso-console'";
+const GET_SYSTEM_CONNECTION_SQL: &str = "select system_id, topology_digest, topology, \
+    management_binding, version from console.system_connections \
+    order by updated_at desc, system_id limit 1";
+const LIST_CONNECTION_SERVICES_SQL: &str = "select service_id, service_principal, \
+    enrollment_state, connection_state, last_error_code from console.managed_services \
+    where service_id <> 'lenso-console' order by service_id";
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 enum EnrollmentState {
@@ -73,12 +79,219 @@ pub fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
 
 fn router() -> ApiOpenApiRouter {
     OpenApiRouter::new()
+        .routes(routes!(get_system_connection))
+        .routes(routes!(connect_system))
         .routes(routes!(list_managed_services))
         .routes(routes!(get_managed_service))
         .routes(routes!(module_inventory))
         .routes(routes!(resolve_action_contributions))
         .routes(routes!(read_module_config))
         .routes(routes!(write_module_config))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/console/v1/system",
+    operation_id = "console_get_system_connection",
+    tag = "console-system-connection",
+    responses(
+        (status = 200, body = connection::SystemConnectionResponse, content_type = "application/json"),
+        (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 404, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
+    )
+)]
+async fn get_system_connection(
+    State(ctx): State<AppContext>,
+    actor: UserActor,
+    HttpRequestContext(request_ctx): HttpRequestContext,
+) -> Result<Json<connection::SystemConnectionResponse>, ApiErrorResponse> {
+    console_access::require_managed_service_capability(
+        &ctx,
+        &actor,
+        None,
+        SYSTEM_READ,
+        &request_ctx,
+    )
+    .await?;
+    let row = sqlx::query(GET_SYSTEM_CONNECTION_SQL)
+        .fetch_optional(&ctx.db)
+        .await
+        .map_err(|error| database_error(error, &request_ctx))?
+        .ok_or_else(|| {
+            api_error(
+                AppError::new(ErrorCode::NotFound, "System Connection was not found"),
+                &request_ctx,
+            )
+        })?;
+    let observations = load_connection_observations(&ctx, &request_ctx).await?;
+    Ok(json(system_connection_from_row(
+        &row,
+        &observations,
+        &request_ctx,
+    )?))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/v1/system/connect",
+    operation_id = "console_connect_system",
+    tag = "console-system-connection",
+    request_body = connection::SystemConnectRequest,
+    responses(
+        (status = 200, body = connection::SystemConnectionResponse, content_type = "application/json"),
+        (status = 400, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
+    )
+)]
+async fn connect_system(
+    State(ctx): State<AppContext>,
+    actor: UserActor,
+    HttpRequestContext(request_ctx): HttpRequestContext,
+    Json(request): Json<connection::SystemConnectRequest>,
+) -> Result<Json<connection::SystemConnectionResponse>, ApiErrorResponse> {
+    console_access::require_managed_service_capability(
+        &ctx,
+        &actor,
+        None,
+        SYSTEM_CONNECT,
+        &request_ctx,
+    )
+    .await?;
+    connection::validate_connect_request(&request).map_err(|errors| {
+        api_error(
+            AppError::new(
+                ErrorCode::Validation,
+                format!(
+                    "System Connection request is invalid: {}",
+                    errors.join("; ")
+                ),
+            ),
+            &request_ctx,
+        )
+    })?;
+    let topology = serde_json::to_value(&request.topology).map_err(|error| {
+        internal_source_error("System topology could not be stored", error, &request_ctx)
+    })?;
+    let management_binding =
+        serde_json::to_value(&request.management_binding).map_err(|error| {
+            internal_source_error(
+                "Management Binding could not be stored",
+                error,
+                &request_ctx,
+            )
+        })?;
+    let row = sqlx::query(
+        "insert into console.system_connections \
+            (system_id, topology_digest, topology, management_binding, version) \
+         values ($1, $2, $3, $4, 1) \
+         on conflict (system_id) do update set \
+            topology_digest = excluded.topology_digest, \
+            topology = excluded.topology, \
+            management_binding = excluded.management_binding, \
+            version = console.system_connections.version + 1, \
+            updated_at = now() \
+         returning system_id, topology_digest, topology, management_binding, version",
+    )
+    .bind(&request.system_id)
+    .bind(&request.topology_digest)
+    .bind(topology)
+    .bind(management_binding)
+    .fetch_one(&ctx.db)
+    .await
+    .map_err(|error| database_error(error, &request_ctx))?;
+    sqlx::query(
+        "insert into console.system_registry_audit \
+            (service_id, event_type, actor_user_id, evidence) \
+         values (null, 'system_connected', $1, $2)",
+    )
+    .bind(&actor.user_id)
+    .bind(serde_json::json!({
+        "systemId": request.system_id,
+        "topologyDigest": request.topology_digest,
+        "serviceIds": request.management_binding.service_ids,
+        "adapterIds": request.management_binding.adapter_ids,
+    }))
+    .execute(&ctx.db)
+    .await
+    .map_err(|error| database_error(error, &request_ctx))?;
+    let observations = load_connection_observations(&ctx, &request_ctx).await?;
+    Ok(json(system_connection_from_row(
+        &row,
+        &observations,
+        &request_ctx,
+    )?))
+}
+
+async fn load_connection_observations(
+    ctx: &AppContext,
+    request_ctx: &RequestContext,
+) -> Result<Vec<connection::ManagedServiceObservation>, ApiErrorResponse> {
+    let rows = sqlx::query(LIST_CONNECTION_SERVICES_SQL)
+        .fetch_all(&ctx.db)
+        .await
+        .map_err(|error| database_error(error, request_ctx))?;
+    rows.iter()
+        .map(|row| {
+            Ok(connection::ManagedServiceObservation {
+                service_id: value(row, "service_id", request_ctx)?,
+                service_principal: value(row, "service_principal", request_ctx)?,
+                enrollment_state: value(row, "enrollment_state", request_ctx)?,
+                connection_state: value(row, "connection_state", request_ctx)?,
+                last_error_code: value(row, "last_error_code", request_ctx)?,
+            })
+        })
+        .collect()
+}
+
+fn system_connection_from_row(
+    row: &sqlx::postgres::PgRow,
+    observations: &[connection::ManagedServiceObservation],
+    request_ctx: &RequestContext,
+) -> Result<connection::SystemConnectionResponse, ApiErrorResponse> {
+    let system_id: String = value(row, "system_id", request_ctx)?;
+    let topology_digest: String = value(row, "topology_digest", request_ctx)?;
+    let topology_value: Value = value(row, "topology", request_ctx)?;
+    let binding_value: Value = value(row, "management_binding", request_ctx)?;
+    let version: i64 = value(row, "version", request_ctx)?;
+    if version <= 0 {
+        return Err(stored_integer_error(
+            "system connection version",
+            request_ctx,
+        ));
+    }
+    let topology: connection::SystemTopology =
+        serde_json::from_value(topology_value).map_err(|error| {
+            internal_source_error("Stored System topology is invalid", error, request_ctx)
+        })?;
+    let management_binding: connection::ManagementBinding = serde_json::from_value(binding_value)
+        .map_err(|error| {
+        internal_source_error("Stored Management Binding is invalid", error, request_ctx)
+    })?;
+    if topology.system_id != system_id
+        || management_binding.system_id != system_id
+        || management_binding.topology_digest != topology_digest
+        || connection::calculate_topology_digest(&topology)
+            .ok()
+            .as_deref()
+            != Some(topology_digest.as_str())
+    {
+        return Err(api_error(
+            AppError::new(
+                ErrorCode::Internal,
+                "Stored System Connection binding is invalid",
+            ),
+            request_ctx,
+        ));
+    }
+    Ok(connection::project_connection(
+        &topology,
+        &management_binding,
+        observations,
+    ))
 }
 
 #[utoipa::path(
@@ -729,6 +942,17 @@ fn internal_error(
     )
 }
 
+fn internal_source_error(
+    message: &str,
+    source: impl std::error::Error + Send + Sync + 'static,
+    request_ctx: &RequestContext,
+) -> ApiErrorResponse {
+    api_error(
+        AppError::new(ErrorCode::Internal, message).with_source(source),
+        request_ctx,
+    )
+}
+
 fn managed_service_from_row(
     row: &sqlx::postgres::PgRow,
     request_ctx: &RequestContext,
@@ -854,6 +1078,8 @@ mod tests {
     fn router_documents_only_console_service_api_routes() {
         let document = router().to_openapi();
         for path in [
+            "/api/console/v1/system",
+            "/api/console/v1/system/connect",
             "/api/console/v1/services",
             "/api/console/v1/services/{serviceId}",
             "/api/console/v1/services/{serviceId}/system-plane/v1/modules",

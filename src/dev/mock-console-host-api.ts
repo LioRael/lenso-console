@@ -1,4 +1,7 @@
-import type { ConsoleManagedService } from "@lenso/console-ui";
+import type {
+  ConsoleManagedService,
+  ConsoleSystemConnection,
+} from "@lenso/console-ui";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import type { ConsoleAdminRecord } from "../app/console-admin-data-api";
@@ -6,6 +9,7 @@ import type { ConsoleConfigValue } from "../app/console-config-api";
 import type { ConsoleHostApi } from "../app/console-host-api";
 import type { ConsoleModuleMetadata } from "../app/console-module-resolver";
 import { mockManagedServices } from "../data/mock-services";
+import { mockSystemConnection } from "../data/mock-system-connection";
 
 type ConsoleSlotContributions = ReturnType<
   ConsoleHostApi["contributions"]["useSlot"]
@@ -30,6 +34,7 @@ export type MockConsoleFixtures = {
   contributions?: Record<string, ConsoleSlotContributions>;
   managedServices?: ConsoleManagedService[];
   modules?: MockConsoleModuleMetadata[];
+  systemConnection?: ConsoleSystemConnection | null;
 };
 
 type MockConsoleModuleMetadata = ConsoleModuleMetadata & {
@@ -268,6 +273,13 @@ export function createMockConsoleHostApi(
     story: baseHostApi.story,
     systemRegistry: {
       selectService: () => undefined,
+      useConnect: baseHostApi.systemRegistry.useConnect,
+      useConnection: () =>
+        mockSuccessQueryResult(
+          fixtures.systemConnection === undefined
+            ? mockSystemConnection
+            : fixtures.systemConnection
+        ),
       useServices: () => mockSuccessQueryResult(fixtures.managedServices ?? []),
     },
     ui: baseHostApi.ui,

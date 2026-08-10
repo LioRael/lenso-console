@@ -1,6 +1,9 @@
 /* eslint-disable no-use-before-define */
 
-import type { ConsoleManagedService } from "@lenso/console-ui";
+import type {
+  ConsoleConnectionStatus,
+  ConsoleManagedService,
+} from "@lenso/console-ui";
 
 export interface RegistrySummary {
   active: number;
@@ -40,6 +43,50 @@ export interface ServiceListRow {
   presentation: ServicePresentation;
   service: ConsoleManagedService;
 }
+
+export const connectionStatusLabel = (
+  status: ConsoleConnectionStatus
+): string => {
+  switch (status) {
+    case "connected": {
+      return "Connected";
+    }
+    case "unavailable": {
+      return "Unavailable";
+    }
+    case "incompatible": {
+      return "Incompatible";
+    }
+    case "unmanaged": {
+      return "Unmanaged";
+    }
+    default: {
+      return "Unknown";
+    }
+  }
+};
+
+export const statusTone = (
+  status: ConsoleConnectionStatus
+): "neutral" | "success" | "warning" | "danger" => {
+  switch (status) {
+    case "connected": {
+      return "success";
+    }
+    case "unmanaged": {
+      return "neutral";
+    }
+    case "unavailable": {
+      return "warning";
+    }
+    case "incompatible": {
+      return "danger";
+    }
+    default: {
+      return "neutral";
+    }
+  }
+};
 
 const serviceSortWeight = (service: ConsoleManagedService): number => {
   if (service.enrollmentState === "revoked") {

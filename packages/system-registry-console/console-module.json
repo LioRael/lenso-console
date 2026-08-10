@@ -9,7 +9,7 @@
       "path": "/services",
       "label": "Services",
       "area": "operations",
-      "requiredCapabilities": ["console.system-registry.read"],
+      "requiredCapabilities": ["console.system.read"],
       "icon": "blocks",
       "navigation": {
         "order": 10,

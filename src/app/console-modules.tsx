@@ -116,7 +116,22 @@ function defaultSystemNavigationOrder(area: ConsoleSurfaceArea): number {
 const consoleWorkbenchModule: ConsoleModule = {
   id: "lenso/console-workbench",
   surfaces: [
-    workbenchSurface("house", "Home", "首页", "/", HomePage, 0),
+    workbenchSurface("house", "Overview", "概览", "/", HomePage, 0),
+    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 30),
+    workbenchSurface(
+      "settings",
+      "Settings",
+      "设置",
+      "/settings",
+      SettingsPage,
+      80
+    ),
+  ],
+};
+
+const consoleUtilityModule: ConsoleModule = {
+  id: "lenso/console-workbench-utility",
+  surfaces: [
     workbenchSurface(
       "shield",
       "Console Access",
@@ -126,7 +141,6 @@ const consoleWorkbenchModule: ConsoleModule = {
       10
     ),
     workbenchSurface("server-cog", "System", "系统", "/system", SystemPage, 20),
-    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 30),
     workbenchSurface(
       "git-compare-arrows",
       "Changes",
@@ -151,14 +165,6 @@ const consoleWorkbenchModule: ConsoleModule = {
       DeliveryPage,
       70
     ),
-    workbenchSurface(
-      "settings",
-      "Settings",
-      "设置",
-      "/settings",
-      SettingsPage,
-      80
-    ),
   ],
 };
 
@@ -182,17 +188,21 @@ function workbenchSurface(
 }
 
 /**
- * Only Console-owned pages are linked into the Shell. Module UI packages are
- * published as ESM artifacts and discovered from the server registry.
+ * These declarations provide the primary navigation and mock route preview.
+ * In API mode, Module UI route components are still loaded only from the
+ * receipt-bound ESM artifact selected by DynamicConsoleModulePage.
  */
-export const consoleModules = [consoleWorkbenchModule];
+export const consoleModules = [
+  consoleWorkbenchModule,
+  systemRegistryConsoleModule,
+  storyConsoleModule,
+];
 
 export function consoleModulesForDevMode(
   mode: ConsoleDevMode
 ): ConsoleModule[] {
-  return mode === "mock"
-    ? [...consoleModules, storyConsoleModule, systemRegistryConsoleModule]
-    : consoleModules;
+  void mode;
+  return consoleModules;
 }
 
 /**
@@ -200,9 +210,15 @@ export function consoleModulesForDevMode(
  * Keep the local preview useful by linking the two workspace modules only in
  * that mode; API and production builds continue to use receipt-bound ESM.
  */
-export const consoleRuntimeModules = consoleModulesForDevMode(
-  consoleDevConfig.mode
-);
+export const consoleRuntimeModules = [
+  ...consoleModulesForDevMode(consoleDevConfig.mode),
+  consoleUtilityModule,
+];
 
 export const consoleRoutes = buildConsoleRoutes(consoleRuntimeModules);
-export const consoleNavigation = buildConsoleNavigation(consoleRuntimeModules);
+// The Shell keeps only host-owned primary items statically. System-owned
+// Services and Stories are supplied by useConsoleNavigation so their presence
+// can follow the current System Connection projection.
+export const consoleNavigation = buildConsoleNavigation([
+  consoleWorkbenchModule,
+]);

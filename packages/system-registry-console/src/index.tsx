@@ -15,7 +15,7 @@ export const systemRegistryConsoleModule = defineConsoleModule({
       label: "Services",
       localizedLabels: { "zh-CN": "服务" },
       navigation: {
-        order: 10,
+        order: 40,
         workspace: {
           icon: "shield",
           id: "system",

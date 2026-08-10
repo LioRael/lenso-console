@@ -299,6 +299,13 @@ Core advertisement, capability/schema digest, explicit Managed Service Context,
 and typed response before returning inventory, Action Contributions, or
 descriptor-bound configuration evidence.
 
+System Connection reads require `console.system.read`; connecting an exact
+System topology and Management Binding requires `console.system.connect`. The
+connection projection exposes only `connected`, `unavailable`, `incompatible`,
+and `unmanaged` object states with direct reasons. It records topology and
+binding identity in the Console Store and never creates, deploys, adopts,
+deletes, releases, upgrades, or rolls back a workload.
+
 No enrollment creation endpoint is exposed yet. Enrollment changes remain the
 reviewed bilateral System Plane workflow; adding a direct unsigned
 registry-write route would violate that boundary. Module Operations consume the

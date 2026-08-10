@@ -134,6 +134,8 @@ describe("mock console host api", () => {
       },
       systemRegistry: {
         selectService: notCalled,
+        useConnect: notCalled,
+        useConnection: notCalled,
         useServices: notCalled,
       },
       ui: {} as ConsoleHostApi["ui"],

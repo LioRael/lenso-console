@@ -407,6 +407,97 @@ export interface ConsoleManagedService {
   version: number;
 }
 
+export type ConsoleConnectionStatus =
+  | "connected"
+  | "unavailable"
+  | "incompatible"
+  | "unmanaged";
+
+export type ConsoleModuleDelivery = "linked" | "service";
+
+export type ConsoleModuleRuntimeStatus =
+  | "active"
+  | "unavailable"
+  | "incompatible"
+  | "unmanaged";
+
+export interface ConsoleSystemTopologyService {
+  serviceId: string;
+  servicePrincipal: string;
+  revision: number;
+}
+
+export interface ConsoleSystemTopologyModule {
+  moduleId: string;
+  delivery: ConsoleModuleDelivery;
+  serviceId?: string | null;
+  moduleReleaseDigest: string;
+  consoleUiArtifactDigest?: string | null;
+  runtimeStatus?: ConsoleModuleRuntimeStatus | null;
+}
+
+export interface ConsoleSystemTopologyAdapter {
+  adapterId: string;
+  capabilities: readonly string[];
+}
+
+export interface ConsoleSystemTopology {
+  protocol: "lenso.system.v2";
+  systemId: string;
+  services: readonly ConsoleSystemTopologyService[];
+  modules: readonly ConsoleSystemTopologyModule[];
+  adapters: readonly ConsoleSystemTopologyAdapter[];
+}
+
+export interface ConsoleManagementPolicy {
+  policyId: string;
+  revision: number;
+  digest: string;
+}
+
+export interface ConsoleManagementBinding {
+  systemId: string;
+  topologyDigest: string;
+  serviceIds: readonly string[];
+  adapterIds: readonly string[];
+  permissions: readonly string[];
+  policy: ConsoleManagementPolicy;
+}
+
+export interface ConsoleSystemConnectionService {
+  serviceId: string;
+  servicePrincipal: string;
+  status: ConsoleConnectionStatus;
+  reason?: string | null;
+}
+
+export interface ConsoleSystemConnectionModule {
+  moduleId: string;
+  delivery: ConsoleModuleDelivery;
+  serviceId?: string | null;
+  moduleReleaseDigest: string;
+  consoleUiArtifactDigest?: string | null;
+  status: ConsoleConnectionStatus;
+  reason?: string | null;
+}
+
+export interface ConsoleSystemConnection {
+  systemId: string;
+  topologyDigest: string;
+  status: ConsoleConnectionStatus;
+  reason?: string | null;
+  managementBinding: ConsoleManagementBinding;
+  services: readonly ConsoleSystemConnectionService[];
+  modules: readonly ConsoleSystemConnectionModule[];
+}
+
+export interface ConsoleSystemConnectRequest {
+  systemId: string;
+  topologyDigest: string;
+  topology: ConsoleSystemTopology;
+  managementBinding: ConsoleManagementBinding;
+}
+
 export interface ConsoleContextApi {
   activeStoryTarget: { nodeId?: string; storyId: string } | null;
   clearStoryTarget: () => void;
@@ -506,6 +597,13 @@ export interface ConsoleHostApi {
   systemRegistry: {
     selectService: (serviceId: string) => void;
     useServices: () => ConsoleQueryResult<ConsoleManagedService[]>;
+    useConnection: () => ConsoleQueryResult<ConsoleSystemConnection | null>;
+    useConnect: () => {
+      error: Error;
+      isError: boolean;
+      isPending: boolean;
+      mutate: (request: ConsoleSystemConnectRequest) => void;
+    };
   };
   ui: ConsoleUiComponents & {
     common: {

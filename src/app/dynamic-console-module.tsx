@@ -23,6 +23,8 @@ import { loadConsoleUiModule } from "./console-module-runtime";
 import { consoleRoutes, findConsoleRoute } from "./console-modules";
 import { consolePathFromLocation } from "./console-router-config";
 import { statusStyles } from "./console-status-styles";
+import { useConsoleSystemConnection } from "./console-system-connection-api";
+import { connectionModuleForArtifact } from "./console-system-connection-model";
 import { useConsoleManagedServices } from "./console-system-registry-api";
 import {
   createManagedServiceContext,
@@ -41,6 +43,7 @@ export function DynamicConsoleModulePage() {
   const artifacts = useConsoleArtifacts();
   const adminContext = useConsoleAdminContext();
   const managedServices = useConsoleManagedServices();
+  const systemConnection = useConsoleSystemConnection();
   const selectedManagedServiceId = useSelectedManagedServiceId();
   const queryClient = useQueryClient();
   const quarantines = useSyncExternalStore(
@@ -67,12 +70,20 @@ export function DynamicConsoleModulePage() {
         (candidate) => candidate.path === path
       );
       if (surface) {
-        return { artifact, surface };
+        const connectionModule = connectionModuleForArtifact(
+          systemConnection.data,
+          artifact
+        );
+        if (systemConnection.data !== undefined && !connectionModule) {
+          continue;
+        }
+        return { artifact, connectionModule, surface };
       }
     }
     return null;
-  }, [artifacts.data?.artifacts, path, quarantineKeys]);
+  }, [artifacts.data?.artifacts, path, quarantineKeys, systemConnection.data]);
   const artifact = selection?.artifact;
+  const connectedModule = selection?.connectionModule;
   const selectedManagedService = useMemo(() => {
     const ready = managedServices.data?.filter(
       (service) =>
@@ -80,12 +91,21 @@ export function DynamicConsoleModulePage() {
         service.connectionState === "ready" &&
         service.enrollmentExpiresAtUnixMs > Date.now()
     );
+    if (connectedModule?.serviceId) {
+      return ready?.find(
+        (service) => service.serviceId === connectedModule.serviceId
+      );
+    }
     return (
       ready?.find(
         (service) => service.serviceId === selectedManagedServiceId
       ) ?? ready?.[0]
     );
-  }, [managedServices.data, selectedManagedServiceId]);
+  }, [
+    connectedModule?.serviceId,
+    managedServices.data,
+    selectedManagedServiceId,
+  ]);
   const managedServiceContext = useMemo(
     () =>
       artifact && selectedManagedService && adminContext.data
@@ -116,7 +136,12 @@ export function DynamicConsoleModulePage() {
     previousContextKey.current = contextKey;
   }, [contextKey, queryClient]);
   const moduleQuery = useQuery({
-    enabled: Boolean(artifact && selection),
+    enabled: Boolean(
+      artifact &&
+      selection &&
+      systemConnection.data &&
+      connectedModule?.status === "connected"
+    ),
     queryKey: [
       "console",
       "module-ui",
@@ -145,15 +170,27 @@ export function DynamicConsoleModulePage() {
     );
   }
 
-  if (
-    localRoute?.moduleId === "lenso/console-workbench" &&
-    path === "/access"
-  ) {
+  if (localRoute?.path === "/access") {
     const LocalSurface = localRoute.component;
     return (
       <SurfaceRoot moduleId={localRoute.moduleId} surfaceId={localRoute.path}>
         <LocalSurface />
       </SurfaceRoot>
+    );
+  }
+
+  if (systemConnection.isPending) {
+    return <ModuleState title="Loading System Connection" />;
+  }
+  if (systemConnection.isError) {
+    return <ModuleState title="System Connection is unavailable" />;
+  }
+  if (!systemConnection.data) {
+    return (
+      <ModuleState title="Connect a System before opening Module Surfaces">
+        Console only composes surfaces from an exact System topology and
+        Management Binding.
+      </ModuleState>
     );
   }
 
@@ -164,7 +201,20 @@ export function DynamicConsoleModulePage() {
     return <ModuleState title="Console UI artifact receipt is unavailable" />;
   }
   if (!selection) {
-    return <ModuleState title="Console page not found" />;
+    return (
+      <ModuleState title="Module release is not connected to this System">
+        The requested Console UI artifact is not part of the connected Module
+        release.
+      </ModuleState>
+    );
+  }
+  if (connectedModule?.status !== "connected") {
+    return (
+      <ModuleState title={`Module ${connectedModule?.status ?? "unmanaged"}`}>
+        {connectedModule?.reason ??
+          "This Module does not have a connected workload in the System."}
+      </ModuleState>
+    );
   }
   const selectedArtifact = selection.artifact;
   if (moduleQuery.isPending) {

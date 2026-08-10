@@ -1,3 +1,4 @@
+mod connection;
 mod routes;
 
 use lenso::host::http::{LinkedHttpContribution, ModuleHttpMethod, ModuleHttpRoute};
@@ -12,11 +13,19 @@ pub const MODULE_CONTRIBUTIONS_RESOLVE: &str =
     "console.managed-service.module.contributions.resolve";
 pub const MODULE_CONFIG_READ: &str = "console.managed-service.module.config.read";
 pub const MODULE_CONFIG_WRITE: &str = "console.managed-service.module.config.write";
+pub const SYSTEM_READ: &str = "console.system.read";
+pub const SYSTEM_CONNECT: &str = "console.system.connect";
 
-const MIGRATIONS: &[Migration] = &[Migration {
-    name: "lenso/system-registry/0001_create_managed_service_registry",
-    sql: include_str!("migrations/0001_create_managed_service_registry.sql"),
-}];
+const MIGRATIONS: &[Migration] = &[
+    Migration {
+        name: "lenso/system-registry/0001_create_managed_service_registry",
+        sql: include_str!("migrations/0001_create_managed_service_registry.sql"),
+    },
+    Migration {
+        name: "lenso/system-registry/0002_create_system_connections",
+        sql: include_str!("migrations/0002_create_system_connections.sql"),
+    },
+];
 
 pub fn linked_module() -> HostLinkedModule {
     HostLinkedModule::manifest_only(MODULE_NAME, manifest, MIGRATIONS)
@@ -25,6 +34,18 @@ pub fn linked_module() -> HostLinkedModule {
 
 pub fn http_routes() -> Vec<ModuleHttpRoute> {
     let mut routes = vec![
+        route(
+            ModuleHttpMethod::Get,
+            "/api/console/v1/system",
+            SYSTEM_READ,
+            "Get System Connection",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/system/connect",
+            SYSTEM_CONNECT,
+            "Connect System",
+        ),
         route(
             ModuleHttpMethod::Get,
             "/api/console/v1/services",
@@ -95,6 +116,8 @@ fn manifest() -> ModuleManifest {
             MODULE_CONTRIBUTIONS_RESOLVE.to_owned(),
             MODULE_CONFIG_READ.to_owned(),
             MODULE_CONFIG_WRITE.to_owned(),
+            SYSTEM_CONNECT.to_owned(),
+            SYSTEM_READ.to_owned(),
         ])
         .http_routes(http_routes())
         .console(vec![ConsoleSurface {
@@ -108,7 +131,7 @@ fn manifest() -> ModuleManifest {
                 }),
             },
             icon: Some("network".to_owned()),
-            required_capabilities: vec![REGISTRY_READ.to_owned()],
+            required_capabilities: vec![SYSTEM_READ.to_owned()],
             navigation: Some(ConsoleNavigation {
                 workspace: ConsoleWorkspaceRef {
                     id: "system".to_owned(),
@@ -149,6 +172,8 @@ mod tests {
                 MODULE_CONTRIBUTIONS_RESOLVE,
                 MODULE_INVENTORY_READ,
                 REGISTRY_READ,
+                SYSTEM_CONNECT,
+                SYSTEM_READ,
             ]
         );
         assert_eq!(manifest.http_routes, http_routes());
@@ -156,13 +181,13 @@ mod tests {
         let surface = &manifest.console[0];
         assert_eq!(surface.name, "managed-services");
         assert_eq!(surface.route, "/services");
-        assert_eq!(surface.required_capabilities, [REGISTRY_READ]);
+        assert_eq!(surface.required_capabilities, [SYSTEM_READ]);
         assert!(matches!(
             &surface.presentation,
             ConsoleSurfacePresentation::Declarative { schema }
                 if schema["component"] == "lenso/system-registry"
         ));
         assert!(module.http_binding.is_some());
-        assert_eq!(module.migrations.len(), 1);
+        assert_eq!(module.migrations.len(), 2);
     }
 }

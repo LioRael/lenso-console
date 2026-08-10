@@ -46,6 +46,10 @@ import {
 } from "./console-config-api";
 import { useConsoleSlotContributions } from "./console-contributions";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
+import {
+  useConnectConsoleSystem,
+  useConsoleSystemConnection,
+} from "./console-system-connection-api";
 import { useConsoleManagedServices } from "./console-system-registry-api";
 import { selectManagedService } from "./managed-service-selection";
 
@@ -95,6 +99,8 @@ export const productionConsoleHostApi = {
   },
   systemRegistry: {
     selectService: selectManagedService,
+    useConnect: useConnectConsoleSystem,
+    useConnection: useConsoleSystemConnection,
     useServices: useConsoleManagedServices,
   },
   ui: {
