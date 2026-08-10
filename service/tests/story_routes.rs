@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
@@ -9,8 +10,12 @@ use platform_core::{
     apply_migrations,
 };
 use platform_testing::TestDatabase;
+use serde::Serialize;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use tower::ServiceExt;
+
+const WORKLOAD_OPERATOR_AUTHORIZATION: &str = "Bearer dev-user:admin:console.system.read,console.workload.read,console.workload.control,console.workload.operation.read";
 
 #[tokio::test]
 async fn story_routes_are_owned_by_the_console_composition() {
@@ -85,6 +90,273 @@ async fn console_access_routes_are_published_by_host_composition() {
         document["paths"]["/api/console/v1/access/grants"]["post"]["operationId"],
         "console_access_create_managed_service_grant"
     );
+}
+
+#[tokio::test]
+async fn workload_control_routes_are_same_origin_and_authenticated() {
+    let app = app_with_lazy_database();
+
+    for request in [
+        admin_get("/api/console/v1/systems/support-desk/workload-access/support-service"),
+        admin_get("/api/console/v1/systems/support-desk/workloads/support-service/support-api"),
+        admin_post(
+            "/api/console/v1/systems/support-desk/workloads/support-service/support-api/operations",
+            &json!({
+                "action": { "kind": "suspend" },
+                "observedRevision": "revision-4",
+                "idempotencyKey": "control-123"
+            }),
+        ),
+        admin_get(
+            "/api/console/v1/systems/support-desk/workloads/support-service/support-api/operations/operation-7",
+        ),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(request)
+            .await
+            .expect("request should complete");
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let openapi = app
+        .oneshot(public_get("/openapi.json"))
+        .await
+        .expect("OpenAPI request should complete");
+    let document = json_body(openapi).await;
+    assert_eq!(
+        document["paths"]["/api/console/v1/systems/{systemId}/workload-access/{serviceId}"]["get"]
+            ["operationId"],
+        "console_get_effective_workload_access"
+    );
+    assert_eq!(
+        document["paths"]["/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}"]
+            ["get"]["operationId"],
+        "console_observe_workload_control"
+    );
+    assert_eq!(
+        document["paths"]["/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations"]
+            ["post"]["operationId"],
+        "console_request_workload_control_operation"
+    );
+    assert!(
+        document["paths"]
+            ["/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations"]["post"]
+            ["responses"]
+            .get("202")
+            .is_some()
+    );
+    assert_eq!(
+        document["paths"]["/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations/{operationId}"]
+            ["get"]["operationId"],
+        "console_get_workload_control_operation"
+    );
+    for (path, method, statuses) in [
+        (
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}",
+            "get",
+            &["200", "500", "502"][..],
+        ),
+        (
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations",
+            "post",
+            &["202", "500", "502"][..],
+        ),
+        (
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations/{operationId}",
+            "get",
+            &["200", "400", "500", "502"][..],
+        ),
+    ] {
+        for status in statuses {
+            assert!(
+                document["paths"][path][method]["responses"]
+                    .get(status)
+                    .is_some(),
+                "missing {status} for {method} {path}"
+            );
+        }
+    }
+    for adapter_path in [
+        "/workload-control/v1/observe",
+        "/workload-control/v1/operations",
+        "/workload-control/v1/operations/{operationId}",
+    ] {
+        assert!(
+            document["paths"].get(adapter_path).is_none(),
+            "Adapter route must not be browser-facing: {adapter_path}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn unavailable_workload_authority_is_unknown_and_never_queues_mutations() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+    let app = app_with_database(&db).await;
+    insert_unavailable_workload_control_connection(&db).await;
+
+    let access = app
+        .clone()
+        .oneshot(
+            admin_get("/api/console/v1/systems/support-desk/workload-access/support-service")
+                .with_header("authorization", WORKLOAD_OPERATOR_AUTHORIZATION),
+        )
+        .await
+        .expect("Workload access request should complete");
+    assert_eq!(access.status(), StatusCode::OK);
+    assert_eq!(
+        json_body(access).await["capabilities"],
+        json!([
+            "console.workload.read",
+            "console.workload.control",
+            "console.workload.operation.read"
+        ])
+    );
+
+    let observation = app
+        .clone()
+        .oneshot(
+            admin_get("/api/console/v1/systems/support-desk/workloads/support-service/support-api")
+                .with_header("authorization", WORKLOAD_OPERATOR_AUTHORIZATION),
+        )
+        .await
+        .expect("observation request should complete");
+    assert_eq!(observation.status(), StatusCode::OK);
+    let observation = json_body(observation).await;
+    assert_eq!(observation["protocol"], "lenso.workload-control.v1");
+    assert_eq!(observation["state"], "unknown");
+    assert!(observation.get("observedRevision").is_none());
+    assert!(observation.get("activeOperation").is_none());
+    assert!(observation.get("adapterId").is_none());
+
+    let mutation = app
+        .clone()
+        .oneshot(
+            admin_post(
+                "/api/console/v1/systems/support-desk/workloads/support-service/support-api/operations",
+                &json!({
+                    "action": { "kind": "suspend" },
+                    "observedRevision": "revision-4",
+                    "idempotencyKey": "control-123"
+                }),
+            )
+            .with_header("authorization", WORKLOAD_OPERATOR_AUTHORIZATION),
+        )
+        .await
+        .expect("mutation request should complete");
+    assert_eq!(mutation.status(), StatusCode::BAD_GATEWAY);
+    assert!(
+        json_body(mutation).await["detail"]
+            .as_str()
+            .is_some_and(|message| message.contains("not queued"))
+    );
+
+    let operation = app
+        .oneshot(
+            admin_get(
+                "/api/console/v1/systems/support-desk/workloads/support-service/support-api/operations/operation-7",
+            )
+                .with_header("authorization", WORKLOAD_OPERATOR_AUTHORIZATION),
+        )
+        .await
+        .expect("operation request should complete");
+    assert_eq!(operation.status(), StatusCode::NOT_FOUND);
+
+    db.cleanup().await;
+}
+
+#[tokio::test]
+async fn terminal_workload_failure_response_uses_console_owned_text() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+    let app = app_with_database(&db).await;
+    insert_unavailable_workload_control_connection(&db).await;
+    insert_terminal_workload_failure(&db).await;
+
+    let response = app
+        .oneshot(
+            admin_get(
+                "/api/console/v1/systems/support-desk/workloads/support-service/support-api/operations/operation-7",
+            )
+            .with_header("authorization", WORKLOAD_OPERATOR_AUTHORIZATION),
+        )
+        .await
+        .expect("terminal operation request should complete");
+    assert_eq!(response.status(), StatusCode::OK);
+    let operation = json_body(response).await;
+    assert_eq!(
+        operation["failure"]["message"],
+        "Workload Control authority became unavailable"
+    );
+    let operation = operation.to_string();
+    assert!(!operation.contains("adapter-secret"));
+    assert!(!operation.contains("provider detail"));
+
+    db.cleanup().await;
+}
+
+#[tokio::test]
+async fn service_scoped_grants_do_not_authorize_whole_system_access() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+    let app = app_with_database(&db).await;
+    insert_scoped_registry_reader(&db).await;
+    let authorization = "Bearer dev-user:user_123";
+    let connect_request = empty_system_connect_request();
+
+    let registry = app
+        .clone()
+        .oneshot(admin_get("/api/console/v1/services").with_header("authorization", authorization))
+        .await
+        .expect("scoped Registry request should complete");
+    assert_eq!(registry.status(), StatusCode::OK);
+    let registry = json_body(registry).await;
+    assert_eq!(registry.as_array().map(Vec::len), Some(1));
+    assert_eq!(registry[0]["serviceId"], "support-service");
+
+    let system = app
+        .clone()
+        .oneshot(admin_get("/api/console/v1/system").with_header("authorization", authorization))
+        .await
+        .expect("whole-System read should complete");
+    assert_eq!(system.status(), StatusCode::FORBIDDEN);
+
+    let connect = app
+        .clone()
+        .oneshot(
+            admin_post("/api/console/v1/system/connect", &connect_request)
+                .with_header("authorization", authorization),
+        )
+        .await
+        .expect("whole-System connect should complete");
+    assert_eq!(connect.status(), StatusCode::FORBIDDEN);
+
+    let directly_authorized_connect = app
+        .clone()
+        .oneshot(
+            admin_post("/api/console/v1/system/connect", &connect_request).with_header(
+                "authorization",
+                "Bearer dev-user:user_456:console.system.connect",
+            ),
+        )
+        .await
+        .expect("directly authorized whole-System connect should complete");
+    assert_eq!(directly_authorized_connect.status(), StatusCode::OK);
+
+    let directly_authorized_system = app
+        .oneshot(admin_get("/api/console/v1/system").with_header(
+            "authorization",
+            "Bearer dev-user:user_456:console.system.read",
+        ))
+        .await
+        .expect("directly authorized whole-System read should complete");
+    assert_eq!(directly_authorized_system.status(), StatusCode::OK);
+
+    db.cleanup().await;
 }
 
 #[tokio::test]
@@ -324,6 +596,188 @@ async fn insert_story_evidence(db: &TestDatabase) {
     .expect("story heatmap events should insert");
 }
 
+async fn insert_unavailable_workload_control_connection(db: &TestDatabase) {
+    sqlx::query(
+        "insert into console.system_connections \
+            (system_id, topology_digest, topology, management_binding, version) \
+         values ($1, $2, $3, $4, 1)",
+    )
+    .bind("support-desk")
+    .bind(format!("sha256:{}", "a".repeat(64)))
+    .bind(json!({
+        "protocol": "lenso.system.v2",
+        "systemId": "support-desk",
+        "services": [{
+            "serviceId": "support-service",
+            "servicePrincipal": "svc.support-service",
+            "revision": 1,
+            "workloads": [
+                { "workloadId": "support-api", "role": "api" },
+                { "workloadId": "support-control-runtime", "role": "control_adapter" }
+            ]
+        }],
+        "modules": [],
+        "adapters": [{
+            "adapterId": "support-control",
+            "capabilities": [],
+            "workload": {
+                "systemId": "support-desk",
+                "serviceId": "support-service",
+                "workloadId": "support-control-runtime"
+            },
+            "workloadControl": {
+                "protocol": "lenso.workload-control.v1",
+                "schemaDigest": "sha256:d3666bb1fd85576f9af4205dbcc70029acd81462678c47d2b315c40ef1a9161d",
+                "status": "unavailable",
+                "capabilities": ["suspend", "resume"]
+            }
+        }]
+    }))
+    .bind(json!({
+        "systemId": "support-desk",
+        "topologyDigest": format!("sha256:{}", "a".repeat(64)),
+        "serviceIds": ["support-service"],
+        "adapterIds": ["support-control"],
+        "permissions": [
+            "console.workload.read",
+            "console.workload.control",
+            "console.workload.operation.read"
+        ],
+        "policy": {
+            "policyId": "support-console",
+            "revision": 1,
+            "digest": format!("sha256:{}", "b".repeat(64))
+        }
+    }))
+    .execute(&db.pool)
+    .await
+    .expect("Workload Control System Connection should insert");
+}
+
+async fn insert_terminal_workload_failure(db: &TestDatabase) {
+    sqlx::query(
+        "insert into console.workload_control_operations (
+            system_id, service_id, workload_id, operation_id, adapter_id,
+            topology_digest, adapter_target_fingerprint, operation_record
+         ) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+    )
+    .bind("support-desk")
+    .bind("support-service")
+    .bind("support-api")
+    .bind("operation-7")
+    .bind("support-control")
+    .bind(format!("sha256:{}", "a".repeat(64)))
+    .bind(format!("sha256:{}", "c".repeat(64)))
+    .bind(json!({
+        "protocol": "lenso.workload-control.v1",
+        "operationId": "operation-7",
+        "request": {
+            "protocol": "lenso.workload-control.v1",
+            "workload": {
+                "systemId": "support-desk",
+                "serviceId": "support-service",
+                "workloadId": "support-api"
+            },
+            "action": { "kind": "suspend" },
+            "observedRevision": "revision-4",
+            "idempotencyKey": "control-123",
+            "actor": { "kind": "operator", "subject": "operator-1" }
+        },
+        "authority": {
+            "adapterId": "support-control",
+            "decision": "accepted"
+        },
+        "phase": "failed",
+        "requestedAtUnixMs": 10,
+        "decidedAtUnixMs": 11,
+        "updatedAtUnixMs": 13,
+        "finishedAtUnixMs": 13,
+        "failure": {
+            "code": "authority_unavailable",
+            "message": "adapter-secret provider detail"
+        }
+    }))
+    .execute(&db.pool)
+    .await
+    .expect("terminal Workload failure should insert");
+}
+
+async fn insert_scoped_registry_reader(db: &TestDatabase) {
+    sqlx::query(
+        "insert into console.managed_services (
+            service_id, service_principal, base_url, enrollment_receipt_digest,
+            enrollment_grant_revision, authorization_epoch, enrollment_expires_at_unix_ms,
+            enrollment_state, connection_state
+         ) values ($1, $2, $3, $4, 1, 0, 4102444800000, 'active', 'ready')",
+    )
+    .bind("support-service")
+    .bind("svc.support-service")
+    .bind("http://127.0.0.1:39090")
+    .bind(format!("sha256:{}", "d".repeat(64)))
+    .execute(&db.pool)
+    .await
+    .expect("Managed Service should insert");
+
+    sqlx::query(
+        "insert into console.managed_service_access_grants (
+            id, subject_type, subject_id, service_id, capabilities, created_by, created_at
+         ) values ($1, 'user', $2, $3, $4, 'admin', now())",
+    )
+    .bind("grant_scoped_registry_reader")
+    .bind("user_123")
+    .bind("support-service")
+    .bind(json!([
+        "console.system-registry.read",
+        "console.system.read",
+        "console.system.connect"
+    ]))
+    .execute(&db.pool)
+    .await
+    .expect("scoped Managed Service grant should insert");
+}
+
+fn empty_system_connect_request() -> Value {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct EmptySystemTopology<'a> {
+        protocol: &'a str,
+        system_id: &'a str,
+        services: Vec<Value>,
+        modules: Vec<Value>,
+        adapters: Vec<Value>,
+    }
+
+    let topology = EmptySystemTopology {
+        protocol: "lenso.system.v2",
+        system_id: "support-desk",
+        services: Vec::new(),
+        modules: Vec::new(),
+        adapters: Vec::new(),
+    };
+    let mut hex = String::with_capacity(64);
+    for byte in Sha256::digest(serde_json::to_vec(&topology).expect("topology should serialize")) {
+        write!(hex, "{byte:02x}").expect("writing a digest to String should succeed");
+    }
+    let topology_digest = format!("sha256:{hex}");
+    json!({
+        "systemId": "support-desk",
+        "topologyDigest": topology_digest,
+        "topology": serde_json::to_value(topology).expect("topology should serialize"),
+        "managementBinding": {
+            "systemId": "support-desk",
+            "topologyDigest": topology_digest,
+            "serviceIds": [],
+            "adapterIds": [],
+            "permissions": ["console.system.connect"],
+            "policy": {
+                "policyId": "support-console",
+                "revision": 1,
+                "digest": format!("sha256:{}", "b".repeat(64))
+            }
+        }
+    })
+}
+
 fn public_get(uri: &str) -> Request<Body> {
     Request::builder()
         .uri(uri)
@@ -336,6 +790,16 @@ fn admin_get(uri: &str) -> Request<Body> {
         .uri(uri)
         .header("x-admin-api-version", "1")
         .body(Body::empty())
+        .expect("request should build")
+}
+
+fn admin_post(uri: &str, body: &Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("x-admin-api-version", "1")
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
         .expect("request should build")
 }
 

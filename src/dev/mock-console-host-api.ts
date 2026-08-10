@@ -148,7 +148,11 @@ export function createMockConsoleHostApi(
             ? mockSystemConnection
             : fixtures.systemConnection
         ),
+      useMutateWorkload: baseHostApi.systemRegistry.useMutateWorkload,
       useServices: () => mockSuccessQueryResult(fixtures.managedServices ?? []),
+      useWorkloadAccess: baseHostApi.systemRegistry.useWorkloadAccess,
+      useWorkload: baseHostApi.systemRegistry.useWorkload,
+      useWorkloadOperation: baseHostApi.systemRegistry.useWorkloadOperation,
     },
     ui: baseHostApi.ui,
   };

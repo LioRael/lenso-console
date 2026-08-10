@@ -134,6 +134,7 @@ describe("Console Module metadata", () => {
     const artifactDigest = `sha256:${"a".repeat(64)}` as const;
     const releaseDigest = `sha256:${"b".repeat(64)}` as const;
     const connection: ConsoleSystemConnection = {
+      adapters: [],
       systemId: "support-desk",
       topologyDigest: `sha256:${"c".repeat(64)}`,
       status: "unavailable",

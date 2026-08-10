@@ -417,6 +417,12 @@ export interface ConsoleSystemTopologyService {
   serviceId: string;
   servicePrincipal: string;
   revision: number;
+  workloads: readonly ConsoleSystemTopologyWorkload[];
+}
+
+export interface ConsoleSystemTopologyWorkload {
+  workloadId: string;
+  role: string;
 }
 
 export interface ConsoleSystemTopologyModule {
@@ -439,6 +445,8 @@ export interface ConsoleSurfaceApiGrant {
 export interface ConsoleSystemTopologyAdapter {
   adapterId: string;
   capabilities: readonly string[];
+  workload?: ConsoleWorkloadReference | null;
+  workloadControl?: ConsoleWorkloadControlAdapterInterface | null;
 }
 
 export interface ConsoleSystemTopology {
@@ -469,6 +477,128 @@ export interface ConsoleSystemConnectionService {
   servicePrincipal: string;
   status: ConsoleConnectionStatus;
   reason?: string | null;
+  workloads: readonly ConsoleSystemTopologyWorkload[];
+}
+
+export const WORKLOAD_CONTROL_PROTOCOL = "lenso.workload-control.v1" as const;
+export const WORKLOAD_CONTROL_SCHEMA_DIGEST =
+  "sha256:d3666bb1fd85576f9af4205dbcc70029acd81462678c47d2b315c40ef1a9161d" as const;
+
+export interface ConsoleWorkloadControlAdapterInterface {
+  protocol: typeof WORKLOAD_CONTROL_PROTOCOL;
+  schemaDigest: typeof WORKLOAD_CONTROL_SCHEMA_DIGEST;
+  status: ConsoleConnectionStatus;
+  capabilities: readonly ConsoleWorkloadCapability[];
+}
+
+export interface ConsoleWorkloadReference {
+  systemId: string;
+  serviceId: string;
+  workloadId: string;
+}
+
+export type ConsoleWorkloadCapability =
+  | "suspend"
+  | "resume"
+  | "restart"
+  | "scale";
+
+export type ConsoleWorkloadOperationalState =
+  | "running"
+  | "suspended"
+  | "transitioning"
+  | "failed"
+  | "unknown";
+
+export type ConsoleWorkloadProtection = "controllable" | "control_plane";
+
+export type ConsoleWorkloadAction =
+  | { kind: "suspend" }
+  | { kind: "resume" }
+  | { kind: "restart" }
+  | { kind: "scale"; targetCapacity: number };
+
+export interface ConsoleWorkloadObservation {
+  protocol: typeof WORKLOAD_CONTROL_PROTOCOL;
+  workload: ConsoleWorkloadReference;
+  state: ConsoleWorkloadOperationalState;
+  observedRevision?: string | null;
+  capabilities?: readonly ConsoleWorkloadCapability[];
+  protection: ConsoleWorkloadProtection;
+  activeOperation?: string | null;
+  observedAtUnixMs: number;
+}
+
+export interface ConsoleWorkloadMutationInput {
+  workload: ConsoleWorkloadReference;
+  action: ConsoleWorkloadAction;
+  observedRevision: string;
+  idempotencyKey: string;
+}
+
+export type ConsoleWorkloadOperationPhase =
+  | "accepted"
+  | "executing"
+  | "verifying"
+  | "succeeded"
+  | "failed"
+  | "denied";
+
+export interface ConsoleWorkloadOperationFailure {
+  code: ConsoleWorkloadControlErrorCode;
+  message: string;
+}
+
+export type ConsoleWorkloadControlErrorCode =
+  | "unauthenticated"
+  | "unauthorized"
+  | "unsupported_action"
+  | "protected_workload"
+  | "stale_revision"
+  | "active_mutation"
+  | "idempotency_conflict"
+  | "authority_unavailable"
+  | "incompatible_protocol"
+  | "workload_not_found"
+  | "operation_not_found"
+  | "invalid_capacity";
+
+export interface ConsoleWorkloadControlError {
+  protocol: typeof WORKLOAD_CONTROL_PROTOCOL;
+  code: ConsoleWorkloadControlErrorCode;
+  message: string;
+  operationId?: string | null;
+  currentRevision?: string | null;
+  activeOperation?: string | null;
+}
+
+export interface ConsoleWorkloadOperationResult {
+  state: ConsoleWorkloadOperationalState;
+  observedRevision: string;
+}
+
+export interface ConsoleWorkloadOperationRecord {
+  protocol: typeof WORKLOAD_CONTROL_PROTOCOL;
+  operationId: string;
+  request: {
+    protocol: typeof WORKLOAD_CONTROL_PROTOCOL;
+    workload: ConsoleWorkloadReference;
+    action: ConsoleWorkloadAction;
+    observedRevision: string;
+    idempotencyKey: string;
+    actor: { kind: "operator" | "automation"; subject: string };
+  };
+  authority: {
+    adapterId: string;
+    decision: "accepted" | "denied";
+  };
+  phase: ConsoleWorkloadOperationPhase;
+  requestedAtUnixMs: number;
+  decidedAtUnixMs: number;
+  updatedAtUnixMs: number;
+  finishedAtUnixMs?: number | null;
+  result?: ConsoleWorkloadOperationResult | null;
+  failure?: ConsoleWorkloadOperationFailure | null;
 }
 
 export interface ConsoleSystemConnectionModule {
@@ -488,6 +618,7 @@ export interface ConsoleSystemConnection {
   status: ConsoleConnectionStatus;
   reason?: string | null;
   managementBinding: ConsoleManagementBinding;
+  adapters: readonly ConsoleSystemTopologyAdapter[];
   services: readonly ConsoleSystemConnectionService[];
   modules: readonly ConsoleSystemConnectionModule[];
 }
@@ -582,6 +713,29 @@ export interface ConsoleHostApi {
     selectService: (serviceId: string) => void;
     useServices: () => ConsoleQueryResult<ConsoleManagedService[]>;
     useConnection: () => ConsoleQueryResult<ConsoleSystemConnection | null>;
+    useWorkloadAccess: (
+      systemId: string | null | undefined,
+      serviceId: string | null | undefined
+    ) => ConsoleQueryResult<readonly string[]>;
+    useWorkload: (
+      workload: ConsoleWorkloadReference | null | undefined
+    ) => ConsoleQueryResult<ConsoleWorkloadObservation> & {
+      refetch: () => Promise<{
+        data?: ConsoleWorkloadObservation;
+        isError: boolean;
+      }>;
+    };
+    useWorkloadOperation: (
+      workload: ConsoleWorkloadReference | null | undefined,
+      operationId: string | null | undefined
+    ) => ConsoleQueryResult<ConsoleWorkloadOperationRecord>;
+    useMutateWorkload: () => {
+      data?: ConsoleWorkloadOperationRecord;
+      error: Error;
+      isError: boolean;
+      isPending: boolean;
+      mutate: (request: ConsoleWorkloadMutationInput) => void;
+    };
     useConnect: () => {
       error: Error;
       isError: boolean;

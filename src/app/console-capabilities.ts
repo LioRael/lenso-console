@@ -24,6 +24,9 @@ const localConsoleCapabilities = [
   "console.system-registry.read",
   "console.system.read",
   "console.system.connect",
+  "console.workload.read",
+  "console.workload.control",
+  "console.workload.operation.read",
 ] as const;
 
 const opaqueApiTokenCapabilities = [

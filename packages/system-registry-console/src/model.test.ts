@@ -4,11 +4,17 @@ import { describe, expect, test } from "vitest";
 import {
   enrollmentExpiryLabel,
   filterServiceRows,
+  isRecoverableWorkloadOperationPollError,
+  isTerminalWorkloadOperation,
   managedServiceRows,
+  observationSupersedesMutationOperation,
   registryState,
   registrySummary,
   serviceEndpointLabel,
   servicePresentation,
+  shouldClearOperationAuthorityRefresh,
+  shouldRetireWorkloadOperation,
+  workloadOperationHandle,
 } from "./model";
 
 const service = (
@@ -117,5 +123,111 @@ describe("system registry console model", () => {
         posture: "Healthy",
       })
     ).toHaveLength(1);
+  });
+
+  test("selects an operation handle from the latest authority state", () => {
+    expect(
+      workloadOperationHandle({
+        mutationOperationId: "operation-7",
+        observedActiveOperation: null,
+      })
+    ).toBe("operation-7");
+    expect(
+      workloadOperationHandle({
+        mutationOperationId: "operation-7",
+        observedActiveOperation: "operation-8",
+      })
+    ).toBe("operation-8");
+    expect(
+      observationSupersedesMutationOperation({
+        authorityRefreshedOperationId: "operation-7",
+        mutationOperationId: "operation-7",
+        observation: {
+          activeOperation: null,
+          observedAtUnixMs: 8,
+          state: "running",
+        },
+      })
+    ).toBe(true);
+    expect(
+      observationSupersedesMutationOperation({
+        authorityRefreshedOperationId: "operation-7",
+        mutationOperationId: "operation-7",
+        observation: {
+          activeOperation: null,
+          observedAtUnixMs: 8,
+          state: "unknown",
+        },
+      })
+    ).toBe(false);
+    expect(
+      shouldClearOperationAuthorityRefresh({
+        authorityRefreshedOperationId: "operation-7",
+        operation: { operationId: "operation-7", phase: "executing" },
+        operationPollingFailed: false,
+      })
+    ).toBe(true);
+    expect(
+      shouldClearOperationAuthorityRefresh({
+        authorityRefreshedOperationId: "operation-7",
+        operation: { operationId: "operation-7", phase: "accepted" },
+        operationPollingFailed: true,
+      })
+    ).toBe(false);
+    expect(isTerminalWorkloadOperation({ phase: "executing" })).toBe(false);
+    for (const phase of ["denied", "failed", "succeeded"] as const) {
+      expect(isTerminalWorkloadOperation({ phase })).toBe(true);
+    }
+    for (const status of [404, 502, 503]) {
+      expect(
+        isRecoverableWorkloadOperationPollError(
+          Object.assign(new Error("recoverable"), { response: { status } })
+        )
+      ).toBe(true);
+    }
+    for (const status of [401, 403, 500]) {
+      expect(
+        isRecoverableWorkloadOperationPollError(
+          Object.assign(new Error("fail closed"), { response: { status } })
+        )
+      ).toBe(false);
+    }
+    expect(isRecoverableWorkloadOperationPollError(new Error("network"))).toBe(
+      false
+    );
+    expect(
+      shouldClearOperationAuthorityRefresh({
+        authorityRefreshedOperationId: "operation-7",
+        operation: { operationId: "operation-7", phase: "failed" },
+        operationPollingFailed: false,
+      })
+    ).toBe(false);
+    expect(
+      observationSupersedesMutationOperation({
+        authorityRefreshedOperationId: undefined,
+        mutationOperationId: "operation-7",
+        observation: {
+          activeOperation: null,
+          observedAtUnixMs: 8,
+          state: "running",
+        },
+      })
+    ).toBe(false);
+    for (const state of ["running", "suspended", "failed"] as const) {
+      expect(
+        shouldRetireWorkloadOperation({ activeOperation: null, state })
+      ).toBe(true);
+    }
+    for (const state of ["transitioning", "unknown"] as const) {
+      expect(
+        shouldRetireWorkloadOperation({ activeOperation: null, state })
+      ).toBe(false);
+    }
+    expect(
+      shouldRetireWorkloadOperation({
+        activeOperation: "operation-8",
+        state: "running",
+      })
+    ).toBe(false);
   });
 });

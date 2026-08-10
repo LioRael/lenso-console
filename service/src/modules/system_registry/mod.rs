@@ -1,5 +1,6 @@
 pub(crate) mod connection;
 mod routes;
+mod workload_control;
 
 use lenso::host::http::{LinkedHttpContribution, ModuleHttpMethod, ModuleHttpRoute};
 use lenso::host::prelude::*;
@@ -15,6 +16,9 @@ pub const MODULE_CONFIG_READ: &str = "console.managed-service.module.config.read
 pub const MODULE_CONFIG_WRITE: &str = "console.managed-service.module.config.write";
 pub const SYSTEM_READ: &str = "console.system.read";
 pub const SYSTEM_CONNECT: &str = "console.system.connect";
+pub const WORKLOAD_READ: &str = "console.workload.read";
+pub const WORKLOAD_CONTROL: &str = "console.workload.control";
+pub const WORKLOAD_OPERATION_READ: &str = "console.workload.operation.read";
 
 const MIGRATIONS: &[Migration] = &[
     Migration {
@@ -24,6 +28,10 @@ const MIGRATIONS: &[Migration] = &[
     Migration {
         name: "lenso/system-registry/0002_create_system_connections",
         sql: include_str!("migrations/0002_create_system_connections.sql"),
+    },
+    Migration {
+        name: "lenso/system-registry/0003_create_workload_control_operations",
+        sql: include_str!("migrations/0003_create_workload_control_operations.sql"),
     },
 ];
 
@@ -57,6 +65,30 @@ pub fn http_routes() -> Vec<ModuleHttpRoute> {
             "/api/console/v1/services/{serviceId}",
             REGISTRY_READ,
             "Get Managed Service",
+        ),
+        route(
+            ModuleHttpMethod::Get,
+            "/api/console/v1/systems/{systemId}/workload-access/{serviceId}",
+            SYSTEM_READ,
+            "Get Effective Workload Access",
+        ),
+        route(
+            ModuleHttpMethod::Get,
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}",
+            WORKLOAD_READ,
+            "Observe Workload Control State",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations",
+            WORKLOAD_CONTROL,
+            "Request Workload Control Operation",
+        ),
+        route(
+            ModuleHttpMethod::Get,
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations/{operationId}",
+            WORKLOAD_OPERATION_READ,
+            "Get Workload Control Operation",
         ),
     ];
     routes.extend(operation_http_routes());
@@ -118,6 +150,9 @@ fn manifest() -> ModuleManifest {
             MODULE_CONFIG_WRITE.to_owned(),
             SYSTEM_CONNECT.to_owned(),
             SYSTEM_READ.to_owned(),
+            WORKLOAD_CONTROL.to_owned(),
+            WORKLOAD_OPERATION_READ.to_owned(),
+            WORKLOAD_READ.to_owned(),
         ])
         .http_routes(http_routes())
         .console(vec![ConsoleSurface {
@@ -174,6 +209,9 @@ mod tests {
                 REGISTRY_READ,
                 SYSTEM_CONNECT,
                 SYSTEM_READ,
+                WORKLOAD_CONTROL,
+                WORKLOAD_OPERATION_READ,
+                WORKLOAD_READ,
             ]
         );
         assert_eq!(manifest.http_routes, http_routes());
@@ -188,6 +226,6 @@ mod tests {
                 if schema["component"] == "lenso/system-registry"
         ));
         assert!(module.http_binding.is_some());
-        assert_eq!(module.migrations.len(), 2);
+        assert_eq!(module.migrations.len(), 3);
     }
 }
