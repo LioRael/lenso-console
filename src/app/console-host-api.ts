@@ -47,6 +47,12 @@ import {
   useConsoleSystemConnection,
 } from "./console-system-connection-api";
 import { useConsoleManagedServices } from "./console-system-registry-api";
+import {
+  useConsoleWorkload,
+  useConsoleWorkloadAccess,
+  useConsoleWorkloadOperation,
+  useMutateConsoleWorkload,
+} from "./console-workload-control-api";
 import { selectManagedService } from "./managed-service-selection";
 
 export const productionConsoleHostApi = {
@@ -93,7 +99,11 @@ export const productionConsoleHostApi = {
     selectService: selectManagedService,
     useConnect: useConnectConsoleSystem,
     useConnection: useConsoleSystemConnection,
+    useMutateWorkload: useMutateConsoleWorkload,
     useServices: useConsoleManagedServices,
+    useWorkloadAccess: useConsoleWorkloadAccess,
+    useWorkload: useConsoleWorkload,
+    useWorkloadOperation: useConsoleWorkloadOperation,
   },
   ui: {
     ...consoleUi,

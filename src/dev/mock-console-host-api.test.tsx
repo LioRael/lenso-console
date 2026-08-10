@@ -106,7 +106,11 @@ describe("mock console host api", () => {
         selectService: notCalled,
         useConnect: notCalled,
         useConnection: notCalled,
+        useMutateWorkload: notCalled,
         useServices: notCalled,
+        useWorkloadAccess: notCalled,
+        useWorkload: notCalled,
+        useWorkloadOperation: notCalled,
       },
       ui: {} as ConsoleHostApi["ui"],
     } satisfies ConsoleHostApi;

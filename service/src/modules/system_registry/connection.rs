@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utoipa::ToSchema;
 
+use super::workload_control::{
+    WORKLOAD_CONTROL_PROTOCOL, WorkloadCapability, WorkloadReference, valid_control_scalar,
+    valid_path_identity, valid_workload_reference, workload_control_schema_digest,
+};
+
 /// The four states exposed by the System Connection contract.  These are
 /// deliberately object-level states; the Console does not derive a second
 /// readiness, proof, or evidence aggregate.
@@ -46,6 +51,15 @@ pub struct SystemTopologyService {
     pub service_id: String,
     pub service_principal: String,
     pub revision: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub workloads: Vec<SystemTopologyWorkload>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemTopologyWorkload {
+    pub workload_id: String,
+    pub role: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -75,6 +89,19 @@ pub struct SurfaceApiGrant {
 pub struct SystemTopologyAdapter {
     pub adapter_id: String,
     pub capabilities: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workload: Option<WorkloadReference>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workload_control: Option<WorkloadControlAdapterInterface>,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkloadControlAdapterInterface {
+    pub protocol: String,
+    pub schema_digest: String,
+    pub status: ConnectionStatus,
+    pub capabilities: Vec<WorkloadCapability>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -115,6 +142,7 @@ pub struct SystemConnectionResponse {
     pub management_binding: ManagementBinding,
     pub services: Vec<SystemConnectionService>,
     pub modules: Vec<SystemConnectionModule>,
+    pub adapters: Vec<SystemTopologyAdapter>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -124,6 +152,7 @@ pub struct SystemConnectionService {
     pub service_principal: String,
     pub status: ConnectionStatus,
     pub reason: Option<String>,
+    pub workloads: Vec<SystemTopologyWorkload>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -151,8 +180,8 @@ pub struct ManagedServiceObservation {
 
 pub fn validate_connect_request(request: &SystemConnectRequest) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
-    if request.system_id.trim().is_empty() {
-        errors.push("systemId must not be empty".to_owned());
+    if !valid_path_identity(&request.system_id) {
+        errors.push("systemId must be a stable Workload Control identity".to_owned());
     }
     if request.topology.protocol != "lenso.system.v2" {
         errors.push("topology.protocol must be lenso.system.v2".to_owned());
@@ -175,7 +204,7 @@ pub fn validate_connect_request(request: &SystemConnectRequest) -> Result<(), Ve
     }
     validate_services(&request.topology.services, &mut errors);
     validate_modules(&request.topology, &mut errors);
-    validate_adapters(&request.topology.adapters, &mut errors);
+    validate_adapters(&request.topology, &mut errors);
     validate_binding(&request.topology, &request.management_binding, &mut errors);
     if errors.is_empty() {
         Ok(())
@@ -189,6 +218,11 @@ pub fn calculate_topology_digest(topology: &SystemTopology) -> Result<String, se
     canonical
         .services
         .sort_by(|left, right| left.service_id.cmp(&right.service_id));
+    for service in &mut canonical.services {
+        service
+            .workloads
+            .sort_by(|left, right| left.workload_id.cmp(&right.workload_id));
+    }
     canonical
         .modules
         .sort_by(|left, right| left.module_id.cmp(&right.module_id));
@@ -197,6 +231,9 @@ pub fn calculate_topology_digest(topology: &SystemTopology) -> Result<String, se
         .sort_by(|left, right| left.adapter_id.cmp(&right.adapter_id));
     for adapter in &mut canonical.adapters {
         adapter.capabilities.sort();
+        if let Some(interface) = &mut adapter.workload_control {
+            interface.capabilities.sort();
+        }
     }
     let bytes = serde_json::to_vec(&canonical)?;
     let digest = Sha256::digest(bytes);
@@ -231,6 +268,7 @@ pub fn project_connection(
             service_principal: observation.service_principal.clone(),
             status: ConnectionStatus::Unmanaged,
             reason: Some("Enrolled Service is not part of this Management Binding".to_owned()),
+            workloads: Vec::new(),
         })
         .collect::<Vec<_>>();
     unexpected.sort_by(|left, right| left.service_id.cmp(&right.service_id));
@@ -241,6 +279,7 @@ pub fn project_connection(
         .iter()
         .map(|module| project_module(module, &services))
         .collect::<Vec<_>>();
+    let adapters = topology.adapters.clone();
     let status = aggregate_status(
         services
             .iter()
@@ -256,14 +295,17 @@ pub fn project_connection(
         management_binding: management_binding.clone(),
         services,
         modules,
+        adapters,
     }
 }
 
 fn validate_services(services: &[SystemTopologyService], errors: &mut Vec<String>) {
     let mut ids = std::collections::BTreeSet::new();
     for service in services {
-        if service.service_id.trim().is_empty() {
-            errors.push("topology.services.serviceId must not be empty".to_owned());
+        if !valid_path_identity(&service.service_id) {
+            errors.push(
+                "topology.services.serviceId must be a stable Workload Control identity".to_owned(),
+            );
         } else if !ids.insert(service.service_id.as_str()) {
             errors.push(format!(
                 "topology.services contains duplicate {}",
@@ -281,6 +323,26 @@ fn validate_services(services: &[SystemTopologyService], errors: &mut Vec<String
                 "service {} revision must be positive",
                 service.service_id
             ));
+        }
+        let mut workload_ids = std::collections::BTreeSet::new();
+        for workload in &service.workloads {
+            if !valid_path_identity(&workload.workload_id) {
+                errors.push(format!(
+                    "service {} has an invalid stable Workload id",
+                    service.service_id
+                ));
+            } else if !workload_ids.insert(workload.workload_id.as_str()) {
+                errors.push(format!(
+                    "service {} contains duplicate Workload {}",
+                    service.service_id, workload.workload_id
+                ));
+            }
+            if workload.role.trim().is_empty() {
+                errors.push(format!(
+                    "service {} Workload {} has an empty role",
+                    service.service_id, workload.workload_id
+                ));
+            }
         }
     }
 }
@@ -388,11 +450,13 @@ fn validate_modules(topology: &SystemTopology, errors: &mut Vec<String>) {
     }
 }
 
-fn validate_adapters(adapters: &[SystemTopologyAdapter], errors: &mut Vec<String>) {
+fn validate_adapters(topology: &SystemTopology, errors: &mut Vec<String>) {
     let mut ids = std::collections::BTreeSet::new();
-    for adapter in adapters {
-        if adapter.adapter_id.trim().is_empty() {
-            errors.push("topology.adapters.adapterId must not be empty".to_owned());
+    for adapter in &topology.adapters {
+        if !valid_control_scalar(&adapter.adapter_id) {
+            errors.push(
+                "topology.adapters.adapterId must be a stable Workload Control identity".to_owned(),
+            );
         } else if !ids.insert(adapter.adapter_id.as_str()) {
             errors.push(format!(
                 "topology.adapters contains duplicate {}",
@@ -409,6 +473,70 @@ fn validate_adapters(adapters: &[SystemTopologyAdapter], errors: &mut Vec<String
                 adapter.adapter_id
             ));
         }
+        if let Some(workload) = &adapter.workload {
+            let exists = workload.system_id == topology.system_id
+                && topology.services.iter().any(|service| {
+                    service.service_id == workload.service_id
+                        && service
+                            .workloads
+                            .iter()
+                            .any(|candidate| candidate.workload_id == workload.workload_id)
+                });
+            if !valid_workload_reference(workload) || !exists {
+                errors.push(format!(
+                    "adapter {} must reference an exact stable authority Workload",
+                    adapter.adapter_id
+                ));
+            }
+        }
+        if let Some(interface) = &adapter.workload_control
+            && (interface.protocol != WORKLOAD_CONTROL_PROTOCOL
+                || interface.schema_digest != workload_control_schema_digest())
+        {
+            errors.push(format!(
+                "adapter {} Workload Control interface is incompatible",
+                adapter.adapter_id
+            ));
+        }
+        if adapter.workload_control.is_some() && adapter.workload.is_none() {
+            errors.push(format!(
+                "adapter {} Workload Control interface requires an exact authority Workload",
+                adapter.adapter_id
+            ));
+        }
+        if let Some(interface) = &adapter.workload_control {
+            let unique = interface
+                .capabilities
+                .iter()
+                .copied()
+                .collect::<std::collections::BTreeSet<_>>();
+            if unique.len() != interface.capabilities.len() {
+                errors.push(format!(
+                    "adapter {} Workload Control capabilities must be exact",
+                    adapter.adapter_id
+                ));
+            }
+            if !unique.contains(&WorkloadCapability::Suspend)
+                || !unique.contains(&WorkloadCapability::Resume)
+            {
+                errors.push(format!(
+                    "adapter {} Workload Control capabilities must include suspend and resume",
+                    adapter.adapter_id
+                ));
+            }
+        }
+    }
+    if topology
+        .adapters
+        .iter()
+        .filter(|adapter| adapter.workload_control.is_some())
+        .count()
+        > 1
+    {
+        errors.push(
+            "topology must declare at most one active Workload Control Adapter interface"
+                .to_owned(),
+        );
     }
 }
 
@@ -482,6 +610,7 @@ fn project_service(
             service_principal: topology_service.service_principal.clone(),
             status: ConnectionStatus::Unmanaged,
             reason: Some("System Service is not enrolled in the Console".to_owned()),
+            workloads: topology_service.workloads.clone(),
         };
     };
     if observation.service_principal != topology_service.service_principal {
@@ -525,6 +654,7 @@ fn project_service(
         service_principal: topology_service.service_principal.clone(),
         status,
         reason,
+        workloads: topology_service.workloads.clone(),
     }
 }
 
@@ -538,6 +668,7 @@ fn connection_service(
         service_principal: service.service_principal.clone(),
         status,
         reason: Some(reason.to_owned()),
+        workloads: service.workloads.clone(),
     }
 }
 
@@ -649,6 +780,16 @@ mod tests {
                 service_id: "support-service".to_owned(),
                 service_principal: "svc.support-service".to_owned(),
                 revision: 1,
+                workloads: vec![
+                    SystemTopologyWorkload {
+                        workload_id: "support-api".to_owned(),
+                        role: "api".to_owned(),
+                    },
+                    SystemTopologyWorkload {
+                        workload_id: "support-control-adapter".to_owned(),
+                        role: "control_adapter".to_owned(),
+                    },
+                ],
             }],
             modules: vec![SystemTopologyModule {
                 module_id: "support/tickets".to_owned(),
@@ -672,6 +813,17 @@ mod tests {
             adapters: vec![SystemTopologyAdapter {
                 adapter_id: "support-workload".to_owned(),
                 capabilities: vec!["module.business_api".to_owned()],
+                workload: Some(WorkloadReference {
+                    system_id: "support-desk".to_owned(),
+                    service_id: "support-service".to_owned(),
+                    workload_id: "support-control-adapter".to_owned(),
+                }),
+                workload_control: Some(WorkloadControlAdapterInterface {
+                    protocol: WORKLOAD_CONTROL_PROTOCOL.to_owned(),
+                    schema_digest: workload_control_schema_digest(),
+                    status: ConnectionStatus::Connected,
+                    capabilities: vec![WorkloadCapability::Suspend, WorkloadCapability::Resume],
+                }),
             }],
         }
     }
@@ -703,6 +855,115 @@ mod tests {
     #[test]
     fn validates_an_exact_topology_and_binding() {
         assert!(validate_connect_request(&request(topology())).is_ok());
+    }
+
+    #[test]
+    fn topology_digest_canonicalizes_workload_control_capabilities() {
+        let mut reordered = topology();
+        reordered.adapters[0]
+            .workload_control
+            .as_mut()
+            .expect("typed Workload Control interface")
+            .capabilities
+            .reverse();
+
+        assert_eq!(
+            calculate_topology_digest(&topology()).expect("canonical digest"),
+            calculate_topology_digest(&reordered).expect("reordered canonical digest")
+        );
+    }
+
+    #[test]
+    fn workload_control_requires_the_standard_suspend_and_resume_capabilities() {
+        for capabilities in [
+            vec![WorkloadCapability::Suspend],
+            vec![WorkloadCapability::Resume],
+            vec![WorkloadCapability::Restart, WorkloadCapability::Scale],
+        ] {
+            let mut candidate = topology();
+            candidate.adapters[0]
+                .workload_control
+                .as_mut()
+                .expect("typed Workload Control interface")
+                .capabilities = capabilities;
+            assert!(
+                validate_connect_request(&request(candidate))
+                    .expect_err("missing standard control capability")
+                    .iter()
+                    .any(|error| error.contains("must include suspend and resume"))
+            );
+        }
+    }
+
+    #[test]
+    fn topology_digest_canonicalizes_stable_workloads() {
+        let mut declared = topology();
+        declared.services[0].workloads.push(SystemTopologyWorkload {
+            workload_id: "support-worker".to_owned(),
+            role: "worker".to_owned(),
+        });
+        let mut reordered = declared.clone();
+        reordered.services[0].workloads.reverse();
+
+        assert_eq!(
+            calculate_topology_digest(&declared).expect("canonical digest"),
+            calculate_topology_digest(&reordered).expect("reordered canonical digest")
+        );
+    }
+
+    #[test]
+    fn rejects_an_incompatible_workload_control_interface_once() {
+        let mut topology = topology();
+        topology.adapters[0]
+            .workload_control
+            .as_mut()
+            .expect("typed Workload Control interface")
+            .schema_digest = format!("sha256:{}", "f".repeat(64));
+
+        let errors = validate_connect_request(&request(topology)).expect_err("digest mismatch");
+        assert_eq!(
+            errors
+                .iter()
+                .filter(|error| error.contains("Workload Control interface is incompatible"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn rejects_ambiguous_workload_control_authority_at_connect_time() {
+        let mut topology = topology();
+        let mut second = topology.adapters[0].clone();
+        second.adapter_id = "secondary-workload-control".to_owned();
+        topology.adapters.push(second);
+        let mut request = request(topology);
+        request
+            .management_binding
+            .adapter_ids
+            .push("secondary-workload-control".to_owned());
+
+        let errors = validate_connect_request(&request).expect_err("ambiguous authority");
+
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("at most one active"))
+        );
+    }
+
+    #[test]
+    fn rejects_workload_control_without_an_exact_authority_workload() {
+        let mut topology = topology();
+        topology.adapters[0].workload = None;
+        let request = request(topology);
+
+        let errors = validate_connect_request(&request).expect_err("missing authority workload");
+
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("requires an exact authority Workload"))
+        );
     }
 
     #[test]
@@ -763,6 +1024,26 @@ mod tests {
     }
 
     #[test]
+    fn legacy_topology_defaults_to_no_stable_workloads() {
+        let legacy = serde_json::json!({
+            "protocol": "lenso.system.v2",
+            "systemId": "support-desk",
+            "services": [{
+                "serviceId": "support-service",
+                "servicePrincipal": "svc.support-service",
+                "revision": 1
+            }],
+            "modules": [],
+            "adapters": []
+        });
+
+        let topology: SystemTopology = serde_json::from_value(legacy).expect("legacy topology");
+        assert!(topology.services[0].workloads.is_empty());
+        let serialized = serde_json::to_value(topology).expect("legacy topology JSON");
+        assert!(serialized["services"][0].get("workloads").is_none());
+    }
+
+    #[test]
     fn projects_unavailable_and_unmanaged_objects_without_adopting_them() {
         let request = request(topology());
         let response = project_connection(
@@ -793,5 +1074,48 @@ mod tests {
         );
         assert_eq!(response.services[1].status, ConnectionStatus::Unmanaged);
         assert_eq!(response.modules[0].status, ConnectionStatus::Unavailable);
+        let workload_control = response.adapters[0]
+            .workload_control
+            .as_ref()
+            .expect("typed adapter projection");
+        assert_eq!(workload_control.protocol, WORKLOAD_CONTROL_PROTOCOL);
+        assert_eq!(
+            workload_control.schema_digest,
+            workload_control_schema_digest()
+        );
+        assert_eq!(workload_control.status, ConnectionStatus::Connected);
+    }
+
+    #[test]
+    fn adapter_unavailability_stays_separate_from_system_and_service_status() {
+        let mut request = request(topology());
+        request.topology.adapters[0]
+            .workload_control
+            .as_mut()
+            .expect("typed Workload Control interface")
+            .status = ConnectionStatus::Unavailable;
+        let response = project_connection(
+            &request.topology,
+            &request.management_binding,
+            &[ManagedServiceObservation {
+                service_id: "support-service".to_owned(),
+                service_principal: "svc.support-service".to_owned(),
+                enrollment_state: "active".to_owned(),
+                connection_state: "ready".to_owned(),
+                last_error_code: None,
+            }],
+        );
+
+        assert_eq!(response.status, ConnectionStatus::Connected);
+        assert_eq!(response.services[0].status, ConnectionStatus::Connected);
+        assert_eq!(response.reason, None);
+        assert_eq!(
+            response.adapters[0]
+                .workload_control
+                .as_ref()
+                .expect("typed Workload Control interface")
+                .status,
+            ConnectionStatus::Unavailable
+        );
     }
 }

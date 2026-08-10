@@ -7,6 +7,7 @@ import {
 } from "./console-system-connection-model";
 
 const connection = {
+  adapters: [],
   systemId: "support-desk",
   topologyDigest: "sha256:topology",
   status: "connected" as const,

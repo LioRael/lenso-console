@@ -2,7 +2,12 @@ import type {
   ConsoleSystemConnectRequest,
   ConsoleSystemConnection,
 } from "@lenso/console-ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { isHTTPError } from "ky";
 
 import { mockSystemConnection } from "../data/mock-system-connection";
@@ -44,9 +49,24 @@ export function useConnectConsoleSystem() {
         .json<ConsoleSystemConnection>(),
     onSuccess: async (connection) => {
       queryClient.setQueryData(consoleSystemConnectionQueryKey, connection);
-      await queryClient.invalidateQueries({
-        queryKey: consoleSystemRegistryQueryKey,
-      });
+      await refreshConsoleSystemAuthority(queryClient);
     },
   });
+}
+
+export function refreshConsoleSystemAuthority(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: consoleSystemRegistryQueryKey,
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["console-system", "workload-access"],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["console-system", "workload-control"],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["console-system", "workload-operation"],
+    }),
+  ]);
 }

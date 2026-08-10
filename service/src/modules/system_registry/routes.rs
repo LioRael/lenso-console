@@ -21,7 +21,7 @@ use lenso::system_plane::{
     module_operations_schema_digest, validate_core_document,
 };
 
-use super::{REGISTRY_READ, SYSTEM_CONNECT, SYSTEM_READ, connection};
+use super::{REGISTRY_READ, SYSTEM_CONNECT, SYSTEM_READ, connection, workload_control};
 
 const LIST_SERVICES_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
@@ -87,6 +87,7 @@ fn router() -> ApiOpenApiRouter {
         .routes(routes!(resolve_action_contributions))
         .routes(routes!(read_module_config))
         .routes(routes!(write_module_config))
+        .merge(workload_control::router())
 }
 
 #[utoipa::path(
@@ -107,14 +108,7 @@ async fn get_system_connection(
     actor: UserActor,
     HttpRequestContext(request_ctx): HttpRequestContext,
 ) -> Result<Json<connection::SystemConnectionResponse>, ApiErrorResponse> {
-    console_access::require_managed_service_capability(
-        &ctx,
-        &actor,
-        None,
-        SYSTEM_READ,
-        &request_ctx,
-    )
-    .await?;
+    console_access::require_console_capability(&ctx, &actor, SYSTEM_READ, &request_ctx).await?;
     let row = sqlx::query(GET_SYSTEM_CONNECTION_SQL)
         .fetch_optional(&ctx.db)
         .await
@@ -153,14 +147,7 @@ async fn connect_system(
     HttpRequestContext(request_ctx): HttpRequestContext,
     Json(request): Json<connection::SystemConnectRequest>,
 ) -> Result<Json<connection::SystemConnectionResponse>, ApiErrorResponse> {
-    console_access::require_managed_service_capability(
-        &ctx,
-        &actor,
-        None,
-        SYSTEM_CONNECT,
-        &request_ctx,
-    )
-    .await?;
+    console_access::require_console_capability(&ctx, &actor, SYSTEM_CONNECT, &request_ctx).await?;
     connection::validate_connect_request(&request).map_err(|errors| {
         api_error(
             AppError::new(
@@ -1080,6 +1067,10 @@ mod tests {
         for path in [
             "/api/console/v1/system",
             "/api/console/v1/system/connect",
+            "/api/console/v1/systems/{systemId}/workload-access/{serviceId}",
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}",
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations",
+            "/api/console/v1/systems/{systemId}/workloads/{serviceId}/{workloadId}/operations/{operationId}",
             "/api/console/v1/services",
             "/api/console/v1/services/{serviceId}",
             "/api/console/v1/services/{serviceId}/system-plane/v1/modules",

@@ -5,6 +5,24 @@ const digest = (letter: string): ConsoleSha256Digest =>
   `sha256:${letter.repeat(64)}`;
 
 export const mockSystemConnection: ConsoleUiSystemConnection = {
+  adapters: [
+    {
+      adapterId: "support-workload-control",
+      capabilities: ["workload.control"],
+      workload: {
+        serviceId: "support-api",
+        systemId: "support-desk",
+        workloadId: "support-workload-control-adapter",
+      },
+      workloadControl: {
+        capabilities: ["suspend", "resume"],
+        protocol: "lenso.workload-control.v1",
+        schemaDigest:
+          "sha256:d3666bb1fd85576f9af4205dbcc70029acd81462678c47d2b315c40ef1a9161d",
+        status: "connected",
+      },
+    },
+  ],
   systemId: "support-desk",
   topologyDigest: digest("b"),
   status: "unavailable",
@@ -17,6 +35,9 @@ export const mockSystemConnection: ConsoleUiSystemConnection = {
     permissions: [
       "console.module.business.read",
       "console.module.business.write",
+      "console.workload.read",
+      "console.workload.control",
+      "console.workload.operation.read",
     ],
     policy: {
       policyId: "support-desk-console",
@@ -30,18 +51,27 @@ export const mockSystemConnection: ConsoleUiSystemConnection = {
       servicePrincipal: "svc.support-api",
       status: "connected",
       reason: null,
+      workloads: [
+        { role: "api", workloadId: "support-api" },
+        {
+          role: "control_adapter",
+          workloadId: "support-workload-control-adapter",
+        },
+      ],
     },
     {
       serviceId: "support-worker",
       servicePrincipal: "svc.support-worker",
       status: "unavailable",
       reason: "workload_absent",
+      workloads: [{ role: "worker", workloadId: "support-worker" }],
     },
     {
       serviceId: "legacy-reporting",
       servicePrincipal: "svc.legacy-reporting",
       status: "unmanaged",
       reason: "Enrolled Service is not part of this Management Binding",
+      workloads: [],
     },
   ],
   modules: [

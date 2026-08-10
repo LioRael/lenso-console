@@ -303,10 +303,65 @@ descriptor-bound configuration evidence.
 
 System Connection reads require `console.system.read`; connecting an exact
 System topology and Management Binding requires `console.system.connect`. The
+unfiltered topology and whole-System connection boundary accepts those
+capabilities only from the authenticated principal's direct/global scopes or a
+durable Console administrator role. A Managed Service Access Grant remains
+service-scoped: it can authorize that Service's Registry and Workload routes,
+but cannot authorize either whole-System endpoint even if it contains a
+same-named `console.system.*` capability. The
 connection projection exposes only `connected`, `unavailable`, `incompatible`,
 and `unmanaged` object states with direct reasons. It records topology and
 binding identity in the Console Store and never creates, deploys, adopts,
 deletes, releases, upgrades, or rolls back a workload.
+
+Workload Control is exposed to the browser only through the authenticated,
+same-origin Console routes under
+`/api/console/v1/systems/{systemId}/workloads`. The server loads and validates
+the exact named System row for every observation, mutation, and operation poll.
+The active System topology must give each Service a stable `workloads` entry
+with an open string `role`. Its bound Adapter must identify the exact sibling
+authority Workload and advertise an exact `workloadControl` object:
+
+```json
+{
+  "adapterId": "support-control",
+  "workload": {
+    "systemId": "support-desk",
+    "serviceId": "support-control-service",
+    "workloadId": "support-control-runtime"
+  },
+  "workloadControl": {
+    "protocol": "lenso.workload-control.v1",
+    "schemaDigest": "sha256:d3666bb1fd85576f9af4205dbcc70029acd81462678c47d2b315c40ef1a9161d",
+    "status": "connected",
+    "capabilities": ["suspend", "resume"]
+  }
+}
+```
+
+The optional local HTTP Adapter directory is configured only on a natively run
+Console Service with `LENSO_CONSOLE_WORKLOAD_CONTROL_ADAPTERS`. Its exact JSON shape is
+`[{"systemId":"...","adapterId":"...","baseUrl":"http://127.0.0.1:9470","bearerToken":"..."}]`.
+The `(systemId, adapterId)` pair must match the active Management Binding; URLs
+must be path-free origins on exactly `127.0.0.1` or `localhost`. The token
+remains server-side and is never accepted from topology or a browser request,
+or returned by a Console response. Console derives the authenticated mutation
+actor and forwards the exact shared Workload Control request to the bound
+Adapter. HTTP redirects and environment proxies are disabled, `localhost` is
+pinned to `127.0.0.1`, and request time plus response size are bounded.
+Remote authority transports require a separate Adapter and security review.
+The Compose installation does not expose this setting: a loopback URL inside
+the Console container cannot address a host-side Local Adapter.
+
+Console posts observations and mutations to the framework-defined Adapter paths
+and polls the returned operation handle. Transport failure leaves observation
+fail-closed as `unknown` with no revision; mutation and nonterminal operation
+polling reject as authority unavailable. Mutations are never queued or
+rerouted. Malformed, oversized, redirected, or contract-incompatible responses
+fail closed. Typed Adapter errors are validated and mapped to fixed Console
+messages instead of forwarding untrusted Adapter text. Console and the active
+Workload Control Adapter remain protected targets even while the Adapter is
+unavailable.
 
 No enrollment creation endpoint is exposed yet. Enrollment changes remain the
 reviewed bilateral System Plane workflow; adding a direct unsigned

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  CONSOLE_HOST_API_VERSION,
   CONSOLE_MODULE_PROTOCOL,
   CONSOLE_UI_ESM_FORMAT,
   validateConsoleUiEsmArtifact,
@@ -46,6 +47,7 @@ describe("published framework Console contracts", () => {
     expect(isSemverRangeCompatible("^1.0.0", "1.0.0")).toBe(true);
     expect(isSemverRangeCompatible("^2.0.0", "2.0.0")).toBe(true);
     expect(isSemverRangeCompatible("^2.0.0", "1.9.0")).toBe(false);
+    expect(CONSOLE_HOST_API_VERSION).toBe("2.1.0");
   });
 
   test("rejects local navigation metadata from the framework artifact", () => {

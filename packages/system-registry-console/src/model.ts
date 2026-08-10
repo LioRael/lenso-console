@@ -3,6 +3,8 @@
 import type {
   ConsoleConnectionStatus,
   ConsoleManagedService,
+  ConsoleWorkloadObservation,
+  ConsoleWorkloadOperationRecord,
 } from "@lenso/console-ui";
 
 export interface RegistrySummary {
@@ -244,6 +246,91 @@ export const enrollmentExpiryLabel = (
   }
   return `${Math.ceil(hours / 24)}d remaining`;
 };
+
+export const workloadOperationHandle = ({
+  mutationOperationId,
+  observedActiveOperation,
+}: {
+  mutationOperationId?: string | undefined;
+  observedActiveOperation?: string | null | undefined;
+}) => observedActiveOperation ?? mutationOperationId;
+
+const stableWorkloadObservationStates: ReadonlySet<
+  ConsoleWorkloadObservation["state"]
+> = new Set(["failed", "running", "suspended"]);
+export const shouldRetireWorkloadOperation = (
+  observation:
+    | Pick<ConsoleWorkloadObservation, "activeOperation" | "state">
+    | null
+    | undefined
+) =>
+  Boolean(
+    observation &&
+    stableWorkloadObservationStates.has(observation.state) &&
+    !observation.activeOperation
+  );
+
+export const observationSupersedesMutationOperation = ({
+  authorityRefreshedOperationId,
+  mutationOperationId,
+  observation,
+}: {
+  authorityRefreshedOperationId?: string | null | undefined;
+  mutationOperationId?: string | undefined;
+  observation:
+    | Pick<
+        ConsoleWorkloadObservation,
+        "activeOperation" | "observedAtUnixMs" | "state"
+      >
+    | null
+    | undefined;
+}) =>
+  Boolean(
+    mutationOperationId &&
+    authorityRefreshedOperationId === mutationOperationId &&
+    observation &&
+    shouldRetireWorkloadOperation(observation)
+  );
+
+const terminalWorkloadOperationPhases = new Set([
+  "denied",
+  "failed",
+  "succeeded",
+]);
+const recoverableWorkloadOperationPollStatuses = new Set([404, 502, 503]);
+
+export const isRecoverableWorkloadOperationPollError = (
+  error: Error | null | undefined
+) => {
+  const response = (error as { response?: unknown } | null | undefined)
+    ?.response;
+  if (!(response && typeof response === "object" && "status" in response)) {
+    return false;
+  }
+  return recoverableWorkloadOperationPollStatuses.has(Number(response.status));
+};
+
+export const isTerminalWorkloadOperation = (
+  operation: Pick<ConsoleWorkloadOperationRecord, "phase"> | null | undefined
+) => Boolean(operation && terminalWorkloadOperationPhases.has(operation.phase));
+
+export const shouldClearOperationAuthorityRefresh = ({
+  authorityRefreshedOperationId,
+  operation,
+  operationPollingFailed,
+}: {
+  authorityRefreshedOperationId?: string | null | undefined;
+  operation?:
+    | Pick<ConsoleWorkloadOperationRecord, "operationId" | "phase">
+    | undefined;
+  operationPollingFailed: boolean;
+}) =>
+  Boolean(
+    !operationPollingFailed &&
+    operation &&
+    operation.operationId === authorityRefreshedOperationId &&
+    !isTerminalWorkloadOperation(operation)
+  );
 
 const matchesFilter = (value: string, filter: ServiceFilterValue) =>
   filter === "all" || value === filter;

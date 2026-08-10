@@ -10,7 +10,7 @@ export const CONSOLE_MODULE_PROTOCOL = "lenso.console-module.v1" as const;
 export const CONSOLE_MODULE_PROTOCOL_MAJOR = 1 as const;
 export const CONSOLE_UI_ESM_FORMAT = "console_ui_esm" as const;
 export const CONSOLE_BRIDGE_PROTOCOL = "lenso.console-bridge.v1" as const;
-export const CONSOLE_HOST_API_VERSION = "2.0.0" as const;
+export const CONSOLE_HOST_API_VERSION = "2.1.0" as const;
 export const CONSOLE_UI_VERSION = "2.0.0" as const;
 
 export const MODULE_OPERATIONS_PROTOCOL =
