@@ -75,6 +75,11 @@ const modules = [
     id: "lenso/system-registry",
     manifest: "packages/system-registry-console/console-module.json",
   },
+  {
+    entry: "packages/support-ticket-console/src/index.tsx",
+    id: "support/tickets",
+    manifest: "packages/support-ticket-console/console-module.json",
+  },
 ];
 
 await rm(outputRoot, { force: true, recursive: true });

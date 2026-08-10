@@ -56,7 +56,18 @@ pub struct SystemTopologyModule {
     pub service_id: Option<String>,
     pub module_release_digest: String,
     pub console_ui_artifact_digest: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface_api_grant: Option<SurfaceApiGrant>,
     pub runtime_status: Option<ModuleRuntimeStatus>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SurfaceApiGrant {
+    pub artifact_digest: String,
+    pub module_release_digest: String,
+    pub contract_digest: String,
+    pub operation_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -123,6 +134,8 @@ pub struct SystemConnectionModule {
     pub service_id: Option<String>,
     pub module_release_digest: String,
     pub console_ui_artifact_digest: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surface_api_grant: Option<SurfaceApiGrant>,
     pub status: ConnectionStatus,
     pub reason: Option<String>,
 }
@@ -303,6 +316,56 @@ fn validate_modules(topology: &SystemTopology, errors: &mut Vec<String>) {
                 "module {} has an invalid Console UI digest",
                 module.module_id
             ));
+        }
+        if let Some(grant) = &module.surface_api_grant {
+            if !valid_digest(&grant.artifact_digest) {
+                errors.push(format!(
+                    "module {} has an invalid Surface API artifact digest",
+                    module.module_id
+                ));
+            }
+            if !valid_digest(&grant.contract_digest) {
+                errors.push(format!(
+                    "module {} has an invalid Surface API contract digest",
+                    module.module_id
+                ));
+            }
+            if !valid_digest(&grant.module_release_digest) {
+                errors.push(format!(
+                    "module {} has an invalid Surface API release digest",
+                    module.module_id
+                ));
+            }
+            if grant.operation_ids.is_empty()
+                || grant
+                    .operation_ids
+                    .iter()
+                    .any(|operation| operation.trim().is_empty())
+            {
+                errors.push(format!(
+                    "module {} has an empty Surface API operation grant",
+                    module.module_id
+                ));
+            }
+            if grant.operation_ids.windows(2).any(|ids| ids[0] >= ids[1]) {
+                errors.push(format!(
+                    "module {} Surface API operation grant must be sorted and unique",
+                    module.module_id
+                ));
+            }
+            if module.console_ui_artifact_digest.as_deref() != Some(grant.artifact_digest.as_str())
+            {
+                errors.push(format!(
+                    "module {} Surface API artifact digest must match the Console UI artifact digest",
+                    module.module_id
+                ));
+            }
+            if module.module_release_digest != grant.module_release_digest {
+                errors.push(format!(
+                    "module {} Surface API release digest must match the Module release digest",
+                    module.module_id
+                ));
+            }
         }
         match module.delivery {
             ModuleDelivery::Linked if module.service_id.is_some() => errors.push(format!(
@@ -521,6 +584,7 @@ fn project_module(
         service_id: module.service_id.clone(),
         module_release_digest: module.module_release_digest.clone(),
         console_ui_artifact_digest: module.console_ui_artifact_digest.clone(),
+        surface_api_grant: module.surface_api_grant.clone(),
         status,
         reason,
     }
@@ -587,11 +651,22 @@ mod tests {
                 revision: 1,
             }],
             modules: vec![SystemTopologyModule {
-                module_id: "support-tickets".to_owned(),
+                module_id: "support/tickets".to_owned(),
                 delivery: ModuleDelivery::Service,
                 service_id: Some("support-service".to_owned()),
                 module_release_digest: digest(),
                 console_ui_artifact_digest: Some(digest()),
+                surface_api_grant: Some(SurfaceApiGrant {
+                    artifact_digest: digest(),
+                    contract_digest: digest(),
+                    module_release_digest: digest(),
+                    operation_ids: vec![
+                        "support-ticket/http/GET:/tickets".to_owned(),
+                        "support-ticket/http/PATCH:/tickets/{id}".to_owned(),
+                        "support-ticket/http/POST:/tickets".to_owned(),
+                        "support-ticket/http/POST:/tickets/{id}/close".to_owned(),
+                    ],
+                }),
                 runtime_status: Some(ModuleRuntimeStatus::Active),
             }],
             adapters: vec![SystemTopologyAdapter {
@@ -612,7 +687,10 @@ mod tests {
                 topology_digest,
                 service_ids: vec!["support-service".to_owned()],
                 adapter_ids: vec!["support-workload".to_owned()],
-                permissions: vec!["console.module.business.read".to_owned()],
+                permissions: vec![
+                    "console.module.business.read".to_owned(),
+                    "console.module.business.write".to_owned(),
+                ],
                 policy: ManagementPolicy {
                     policy_id: "support-console".to_owned(),
                     revision: 1,
@@ -651,6 +729,36 @@ mod tests {
                 .expect_err("duplicate service")
                 .iter()
                 .any(|error| error.contains("serviceIds must not contain duplicates"))
+        );
+    }
+
+    #[test]
+    fn rejects_an_unsorted_surface_api_grant() {
+        let mut request = request(topology());
+        request.topology.modules[0]
+            .surface_api_grant
+            .as_mut()
+            .expect("surface grant")
+            .operation_ids
+            .reverse();
+        let error = validate_connect_request(&request).expect_err("grant order");
+        assert!(
+            error
+                .iter()
+                .any(|message| message.contains("Surface API operation grant must be sorted"))
+        );
+    }
+
+    #[test]
+    fn omits_an_absent_surface_grant_from_legacy_topology_serialization() {
+        let mut topology = topology();
+        topology.modules[0].surface_api_grant = None;
+        let value = serde_json::to_value(topology).expect("topology JSON");
+        assert!(
+            !value["modules"][0]
+                .as_object()
+                .expect("module object")
+                .contains_key("surfaceApiGrant")
         );
     }
 

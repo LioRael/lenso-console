@@ -1,3 +1,4 @@
+import type { ConsoleSha256Digest } from "@lenso/console-module-api";
 import type { ComponentType, FunctionComponent, ReactNode } from "react";
 
 import type { ConsoleLocale } from "./locale";
@@ -433,7 +434,15 @@ export interface ConsoleSystemTopologyModule {
   serviceId?: string | null;
   moduleReleaseDigest: string;
   consoleUiArtifactDigest?: string | null;
+  surfaceApiGrant?: ConsoleSurfaceApiGrant | null;
   runtimeStatus?: ConsoleModuleRuntimeStatus | null;
+}
+
+export interface ConsoleSurfaceApiGrant {
+  artifactDigest: ConsoleSha256Digest;
+  moduleReleaseDigest: ConsoleSha256Digest;
+  contractDigest: ConsoleSha256Digest;
+  operationIds: readonly string[];
 }
 
 export interface ConsoleSystemTopologyAdapter {
@@ -477,6 +486,7 @@ export interface ConsoleSystemConnectionModule {
   serviceId?: string | null;
   moduleReleaseDigest: string;
   consoleUiArtifactDigest?: string | null;
+  surfaceApiGrant?: ConsoleSurfaceApiGrant | null;
   status: ConsoleConnectionStatus;
   reason?: string | null;
 }

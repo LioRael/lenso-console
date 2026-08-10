@@ -13,6 +13,8 @@ The initial exact composition is:
 - the first-party Organization Module;
 - the mandatory `lenso/system-registry` linked Module;
 - the Host-owned `lenso/console-access` linked Module;
+- the optional `lenso/console-surface-gateway` linked Module, which forwards
+  only digest-bound Module Business API operations;
 - the optional `lenso/platform-story` linked Module, including Story query,
   federation, projection, and Store migration ownership.
 

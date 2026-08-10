@@ -16,6 +16,8 @@ export const CONSOLE_UI_VERSION = "2.0.0" as const;
 export const MODULE_OPERATIONS_PROTOCOL =
   "lenso.system-plane.module-operations.v1" as const;
 export const MODULE_OPERATIONS_PATH = "/system-plane/v1/modules" as const;
+export const CONSOLE_SURFACE_GATEWAY_PROTOCOL =
+  "lenso.console-surface-gateway.v1" as const;
 
 export type ConsoleSha256Digest = `sha256:${string}`;
 
@@ -136,6 +138,51 @@ export interface ManagedServiceContext {
   readonly delegatedActorSubject: string;
   readonly delegatedAuthorityDigest: ConsoleSha256Digest;
   readonly capabilities: readonly string[];
+}
+
+export interface SurfaceStoryContext {
+  readonly storyId: string;
+  readonly segmentId?: string;
+  readonly correlationId?: string;
+}
+
+export interface SurfaceOperationRequestContext {
+  readonly tenantId?: string;
+  readonly deadlineUnixMs: number;
+  readonly idempotencyKey?: string;
+  readonly story?: SurfaceStoryContext;
+}
+
+/**
+ * The only request shape a Console Surface may send to a Module Business API.
+ * The host resolves the connected implementation from the committed contract;
+ * callers never provide a URL, method, target header, or target credential.
+ */
+export interface SurfaceOperationRequest<Input = unknown> {
+  readonly protocol: typeof CONSOLE_SURFACE_GATEWAY_PROTOCOL;
+  readonly moduleId: string;
+  readonly moduleReleaseDigest: ConsoleSha256Digest;
+  readonly uiArtifactDigest: ConsoleSha256Digest;
+  readonly contractDigest: ConsoleSha256Digest;
+  readonly operationId: string;
+  readonly input: Input;
+  readonly context: ManagedServiceContext;
+  readonly requestContext: SurfaceOperationRequestContext;
+}
+
+export interface SurfaceOperationResponse<Output = unknown> {
+  readonly protocol: typeof CONSOLE_SURFACE_GATEWAY_PROTOCOL;
+  readonly moduleId: string;
+  readonly contractDigest: ConsoleSha256Digest;
+  readonly operationId: string;
+  readonly output: Output;
+  readonly requestContext: SurfaceOperationRequestContext;
+}
+
+export interface SurfaceApiClient {
+  invoke<Input, Output>(
+    request: SurfaceOperationRequest<Input>
+  ): Promise<SurfaceOperationResponse<Output>>;
 }
 
 export interface ModuleInventoryRequest {

@@ -1,5 +1,6 @@
 import { CONSOLE_MODULE_PROTOCOL } from "./contracts";
 import type {
+  ConsoleSha256Digest,
   FrameworkConsoleModuleManifest,
   FrameworkConsoleModuleSurface,
   FrameworkConsoleNavigation,
@@ -14,6 +15,7 @@ import type {
   ModuleConfigWriteResponse,
   ModuleInventoryRequest,
   ModuleInventorySnapshot,
+  SurfaceApiClient,
 } from "./contracts";
 
 export * from "./contracts";
@@ -49,8 +51,8 @@ export type ConsoleModuleManifest = FrameworkConsoleModuleManifest;
 
 export interface ConsoleModuleIdentity {
   readonly moduleId: string;
-  readonly moduleReleaseDigest: string;
-  readonly uiArtifactDigest: string;
+  readonly moduleReleaseDigest: ConsoleSha256Digest;
+  readonly uiArtifactDigest: ConsoleSha256Digest;
 }
 
 export interface ConsoleCapabilities {
@@ -125,6 +127,8 @@ export interface ConsoleClient {
   readonly identity: ConsoleModuleIdentity;
   readonly capabilities: ConsoleCapabilities;
   readonly managedServiceContext: ManagedServiceContext;
+  /** Invoke only operations granted by the selected Surface artifact. */
+  readonly surfaceApi: SurfaceApiClient;
   /** Read the authoritative inventory from the selected Managed Service. */
   inventory(request: ModuleInventoryRequest): Promise<ModuleInventorySnapshot>;
   /** Resolve declarative, data-only Action Contributions from the target. */
