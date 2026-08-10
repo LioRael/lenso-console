@@ -6,16 +6,24 @@ import {
 } from "@lenso/console-ui";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, beforeAll, describe, expect, test } from "vitest";
 
 import { SystemRegistryConsolePage } from "../../packages/system-registry-console/src/page";
 import { mockSystemConnection } from "../data/mock-system-connection";
 
 const roots: ReturnType<typeof createRoot>[] = [];
 
-afterEach(() => {
+beforeAll(() => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+});
+
+afterEach(async () => {
   for (const root of roots.splice(0)) {
-    root.unmount();
+    await act(async () => {
+      root.unmount();
+    });
   }
   document.body.replaceChildren();
 });
