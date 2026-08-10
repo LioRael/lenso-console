@@ -1,10 +1,9 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  CONSOLE_MODULE_API_VERSION,
   CONSOLE_MODULE_API_PROTOCOL,
   ConsoleHostError,
-  consoleCommands,
-  consoleQueries,
   defineConsoleManifest,
   isConsoleSha256Digest,
 } from "./index";
@@ -13,7 +12,7 @@ describe("console module API contract", () => {
   test("validates a manifest without requiring React or HTTP", () => {
     const manifest = defineConsoleManifest({
       consoleUi: "^1.0.0",
-      hostApi: "^1.0.0",
+      hostApi: "^2.0.0",
       moduleId: "acme/billing",
       protocol: CONSOLE_MODULE_API_PROTOCOL,
       surfaces: [
@@ -33,7 +32,7 @@ describe("console module API contract", () => {
     expect(() =>
       defineConsoleManifest({
         consoleUi: "^1.0.0",
-        hostApi: "^1.0.0",
+        hostApi: "^2.0.0",
         moduleId: "acme/billing",
         protocol: CONSOLE_MODULE_API_PROTOCOL,
         surfaces: [
@@ -44,22 +43,8 @@ describe("console module API contract", () => {
     ).toThrow("invalid or duplicated");
   });
 
-  test("keeps query and command descriptors transport-neutral", () => {
-    const query = consoleQueries.records({ entity: "Invoice", limit: 25 });
-    const command = consoleCommands.action<{ id: string }, { ok: true }>(
-      "approve"
-    )({ id: "invoice-1" });
-
-    expect(query).toEqual({
-      input: { entity: "Invoice", limit: 25 },
-      kind: "query",
-      name: "admin.records.list",
-    });
-    expect(command).toEqual({
-      input: { id: "invoice-1" },
-      kind: "command",
-      name: "approve",
-    });
+  test("publishes the major contract after retiring generic administration", () => {
+    expect(CONSOLE_MODULE_API_VERSION).toBe("2.0.0");
   });
 
   test("exposes stable host errors", () => {

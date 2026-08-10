@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   consolePathFromLocation,
+  isRetiredConsolePath,
   legacyConsoleTargetForPath,
 } from "./app/console-router-config";
 import {
@@ -34,9 +35,29 @@ describe("Console router", () => {
     expect(legacyConsoleTargetForPath("/console/overview", "/console")).toBe(
       "/runtime"
     );
+    expect(
+      legacyConsoleTargetForPath(
+        "/console/operations/admin-actions",
+        "/console"
+      )
+    ).toBeUndefined();
+    expect(
+      legacyConsoleTargetForPath("/console/data", "/console")
+    ).toBeUndefined();
     expect(legacyConsoleTargetForPath("/console/unknown", "/console")).toBe(
       undefined
     );
+  });
+
+  test("hard-rejects retired administration paths", () => {
+    expect(isRetiredConsolePath("/console/data", "/console")).toBe(true);
+    expect(isRetiredConsolePath("/console/data/identity", "/console")).toBe(
+      true
+    );
+    expect(
+      isRetiredConsolePath("/console/operations/admin-actions", "/console")
+    ).toBe(true);
+    expect(isRetiredConsolePath("/console/modules", "/console")).toBe(false);
   });
 
   test("normalizes the console base path once for module surfaces", () => {

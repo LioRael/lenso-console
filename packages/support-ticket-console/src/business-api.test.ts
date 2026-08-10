@@ -36,9 +36,6 @@ const createFakeClient = (
     has: () => true,
     list: () => managedServiceContext.capabilities,
   },
-  command: () => {
-    throw new Error("unused");
-  },
   identity: {
     moduleId: "support/tickets",
     moduleReleaseDigest: digest,
@@ -49,9 +46,6 @@ const createFakeClient = (
   },
   managedServiceContext,
   navigate: () => {},
-  query: () => {
-    throw new Error("unused");
-  },
   readConfig: () => {
     throw new Error("unused");
   },

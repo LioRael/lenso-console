@@ -3,19 +3,19 @@ import { hasConsoleCapability } from "./console-capability-matching";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 import type { ConsoleModuleMetadata } from "./console-module-resolver";
 
-export type ConsoleResolvedAdminActionContribution = {
-  kind: "admin_action";
+export type ConsoleResolvedOperationContribution = {
+  kind: "operation";
   key: string;
   label: string;
-  moduleName: string;
-  actionName: string;
+  contractId: string;
+  contractVersion: string;
+  operationId: string;
   input: Record<string, unknown>;
   requiredCapabilities: readonly string[];
   icon?: string | null;
 };
 
-export type ConsoleResolvedContribution =
-  ConsoleResolvedAdminActionContribution;
+export type ConsoleResolvedContribution = ConsoleResolvedOperationContribution;
 
 export type ResolveConsoleSlotContributionsOptions = {
   availableCapabilities?: readonly string[];
@@ -55,7 +55,7 @@ export function resolveConsoleSlotContributions(
         slot.id === options.slotId &&
         typeof slot.version === "number" &&
         slot.version > 0 &&
-        (slot.accepts ?? []).includes("admin_action")
+        (slot.accepts ?? []).includes("operation")
       ) {
         acceptedSlotVersions.add(slot.version);
       }
@@ -81,9 +81,10 @@ export function resolveConsoleSlotContributions(
         contribution.target !== options.slotId ||
         typeof targetVersion !== "number" ||
         !acceptedSlotVersions.has(targetVersion) ||
-        action?.kind !== "admin_action" ||
-        !action.module ||
-        !action.name
+        action?.kind !== "operation" ||
+        !action.contract_id ||
+        !action.contract_version ||
+        !action.operation_id
       ) {
         return;
       }
@@ -102,20 +103,22 @@ export function resolveConsoleSlotContributions(
         return;
       }
 
-      const resolvedContribution: ConsoleResolvedAdminActionContribution = {
-        actionName: action.name,
+      const resolvedContribution: ConsoleResolvedOperationContribution = {
+        contractId: action.contract_id,
+        contractVersion: action.contract_version,
         input,
         key: [
           module.module_name ?? `module-${moduleIndex}`,
           options.slotId,
           String(targetVersion),
-          action.module,
-          action.name,
+          action.contract_id,
+          action.contract_version,
+          action.operation_id,
           String(contributionIndex),
         ].join(":"),
-        kind: "admin_action",
-        label: contribution.label ?? action.name,
-        moduleName: action.module,
+        kind: "operation",
+        label: contribution.label ?? action.operation_id,
+        operationId: action.operation_id,
         requiredCapabilities,
       };
       if (contribution.icon !== undefined) {

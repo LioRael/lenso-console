@@ -11,7 +11,7 @@ import type { ConsoleUiComponents } from "./ui";
  * loaded after the Shell has been built, so it must not import an app-private
  * alias to reach the host.
  */
-export const CONSOLE_HOST_API_VERSION = "1" as const;
+export const CONSOLE_HOST_API_VERSION = "2" as const;
 
 export type ConsoleSurfaceArea =
   | "runtime"
@@ -81,12 +81,13 @@ export interface ConsoleActionInputValue {
   path: string;
 }
 
-export type ConsoleContributionKind = "admin_action";
+export type ConsoleContributionKind = "operation";
 
 export interface ConsoleContributionAction {
-  kind: "admin_action";
-  module: string;
-  name: string;
+  kind: "operation";
+  contract_id: string;
+  contract_version: string;
+  operation_id: string;
   input_bindings?: ConsoleActionInputBinding[];
 }
 
@@ -118,19 +119,19 @@ export interface ConsoleSlotContextField {
   required?: boolean;
 }
 
-export interface ConsoleResolvedAdminActionContribution {
-  kind: "admin_action";
+export interface ConsoleResolvedOperationContribution {
+  kind: "operation";
   key: string;
   label: string;
-  moduleName: string;
-  actionName: string;
+  contractId: string;
+  contractVersion: string;
+  operationId: string;
   input: Record<string, unknown>;
   requiredCapabilities: readonly string[];
   icon?: string | null;
 }
 
-export type ConsoleResolvedContribution =
-  ConsoleResolvedAdminActionContribution;
+export type ConsoleResolvedContribution = ConsoleResolvedOperationContribution;
 
 /** @deprecated Use ConsoleUiModule from the public module API for new modules. */
 export interface ConsoleModule {
@@ -155,16 +156,6 @@ export const consoleLocalizedLabel = (
   item: { label: string; localizedLabels?: ConsoleLocalizedLabels },
   locale: ConsoleLocale
 ) => item.localizedLabels?.[locale] ?? item.label;
-
-export type ConsoleAdminRecord = Record<string, unknown>;
-
-export interface ConsoleAdminListResponse {
-  data: ConsoleAdminRecord[];
-  page: {
-    limit: number;
-    next_cursor: string | null;
-  };
-}
 
 export interface ConsoleConfigValue {
   desired_value: unknown;
@@ -516,23 +507,6 @@ export interface ConsoleContextApi {
 
 export interface ConsoleHostApi {
   version: typeof CONSOLE_HOST_API_VERSION;
-  adminData: {
-    useInvokeAction: () => {
-      error: Error;
-      isError: boolean;
-      isPending: boolean;
-      mutate: (request: {
-        actionName: string;
-        input: Record<string, unknown>;
-        moduleName: string;
-      }) => void;
-    };
-    useRecords: (request: {
-      entityName: string;
-      limit?: number;
-      moduleName: string;
-    }) => ConsoleQueryResult<ConsoleAdminListResponse>;
-  };
   capabilities: {
     useAvailable: () => readonly string[];
   };

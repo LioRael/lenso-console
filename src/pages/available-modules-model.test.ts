@@ -22,7 +22,7 @@ const catalog: AvailableModulesCatalog = {
         {
           exportName: "billingConsoleModule",
           packageName: "@vendor/lenso-billing-console",
-          route: "/data/billing",
+          route: "/billing/invoices",
         },
       ],
       manifestReference: "https://example.com/lenso/module/v1/manifest",

@@ -12,10 +12,10 @@ export const legacyConsoleRedirects = {
   "/operations/dead-letters": "/runtime",
   "/operations/functions": "/runtime",
   "/operations/remote-calls": "/runtime",
-  "/operations/admin-actions": "/changes",
-  "/data": "/modules",
   "/config": "/settings",
 } as const;
+
+const retiredConsolePaths = ["/data", "/operations/admin-actions"] as const;
 
 export type LegacyConsolePath = keyof typeof legacyConsoleRedirects;
 export type LegacyConsoleTarget =
@@ -51,4 +51,14 @@ export function legacyConsoleTargetForPath(
 ): LegacyConsoleTarget | undefined {
   const path = consolePathFromLocation(pathname, basepath);
   return legacyConsoleRedirects[path as LegacyConsolePath];
+}
+
+export function isRetiredConsolePath(
+  pathname: string,
+  basepath = consoleBasePath
+) {
+  const path = consolePathFromLocation(pathname, basepath);
+  return retiredConsolePaths.some(
+    (retiredPath) => path === retiredPath || path.startsWith(`${retiredPath}/`)
+  );
 }

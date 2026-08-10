@@ -24,6 +24,7 @@ use super::console_artifacts::{
 use crate::composition::{CONSOLE_SERVICE_ID, ConsoleServiceComposition, official_composition};
 
 pub const MODULE_NAME: &str = "lenso/console-shell";
+const RETIRED_CONSOLE_CONTRACT: &str = "retired_console_administration_contract";
 
 const NO_MIGRATIONS: &[Migration] = &[];
 
@@ -109,8 +110,8 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
         .route("/health/authority", get(authority))
         .route("/api", any(not_found))
         .route("/api/{*path}", any(not_found))
-        .route("/admin", any(not_found))
-        .route("/admin/{*path}", any(not_found))
+        .route("/admin", any(retired_console_contract))
+        .route("/admin/{*path}", any(retired_console_contract))
         .route("/health", any(not_found))
         .route("/health/{*path}", any(not_found))
         .route("/oauth/{*path}", any(not_found))
@@ -289,6 +290,23 @@ async fn not_found() -> StatusCode {
     StatusCode::NOT_FOUND
 }
 
+#[derive(Serialize)]
+struct RetiredConsoleContractResponse {
+    code: &'static str,
+    message: &'static str,
+}
+
+async fn retired_console_contract() -> Response {
+    (
+        StatusCode::GONE,
+        axum::Json(RetiredConsoleContractResponse {
+            code: RETIRED_CONSOLE_CONTRACT,
+            message: "Generic Console administration contracts were retired; use a Module Business API Surface.",
+        }),
+    )
+        .into_response()
+}
+
 #[utoipa::path(
     get,
     path = "/api/console/v1/composition",
@@ -347,6 +365,13 @@ mod tests {
             crate::composition::COMPOSITION_SCHEMA,
             "lenso.console-service-composition.v2"
         );
+    }
+
+    #[tokio::test]
+    async fn legacy_administration_contracts_are_explicitly_rejected() {
+        let response = retired_console_contract().await;
+
+        assert_eq!(response.status(), StatusCode::GONE);
     }
 
     #[test]

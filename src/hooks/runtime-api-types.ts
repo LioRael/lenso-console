@@ -10,46 +10,6 @@ export type RuntimeRetryPolicyDeclaration = {
   max_attempts: number;
 };
 
-export type AdminActionInvocationDto = {
-  correlation_id: string;
-  request_id: string;
-  story_node_id: string;
-};
-
-export type AdminActionInvocationItem = {
-  action_name: string;
-  capability?: string | null;
-  correlation_id: string;
-  duration_ms: number;
-  error_code?: string | null;
-  error_message?: string | null;
-  id: string;
-  input_summary?: string | null;
-  label: string;
-  module_name: string;
-  occurred_at: string;
-  request_id?: string | null;
-  result_summary?: string | null;
-  span_id?: string | null;
-  success: boolean;
-  trace_id?: string | null;
-};
-
-export type AdminActionInvocationListResponse = {
-  data: AdminActionInvocationItem[];
-  page: PageInfo;
-};
-
-export type AdminActionInvokeRequest = {
-  confirmation_phrase?: string | null;
-  input?: unknown;
-};
-
-export type AdminActionInvokeResponse = {
-  data: unknown;
-  invocation: AdminActionInvocationDto;
-};
-
 export type AdminRemoteProxyCallItem = {
   capability?: string | null;
   correlation_id: string;

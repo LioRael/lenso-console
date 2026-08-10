@@ -128,9 +128,6 @@ function fakeClient(operations: string[]): ConsoleClient {
   };
   return {
     capabilities: { has: () => true, list: () => context.capabilities },
-    command: async () => {
-      throw new Error("unused");
-    },
     identity: {
       moduleId: "support/tickets",
       moduleReleaseDigest: digest,
@@ -141,9 +138,6 @@ function fakeClient(operations: string[]): ConsoleClient {
     },
     managedServiceContext: context,
     navigate: () => undefined,
-    query: async () => {
-      throw new Error("unused");
-    },
     readConfig: async () => {
       throw new Error("unused");
     },

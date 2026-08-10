@@ -23,7 +23,6 @@ import {
   useRuntimeStories,
 } from "../../hooks/use-runtime-queries";
 import { isApiMode } from "../../lib/http-client";
-import { adminActionsPath } from "../../pages/admin-actions-model";
 import {
   functionsPath,
   operationsPath,
@@ -54,7 +53,6 @@ type ConsoleContextValue = {
   openStory: (storyId: string, nodeId?: string) => void;
   openStoryTarget: (target: RuntimeStoryTargetInput) => void;
   openRemoteCalls: (correlationId?: string, selectedId?: string) => void;
-  openAdminActions: (correlationId?: string, selectedId?: string) => void;
   clearStoryTarget: () => void;
   searchRuntime: (query: string) => SearchResult[];
   selectSearchResult: (result: SearchResult) => void;
@@ -118,21 +116,6 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
         : {};
       void navigate({
         to: remoteProxyCallsPath(filters),
-      });
-    },
-    [navigate]
-  );
-
-  const openAdminActions = useCallback(
-    (nextCorrelationId?: string, selectedId?: string) => {
-      const filters = nextCorrelationId
-        ? {
-            correlationId: nextCorrelationId,
-            ...(selectedId ? { selectedId } : {}),
-          }
-        : {};
-      void navigate({
-        to: adminActionsPath(filters),
       });
     },
     [navigate]
@@ -247,7 +230,6 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
       openStory,
       openStoryTarget,
       openRemoteCalls,
-      openAdminActions,
       clearStoryTarget,
       searchRuntime,
       selectSearchResult,
@@ -257,7 +239,6 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
       clearStoryTarget,
       commandOpen,
       openTimeline,
-      openAdminActions,
       openRemoteCalls,
       openStory,
       openStoryTarget,

@@ -12,7 +12,7 @@ import {
 
 const manifest = {
   consoleUi: "^1.0.0",
-  hostApi: "^1.0.0",
+  hostApi: "^2.0.0",
   moduleId: "acme/billing",
   protocol: CONSOLE_MODULE_API_PROTOCOL,
   surfaces: [

@@ -21,7 +21,7 @@ import type {
 export * from "./contracts";
 
 export const CONSOLE_MODULE_API_PROTOCOL = CONSOLE_MODULE_PROTOCOL;
-export const CONSOLE_MODULE_API_VERSION = "1.0.0" as const;
+export const CONSOLE_MODULE_API_VERSION = "2.0.0" as const;
 
 export type ConsoleSurfaceIcon =
   | "activity"
@@ -60,69 +60,6 @@ export interface ConsoleCapabilities {
   readonly has: (capability: string) => boolean;
 }
 
-export interface ConsoleRecord {
-  readonly id?: string;
-  readonly [key: string]: unknown;
-}
-
-export interface ConsoleRecordPage<T extends ConsoleRecord = ConsoleRecord> {
-  readonly data: readonly T[];
-  readonly page: {
-    readonly limit: number;
-    readonly nextCursor: string | null;
-  };
-}
-
-export interface RecordsQueryInput {
-  readonly entity: string;
-  readonly limit?: number;
-  readonly cursor?: string;
-}
-
-export interface ConsoleQueryOperation<Result> {
-  readonly kind: "query";
-  readonly name: string;
-  readonly input: unknown;
-  readonly result?: Result;
-}
-
-export interface ConsoleCommandOperation<Input, Result> {
-  readonly kind: "command";
-  readonly name: string;
-  readonly input: Input;
-  readonly result?: Result;
-}
-
-export type ConsoleCommandFactory<Input, Result> = (
-  input: Input
-) => ConsoleCommandOperation<Input, Result>;
-
-const createCommandFactory =
-  <Input, Result = unknown>(
-    name: string
-  ): ConsoleCommandFactory<Input, Result> =>
-  (input) => ({
-    input,
-    kind: "command",
-    name,
-  });
-
-export const consoleQueries = {
-  named<Result>(name: string, input: unknown): ConsoleQueryOperation<Result> {
-    return { input, kind: "query", name };
-  },
-  records<T extends ConsoleRecord = ConsoleRecord>(
-    input: RecordsQueryInput
-  ): ConsoleQueryOperation<ConsoleRecordPage<T>> {
-    return { input, kind: "query", name: "admin.records.list" };
-  },
-} as const;
-
-export const consoleCommands = {
-  action: createCommandFactory,
-  named: createCommandFactory,
-} as const;
-
 export interface ConsoleClient {
   readonly identity: ConsoleModuleIdentity;
   readonly capabilities: ConsoleCapabilities;
@@ -143,13 +80,6 @@ export interface ConsoleClient {
   writeConfig(
     request: ModuleConfigWriteRequest
   ): Promise<ModuleConfigWriteResponse>;
-  /** @deprecated Use the typed Managed Service operations above. */
-  query<Result>(operation: ConsoleQueryOperation<Result>): Promise<Result>;
-  /** @deprecated Use resolveActionContributions or writeConfig. */
-  command<Input, Result>(
-    operation: ConsoleCommandOperation<Input, Result>,
-    options?: { readonly idempotencyKey?: string }
-  ): Promise<Result>;
   navigate(path: string, options?: { readonly replace?: boolean }): void;
 }
 

@@ -615,7 +615,7 @@ describe("service center model", () => {
           operations: [
             {
               capability: "support_ticket.tickets.write",
-              kind: "admin_action",
+              kind: "runtime_function",
               links: {
                 remoteCalls: "/operations/remote-calls?module=support-ticket",
                 runtime: "/operations/functions?module=support-ticket",

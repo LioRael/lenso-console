@@ -16,7 +16,7 @@ import {
 export const manifest = defineConsoleManifest({
   protocol: CONSOLE_MODULE_API_PROTOCOL,
   moduleId: "acme/billing",
-  hostApi: "^1.0.0",
+  hostApi: "^2.0.0",
   consoleUi: "^2.0.0",
   surfaces: [
     {

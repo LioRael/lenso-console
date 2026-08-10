@@ -470,7 +470,6 @@ export type ServiceOperationKind =
   | "http_route"
   | "runtime_function"
   | "event_handler"
-  | "admin_action"
   | string;
 
 export type ServiceOperationLinks = {
@@ -1092,7 +1091,10 @@ export function availableModuleInstallSteps({
           "module source is registered",
           undefined,
           undefined,
-          installEvidence(evidence, "module appears in /admin/data/modules")
+          installEvidence(
+            evidence,
+            "module appears in the committed module inventory"
+          )
         ),
         installStep(
           "apply-plan",
@@ -1141,7 +1143,10 @@ export function availableModuleInstallSteps({
           "module source is registered",
           undefined,
           undefined,
-          installEvidence(evidence, "module appears in /admin/data/modules")
+          installEvidence(
+            evidence,
+            "module appears in the committed module inventory"
+          )
         ),
         installStep(
           "apply-plan",
@@ -1190,7 +1195,10 @@ export function availableModuleInstallSteps({
           "module source is registered",
           undefined,
           undefined,
-          installEvidence(evidence, "module appears in /admin/data/modules")
+          installEvidence(
+            evidence,
+            "module appears in the committed module inventory"
+          )
         ),
         installStep(
           "apply-plan",
@@ -1483,7 +1491,7 @@ function installEvidence(
   const serviceSource = evidence.installState?.serviceSource;
   const transport = serviceSourceTransportLabel(serviceSource);
   if (moduleRegistered === true) {
-    return "module registered in /admin/data/modules";
+    return "module registered in the committed module inventory";
   }
   if (linkedSource?.configured) {
     return `LENSO_MODULE_*_ENABLED=${String(linkedSource.desiredEnabled)} in ${linkedSource.envFile}`;
@@ -1492,7 +1500,7 @@ function installEvidence(
     return `service provider source configured in ${serviceSource.envFile}${transport ? ` (${transport})` : ""}`;
   }
   if (moduleRegistered === false) {
-    return "module not registered in /admin/data/modules";
+    return "module not registered in the committed module inventory";
   }
   return fallback;
 }
@@ -1733,7 +1741,7 @@ function runtimeDoctorCheck({
       "runtime",
       "runtime",
       "ok",
-      "module registered in /admin/data/modules"
+      "module registered in the committed module inventory"
     );
   }
   if (linkedSource?.restartPending) {
@@ -1777,7 +1785,7 @@ function runtimeDoctorCheck({
     "runtime",
     "runtime",
     "fix",
-    "module not registered in /admin/data/modules",
+    "module not registered in the committed module inventory",
     addCommand
   );
 }

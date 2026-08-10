@@ -10,7 +10,7 @@ export const CONSOLE_MODULE_PROTOCOL = "lenso.console-module.v1" as const;
 export const CONSOLE_MODULE_PROTOCOL_MAJOR = 1 as const;
 export const CONSOLE_UI_ESM_FORMAT = "console_ui_esm" as const;
 export const CONSOLE_BRIDGE_PROTOCOL = "lenso.console-bridge.v1" as const;
-export const CONSOLE_HOST_API_VERSION = "1.0.0" as const;
+export const CONSOLE_HOST_API_VERSION = "2.0.0" as const;
 export const CONSOLE_UI_VERSION = "2.0.0" as const;
 
 export const MODULE_OPERATIONS_PROTOCOL =
@@ -239,9 +239,9 @@ export interface ResolvedActionContribution {
   readonly targetVersion: number;
   readonly label: string;
   readonly action: {
-    readonly kind: "admin_action";
-    readonly module: string;
-    readonly name: string;
+    readonly contractId: string;
+    readonly contractVersion: string;
+    readonly operationId: string;
     readonly inputBindings?: readonly {
       readonly input: string;
       readonly value: { readonly kind: "slot_context"; readonly path: string };

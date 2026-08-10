@@ -22,7 +22,6 @@ import {
 import { consoleProductCopy } from "../console-design/copy";
 import {
   runtimeDemoServices,
-  runtimeServiceRowsFromCenterRows,
   type RuntimeServiceRow,
 } from "./runtime-service-model";
 
@@ -31,9 +30,7 @@ export function RuntimePage() {
   const copy = consoleProductCopy(locale);
   const serviceQuery = useRuntimeServices();
   const services: readonly RuntimeServiceRow[] =
-    serviceQuery.mode === "demo"
-      ? runtimeDemoServices
-      : runtimeServiceRowsFromCenterRows(serviceQuery.rows);
+    serviceQuery.mode === "demo" ? runtimeDemoServices : serviceQuery.rows;
   const [tabIndex, setTabIndex] = useState(0);
   const tab = copy.runtime.tabs[tabIndex]!;
   const [selectedId, setSelectedId] = useState<string | null>(null);

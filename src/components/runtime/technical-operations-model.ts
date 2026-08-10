@@ -14,17 +14,11 @@ export type TechnicalOperationGroup = {
   operations: TechnicalOperationView[];
 };
 
-export type TechnicalOperationOperationsTarget =
-  | {
-      kind: "remote_calls";
-      correlationId: string;
-      selectedId?: string;
-    }
-  | {
-      kind: "admin_actions";
-      correlationId: string;
-      selectedId?: string;
-    };
+export type TechnicalOperationOperationsTarget = {
+  kind: "remote_calls";
+  correlationId: string;
+  selectedId?: string;
+};
 
 export function buildTechnicalOperationGroups(input: {
   executionOperations: TechnicalOperation[];
@@ -133,9 +127,6 @@ export function technicalOperationSourceLabel(operation: TechnicalOperation) {
     case "remote_runtime": {
       return "remote runtime";
     }
-    case "admin_action": {
-      return "admin action";
-    }
     default: {
       return "otel";
     }
@@ -145,10 +136,6 @@ export function technicalOperationSourceLabel(operation: TechnicalOperation) {
 export function technicalOperationSummary(operation: TechnicalOperation) {
   if (operation.source === "remote_runtime") {
     return remoteRuntimeOperationSummary(operation);
-  }
-
-  if (operation.source === "admin_action") {
-    return adminActionOperationSummary(operation);
   }
 
   if (operation.source !== "remote_proxy") {
@@ -183,46 +170,13 @@ export function technicalOperationOperationsTarget(
     };
   }
 
-  if (operation.source === "admin_action") {
-    return {
-      kind: "admin_actions",
-      correlationId: operation.correlationId,
-      ...optionalSelectedId(adminActionId(operation)),
-    };
-  }
-
   return null;
-}
-
-function adminActionOperationSummary(operation: TechnicalOperation) {
-  const moduleName = stringAttribute(operation.attributes.module_name);
-  const actionName = stringAttribute(operation.attributes.action_name);
-  const capability = stringAttribute(operation.attributes.capability);
-  const requestId = stringAttribute(operation.attributes.request_id);
-  const errorCode = stringAttribute(operation.attributes.error_code);
-  const parts = [
-    moduleName,
-    actionName,
-    capability ? `capability ${capability}` : undefined,
-    requestId ? `request ${requestId}` : undefined,
-    errorCode ? `error ${errorCode}` : undefined,
-  ].filter(Boolean);
-
-  return parts.length > 0 ? parts.join(" / ") : undefined;
 }
 
 function remoteProxyCallId(operation: TechnicalOperation) {
   return (
     stringAttribute(operation.attributes.remote_proxy_call_id) ??
     stripKnownPrefix(operation.id, "remote_proxy:")
-  );
-}
-
-function adminActionId(operation: TechnicalOperation) {
-  return (
-    stringAttribute(operation.attributes.admin_action_id) ??
-    operation.relatedNodeId ??
-    stripKnownPrefix(operation.id, "admin_action:")
   );
 }
 
