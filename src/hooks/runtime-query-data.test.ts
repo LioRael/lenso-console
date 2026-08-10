@@ -1,13 +1,8 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  adminActionInvocations,
-  remoteProxyCalls,
-  runtimeStories,
-} from "../data/mock-runtime";
+import { remoteProxyCalls, runtimeStories } from "../data/mock-runtime";
 import { queryDataWithMockFallback } from "./runtime-query-data";
 import {
-  filterAdminActionInvocationsForQuery,
   filterRemoteProxyCallsForQuery,
   normalizeFunctionRunDetailForConsole,
   normalizeFunctionRunForConsole,
@@ -47,33 +42,6 @@ describe("runtime query data helpers", () => {
         isError: true,
       })
     ).toBe(runtimeStories);
-  });
-});
-
-describe("admin action query helpers", () => {
-  test("filters mock admin actions by module, capability, and result", () => {
-    const page = filterAdminActionInvocationsForQuery(adminActionInvocations, {
-      capability: "crm_service.contacts.sync",
-      limit: 10,
-      moduleName: "crm-service",
-      success: true,
-    });
-
-    expect(page.data.map((action) => action.id)).toEqual([
-      "adminaction_req_admin_contact_sync",
-    ]);
-    expect(page.page.next_created_before).toBeNull();
-  });
-
-  test("combines action filter with cursor pagination", () => {
-    const page = filterAdminActionInvocationsForQuery(adminActionInvocations, {
-      actionName: "sync_contacts",
-      createdBefore: "2026-06-03T10:10:00.000Z",
-      limit: 1,
-    });
-
-    expect(page.data).toEqual([]);
-    expect(page.page.next_created_before).toBeNull();
   });
 });
 

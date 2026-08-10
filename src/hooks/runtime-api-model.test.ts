@@ -690,6 +690,29 @@ describe("runtime API model normalization", () => {
     });
   });
 
+  test("rejects technical operations from the retired administration source", () => {
+    expect(
+      normalizeTechnicalOperations({
+        data: [
+          {
+            attributes: {},
+            category: "admin",
+            correlation_id: "corr_legacy",
+            duration_ms: 1,
+            ended_at: "2026-06-01T12:00:01.001Z",
+            id: "legacy-admin-operation",
+            name: "Retired operation",
+            related_node_id: null,
+            source: "admin_action",
+            started_at: "2026-06-01T12:00:01.000Z",
+            status: "ok",
+            story_id: "corr_legacy",
+          },
+        ],
+      })
+    ).toEqual([]);
+  });
+
   test("normalizes execution log responses", () => {
     const logs = normalizeExecutionLogs({
       data: [

@@ -492,7 +492,6 @@ pub(super) fn timeline_item_type(item_type: &str, status: &str, attempts: i32) -
         "event" | "outbox_event" => "outbox_event",
         "function" | "function_run" => "function_run",
         "remote_proxy_call" => "remote_proxy_call",
-        "admin_action" => "admin_action",
         _ => "runtime",
     }
 }

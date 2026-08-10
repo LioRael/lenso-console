@@ -397,15 +397,6 @@ const systemCommandNavigationItems = [
     path: "/operations/remote-calls",
   },
   {
-    keywords: "module action operations",
-    label: "Admin Actions",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/operations/admin-actions",
-  },
-  {
     keywords: "queue pressure",
     label: "Queues",
     moduleId: "host",
@@ -422,15 +413,6 @@ const systemCommandNavigationItems = [
       workspace: SYSTEM_WORKSPACE,
     },
     path: "/modules",
-  },
-  {
-    keywords: "schema admin business data",
-    label: "Data",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/data",
   },
   {
     keywords: "settings configuration",

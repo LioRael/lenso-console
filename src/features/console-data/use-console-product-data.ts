@@ -1,24 +1,24 @@
-import type { ConsoleNavigationMetadata } from "@lenso/console-ui";
+import type {
+  ConsoleManagedService,
+  ConsoleNavigationMetadata,
+  ConsoleSystemConnection,
+} from "@lenso/console-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import type { ConsoleModuleMetadata } from "../../app/console-module-resolver";
 import {
-  fetchServiceModuleLifecycle,
-  fetchServiceSystem,
-  fetchServiceSystemReleaseTrain,
-  serviceModuleLifecycleQueryKey,
-  serviceSystemQueryKey,
-  serviceSystemReleaseTrainQueryKey,
-} from "../../data/available-modules";
-import type { AdminActionInvocationItem } from "../../hooks/runtime-api-types";
+  useConsoleArtifacts,
+  type ConsoleArtifactReceipt,
+} from "../../app/console-artifact-query";
+import { useConsoleSystemConnection } from "../../app/console-system-connection-api";
+import { useConsoleManagedServices } from "../../app/console-system-registry-api";
 import {
-  useAdminActionInvocations,
   useRuntimeSummary,
+  type RuntimeSummaryItem,
 } from "../../hooks/use-runtime-queries";
 import { httpClient, isApiMode } from "../../lib/http-client";
 import type { DeliveryConsoleProjection } from "../../pages/delivery-console";
-import { serviceCenterRows } from "../../pages/services-model";
+import type { RuntimeServiceRow } from "../runtime/runtime-service-model";
 
 export type ConsoleDataMode = "live" | "demo";
 
@@ -31,42 +31,15 @@ export type HomeEvidenceItem = {
 };
 
 export function useSystemInventory() {
-  const query = useQuery({
-    queryKey: serviceSystemQueryKey,
-    queryFn: () => fetchServiceSystem(),
-  });
+  const query = useConsoleSystemConnection();
   const rows = useMemo(() => {
-    const { data } = query;
-    if (!data) {
-      return [];
+    if (!isApiMode()) {
+      return demoSystemInventoryRows;
     }
-    const moduleRows = data.modules.map((module) => ({
-      id: `module.${module.name}`,
-      kind: "Module",
-      name: module.name,
-      owner: module.owner || "Unassigned",
-      state: data.status === "ready" ? "Healthy" : "Degraded",
-      capabilities: module.capabilities,
-      dependencies: module.dependencies,
-    }));
-    const serviceRows = data.services.map((service) => ({
-      id: `service.${service.name}`,
-      kind: "Service",
-      name: service.name,
-      owner: service.target,
-      state: data.status === "ready" ? "Healthy" : "Degraded",
-      capabilities: service.modules,
-      dependencies: [] as string[],
-    }));
-    return [...moduleRows, ...serviceRows];
+    return systemInventoryRows(query.data);
   }, [query.data]);
   return { ...query, mode: dataMode(), rows };
 }
-
-type ModulesResponse = {
-  modules: ConsoleModuleMetadata[];
-  refreshed_at: string | null;
-};
 
 export type ModuleRegistrySurfaceRow = {
   area: string;
@@ -116,54 +89,6 @@ export const demoModuleRegistryRows = [
   {
     capabilities: [],
     error: null,
-    id: "identity",
-    name: "identity",
-    source: "first_party",
-    state: "loaded",
-    surfaces: [
-      {
-        area: "data",
-        exportName: "identityConsoleModule",
-        label: "Identity",
-        navigation: {
-          group: { id: "overview", label: "Overview" },
-          order: 10,
-          workspace: { id: "identity", label: "Identity" },
-        },
-        packageName: "@lenso/identity-console",
-        presentation: "declarative",
-        requiredCapabilities: [],
-        route: "/data/identity",
-      },
-    ],
-  },
-  {
-    capabilities: [],
-    error: null,
-    id: "remote-crm",
-    name: "remote-crm",
-    source: "service",
-    state: "loaded",
-    surfaces: [
-      {
-        area: "data",
-        exportName: "remoteCrmConsoleModule",
-        label: "Remote CRM",
-        navigation: {
-          group: { id: "customers", label: "Customers" },
-          order: 20,
-          workspace: { id: "crm", label: "CRM" },
-        },
-        packageName: "@lenso/remote-crm-console",
-        presentation: "esm",
-        requiredCapabilities: [],
-        route: "/data/remote-crm",
-      },
-    ],
-  },
-  {
-    capabilities: [],
-    error: null,
     id: "lenso/system-registry",
     name: "lenso/system-registry",
     source: "first_party",
@@ -186,44 +111,32 @@ export const demoModuleRegistryRows = [
 ] satisfies ModuleRegistryRow[];
 
 export function useModuleRegistry() {
-  const query = useQuery({
-    enabled: isApiMode(),
-    queryKey: ["modules", "registry"],
-    queryFn: () =>
-      httpClient.get("api/console/v1/modules").json<ModulesResponse>(),
-  });
-  const rows = useMemo<ModuleRegistryRow[]>(
-    () =>
-      query.data
-        ? query.data.modules.map(moduleMetadataRow)
-        : demoModuleRegistryRows,
-    [query.data]
-  );
+  const query = useConsoleArtifacts();
+  const rows = useMemo<ModuleRegistryRow[]>(() => {
+    if (!isApiMode()) {
+      return demoModuleRegistryRows;
+    }
+    return query.data?.artifacts.map(moduleRegistryRowFromArtifact) ?? [];
+  }, [query.data]);
   return { ...query, mode: dataMode(), rows };
 }
 
 export function useRuntimeServices() {
-  const query = useQuery({
-    queryKey: serviceModuleLifecycleQueryKey,
-    queryFn: () => fetchServiceModuleLifecycle(),
-  });
-  const rows = useMemo(
-    () => serviceCenterRows(query.data ?? { modules: [] }),
+  const query = useConsoleManagedServices();
+  const rows = useMemo<RuntimeServiceRow[]>(
+    () => query.data?.map(runtimeServiceRowFromManagedService) ?? [],
     [query.data]
   );
   return { ...query, mode: dataMode(), rows };
 }
 
 export function useChangeEvidence() {
-  const invocations = useAdminActionInvocations({ limit: 20 });
+  const summary = useRuntimeSummary();
   const rows = useMemo(
-    () =>
-      (invocations.data?.pages.flatMap((page) => page.data) ?? []).map(
-        changeRowFromInvocation
-      ),
-    [invocations.data]
+    () => (summary.data?.recentActivity ?? []).map(changeRowFromRuntime),
+    [summary.data]
   );
-  return { ...invocations, mode: dataMode(), rows };
+  return { ...summary, mode: dataMode(), rows };
 }
 
 export function useDeliveryEvidence() {
@@ -236,11 +149,7 @@ export function useDeliveryEvidence() {
         .json<DeliveryConsoleProjection>(),
     retry: false,
   });
-  const releaseTrain = useQuery({
-    queryKey: serviceSystemReleaseTrainQueryKey,
-    queryFn: () => fetchServiceSystemReleaseTrain(),
-  });
-  return { current, mode: dataMode(), releaseTrain };
+  return { current, mode: dataMode() };
 }
 
 export function useHomeEvidence() {
@@ -277,39 +186,143 @@ export function mergeHomeEvidence(
     .slice(0, 8);
 }
 
-function moduleMetadataRow(module: ConsoleModuleMetadata): ModuleRegistryRow {
-  const surfaces = (module.console ?? []).map((surface) => ({
-    area: surface.area ?? "runtime",
-    label: surface.label ?? surface.name ?? "Surface",
-    presentation: surface.presentation?.kind ?? "declarative",
-    route: surface.route ?? "-",
+function moduleRegistryRowFromArtifact(
+  artifact: ConsoleArtifactReceipt
+): ModuleRegistryRow {
+  const surfaces = artifact.manifest.surfaces.map((surface) => ({
+    area: surface.area,
+    label: surface.label,
+    presentation: "esm",
+    route: surface.path,
     ...(surface.navigation ? { navigation: surface.navigation } : {}),
-    ...(surface.required_capabilities
-      ? { requiredCapabilities: surface.required_capabilities }
+    ...(surface.requiredCapabilities
+      ? { requiredCapabilities: surface.requiredCapabilities }
       : {}),
   }));
-  const id = module.module_name ?? "unknown";
+  const id = artifact.moduleId;
   return {
-    capabilities: surfaces.flatMap(() => [] as string[]),
-    error: module.error ?? null,
+    capabilities: [
+      ...new Set(
+        surfaces.flatMap((surface) => surface.requiredCapabilities ?? [])
+      ),
+    ],
+    error: null,
     id,
     name: titleCase(id),
-    source: "linked",
-    state: module.status ?? "loaded",
+    source: "runtime_bundle",
+    state: "loaded",
     surfaces,
   };
 }
 
-function changeRowFromInvocation(item: AdminActionInvocationItem) {
+type SystemInventoryRow = {
+  capabilities: readonly string[];
+  dependencies: readonly string[];
+  id: string;
+  kind: string;
+  name: string;
+  owner: string;
+  state: string;
+};
+
+function systemInventoryRows(
+  connection: ConsoleSystemConnection | null | undefined
+): SystemInventoryRow[] {
+  if (!connection) {
+    return [];
+  }
+  const moduleRows = connection.modules.map((module) => ({
+    id: `module.${module.moduleId}`,
+    kind: "Module",
+    name: module.moduleId,
+    owner: module.serviceId ?? "Linked Module",
+    state: module.status === "connected" ? "Healthy" : "Degraded",
+    capabilities: module.surfaceApiGrant?.operationIds ?? [],
+    dependencies: [] as string[],
+  }));
+  const serviceRows = connection.services.map((service) => ({
+    id: `service.${service.serviceId}`,
+    kind: "Service",
+    name: service.serviceId,
+    owner: service.servicePrincipal,
+    state: service.status === "connected" ? "Healthy" : "Degraded",
+    capabilities: [] as string[],
+    dependencies: [] as string[],
+  }));
+  return [...moduleRows, ...serviceRows];
+}
+
+function runtimeServiceRowFromManagedService(
+  service: ConsoleManagedService
+): RuntimeServiceRow {
   return {
-    detail:
-      item.input_summary ?? item.result_summary ?? `${item.duration_ms} ms`,
+    errorRate: null,
+    id: service.serviceId,
+    p95Ms: null,
+    providerName: service.presentation?.owner ?? service.serviceId,
+    region: service.presentation?.environment ?? "unknown",
+    replicas: null,
+    serviceId: service.serviceId,
+    state: service.connectionState,
+    timeline: [],
+    version: service.presentation?.version ?? "—",
+  };
+}
+
+const demoSystemInventoryRows: SystemInventoryRow[] = [
+  {
+    capabilities: ["support.ticket.read"],
+    dependencies: ["billing.invoice.read"],
+    id: "module.support-ticket",
+    kind: "Module",
+    name: "support-ticket",
+    owner: "support",
+    state: "Healthy",
+  },
+  {
+    capabilities: ["billing.invoice.read"],
+    dependencies: [],
+    id: "module.invoice",
+    kind: "Module",
+    name: "invoice",
+    owner: "billing",
+    state: "Healthy",
+  },
+  {
+    capabilities: ["support-ticket"],
+    dependencies: [],
+    id: "service.support",
+    kind: "Service",
+    name: "support",
+    owner: "local",
+    state: "Healthy",
+  },
+  {
+    capabilities: ["invoice"],
+    dependencies: [],
+    id: "service.billing",
+    kind: "Service",
+    name: "billing",
+    owner: "kubernetes",
+    state: "Healthy",
+  },
+] as const;
+
+function changeRowFromRuntime(item: RuntimeSummaryItem) {
+  return {
+    detail: item.lastError ?? `${item.type} runtime work`,
     id: item.id,
-    module: item.module_name,
-    name: item.label || item.action_name,
-    occurredAt: item.occurred_at,
-    state: item.success ? "Verified" : "Needs attention",
-    tone: item.success ? ("success" as const) : ("error" as const),
+    module: item.type,
+    name: item.name,
+    occurredAt: item.createdAt,
+    state:
+      item.status === "failed" || item.status === "dead"
+        ? "Needs attention"
+        : "Verified",
+    tone:
+      item.status === "failed" || item.status === "dead"
+        ? ("error" as const)
+        : ("success" as const),
   };
 }
 

@@ -24,7 +24,7 @@ const artifact: FrameworkConsoleUiEsmArtifact = {
   format: CONSOLE_UI_ESM_FORMAT,
   manifest: {
     consoleUi: "^2.0.0",
-    hostApi: "^1.0.0",
+    hostApi: "^2.0.0",
     moduleId: "acme/support-console",
     protocol: CONSOLE_MODULE_PROTOCOL,
     surfaces: [

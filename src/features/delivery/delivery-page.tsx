@@ -66,18 +66,7 @@ export function DeliveryPage() {
       );
     }
 
-    const candidates = (delivery.releaseTrain.data?.releases ?? []).map(
-      (release) =>
-        releaseCandidate(
-          {
-            gates: `${release.services} / ${release.modules}`,
-            id: release.id,
-            name: `${release.systemName} · ${release.environment}`,
-            status: release.status,
-          },
-          copy.delivery
-        )
-    );
+    const candidates: ReleaseCandidate[] = [];
     if (
       projection?.release &&
       !candidates.some(
@@ -97,12 +86,7 @@ export function DeliveryPage() {
       );
     }
     return candidates;
-  }, [
-    copy.delivery,
-    delivery.releaseTrain.data?.releases,
-    isDemoPreview,
-    projection,
-  ]);
+  }, [copy.delivery, isDemoPreview, projection]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected =
     releases.find((release) => release.id === selectedId) ?? releases[0];
@@ -129,7 +113,7 @@ export function DeliveryPage() {
                   {copy.delivery.handoff}
                 </Button>
               }
-              subtitle={`${selected.id} · ${projection?.projectionDigest ?? metrics?.subtitle ?? delivery.releaseTrain.data?.status ?? "recorded"}`}
+              subtitle={`${selected.id} · ${projection?.projectionDigest ?? metrics?.subtitle ?? "recorded"}`}
               title={selected.name}
               pageSlot="delivery-inspector"
             >

@@ -9,7 +9,7 @@ const authModules: ConsoleModuleMetadata[] = [
     status: "loaded",
     console_slots: [
       {
-        accepts: ["admin_action"],
+        accepts: ["operation"],
         context: [
           {
             fields: [
@@ -43,9 +43,10 @@ const authModules: ConsoleModuleMetadata[] = [
               },
             },
           ],
-          kind: "admin_action",
-          module: "auth-password",
-          name: "reset_password",
+          contract_id: "auth-password-business",
+          contract_version: "v1",
+          kind: "operation",
+          operation_id: "auth-password/reset-password",
         },
         icon: "key-round",
         label: "Reset password",
@@ -58,7 +59,7 @@ const authModules: ConsoleModuleMetadata[] = [
 ];
 
 describe("console slot contributions", () => {
-  test("resolves versioned admin actions with slot context input", () => {
+  test("resolves versioned contract operations with slot context input", () => {
     expect(
       resolveConsoleSlotContributions(authModules, {
         availableCapabilities: ["auth_password.credentials.write"],
@@ -67,16 +68,43 @@ describe("console slot contributions", () => {
       })
     ).toEqual([
       {
-        actionName: "reset_password",
+        contractId: "auth-password-business",
+        contractVersion: "v1",
         icon: "key-round",
         input: { user_id: "user_123" },
-        key: "auth-password:auth.users.detail.actions:1:auth-password:reset_password:0",
-        kind: "admin_action",
+        key: "auth-password:auth.users.detail.actions:1:auth-password-business:v1:auth-password/reset-password:0",
+        kind: "operation",
         label: "Reset password",
-        moduleName: "auth-password",
+        operationId: "auth-password/reset-password",
         requiredCapabilities: ["auth_password.credentials.write"],
       },
     ]);
+  });
+
+  test("hard-rejects the retired admin action descriptor", () => {
+    const legacyModules = structuredClone(
+      authModules
+    ) as ConsoleModuleMetadata[];
+    const action = legacyModules[1]?.console_contributions?.[0]?.action;
+    if (action) {
+      Object.assign(action, {
+        kind: "admin_action",
+        module: "auth-password",
+        name: "reset_password",
+      });
+      delete action.contract_id;
+      delete action.contract_version;
+      delete action.operation_id;
+    }
+    legacyModules[0]!.console_slots![0]!.accepts = ["admin_action"] as never;
+
+    expect(
+      resolveConsoleSlotContributions(legacyModules, {
+        availableCapabilities: ["auth_password.credentials.write"],
+        context: { selected_user: { id: "user_123" } },
+        slotId: "auth.users.detail.actions",
+      })
+    ).toEqual([]);
   });
 
   test("requires declared slot version, capability, and context path", () => {

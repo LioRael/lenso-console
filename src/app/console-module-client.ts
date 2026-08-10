@@ -172,23 +172,6 @@ export function createConsoleModuleClient({
         request
       );
     },
-    async query<Result>(_operation: {
-      readonly name: string;
-    }): Promise<Result> {
-      throw new ConsoleHostError(
-        "incompatible",
-        `Generic Console query operations are not part of the framework contract: ${_operation.name}`
-      );
-    },
-    async command<_Input, Result>(
-      descriptor: { readonly name: string },
-      _options?: { idempotencyKey?: string }
-    ): Promise<Result> {
-      throw new ConsoleHostError(
-        "incompatible",
-        `Generic Console command operations are not part of the framework contract: ${descriptor.name}`
-      );
-    },
     navigate,
   };
 }

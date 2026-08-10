@@ -5,8 +5,6 @@ import { executionInspectorTabs } from "../components/runtime/execution-inspecto
 import {
   type MockConsoleFixtures,
   createMockConsoleHostApi,
-  emptyAdminListResponse,
-  mockAdminRecords,
   mockAvailableCapabilities,
   mockSlotContributions,
 } from "./mock-console-host-api";
@@ -22,35 +20,10 @@ const findStoryByCorrelation: ConsoleHostApi["story"]["findStoryByCorrelation"] 
   () => null;
 
 describe("mock console host api", () => {
-  test("returns empty admin records when no fixture exists", () => {
+  test("returns fixture-backed capabilities", () => {
     expect(
-      mockAdminRecords(
-        {},
-        {
-          entityName: "users",
-          moduleName: "auth",
-        }
-      )
-    ).toEqual(emptyAdminListResponse);
-  });
-
-  test("returns fixture-backed admin records", () => {
-    const fixtures = {
-      adminData: {
-        auth: {
-          users: [{ id: "usr_1", status: "active" }],
-        },
-      },
-      capabilities: ["auth.users.read"],
-    };
-
-    expect(
-      mockAdminRecords(fixtures, {
-        entityName: "users",
-        moduleName: "auth",
-      }).data
-    ).toEqual([{ id: "usr_1", status: "active" }]);
-    expect(mockAvailableCapabilities(fixtures)).toEqual(["auth.users.read"]);
+      mockAvailableCapabilities({ capabilities: ["auth.users.read"] })
+    ).toEqual(["auth.users.read"]);
   });
 
   test("returns slot contributions from fixtures", () => {
@@ -58,12 +31,13 @@ describe("mock console host api", () => {
       contributions: {
         "auth.users.detail.actions": [
           {
-            actionName: "reset_password",
+            contractId: "auth-password-business",
+            contractVersion: "v1",
             input: { user_id: "usr_1" },
             key: "auth.reset_password",
-            kind: "admin_action",
+            kind: "operation",
             label: "Reset password",
-            moduleName: "auth-password",
+            operationId: "auth-password/reset-password",
             requiredCapabilities: ["auth.users.write"],
           },
         ],
@@ -89,11 +63,7 @@ describe("mock console host api", () => {
       },
     ];
     const baseHostApi = {
-      version: "1",
-      adminData: {
-        useInvokeAction: notCalled,
-        useRecords: notCalled,
-      },
+      version: "2",
       capabilities: {
         useAvailable: notCalled,
       },
@@ -141,27 +111,9 @@ describe("mock console host api", () => {
       ui: {} as ConsoleHostApi["ui"],
     } satisfies ConsoleHostApi;
 
-    const hostApi = createMockConsoleHostApi(baseHostApi, {
-      adminData: {
-        auth: {
-          users: [{ id: "usr_1", status: "active" }],
-        },
-      },
-      configValues,
-    });
+    const hostApi = createMockConsoleHostApi(baseHostApi, { configValues });
 
-    expect(
-      hostApi.adminData.useRecords({
-        entityName: "users",
-        moduleName: "auth",
-      }).data
-    ).toEqual({
-      data: [{ id: "usr_1", status: "active" }],
-      page: {
-        limit: 50,
-        next_cursor: null,
-      },
-    });
+    expect("adminData" in hostApi).toBe(false);
     expect(hostApi.config.useValues().data).toEqual({
       data: configValues,
     });

@@ -10,7 +10,6 @@ import {
   type ExecutionLogEntry,
   type ExecutionPayload,
   type FunctionRun,
-  adminActionInvocations,
   functionRuns,
   queueHealth,
   type RuntimeEvent,
@@ -39,8 +38,6 @@ import {
   type RuntimeHeatmapCell,
 } from "./runtime-api-model";
 import type {
-  AdminActionInvocationItem,
-  AdminActionInvocationListResponse,
   AdminFunctionRunDetail,
   AdminFunctionRunListResponse,
   AdminOutboxEventDetail,
@@ -75,8 +72,6 @@ export const runtimeQueryKeys = {
   deadLetters: ["runtime", "dead-letters"] as const,
   remoteProxyCalls: (filters: RemoteProxyCallFilters) =>
     ["runtime", "remote-proxy-calls", filters] as const,
-  adminActionInvocations: (filters: AdminActionInvocationFilters) =>
-    ["runtime", "admin-actions", filters] as const,
 };
 
 export type RuntimeSummaryStatus = "healthy" | "degraded" | "failing";
@@ -98,26 +93,6 @@ export type RuntimeRemoteProxyCallPage = {
 };
 
 export type { AdminRemoteProxyCallItem as RuntimeRemoteProxyCall };
-
-export type AdminActionInvocationFilters = {
-  actionName?: string;
-  capability?: string;
-  createdBefore?: string;
-  correlationId?: string;
-  moduleName?: string;
-  success?: boolean;
-  limit?: number;
-};
-
-export type RuntimeAdminActionInvocationPage = {
-  data: AdminActionInvocationItem[];
-  page: {
-    limit: number;
-    next_created_before?: string | null;
-  };
-};
-
-export type { AdminActionInvocationItem as RuntimeAdminActionInvocation };
 
 export type RuntimeSummaryItem = {
   type: "outbox_event" | "function_run" | "http_request";
@@ -294,29 +269,6 @@ export function useRemoteProxyCalls(filters: RemoteProxyCallFilters = {}) {
       return isApiMode()
         ? fetchRemoteProxyCalls(pageFilters)
         : filterMockRemoteProxyCalls(pageFilters);
-    },
-    getNextPageParam: (lastPage) =>
-      lastPage.page.next_created_before ?? undefined,
-  });
-}
-
-export function useAdminActionInvocations(
-  filters: AdminActionInvocationFilters = {}
-) {
-  return useInfiniteQuery({
-    initialPageParam: filters.createdBefore,
-    queryKey: runtimeQueryKeys.adminActionInvocations(filters),
-    queryFn: async ({ pageParam }) => {
-      const pageFilters = {
-        ...filters,
-        ...(pageParam ? { createdBefore: pageParam } : {}),
-      };
-      return isApiMode()
-        ? fetchAdminActionInvocations(pageFilters)
-        : filterAdminActionInvocationsForQuery(
-            adminActionInvocations,
-            pageFilters
-          );
     },
     getNextPageParam: (lastPage) =>
       lastPage.page.next_created_before ?? undefined,
@@ -624,83 +576,10 @@ async function fetchRemoteProxyCalls(
   return response;
 }
 
-async function fetchAdminActionInvocations(
-  filters: AdminActionInvocationFilters
-): Promise<RuntimeAdminActionInvocationPage> {
-  const searchParams: Record<string, string> = {};
-  const moduleName = filters.moduleName?.trim();
-  if (moduleName) {
-    searchParams.module_name = moduleName;
-  }
-  const actionName = filters.actionName?.trim();
-  if (actionName) {
-    searchParams.action_name = actionName;
-  }
-  const capability = filters.capability?.trim();
-  if (capability) {
-    searchParams.capability = capability;
-  }
-  const filterCorrelationId = filters.correlationId?.trim();
-  if (filterCorrelationId) {
-    searchParams.correlation_id = filterCorrelationId;
-  }
-  if (filters.createdBefore) {
-    searchParams.created_before = filters.createdBefore;
-  }
-  if (filters.success !== undefined) {
-    searchParams.success = String(filters.success);
-  }
-  if (filters.limit !== undefined) {
-    searchParams.limit = String(filters.limit);
-  }
-
-  const response = await httpClient
-    .get("admin/runtime/admin-actions", { searchParams })
-    .json<AdminActionInvocationListResponse>();
-  return response;
-}
-
 function filterMockRemoteProxyCalls(
   filters: RemoteProxyCallFilters
 ): RuntimeRemoteProxyCallPage {
   return filterRemoteProxyCallsForQuery(remoteProxyCalls, filters);
-}
-
-export function filterAdminActionInvocationsForQuery(
-  actions: AdminActionInvocationItem[],
-  filters: AdminActionInvocationFilters
-): RuntimeAdminActionInvocationPage {
-  const moduleName = filters.moduleName?.trim().toLowerCase();
-  const actionName = filters.actionName?.trim().toLowerCase();
-  const capability = filters.capability?.trim();
-  const filterCorrelationId = filters.correlationId?.trim();
-  const limit = filters.limit ?? 100;
-  const data = actions
-    .filter((action) =>
-      moduleName ? action.module_name.toLowerCase() === moduleName : true
-    )
-    .filter((action) =>
-      actionName ? action.action_name.toLowerCase() === actionName : true
-    )
-    .filter((action) => (capability ? action.capability === capability : true))
-    .filter((action) =>
-      filterCorrelationId ? action.correlation_id === filterCorrelationId : true
-    )
-    .filter((action) =>
-      filters.success === undefined ? true : action.success === filters.success
-    )
-    .filter((action) =>
-      filters.createdBefore ? action.occurred_at < filters.createdBefore : true
-    )
-    .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
-  return {
-    data: data.slice(0, limit),
-    page: {
-      limit,
-      next_created_before:
-        data.length > limit ? (data.at(limit - 1)?.occurred_at ?? null) : null,
-    },
-  };
 }
 
 export function filterRemoteProxyCallsForQuery(

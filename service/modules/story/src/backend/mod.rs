@@ -361,7 +361,6 @@ async fn get_story_technical_operations(
         )
         .await?,
     );
-    data.extend(admin_action_technical_operations(&rows, &node_index));
     sort_technical_operations(&mut data);
 
     Ok(Json(AdminRuntimeTechnicalOperationListResponse {

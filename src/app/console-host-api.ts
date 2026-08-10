@@ -35,10 +35,6 @@ import {
   useRuntimeStoryDetail,
 } from "../hooks/use-runtime-queries";
 import { operationsPath } from "../pages/operations-url-model";
-import {
-  useConsoleAdminAction,
-  useConsoleAdminRecords,
-} from "./console-admin-data-api";
 import { useConsoleCapabilities } from "./console-capabilities";
 import {
   useConsoleConfigValues,
@@ -55,10 +51,6 @@ import { selectManagedService } from "./managed-service-selection";
 
 export const productionConsoleHostApi = {
   version: CONSOLE_HOST_API_VERSION,
-  adminData: {
-    useInvokeAction: useConsoleAdminAction,
-    useRecords: useConsoleAdminRecords,
-  },
   capabilities: {
     useAvailable: useConsoleCapabilities,
   },
@@ -132,11 +124,7 @@ configureConsoleHostApi(consoleHostApi as unknown as PublicConsoleHostApi);
 
 export type ConsoleHostApi = typeof productionConsoleHostApi;
 export type {
-  ConsoleAdminListResponse,
-  ConsoleAdminRecord,
-} from "./console-admin-data-api";
-export type {
-  ConsoleResolvedAdminActionContribution,
+  ConsoleResolvedOperationContribution,
   ConsoleResolvedContribution,
 } from "./console-contributions";
 export type {

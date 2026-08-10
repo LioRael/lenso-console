@@ -36,5 +36,5 @@ configureConsoleHostApi({
   ui: {
     runtime: { StoryHeader: () => null },
   },
-  version: "1",
+  version: "2",
 } as unknown as ConsoleHostApi);

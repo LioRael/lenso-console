@@ -372,7 +372,9 @@ export function normalizeRuntimeHeatmap(
 export function normalizeTechnicalOperations(
   response: ApiTechnicalOperationResponse
 ): TechnicalOperation[] {
-  return (response.data ?? []).map(normalizeTechnicalOperation);
+  return (response.data ?? [])
+    .filter((operation) => operation.source !== "admin_action")
+    .map(normalizeTechnicalOperation);
 }
 
 export function normalizeExecutionPayload(

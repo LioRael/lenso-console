@@ -2441,7 +2441,7 @@ function TechnicalOperationRow({
   index: number;
   operation: TechnicalOperationView;
 }) {
-  const { openAdminActions, openRemoteCalls } = useConsole();
+  const { openRemoteCalls } = useConsole();
   const operationsTarget = technicalOperationOperationsTarget(operation);
   const [attributesVisible, setAttributesVisible] = useState(false);
   return (
@@ -2577,19 +2577,12 @@ function TechnicalOperationRow({
               localStyles.utilityTextFgTertiary,
               localStyles.utilityHoverTextFgPrimary,
             ])}
-            onClick={() => {
-              if (operationsTarget.kind === "remote_calls") {
-                openRemoteCalls(
-                  operationsTarget.correlationId,
-                  operationsTarget.selectedId
-                );
-                return;
-              }
-              openAdminActions(
+            onClick={() =>
+              openRemoteCalls(
                 operationsTarget.correlationId,
                 operationsTarget.selectedId
-              );
-            }}
+              )
+            }
             title={`Open ${operation.sourceLabel} operations`}
             type="button"
           >

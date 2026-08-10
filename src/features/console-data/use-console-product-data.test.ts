@@ -20,21 +20,21 @@ function evidence(
 }
 
 describe("mergeHomeEvidence", () => {
-  test("shows an admin action once when runtime summary contains the same invocation", () => {
-    const action = evidence(
-      "adminaction_req_1",
+  test("shows repeated runtime evidence once when streams overlap", () => {
+    const primary = evidence(
+      "runtime_req_1",
       "2026-08-01T12:00:00Z",
-      "auth · verified"
+      "runtime · verified"
     );
-    const runtime = evidence("adminaction_req_1", "2026-08-01T12:00:00Z");
+    const runtime = evidence("runtime_req_1", "2026-08-01T12:00:00Z");
 
-    expect(mergeHomeEvidence([action], [runtime])).toEqual([action]);
+    expect(mergeHomeEvidence([primary], [runtime])).toEqual([primary]);
   });
 
   test("keeps distinct runtime evidence and orders the merged stream", () => {
-    const action = evidence("adminaction_req_1", "2026-08-01T12:00:00Z");
+    const primary = evidence("runtime_req_1", "2026-08-01T12:00:00Z");
     const event = evidence("evt_1", "2026-08-01T12:01:00Z");
 
-    expect(mergeHomeEvidence([action], [event])).toEqual([event, action]);
+    expect(mergeHomeEvidence([primary], [event])).toEqual([event, primary]);
   });
 });

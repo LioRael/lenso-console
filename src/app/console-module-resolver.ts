@@ -39,7 +39,7 @@ export type ConsoleSlotMetadata = {
   context?: readonly ConsoleSlotContextMetadata[];
 };
 
-export type ConsoleContributionKindMetadata = "admin_action";
+export type ConsoleContributionKindMetadata = "operation";
 
 export type ConsoleSlotContextMetadata = {
   name?: string;
@@ -62,9 +62,10 @@ export type ConsoleContributionMetadata = {
 };
 
 export type ConsoleContributionActionMetadata = {
-  kind?: "admin_action";
-  module?: string;
-  name?: string;
+  kind?: "operation";
+  contract_id?: string;
+  contract_version?: string;
+  operation_id?: string;
   input_bindings?: ConsoleActionInputBindingMetadata[];
 };
 

@@ -4,11 +4,10 @@ import { consoleHostApi } from "./console-host-api";
 
 describe("console host api", () => {
   test("exposes stable host capabilities consumed by console modules", () => {
-    expect(consoleHostApi.version).toBe("1");
+    expect(consoleHostApi.version).toBe("2");
     expect(consoleHostApi.queries.useRuntimeStories).toBeTypeOf("function");
     expect(consoleHostApi.queries.useRuntimeStoryDetail).toBeTypeOf("function");
-    expect(consoleHostApi.adminData.useRecords).toBeTypeOf("function");
-    expect(consoleHostApi.adminData.useInvokeAction).toBeTypeOf("function");
+    expect("adminData" in consoleHostApi).toBe(false);
     expect(consoleHostApi.config.useValues).toBeTypeOf("function");
     expect(consoleHostApi.config.useWriteValue).toBeTypeOf("function");
     expect(consoleHostApi.contributions.useSlot).toBeTypeOf("function");
