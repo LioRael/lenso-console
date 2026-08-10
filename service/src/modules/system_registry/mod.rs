@@ -1,4 +1,4 @@
-mod connection;
+pub(crate) mod connection;
 mod routes;
 
 use lenso::host::http::{LinkedHttpContribution, ModuleHttpMethod, ModuleHttpRoute};

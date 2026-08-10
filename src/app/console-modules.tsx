@@ -7,6 +7,7 @@ import type {
 } from "@lenso/console-ui";
 
 import { storyConsoleModule } from "../../packages/story-console/src/index";
+import { supportTicketConsoleModule } from "../../packages/support-ticket-console/src/index";
 import { systemRegistryConsoleModule } from "../../packages/system-registry-console/src/index";
 import {
   consoleDevConfig,
@@ -196,6 +197,7 @@ export const consoleModules = [
   consoleWorkbenchModule,
   systemRegistryConsoleModule,
   storyConsoleModule,
+  supportTicketConsoleModule,
 ];
 
 export function consoleModulesForDevMode(

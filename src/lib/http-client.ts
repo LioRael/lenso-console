@@ -15,6 +15,10 @@ const developmentApiAuthScopes = [
   "console.system-registry.read",
   "console.system.read",
   "console.system.connect",
+  "console.module.business.read",
+  "console.module.business.write",
+  "support_ticket.tickets.read",
+  "support_ticket.tickets.write",
 ] as const;
 const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =

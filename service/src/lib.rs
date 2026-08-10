@@ -137,6 +137,7 @@ mod tests {
                 "organization",
                 "lenso/system-registry",
                 "lenso/console-access",
+                "lenso/console-surface-gateway",
                 "lenso/platform-story"
             ]
         );

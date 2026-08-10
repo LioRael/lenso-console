@@ -110,7 +110,7 @@ Runnable third-party Service examples use the framework-owned `@lenso/service-ki
 Build first-party UI artifacts only when the reviewed Module Release digests are available; the command refuses to invent release identity:
 
 ```bash
-LENSO_MODULE_RELEASE_DIGESTS='{"lenso/platform-story":"sha256:<64-hex>","lenso/system-registry":"sha256:<64-hex>"}' \
+LENSO_MODULE_RELEASE_DIGESTS='{"lenso/platform-story":"sha256:<64-hex>","lenso/system-registry":"sha256:<64-hex>","support/tickets":"sha256:<64-hex>"}' \
   pnpm build:module-artifacts
 ```
 

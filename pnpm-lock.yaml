@@ -161,6 +161,18 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8
 
+  packages/support-ticket-console:
+    dependencies:
+      '@lenso/console-module-api':
+        specifier: workspace:*
+        version: link:../console-module-api
+      '@lenso/console-ui':
+        specifier: workspace:*
+        version: link:../console-ui
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+
   packages/system-registry-console:
     dependencies:
       '@lenso/console-module-api':

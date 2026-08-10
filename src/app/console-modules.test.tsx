@@ -63,11 +63,12 @@ describe("Console Module composition", () => {
     );
   });
 
-  test("composes the five primary Console navigation Modules", () => {
+  test("composes the primary Console navigation Modules", () => {
     expect(consoleModules.map((module) => module.id)).toEqual([
       "lenso/console-workbench",
       "lenso/system-registry",
       "lenso/platform-story",
+      "support/tickets",
     ]);
     expect(
       selectDefaultConsoleRoute(buildConsoleRoutes(consoleModules)).path
@@ -80,6 +81,7 @@ describe("Console Module composition", () => {
         "lenso/console-workbench",
         "lenso/system-registry",
         "lenso/platform-story",
+        "support/tickets",
       ]
     );
     const systemWorkspace = buildWorkspaceNavigation(
@@ -88,6 +90,7 @@ describe("Console Module composition", () => {
 
     expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
       "/",
+      "/support/tickets",
       "/modules",
       "/services",
       "/stories",

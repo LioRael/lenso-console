@@ -1,0 +1,211 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Support Ticket Business API",
+    "version": "v1"
+  },
+  "x-lenso-contract-id": "support-ticket-http",
+  "x-lenso-contract-version": "v1",
+  "x-lenso-module-id": "support-ticket",
+  "paths": {
+    "/tickets": {
+      "get": {
+        "operationId": "support-ticket/http/GET:/tickets",
+        "summary": "List support tickets",
+        "x-lenso-capability": "support_ticket.tickets.read",
+        "x-lenso-idempotency": "idempotent",
+        "x-lenso-connected-route": {
+          "method": "GET",
+          "path": "/modules/support-ticket/tickets"
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ticket page",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TicketPage" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "support-ticket/http/POST:/tickets",
+        "summary": "Create a support ticket",
+        "x-lenso-capability": "support_ticket.tickets.write",
+        "x-lenso-idempotency": "requires_key",
+        "x-lenso-connected-route": {
+          "method": "POST",
+          "path": "/modules/support-ticket/tickets"
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTicketInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created ticket",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TicketResult" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/{ticketId}": {
+      "patch": {
+        "operationId": "support-ticket/http/PATCH:/tickets/{id}",
+        "summary": "Update a support ticket",
+        "x-lenso-capability": "support_ticket.tickets.write",
+        "x-lenso-idempotency": "requires_key",
+        "x-lenso-connected-route": {
+          "method": "PATCH",
+          "path": "/modules/support-ticket/tickets/{ticketId}"
+        },
+        "parameters": [
+          {
+            "name": "ticketId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTicketInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated ticket",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TicketResult" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/{ticketId}/close": {
+      "post": {
+        "operationId": "support-ticket/http/POST:/tickets/{id}/close",
+        "summary": "Close a support ticket",
+        "x-lenso-capability": "support_ticket.tickets.write",
+        "x-lenso-idempotency": "requires_key",
+        "x-lenso-connected-route": {
+          "method": "PATCH",
+          "path": "/modules/support-ticket/tickets/{ticketId}"
+        },
+        "parameters": [
+          {
+            "name": "ticketId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closed ticket",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TicketResult" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Ticket": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "priority",
+          "assignee",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["open", "pending", "escalated", "closed"]
+          },
+          "priority": { "type": "string", "enum": ["low", "normal", "high"] },
+          "assignee": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TicketPage": {
+        "type": "object",
+        "required": ["records", "next_cursor"],
+        "properties": {
+          "records": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Ticket" }
+          },
+          "next_cursor": { "type": ["string", "null"] }
+        }
+      },
+      "TicketResult": {
+        "type": "object",
+        "required": ["ticket"],
+        "properties": { "ticket": { "$ref": "#/components/schemas/Ticket" } }
+      },
+      "CreateTicketInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "priority": { "type": "string", "enum": ["low", "normal", "high"] },
+          "assignee": { "type": "string" }
+        }
+      },
+      "UpdateTicketInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "status": {
+            "type": "string",
+            "enum": ["open", "pending", "escalated", "closed"]
+          },
+          "priority": { "type": "string", "enum": ["low", "normal", "high"] },
+          "assignee": { "type": "string" }
+        }
+      }
+    }
+  }
+}
