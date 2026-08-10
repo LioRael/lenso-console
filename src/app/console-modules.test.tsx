@@ -63,21 +63,23 @@ describe("Console Module composition", () => {
     );
   });
 
-  test("keeps Module UI out of the prebuilt Shell bundle", () => {
+  test("composes the five primary Console navigation Modules", () => {
     expect(consoleModules.map((module) => module.id)).toEqual([
       "lenso/console-workbench",
+      "lenso/system-registry",
+      "lenso/platform-story",
     ]);
     expect(
       selectDefaultConsoleRoute(buildConsoleRoutes(consoleModules)).path
     ).toBe("/");
   });
 
-  test("restores linked Module UI surfaces for the seeded mock preview", () => {
+  test("keeps the same primary composition in the seeded mock preview", () => {
     expect(consoleModulesForDevMode("mock").map((module) => module.id)).toEqual(
       [
         "lenso/console-workbench",
-        "lenso/platform-story",
         "lenso/system-registry",
+        "lenso/platform-story",
       ]
     );
     const systemWorkspace = buildWorkspaceNavigation(
@@ -86,14 +88,9 @@ describe("Console Module composition", () => {
 
     expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
       "/",
-      "/access",
-      "/services",
-      "/system",
       "/modules",
-      "/changes",
-      "/runtime",
+      "/services",
       "/stories",
-      "/delivery",
       "/settings",
     ]);
   });
@@ -107,22 +104,15 @@ describe("Console Module composition", () => {
     });
   });
 
-  test("places runtime-owned navigation after the host Runtime surface", () => {
+  test("keeps the exported Shell navigation to the primary surfaces", () => {
     const systemWorkspace = buildWorkspaceNavigation(consoleNavigation).find(
       (workspace) => workspace.id === "system"
     );
 
-    expect(systemWorkspace?.items.slice(0, 8).map((item) => item.path)).toEqual(
-      [
-        "/",
-        "/access",
-        "/system",
-        "/modules",
-        "/changes",
-        "/runtime",
-        "/delivery",
-        "/settings",
-      ]
-    );
+    expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
+      "/",
+      "/modules",
+      "/settings",
+    ]);
   });
 });

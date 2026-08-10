@@ -1,4 +1,5 @@
 import { isConsoleSurfaceIcon } from "@lenso/console-ui";
+import type { ConsoleSystemConnection } from "@lenso/console-ui";
 import { useSyncExternalStore } from "react";
 
 import {
@@ -14,6 +15,11 @@ import { hasConsoleCapability } from "./console-capability-matching";
 import { useConsoleModulesMetadata } from "./console-module-metadata-query";
 import type { ConsoleModuleMetadata } from "./console-module-resolver";
 import { buildConsoleNavigation, consoleModules } from "./console-modules";
+import { useConsoleSystemConnection } from "./console-system-connection-api";
+import {
+  connectionModuleForArtifact,
+  connectionModuleState,
+} from "./console-system-connection-model";
 
 export function consoleModuleMetadataWithFallback({
   apiMode: _apiMode,
@@ -29,12 +35,37 @@ export function navigationFromConsoleModuleMetadata(
   modules: ConsoleModuleMetadata[],
   availableCapabilities: readonly string[],
   artifacts: readonly ConsoleArtifactReceipt[] = [],
-  quarantinedArtifactKeys: ReadonlySet<string> = new Set()
+  quarantinedArtifactKeys: ReadonlySet<string> = new Set(),
+  connection?: ConsoleSystemConnection | null
 ) {
   const available = new Set(availableCapabilities);
-  const linked = buildConsoleNavigation(consoleModules);
+  const linked = buildConsoleNavigation(consoleModules).filter((item) => {
+    if (connection === undefined || item.moduleId !== "lenso/platform-story") {
+      return true;
+    }
+    const storyArtifacts = artifacts.filter(
+      (artifact) => artifact.moduleId === item.moduleId
+    );
+    if (storyArtifacts.length > 0) {
+      return storyArtifacts.some(
+        (artifact) =>
+          connectionModuleForArtifact(connection, artifact)?.status ===
+          "connected"
+      );
+    }
+    return (
+      connectionModuleState(connection, item.moduleId)?.status === "connected"
+    );
+  });
   const dynamic = modules.flatMap((module) =>
     (module.console ?? []).flatMap((surface) => {
+      if (
+        connection !== undefined &&
+        connectionModuleState(connection, module.module_name ?? "")?.status !==
+          "connected"
+      ) {
+        return [];
+      }
       if (
         surface.presentation?.kind !== "esm" ||
         !(surface.label && surface.route) ||
@@ -61,6 +92,17 @@ export function navigationFromConsoleModuleMetadata(
         quarantinedArtifactKeys.has(
           `${artifact.moduleId}:${artifact.artifactDigest}`
         )
+      ) {
+        return [];
+      }
+      const connectionModule = connectionModuleForArtifact(connection, {
+        artifactDigest: artifact.artifactDigest,
+        moduleId: artifact.moduleId,
+        moduleReleaseDigest: artifact.moduleReleaseDigest,
+      });
+      if (
+        connection !== undefined &&
+        connectionModule?.status !== "connected"
       ) {
         return [];
       }
@@ -93,6 +135,7 @@ export function useConsoleNavigation() {
   const availableCapabilities = useConsoleCapabilities();
   const modulesQuery = useConsoleModulesMetadata();
   const artifactsQuery = useConsoleArtifacts();
+  const systemConnectionQuery = useConsoleSystemConnection();
   const quarantines = useSyncExternalStore(
     subscribeConsoleArtifactQuarantine,
     getConsoleArtifactQuarantines,
@@ -107,6 +150,7 @@ export function useConsoleNavigation() {
     modules,
     availableCapabilities,
     artifactsQuery.data?.artifacts ?? [],
-    new Set(quarantines.map((quarantine) => quarantine.key))
+    new Set(quarantines.map((quarantine) => quarantine.key)),
+    systemConnectionQuery.data ?? null
   );
 }

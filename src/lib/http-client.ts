@@ -13,6 +13,8 @@ const developmentApiAuthScopes = [
   "crm_service.contacts.sync",
   "hello-action:greetings:write",
   "console.system-registry.read",
+  "console.system.read",
+  "console.system.connect",
 ] as const;
 const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =

@@ -119,6 +119,8 @@ describe("console capabilities", () => {
       "crm_service.contacts.read",
       "crm_service.contacts.sync",
       "console.system-registry.read",
+      "console.system.read",
+      "console.system.connect",
     ]);
   });
 });
