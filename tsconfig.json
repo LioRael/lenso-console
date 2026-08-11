@@ -36,7 +36,6 @@
     "src",
     "packages/story-console/src",
     "packages/system-registry-console/src",
-    "packages/support-ticket-console/src",
     "packages/console-module-api/src",
     "packages/console-ui/src",
     "packages/console-tokens/src",

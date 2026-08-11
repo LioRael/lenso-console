@@ -7,8 +7,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get};
 use base64::Engine;
 use lenso::host::http::{
-    ApiOpenApiRouter, AppContext, Json, ModuleHttpMethod, ModuleHttpRoute, OpenApiRouter,
-    UserActor, routes,
+    ApiErrorResponse, ApiOpenApiRouter, AppContext, AppError, ErrorCode, ErrorResponse,
+    HttpRequestContext, Json, ModuleHttpMethod, ModuleHttpRoute, OpenApiRouter, UserActor, routes,
 };
 use lenso::host::prelude::*;
 use serde::Serialize;
@@ -286,25 +286,31 @@ async fn ready(State(ctx): State<AppContext>) -> Response {
     }
 }
 
-async fn not_found() -> StatusCode {
-    StatusCode::NOT_FOUND
-}
-
-#[derive(Serialize)]
-struct RetiredConsoleContractResponse {
-    code: &'static str,
-    message: &'static str,
-}
-
-async fn retired_console_contract() -> Response {
-    (
-        StatusCode::GONE,
-        axum::Json(RetiredConsoleContractResponse {
-            code: RETIRED_CONSOLE_CONTRACT,
-            message: "Generic Console administration contracts were retired; use a Module Business API Surface.",
-        }),
+async fn not_found(HttpRequestContext(request_ctx): HttpRequestContext) -> ApiErrorResponse {
+    ApiErrorResponse::with_context(
+        AppError::new(ErrorCode::NotFound, "Route not found"),
+        &request_ctx,
     )
-        .into_response()
+}
+
+async fn retired_console_contract(HttpRequestContext(request_ctx): HttpRequestContext) -> Response {
+    let body = ErrorResponse {
+        problem_type: format!("https://lenso.dev/problems/{RETIRED_CONSOLE_CONTRACT}"),
+        title: "Console administration contract retired".to_owned(),
+        status: StatusCode::GONE.as_u16(),
+        detail: "Generic Console administration contracts were retired; use a Module Business API Surface.".to_owned(),
+        code: RETIRED_CONSOLE_CONTRACT.to_owned(),
+        request_id: Some(request_ctx.request_id.0),
+        correlation_id: Some(request_ctx.correlation_id.0),
+        errors: Vec::new(),
+        next_actions: Some(vec!["Use the owning Module Business API Surface".to_owned()]),
+    };
+    let mut response = (StatusCode::GONE, axum::Json(body)).into_response();
+    response.headers_mut().insert(
+        "content-type",
+        HeaderValue::from_static("application/problem+json"),
+    );
+    response
 }
 
 #[utoipa::path(
@@ -314,7 +320,7 @@ async fn retired_console_contract() -> Response {
     tag = "console-composition",
     responses(
         (status = 200, body = ConsoleServiceComposition, content_type = "application/json"),
-        (status = 401, description = "Console operator session is required")
+        (status = 401, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
 async fn get_console_composition(_actor: UserActor) -> Json<ConsoleServiceComposition> {
@@ -325,6 +331,15 @@ async fn get_console_composition(_actor: UserActor) -> Json<ConsoleServiceCompos
 #[cfg(test)]
 mod tests {
     use super::*;
+    use platform_core::{CorrelationId, RequestId};
+
+    fn request_context() -> lenso::host::http::RequestContext {
+        lenso::host::http::RequestContext::new(
+            RequestId::new("shell-request"),
+            CorrelationId::new("shell-correlation"),
+        )
+    }
+
     #[test]
     fn shell_module_declares_artifact_management_capability() {
         let manifest = manifest();
@@ -369,9 +384,26 @@ mod tests {
 
     #[tokio::test]
     async fn legacy_administration_contracts_are_explicitly_rejected() {
-        let response = retired_console_contract().await;
+        let response = retired_console_contract(HttpRequestContext(request_context())).await;
 
         assert_eq!(response.status(), StatusCode::GONE);
+        assert_eq!(
+            response.headers().get("content-type"),
+            Some(&HeaderValue::from_static("application/problem+json"))
+        );
+    }
+
+    #[tokio::test]
+    async fn unknown_api_routes_return_problem_details() {
+        let response = not_found(HttpRequestContext(request_context()))
+            .await
+            .into_response();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            response.headers().get("content-type"),
+            Some(&HeaderValue::from_static("application/problem+json"))
+        );
     }
 
     #[test]

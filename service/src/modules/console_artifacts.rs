@@ -2,14 +2,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
-use axum::http::StatusCode;
 use lenso::ArtifactReference;
 use lenso::console::{
     CONSOLE_MODULE_PROTOCOL, CONSOLE_MODULE_PROTOCOL_MAJOR, CONSOLE_UI_ESM_FORMAT,
     ConsoleUiArtifact, ConsoleUiArtifactEntry, ConsoleUiArtifactFormat,
     ConsoleUiArtifactStyleAsset,
 };
-use lenso::host::http::{Json, UserActor};
+use lenso::host::http::{
+    ApiErrorResponse, AppError, ErrorCode, ErrorResponse, HttpRequestContext, Json, RequestContext,
+    UserActor,
+};
 use lenso_module_management::ConsoleCompositionArtifact;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
@@ -106,23 +108,26 @@ struct MaterializedThemeBundle {
     tag = "console-artifacts",
     responses(
         (status = 200, body = ConsoleCompositionReceipt, content_type = "application/json"),
-        (status = 401, description = "Console operator session is required"),
-        (status = 404, description = "No Console artifact composition has been applied")
+        (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 404, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
 pub async fn get_artifacts(
     _actor: UserActor,
-) -> Result<Json<ConsoleCompositionReceipt>, (StatusCode, String)> {
+    HttpRequestContext(request_ctx): HttpRequestContext,
+) -> Result<Json<ConsoleCompositionReceipt>, ApiErrorResponse> {
     let path = super::console_shell::console_artifact_root().join("composition-receipt.json");
     let bytes = std::fs::read(path).map_err(|_| {
-        (
-            StatusCode::NOT_FOUND,
-            "Console artifact composition not found".to_owned(),
+        api_error(
+            ErrorCode::NotFound,
+            "Console artifact composition not found",
+            &request_ctx,
         )
     })?;
     serde_json::from_slice(&bytes)
         .map(Json)
-        .map_err(internal_error)
+        .map_err(|error| internal_error(error, &request_ctx))
 }
 
 #[utoipa::path(
@@ -133,31 +138,35 @@ pub async fn get_artifacts(
     request_body = ConsoleCompositionRequest,
     responses(
         (status = 200, body = ConsoleCompositionReceipt, content_type = "application/json"),
-        (status = 400, description = "The composition or artifact contract is invalid"),
-        (status = 401, description = "Console operator session is required"),
-        (status = 403, description = "The operator lacks artifact management authority"),
-        (status = 502, description = "A declared artifact could not be downloaded")
+        (status = 400, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 502, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
 pub async fn reconcile_artifacts(
     actor: UserActor,
+    HttpRequestContext(request_ctx): HttpRequestContext,
     Json(request): Json<ConsoleCompositionRequest>,
-) -> Result<Json<ConsoleCompositionReceipt>, (StatusCode, String)> {
+) -> Result<Json<ConsoleCompositionReceipt>, ApiErrorResponse> {
     if !actor.scopes.iter().any(|scope| scope == ARTIFACTS_MANAGE) {
-        return Err((
-            StatusCode::FORBIDDEN,
+        return Err(api_error(
+            ErrorCode::Forbidden,
             format!("missing required capability {ARTIFACTS_MANAGE}"),
+            &request_ctx,
         ));
     }
     let _guard = RECONCILE_LOCK.lock().await;
-    validate_request(&request).map_err(bad_request)?;
+    validate_request(&request).map_err(|error| bad_request(error, &request_ctx))?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(internal_error)?;
+        .map_err(|error| internal_error(error, &request_ctx))?;
     let mut downloads = BTreeMap::new();
     for locator in artifact_locators(&request) {
-        let url = reqwest::Url::parse(&locator).map_err(bad_request)?;
+        let url =
+            reqwest::Url::parse(&locator).map_err(|error| bad_request(error, &request_ctx))?;
         if url.scheme() != "https"
             && !(url.scheme() == "http"
                 && url.host_str().is_some_and(|host| {
@@ -169,25 +178,36 @@ pub async fn reconcile_artifacts(
         {
             return Err(bad_request(
                 "artifact locator must use HTTPS or loopback HTTP",
+                &request_ctx,
             ));
         }
         let mut response = client
             .get(url)
             .send()
             .await
-            .map_err(upstream_error)?
+            .map_err(|error| upstream_error(error, &request_ctx))?
             .error_for_status()
-            .map_err(upstream_error)?;
+            .map_err(|error| upstream_error(error, &request_ctx))?;
         if response
             .content_length()
             .is_some_and(|length| length > MAX_ARTIFACT_BYTES as u64)
         {
-            return Err(bad_request("Console artifact exceeds the 64 MiB limit"));
+            return Err(bad_request(
+                "Console artifact exceeds the 64 MiB limit",
+                &request_ctx,
+            ));
         }
         let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(upstream_error)? {
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|error| upstream_error(error, &request_ctx))?
+        {
             if bytes.len().saturating_add(chunk.len()) > MAX_ARTIFACT_BYTES {
-                return Err(bad_request("Console artifact exceeds the 64 MiB limit"));
+                return Err(bad_request(
+                    "Console artifact exceeds the 64 MiB limit",
+                    &request_ctx,
+                ));
             }
             bytes.extend_from_slice(&chunk);
         }
@@ -196,9 +216,9 @@ pub async fn reconcile_artifacts(
     let root = super::console_shell::console_artifact_root();
     tokio::task::spawn_blocking(move || materialize_downloads(&root, &request, &downloads))
         .await
-        .map_err(internal_error)?
+        .map_err(|error| internal_error(error, &request_ctx))?
         .map(Json)
-        .map_err(bad_request)
+        .map_err(|error| bad_request(error, &request_ctx))
 }
 
 fn validate_request(request: &ConsoleCompositionRequest) -> Result<(), String> {
@@ -664,16 +684,38 @@ fn validate_digest(value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn bad_request(error: impl std::fmt::Display) -> (StatusCode, String) {
-    (StatusCode::BAD_REQUEST, error.to_string())
+fn api_error(
+    code: ErrorCode,
+    message: impl Into<String>,
+    request_ctx: &RequestContext,
+) -> ApiErrorResponse {
+    ApiErrorResponse::with_context(AppError::new(code, message), request_ctx)
 }
 
-fn upstream_error(error: impl std::fmt::Display) -> (StatusCode, String) {
-    (StatusCode::BAD_GATEWAY, error.to_string())
+fn bad_request(error: impl std::fmt::Display, request_ctx: &RequestContext) -> ApiErrorResponse {
+    api_error(ErrorCode::Validation, error.to_string(), request_ctx)
 }
 
-fn internal_error(error: impl std::fmt::Display) -> (StatusCode, String) {
-    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+fn upstream_error(
+    _error: impl std::fmt::Display,
+    request_ctx: &RequestContext,
+) -> ApiErrorResponse {
+    api_error(
+        ErrorCode::ExternalDependency,
+        "Console artifact download failed",
+        request_ctx,
+    )
+}
+
+fn internal_error(
+    _error: impl std::fmt::Display,
+    request_ctx: &RequestContext,
+) -> ApiErrorResponse {
+    api_error(
+        ErrorCode::Internal,
+        "Console artifact state could not be materialized",
+        request_ctx,
+    )
 }
 
 #[cfg(test)]
