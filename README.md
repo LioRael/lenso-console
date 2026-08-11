@@ -107,10 +107,12 @@ lenso module install <module-release-reference>
 
 Runnable third-party Service examples use the framework-owned `@lenso/service-kit` package and live in [LioRael/lenso-examples](https://github.com/LioRael/lenso-examples). Use `lenso module dev --console-ui` to preview UI through the same ESM entry contract used by a materialized release.
 
+Business Module repositories own their Business API contracts, generated Surface clients, and `console_ui_esm` builds. This repository builds only Console-owned platform Module artifacts; it consumes external artifacts through the same receipt-bound reconciliation API.
+
 Build first-party UI artifacts only when the reviewed Module Release digests are available; the command refuses to invent release identity:
 
 ```bash
-LENSO_MODULE_RELEASE_DIGESTS='{"lenso/platform-story":"sha256:<64-hex>","lenso/system-registry":"sha256:<64-hex>","support/tickets":"sha256:<64-hex>"}' \
+LENSO_MODULE_RELEASE_DIGESTS='{"lenso/platform-story":"sha256:<64-hex>","lenso/system-registry":"sha256:<64-hex>"}' \
   pnpm build:module-artifacts
 ```
 

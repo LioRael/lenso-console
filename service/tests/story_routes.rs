@@ -26,10 +26,12 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 const WORKLOAD_OPERATOR_AUTHORIZATION: &str = "Bearer dev-user:admin:console.system.read,console.workload.read,console.workload.control,console.workload.operation.read";
+// This is a non-authoritative Gateway parser fixture. The owning Business API
+// contract is delivered by the Support Ticket Module, outside this repository.
 const SUPPORT_TICKET_CONTRACT: &str =
-    include_str!("../../packages/support-ticket-console/src/support-ticket-business-api.v1.json");
+    include_str!("fixtures/surface-gateway-support-fixture.v1.json");
 const SUPPORT_TICKET_CONTRACT_DIGEST: &str =
-    "sha256:5c95d669efa62fa3b423bc46a5e9be3af17393b6c97cb57a9966e3bb79be1155";
+    "sha256:da9725e81bebf8eb73c29fbd5fc800996ef014b98fc2bb689e1763deeeda90ad";
 const SUPPORT_TICKET_RELEASE_DIGEST: &str =
     "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 const SUPPORT_TICKET_ARTIFACT_DIGEST: &str =
@@ -113,6 +115,20 @@ async fn console_access_routes_are_published_by_host_composition() {
         document["paths"]["/api/console/v1/access/grants"]["post"]["operationId"],
         "console_access_create_managed_service_grant"
     );
+    for (path, method, status) in [
+        ("/bootstrap/v1/status", "get", "500"),
+        ("/bootstrap/v1/recovery", "post", "400"),
+        ("/api/console/v1/access/context", "get", "401"),
+        ("/api/console/v1/artifacts", "get", "404"),
+        ("/api/console/v1/artifacts/reconcile", "post", "400"),
+    ] {
+        assert!(
+            document["paths"][path][method]["responses"][status]["content"]
+                ["application/problem+json"]
+                .is_object(),
+            "{method} {path} must publish {status} as Problem Details"
+        );
+    }
     for status in ["409", "502"] {
         assert!(
             document["paths"]["/api/console/v1/system/connect"]["post"]["responses"]

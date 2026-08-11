@@ -40,7 +40,8 @@
                 "schema": { "$ref": "#/components/schemas/TicketPage" }
               }
             }
-          }
+          },
+          "default": { "$ref": "#/components/responses/ProblemDetails" }
         }
       },
       "post": {
@@ -68,7 +69,8 @@
                 "schema": { "$ref": "#/components/schemas/TicketResult" }
               }
             }
-          }
+          },
+          "default": { "$ref": "#/components/responses/ProblemDetails" }
         }
       }
     },
@@ -98,7 +100,8 @@
                 "schema": { "$ref": "#/components/schemas/TicketResult" }
               }
             }
-          }
+          },
+          "default": { "$ref": "#/components/responses/ProblemDetails" }
         }
       },
       "patch": {
@@ -134,7 +137,8 @@
                 "schema": { "$ref": "#/components/schemas/TicketResult" }
               }
             }
-          }
+          },
+          "default": { "$ref": "#/components/responses/ProblemDetails" }
         }
       }
     },
@@ -165,7 +169,8 @@
               }
             }
           },
-          "403": { "description": "Connected Module denied the operation" }
+          "403": { "$ref": "#/components/responses/ProblemDetails" },
+          "default": { "$ref": "#/components/responses/ProblemDetails" }
         }
       }
     },
@@ -196,13 +201,62 @@
                 "schema": { "$ref": "#/components/schemas/TicketResult" }
               }
             }
-          }
+          },
+          "default": { "$ref": "#/components/responses/ProblemDetails" }
         }
       }
     }
   },
   "components": {
+    "responses": {
+      "ProblemDetails": {
+        "description": "RFC 9457 Problem Details",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+          }
+        }
+      }
+    },
     "schemas": {
+      "ProblemErrorDetail": {
+        "type": "object",
+        "required": ["field", "reason"],
+        "properties": {
+          "field": { "type": ["string", "null"] },
+          "reason": { "type": "string" }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "code",
+          "request_id",
+          "correlation_id",
+          "errors"
+        ],
+        "properties": {
+          "type": { "type": "string", "format": "uri" },
+          "title": { "type": "string" },
+          "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+          "detail": { "type": "string" },
+          "code": { "type": "string" },
+          "request_id": { "type": ["string", "null"] },
+          "correlation_id": { "type": ["string", "null"] },
+          "errors": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProblemErrorDetail" }
+          },
+          "next_actions": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
       "Ticket": {
         "type": "object",
         "required": [

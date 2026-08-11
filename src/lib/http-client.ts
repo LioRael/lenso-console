@@ -20,8 +20,6 @@ const developmentApiAuthScopes = [
   "console.workload.operation.read",
   "console.module.business.read",
   "console.module.business.write",
-  "support_ticket.tickets.read",
-  "support_ticket.tickets.write",
 ] as const;
 const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =
@@ -115,12 +113,10 @@ export function lensoApiErrorMessage(body: unknown): string | undefined {
   if (
     body &&
     typeof body === "object" &&
-    "error" in body &&
-    body.error &&
-    typeof body.error === "object" &&
-    "message" in body.error
+    "detail" in body &&
+    typeof body.detail === "string"
   ) {
-    return String(body.error.message);
+    return body.detail;
   }
   return undefined;
 }
@@ -132,7 +128,10 @@ export const httpClient = ky.create({
   hooks: {
     beforeRequest: [
       ({ request }) => {
-        request.headers.set("Accept", "application/json");
+        request.headers.set(
+          "Accept",
+          "application/json, application/problem+json"
+        );
         const token = consoleApiAuthToken();
         if (token) {
           request.headers.set("Authorization", `Bearer ${token}`);

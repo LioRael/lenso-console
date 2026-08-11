@@ -22,10 +22,11 @@ describe("lensoApiErrorMessage", () => {
   test("extracts standard API error messages", () => {
     expect(
       lensoApiErrorMessage({
-        error: {
-          code: "forbidden",
-          message: "missing console admin scope: console.admin",
-        },
+        code: "forbidden",
+        detail: "missing console admin scope: console.admin",
+        status: 403,
+        title: "Forbidden",
+        type: "https://lenso.dev/problems/forbidden",
       })
     ).toBe("missing console admin scope: console.admin");
   });
@@ -56,7 +57,12 @@ describe("Console HTTP authentication", () => {
       "fetch",
       vi.fn(async () =>
         Response.json(
-          { error: { message: "Console authentication is required" } },
+          {
+            detail: "Console authentication is required",
+            status: 401,
+            title: "Unauthorized",
+            type: "https://lenso.dev/problems/unauthorized",
+          },
           { status: 401 }
         )
       )

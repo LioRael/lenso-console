@@ -612,9 +612,15 @@ struct GrantListQuery {
     path = "/bootstrap/v1/status",
     operation_id = "console_get_bootstrap_status",
     tag = "console-bootstrap",
-    responses((status = 200, body = ConsoleBootstrapStatus))
+    responses(
+        (status = 200, body = ConsoleBootstrapStatus, content_type = "application/json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
+    )
 )]
-async fn get_bootstrap_status(State(ctx): State<AppContext>) -> Response {
+async fn get_bootstrap_status(
+    State(ctx): State<AppContext>,
+    HttpRequestContext(request_ctx): HttpRequestContext,
+) -> Response {
     match console_administrator_exists(&ctx).await {
         Ok(true) => (
             StatusCode::OK,
@@ -634,14 +640,15 @@ async fn get_bootstrap_status(State(ctx): State<AppContext>) -> Response {
             }),
         )
             .into_response(),
-        Err(_) => (
-            StatusCode::SERVICE_UNAVAILABLE,
-            axum::Json(serde_json::json!({
-                "status": "unavailable",
-                "message": "Console Access bootstrap state is unavailable"
-            })),
+        Err(error) => ApiErrorResponse::with_context(
+            AppError::new(
+                ErrorCode::Internal,
+                "Console Access bootstrap state is unavailable",
+            )
+            .with_source(error),
+            &request_ctx,
         )
-            .into_response(),
+        .into_response(),
     }
 }
 
@@ -653,10 +660,10 @@ async fn get_bootstrap_status(State(ctx): State<AppContext>) -> Response {
     request_body = BootstrapRecoveryRequest,
     responses(
         (status = 200, body = BootstrapRecoveryResponse),
-        (status = 400, body = ErrorResponse),
-        (status = 403, body = ErrorResponse),
-        (status = 409, body = ErrorResponse),
-        (status = 500, body = ErrorResponse)
+        (status = 400, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 409, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
 async fn create_bootstrap_superadmin(
@@ -1533,9 +1540,9 @@ async fn revoke_access_grant(
     tag = "console-access",
     responses(
         (status = 200, body = ConsoleAccessContextResponse),
-        (status = 401, body = ErrorResponse),
-        (status = 403, body = ErrorResponse),
-        (status = 500, body = ErrorResponse)
+        (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 500, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
 async fn get_console_access_context(
