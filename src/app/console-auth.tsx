@@ -1,14 +1,21 @@
 import { Button, dataStyles } from "@lenso/console-ui";
 import * as stylex from "@stylexjs/stylex";
 import { LogIn } from "lucide-react";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 
 import {
   apiAuthToken,
-  consoleAccessTokenStorageKey,
-  isApiMode,
   consoleApiAuthToken,
   consoleApiPrefix,
+  isApiMode,
+  storeConsoleAccessToken,
+  subscribeConsoleAccessToken,
 } from "../lib/http-client";
 import { statusStyles } from "./console-status-styles";
 
@@ -76,7 +83,6 @@ export function oidcAuthIsRequired() {
 export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [passwordAuthenticated, setPasswordAuthenticated] = useState(false);
   const [bootstrapStatus, setBootstrapStatus] = useState<
     ConsoleBootstrapStatus | "checking" | "unavailable"
   >("checking");
@@ -85,9 +91,15 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   const isCallback =
     typeof window !== "undefined" &&
     window.location.pathname === consoleOidcCallbackPath();
+  const accessToken = useSyncExternalStore(
+    subscribeConsoleAccessToken,
+    consoleApiAuthToken,
+    () => apiAuthToken
+  );
+  const authRequired = isApiMode() && !accessToken;
 
   useEffect(() => {
-    if (!oidcAuthIsRequired() || isCallback) {
+    if (!authRequired || isCallback) {
       return;
     }
     let active = true;
@@ -115,7 +127,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [isCallback]);
+  }, [authRequired, isCallback]);
 
   async function handleSignIn() {
     setBusy(true);
@@ -139,8 +151,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
         identifier: identifier.trim(),
         password,
       });
-      window.localStorage.setItem(consoleAccessTokenStorageKey, token);
-      setPasswordAuthenticated(true);
+      storeConsoleAccessToken(token);
     } catch (error: unknown) {
       setBusy(false);
       setAuthError(
@@ -169,7 +180,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
     }
   }, [isCallback]);
 
-  if ((!oidcAuthIsRequired() || passwordAuthenticated) && !isCallback) {
+  if (!authRequired && !isCallback) {
     return children;
   }
 
@@ -436,7 +447,7 @@ async function completeConsoleOidcLogin() {
     throw new Error("OIDC token response is invalid");
   }
 
-  window.localStorage.setItem(consoleAccessTokenStorageKey, token.access_token);
+  storeConsoleAccessToken(token.access_token);
   const returnPath =
     window.sessionStorage.getItem(oidcReturnPathStorageKey) || "/";
   window.sessionStorage.removeItem(oidcStateStorageKey);

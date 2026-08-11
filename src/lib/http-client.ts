@@ -29,6 +29,16 @@ export const apiAuthToken =
   (import.meta.env.DEV ? developmentApiAuthToken : undefined);
 export const consoleAccessTokenStorageKey = "lenso-console:access-token";
 
+type ConsoleAccessTokenListener = () => void;
+
+const consoleAccessTokenListeners = new Set<ConsoleAccessTokenListener>();
+
+function emitConsoleAccessTokenChange() {
+  for (const listener of consoleAccessTokenListeners) {
+    listener();
+  }
+}
+
 export function storedConsoleAccessToken() {
   return typeof window === "undefined"
     ? undefined
@@ -37,6 +47,47 @@ export function storedConsoleAccessToken() {
 
 export function consoleApiAuthToken() {
   return apiAuthToken ?? storedConsoleAccessToken();
+}
+
+export function subscribeConsoleAccessToken(
+  listener: ConsoleAccessTokenListener
+) {
+  consoleAccessTokenListeners.add(listener);
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === consoleAccessTokenStorageKey) {
+      listener();
+    }
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", handleStorage);
+  }
+
+  return () => {
+    consoleAccessTokenListeners.delete(listener);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", handleStorage);
+    }
+  };
+}
+
+export function storeConsoleAccessToken(token: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.setItem(consoleAccessTokenStorageKey, token);
+  emitConsoleAccessTokenChange();
+}
+
+export function invalidateStoredConsoleAccessToken() {
+  if (
+    typeof window === "undefined" ||
+    !window.localStorage.getItem(consoleAccessTokenStorageKey)
+  ) {
+    return;
+  }
+  window.localStorage.removeItem(consoleAccessTokenStorageKey);
+  emitConsoleAccessTokenChange();
 }
 
 export function consoleApiPrefix(value = apiBaseUrl) {
@@ -85,6 +136,13 @@ export const httpClient = ky.create({
         const token = consoleApiAuthToken();
         if (token) {
           request.headers.set("Authorization", `Bearer ${token}`);
+        }
+      },
+    ],
+    afterResponse: [
+      ({ response }) => {
+        if (response.status === 401) {
+          invalidateStoredConsoleAccessToken();
         }
       },
     ],

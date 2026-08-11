@@ -1,6 +1,12 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { consoleApiPrefix, lensoApiErrorMessage } from "./http-client";
+import {
+  consoleAccessTokenStorageKey,
+  consoleApiPrefix,
+  httpClient,
+  lensoApiErrorMessage,
+  subscribeConsoleAccessToken,
+} from "./http-client";
 
 describe("consoleApiPrefix", () => {
   test("keeps hosted console requests origin-rooted", () => {
@@ -28,3 +34,54 @@ describe("lensoApiErrorMessage", () => {
     expect(lensoApiErrorMessage({ message: "Forbidden" })).toBeUndefined();
   });
 });
+
+describe("Console HTTP authentication", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("clears a stored Console session after an API 401", async () => {
+    const storage = memoryStorage();
+    storage.setItem(consoleAccessTokenStorageKey, "stale-console-session");
+    const storageEvents = new EventTarget();
+    vi.stubGlobal("window", {
+      addEventListener: storageEvents.addEventListener.bind(storageEvents),
+      localStorage: storage,
+      removeEventListener:
+        storageEvents.removeEventListener.bind(storageEvents),
+    });
+    const tokenChanged = vi.fn();
+    const unsubscribe = subscribeConsoleAccessToken(tokenChanged);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          { error: { message: "Console authentication is required" } },
+          { status: 401 }
+        )
+      )
+    );
+
+    await expect(
+      httpClient.get("https://console.example.test/api/console/v1/composition")
+    ).rejects.toThrow("401");
+
+    expect(storage.getItem(consoleAccessTokenStorageKey)).toBeNull();
+    expect(tokenChanged).toHaveBeenCalledOnce();
+    unsubscribe();
+  });
+});
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => [...values.keys()][index] ?? null,
+    removeItem: (key) => values.delete(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+}
