@@ -28,6 +28,7 @@ pub const SURFACE_GATEWAY_PROTOCOL: &str = "lenso.console-surface-gateway.v1";
 const SUPPORT_TICKET_CONTRACT: &str = include_str!(
     "../../../packages/support-ticket-console/src/support-ticket-business-api.v1.json"
 );
+const AUTH_CONTRACT: &str = include_str!("../../contracts/auth-business-api.v1.json");
 const SYSTEM_CONNECTION_SQL: &str = "select system_id, topology_digest, topology, \
     management_binding from console.system_connections \
     where system_id = $1 limit 1";
@@ -94,7 +95,31 @@ struct ContractOperation {
     capability: String,
     idempotency: String,
     display_name: Option<String>,
+    target_prefix: &'static str,
 }
+
+#[derive(Debug, Clone, Copy)]
+struct SurfaceContract {
+    module_id: &'static str,
+    display_name: &'static str,
+    document: &'static str,
+    target_prefix: &'static str,
+}
+
+const SURFACE_CONTRACTS: &[SurfaceContract] = &[
+    SurfaceContract {
+        module_id: "support/tickets",
+        display_name: "Support Ticket",
+        document: SUPPORT_TICKET_CONTRACT,
+        target_prefix: "/modules/support-ticket/",
+    },
+    SurfaceContract {
+        module_id: "lenso/auth",
+        display_name: "Auth",
+        document: AUTH_CONTRACT,
+        target_prefix: "/v1/auth/console/",
+    },
+];
 
 #[derive(Debug, Clone)]
 struct ManagedServiceTarget {
@@ -211,9 +236,15 @@ async fn surface_gateway(
     Path(service_id): Path<String>,
     Json(request): Json<SurfaceOperationRequest>,
 ) -> Result<Json<SurfaceOperationResponse>, ApiErrorResponse> {
-    let operation = resolve_operation(&request.operation_id)
+    let contract = resolve_contract(&request.module_id).ok_or_else(|| {
+        validation_error(
+            "Surface Module has no committed Business API contract",
+            &request_ctx,
+        )
+    })?;
+    let operation = resolve_operation(contract, &request.operation_id)
         .map_err(|message| validation_error(message, &request_ctx))?;
-    let contract_digest = support_ticket_contract_digest();
+    let contract_digest = contract_digest(contract.document);
     validate_request_shape(
         &request,
         &service_id,
@@ -258,7 +289,7 @@ async fn surface_gateway(
 
     let call = build_target_call(&operation, &request.input, &request_ctx)?;
     let started_at = Instant::now();
-    let forwarded = forward_target(&target, &call, &request, &request_ctx).await;
+    let forwarded = forward_target(&target, &call, &operation, &request, &request_ctx).await;
     let provider_status = match &forwarded {
         Ok(response) => Some(response.status),
         Err(failure) => failure.provider_status,
@@ -494,13 +525,22 @@ fn validate_target_context(
     Ok(())
 }
 
-fn resolve_operation(operation_id: &str) -> Result<ContractOperation, String> {
-    let document: Value = serde_json::from_str(SUPPORT_TICKET_CONTRACT)
-        .map_err(|error| format!("Support Ticket contract is invalid: {error}"))?;
+fn resolve_contract(module_id: &str) -> Option<&'static SurfaceContract> {
+    SURFACE_CONTRACTS
+        .iter()
+        .find(|contract| contract.module_id == module_id)
+}
+
+fn resolve_operation(
+    contract: &SurfaceContract,
+    operation_id: &str,
+) -> Result<ContractOperation, String> {
+    let document: Value = serde_json::from_str(contract.document)
+        .map_err(|error| format!("{} contract is invalid: {error}", contract.display_name))?;
     let paths = document
         .get("paths")
         .and_then(Value::as_object)
-        .ok_or_else(|| "Support Ticket contract has no paths".to_owned())?;
+        .ok_or_else(|| format!("{} contract has no paths", contract.display_name))?;
     for path_item in paths.values() {
         let Some(path_item) = path_item.as_object() else {
             continue;
@@ -548,6 +588,7 @@ fn resolve_operation(operation_id: &str) -> Result<ContractOperation, String> {
                 capability: capability.to_owned(),
                 idempotency: idempotency.to_owned(),
                 display_name,
+                target_prefix: contract.target_prefix,
             });
         }
     }
@@ -557,7 +598,7 @@ fn resolve_operation(operation_id: &str) -> Result<ContractOperation, String> {
 }
 
 fn operation_console_capability(operation: &ContractOperation) -> String {
-    if operation.capability == "support_ticket.tickets.read" {
+    if operation.method == Method::GET {
         SURFACE_GATEWAY_READ.to_owned()
     } else {
         SURFACE_GATEWAY_WRITE.to_owned()
@@ -601,6 +642,8 @@ fn build_target_call(
             query.push(("cursor".to_owned(), cursor.to_owned()));
         }
         (operation.target_path.clone(), query, None)
+    } else if operation_id.starts_with("auth/") {
+        return build_auth_target_call(operation, object, request_ctx);
     } else if matches!(
         operation_id,
         "support-ticket/http/GET:/tickets/{id}"
@@ -667,6 +710,109 @@ fn build_target_call(
     })
 }
 
+fn build_auth_target_call(
+    operation: &ContractOperation,
+    input: &Map<String, Value>,
+    request_ctx: &RequestContext,
+) -> Result<TargetCall, ApiErrorResponse> {
+    let (path, query, body) = match operation.operation_id.as_str() {
+        "auth/http/GET:/users" | "auth/http/GET:/sessions" => (
+            operation.target_path.clone(),
+            auth_page_query(input, request_ctx)?,
+            None,
+        ),
+        "auth/http/POST:/users/{id}/disable" => {
+            assert_exact_keys(input, &["userId", "reason", "disabled_until"], request_ctx)?;
+            let user_id =
+                required_resource_path_segment(input, "userId", "Auth user", request_ctx)?;
+            optional_string(
+                input.get("reason"),
+                "Auth disable reason",
+                true,
+                request_ctx,
+            )?;
+            optional_string(
+                input.get("disabled_until"),
+                "Auth disabled_until",
+                false,
+                request_ctx,
+            )?;
+            let mut body = input.clone();
+            body.remove("userId");
+            (
+                operation.target_path.replace("{userId}", &user_id),
+                Vec::new(),
+                Some(Value::Object(body)),
+            )
+        }
+        "auth/http/POST:/users/{id}/enable" => {
+            assert_exact_keys(input, &["userId"], request_ctx)?;
+            let user_id =
+                required_resource_path_segment(input, "userId", "Auth user", request_ctx)?;
+            (
+                operation.target_path.replace("{userId}", &user_id),
+                Vec::new(),
+                None,
+            )
+        }
+        "auth/http/POST:/sessions/{id}/revoke" => {
+            assert_exact_keys(input, &["sessionId"], request_ctx)?;
+            let session_id =
+                required_resource_path_segment(input, "sessionId", "Auth session", request_ctx)?;
+            (
+                operation.target_path.replace("{sessionId}", &session_id),
+                Vec::new(),
+                None,
+            )
+        }
+        _ => {
+            return Err(validation_error(
+                "Surface operation input adapter is not implemented",
+                request_ctx,
+            ));
+        }
+    };
+    Ok(TargetCall {
+        method: operation.method.clone(),
+        path,
+        query,
+        body,
+    })
+}
+
+fn auth_page_query(
+    input: &Map<String, Value>,
+    request_ctx: &RequestContext,
+) -> Result<Vec<(String, String)>, ApiErrorResponse> {
+    assert_exact_keys(input, &["limit", "cursor"], request_ctx)?;
+    let mut query = Vec::new();
+    if let Some(limit) = input.get("limit") {
+        let limit = limit
+            .as_u64()
+            .ok_or_else(|| validation_error("Auth page limit must be an integer", request_ctx))?;
+        if !(1..=200).contains(&limit) {
+            return Err(validation_error(
+                "Auth page limit must be between 1 and 200",
+                request_ctx,
+            ));
+        }
+        query.push(("limit".to_owned(), limit.to_string()));
+    }
+    if let Some(cursor) = input.get("cursor") {
+        let cursor = cursor
+            .as_str()
+            .ok_or_else(|| validation_error("Auth page cursor must be a string", request_ctx))?;
+        if cursor.is_empty() {
+            return Err(validation_error(
+                "Auth page cursor must be non-empty",
+                request_ctx,
+            ));
+        }
+        query.push(("cursor".to_owned(), cursor.to_owned()));
+    }
+    Ok(query)
+}
+
 fn build_ticket_detail_target_call(
     operation: &ContractOperation,
     input: &Map<String, Value>,
@@ -727,6 +873,29 @@ fn optional_text(
     Ok(())
 }
 
+fn optional_string(
+    value: Option<&Value>,
+    field: &str,
+    allow_empty: bool,
+    request_ctx: &RequestContext,
+) -> Result<(), ApiErrorResponse> {
+    if let Some(value) = value {
+        let Some(value) = value.as_str() else {
+            return Err(validation_error(
+                format!("{field} must be a string"),
+                request_ctx,
+            ));
+        };
+        if !allow_empty && value.trim().is_empty() {
+            return Err(validation_error(
+                format!("{field} must be non-empty"),
+                request_ctx,
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_priority(
     value: Option<&Value>,
     request_ctx: &RequestContext,
@@ -773,17 +942,32 @@ fn required_path_segment(
     object: &Map<String, Value>,
     request_ctx: &RequestContext,
 ) -> Result<String, ApiErrorResponse> {
-    let ticket_id = required_text(object, "ticketId", request_ctx)?;
-    if !ticket_id
+    required_resource_path_segment(object, "ticketId", "Support Ticket", request_ctx)
+}
+
+fn required_resource_path_segment(
+    object: &Map<String, Value>,
+    field: &str,
+    resource: &str,
+    request_ctx: &RequestContext,
+) -> Result<String, ApiErrorResponse> {
+    let resource_id = object
+        .get(field)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| validation_error(format!("{resource} id must be non-empty"), request_ctx))?
+        .to_owned();
+    if !resource_id
         .bytes()
         .all(|byte| byte.is_ascii_alphanumeric() || b"._~-".contains(&byte))
     {
         return Err(validation_error(
-            "Support Ticket id contains an unsafe path character",
+            format!("{resource} id contains an unsafe path character"),
             request_ctx,
         ));
     }
-    Ok(ticket_id)
+    Ok(resource_id)
 }
 
 fn copy_optional(object: &Map<String, Value>, body: &mut Map<String, Value>, field: &str) {
@@ -914,10 +1098,11 @@ async fn load_target(
 async fn forward_target(
     target: &ManagedServiceTarget,
     call: &TargetCall,
+    operation: &ContractOperation,
     request: &SurfaceOperationRequest,
     request_ctx: &RequestContext,
 ) -> Result<TargetResponse, TargetFailure> {
-    let url = target_url(&target.base_url, &call.path)
+    let url = target_url(&target.base_url, &call.path, operation.target_prefix)
         .map_err(|message| TargetFailure::before_response(external_error(&message, request_ctx)))?;
     let remaining_ms = request
         .request_context
@@ -954,10 +1139,7 @@ async fn forward_target(
         .header("x-lenso-console-service-id", &target.service_id)
         .header("x-lenso-console-contract-digest", &request.contract_digest)
         .header("x-lenso-console-operation-id", &request.operation_id)
-        .header(
-            "x-lenso-console-capability",
-            operation_target_capability(&request.operation_id),
-        )
+        .header("x-lenso-console-capability", &operation.capability)
         .header(
             "x-lenso-deadline-unix-ms",
             request.request_context.deadline_unix_ms,
@@ -1100,23 +1282,13 @@ fn surface_provider_request_context(
 }
 
 fn surface_path_params(input: &Value) -> Value {
-    input.get("ticketId").map_or_else(
-        || Value::Object(Map::new()),
-        |ticket_id| json!({ "ticketId": ticket_id }),
-    )
-}
-
-fn operation_target_capability(operation_id: &str) -> &'static str {
-    if matches!(
-        operation_id,
-        "support-ticket/http/GET:/tickets"
-            | "support-ticket/http/GET:/tickets/{id}"
-            | "support-ticket/http/GET:/tickets/{id}/restricted"
-    ) {
-        "support_ticket.tickets.read"
-    } else {
-        "support_ticket.tickets.write"
+    let mut params = Map::new();
+    for field in ["ticketId", "userId", "sessionId"] {
+        if let Some(value) = input.get(field) {
+            params.insert(field.to_owned(), value.clone());
+        }
     }
+    Value::Object(params)
 }
 
 fn normalize_output(
@@ -1125,14 +1297,17 @@ fn normalize_output(
     mut output: Value,
     request_ctx: &RequestContext,
 ) -> Result<Value, ApiErrorResponse> {
-    if operation.operation_id == "support-ticket/http/GET:/tickets" {
+    if matches!(
+        operation.operation_id.as_str(),
+        "support-ticket/http/GET:/tickets" | "auth/http/GET:/users" | "auth/http/GET:/sessions"
+    ) {
         let limit = usize::try_from(input.get("limit").and_then(Value::as_u64).unwrap_or(100))
             .map_err(|error| {
-                internal_source_error("Support Ticket page limit is invalid", error, request_ctx)
+                internal_source_error("Surface page limit is invalid", error, request_ctx)
             })?;
         let object = output.as_object_mut().ok_or_else(|| {
             external_error(
-                "Connected Module returned an invalid ticket page",
+                "Connected Module returned an invalid Surface page",
                 request_ctx,
             )
         })?;
@@ -1141,7 +1316,7 @@ fn normalize_output(
             .and_then(Value::as_array_mut)
             .ok_or_else(|| {
                 external_error(
-                    "Connected Module returned an invalid ticket page",
+                    "Connected Module returned an invalid Surface page",
                     request_ctx,
                 )
             })?;
@@ -1149,22 +1324,57 @@ fn normalize_output(
         if !object.contains_key("next_cursor") {
             object.insert("next_cursor".to_owned(), Value::Null);
         }
-    } else if output
-        .as_object()
-        .and_then(|object| object.get("ticket"))
-        .and_then(Value::as_object)
-        .is_none()
-    {
-        return Err(external_error(
-            "Connected Module returned an invalid ticket result",
-            request_ctx,
-        ));
+    } else if operation.operation_id.starts_with("support-ticket/") {
+        if output
+            .as_object()
+            .and_then(|object| object.get("ticket"))
+            .and_then(Value::as_object)
+            .is_none()
+        {
+            return Err(external_error(
+                "Connected Module returned an invalid ticket result",
+                request_ctx,
+            ));
+        }
+    } else if matches!(
+        operation.operation_id.as_str(),
+        "auth/http/POST:/users/{id}/disable" | "auth/http/POST:/users/{id}/enable"
+    ) {
+        let object = output.as_object().ok_or_else(|| {
+            external_error(
+                "Connected Module returned an invalid Auth user result",
+                request_ctx,
+            )
+        })?;
+        if object.get("user_id").and_then(Value::as_str).is_none()
+            || object.get("changed").and_then(Value::as_bool).is_none()
+        {
+            return Err(external_error(
+                "Connected Module returned an invalid Auth user result",
+                request_ctx,
+            ));
+        }
+    } else if operation.operation_id == "auth/http/POST:/sessions/{id}/revoke" {
+        let object = output.as_object().ok_or_else(|| {
+            external_error(
+                "Connected Module returned an invalid Auth session result",
+                request_ctx,
+            )
+        })?;
+        if object.get("session_id").and_then(Value::as_str).is_none()
+            || object.get("revoked").and_then(Value::as_bool).is_none()
+        {
+            return Err(external_error(
+                "Connected Module returned an invalid Auth session result",
+                request_ctx,
+            ));
+        }
     }
     Ok(output)
 }
 
-fn target_url(base_url: &str, path: &str) -> Result<String, String> {
-    if !path.starts_with("/modules/support-ticket/")
+fn target_url(base_url: &str, path: &str, target_prefix: &str) -> Result<String, String> {
+    if !path.starts_with(target_prefix)
         || path.contains('?')
         || path.contains('#')
         || path.contains("..")
@@ -1199,8 +1409,8 @@ fn target_url(base_url: &str, path: &str) -> Result<String, String> {
     Ok(url.to_string())
 }
 
-fn support_ticket_contract_digest() -> String {
-    let digest = Sha256::digest(SUPPORT_TICKET_CONTRACT.as_bytes());
+fn contract_digest(document: &str) -> String {
+    let digest = Sha256::digest(document.as_bytes());
     let mut hex = String::with_capacity(digest.len() * 2);
     for byte in digest {
         use std::fmt::Write;
@@ -1321,6 +1531,14 @@ mod tests {
         )
     }
 
+    fn support_ticket_contract() -> &'static SurfaceContract {
+        resolve_contract("support/tickets").expect("Support Ticket contract")
+    }
+
+    fn auth_contract() -> &'static SurfaceContract {
+        resolve_contract("lenso/auth").expect("Auth contract")
+    }
+
     #[test]
     fn resolves_all_support_ticket_operations_from_the_committed_contract() {
         for operation_id in [
@@ -1331,7 +1549,8 @@ mod tests {
             "support-ticket/http/PATCH:/tickets/{id}",
             "support-ticket/http/POST:/tickets/{id}/close",
         ] {
-            let operation = resolve_operation(operation_id).expect("operation");
+            let operation =
+                resolve_operation(support_ticket_contract(), operation_id).expect("operation");
             assert_eq!(operation.operation_id, operation_id);
             assert!(
                 operation
@@ -1344,9 +1563,38 @@ mod tests {
     #[test]
     fn contract_digest_matches_the_generated_client_digest() {
         assert_eq!(
-            support_ticket_contract_digest(),
+            contract_digest(support_ticket_contract().document),
             "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be"
         );
+    }
+
+    #[test]
+    fn resolves_all_auth_operations_from_the_committed_contract() {
+        for operation_id in [
+            "auth/http/GET:/users",
+            "auth/http/GET:/sessions",
+            "auth/http/POST:/users/{id}/disable",
+            "auth/http/POST:/users/{id}/enable",
+            "auth/http/POST:/sessions/{id}/revoke",
+        ] {
+            let operation = resolve_operation(auth_contract(), operation_id).expect("operation");
+            assert_eq!(operation.operation_id, operation_id);
+            assert!(operation.target_path.starts_with("/v1/auth/console/"));
+        }
+    }
+
+    #[test]
+    fn auth_contract_digest_matches_the_generated_client_digest() {
+        assert_eq!(
+            contract_digest(auth_contract().document),
+            "sha256:b57f7626fb6eac67b0595c17894671f08782ec4ca7d8c69990769048570999ed"
+        );
+    }
+
+    #[test]
+    fn does_not_resolve_an_operation_against_another_modules_contract() {
+        assert!(resolve_operation(auth_contract(), "support-ticket/http/GET:/tickets").is_err());
+        assert!(resolve_operation(support_ticket_contract(), "auth/http/GET:/users").is_err());
     }
 
     #[test]
@@ -1410,7 +1658,11 @@ mod tests {
 
     #[test]
     fn rejects_unknown_input_fields_before_target_resolution() {
-        let operation = resolve_operation("support-ticket/http/GET:/tickets").expect("operation");
+        let operation = resolve_operation(
+            support_ticket_contract(),
+            "support-ticket/http/GET:/tickets",
+        )
+        .expect("operation");
         let error = build_target_call(
             &operation,
             &json!({ "rawUrl": "/arbitrary" }),
@@ -1422,7 +1674,11 @@ mod tests {
 
     #[test]
     fn maps_typed_list_parameters_to_the_committed_target_query() {
-        let operation = resolve_operation("support-ticket/http/GET:/tickets").expect("operation");
+        let operation = resolve_operation(
+            support_ticket_contract(),
+            "support-ticket/http/GET:/tickets",
+        )
+        .expect("operation");
         let call = build_target_call(
             &operation,
             &json!({ "cursor": "cursor/1", "limit": 2 }),
@@ -1441,9 +1697,97 @@ mod tests {
     }
 
     #[test]
-    fn maps_close_to_the_connected_module_update_route_without_exposing_a_target_url() {
+    fn maps_auth_list_parameters_to_the_committed_target_query() {
         let operation =
-            resolve_operation("support-ticket/http/POST:/tickets/{id}/close").expect("operation");
+            resolve_operation(auth_contract(), "auth/http/GET:/users").expect("operation");
+        let call = build_target_call(
+            &operation,
+            &json!({ "cursor": "user_1", "limit": 200 }),
+            &request_context(),
+        )
+        .expect("target call");
+
+        assert_eq!(call.path, "/v1/auth/console/users");
+        assert_eq!(
+            call.query,
+            vec![
+                ("limit".to_owned(), "200".to_owned()),
+                ("cursor".to_owned(), "user_1".to_owned()),
+            ]
+        );
+        assert_eq!(operation.capability, "auth.users.read");
+        assert_eq!(
+            operation_console_capability(&operation),
+            SURFACE_GATEWAY_READ
+        );
+    }
+
+    #[test]
+    fn maps_auth_user_mutations_without_exposing_a_target_url() {
+        let disable = resolve_operation(auth_contract(), "auth/http/POST:/users/{id}/disable")
+            .expect("disable operation");
+        let disable_call = build_target_call(
+            &disable,
+            &json!({
+                "userId": "user_1",
+                "reason": "review",
+                "disabled_until": "2026-08-12T10:00:00Z"
+            }),
+            &request_context(),
+        )
+        .expect("disable target call");
+        assert_eq!(disable_call.path, "/v1/auth/console/users/user_1/disable");
+        assert_eq!(
+            disable_call.body,
+            Some(json!({
+                "reason": "review",
+                "disabled_until": "2026-08-12T10:00:00Z"
+            }))
+        );
+        assert_eq!(disable.capability, "auth.users.manage");
+        assert_eq!(
+            operation_console_capability(&disable),
+            SURFACE_GATEWAY_WRITE
+        );
+
+        let enable = resolve_operation(auth_contract(), "auth/http/POST:/users/{id}/enable")
+            .expect("enable operation");
+        let enable_call =
+            build_target_call(&enable, &json!({ "userId": "user_1" }), &request_context())
+                .expect("enable target call");
+        assert_eq!(enable_call.path, "/v1/auth/console/users/user_1/enable");
+        assert!(enable_call.body.is_none());
+    }
+
+    #[test]
+    fn maps_auth_session_revoke_and_rejects_unsafe_resource_ids() {
+        let operation = resolve_operation(auth_contract(), "auth/http/POST:/sessions/{id}/revoke")
+            .expect("operation");
+        let call = build_target_call(
+            &operation,
+            &json!({ "sessionId": "session_1" }),
+            &request_context(),
+        )
+        .expect("target call");
+        assert_eq!(call.path, "/v1/auth/console/sessions/session_1/revoke");
+        assert!(call.body.is_none());
+
+        let error = build_target_call(
+            &operation,
+            &json!({ "sessionId": "../secrets" }),
+            &request_context(),
+        )
+        .expect_err("unsafe session id");
+        assert_eq!(error.error.code, ErrorCode::Validation);
+    }
+
+    #[test]
+    fn maps_close_to_the_connected_module_update_route_without_exposing_a_target_url() {
+        let operation = resolve_operation(
+            support_ticket_contract(),
+            "support-ticket/http/POST:/tickets/{id}/close",
+        )
+        .expect("operation");
         let call = build_target_call(
             &operation,
             &json!({ "ticketId": "ticket_1" }),
@@ -1461,7 +1805,8 @@ mod tests {
             "support-ticket/http/GET:/tickets/{id}",
             "support-ticket/http/GET:/tickets/{id}/restricted",
         ] {
-            let operation = resolve_operation(operation_id).expect("operation");
+            let operation =
+                resolve_operation(support_ticket_contract(), operation_id).expect("operation");
             let call = build_target_call(
                 &operation,
                 &json!({ "ticketId": "ticket_1" }),
@@ -1475,18 +1820,28 @@ mod tests {
                 "{operation_id}"
             );
             assert!(call.body.is_none(), "{operation_id}");
-            assert_eq!(
-                operation_target_capability(operation_id),
-                "support_ticket.tickets.read",
-                "{operation_id}"
-            );
+            assert_eq!(operation.capability, "support_ticket.tickets.read");
         }
     }
 
     #[test]
     fn rejects_target_paths_outside_the_connected_module_prefix() {
-        assert!(target_url("http://127.0.0.1:4110", "/admin/tickets").is_err());
-        assert!(target_url("http://example.com", "/modules/support-ticket/tickets").is_err());
+        assert!(
+            target_url(
+                "http://127.0.0.1:4110",
+                "/admin/tickets",
+                support_ticket_contract().target_prefix,
+            )
+            .is_err()
+        );
+        assert!(
+            target_url(
+                "http://example.com",
+                "/modules/support-ticket/tickets",
+                support_ticket_contract().target_prefix,
+            )
+            .is_err()
+        );
     }
 
     #[test]
