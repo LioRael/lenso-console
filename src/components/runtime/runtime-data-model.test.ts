@@ -141,8 +141,8 @@ describe("runtime story data model", () => {
     expect(rows[1]?.durationMs).toBe(120);
   });
 
-  test("keeps remote proxy calls in backend timeline rows", () => {
-    const remoteStory: RuntimeStory = {
+  test("keeps provider calls in backend timeline rows", () => {
+    const providerStory: RuntimeStory = {
       ...story,
       nodes: [
         ...story.nodes,
@@ -152,13 +152,14 @@ describe("runtime story data model", () => {
               declared_path: "/contacts/{id}",
               method: "GET",
               module_name: "crm-service",
-              remote_status: 200,
+              provider_call_id: "rproxy_1",
+              provider_status: 200,
             },
           },
           context: {},
           durationMs: 42,
           events: [],
-          id: "remoteproxy_rproxy_1",
+          id: "provider_rproxy_1",
           kind: "external",
           logs: [],
           name: "Fetch Contact",
@@ -175,36 +176,36 @@ describe("runtime story data model", () => {
           completedAt: "2026-06-01T00:00:00.222Z",
           correlationId: "corr_test",
           createdAt: "2026-06-01T00:00:00.180Z",
-          detailId: "remoteproxy_rproxy_1",
-          id: "remoteproxy_rproxy_1",
+          detailId: "provider_rproxy_1",
+          id: "provider_rproxy_1",
           maxAttempts: 1,
           name: "Fetch Contact",
           startedAt: "2026-06-01T00:00:00.180Z",
           status: "completed",
-          type: "remote_proxy_call",
+          type: "provider_call",
         },
       ],
     };
 
-    const rows = buildExecutionTimelineRows(remoteStory);
-    const remoteRow = rows.find((row) => row.id === "remoteproxy_rproxy_1");
+    const rows = buildExecutionTimelineRows(providerStory);
+    const providerRow = rows.find((row) => row.id === "provider_rproxy_1");
 
-    expect(remoteRow).toMatchObject({
+    expect(providerRow).toMatchObject({
       durationMs: 42,
-      kind: "remote_proxy_call",
+      kind: "provider_call",
       metaParts: ["ok", "crm-service", "GET /contacts/{id}", "status 200"],
       name: "Fetch Contact",
       service: "crm-service",
       source: "backend",
       status: "completed",
     });
-    expect(findExecutionNodeForRow(remoteStory, remoteRow!)?.id).toBe(
-      "remoteproxy_rproxy_1"
+    expect(findExecutionNodeForRow(providerStory, providerRow!)?.id).toBe(
+      "provider_rproxy_1"
     );
   });
 
-  test("summarizes failed remote proxy calls distinctly in timeline rows", () => {
-    const remoteStory: RuntimeStory = {
+  test("summarizes failed provider calls distinctly in timeline rows", () => {
+    const providerStory: RuntimeStory = {
       ...story,
       nodes: [
         ...story.nodes,
@@ -214,14 +215,15 @@ describe("runtime story data model", () => {
               declared_path: "/invoices",
               method: "POST",
               module_name: "remote-billing",
-              remote_status: 429,
+              provider_call_id: "rproxy_failed",
+              provider_status: 429,
               retryable: true,
             },
           },
           context: {},
           durationMs: 1420,
           events: [],
-          id: "remoteproxy_rproxy_failed",
+          id: "provider_rproxy_failed",
           kind: "external",
           logs: ["Service rate limited the request"],
           name: "Create Invoice",
@@ -238,26 +240,24 @@ describe("runtime story data model", () => {
           completedAt: "2026-06-01T00:00:01.600Z",
           correlationId: "corr_test",
           createdAt: "2026-06-01T00:00:00.180Z",
-          detailId: "remoteproxy_rproxy_failed",
-          id: "remoteproxy_rproxy_failed",
+          detailId: "provider_rproxy_failed",
+          id: "provider_rproxy_failed",
           lastError: "Service rate limited the request",
           maxAttempts: 1,
           name: "Create Invoice",
           startedAt: "2026-06-01T00:00:00.180Z",
           status: "failed",
-          type: "remote_proxy_call",
+          type: "provider_call",
         },
       ],
     };
 
-    const rows = buildExecutionTimelineRows(remoteStory);
-    const remoteRow = rows.find(
-      (row) => row.id === "remoteproxy_rproxy_failed"
-    );
+    const rows = buildExecutionTimelineRows(providerStory);
+    const providerRow = rows.find((row) => row.id === "provider_rproxy_failed");
 
-    expect(remoteRow).toMatchObject({
+    expect(providerRow).toMatchObject({
       error: "Service rate limited the request",
-      kind: "remote_proxy_call",
+      kind: "provider_call",
       metaParts: [
         "retryable",
         "remote-billing",
@@ -268,7 +268,7 @@ describe("runtime story data model", () => {
     });
   });
 
-  test("summarizes remote proxy nodes when backend timeline items are missing", () => {
+  test("summarizes provider nodes when backend timeline items are missing", () => {
     const { timelineItems: _timelineItems, ...storyWithoutTimelineItems } =
       story;
     const rows = buildExecutionTimelineRows({
@@ -280,14 +280,14 @@ describe("runtime story data model", () => {
               declared_path: "/contacts/{id}",
               method: "GET",
               module_name: "crm-service",
-              remote_proxy_call_id: "rproxy_1",
-              remote_status: 502,
+              provider_call_id: "rproxy_1",
+              provider_status: 502,
             },
           },
           context: {},
           durationMs: 90,
           events: [],
-          id: "remoteproxy_rproxy_1",
+          id: "provider_rproxy_1",
           kind: "external",
           logs: ["external dependency failed"],
           name: "Fetch Contact",
@@ -299,7 +299,7 @@ describe("runtime story data model", () => {
     });
 
     expect(rows[0]).toMatchObject({
-      kind: "external",
+      kind: "provider_call",
       metaParts: ["failed", "crm-service", "GET /contacts/{id}", "status 502"],
       source: "node",
     });
@@ -504,6 +504,38 @@ describe("runtime story data model", () => {
     });
 
     expect(nodes.map((node) => node.id)).toEqual(["node_b"]);
+  });
+
+  test("maps canonical provider heatmap cells back to provider nodes", () => {
+    const providerNode: RuntimeStory["nodes"][number] = {
+      attributes: {
+        source_metadata: { provider_call_id: "rproxy_heatmap" },
+      },
+      context: {},
+      durationMs: 25,
+      events: [],
+      id: "provider_rproxy_heatmap",
+      kind: "external",
+      logs: [],
+      name: "Provider call",
+      service: "support/tickets",
+      startMs: 20,
+      status: "completed",
+    };
+    const nodes = resolveHeatmapCellNodes({
+      cell: {
+        bucketEnd: "2026-06-01T00:00:01.000Z",
+        bucketStart: "2026-06-01T00:00:00.000Z",
+        deadCount: 0,
+        errorCount: 0,
+        nodeType: "provider_call",
+        service: "support/tickets",
+        totalCount: 1,
+      },
+      story: { ...story, nodes: [providerNode] },
+    });
+
+    expect(nodes.map((node) => node.id)).toEqual(["provider_rproxy_heatmap"]);
   });
 
   test("keeps story heatmap drilldown scoped to the bucket window", () => {

@@ -35,7 +35,7 @@ export type ExecutionPayloadModel = {
   metadata?: unknown;
 };
 
-export type RemoteProxyInspectorDetail = {
+export type ProviderCallInspectorDetail = {
   rows: Array<[string, unknown]>;
   pathParams?: unknown;
   errorDetails?: unknown;
@@ -172,11 +172,11 @@ export function buildExecutionFailures(
   return failures;
 }
 
-export function buildRemoteProxyInspectorDetail(
+export function buildProviderCallInspectorDetail(
   node: ExecutionNode
-): RemoteProxyInspectorDetail | undefined {
+): ProviderCallInspectorDetail | undefined {
   const metadata = recordValue(node.attributes.source_metadata);
-  if (!isRemoteProxyMetadata(metadata)) {
+  if (!isProviderCallMetadata(metadata)) {
     return undefined;
   }
 
@@ -185,15 +185,15 @@ export function buildRemoteProxyInspectorDetail(
   const route = [method, declaredPath]
     .filter((part): part is string => part !== undefined)
     .join(" ");
-  const remoteStatus = numberValue(metadata.remote_status);
+  const providerStatus = numberValue(metadata.provider_status);
   const retryable = booleanValue(metadata.retryable);
   const durationMs = numberValue(metadata.duration_ms) ?? node.durationMs;
   const rows: Array<[string, unknown]> = [
-    ["result", remoteProxyResultLabel(node.status, retryable)],
+    ["result", providerCallResultLabel(node.status, retryable)],
     ["module", stringValue(metadata.module_name) ?? node.service],
     ["declared route", route || "-"],
-    ["remote path", stringValue(metadata.remote_path) ?? "-"],
-    ["remote status", remoteStatus ?? "-"],
+    ["provider path", stringValue(metadata.provider_path) ?? "-"],
+    ["provider status", providerStatus ?? "-"],
     ["duration", formatRuntimeDuration(durationMs)],
     ["request id", stringValue(metadata.request_id) ?? "-"],
     ["trace id", stringValue(metadata.trace_id) ?? "-"],
@@ -307,8 +307,8 @@ function recordValue(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {};
 }
 
-function isRemoteProxyMetadata(metadata: Record<string, unknown>) {
-  if (typeof metadata.remote_proxy_call_id === "string") {
+function isProviderCallMetadata(metadata: Record<string, unknown>) {
+  if (typeof metadata.provider_call_id === "string") {
     return true;
   }
 
@@ -333,7 +333,7 @@ function booleanValue(value: unknown) {
   return typeof value === "boolean" ? value : false;
 }
 
-function remoteProxyResultLabel(status: string, retryable: boolean) {
+function providerCallResultLabel(status: string, retryable: boolean) {
   if (status === "failed" || status === "dead") {
     return retryable ? "retryable failure" : "failed";
   }

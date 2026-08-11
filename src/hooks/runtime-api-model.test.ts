@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { buildRemoteProxyInspectorDetail } from "../components/runtime/execution-inspector-model";
+import { buildProviderCallInspectorDetail } from "../components/runtime/execution-inspector-model";
 import { buildExecutionTimelineRows } from "../components/runtime/execution-timeline-model";
 import {
   normalizeExecutionLogs,
@@ -208,7 +208,7 @@ describe("runtime API model normalization", () => {
     });
   });
 
-  test("normalizes remote proxy calls as story graph and timeline nodes", () => {
+  test("canonicalizes legacy remote proxy story inputs at the API boundary", () => {
     const story = normalizeRuntimeStory({
       ...normalStory,
       nodes: [
@@ -240,6 +240,18 @@ describe("runtime API model normalization", () => {
           timestamp: "2026-06-01T12:00:00.180Z",
           type: "remote_proxy_call",
         },
+        {
+          duration_ms: 5,
+          id: "fn_after_provider",
+          metadata: {
+            causation_id: "remoteproxy_rproxy_1",
+          },
+          name: "crm.after_provider",
+          service: "crm-service",
+          status: "completed",
+          timestamp: "2026-06-01T12:00:00.225Z",
+          type: "function_run",
+        },
       ],
       edges: [
         ...(normalStory.edges ?? []),
@@ -247,6 +259,12 @@ describe("runtime API model normalization", () => {
           id: "fn_create_user:remoteproxy_rproxy_1:causation",
           source: "fn_create_user",
           target: "remoteproxy_rproxy_1",
+          type: "causation",
+        },
+        {
+          id: "remoteproxy_rproxy_1:fn_after_provider:causation",
+          source: "remoteproxy_rproxy_1",
+          target: "fn_after_provider",
           type: "causation",
         },
       ],
@@ -267,10 +285,10 @@ describe("runtime API model normalization", () => {
       ],
     });
 
-    const remoteNode = story.nodes.find(
-      (node) => node.id === "remoteproxy_rproxy_1"
+    const providerNode = story.nodes.find(
+      (node) => node.id === "provider_rproxy_1"
     );
-    expect(remoteNode).toMatchObject({
+    expect(providerNode).toMatchObject({
       durationMs: 42,
       kind: "external",
       name: "Fetch Contact",
@@ -278,29 +296,44 @@ describe("runtime API model normalization", () => {
       service: "crm-service",
       status: "completed",
     });
-    expect(remoteNode?.attributes.source_metadata).toMatchObject({
+    expect(story.edges).toContainEqual({
+      id: "fn_create_user:provider_rproxy_1:causation",
+      source: "fn_create_user",
+      target: "provider_rproxy_1",
+      type: "causation",
+    });
+    expect(
+      story.nodes.find((node) => node.id === "fn_after_provider")
+    ).toMatchObject({
+      context: { causation_id: "provider_rproxy_1" },
+      parentId: "provider_rproxy_1",
+    });
+    expect(providerNode?.attributes.source_metadata).toMatchObject({
       declared_path: "/contacts/{id}",
       duration_ms: 42,
       error_details: [],
       method: "GET",
       module_name: "crm-service",
       path_params: { id: "contact_1" },
-      remote_path: "/contacts/contact_1",
-      remote_proxy_call_id: "rproxy_1",
-      remote_status: 200,
+      provider_call_id: "rproxy_1",
+      provider_path: "/contacts/contact_1",
+      provider_status: 200,
       request_id: "req_service_proxy",
       retryable: false,
       span_id: "span_remote_proxy",
       trace_id: "trace_remote_proxy",
     });
+    expect(providerNode?.attributes.source_metadata).not.toHaveProperty(
+      "remote_proxy_call_id"
+    );
     expect(
       buildExecutionTimelineRows(story).find(
-        (row) => row.id === "remoteproxy_rproxy_1"
+        (row) => row.id === "provider_rproxy_1"
       )
     ).toMatchObject({
       metaParts: ["ok", "crm-service", "GET /contacts/{id}", "status 200"],
     });
-    expect(buildRemoteProxyInspectorDetail(remoteNode!)).toMatchObject({
+    expect(buildProviderCallInspectorDetail(providerNode!)).toMatchObject({
       errorDetails: [],
       pathParams: { id: "contact_1" },
       rows: expect.arrayContaining([
@@ -310,11 +343,64 @@ describe("runtime API model normalization", () => {
       ]),
     });
     expect(
-      story.timelineItems?.find((item) => item.id === "remoteproxy_rproxy_1")
+      story.timelineItems?.find((item) => item.id === "provider_rproxy_1")
     ).toMatchObject({
-      detailId: "remoteproxy_rproxy_1",
+      detailId: "provider_rproxy_1",
       name: "Fetch Contact",
-      type: "remote_proxy_call",
+      type: "provider_call",
+    });
+  });
+
+  test("normalizes provider calls as canonical external story nodes", () => {
+    const story = normalizeRuntimeStory({
+      ...normalStory,
+      nodes: [
+        {
+          duration_ms: 42,
+          id: "provider_rproxy_1",
+          metadata: {
+            source_metadata: {
+              declared_path: "/contacts/{id}",
+              duration_ms: 42,
+              method: "GET",
+              module_name: "crm-service",
+              provider_call_id: "rproxy_1",
+              provider_path: "/contacts/contact_1",
+              provider_status: 200,
+              request_id: "req_provider",
+            },
+          },
+          name: "Fetch Contact",
+          service: "crm-service",
+          status: "completed",
+          timestamp: "2026-06-01T12:00:00.180Z",
+          type: "provider_call",
+        },
+      ],
+      edges: [],
+      timeline_items: [
+        {
+          attempts: 1,
+          completed_at: "2026-06-01T12:00:00.222Z",
+          correlation_id: "corr_normal",
+          created_at: "2026-06-01T12:00:00.180Z",
+          id: "provider_rproxy_1",
+          max_attempts: 1,
+          name: "Fetch Contact",
+          started_at: "2026-06-01T12:00:00.180Z",
+          status: "completed",
+          type: "provider_call",
+        },
+      ],
+    });
+
+    expect(story.nodes[0]).toMatchObject({
+      id: "provider_rproxy_1",
+      kind: "external",
+    });
+    expect(buildExecutionTimelineRows(story)[0]).toMatchObject({
+      kind: "provider_call",
+      metaParts: ["ok", "crm-service", "GET /contacts/{id}", "status 200"],
     });
   });
 
@@ -609,6 +695,28 @@ describe("runtime API model normalization", () => {
     ]);
   });
 
+  test("normalizes provider heatmap cells as external work", () => {
+    const heatmap = normalizeRuntimeHeatmap({
+      bucket_seconds: 60,
+      data: [
+        {
+          bucket_end: "2026-06-01T12:01:00.000Z",
+          bucket_start: "2026-06-01T12:00:00.000Z",
+          dead_count: 0,
+          error_count: 1,
+          node_type: "provider_call",
+          service: "support/tickets",
+          total_count: 1,
+        },
+      ],
+    });
+
+    expect(heatmap.cells[0]).toMatchObject({
+      nodeType: "provider_call",
+      service: "support/tickets",
+    });
+  });
+
   test("normalizes execution payload responses", () => {
     const payload = normalizeExecutionPayload({
       data: {
@@ -627,13 +735,16 @@ describe("runtime API model normalization", () => {
     });
   });
 
-  test("preserves remote proxy technical operation source", () => {
+  test("canonicalizes legacy remote proxy technical operations at the API boundary", () => {
     const operations = normalizeTechnicalOperations({
       data: [
         {
           attributes: {
             error_code: "external_dependency_failure",
             module_name: "crm-service",
+            remote_path: "/contacts/contact_1",
+            remote_proxy_call_id: "rproxy_1",
+            remote_status: 502,
           },
           category: "external",
           correlation_id: "corr_1",
@@ -652,10 +763,62 @@ describe("runtime API model normalization", () => {
 
     expect(operations[0]).toMatchObject({
       category: "external",
-      id: "remote_proxy:rproxy_1",
-      source: "remote_proxy",
+      attributes: {
+        error_code: "external_dependency_failure",
+        module_name: "crm-service",
+        provider_call_id: "rproxy_1",
+        provider_path: "/contacts/contact_1",
+        provider_status: 502,
+      },
+      id: "provider:rproxy_1",
+      source: "provider",
       status: "error",
     });
+    expect(operations[0]?.attributes).not.toHaveProperty(
+      "remote_proxy_call_id"
+    );
+  });
+
+  test("preserves canonical provider technical operations", () => {
+    const operations = normalizeTechnicalOperations({
+      data: [
+        {
+          attributes: {
+            provider_call_id: null,
+            provider_path: "",
+            provider_status: 0,
+            remote_proxy_call_id: "legacy_rproxy_1",
+            remote_path: "/legacy/contact_1",
+            remote_status: 502,
+          },
+          category: "external",
+          correlation_id: "corr_1",
+          duration_ms: 125,
+          ended_at: "2026-06-01T12:00:01.125Z",
+          id: "provider:rproxy_1",
+          name: "Fetch Contact",
+          related_node_id: "provider_rproxy_1",
+          source: "provider",
+          started_at: "2026-06-01T12:00:01.000Z",
+          status: "ok",
+          story_id: "corr_1",
+        },
+      ],
+    });
+
+    expect(operations[0]).toMatchObject({
+      attributes: {
+        provider_call_id: null,
+        provider_path: "",
+        provider_status: 0,
+      },
+      id: "provider:rproxy_1",
+      relatedNodeId: "provider_rproxy_1",
+      source: "provider",
+    });
+    expect(operations[0]?.attributes).not.toHaveProperty(
+      "remote_proxy_call_id"
+    );
   });
 
   test("preserves remote runtime technical operation source", () => {

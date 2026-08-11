@@ -9,6 +9,9 @@ import { defineConfig } from "vitest/config";
 import { consoleStylex } from "./config/console-stylex.ts";
 
 export default defineConfig({
+  optimizeDeps: {
+    include: ["ky"],
+  },
   resolve: {
     alias: {
       "@lenso/console-module-api": path.resolve(

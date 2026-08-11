@@ -384,7 +384,6 @@ export interface ConsoleQueryResult<T> {
 
 export interface ConsoleManagedService {
   authorizationEpoch: number;
-  baseUrl: string;
   connectionState: "never_observed" | "ready" | "unavailable" | "incompatible";
   coreDocument?: unknown;
   coreObservedAt?: string | null;

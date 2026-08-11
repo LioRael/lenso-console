@@ -34,7 +34,7 @@ export type RuntimeHeatmapCell = {
   bucketStart: string;
   bucketEnd: string;
   service: string;
-  nodeType: "event" | "function" | "http";
+  nodeType: "event" | "function" | "http" | "provider_call";
   totalCount: number;
   errorCount: number;
   deadCount: number;
@@ -148,15 +148,21 @@ export function normalizeRuntimeStory(
   const nodeIdAliases = new Map<string, string>();
   const seenIds = new Map<string, number>();
   const nodes = rawNodes.map((node, index): ExecutionNode => {
-    const rawId = safeString(node.id, `node_${index + 1}`);
-    const seenCount = seenIds.get(rawId) ?? 0;
-    seenIds.set(rawId, seenCount + 1);
-    const id = seenCount === 0 ? rawId : `${rawId}__${seenCount + 1}`;
-    if (!nodeIdAliases.has(rawId)) {
-      nodeIdAliases.set(rawId, id);
+    const inputId = safeString(node.id, `node_${index + 1}`);
+    const nodeType = normalizeProviderCallType(node.type);
+    const canonicalId = normalizeProviderNodeId(inputId, nodeType);
+    const seenCount = seenIds.get(canonicalId) ?? 0;
+    seenIds.set(canonicalId, seenCount + 1);
+    const id =
+      seenCount === 0 ? canonicalId : `${canonicalId}__${seenCount + 1}`;
+    if (!nodeIdAliases.has(inputId)) {
+      nodeIdAliases.set(inputId, id);
     }
+    nodeIdAliases.set(canonicalId, id);
 
-    const metadata = objectRecord(node.metadata);
+    const metadata = normalizeProviderNodeReferences(
+      normalizeProviderNodeMetadata(node.metadata, nodeType)
+    );
     const nodeTimestamp = normalizeTimestamp(node.timestamp, timestamp);
     const parsedNodeTimestamp = Date.parse(nodeTimestamp);
     const startMs = hasValidBaseTimestamp
@@ -185,7 +191,7 @@ export function normalizeRuntimeStory(
       durationMs: normalizeDuration(node.duration_ms),
       events: [],
       id,
-      kind: toExecutionNodeKind(node.type),
+      kind: toExecutionNodeKind(nodeType),
       logs: error ? [error] : [],
       name: displayName,
       retryable: !isFederated && isRetryable(status),
@@ -409,9 +415,8 @@ function normalizeRuntimeEdges(
     if (!source || !target || !nodeIds.has(source) || !nodeIds.has(target)) {
       continue;
     }
-    const id = safeString(
-      edge.id,
-      `${source}:${target}:${edge.type ?? "edge"}`
+    const id = normalizeProviderEdgeId(
+      safeString(edge.id, `${source}:${target}:${edge.type ?? "edge"}`)
     );
     const dedupeKey = `${source}:${target}:${edge.type ?? "edge"}:${id}`;
     if (seenEdges.has(dedupeKey)) {
@@ -435,7 +440,11 @@ function normalizeTimelineItem(
   fallbackCorrelationId: string,
   index: number
 ): TimelineItem {
-  const id = safeString(item.id, `timeline_${index + 1}`);
+  const type = normalizeProviderCallType(item.type);
+  const id = normalizeProviderNodeId(
+    safeString(item.id, `timeline_${index + 1}`),
+    type
+  );
   const createdAt = normalizeTimestamp(item.created_at);
   const completedAt = maybeTimestamp(item.completed_at);
   const lastError = item.last_error;
@@ -452,7 +461,7 @@ function normalizeTimelineItem(
     ...(lastError ? { lastError } : {}),
     ...(startedAt ? { startedAt } : {}),
     status: normalizeRuntimeStatus(item.status),
-    type: safeString(item.type, "runtime"),
+    type,
   };
 }
 
@@ -481,18 +490,27 @@ function normalizeExecutionLog(log: ApiExecutionLog): ExecutionLogEntry {
 function normalizeTechnicalOperation(
   operation: ApiTechnicalOperation
 ): TechnicalOperation {
+  const source = normalizeTechnicalOperationSource(operation.source);
   return {
-    attributes: objectRecord(operation.attributes),
+    attributes: normalizeProviderAttributes(operation.attributes, source),
     category: normalizeTechnicalOperationCategory(operation.category),
     correlationId: safeString(operation.correlation_id, "unknown"),
     durationMs: normalizeDuration(operation.duration_ms),
     endedAt: normalizeTimestamp(operation.ended_at),
-    id: safeString(operation.id, "technical_operation"),
+    id: normalizeProviderOperationId(
+      safeString(operation.id, "technical_operation"),
+      source
+    ),
     name: safeString(operation.name, "Technical Operation"),
     ...(operation.related_node_id
-      ? { relatedNodeId: operation.related_node_id }
+      ? {
+          relatedNodeId: normalizeProviderNodeId(
+            operation.related_node_id,
+            source === "provider" ? "provider_call" : undefined
+          ),
+        }
       : {}),
-    source: normalizeTechnicalOperationSource(operation.source),
+    source,
     startedAt: normalizeTimestamp(operation.started_at),
     status: safeString(operation.status, "unknown"),
     storyId: safeString(operation.story_id, "unknown"),
@@ -539,9 +557,12 @@ function normalizeTechnicalOperationSource(
   source: string | undefined
 ): TechnicalOperation["source"] {
   switch (source) {
-    case "remote_proxy":
+    case "provider":
     case "remote_runtime": {
       return source;
+    }
+    case "remote_proxy": {
+      return "provider";
     }
     default: {
       return "otel";
@@ -577,6 +598,11 @@ function normalizeHeatmapNodeType(type: string | undefined) {
     case "http":
     case "http_request": {
       return "http";
+    }
+    case "external_provider_call":
+    case "provider_call":
+    case "remote_proxy_call": {
+      return "provider_call";
     }
     default: {
       return "function";
@@ -647,6 +673,7 @@ function toExecutionNodeKind(type: string | undefined): ExecutionNode["kind"] {
       return "function";
     }
     case "external":
+    case "provider_call":
     case "remote_proxy_call":
     case "external_provider_call": {
       return "external";
@@ -659,6 +686,100 @@ function toExecutionNodeKind(type: string | undefined): ExecutionNode["kind"] {
       return "runtime";
     }
   }
+}
+
+function normalizeProviderCallType(type: string | undefined) {
+  switch (type) {
+    case "remote_proxy_call":
+    case "external_provider_call":
+    case "provider_call": {
+      return "provider_call";
+    }
+    default: {
+      return safeString(type, "runtime");
+    }
+  }
+}
+
+function normalizeProviderNodeId(id: string, type: string | undefined) {
+  if (type !== "provider_call" || !id.startsWith("remoteproxy_")) {
+    return id;
+  }
+  return `provider_${id.slice("remoteproxy_".length)}`;
+}
+
+function normalizeProviderEdgeId(id: string) {
+  return id.replaceAll("remoteproxy_", "provider_");
+}
+
+function normalizeProviderOperationId(
+  id: string,
+  source: TechnicalOperation["source"]
+) {
+  if (source !== "provider" || !id.startsWith("remote_proxy:")) {
+    return id;
+  }
+  return `provider:${id.slice("remote_proxy:".length)}`;
+}
+
+function normalizeProviderNodeMetadata(
+  value: unknown,
+  type: string
+): Record<string, unknown> {
+  const metadata = objectRecord(value);
+  if (type !== "provider_call") {
+    return metadata;
+  }
+  const normalized = normalizeProviderAttributes(metadata, "provider");
+  if (Object.hasOwn(metadata, "source_metadata")) {
+    normalized.source_metadata = normalizeProviderAttributes(
+      metadata.source_metadata,
+      "provider"
+    );
+  }
+  return normalized;
+}
+
+function normalizeProviderNodeReferences(metadata: Record<string, unknown>) {
+  const normalized = { ...metadata };
+  if (typeof normalized.causation_id === "string") {
+    normalized.causation_id = normalizeProviderReferenceId(
+      normalized.causation_id
+    );
+  }
+  return normalized;
+}
+
+function normalizeProviderReferenceId(id: string) {
+  return id.startsWith("remoteproxy_")
+    ? `provider_${id.slice("remoteproxy_".length)}`
+    : id;
+}
+
+function normalizeProviderAttributes(
+  value: unknown,
+  source: TechnicalOperation["source"]
+): Record<string, unknown> {
+  const attributes = { ...objectRecord(value) };
+  if (source !== "provider") {
+    return attributes;
+  }
+  for (const [legacy, canonical] of [
+    ["remote_proxy_call_id", "provider_call_id"],
+    ["remote_path", "provider_path"],
+    ["remote_status", "provider_status"],
+  ] as const) {
+    if (
+      !Object.hasOwn(attributes, canonical) &&
+      Object.hasOwn(attributes, legacy)
+    ) {
+      attributes[canonical] = attributes[legacy];
+    }
+  }
+  delete attributes.remote_proxy_call_id;
+  delete attributes.remote_path;
+  delete attributes.remote_status;
+  return attributes;
 }
 
 function normalizeRuntimeStatus(status: string | undefined): RuntimeStatus {

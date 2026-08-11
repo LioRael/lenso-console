@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use auth::models::{AuthSessionRecord, AuthUser, AuthUserId};
 use auth::repositories::{AuthUserRepository, PostgresAuthUserRepository};
@@ -253,6 +253,12 @@ fn http_routes() -> Vec<ModuleHttpRoute> {
         ),
         route(
             ModuleHttpMethod::Get,
+            "/api/console/v1/access/context",
+            None,
+            "Inspect Current Console Access Context",
+        ),
+        route(
+            ModuleHttpMethod::Get,
             "/api/console/v1/access/effective/{serviceId}",
             Some(CONSOLE_GRANTS_READ),
             "Inspect Effective Managed Service Access",
@@ -312,6 +318,7 @@ fn merge_http(base: ApiOpenApiRouter) -> ApiOpenApiRouter {
             .routes(routes!(list_access_grants))
             .routes(routes!(create_access_grant))
             .routes(routes!(revoke_access_grant))
+            .routes(routes!(get_console_access_context))
             .routes(routes!(get_effective_access)),
     )
 }
@@ -579,6 +586,20 @@ struct EffectiveAccessResponse {
     user_id: String,
     service_id: String,
     capabilities: Vec<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum ConsoleAccessContextActor {
+    User { user_id: String },
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+struct ConsoleAccessContextResponse {
+    actor: ConsoleAccessContextActor,
+    scopes: Vec<String>,
+    capabilities: Vec<String>,
+    managed_service_capabilities: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1507,6 +1528,42 @@ async fn revoke_access_grant(
 
 #[utoipa::path(
     get,
+    path = "/api/console/v1/access/context",
+    operation_id = "console_access_get_current_context",
+    tag = "console-access",
+    responses(
+        (status = 200, body = ConsoleAccessContextResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    )
+)]
+async fn get_console_access_context(
+    State(ctx): State<AppContext>,
+    actor: UserActor,
+    HttpRequestContext(request_ctx): HttpRequestContext,
+) -> Result<Json<ConsoleAccessContextResponse>, ApiErrorResponse> {
+    // This is a read-only projection of current, revocable Console authority.
+    // It does not mint or persist Auth scopes; every protected route repeats
+    // its server-side Console Access check.
+    let capabilities = global_effective_capabilities(&ctx, &actor)
+        .await
+        .map_err(|error| api_error(error, &request_ctx))?;
+    let managed_service_capabilities = managed_service_capabilities(&ctx, &actor)
+        .await
+        .map_err(|error| api_error(error, &request_ctx))?;
+    Ok(json(ConsoleAccessContextResponse {
+        actor: ConsoleAccessContextActor::User {
+            user_id: actor.user_id,
+        },
+        scopes: actor.scopes,
+        capabilities: capabilities.into_iter().collect(),
+        managed_service_capabilities,
+    }))
+}
+
+#[utoipa::path(
+    get,
     path = "/api/console/v1/access/effective/{serviceId}",
     operation_id = "console_access_get_effective_managed_service_access",
     tag = "console-access",
@@ -1612,10 +1669,7 @@ async fn effective_capabilities(
     actor: &UserActor,
     service_id: Option<&str>,
 ) -> Result<BTreeSet<String>, AppError> {
-    let mut capabilities = actor.scopes.iter().cloned().collect::<BTreeSet<_>>();
-    if console_administrator_exists_for_user(ctx, &actor.user_id).await? {
-        capabilities.insert("*".to_owned());
-    }
+    let mut capabilities = global_effective_capabilities(ctx, actor).await?;
 
     let direct = grant_capabilities_for_subject(ctx, "user", &actor.user_id, service_id).await?;
     capabilities.extend(direct);
@@ -1633,6 +1687,79 @@ async fn effective_capabilities(
         );
     }
     Ok(capabilities)
+}
+
+async fn global_effective_capabilities(
+    ctx: &AppContext,
+    actor: &UserActor,
+) -> Result<BTreeSet<String>, AppError> {
+    let mut capabilities = actor.scopes.iter().cloned().collect::<BTreeSet<_>>();
+    if console_administrator_exists_for_user(ctx, &actor.user_id).await? {
+        capabilities.insert("*".to_owned());
+    }
+    Ok(capabilities)
+}
+
+async fn managed_service_capabilities(
+    ctx: &AppContext,
+    actor: &UserActor,
+) -> Result<BTreeMap<String, Vec<String>>, AppError> {
+    let mut capabilities = BTreeMap::<String, BTreeSet<String>>::new();
+    extend_managed_service_capabilities(ctx, "user", &actor.user_id, &mut capabilities).await?;
+    let organizations =
+        organization::public::list_user_organizations(&ctx.db, &AuthUserId(actor.user_id.clone()))
+            .await
+            .map_err(|error| {
+                AppError::new(ErrorCode::Internal, "Console organization lookup failed")
+                    .with_source(error)
+            })?;
+    for organization in organizations {
+        extend_managed_service_capabilities(
+            ctx,
+            "organization",
+            &organization.id,
+            &mut capabilities,
+        )
+        .await?;
+    }
+    Ok(capabilities
+        .into_iter()
+        .map(|(service_id, capabilities)| (service_id, capabilities.into_iter().collect()))
+        .collect())
+}
+
+async fn extend_managed_service_capabilities(
+    ctx: &AppContext,
+    subject_type: &str,
+    subject_id: &str,
+    capabilities: &mut BTreeMap<String, BTreeSet<String>>,
+) -> Result<(), AppError> {
+    let rows = sqlx::query(
+        "select service_id, capabilities from console.managed_service_access_grants
+         where subject_type = $1 and subject_id = $2 and revoked_at is null",
+    )
+    .bind(subject_type)
+    .bind(subject_id)
+    .fetch_all(&ctx.db)
+    .await
+    .map_err(|error| {
+        AppError::new(ErrorCode::Internal, "Console access grant lookup failed").with_source(error)
+    })?;
+    for row in rows {
+        let service_id: String = row.try_get("service_id").map_err(|error| {
+            AppError::new(ErrorCode::Internal, "Console access grant lookup failed")
+                .with_source(error)
+        })?;
+        let value: Value = row.try_get("capabilities").map_err(|error| {
+            AppError::new(ErrorCode::Internal, "Console access grant lookup failed")
+                .with_source(error)
+        })?;
+        capabilities
+            .entry(service_id)
+            .or_default()
+            .extend(parse_capabilities(&value)?);
+    }
+    Ok(())
 }
 
 async fn grant_capabilities_for_subject(
@@ -2123,6 +2250,12 @@ mod tests {
                 .http_routes
                 .iter()
                 .any(|route| route.path == "/api/console/v1/access/grants")
+        );
+        assert!(
+            manifest
+                .http_routes
+                .iter()
+                .any(|route| route.path == "/api/console/v1/access/context")
         );
         assert_eq!(manifest.console.len(), 1);
         assert!(matches!(

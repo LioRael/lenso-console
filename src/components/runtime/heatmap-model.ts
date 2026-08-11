@@ -46,5 +46,16 @@ function heatmapNodeType(node: ExecutionNode): RuntimeHeatmapCell["nodeType"] {
   if (node.kind === "http") {
     return "http";
   }
+  if (node.kind === "external") {
+    const metadata = node.attributes.source_metadata;
+    if (
+      metadata &&
+      typeof metadata === "object" &&
+      !Array.isArray(metadata) &&
+      typeof (metadata as Record<string, unknown>).provider_call_id === "string"
+    ) {
+      return "provider_call";
+    }
+  }
   return "function";
 }

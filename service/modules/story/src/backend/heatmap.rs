@@ -59,7 +59,10 @@ pub(super) async fn fetch_heatmap_rows(
             select
                 started_at as created_at,
                 service,
-                node_type,
+                case
+                    when node_type = 'remote_proxy_call' then 'provider_call'
+                    else node_type
+                end as node_type,
                 status,
                 1 as attempts,
                 duration_ms

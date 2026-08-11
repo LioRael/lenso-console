@@ -2,11 +2,11 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use chrono::{DateTime, Duration, Utc};
 use platform_core::{
-    AppContext, AppError, ErrorCode, ExecutionLogRow, RequestContext, StoryDisplayDescriptor,
-    StoryDisplaySource, TelemetrySpan, TelemetrySpanQuery,
+    ActorContext, AppContext, AppError, ErrorCode, ExecutionLogRow, RequestContext,
+    StoryDisplayDescriptor, StoryDisplaySource, TelemetrySpan, TelemetrySpanQuery,
 };
 use platform_http::{
-    AdminActor, ApiErrorResponse, ApiOpenApiRouter, ErrorResponse, HttpRequestContext,
+    ApiErrorResponse, ApiOpenApiRouter, AuthenticatedActor, ErrorResponse, HttpRequestContext,
     OpenApiRouter, routes,
 };
 use serde::{Deserialize, Serialize};
@@ -27,6 +27,8 @@ mod queries;
 mod rows;
 mod support;
 mod technical_ops;
+
+pub use support::{StoryAccessActor, StoryAccessAuthorizer, install_story_access_authorizer};
 
 pub use catalog::{install_default_story_display, install_story_display};
 #[cfg(debug_assertions)]
@@ -99,12 +101,12 @@ pub fn router() -> ApiOpenApiRouter {
     )
 )]
 async fn list_stories(
-    admin: AdminActor,
+    actor: AuthenticatedActor,
     State(ctx): State<AppContext>,
     HttpRequestContext(request_ctx): HttpRequestContext,
     Query(query): Query<StoryQuery>,
 ) -> Result<Json<AdminRuntimeStoryListResponse>, ApiErrorResponse> {
-    ensure_story_read_capability(&admin, &request_ctx)?;
+    ensure_story_read_capability(&actor, &ctx, &request_ctx).await?;
 
     let limit = normalized_limit(query.limit);
     let rows = fetch_story_rows(&ctx, &request_ctx, None, query.created_before, limit).await?;
@@ -176,12 +178,12 @@ async fn list_stories(
     )
 )]
 async fn get_story(
-    admin: AdminActor,
+    actor: AuthenticatedActor,
     State(ctx): State<AppContext>,
     HttpRequestContext(request_ctx): HttpRequestContext,
     Path(correlation_id): Path<String>,
 ) -> Result<Json<AdminRuntimeStoryDetailResponse>, ApiErrorResponse> {
-    ensure_story_read_capability(&admin, &request_ctx)?;
+    ensure_story_read_capability(&actor, &ctx, &request_ctx).await?;
 
     let rows = fetch_story_rows(&ctx, &request_ctx, Some(&correlation_id), None, MAX_LIMIT).await?;
     let data = if rows.is_empty() {
@@ -243,13 +245,13 @@ async fn get_story(
     )
 )]
 async fn get_story_heatmap(
-    admin: AdminActor,
+    actor: AuthenticatedActor,
     State(ctx): State<AppContext>,
     HttpRequestContext(request_ctx): HttpRequestContext,
     Path(correlation_id): Path<String>,
     Query(query): Query<HeatmapQuery>,
 ) -> Result<Json<AdminRuntimeHeatmapResponse>, ApiErrorResponse> {
-    ensure_story_read_capability(&admin, &request_ctx)?;
+    ensure_story_read_capability(&actor, &ctx, &request_ctx).await?;
 
     if !runtime_story_exists(&ctx, &request_ctx, &correlation_id).await? {
         return Err(story_not_found(&request_ctx, &correlation_id));
@@ -325,12 +327,12 @@ async fn get_story_heatmap(
     )
 )]
 async fn get_story_technical_operations(
-    admin: AdminActor,
+    actor: AuthenticatedActor,
     State(ctx): State<AppContext>,
     HttpRequestContext(request_ctx): HttpRequestContext,
     Path(correlation_id): Path<String>,
 ) -> Result<Json<AdminRuntimeTechnicalOperationListResponse>, ApiErrorResponse> {
-    ensure_story_read_capability(&admin, &request_ctx)?;
+    ensure_story_read_capability(&actor, &ctx, &request_ctx).await?;
 
     let rows = fetch_story_rows(&ctx, &request_ctx, Some(&correlation_id), None, MAX_LIMIT).await?;
     if rows.is_empty() {
@@ -349,7 +351,7 @@ async fn get_story_technical_operations(
     let node_index = runtime_node_index(&rows);
     let mut data = technical_operations_from_spans(spans.clone(), &node_index);
     data.extend(
-        remote_proxy_technical_operations(&ctx, &request_ctx, &correlation_id, &spans, &node_index)
+        provider_technical_operations(&ctx, &request_ctx, &correlation_id, &spans, &node_index)
             .await?,
     );
     data.extend(

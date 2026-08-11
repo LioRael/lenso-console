@@ -9,7 +9,10 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { isApiMode } from "../lib/http-client";
-import { useConsoleAdminContext } from "./console-admin-context";
+import {
+  consoleCapabilitiesForManagedService,
+  useConsoleAdminContext,
+} from "./console-admin-context";
 import {
   getConsoleArtifactQuarantine,
   getConsoleArtifactQuarantines,
@@ -38,7 +41,7 @@ export function DynamicConsoleModulePage() {
   });
   const path = consolePathFromLocation(locationPath);
   const navigate = useNavigate();
-  const capabilities = useConsoleCapabilities();
+  const globalCapabilities = useConsoleCapabilities();
   const apiMode = isApiMode();
   const artifacts = useConsoleArtifacts();
   const adminContext = useConsoleAdminContext();
@@ -106,17 +109,37 @@ export function DynamicConsoleModulePage() {
     managedServices.data,
     selectedManagedServiceId,
   ]);
+  const surfaceCapabilities = useMemo(
+    () =>
+      selectedManagedService && adminContext.data
+        ? consoleCapabilitiesForManagedService(
+            adminContext.data,
+            selectedManagedService.serviceId
+          )
+        : globalCapabilities,
+    [adminContext.data, globalCapabilities, selectedManagedService]
+  );
   const managedServiceContext = useMemo(
     () =>
-      artifact && selectedManagedService && adminContext.data
+      artifact &&
+      selectedManagedService &&
+      adminContext.data &&
+      systemConnection.data
         ? createManagedServiceContext({
             actor: adminContext.data.actor,
             callerModuleId: artifact.moduleId,
-            capabilities,
+            capabilities: surfaceCapabilities,
             service: selectedManagedService,
+            systemId: systemConnection.data.systemId,
           })
         : null,
-    [adminContext.data, artifact, capabilities, selectedManagedService]
+    [
+      adminContext.data,
+      artifact,
+      selectedManagedService,
+      surfaceCapabilities,
+      systemConnection.data,
+    ]
   );
   const contextKey = managedServiceContext
     ? managedServiceContextKey(managedServiceContext)
@@ -251,7 +274,7 @@ export function DynamicConsoleModulePage() {
     return <ModuleState title="Module UI surface is not declared" />;
   }
   const client = createConsoleModuleClient({
-    capabilities,
+    capabilities: surfaceCapabilities,
     moduleId: selectedArtifact.moduleId,
     moduleReleaseDigest: selectedArtifact.moduleReleaseDigest,
     navigate: (target, options) => {

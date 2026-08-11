@@ -40,7 +40,7 @@ pub(super) async fn fetch_story_rows(
                 select
                     correlation_id,
                     occurred_at as updated_at
-                from platform.remote_http_proxy_calls
+                from platform.provider_http_calls
                 where ($1::text is null or correlation_id = $1)
             ) story_items
             group by correlation_id
@@ -111,8 +111,8 @@ pub(super) async fn fetch_story_rows(
             union all
 
             select
-                'remote_proxy_call'::text as item_type,
-                'remoteproxy_' || id as id,
+                'provider_call'::text as item_type,
+                'provider_' || id as id,
                 module_name || ' ' || method || ' ' || declared_path as name,
                 case when success then 'completed' else 'failed' end as status,
                 0::integer as attempts,
@@ -125,19 +125,19 @@ pub(super) async fn fetch_story_rows(
                 occurred_at + (duration_ms * interval '1 millisecond') as completed_at,
                 case
                     when success then null
-                    when error_code is null then 'remote proxy call failed'
-                    else 'remote proxy call failed with ' || error_code
+                    when error_code is null then 'provider call failed'
+                    else 'provider call failed with ' || error_code
                 end as last_error,
                 jsonb_build_object(
-                    'remote_proxy_call_id', id,
+                    'provider_call_id', id,
                     'module_name', module_name,
                     'method', method,
                     'declared_path', declared_path,
-                    'remote_path', remote_path,
+                    'provider_path', provider_path,
                     'capability', capability,
                     'display_name', null,
                     'story_title', null,
-                    'remote_status', remote_status,
+                    'provider_status', provider_status,
                     'duration_ms', duration_ms,
                     'request_id', request_id,
                     'trace_id', trace_id,
@@ -148,13 +148,13 @@ pub(super) async fn fetch_story_rows(
                     'path_params', path_params,
                     'error_details', error_details
                 ) as metadata
-            from platform.remote_http_proxy_calls proxy_calls
+            from platform.provider_http_calls provider_calls
             where correlation_id in (select correlation_id from story_keys)
                 and not exists (
                     select 1
                     from platform.story_events story_events
-                    where story_events.source_type = 'remote_proxy_call'
-                        and story_events.source_id = proxy_calls.id
+                    where story_events.source_type in ('provider_call', 'remote_proxy_call')
+                        and story_events.source_id = provider_calls.id
                 )
         ) story_work
         order by correlation_id asc, created_at asc, id asc

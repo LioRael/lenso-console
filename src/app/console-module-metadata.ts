@@ -2,6 +2,7 @@ import { isConsoleSurfaceIcon } from "@lenso/console-ui";
 import type { ConsoleSystemConnection } from "@lenso/console-ui";
 import { useSyncExternalStore } from "react";
 
+import { useConsoleAdminContext } from "./console-admin-context";
 import {
   getConsoleArtifactQuarantines,
   subscribeConsoleArtifactQuarantine,
@@ -36,9 +37,9 @@ export function navigationFromConsoleModuleMetadata(
   availableCapabilities: readonly string[],
   artifacts: readonly ConsoleArtifactReceipt[] = [],
   quarantinedArtifactKeys: ReadonlySet<string> = new Set(),
-  connection?: ConsoleSystemConnection | null
+  connection?: ConsoleSystemConnection | null,
+  managedServiceCapabilities: Readonly<Record<string, readonly string[]>> = {}
 ) {
-  const available = new Set(availableCapabilities);
   const linked = buildConsoleNavigation(consoleModules).filter((item) => {
     if (connection === undefined || item.moduleId !== "lenso/platform-story") {
       return true;
@@ -59,10 +60,18 @@ export function navigationFromConsoleModuleMetadata(
   });
   const dynamic = modules.flatMap((module) =>
     (module.console ?? []).flatMap((surface) => {
+      const connectionModule = connectionModuleState(
+        connection,
+        module.module_name ?? ""
+      );
+      const available = capabilitiesForConnectedService(
+        availableCapabilities,
+        connectionModule?.serviceId,
+        managedServiceCapabilities
+      );
       if (
         connection !== undefined &&
-        connectionModuleState(connection, module.module_name ?? "")?.status !==
-          "connected"
+        connectionModule?.status !== "connected"
       ) {
         return [];
       }
@@ -100,6 +109,11 @@ export function navigationFromConsoleModuleMetadata(
         moduleId: artifact.moduleId,
         moduleReleaseDigest: artifact.moduleReleaseDigest,
       });
+      const available = capabilitiesForConnectedService(
+        availableCapabilities,
+        connectionModule?.serviceId,
+        managedServiceCapabilities
+      );
       if (
         connection !== undefined &&
         connectionModule?.status !== "connected"
@@ -133,6 +147,7 @@ export function navigationFromConsoleModuleMetadata(
 
 export function useConsoleNavigation() {
   const availableCapabilities = useConsoleCapabilities();
+  const adminContextQuery = useConsoleAdminContext();
   const modulesQuery = useConsoleModulesMetadata();
   const artifactsQuery = useConsoleArtifacts();
   const systemConnectionQuery = useConsoleSystemConnection();
@@ -151,6 +166,18 @@ export function useConsoleNavigation() {
     availableCapabilities,
     artifactsQuery.data?.artifacts ?? [],
     new Set(quarantines.map((quarantine) => quarantine.key)),
-    systemConnectionQuery.data ?? null
+    systemConnectionQuery.data ?? null,
+    adminContextQuery.data?.managed_service_capabilities ?? {}
   );
+}
+
+function capabilitiesForConnectedService(
+  globalCapabilities: readonly string[],
+  serviceId: string | null | undefined,
+  managedServiceCapabilities: Readonly<Record<string, readonly string[]>>
+): ReadonlySet<string> {
+  return new Set([
+    ...globalCapabilities,
+    ...(serviceId ? (managedServiceCapabilities[serviceId] ?? []) : []),
+  ]);
 }

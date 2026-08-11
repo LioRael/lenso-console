@@ -432,6 +432,7 @@ export function HeatmapView({
           >
             {heatmap.cells.map((cell, index) => {
               const key = heatmapCellKey(cell, index);
+              const nodeTypeLabel = heatmapNodeTypeLabel(cell.nodeType);
               const nodes =
                 story === undefined
                   ? []
@@ -442,7 +443,7 @@ export function HeatmapView({
 
               return (
                 <button
-                  aria-label={`${cell.service} ${cell.nodeType} heatmap cell with ${cell.totalCount} executions`}
+                  aria-label={`${cell.service} ${nodeTypeLabel} heatmap cell with ${cell.totalCount} executions`}
                   {...stylex.props(
                     styles.heatmapCell({
                       backgroundColor: heatmapCellBackground(cell),
@@ -465,7 +466,7 @@ export function HeatmapView({
                     }
                     setSelectedCellKey(selected ? null : key);
                   }}
-                  title={`${cell.service} · ${cell.nodeType} · ${cell.totalCount} executions`}
+                  title={`${cell.service} · ${nodeTypeLabel} · ${cell.totalCount} executions`}
                   type="button"
                 >
                   {aggregateSelectable ? (
@@ -567,7 +568,8 @@ function HeatmapCellInspector({
               localStyles.utilityTextFgPrimary,
             ])}
           >
-            {selected.cell.service} · {selected.cell.nodeType}
+            {selected.cell.service} ·{" "}
+            {heatmapNodeTypeLabel(selected.cell.nodeType)}
           </div>
           <div
             {...stylex.props([
@@ -685,6 +687,12 @@ function HeatmapCellInspector({
       </div>
     </aside>
   );
+}
+
+function heatmapNodeTypeLabel(
+  nodeType: RuntimeHeatmap["cells"][number]["nodeType"]
+) {
+  return nodeType === "provider_call" ? "provider call" : nodeType;
 }
 
 function heatmapCellBackground(cell: RuntimeHeatmap["cells"][number]) {

@@ -74,12 +74,11 @@ export type TimelineItem = {
     | "command"
     | "outbox_event"
     | "function_run"
-    | "remote_proxy_call"
+    | "provider_call"
     | "failure"
     | "retry"
     | "flow_step"
     | "agent_tool_call"
-    | "external_provider_call"
     | string;
   name: string;
   status: RuntimeStatus;
@@ -272,7 +271,7 @@ export type TechnicalOperation = {
   endedAt: string;
   durationMs: number;
   attributes: Record<string, unknown>;
-  source: "otel" | "remote_proxy" | "remote_runtime";
+  source: "otel" | "provider" | "remote_runtime";
 };
 
 export type RemoteProxyCall = {

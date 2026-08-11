@@ -5,11 +5,12 @@ use lenso::host::http::{
 };
 use lenso::host::prelude::*;
 use lenso::system_plane::{CoreDocument, ManagedServiceContext, validate_core_document};
+use platform_core::{CorrelationId, ProviderHttpCallRecord, insert_provider_http_call};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use sqlx::{Postgres, Row};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use utoipa::ToSchema;
 
 use crate::composition::CONSOLE_SERVICE_ID;
@@ -40,10 +41,10 @@ const SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
 pub struct SurfaceStoryContext {
     #[serde(rename = "storyId")]
     pub story: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[serde(rename = "segmentId")]
     pub segment: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[serde(rename = "correlationId")]
     pub correlation: Option<String>,
 }
@@ -51,12 +52,12 @@ pub struct SurfaceStoryContext {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SurfaceOperationRequestContext {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
     pub deadline_unix_ms: u64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub idempotency_key: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub story: Option<SurfaceStoryContext>,
 }
 
@@ -92,6 +93,7 @@ struct ContractOperation {
     target_path: String,
     capability: String,
     idempotency: String,
+    display_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -108,6 +110,34 @@ struct TargetCall {
     path: String,
     query: Vec<(String, String)>,
     body: Option<Value>,
+}
+
+#[derive(Debug)]
+struct TargetResponse {
+    output: Value,
+    status: u16,
+}
+
+#[derive(Debug)]
+struct TargetFailure {
+    error: ApiErrorResponse,
+    provider_status: Option<u16>,
+}
+
+impl TargetFailure {
+    fn before_response(error: ApiErrorResponse) -> Self {
+        Self {
+            error,
+            provider_status: None,
+        }
+    }
+
+    fn after_response(error: ApiErrorResponse, provider_status: u16) -> Self {
+        Self {
+            error,
+            provider_status: Some(provider_status),
+        }
+    }
 }
 
 pub fn linked_module() -> HostLinkedModule {
@@ -214,6 +244,8 @@ async fn surface_gateway(
     authorize_surface_grant(&module, &binding, &request, &operation, &request_ctx)?;
 
     let target = load_target(&ctx, &request_ctx, &service_id).await?;
+    crate::modules::system_registry::validate_surface_authority(&ctx, &service_id, &request_ctx)
+        .await?;
     validate_target_context(&target, &module, &request, &actor, &request_ctx)?;
     console_access::require_managed_service_capability(
         &ctx,
@@ -225,8 +257,29 @@ async fn surface_gateway(
     .await?;
 
     let call = build_target_call(&operation, &request.input, &request_ctx)?;
-    let output = forward_target(&target, &call, &request, &request_ctx).await?;
-    let output = normalize_output(&operation, &request.input, output, &request_ctx)?;
+    let started_at = Instant::now();
+    let forwarded = forward_target(&target, &call, &request, &request_ctx).await;
+    let provider_status = match &forwarded {
+        Ok(response) => Some(response.status),
+        Err(failure) => failure.provider_status,
+    };
+    let output = forwarded
+        .map_err(|failure| failure.error)
+        .and_then(|response| {
+            normalize_output(&operation, &request.input, response.output, &request_ctx)
+        });
+    record_surface_provider_call(
+        &ctx,
+        &operation,
+        &call,
+        &request,
+        &request_ctx,
+        started_at,
+        provider_status,
+        output.as_ref().err(),
+    )
+    .await;
+    let output = output?;
 
     Ok(json(SurfaceOperationResponse {
         protocol: SURFACE_GATEWAY_PROTOCOL,
@@ -301,17 +354,7 @@ fn validate_request_shape(
             request_ctx,
         ));
     }
-    if request
-        .request_context
-        .story
-        .as_ref()
-        .is_some_and(|story| story.story.trim().is_empty())
-    {
-        return Err(validation_error(
-            "Surface operation Story id must be non-empty",
-            request_ctx,
-        ));
-    }
+    validate_story_context(request.request_context.story.as_ref(), request_ctx)?;
     if operation.idempotency == "requires_key"
         && request
             .request_context
@@ -321,6 +364,42 @@ fn validate_request_shape(
     {
         return Err(validation_error(
             "This Surface operation requires an idempotency key",
+            request_ctx,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_story_context(
+    story: Option<&SurfaceStoryContext>,
+    request_ctx: &RequestContext,
+) -> Result<(), ApiErrorResponse> {
+    let Some(story) = story else {
+        return Ok(());
+    };
+    if story.story.trim().is_empty() {
+        return Err(validation_error(
+            "Surface operation Story id must be non-empty",
+            request_ctx,
+        ));
+    }
+    if story
+        .segment
+        .as_deref()
+        .is_some_and(|segment| segment.trim().is_empty())
+    {
+        return Err(validation_error(
+            "Surface operation Story segment id must be non-empty",
+            request_ctx,
+        ));
+    }
+    if story
+        .correlation
+        .as_deref()
+        .is_some_and(|correlation| correlation.trim().is_empty())
+    {
+        return Err(validation_error(
+            "Surface operation Story correlation id must be non-empty",
             request_ctx,
         ));
     }
@@ -458,12 +537,17 @@ fn resolve_operation(operation_id: &str) -> Result<ContractOperation, String> {
                 .ok_or_else(|| {
                     format!("Surface operation {operation_id} has no idempotency policy")
                 })?;
+            let display_name = operation
+                .get("summary")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
             return Ok(ContractOperation {
                 operation_id: operation_id.to_owned(),
                 method,
                 target_path: target_path.to_owned(),
                 capability: capability.to_owned(),
                 idempotency: idempotency.to_owned(),
+                display_name,
             });
         }
     }
@@ -811,24 +895,28 @@ async fn forward_target(
     call: &TargetCall,
     request: &SurfaceOperationRequest,
     request_ctx: &RequestContext,
-) -> Result<Value, ApiErrorResponse> {
+) -> Result<TargetResponse, TargetFailure> {
     let url = target_url(&target.base_url, &call.path)
-        .map_err(|message| external_error(&message, request_ctx))?;
+        .map_err(|message| TargetFailure::before_response(external_error(&message, request_ctx)))?;
     let remaining_ms = request
         .request_context
         .deadline_unix_ms
         .saturating_sub(now_ms_value());
     if remaining_ms == 0 {
-        return Err(external_error(
+        return Err(TargetFailure::before_response(external_error(
             "Surface operation deadline expired",
             request_ctx,
-        ));
+        )));
     }
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|error| {
-            internal_source_error("Surface Gateway client is unavailable", error, request_ctx)
+            TargetFailure::before_response(internal_source_error(
+                "Surface Gateway client is unavailable",
+                error,
+                request_ctx,
+            ))
         })?;
     let mut builder = client
         .request(call.method.clone(), url)
@@ -864,11 +952,11 @@ async fn forward_target(
     }
     if let Some(story) = request.request_context.story.as_ref() {
         let story = serde_json::to_string(story).map_err(|error| {
-            internal_source_error(
+            TargetFailure::before_response(internal_source_error(
                 "Surface Story context could not be encoded",
                 error,
                 request_ctx,
-            )
+            ))
         })?;
         builder = builder.header("x-lenso-console-story-context", story);
     }
@@ -876,22 +964,25 @@ async fn forward_target(
         builder = builder.json(body);
     }
     let response = builder.send().await.map_err(|error| {
-        external_source_error(
+        TargetFailure::before_response(external_source_error(
             "Managed Service Surface operation failed",
             error,
             request_ctx,
-        )
+        ))
     })?;
     let status = response.status();
     let body = response.text().await.map_err(|error| {
-        external_source_error(
-            "Managed Service Surface response could not be read",
-            error,
-            request_ctx,
+        TargetFailure::after_response(
+            external_source_error(
+                "Managed Service Surface response could not be read",
+                error,
+                request_ctx,
+            ),
+            status.as_u16(),
         )
     })?;
     if !status.is_success() {
-        return Err(match status.as_u16() {
+        let error = match status.as_u16() {
             401 | 403 => {
                 forbidden_error("Connected Module denied the Surface operation", request_ctx)
             }
@@ -904,15 +995,94 @@ async fn forward_target(
                 "Connected Module rejected the Surface operation",
                 request_ctx,
             ),
-        });
+        };
+        return Err(TargetFailure::after_response(error, status.as_u16()));
     }
-    serde_json::from_str(&body).map_err(|error| {
-        external_source_error(
-            "Connected Module returned an invalid Business API response",
-            error,
-            request_ctx,
+    let output = serde_json::from_str(&body).map_err(|error| {
+        TargetFailure::after_response(
+            external_source_error(
+                "Connected Module returned an invalid Business API response",
+                error,
+                request_ctx,
+            ),
+            status.as_u16(),
         )
+    })?;
+    Ok(TargetResponse {
+        output,
+        status: status.as_u16(),
     })
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn record_surface_provider_call(
+    ctx: &AppContext,
+    operation: &ContractOperation,
+    call: &TargetCall,
+    request: &SurfaceOperationRequest,
+    request_ctx: &RequestContext,
+    started_at: Instant,
+    provider_status: Option<u16>,
+    error: Option<&ApiErrorResponse>,
+) {
+    let story_context =
+        surface_provider_request_context(request_ctx, request.request_context.story.as_ref());
+    let record = ProviderHttpCallRecord {
+        module_name: request.module_id.clone(),
+        method: operation.method.as_str().to_owned(),
+        declared_path: operation.target_path.clone(),
+        provider_path: call.path.clone(),
+        capability: Some(operation.capability.clone()),
+        display_name: operation.display_name.clone(),
+        story_title: request
+            .request_context
+            .story
+            .as_ref()
+            .map(|story| story.story.clone()),
+        provider_status,
+        duration_ms: i64::try_from(started_at.elapsed().as_millis()).unwrap_or(i64::MAX),
+        success: error.is_none(),
+        error_code: error.map(|error| error.error.code.as_str().to_owned()),
+        retryable: error.is_some_and(|error| error.error.retryable),
+        path_params: surface_path_params(&request.input),
+        error_details: Value::Array(Vec::new()),
+    };
+    if let Err(error) =
+        insert_provider_http_call(&ctx.db, ctx.ids.as_ref(), &story_context, record).await
+    {
+        tracing::warn!(
+            error = ?error,
+            module_name = %request.module_id,
+            operation_id = %request.operation_id,
+            request_id = %story_context.request_id.0,
+            correlation_id = %story_context.correlation_id.0,
+            "failed to persist Surface Gateway provider call"
+        );
+    }
+}
+
+fn surface_provider_request_context(
+    request_ctx: &RequestContext,
+    story: Option<&SurfaceStoryContext>,
+) -> RequestContext {
+    let mut context = request_ctx.clone();
+    if let Some(story) = story {
+        context.correlation_id = CorrelationId::new(
+            story
+                .correlation
+                .clone()
+                .unwrap_or_else(|| story.story.clone()),
+        );
+        context.causation_id = None;
+    }
+    context
+}
+
+fn surface_path_params(input: &Value) -> Value {
+    input.get("ticketId").map_or_else(
+        || Value::Object(Map::new()),
+        |ticket_id| json!({ "ticketId": ticket_id }),
+    )
 }
 
 fn operation_target_capability(operation_id: &str) -> &'static str {
@@ -1149,6 +1319,65 @@ mod tests {
             support_ticket_contract_digest(),
             "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9"
         );
+    }
+
+    #[test]
+    fn omits_absent_optional_fields_from_the_surface_response_wire_contract() {
+        let response = SurfaceOperationResponse {
+            protocol: SURFACE_GATEWAY_PROTOCOL,
+            module_id: "support/tickets".to_owned(),
+            contract_digest:
+                "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9".to_owned(),
+            operation_id: "support-ticket/http/GET:/tickets".to_owned(),
+            output: json!({ "tickets": [] }),
+            request_context: SurfaceOperationRequestContext {
+                tenant_id: None,
+                deadline_unix_ms: 1_786_420_000_000,
+                idempotency_key: None,
+                story: None,
+            },
+        };
+
+        let wire = serde_json::to_value(response).expect("surface response");
+        assert_eq!(
+            wire["requestContext"],
+            json!({ "deadlineUnixMs": 1_786_420_000_000_u64 })
+        );
+
+        let story = serde_json::to_value(SurfaceStoryContext {
+            story: "support-desk.acceptance".to_owned(),
+            segment: None,
+            correlation: None,
+        })
+        .expect("story context");
+        assert_eq!(story, json!({ "storyId": "support-desk.acceptance" }));
+    }
+
+    #[test]
+    fn surface_story_context_owns_the_recorded_provider_correlation() {
+        let mut http_context = request_context();
+        http_context.causation_id = Some("httpreq_request-1".to_owned());
+        let explicit = surface_provider_request_context(
+            &http_context,
+            Some(&SurfaceStoryContext {
+                story: "support-desk.acceptance".to_owned(),
+                segment: Some("segment-support-ticket-crud".to_owned()),
+                correlation: Some("corr-support-desk-acceptance".to_owned()),
+            }),
+        );
+        let fallback = surface_provider_request_context(
+            &http_context,
+            Some(&SurfaceStoryContext {
+                story: "support-desk.fallback".to_owned(),
+                segment: None,
+                correlation: None,
+            }),
+        );
+
+        assert_eq!(explicit.correlation_id.0, "corr-support-desk-acceptance");
+        assert_eq!(fallback.correlation_id.0, "support-desk.fallback");
+        assert!(explicit.causation_id.is_none());
+        assert!(fallback.causation_id.is_none());
     }
 
     #[test]

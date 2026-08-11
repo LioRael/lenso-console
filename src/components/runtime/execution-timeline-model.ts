@@ -96,6 +96,11 @@ function rowFromTimelineItem(
 
 function rowFromExecutionNode(node: ExecutionNode): ExecutionTimelineRow {
   const error = node.logs.at(-1);
+  const kind = isProviderCallMetadata(
+    objectRecord(node.attributes.source_metadata)
+  )
+    ? "provider_call"
+    : node.kind;
 
   return {
     ...(error ? { error } : {}),
@@ -105,9 +110,9 @@ function rowFromExecutionNode(node: ExecutionNode): ExecutionTimelineRow {
       : { maxAttempts: node.maxAttempts }),
     durationMs: node.durationMs,
     id: node.id,
-    kind: node.kind,
+    kind,
     metaParts: timelineRowMetaParts({
-      kind: node.kind,
+      kind,
       node,
       service: node.service,
       status: node.status,
@@ -150,14 +155,14 @@ function timelineRowMetaParts(input: {
   status: RuntimeStatus;
 }) {
   const metadata = objectRecord(input.node?.attributes.source_metadata);
-  if (input.kind === "remote_proxy_call" || isRemoteProxyMetadata(metadata)) {
-    return remoteProxyMetaParts(input);
+  if (input.kind === "provider_call" || isProviderCallMetadata(metadata)) {
+    return providerCallMetaParts(input);
   }
 
   return [input.service];
 }
 
-function remoteProxyMetaParts(input: {
+function providerCallMetaParts(input: {
   node?: ExecutionNode;
   service: string;
   status: RuntimeStatus;
@@ -166,20 +171,20 @@ function remoteProxyMetaParts(input: {
   const moduleName = stringValue(metadata.module_name) ?? input.service;
   const method = stringValue(metadata.method);
   const declaredPath = stringValue(metadata.declared_path);
-  const remoteStatus = numberValue(metadata.remote_status);
+  const providerStatus = numberValue(metadata.provider_status);
   const route = [method, declaredPath].filter(Boolean).join(" ");
-  const result = remoteProxyResultLabel(input.status, metadata);
+  const result = providerCallResultLabel(input.status, metadata);
 
   return [
     result,
     moduleName,
     route || undefined,
-    typeof remoteStatus === "number" ? `status ${remoteStatus}` : undefined,
+    typeof providerStatus === "number" ? `status ${providerStatus}` : undefined,
   ].filter((part): part is string => part !== undefined);
 }
 
-function isRemoteProxyMetadata(metadata: Record<string, unknown>) {
-  if (typeof metadata.remote_proxy_call_id === "string") {
+function isProviderCallMetadata(metadata: Record<string, unknown>) {
+  if (typeof metadata.provider_call_id === "string") {
     return true;
   }
 
@@ -190,7 +195,7 @@ function isRemoteProxyMetadata(metadata: Record<string, unknown>) {
   );
 }
 
-function remoteProxyResultLabel(
+function providerCallResultLabel(
   status: RuntimeStatus,
   metadata: Record<string, unknown>
 ) {

@@ -30,15 +30,16 @@ export function createManagedServiceContext({
   callerModuleId,
   capabilities,
   service,
+  systemId,
 }: {
   actor: ConsoleAdminActor;
   callerModuleId: string;
   capabilities: readonly string[];
   service: ConsoleManagedService;
+  systemId: string;
 }): ManagedServiceContext {
   return {
-    systemId:
-      systemIdFromCoreDocument(service.coreDocument) ?? service.serviceId,
+    systemId,
     serviceId: service.serviceId,
     environmentId:
       service.presentation?.environment ?? DEFAULT_MANAGED_SERVICE_ENVIRONMENT,
@@ -88,15 +89,4 @@ function actorSubject(actor: ConsoleAdminActor): string {
       return "unknown";
     }
   }
-}
-
-function systemIdFromCoreDocument(value: unknown): string | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  const record = value as Record<string, unknown>;
-  const candidate = record.systemId ?? record.system_id;
-  return typeof candidate === "string" && candidate.trim()
-    ? candidate
-    : undefined;
 }

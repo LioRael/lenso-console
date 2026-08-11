@@ -5,7 +5,7 @@ import type {
 } from "@lenso/console-module-api";
 import { validateConsoleManifest } from "@lenso/console-module-api";
 import { createContext, useContext } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, Context, ReactNode } from "react";
 
 export interface ConsoleUiSurface extends ConsoleSurfaceManifest {
   component: ComponentType;
@@ -37,7 +37,18 @@ export const defineConsoleUiModule = ({
   return { manifest, surfaces: resolved };
 };
 
-const ConsoleClientContext = createContext<ConsoleClient | null>(null);
+const CONSOLE_CLIENT_CONTEXT_KEY = Symbol.for(
+  "@lenso/console-ui.ConsoleClientContext.v1"
+);
+const consoleClientContextGlobal = globalThis as typeof globalThis &
+  Record<symbol, Context<ConsoleClient | null> | undefined>;
+
+// A Console Module artifact can bundle its own copy of console-ui. Share only
+// the versioned Context identity across those copies; React keeps every client
+// value scoped to its Provider tree, including concurrent SSR trees.
+const ConsoleClientContext = (consoleClientContextGlobal[
+  CONSOLE_CLIENT_CONTEXT_KEY
+] ??= createContext<ConsoleClient | null>(null));
 
 export const ConsoleModuleProvider = ({
   children,

@@ -192,8 +192,7 @@ export const servicePresentation = (
   const posture = override?.posture ?? servicePosture(service);
   const secondary =
     override?.secondary ?? `${service.servicePrincipal} · System`;
-  const environment =
-    override?.environment ?? serviceEndpointLabel(service.baseUrl);
+  const environment = override?.environment ?? "server-managed";
   const version = override?.version ?? `v${service.version}`;
   const observed =
     override?.observed ??
@@ -205,7 +204,7 @@ export const servicePresentation = (
     identity: override?.identity ?? [
       `principal: ${service.servicePrincipal}`,
       `Enrollment ${service.enrollmentState}`,
-      `Endpoint: ${service.baseUrl}`,
+      "Provider target: server-only",
     ],
     nextSafeAction: override?.nextSafeAction ?? [
       "Change requires plan + approval",
@@ -223,14 +222,6 @@ export const servicePresentation = (
     secondary,
     version,
   };
-};
-
-export const serviceEndpointLabel = (baseUrl: string): string => {
-  try {
-    return new URL(baseUrl).host;
-  } catch {
-    return baseUrl;
-  }
 };
 
 export const enrollmentExpiryLabel = (

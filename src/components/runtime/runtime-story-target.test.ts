@@ -14,9 +14,9 @@ const story = {
   nodes: [
     node("evt_1", {}),
     node("fnrun_1", {}),
-    node("remoteproxy_rproxy_1", {
+    node("provider_rproxy_1", {
       source_metadata: {
-        remote_proxy_call_id: "rproxy_1",
+        provider_call_id: "rproxy_1",
         request_id: "req_service",
       },
     }),
@@ -45,15 +45,15 @@ describe("runtime story target resolution", () => {
     });
   });
 
-  test("targets remote proxy nodes by metadata when id candidate is absent", () => {
+  test("targets provider nodes by metadata when id candidate is absent", () => {
     expect(
       resolveRuntimeStoryTarget([story], {
         correlationId: "corr_story",
-        remoteProxyCallId: "rproxy_1",
+        providerCallId: "rproxy_1",
         requestId: "req_service",
       })
     ).toEqual({
-      nodeId: "remoteproxy_rproxy_1",
+      nodeId: "provider_rproxy_1",
       storyId: "story_id",
     });
   });
@@ -62,10 +62,10 @@ describe("runtime story target resolution", () => {
     expect(
       resolveRuntimeStoryTarget([], {
         correlationId: "corr_late",
-        nodeIdCandidates: ["remoteproxy_late"],
+        nodeIdCandidates: ["provider_late"],
       })
     ).toEqual({
-      nodeId: "remoteproxy_late",
+      nodeId: "provider_late",
       storyId: "corr_late",
     });
   });

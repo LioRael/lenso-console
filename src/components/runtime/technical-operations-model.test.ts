@@ -50,18 +50,19 @@ const operations: TechnicalOperation[] = [
       error_code: "external_dependency_failure",
       method: "GET",
       module_name: "crm-service",
-      remote_path: "/contacts/contact_1",
-      remote_status: 502,
+      provider_call_id: "rproxy_1",
+      provider_path: "/contacts/contact_1",
+      provider_status: 502,
       request_id: "req_service_proxy",
     },
     category: "external",
     correlationId: "corr_1",
     durationMs: 125,
     endedAt: "2026-06-01T10:00:00.425Z",
-    id: "remote_proxy:rproxy_1",
+    id: "provider:rproxy_1",
     name: "crm-service GET /contacts/{id}",
     relatedNodeId: "fnrun_1",
-    source: "remote_proxy",
+    source: "provider",
     startedAt: "2026-06-01T10:00:00.300Z",
     status: "error",
     storyId: "corr_1",
@@ -125,7 +126,7 @@ describe("technical operations model", () => {
       groups
         .find((group) => group.id === "external")
         ?.operations.map((operation) => operation.id)
-    ).toEqual(["remote_proxy:rproxy_1"]);
+    ).toEqual(["provider:rproxy_1"]);
   });
 
   test("keeps unlinked operations under story-level operations", () => {
@@ -171,18 +172,18 @@ describe("technical operations model", () => {
     expect(JSON.stringify(attributes)).not.toContain("select * from users");
   });
 
-  test("builds compact remote proxy labels for the renderer", () => {
-    const remoteProxy = operations.find(
-      (operation) => operation.source === "remote_proxy"
+  test("builds compact provider labels for the renderer", () => {
+    const provider = operations.find(
+      (operation) => operation.source === "provider"
     );
 
-    if (!remoteProxy) {
-      throw new Error("remote proxy operation should be present");
+    if (!provider) {
+      throw new Error("provider operation should be present");
     }
 
-    expect(technicalOperationSourceLabel(remoteProxy)).toBe("remote proxy");
-    expect(technicalOperationSummary(remoteProxy)).toBe(
-      "crm-service / GET /contacts/{id} / remote /contacts/contact_1 / status 502 / request req_service_proxy"
+    expect(technicalOperationSourceLabel(provider)).toBe("provider");
+    expect(technicalOperationSummary(provider)).toBe(
+      "crm-service / GET /contacts/{id} / provider /contacts/contact_1 / status 502 / request req_service_proxy"
     );
   });
 
@@ -216,12 +217,12 @@ describe("technical operations model", () => {
     );
   });
 
-  test("builds horizontal operations targets for remote sources", () => {
-    const remoteProxy = operations.find(
-      (operation) => operation.source === "remote_proxy"
+  test("builds horizontal operations targets for provider sources", () => {
+    const provider = operations.find(
+      (operation) => operation.source === "provider"
     );
-    expect(remoteProxy).toBeDefined();
-    expect(technicalOperationOperationsTarget(remoteProxy!)).toEqual({
+    expect(provider).toBeDefined();
+    expect(technicalOperationOperationsTarget(provider!)).toEqual({
       correlationId: "corr_1",
       kind: "remote_calls",
       selectedId: "rproxy_1",

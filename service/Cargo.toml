@@ -27,6 +27,7 @@ path = "src/bin/migrate.rs"
 
 [dependencies]
 anyhow = "1.0"
+async-trait = "0.1"
 axum = "0.8"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
@@ -39,6 +40,7 @@ lenso = { git = "https://github.com/LioRael/lenso", rev = "0ed3f171e2d98eb168b8c
 ] }
 lenso-module-management = { git = "https://github.com/LioRael/lenso", rev = "0ed3f171e2d98eb168b8c3f57e40db82c372e9a5", version = "0.2.0" }
 lenso-module-organization = { version = "0.1.2" }
+platform-core = { package = "lenso-platform-core", version = "0.1.23" }
 console-story-backend = { package = "lenso-module-story", path = "modules/story" }
 reqwest = { version = "0.13", default-features = false, features = [
   "json",
@@ -62,12 +64,12 @@ tokio = { version = "1.52", features = [
 tar = "0.4"
 tower = "0.5"
 tower-http = { version = "0.7", features = ["fs", "set-header"] }
+tracing = "0.1"
 utoipa = "5.5"
 
 [dev-dependencies]
 lenso-api = "0.1.31"
 lenso-bootstrap = "0.1.30"
-platform-core = { package = "lenso-platform-core", version = "0.1.23" }
 platform-testing = { package = "lenso-platform-testing", version = "0.1.19" }
 tower = "0.5"
 

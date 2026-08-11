@@ -952,6 +952,7 @@ function storyHeatmapCells(
     if (
       !(
         node.kind === "event" ||
+        node.kind === "external" ||
         node.kind === "function" ||
         node.kind === "http"
       )
@@ -967,9 +968,11 @@ function storyHeatmapCells(
     const nodeType =
       node.kind === "event"
         ? "event"
-        : node.kind === "http"
-          ? "http"
-          : "function";
+        : isProviderCallNode(node)
+          ? "provider_call"
+          : node.kind === "http"
+            ? "http"
+            : "function";
     const key = `${bucketStartMs}:${node.service}:${nodeType}`;
     const existing = cells.get(key);
 
@@ -1011,6 +1014,16 @@ function storyHeatmapCells(
         left.nodeType.localeCompare(right.nodeType)
     )
     .map(({ durationTotalMs: _durationTotalMs, ...cell }) => cell);
+}
+
+function isProviderCallNode(node: RuntimeStory["nodes"][number]) {
+  const metadata = node.attributes.source_metadata;
+  return (
+    metadata !== null &&
+    typeof metadata === "object" &&
+    !Array.isArray(metadata) &&
+    typeof (metadata as Record<string, unknown>).provider_call_id === "string"
+  );
 }
 
 function toActor(value: unknown): Actor {

@@ -121,8 +121,8 @@ function operationViews(
 
 export function technicalOperationSourceLabel(operation: TechnicalOperation) {
   switch (operation.source) {
-    case "remote_proxy": {
-      return "remote proxy";
+    case "provider": {
+      return "provider";
     }
     case "remote_runtime": {
       return "remote runtime";
@@ -138,21 +138,21 @@ export function technicalOperationSummary(operation: TechnicalOperation) {
     return remoteRuntimeOperationSummary(operation);
   }
 
-  if (operation.source !== "remote_proxy") {
+  if (operation.source !== "provider") {
     return;
   }
 
   const moduleName = stringAttribute(operation.attributes.module_name);
   const method = stringAttribute(operation.attributes.method);
   const declaredPath = stringAttribute(operation.attributes.declared_path);
-  const remotePath = stringAttribute(operation.attributes.remote_path);
-  const remoteStatus = numberAttribute(operation.attributes.remote_status);
+  const providerPath = stringAttribute(operation.attributes.provider_path);
+  const providerStatus = numberAttribute(operation.attributes.provider_status);
   const requestId = stringAttribute(operation.attributes.request_id);
   const parts = [
     moduleName,
     [method, declaredPath].filter(Boolean).join(" "),
-    remotePath ? `remote ${remotePath}` : undefined,
-    typeof remoteStatus === "number" ? `status ${remoteStatus}` : undefined,
+    providerPath ? `provider ${providerPath}` : undefined,
+    typeof providerStatus === "number" ? `status ${providerStatus}` : undefined,
     requestId ? `request ${requestId}` : undefined,
   ].filter(Boolean);
 
@@ -162,21 +162,21 @@ export function technicalOperationSummary(operation: TechnicalOperation) {
 export function technicalOperationOperationsTarget(
   operation: TechnicalOperation
 ): TechnicalOperationOperationsTarget | null {
-  if (operation.source === "remote_proxy") {
+  if (operation.source === "provider") {
     return {
       kind: "remote_calls",
       correlationId: operation.correlationId,
-      ...optionalSelectedId(remoteProxyCallId(operation)),
+      ...optionalSelectedId(providerCallId(operation)),
     };
   }
 
   return null;
 }
 
-function remoteProxyCallId(operation: TechnicalOperation) {
+function providerCallId(operation: TechnicalOperation) {
   return (
-    stringAttribute(operation.attributes.remote_proxy_call_id) ??
-    stripKnownPrefix(operation.id, "remote_proxy:")
+    stringAttribute(operation.attributes.provider_call_id) ??
+    stripKnownPrefix(operation.id, "provider:")
   );
 }
 

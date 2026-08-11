@@ -14,10 +14,8 @@ describe("Managed Service Context", () => {
       actor: { kind: "user", user_id: "operator-1" },
       callerModuleId: "acme/support-console",
       capabilities: ["support.endpoint.write", "support.endpoint.read"],
-      service: {
-        ...service,
-        coreDocument: { systemId: "system-1" },
-      },
+      service,
+      systemId: "system-1",
     });
 
     expect(context).toMatchObject({
@@ -29,6 +27,30 @@ describe("Managed Service Context", () => {
     });
   });
 
+  test("binds the exact connected System when one Service belongs to multiple Systems", () => {
+    const service = {
+      ...mockManagedServices[0]!,
+      coreDocument: { systemId: "provider-owned-system" },
+    };
+    const createForSystem = (systemId: string) =>
+      createManagedServiceContext({
+        actor: { kind: "user", user_id: "operator-1" },
+        callerModuleId: "acme/support-console",
+        capabilities: ["support.endpoint.read"],
+        service,
+        systemId,
+      });
+
+    const supportDesk = createForSystem("support-desk/production");
+    const supportSandbox = createForSystem("support-sandbox/acceptance");
+
+    expect(supportDesk.systemId).toBe("support-desk/production");
+    expect(supportSandbox.systemId).toBe("support-sandbox/acceptance");
+    expect(managedServiceContextKey(supportDesk)).not.toBe(
+      managedServiceContextKey(supportSandbox)
+    );
+  });
+
   test("treats Service environment and delegated authority changes as a new context", () => {
     const service = mockManagedServices[0]!;
     const context = createManagedServiceContext({
@@ -36,6 +58,7 @@ describe("Managed Service Context", () => {
       callerModuleId: "acme/support-console",
       capabilities: ["support.endpoint.read"],
       service,
+      systemId: "system-1",
     });
     const changed = {
       ...context,

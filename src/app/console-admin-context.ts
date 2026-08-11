@@ -19,6 +19,7 @@ export type ConsoleAdminContext = {
   actor: ConsoleAdminActor;
   scopes: string[];
   capabilities: string[];
+  managed_service_capabilities: Record<string, string[]>;
 };
 
 export const consoleAdminContextQueryKey = ["admin", "context"] as const;
@@ -29,7 +30,10 @@ export function useConsoleAdminContext() {
   return useQuery({
     enabled: isApiMode() && Boolean(token),
     queryKey: consoleAdminContextQueryKey,
-    queryFn: () => httpClient.get("admin/context").json<ConsoleAdminContext>(),
+    queryFn: () =>
+      httpClient
+        .get("api/console/v1/access/context")
+        .json<ConsoleAdminContext>(),
   });
 }
 
@@ -48,4 +52,16 @@ export function consoleAdminActorLabel(actor: ConsoleAdminActor) {
       return "unknown";
     }
   }
+}
+
+export function consoleCapabilitiesForManagedService(
+  context: ConsoleAdminContext,
+  serviceId: string
+): string[] {
+  return [
+    ...new Set([
+      ...context.capabilities,
+      ...(context.managed_service_capabilities[serviceId] ?? []),
+    ]),
+  ].sort();
 }

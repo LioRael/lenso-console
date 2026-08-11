@@ -10,7 +10,6 @@ import {
   observationSupersedesMutationOperation,
   registryState,
   registrySummary,
-  serviceEndpointLabel,
   servicePresentation,
   shouldClearOperationAuthorityRefresh,
   shouldRetireWorkloadOperation,
@@ -21,7 +20,6 @@ const service = (
   overrides: Partial<ConsoleManagedService> = {}
 ): ConsoleManagedService => ({
   authorizationEpoch: 0,
-  baseUrl: "https://orders.example.com",
   connectionState: "ready",
   enrollmentExpiresAtUnixMs: 2_000_000,
   enrollmentGrantRevision: 1,
@@ -65,10 +63,7 @@ describe("system registry console model", () => {
     });
   });
 
-  test("formats operator-facing endpoint and expiry labels", () => {
-    expect(serviceEndpointLabel("https://orders.example.com/v1")).toBe(
-      "orders.example.com"
-    );
+  test("formats enrollment expiry labels", () => {
     expect(enrollmentExpiryLabel(3_600_001, 1)).toBe("1h remaining");
     expect(enrollmentExpiryLabel(1, 1)).toBe("Expired");
   });
