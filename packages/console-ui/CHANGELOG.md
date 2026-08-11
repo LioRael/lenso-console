@@ -1,5 +1,13 @@
 # @lenso/console-ui
 
+## 1.0.2
+
+### Patch Changes
+
+- 2105a96: Align operational inventory layouts and page metadata with the Console Figma specification, including gutters, dividers, sticky headers, and scroll ownership.
+- Updated dependencies [2105a96]
+  - @lenso/console-tokens@0.1.1
+
 ## 1.0.1
 
 ### Patch Changes
