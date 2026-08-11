@@ -17,6 +17,7 @@ import { Route as ModulesRouteImport } from './routes/modules'
 import { Route as RuntimeRouteImport } from './routes/runtime'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SystemRouteImport } from './routes/system'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings_.appearance'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const SystemRoute = SystemRouteImport.update({
   path: '/system',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/settings_/appearance',
+  path: '/settings/appearance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/runtime': typeof RuntimeRoute
   '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/runtime': typeof RuntimeRoute
   '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/runtime': typeof RuntimeRoute
   '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
+  '/settings_/appearance': typeof SettingsAppearanceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/runtime'
     | '/settings'
     | '/system'
+    | '/settings/appearance'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/runtime'
     | '/settings'
     | '/system'
+    | '/settings/appearance'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/runtime'
     | '/settings'
     | '/system'
+    | '/settings_/appearance'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   RuntimeRoute: typeof RuntimeRoute
   SettingsRoute: typeof SettingsRoute
   SystemRoute: typeof SystemRoute
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SystemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/appearance': {
+      id: '/settings_/appearance'
+      path: '/settings/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   RuntimeRoute: RuntimeRoute,
   SettingsRoute: SettingsRoute,
   SystemRoute: SystemRoute,
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

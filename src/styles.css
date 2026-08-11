@@ -167,13 +167,19 @@
   border-top: 0;
 }
 
-[data-page~="product-page"] [data-ui~="page__header"] {
+[data-page~="product-page"] [data-ui~="page__header"],
+[data-page~="services-page"] [data-ui~="page__header"] {
   border-bottom: 0;
 }
 
 [data-page-slot~="product-page__filters"] {
   border-top: 1px solid var(--line-subtle);
   border-bottom: 1px solid var(--line-subtle);
+}
+
+[data-page~="services-page"]
+  [data-page-slot~="system-connection-page__workspace"] {
+  border-top: 1px solid var(--line-subtle);
 }
 
 [data-page-slot~="system-page__empty"] {
@@ -716,6 +722,8 @@
 }
 
 [data-page-slot~="settings-page__navigation-item"] {
+  display: flex;
+  align-items: center;
   height: 32px;
   padding: 0 10px;
   border: 0;
@@ -727,6 +735,7 @@
   font-weight: 400;
   line-height: 16px;
   text-align: left;
+  text-decoration: none;
 }
 
 [data-page-slot~="settings-page__navigation-item"]:hover,
@@ -836,7 +845,21 @@
 
 [data-page-slot~="settings-page__row--toggle"]
   [data-page-slot~="settings-page__toggle"] {
-  margin-right: 36px;
+  margin-right: 0;
+}
+
+[data-page-slot~="settings-page__content"][data-section="appearance"]
+  [data-page-slot~="settings-page__header-copy"]
+  h2 {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+[data-page-slot~="settings-page__appearance-note"] {
+  margin: 16px 0 0;
+  color: var(--fg-tertiary);
+  font-size: 10px;
+  line-height: 14px;
 }
 
 [data-page-slot~="settings-page__row"] [data-ui~="settings-row__label"] {

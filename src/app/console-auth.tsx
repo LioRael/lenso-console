@@ -1,6 +1,5 @@
-import { Button, dataStyles } from "@lenso/console-ui";
+import { Button } from "@lenso/console-ui";
 import * as stylex from "@stylexjs/stylex";
-import { LogIn } from "lucide-react";
 import {
   useEffect,
   useState,
@@ -88,6 +87,7 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   >("checking");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const isCallback =
     typeof window !== "undefined" &&
     window.location.pathname === consoleOidcCallbackPath();
@@ -204,67 +204,113 @@ export function ConsoleAuthGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main {...stylex.props(statusStyles.statusScreen)}>
-      <section
-        {...stylex.props(
-          statusStyles.statusCard,
-          statusStyles.statusCardNarrow
-        )}
-      >
-        <div {...stylex.props(statusStyles.statusCopy)}>
-          <h1 {...stylex.props(dataStyles.panelTitle)}>Lenso Console</h1>
-          <p {...stylex.props(statusStyles.statusDescription)}>
-            Sign in with the configured Lenso identity provider.
+    <main
+      {...stylex.props(statusStyles.statusScreen, statusStyles.loginScreen)}
+    >
+      <aside {...stylex.props(statusStyles.loginContext)}>
+        <div {...stylex.props(statusStyles.loginBrand)}>
+          <span {...stylex.props(statusStyles.loginBrandMark)} />
+          <span>Lenso Console</span>
+        </div>
+        <div {...stylex.props(statusStyles.loginIdentity)}>
+          <h1 {...stylex.props(statusStyles.loginIdentityName)}>
+            support-desk
+          </h1>
+          <p {...stylex.props(statusStyles.loginIdentityEnvironment)}>
+            Production
           </p>
         </div>
-        {authError ? (
-          <p {...stylex.props(statusStyles.statusError)}>{authError}</p>
-        ) : null}
-        <form
-          {...stylex.props(statusStyles.statusForm)}
-          onSubmit={handlePasswordSignIn}
-        >
-          <label {...stylex.props(statusStyles.statusLabel)}>
-            <span>Identifier</span>
-            <input
-              aria-label="Identifier"
-              autoComplete="username"
-              {...stylex.props(statusStyles.statusInput)}
-              onChange={(event) => setIdentifier(event.target.value)}
-              required
-              value={identifier}
-            />
-          </label>
-          <label {...stylex.props(statusStyles.statusLabel)}>
-            <span>Password</span>
-            <input
-              aria-label="Password"
-              autoComplete="current-password"
-              {...stylex.props(statusStyles.statusInput)}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-          <Button
-            disabled={busy}
-            stylex={statusStyles.statusButtonFull}
-            type="submit"
+        <dl {...stylex.props(statusStyles.loginAccessDetails)}>
+          <div {...stylex.props(statusStyles.loginAccessRow)}>
+            <dt {...stylex.props(statusStyles.loginAccessLabel)}>
+              Access state
+            </dt>
+            <dd {...stylex.props(statusStyles.loginAccessValue)}>
+              Operator access required
+            </dd>
+          </div>
+          <div {...stylex.props(statusStyles.loginAccessRow)}>
+            <dt {...stylex.props(statusStyles.loginAccessLabel)}>
+              Authentication
+            </dt>
+            <dd {...stylex.props(statusStyles.loginAccessValue)}>
+              Password · OIDC
+            </dd>
+          </div>
+        </dl>
+      </aside>
+      <div {...stylex.props(statusStyles.loginPane)}>
+        <section {...stylex.props(statusStyles.loginCard)}>
+          <div>
+            <h1 {...stylex.props(statusStyles.loginTitle)}>Operator access</h1>
+            <p {...stylex.props(statusStyles.loginDescription)}>
+              Sign in with an identity configured for this Console.
+            </p>
+          </div>
+          {authError ? (
+            <p {...stylex.props(statusStyles.statusError)}>{authError}</p>
+          ) : null}
+          <form
+            {...stylex.props(statusStyles.loginForm)}
+            onSubmit={handlePasswordSignIn}
           >
-            <LogIn aria-hidden="true" size={14} />
-            {busy ? "Signing in" : "Sign in"}
-          </Button>
-        </form>
-        <Button
-          disabled={busy}
-          onClick={handleSignIn}
-          stylex={statusStyles.statusButtonSpaced}
-          variant="ghost"
-        >
-          Continue with existing session
-        </Button>
-      </section>
+            <label {...stylex.props(statusStyles.loginLabel)}>
+              <span>Identifier</span>
+              <input
+                aria-label="Identifier"
+                autoComplete="username"
+                {...stylex.props(statusStyles.statusInput)}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="operator@example.com"
+                required
+                value={identifier}
+              />
+            </label>
+            <label {...stylex.props(statusStyles.loginLabel)}>
+              <span>Password</span>
+              <span {...stylex.props(statusStyles.loginPasswordControl)}>
+                <input
+                  aria-label="Password"
+                  autoComplete="current-password"
+                  {...stylex.props(
+                    statusStyles.statusInput,
+                    statusStyles.loginPasswordInput
+                  )}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                />
+                <button
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  {...stylex.props(statusStyles.loginPasswordToggle)}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  type="button"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </span>
+            </label>
+            <Button
+              disabled={busy}
+              stylex={statusStyles.statusButtonFull}
+              type="submit"
+              variant="primary"
+            >
+              {busy ? "Signing in" : "Sign in"}
+            </Button>
+          </form>
+          <div {...stylex.props(statusStyles.loginAlternative)}>
+            <Button
+              disabled={busy}
+              onClick={handleSignIn}
+              stylex={statusStyles.statusButtonFull}
+            >
+              Continue with existing session
+            </Button>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
