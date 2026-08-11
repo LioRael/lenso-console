@@ -9,7 +9,10 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { isApiMode } from "../lib/http-client";
-import { useConsoleAdminContext } from "./console-admin-context";
+import {
+  consoleCapabilitiesForManagedService,
+  useConsoleAdminContext,
+} from "./console-admin-context";
 import {
   getConsoleArtifactQuarantine,
   getConsoleArtifactQuarantines,
@@ -23,8 +26,12 @@ import { loadConsoleUiModule } from "./console-module-runtime";
 import { consoleRoutes, findConsoleRoute } from "./console-modules";
 import { consolePathFromLocation } from "./console-router-config";
 import { statusStyles } from "./console-status-styles";
+import { useConsoleSurfaceAvailability } from "./console-surface-availability";
 import { useConsoleSystemConnection } from "./console-system-connection-api";
-import { connectionModuleForArtifact } from "./console-system-connection-model";
+import {
+  connectionModuleForArtifact,
+  connectionStatusLabel,
+} from "./console-system-connection-model";
 import { useConsoleManagedServices } from "./console-system-registry-api";
 import {
   createManagedServiceContext,
@@ -38,12 +45,13 @@ export function DynamicConsoleModulePage() {
   });
   const path = consolePathFromLocation(locationPath);
   const navigate = useNavigate();
-  const capabilities = useConsoleCapabilities();
+  const globalCapabilities = useConsoleCapabilities();
   const apiMode = isApiMode();
   const artifacts = useConsoleArtifacts();
   const adminContext = useConsoleAdminContext();
   const managedServices = useConsoleManagedServices();
   const systemConnection = useConsoleSystemConnection();
+  const surfaceAvailability = useConsoleSurfaceAvailability();
   const selectedManagedServiceId = useSelectedManagedServiceId();
   const queryClient = useQueryClient();
   const quarantines = useSyncExternalStore(
@@ -58,6 +66,9 @@ export function DynamicConsoleModulePage() {
   const localRoute = useMemo(
     () => findConsoleRoute(path, consoleRoutes),
     [path]
+  );
+  const requestedSurfaceAvailability = surfaceAvailability.find(
+    (surface) => surface.path === path
   );
   const selection = useMemo(() => {
     for (const artifact of artifacts.data?.artifacts ?? []) {
@@ -106,17 +117,37 @@ export function DynamicConsoleModulePage() {
     managedServices.data,
     selectedManagedServiceId,
   ]);
+  const surfaceCapabilities = useMemo(
+    () =>
+      selectedManagedService && adminContext.data
+        ? consoleCapabilitiesForManagedService(
+            adminContext.data,
+            selectedManagedService.serviceId
+          )
+        : globalCapabilities,
+    [adminContext.data, globalCapabilities, selectedManagedService]
+  );
   const managedServiceContext = useMemo(
     () =>
-      artifact && selectedManagedService && adminContext.data
+      artifact &&
+      selectedManagedService &&
+      adminContext.data &&
+      systemConnection.data
         ? createManagedServiceContext({
             actor: adminContext.data.actor,
             callerModuleId: artifact.moduleId,
-            capabilities,
+            capabilities: surfaceCapabilities,
             service: selectedManagedService,
+            systemId: systemConnection.data.systemId,
           })
         : null,
-    [adminContext.data, artifact, capabilities, selectedManagedService]
+    [
+      adminContext.data,
+      artifact,
+      selectedManagedService,
+      surfaceCapabilities,
+      systemConnection.data,
+    ]
   );
   const contextKey = managedServiceContext
     ? managedServiceContextKey(managedServiceContext)
@@ -140,7 +171,8 @@ export function DynamicConsoleModulePage() {
       artifact &&
       selection &&
       systemConnection.data &&
-      connectedModule?.status === "connected"
+      connectedModule?.status === "connected" &&
+      requestedSurfaceAvailability?.status === "connected"
     ),
     queryKey: [
       "console",
@@ -179,6 +211,20 @@ export function DynamicConsoleModulePage() {
     );
   }
 
+  if (
+    requestedSurfaceAvailability &&
+    requestedSurfaceAvailability.status !== "connected"
+  ) {
+    return (
+      <ModuleState
+        title={`${requestedSurfaceAvailability.label} ${connectionStatusLabel(requestedSurfaceAvailability.status)}`}
+      >
+        {requestedSurfaceAvailability.reason ??
+          "This Module Surface is not available to the current operator."}
+      </ModuleState>
+    );
+  }
+
   if (systemConnection.isPending) {
     return <ModuleState title="Loading System Connection" />;
   }
@@ -192,6 +238,13 @@ export function DynamicConsoleModulePage() {
         Management Binding.
       </ModuleState>
     );
+  }
+
+  if (adminContext.isPending) {
+    return <ModuleState title="Loading Console Access" />;
+  }
+  if (adminContext.isError || !adminContext.data) {
+    return <ModuleState title="Console Access is unavailable" />;
   }
 
   if (artifacts.isPending) {
@@ -251,7 +304,7 @@ export function DynamicConsoleModulePage() {
     return <ModuleState title="Module UI surface is not declared" />;
   }
   const client = createConsoleModuleClient({
-    capabilities,
+    capabilities: surfaceCapabilities,
     moduleId: selectedArtifact.moduleId,
     moduleReleaseDigest: selectedArtifact.moduleReleaseDigest,
     navigate: (target, options) => {

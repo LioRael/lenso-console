@@ -66,14 +66,14 @@ pub(super) type ExecutionLogTuple = (
     Vec<String>,
 );
 
-pub(super) struct AdminRemoteProxyCall {
+pub(super) struct AdminProviderCall {
     pub(super) id: String,
     pub(super) module_name: String,
     pub(super) method: String,
     pub(super) declared_path: String,
-    pub(super) remote_path: String,
+    pub(super) provider_path: String,
     pub(super) capability: Option<String>,
-    pub(super) remote_status: Option<i32>,
+    pub(super) provider_status: Option<i32>,
     pub(super) duration_ms: i64,
     pub(super) success: bool,
     pub(super) error_code: Option<String>,
@@ -115,6 +115,19 @@ impl From<StoryWorkTuple> for StoryWorkRow {
             metadata,
         ) = row;
 
+        let is_provider_call = matches!(item_type.as_str(), "provider_call" | "remote_proxy_call");
+        let item_type = if is_provider_call {
+            "provider_call".to_owned()
+        } else {
+            item_type
+        };
+
+        let id = if is_provider_call {
+            canonical_provider_node_id(id)
+        } else {
+            id
+        };
+
         Self {
             item_type,
             id,
@@ -123,15 +136,54 @@ impl From<StoryWorkTuple> for StoryWorkRow {
             attempts,
             max_attempts,
             correlation_id,
-            causation_id,
+            causation_id: causation_id.map(canonical_provider_node_id),
             service,
             created_at,
             started_at,
             completed_at,
-            last_error,
-            metadata,
+            last_error: canonical_provider_error(last_error, is_provider_call),
+            metadata: canonical_provider_metadata(metadata, is_provider_call),
         }
     }
+}
+
+pub(super) fn canonical_provider_node_id(id: String) -> String {
+    match id.strip_prefix("remoteproxy_") {
+        Some(suffix) => format!("provider_{suffix}"),
+        None => id,
+    }
+}
+
+fn canonical_provider_error(error: Option<String>, is_provider_call: bool) -> Option<String> {
+    if !is_provider_call {
+        return error;
+    }
+    error.map(|error| match error.strip_prefix("remote proxy call") {
+        Some(suffix) => format!("provider call{suffix}"),
+        None => error,
+    })
+}
+
+fn canonical_provider_metadata(mut metadata: Value, is_provider_call: bool) -> Value {
+    if !is_provider_call {
+        return metadata;
+    }
+    let Some(object) = metadata.as_object_mut() else {
+        return metadata;
+    };
+    for (legacy, canonical) in [
+        ("remote_proxy_call_id", "provider_call_id"),
+        ("remote_path", "provider_path"),
+        ("remote_status", "provider_status"),
+    ] {
+        let legacy_value = object.remove(legacy);
+        if !object.contains_key(canonical) {
+            if let Some(value) = legacy_value {
+                object.insert(canonical.to_owned(), value);
+            }
+        }
+    }
+    metadata
 }
 
 impl From<HeatmapRow> for AdminRuntimeHeatmapCell {

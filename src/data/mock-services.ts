@@ -89,7 +89,6 @@ const mockService = (
   > & { presentation?: ConsoleManagedServicePresentation }
 ): ConsoleManagedService => ({
   authorizationEpoch: 7,
-  baseUrl: `https://${service.serviceId}.example.com`,
   connectionState: service.connectionState,
   enrollmentExpiresAtUnixMs: 4_000_000_000_000,
   enrollmentGrantRevision: 1,

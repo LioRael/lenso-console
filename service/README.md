@@ -75,6 +75,53 @@ API and embedded Worker. Packaged deployments may set `CONSOLE_WEB_ROOT` to an
 absolute directory containing the built `index.html`; the API fails closed when
 the Shell build is absent.
 
+## Connect a local System through signed enrollment
+
+Console accepts a managed Service only through the framework's bilateral
+`EnrollmentOffer` / `EnrollmentReceipt` exchange. An Operator with
+`console.system.connect` first submits the already signed exchange to
+`POST /api/console/v1/enrollment-receipts` with its local `baseUrl`, then submits
+the exact topology and Management Binding to
+`POST /api/console/v1/system/connect`. The second request re-verifies the stored
+exchange against the current trust allowlist, requires the System, Service,
+principal, revision, Grant policy, and receipt digest to match, and reads the
+Service's authenticated `/system-plane/v1` Core document before storing the
+connection. Topology data alone never creates managed-Service membership.
+
+For the `lenso system dev` acceptance path, configure server-only trust through
+`LENSO_MODULE_LENSO_SYSTEM_REGISTRY__ENROLLMENT_TRUST`. Each entry fixes one
+signing key to one System, Service identity, loopback origin, and target-specific
+Core bearer credential:
+
+```sh
+LENSO_MODULE_LENSO_SYSTEM_REGISTRY__ENROLLMENT_TRUST='{
+  "consoleAuthorityKeys": [{
+    "keyId": "console-local-1",
+    "publicKeyBase64url": "<32-byte-ed25519-public-key-base64url>",
+    "consoleServicePrincipal": "service:lenso-console"
+  }],
+  "managedServiceKeys": [{
+    "keyId": "support-local-1",
+    "publicKeyBase64url": "<32-byte-ed25519-public-key-base64url>",
+    "systemId": "support-desk",
+    "managedServiceId": "support-service",
+    "managedServicePrincipal": "svc.support-service",
+    "baseUrl": "http://127.0.0.1:4110/lenso/service/v1",
+    "systemPlaneBearerToken": "<target-specific-local-token>"
+  }]
+}'
+```
+
+The request cannot add keys, origins, or credentials. Tokens are never written
+to the Console Store, audit evidence, or API responses. The pinned `baseUrl` is
+retained as the Service API base for later Surface routing, while Core discovery
+always uses `/system-plane/v1` at that same pinned loopback origin. This #529 seam is
+intentionally local-only: it canonicalizes `localhost` to `127.0.0.1`, permits
+only loopback HTTP, disables redirects and proxies, and bounds time and response
+size. Remote or production enrollment remains unavailable until a separate
+mTLS or certificate-pinned trust seam is delivered; Console does not create,
+deploy, or replace the target workload.
+
 Module Console UI artifacts are owned by this Service, not by managed Services.
 Operators with the `console.artifacts.manage` capability may reconcile reviewed
 artifacts through `POST /api/console/v1/artifacts/reconcile`. The Service

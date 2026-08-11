@@ -33,7 +33,7 @@ import {
   buildExecutionActivity,
   buildExecutionContext,
   buildExecutionFailures,
-  buildRemoteProxyInspectorDetail,
+  buildProviderCallInspectorDetail,
   executionInspectorTabs,
   getExecutionInspectorTabCounts,
   type ExecutionActivityItem,
@@ -1039,7 +1039,7 @@ function InspectorBody({
 
   if (activeTab === "overview") {
     const retryTarget = retryTargetForNode(node);
-    const remoteProxyDetail = buildRemoteProxyInspectorDetail(node);
+    const providerCallDetail = buildProviderCallInspectorDetail(node);
     return (
       <OverviewDocument
         logsCount={node.logs.length}
@@ -1047,9 +1047,9 @@ function InspectorBody({
         payload={payloadQuery.data}
         story={story}
       >
-        {remoteProxyDetail ? (
-          <RemoteProxyDetail
-            detail={remoteProxyDetail}
+        {providerCallDetail ? (
+          <ProviderCallDetail
+            detail={providerCallDetail}
             onOpenRemoteCalls={() => openRemoteCalls(story.correlationId)}
           />
         ) : null}
@@ -2255,11 +2255,11 @@ function inspectorClock(story: RuntimeStory, offsetMs: number) {
   return `${date.toISOString().slice(11, 19)}.${String(date.getUTCMilliseconds()).padStart(3, "0")}`;
 }
 
-function RemoteProxyDetail({
+function ProviderCallDetail({
   detail,
   onOpenRemoteCalls,
 }: {
-  detail: ReturnType<typeof buildRemoteProxyInspectorDetail>;
+  detail: ReturnType<typeof buildProviderCallInspectorDetail>;
   onOpenRemoteCalls: () => void;
 }) {
   if (!detail) {
@@ -2293,7 +2293,7 @@ function RemoteProxyDetail({
             localStyles.utilityTextFgSecondary,
           ])}
         >
-          Remote proxy
+          Provider call
         </span>
         <button
           {...stylex.props([

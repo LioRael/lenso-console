@@ -21,14 +21,14 @@ use lenso::system_plane::{
     module_operations_schema_digest, validate_core_document,
 };
 
-use super::{REGISTRY_READ, SYSTEM_CONNECT, SYSTEM_READ, connection, workload_control};
+use super::{REGISTRY_READ, SYSTEM_CONNECT, SYSTEM_READ, connection, enrollment, workload_control};
 
-const LIST_SERVICES_SQL: &str = "select service_id, service_principal, base_url, \
+const LIST_SERVICES_SQL: &str = "select service_id, service_principal, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document, \
     core_observed_at::text as core_observed_at, last_error_code, version \
     from console.managed_services where service_id <> 'lenso-console' order by service_id";
-const GET_SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
+const GET_SERVICE_SQL: &str = "select service_id, service_principal, \
     enrollment_receipt_digest, enrollment_grant_revision, authorization_epoch, \
     enrollment_expires_at_unix_ms, enrollment_state, connection_state, core_document, \
     core_observed_at::text as core_observed_at, last_error_code, version \
@@ -60,7 +60,6 @@ enum ConnectionState {
 struct ManagedServiceResponse {
     service_id: String,
     service_principal: String,
-    base_url: String,
     enrollment_receipt_digest: String,
     enrollment_grant_revision: u64,
     authorization_epoch: u64,
@@ -87,6 +86,7 @@ fn router() -> ApiOpenApiRouter {
         .routes(routes!(resolve_action_contributions))
         .routes(routes!(read_module_config))
         .routes(routes!(write_module_config))
+        .merge(enrollment::router())
         .merge(workload_control::router())
 }
 
@@ -138,6 +138,8 @@ async fn get_system_connection(
         (status = 400, body = ErrorResponse, content_type = "application/problem+json"),
         (status = 401, body = ErrorResponse, content_type = "application/problem+json"),
         (status = 403, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 409, body = ErrorResponse, content_type = "application/problem+json"),
+        (status = 502, body = ErrorResponse, content_type = "application/problem+json"),
         (status = 500, body = ErrorResponse, content_type = "application/problem+json")
     )
 )]
@@ -160,6 +162,8 @@ async fn connect_system(
             &request_ctx,
         )
     })?;
+    let verified_services =
+        enrollment::verify_connection_services(&ctx, &request, &request_ctx).await?;
     let topology = serde_json::to_value(&request.topology).map_err(|error| {
         internal_source_error("System topology could not be stored", error, &request_ctx)
     })?;
@@ -171,6 +175,13 @@ async fn connect_system(
                 &request_ctx,
             )
         })?;
+    let mut transaction = ctx
+        .db
+        .begin()
+        .await
+        .map_err(|error| database_error(error, &request_ctx))?;
+    enrollment::persist_connection_observations(&mut transaction, &verified_services, &request_ctx)
+        .await?;
     let row = sqlx::query(
         "insert into console.system_connections \
             (system_id, topology_digest, topology, management_binding, version) \
@@ -187,7 +198,7 @@ async fn connect_system(
     .bind(&request.topology_digest)
     .bind(topology)
     .bind(management_binding)
-    .fetch_one(&ctx.db)
+    .fetch_one(&mut *transaction)
     .await
     .map_err(|error| database_error(error, &request_ctx))?;
     sqlx::query(
@@ -202,9 +213,13 @@ async fn connect_system(
         "serviceIds": request.management_binding.service_ids,
         "adapterIds": request.management_binding.adapter_ids,
     }))
-    .execute(&ctx.db)
+    .execute(&mut *transaction)
     .await
     .map_err(|error| database_error(error, &request_ctx))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|error| database_error(error, &request_ctx))?;
     let observations = load_connection_observations(&ctx, &request_ctx).await?;
     Ok(json(system_connection_from_row(
         &row,
@@ -949,7 +964,6 @@ fn managed_service_from_row(
     Ok(ManagedServiceResponse {
         service_id: value(row, "service_id", request_ctx)?,
         service_principal: value(row, "service_principal", request_ctx)?,
-        base_url: value(row, "base_url", request_ctx)?,
         enrollment_receipt_digest: value(row, "enrollment_receipt_digest", request_ctx)?,
         enrollment_grant_revision: positive_integer(
             value(row, "enrollment_grant_revision", request_ctx)?,
@@ -1087,10 +1101,17 @@ mod tests {
                 .keys()
                 .all(|path| path.starts_with("/api/console/v1/"))
         );
+        let document = serde_json::to_value(document).expect("OpenAPI should serialize");
+        assert!(
+            document["components"]["schemas"]["ManagedServiceResponse"]["properties"]
+                .get("baseUrl")
+                .is_none(),
+            "Managed Service target origins must remain server-only"
+        );
     }
 
     #[test]
-    fn enrollment_creation_is_not_exposed_without_signed_contract_support() {
+    fn signed_enrollment_exchange_is_exposed_without_offer_creation_authority() {
         let document = router().to_openapi();
         assert!(
             !document
@@ -1099,7 +1120,7 @@ mod tests {
                 .contains_key("/api/console/v1/enrollment-offers")
         );
         assert!(
-            !document
+            document
                 .paths
                 .paths
                 .contains_key("/api/console/v1/enrollment-receipts")

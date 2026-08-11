@@ -78,6 +78,7 @@ describe("console capabilities", () => {
             user_id: "usr_admin",
           },
           capabilities: ["console.admin"],
+          managed_service_capabilities: {},
           scopes: ["console.admin"],
         },
         apiMode: true,

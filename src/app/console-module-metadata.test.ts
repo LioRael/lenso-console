@@ -85,6 +85,118 @@ describe("Console Module metadata", () => {
     );
   });
 
+  test("uses only the connected Service grant for grant-only Surface navigation", () => {
+    const billingArtifactDigest = `sha256:${"a".repeat(64)}` as const;
+    const billingReleaseDigest = `sha256:${"b".repeat(64)}` as const;
+    const supportArtifactDigest = `sha256:${"c".repeat(64)}` as const;
+    const supportReleaseDigest = `sha256:${"d".repeat(64)}` as const;
+    const connection: ConsoleSystemConnection = {
+      adapters: [],
+      managementBinding: {
+        adapterIds: [],
+        permissions: [],
+        policy: {
+          digest: `sha256:${"e".repeat(64)}`,
+          policyId: "support-desk",
+          revision: 1,
+        },
+        serviceIds: ["billing-service", "support-service"],
+        systemId: "support-desk",
+        topologyDigest: `sha256:${"f".repeat(64)}`,
+      },
+      modules: [
+        {
+          consoleUiArtifactDigest: billingArtifactDigest,
+          delivery: "service",
+          moduleId: "acme/billing",
+          moduleReleaseDigest: billingReleaseDigest,
+          serviceId: "billing-service",
+          status: "connected",
+        },
+        {
+          consoleUiArtifactDigest: supportArtifactDigest,
+          delivery: "service",
+          moduleId: "acme/support",
+          moduleReleaseDigest: supportReleaseDigest,
+          serviceId: "support-service",
+          status: "connected",
+        },
+      ],
+      services: [],
+      status: "connected",
+      systemId: "support-desk",
+      topologyDigest: `sha256:${"f".repeat(64)}`,
+    };
+    const artifacts = [
+      {
+        artifactDigest: billingArtifactDigest,
+        basePath: "/artifacts/billing/",
+        entry: "index.js",
+        entries: [{ name: "module", path: "index.js" }],
+        format: "console_ui_esm" as const,
+        grantedPermissions: [],
+        manifest: {
+          consoleUi: "^1.0.0",
+          hostApi: "^2.0.0",
+          moduleId: "acme/billing",
+          protocol: CONSOLE_MODULE_API_PROTOCOL,
+          surfaces: [
+            {
+              area: "data" as const,
+              id: "invoices",
+              label: "Invoices",
+              path: "/billing/invoices",
+              requiredCapabilities: ["billing.invoices.read"],
+            },
+          ],
+        },
+        moduleId: "acme/billing",
+        moduleReleaseDigest: billingReleaseDigest,
+      },
+      {
+        artifactDigest: supportArtifactDigest,
+        basePath: "/artifacts/support/",
+        entry: "index.js",
+        entries: [{ name: "module", path: "index.js" }],
+        format: "console_ui_esm" as const,
+        grantedPermissions: [],
+        manifest: {
+          consoleUi: "^1.0.0",
+          hostApi: "^2.0.0",
+          moduleId: "acme/support",
+          protocol: CONSOLE_MODULE_API_PROTOCOL,
+          surfaces: [
+            {
+              area: "data" as const,
+              id: "tickets",
+              label: "Tickets",
+              path: "/support/private-tickets",
+              requiredCapabilities: ["billing.invoices.read"],
+            },
+          ],
+        },
+        moduleId: "acme/support",
+        moduleReleaseDigest: supportReleaseDigest,
+      },
+    ];
+
+    const navigation = navigationFromConsoleModuleMetadata(
+      [],
+      [],
+      artifacts,
+      new Set(),
+      connection,
+      { "billing-service": ["billing.invoices.read"] }
+    );
+
+    expect(navigation).toContainEqual(
+      expect.objectContaining({ path: "/billing/invoices" })
+    );
+    expect(navigation).not.toContainEqual(
+      expect.objectContaining({ path: "/support/private-tickets" })
+    );
+  });
+
   test("hides every Surface from a quarantined artifact", () => {
     const artifactDigest = `sha256:${"c".repeat(64)}` as `sha256:${string}`;
     const navigation = navigationFromConsoleModuleMetadata(

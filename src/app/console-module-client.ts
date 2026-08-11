@@ -19,6 +19,7 @@ import {
 } from "@lenso/console-module-api";
 
 import { httpClient } from "../lib/http-client";
+import { hasConsoleCapability } from "./console-capability-matching";
 import { sameManagedServiceContext } from "./managed-service-context";
 
 type ConsoleModuleClientOptions = {
@@ -44,7 +45,7 @@ export function createConsoleModuleClient({
   const required = new Set(requiredCapabilities);
   const assertCapabilities = () => {
     const missing = [...required].filter(
-      (capability) => !available.has(capability)
+      (capability) => !hasConsoleCapability(available, capability)
     );
     if (missing.length > 0) {
       throw new ConsoleHostError(
@@ -135,7 +136,7 @@ export function createConsoleModuleClient({
     managedServiceContext,
     surfaceApi,
     capabilities: {
-      has: (capability) => available.has(capability),
+      has: (capability) => hasConsoleCapability(available, capability),
       list: () => capabilities,
     },
     inventory(
@@ -226,6 +227,26 @@ function validateSurfaceRequestContext<Input>(
     throw new ConsoleHostError(
       "invalid_request",
       "Surface operation Story context must have a story id",
+      { status: 400 }
+    );
+  }
+  if (
+    context.story?.segmentId !== undefined &&
+    !context.story.segmentId.trim()
+  ) {
+    throw new ConsoleHostError(
+      "invalid_request",
+      "Surface operation Story segment id must be non-empty",
+      { status: 400 }
+    );
+  }
+  if (
+    context.story?.correlationId !== undefined &&
+    !context.story.correlationId.trim()
+  ) {
+    throw new ConsoleHostError(
+      "invalid_request",
+      "Surface operation Story correlation id must be non-empty",
       { status: 400 }
     );
   }

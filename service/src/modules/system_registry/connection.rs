@@ -7,6 +7,10 @@ use super::workload_control::{
     valid_path_identity, valid_workload_reference, workload_control_schema_digest,
 };
 
+const LOCAL_CONTROL_ADAPTER_SERVICE_ID: &str = "lenso-local-control-adapter";
+const LOCAL_CONTROL_ADAPTER_SERVICE_PRINCIPAL: &str = "svc.lenso-local-control-adapter";
+const LOCAL_CONTROL_WORKLOAD_PREFIX: &str = "workload-control:";
+
 /// The four states exposed by the System Connection contract.  These are
 /// deliberately object-level states; the Console does not derive a second
 /// readiness, proof, or evidence aggregate.
@@ -253,7 +257,12 @@ pub fn project_connection(
     let mut services = topology
         .services
         .iter()
-        .map(|service| project_service(service, observations))
+        .map(|service| {
+            control_plane_authority(topology, &service.service_id).map_or_else(
+                || project_service(service, observations),
+                |interface| project_control_plane_service(service, interface.status),
+            )
+        })
         .collect::<Vec<_>>();
     let bound_ids = topology
         .services
@@ -296,6 +305,75 @@ pub fn project_connection(
         services,
         modules,
         adapters,
+    }
+}
+
+pub(super) fn is_control_plane_authority(topology: &SystemTopology, service_id: &str) -> bool {
+    control_plane_authority(topology, service_id).is_some()
+}
+
+fn control_plane_authority<'a>(
+    topology: &'a SystemTopology,
+    service_id: &str,
+) -> Option<&'a WorkloadControlAdapterInterface> {
+    if service_id != LOCAL_CONTROL_ADAPTER_SERVICE_ID
+        || topology.modules.iter().any(|module| {
+            module.delivery == ModuleDelivery::Service
+                && module.service_id.as_deref() == Some(service_id)
+        })
+    {
+        return None;
+    }
+    let expected_workload_id = format!("{LOCAL_CONTROL_WORKLOAD_PREFIX}{}", topology.system_id);
+    let service = topology
+        .services
+        .iter()
+        .find(|service| service.service_id == service_id)?;
+    if service.service_principal != LOCAL_CONTROL_ADAPTER_SERVICE_PRINCIPAL
+        || service.revision != 1
+        || service.workloads.len() != 1
+        || service.workloads[0].workload_id != expected_workload_id
+        || service.workloads[0].role != "control_adapter"
+    {
+        return None;
+    }
+    let mut matches = topology.adapters.iter().filter_map(|adapter| {
+        let workload = adapter.workload.as_ref()?;
+        let interface = adapter.workload_control.as_ref()?;
+        (workload.system_id == topology.system_id
+            && workload.service_id == service_id
+            && workload.workload_id == expected_workload_id)
+            .then_some(interface)
+    });
+    let interface = matches.next()?;
+    (matches.next().is_none()
+        && interface.protocol == WORKLOAD_CONTROL_PROTOCOL
+        && interface.schema_digest == workload_control_schema_digest())
+    .then_some(interface)
+}
+
+fn project_control_plane_service(
+    service: &SystemTopologyService,
+    status: ConnectionStatus,
+) -> SystemConnectionService {
+    let reason = match status {
+        ConnectionStatus::Connected => None,
+        ConnectionStatus::Unavailable => {
+            Some("Workload Control Adapter authority is unavailable".to_owned())
+        }
+        ConnectionStatus::Incompatible => {
+            Some("Workload Control Adapter authority is incompatible".to_owned())
+        }
+        ConnectionStatus::Unmanaged => {
+            Some("Workload Control Adapter authority is unmanaged".to_owned())
+        }
+    };
+    SystemConnectionService {
+        service_id: service.service_id.clone(),
+        service_principal: service.service_principal.clone(),
+        status,
+        reason,
+        workloads: service.workloads.clone(),
     }
 }
 
@@ -1117,5 +1195,110 @@ mod tests {
                 .status,
             ConnectionStatus::Unavailable
         );
+    }
+
+    #[test]
+    fn exact_adapter_workload_projects_its_control_plane_service_without_business_enrollment() {
+        let mut request = request(topology());
+        request.topology.services.push(SystemTopologyService {
+            service_id: "lenso-local-control-adapter".to_owned(),
+            service_principal: "svc.lenso-local-control-adapter".to_owned(),
+            revision: 1,
+            workloads: vec![SystemTopologyWorkload {
+                workload_id: "workload-control:support-desk".to_owned(),
+                role: "control_adapter".to_owned(),
+            }],
+        });
+        request.topology.adapters[0].workload = Some(WorkloadReference {
+            system_id: "support-desk".to_owned(),
+            service_id: "lenso-local-control-adapter".to_owned(),
+            workload_id: "workload-control:support-desk".to_owned(),
+        });
+        request.management_binding.service_ids = vec![
+            "support-service".to_owned(),
+            "lenso-local-control-adapter".to_owned(),
+        ];
+        request.topology_digest = calculate_topology_digest(&request.topology).expect("digest");
+        request.management_binding.topology_digest = request.topology_digest.clone();
+
+        assert!(validate_connect_request(&request).is_ok());
+        let response = project_connection(
+            &request.topology,
+            &request.management_binding,
+            &[
+                ManagedServiceObservation {
+                    service_id: "support-service".to_owned(),
+                    service_principal: "svc.support-service".to_owned(),
+                    enrollment_state: "active".to_owned(),
+                    connection_state: "ready".to_owned(),
+                    last_error_code: None,
+                },
+                ManagedServiceObservation {
+                    service_id: "unexpected-service".to_owned(),
+                    service_principal: "svc.unexpected-service".to_owned(),
+                    enrollment_state: "active".to_owned(),
+                    connection_state: "ready".to_owned(),
+                    last_error_code: None,
+                },
+            ],
+        );
+
+        assert_eq!(response.status, ConnectionStatus::Unmanaged);
+        assert_eq!(response.services[0].status, ConnectionStatus::Connected);
+        assert_eq!(response.services[1].status, ConnectionStatus::Connected);
+        assert_eq!(response.services[2].status, ConnectionStatus::Unmanaged);
+        assert_eq!(
+            response.services[1].service_id,
+            "lenso-local-control-adapter"
+        );
+        assert_eq!(response.services[1].reason, None);
+
+        let mut lookalike = request.topology.clone();
+        lookalike.services[1].service_id = "lookalike-control-adapter".to_owned();
+        lookalike.adapters[0]
+            .workload
+            .as_mut()
+            .expect("adapter workload")
+            .service_id = "lookalike-control-adapter".to_owned();
+        assert!(!is_control_plane_authority(
+            &lookalike,
+            "lookalike-control-adapter"
+        ));
+
+        for mutate in [
+            |topology: &mut SystemTopology| {
+                topology.services[1].service_principal =
+                    "service:lenso-local-control-adapter".to_owned();
+            },
+            |topology: &mut SystemTopology| {
+                topology.services[1].revision = 2;
+            },
+            |topology: &mut SystemTopology| {
+                topology.services[1].workloads.push(SystemTopologyWorkload {
+                    workload_id: "unexpected-workload".to_owned(),
+                    role: "control_adapter".to_owned(),
+                });
+            },
+            |topology: &mut SystemTopology| {
+                topology.services[1].workloads[0].role = "api".to_owned();
+            },
+        ] {
+            let mut invalid = request.topology.clone();
+            mutate(&mut invalid);
+            assert!(
+                !is_control_plane_authority(&invalid, "lenso-local-control-adapter"),
+                "Local Adapter enrollment exemption must require the exact pinned identity"
+            );
+        }
+
+        let mut duplicate_interface = request.topology.clone();
+        duplicate_interface
+            .adapters
+            .push(duplicate_interface.adapters[0].clone());
+        duplicate_interface.adapters[1].adapter_id = "second-local-control".to_owned();
+        assert!(!is_control_plane_authority(
+            &duplicate_interface,
+            "lenso-local-control-adapter"
+        ));
     }
 }

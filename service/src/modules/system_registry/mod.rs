@@ -1,4 +1,5 @@
 pub(crate) mod connection;
+mod enrollment;
 mod routes;
 mod workload_control;
 
@@ -6,6 +7,8 @@ use lenso::host::http::{LinkedHttpContribution, ModuleHttpMethod, ModuleHttpRout
 use lenso::host::prelude::*;
 use lenso::{ConsoleNavigation, ConsoleSurface, ConsoleSurfacePresentation, ConsoleWorkspaceRef};
 use serde_json::json;
+
+pub(crate) use enrollment::validate_surface_authority;
 
 pub const MODULE_NAME: &str = "lenso/system-registry";
 pub const REGISTRY_READ: &str = "console.system-registry.read";
@@ -33,6 +36,10 @@ const MIGRATIONS: &[Migration] = &[
         name: "lenso/system-registry/0003_create_workload_control_operations",
         sql: include_str!("migrations/0003_create_workload_control_operations.sql"),
     },
+    Migration {
+        name: "lenso/system-registry/0004_create_enrollment_exchanges",
+        sql: include_str!("migrations/0004_create_enrollment_exchanges.sql"),
+    },
 ];
 
 pub fn linked_module() -> HostLinkedModule {
@@ -53,6 +60,12 @@ pub fn http_routes() -> Vec<ModuleHttpRoute> {
             "/api/console/v1/system/connect",
             SYSTEM_CONNECT,
             "Connect System",
+        ),
+        route(
+            ModuleHttpMethod::Post,
+            "/api/console/v1/enrollment-receipts",
+            SYSTEM_CONNECT,
+            "Register Signed Enrollment Receipt",
         ),
         route(
             ModuleHttpMethod::Get,
@@ -226,6 +239,6 @@ mod tests {
                 if schema["component"] == "lenso/system-registry"
         ));
         assert!(module.http_binding.is_some());
-        assert_eq!(module.migrations.len(), 3);
+        assert_eq!(module.migrations.len(), 4);
     }
 }

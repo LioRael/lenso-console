@@ -136,7 +136,7 @@ fn story_title(rows: &[StoryWorkRow]) -> String {
         return title;
     }
 
-    if let Some(title) = rows.iter().find_map(remote_proxy_story_title) {
+    if let Some(title) = rows.iter().find_map(provider_story_title) {
         return title;
     }
 
@@ -165,8 +165,8 @@ fn display_name_for_node(row: &StoryWorkRow) -> String {
     humanize_runtime_name(&row.name)
 }
 
-fn remote_proxy_story_title(row: &StoryWorkRow) -> Option<String> {
-    if row.item_type != "remote_proxy_call" {
+fn provider_story_title(row: &StoryWorkRow) -> Option<String> {
+    if row.item_type != "provider_call" {
         return None;
     }
 
@@ -391,11 +391,12 @@ fn causal_source_id(
     ids: &std::collections::BTreeSet<&str>,
     current_id: &str,
 ) -> Option<String> {
-    if candidate != current_id && ids.contains(candidate) {
-        return Some(candidate.to_owned());
+    let candidate = canonical_provider_node_id(candidate.to_owned());
+    if candidate != current_id && ids.contains(candidate.as_str()) {
+        return Some(candidate);
     }
 
-    request_story_node_id(candidate, ids).filter(|source| source != current_id)
+    request_story_node_id(&candidate, ids).filter(|source| source != current_id)
 }
 
 fn request_story_node_id(
@@ -478,6 +479,9 @@ pub(super) fn row_duration_ms(row: &StoryWorkRow) -> i64 {
 }
 
 pub(super) fn timeline_item_type(item_type: &str, status: &str, attempts: i32) -> &'static str {
+    if matches!(item_type, "provider_call" | "remote_proxy_call") {
+        return "provider_call";
+    }
     if status == "dead" {
         return "dead_letter";
     }
@@ -491,7 +495,65 @@ pub(super) fn timeline_item_type(item_type: &str, status: &str, attempts: i32) -
         "http" | "http_request" => "http_request",
         "event" | "outbox_event" => "outbox_event",
         "function" | "function_run" => "function_run",
-        "remote_proxy_call" => "remote_proxy_call",
         _ => "runtime",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn provider_story_contract_is_canonical_at_the_console_boundary() {
+        let occurred_at = DateTime::parse_from_rfc3339("2026-08-11T00:00:00Z")
+            .expect("provider timestamp should parse")
+            .with_timezone(&Utc);
+        let row = StoryWorkRow::from((
+            "remote_proxy_call".to_owned(),
+            "remoteproxy_rproxy_1".to_owned(),
+            "support/tickets GET /tickets".to_owned(),
+            "failed".to_owned(),
+            1,
+            1,
+            "corr_provider".to_owned(),
+            None,
+            "support/tickets".to_owned(),
+            occurred_at,
+            Some(occurred_at),
+            Some(occurred_at),
+            Some("remote proxy call failed with provider_unavailable".to_owned()),
+            serde_json::json!({
+                "remote_proxy_call_id": "rproxy_1",
+                "remote_path": "/tickets",
+                "remote_status": 503,
+                "story_title": "Support Ticket Lookup"
+            }),
+        ));
+
+        let detail = build_story_detail(vec![row]);
+
+        assert_eq!(detail.summary.title, "Support Ticket Lookup");
+        assert_eq!(detail.summary.pattern, ["provider_call"]);
+        assert_eq!(
+            detail.summary.root_error.as_deref(),
+            Some("support/tickets GET /tickets: provider call failed with provider_unavailable")
+        );
+        assert_eq!(detail.nodes[0].id, "provider_rproxy_1");
+        assert_eq!(detail.nodes[0].node_type, "provider_call");
+        assert_eq!(
+            detail.nodes[0].metadata["source_metadata"]["provider_call_id"],
+            "rproxy_1"
+        );
+        assert!(
+            detail.nodes[0].metadata["source_metadata"]
+                .get("remote_proxy_call_id")
+                .is_none()
+        );
+        assert_eq!(detail.timeline_items[0].id, "provider_rproxy_1");
+        assert_eq!(detail.timeline_items[0].item_type, "provider_call");
+        assert_eq!(
+            timeline_item_type("provider_call", "completed", 1),
+            "provider_call"
+        );
     }
 }

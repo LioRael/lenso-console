@@ -92,7 +92,7 @@ export const mockSystemConnection: ConsoleUiSystemConnection = {
       surfaceApiGrant: {
         artifactDigest: digest("1"),
         contractDigest:
-          "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9",
+          "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be",
         moduleReleaseDigest: digest("f"),
         operationIds: [
           "support-ticket/http/GET:/tickets",

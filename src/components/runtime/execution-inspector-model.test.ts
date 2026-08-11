@@ -6,7 +6,7 @@ import {
   buildExecutionContext,
   buildExecutionFailures,
   buildExecutionPayload,
-  buildRemoteProxyInspectorDetail,
+  buildProviderCallInspectorDetail,
   defaultExecutionInspectorTab,
   executionInspectorTabs,
   getExecutionInspectorTabCounts,
@@ -169,7 +169,7 @@ describe("execution inspector model", () => {
     ]);
   });
 
-  test("builds remote proxy inspector details from source metadata", () => {
+  test("builds provider call inspector details from source metadata", () => {
     const node = {
       ...story.nodes[1]!,
       attributes: {
@@ -183,9 +183,9 @@ describe("execution inspector model", () => {
           method: "POST",
           module_name: "crm-service",
           path_params: { id: "contact_1" },
-          remote_path: "/v1/contacts/contact_1",
-          remote_proxy_call_id: "rproxy_1",
-          remote_status: 429,
+          provider_call_id: "rproxy_1",
+          provider_path: "/v1/contacts/contact_1",
+          provider_status: 429,
           request_id: "req_service_proxy",
           retryable: true,
           span_id: "span_remote_proxy",
@@ -198,14 +198,14 @@ describe("execution inspector model", () => {
       status: "failed" as const,
     };
 
-    const detail = buildRemoteProxyInspectorDetail(node);
+    const detail = buildProviderCallInspectorDetail(node);
 
     expect(detail?.rows).toEqual([
       ["result", "retryable failure"],
       ["module", "crm-service"],
       ["declared route", "POST /contacts/{id}"],
-      ["remote path", "/v1/contacts/contact_1"],
-      ["remote status", 429],
+      ["provider path", "/v1/contacts/contact_1"],
+      ["provider status", 429],
       ["duration", "1.42s"],
       ["request id", "req_service_proxy"],
       ["trace id", "trace_remote_proxy"],
@@ -219,9 +219,9 @@ describe("execution inspector model", () => {
     });
   });
 
-  test("does not build remote proxy details for ordinary external nodes", () => {
+  test("does not build provider details for ordinary external nodes", () => {
     expect(
-      buildRemoteProxyInspectorDetail({
+      buildProviderCallInspectorDetail({
         ...story.nodes[1]!,
         attributes: { provider: "stripe" },
         kind: "external",

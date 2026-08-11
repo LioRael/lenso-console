@@ -9,6 +9,15 @@ import { defineConfig } from "vitest/config";
 import { consoleStylex } from "./config/console-stylex.ts";
 
 export default defineConfig({
+  optimizeDeps: {
+    include: [
+      "@gsap/react",
+      "@tanstack/react-query",
+      "@tanstack/react-router",
+      "gsap",
+      "ky",
+    ],
+  },
   resolve: {
     alias: {
       "@lenso/console-module-api": path.resolve(

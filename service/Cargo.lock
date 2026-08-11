@@ -1792,6 +1792,7 @@ name = "lenso-console-service"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "base64",
  "chrono",
@@ -1816,6 +1817,7 @@ dependencies = [
  "tokio",
  "tower",
  "tower-http 0.7.0",
+ "tracing",
  "utoipa",
 ]
 
