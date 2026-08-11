@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-ui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "React adapter for dynamically loaded Lenso Console Module UI.",
   "keywords": [
     "console",
