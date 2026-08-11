@@ -58,7 +58,7 @@ const AppearanceContext = createContext<{
   recoverToOfficialDefault: (error?: unknown) => void;
   themeBundles: readonly ConsoleThemeBundleReceipt[];
 }>({
-  preference: "dark",
+  preference: "system",
   setPreference: () => undefined,
   theme: "dark",
   bundleId: null,
@@ -76,10 +76,9 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] =
     usePersistedLayout<ConsoleThemePreference>(
       "lenso-console:theme-preference",
-      "dark"
+      "system"
     );
-  const [systemTheme, setSystemTheme] =
-    useState<ConsoleTheme>(systemThemeValue);
+  const [systemTheme, setSystemTheme] = useState<ConsoleTheme>("dark");
   const preferredTheme = preference === "system" ? systemTheme : preference;
   const [bundleId, setBundleId] = usePersistedLayout<string | null>(
     consoleThemeBundleStorageKey,
@@ -199,6 +198,7 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)");
     const update = () => setSystemTheme(query.matches ? "dark" : "light");
+    update();
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
@@ -312,13 +312,6 @@ export function ConsoleAppearanceProvider({ children }: PropsWithChildren) {
 
 export function useConsoleAppearance() {
   return useContext(AppearanceContext);
-}
-
-function systemThemeValue(): ConsoleTheme {
-  return typeof window !== "undefined" &&
-    window.matchMedia("(prefers-color-scheme: light)").matches
-    ? "light"
-    : "dark";
 }
 
 function consoleThemeBundleErrorMessage(error: unknown): string {

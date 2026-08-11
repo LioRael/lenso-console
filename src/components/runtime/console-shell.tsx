@@ -34,6 +34,7 @@ import {
   Settings,
   Shield,
   Smartphone,
+  SunMoon,
   Users,
   Workflow,
 } from "lucide-react";
@@ -187,7 +188,7 @@ export const shellStyles = stylex.create({
     lineHeight: "16px",
     marginInlineStart: "auto",
   },
-  shellBottom: { marginBlockStart: "auto" },
+  shellBottom: { marginBlockStart: "auto", position: "relative" },
   shellProfile: {
     alignItems: "center",
     display: "flex",
@@ -218,6 +219,88 @@ export const shellStyles = stylex.create({
     display: "block",
     fontSize: 10,
     lineHeight: "14px",
+  },
+  shellThemeButton: {
+    alignItems: "center",
+    backgroundColor: tokens.rowSelected,
+    borderRadius: tokens.radiusControl,
+    color: tokens.foregroundSecondary,
+    display: "flex",
+    height: 28,
+    justifyContent: "center",
+    marginInlineStart: "auto",
+    width: 28,
+    ":hover": {
+      backgroundColor: tokens.rowHover,
+      color: tokens.foreground,
+    },
+    ":focus-visible": {
+      outlineColor: tokens.focusRing,
+      outlineOffset: 1,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  shellAppearanceMenu: {
+    backgroundColor: tokens.overlay,
+    borderColor: tokens.lineStrong,
+    borderRadius: tokens.radiusPanel,
+    borderStyle: "solid",
+    borderWidth: 1,
+    bottom: 6,
+    boxShadow: tokens.shadowOverlay,
+    display: "grid",
+    left: 224,
+    padding: 8,
+    position: "absolute",
+    width: 248,
+    zIndex: 60,
+  },
+  shellAppearanceMenuCollapsed: { left: 64 },
+  shellAppearanceChoice: {
+    alignItems: "center",
+    borderRadius: 4,
+    color: tokens.foreground,
+    display: "flex",
+    fontFamily: "inherit",
+    fontSize: 11,
+    height: 32,
+    justifyContent: "space-between",
+    lineHeight: "14px",
+    paddingInline: 8,
+    textDecoration: "none",
+    width: "100%",
+    ":hover": { backgroundColor: tokens.rowHover },
+    ":focus-visible": {
+      outlineColor: tokens.focusRing,
+      outlineOffset: -2,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    },
+  },
+  shellAppearanceChoiceSelected: {
+    backgroundColor: tokens.rowSelected,
+    fontWeight: 500,
+  },
+  shellAppearanceDivider: {
+    borderTopColor: tokens.lineSubtle,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    height: 7,
+    marginBlockStart: 6,
+  },
+  shellAppearanceMeta: {
+    alignItems: "center",
+    color: tokens.foregroundTertiary,
+    display: "flex",
+    fontSize: 11,
+    height: 32,
+    justifyContent: "space-between",
+    paddingInline: 8,
+  },
+  shellAppearanceMetaValue: {
+    color: tokens.foregroundSecondary,
+    fontSize: 10,
   },
   shellMain: { minWidth: 0 },
   shellToolbar: {
@@ -494,6 +577,8 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     "lenso-console:sidebar-collapsed",
     false
   );
+  const [appearanceMenuOpen, setAppearanceMenuOpen] = useState(false);
+  const appearanceMenuRef = useRef<HTMLDivElement>(null);
   const activeWorkspace = selectedWorkspaceForId(
     navigation,
     routeWorkspaceId ?? selectedWorkspaceId
@@ -575,6 +660,28 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openCommandPalette, setSidebarCollapsed]);
+
+  useEffect(() => {
+    if (!appearanceMenuOpen) {
+      return;
+    }
+    const closeMenu = (event: MouseEvent) => {
+      if (!appearanceMenuRef.current?.contains(event.target as Node)) {
+        setAppearanceMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAppearanceMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [appearanceMenuOpen]);
 
   const selectWorkspace = useCallback(
     (workspace: ConsoleWorkspaceNavigation) => {
@@ -690,6 +797,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             </span>
           </Link>
           <div
+            ref={appearanceMenuRef}
             {...stylex.props(
               shellStyles.shellProfile,
               sidebarCollapsed ? shellStyles.shellProfileCollapsed : null
@@ -713,6 +821,24 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                 {copy.operator}
               </span>
             </span>
+            <button
+              aria-expanded={appearanceMenuOpen}
+              aria-haspopup="menu"
+              aria-label={locale === "zh-CN" ? "切换主题" : "Change theme"}
+              {...stylex.props(shellStyles.shellThemeButton)}
+              onClick={() => setAppearanceMenuOpen((open) => !open)}
+              type="button"
+            >
+              <SunMoon aria-hidden="true" size={16} strokeWidth={1.5} />
+            </button>
+            {appearanceMenuOpen ? (
+              <AppearanceMenu
+                appearance={appearance}
+                collapsed={sidebarCollapsed}
+                locale={locale}
+                onClose={() => setAppearanceMenuOpen(false)}
+              />
+            ) : null}
           </div>
         </div>
       </aside>
@@ -777,6 +903,78 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     </ConsoleCompositionErrorBoundary>
   ) : (
     defaultShell
+  );
+}
+
+function AppearanceMenu({
+  appearance,
+  collapsed,
+  locale,
+  onClose,
+}: {
+  appearance: ReturnType<typeof useConsoleAppearance>;
+  collapsed: boolean;
+  locale: ConsoleLocale;
+  onClose: () => void;
+}) {
+  const zh = locale === "zh-CN";
+  const bundleName =
+    appearance.themeBundles.find(
+      (bundle) => bundle.bundleId === appearance.bundleId
+    )?.manifest.displayName ?? (zh ? "默认 Console" : "Default Console");
+  const choices = [
+    { label: zh ? "跟随系统" : "System", value: "system" },
+    { label: zh ? "浅色" : "Light", value: "light" },
+    { label: zh ? "深色" : "Dark", value: "dark" },
+  ] as const;
+
+  return (
+    <div
+      {...stylex.props(
+        shellStyles.shellAppearanceMenu,
+        collapsed ? shellStyles.shellAppearanceMenuCollapsed : null
+      )}
+      aria-label={zh ? "外观" : "Appearance"}
+      role="menu"
+    >
+      {choices.map((choice) => {
+        const selected = appearance.preference === choice.value;
+        return (
+          <button
+            aria-checked={selected}
+            {...stylex.props(
+              shellStyles.shellAppearanceChoice,
+              selected ? shellStyles.shellAppearanceChoiceSelected : null
+            )}
+            key={choice.value}
+            onClick={() => {
+              appearance.setPreference(choice.value);
+              onClose();
+            }}
+            role="menuitemradio"
+            type="button"
+          >
+            <span>{choice.label}</span>
+            {selected ? <Check aria-hidden="true" size={12} /> : null}
+          </button>
+        );
+      })}
+      <div {...stylex.props(shellStyles.shellAppearanceDivider)} />
+      <div {...stylex.props(shellStyles.shellAppearanceMeta)}>
+        <span>{zh ? "主题" : "Theme"}</span>
+        <span {...stylex.props(shellStyles.shellAppearanceMetaValue)}>
+          {bundleName}
+        </span>
+      </div>
+      <Link
+        {...stylex.props(shellStyles.shellAppearanceChoice)}
+        onClick={onClose}
+        role="menuitem"
+        to="/settings/appearance"
+      >
+        {zh ? "外观设置…" : "Appearance settings…"}
+      </Link>
+    </div>
   );
 }
 
@@ -1196,7 +1394,11 @@ function workspaceBreadcrumb(
   locale: ConsoleLocale
 ) {
   if (workspace.id === SYSTEM_WORKSPACE.id) {
-    const directItem = workspace.items.find((item) => item.path === path);
+    const directItem = workspace.items.find(
+      (item) =>
+        item.path === path ||
+        (item.path !== "/" && path.startsWith(`${item.path}/`))
+    );
     if (directItem?.path === "/system" || !directItem) {
       return [consoleLocalizedLabel(directItem ?? workspace, locale)];
     }
