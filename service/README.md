@@ -18,6 +18,14 @@ The initial exact composition is:
 - the optional `lenso/platform-story` linked Module, including Story query,
   federation, projection, and Store migration ownership.
 
+The Surface Gateway does not compile or copy any Module-owned Business API.
+Each connected topology supplies the exact OpenAPI 3.1 document in its
+digest-bound `surfaceApiGrant.contractArtifact`; the Service validates and
+stores that document with the topology, then resolves only the granted
+operation ids at request time. Connection responses expose the grant summary
+without returning the contract document. Legacy grants without the artifact
+remain readable but project as `incompatible` until reconnected.
+
 The process fails closed unless `LENSO_COMPOSITION_PROFILE=core` and
 `SERVICE_NAME=lenso-console`, and it requires
 `LENSO_MODULE_PLATFORM_STORY_ENABLED=false` while supported framework releases

@@ -177,7 +177,8 @@
         "x-lenso-idempotency": "requires_key",
         "x-lenso-connected-route": {
           "method": "PATCH",
-          "path": "/modules/support-ticket/tickets/{ticketId}"
+          "path": "/modules/support-ticket/tickets/{ticketId}",
+          "body": { "status": "closed" }
         },
         "parameters": [
           {

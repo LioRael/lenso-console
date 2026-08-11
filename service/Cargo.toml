@@ -33,6 +33,7 @@ base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dotenvy = "0.15"
 flate2 = "1.1"
+jsonschema = { version = "0.47", default-features = false }
 # Console identity must stay on the Auth 0.1 line while Organization 0.1.2
 # exposes Auth 0.1 types in its public API.
 lenso-module-auth = { version = "0.1.13" }

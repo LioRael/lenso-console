@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use utoipa::ToSchema;
 
+use crate::modules::surface_contract::validate_contract_artifact;
+
 use super::workload_control::{
     WORKLOAD_CONTROL_PROTOCOL, WorkloadCapability, WorkloadReference, valid_control_scalar,
     valid_path_identity, valid_workload_reference, workload_control_schema_digest,
@@ -80,12 +82,41 @@ pub struct SystemTopologyModule {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SurfaceApiContractArtifact {
+    pub format: String,
+    pub document: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SurfaceApiGrant {
     pub artifact_digest: String,
     pub module_release_digest: String,
     pub contract_digest: String,
     pub operation_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract_artifact: Option<SurfaceApiContractArtifact>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SurfaceApiGrantSummary {
+    pub artifact_digest: String,
+    pub module_release_digest: String,
+    pub contract_digest: String,
+    pub operation_ids: Vec<String>,
+}
+
+impl From<&SurfaceApiGrant> for SurfaceApiGrantSummary {
+    fn from(grant: &SurfaceApiGrant) -> Self {
+        Self {
+            artifact_digest: grant.artifact_digest.clone(),
+            module_release_digest: grant.module_release_digest.clone(),
+            contract_digest: grant.contract_digest.clone(),
+            operation_ids: grant.operation_ids.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -168,7 +199,7 @@ pub struct SystemConnectionModule {
     pub module_release_digest: String,
     pub console_ui_artifact_digest: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub surface_api_grant: Option<SurfaceApiGrant>,
+    pub surface_api_grant: Option<SurfaceApiGrantSummary>,
     pub status: ConnectionStatus,
     pub reason: Option<String>,
 }
@@ -458,54 +489,7 @@ fn validate_modules(topology: &SystemTopology, errors: &mut Vec<String>) {
             ));
         }
         if let Some(grant) = &module.surface_api_grant {
-            if !valid_digest(&grant.artifact_digest) {
-                errors.push(format!(
-                    "module {} has an invalid Surface API artifact digest",
-                    module.module_id
-                ));
-            }
-            if !valid_digest(&grant.contract_digest) {
-                errors.push(format!(
-                    "module {} has an invalid Surface API contract digest",
-                    module.module_id
-                ));
-            }
-            if !valid_digest(&grant.module_release_digest) {
-                errors.push(format!(
-                    "module {} has an invalid Surface API release digest",
-                    module.module_id
-                ));
-            }
-            if grant.operation_ids.is_empty()
-                || grant
-                    .operation_ids
-                    .iter()
-                    .any(|operation| operation.trim().is_empty())
-            {
-                errors.push(format!(
-                    "module {} has an empty Surface API operation grant",
-                    module.module_id
-                ));
-            }
-            if grant.operation_ids.windows(2).any(|ids| ids[0] >= ids[1]) {
-                errors.push(format!(
-                    "module {} Surface API operation grant must be sorted and unique",
-                    module.module_id
-                ));
-            }
-            if module.console_ui_artifact_digest.as_deref() != Some(grant.artifact_digest.as_str())
-            {
-                errors.push(format!(
-                    "module {} Surface API artifact digest must match the Console UI artifact digest",
-                    module.module_id
-                ));
-            }
-            if module.module_release_digest != grant.module_release_digest {
-                errors.push(format!(
-                    "module {} Surface API release digest must match the Module release digest",
-                    module.module_id
-                ));
-            }
+            validate_surface_api_grant(module, grant, errors);
         }
         match module.delivery {
             ModuleDelivery::Linked if module.service_id.is_some() => errors.push(format!(
@@ -525,6 +509,72 @@ fn validate_modules(topology: &SystemTopology, errors: &mut Vec<String>) {
             },
             ModuleDelivery::Linked => {}
         }
+    }
+}
+
+fn validate_surface_api_grant(
+    module: &SystemTopologyModule,
+    grant: &SurfaceApiGrant,
+    errors: &mut Vec<String>,
+) {
+    if !valid_digest(&grant.artifact_digest) {
+        errors.push(format!(
+            "module {} has an invalid Surface API artifact digest",
+            module.module_id
+        ));
+    }
+    if !valid_digest(&grant.contract_digest) {
+        errors.push(format!(
+            "module {} has an invalid Surface API contract digest",
+            module.module_id
+        ));
+    }
+    if !valid_digest(&grant.module_release_digest) {
+        errors.push(format!(
+            "module {} has an invalid Surface API release digest",
+            module.module_id
+        ));
+    }
+    if grant.operation_ids.is_empty()
+        || grant
+            .operation_ids
+            .iter()
+            .any(|operation| operation.trim().is_empty())
+    {
+        errors.push(format!(
+            "module {} has an empty Surface API operation grant",
+            module.module_id
+        ));
+    }
+    if grant.operation_ids.windows(2).any(|ids| ids[0] >= ids[1]) {
+        errors.push(format!(
+            "module {} Surface API operation grant must be sorted and unique",
+            module.module_id
+        ));
+    }
+    if let Some(contract_artifact) = &grant.contract_artifact
+        && let Err(error) = validate_contract_artifact(
+            contract_artifact,
+            &grant.contract_digest,
+            &grant.operation_ids,
+        )
+    {
+        errors.push(format!(
+            "module {} Surface API contract artifact is invalid: {error}",
+            module.module_id
+        ));
+    }
+    if module.console_ui_artifact_digest.as_deref() != Some(grant.artifact_digest.as_str()) {
+        errors.push(format!(
+            "module {} Surface API artifact digest must match the Console UI artifact digest",
+            module.module_id
+        ));
+    }
+    if module.module_release_digest != grant.module_release_digest {
+        errors.push(format!(
+            "module {} Surface API release digest must match the Module release digest",
+            module.module_id
+        ));
     }
 }
 
@@ -787,13 +837,24 @@ fn project_module(
             reason = Some("Module references a Service outside this binding".to_owned());
         }
     }
+    if module
+        .surface_api_grant
+        .as_ref()
+        .is_some_and(|grant| grant.contract_artifact.is_none())
+    {
+        status = ConnectionStatus::Incompatible;
+        reason = Some("Surface API contract artifact is unavailable".to_owned());
+    }
     SystemConnectionModule {
         module_id: module.module_id.clone(),
         delivery: module.delivery,
         service_id: module.service_id.clone(),
         module_release_digest: module.module_release_digest.clone(),
         console_ui_artifact_digest: module.console_ui_artifact_digest.clone(),
-        surface_api_grant: module.surface_api_grant.clone(),
+        surface_api_grant: module
+            .surface_api_grant
+            .as_ref()
+            .map(SurfaceApiGrantSummary::from),
         status,
         reason,
     }
@@ -845,12 +906,71 @@ pub fn valid_digest(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::modules::surface_contract::{SURFACE_API_CONTRACT_FORMAT, document_digest};
 
     fn digest() -> String {
         format!("sha256:{}", "a".repeat(64))
     }
 
+    fn surface_contract() -> (SurfaceApiContractArtifact, String) {
+        let operation = |operation_id: &str, method: &str, path: &str, capability: &str| {
+            serde_json::json!({
+                "operationId": operation_id,
+                "x-lenso-capability": capability,
+                "x-lenso-idempotency": "idempotent",
+                "x-lenso-connected-route": { "method": method, "path": path },
+                "responses": { "200": { "description": "Success" } }
+            })
+        };
+        let document = serde_json::to_string(&serde_json::json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Example test API", "version": "v1" },
+            "paths": {
+                "/widgets": {
+                    "get": operation(
+                        "example/http/GET:/widgets",
+                        "GET",
+                        "/modules/example/widgets",
+                        "example.widgets.read"
+                    ),
+                    "post": operation(
+                        "example/http/POST:/widgets",
+                        "POST",
+                        "/modules/example/widgets",
+                        "example.widgets.write"
+                    )
+                },
+                "/widgets/{widgetId}": {
+                    "patch": operation(
+                        "example/http/PATCH:/widgets/{id}",
+                        "PATCH",
+                        "/modules/example/widgets/{widgetId}",
+                        "example.widgets.write"
+                    )
+                },
+                "/widgets/{widgetId}/archive": {
+                    "post": operation(
+                        "example/http/POST:/widgets/{id}/archive",
+                        "PATCH",
+                        "/modules/example/widgets/{widgetId}",
+                        "example.widgets.write"
+                    )
+                }
+            }
+        }))
+        .expect("contract");
+        let digest = document_digest(&document);
+        (
+            SurfaceApiContractArtifact {
+                format: SURFACE_API_CONTRACT_FORMAT.to_owned(),
+                document,
+            },
+            digest,
+        )
+    }
+
     fn topology() -> SystemTopology {
+        let (contract_artifact, contract_digest) = surface_contract();
         SystemTopology {
             protocol: "lenso.system.v2".to_owned(),
             system_id: "support-desk".to_owned(),
@@ -870,21 +990,22 @@ mod tests {
                 ],
             }],
             modules: vec![SystemTopologyModule {
-                module_id: "support/tickets".to_owned(),
+                module_id: "example/widgets".to_owned(),
                 delivery: ModuleDelivery::Service,
                 service_id: Some("support-service".to_owned()),
                 module_release_digest: digest(),
                 console_ui_artifact_digest: Some(digest()),
                 surface_api_grant: Some(SurfaceApiGrant {
                     artifact_digest: digest(),
-                    contract_digest: digest(),
+                    contract_digest,
                     module_release_digest: digest(),
                     operation_ids: vec![
-                        "support-ticket/http/GET:/tickets".to_owned(),
-                        "support-ticket/http/PATCH:/tickets/{id}".to_owned(),
-                        "support-ticket/http/POST:/tickets".to_owned(),
-                        "support-ticket/http/POST:/tickets/{id}/close".to_owned(),
+                        "example/http/GET:/widgets".to_owned(),
+                        "example/http/PATCH:/widgets/{id}".to_owned(),
+                        "example/http/POST:/widgets".to_owned(),
+                        "example/http/POST:/widgets/{id}/archive".to_owned(),
                     ],
+                    contract_artifact: Some(contract_artifact),
                 }),
                 runtime_status: Some(ModuleRuntimeStatus::Active),
             }],
@@ -1085,6 +1206,49 @@ mod tests {
             error
                 .iter()
                 .any(|message| message.contains("Surface API operation grant must be sorted"))
+        );
+    }
+
+    #[test]
+    fn rejects_a_surface_contract_document_that_does_not_match_its_digest() {
+        let mut topology = topology();
+        topology.modules[0]
+            .surface_api_grant
+            .as_mut()
+            .expect("surface grant")
+            .contract_artifact
+            .as_mut()
+            .expect("contract artifact")
+            .document
+            .push('\n');
+        let request = request(topology);
+
+        let errors = validate_connect_request(&request).expect_err("contract digest mismatch");
+
+        assert!(
+            errors
+                .iter()
+                .any(|message| message.contains("digest does not match its exact document"))
+        );
+    }
+
+    #[test]
+    fn quarantines_a_legacy_surface_grant_without_a_contract_artifact() {
+        let mut topology = topology();
+        topology.modules[0]
+            .surface_api_grant
+            .as_mut()
+            .expect("surface grant")
+            .contract_artifact = None;
+        let request = request(topology);
+
+        validate_connect_request(&request).expect("legacy grant remains readable");
+        let response = project_connection(&request.topology, &request.management_binding, &[]);
+
+        assert_eq!(response.modules[0].status, ConnectionStatus::Incompatible);
+        assert_eq!(
+            response.modules[0].reason.as_deref(),
+            Some("Surface API contract artifact is unavailable")
         );
     }
 

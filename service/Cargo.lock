@@ -1798,6 +1798,7 @@ dependencies = [
  "chrono",
  "dotenvy",
  "flate2",
+ "jsonschema",
  "lenso",
  "lenso-api",
  "lenso-bootstrap",

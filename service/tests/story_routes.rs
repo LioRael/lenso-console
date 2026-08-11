@@ -26,8 +26,10 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 const WORKLOAD_OPERATOR_AUTHORIZATION: &str = "Bearer dev-user:admin:console.system.read,console.workload.read,console.workload.control,console.workload.operation.read";
+const SUPPORT_TICKET_CONTRACT: &str =
+    include_str!("../../packages/support-ticket-console/src/support-ticket-business-api.v1.json");
 const SUPPORT_TICKET_CONTRACT_DIGEST: &str =
-    "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be";
+    "sha256:5c95d669efa62fa3b423bc46a5e9be3af17393b6c97cb57a9966e3bb79be1155";
 const SUPPORT_TICKET_RELEASE_DIGEST: &str =
     "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 const SUPPORT_TICKET_ARTIFACT_DIGEST: &str =
@@ -2689,6 +2691,14 @@ struct EnrolledSurfaceApiGrant<'a> {
     module_release_digest: &'a str,
     contract_digest: &'a str,
     operation_ids: Vec<&'a str>,
+    contract_artifact: EnrolledSurfaceApiContractArtifact<'a>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EnrolledSurfaceApiContractArtifact<'a> {
+    format: &'a str,
+    document: &'a str,
 }
 
 #[derive(Clone, Serialize)]
@@ -2761,6 +2771,10 @@ fn enrolled_system_connect_request() -> Value {
                     "support-ticket/http/POST:/tickets",
                     "support-ticket/http/POST:/tickets/{id}/close",
                 ],
+                contract_artifact: EnrolledSurfaceApiContractArtifact {
+                    format: "openapi_3_1_json",
+                    document: SUPPORT_TICKET_CONTRACT,
+                },
             }),
             runtime_status: Some("active"),
         }],
