@@ -439,7 +439,18 @@ export interface ConsoleSurfaceApiGrant {
   moduleReleaseDigest: ConsoleSha256Digest;
   contractDigest: ConsoleSha256Digest;
   operationIds: readonly string[];
+  contractArtifact?: ConsoleSurfaceApiContractArtifact | null;
 }
+
+export interface ConsoleSurfaceApiContractArtifact {
+  format: "openapi_3_1_json";
+  document: string;
+}
+
+export type ConsoleSurfaceApiGrantSummary = Omit<
+  ConsoleSurfaceApiGrant,
+  "contractArtifact"
+>;
 
 export interface ConsoleSystemTopologyAdapter {
   adapterId: string;
@@ -606,7 +617,7 @@ export interface ConsoleSystemConnectionModule {
   serviceId?: string | null;
   moduleReleaseDigest: string;
   consoleUiArtifactDigest?: string | null;
-  surfaceApiGrant?: ConsoleSurfaceApiGrant | null;
+  surfaceApiGrant?: ConsoleSurfaceApiGrantSummary | null;
   status: ConsoleConnectionStatus;
   reason?: string | null;
 }
