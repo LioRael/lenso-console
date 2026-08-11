@@ -73,6 +73,34 @@
       }
     },
     "/tickets/{ticketId}": {
+      "get": {
+        "operationId": "support-ticket/http/GET:/tickets/{id}",
+        "summary": "Get a support ticket",
+        "x-lenso-capability": "support_ticket.tickets.read",
+        "x-lenso-idempotency": "idempotent",
+        "x-lenso-connected-route": {
+          "method": "GET",
+          "path": "/modules/support-ticket/tickets/{ticketId}"
+        },
+        "parameters": [
+          {
+            "name": "ticketId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Support ticket detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TicketResult" }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "operationId": "support-ticket/http/PATCH:/tickets/{id}",
         "summary": "Update a support ticket",
@@ -107,6 +135,37 @@
               }
             }
           }
+        }
+      }
+    },
+    "/tickets/{ticketId}/restricted": {
+      "get": {
+        "operationId": "support-ticket/http/GET:/tickets/{id}/restricted",
+        "summary": "Get restricted support ticket detail",
+        "x-lenso-capability": "support_ticket.tickets.read",
+        "x-lenso-idempotency": "idempotent",
+        "x-lenso-connected-route": {
+          "method": "GET",
+          "path": "/modules/support-ticket/tickets/{ticketId}"
+        },
+        "parameters": [
+          {
+            "name": "ticketId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restricted support ticket detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TicketResult" }
+              }
+            }
+          },
+          "403": { "description": "Connected Module denied the operation" }
         }
       }
     },

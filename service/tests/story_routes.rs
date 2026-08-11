@@ -27,7 +27,7 @@ use tower::ServiceExt;
 
 const WORKLOAD_OPERATOR_AUTHORIZATION: &str = "Bearer dev-user:admin:console.system.read,console.workload.read,console.workload.control,console.workload.operation.read";
 const SUPPORT_TICKET_CONTRACT_DIGEST: &str =
-    "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9";
+    "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be";
 const SUPPORT_TICKET_RELEASE_DIGEST: &str =
     "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 const SUPPORT_TICKET_ARTIFACT_DIGEST: &str =
@@ -2756,6 +2756,7 @@ fn enrolled_system_connect_request() -> Value {
                 contract_digest: SUPPORT_TICKET_CONTRACT_DIGEST,
                 operation_ids: vec![
                     "support-ticket/http/GET:/tickets",
+                    "support-ticket/http/GET:/tickets/{id}/restricted",
                     "support-ticket/http/PATCH:/tickets/{id}",
                     "support-ticket/http/POST:/tickets",
                     "support-ticket/http/POST:/tickets/{id}/close",

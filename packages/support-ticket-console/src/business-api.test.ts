@@ -10,6 +10,7 @@ import {
   SUPPORT_TICKET_CONTRACT_DIGEST,
   SUPPORT_TICKET_OPERATION_IDS,
   createSupportTicketApi,
+  supportTicketContract,
 } from "./business-api";
 
 const digest =
@@ -133,5 +134,31 @@ describe("Support Ticket generated Business API client", () => {
         operationId: SUPPORT_TICKET_OPERATION_IDS.update,
       },
     ]);
+  });
+
+  test("keeps grant-denied detail and Module-denied restricted detail as distinct contract operations", async () => {
+    const requests: SurfaceOperationRequest<unknown>[] = [];
+    const api = createSupportTicketApi(createFakeClient(requests));
+
+    await api.detail("ticket-1");
+    await api.restrictedDetail("ticket-1");
+
+    expect(requests).toMatchObject([
+      {
+        input: { ticketId: "ticket-1" },
+        operationId: SUPPORT_TICKET_OPERATION_IDS.detail,
+      },
+      {
+        input: { ticketId: "ticket-1" },
+        operationId: SUPPORT_TICKET_OPERATION_IDS.restrictedDetail,
+      },
+    ]);
+    expect(
+      supportTicketContract.paths["/tickets/{ticketId}"].get.operationId
+    ).toBe(SUPPORT_TICKET_OPERATION_IDS.detail);
+    expect(
+      supportTicketContract.paths["/tickets/{ticketId}/restricted"].get
+        .operationId
+    ).toBe(SUPPORT_TICKET_OPERATION_IDS.restrictedDetail);
   });
 });

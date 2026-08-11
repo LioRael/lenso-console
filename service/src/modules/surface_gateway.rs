@@ -601,6 +601,12 @@ fn build_target_call(
             query.push(("cursor".to_owned(), cursor.to_owned()));
         }
         (operation.target_path.clone(), query, None)
+    } else if matches!(
+        operation_id,
+        "support-ticket/http/GET:/tickets/{id}"
+            | "support-ticket/http/GET:/tickets/{id}/restricted"
+    ) {
+        return build_ticket_detail_target_call(operation, object, request_ctx);
     } else if operation_id == "support-ticket/http/POST:/tickets" {
         assert_exact_keys(object, &["title", "priority", "assignee"], request_ctx)?;
         let title = required_text(object, "title", request_ctx)?;
@@ -658,6 +664,21 @@ fn build_target_call(
         path,
         query,
         body,
+    })
+}
+
+fn build_ticket_detail_target_call(
+    operation: &ContractOperation,
+    input: &Map<String, Value>,
+    request_ctx: &RequestContext,
+) -> Result<TargetCall, ApiErrorResponse> {
+    assert_exact_keys(input, &["ticketId"], request_ctx)?;
+    let ticket_id = required_path_segment(input, request_ctx)?;
+    Ok(TargetCall {
+        method: operation.method.clone(),
+        path: operation.target_path.replace("{ticketId}", &ticket_id),
+        query: Vec::new(),
+        body: None,
     })
 }
 
@@ -1086,7 +1107,12 @@ fn surface_path_params(input: &Value) -> Value {
 }
 
 fn operation_target_capability(operation_id: &str) -> &'static str {
-    if operation_id == "support-ticket/http/GET:/tickets" {
+    if matches!(
+        operation_id,
+        "support-ticket/http/GET:/tickets"
+            | "support-ticket/http/GET:/tickets/{id}"
+            | "support-ticket/http/GET:/tickets/{id}/restricted"
+    ) {
         "support_ticket.tickets.read"
     } else {
         "support_ticket.tickets.write"
@@ -1296,9 +1322,11 @@ mod tests {
     }
 
     #[test]
-    fn resolves_all_granted_support_ticket_operations_from_the_committed_contract() {
+    fn resolves_all_support_ticket_operations_from_the_committed_contract() {
         for operation_id in [
             "support-ticket/http/GET:/tickets",
+            "support-ticket/http/GET:/tickets/{id}",
+            "support-ticket/http/GET:/tickets/{id}/restricted",
             "support-ticket/http/POST:/tickets",
             "support-ticket/http/PATCH:/tickets/{id}",
             "support-ticket/http/POST:/tickets/{id}/close",
@@ -1317,7 +1345,7 @@ mod tests {
     fn contract_digest_matches_the_generated_client_digest() {
         assert_eq!(
             support_ticket_contract_digest(),
-            "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9"
+            "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be"
         );
     }
 
@@ -1327,7 +1355,7 @@ mod tests {
             protocol: SURFACE_GATEWAY_PROTOCOL,
             module_id: "support/tickets".to_owned(),
             contract_digest:
-                "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9".to_owned(),
+                "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be".to_owned(),
             operation_id: "support-ticket/http/GET:/tickets".to_owned(),
             output: json!({ "tickets": [] }),
             request_context: SurfaceOperationRequestContext {
@@ -1425,6 +1453,34 @@ mod tests {
         assert_eq!(call.method, Method::PATCH);
         assert_eq!(call.path, "/modules/support-ticket/tickets/ticket_1");
         assert_eq!(call.body, Some(json!({ "status": "closed" })));
+    }
+
+    #[test]
+    fn maps_both_ticket_detail_authorization_vectors_to_the_same_read_target() {
+        for operation_id in [
+            "support-ticket/http/GET:/tickets/{id}",
+            "support-ticket/http/GET:/tickets/{id}/restricted",
+        ] {
+            let operation = resolve_operation(operation_id).expect("operation");
+            let call = build_target_call(
+                &operation,
+                &json!({ "ticketId": "ticket_1" }),
+                &request_context(),
+            )
+            .expect("target call");
+
+            assert_eq!(call.method, Method::GET, "{operation_id}");
+            assert_eq!(
+                call.path, "/modules/support-ticket/tickets/ticket_1",
+                "{operation_id}"
+            );
+            assert!(call.body.is_none(), "{operation_id}");
+            assert_eq!(
+                operation_target_capability(operation_id),
+                "support_ticket.tickets.read",
+                "{operation_id}"
+            );
+        }
     }
 
     #[test]

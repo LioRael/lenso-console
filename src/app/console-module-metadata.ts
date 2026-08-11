@@ -48,11 +48,27 @@ export function navigationFromConsoleModuleMetadata(
       (artifact) => artifact.moduleId === item.moduleId
     );
     if (storyArtifacts.length > 0) {
-      return storyArtifacts.some(
-        (artifact) =>
-          connectionModuleForArtifact(connection, artifact)?.status ===
-          "connected"
-      );
+      return storyArtifacts.some((artifact) => {
+        const connectionModule = connectionModuleForArtifact(
+          connection,
+          artifact
+        );
+        if (connectionModule?.status !== "connected") {
+          return false;
+        }
+        const available = capabilitiesForConnectedService(
+          availableCapabilities,
+          connectionModule.serviceId,
+          managedServiceCapabilities
+        );
+        return artifact.manifest.surfaces.some(
+          (surface) =>
+            surface.path === item.path &&
+            (surface.requiredCapabilities ?? []).every((capability) =>
+              hasConsoleCapability(available, capability)
+            )
+        );
+      });
     }
     return (
       connectionModuleState(connection, item.moduleId)?.status === "connected"

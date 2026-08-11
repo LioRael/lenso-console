@@ -2,12 +2,14 @@ import { useConsoleLocale } from "@lenso/console-ui";
 import * as stylex from "@stylexjs/stylex";
 import { ArrowRight } from "lucide-react";
 
+import { useConsoleSurfaceAvailability } from "../../app/console-surface-availability";
 import {
   type HomeEvidenceItem,
   useHomeEvidence,
 } from "../console-data/use-console-product-data";
 import { ProductPage } from "../console-design/components";
 import { consoleProductCopy } from "../console-design/copy";
+import { SurfaceAvailabilityIssues } from "./surface-availability-issues";
 
 const localStyles = stylex.create({
   utilityGrid: {
@@ -372,6 +374,7 @@ export function HomePage() {
   const { locale } = useConsoleLocale();
   const copy = consoleProductCopy(locale);
   const { changes, evidence, mode, summary: summaryQuery } = useHomeEvidence();
+  const surfaceAvailability = useConsoleSurfaceAvailability();
   const summary = summaryQuery.data;
   const decisions: HomeDecision[] =
     mode === "demo"
@@ -409,6 +412,7 @@ export function HomePage() {
       pageKind="home-page"
       title={copy.home.title}
     >
+      <SurfaceAvailabilityIssues availability={surfaceAvailability} />
       <div
         {...stylex.props([
           localStyles.utilityGrid,

@@ -9,12 +9,14 @@ export const SUPPORT_TICKET_MODULE_ID = "support/tickets" as const;
 export const SUPPORT_TICKET_CONTRACT_ID = "support-ticket-http" as const;
 export const SUPPORT_TICKET_CONTRACT_VERSION = "v1" as const;
 export const SUPPORT_TICKET_CONTRACT_DIGEST =
-  "sha256:5b319cc7b4dbfe965cca4f770d5dc32c7d5cac984b2f374286d62ce1b5d6f1f9" as const;
+  "sha256:2009718b79e088628a71ca29e3f3aef202b0904f6f368558fcf438849882f0be" as const;
 
 export const SUPPORT_TICKET_OPERATION_IDS = {
   close: "support-ticket/http/POST:/tickets/{id}/close",
   create: "support-ticket/http/POST:/tickets",
+  detail: "support-ticket/http/GET:/tickets/{id}",
   list: "support-ticket/http/GET:/tickets",
+  restrictedDetail: "support-ticket/http/GET:/tickets/{id}/restricted",
   update: "support-ticket/http/PATCH:/tickets/{id}",
 } as const;
 
@@ -63,6 +65,14 @@ export interface SupportTicketApi {
   ): Promise<SupportTicketPage>;
   create(
     input: CreateSupportTicketInput,
+    options?: SupportTicketRequestOptions
+  ): Promise<{ readonly ticket: SupportTicket }>;
+  detail(
+    ticketId: string,
+    options?: SupportTicketRequestOptions
+  ): Promise<{ readonly ticket: SupportTicket }>;
+  restrictedDetail(
+    ticketId: string,
     options?: SupportTicketRequestOptions
   ): Promise<{ readonly ticket: SupportTicket }>;
   update(
@@ -120,8 +130,17 @@ export const createSupportTicketApi = (
       invoke(SUPPORT_TICKET_OPERATION_IDS.close, { ticketId }, options, true),
     create: (input, options) =>
       invoke(SUPPORT_TICKET_OPERATION_IDS.create, input, options, true),
+    detail: (ticketId, options) =>
+      invoke(SUPPORT_TICKET_OPERATION_IDS.detail, { ticketId }, options, false),
     list: (input, options) =>
       invoke(SUPPORT_TICKET_OPERATION_IDS.list, input ?? {}, options, false),
+    restrictedDetail: (ticketId, options) =>
+      invoke(
+        SUPPORT_TICKET_OPERATION_IDS.restrictedDetail,
+        { ticketId },
+        options,
+        false
+      ),
     update: (ticketId, input, options) =>
       invoke(
         SUPPORT_TICKET_OPERATION_IDS.update,

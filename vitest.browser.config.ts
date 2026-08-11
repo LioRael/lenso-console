@@ -10,7 +10,13 @@ import { consoleStylex } from "./config/console-stylex.ts";
 
 export default defineConfig({
   optimizeDeps: {
-    include: ["ky"],
+    include: [
+      "@gsap/react",
+      "@tanstack/react-query",
+      "@tanstack/react-router",
+      "gsap",
+      "ky",
+    ],
   },
   resolve: {
     alias: {
