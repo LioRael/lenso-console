@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.2
+
+### Patch Changes
+
+- c921e3f: Normalize OpenAPI operation method keys before selecting read or write Surface Gateway authorization.
+
 ## 1.0.1
 
 ### Patch Changes
