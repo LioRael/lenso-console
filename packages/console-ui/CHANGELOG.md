@@ -1,5 +1,11 @@
 # @lenso/console-ui
 
+## 1.0.1
+
+### Patch Changes
+
+- 866afd7: Bind Surface Gateway operations to exact runtime-provided OpenAPI artifacts and remove module-specific Business API adapters from the Console host.
+
 ## 1.0.0
 
 ### Major Changes

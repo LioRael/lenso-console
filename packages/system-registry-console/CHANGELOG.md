@@ -1,5 +1,12 @@
 # @lenso/system-registry-console
 
+## 3.0.1
+
+### Patch Changes
+
+- Updated dependencies [866afd7]
+  - @lenso/console-ui@1.0.1
+
 ## 3.0.0
 
 ### Patch Changes
