@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.3
+
+### Patch Changes
+
+- 00d2f6d: Remove the Support Ticket business Surface from the Console host and standardize Console API errors on RFC 9457 Problem Details.
+
 ## 1.0.2
 
 ### Patch Changes
