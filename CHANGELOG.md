@@ -1,5 +1,27 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.0
+
+### Major Changes
+
+- ada8c12: Retire generic Console administration contracts and require Module-owned
+  Business API operations for Console data and cross-Module actions.
+
+### Patch Changes
+
+- 24f3b56: Expose the public System Connection projection used to compose Console Module
+  Surfaces from an exact System topology and Management Binding.
+- 9dfd4be: Accept server-trusted signed Service enrollment receipts and require their exact
+  identity, policy, and authenticated local Core binding before connecting a System.
+- ce78ac7: Expose typed workload observations, asynchronous operations, and stable Workload
+  References through the Console Host API and Services inspector.
+- 9dfd4be: Project current-actor capabilities per Managed Service and keep Provider target
+  origins server-only in Console Service responses.
+- 9dfd4be: Expose explicit Console Surface unavailability reasons and prove the distinct
+  Surface Grant and connected Module authorization boundaries.
+- 508cdc7: Add the digest-bound Console Surface Gateway contract and Support Ticket Module
+  Surface for typed list, create, update, and close operations.
+
 ## 0.1.9
 
 ### Patch Changes

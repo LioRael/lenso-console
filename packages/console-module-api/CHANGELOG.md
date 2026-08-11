@@ -1,5 +1,19 @@
 # @lenso/console-module-api
 
+## 1.0.0
+
+### Major Changes
+
+- ada8c12: Retire generic Console administration contracts and require Module-owned
+  Business API operations for Console data and cross-Module actions.
+
+### Minor Changes
+
+- ce78ac7: Expose typed workload observations, asynchronous operations, and stable Workload
+  References through the Console Host API and Services inspector.
+- 508cdc7: Add the digest-bound Console Surface Gateway contract and Support Ticket Module
+  Surface for typed list, create, update, and close operations.
+
 ## 0.2.0
 
 ### Minor Changes
