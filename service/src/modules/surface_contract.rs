@@ -298,9 +298,18 @@ fn parse_operation(
         ));
     }
     let response_schemas = parse_response_schemas(document, operation, operation_id)?;
-    let surface_method = Method::from_bytes(surface_method.as_bytes()).map_err(|error| {
-        format!("Surface operation {operation_id} has an invalid method: {error}")
-    })?;
+    let surface_method = match surface_method {
+        "get" => Method::GET,
+        "post" => Method::POST,
+        "patch" => Method::PATCH,
+        "put" => Method::PUT,
+        "delete" => Method::DELETE,
+        _ => {
+            return Err(format!(
+                "Surface operation {operation_id} has an invalid method: {surface_method}"
+            ));
+        }
+    };
 
     Ok(ContractOperation {
         surface_method,
@@ -683,6 +692,7 @@ mod tests {
         let (artifact, digest) = artifact();
         let list = resolve_operation(&artifact, &digest, "example/http/GET:/widgets")
             .expect("list operation");
+        assert_eq!(list.surface_method, Method::GET);
         let list_call = build_target_call(&list, &json!({ "limit": 25 })).expect("list call");
         assert_eq!(list_call.path, "/modules/example/widgets");
         assert_eq!(list_call.query, vec![("limit".to_owned(), "25".to_owned())]);
@@ -690,6 +700,7 @@ mod tests {
 
         let create = resolve_operation(&artifact, &digest, "example/http/POST:/widgets")
             .expect("create operation");
+        assert_eq!(create.surface_method, Method::POST);
         let create_call =
             build_target_call(&create, &json!({ "name": "First" })).expect("create call");
         assert_eq!(create_call.body, Some(json!({ "name": "First" })));
