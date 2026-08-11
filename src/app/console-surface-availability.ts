@@ -37,7 +37,7 @@ export function consoleSurfaceAvailability({
   if (connection === null) {
     return [];
   }
-  return artifacts.flatMap((artifact) => {
+  const declared = artifacts.flatMap((artifact) => {
     const connectionModule = connectionModuleForArtifact(connection, artifact);
     const serviceId = connectionModule?.serviceId ?? null;
     const actorCapabilities = new Set([
@@ -78,7 +78,38 @@ export function consoleSurfaceAvailability({
       ];
     });
   });
+  if (!connection) {
+    return declared;
+  }
+  const artifactModules = new Set(
+    artifacts.map((artifact) => artifact.moduleId)
+  );
+  const missing = connection.modules.flatMap((module) => {
+    if (
+      artifactModules.has(module.moduleId) ||
+      !KNOWN_SURFACE_MODULES.has(module.moduleId)
+    ) {
+      return [];
+    }
+    const expected = Boolean(module.consoleUiArtifactDigest);
+    return [
+      {
+        label: module.moduleId,
+        moduleId: module.moduleId,
+        path: "/modules",
+        reason: expected
+          ? "The exact Console UI artifact receipt has not been reconciled for this Module Release"
+          : "The connected Module Release does not declare a Console UI artifact",
+        serviceId: module.serviceId ?? null,
+        status: "incompatible" as const,
+        surfaceId: "missing-console-ui-artifact",
+      },
+    ];
+  });
+  return [...declared, ...missing];
 }
+
+const KNOWN_SURFACE_MODULES = new Set(["lenso/auth", "lenso/platform-story"]);
 
 export function useConsoleSurfaceAvailability(): ConsoleSurfaceAvailability[] {
   const apiMode = isApiMode();
