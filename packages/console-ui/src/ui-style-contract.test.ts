@@ -23,4 +23,20 @@ describe("public StyleX slots", () => {
 
     expect(result.className).toBeTruthy();
   });
+
+  test("keeps operational inventory layout independent from host CSS", () => {
+    const result = stylex.props(
+      pageStyles.pageHeader,
+      pageStyles.pageActions,
+      pageStyles.pageFilters,
+      layoutStyles.splitViewMain,
+      dataStyles.paneHeader,
+      dataStyles.dataGrid,
+      dataStyles.tableHeader,
+      dataStyles.dataRow,
+      layoutStyles.tabsList
+    );
+
+    expect(result.className).toBeTruthy();
+  });
 });

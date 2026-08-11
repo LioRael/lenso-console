@@ -68,3 +68,10 @@ function Invoices() {
 
 Use `@lenso/console-tokens` for typed semantic tokens. Legacy global CSS is not
 part of the public `@lenso/console-ui` surface.
+
+Operational inventory surfaces should compose `ConsolePage`,
+`pageStyles.pageFilters`, `SplitView`, `PaneHeader`, `DataGrid`, `TableHeader`,
+and `DataRow`. `SplitView.Main` owns the scroll container; the pane and table
+headers remain sticky, and `DataRow` owns its subtle divider and selection
+background. Module artifacts should not recreate those behaviors with
+page-specific wrappers or host selectors.
