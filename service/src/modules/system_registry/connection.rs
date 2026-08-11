@@ -807,8 +807,8 @@ fn project_module(
     let mut status = match module.runtime_status {
         Some(ModuleRuntimeStatus::Unavailable) => ConnectionStatus::Unavailable,
         Some(ModuleRuntimeStatus::Incompatible) => ConnectionStatus::Incompatible,
-        Some(ModuleRuntimeStatus::Unmanaged) => ConnectionStatus::Unmanaged,
-        Some(ModuleRuntimeStatus::Active) | None => ConnectionStatus::Connected,
+        Some(ModuleRuntimeStatus::Unmanaged) | None => ConnectionStatus::Unmanaged,
+        Some(ModuleRuntimeStatus::Active) => ConnectionStatus::Connected,
     };
     let mut reason = match module.runtime_status {
         Some(ModuleRuntimeStatus::Unavailable) => Some("Module workload is unavailable".to_owned()),
@@ -818,7 +818,8 @@ fn project_module(
         Some(ModuleRuntimeStatus::Unmanaged) => {
             Some("Module workload is not managed by this binding".to_owned())
         }
-        Some(ModuleRuntimeStatus::Active) | None => None,
+        Some(ModuleRuntimeStatus::Active) => None,
+        None => Some("Module runtime observation is missing".to_owned()),
     };
     if let Some(service_id) = module.service_id.as_deref() {
         if let Some(service) = services
@@ -1358,6 +1359,30 @@ mod tests {
                 .expect("typed Workload Control interface")
                 .status,
             ConnectionStatus::Unavailable
+        );
+    }
+
+    #[test]
+    fn missing_module_runtime_observation_never_projects_connected() {
+        let mut request = request(topology());
+        request.topology.modules[0].runtime_status = None;
+        let response = project_connection(
+            &request.topology,
+            &request.management_binding,
+            &[ManagedServiceObservation {
+                service_id: "support-service".to_owned(),
+                service_principal: "svc.support-service".to_owned(),
+                enrollment_state: "active".to_owned(),
+                connection_state: "ready".to_owned(),
+                last_error_code: None,
+            }],
+        );
+
+        assert_eq!(response.status, ConnectionStatus::Unmanaged);
+        assert_eq!(response.modules[0].status, ConnectionStatus::Unmanaged);
+        assert_eq!(
+            response.modules[0].reason.as_deref(),
+            Some("Module runtime observation is missing")
         );
     }
 

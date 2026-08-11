@@ -150,6 +150,54 @@ describe("Module Surface availability", () => {
       )
     ).toContainEqual(expect.objectContaining({ path: "/stories" }));
   });
+
+  test("explains a selected Story Module whose artifact receipt is missing", () => {
+    const connection = connectionWithStoryStatus("connected");
+    const [availability] = consoleSurfaceAvailability({
+      artifacts: [],
+      availableCapabilities: ["runtime.stories.read"],
+      connection,
+      managedServiceCapabilities: {},
+    });
+
+    expect(availability).toMatchObject({
+      moduleId: "lenso/platform-story",
+      path: "/modules",
+      reason:
+        "The exact Console UI artifact receipt has not been reconciled for this Module Release",
+      status: "incompatible",
+      surfaceId: "missing-console-ui-artifact",
+    });
+  });
+
+  test("explains an Auth release that does not declare a Console UI artifact", () => {
+    const connection: ConsoleSystemConnection = {
+      ...connectionWithStoryStatus("connected"),
+      modules: [
+        {
+          consoleUiArtifactDigest: null,
+          delivery: "linked",
+          moduleId: "lenso/auth",
+          moduleReleaseDigest: releaseDigest,
+          reason: null,
+          status: "connected",
+        },
+      ],
+    };
+    const [availability] = consoleSurfaceAvailability({
+      artifacts: [],
+      availableCapabilities: ["auth.users.read"],
+      connection,
+      managedServiceCapabilities: {},
+    });
+
+    expect(availability).toMatchObject({
+      moduleId: "lenso/auth",
+      reason:
+        "The connected Module Release does not declare a Console UI artifact",
+      status: "incompatible",
+    });
+  });
 });
 
 function connectionWithStoryStatus(
