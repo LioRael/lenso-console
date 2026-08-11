@@ -1207,61 +1207,12 @@ code,
   overflow: hidden;
 }
 
-[data-page-slot~="services-page__workspace"] [data-ui~="split-view__main"],
-[data-page-slot~="system-page__workspace"] [data-ui~="split-view__main"],
-[data-page-slot~="modules-page__workspace"] [data-ui~="split-view__main"],
-[data-page-slot~="changes-page__workspace"] [data-ui~="split-view__main"],
-[data-page-slot~="delivery-page__workspace"] [data-ui~="split-view__main"],
-[data-page-slot~="runtime-page__workspace"] [data-ui~="split-view__main"] {
-  overscroll-behavior-y: none;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-}
-
-[data-page~="services-page"] [data-ui~="data-grid"],
-[data-page~="system-page"] [data-ui~="data-grid"],
-[data-page~="modules-page"] [data-ui~="data-grid"],
-[data-page~="runtime-page"] [data-ui~="data-grid"] {
-  flex: 1 1 auto;
-  gap: 0;
-  min-height: 0;
-  max-height: none;
-  border-bottom: 1px solid var(--line-subtle);
-  background: var(--bg-canvas);
-  overscroll-behavior-y: none;
-  overflow: visible;
-}
-
-[data-page~="services-page"] [data-ui~="pane-header"],
-[data-page~="system-page"] [data-ui~="pane-header"],
-[data-page~="modules-page"] [data-ui~="pane-header"],
-[data-page~="runtime-page"] [data-ui~="pane-header"],
 [data-page-slot~="changes-page__list-header"],
 [data-page-slot~="delivery-page__candidate-header"] {
   position: sticky;
   top: 0;
   z-index: 2;
   background: var(--bg-canvas);
-}
-
-[data-page~="services-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
-[data-page~="system-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
-[data-page~="modules-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
-[data-page~="runtime-page"] [data-ui~="data-grid"] > [data-ui~="table-header"] {
-  position: sticky;
-  top: var(--console-pane-header-height);
-  z-index: 1;
-  background: var(--bg-canvas);
-}
-
-[data-page~="system-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
-[data-page~="system-page"] [data-ui~="data-grid"] > [data-ui~="data-row"],
-[data-page~="modules-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
-[data-page~="modules-page"] [data-ui~="data-grid"] > [data-ui~="data-row"],
-[data-page~="runtime-page"] [data-ui~="data-grid"] > [data-ui~="table-header"],
-[data-page~="runtime-page"] [data-ui~="data-grid"] > [data-ui~="data-row"] {
-  border-bottom: 1px solid var(--line-subtle);
 }
 
 [data-page-slot~="modules-page__table-pane"] {
