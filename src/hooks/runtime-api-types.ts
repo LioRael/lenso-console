@@ -53,7 +53,29 @@ export type AdminRuntimeExecutionLog = {
   trace_id?: string | null;
 };
 
+export type AdminRuntimeExecutionLogCoverageStatus =
+  | "complete"
+  | "disabled"
+  | "partial"
+  | "unavailable";
+
+export type AdminRuntimeExecutionLogCoverage = {
+  gaps: Array<{
+    detail: string;
+    kind: string;
+    next_action?: string | null;
+    source_id: string;
+  }>;
+  sources: Array<{
+    service_name: string;
+    source_id: string;
+    status: AdminRuntimeExecutionLogCoverageStatus;
+  }>;
+  status: AdminRuntimeExecutionLogCoverageStatus;
+};
+
 export type AdminRuntimeExecutionLogListResponse = {
+  coverage: AdminRuntimeExecutionLogCoverage;
   data: AdminRuntimeExecutionLog[];
   order: string;
   page: PageInfo;

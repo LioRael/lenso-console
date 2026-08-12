@@ -23,6 +23,7 @@ use utoipa::ToSchema;
 
 pub const FEDERATED_RUNTIME_STORY_PROTOCOL: &str = "lenso.federated-runtime-story.v1";
 const DEFAULT_FEED_LIMIT: u16 = 500;
+const FEDERATED_RUNTIME_LOG_SOURCE_ID: &str = "federated_runtime_logs";
 
 #[derive(Debug, Clone)]
 pub struct FederatedStorySource {
@@ -405,12 +406,96 @@ pub struct FederatedStoryTechnicalEvidence {
     pub attributes: Value,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FederatedStoryLogCoverageStatus {
+    Complete,
+    Disabled,
+    Partial,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FederatedStoryLogCoverageSource {
+    pub source_id: String,
+    pub service_name: String,
+    pub status: FederatedStoryLogCoverageStatus,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FederatedStoryLogCoverageGap {
+    pub source_id: String,
+    pub kind: String,
+    pub detail: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FederatedStoryLogCoverage {
+    pub status: FederatedStoryLogCoverageStatus,
+    pub sources: Vec<FederatedStoryLogCoverageSource>,
+    pub gaps: Vec<FederatedStoryLogCoverageGap>,
+}
+
+impl FederatedStoryLogCoverage {
+    fn from_source(
+        source_id: &str,
+        service_name: &str,
+        status: FederatedStoryLogCoverageStatus,
+        gaps: Vec<FederatedStoryLogCoverageGap>,
+    ) -> Self {
+        Self {
+            status,
+            sources: vec![FederatedStoryLogCoverageSource {
+                source_id: source_id.to_owned(),
+                service_name: service_name.to_owned(),
+                status,
+            }],
+            gaps,
+        }
+    }
+
+    fn disabled(source_id: &str, service_name: &str) -> Self {
+        Self::from_source(
+            source_id,
+            service_name,
+            FederatedStoryLogCoverageStatus::Disabled,
+            Vec::new(),
+        )
+    }
+
+    fn unavailable(
+        source_id: &str,
+        service_name: &str,
+        kind: &str,
+        detail: &str,
+        next_action: &str,
+    ) -> Self {
+        Self::from_source(
+            source_id,
+            service_name,
+            FederatedStoryLogCoverageStatus::Unavailable,
+            vec![FederatedStoryLogCoverageGap {
+                source_id: source_id.to_owned(),
+                kind: kind.to_owned(),
+                detail: detail.to_owned(),
+                next_action: Some(next_action.to_owned()),
+            }],
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FederatedStorySegment {
     pub id: String,
     pub segment: StorySegment,
     pub technical_evidence: Vec<FederatedStoryTechnicalEvidence>,
+    pub log_coverage: FederatedStoryLogCoverage,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -483,12 +568,22 @@ pub struct FederatedRuntimeStory {
     pub reliability: Vec<FederatedStoryReliabilityEvidence>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct FederatedStoryEnrichment {
+    pub technical_evidence: BTreeMap<String, Vec<FederatedStoryTechnicalEvidence>>,
+    pub log_coverage: BTreeMap<String, FederatedStoryLogCoverage>,
+}
+
 #[async_trait]
 pub trait FederatedStoryEnrichmentProvider: fmt::Debug + Send + Sync {
+    fn source_id(&self) -> &'static str {
+        "federated_enrichment"
+    }
+
     async fn enrich(
         &self,
         segments: &[FederatedStorySegment],
-    ) -> AppResult<BTreeMap<String, Vec<FederatedStoryTechnicalEvidence>>>;
+    ) -> AppResult<FederatedStoryEnrichment>;
 }
 
 #[derive(Debug, Default)]
@@ -496,11 +591,18 @@ pub struct NoopFederatedStoryEnrichmentProvider;
 
 #[async_trait]
 impl FederatedStoryEnrichmentProvider for NoopFederatedStoryEnrichmentProvider {
+    fn source_id(&self) -> &'static str {
+        FEDERATED_RUNTIME_LOG_SOURCE_ID
+    }
+
     async fn enrich(
         &self,
-        _segments: &[FederatedStorySegment],
-    ) -> AppResult<BTreeMap<String, Vec<FederatedStoryTechnicalEvidence>>> {
-        Ok(BTreeMap::new())
+        segments: &[FederatedStorySegment],
+    ) -> AppResult<FederatedStoryEnrichment> {
+        Ok(FederatedStoryEnrichment {
+            technical_evidence: BTreeMap::new(),
+            log_coverage: disabled_log_coverage_by_segment(segments, self.source_id()),
+        })
     }
 }
 
@@ -527,20 +629,35 @@ impl OpenTelemetryFederatedStoryEnrichmentProvider {
 
 #[async_trait]
 impl FederatedStoryEnrichmentProvider for OpenTelemetryFederatedStoryEnrichmentProvider {
+    fn source_id(&self) -> &'static str {
+        "opentelemetry"
+    }
+
     async fn enrich(
         &self,
         segments: &[FederatedStorySegment],
-    ) -> AppResult<BTreeMap<String, Vec<FederatedStoryTechnicalEvidence>>> {
+    ) -> AppResult<FederatedStoryEnrichment> {
         let Some(story_id) = segments.first().map(|segment| &segment.segment.story_id) else {
-            return Ok(BTreeMap::new());
+            return Ok(FederatedStoryEnrichment::default());
         };
-        let spans = self
+        let spans = match self
             .spans
             .query_spans(TelemetrySpanQuery {
                 story_id: Some(story_id.clone()),
                 ..TelemetrySpanQuery::default()
             })
-            .await?;
+            .await
+        {
+            Ok(spans) => spans,
+            Err(error) => {
+                tracing::warn!(
+                    error = %error,
+                    story_id,
+                    "Federated Story span enrichment unavailable"
+                );
+                Vec::new()
+            }
+        };
         let mut enrichment = BTreeMap::<String, Vec<_>>::new();
         for span in spans {
             let Some(segment_id) = telemetry_attribute(
@@ -572,8 +689,31 @@ impl FederatedStoryEnrichmentProvider for OpenTelemetryFederatedStoryEnrichmentP
                 },
             );
         }
-        Ok(enrichment)
+        Ok(FederatedStoryEnrichment {
+            technical_evidence: enrichment,
+            // Span and log enrichment are separate capabilities. This provider
+            // has no federated execution-log source configured yet.
+            log_coverage: disabled_log_coverage_by_segment(
+                segments,
+                FEDERATED_RUNTIME_LOG_SOURCE_ID,
+            ),
+        })
     }
+}
+
+fn disabled_log_coverage_by_segment(
+    segments: &[FederatedStorySegment],
+    source_id: &str,
+) -> BTreeMap<String, FederatedStoryLogCoverage> {
+    segments
+        .iter()
+        .map(|segment| {
+            (
+                segment.id.clone(),
+                FederatedStoryLogCoverage::disabled(source_id, &segment.segment.source.service_id),
+            )
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -868,6 +1008,7 @@ impl FederatedStoryReader {
                 format!("Federated Runtime Story `{story_id}` was not found"),
             ));
         }
+        let enrichment_source_id = self.enrichment.source_id();
         let mut segments = payloads
             .into_iter()
             .map(|payload| {
@@ -878,10 +1019,18 @@ impl FederatedStoryReader {
                     )
                     .with_source(error)
                 })?;
+                let service_name = segment.source.service_id.clone();
                 Ok(FederatedStorySegment {
                     id: federated_segment_id(&segment),
                     segment,
                     technical_evidence: Vec::new(),
+                    log_coverage: FederatedStoryLogCoverage::unavailable(
+                        enrichment_source_id,
+                        &service_name,
+                        "coverage_not_reported",
+                        "Federated execution log coverage was not reported",
+                        "Repair the federated log coverage contract.",
+                    ),
                 })
             })
             .collect::<AppResult<Vec<_>>>()?;
@@ -895,11 +1044,35 @@ impl FederatedStoryReader {
         match self.enrichment.enrich(&segments).await {
             Ok(mut enrichment) => {
                 for segment in &mut segments {
-                    segment.technical_evidence = enrichment.remove(&segment.id).unwrap_or_default();
+                    segment.technical_evidence = enrichment
+                        .technical_evidence
+                        .remove(&segment.id)
+                        .unwrap_or_default();
+                    segment.log_coverage = enrichment
+                        .log_coverage
+                        .remove(&segment.id)
+                        .unwrap_or_else(|| {
+                            FederatedStoryLogCoverage::unavailable(
+                                enrichment_source_id,
+                                &segment.segment.source.service_id,
+                                "coverage_not_reported",
+                                "Federated execution log coverage was not reported",
+                                "Repair the federated log coverage contract.",
+                            )
+                        });
                 }
             }
             Err(error) => {
                 tracing::warn!(error = %error, story_id, "Federated Story telemetry enrichment unavailable");
+                for segment in &mut segments {
+                    segment.log_coverage = FederatedStoryLogCoverage::unavailable(
+                        enrichment_source_id,
+                        &segment.segment.source.service_id,
+                        "enrichment_unavailable",
+                        "Federated execution log enrichment is unavailable",
+                        "Restore federated log enrichment.",
+                    );
+                }
             }
         }
         let gaps = load_active_gaps(&self.pool, tenant_id).await?;

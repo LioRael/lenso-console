@@ -8,6 +8,7 @@ import {
 import {
   type Actor,
   type ExecutionLogEntry,
+  type ExecutionLogsResult,
   type ExecutionPayload,
   type FunctionRun,
   functionRuns,
@@ -169,7 +170,12 @@ export type RuntimeSummary = {
 };
 
 export type { RuntimeHeatmap, RuntimeHeatmapCell };
-export type { ExecutionLogEntry, ExecutionPayload, TechnicalOperation };
+export type {
+  ExecutionLogEntry,
+  ExecutionLogsResult,
+  ExecutionPayload,
+  TechnicalOperation,
+};
 
 export function useRuntimeSummary() {
   return useQuery({
@@ -711,7 +717,7 @@ async function fetchExecutionPayload(
 async function fetchExecutionLogs(
   storyCorrelationId: string,
   nodeId: string
-): Promise<ExecutionLogEntry[]> {
+): Promise<ExecutionLogsResult> {
   const response = await httpClient
     .get(runtimeStoryExecutionEvidencePath(storyCorrelationId, nodeId, "logs"))
     .json<ApiExecutionLogResponse>();
@@ -745,28 +751,44 @@ function mockExecutionPayload(
 function mockExecutionLogs(
   story: RuntimeStory,
   nodeId: string
-): ExecutionLogEntry[] {
+): ExecutionLogsResult {
   const node = story.nodes.find((item) => item.id === nodeId);
   if (!node) {
-    return [];
+    return {
+      coverage: { gaps: [], sources: [], status: "complete" },
+      entries: [],
+    };
   }
-  return node.logs.map((log, index) => ({
-    attributes: {},
-    body: log,
-    correlationId: story.correlationId,
-    executionName: node.name,
-    id: `${node.id}:log:${index + 1}`,
-    nodeId: node.id,
-    nodeType: node.kind,
-    occurredAt: new Date(
-      Date.parse(story.timestamp) + node.startMs + index * 12
-    ).toISOString(),
-    redactedFields: [],
-    serviceName: node.service,
-    severity:
-      node.status === "failed" || node.status === "dead" ? "error" : "info",
-    storyId: story.id,
-  }));
+  return {
+    coverage: {
+      gaps: [],
+      sources: [
+        {
+          serviceName: node.service,
+          sourceId: "mock-runtime",
+          status: "complete",
+        },
+      ],
+      status: "complete",
+    },
+    entries: node.logs.map((log, index) => ({
+      attributes: {},
+      body: log,
+      correlationId: story.correlationId,
+      executionName: node.name,
+      id: `${node.id}:log:${index + 1}`,
+      nodeId: node.id,
+      nodeType: node.kind,
+      occurredAt: new Date(
+        Date.parse(story.timestamp) + node.startMs + index * 12
+      ).toISOString(),
+      redactedFields: [],
+      serviceName: node.service,
+      severity:
+        node.status === "failed" || node.status === "dead" ? "error" : "info",
+      storyId: story.id,
+    })),
+  };
 }
 
 function toSummaryItem(item: ApiRuntimeSummaryItem): RuntimeSummaryItem {
