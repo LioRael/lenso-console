@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.5
+
+### Patch Changes
+
+- 43e9055: Keep Console-owned Story and Services surfaces visible for connected Systems without requiring separately reconciled dynamic artifacts. Linked Module surfaces may now bind to an enrolled owner Service, so Auth requests keep targeting the Host even when another Service is selected.
+
 ## 1.0.4
 
 ### Patch Changes
