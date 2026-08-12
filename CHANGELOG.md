@@ -1,5 +1,12 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.7
+
+### Patch Changes
+
+- 2c7043a: Expose complete, partial, disabled, and unavailable execution-log coverage in Story Inspector, including source gaps and actionable empty states.
+- 2c7043a: Restore Story Inspector payload, log, and technical-operation evidence through Story-owned, correlation-scoped endpoints with membership validation and recursive sensitive-data redaction.
+
 ## 1.0.6
 
 ### Patch Changes
