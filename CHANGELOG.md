@@ -1,5 +1,13 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.6
+
+### Patch Changes
+
+- 950dbe3: Keep direct Module Surface links in a loading or unavailable state until the connected System's Managed Service Context has been resolved. Console now defers loading the surface artifact until that authority context is known.
+
+  Publish the Console Service image for both AMD64 and ARM64 so local development can use the native architecture instead of emulation.
+
 ## 1.0.5
 
 ### Patch Changes
