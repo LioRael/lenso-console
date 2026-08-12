@@ -264,9 +264,13 @@ describe("Console Service delivery", () => {
       "node scripts/build-console-release-artifacts.mjs"
     );
     expect(workflow).toContain("ghcr.io/liorael/lenso-console");
-    expect(workflow).toContain("docker/setup-qemu-action@");
+    expect(workflow).toContain("runner: ubuntu-24.04-arm");
     expect(workflow).toContain("docker/build-push-action@");
-    expect(workflow).toContain("platforms: linux/amd64,linux/arm64");
+    expect(workflow).toContain("platform: linux/amd64");
+    expect(workflow).toContain("platform: linux/arm64");
+    expect(workflow).toContain("push-by-digest=true");
+    expect(workflow).toContain("docker buildx imagetools create");
+    expect(workflow).not.toContain("docker/setup-qemu-action@");
     expect(workflow).toContain("actions/attest-build-provenance@");
     expect(workflow).toContain("gh release create");
     expect(workflow).toContain("RELEASE_VERSION");
