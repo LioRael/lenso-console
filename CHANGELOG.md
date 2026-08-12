@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.4
+
+### Patch Changes
+
+- 9b5b635: Keep Modules without a runtime observation unmanaged instead of reporting a false connected state, and expose missing Auth or Story Console UI artifacts as actionable Surface availability failures.
+
 ## 1.0.3
 
 ### Patch Changes
