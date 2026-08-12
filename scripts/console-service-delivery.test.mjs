@@ -278,4 +278,11 @@ describe("Console Service delivery", () => {
     expect(builder).toContain('"--provenance=false"');
     expect(builder).toContain('"--sbom=false"');
   });
+
+  test("reserves an available loopback port for the container smoke", async () => {
+    const smoke = await read("scripts/console-service-container-smoke.sh");
+
+    expect(smoke).toContain('server.listen(0, "127.0.0.1"');
+    expect(smoke).not.toContain("33000 + ($$ % 1000)");
+  });
 });

@@ -3,7 +3,14 @@ set -eu
 
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 project_name="lenso-console-smoke-$$"
-http_port=$((33000 + ($$ % 1000)))
+http_port=$(node -e '
+  const net = require("node:net");
+  const server = net.createServer();
+  server.listen(0, "127.0.0.1", () => {
+    process.stdout.write(String(server.address().port));
+    server.close();
+  });
+')
 environment_file=$(mktemp "${TMPDIR:-/tmp}/lenso-console-smoke.XXXXXX")
 compose_file="$repository_root/service/compose.yml"
 
