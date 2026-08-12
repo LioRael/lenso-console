@@ -1672,14 +1672,14 @@ dependencies = [
 
 [[package]]
 name = "lenso"
-version = "0.3.39"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.3.43"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "anyhow",
  "axum",
  "lenso-api",
  "lenso-bootstrap",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "lenso-migrate",
  "lenso-platform-core",
  "lenso-platform-http",
@@ -1691,8 +1691,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-api"
-version = "0.1.32"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.36"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "anyhow",
  "axum",
@@ -1706,9 +1706,9 @@ dependencies = [
  "lenso-platform-module-management",
  "lenso-platform-provider",
  "lenso-platform-runtime",
- "lenso-platform-runtime-observability 0.1.9",
- "lenso-platform-runtime-operations 0.1.9",
- "lenso-platform-system-plane 0.2.1",
+ "lenso-platform-runtime-observability 0.1.10 (git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31)",
+ "lenso-platform-runtime-operations 0.1.10 (git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31)",
+ "lenso-platform-system-plane",
  "lenso-service",
  "serde",
  "serde_json",
@@ -1725,9 +1725,9 @@ dependencies = [
 
 [[package]]
 name = "lenso-autonomous-service"
-version = "0.1.16"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b1044efa2c403911debfc791651c70a566b79fb8ce8bd0bb4c5791156b4dd5b"
+checksum = "ec24bb79ba734fcf8b0017662eb3e41d428422aa5412af8d2472f506948ebaba"
 dependencies = [
  "async-nats",
  "async-trait",
@@ -1736,13 +1736,13 @@ dependencies = [
  "chrono",
  "futures",
  "hmac 0.13.0",
- "lenso-contracts 0.3.21",
+ "lenso-contracts",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-runtime",
- "lenso-platform-runtime-observability 0.1.5",
- "lenso-platform-runtime-operations 0.1.5",
- "lenso-platform-system-plane 0.1.5",
+ "lenso-platform-runtime-observability 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-platform-runtime-operations 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-platform-system-plane",
  "lenso-service",
  "serde",
  "serde_json",
@@ -1758,11 +1758,11 @@ dependencies = [
 
 [[package]]
 name = "lenso-bootstrap"
-version = "0.1.31"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.33"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-module-auth-anonymous",
  "lenso-module-auth-github",
  "lenso-module-auth-google",
@@ -1777,9 +1777,9 @@ dependencies = [
  "lenso-platform-module-management",
  "lenso-platform-provider",
  "lenso-platform-runtime",
- "lenso-platform-runtime-observability 0.1.9",
- "lenso-platform-runtime-operations 0.1.9",
- "lenso-platform-system-plane 0.2.1",
+ "lenso-platform-runtime-observability 0.1.10 (git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31)",
+ "lenso-platform-runtime-operations 0.1.10 (git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31)",
+ "lenso-platform-system-plane",
  "lenso-service",
  "reqwest",
  "serde_json",
@@ -1802,7 +1802,7 @@ dependencies = [
  "lenso",
  "lenso-api",
  "lenso-bootstrap",
- "lenso-module-auth",
+ "lenso-module-auth 0.1.13",
  "lenso-module-auth-password",
  "lenso-module-management",
  "lenso-module-organization",
@@ -1824,24 +1824,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-contracts"
-version = "0.3.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a2ce5203f51c20cde69cf721c41a8aa604044e6bf687441a806966352cecf54"
-dependencies = [
- "chrono",
- "schemars",
- "semver",
- "serde",
- "serde_json",
- "serde_json_canonicalizer",
- "sha2 0.11.0",
- "utoipa",
-]
-
-[[package]]
-name = "lenso-contracts"
 version = "0.4.0"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "chrono",
  "regex",
@@ -1856,8 +1840,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-migrate"
-version = "0.1.30"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.34"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "anyhow",
  "lenso-bootstrap",
@@ -1869,12 +1853,34 @@ dependencies = [
 [[package]]
 name = "lenso-module-auth"
 version = "0.1.13"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7cfb877b0dde24bdd4487539fa7983e55cf98ceff7c7a7309415b62499e9a1f"
 dependencies = [
  "async-trait",
  "axum",
  "chrono",
  "getrandom 0.4.3",
+ "lenso-platform-core",
+ "lenso-platform-http",
+ "lenso-platform-module",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
+name = "lenso-module-auth"
+version = "0.2.3"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "getrandom 0.4.3",
+ "lenso-contracts",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-module",
@@ -1889,13 +1895,13 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-anonymous"
-version = "0.1.5"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.9"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-module",
@@ -1906,14 +1912,14 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-github"
-version = "0.1.5"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.9"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "async-trait",
  "axum",
  "chrono",
  "getrandom 0.4.3",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-module-auth-oauth",
  "lenso-platform-core",
  "lenso-platform-http",
@@ -1927,14 +1933,14 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-google"
-version = "0.1.5"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.9"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "async-trait",
  "axum",
  "chrono",
  "getrandom 0.4.3",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-module-auth-oauth",
  "lenso-platform-core",
  "lenso-platform-http",
@@ -1948,12 +1954,12 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-oauth"
-version = "0.1.6"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.10"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "chrono",
  "getrandom 0.4.3",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-platform-core",
  "lenso-platform-module",
  "sha2 0.11.0",
@@ -1962,14 +1968,14 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-oidc"
-version = "0.1.6"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.10"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
  "jsonwebtoken",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-module",
@@ -1982,8 +1988,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-password"
-version = "0.1.14"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.18"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1991,7 +1997,7 @@ dependencies = [
  "chrono",
  "getrandom 0.4.3",
  "jsonwebtoken",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-module",
@@ -2003,14 +2009,14 @@ dependencies = [
 
 [[package]]
 name = "lenso-module-auth-phone"
-version = "0.1.6"
-source = "git+https://github.com/LioRael/lenso-auth-module?rev=6f689d6aa38aa74a490d9877287fa6f0aa2aacc1#6f689d6aa38aa74a490d9877287fa6f0aa2aacc1"
+version = "0.1.10"
+source = "git+https://github.com/LioRael/lenso-auth-module?rev=4994f8dcd72bafb1b1236e12df9d7328fb30013f#4994f8dcd72bafb1b1236e12df9d7328fb30013f"
 dependencies = [
  "async-trait",
  "axum",
  "chrono",
  "getrandom 0.4.3",
- "lenso-module-auth",
+ "lenso-module-auth 0.2.3",
  "lenso-module-auth-password",
  "lenso-platform-core",
  "lenso-platform-http",
@@ -2025,12 +2031,12 @@ dependencies = [
 [[package]]
 name = "lenso-module-management"
 version = "0.2.0"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "base64",
  "chrono",
  "fs2",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "schemars",
  "semver",
  "serde",
@@ -2049,7 +2055,7 @@ dependencies = [
  "axum",
  "chrono",
  "getrandom 0.4.3",
- "lenso-module-auth",
+ "lenso-module-auth 0.1.13",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-module",
@@ -2086,15 +2092,15 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-core"
-version = "0.1.23"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.24"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "arc-swap",
  "async-trait",
  "chrono",
  "dotenvy",
  "getrandom 0.4.3",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
@@ -2106,6 +2112,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "tracing-core",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid",
@@ -2113,8 +2120,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-http"
-version = "0.1.22"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.23"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
  "axum",
@@ -2133,11 +2140,11 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-module"
-version = "0.1.23"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.24"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "lenso-platform-core",
  "lenso-platform-http",
  "lenso-platform-runtime",
@@ -2148,16 +2155,16 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-module-management"
-version = "0.1.8"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.9"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "axum",
  "chrono",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "lenso-module-management",
  "lenso-platform-core",
  "lenso-platform-http",
- "lenso-platform-system-plane 0.2.1",
+ "lenso-platform-system-plane",
  "lenso-service",
  "reqwest",
  "schemars",
@@ -2171,8 +2178,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-provider"
-version = "0.1.23"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.24"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
  "axum",
@@ -2197,12 +2204,12 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-runtime"
-version = "0.1.20"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.21"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
  "chrono",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "lenso-platform-core",
  "serde",
  "serde_json",
@@ -2213,15 +2220,15 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-runtime-observability"
-version = "0.1.5"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25a425a2a1f79e7d40bb449b68928523a3594df1a3c797856fdcf1e79e7be93d"
+checksum = "cc1fb6f1c7d5643a946c720bd8267552f14f79fe0edada19487c83d3a0e21975"
 dependencies = [
  "axum",
  "base64",
  "chrono",
  "lenso-platform-core",
- "lenso-platform-system-plane 0.1.5",
+ "lenso-platform-system-plane",
  "lenso-service",
  "serde",
  "serde_json",
@@ -2233,14 +2240,14 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-runtime-observability"
-version = "0.1.9"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.10"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "axum",
  "base64",
  "chrono",
  "lenso-platform-core",
- "lenso-platform-system-plane 0.2.1",
+ "lenso-platform-system-plane",
  "lenso-service",
  "serde",
  "serde_json",
@@ -2252,16 +2259,16 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-runtime-operations"
-version = "0.1.5"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3da0beb08a2576d37778c08d76ec531df03adf27d2aeb79a154b97b8d716088"
+checksum = "d6166caa2aea086833c303c9906782b0ed1d4e75b86af77c9a64898154aedd00"
 dependencies = [
  "async-trait",
  "axum",
  "base64",
  "chrono",
  "lenso-platform-core",
- "lenso-platform-system-plane 0.1.5",
+ "lenso-platform-system-plane",
  "lenso-service",
  "serde",
  "serde_json",
@@ -2273,15 +2280,15 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-runtime-operations"
-version = "0.1.9"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.10"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
  "axum",
  "base64",
  "chrono",
  "lenso-platform-core",
- "lenso-platform-system-plane 0.2.1",
+ "lenso-platform-system-plane",
  "lenso-service",
  "serde",
  "serde_json",
@@ -2293,30 +2300,12 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-system-plane"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bccdb40baae65df2488515ea047c0dfbfe9fe55875aac3bb3fcc40ce28b0898f"
+version = "0.2.2"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
  "axum",
- "lenso-platform-core",
- "lenso-service",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror",
- "utoipa",
- "utoipa-axum",
-]
-
-[[package]]
-name = "lenso-platform-system-plane"
-version = "0.2.1"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
-dependencies = [
- "async-trait",
- "axum",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "lenso-platform-core",
  "lenso-service",
  "serde",
@@ -2329,8 +2318,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-platform-testing"
-version = "0.1.19"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.20"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "chrono",
  "lenso-platform-core",
@@ -2342,7 +2331,7 @@ dependencies = [
 [[package]]
 name = "lenso-service"
 version = "0.1.24"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "async-trait",
  "axum",
@@ -2352,7 +2341,7 @@ dependencies = [
  "http",
  "jsonschema",
  "jsonwebtoken",
- "lenso-contracts 0.4.0",
+ "lenso-contracts",
  "prost",
  "prost-build",
  "prost-types",
@@ -2374,8 +2363,8 @@ dependencies = [
 
 [[package]]
 name = "lenso-worker"
-version = "0.1.30"
-source = "git+https://github.com/LioRael/lenso?rev=b6dade033f809a85e8154a813f1081f1978c49d7#b6dade033f809a85e8154a813f1081f1978c49d7"
+version = "0.1.34"
+source = "git+https://github.com/LioRael/lenso?rev=7d490897994cd1fffdf6fe5f0848478b76a28b31#7d490897994cd1fffdf6fe5f0848478b76a28b31"
 dependencies = [
  "anyhow",
  "lenso-bootstrap",
