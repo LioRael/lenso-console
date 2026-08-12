@@ -8,6 +8,7 @@ import {
   consoleNavigation,
   defineConsoleModule,
   findConsoleRoute,
+  isConsoleOwnedLinkedRoute,
   selectDefaultConsoleRoute,
 } from "./console-modules";
 import { buildWorkspaceNavigation } from "./console-workspace-navigation";
@@ -102,6 +103,26 @@ describe("Console Module composition", () => {
       moduleId: "lenso/system-registry",
       path: "/services",
     });
+  });
+
+  test("identifies Console-owned linked routes without treating dynamic Modules as local", () => {
+    const routes = buildConsoleRoutes(consoleModulesForDevMode("production"));
+
+    expect(
+      isConsoleOwnedLinkedRoute(findConsoleRoute("/services", routes))
+    ).toBe(true);
+    expect(
+      isConsoleOwnedLinkedRoute(findConsoleRoute("/stories", routes))
+    ).toBe(true);
+    expect(
+      isConsoleOwnedLinkedRoute({
+        area: "configuration",
+        component: TestPage,
+        label: "Users",
+        moduleId: "lenso/auth",
+        path: "/auth/users",
+      })
+    ).toBe(false);
   });
 
   test("keeps the exported Shell navigation to the primary surfaces", () => {

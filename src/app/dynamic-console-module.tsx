@@ -23,13 +23,18 @@ import { useConsoleArtifacts } from "./console-artifact-query";
 import { useConsoleCapabilities } from "./console-capabilities";
 import { createConsoleModuleClient } from "./console-module-client";
 import { loadConsoleUiModule } from "./console-module-runtime";
-import { consoleRoutes, findConsoleRoute } from "./console-modules";
+import {
+  consoleRoutes,
+  findConsoleRoute,
+  isConsoleOwnedLinkedRoute,
+} from "./console-modules";
 import { consolePathFromLocation } from "./console-router-config";
 import { statusStyles } from "./console-status-styles";
 import { useConsoleSurfaceAvailability } from "./console-surface-availability";
 import { useConsoleSystemConnection } from "./console-system-connection-api";
 import {
   connectionModuleForArtifact,
+  connectionModuleState,
   connectionStatusLabel,
 } from "./console-system-connection-model";
 import { useConsoleManagedServices } from "./console-system-registry-api";
@@ -245,6 +250,29 @@ export function DynamicConsoleModulePage() {
   }
   if (adminContext.isError || !adminContext.data) {
     return <ModuleState title="Console Access is unavailable" />;
+  }
+
+  if (isConsoleOwnedLinkedRoute(localRoute)) {
+    if (localRoute.moduleId === "lenso/platform-story") {
+      const linkedStory = connectionModuleState(
+        systemConnection.data,
+        localRoute.moduleId
+      );
+      if (linkedStory?.status !== "connected") {
+        return (
+          <ModuleState title={`Module ${linkedStory?.status ?? "unmanaged"}`}>
+            {linkedStory?.reason ??
+              "This linked Story Module is not connected to the current System."}
+          </ModuleState>
+        );
+      }
+    }
+    const LocalSurface = localRoute.component;
+    return (
+      <SurfaceRoot moduleId={localRoute.moduleId} surfaceId={localRoute.path}>
+        <LocalSurface />
+      </SurfaceRoot>
+    );
   }
 
   if (artifacts.isPending) {

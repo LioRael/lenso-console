@@ -64,6 +64,17 @@ export function findConsoleRoute(
   return routes.find((route) => route.path === path);
 }
 
+const CONSOLE_OWNED_LINKED_MODULES = new Set([
+  "lenso/system-registry",
+  "lenso/platform-story",
+]);
+
+export function isConsoleOwnedLinkedRoute(
+  route: ConsoleRouteContribution | undefined
+): route is ConsoleRouteContribution {
+  return Boolean(route && CONSOLE_OWNED_LINKED_MODULES.has(route.moduleId));
+}
+
 export function buildConsoleNavigation(
   modules: ConsoleModule[]
 ): ConsoleNavigationItem[] {

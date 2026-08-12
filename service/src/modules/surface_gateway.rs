@@ -21,8 +21,8 @@ use crate::modules::surface_contract::{
     ContractOperation, TargetCall, build_target_call, resolve_operation, validate_output,
 };
 use crate::modules::system_registry::connection::{
-    self, ManagementBinding, ModuleDelivery, ModuleRuntimeStatus, SurfaceApiGrant,
-    SystemConnectRequest, SystemTopology, SystemTopologyModule,
+    self, ManagementBinding, ModuleRuntimeStatus, SurfaceApiGrant, SystemConnectRequest,
+    SystemTopology, SystemTopologyModule,
 };
 
 pub const MODULE_NAME: &str = "lenso/console-surface-gateway";
@@ -412,14 +412,6 @@ fn authorize_surface_identity<'a>(
     ) {
         return Err(external_error(
             "Connected Module workload is not available",
-            request_ctx,
-        ));
-    }
-    if let ModuleDelivery::Linked = module.delivery
-        && module.service_id.is_some()
-    {
-        return Err(forbidden_error(
-            "Linked Surface Module must not reference a Service",
             request_ctx,
         ));
     }
@@ -1012,5 +1004,57 @@ mod tests {
         assert_eq!(manifest.http_routes, http_routes());
         assert!(manifest.admin.is_none());
         assert_eq!(manifest.capabilities.len(), 2);
+    }
+
+    #[test]
+    fn authorizes_a_linked_surface_bound_to_its_managed_owner_service() {
+        let artifact_digest = format!("sha256:{}", "a".repeat(64));
+        let release_digest = format!("sha256:{}", "b".repeat(64));
+        let contract_digest = format!("sha256:{}", "c".repeat(64));
+        let operation_id = "auth/http/GET:/users".to_owned();
+        let module = SystemTopologyModule {
+            module_id: "lenso/auth".to_owned(),
+            delivery: connection::ModuleDelivery::Linked,
+            service_id: Some("taste-host".to_owned()),
+            module_release_digest: release_digest.clone(),
+            console_ui_artifact_digest: Some(artifact_digest.clone()),
+            surface_api_grant: Some(SurfaceApiGrant {
+                artifact_digest: artifact_digest.clone(),
+                module_release_digest: release_digest.clone(),
+                contract_digest: contract_digest.clone(),
+                operation_ids: vec![operation_id.clone()],
+                contract_artifact: None,
+            }),
+            runtime_status: Some(ModuleRuntimeStatus::Active),
+        };
+        let request = SurfaceOperationRequest {
+            protocol: SURFACE_GATEWAY_PROTOCOL.to_owned(),
+            module_id: module.module_id.clone(),
+            module_release_digest: release_digest,
+            ui_artifact_digest: artifact_digest,
+            contract_digest,
+            operation_id,
+            input: json!({}),
+            context: ManagedServiceContext::new(
+                "taste-system",
+                "taste-host",
+                "local",
+                "spiffe://taste/host",
+                "lenso/auth",
+                "operator-1",
+                format!("sha256:{}", "d".repeat(64)),
+                [SURFACE_GATEWAY_READ],
+            ),
+            request_context: SurfaceOperationRequestContext {
+                tenant_id: None,
+                deadline_unix_ms: u64::MAX,
+                idempotency_key: None,
+                story: None,
+            },
+        };
+
+        let grant = authorize_surface_identity(&module, &request, &request_context())
+            .expect("linked owner-bound Surface grant");
+        assert_eq!(grant.contract_digest, request.contract_digest);
     }
 }
