@@ -9,6 +9,13 @@ use serde_json::json;
 pub const MODULE_NAME: &str = "lenso/platform-story";
 pub const STORY_CONSOLE_CAPABILITY: &str = "runtime.stories.read";
 
+const EXECUTION_PAYLOAD_PATH: &str =
+    "/api/console/v1/stories/{correlation_id}/executions/{node_id}/payload";
+const EXECUTION_LOGS_PATH: &str =
+    "/api/console/v1/stories/{correlation_id}/executions/{node_id}/logs";
+const EXECUTION_TECHNICAL_OPERATIONS_PATH: &str =
+    "/api/console/v1/stories/{correlation_id}/executions/{node_id}/technical-operations";
+
 pub fn http_routes() -> Vec<ModuleHttpRoute> {
     vec![
         ModuleHttpRoute {
@@ -41,6 +48,30 @@ pub fn http_routes() -> Vec<ModuleHttpRoute> {
             capability: Some(STORY_CONSOLE_CAPABILITY.to_owned()),
             display_name: Some("Runtime Story Technical Operations".to_owned()),
             story_title: Some("Runtime Story Technical Operations".to_owned()),
+            operation: None,
+        },
+        ModuleHttpRoute {
+            method: ModuleHttpMethod::Get,
+            path: EXECUTION_PAYLOAD_PATH.to_owned(),
+            capability: Some(STORY_CONSOLE_CAPABILITY.to_owned()),
+            display_name: Some("Inspect Runtime Story Execution Payload".to_owned()),
+            story_title: Some("Runtime Story Inspector Evidence".to_owned()),
+            operation: None,
+        },
+        ModuleHttpRoute {
+            method: ModuleHttpMethod::Get,
+            path: EXECUTION_LOGS_PATH.to_owned(),
+            capability: Some(STORY_CONSOLE_CAPABILITY.to_owned()),
+            display_name: Some("Inspect Runtime Story Execution Logs".to_owned()),
+            story_title: Some("Runtime Story Inspector Evidence".to_owned()),
+            operation: None,
+        },
+        ModuleHttpRoute {
+            method: ModuleHttpMethod::Get,
+            path: EXECUTION_TECHNICAL_OPERATIONS_PATH.to_owned(),
+            capability: Some(STORY_CONSOLE_CAPABILITY.to_owned()),
+            display_name: Some("Inspect Runtime Story Execution Operations".to_owned()),
+            story_title: Some("Runtime Story Inspector Evidence".to_owned()),
             operation: None,
         },
     ]
@@ -113,6 +144,9 @@ fn story_display_descriptors_from_manifest(
         .collect::<Vec<_>>();
 
     descriptors.extend(manifest.http_routes.into_iter().filter_map(|route| {
+        if is_execution_inspector_evidence_path(&route.path) {
+            return None;
+        }
         let display_name = route.display_name?;
         let method = http_method_label(route.method)?;
         if existing_http
@@ -133,6 +167,13 @@ fn story_display_descriptors_from_manifest(
         })
     }));
     descriptors
+}
+
+fn is_execution_inspector_evidence_path(path: &str) -> bool {
+    matches!(
+        path,
+        EXECUTION_PAYLOAD_PATH | EXECUTION_LOGS_PATH | EXECUTION_TECHNICAL_OPERATIONS_PATH
+    )
 }
 
 fn http_method_label(method: ModuleHttpMethod) -> Option<&'static str> {
@@ -159,6 +200,22 @@ mod tests {
         assert_eq!(manifest.capabilities, vec![STORY_CONSOLE_CAPABILITY]);
         assert_eq!(manifest.http_routes, http_routes());
         assert_eq!(manifest.console.len(), 1);
+        assert_eq!(
+            manifest
+                .http_routes
+                .iter()
+                .map(|route| route.path.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "/api/console/v1/stories",
+                "/api/console/v1/stories/{correlation_id}",
+                "/api/console/v1/stories/{correlation_id}/heatmap",
+                "/api/console/v1/stories/{correlation_id}/technical-operations",
+                "/api/console/v1/stories/{correlation_id}/executions/{node_id}/payload",
+                "/api/console/v1/stories/{correlation_id}/executions/{node_id}/logs",
+                "/api/console/v1/stories/{correlation_id}/executions/{node_id}/technical-operations",
+            ]
+        );
 
         let surface = &manifest.console[0];
         assert_eq!(surface.name, "stories");
@@ -197,5 +254,17 @@ mod tests {
                 .iter()
                 .all(|descriptor| descriptor.story_title.is_some())
         );
+    }
+
+    #[test]
+    fn inspector_evidence_filter_is_exact_not_a_global_route_heuristic() {
+        assert!(is_execution_inspector_evidence_path(EXECUTION_PAYLOAD_PATH));
+        assert!(is_execution_inspector_evidence_path(EXECUTION_LOGS_PATH));
+        assert!(is_execution_inspector_evidence_path(
+            EXECUTION_TECHNICAL_OPERATIONS_PATH
+        ));
+        assert!(!is_execution_inspector_evidence_path(
+            "/api/orders/{order_id}/executions/{node_id}/payload"
+        ));
     }
 }

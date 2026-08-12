@@ -62,17 +62,55 @@ export const runtimeQueryKeys = {
   storyHeatmap: (id: string) => ["runtime", "stories", id, "heatmap"] as const,
   technicalOperationsForStory: (id: string) =>
     ["runtime", "stories", id, "technical-operations"] as const,
-  technicalOperationsForExecution: (id: string) =>
-    ["runtime", "executions", id, "technical-operations"] as const,
-  executionPayload: (id: string) =>
-    ["runtime", "executions", id, "payload"] as const,
-  executionLogs: (id: string) => ["runtime", "executions", id, "logs"] as const,
+  technicalOperationsForExecution: (
+    storyCorrelationId: string,
+    nodeId: string
+  ) =>
+    [
+      "runtime",
+      "stories",
+      storyCorrelationId,
+      "executions",
+      nodeId,
+      "technical-operations",
+    ] as const,
+  executionPayload: (storyCorrelationId: string, nodeId: string) =>
+    [
+      "runtime",
+      "stories",
+      storyCorrelationId,
+      "executions",
+      nodeId,
+      "payload",
+    ] as const,
+  executionLogs: (storyCorrelationId: string, nodeId: string) =>
+    [
+      "runtime",
+      "stories",
+      storyCorrelationId,
+      "executions",
+      nodeId,
+      "logs",
+    ] as const,
   stories: ["runtime", "stories"] as const,
   storyDetail: (id: string) => ["runtime", "stories", id, "detail"] as const,
   deadLetters: ["runtime", "dead-letters"] as const,
   remoteProxyCalls: (filters: RemoteProxyCallFilters) =>
     ["runtime", "remote-proxy-calls", filters] as const,
 };
+
+type RuntimeStoryExecutionEvidence =
+  | "logs"
+  | "payload"
+  | "technical-operations";
+
+export function runtimeStoryExecutionEvidencePath(
+  storyCorrelationId: string,
+  nodeId: string,
+  evidence: RuntimeStoryExecutionEvidence
+) {
+  return `api/console/v1/stories/${encodeURIComponent(storyCorrelationId)}/executions/${encodeURIComponent(nodeId)}/${evidence}`;
+}
 
 export type RuntimeSummaryStatus = "healthy" | "degraded" | "failing";
 
@@ -287,15 +325,19 @@ export function useStoryTechnicalOperations(storyCorrelationId: string) {
 }
 
 export function useExecutionTechnicalOperations(
+  storyCorrelationId: string,
   nodeId: string,
   enabled = true
 ) {
   return useQuery({
-    enabled: Boolean(nodeId) && enabled,
-    queryKey: runtimeQueryKeys.technicalOperationsForExecution(nodeId),
+    enabled: Boolean(storyCorrelationId) && Boolean(nodeId) && enabled,
+    queryKey: runtimeQueryKeys.technicalOperationsForExecution(
+      storyCorrelationId,
+      nodeId
+    ),
     queryFn: async () =>
       isApiMode()
-        ? fetchExecutionTechnicalOperations(nodeId)
+        ? fetchExecutionTechnicalOperations(storyCorrelationId, nodeId)
         : ([] satisfies TechnicalOperation[]),
   });
 }
@@ -306,11 +348,11 @@ export function useExecutionLogs(
   enabled: boolean
 ) {
   return useQuery({
-    enabled: Boolean(nodeId) && enabled,
-    queryKey: runtimeQueryKeys.executionLogs(nodeId),
+    enabled: Boolean(story.correlationId) && Boolean(nodeId) && enabled,
+    queryKey: runtimeQueryKeys.executionLogs(story.correlationId, nodeId),
     queryFn: async () =>
       isApiMode()
-        ? fetchExecutionLogs(nodeId)
+        ? fetchExecutionLogs(story.correlationId, nodeId)
         : mockExecutionLogs(story, nodeId),
   });
 }
@@ -321,11 +363,11 @@ export function useExecutionPayload(
   enabled: boolean
 ) {
   return useQuery({
-    enabled: Boolean(nodeId) && enabled,
-    queryKey: runtimeQueryKeys.executionPayload(nodeId),
+    enabled: Boolean(story.correlationId) && Boolean(nodeId) && enabled,
+    queryKey: runtimeQueryKeys.executionPayload(story.correlationId, nodeId),
     queryFn: async () =>
       isApiMode()
-        ? fetchExecutionPayload(nodeId)
+        ? fetchExecutionPayload(story.correlationId, nodeId)
         : mockExecutionPayload(story, nodeId),
   });
 }
@@ -639,30 +681,39 @@ async function fetchStoryTechnicalOperations(
 }
 
 async function fetchExecutionTechnicalOperations(
+  storyCorrelationId: string,
   nodeId: string
 ): Promise<TechnicalOperation[]> {
   const response = await httpClient
     .get(
-      `admin/runtime/executions/${encodeURIComponent(nodeId)}/technical-operations`
+      runtimeStoryExecutionEvidencePath(
+        storyCorrelationId,
+        nodeId,
+        "technical-operations"
+      )
     )
     .json<ApiTechnicalOperationResponse>();
   return normalizeTechnicalOperations(response);
 }
 
 async function fetchExecutionPayload(
+  storyCorrelationId: string,
   nodeId: string
 ): Promise<ExecutionPayload> {
   const response = await httpClient
-    .get(`admin/runtime/executions/${encodeURIComponent(nodeId)}/payload`)
+    .get(
+      runtimeStoryExecutionEvidencePath(storyCorrelationId, nodeId, "payload")
+    )
     .json<ApiExecutionPayloadResponse>();
   return normalizeExecutionPayload(response);
 }
 
 async function fetchExecutionLogs(
+  storyCorrelationId: string,
   nodeId: string
 ): Promise<ExecutionLogEntry[]> {
   const response = await httpClient
-    .get(`admin/runtime/executions/${encodeURIComponent(nodeId)}/logs`)
+    .get(runtimeStoryExecutionEvidencePath(storyCorrelationId, nodeId, "logs"))
     .json<ApiExecutionLogResponse>();
   return normalizeExecutionLogs(response);
 }

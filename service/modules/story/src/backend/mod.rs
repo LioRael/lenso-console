@@ -20,6 +20,7 @@ const MAX_LIMIT: i64 = 100;
 
 mod catalog;
 mod dto;
+mod execution_evidence;
 mod federated;
 mod graph;
 mod heatmap;
@@ -35,6 +36,8 @@ pub use catalog::{install_default_story_display, install_story_display};
 pub use catalog::{reset_catalogs_for_test, story_display_catalog_snapshot};
 #[allow(unused_imports)]
 use dto::*;
+#[allow(unused_imports)]
+use execution_evidence::*;
 #[allow(unused_imports)]
 use federated::*;
 #[allow(unused_imports)]
@@ -56,6 +59,9 @@ pub fn router() -> ApiOpenApiRouter {
         .routes(routes!(get_story))
         .routes(routes!(get_story_heatmap))
         .routes(routes!(get_story_technical_operations))
+        .routes(routes!(get_story_execution_payload))
+        .routes(routes!(get_story_execution_logs))
+        .routes(routes!(get_story_execution_technical_operations))
 }
 
 #[utoipa::path(

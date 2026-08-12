@@ -43,6 +43,7 @@ import { HorizontalTabScroll } from "./horizontal-tab-scroll";
 import { JsonViewer } from "./json-viewer";
 import {
   buildTechnicalOperationGroups,
+  technicalOperationCount,
   technicalOperationOperationsTarget,
   technicalOperationsStateLabel,
   type TechnicalOperationGroup,
@@ -1032,8 +1033,9 @@ function InspectorBody({
   );
   const logsQuery = useExecutionLogs(story, node.id, activeTab === "logs");
   const executionOperationsQuery = useExecutionTechnicalOperations(
+    story.correlationId,
     node.id,
-    !story.federation
+    activeTab === "operations"
   );
   const storyOperationsQuery = useStoryTechnicalOperations(story.correlationId);
 
@@ -1184,7 +1186,12 @@ function OperationsDocument({
   story: RuntimeStory;
   storyOperations: TechnicalOperation[];
 }) {
-  const operationCount = executionOperations.length + storyOperations.length;
+  const operationCount = technicalOperationCount({
+    executionOperations,
+    selectedNodeId: node.id,
+    storyOperations,
+    storyTimestamp: story.timestamp,
+  });
   return (
     <div {...stylex.props([localStyles.utilityMinWFull])}>
       <InspectorDocumentToolbar

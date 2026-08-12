@@ -4,6 +4,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub(super) struct StoryWorkRow {
     pub(super) item_type: String,
+    pub(super) source_type: String,
     pub(super) id: String,
     pub(super) name: String,
     pub(super) status: String,
@@ -20,6 +21,7 @@ pub(super) struct StoryWorkRow {
 }
 
 pub(super) type StoryWorkTuple = (
+    String,
     String,
     String,
     String,
@@ -100,6 +102,7 @@ impl From<StoryWorkTuple> for StoryWorkRow {
     fn from(row: StoryWorkTuple) -> Self {
         let (
             item_type,
+            source_type,
             id,
             name,
             status,
@@ -130,6 +133,7 @@ impl From<StoryWorkTuple> for StoryWorkRow {
 
         Self {
             item_type,
+            source_type,
             id,
             name,
             status,

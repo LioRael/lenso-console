@@ -191,7 +191,7 @@ pub(super) fn federated_technical_operations(
                         .signed_duration_since(segment.segment.started_at)
                         .num_milliseconds()
                         .max(0),
-                    attributes: evidence.attributes.clone(),
+                    attributes: redacted_json_value(evidence.attributes.clone(), "attributes"),
                     source: evidence.source.clone(),
                 })
         })
@@ -327,6 +327,22 @@ fn summary_from_segments(
 
 fn federated_node(segment: &FederatedStorySegment) -> AdminRuntimeStoryNode {
     let raw_status = &segment.segment.status;
+    let metadata = redacted_json_value(
+        serde_json::json!({
+            "story_id": segment.segment.story_id,
+            "segment_id": segment.segment.segment_id,
+            "evidence_revision": segment.segment.evidence_revision,
+            "evidence_status": segment.segment.status,
+            "attempt": segment.segment.attempt,
+            "source": segment.segment.source,
+            "operation": segment.segment.operation,
+            "contract": segment.segment.contract,
+            "tenant_id": segment.segment.tenant_id,
+            "workflow": segment.segment.workflow,
+            "technical_evidence": segment.technical_evidence,
+        }),
+        "metadata",
+    );
     AdminRuntimeStoryNode {
         id: segment.id.clone(),
         node_type: federated_node_type(segment).to_owned(),
@@ -343,19 +359,7 @@ fn federated_node(segment: &FederatedStorySegment) -> AdminRuntimeStoryNode {
             .max(0),
         error: is_federated_error(raw_status)
             .then(|| format!("Federated evidence state: {raw_status}")),
-        metadata: serde_json::json!({
-            "story_id": segment.segment.story_id,
-            "segment_id": segment.segment.segment_id,
-            "evidence_revision": segment.segment.evidence_revision,
-            "evidence_status": segment.segment.status,
-            "attempt": segment.segment.attempt,
-            "source": segment.segment.source,
-            "operation": segment.segment.operation,
-            "contract": segment.segment.contract,
-            "tenant_id": segment.segment.tenant_id,
-            "workflow": segment.segment.workflow,
-            "technical_evidence": segment.technical_evidence,
-        }),
+        metadata,
     }
 }
 
@@ -545,7 +549,7 @@ fn insert_entity(
     }
 }
 
-fn federated_node_type(segment: &FederatedStorySegment) -> &'static str {
+pub(super) fn federated_node_type(segment: &FederatedStorySegment) -> &'static str {
     let workflow = segment.segment.workflow.as_ref();
     if workflow
         .and_then(|workflow| workflow.compensation_id.as_ref())

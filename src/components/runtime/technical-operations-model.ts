@@ -39,6 +39,15 @@ export function buildTechnicalOperationGroups(input: {
   ];
 }
 
+export function technicalOperationCount(
+  input: Parameters<typeof buildTechnicalOperationGroups>[0]
+) {
+  return buildTechnicalOperationGroups(input).reduce(
+    (count, group) => count + group.operations.length,
+    0
+  );
+}
+
 export function technicalOperationsStateLabel(input: {
   isLoading: boolean;
   isError: boolean;

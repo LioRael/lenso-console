@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { TechnicalOperation } from "../../data/mock-runtime";
 import {
   buildTechnicalOperationGroups,
+  technicalOperationCount,
   technicalOperationOperationsTarget,
   technicalOperationSourceLabel,
   technicalOperationSummary,
@@ -100,6 +101,14 @@ describe("technical operations model", () => {
       relativeStartMs: 200,
       status: "ok",
     });
+    expect(
+      technicalOperationCount({
+        executionOperations: operations,
+        selectedNodeId,
+        storyOperations: operations,
+        storyTimestamp: storyStartedAt,
+      })
+    ).toBe(3);
   });
 
   test("groups selected execution operations by category", () => {

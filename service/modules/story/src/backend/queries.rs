@@ -52,6 +52,7 @@ pub(super) async fn fetch_story_rows(
         from (
             select
                 'event'::text as item_type,
+                'outbox'::text as source_type,
                 id,
                 event_name as name,
                 status,
@@ -72,6 +73,7 @@ pub(super) async fn fetch_story_rows(
 
             select
                 'function'::text as item_type,
+                'function_run'::text as source_type,
                 id,
                 function_name as name,
                 status,
@@ -92,6 +94,7 @@ pub(super) async fn fetch_story_rows(
 
             select
                 node_type as item_type,
+                'story_event'::text as source_type,
                 id,
                 name,
                 status,
@@ -112,6 +115,7 @@ pub(super) async fn fetch_story_rows(
 
             select
                 'provider_call'::text as item_type,
+                'provider_call'::text as source_type,
                 'provider_' || id as id,
                 module_name || ' ' || method || ' ' || declared_path as name,
                 case when success then 'completed' else 'failed' end as status,
