@@ -492,10 +492,6 @@ fn validate_modules(topology: &SystemTopology, errors: &mut Vec<String>) {
             validate_surface_api_grant(module, grant, errors);
         }
         match module.delivery {
-            ModuleDelivery::Linked if module.service_id.is_some() => errors.push(format!(
-                "linked module {} must not reference a Service",
-                module.module_id
-            )),
             ModuleDelivery::Service => match module.service_id.as_deref() {
                 None => errors.push(format!(
                     "service-backed module {} must reference a Service",
@@ -507,7 +503,16 @@ fn validate_modules(topology: &SystemTopology, errors: &mut Vec<String>) {
                 )),
                 Some(_) => {}
             },
-            ModuleDelivery::Linked => {}
+            ModuleDelivery::Linked => {
+                if let Some(service_id) = module.service_id.as_deref()
+                    && !service_ids.contains(service_id)
+                {
+                    errors.push(format!(
+                        "linked module {} references unknown owner Service {}",
+                        module.module_id, service_id
+                    ));
+                }
+            }
         }
     }
 }
@@ -1055,6 +1060,14 @@ mod tests {
     #[test]
     fn validates_an_exact_topology_and_binding() {
         assert!(validate_connect_request(&request(topology())).is_ok());
+    }
+
+    #[test]
+    fn linked_module_can_bind_its_managed_host_service() {
+        let mut topology = topology();
+        topology.modules[0].delivery = ModuleDelivery::Linked;
+
+        assert!(validate_connect_request(&request(topology)).is_ok());
     }
 
     #[test]

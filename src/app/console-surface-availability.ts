@@ -87,7 +87,8 @@ export function consoleSurfaceAvailability({
   const missing = connection.modules.flatMap((module) => {
     if (
       artifactModules.has(module.moduleId) ||
-      !KNOWN_SURFACE_MODULES.has(module.moduleId)
+      !KNOWN_SURFACE_MODULES.has(module.moduleId) ||
+      isConnectedConsoleOwnedStory(module)
     ) {
       return [];
     }
@@ -110,6 +111,17 @@ export function consoleSurfaceAvailability({
 }
 
 const KNOWN_SURFACE_MODULES = new Set(["lenso/auth", "lenso/platform-story"]);
+
+function isConnectedConsoleOwnedStory(
+  module: ConsoleSystemConnection["modules"][number]
+) {
+  return (
+    module.moduleId === "lenso/platform-story" &&
+    module.delivery === "linked" &&
+    module.status === "connected" &&
+    !module.consoleUiArtifactDigest
+  );
+}
 
 export function useConsoleSurfaceAvailability(): ConsoleSurfaceAvailability[] {
   const apiMode = isApiMode();
