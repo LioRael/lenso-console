@@ -1,7 +1,8 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::federation::{
-    FederatedRuntimeStory, FederatedStorySegment, FederatedStoryTechnicalEvidenceKind,
+    FederatedRuntimeStory, FederatedStoryLogCoverage, FederatedStoryLogCoverageStatus,
+    FederatedStorySegment, FederatedStoryTechnicalEvidenceKind,
 };
 use platform_core::ExecutionLogQuery as ProviderExecutionLogQuery;
 
@@ -109,12 +110,13 @@ pub(super) async fn get_story_execution_logs(
     )
     .await?;
     let limit = normalized_limit(query.limit);
-    let data = execution_logs(&ctx, &request_ctx, node, None, limit).await?;
+    let read = execution_logs(&ctx, &request_ctx, node, None, limit).await?;
     Ok(Json(AdminRuntimeExecutionLogListResponse {
         // The provider exposes only a timestamp cursor, which cannot page safely
         // across logs that share an occurrence time. Keep this bounded view honest.
         page: page_info(limit, None),
-        data,
+        coverage: read.coverage,
+        data: read.data,
         order: "occurred_at_asc",
     }))
 }
@@ -457,44 +459,146 @@ fn redacted_execution_payload(
     }
 }
 
+struct ExecutionLogRead {
+    data: Vec<AdminRuntimeExecutionLog>,
+    coverage: AdminRuntimeExecutionLogCoverage,
+}
+
 async fn execution_logs(
     ctx: &AppContext,
     request_ctx: &RequestContext,
     node: StoryExecutionNode,
     occurred_before: Option<DateTime<Utc>>,
     limit: i64,
-) -> Result<Vec<AdminRuntimeExecutionLog>, ApiErrorResponse> {
+) -> Result<ExecutionLogRead, ApiErrorResponse> {
     match node {
         StoryExecutionNode::Local { node, .. } => {
-            let mut logs = ctx
+            let service_name = node.service.clone();
+            let execution_id = node.id.clone();
+            let correlation_id = node.correlation_id.clone();
+            let logs = ctx
                 .execution_logs
                 .query_execution_logs(ProviderExecutionLogQuery {
-                    execution_id: node.id,
+                    execution_id: execution_id.clone(),
                     occurred_before,
                     limit,
                 })
-                .await
-                .map_err(|source| ApiErrorResponse::with_context(source, request_ctx))?
-                .into_iter()
-                .filter(|log| log.correlation_id == node.correlation_id)
-                .map(redacted_execution_log)
-                .collect::<Vec<_>>();
-            logs.sort_by(|left, right| {
-                left.occurred_at
-                    .cmp(&right.occurred_at)
-                    .then_with(|| left.id.cmp(&right.id))
-            });
-            Ok(logs)
+                .await;
+            match logs {
+                Ok(logs) => {
+                    let mut data = logs
+                        .into_iter()
+                        .filter(|log| log.correlation_id == correlation_id)
+                        .map(redacted_execution_log)
+                        .collect::<Vec<_>>();
+                    data.sort_by(|left, right| {
+                        left.occurred_at
+                            .cmp(&right.occurred_at)
+                            .then_with(|| left.id.cmp(&right.id))
+                    });
+                    Ok(ExecutionLogRead {
+                        data,
+                        coverage: local_execution_log_coverage(
+                            &service_name,
+                            AdminRuntimeExecutionLogCoverageStatus::Complete,
+                            Vec::new(),
+                        ),
+                    })
+                }
+                Err(error) if error.code == ErrorCode::ExternalDependency => {
+                    tracing::warn!(
+                        error = %error,
+                        execution_id,
+                        correlation_id,
+                        "Execution log source unavailable"
+                    );
+                    Ok(ExecutionLogRead {
+                        data: Vec::new(),
+                        coverage: local_execution_log_coverage(
+                            &service_name,
+                            AdminRuntimeExecutionLogCoverageStatus::Unavailable,
+                            vec![AdminRuntimeExecutionLogCoverageGap {
+                                source_id: "runtime_execution_logs".to_owned(),
+                                kind: "source_unavailable".to_owned(),
+                                detail: "Runtime execution logs are temporarily unavailable"
+                                    .to_owned(),
+                                next_action: Some(
+                                    "Restore the runtime execution log source.".to_owned(),
+                                ),
+                            }],
+                        ),
+                    })
+                }
+                Err(error) => Err(ApiErrorResponse::with_context(error, request_ctx)),
+            }
         }
         StoryExecutionNode::Federated {
             story,
             segment_index,
-        } => Ok(federated_execution_logs(
-            &story,
-            segment_index,
-            occurred_before,
-            limit,
-        )),
+        } => Ok(ExecutionLogRead {
+            data: federated_execution_logs(&story, segment_index, occurred_before, limit),
+            coverage: admin_federated_log_coverage(&story.segments[segment_index].log_coverage),
+        }),
+    }
+}
+
+fn local_execution_log_coverage(
+    service_name: &str,
+    status: AdminRuntimeExecutionLogCoverageStatus,
+    gaps: Vec<AdminRuntimeExecutionLogCoverageGap>,
+) -> AdminRuntimeExecutionLogCoverage {
+    AdminRuntimeExecutionLogCoverage {
+        status,
+        sources: vec![AdminRuntimeExecutionLogCoverageSource {
+            source_id: "runtime_execution_logs".to_owned(),
+            service_name: service_name.to_owned(),
+            status,
+        }],
+        gaps,
+    }
+}
+
+fn admin_federated_log_coverage(
+    coverage: &FederatedStoryLogCoverage,
+) -> AdminRuntimeExecutionLogCoverage {
+    AdminRuntimeExecutionLogCoverage {
+        status: admin_log_coverage_status(coverage.status),
+        sources: coverage
+            .sources
+            .iter()
+            .map(|source| AdminRuntimeExecutionLogCoverageSource {
+                source_id: source.source_id.clone(),
+                service_name: source.service_name.clone(),
+                status: admin_log_coverage_status(source.status),
+            })
+            .collect(),
+        gaps: coverage
+            .gaps
+            .iter()
+            .map(|gap| AdminRuntimeExecutionLogCoverageGap {
+                source_id: gap.source_id.clone(),
+                kind: gap.kind.clone(),
+                detail: gap.detail.clone(),
+                next_action: gap.next_action.clone(),
+            })
+            .collect(),
+    }
+}
+
+const fn admin_log_coverage_status(
+    status: FederatedStoryLogCoverageStatus,
+) -> AdminRuntimeExecutionLogCoverageStatus {
+    match status {
+        FederatedStoryLogCoverageStatus::Complete => {
+            AdminRuntimeExecutionLogCoverageStatus::Complete
+        }
+        FederatedStoryLogCoverageStatus::Disabled => {
+            AdminRuntimeExecutionLogCoverageStatus::Disabled
+        }
+        FederatedStoryLogCoverageStatus::Partial => AdminRuntimeExecutionLogCoverageStatus::Partial,
+        FederatedStoryLogCoverageStatus::Unavailable => {
+            AdminRuntimeExecutionLogCoverageStatus::Unavailable
+        }
     }
 }
 

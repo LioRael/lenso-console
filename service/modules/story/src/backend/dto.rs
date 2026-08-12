@@ -72,9 +72,42 @@ pub struct AdminRuntimeExecutionPayloadResponse {
 #[derive(Debug, Serialize, ToSchema)]
 #[schema(as = AdminRuntimeExecutionLogListResponse)]
 pub struct AdminRuntimeExecutionLogListResponse {
+    pub coverage: AdminRuntimeExecutionLogCoverage,
     pub data: Vec<AdminRuntimeExecutionLog>,
     pub page: PageInfo,
     pub order: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AdminRuntimeExecutionLogCoverageStatus {
+    Complete,
+    Disabled,
+    Partial,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionLogCoverageSource {
+    pub source_id: String,
+    pub service_name: String,
+    pub status: AdminRuntimeExecutionLogCoverageStatus,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionLogCoverageGap {
+    pub source_id: String,
+    pub kind: String,
+    pub detail: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_action: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionLogCoverage {
+    pub status: AdminRuntimeExecutionLogCoverageStatus,
+    pub sources: Vec<AdminRuntimeExecutionLogCoverageSource>,
+    pub gaps: Vec<AdminRuntimeExecutionLogCoverageGap>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

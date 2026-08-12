@@ -14,6 +14,7 @@ import { useState } from "react";
 
 import type {
   RuntimeStory,
+  ExecutionLogCoverage,
   ExecutionNode,
   ExecutionLogEntry,
   ExecutionPayload,
@@ -34,6 +35,8 @@ import {
   buildExecutionContext,
   buildExecutionFailures,
   buildProviderCallInspectorDetail,
+  executionLogCoverageContext,
+  executionLogPresentation,
   executionInspectorTabs,
   getExecutionInspectorTabCounts,
   type ExecutionActivityItem,
@@ -772,7 +775,12 @@ export function ExecutionInspector({
   const { openRetry } = useConsole();
   const zh = locale === "zh-CN";
   const node = selectedNode;
-  const tabCounts = getExecutionInspectorTabCounts(story, node);
+  const logsQuery = useExecutionLogs(story, node.id, activeTab === "logs");
+  const tabCounts = getExecutionInspectorTabCounts(
+    story,
+    node,
+    logsQuery.data?.entries.length
+  );
   const retryTarget = retryTargetForNode(node);
   const routeLabel = buildInspectorPath(story, node);
 
@@ -999,7 +1007,12 @@ export function ExecutionInspector({
             value={tab.id}
           >
             {activeTab === tab.id ? (
-              <InspectorBody activeTab={tab.id} node={node} story={story} />
+              <InspectorBody
+                activeTab={tab.id}
+                logsQuery={logsQuery}
+                node={node}
+                story={story}
+              />
             ) : null}
           </Tabs.Panel>
         ))}
@@ -1018,12 +1031,14 @@ const inspectorTabZh: Record<ExecutionInspectorTab, string> = {
 
 function InspectorBody({
   activeTab,
+  logsQuery,
   node,
   story,
 }: {
   story: RuntimeStory;
   node: ExecutionNode;
   activeTab: ExecutionInspectorTab;
+  logsQuery: ReturnType<typeof useExecutionLogs>;
 }) {
   const { openRemoteCalls, openRetry } = useConsole();
   const payloadQuery = useExecutionPayload(
@@ -1031,7 +1046,6 @@ function InspectorBody({
     node.id,
     activeTab === "payload" || activeTab === "overview"
   );
-  const logsQuery = useExecutionLogs(story, node.id, activeTab === "logs");
   const executionOperationsQuery = useExecutionTechnicalOperations(
     story.correlationId,
     node.id,
@@ -1044,7 +1058,7 @@ function InspectorBody({
     const providerCallDetail = buildProviderCallInspectorDetail(node);
     return (
       <OverviewDocument
-        logsCount={node.logs.length}
+        logsCount={logsQuery.data?.entries.length ?? node.logs.length}
         node={node}
         payload={payloadQuery.data}
         story={story}
@@ -1110,10 +1124,10 @@ function InspectorBody({
   if (activeTab === "logs") {
     return (
       <LogList
-        error={logsQuery.error}
+        coverage={logsQuery.data?.coverage}
         isError={logsQuery.isError}
         isLoading={logsQuery.isLoading}
-        logs={logsQuery.data ?? []}
+        logs={logsQuery.data?.entries ?? []}
         story={story}
       />
     );
@@ -3237,36 +3251,59 @@ function PayloadContract({
   );
 }
 
-function LogList({
-  error,
+export function LogList({
+  coverage,
   isError,
   isLoading,
   logs,
   story,
 }: {
   story: RuntimeStory;
+  coverage: ExecutionLogCoverage | undefined;
   logs: ExecutionLogEntry[];
   isLoading: boolean;
   isError: boolean;
-  error: unknown;
 }) {
   if (isLoading) {
     return <EmptyRows label="Loading execution logs..." />;
   }
   if (isError) {
-    return (
-      <EmptyRows
-        label={`Execution logs could not be loaded. ${errorMessage(error)}`}
-      />
-    );
+    return <EmptyRows label="Execution logs could not be loaded." />;
   }
+  const presentation = executionLogPresentation({
+    coverage,
+    entryCount: logs.length,
+  });
+  const coverageContext = executionLogCoverageContext(coverage);
   if (logs.length === 0) {
     return (
-      <EmptyRows label="No runtime logs recorded for this execution yet. Runtime lifecycle logs are recorded for work processed after execution logging was enabled." />
+      <div>
+        <EmptyRows
+          label={presentation.emptyLabel ?? "No runtime logs recorded"}
+        />
+        <LogCoverageContext context={coverageContext} />
+      </div>
     );
   }
   return (
     <div {...stylex.props([localStyles.utilityMinWFull])}>
+      {presentation.noticeLabel ? (
+        <output
+          {...stylex.props([
+            localStyles.utilityBlock,
+            localStyles.utilityBorderB,
+            localStyles.utilityBorderLineSubtle,
+            localStyles.utilityPx3,
+            localStyles.utilityPy2,
+            localStyles.utilityFontMono,
+            localStyles.utilityText10px,
+            localStyles.utilityTextToneWarningFg,
+          ])}
+        >
+          {presentation.noticeLabel}
+        </output>
+      ) : null}
+      <LogCoverageContext context={coverageContext} />
       <InspectorDocumentToolbar
         count={`${logs.length} entries`}
         title="Runtime logs"
@@ -3280,6 +3317,51 @@ function LogList({
         />
       ) : null}
       <LogDiagnostic logs={logs} />
+    </div>
+  );
+}
+
+function LogCoverageContext({
+  context,
+}: {
+  context:
+    | {
+        gapContexts: Array<{
+          detailLabel: string;
+          nextActionLabel?: string;
+          sourceId: string;
+        }>;
+        sourceSummaryLabel?: string;
+      }
+    | undefined;
+}) {
+  if (!context) {
+    return null;
+  }
+
+  return (
+    <div
+      {...stylex.props([
+        localStyles.utilityBorderB,
+        localStyles.utilityBorderLineSubtle,
+        localStyles.utilityPx3,
+        localStyles.utilityPy2,
+        localStyles.utilityText10px,
+        localStyles.utilityLeading15px,
+        localStyles.utilityTextFgSecondary,
+      ])}
+    >
+      {context.sourceSummaryLabel ? <p>{context.sourceSummaryLabel}</p> : null}
+      {context.gapContexts.map((gap, index) => (
+        <div key={`${gap.sourceId}:${index}`}>
+          <p>{gap.detailLabel}</p>
+          {gap.nextActionLabel ? (
+            <p {...stylex.props([localStyles.utilityFontMono])}>
+              Next: {gap.nextActionLabel}
+            </p>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }
