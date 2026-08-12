@@ -33,26 +33,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Build and publish Console Service OCI
+  prepare:
+    name: Prepare Console Service OCI release
     if: ${{ github.repository == 'LioRael/lenso-console' }}
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
-      packages: write
-      id-token: write
-      attestations: write
+      contents: read
+      packages: read
+    outputs:
+      changed: ${{ steps.version.outputs.changed }}
+      recovery: ${{ steps.version.outputs.recovery }}
+      version: ${{ steps.version.outputs.version }}
+      source_commit: ${{ steps.version.outputs.source_commit }}
+      image_digest: ${{ steps.version.outputs.image_digest }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Set up pnpm
-        uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
-        with:
-          package_json_file: package.json
-          run_install: false
       - name: Detect a new Console Service version
         id: version
         shell: bash
@@ -90,32 +89,10 @@ jobs:
           echo "recovery=false" >> "$GITHUB_OUTPUT"
           echo "version=$current" >> "$GITHUB_OUTPUT"
           echo "source_commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-      - name: Create release app token
-        id: release-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
-        with:
-          app-id: ${{ vars.LENSO_RELEASE_APP_ID }}
-          private-key: ${{ secrets.LENSO_RELEASE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          permission-contents: write
-      - name: Log in to GHCR
-        if: steps.version.outputs.changed == 'true'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up Docker Buildx
-        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
-      - name: Set up QEMU
-        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - name: Refuse an existing immutable version tag
         if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
         env:
-          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           IMAGE: ghcr.io/liorael/lenso-console
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -128,36 +105,148 @@ jobs:
             echo "Git tag already exists: $tag" >&2
             exit 1
           fi
-      - name: Build and push the OCI image
-        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
+
+  build:
+    name: Build Console Service OCI (${{ matrix.platform }})
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true' && needs.prepare.outputs.recovery != 'true'
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            suffix: arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Build and push the platform image by digest
         id: image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=ghcr.io/liorael/lenso-console,push-by-digest=true,name-canonical=true,push=true
           provenance: false
           sbom: false
-          tags: |
-            ghcr.io/liorael/lenso-console:${{ steps.version.outputs.version }}
-            ghcr.io/liorael/lenso-console:${{ steps.version.outputs.source_commit }}
           build-args: |
-            RELEASE_VERSION=${{ steps.version.outputs.version }}
-            RELEASE_COMMIT=${{ steps.version.outputs.source_commit }}
+            RELEASE_VERSION=${{ needs.prepare.outputs.version }}
+            RELEASE_COMMIT=${{ needs.prepare.outputs.source_commit }}
+      - name: Export the platform digest
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          mkdir -p /tmp/lenso-console-digests
+          touch "/tmp/lenso-console-digests/${DIGEST#sha256:}"
+      - name: Upload the platform digest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lenso-console-digest-${{ matrix.suffix }}
+          path: /tmp/lenso-console-digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish Console Service OCI release
+    needs: [prepare, build]
+    if: ${{ always() && needs.prepare.outputs.changed == 'true' && (needs.prepare.outputs.recovery == 'true' || needs.build.result == 'success') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
+        with:
+          package_json_file: package.json
+          run_install: false
+      - name: Create release app token
+        id: release-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.LENSO_RELEASE_APP_ID }}
+          private-key: ${{ secrets.LENSO_RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+      - name: Log in to GHCR
+        if: needs.prepare.outputs.recovery != 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        if: needs.prepare.outputs.recovery != 'true'
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Download platform digests
+        if: needs.prepare.outputs.recovery != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: /tmp/lenso-console-digests
+          pattern: lenso-console-digest-*
+          merge-multiple: true
+      - name: Create the multi-platform image
+        if: needs.prepare.outputs.recovery != 'true'
+        env:
+          IMAGE: ghcr.io/liorael/lenso-console
+          SOURCE_COMMIT: ${{ needs.prepare.outputs.source_commit }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          images=()
+          for digest in /tmp/lenso-console-digests/*; do
+            images+=("$IMAGE@sha256:${digest##*/}")
+          done
+          docker buildx imagetools create \
+            --tag "$IMAGE:$VERSION" \
+            --tag "$IMAGE:$SOURCE_COMMIT" \
+            "${images[@]}"
+      - name: Resolve the multi-platform image digest
+        if: needs.prepare.outputs.recovery != 'true'
+        id: image
+        env:
+          IMAGE: ghcr.io/liorael/lenso-console
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r '.digest')"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
       - name: Attest the published image
-        if: steps.version.outputs.changed == 'true' && steps.version.outputs.recovery != 'true'
+        if: needs.prepare.outputs.recovery != 'true'
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v2
         with:
           subject-name: ghcr.io/liorael/lenso-console
           subject-digest: ${{ steps.image.outputs.digest }}
           push-to-registry: true
       - name: Generate the digest-pinned release manifest
-        if: steps.version.outputs.changed == 'true'
         env:
-          IMAGE_DIGEST: ${{ steps.version.outputs.image_digest || steps.image.outputs.digest }}
-          SOURCE_COMMIT: ${{ steps.version.outputs.source_commit }}
-          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE_DIGEST: ${{ needs.prepare.outputs.image_digest || steps.image.outputs.digest }}
+          SOURCE_COMMIT: ${{ needs.prepare.outputs.source_commit }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           mkdir -p .artifacts
           pnpm service:release-manifest \
@@ -172,18 +261,16 @@ jobs:
             '.releaseId == ("lenso-console@" + $version) and .sourceCommit == $commit and .image.digest == $digest' \
             .artifacts/lenso-console-release.json
       - name: Upload the release manifest
-        if: steps.version.outputs.changed == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: lenso-console-service-${{ steps.version.outputs.version }}
+          name: lenso-console-service-${{ needs.prepare.outputs.version }}
           path: .artifacts/lenso-console-release.json
           if-no-files-found: error
       - name: Create the immutable Service release
-        if: steps.version.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-          SOURCE_COMMIT: ${{ steps.version.outputs.source_commit }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_COMMIT: ${{ needs.prepare.outputs.source_commit }}
         run: |
           gh release create "lenso-console-service@$VERSION" \
             .artifacts/lenso-console-release.json \
