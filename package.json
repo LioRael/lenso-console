@@ -23,7 +23,7 @@
     "service:recovery:smoke": "sh scripts/console-service-recovery-smoke.sh",
     "service:release-manifest": "node scripts/console-service-release.mjs",
     "release:artifacts": "node scripts/build-console-release-artifacts.mjs",
-    "release": "pnpm --filter @lenso/console-module-api build && pnpm --filter @lenso/console-ui build && changeset publish",
+    "release": "pnpm --filter @lenso/console-composition-api build && pnpm --filter @lenso/console-module-api build && pnpm --filter @lenso/console-tokens build && pnpm --filter @lenso/console-ui build && changeset publish",
     "version": "changeset version",
     "build:module-artifacts": "node scripts/build-console-module-artifacts.mjs",
     "build": "pnpm build:local",
