@@ -148,6 +148,32 @@ export type ExecutionLogEntry = {
   redactedFields: string[];
 };
 
+export type ExecutionLogCoverageStatus =
+  | "complete"
+  | "disabled"
+  | "partial"
+  | "unavailable";
+
+export type ExecutionLogCoverage = {
+  status: ExecutionLogCoverageStatus;
+  sources: Array<{
+    sourceId: string;
+    serviceName: string;
+    status: ExecutionLogCoverageStatus;
+  }>;
+  gaps: Array<{
+    sourceId: string;
+    kind: string;
+    detail: string;
+    nextAction?: string;
+  }>;
+};
+
+export type ExecutionLogsResult = {
+  entries: ExecutionLogEntry[];
+  coverage?: ExecutionLogCoverage;
+};
+
 export type ExecutionEdge = {
   id: string;
   source: string;

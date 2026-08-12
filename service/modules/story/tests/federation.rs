@@ -26,9 +26,11 @@ use std::{
 };
 use story::{
     federation::{
-        FederatedRuntimeStory, FederatedStoryAggregator, FederatedStoryEnrichmentProvider,
-        FederatedStoryFeedClient, FederatedStoryFeedError, FederatedStoryFeedRequest,
-        FederatedStoryGapKind, FederatedStorySegment, FederatedStorySource,
+        FederatedRuntimeStory, FederatedStoryAggregator, FederatedStoryEnrichment,
+        FederatedStoryEnrichmentProvider, FederatedStoryFeedClient, FederatedStoryFeedError,
+        FederatedStoryFeedRequest, FederatedStoryGapKind, FederatedStoryLogCoverage,
+        FederatedStoryLogCoverageGap, FederatedStoryLogCoverageSource,
+        FederatedStoryLogCoverageStatus, FederatedStorySegment, FederatedStorySource,
         FederatedStoryTechnicalEvidence, FederatedStoryTechnicalEvidenceKind,
         HttpFederatedStoryFeedClient, OpenTelemetryFederatedStoryEnrichmentProvider,
         StaticStorySegmentFeedCredentialProvider,
@@ -187,10 +189,14 @@ struct FailedEnrichment;
 
 #[async_trait]
 impl FederatedStoryEnrichmentProvider for FailedEnrichment {
+    fn source_id(&self) -> &'static str {
+        "test-telemetry"
+    }
+
     async fn enrich(
         &self,
         _segments: &[FederatedStorySegment],
-    ) -> AppResult<BTreeMap<String, Vec<FederatedStoryTechnicalEvidence>>> {
+    ) -> AppResult<FederatedStoryEnrichment> {
         Err(AppError::new(
             ErrorCode::Internal,
             "test telemetry unavailable",
@@ -203,14 +209,18 @@ struct MixedTechnicalEnrichment;
 
 #[async_trait]
 impl FederatedStoryEnrichmentProvider for MixedTechnicalEnrichment {
+    fn source_id(&self) -> &'static str {
+        "test-otel"
+    }
+
     async fn enrich(
         &self,
         segments: &[FederatedStorySegment],
-    ) -> AppResult<BTreeMap<String, Vec<FederatedStoryTechnicalEvidence>>> {
+    ) -> AppResult<FederatedStoryEnrichment> {
         let Some(segment) = segments.first() else {
-            return Ok(BTreeMap::new());
+            return Ok(FederatedStoryEnrichment::default());
         };
-        Ok(BTreeMap::from([(
+        let technical_evidence = BTreeMap::from([(
             segment.id.clone(),
             vec![
                 FederatedStoryTechnicalEvidence {
@@ -232,7 +242,43 @@ impl FederatedStoryEnrichmentProvider for MixedTechnicalEnrichment {
                     attributes: json!({}),
                 },
             ],
-        )]))
+        )]);
+        let log_coverage = segments
+            .iter()
+            .enumerate()
+            .map(|(index, segment)| {
+                let status = if index == 0 {
+                    FederatedStoryLogCoverageStatus::Complete
+                } else {
+                    FederatedStoryLogCoverageStatus::Partial
+                };
+                let gaps = (index != 0)
+                    .then(|| FederatedStoryLogCoverageGap {
+                        source_id: "test-otel".to_owned(),
+                        kind: "source_gap".to_owned(),
+                        detail: "A test log source reported a bounded gap".to_owned(),
+                        next_action: Some("inspect_test_log_source".to_owned()),
+                    })
+                    .into_iter()
+                    .collect();
+                (
+                    segment.id.clone(),
+                    FederatedStoryLogCoverage {
+                        status,
+                        sources: vec![FederatedStoryLogCoverageSource {
+                            source_id: "test-otel".to_owned(),
+                            service_name: segment.segment.source.service_id.clone(),
+                            status,
+                        }],
+                        gaps,
+                    },
+                )
+            })
+            .collect();
+        Ok(FederatedStoryEnrichment {
+            technical_evidence,
+            log_coverage,
+        })
     }
 }
 
@@ -361,6 +407,16 @@ async fn two_authenticated_service_feeds_resume_and_accept_late_evidence() {
             .iter()
             .all(|segment| segment.technical_evidence.len() == 1)
     );
+    assert!(initial_story.segments.iter().all(|segment| {
+        segment.log_coverage.status == FederatedStoryLogCoverageStatus::Disabled
+            && segment.log_coverage.sources.as_slice()
+                == [FederatedStoryLogCoverageSource {
+                    source_id: "federated_runtime_logs".to_owned(),
+                    service_name: segment.segment.source.service_id.clone(),
+                    status: FederatedStoryLogCoverageStatus::Disabled,
+                }]
+            && segment.log_coverage.gaps.is_empty()
+    }));
     assert!(
         !serde_json::to_string(&initial_story)
             .unwrap()
@@ -425,6 +481,14 @@ async fn two_authenticated_service_feeds_resume_and_accept_late_evidence() {
             .iter()
             .all(|segment| segment.segment.tenant_id.as_deref() == Some(TENANT_A))
     );
+    assert!(story.segments.iter().all(|segment| {
+        segment.log_coverage.status == FederatedStoryLogCoverageStatus::Disabled
+            && segment
+                .log_coverage
+                .sources
+                .iter()
+                .all(|source| source.source_id == "federated_runtime_logs")
+    }));
 
     for source in ["support-ticket", "support-sla"] {
         restarted
@@ -484,6 +548,19 @@ async fn two_authenticated_service_feeds_resume_and_accept_late_evidence() {
             .iter()
             .all(|segment| segment.technical_evidence.is_empty())
     );
+    assert!(without_telemetry.segments.iter().all(|segment| {
+        segment.log_coverage.status == FederatedStoryLogCoverageStatus::Unavailable
+            && segment
+                .log_coverage
+                .sources
+                .iter()
+                .all(|source| source.source_id == "test-telemetry")
+            && segment
+                .log_coverage
+                .gaps
+                .iter()
+                .all(|gap| gap.kind == "enrichment_unavailable")
+    }));
 
     drop(restarted);
     ticket_task.abort();
@@ -774,6 +851,14 @@ async fn every_source_failure_is_an_explicit_typed_gap_and_late_data_resolves_tr
         story_identity(&technically_enriched),
         story_identity(&completed)
     );
+    assert_eq!(
+        technically_enriched.segments[0].log_coverage.status,
+        FederatedStoryLogCoverageStatus::Complete
+    );
+    assert!(technically_enriched.segments.iter().skip(1).all(|segment| {
+        segment.log_coverage.status == FederatedStoryLogCoverageStatus::Partial
+            && !segment.log_coverage.gaps.is_empty()
+    }));
 
     db.cleanup().await;
 }

@@ -8,6 +8,8 @@ import {
   buildExecutionPayload,
   buildProviderCallInspectorDetail,
   defaultExecutionInspectorTab,
+  executionLogCoverageContext,
+  executionLogPresentation,
   executionInspectorTabs,
   getExecutionInspectorTabCounts,
 } from "./execution-inspector-model";
@@ -110,6 +112,122 @@ const story: RuntimeStory = {
 };
 
 describe("execution inspector model", () => {
+  test.each([
+    [
+      "legacy unknown",
+      undefined,
+      "No runtime logs recorded for this execution yet. Runtime lifecycle logs are recorded for work processed after execution logging was enabled.",
+    ],
+    [
+      "complete",
+      "complete",
+      "No application logs were emitted for this execution.",
+    ],
+    ["disabled", "disabled", "Log collection is disabled for this execution."],
+    [
+      "partial",
+      "partial",
+      "Available log sources returned no entries, but log coverage is partial.",
+    ],
+    [
+      "unavailable",
+      "unavailable",
+      "Execution logs are unavailable because no log source could be read.",
+    ],
+  ] as const)(
+    "describes the %s empty log state",
+    (_label, status, emptyLabel) => {
+      expect(
+        executionLogPresentation({
+          coverage: status ? { gaps: [], sources: [], status } : undefined,
+          entryCount: 0,
+        })
+      ).toEqual({ emptyLabel });
+    }
+  );
+
+  test.each([
+    [
+      "partial",
+      "Some log sources could not be read. Showing 2 available entries.",
+    ],
+    [
+      "unavailable",
+      "Log coverage is unavailable. Showing 2 available entries.",
+    ],
+  ] as const)(
+    "keeps loaded logs visible when coverage is %s",
+    (status, noticeLabel) => {
+      expect(
+        executionLogPresentation({
+          coverage: { gaps: [], sources: [], status },
+          entryCount: 2,
+        })
+      ).toEqual({ noticeLabel });
+    }
+  );
+
+  test("does not add a coverage notice to complete loaded logs", () => {
+    expect(
+      executionLogPresentation({
+        coverage: { gaps: [], sources: [], status: "complete" },
+        entryCount: 2,
+      })
+    ).toEqual({});
+  });
+
+  test("keeps every backend-projected gap and next action as coverage context", () => {
+    expect(
+      executionLogCoverageContext({
+        gaps: [
+          {
+            detail: "Remote execution logs timed out",
+            kind: "source_unavailable",
+            nextAction: "Restore the remote execution log source.",
+            sourceId: "remote-runtime",
+          },
+          {
+            detail: "Audit log export is paused",
+            kind: "source_unavailable",
+            sourceId: "audit-runtime",
+          },
+        ],
+        sources: [
+          {
+            serviceName: "orders",
+            sourceId: "local-runtime",
+            status: "complete",
+          },
+          {
+            serviceName: "billing",
+            sourceId: "remote-runtime",
+            status: "unavailable",
+          },
+          {
+            serviceName: "audit",
+            sourceId: "audit-runtime",
+            status: "unavailable",
+          },
+        ],
+        status: "partial",
+      })
+    ).toEqual({
+      gapContexts: [
+        {
+          detailLabel:
+            "billing (remote-runtime): Remote execution logs timed out",
+          nextActionLabel: "Restore the remote execution log source.",
+          sourceId: "remote-runtime",
+        },
+        {
+          detailLabel: "audit (audit-runtime): Audit log export is paused",
+          sourceId: "audit-runtime",
+        },
+      ],
+      sourceSummaryLabel: "1 of 3 log sources available.",
+    });
+  });
+
   test("uses operator workflow tabs", () => {
     expect(executionInspectorTabs.map((tab) => tab.label)).toEqual([
       "Overview",
@@ -267,5 +385,11 @@ describe("execution inspector model", () => {
       operations: 2,
       payload: 2,
     });
+  });
+
+  test("uses the loaded execution log count after the evidence query resolves", () => {
+    const counts = getExecutionInspectorTabCounts(story, story.nodes[1]!, 5);
+
+    expect(counts.logs).toBe(5);
   });
 });

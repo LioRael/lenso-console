@@ -20,9 +20,9 @@ async-trait = "0.1"
 axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 lenso-service = "0.1.16"
-platform-core = { package = "lenso-platform-core", version = "0.1.16" }
-platform-http = { package = "lenso-platform-http", version = "0.1.15" }
-platform-module = { package = "lenso-platform-module", version = "0.1.16" }
+platform-core = { package = "lenso-platform-core", version = "0.1.24" }
+platform-http = { package = "lenso-platform-http", version = "0.1.23" }
+platform-module = { package = "lenso-platform-module", version = "0.1.24" }
 reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "query",
@@ -42,8 +42,8 @@ tracing = "0.1"
 utoipa = { version = "5.5", features = ["axum_extras", "chrono", "uuid"] }
 
 [dev-dependencies]
-lenso-autonomous-service = "0.1.12"
-platform-testing = { package = "lenso-platform-testing", version = "0.1.12" }
+lenso-autonomous-service = "0.1.21"
+platform-testing = { package = "lenso-platform-testing", version = "0.1.20" }
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
 tower = "0.5"
 utoipa-axum = "0.2"
