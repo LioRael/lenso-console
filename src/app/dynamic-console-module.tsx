@@ -177,7 +177,9 @@ export function DynamicConsoleModulePage() {
       selection &&
       systemConnection.data &&
       connectedModule?.status === "connected" &&
-      requestedSurfaceAvailability?.status === "connected"
+      requestedSurfaceAvailability?.status === "connected" &&
+      !managedServices.isPending &&
+      !managedServices.isError
     ),
     queryKey: [
       "console",
@@ -294,6 +296,16 @@ export function DynamicConsoleModulePage() {
       <ModuleState title={`Module ${connectedModule?.status ?? "unmanaged"}`}>
         {connectedModule?.reason ??
           "This Module does not have a connected workload in the System."}
+      </ModuleState>
+    );
+  }
+  if (managedServices.isPending) {
+    return <ModuleState title="Loading Managed Service Context" />;
+  }
+  if (managedServices.isError) {
+    return (
+      <ModuleState title="Managed Service Context is unavailable">
+        Console could not read the enrolled Services for the connected System.
       </ModuleState>
     );
   }
