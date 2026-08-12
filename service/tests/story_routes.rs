@@ -68,6 +68,10 @@ async fn story_routes_are_owned_by_the_console_composition() {
         .expect("OpenAPI request should complete");
     assert_eq!(openapi.status(), StatusCode::OK);
     let document = json_body(openapi).await;
+    assert_story_route_openapi(&document);
+}
+
+fn assert_story_route_openapi(document: &Value) {
     assert_eq!(
         document["paths"]["/api/console/v1/stories"]["get"]["operationId"],
         "admin_runtime_list_stories"
@@ -84,6 +88,69 @@ async fn story_routes_are_owned_by_the_console_composition() {
         document["paths"]["/api/console/v1/stories/{correlation_id}/technical-operations"]["get"]["operationId"],
         "admin_runtime_get_story_technical_operations"
     );
+    assert_eq!(
+        document["paths"]["/api/console/v1/stories/{correlation_id}/executions/{node_id}/payload"]
+            ["get"]["operationId"],
+        "admin_runtime_get_story_execution_payload"
+    );
+    assert_eq!(
+        document["paths"]["/api/console/v1/stories/{correlation_id}/executions/{node_id}/logs"]["get"]
+            ["operationId"],
+        "admin_runtime_get_story_execution_logs"
+    );
+    assert_eq!(
+        document["paths"]["/api/console/v1/stories/{correlation_id}/executions/{node_id}/technical-operations"]
+            ["get"]["operationId"],
+        "admin_runtime_get_story_execution_technical_operations"
+    );
+    for (path, schema) in [
+        (
+            "/api/console/v1/stories/{correlation_id}/executions/{node_id}/payload",
+            "#/components/schemas/AdminRuntimeExecutionPayloadResponse",
+        ),
+        (
+            "/api/console/v1/stories/{correlation_id}/executions/{node_id}/logs",
+            "#/components/schemas/AdminRuntimeExecutionLogListResponse",
+        ),
+        (
+            "/api/console/v1/stories/{correlation_id}/executions/{node_id}/technical-operations",
+            "#/components/schemas/AdminRuntimeTechnicalOperationListResponse",
+        ),
+    ] {
+        assert_eq!(
+            document["paths"][path]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+                ["$ref"],
+            schema,
+            "{path} must publish its canonical success envelope"
+        );
+        assert!(
+            document["paths"][path]["get"]["responses"]["404"]["content"]
+                ["application/problem+json"]
+                .is_object(),
+            "{path} must publish a correlation/node mismatch as Problem Details"
+        );
+    }
+    for schema in [
+        "AdminRuntimeExecutionPayload",
+        "AdminRuntimeExecutionPayloadResponse",
+        "AdminRuntimeExecutionLog",
+        "AdminRuntimeExecutionLogListResponse",
+    ] {
+        assert!(
+            document["components"]["schemas"][schema].is_object(),
+            "missing execution evidence schema {schema}"
+        );
+    }
+    for legacy_path in [
+        "/admin/runtime/executions/{node_id}/payload",
+        "/admin/runtime/executions/{node_id}/logs",
+        "/admin/runtime/executions/{node_id}/technical-operations",
+    ] {
+        assert!(
+            document["paths"].get(legacy_path).is_none(),
+            "legacy execution evidence route must not be browser-facing: {legacy_path}"
+        );
+    }
 }
 
 #[tokio::test]
@@ -1549,47 +1616,50 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     let app = app_with_database(&db).await;
     insert_story_evidence(&db).await;
 
-    let list = app
+    assert_story_pagination(&app).await;
+    assert_story_detail_redaction(&app).await;
+    assert_outbox_execution_payload(&app).await;
+    assert_captured_story_execution_payloads(&app).await;
+    assert_provider_execution_payload(&app).await;
+    assert_story_execution_logs(&app).await;
+    assert_story_execution_operations_and_boundaries(&app).await;
+    assert_story_operations_heatmap_and_not_found(&app).await;
+
+    db.cleanup().await;
+}
+
+async fn story_admin_json(app: &Router, path: &str) -> (StatusCode, Value) {
+    let response = app
         .clone()
-        .oneshot(
-            admin_get("/api/console/v1/stories?limit=1")
-                .with_header("authorization", "Bearer dev-service:admin"),
-        )
+        .oneshot(admin_get(path).with_header("authorization", "Bearer dev-service:admin"))
         .await
-        .expect("story list request should complete");
-    assert_eq!(list.status(), StatusCode::OK);
-    let list = json_body(list).await;
+        .expect("Story request should complete");
+    let status = response.status();
+    (status, json_body(response).await)
+}
+
+async fn assert_story_pagination(app: &Router) {
+    let (status, list) = story_admin_json(app, "/api/console/v1/stories?limit=1").await;
+    assert_eq!(status, StatusCode::OK);
     assert_eq!(list["data"][0]["correlation_id"], "corr_story");
     assert_eq!(list["page"]["limit"], 1);
     let cursor = list["page"]["next_created_before"]
         .as_str()
         .expect("first page should provide a cursor");
 
-    let second_page = app
-        .clone()
-        .oneshot(
-            admin_get(&format!(
-                "/api/console/v1/stories?limit=1&created_before={cursor}"
-            ))
-            .with_header("authorization", "Bearer dev-service:admin"),
-        )
-        .await
-        .expect("second story page request should complete");
-    assert_eq!(second_page.status(), StatusCode::OK);
-    let second_page = json_body(second_page).await;
+    let (status, second_page) = story_admin_json(
+        app,
+        &format!("/api/console/v1/stories?limit=1&created_before={cursor}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
     assert_eq!(second_page["data"][0]["correlation_id"], "corr_old");
     assert_eq!(second_page["data"][0]["node_count"], 2);
+}
 
-    let detail = app
-        .clone()
-        .oneshot(
-            admin_get("/api/console/v1/stories/corr_story")
-                .with_header("authorization", "Bearer dev-service:admin"),
-        )
-        .await
-        .expect("story detail request should complete");
-    assert_eq!(detail.status(), StatusCode::OK);
-    let detail = json_body(detail).await;
+async fn assert_story_detail_redaction(app: &Router) {
+    let (status, detail) = story_admin_json(app, "/api/console/v1/stories/corr_story").await;
+    assert_eq!(status, StatusCode::OK);
     assert_eq!(detail["data"]["summary"]["correlation_id"], "corr_story");
     assert!(
         detail["data"]["nodes"]
@@ -1597,52 +1667,275 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
             .is_some_and(|nodes| nodes.iter().any(|node| node["type"] == "event"))
     );
     assert_provider_story_detail(&detail);
+    let outbox_node = detail["data"]["nodes"]
+        .as_array()
+        .and_then(|nodes| nodes.iter().find(|node| node["id"] == "evt_story"))
+        .expect("Story should include the outbox execution node");
+    assert_eq!(
+        outbox_node["metadata"]["source_metadata"]["safe_header"],
+        "visible"
+    );
+    assert_eq!(
+        outbox_node["metadata"]["source_metadata"]["authorization"],
+        "[redacted]"
+    );
+    assert_eq!(
+        outbox_node["metadata"]["source_metadata"]["actor"]["email"],
+        "[redacted]"
+    );
+    let serialized_detail = detail.to_string();
+    for sensitive_value in [
+        "Bearer story-secret",
+        "story-owner@example.test",
+        "story-event-secret-token",
+        "captured-function-secret",
+        "provider-owner@example.test",
+    ] {
+        assert!(
+            !serialized_detail.contains(sensitive_value),
+            "Story detail source metadata must not bypass evidence redaction"
+        );
+    }
+}
 
-    let operations = app
-        .clone()
-        .oneshot(
-            admin_get("/api/console/v1/stories/corr_story/technical-operations")
-                .with_header("authorization", "Bearer dev-service:admin"),
+async fn assert_outbox_execution_payload(app: &Router) {
+    let (status, event_payload) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/executions/evt_story/payload",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(event_payload["data"]["node_id"], "evt_story");
+    assert_eq!(event_payload["data"]["node_type"], "event");
+    assert_eq!(event_payload["data"]["input"]["user_id"], "usr_1");
+    assert_eq!(event_payload["data"]["input"]["email"], "[redacted]");
+    assert_eq!(
+        event_payload["data"]["input"]["profile"]["credentials"],
+        "[redacted]"
+    );
+    assert_eq!(
+        event_payload["data"]["metadata"]["headers"]["authorization"],
+        "[redacted]"
+    );
+    assert!(event_payload["data"]["output"].is_null());
+    let event_redacted_fields = event_payload["data"]["redacted_fields"]
+        .as_array()
+        .expect("payload must report redacted field paths");
+    for path in [
+        "input.email",
+        "input.profile.credentials",
+        "metadata.actor.email",
+        "metadata.headers.actor.email",
+        "metadata.headers.authorization",
+    ] {
+        assert!(
+            event_redacted_fields.contains(&json!(path)),
+            "missing payload redaction path {path}"
+        );
+    }
+}
+
+async fn assert_captured_story_execution_payloads(app: &Router) {
+    let (status, story_event_payload) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/executions/story_heatmap_http/payload",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(story_event_payload["data"]["node_id"], "story_heatmap_http");
+    assert_eq!(story_event_payload["data"]["node_type"], "http_request");
+    assert_eq!(
+        story_event_payload["data"]["input"]["request"]["resource_id"],
+        "resource_42"
+    );
+    assert_eq!(
+        story_event_payload["data"]["input"]["request"]["secret_token"],
+        "[redacted]"
+    );
+    assert!(
+        story_event_payload["data"]["redacted_fields"]
+            .as_array()
+            .is_some_and(|paths| paths.contains(&json!("input.request.secret_token")))
+    );
+
+    let (status, captured_function_payload) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/executions/story_heatmap_fn_dead/payload",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        captured_function_payload["data"]["node_id"],
+        "story_heatmap_fn_dead"
+    );
+    assert_eq!(captured_function_payload["data"]["node_type"], "function");
+    assert_eq!(
+        captured_function_payload["data"]["input"]["captured_attempt"],
+        3
+    );
+    assert_eq!(
+        captured_function_payload["data"]["input"]["secret_token"],
+        "[redacted]"
+    );
+}
+
+async fn assert_provider_execution_payload(app: &Router) {
+    let (status, provider_payload) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/executions/provider_rproxy_story/payload",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(provider_payload["data"]["node_id"], "provider_rproxy_story");
+    assert_eq!(provider_payload["data"]["node_type"], "provider_call");
+    assert_eq!(provider_payload["data"]["input"]["ticket_id"], "ticket_42");
+    assert_eq!(
+        provider_payload["data"]["input"]["credentials"],
+        "[redacted]"
+    );
+    assert_eq!(
+        provider_payload["data"]["output"]["nested"]["email"],
+        "[redacted]"
+    );
+    assert_eq!(provider_payload["data"]["metadata"]["provider_status"], 503);
+    let provider_redacted_fields = provider_payload["data"]["redacted_fields"]
+        .as_array()
+        .expect("provider payload must report redacted field paths");
+    for path in ["input.credentials", "output.nested.email"] {
+        assert!(
+            provider_redacted_fields.contains(&json!(path)),
+            "missing provider payload redaction path {path}"
+        );
+    }
+}
+
+async fn assert_story_execution_logs(app: &Router) {
+    let (status, logs) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/executions/evt_story/logs?limit=10",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(logs["order"], "occurred_at_asc");
+    assert_eq!(logs["page"]["limit"], 10);
+    assert_eq!(
+        logs["data"]
+            .as_array()
+            .expect("execution logs must be an array")
+            .iter()
+            .map(|entry| entry["id"].as_str().expect("log id"))
+            .collect::<Vec<_>>(),
+        vec![
+            "elog_outbox_enqueued_evt_story",
+            "elog_story_z_early",
+            "elog_story_a_late",
+        ]
+    );
+    assert_eq!(logs["data"][1]["node_id"], "evt_story");
+    assert_eq!(logs["data"][1]["node_type"], "outbox_event");
+    assert_eq!(
+        logs["data"][1]["attributes"]["nested"][0]["email"],
+        "[redacted]"
+    );
+    assert_eq!(logs["data"][1]["attributes"]["nested"][0]["safe"], "kept");
+    assert!(
+        logs["data"][1]["redacted_fields"]
+            .as_array()
+            .is_some_and(|paths| paths.contains(&json!("attributes.nested[0].email")))
+    );
+    assert_eq!(logs["data"][2]["attributes"]["credentials"], "[redacted]");
+    let late_redacted_fields = logs["data"][2]["redacted_fields"]
+        .as_array()
+        .expect("log must report redacted field paths");
+    for path in ["upstream.redacted", "attributes.credentials"] {
+        assert!(
+            late_redacted_fields.contains(&json!(path)),
+            "missing log redaction path {path}"
+        );
+    }
+    let serialized_logs = logs.to_string();
+    for sensitive_value in [
+        "log-email@example.test",
+        "log-secret-token",
+        "log-cookie-value",
+    ] {
+        assert!(!serialized_logs.contains(sensitive_value));
+    }
+}
+
+async fn assert_story_execution_operations_and_boundaries(app: &Router) {
+    let (status, provider_node_operations) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/executions/provider_rproxy_story/technical-operations",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(provider_node_operations["order"], "started_at_asc");
+    assert_eq!(
+        provider_node_operations["data"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        provider_node_operations["data"][0]["id"],
+        "provider:rproxy_story"
+    );
+    assert_eq!(
+        provider_node_operations["data"][0]["related_node_id"],
+        "provider_rproxy_story"
+    );
+
+    for suffix in ["logs", "technical-operations"] {
+        let (status, empty) = story_admin_json(
+            app,
+            &format!("/api/console/v1/stories/corr_story/executions/story_heatmap_http/{suffix}"),
         )
-        .await
-        .expect("technical operations request should complete");
-    assert_eq!(operations.status(), StatusCode::OK);
-    let operations = json_body(operations).await;
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(empty["data"].as_array().map(Vec::len), Some(0));
+        if suffix == "logs" {
+            assert_eq!(empty["order"], "occurred_at_asc");
+            assert_eq!(empty["page"]["limit"], 50);
+            assert!(empty["page"]["next_created_before"].is_null());
+        } else {
+            assert_eq!(empty["order"], "started_at_asc");
+        }
+    }
+
+    for suffix in ["payload", "logs", "technical-operations"] {
+        let (status, mismatched) = story_admin_json(
+            app,
+            &format!("/api/console/v1/stories/corr_old/executions/evt_story/{suffix}"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(mismatched["code"], "not_found");
+    }
+}
+
+async fn assert_story_operations_heatmap_and_not_found(app: &Router) {
+    let (status, operations) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/technical-operations",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
     assert_provider_story_operation(&operations);
 
-    let heatmap = app
-        .clone()
-        .oneshot(
-            admin_get("/api/console/v1/stories/corr_story/heatmap?bucket_seconds=60&limit=20")
-                .with_header("authorization", "Bearer dev-service:admin"),
-        )
-        .await
-        .expect("story heatmap request should complete");
-    assert_eq!(heatmap.status(), StatusCode::OK);
-    let heatmap = json_body(heatmap).await;
+    let (status, heatmap) = story_admin_json(
+        app,
+        "/api/console/v1/stories/corr_story/heatmap?bucket_seconds=60&limit=20",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
     assert_provider_story_heatmap(&heatmap);
 
-    let missing = app
-        .clone()
-        .oneshot(
-            admin_get("/api/console/v1/stories/missing")
-                .with_header("authorization", "Bearer dev-service:admin"),
-        )
-        .await
-        .expect("missing story request should complete");
-    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+    let (status, _) = story_admin_json(app, "/api/console/v1/stories/missing").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 
-    let missing_heatmap = app
-        .oneshot(
-            admin_get("/api/console/v1/stories/missing/heatmap")
-                .with_header("authorization", "Bearer dev-service:admin"),
-        )
-        .await
-        .expect("missing story heatmap request should complete");
-    assert_eq!(missing_heatmap.status(), StatusCode::NOT_FOUND);
-    assert_eq!(json_body(missing_heatmap).await["code"], "not_found");
-
-    db.cleanup().await;
+    let (status, missing_heatmap) =
+        story_admin_json(app, "/api/console/v1/stories/missing/heatmap").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(missing_heatmap["code"], "not_found");
 }
 
 #[tokio::test]
@@ -2076,6 +2369,13 @@ fn test_config() -> AppConfig {
 }
 
 async fn insert_story_evidence(db: &TestDatabase) {
+    insert_story_outbox(db).await;
+    insert_story_provider_call(db).await;
+    insert_captured_story_events(db).await;
+    insert_story_execution_logs(db).await;
+}
+
+async fn insert_story_outbox(db: &TestDatabase) {
     sqlx::query(
         r"
         insert into platform.outbox (
@@ -2086,7 +2386,7 @@ async fn insert_story_evidence(db: &TestDatabase) {
             (
                 'evt_story', 'identity.user_registered.v1', 1, 'identity', 'user',
                 'usr_1', 'corr_story', 'req_story', '2026-05-31T00:10:00Z', $1,
-                '{}'::jsonb, 'published', 1, 3, '2026-05-31T00:10:05Z',
+                $2, 'published', 1, 3, '2026-05-31T00:10:05Z',
                 '2026-05-31T00:10:20Z', '2026-05-31T00:10:00Z'
             ),
             (
@@ -2103,13 +2403,32 @@ async fn insert_story_evidence(db: &TestDatabase) {
             )
         ",
     )
-    .bind(json!({ "user_id": "usr_1" }))
+    .bind(json!({
+        "user_id": "usr_1",
+        "email": "story-payload@example.test",
+        "profile": {
+            "credentials": [{
+                "access_token": "story-payload-secret-token",
+                "safe": true
+            }]
+        }
+    }))
+    .bind(json!({
+        "safe_header": "visible",
+        "authorization": "Bearer story-secret",
+        "actor": {
+            "kind": "service",
+            "email": "story-owner@example.test"
+        }
+    }))
     .execute(&db.pool)
     .await
     .expect("story outbox event should insert");
+}
 
+async fn insert_story_provider_call(db: &TestDatabase) {
     sqlx::query(
-        r"
+        r#"
         insert into platform.provider_http_calls (
             id, module_name, method, declared_path, provider_path, capability,
             provider_status, duration_ms, success, error_code, retryable,
@@ -2119,15 +2438,31 @@ async fn insert_story_evidence(db: &TestDatabase) {
             'rproxy_story', 'support/tickets', 'GET', '/tickets', '/tickets',
             'support_ticket.tickets.read', 503, 50, false,
             'provider_unavailable', true, 'req_story_provider', 'corr_story',
-            'trace_story_provider', 'span_story_provider', '{}'::jsonb,
-            '[]'::jsonb, '2026-05-31T00:10:20Z', '2026-05-31T00:10:20Z'
+            'trace_story_provider', 'span_story_provider',
+            '{
+                "ticket_id": "ticket_42",
+                "credentials": [{
+                    "api_key": "provider-secret-key",
+                    "safe": "retained"
+                }]
+            }'::jsonb,
+            '{
+                "message": "provider unavailable",
+                "nested": {
+                    "email": "provider-owner@example.test",
+                    "safe_code": "upstream_503"
+                }
+            }'::jsonb,
+            '2026-05-31T00:10:20Z', '2026-05-31T00:10:20Z'
         )
-        ",
+        "#,
     )
     .execute(&db.pool)
     .await
     .expect("Story provider call should insert");
+}
 
+async fn insert_captured_story_events(db: &TestDatabase) {
     sqlx::query(
         r#"
         insert into platform.story_events (
@@ -2139,14 +2474,23 @@ async fn insert_story_evidence(db: &TestDatabase) {
                 'story_heatmap_http', 'http_request', 'req_story', 'http_request',
                 'POST /identity/users', 'completed', 'api', 'corr_story', null,
                 '2026-05-31T00:10:10Z', '2026-05-31T00:10:10.120Z', 120,
-                null, '{}'::jsonb, 'trace_story', 'span_story_1',
+                null, '{
+                    "request": {
+                        "resource_id": "resource_42",
+                        "secret_token": "story-event-secret-token"
+                    }
+                }'::jsonb, 'trace_story', 'span_story_1',
                 '2026-05-31T00:10:10Z', '2026-05-31T00:10:10.120Z'
             ),
             (
                 'story_heatmap_fn_dead', 'function_run', 'fnrun_story_dead', 'function',
                 'notifications.send_welcome_email.v1', 'dead', 'notifications',
                 'corr_story', 'story_heatmap_http', '2026-05-31T00:10:40Z',
-                '2026-05-31T00:12:00Z', 80000, 'smtp timeout', '{}'::jsonb,
+                '2026-05-31T00:12:00Z', 80000, 'smtp timeout',
+                '{
+                    "captured_attempt": 3,
+                    "secret_token": "captured-function-secret"
+                }'::jsonb,
                 'trace_story', 'span_story_2', '2026-05-31T00:10:40Z',
                 '2026-05-31T00:12:00Z'
             ),
@@ -2164,6 +2508,7 @@ async fn insert_story_evidence(db: &TestDatabase) {
                     "remote_path": "/tickets",
                     "remote_status": 503,
                     "story_title": "Support Ticket Lookup",
+                    "support_contact_email": "provider-owner@example.test",
                     "retryable": true
                 }'::jsonb,
                 'trace_story_provider', 'span_story_provider',
@@ -2174,6 +2519,49 @@ async fn insert_story_evidence(db: &TestDatabase) {
     .execute(&db.pool)
     .await
     .expect("story heatmap events should insert");
+}
+
+async fn insert_story_execution_logs(db: &TestDatabase) {
+    sqlx::query(
+        r#"
+        insert into platform.execution_logs (
+            id, correlation_id, story_id, execution_id, execution_type,
+            execution_name, occurred_at, severity, body, attributes,
+            trace_id, span_id, service_name, redacted_fields
+        ) values
+            (
+                'elog_story_z_early', 'corr_story', 'corr_story', 'evt_story',
+                'outbox_event', 'identity.user_registered.v1',
+                '2026-05-31T00:10:01Z', 'info', 'Outbox event claimed',
+                '{
+                    "attempt": 1,
+                    "nested": [{
+                        "email": "log-email@example.test",
+                        "safe": "kept"
+                    }]
+                }'::jsonb,
+                'trace_story', 'span_story_log_1', 'identity', array[]::text[]
+            ),
+            (
+                'elog_story_a_late', 'corr_story', 'corr_story', 'evt_story',
+                'outbox_event', 'identity.user_registered.v1',
+                '2026-05-31T00:10:02Z', 'info', 'Outbox event published',
+                '{
+                    "attempt": 2,
+                    "credentials": {
+                        "access_token": "log-secret-token",
+                        "cookie": "log-cookie-value",
+                        "safe": true
+                    }
+                }'::jsonb,
+                'trace_story', 'span_story_log_2', 'identity',
+                array['upstream.redacted']::text[]
+            )
+        "#,
+    )
+    .execute(&db.pool)
+    .await
+    .expect("Story execution logs should insert");
 }
 
 async fn insert_unavailable_workload_control_connection(db: &TestDatabase) {

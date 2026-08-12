@@ -21,6 +21,12 @@ pub struct HeatmapQuery {
     pub created_before: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct ExecutionLogQuery {
+    pub limit: Option<i64>,
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct PageInfo {
     pub limit: i64,
@@ -55,6 +61,48 @@ pub struct AdminRuntimeHeatmapResponse {
 pub struct AdminRuntimeTechnicalOperationListResponse {
     pub data: Vec<AdminRuntimeTechnicalOperation>,
     pub order: &'static str,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(as = AdminRuntimeExecutionPayloadResponse)]
+pub struct AdminRuntimeExecutionPayloadResponse {
+    pub data: AdminRuntimeExecutionPayload,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+#[schema(as = AdminRuntimeExecutionLogListResponse)]
+pub struct AdminRuntimeExecutionLogListResponse {
+    pub data: Vec<AdminRuntimeExecutionLog>,
+    pub page: PageInfo,
+    pub order: &'static str,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionPayload {
+    pub node_id: String,
+    pub node_type: String,
+    pub input: Value,
+    pub output: Option<Value>,
+    pub metadata: Value,
+    pub redacted_fields: Vec<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionLog {
+    pub id: String,
+    pub node_id: String,
+    pub node_type: String,
+    pub correlation_id: String,
+    pub story_id: String,
+    pub execution_name: String,
+    pub occurred_at: DateTime<Utc>,
+    pub severity: String,
+    pub body: String,
+    pub attributes: Value,
+    pub service_name: String,
+    pub trace_id: Option<String>,
+    pub span_id: Option<String>,
+    pub redacted_fields: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]

@@ -76,6 +76,9 @@ mod tests {
         };
         assert_eq!(schema["component"], "lenso/runtime-stories");
         assert_eq!(schema["version"], 1);
-        assert_eq!(manifest.http_routes.len(), 4);
+        assert_eq!(manifest.http_routes.len(), 7);
+        assert!(manifest.http_routes.iter().any(|route| {
+            route.path == "/api/console/v1/stories/{correlation_id}/executions/{node_id}/payload"
+        }));
     }
 }

@@ -107,6 +107,12 @@ fn build_story_node(
     } else {
         "orphan"
     };
+    let mut redacted_fields = Vec::new();
+    let source_metadata = redact_json_value(
+        row.metadata.clone(),
+        "metadata.source_metadata",
+        &mut redacted_fields,
+    );
     AdminRuntimeStoryNode {
         id: row.id.clone(),
         node_type: row.item_type.clone(),
@@ -123,7 +129,8 @@ fn build_story_node(
             "correlation_id": row.correlation_id,
             "causation_id": row.causation_id,
             "component": component,
-            "source_metadata": row.metadata,
+            "source_metadata": source_metadata,
+            "redacted_fields": redacted_fields,
         }),
     }
 }
@@ -510,6 +517,7 @@ mod tests {
             .with_timezone(&Utc);
         let row = StoryWorkRow::from((
             "remote_proxy_call".to_owned(),
+            "provider_call".to_owned(),
             "remoteproxy_rproxy_1".to_owned(),
             "support/tickets GET /tickets".to_owned(),
             "failed".to_owned(),

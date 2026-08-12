@@ -243,6 +243,40 @@ pub(super) async fn remote_runtime_technical_operations_by_correlation(
         .collect())
 }
 
+pub(super) async fn remote_runtime_technical_operations_by_execution(
+    ctx: &AppContext,
+    request_ctx: &RequestContext,
+    node_id: &str,
+    expected_correlation: &str,
+    node_index: &RuntimeNodeIndex,
+) -> Result<Vec<AdminRuntimeTechnicalOperation>, ApiErrorResponse> {
+    let logs = ctx
+        .execution_logs
+        .query_execution_logs(platform_core::ExecutionLogQuery {
+            execution_id: node_id.to_owned(),
+            occurred_before: None,
+            limit: MAX_LIMIT,
+        })
+        .await
+        .map_err(|source| ApiErrorResponse::with_context(source, request_ctx))?;
+
+    Ok(logs
+        .into_iter()
+        .filter(|log| remote_runtime_log_matches_node(log, node_id, expected_correlation))
+        .map(|log| remote_runtime_log_to_technical_operation(log, node_index))
+        .collect())
+}
+
+fn remote_runtime_log_matches_node(
+    log: &ExecutionLogRow,
+    node_id: &str,
+    expected_correlation: &str,
+) -> bool {
+    span_attribute(&log.attributes, "source") == Some("remote_runtime")
+        && log.execution_id == node_id
+        && log.correlation_id == expected_correlation
+}
+
 fn remote_runtime_log_to_technical_operation(
     log: ExecutionLogRow,
     node_index: &RuntimeNodeIndex,
@@ -264,7 +298,7 @@ fn remote_runtime_log_to_technical_operation(
     };
 
     AdminRuntimeTechnicalOperation {
-        attributes: log.attributes,
+        attributes: redacted_json_value(log.attributes, "attributes"),
         category: "external".to_owned(),
         correlation_id: log.correlation_id.clone(),
         duration_ms,
@@ -546,6 +580,24 @@ mod tests {
         );
     }
 
+    #[test]
+    fn remote_runtime_execution_log_must_match_the_story_correlation() {
+        let mut log = execution_log_row("corr_story");
+
+        assert!(remote_runtime_log_matches_node(
+            &log,
+            "node_story",
+            "corr_story"
+        ));
+
+        log.correlation_id = "corr_other".to_owned();
+        assert!(!remote_runtime_log_matches_node(
+            &log,
+            "node_story",
+            "corr_story"
+        ));
+    }
+
     fn provider_call(id: &str, trace_id: Option<&str>, span_id: Option<&str>) -> AdminProviderCall {
         AdminProviderCall {
             id: id.to_owned(),
@@ -575,6 +627,25 @@ mod tests {
             name: "provider crm-service".to_owned(),
             started_at: parse_time("2026-05-31T00:00:02Z"),
             status: Some("ok".to_owned()),
+        }
+    }
+
+    fn execution_log_row(correlation_id: &str) -> ExecutionLogRow {
+        ExecutionLogRow {
+            id: "log_story".to_owned(),
+            correlation_id: correlation_id.to_owned(),
+            story_id: correlation_id.to_owned(),
+            execution_id: "node_story".to_owned(),
+            execution_type: "function".to_owned(),
+            execution_name: "story.function".to_owned(),
+            occurred_at: parse_time("2026-05-31T00:00:02Z"),
+            severity: "info".to_owned(),
+            body: "completed".to_owned(),
+            attributes: serde_json::json!({"source": "remote_runtime"}),
+            trace_id: None,
+            span_id: None,
+            service_name: "runtime".to_owned(),
+            redacted_fields: Vec::new(),
         }
     }
 
