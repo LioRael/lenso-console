@@ -877,7 +877,30 @@ describe("runtime API model normalization", () => {
   });
 
   test("normalizes execution log responses", () => {
-    const logs = normalizeExecutionLogs({
+    const result = normalizeExecutionLogs({
+      coverage: {
+        gaps: [
+          {
+            detail: "support-api did not answer before the deadline",
+            kind: "unreachable",
+            next_action: "Check the Service connection",
+            source_id: "support-api",
+          },
+        ],
+        sources: [
+          {
+            service_name: "notifications",
+            source_id: "local-runtime",
+            status: "complete",
+          },
+          {
+            service_name: "support-api",
+            source_id: "support-api",
+            status: "unavailable",
+          },
+        ],
+        status: "partial",
+      },
       data: [
         {
           attributes: { attempt: 1 },
@@ -898,23 +921,77 @@ describe("runtime API model normalization", () => {
       ],
     });
 
-    expect(logs).toEqual([
-      {
-        attributes: { attempt: 1 },
-        body: "Function run started",
-        correlationId: "corr_1",
-        executionName: "notifications.send_welcome_email.v1",
-        id: "elog_1",
-        nodeId: "fnrun_1",
-        nodeType: "function_run",
-        occurredAt: "2026-06-01T12:00:01.000Z",
-        redactedFields: ["attributes.email"],
-        serviceName: "notifications",
-        severity: "info",
-        spanId: "span_1",
-        storyId: "corr_1",
-        traceId: "trace_1",
+    expect(result).toEqual({
+      coverage: {
+        gaps: [
+          {
+            detail: "support-api did not answer before the deadline",
+            kind: "unreachable",
+            nextAction: "Check the Service connection",
+            sourceId: "support-api",
+          },
+        ],
+        sources: [
+          {
+            serviceName: "notifications",
+            sourceId: "local-runtime",
+            status: "complete",
+          },
+          {
+            serviceName: "support-api",
+            sourceId: "support-api",
+            status: "unavailable",
+          },
+        ],
+        status: "partial",
       },
-    ]);
+      entries: [
+        {
+          attributes: { attempt: 1 },
+          body: "Function run started",
+          correlationId: "corr_1",
+          executionName: "notifications.send_welcome_email.v1",
+          id: "elog_1",
+          nodeId: "fnrun_1",
+          nodeType: "function_run",
+          occurredAt: "2026-06-01T12:00:01.000Z",
+          redactedFields: ["attributes.email"],
+          serviceName: "notifications",
+          severity: "info",
+          spanId: "span_1",
+          storyId: "corr_1",
+          traceId: "trace_1",
+        },
+      ],
+    });
+  });
+
+  test("keeps legacy execution log coverage unknown", () => {
+    expect(normalizeExecutionLogs({ data: [] })).toEqual({ entries: [] });
+  });
+
+  test.each(["complete", "disabled", "partial", "unavailable"] as const)(
+    "normalizes %s execution log coverage",
+    (status) => {
+      expect(
+        normalizeExecutionLogs({
+          coverage: { gaps: [], sources: [], status },
+          data: [],
+        }).coverage?.status
+      ).toBe(status);
+    }
+  );
+
+  test("treats an unrecognized execution log coverage status as unavailable", () => {
+    expect(
+      normalizeExecutionLogs({
+        coverage: {
+          gaps: [],
+          sources: [],
+          status: "future-state" as never,
+        },
+        data: [],
+      }).coverage?.status
+    ).toBe("unavailable");
   });
 });

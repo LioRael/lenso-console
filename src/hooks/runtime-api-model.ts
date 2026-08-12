@@ -1,6 +1,8 @@
 import type {
   ExecutionEdge,
+  ExecutionLogCoverage,
   ExecutionLogEntry,
+  ExecutionLogsResult,
   ExecutionPayload,
   ExecutionNode,
   FederatedReliabilityEvidence,
@@ -397,8 +399,12 @@ export function normalizeExecutionPayload(
 
 export function normalizeExecutionLogs(
   response: ApiExecutionLogResponse
-): ExecutionLogEntry[] {
-  return (response.data ?? []).map(normalizeExecutionLog);
+): ExecutionLogsResult {
+  const coverage = normalizeExecutionLogCoverage(response.coverage);
+  return {
+    ...(coverage ? { coverage } : {}),
+    entries: (response.data ?? []).map(normalizeExecutionLog),
+  };
 }
 
 function normalizeRuntimeEdges(
@@ -485,6 +491,47 @@ function normalizeExecutionLog(log: ApiExecutionLog): ExecutionLogEntry {
     ),
     ...(typeof log.trace_id === "string" ? { traceId: log.trace_id } : {}),
   };
+}
+
+function normalizeExecutionLogCoverage(
+  coverage: ApiExecutionLogResponse["coverage"]
+): ExecutionLogCoverage | undefined {
+  if (!coverage) {
+    return undefined;
+  }
+
+  return {
+    gaps: (coverage.gaps ?? []).map((gap) => ({
+      detail: safeString(gap.detail, "Log source coverage is unavailable"),
+      kind: safeString(gap.kind, "unavailable"),
+      ...(typeof gap.next_action === "string" && gap.next_action.length > 0
+        ? { nextAction: gap.next_action }
+        : {}),
+      sourceId: safeString(gap.source_id, "unknown"),
+    })),
+    sources: (coverage.sources ?? []).map((source) => ({
+      serviceName: safeString(source.service_name, "unknown"),
+      sourceId: safeString(source.source_id, "unknown"),
+      status: normalizeExecutionLogCoverageStatus(source.status),
+    })),
+    status: normalizeExecutionLogCoverageStatus(coverage.status),
+  };
+}
+
+function normalizeExecutionLogCoverageStatus(
+  status: string | undefined
+): ExecutionLogCoverage["status"] {
+  switch (status) {
+    case "complete":
+    case "disabled":
+    case "partial":
+    case "unavailable": {
+      return status;
+    }
+    default: {
+      return "unavailable";
+    }
+  }
 }
 
 function normalizeTechnicalOperation(

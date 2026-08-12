@@ -689,7 +689,9 @@ mod tests {
     use super::*;
     use crate::federation::{
         FEDERATED_RUNTIME_STORY_PROTOCOL, FederatedStoryGap, FederatedStoryGapKind,
-        FederatedStoryReliabilityEvidence, FederatedStoryReliabilityStatus,
+        FederatedStoryLogCoverage, FederatedStoryLogCoverageSource,
+        FederatedStoryLogCoverageStatus, FederatedStoryReliabilityEvidence,
+        FederatedStoryReliabilityStatus,
     };
     use lenso_service::{
         EffectiveReliabilityValues, ReliabilityEnforcementBoundary, ReliabilityHealthResult,
@@ -753,6 +755,15 @@ mod tests {
             id: format!("node-{segment_id}"),
             segment,
             technical_evidence: Vec::new(),
+            log_coverage: FederatedStoryLogCoverage {
+                status: FederatedStoryLogCoverageStatus::Disabled,
+                sources: vec![FederatedStoryLogCoverageSource {
+                    source_id: "test".to_owned(),
+                    service_name: service_id.to_owned(),
+                    status: FederatedStoryLogCoverageStatus::Disabled,
+                }],
+                gaps: Vec::new(),
+            },
         }
     }
 

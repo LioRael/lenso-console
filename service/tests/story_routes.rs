@@ -15,7 +15,8 @@ use lenso::system_plane::{
     sign_enrollment_offer, sign_enrollment_receipt,
 };
 use platform_core::{
-    AppConfig, AppContext, AuthConfig, DatabaseConfig, HttpConfig, LoggingEventPublisher,
+    AppConfig, AppContext, AppError, AppResult, AuthConfig, DatabaseConfig, ErrorCode,
+    ExecutionLogProvider, ExecutionLogQuery, ExecutionLogRow, HttpConfig, LoggingEventPublisher,
     ModuleConfig, ModuleSourcesConfig, RedisConfig, ServiceConfig, TelemetryConfig,
     apply_migrations,
 };
@@ -36,6 +37,38 @@ const SUPPORT_TICKET_RELEASE_DIGEST: &str =
     "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 const SUPPORT_TICKET_ARTIFACT_DIGEST: &str =
     "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+
+#[derive(Debug)]
+struct UnavailableExecutionLogProvider;
+
+#[async_trait::async_trait]
+impl ExecutionLogProvider for UnavailableExecutionLogProvider {
+    async fn query_execution_logs(
+        &self,
+        _query: ExecutionLogQuery,
+    ) -> AppResult<Vec<ExecutionLogRow>> {
+        Err(AppError::new(
+            ErrorCode::ExternalDependency,
+            "test execution log source unavailable",
+        ))
+    }
+}
+
+#[derive(Debug)]
+struct CorruptExecutionLogProvider;
+
+#[async_trait::async_trait]
+impl ExecutionLogProvider for CorruptExecutionLogProvider {
+    async fn query_execution_logs(
+        &self,
+        _query: ExecutionLogQuery,
+    ) -> AppResult<Vec<ExecutionLogRow>> {
+        Err(AppError::new(
+            ErrorCode::Internal,
+            "test execution log projection is corrupt",
+        ))
+    }
+}
 
 #[tokio::test]
 async fn story_routes_are_owned_by_the_console_composition() {
@@ -134,6 +167,10 @@ fn assert_story_route_openapi(document: &Value) {
         "AdminRuntimeExecutionPayload",
         "AdminRuntimeExecutionPayloadResponse",
         "AdminRuntimeExecutionLog",
+        "AdminRuntimeExecutionLogCoverage",
+        "AdminRuntimeExecutionLogCoverageGap",
+        "AdminRuntimeExecutionLogCoverageSource",
+        "AdminRuntimeExecutionLogCoverageStatus",
         "AdminRuntimeExecutionLogListResponse",
     ] {
         assert!(
@@ -141,6 +178,13 @@ fn assert_story_route_openapi(document: &Value) {
             "missing execution evidence schema {schema}"
         );
     }
+    assert!(
+        document["components"]["schemas"]["AdminRuntimeExecutionLogListResponse"]["required"]
+            .as_array()
+            .is_some_and(|required| required.contains(&json!("coverage"))),
+        "execution log coverage must be a required additive response field"
+    );
+    assert_execution_log_coverage_openapi(document);
     for legacy_path in [
         "/admin/runtime/executions/{node_id}/payload",
         "/admin/runtime/executions/{node_id}/logs",
@@ -149,6 +193,52 @@ fn assert_story_route_openapi(document: &Value) {
         assert!(
             document["paths"].get(legacy_path).is_none(),
             "legacy execution evidence route must not be browser-facing: {legacy_path}"
+        );
+    }
+}
+
+fn assert_execution_log_coverage_openapi(document: &Value) {
+    assert_required_schema_properties(
+        document,
+        "AdminRuntimeExecutionLogCoverage",
+        &["status", "sources", "gaps"],
+    );
+    assert_required_schema_properties(
+        document,
+        "AdminRuntimeExecutionLogCoverageSource",
+        &["source_id", "service_name", "status"],
+    );
+    assert_required_schema_properties(
+        document,
+        "AdminRuntimeExecutionLogCoverageGap",
+        &["source_id", "kind", "detail"],
+    );
+    assert!(
+        document["components"]["schemas"]["AdminRuntimeExecutionLogCoverageGap"]["properties"]
+            ["next_action"]
+            .is_object(),
+        "coverage gaps must publish the optional next_action property"
+    );
+    assert!(
+        !document["components"]["schemas"]["AdminRuntimeExecutionLogCoverageGap"]["required"]
+            .as_array()
+            .is_some_and(|required| required.contains(&json!("next_action"))),
+        "coverage gap next_action must stay optional"
+    );
+    assert_eq!(
+        document["components"]["schemas"]["AdminRuntimeExecutionLogCoverageStatus"]["enum"],
+        json!(["complete", "disabled", "partial", "unavailable"])
+    );
+}
+
+fn assert_required_schema_properties(document: &Value, schema: &str, properties: &[&str]) {
+    let required = document["components"]["schemas"][schema]["required"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{schema} must publish required properties"));
+    for property in properties {
+        assert!(
+            required.contains(&json!(property)),
+            "{schema}.{property} must be required"
         );
     }
 }
@@ -1628,6 +1718,82 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
     db.cleanup().await;
 }
 
+#[tokio::test]
+async fn unavailable_execution_log_source_is_reported_without_hiding_story_ownership() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+    let app = app_with_database_and_execution_log_provider(
+        &db,
+        Arc::new(UnavailableExecutionLogProvider),
+    )
+    .await;
+    insert_story_evidence(&db).await;
+
+    let (status, logs) = story_admin_json(
+        &app,
+        "/api/console/v1/stories/corr_story/executions/evt_story/logs",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(logs["data"], json!([]));
+    assert_eq!(logs["coverage"]["status"], "unavailable");
+    assert_eq!(
+        logs["coverage"]["sources"],
+        json!([{
+            "source_id": "runtime_execution_logs",
+            "service_name": "identity",
+            "status": "unavailable"
+        }])
+    );
+    assert_eq!(logs["coverage"]["gaps"][0]["kind"], "source_unavailable");
+    assert!(
+        !logs
+            .to_string()
+            .contains("test execution log source unavailable")
+    );
+
+    let (mismatched_status, _) = story_admin_json(
+        &app,
+        "/api/console/v1/stories/corr_old/executions/evt_story/logs",
+    )
+    .await;
+    assert_eq!(mismatched_status, StatusCode::NOT_FOUND);
+
+    let unauthenticated = app
+        .clone()
+        .oneshot(admin_get(
+            "/api/console/v1/stories/corr_story/executions/evt_story/logs",
+        ))
+        .await
+        .expect("unauthenticated execution log request should complete");
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+    let forbidden = app
+        .clone()
+        .oneshot(
+            admin_get("/api/console/v1/stories/corr_story/executions/evt_story/logs")
+                .with_header("authorization", "Bearer dev-user:user_123"),
+        )
+        .await
+        .expect("unscoped execution log request should complete");
+    assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+    let corrupt_app =
+        app_with_database_and_execution_log_provider(&db, Arc::new(CorruptExecutionLogProvider))
+            .await;
+    let corrupt = corrupt_app
+        .oneshot(
+            admin_get("/api/console/v1/stories/corr_story/executions/evt_story/logs")
+                .with_header("authorization", "Bearer dev-service:admin"),
+        )
+        .await
+        .expect("corrupt execution log request should complete");
+    assert_eq!(corrupt.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+    db.cleanup().await;
+}
+
 async fn story_admin_json(app: &Router, path: &str) -> (StatusCode, Value) {
     let response = app
         .clone()
@@ -1818,6 +1984,16 @@ async fn assert_story_execution_logs(app: &Router) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(logs["order"], "occurred_at_asc");
     assert_eq!(logs["page"]["limit"], 10);
+    assert_eq!(logs["coverage"]["status"], "complete");
+    assert_eq!(
+        logs["coverage"]["sources"],
+        json!([{
+            "source_id": "runtime_execution_logs",
+            "service_name": "identity",
+            "status": "complete"
+        }])
+    );
+    assert_eq!(logs["coverage"]["gaps"], json!([]));
     assert_eq!(
         logs["data"]
             .as_array()
@@ -1896,6 +2072,16 @@ async fn assert_story_execution_operations_and_boundaries(app: &Router) {
             assert_eq!(empty["order"], "occurred_at_asc");
             assert_eq!(empty["page"]["limit"], 50);
             assert!(empty["page"]["next_created_before"].is_null());
+            assert_eq!(empty["coverage"]["status"], "complete");
+            assert_eq!(
+                empty["coverage"]["sources"],
+                json!([{
+                    "source_id": "runtime_execution_logs",
+                    "service_name": "api",
+                    "status": "complete"
+                }])
+            );
+            assert_eq!(empty["coverage"]["gaps"], json!([]));
         } else {
             assert_eq!(empty["order"], "started_at_asc");
         }
@@ -2293,6 +2479,28 @@ async fn app_with_database_and_config(db: &TestDatabase, mut config: AppConfig) 
         .expect("Console migrations should apply");
 
     let ctx = AppContext::new(config, db.pool.clone(), Arc::new(LoggingEventPublisher));
+    lenso_api::try_build_router_with_composition(ctx, &composition)
+        .expect("Console router should build")
+}
+
+async fn app_with_database_and_execution_log_provider(
+    db: &TestDatabase,
+    execution_logs: Arc<dyn ExecutionLogProvider>,
+) -> axum::Router {
+    let mut config = test_config();
+    config.database = DatabaseConfig {
+        url: db.url.clone(),
+        max_connections: 5,
+    };
+    let composition = lenso_console_service::host_composition();
+    let migrations = lenso_bootstrap::migrations_for_config_with_composition(&config, &composition)
+        .expect("Console migrations should compose");
+    apply_migrations(&db.pool, &migrations)
+        .await
+        .expect("Console migrations should apply");
+
+    let ctx = AppContext::new(config, db.pool.clone(), Arc::new(LoggingEventPublisher))
+        .with_execution_log_provider(execution_logs);
     lenso_api::try_build_router_with_composition(ctx, &composition)
         .expect("Console router should build")
 }

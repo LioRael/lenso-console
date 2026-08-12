@@ -1,4 +1,8 @@
-import type { ExecutionNode, RuntimeStory } from "../../data/mock-runtime";
+import type {
+  ExecutionLogCoverage,
+  ExecutionNode,
+  RuntimeStory,
+} from "../../data/mock-runtime";
 import { formatRuntimeDuration } from "../../lib/runtime-style";
 
 export type ExecutionInspectorTab =
@@ -51,6 +55,108 @@ export const executionInspectorTabs = [
   id: ExecutionInspectorTab;
   label: string;
 }>;
+
+export function executionLogPresentation(input: {
+  coverage: ExecutionLogCoverage | undefined;
+  entryCount: number;
+}): { emptyLabel?: string; noticeLabel?: string } {
+  if (input.entryCount === 0) {
+    switch (input.coverage?.status) {
+      case "complete": {
+        return {
+          emptyLabel: "No application logs were emitted for this execution.",
+        };
+      }
+      case "disabled": {
+        return {
+          emptyLabel: "Log collection is disabled for this execution.",
+        };
+      }
+      case "partial": {
+        return {
+          emptyLabel:
+            "Available log sources returned no entries, but log coverage is partial.",
+        };
+      }
+      case "unavailable": {
+        return {
+          emptyLabel:
+            "Execution logs are unavailable because no log source could be read.",
+        };
+      }
+      default: {
+        return {
+          emptyLabel:
+            "No runtime logs recorded for this execution yet. Runtime lifecycle logs are recorded for work processed after execution logging was enabled.",
+        };
+      }
+    }
+  }
+
+  const entryLabel = `${input.entryCount} available ${input.entryCount === 1 ? "entry" : "entries"}.`;
+  switch (input.coverage?.status) {
+    case "partial": {
+      return {
+        noticeLabel: `Some log sources could not be read. Showing ${entryLabel}`,
+      };
+    }
+    case "unavailable": {
+      return {
+        noticeLabel: `Log coverage is unavailable. Showing ${entryLabel}`,
+      };
+    }
+    case "disabled": {
+      return {
+        noticeLabel: `Log collection is disabled. Showing ${entryLabel}`,
+      };
+    }
+    default: {
+      return {};
+    }
+  }
+}
+
+export function executionLogCoverageContext(
+  coverage: ExecutionLogCoverage | undefined
+):
+  | {
+      gapContexts: Array<{
+        detailLabel: string;
+        nextActionLabel?: string;
+        sourceId: string;
+      }>;
+      sourceSummaryLabel?: string;
+    }
+  | undefined {
+  if (!coverage || coverage.gaps.length === 0) {
+    return undefined;
+  }
+
+  const readableSources = coverage.sources.filter(
+    (source) => source.status === "complete" || source.status === "partial"
+  ).length;
+  const sourceSummaryLabel =
+    coverage.sources.length > 0
+      ? `${readableSources} of ${coverage.sources.length} log sources available.`
+      : undefined;
+
+  return {
+    gapContexts: coverage.gaps.map((gap) => {
+      const source = coverage.sources.find(
+        (candidate) => candidate.sourceId === gap.sourceId
+      );
+      const sourceLabel = source?.serviceName
+        ? `${source.serviceName} (${gap.sourceId})`
+        : gap.sourceId;
+      return {
+        detailLabel: `${sourceLabel}: ${gap.detail}`,
+        ...(gap.nextAction ? { nextActionLabel: gap.nextAction } : {}),
+        sourceId: gap.sourceId,
+      };
+    }),
+    ...(sourceSummaryLabel ? { sourceSummaryLabel } : {}),
+  };
+}
 
 export function buildExecutionPayload(
   node: ExecutionNode
@@ -253,7 +359,8 @@ export function buildExecutionContext(
 
 export function getExecutionInspectorTabCounts(
   story: RuntimeStory,
-  node: ExecutionNode
+  node: ExecutionNode,
+  loadedLogCount?: number
 ): Record<ExecutionInspectorTab, number> {
   const { downstream, upstream } = relatedNodeGroups(story, node);
   const payload = buildExecutionPayload(node);
@@ -262,7 +369,7 @@ export function getExecutionInspectorTabCounts(
     events:
       buildExecutionActivity(story, node).length +
       buildExecutionFailures(node).length,
-    logs: node.logs.length,
+    logs: loadedLogCount ?? node.logs.length,
     overview: 0,
     operations: upstream.length + downstream.length,
     payload: [payload.input, payload.output, payload.metadata].filter(
