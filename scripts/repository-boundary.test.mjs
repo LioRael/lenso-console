@@ -125,11 +125,17 @@ describe("Lenso Console repository boundary", () => {
     const manifest = JSON.parse(await source("package.json"));
     const config = JSON.parse(await source(".changeset/config.json"));
     const workflow = await source(".github/workflows/release-changesets.yml");
-    const moduleApi = JSON.parse(
-      await source("packages/console-module-api/package.json")
-    );
-    const consoleUi = JSON.parse(
-      await source("packages/console-ui/package.json")
+    const publicPackagePaths = [
+      "packages/console-composition-api/package.json",
+      "packages/console-module-api/package.json",
+      "packages/console-tokens/package.json",
+      "packages/console-ui/package.json",
+    ];
+    const publicPackages = await Promise.all(
+      publicPackagePaths.map(async (packagePath) => ({
+        directory: path.dirname(packagePath),
+        manifest: JSON.parse(await source(packagePath)),
+      }))
     );
 
     expect(manifest.private).toBe(true);
@@ -142,8 +148,17 @@ describe("Lenso Console repository boundary", () => {
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("NPM_CONFIG_PROVENANCE");
     expect(workflow).not.toContain("NPM_TOKEN");
-    expect(moduleApi.publishConfig).toEqual({ access: "public" });
-    expect(consoleUi.publishConfig).toEqual({ access: "public" });
+    for (const { directory, manifest: packageManifest } of publicPackages) {
+      expect(manifest.scripts.release).toContain(
+        `pnpm --filter ${packageManifest.name} build`
+      );
+      expect(packageManifest.publishConfig).toEqual({ access: "public" });
+      expect(packageManifest.repository).toEqual({
+        directory,
+        type: "git",
+        url: "https://github.com/LioRael/lenso-console",
+      });
+    }
   });
 
   test("owns OCI publication in the Console repository", async () => {
