@@ -31,7 +31,8 @@ The root private package version is the Console Service release version. When a
 merged Changesets version update changes that version, the repository-local OCI
 workflow:
 
-1. builds `ghcr.io/liorael/lenso-console:VERSION` for `linux/amd64`;
+1. builds `ghcr.io/liorael/lenso-console:VERSION` for `linux/amd64` and
+   `linux/arm64`;
 2. refuses to overwrite an existing version tag;
 3. publishes the image with GitHub OIDC and build provenance;
 4. generates `service/release-manifest.schema.json` output bound to the image

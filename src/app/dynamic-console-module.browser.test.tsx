@@ -8,13 +8,15 @@ import { DynamicConsoleModulePage } from "./dynamic-console-module";
 const runtime = vi.hoisted(() => ({
   adminState: "authorized" as "authorized" | "error" | "pending",
   loadConsoleUiModule: vi.fn(),
+  managedServicesState: "ready" as "error" | "pending" | "ready",
+  path: "/stories",
 }));
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
   ...(await importOriginal()),
   useNavigate: () => vi.fn(),
   useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
-    select({ location: { pathname: "/stories" } }),
+    select({ location: { pathname: runtime.path } }),
 }));
 vi.mock("../lib/http-client", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -43,7 +45,9 @@ vi.mock("./console-admin-context", async (importOriginal) => ({
 vi.mock("./console-artifact-query", async (importOriginal) => ({
   ...(await importOriginal()),
   useConsoleArtifacts: () => ({
-    data: { artifacts: [storyArtifact] },
+    data: {
+      artifacts: [runtime.path === "/stories" ? storyArtifact : authArtifact],
+    },
     isError: false,
     isPending: false,
   }),
@@ -59,14 +63,19 @@ vi.mock("./console-module-runtime", async (importOriginal) => ({
 vi.mock("./console-system-connection-api", async (importOriginal) => ({
   ...(await importOriginal()),
   useConsoleSystemConnection: () => ({
-    data: systemConnection,
+    data: runtime.path === "/stories" ? systemConnection : authSystemConnection,
     isError: false,
     isPending: false,
   }),
 }));
 vi.mock("./console-system-registry-api", async (importOriginal) => ({
   ...(await importOriginal()),
-  useConsoleManagedServices: () => ({ data: [] }),
+  useConsoleManagedServices: () => ({
+    data:
+      runtime.managedServicesState === "ready" ? [managedService] : undefined,
+    isError: runtime.managedServicesState === "error",
+    isPending: runtime.managedServicesState === "pending",
+  }),
 }));
 vi.mock("./managed-service-selection", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -84,6 +93,8 @@ beforeAll(() => {
 
 afterEach(async () => {
   runtime.adminState = "authorized";
+  runtime.managedServicesState = "ready";
+  runtime.path = "/stories";
   runtime.loadConsoleUiModule.mockReset();
   for (const root of roots.splice(0)) {
     await act(async () => root.unmount());
@@ -148,6 +159,78 @@ describe("Dynamic Console Module route boundary", () => {
       expect(runtime.loadConsoleUiModule).not.toHaveBeenCalled();
     }
   );
+
+  test.each([
+    ["pending", "Loading Managed Service Context"],
+    ["error", "Managed Service Context is unavailable"],
+  ] as const)(
+    "keeps a direct Module Surface deep link in a truthful %s state",
+    async (managedServicesState, expectedState) => {
+      runtime.path = "/auth/users";
+      runtime.managedServicesState = managedServicesState;
+      runtime.loadConsoleUiModule.mockResolvedValue({
+        surfaces: [
+          {
+            component: () => <div>Auth users loaded</div>,
+            id: "users",
+            label: "Users",
+            path: "/auth/users",
+          },
+        ],
+      });
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      queryClients.push(queryClient);
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      roots.push(root);
+
+      await act(async () => {
+        root.render(
+          <QueryClientProvider client={queryClient}>
+            <DynamicConsoleModulePage />
+          </QueryClientProvider>
+        );
+      });
+
+      expect(container.textContent).toContain(expectedState);
+    }
+  );
+
+  test("restores a direct Module Surface deep link after Managed Services resolve", async () => {
+    runtime.path = "/auth/users";
+    runtime.loadConsoleUiModule.mockResolvedValue({
+      surfaces: [
+        {
+          component: () => <div>Auth users loaded</div>,
+          id: "users",
+          label: "Users",
+          path: "/auth/users",
+        },
+      ],
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClients.push(queryClient);
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <DynamicConsoleModulePage />
+        </QueryClientProvider>
+      );
+    });
+    await act(async () => undefined);
+
+    expect(container.textContent).toContain("Auth users loaded");
+  });
 });
 
 const artifactDigest = `sha256:${"a".repeat(64)}` as const;
@@ -207,4 +290,56 @@ const systemConnection = {
   status: "connected" as const,
   systemId: "support-desk",
   topologyDigest,
+};
+
+const authArtifact = {
+  ...storyArtifact,
+  manifest: {
+    ...storyArtifact.manifest,
+    moduleId: "lenso/auth",
+    surfaces: [
+      {
+        area: "runtime" as const,
+        id: "users",
+        label: "Users",
+        path: "/auth/users",
+        requiredCapabilities: [],
+      },
+    ],
+  },
+  moduleId: "lenso/auth",
+};
+
+const managedService = {
+  baseUrl: "http://127.0.0.1:3000",
+  capabilities: [],
+  connectionState: "ready" as const,
+  enrolledAtUnixMs: Date.now() - 1_000,
+  enrollmentExpiresAtUnixMs: Date.now() + 60_000,
+  enrollmentState: "active" as const,
+  serviceId: "lenso-taste",
+  servicePrincipal: "service:lenso-taste",
+  serviceRevision: "1",
+};
+
+const authSystemConnection = {
+  ...systemConnection,
+  managementBinding: {
+    ...systemConnection.managementBinding,
+    serviceIds: [managedService.serviceId],
+  },
+  modules: [
+    {
+      ...systemConnection.modules[0],
+      moduleId: "lenso/auth",
+      serviceId: managedService.serviceId,
+    },
+  ],
+  services: [
+    {
+      serviceId: managedService.serviceId,
+      servicePrincipal: managedService.servicePrincipal,
+      status: "connected" as const,
+    },
+  ],
 };
