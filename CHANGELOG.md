@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.8
+
+### Patch Changes
+
+- 6a3f561: Build amd64 and arm64 Console Service images concurrently on native runners.
+
 ## 1.0.7
 
 ### Patch Changes
