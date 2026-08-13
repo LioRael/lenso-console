@@ -251,6 +251,14 @@ describe("Lenso Console repository boundary", () => {
     );
   });
 
+  test("keeps the Services inventory table owned by shared primitives", async () => {
+    const styles = await source("src/styles.css");
+
+    expect(styles).not.toMatch(
+      /\[data-page~="services-page"\]\s+\[data-ui~="(?:data-grid|table-header|data-row)"\]/u
+    );
+  });
+
   test("documents the local release boundary", async () => {
     const contents = await source("docs/repository-operations.md");
 

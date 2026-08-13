@@ -18,11 +18,12 @@ enum StoryExecutionNode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LocalPayloadSource {
+enum ExecutionEvidenceSource {
     Outbox,
     FunctionRun,
     ProviderCall,
     CapturedStoryEvent,
+    Federated,
 }
 
 #[utoipa::path(
@@ -229,15 +230,22 @@ async fn local_execution_payload(
     request_ctx: &RequestContext,
     node: &StoryWorkRow,
 ) -> Result<AdminRuntimeExecutionPayload, ApiErrorResponse> {
-    let (input, output, metadata) = match local_payload_source(node) {
-        LocalPayloadSource::Outbox => outbox_payload_parts(ctx, request_ctx, node).await?,
-        LocalPayloadSource::FunctionRun => function_payload_parts(ctx, request_ctx, node).await?,
-        LocalPayloadSource::ProviderCall => provider_payload_parts(ctx, request_ctx, node).await?,
-        LocalPayloadSource::CapturedStoryEvent => {
+    let source = execution_evidence_source(node);
+    let (input, output, metadata) = match source {
+        ExecutionEvidenceSource::Outbox => outbox_payload_parts(ctx, request_ctx, node).await?,
+        ExecutionEvidenceSource::FunctionRun => {
+            function_payload_parts(ctx, request_ctx, node).await?
+        }
+        ExecutionEvidenceSource::ProviderCall => {
+            provider_payload_parts(ctx, request_ctx, node).await?
+        }
+        ExecutionEvidenceSource::CapturedStoryEvent => {
             (node.metadata.clone(), None, runtime_node_metadata(node))
         }
+        ExecutionEvidenceSource::Federated => unreachable!("local evidence cannot be federated"),
     };
     Ok(redacted_execution_payload(
+        source,
         node.id.clone(),
         node.item_type.clone(),
         input,
@@ -246,14 +254,14 @@ async fn local_execution_payload(
     ))
 }
 
-fn local_payload_source(node: &StoryWorkRow) -> LocalPayloadSource {
+fn execution_evidence_source(node: &StoryWorkRow) -> ExecutionEvidenceSource {
     if node.item_type == "provider_call" {
-        return LocalPayloadSource::ProviderCall;
+        return ExecutionEvidenceSource::ProviderCall;
     }
     match node.source_type.as_str() {
-        "outbox" => LocalPayloadSource::Outbox,
-        "function_run" => LocalPayloadSource::FunctionRun,
-        _ => LocalPayloadSource::CapturedStoryEvent,
+        "outbox" => ExecutionEvidenceSource::Outbox,
+        "function_run" => ExecutionEvidenceSource::FunctionRun,
+        _ => ExecutionEvidenceSource::CapturedStoryEvent,
     }
 }
 
@@ -365,8 +373,10 @@ async fn provider_payload_parts(
     let row = sqlx::query(
         r#"
         select
-            path_params,
-            error_details,
+            provider_call.path_params,
+            provider_call.error_details,
+            to_jsonb(provider_call) -> 'request_body' as request_body,
+            to_jsonb(provider_call) -> 'response_body' as response_body,
             jsonb_build_object(
                 'provider_call_id', id,
                 'module_name', module_name,
@@ -383,9 +393,19 @@ async fn provider_payload_parts(
                 'correlation_id', correlation_id,
                 'trace_id', trace_id,
                 'span_id', span_id,
-                'occurred_at', occurred_at
+                'occurred_at', occurred_at,
+                'request_body_capture', jsonb_build_object(
+                    'status', to_jsonb(provider_call) ->> 'request_body_capture_status',
+                    'reason', to_jsonb(provider_call) ->> 'request_body_capture_reason',
+                    'observed_bytes', to_jsonb(provider_call) -> 'request_body_observed_bytes'
+                ),
+                'response_body_capture', jsonb_build_object(
+                    'status', to_jsonb(provider_call) ->> 'response_body_capture_status',
+                    'reason', to_jsonb(provider_call) ->> 'response_body_capture_reason',
+                    'observed_bytes', to_jsonb(provider_call) -> 'response_body_observed_bytes'
+                )
             ) as metadata
-        from platform.provider_http_calls
+        from platform.provider_http_calls provider_call
         where id = $1 and correlation_id = $2
         "#,
     )
@@ -396,16 +416,32 @@ async fn provider_payload_parts(
     .map_err(|source| query_error(source, request_ctx))?
     .ok_or_else(|| execution_node_not_found(request_ctx, &node.correlation_id, &node.id))?;
 
-    let input = row
+    let path_params: Value = row
         .try_get("path_params")
         .map_err(|source| query_error(source, request_ctx))?;
-    let output = row
+    let error_details: Value = row
         .try_get("error_details")
+        .map_err(|source| query_error(source, request_ctx))?;
+    let request_body: Option<Value> = row
+        .try_get("request_body")
+        .map_err(|source| query_error(source, request_ctx))?;
+    let response_body: Option<Value> = row
+        .try_get("response_body")
         .map_err(|source| query_error(source, request_ctx))?;
     let metadata = row
         .try_get("metadata")
         .map_err(|source| query_error(source, request_ctx))?;
-    Ok((input, Some(output), metadata))
+    Ok((
+        serde_json::json!({
+            "path_params": path_params,
+            "body": request_body,
+        }),
+        Some(serde_json::json!({
+            "body": response_body,
+            "error_details": error_details,
+        })),
+        metadata,
+    ))
 }
 
 fn runtime_node_metadata(node: &StoryWorkRow) -> Value {
@@ -426,6 +462,7 @@ fn runtime_node_metadata(node: &StoryWorkRow) -> Value {
 
 fn federated_execution_payload(segment: &FederatedStorySegment) -> AdminRuntimeExecutionPayload {
     redacted_execution_payload(
+        ExecutionEvidenceSource::Federated,
         segment.id.clone(),
         federated_node_type(segment).to_owned(),
         serde_json::to_value(&segment.segment).unwrap_or(Value::Null),
@@ -437,12 +474,14 @@ fn federated_execution_payload(segment: &FederatedStorySegment) -> AdminRuntimeE
 }
 
 fn redacted_execution_payload(
+    source: ExecutionEvidenceSource,
     node_id: String,
     node_type: String,
     input: Value,
     output: Option<Value>,
     metadata: Value,
 ) -> AdminRuntimeExecutionPayload {
+    let groups = execution_evidence_groups(source, &node_type, &input, output.as_ref(), &metadata);
     let mut redacted_fields = Vec::new();
     let input = redact_json_value(input, "input", &mut redacted_fields);
     let output = output.map(|value| redact_json_value(value, "output", &mut redacted_fields));
@@ -452,10 +491,698 @@ fn redacted_execution_payload(
     AdminRuntimeExecutionPayload {
         node_id,
         node_type,
+        groups,
         input,
         output,
         metadata,
         redacted_fields,
+    }
+}
+
+fn execution_evidence_groups(
+    source: ExecutionEvidenceSource,
+    node_type: &str,
+    input: &Value,
+    output: Option<&Value>,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    match source {
+        ExecutionEvidenceSource::Outbox => outbox_evidence_groups(input, metadata),
+        ExecutionEvidenceSource::FunctionRun => function_evidence_groups(input, output, metadata),
+        ExecutionEvidenceSource::ProviderCall => provider_evidence_groups(input, output, metadata),
+        ExecutionEvidenceSource::CapturedStoryEvent => {
+            captured_evidence_groups(node_type, input, output, metadata)
+        }
+        ExecutionEvidenceSource::Federated => federated_evidence_groups(node_type, input, metadata),
+    }
+}
+
+fn outbox_evidence_groups(
+    input: &Value,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let mut event = selected_fields(metadata, &["event_name", "event_version"]);
+    event.insert("payload".to_owned(), input.clone());
+
+    vec![
+        evidence_group("event", Value::Object(event), true, vec![]),
+        evidence_group(
+            "envelope",
+            selected_value(
+                metadata,
+                &[
+                    "source_module",
+                    "aggregate_type",
+                    "aggregate_id",
+                    "correlation_id",
+                    "causation_id",
+                    "actor",
+                    "trace",
+                    "occurred_at",
+                    "headers",
+                ],
+            ),
+            false,
+            vec![],
+        ),
+        evidence_group(
+            "delivery",
+            selected_value(
+                metadata,
+                &[
+                    "status",
+                    "attempts",
+                    "max_attempts",
+                    "available_at",
+                    "locked_by",
+                    "published_at",
+                    "last_error",
+                    "created_at",
+                ],
+            ),
+            false,
+            vec![],
+        ),
+    ]
+}
+
+fn function_evidence_groups(
+    input: &Value,
+    output: Option<&Value>,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let (business_input, runtime_context) = split_function_input(input);
+    let mut result = selected_fields(metadata, &["status", "completed_at", "last_error"]);
+    let result_gaps = if let Some(output) = output.filter(|value| has_json_value(value)) {
+        result.insert("output".to_owned(), output.clone());
+        vec![]
+    } else {
+        vec![evidence_gap(
+            "output",
+            AdminRuntimeExecutionEvidenceGapStatus::NotCaptured,
+            "The function runtime did not persist a return value for this execution.",
+        )]
+    };
+    let mut execution = selected_fields(
+        metadata,
+        &[
+            "function_name",
+            "attempts",
+            "max_attempts",
+            "available_at",
+            "locked_by",
+            "started_at",
+            "created_at",
+            "correlation_id",
+            "actor",
+            "name",
+            "service",
+            "causation_id",
+        ],
+    );
+    if let Some(runtime_context) = runtime_context {
+        execution.insert("runtime_context".to_owned(), runtime_context);
+    }
+
+    vec![
+        evidence_group("input", business_input, true, vec![]),
+        evidence_group("result", Value::Object(result), true, result_gaps),
+        evidence_group("execution", Value::Object(execution), false, vec![]),
+    ]
+}
+
+fn provider_evidence_groups(
+    input: &Value,
+    output: Option<&Value>,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let method = metadata
+        .get("method")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    let mut request = selected_fields(metadata, &["method", "declared_path", "provider_path"]);
+    request.insert(
+        "path_params".to_owned(),
+        input
+            .get("path_params")
+            .cloned()
+            .unwrap_or_else(|| input.clone()),
+    );
+    let request_capture = metadata.get("request_body_capture");
+    if let Some(capture) = request_capture {
+        request.insert("capture".to_owned(), capture.clone());
+    }
+    let request_gaps = body_evidence_gaps(request_capture, "request", Some(&method));
+    if request_gaps.is_empty()
+        && let Some(body) = input.get("body")
+    {
+        request.insert("body".to_owned(), body.clone());
+    }
+
+    let mut response = selected_fields(
+        metadata,
+        &["provider_status", "success", "error_code", "retryable"],
+    );
+    if let Some(error_details) = output
+        .and_then(|value| value.get("error_details"))
+        .filter(|value| has_json_value(value))
+    {
+        response.insert("error_details".to_owned(), error_details.clone());
+    } else if let Some(output) = output.filter(|value| has_json_value(value))
+        && output.get("body").is_none()
+    {
+        response.insert("error_details".to_owned(), output.clone());
+    }
+    let response_capture = metadata.get("response_body_capture");
+    if let Some(capture) = response_capture {
+        response.insert("capture".to_owned(), capture.clone());
+    }
+    let response_gaps = body_evidence_gaps(response_capture, "response", None);
+    if response_gaps.is_empty()
+        && let Some(body) = output.and_then(|value| value.get("body"))
+    {
+        response.insert("body".to_owned(), body.clone());
+    }
+    let response_expanded = metadata
+        .get("success")
+        .and_then(Value::as_bool)
+        .is_some_and(|success| !success);
+
+    vec![
+        evidence_group("request", Value::Object(request), true, request_gaps),
+        evidence_group(
+            "response",
+            Value::Object(response),
+            response_expanded,
+            response_gaps,
+        ),
+        evidence_group(
+            "call",
+            selected_value(
+                metadata,
+                &[
+                    "provider_call_id",
+                    "module_name",
+                    "capability",
+                    "duration_ms",
+                    "request_id",
+                    "correlation_id",
+                    "trace_id",
+                    "span_id",
+                    "occurred_at",
+                ],
+            ),
+            false,
+            vec![],
+        ),
+    ]
+}
+
+fn body_evidence_gaps(
+    capture: Option<&Value>,
+    side: &str,
+    method: Option<&str>,
+) -> Vec<AdminRuntimeExecutionEvidenceGap> {
+    let status = capture
+        .and_then(|value| value.get("status"))
+        .and_then(Value::as_str);
+    if status == Some("captured") {
+        return vec![];
+    }
+
+    let reason = capture
+        .and_then(|value| value.get("reason"))
+        .and_then(Value::as_str);
+    let observed_bytes = capture
+        .and_then(|value| value.get("observed_bytes"))
+        .and_then(Value::as_i64);
+    let inferred_not_applicable = side == "request"
+        && method.is_some_and(|method| matches!(method, "GET" | "HEAD" | "DELETE"));
+    let gap_status =
+        if status == Some("not_applicable") || (status.is_none() && inferred_not_applicable) {
+            AdminRuntimeExecutionEvidenceGapStatus::NotApplicable
+        } else {
+            AdminRuntimeExecutionEvidenceGapStatus::NotCaptured
+        };
+    let detail = match reason {
+        Some("method_without_body") => {
+            "This HTTP method does not have a JSON request body.".to_owned()
+        }
+        Some("empty_response_body") => {
+            "The Provider returned an empty response body for this call.".to_owned()
+        }
+        Some("evidence_limit_exceeded") => observed_bytes.map_or_else(
+            || {
+                format!(
+                    "The Provider {side} body exceeded the 64 KiB evidence limit; no partial body was persisted."
+                )
+            },
+            |bytes| {
+                format!(
+                    "The Provider {side} body was {bytes} bytes and exceeded the 64 KiB evidence limit; no partial body was persisted."
+                )
+            },
+        ),
+        Some("serialization_failed") => format!(
+            "The Provider {side} body could not be serialized into safe JSON evidence."
+        ),
+        Some("legacy_record") => format!(
+            "This Provider call predates body evidence capture, so its {side} body is unavailable."
+        ),
+        _ if gap_status == AdminRuntimeExecutionEvidenceGapStatus::NotApplicable => {
+            format!("This Provider call has no applicable {side} body.")
+        }
+        _ => format!(
+            "The Provider runtime did not persist the {side} body for this call."
+        ),
+    };
+
+    vec![evidence_gap("body", gap_status, &detail)]
+}
+
+fn captured_evidence_groups(
+    node_type: &str,
+    input: &Value,
+    output: Option<&Value>,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    match node_type {
+        "function" | "function_run" => function_evidence_groups(input, output, metadata),
+        "event" | "outbox_event" => vec![
+            evidence_group(
+                "event",
+                serde_json::json!({ "payload": input }),
+                true,
+                vec![],
+            ),
+            evidence_group("context", metadata.clone(), false, vec![]),
+        ],
+        "http" | "http_request" => captured_http_evidence_groups(input, output, metadata),
+        "workflow" => workflow_evidence_groups(input, metadata),
+        "compensation" => compensation_evidence_groups(input, metadata),
+        "intervention" => intervention_evidence_groups(input, metadata),
+        "timer" => timer_evidence_groups(input, metadata),
+        _ => generic_evidence_groups(input, output, metadata),
+    }
+}
+
+fn captured_http_evidence_groups(
+    input: &Value,
+    output: Option<&Value>,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let request = input.get("request").unwrap_or(input).clone();
+    let mut response = selected_fields(metadata, &["status", "completed_at", "last_error"]);
+    let response_gaps = if let Some(output) = output.filter(|value| has_json_value(value)) {
+        response.insert("body".to_owned(), output.clone());
+        vec![]
+    } else {
+        vec![evidence_gap(
+            "body",
+            AdminRuntimeExecutionEvidenceGapStatus::NotCaptured,
+            "No response body was attached to this captured Story execution.",
+        )]
+    };
+    vec![
+        evidence_group("request", request, true, vec![]),
+        evidence_group("response", Value::Object(response), false, response_gaps),
+        evidence_group("context", metadata.clone(), false, vec![]),
+    ]
+}
+
+fn federated_evidence_groups(
+    node_type: &str,
+    segment: &Value,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let mut groups = match node_type {
+        "http_request" => federated_http_evidence_groups(segment),
+        "outbox_event" | "event" => federated_event_evidence_groups(segment),
+        "workflow" => workflow_evidence_groups(segment, segment),
+        "compensation" => compensation_evidence_groups(segment, segment),
+        "intervention" => intervention_evidence_groups(segment, segment),
+        "timer" => timer_evidence_groups(segment, segment),
+        _ => generic_evidence_groups(segment, None, segment),
+    };
+    if metadata
+        .get("technical_evidence")
+        .is_some_and(has_json_value)
+    {
+        groups.push(evidence_group(
+            "technical_evidence",
+            metadata
+                .get("technical_evidence")
+                .cloned()
+                .unwrap_or(Value::Null),
+            false,
+            vec![],
+        ));
+    }
+    groups
+}
+
+fn federated_http_evidence_groups(segment: &Value) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let mut request = selected_fields(segment, &["operation", "contract", "source"]);
+    request.extend(selected_fields(
+        segment,
+        &["parentSegmentId", "causationId"],
+    ));
+    vec![
+        evidence_group(
+            "request",
+            Value::Object(request),
+            true,
+            vec![evidence_gap(
+                "body",
+                AdminRuntimeExecutionEvidenceGapStatus::NotCaptured,
+                "The federated Story Segment contains operation evidence, not the HTTP request body.",
+            )],
+        ),
+        evidence_group(
+            "response",
+            selected_value(segment, &["status", "attempt", "startedAt", "completedAt"]),
+            false,
+            vec![evidence_gap(
+                "body",
+                AdminRuntimeExecutionEvidenceGapStatus::NotCaptured,
+                "The federated Story Segment does not include the HTTP response body.",
+            )],
+        ),
+        evidence_group("context", federated_context(segment), false, vec![]),
+    ]
+}
+
+fn federated_event_evidence_groups(segment: &Value) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    vec![
+        evidence_group(
+            "event",
+            selected_value(segment, &["operation", "contract", "status"]),
+            true,
+            vec![evidence_gap(
+                "payload",
+                AdminRuntimeExecutionEvidenceGapStatus::NotCaptured,
+                "The federated Story Segment records event progress without copying the domain event payload.",
+            )],
+        ),
+        evidence_group(
+            "envelope",
+            selected_value(
+                segment,
+                &[
+                    "storyId",
+                    "segmentId",
+                    "source",
+                    "tenantId",
+                    "parentSegmentId",
+                    "causationId",
+                ],
+            ),
+            false,
+            vec![],
+        ),
+        evidence_group(
+            "delivery",
+            selected_value(
+                segment,
+                &["attempt", "startedAt", "completedAt", "recordedAt"],
+            ),
+            false,
+            vec![],
+        ),
+    ]
+}
+
+fn workflow_evidence_groups(
+    evidence: &Value,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    vec![
+        evidence_group(
+            "workflow",
+            selected_or_value(evidence, &["workflow", "operation", "contract"]),
+            true,
+            vec![],
+        ),
+        evidence_group(
+            "progress",
+            execution_progress(evidence, metadata),
+            true,
+            vec![],
+        ),
+        evidence_group("context", merged_context(evidence, metadata), false, vec![]),
+    ]
+}
+
+fn compensation_evidence_groups(
+    evidence: &Value,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let original_effect = selected_value(
+        evidence,
+        &[
+            "parentSegmentId",
+            "causationId",
+            "parent_segment_id",
+            "causation_id",
+        ],
+    );
+    let original_effect_gaps = if has_json_value(&original_effect) {
+        vec![]
+    } else {
+        vec![evidence_gap(
+            "reference",
+            AdminRuntimeExecutionEvidenceGapStatus::NotCaptured,
+            "The evidence source did not record the original effect reference.",
+        )]
+    };
+    vec![
+        evidence_group(
+            "original_effect",
+            original_effect,
+            false,
+            original_effect_gaps,
+        ),
+        evidence_group(
+            "compensation",
+            selected_or_value(evidence, &["workflow", "operation", "contract"]),
+            true,
+            vec![],
+        ),
+        evidence_group(
+            "outcome",
+            execution_progress(evidence, metadata),
+            true,
+            vec![],
+        ),
+        evidence_group("context", merged_context(evidence, metadata), false, vec![]),
+    ]
+}
+
+fn intervention_evidence_groups(
+    evidence: &Value,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    vec![
+        evidence_group(
+            "intervention",
+            selected_or_value(evidence, &["workflow", "operation", "contract"]),
+            true,
+            vec![],
+        ),
+        evidence_group(
+            "decision",
+            execution_progress(evidence, metadata),
+            true,
+            vec![],
+        ),
+        evidence_group("context", merged_context(evidence, metadata), false, vec![]),
+    ]
+}
+
+fn timer_evidence_groups(
+    evidence: &Value,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    vec![
+        evidence_group(
+            "schedule",
+            selected_or_value(
+                evidence,
+                &["workflow", "operation", "contract", "startedAt"],
+            ),
+            true,
+            vec![],
+        ),
+        evidence_group(
+            "firing",
+            execution_progress(evidence, metadata),
+            true,
+            vec![],
+        ),
+        evidence_group("context", merged_context(evidence, metadata), false, vec![]),
+    ]
+}
+
+fn generic_evidence_groups(
+    input: &Value,
+    output: Option<&Value>,
+    metadata: &Value,
+) -> Vec<AdminRuntimeExecutionEvidenceGroup> {
+    let mut groups = vec![evidence_group("evidence", input.clone(), true, vec![])];
+    if let Some(output) = output.filter(|value| has_json_value(value)) {
+        groups.push(evidence_group("outcome", output.clone(), true, vec![]));
+    }
+    if has_json_value(metadata) {
+        groups.push(evidence_group("context", metadata.clone(), false, vec![]));
+    }
+    groups
+}
+
+fn evidence_group(
+    key: &str,
+    content: Value,
+    default_expanded: bool,
+    gaps: Vec<AdminRuntimeExecutionEvidenceGap>,
+) -> AdminRuntimeExecutionEvidenceGroup {
+    let mut redacted_fields = Vec::new();
+    let content = redact_json_value(content, key, &mut redacted_fields);
+    redacted_fields.sort();
+    redacted_fields.dedup();
+    AdminRuntimeExecutionEvidenceGroup {
+        key: key.to_owned(),
+        content,
+        default_expanded,
+        redacted_fields,
+        gaps,
+    }
+}
+
+fn evidence_gap(
+    field: &str,
+    status: AdminRuntimeExecutionEvidenceGapStatus,
+    detail: &str,
+) -> AdminRuntimeExecutionEvidenceGap {
+    AdminRuntimeExecutionEvidenceGap {
+        field: field.to_owned(),
+        status,
+        detail: detail.to_owned(),
+    }
+}
+
+fn selected_fields(value: &Value, fields: &[&str]) -> serde_json::Map<String, Value> {
+    let Some(object) = value.as_object() else {
+        return serde_json::Map::new();
+    };
+    fields
+        .iter()
+        .filter_map(|field| {
+            object
+                .get(*field)
+                .filter(|value| !value.is_null())
+                .map(|value| ((*field).to_owned(), value.clone()))
+        })
+        .collect()
+}
+
+fn selected_value(value: &Value, fields: &[&str]) -> Value {
+    Value::Object(selected_fields(value, fields))
+}
+
+fn selected_or_value(value: &Value, fields: &[&str]) -> Value {
+    let selected = selected_fields(value, fields);
+    if selected.is_empty() {
+        value.clone()
+    } else {
+        Value::Object(selected)
+    }
+}
+
+fn execution_progress(evidence: &Value, metadata: &Value) -> Value {
+    let mut progress = selected_fields(
+        evidence,
+        &[
+            "status",
+            "attempt",
+            "attempts",
+            "max_attempts",
+            "startedAt",
+            "completedAt",
+            "recordedAt",
+            "started_at",
+            "completed_at",
+            "created_at",
+            "last_error",
+        ],
+    );
+    for (key, value) in selected_fields(
+        metadata,
+        &[
+            "status",
+            "attempt",
+            "attempts",
+            "max_attempts",
+            "started_at",
+            "completed_at",
+            "created_at",
+            "last_error",
+        ],
+    ) {
+        progress.entry(key).or_insert(value);
+    }
+    Value::Object(progress)
+}
+
+fn split_function_input(input: &Value) -> (Value, Option<Value>) {
+    let Value::Object(input) = input else {
+        return (input.clone(), None);
+    };
+    let mut business_input = input.clone();
+    let runtime_context = business_input.remove("_lenso_runtime");
+    (Value::Object(business_input), runtime_context)
+}
+
+fn federated_context(segment: &Value) -> Value {
+    selected_value(
+        segment,
+        &[
+            "storyId",
+            "segmentId",
+            "evidenceRevision",
+            "source",
+            "tenantId",
+            "parentSegmentId",
+            "causationId",
+            "recordedAt",
+        ],
+    )
+}
+
+fn merged_context(evidence: &Value, metadata: &Value) -> Value {
+    let mut context = selected_fields(
+        evidence,
+        &[
+            "storyId",
+            "segmentId",
+            "evidenceRevision",
+            "source",
+            "tenantId",
+            "parentSegmentId",
+            "causationId",
+        ],
+    );
+    if metadata != evidence {
+        context.insert("runtime".to_owned(), metadata.clone());
+    }
+    Value::Object(context)
+}
+
+fn has_json_value(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Array(values) => !values.is_empty(),
+        Value::Object(values) => !values.is_empty(),
+        _ => true,
     }
 }
 
@@ -893,8 +1620,197 @@ mod tests {
         };
 
         assert_eq!(
-            local_payload_source(&node),
-            LocalPayloadSource::CapturedStoryEvent
+            execution_evidence_source(&node),
+            ExecutionEvidenceSource::CapturedStoryEvent
         );
+    }
+
+    #[test]
+    fn provider_groups_separate_request_response_and_call_evidence() {
+        let payload = redacted_execution_payload(
+            ExecutionEvidenceSource::ProviderCall,
+            "provider_call_1".to_owned(),
+            "provider_call".to_owned(),
+            serde_json::json!({
+                "path_params": { "ticket_id": "ticket_42" },
+                "body": null
+            }),
+            Some(serde_json::json!({
+                "body": {
+                    "message": "unavailable",
+                    "credentials": { "api_key": "secret" }
+                },
+                "error_details": []
+            })),
+            serde_json::json!({
+                "method": "GET",
+                "declared_path": "/tickets/{ticket_id}",
+                "provider_path": "/tickets/ticket_42",
+                "provider_status": 503,
+                "success": false,
+                "module_name": "support/tickets",
+                "duration_ms": 50,
+                "request_body_capture": {
+                    "status": "not_applicable",
+                    "reason": "method_without_body",
+                    "observed_bytes": null
+                },
+                "response_body_capture": {
+                    "status": "captured",
+                    "reason": null,
+                    "observed_bytes": 74
+                }
+            }),
+        );
+
+        assert_eq!(
+            payload
+                .groups
+                .iter()
+                .map(|group| group.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["request", "response", "call"]
+        );
+        let request = &payload.groups[0];
+        assert_eq!(request.content["path_params"]["ticket_id"], "ticket_42");
+        assert!(request.redacted_fields.is_empty());
+        assert_eq!(
+            request.gaps[0].status,
+            AdminRuntimeExecutionEvidenceGapStatus::NotApplicable
+        );
+        assert!(payload.groups[1].default_expanded);
+        assert!(payload.groups[1].gaps.is_empty());
+        assert_eq!(
+            payload.groups[1].content["body"]["credentials"],
+            "[redacted]"
+        );
+        assert_eq!(
+            payload.groups[1].redacted_fields,
+            vec!["response.body.credentials"]
+        );
+    }
+
+    #[test]
+    fn provider_groups_explain_oversized_body_evidence_without_partial_content() {
+        let groups = provider_evidence_groups(
+            &serde_json::json!({ "path_params": {}, "body": null }),
+            Some(&serde_json::json!({ "body": null, "error_details": [] })),
+            &serde_json::json!({
+                "method": "POST",
+                "request_body_capture": {
+                    "status": "not_captured",
+                    "reason": "evidence_limit_exceeded",
+                    "observed_bytes": 70000
+                },
+                "response_body_capture": {
+                    "status": "not_applicable",
+                    "reason": "empty_response_body",
+                    "observed_bytes": null
+                }
+            }),
+        );
+
+        assert_eq!(
+            groups[0].gaps[0].status,
+            AdminRuntimeExecutionEvidenceGapStatus::NotCaptured
+        );
+        assert!(groups[0].gaps[0].detail.contains("70000 bytes"));
+        assert!(groups[0].content.get("body").is_none());
+        assert_eq!(
+            groups[1].gaps[0].status,
+            AdminRuntimeExecutionEvidenceGapStatus::NotApplicable
+        );
+        assert!(groups[1].content.get("body").is_none());
+    }
+
+    #[test]
+    fn outbox_groups_preserve_event_envelope_and_delivery_meaning() {
+        let groups = outbox_evidence_groups(
+            &serde_json::json!({ "user_id": "usr_1" }),
+            &serde_json::json!({
+                "event_name": "identity.user_registered.v1",
+                "event_version": 1,
+                "source_module": "identity",
+                "correlation_id": "corr_1",
+                "status": "published",
+                "attempts": 1,
+                "published_at": "2026-08-14T00:00:00Z"
+            }),
+        );
+
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| group.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["event", "envelope", "delivery"]
+        );
+        assert_eq!(groups[0].content["payload"]["user_id"], "usr_1");
+        assert_eq!(groups[1].content["source_module"], "identity");
+        assert_eq!(groups[2].content["status"], "published");
+    }
+
+    #[test]
+    fn function_groups_move_runtime_context_out_of_business_input() {
+        let groups = function_evidence_groups(
+            &serde_json::json!({
+                "recipient_id": "usr_1",
+                "_lenso_runtime": { "causation_id": "evt_1" }
+            }),
+            None,
+            &serde_json::json!({
+                "function_name": "notifications.send.v1",
+                "status": "completed",
+                "attempts": 1
+            }),
+        );
+
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| group.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["input", "result", "execution"]
+        );
+        assert!(groups[0].content.get("_lenso_runtime").is_none());
+        assert_eq!(
+            groups[2].content["runtime_context"]["causation_id"],
+            "evt_1"
+        );
+        assert_eq!(
+            groups[1].gaps[0].status,
+            AdminRuntimeExecutionEvidenceGapStatus::NotCaptured
+        );
+    }
+
+    #[test]
+    fn federated_work_types_receive_distinct_semantic_groups() {
+        let segment = serde_json::json!({
+            "storyId": "story_1",
+            "segmentId": "segment_1",
+            "source": { "serviceId": "orders" },
+            "operation": { "kind": "durable_workflow", "operationId": "checkout" },
+            "contract": { "contractId": "checkout", "version": "1" },
+            "workflow": { "instanceId": "workflow_1", "compensationId": "comp_1" },
+            "status": "completed",
+            "attempt": 1,
+            "startedAt": "2026-08-14T00:00:00Z",
+            "completedAt": "2026-08-14T00:00:01Z"
+        });
+        let groups = federated_evidence_groups(
+            "compensation",
+            &segment,
+            &serde_json::json!({ "technical_evidence": [] }),
+        );
+
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| group.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["original_effect", "compensation", "outcome", "context"]
+        );
+        assert_eq!(groups[1].content["workflow"]["compensationId"], "comp_1");
+        assert_eq!(groups[2].content["status"], "completed");
     }
 }

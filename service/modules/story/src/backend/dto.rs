@@ -114,10 +114,37 @@ pub struct AdminRuntimeExecutionLogCoverage {
 pub struct AdminRuntimeExecutionPayload {
     pub node_id: String,
     pub node_type: String,
+    pub groups: Vec<AdminRuntimeExecutionEvidenceGroup>,
     pub input: Value,
     pub output: Option<Value>,
     pub metadata: Value,
     pub redacted_fields: Vec<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionEvidenceGroup {
+    /// Stable semantic key used by Console clients to present the group.
+    pub key: String,
+    /// Recursively redacted evidence whose shape is specific to the execution type.
+    pub content: Value,
+    pub default_expanded: bool,
+    /// Paths are relative to the semantic group key, for example `event.payload.email`.
+    pub redacted_fields: Vec<String>,
+    pub gaps: Vec<AdminRuntimeExecutionEvidenceGap>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminRuntimeExecutionEvidenceGap {
+    pub field: String,
+    pub status: AdminRuntimeExecutionEvidenceGapStatus,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AdminRuntimeExecutionEvidenceGapStatus {
+    NotApplicable,
+    NotCaptured,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

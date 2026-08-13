@@ -10,6 +10,18 @@
   across the capabilities exposed by the current Console Service. A superadmin
   designation does not change ownership of state held by individual Modules.
 
+### Runtime evidence
+
+- **Execution Evidence Group**: A purpose-named, recursively redacted view of
+  evidence for one execution node in a Runtime Story. Its meaning follows the
+  execution type, such as Request, Response, Call, Event, Envelope, Delivery,
+  Input, Result, Workflow, or Compensation.
+  _Avoid_: Payload section, raw record dump
+- **Execution Evidence Gap**: An explicit statement that a field is either not
+  applicable to an execution or was not captured by its evidence source. A gap
+  is evidence about availability; it is not represented as an empty value.
+  _Avoid_: Missing payload, blank body
+
 ### Module presentation
 
 - **Module Surface**: A trusted, same-realm presentation contributed by a Module

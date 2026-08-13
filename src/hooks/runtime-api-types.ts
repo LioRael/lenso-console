@@ -82,11 +82,30 @@ export type AdminRuntimeExecutionLogListResponse = {
 };
 
 export type AdminRuntimeExecutionPayload = {
+  groups: AdminRuntimeExecutionEvidenceGroup[];
   input: unknown;
   metadata: unknown;
   node_id: string;
   node_type: string;
   output?: unknown;
+  redacted_fields: string[];
+};
+
+export type AdminRuntimeExecutionEvidenceGapStatus =
+  | "not_applicable"
+  | "not_captured";
+
+export type AdminRuntimeExecutionEvidenceGap = {
+  detail: string;
+  field: string;
+  status: AdminRuntimeExecutionEvidenceGapStatus;
+};
+
+export type AdminRuntimeExecutionEvidenceGroup = {
+  content: unknown;
+  default_expanded: boolean;
+  gaps: AdminRuntimeExecutionEvidenceGap[];
+  key: string;
   redacted_fields: string[];
 };
 
