@@ -741,8 +741,10 @@ function mockExecutionPayload(
 ): ExecutionPayload {
   const node = story.nodes.find((item) => item.id === nodeId);
   return {
+    groups: [],
     input: node?.payload,
     metadata: node?.attributes,
+    ...(node ? { nodeType: node.kind } : {}),
     output: undefined,
     redactedFields: [],
   };

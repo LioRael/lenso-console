@@ -5,7 +5,7 @@ import {
   type ExecutionLogEntry,
   runtimeStories,
 } from "../../data/mock-runtime";
-import { LogList } from "./execution-inspector";
+import { LogList, PayloadDocument } from "./execution-inspector";
 
 const story = runtimeStories[0]!;
 const logs: ExecutionLogEntry[] = [
@@ -108,5 +108,73 @@ describe("execution log list", () => {
     );
 
     expect(markup).toContain("Execution logs could not be loaded.");
+  });
+});
+
+describe("execution evidence groups", () => {
+  test("renders provider-specific groups and distinguishes absent body evidence", () => {
+    const markup = renderToStaticMarkup(
+      <PayloadDocument
+        error={undefined}
+        isError={false}
+        isLoading={false}
+        node={{ ...story.nodes[0]!, kind: "external" }}
+        payload={{
+          groups: [
+            {
+              content: {
+                declared_path: "/v1/auth/console/users",
+                method: "GET",
+                path_params: {},
+              },
+              defaultExpanded: true,
+              gaps: [
+                {
+                  detail: "This HTTP method does not have a JSON request body.",
+                  field: "body",
+                  status: "not_applicable",
+                },
+              ],
+              key: "request",
+              redactedFields: [],
+            },
+            {
+              content: { provider_status: 200, success: true },
+              defaultExpanded: false,
+              gaps: [
+                {
+                  detail:
+                    "The provider runtime did not persist the response body for this call.",
+                  field: "body",
+                  status: "not_captured",
+                },
+              ],
+              key: "response",
+              redactedFields: [],
+            },
+            {
+              content: { module_name: "auth" },
+              defaultExpanded: false,
+              gaps: [],
+              key: "call",
+              redactedFields: [],
+            },
+          ],
+          input: {},
+          metadata: {},
+          nodeType: "provider_call",
+          redactedFields: [],
+        }}
+      />
+    );
+
+    expect(markup).toContain("Provider call evidence");
+    expect(markup).toContain("3 groups · application/json");
+    expect(markup).toContain("Request");
+    expect(markup).toContain("Response");
+    expect(markup).toContain("Call");
+    expect(markup).toContain("Not applicable");
+    expect(markup).toContain("Not captured");
+    expect(markup).not.toContain("Request payload");
   });
 });

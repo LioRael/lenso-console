@@ -1,7 +1,7 @@
 import type { ConsoleStyle } from "@lenso/console-ui";
 import * as stylex from "@stylexjs/stylex";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { prettyJson } from "../../lib/format";
 
@@ -118,6 +118,7 @@ type JsonViewerProps = {
   title: string;
   value: unknown;
   defaultExpanded?: boolean;
+  notice?: ReactNode;
   variant?: "default" | "payload-row";
 };
 
@@ -128,6 +129,7 @@ export function JsonViewer({
   title,
   value,
   defaultExpanded = false,
+  notice,
   variant = "default",
 }: JsonViewerProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -140,7 +142,7 @@ export function JsonViewer({
       {...stylex.props(
         localStyles.utilityOverflowHidden,
         localStyles.utilityBgBgCanvas,
-        payloadRow && [localStyles.utilityShrink0, localStyles.utilityH52px],
+        payloadRow && [localStyles.utilityShrink0],
         bordered && [
           localStyles.utilityBorderB,
           localStyles.utilityBorderLineSubtle,
@@ -246,6 +248,7 @@ export function JsonViewer({
           {countLabel ?? `${count} fields`}
         </span>
       </button>
+      {notice}
       {expanded ? (
         <div
           {...stylex.props([

@@ -1,15 +1,7 @@
 import { Tabs } from "@base-ui/react/tabs";
 import { useConsoleLocale } from "@lenso/console-ui";
 import * as stylex from "@stylexjs/stylex";
-import {
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  ExternalLink,
-  Network,
-  RotateCcw,
-  X,
-} from "lucide-react";
+import { Copy, ExternalLink, Network, RotateCcw, X } from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -17,6 +9,7 @@ import type {
   ExecutionLogCoverage,
   ExecutionNode,
   ExecutionLogEntry,
+  ExecutionEvidenceGroup,
   ExecutionPayload,
   TechnicalOperation,
 } from "../../data/mock-runtime";
@@ -27,7 +20,6 @@ import {
   useExecutionTechnicalOperations,
   useStoryTechnicalOperations,
 } from "../../hooks/use-runtime-queries";
-import { prettyJson } from "../../lib/format";
 import { formatRuntimeDuration } from "../../lib/runtime-style";
 import { useConsole } from "./console-context";
 import {
@@ -100,13 +92,6 @@ const localStyles = stylex.create({
     ":hover": {
       color: "var(--fg-primary)",
     },
-  },
-  utilityMaxW22: {
-    maxWidth: "calc(0.25rem * 22)",
-  },
-  utilitySize25: {
-    width: "calc(0.25rem * 2.5)",
-    height: "calc(0.25rem * 2.5)",
   },
   utilityH8: {
     height: "calc(0.25rem * 8)",
@@ -678,13 +663,6 @@ const styles = stylex.create({
     paddingBlockStart: 18,
     position: "relative",
   },
-  clearIcon: {
-    opacity: {
-      default: 0,
-      [stylex.when.ancestor(":hover")]: 1,
-      ":focus-visible": 1,
-    },
-  },
   path: { height: 17 },
   root: {
     backgroundColor: "var(--bg-canvas)",
@@ -810,31 +788,20 @@ export function ExecutionInspector({
           <button
             aria-label="Clear inspector selection"
             {...stylex.props([
+              stylex.defaultMarker(),
               localStyles.utilityFlex,
-              localStyles.utilityMinW0,
+              localStyles.utilitySize4,
+              localStyles.utilityShrink0,
               localStyles.utilityItemsCenter,
-              localStyles.utilityGap1,
-              localStyles.utilityFontMono,
-              localStyles.utilityText9px,
-              localStyles.utilityTextFgTertiary,
+              localStyles.utilityJustifyCenter,
+              localStyles.utilityTextFgSecondary,
               localStyles.utilityHoverTextFgPrimary,
             ])}
-            {...stylex.props(stylex.defaultMarker())}
             onClick={onClearSelection}
+            title={node.id}
             type="button"
           >
-            <span
-              {...stylex.props([
-                localStyles.utilityMaxW22,
-                localStyles.utilityTruncate,
-              ])}
-            >
-              {node.id}
-            </span>
-            <X
-              {...stylex.props([localStyles.utilitySize25])}
-              {...stylex.props(styles.clearIcon)}
-            />
+            <X size={12} />
           </button>
         </div>
         <div
@@ -2888,7 +2855,7 @@ function FailurePanel({
   );
 }
 
-function PayloadDocument({
+export function PayloadDocument({
   error,
   isError,
   isLoading,
@@ -2912,16 +2879,20 @@ function PayloadDocument({
     );
   }
 
-  const sections = [
-    ["input", payload?.input],
-    ["output", payload?.output],
-    ["metadata", payload?.metadata],
-  ] as const;
-  if (!sections.some(([, value]) => hasPanelValue(value))) {
+  const groups = payload ? payloadEvidenceGroups(payload) : [];
+  if (groups.length === 0) {
     return (
       <EmptyRows label="No payload or metadata was captured for this execution." />
     );
   }
+  const redactedFields = Array.from(
+    new Set(
+      payload?.groups.length
+        ? groups.flatMap((group) => group.redactedFields)
+        : (payload?.redactedFields ?? [])
+    )
+  );
+  const nodeType = payload?.nodeType ?? node.kind;
 
   return (
     <div
@@ -2932,7 +2903,7 @@ function PayloadDocument({
         localStyles.utilityFlexCol,
       ])}
     >
-      {payload && payload.redactedFields.length > 0 ? (
+      {redactedFields.length > 0 ? (
         <div
           {...stylex.props([
             localStyles.utilityFlex,
@@ -2968,10 +2939,10 @@ function PayloadDocument({
             ])}
           >
             <div>
-              {payload.redactedFields.length} sensitive field
-              {payload.redactedFields.length === 1 ? "" : "s"} redacted
+              {redactedFields.length} sensitive field
+              {redactedFields.length === 1 ? "" : "s"} redacted
             </div>
-            <div>{payload.redactedFields.join(" · ")}</div>
+            <div>{redactedFields.join(" · ")}</div>
           </div>
         </div>
       ) : null}
@@ -2997,7 +2968,7 @@ function PayloadDocument({
             localStyles.utilityTextFgPrimary,
           ])}
         >
-          Request payload
+          {executionEvidenceTitle(nodeType)}
         </span>
         <span
           {...stylex.props([
@@ -3006,32 +2977,13 @@ function PayloadDocument({
             localStyles.utilityTextFgTertiary,
           ])}
         >
+          {groups.length} group{groups.length === 1 ? "" : "s"} ·
           application/json
         </span>
       </div>
-      {hasPanelValue(payload?.input) ? (
-        <PayloadJsonBlock
-          countLabel={`${fieldCount(payload?.input)} fields`}
-          title="input"
-          value={payload?.input}
-        />
-      ) : null}
-      {payload && hasPanelValue(payload.output) ? (
-        <JsonViewer
-          countLabel={`${fieldCount(payload.output)} fields`}
-          title="output"
-          value={payload.output}
-          variant="payload-row"
-        />
-      ) : null}
-      {payload && hasPanelValue(payload.metadata) ? (
-        <JsonViewer
-          countLabel={`${fieldCount(payload.metadata)} fields`}
-          title="metadata"
-          value={payload.metadata}
-          variant="payload-row"
-        />
-      ) : null}
+      {groups.map((group) => (
+        <ExecutionEvidenceGroupSection group={group} key={group.key} />
+      ))}
       <div
         {...stylex.props([localStyles.utilityMinH0, localStyles.utilityFlex1])}
       />
@@ -3040,139 +2992,144 @@ function PayloadDocument({
   );
 }
 
-function PayloadJsonBlock({
-  countLabel,
-  title,
-  value,
+function ExecutionEvidenceGroupSection({
+  group,
 }: {
-  countLabel: string;
-  title: string;
-  value: unknown;
+  group: ExecutionEvidenceGroup;
 }) {
-  const [expanded, setExpanded] = useState(true);
-  const json = prettyJson(value);
-
   return (
-    <section
-      {...stylex.props([
-        localStyles.utilityFlex,
-        localStyles.utilityShrink0,
-        localStyles.utilityFlexCol,
-        localStyles.utilityOverflowHidden,
-      ])}
-    >
-      <div
-        {...stylex.props([
-          localStyles.utilityFlex,
-          localStyles.utilityH52px,
-          localStyles.utilityShrink0,
-          localStyles.utilityItemsCenter,
-          localStyles.utilityJustifyBetween,
-          localStyles.utilityBorderB,
-          localStyles.utilityBorderLineSubtle,
-          localStyles.utilityPx3,
-          localStyles.utilityPt25,
-          localStyles.utilityPb9px,
-        ])}
-      >
-        <button
-          {...stylex.props([
-            localStyles.utilityFlex,
-            localStyles.utilityMinW0,
-            localStyles.utilityItemsCenter,
-            localStyles.utilityGap2,
-            localStyles.utilityTextLeft,
-          ])}
-          onClick={() => setExpanded((current) => !current)}
-          type="button"
-        >
-          {expanded ? (
-            <ChevronDown
+    <section {...stylex.props([localStyles.utilityShrink0])}>
+      <JsonViewer
+        countLabel={`${fieldCount(group.content)} fields`}
+        defaultExpanded={group.defaultExpanded}
+        notice={
+          group.gaps.length > 0 ? (
+            <div
               {...stylex.props([
-                localStyles.utilitySize3,
-                localStyles.utilityShrink0,
-                localStyles.utilityTextFgTertiary,
+                localStyles.utilityFlex,
+                localStyles.utilityFlexCol,
+                localStyles.utilityGap15,
+                localStyles.utilityPx3,
+                localStyles.utilityPy2,
+                localStyles.utilityText10px,
+                localStyles.utilityLeading15px,
+                localStyles.utilityTextFgSecondary,
               ])}
-            />
-          ) : (
-            <ChevronRight
-              {...stylex.props([
-                localStyles.utilitySize3,
-                localStyles.utilityShrink0,
-                localStyles.utilityTextFgTertiary,
-              ])}
-            />
-          )}
-          <span
-            {...stylex.props([
-              localStyles.utilityFontSans,
-              localStyles.utilityText11px,
-              localStyles.utilityFontMedium,
-              localStyles.utilityTextFgPrimary,
-            ])}
-          >
-            {title}
-          </span>
-        </button>
-        <div
-          {...stylex.props([
-            localStyles.utilityFlex,
-            localStyles.utilityItemsCenter,
-            localStyles.utilityGap4,
-            localStyles.utilityWhitespaceNowrap,
-            localStyles.utilityText10px,
-          ])}
-        >
-          <span
-            {...stylex.props([
-              localStyles.utilityFontMono,
-              localStyles.utilityTextFgTertiary,
-            ])}
-          >
-            {countLabel}
-          </span>
-          <button
-            {...stylex.props([
-              localStyles.utilityFontMedium,
-              localStyles.utilityTextFgSecondary,
-              localStyles.utilityHoverTextFgPrimary,
-            ])}
-            type="button"
-          >
-            Copy
-          </button>
-        </div>
-      </div>
-      {expanded ? (
-        <div
-          {...stylex.props([
-            localStyles.utilityMaxH171px,
-            localStyles.utilityShrink0,
-            localStyles.utilityOverflowHidden,
-            localStyles.utilityBorderB,
-            localStyles.utilityBorderLineSubtle,
-            localStyles.utilityPx3,
-            localStyles.utilityPt25,
-            localStyles.utilityPb11px,
-          ])}
-        >
-          <pre
-            {...stylex.props([
-              localStyles.utilityMaxH150px,
-              localStyles.utilityOverflowAuto,
-              localStyles.utilityWhitespacePreWrap,
-              localStyles.utilityFontMono,
-              localStyles.utilityText11px,
-              localStyles.utilityLeading15px,
-              localStyles.utilityTextFgSecondary,
-            ])}
-          >
-            {json}
-          </pre>
-        </div>
-      ) : null}
+            >
+              {group.gaps.map((gap) => (
+                <div
+                  {...stylex.props([
+                    localStyles.utilityFlex,
+                    localStyles.utilityItemsStart,
+                    localStyles.utilityGap2,
+                  ])}
+                  key={`${gap.field}:${gap.status}`}
+                >
+                  <span
+                    {...stylex.props([
+                      localStyles.utilityShrink0,
+                      localStyles.utilityFontMedium,
+                      localStyles.utilityTextToneWarningFg,
+                    ])}
+                  >
+                    {gap.status === "not_applicable"
+                      ? "Not applicable"
+                      : "Not captured"}
+                  </span>
+                  <span>
+                    {humanizeEvidenceField(gap.field)} · {gap.detail}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : undefined
+        }
+        title={executionEvidenceGroupTitle(group.key)}
+        value={group.content}
+        variant="payload-row"
+      />
     </section>
   );
+}
+
+function payloadEvidenceGroups(
+  payload: ExecutionPayload
+): ExecutionEvidenceGroup[] {
+  if (payload.groups.length > 0) {
+    return payload.groups.filter(
+      (group) => hasPanelValue(group.content) || group.gaps.length > 0
+    );
+  }
+
+  const legacyGroups: ExecutionEvidenceGroup[] = [];
+  for (const [key, content, defaultExpanded] of [
+    ["input", payload.input, true],
+    ["result", payload.output, false],
+    ["context", payload.metadata, false],
+  ] as const) {
+    if (!hasPanelValue(content)) {
+      continue;
+    }
+    legacyGroups.push({
+      content,
+      defaultExpanded,
+      gaps: [],
+      key,
+      redactedFields: [],
+    });
+  }
+  return legacyGroups;
+}
+
+function executionEvidenceTitle(nodeType: string) {
+  const titles: Record<string, string> = {
+    compensation: "Compensation evidence",
+    event: "Event evidence",
+    external: "Provider call evidence",
+    function: "Function execution evidence",
+    function_run: "Function execution evidence",
+    http: "HTTP execution evidence",
+    http_request: "HTTP execution evidence",
+    intervention: "Intervention evidence",
+    outbox_event: "Event evidence",
+    provider_call: "Provider call evidence",
+    timer: "Timer evidence",
+    workflow: "Workflow evidence",
+  };
+  return titles[nodeType] ?? "Execution evidence";
+}
+
+function executionEvidenceGroupTitle(key: string) {
+  const titles: Record<string, string> = {
+    call: "Call",
+    compensation: "Compensation",
+    context: "Context",
+    decision: "Decision",
+    delivery: "Delivery",
+    envelope: "Envelope",
+    event: "Event",
+    evidence: "Evidence",
+    execution: "Execution",
+    firing: "Firing",
+    input: "Input",
+    intervention: "Intervention",
+    original_effect: "Original effect",
+    outcome: "Outcome",
+    progress: "Progress",
+    request: "Request",
+    response: "Response",
+    result: "Result",
+    schedule: "Schedule",
+    technical_evidence: "Technical evidence",
+    workflow: "Workflow",
+  };
+  return titles[key] ?? humanizeEvidenceField(key);
+}
+
+function humanizeEvidenceField(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replaceAll(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function PayloadContract({
@@ -3189,7 +3146,7 @@ function PayloadContract({
       node.attributes.input_schema,
       node.attributes.inputSchema
     ) ?? `${node.canonicalName ?? node.name} / v1`;
-  const isValid = Boolean(payload) && !payload?.redactedFields.length;
+  const groupCount = payload ? payloadEvidenceGroups(payload).length : 0;
 
   return (
     <section
@@ -3221,7 +3178,7 @@ function PayloadContract({
             localStyles.utilityShrink0,
           ])}
         >
-          <InspectorEyebrow>Payload contract</InspectorEyebrow>
+          <InspectorEyebrow>Evidence contract</InspectorEyebrow>
         </span>
         <p
           {...stylex.props([
@@ -3238,14 +3195,14 @@ function PayloadContract({
       <p
         {...stylex.props(
           [localStyles.utilityText11px],
-          isValid
+          groupCount > 0
             ? [localStyles.utilityTextToneSuccessFg]
             : [localStyles.utilityTextFgSecondary]
         )}
       >
-        {isValid
-          ? "Validated at ingress · 0 schema errors"
-          : "Validation evidence is incomplete"}
+        {groupCount > 0
+          ? `${groupCount} semantic evidence group${groupCount === 1 ? "" : "s"} · recursively redacted`
+          : "Execution evidence is unavailable"}
       </p>
     </section>
   );
@@ -3352,8 +3309,8 @@ function LogCoverageContext({
       ])}
     >
       {context.sourceSummaryLabel ? <p>{context.sourceSummaryLabel}</p> : null}
-      {context.gapContexts.map((gap, index) => (
-        <div key={`${gap.sourceId}:${index}`}>
+      {context.gapContexts.map((gap) => (
+        <div key={`${gap.sourceId}:${gap.detailLabel}`}>
           <p>{gap.detailLabel}</p>
           {gap.nextActionLabel ? (
             <p {...stylex.props([localStyles.utilityFontMono])}>

@@ -390,8 +390,34 @@ export function normalizeExecutionPayload(
 ): ExecutionPayload {
   const data = response.data ?? {};
   return {
+    groups: (data.groups ?? []).map((group) => ({
+      content: group.content,
+      defaultExpanded: group.default_expanded === true,
+      gaps: (group.gaps ?? []).flatMap((gap) => {
+        const status =
+          gap.status === "not_applicable" || gap.status === "not_captured"
+            ? gap.status
+            : undefined;
+        if (!status) {
+          return [];
+        }
+        return [
+          {
+            detail: safeString(
+              gap.detail,
+              "The evidence source did not provide this field."
+            ),
+            field: safeString(gap.field, "evidence"),
+            status,
+          },
+        ];
+      }),
+      key: safeString(group.key, "evidence"),
+      redactedFields: normalizeStringArray(group.redacted_fields),
+    })),
     input: data.input,
     metadata: data.metadata,
+    ...(typeof data.node_type === "string" ? { nodeType: data.node_type } : {}),
     output: data.output,
     redactedFields: normalizeStringArray(data.redacted_fields),
   };

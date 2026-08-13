@@ -164,6 +164,9 @@ fn assert_story_route_openapi(document: &Value) {
         );
     }
     for schema in [
+        "AdminRuntimeExecutionEvidenceGap",
+        "AdminRuntimeExecutionEvidenceGapStatus",
+        "AdminRuntimeExecutionEvidenceGroup",
         "AdminRuntimeExecutionPayload",
         "AdminRuntimeExecutionPayloadResponse",
         "AdminRuntimeExecutionLog",
@@ -1759,6 +1762,53 @@ async fn story_list_detail_cursor_heatmap_and_not_found_behaviors_remain() {
 }
 
 #[tokio::test]
+async fn provider_execution_payload_reads_safe_body_evidence_from_the_new_schema() {
+    let Some(db) = TestDatabase::create().await else {
+        return;
+    };
+    let app = app_with_database(&db).await;
+    add_provider_body_evidence_fixture_columns(&db).await;
+    insert_captured_provider_body_evidence(&db).await;
+
+    let (status, payload) = story_admin_json(
+        &app,
+        "/api/console/v1/stories/corr_provider_body/executions/provider_rproxy_body/payload",
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(payload["data"]["groups"][0]["gaps"], json!([]));
+    assert_eq!(payload["data"]["groups"][1]["gaps"], json!([]));
+    assert_eq!(
+        payload["data"]["groups"][0]["content"]["body"]["credentials"],
+        "[redacted]"
+    );
+    assert_eq!(
+        payload["data"]["groups"][0]["content"]["body"]["ticket_id"],
+        "ticket_42"
+    );
+    assert_eq!(
+        payload["data"]["groups"][1]["content"]["body"]["owner_email"],
+        "[redacted]"
+    );
+    assert_eq!(
+        payload["data"]["groups"][1]["content"]["body"]["status"],
+        "accepted"
+    );
+    assert_eq!(
+        payload["data"]["metadata"]["request_body_capture"]["status"],
+        "captured"
+    );
+    assert_eq!(
+        payload["data"]["metadata"]["response_body_capture"]["observed_bytes"],
+        72
+    );
+    assert!(!payload.to_string().contains("provider-secret"));
+
+    db.cleanup().await;
+}
+
+#[tokio::test]
 async fn unavailable_execution_log_source_is_reported_without_hiding_story_ownership() {
     let Some(db) = TestDatabase::create().await else {
         return;
@@ -1913,6 +1963,13 @@ async fn assert_outbox_execution_payload(app: &Router) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(event_payload["data"]["node_id"], "evt_story");
     assert_eq!(event_payload["data"]["node_type"], "event");
+    assert_eq!(event_payload["data"]["groups"][0]["key"], "event");
+    assert_eq!(event_payload["data"]["groups"][1]["key"], "envelope");
+    assert_eq!(event_payload["data"]["groups"][2]["key"], "delivery");
+    assert_eq!(
+        event_payload["data"]["groups"][0]["content"]["payload"]["user_id"],
+        "usr_1"
+    );
     assert_eq!(event_payload["data"]["input"]["user_id"], "usr_1");
     assert_eq!(event_payload["data"]["input"]["email"], "[redacted]");
     assert_eq!(
@@ -1950,6 +2007,12 @@ async fn assert_captured_story_execution_payloads(app: &Router) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(story_event_payload["data"]["node_id"], "story_heatmap_http");
     assert_eq!(story_event_payload["data"]["node_type"], "http_request");
+    assert_eq!(story_event_payload["data"]["groups"][0]["key"], "request");
+    assert_eq!(story_event_payload["data"]["groups"][1]["key"], "response");
+    assert_eq!(
+        story_event_payload["data"]["groups"][1]["gaps"][0]["status"],
+        "not_captured"
+    );
     assert_eq!(
         story_event_payload["data"]["input"]["request"]["resource_id"],
         "resource_42"
@@ -1994,20 +2057,37 @@ async fn assert_provider_execution_payload(app: &Router) {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(provider_payload["data"]["node_id"], "provider_rproxy_story");
     assert_eq!(provider_payload["data"]["node_type"], "provider_call");
-    assert_eq!(provider_payload["data"]["input"]["ticket_id"], "ticket_42");
+    assert_eq!(provider_payload["data"]["groups"][0]["key"], "request");
+    assert_eq!(provider_payload["data"]["groups"][1]["key"], "response");
+    assert_eq!(provider_payload["data"]["groups"][2]["key"], "call");
     assert_eq!(
-        provider_payload["data"]["input"]["credentials"],
+        provider_payload["data"]["groups"][0]["gaps"][0]["status"],
+        "not_applicable"
+    );
+    assert_eq!(
+        provider_payload["data"]["groups"][1]["gaps"][0]["status"],
+        "not_captured"
+    );
+    assert_eq!(
+        provider_payload["data"]["input"]["path_params"]["ticket_id"],
+        "ticket_42"
+    );
+    assert_eq!(
+        provider_payload["data"]["input"]["path_params"]["credentials"],
         "[redacted]"
     );
     assert_eq!(
-        provider_payload["data"]["output"]["nested"]["email"],
+        provider_payload["data"]["output"]["error_details"]["nested"]["email"],
         "[redacted]"
     );
     assert_eq!(provider_payload["data"]["metadata"]["provider_status"], 503);
     let provider_redacted_fields = provider_payload["data"]["redacted_fields"]
         .as_array()
         .expect("provider payload must report redacted field paths");
-    for path in ["input.credentials", "output.nested.email"] {
+    for path in [
+        "input.path_params.credentials",
+        "output.error_details.nested.email",
+    ] {
         assert!(
             provider_redacted_fields.contains(&json!(path)),
             "missing provider payload redaction path {path}"
@@ -2708,6 +2788,61 @@ async fn insert_story_provider_call(db: &TestDatabase) {
     .execute(&db.pool)
     .await
     .expect("Story provider call should insert");
+}
+
+async fn add_provider_body_evidence_fixture_columns(db: &TestDatabase) {
+    sqlx::raw_sql(
+        r"
+        alter table platform.provider_http_calls
+            add column if not exists request_body jsonb,
+            add column if not exists request_body_capture_status text not null default 'not_captured',
+            add column if not exists request_body_capture_reason text,
+            add column if not exists request_body_observed_bytes bigint,
+            add column if not exists response_body jsonb,
+            add column if not exists response_body_capture_status text not null default 'not_captured',
+            add column if not exists response_body_capture_reason text,
+            add column if not exists response_body_observed_bytes bigint;
+        ",
+    )
+    .execute(&db.pool)
+    .await
+    .expect("Provider body evidence fixture columns should apply");
+}
+
+async fn insert_captured_provider_body_evidence(db: &TestDatabase) {
+    sqlx::query(
+        r#"
+        insert into platform.provider_http_calls (
+            id, module_name, method, declared_path, provider_path, capability,
+            provider_status, duration_ms, success, error_code, retryable,
+            request_id, correlation_id, trace_id, span_id, path_params,
+            error_details, request_body, request_body_capture_status,
+            request_body_capture_reason, request_body_observed_bytes,
+            response_body, response_body_capture_status,
+            response_body_capture_reason, response_body_observed_bytes,
+            occurred_at, created_at
+        ) values (
+            'rproxy_body', 'support/tickets', 'POST', '/tickets', '/tickets',
+            'support_ticket.tickets.write', 202, 31, true, null, false,
+            'req_provider_body', 'corr_provider_body', 'trace_provider_body',
+            'span_provider_body', '{}'::jsonb, '[]'::jsonb,
+            '{
+                "ticket_id": "ticket_42",
+                "credentials": "[redacted]"
+            }'::jsonb,
+            'captured', null, 64,
+            '{
+                "status": "accepted",
+                "owner_email": "[redacted]"
+            }'::jsonb,
+            'captured', null, 72,
+            '2026-08-14T00:00:00Z', '2026-08-14T00:00:00Z'
+        )
+        "#,
+    )
+    .execute(&db.pool)
+    .await
+    .expect("captured Provider body evidence should insert");
 }
 
 async fn insert_captured_story_events(db: &TestDatabase) {

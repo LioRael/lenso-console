@@ -552,14 +552,11 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
     >
       <Dialog.Portal>
         <Dialog.Backdrop
-          {...stylex.props([
-            localStyles.utilityZ60,
-            localStyles.utilityBgBgScrim,
-          ])}
+          stylex={[localStyles.utilityZ60, localStyles.utilityBgBgScrim]}
         />
         <Dialog.Popup
           aria-label="Command palette"
-          {...stylex.props([
+          stylex={[
             localStyles.utilityZ70,
             localStyles.utilityTop12vh,
             localStyles.utilityFlex,
@@ -576,7 +573,7 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
             localStyles.utilityMaxSmTop3,
             localStyles.utilityMaxSmHMin520pxCalc100vh24px,
             localStyles.utilityMaxSmWCalc100vw20px,
-          ])}
+          ]}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               closeCommandPalette();

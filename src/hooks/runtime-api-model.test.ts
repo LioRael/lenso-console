@@ -720,16 +720,62 @@ describe("runtime API model normalization", () => {
   test("normalizes execution payload responses", () => {
     const payload = normalizeExecutionPayload({
       data: {
+        groups: [
+          {
+            content: { user_id: "usr_1" },
+            default_expanded: true,
+            gaps: [],
+            key: "input",
+            redacted_fields: [],
+          },
+          {
+            content: { status: 200 },
+            default_expanded: false,
+            gaps: [
+              {
+                detail: "The response body was not persisted.",
+                field: "body",
+                status: "not_captured",
+              },
+            ],
+            key: "result",
+            redacted_fields: ["result.email"],
+          },
+        ],
         input: { user_id: "usr_1" },
         metadata: { function_name: "notifications.send_welcome_email.v1" },
+        node_type: "function",
         output: null,
         redacted_fields: ["input.email"],
       },
     });
 
     expect(payload).toEqual({
+      groups: [
+        {
+          content: { user_id: "usr_1" },
+          defaultExpanded: true,
+          gaps: [],
+          key: "input",
+          redactedFields: [],
+        },
+        {
+          content: { status: 200 },
+          defaultExpanded: false,
+          gaps: [
+            {
+              detail: "The response body was not persisted.",
+              field: "body",
+              status: "not_captured",
+            },
+          ],
+          key: "result",
+          redactedFields: ["result.email"],
+        },
+      ],
       input: { user_id: "usr_1" },
       metadata: { function_name: "notifications.send_welcome_email.v1" },
+      nodeType: "function",
       output: null,
       redactedFields: ["input.email"],
     });

@@ -9,7 +9,10 @@ use lenso::host::http::{
 };
 use lenso::host::prelude::*;
 use lenso::system_plane::{CoreDocument, ManagedServiceContext, validate_core_document};
-use platform_core::{CorrelationId, ProviderHttpCallRecord, insert_provider_http_call};
+use platform_core::{
+    CorrelationId, ProviderHttpBodyEvidence, ProviderHttpCallBodyEvidence, ProviderHttpCallRecord,
+    insert_provider_http_call_with_body_evidence,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{Postgres, Row};
@@ -37,6 +40,7 @@ const SERVICE_SQL: &str = "select service_id, service_principal, base_url, \
     enrollment_receipt_digest, enrollment_expires_at_unix_ms, enrollment_state, \
     connection_state, core_document from console.managed_services \
     where service_id = $1 and service_id <> 'lenso-console'";
+const MAX_PROVIDER_HTTP_BODY_EVIDENCE_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -267,6 +271,17 @@ async fn surface_gateway(
                 .map_err(|message| external_error(&message, &request_ctx))?;
             Ok(response.output)
         });
+    let response_body = match &output {
+        Ok(body) => capture_surface_json_body(Some(body), "empty_response_body"),
+        Err(_) => ProviderHttpBodyEvidence::not_captured(
+            if provider_status.is_some() {
+                "response_body_not_retained"
+            } else {
+                "request_failed_before_response"
+            },
+            None,
+        ),
+    };
     record_surface_provider_call(
         &ctx,
         &operation,
@@ -275,6 +290,7 @@ async fn surface_gateway(
         &request_ctx,
         started_at,
         provider_status,
+        response_body,
         output.as_ref().err(),
     )
     .await;
@@ -744,10 +760,15 @@ async fn record_surface_provider_call(
     request_ctx: &RequestContext,
     started_at: Instant,
     provider_status: Option<u16>,
+    response_body: ProviderHttpBodyEvidence,
     error: Option<&ApiErrorResponse>,
 ) {
     let story_context =
         surface_provider_request_context(request_ctx, request.request_context.story.as_ref());
+    let body_evidence = ProviderHttpCallBodyEvidence {
+        request: capture_surface_json_body(call.body.as_ref(), "method_without_body"),
+        response: response_body,
+    };
     let record = ProviderHttpCallRecord {
         module_name: request.module_id.clone(),
         method: operation.target_method.as_str().to_owned(),
@@ -768,8 +789,14 @@ async fn record_surface_provider_call(
         path_params: call.path_params.clone(),
         error_details: Value::Array(Vec::new()),
     };
-    if let Err(error) =
-        insert_provider_http_call(&ctx.db, ctx.ids.as_ref(), &story_context, record).await
+    if let Err(error) = insert_provider_http_call_with_body_evidence(
+        &ctx.db,
+        ctx.ids.as_ref(),
+        &story_context,
+        record,
+        body_evidence,
+    )
+    .await
     {
         tracing::warn!(
             error = ?error,
@@ -780,6 +807,75 @@ async fn record_surface_provider_call(
             "failed to persist Surface Gateway provider call"
         );
     }
+}
+
+fn capture_surface_json_body(
+    body: Option<&Value>,
+    absent_reason: &'static str,
+) -> ProviderHttpBodyEvidence {
+    let Some(body) = body else {
+        return ProviderHttpBodyEvidence::not_applicable(absent_reason);
+    };
+
+    let Ok(encoded) = serde_json::to_vec(body) else {
+        return ProviderHttpBodyEvidence::not_captured("serialization_failed", None);
+    };
+    let raw_bytes = encoded.len();
+    if raw_bytes > MAX_PROVIDER_HTTP_BODY_EVIDENCE_BYTES {
+        return ProviderHttpBodyEvidence::not_captured("evidence_limit_exceeded", Some(raw_bytes));
+    }
+
+    let redacted = redact_surface_json_value(body.clone());
+    let Ok(redacted_encoded) = serde_json::to_vec(&redacted) else {
+        return ProviderHttpBodyEvidence::not_captured("serialization_failed", None);
+    };
+    if redacted_encoded.len() > MAX_PROVIDER_HTTP_BODY_EVIDENCE_BYTES {
+        return ProviderHttpBodyEvidence::not_captured(
+            "evidence_limit_exceeded",
+            Some(redacted_encoded.len()),
+        );
+    }
+
+    ProviderHttpBodyEvidence::captured(redacted, raw_bytes)
+}
+
+fn redact_surface_json_value(value: Value) -> Value {
+    match value {
+        Value::Array(items) => {
+            Value::Array(items.into_iter().map(redact_surface_json_value).collect())
+        }
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(key, value)| {
+                    if is_sensitive_surface_json_key(&key) {
+                        (key, Value::String("[redacted]".to_owned()))
+                    } else {
+                        (key, redact_surface_json_value(value))
+                    }
+                })
+                .collect(),
+        ),
+        value => value,
+    }
+}
+
+fn is_sensitive_surface_json_key(key: &str) -> bool {
+    let lower = key.to_ascii_lowercase();
+    [
+        "authorization",
+        "cookie",
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "access_key",
+        "credential",
+        "email",
+    ]
+    .iter()
+    .any(|unsafe_part| lower.contains(unsafe_part))
 }
 
 fn surface_provider_request_context(
@@ -939,7 +1035,7 @@ impl IntoApiError for AppError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use platform_core::RequestId;
+    use platform_core::{ProviderHttpBodyCaptureStatus, RequestId};
     use serde_json::json;
 
     fn request_context() -> RequestContext {
@@ -984,6 +1080,38 @@ mod tests {
         let provider_ctx = surface_provider_request_context(&request_ctx, Some(&story));
         assert_eq!(provider_ctx.correlation_id.0, "correlation-1");
         assert!(provider_ctx.causation_id.is_none());
+    }
+
+    #[test]
+    fn surface_body_evidence_is_bounded_and_redacted_before_persistence() {
+        let body = json!({
+            "profile": {
+                "email": "operator@example.com",
+                "credentials": { "access_token": "provider-secret" },
+                "display_name": "Operator"
+            }
+        });
+
+        let evidence = capture_surface_json_body(Some(&body), "method_without_body");
+
+        assert_eq!(
+            evidence.capture_status(),
+            ProviderHttpBodyCaptureStatus::Captured
+        );
+        let captured = evidence.body().expect("body evidence should be captured");
+        assert_eq!(captured["profile"]["email"], "[redacted]");
+        assert_eq!(captured["profile"]["credentials"], "[redacted]");
+        assert_eq!(captured["profile"]["display_name"], "Operator");
+
+        let oversized = json!({
+            "value": "x".repeat(MAX_PROVIDER_HTTP_BODY_EVIDENCE_BYTES)
+        });
+        let omitted = capture_surface_json_body(Some(&oversized), "method_without_body");
+        assert_eq!(
+            omitted.capture_status(),
+            ProviderHttpBodyCaptureStatus::NotCaptured
+        );
+        assert_eq!(omitted.capture_reason(), Some("evidence_limit_exceeded"));
     }
 
     #[test]

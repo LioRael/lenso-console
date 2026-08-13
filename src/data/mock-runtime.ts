@@ -125,9 +125,25 @@ export type ExecutionNode = {
 };
 
 export type ExecutionPayload = {
+  groups: ExecutionEvidenceGroup[];
   input?: unknown;
+  nodeType?: string;
   output?: unknown;
   metadata?: unknown;
+  redactedFields: string[];
+};
+
+export type ExecutionEvidenceGap = {
+  detail: string;
+  field: string;
+  status: "not_applicable" | "not_captured";
+};
+
+export type ExecutionEvidenceGroup = {
+  content: unknown;
+  defaultExpanded: boolean;
+  gaps: ExecutionEvidenceGap[];
+  key: string;
   redactedFields: string[];
 };
 
