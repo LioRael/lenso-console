@@ -10,23 +10,11 @@ import {
   type RefObject,
 } from "react";
 
-import {
-  functionRuns,
-  runtimeEvents,
-  runtimeStories,
-  type RetryTarget,
-} from "../../data/mock-runtime";
+import { runtimeStories, type RetryTarget } from "../../data/mock-runtime";
 import { queryDataWithMockFallback } from "../../hooks/runtime-query-data";
-import {
-  useRuntimeEvents,
-  useRuntimeFunctions,
-  useRuntimeStories,
-} from "../../hooks/use-runtime-queries";
+import { useRuntimeStories } from "../../hooks/use-runtime-queries";
 import { isApiMode } from "../../lib/http-client";
-import {
-  functionsPath,
-  operationsPath,
-} from "../../pages/operations-url-model";
+import { operationsPath } from "../../pages/operations-url-model";
 import { remoteProxyCallsPath } from "../../pages/remote-proxy-calls-model";
 import {
   buildRuntimeSearchResults,
@@ -72,8 +60,6 @@ function runtimeStoriesPath(filters: {
 
 export function ConsoleProvider({ children }: PropsWithChildren) {
   const navigate = useNavigate();
-  const eventsQuery = useRuntimeEvents();
-  const functionsQuery = useRuntimeFunctions();
   const storiesQuery = useRuntimeStories();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [retryTarget, setRetryTarget] = useState<RetryTarget | null>(null);
@@ -125,28 +111,6 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
     setActiveStoryTarget(null);
   }, []);
 
-  const resolvedEvents = useMemo(
-    () =>
-      queryDataWithMockFallback({
-        apiMode: isApiMode(),
-        data: eventsQuery.data,
-        fallback: runtimeEvents,
-        isError: eventsQuery.isError,
-      }),
-    [eventsQuery.data, eventsQuery.isError]
-  );
-
-  const resolvedFunctions = useMemo(
-    () =>
-      queryDataWithMockFallback({
-        apiMode: isApiMode(),
-        data: functionsQuery.data,
-        fallback: functionRuns,
-        isError: functionsQuery.isError,
-      }),
-    [functionsQuery.data, functionsQuery.isError]
-  );
-
   const resolvedStories = useMemo(
     () =>
       queryDataWithMockFallback({
@@ -180,13 +144,11 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
       }
 
       return buildRuntimeSearchResults({
-        events: resolvedEvents,
-        functions: resolvedFunctions,
         query: normalized,
         stories: resolvedStories,
       });
     },
-    [resolvedEvents, resolvedFunctions, resolvedStories]
+    [resolvedStories]
   );
 
   const selectSearchResult = useCallback(
@@ -197,22 +159,9 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
       }
       if (result.kind === "story") {
         openStory(result.storyId, result.nodeId);
-        return;
-      }
-      if (result.kind === "event") {
-        openStoryTarget({
-          correlationId: result.correlationId,
-          nodeIdCandidates: [result.id],
-        });
-        return;
-      }
-      if (result.kind === "function") {
-        void navigate({
-          to: functionsPath({ selectedId: result.id }),
-        });
       }
     },
-    [navigate, openTimeline, openStory, openStoryTarget]
+    [openTimeline, openStory]
   );
 
   const value = useMemo<ConsoleContextValue>(
