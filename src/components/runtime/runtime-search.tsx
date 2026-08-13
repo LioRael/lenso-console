@@ -255,7 +255,7 @@ export function RuntimeSearch() {
             localStyles.utilityFocusVisibleOutlineFocusRing,
             localStyles.utilityFocusVisibleOutlineOffset1,
           ])}
-          placeholder="story / node / correlation / outbox / function"
+          placeholder="story / execution / correlation"
           value={query}
         />
         <span
@@ -297,7 +297,7 @@ export function RuntimeSearch() {
                 localStyles.utilityTextFgTertiary,
               ])}
             >
-              No runtime objects found
+              No stories or executions found
             </div>
           ) : (
             results.map((result) => (
@@ -335,7 +335,7 @@ export function RuntimeSearch() {
                     localStyles.utilityTextFgTertiary,
                   ])}
                 >
-                  {searchResultKindLabel(result.kind)}
+                  {result.kind}
                 </span>
                 <span>
                   <strong
@@ -367,11 +367,4 @@ export function RuntimeSearch() {
       ) : null}
     </div>
   );
-}
-
-function searchResultKindLabel(kind: string) {
-  if (kind === "event") {
-    return "outbox";
-  }
-  return kind;
 }

@@ -1,24 +1,6 @@
-import type {
-  FunctionRun,
-  RuntimeEvent,
-  RuntimeStory,
-} from "../../data/mock-runtime";
+import type { RuntimeStory } from "../../data/mock-runtime";
 
 export type RuntimeSearchResult =
-  | {
-      kind: "event";
-      id: string;
-      title: string;
-      subtitle: string;
-      correlationId: string;
-    }
-  | {
-      kind: "function";
-      id: string;
-      title: string;
-      subtitle: string;
-      correlationId: string;
-    }
   | {
       kind: "story";
       id: string;
@@ -37,16 +19,12 @@ export type RuntimeSearchResult =
     };
 
 export function buildRuntimeSearchResults({
-  events,
-  functions,
   query,
   stories,
   limit = 8,
 }: {
   query: string;
   stories: RuntimeStory[];
-  events: RuntimeEvent[];
-  functions: FunctionRun[];
   limit?: number;
 }): RuntimeSearchResult[] {
   const normalized = query.trim().toLowerCase();
@@ -100,54 +78,8 @@ export function buildRuntimeSearchResults({
     ];
   });
 
-  const eventResults: RuntimeSearchResult[] = events
-    .filter((event) =>
-      [
-        event.id,
-        event.eventName,
-        event.status,
-        event.correlationId,
-        event.lastError ?? "",
-      ].some((value) => value.toLowerCase().includes(normalized))
-    )
-    .map((event) => ({
-      kind: "event",
-      id: event.id,
-      title: event.eventName,
-      subtitle: `${event.status} · ${event.correlationId}`,
-      correlationId: event.correlationId,
-    }));
-
-  const functionResults: RuntimeSearchResult[] = functions
-    .filter((run) =>
-      [
-        run.id,
-        run.functionName,
-        run.runtimeDeclaration?.moduleName ?? "",
-        run.runtimeDeclaration?.moduleSource ?? "",
-        run.runtimeDeclaration?.queue ?? "",
-        run.runtimeDeclaration?.inputSchema ?? "",
-        run.status,
-        run.correlationId,
-        run.lastError ?? "",
-      ].some((value) => value.toLowerCase().includes(normalized))
-    )
-    .map((run) => ({
-      kind: "function",
-      id: run.id,
-      title: run.functionName,
-      subtitle: `${run.status} · ${
-        run.runtimeDeclaration?.moduleName ?? run.correlationId
-      }`,
-      correlationId: run.correlationId,
-    }));
-
   const correlations = Array.from(
-    new Set([
-      ...stories.map((story) => story.correlationId),
-      ...events.map((event) => event.correlationId),
-      ...functions.map((run) => run.correlationId),
-    ])
+    new Set(stories.map((story) => story.correlationId))
   )
     .filter((id) => id.toLowerCase().includes(normalized))
     .map<RuntimeSearchResult>((id) => ({
@@ -158,10 +90,5 @@ export function buildRuntimeSearchResults({
       correlationId: id,
     }));
 
-  return [
-    ...storyResults,
-    ...correlations,
-    ...eventResults,
-    ...functionResults,
-  ].slice(0, limit);
+  return [...storyResults, ...correlations].slice(0, limit);
 }
