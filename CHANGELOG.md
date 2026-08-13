@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.0.9
+
+### Patch Changes
+
+- acdfaec: Present source-specific Story execution evidence, including safely captured Provider request and response bodies, and correct the Inspector close control, command palette positioning, and Services table consistency.
+
 ## 1.0.8
 
 ### Patch Changes
