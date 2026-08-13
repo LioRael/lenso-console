@@ -13,3 +13,4 @@ dist/
 *.log
 *.tsbuildinfo
 /service/target/
+/service/artifacts/

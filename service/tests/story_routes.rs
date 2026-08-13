@@ -650,6 +650,36 @@ async fn console_administrator_authority_is_projected_and_revocable_without_auth
     assert_eq!(context["scopes"], json!([]));
     assert_eq!(context["capabilities"], json!(["*"]));
 
+    let invalid_composition = json!({
+        "kind": "console_composition",
+        "effect_id": "test-console-composition",
+        "console_service_id": "lenso-console",
+        "candidate_lock_digest": "invalid-digest",
+        "artifacts": [],
+        "theme_bundles": [],
+    });
+    let scoped_reconcile = app
+        .clone()
+        .oneshot(
+            admin_post("/api/console/v1/artifacts/reconcile", &invalid_composition).with_header(
+                "authorization",
+                "Bearer dev-user:scoped-user:console.artifacts.manage",
+            ),
+        )
+        .await
+        .expect("scoped Console artifact reconciliation request should complete");
+    assert_eq!(scoped_reconcile.status(), StatusCode::BAD_REQUEST);
+
+    let reconcile = app
+        .clone()
+        .oneshot(
+            admin_post("/api/console/v1/artifacts/reconcile", &invalid_composition)
+                .with_header("authorization", authorization),
+        )
+        .await
+        .expect("Console artifact reconciliation request should complete");
+    assert_eq!(reconcile.status(), StatusCode::BAD_REQUEST);
+
     let stories = app
         .clone()
         .oneshot(
@@ -666,6 +696,7 @@ async fn console_administrator_authority_is_projected_and_revocable_without_auth
         .await
         .expect("Console administrator should be revoked");
     let revoked = app
+        .clone()
         .oneshot(
             admin_get("/api/console/v1/stories/missing/heatmap")
                 .with_header("authorization", authorization),
@@ -673,6 +704,15 @@ async fn console_administrator_authority_is_projected_and_revocable_without_auth
         .await
         .expect("revoked Story request should complete");
     assert_eq!(revoked.status(), StatusCode::FORBIDDEN);
+
+    let revoked_reconcile = app
+        .oneshot(
+            admin_post("/api/console/v1/artifacts/reconcile", &invalid_composition)
+                .with_header("authorization", authorization),
+        )
+        .await
+        .expect("revoked Console artifact reconciliation request should complete");
+    assert_eq!(revoked_reconcile.status(), StatusCode::FORBIDDEN);
 
     db.cleanup().await;
 }
