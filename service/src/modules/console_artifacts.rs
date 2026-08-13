@@ -9,8 +9,8 @@ use lenso::console::{
     ConsoleUiArtifactStyleAsset,
 };
 use lenso::host::http::{
-    ApiErrorResponse, AppError, ErrorCode, ErrorResponse, HttpRequestContext, Json, RequestContext,
-    UserActor,
+    ApiErrorResponse, AppContext, AppError, ErrorCode, ErrorResponse, HttpRequestContext, Json,
+    RequestContext, State, UserActor,
 };
 use lenso_module_management::ConsoleCompositionArtifact;
 use serde::{Deserialize, Serialize};
@@ -146,17 +146,18 @@ pub async fn get_artifacts(
     )
 )]
 pub async fn reconcile_artifacts(
+    State(ctx): State<AppContext>,
     actor: UserActor,
     HttpRequestContext(request_ctx): HttpRequestContext,
     Json(request): Json<ConsoleCompositionRequest>,
 ) -> Result<Json<ConsoleCompositionReceipt>, ApiErrorResponse> {
-    if !actor.scopes.iter().any(|scope| scope == ARTIFACTS_MANAGE) {
-        return Err(api_error(
-            ErrorCode::Forbidden,
-            format!("missing required capability {ARTIFACTS_MANAGE}"),
-            &request_ctx,
-        ));
-    }
+    crate::modules::console_access::require_console_capability(
+        &ctx,
+        &actor,
+        ARTIFACTS_MANAGE,
+        &request_ctx,
+    )
+    .await?;
     let _guard = RECONCILE_LOCK.lock().await;
     validate_request(&request).map_err(|error| bad_request(error, &request_ctx))?;
     let client = reqwest::Client::builder()
