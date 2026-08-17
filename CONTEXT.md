@@ -2,6 +2,22 @@
 
 ## Terms
 
+### Service boundaries
+
+- **Console Service**: The independently operated Lenso Service behind one
+  Console deployment. It owns Console identity and control state and is not one
+  of its Managed Services.
+  _Avoid_: Managed Console
+- **Managed Service**: An independently operated Lenso Service enrolled in
+  Console for observation and authorized management. It remains authoritative
+  for its own runtime and business state.
+  _Avoid_: Target Service, User Service
+- **Managed Service Context**: The single Managed Service selected as the scope
+  of a Console view or operation.
+  _Avoid_: Target Context
+
+### Console access
+
 - **Operator**: An authenticated user who is allowed to enter the independent
   Lenso Console.
 - **Console administrator**: An Operator with the `console.admin` authority
@@ -9,6 +25,24 @@
 - **Superadmin**: An explicitly designated Console administrator with authority
   across the capabilities exposed by the current Console Service. A superadmin
   designation does not change ownership of state held by individual Modules.
+- **Bootstrap Superadmin**: The local recovery identity that makes an
+  uninitialized Console Service administrable without granting authority inside
+  a Managed Service.
+  _Avoid_: Default administrator
+- **Console Organization**: A group of Operators in the Console identity domain
+  that may hold Managed Service Access Grants and remains distinct from business
+  organizations inside Managed Services.
+  _Avoid_: Console team, Console tenant
+- **Managed Service Access Grant**: Console-owned authority binding an Operator
+  or Console Organization to named management capabilities for one Managed
+  Service.
+  _Avoid_: Service role, Service permission
+- **Effective Managed Service Access**: The Console authority an Operator
+  currently holds for one Managed Service after combining global Console
+  authority, direct grants, and Console Organization grants.
+- **Console Access**: The Host-owned Console domain for Operators, Console
+  Organizations, Managed Service access, and Console recovery authority.
+  _Avoid_: Console Auth Surface
 
 ### Runtime evidence
 
@@ -27,6 +61,9 @@
 - **Module Surface**: A trusted, same-realm presentation contributed by a Module
   and rendered within a Host-owned region of Lenso Console.
   _Avoid_: Extension, plugin page
+- **Artifact Quarantine**: The Console presentation state for a Module whose UI
+  artifact cannot be admitted while the Module's business runtime remains
+  available.
 - **Surface Root**: The Host-provided boundary within which a Module Surface may
   present and locally theme its content.
 - **Surface Styling Contract**: The versioned visual contract that a Module
