@@ -35,18 +35,24 @@ type StateFilter = "all" | "loaded" | "error";
 
 type SurfaceRegistration = {
   area: string;
+  artifactDigest: string | undefined;
   capabilities: readonly string[];
   defaultFromArea: boolean;
+  entry: string | undefined;
+  entryCount: number | undefined;
   error: string | null | undefined;
   exportName: string | undefined;
-  presentation: string;
   group: string;
+  grantedPermissions: readonly string[];
   id: string;
   moduleId: string;
   moduleName: string;
+  moduleReleaseDigest: string | undefined;
   order: number;
   packageName: string | undefined;
   placement: string;
+  presentation: string;
+  protocolMajor: number | undefined;
   route: string;
   source: string;
   state: string;
@@ -66,22 +72,28 @@ export function ModulesPage() {
           const { navigation } = surface;
           return {
             area: surface.area,
+            artifactDigest: module.artifactDigest,
             capabilities: surface.requiredCapabilities ?? [],
             defaultFromArea:
               surface.defaultFromArea ?? !(navigation && "group" in navigation),
+            entry: module.entry,
+            entryCount: module.entryCount,
             error: module.error,
             exportName: surface.exportName,
-            presentation: surface.presentation,
             group:
               navigation && "group" in navigation
                 ? (navigation.group?.label ?? "—")
                 : "—",
+            grantedPermissions: module.grantedPermissions ?? [],
             id: `${module.id}:${surface.route}`,
             moduleId: module.id,
             moduleName: module.name,
+            moduleReleaseDigest: module.moduleReleaseDigest,
             order: navigation?.order ?? 0,
             packageName: surface.packageName,
             placement: placementForSurface(surface),
+            presentation: surface.presentation,
+            protocolMajor: module.protocolMajor,
             route: surface.route,
             source: module.source,
             state: module.state,
@@ -193,7 +205,7 @@ export function ModulesPage() {
                 <p>Area: {selected.area}</p>
                 <p>Surface: {selected.surface.toLowerCase()}</p>
               </InspectorSection>
-              <InspectorSection title={copy.modules.ownership}>
+              <InspectorSection title={copy.modules.identity}>
                 <p>{selected.packageName ?? `Module: ${selected.moduleId}`}</p>
                 <p>
                   {selected.exportName
@@ -201,6 +213,27 @@ export function ModulesPage() {
                     : `Presentation: ${selected.presentation}`}
                 </p>
                 <p>Source: {sourceLabel(selected.source, copy.modules)}</p>
+                {selected.moduleReleaseDigest ? (
+                  <p>Release: {shortDigest(selected.moduleReleaseDigest)}</p>
+                ) : null}
+                {selected.artifactDigest ? (
+                  <p>Artifact: {shortDigest(selected.artifactDigest)}</p>
+                ) : null}
+              </InspectorSection>
+              <InspectorSection title={copy.modules.executionEvidence}>
+                <p>
+                  {copy.modules.protocol}: {selected.protocolMajor ?? "—"}
+                </p>
+                <p>
+                  {copy.modules.entry}: {selected.entry ?? "—"}
+                </p>
+                <p>
+                  {copy.modules.entries}: {selected.entryCount ?? 0}
+                </p>
+                <p>
+                  {copy.modules.permissions}:{" "}
+                  {selected.grantedPermissions.length}
+                </p>
               </InspectorSection>
               <InspectorSection title={copy.modules.navigation}>
                 <p>Workspace: {selected.workspace}</p>
@@ -229,6 +262,13 @@ export function ModulesPage() {
                     ? copy.modules.routeRegistered
                     : (selected.error ?? "Module unavailable")}
                 </p>
+              </InspectorSection>
+              <InspectorSection title={copy.modules.removalPreview}>
+                <p>
+                  {copy.modules.removalSurfaceImpact}:{" "}
+                  {surfaceCountForModule(registrations, selected.moduleId)}
+                </p>
+                <p>{copy.modules.removalAuthority}</p>
               </InspectorSection>
             </Inspector>
           ) : (
@@ -342,4 +382,15 @@ function placementForSurface(surface: ModuleRegistrySurfaceRow) {
 
 function areaLabel(area: string) {
   return area.charAt(0).toUpperCase() + area.slice(1);
+}
+
+function shortDigest(digest: string) {
+  return digest.length > 24 ? `${digest.slice(0, 21)}…` : digest;
+}
+
+function surfaceCountForModule(
+  registrations: readonly SurfaceRegistration[],
+  moduleId: string
+) {
+  return registrations.filter((item) => item.moduleId === moduleId).length;
 }

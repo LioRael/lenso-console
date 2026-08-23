@@ -54,10 +54,16 @@ export type ModuleRegistrySurfaceRow = {
 };
 
 export type ModuleRegistryRow = {
+  artifactDigest?: string;
   capabilities: readonly string[];
+  entry?: string;
+  entryCount?: number;
   error: string | null;
+  grantedPermissions?: readonly string[];
   id: string;
+  moduleReleaseDigest?: string;
   name: string;
+  protocolMajor?: number;
   source: string;
   state: "loaded" | "error";
   surfaces: ModuleRegistrySurfaceRow[];
@@ -186,7 +192,7 @@ export function mergeHomeEvidence(
     .slice(0, 8);
 }
 
-function moduleRegistryRowFromArtifact(
+export function moduleRegistryRowFromArtifact(
   artifact: ConsoleArtifactReceipt
 ): ModuleRegistryRow {
   const surfaces = artifact.manifest.surfaces.map((surface) => ({
@@ -201,14 +207,22 @@ function moduleRegistryRowFromArtifact(
   }));
   const id = artifact.moduleId;
   return {
+    artifactDigest: artifact.artifactDigest,
     capabilities: [
       ...new Set(
         surfaces.flatMap((surface) => surface.requiredCapabilities ?? [])
       ),
     ],
+    entry: artifact.entry,
+    entryCount: artifact.entries.length,
     error: null,
+    grantedPermissions: artifact.grantedPermissions,
     id,
+    moduleReleaseDigest: artifact.moduleReleaseDigest,
     name: titleCase(id),
+    ...(artifact.protocolMajor === undefined
+      ? {}
+      : { protocolMajor: artifact.protocolMajor }),
     source: "runtime_bundle",
     state: "loaded",
     surfaces,
