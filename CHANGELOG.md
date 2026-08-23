@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.1.0
+
+### Minor Changes
+
+- fc81759: Add a read-only Module Workbench inspector for receipt-bound identity, execution evidence, permissions, and removal impact previews.
+
 ## 1.0.9
 
 ### Patch Changes
