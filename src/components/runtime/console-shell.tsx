@@ -6,13 +6,11 @@ import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Blocks,
   Boxes,
+  GitCompareArrows,
   History,
   House,
   MousePointer2,
-  Plug,
-  ServerCog,
   Settings,
 } from "lucide-react";
 import { useState, type ComponentType, type PropsWithChildren } from "react";
@@ -22,15 +20,32 @@ import styles from "./console-shell.module.css";
 type NavigationItem = {
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
   label: string;
+  matchPaths: readonly string[];
   path: string;
 };
 
 const primaryNavigation: readonly NavigationItem[] = [
-  { icon: House, label: "Overview", path: "/" },
-  { icon: Plug, label: "Plugins", path: "/plugins" },
-  { icon: Blocks, label: "Modules", path: "/modules" },
-  { icon: ServerCog, label: "Services", path: "/services" },
-  { icon: Boxes, label: "Stories", path: "/stories" },
+  { icon: House, label: "Overview", matchPaths: ["/"], path: "/" },
+  {
+    icon: Boxes,
+    label: "System",
+    matchPaths: [
+      "/system",
+      "/plugins",
+      "/modules",
+      "/services",
+      "/stories",
+      "/runtime",
+      "/delivery",
+    ],
+    path: "/system",
+  },
+  {
+    icon: GitCompareArrows,
+    label: "Changes",
+    matchPaths: ["/changes"],
+    path: "/changes",
+  },
 ];
 
 export function ConsoleShell({ children }: PropsWithChildren) {
@@ -58,10 +73,11 @@ export function ConsoleShell({ children }: PropsWithChildren) {
               <Sidebar.Menu aria-label="Primary navigation">
                 {primaryNavigation.map((item) => {
                   const Icon = item.icon;
-                  const selected =
-                    item.path === "/"
-                      ? currentPath === "/"
-                      : currentPath.startsWith(item.path);
+                  const selected = item.matchPaths.some((path) =>
+                    path === "/"
+                      ? currentPath === path
+                      : currentPath.startsWith(path)
+                  );
                   return (
                     <Sidebar.MenuItem key={item.path}>
                       <Sidebar.Item
