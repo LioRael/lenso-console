@@ -1,8 +1,10 @@
+import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { PageHeader } from "@lenso/ui/page-header";
 import { StatusMarker, type StatusMarkerStatus } from "@lenso/ui/status-marker";
 import { Surface } from "@lenso/ui/surface";
 import * as stylex from "@stylexjs/stylex";
-import { PlugZap } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Boxes } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
@@ -16,17 +18,29 @@ const styles = stylex.create({
   page: {
     boxSizing: "border-box",
     display: "grid",
-    gap: tokens.space4,
     marginInline: "auto",
     maxWidth: 1440,
-    paddingBlock: tokens.space6,
-    paddingInline: tokens.space6,
     width: "100%",
   },
   header: {
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
+  },
+  content: {
+    display: "grid",
+    gap: tokens.space4,
+    paddingBlock: tokens.space6,
+    paddingInline: tokens.space6,
+  },
+  visuallyHidden: {
+    clip: "rect(0 0 0 0)",
+    clipPath: "inset(50%)",
+    height: 1,
+    overflow: "hidden",
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: 1,
   },
   description: {
     color: tokens.colorContentTertiary,
@@ -194,12 +208,28 @@ export function PluginWorkbenchPage() {
 
   return (
     <div {...stylex.props(styles.page)}>
-      <PageHeader.Root {...stylex.props(styles.header)} variant="simple">
+      <PageHeader.Root
+        aria-label="Plugin navigation"
+        {...stylex.props(styles.header)}
+        variant="simple"
+      >
         <PageHeader.Row>
-          <PageHeader.Leading>
-            <PlugZap size={16} strokeWidth={1.75} />
-          </PageHeader.Leading>
-          <PageHeader.Title>Plugins</PageHeader.Title>
+          <Breadcrumb.Root aria-label="Plugin breadcrumb">
+            <Breadcrumb.List>
+              <Breadcrumb.Item>
+                <Breadcrumb.Link nativeButton={false} render={<Link to="/" />}>
+                  <Breadcrumb.Icon>
+                    <Boxes size={14} strokeWidth={1.75} />
+                  </Breadcrumb.Icon>
+                  System
+                </Breadcrumb.Link>
+              </Breadcrumb.Item>
+              <Breadcrumb.Separator />
+              <Breadcrumb.Item>
+                <Breadcrumb.Page>Plugins</Breadcrumb.Page>
+              </Breadcrumb.Item>
+            </Breadcrumb.List>
+          </Breadcrumb.Root>
           <PageHeader.Spacer />
           <PageHeader.Actions>
             <StatusMarker
@@ -212,140 +242,148 @@ export function PluginWorkbenchPage() {
           </PageHeader.Actions>
         </PageHeader.Row>
       </PageHeader.Root>
-      <p {...stylex.props(styles.description)}>
-        Inspect the active App Generation, resolved Plugin packages, and current
-        Host evidence.
-      </p>
+      <div {...stylex.props(styles.content)}>
+        <h1 {...stylex.props(styles.visuallyHidden)}>Plugins</h1>
+        <p {...stylex.props(styles.description)}>
+          Inspect the active App Generation, resolved Plugin packages, and
+          current Host evidence.
+        </p>
 
-      <div {...stylex.props(styles.workspace)}>
-        <Surface
-          {...stylex.props(styles.panel)}
-          level="panel"
-          style={{ alignItems: "stretch", gap: 0, padding: 0 }}
-        >
-          <div {...stylex.props(styles.panelHeader)}>
-            <h2 {...stylex.props(styles.panelTitle)}>Active generation</h2>
-            <span {...stylex.props(styles.panelMeta)}>
-              {plugins.length} plugins
-            </span>
-          </div>
-          <div aria-hidden="true" {...stylex.props(styles.columns)}>
-            <span>Plugin</span>
-            <span>Resolved package</span>
-            <span>Version</span>
-            <span>State</span>
-          </div>
-          {plugins.length === 0 ? (
-            <p {...stylex.props(styles.empty)}>
-              No Plugins are present in this generation.
-            </p>
-          ) : (
-            plugins.map((plugin) => (
-              <button
-                aria-pressed={selected?.instanceKey === plugin.instanceKey}
-                key={plugin.instanceKey}
-                onClick={() => setSelectedKey(plugin.instanceKey)}
-                type="button"
-                {...stylex.props(
-                  styles.row,
-                  selected?.instanceKey === plugin.instanceKey &&
-                    styles.rowSelected
-                )}
-              >
-                <span {...stylex.props(styles.identity)}>
-                  <span {...stylex.props(styles.primary)}>
-                    {plugin.instanceKey}
-                  </span>
-                  <span {...stylex.props(styles.secondary)}>
-                    {shortPluginDigest(plugin.receiptDigest)}
-                  </span>
-                </span>
-                <span {...stylex.props(styles.ellipsis)}>
-                  {plugin.packageId}
-                </span>
-                <span>{plugin.packageVersion}</span>
-                <StatusMarker
-                  presentation="label"
-                  status={stateStatus(plugin.state)}
+        <div {...stylex.props(styles.workspace)}>
+          <Surface
+            {...stylex.props(styles.panel)}
+            level="panel"
+            style={{ alignItems: "stretch", gap: 0, padding: 0 }}
+          >
+            <div {...stylex.props(styles.panelHeader)}>
+              <h2 {...stylex.props(styles.panelTitle)}>Active generation</h2>
+              <span {...stylex.props(styles.panelMeta)}>
+                {plugins.length} plugins
+              </span>
+            </div>
+            <div aria-hidden="true" {...stylex.props(styles.columns)}>
+              <span>Plugin</span>
+              <span>Resolved package</span>
+              <span>Version</span>
+              <span>State</span>
+            </div>
+            {plugins.length === 0 ? (
+              <p {...stylex.props(styles.empty)}>
+                No Plugins are present in this generation.
+              </p>
+            ) : (
+              plugins.map((plugin) => (
+                <button
+                  aria-pressed={selected?.instanceKey === plugin.instanceKey}
+                  key={plugin.instanceKey}
+                  onClick={() => setSelectedKey(plugin.instanceKey)}
+                  type="button"
+                  {...stylex.props(
+                    styles.row,
+                    selected?.instanceKey === plugin.instanceKey &&
+                      styles.rowSelected
+                  )}
                 >
-                  {stateLabel(plugin.state)}
-                </StatusMarker>
-              </button>
-            ))
-          )}
-        </Surface>
-
-        <Surface
-          {...stylex.props(styles.panel)}
-          level="panel"
-          style={{ alignItems: "stretch", gap: 0, padding: 0 }}
-        >
-          {selected && projection ? (
-            <>
-              <header {...stylex.props(styles.inspectorHeader)}>
-                <div>
-                  <h2 {...stylex.props(styles.inspectorTitle)}>
-                    {selected.instanceKey}
-                  </h2>
-                  <span {...stylex.props(styles.secondary)}>
-                    {selected.packageId}
+                  <span {...stylex.props(styles.identity)}>
+                    <span {...stylex.props(styles.primary)}>
+                      {plugin.instanceKey}
+                    </span>
+                    <span {...stylex.props(styles.secondary)}>
+                      {shortPluginDigest(plugin.receiptDigest)}
+                    </span>
                   </span>
+                  <span {...stylex.props(styles.ellipsis)}>
+                    {plugin.packageId}
+                  </span>
+                  <span>{plugin.packageVersion}</span>
+                  <StatusMarker
+                    presentation="label"
+                    status={stateStatus(plugin.state)}
+                  >
+                    {stateLabel(plugin.state)}
+                  </StatusMarker>
+                </button>
+              ))
+            )}
+          </Surface>
+
+          <Surface
+            {...stylex.props(styles.panel)}
+            level="panel"
+            style={{ alignItems: "stretch", gap: 0, padding: 0 }}
+          >
+            {selected && projection ? (
+              <>
+                <header {...stylex.props(styles.inspectorHeader)}>
+                  <div>
+                    <h2 {...stylex.props(styles.inspectorTitle)}>
+                      {selected.instanceKey}
+                    </h2>
+                    <span {...stylex.props(styles.secondary)}>
+                      {selected.packageId}
+                    </span>
+                  </div>
+                  <StatusMarker
+                    presentation="label"
+                    status={stateStatus(selected.state)}
+                  >
+                    {stateLabel(selected.state)}
+                  </StatusMarker>
+                </header>
+                <div {...stylex.props(styles.inspectorBody)}>
+                  <DetailSection title="Resolved package">
+                    <Detail label="Package" value={selected.packageId} />
+                    <Detail label="Version" value={selected.packageVersion} />
+                    <Detail
+                      label="Receipt"
+                      value={shortPluginDigest(selected.receiptDigest)}
+                    />
+                  </DetailSection>
+                  <DetailSection title="App Generation">
+                    <Detail
+                      label="Generation"
+                      value={projection.generation.generationId}
+                    />
+                    <Detail
+                      label="Plan"
+                      value={shortPluginDigest(
+                        projection.generation.planDigest
+                      )}
+                    />
+                    <Detail
+                      label="Activated"
+                      value={formatTimestamp(projection.generation.activatedAt)}
+                    />
+                  </DetailSection>
+                  <DetailSection title="Provided capabilities">
+                    {selected.capabilityIds.map((capability) => (
+                      <code
+                        key={capability}
+                        {...stylex.props(styles.capability)}
+                      >
+                        {capability}
+                      </code>
+                    ))}
+                  </DetailSection>
+                  <DetailSection title="Live evidence">
+                    <Detail
+                      label="Observed"
+                      value={formatTimestamp(projection.observedAt)}
+                    />
+                    <Detail
+                      label="Cursor"
+                      value={String(projection.stream.cursor)}
+                    />
+                  </DetailSection>
                 </div>
-                <StatusMarker
-                  presentation="label"
-                  status={stateStatus(selected.state)}
-                >
-                  {stateLabel(selected.state)}
-                </StatusMarker>
-              </header>
-              <div {...stylex.props(styles.inspectorBody)}>
-                <DetailSection title="Resolved package">
-                  <Detail label="Package" value={selected.packageId} />
-                  <Detail label="Version" value={selected.packageVersion} />
-                  <Detail
-                    label="Receipt"
-                    value={shortPluginDigest(selected.receiptDigest)}
-                  />
-                </DetailSection>
-                <DetailSection title="App Generation">
-                  <Detail
-                    label="Generation"
-                    value={projection.generation.generationId}
-                  />
-                  <Detail
-                    label="Plan"
-                    value={shortPluginDigest(projection.generation.planDigest)}
-                  />
-                  <Detail
-                    label="Activated"
-                    value={formatTimestamp(projection.generation.activatedAt)}
-                  />
-                </DetailSection>
-                <DetailSection title="Provided capabilities">
-                  {selected.capabilityIds.map((capability) => (
-                    <code key={capability} {...stylex.props(styles.capability)}>
-                      {capability}
-                    </code>
-                  ))}
-                </DetailSection>
-                <DetailSection title="Live evidence">
-                  <Detail
-                    label="Observed"
-                    value={formatTimestamp(projection.observedAt)}
-                  />
-                  <Detail
-                    label="Cursor"
-                    value={String(projection.stream.cursor)}
-                  />
-                </DetailSection>
-              </div>
-            </>
-          ) : (
-            <p {...stylex.props(styles.empty)}>
-              Select a Plugin to inspect its receipt.
-            </p>
-          )}
-        </Surface>
+              </>
+            ) : (
+              <p {...stylex.props(styles.empty)}>
+                Select a Plugin to inspect its receipt.
+              </p>
+            )}
+          </Surface>
+        </div>
       </div>
     </div>
   );
