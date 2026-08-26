@@ -24,32 +24,7 @@ const styles = stylex.create({
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
-  },
-  contextRow: {
-    alignItems: "center",
-    display: "flex",
-    gap: tokens.space3,
     height: 44,
-    paddingInline: 14,
-  },
-  contextCopy: {
-    display: "grid",
-    gap: 1,
-    minWidth: 0,
-  },
-  contextTitle: {
-    color: tokens.colorContentPrimary,
-    fontSize: 13,
-    fontWeight: 500,
-    lineHeight: "18px",
-    margin: 0,
-  },
-  contextMeta: {
-    color: tokens.colorContentTertiary,
-    fontSize: 11,
-    lineHeight: "16px",
-    marginInlineStart: "auto",
-    whiteSpace: "nowrap",
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -60,19 +35,10 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
     width: 1,
   },
-  description: {
-    color: tokens.colorContentTertiary,
-    fontSize: 11,
-    lineHeight: "16px",
-    margin: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
   workspace: {
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
-    minHeight: "calc(100dvh - 132px)",
+    minHeight: "calc(100dvh - 89px)",
     "@media (max-width: 1000px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
     },
@@ -260,35 +226,14 @@ export function PluginWorkbenchPage() {
               </Breadcrumb.Item>
             </Breadcrumb.List>
           </Breadcrumb.Root>
-          <PageHeader.Spacer />
-          <PageHeader.Actions>
-            <StatusMarker
-              presentation="label"
-              status={workbench.streamState === "live" ? "success" : "neutral"}
-            >
-              {workbench.mode === "live" ? "Live" : "Demo"} ·{" "}
-              {streamLabel(workbench.streamState)}
-            </StatusMarker>
-          </PageHeader.Actions>
         </PageHeader.Row>
-        <div {...stylex.props(styles.contextRow)}>
-          <div {...stylex.props(styles.contextCopy)}>
-            <h2
-              id="active-generation-heading"
-              {...stylex.props(styles.contextTitle)}
-            >
-              Active generation
-            </h2>
-            <p {...stylex.props(styles.description)}>
-              Resolved Plugin packages and current Host evidence
-            </p>
-          </div>
-          <span {...stylex.props(styles.contextMeta)}>
-            {plugins.length} {plugins.length === 1 ? "plugin" : "plugins"}
-          </span>
-        </div>
       </PageHeader.Root>
-      <h1 {...stylex.props(styles.visuallyHidden)}>Plugins</h1>
+      <h1
+        id="active-generation-heading"
+        {...stylex.props(styles.visuallyHidden)}
+      >
+        Plugins
+      </h1>
       <div {...stylex.props(styles.workspace)}>
         <section
           aria-labelledby="active-generation-heading"
@@ -451,21 +396,6 @@ function stateStatus(state: PluginGenerationState): StatusMarkerStatus {
 
 function stateLabel(state: PluginGenerationState) {
   return state.charAt(0).toUpperCase() + state.slice(1);
-}
-
-function streamLabel(
-  state: ReturnType<typeof usePluginWorkbench>["streamState"]
-) {
-  if (state === "live") {
-    return "Streaming";
-  }
-  if (state === "connecting") {
-    return "Connecting";
-  }
-  if (state === "reconnecting") {
-    return "Reconnecting";
-  }
-  return "Snapshot";
 }
 
 function formatTimestamp(value: string) {

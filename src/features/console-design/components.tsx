@@ -29,41 +29,7 @@ const styles = stylex.create({
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     flex: "0 0 auto",
-  },
-  contextRow: {
-    alignItems: "center",
-    display: "flex",
-    gap: tokens.space3,
     height: 44,
-    paddingInline: 14,
-  },
-  contextCopy: {
-    display: "grid",
-    gap: 1,
-    minWidth: 0,
-  },
-  contextTitle: {
-    color: tokens.colorContentPrimary,
-    fontSize: 13,
-    fontWeight: 500,
-    lineHeight: "18px",
-    margin: 0,
-  },
-  description: {
-    color: tokens.colorContentTertiary,
-    fontSize: 11,
-    lineHeight: "16px",
-    margin: 0,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  meta: {
-    color: tokens.colorContentTertiary,
-    fontSize: 11,
-    lineHeight: "16px",
-    marginInlineStart: "auto",
-    whiteSpace: "nowrap",
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -191,8 +157,6 @@ const styles = stylex.create({
 
 export function ProductPage({
   children,
-  description,
-  meta,
   pageKind,
   title,
 }: PropsWithChildren<{
@@ -230,22 +194,6 @@ export function ProductPage({
             </Breadcrumb.List>
           </Breadcrumb.Root>
         </PageHeader.Row>
-        <div {...stylex.props(styles.contextRow)}>
-          <div {...stylex.props(styles.contextCopy)}>
-            <h2 {...stylex.props(styles.contextTitle)}>{title}</h2>
-            <p
-              data-ui="page__description"
-              {...stylex.props(styles.description)}
-            >
-              {description}
-            </p>
-          </div>
-          {meta ? (
-            <div data-ui="page__actions" {...stylex.props(styles.meta)}>
-              {meta}
-            </div>
-          ) : null}
-        </div>
       </PageHeader.Root>
       <h1 {...stylex.props(styles.visuallyHidden)}>{title}</h1>
       <div data-page-slot="product-page__body" {...stylex.props(styles.body)}>

@@ -1,11 +1,21 @@
 import { Avatar } from "@lenso/ui/avatar";
 import { Button } from "@lenso/ui/button";
+import { Dialog } from "@lenso/ui/dialog";
+import { IconButton } from "@lenso/ui/icon-button";
 import { Sidebar } from "@lenso/ui/sidebar";
-import { StatusMarker } from "@lenso/ui/status-marker";
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Blocks, Boxes, House, Plug, ServerCog, Settings } from "lucide-react";
-import type { ComponentType, PropsWithChildren } from "react";
+import {
+  Blocks,
+  Boxes,
+  History,
+  House,
+  MousePointer2,
+  Plug,
+  ServerCog,
+  Settings,
+} from "lucide-react";
+import { useState, type ComponentType, type PropsWithChildren } from "react";
 
 import styles from "./console-shell.module.css";
 
@@ -25,6 +35,9 @@ const primaryNavigation: readonly NavigationItem[] = [
 
 export function ConsoleShell({ children }: PropsWithChildren) {
   const navigate = useNavigate();
+  const [agentUtility, setAgentUtility] = useState<"agent" | "history" | null>(
+    null
+  );
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -101,17 +114,57 @@ export function ConsoleShell({ children }: PropsWithChildren) {
         <main className={styles.main}>{children}</main>
 
         <footer aria-label="Application utilities" className={styles.utilities}>
-          <StatusMarker presentation="label" status="success">
-            Local environment
-          </StatusMarker>
           <Button
-            onClick={() => navigate({ to: "/settings" })}
+            data-agent-action="open"
+            onClick={() => setAgentUtility("agent")}
             size="compact"
             variant="ghost"
           >
-            Settings
+            <span className={styles.agentAction}>
+              <MousePointer2 aria-hidden="true" size={14} strokeWidth={1.6} />
+              Agent
+            </span>
           </Button>
+          <IconButton
+            aria-label="Agent history"
+            data-agent-action="history"
+            onClick={() => setAgentUtility("history")}
+            size="default"
+            variant="ghost"
+          >
+            <History aria-hidden="true" size={14} strokeWidth={1.6} />
+          </IconButton>
         </footer>
+
+        <Dialog.Root
+          onOpenChange={(open) => {
+            if (!open) {
+              setAgentUtility(null);
+            }
+          }}
+          open={agentUtility !== null}
+        >
+          <Dialog.Portal>
+            <Dialog.Backdrop />
+            <Dialog.Viewport>
+              <Dialog.Popup>
+                <Dialog.Header>
+                  <Dialog.Title>
+                    {agentUtility === "history" ? "Agent history" : "Agent"}
+                  </Dialog.Title>
+                  <Dialog.Close />
+                </Dialog.Header>
+                <Dialog.Body>
+                  <Dialog.Description>
+                    {agentUtility === "history"
+                      ? "No Agent runs have been recorded in this Console session."
+                      : "This System has not connected an Agent capability yet. Once connected, Agent operations will be prepared here for review."}
+                  </Dialog.Description>
+                </Dialog.Body>
+              </Dialog.Popup>
+            </Dialog.Viewport>
+          </Dialog.Portal>
+        </Dialog.Root>
       </Sidebar.Group>
     </ThemeScope>
   );

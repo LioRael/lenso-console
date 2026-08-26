@@ -46,6 +46,10 @@
     0 1px 1px var(--elevation-panel-detail);
 }
 
+.main [data-slot="page-header"] {
+  height: 44px;
+}
+
 .utilities {
   display: flex;
   grid-column: 2;
@@ -54,6 +58,12 @@
   justify-content: flex-end;
   gap: 2px;
   padding: 4px 10px;
+}
+
+.agentAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .operator {
