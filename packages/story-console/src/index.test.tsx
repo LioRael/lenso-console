@@ -11,14 +11,14 @@ import {
 } from ".";
 
 describe("story console module", () => {
-  test("exports the Stories route as a first-party console module", () => {
+  test("exports the Executions route as a first-party console module", () => {
     expect(storyConsoleModule).toMatchObject({
       id: "lenso/platform-story",
       surfaces: [
         {
           area: "runtime",
           icon: "workflow",
-          label: "Stories",
+          label: "Executions",
           path: "/stories",
         },
       ],

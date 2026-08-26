@@ -137,7 +137,7 @@ const consoleWorkbenchModule: ConsoleModule = {
       PluginWorkbenchPage,
       30
     ),
-    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 35),
+    workbenchSurface("boxes", "Surfaces", "界面", "/modules", ModulesPage, 35),
     workbenchSurface(
       "settings",
       "Settings",
@@ -171,16 +171,16 @@ const consoleUtilityModule: ConsoleModule = {
     ),
     workbenchSurface(
       "activity",
-      "Runtime",
-      "运行时",
+      "Operations",
+      "运行操作",
       "/runtime",
       RuntimePage,
       50
     ),
     workbenchSurface(
       "rocket",
-      "Delivery",
-      "交付",
+      "Releases",
+      "发布",
       "/delivery",
       DeliveryPage,
       70

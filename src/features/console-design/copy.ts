@@ -87,9 +87,9 @@ const product = {
       evidence: "Runtime evidence",
     },
     modules: {
-      title: "Module Registry",
+      title: "Surfaces",
       description:
-        "Registration and navigation health for module-owned Console surfaces.",
+        "Registration and navigation health for Console surfaces and their owning packages.",
       registry: "Navigation registrations",
       registered: "registered",
       moduleCount: "modules",
@@ -153,7 +153,7 @@ const product = {
       approve: "Approve & apply",
     },
     runtime: {
-      title: "Runtime",
+      title: "Operations",
       description:
         "Observe live operations, outbox delivery, and the evidence each transition emits.",
       tabs: ["Operations", "Outbox", "Events"],
@@ -172,7 +172,7 @@ const product = {
       consoleObserves: "Console observes, coordinates, and retains evidence.",
     },
     delivery: {
-      title: "Delivery",
+      title: "Releases",
       description:
         "Prepare reviewed release handoffs and verify deployments without claiming production authority.",
       candidates: "Release candidates",
@@ -267,8 +267,8 @@ const product = {
       evidence: "运行时证据",
     },
     modules: {
-      title: "模块注册表",
-      description: "查看模块自有 Console 页面，以及它们的注册与导航健康状态。",
+      title: "界面",
+      description: "查看 Console 界面、所属包以及它们的注册与导航健康状态。",
       registry: "导航注册",
       registered: "项已注册",
       moduleCount: "个模块",
@@ -330,7 +330,7 @@ const product = {
       approve: "批准并应用",
     },
     runtime: {
-      title: "运行时",
+      title: "运行操作",
       description: "观察实时操作、发件箱投递以及每次状态迁移产生的证据。",
       tabs: ["操作", "发件箱", "事件"],
       healthy: "健康",
@@ -348,7 +348,7 @@ const product = {
       consoleObserves: "Console 负责观察、协调并保留证据。",
     },
     delivery: {
-      title: "交付",
+      title: "发布",
       description: "准备经审查的发布交接并验证部署，但不宣称生产发布权限。",
       candidates: "候选版本",
       open: "开放",

@@ -17,7 +17,8 @@ const styles = stylex.create({
   page: {
     boxSizing: "border-box",
     display: "grid",
-    minHeight: "100%",
+    height: "100%",
+    minHeight: 0,
     width: "100%",
   },
   header: {
@@ -38,7 +39,7 @@ const styles = stylex.create({
   workspace: {
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
-    minHeight: "calc(100dvh - 89px)",
+    minHeight: 0,
     "@media (max-width: 1000px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
     },
@@ -203,7 +204,7 @@ export function PluginWorkbenchPage() {
     plugins.find((plugin) => plugin.instanceKey === selectedKey) ?? plugins[0];
 
   return (
-    <div {...stylex.props(styles.page)}>
+    <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
       <PageHeader.Root
         aria-label="Plugin navigation"
         {...stylex.props(styles.header)}

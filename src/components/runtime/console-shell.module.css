@@ -50,6 +50,48 @@
   height: 44px;
 }
 
+.systemMain {
+  overflow: hidden;
+}
+
+.main .systemHeader {
+  height: 87.5px;
+}
+
+.systemHeader [data-slot="page-header-tabs-row"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.systemHeader [data-slot="page-header-tabs-row"]::-webkit-scrollbar {
+  display: none;
+}
+
+.systemHeader [data-slot="page-header-tabs-list"] {
+  flex: 0 0 auto;
+}
+
+.systemContent {
+  height: calc(100% - 87.5px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.systemContent > * {
+  height: 100%;
+  min-height: 0;
+}
+
+.systemContent [data-slot="page-header"],
+.systemContent [data-ui="page__header"] {
+  display: none;
+}
+
+.systemContent [data-ui="page__body"] {
+  height: 100%;
+}
+
 .utilities {
   display: flex;
   grid-column: 2;

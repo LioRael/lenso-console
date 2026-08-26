@@ -12,7 +12,8 @@ export const storyConsoleModule = defineConsoleModule({
       area: "runtime",
       component: RuntimeStoriesPage,
       icon: "workflow",
-      label: "Stories",
+      label: "Executions",
+      localizedLabels: { "zh-CN": "执行" },
       navigation: {
         order: 60,
         workspace: {

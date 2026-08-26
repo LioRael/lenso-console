@@ -482,8 +482,8 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
         },
         id: "search",
         searchText: "search in stories correlation story execution",
-        subtitle: "Correlation search now lives in Stories",
-        title: "Search in Stories",
+        subtitle: "Correlation search now lives in Executions",
+        title: "Search in Executions",
       },
       {
         action: copyCurrentLink,

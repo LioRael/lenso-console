@@ -1,10 +1,12 @@
 import { Avatar } from "@lenso/ui/avatar";
+import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { Button } from "@lenso/ui/button";
 import { Dialog } from "@lenso/ui/dialog";
 import { IconButton } from "@lenso/ui/icon-button";
+import { PageHeader } from "@lenso/ui/page-header";
 import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
   GitCompareArrows,
@@ -48,6 +50,22 @@ const primaryNavigation: readonly NavigationItem[] = [
   },
 ];
 
+const systemSections = [
+  { label: "Overview", path: "/system" },
+  { label: "Plugins", path: "/plugins" },
+  { label: "Surfaces", path: "/modules" },
+  { label: "Services", path: "/services" },
+  { label: "Executions", path: "/stories" },
+  { label: "Operations", path: "/runtime" },
+  { label: "Releases", path: "/delivery" },
+] as const;
+
+function systemSectionForPath(pathname: string) {
+  return systemSections.find(({ path }) =>
+    pathname === path ? true : pathname.startsWith(`${path}/`)
+  );
+}
+
 export function ConsoleShell({ children }: PropsWithChildren) {
   const navigate = useNavigate();
   const [agentUtility, setAgentUtility] = useState<"agent" | "history" | null>(
@@ -56,6 +74,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
+  const systemSection = systemSectionForPath(currentPath);
 
   return (
     <ThemeScope className={styles.theme} theme="system">
@@ -127,7 +146,58 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           </Sidebar.Panel>
         </Sidebar.Root>
 
-        <main className={styles.main}>{children}</main>
+        <main
+          className={`${styles.main}${systemSection ? ` ${styles.systemMain}` : ""}`}
+        >
+          {systemSection ? (
+            <PageHeader.Root
+              aria-label="System navigation"
+              className={styles.systemHeader}
+              variant="team"
+            >
+              <PageHeader.Row>
+                <Breadcrumb.Root aria-label="System breadcrumb">
+                  <Breadcrumb.List>
+                    <Breadcrumb.Item>
+                      <Breadcrumb.Link
+                        nativeButton={false}
+                        render={<Link to="/system" />}
+                      >
+                        <Breadcrumb.Icon>
+                          <Boxes size={14} strokeWidth={1.75} />
+                        </Breadcrumb.Icon>
+                        System
+                      </Breadcrumb.Link>
+                    </Breadcrumb.Item>
+                    <Breadcrumb.Separator />
+                    <Breadcrumb.Item>
+                      <Breadcrumb.Page>{systemSection.label}</Breadcrumb.Page>
+                    </Breadcrumb.Item>
+                  </Breadcrumb.List>
+                </Breadcrumb.Root>
+              </PageHeader.Row>
+              <PageHeader.TabsRoot
+                onValueChange={(value) => navigate({ to: String(value) })}
+                value={systemSection.path}
+              >
+                <PageHeader.TabsRow>
+                  <PageHeader.TabsList aria-label="System sections">
+                    {systemSections.map((section) => (
+                      <PageHeader.Tab key={section.path} value={section.path}>
+                        {section.label}
+                      </PageHeader.Tab>
+                    ))}
+                  </PageHeader.TabsList>
+                </PageHeader.TabsRow>
+              </PageHeader.TabsRoot>
+            </PageHeader.Root>
+          ) : null}
+          {systemSection ? (
+            <div className={styles.systemContent}>{children}</div>
+          ) : (
+            children
+          )}
+        </main>
 
         <footer aria-label="Application utilities" className={styles.utilities}>
           <Button

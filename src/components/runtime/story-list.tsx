@@ -314,7 +314,7 @@ export function StoryList({
               localStyles.utilityTextFgPrimary,
             ])}
           >
-            {zh ? "业务故事" : "Stories"}
+            {zh ? "执行" : "Executions"}
           </h2>
           <p
             {...stylex.props([
@@ -328,7 +328,7 @@ export function StoryList({
           </p>
         </div>
         <button
-          aria-label={zh ? "刷新故事" : "Refresh stories"}
+          aria-label={zh ? "刷新执行" : "Refresh executions"}
           {...stylex.props([
             localStyles.utilityGrid,
             localStyles.utilitySize4,
@@ -360,7 +360,7 @@ export function StoryList({
       >
         <Search size={12} />
         <input
-          aria-label="Search stories"
+          aria-label="Search executions"
           {...stylex.props([
             localStyles.utilityWFull,
             localStyles.utilityBgTransparent,
