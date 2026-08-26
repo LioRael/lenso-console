@@ -5,6 +5,62 @@
 @import "./styles-reset.css";
 @import "./styles-base.css";
 
+/* Transitional host aliases for pages that are still moving from the former
+ * Console primitives. Lenso UI semantic tokens remain the color authority. */
+:root {
+  --font-ui: var(--font-sans);
+  --font-code: var(--font-mono);
+  --bg-canvas: var(--color-surface-canvas);
+  --bg-window: var(--color-surface-canvas);
+  --bg-sidebar: var(--color-surface-sidebar);
+  --bg-chrome: var(--color-surface-surface);
+  --bg-surface: var(--color-surface-surface);
+  --bg-surface-raised: var(--color-surface-elevated);
+  --bg-surface-muted: var(--color-surface-subtle);
+  --bg-panel: var(--color-surface-panel);
+  --bg-panel-muted: var(--color-surface-subtle);
+  --bg-panel-header: var(--color-surface-subtle);
+  --bg-row-hover: var(--color-surface-interactive-hover);
+  --bg-row-selected: var(--color-surface-selected);
+  --bg-control: var(--color-surface-control);
+  --bg-control-hover: var(--color-surface-overlay-hover);
+  --bg-control-active: var(--color-surface-level3);
+  --bg-overlay: var(--color-surface-popover);
+  --fg-primary: var(--color-content-primary);
+  --fg-secondary: var(--color-content-secondary);
+  --fg-tertiary: var(--color-content-tertiary);
+  --fg-quaternary: var(--color-content-tertiary);
+  --fg-on-accent: var(--color-action-primary-content);
+  --fg-inverse: var(--color-content-inverse);
+  --line-subtle: var(--color-border-tertiary);
+  --line: var(--color-border-tertiary);
+  --line-strong: var(--color-border-secondary);
+  --accent: var(--color-action-primary);
+  --accent-hover: var(--color-action-primary-hover);
+  --accent-muted: var(--color-surface-selected);
+  --accent-foreground: var(--color-action-primary-content);
+  --success: var(--color-status-success-content);
+  --warning: var(--color-status-warning-content);
+  --error: var(--color-status-error-content);
+  --info: var(--color-status-info-content);
+  --tone-muted-bg: var(--color-surface-subtle);
+  --tone-muted-border: var(--color-border-tertiary);
+  --tone-muted-fg: var(--color-content-secondary);
+  --tone-info-bg: var(--color-surface-subtle);
+  --tone-info-border: var(--color-border-tertiary);
+  --tone-info-fg: var(--color-status-info-content);
+  --tone-success-bg: var(--color-surface-subtle);
+  --tone-success-border: var(--color-border-tertiary);
+  --tone-success-fg: var(--color-status-success-content);
+  --tone-warning-bg: var(--color-surface-subtle);
+  --tone-warning-border: var(--color-border-tertiary);
+  --tone-warning-fg: var(--color-status-warning-content);
+  --tone-error-bg: var(--color-status-error-surface);
+  --tone-error-border: var(--color-status-error-border);
+  --tone-error-fg: var(--color-status-error-content);
+  --focus-ring-muted: var(--color-border-control-focus);
+}
+
 [data-page-slot~="product-page__body"] {
   overflow: visible;
 }
@@ -789,6 +845,10 @@
 }
 
 [data-page-slot~="settings-page__select"] {
+  padding: 0 10px;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-control);
   line-height: 16px !important;
 }
 

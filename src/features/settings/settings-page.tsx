@@ -1,15 +1,18 @@
 import {
-  Button,
-  Input,
-  Select,
-  SettingsRow,
-  settingsStyles,
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "@lenso/console-ui";
-import * as stylex from "@stylexjs/stylex";
+import { Button } from "@lenso/ui/button";
+import { SettingsRow as LensoSettingsRow } from "@lenso/ui/settings-row";
+import { Switch } from "@lenso/ui/switch";
+import { TextField } from "@lenso/ui/text-field";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import {
+  useState,
+  type ComponentProps,
+  type PropsWithChildren,
+  type SelectHTMLAttributes,
+} from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { embeddedOfficialDefaultThemeBundle } from "../../app/console-theme-bundle";
@@ -540,28 +543,54 @@ function SettingsToggle({
   onChange: (value: boolean) => void;
   value: boolean;
 }) {
-  const toggleStyleProps = stylex.props(
-    settingsStyles.settingsToggle,
-    value ? settingsStyles.settingsToggleOn : settingsStyles.settingsToggleOff
-  );
-  const knobStyleProps = stylex.props(
-    settingsStyles.settingsToggleKnob,
-    value
-      ? settingsStyles.settingsToggleKnobOn
-      : settingsStyles.settingsToggleKnobOff
-  );
-
   return (
-    <button
-      aria-checked={value}
+    <Switch.Root
       aria-label={label}
-      {...toggleStyleProps}
+      checked={value}
       data-page-slot="settings-page__toggle"
-      onClick={() => onChange(!value)}
-      role="switch"
-      type="button"
+      onCheckedChange={(checked) => onChange(checked)}
+      size="compact"
     >
-      <span {...knobStyleProps} data-page-slot="settings-page__toggle-knob" />
-    </button>
+      <Switch.Thumb data-page-slot="settings-page__toggle-knob" />
+    </Switch.Root>
   );
+}
+
+function SettingsRow({
+  children,
+  description,
+  label,
+  ...props
+}: PropsWithChildren<
+  Omit<ComponentProps<typeof LensoSettingsRow.Root>, "children"> & {
+    description: string;
+    label: string;
+  }
+>) {
+  return (
+    <LensoSettingsRow.Root {...props}>
+      <LensoSettingsRow.Copy>
+        <LensoSettingsRow.Title data-ui="settings-row__label">
+          {label}
+        </LensoSettingsRow.Title>
+        <LensoSettingsRow.Description data-ui="settings-row__description">
+          {description}
+        </LensoSettingsRow.Description>
+      </LensoSettingsRow.Copy>
+      <LensoSettingsRow.Control data-ui="settings-row__control">
+        {children}
+      </LensoSettingsRow.Control>
+    </LensoSettingsRow.Root>
+  );
+}
+
+function Input(props: ComponentProps<typeof TextField.Control>) {
+  return <TextField.Control {...props} />;
+}
+
+function Select({
+  children,
+  ...props
+}: PropsWithChildren<SelectHTMLAttributes<HTMLSelectElement>>) {
+  return <select {...props}>{children}</select>;
 }

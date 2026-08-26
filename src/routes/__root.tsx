@@ -13,6 +13,7 @@ import "@fontsource/roboto-mono/400.css";
 import "@lenso/tokens/styles.css";
 import "@lenso/ui/preflight.css";
 import "@lenso/ui/styles.css";
+import "../styles.css";
 
 import "../app/console-host-api";
 import { HostConsoleLocaleProvider } from "../app/console-locale";
