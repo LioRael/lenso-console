@@ -1,7 +1,6 @@
 import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { PageHeader } from "@lenso/ui/page-header";
 import { StatusMarker, type StatusMarkerStatus } from "@lenso/ui/status-marker";
-import { Surface } from "@lenso/ui/surface";
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
@@ -18,8 +17,7 @@ const styles = stylex.create({
   page: {
     boxSizing: "border-box",
     display: "grid",
-    marginInline: "auto",
-    maxWidth: 1440,
+    minHeight: "100%",
     width: "100%",
   },
   header: {
@@ -27,11 +25,31 @@ const styles = stylex.create({
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
   },
-  content: {
+  contextRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: tokens.space3,
+    height: 44,
+    paddingInline: 14,
+  },
+  contextCopy: {
     display: "grid",
-    gap: tokens.space4,
-    paddingBlock: tokens.space6,
-    paddingInline: tokens.space6,
+    gap: 1,
+    minWidth: 0,
+  },
+  contextTitle: {
+    color: tokens.colorContentPrimary,
+    fontSize: 13,
+    fontWeight: 500,
+    lineHeight: "18px",
+    margin: 0,
+  },
+  contextMeta: {
+    color: tokens.colorContentTertiary,
+    fontSize: 11,
+    lineHeight: "16px",
+    marginInlineStart: "auto",
+    whiteSpace: "nowrap",
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -44,48 +62,35 @@ const styles = stylex.create({
   },
   description: {
     color: tokens.colorContentTertiary,
-    fontSize: 13,
-    lineHeight: 1.5,
+    fontSize: 11,
+    lineHeight: "16px",
     margin: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   workspace: {
     display: "grid",
-    gap: tokens.space4,
-    gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 360px)",
-    minHeight: 560,
-    "@media (max-width: 1200px)": {
+    gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
+    minHeight: "calc(100dvh - 132px)",
+    "@media (max-width: 1000px)": {
       gridTemplateColumns: "minmax(0, 1fr)",
     },
   },
-  panel: {
-    alignItems: "stretch",
-    gap: 0,
+  tableRegion: {
     minWidth: 0,
     overflow: "hidden",
-    padding: 0,
-    width: "100%",
   },
-  panelHeader: {
-    alignItems: "center",
-    borderBottomColor: tokens.colorBorderTertiary,
-    borderBottomStyle: "solid",
-    borderBottomWidth: 1,
-    display: "flex",
-    height: 44,
-    justifyContent: "space-between",
-    paddingInline: tokens.space4,
-  },
-  panelTitle: { fontSize: 13, fontWeight: 500, margin: 0 },
-  panelMeta: { color: tokens.colorContentTertiary, fontSize: 12 },
   columns: {
     alignItems: "center",
     color: tokens.colorContentTertiary,
     display: "grid",
     fontSize: 11,
-    gap: tokens.space3,
-    gridTemplateColumns: "minmax(180px, 1.2fr) minmax(160px, 1fr) 72px 92px",
-    minHeight: 36,
-    paddingInline: tokens.space4,
+    fontWeight: 500,
+    gap: tokens.space4,
+    gridTemplateColumns: "minmax(170px, 1.35fr) minmax(140px, 1fr) 64px 88px",
+    height: 30,
+    paddingInline: 14,
   },
   row: {
     alignItems: "center",
@@ -93,28 +98,25 @@ const styles = stylex.create({
       default: "transparent",
       ":hover": tokens.colorSurfaceInteractiveHover,
     },
-    borderBlockStartColor: tokens.colorBorderTertiary,
-    borderBlockStartStyle: "solid",
-    borderBlockStartWidth: 1,
-    borderInlineStyle: "none",
-    borderInlineWidth: 0,
-    borderBlockEndStyle: "none",
+    borderStyle: "none",
+    borderRadius: tokens.radiusControl,
     color: tokens.colorContentSecondary,
     cursor: "pointer",
     display: "grid",
     fontFamily: tokens.fontSans,
     fontSize: 12,
-    gap: tokens.space3,
-    gridTemplateColumns: "minmax(180px, 1.2fr) minmax(160px, 1fr) 72px 92px",
-    minHeight: 58,
+    gap: tokens.space4,
+    gridTemplateColumns: "minmax(162px, 1.35fr) minmax(132px, 1fr) 64px 88px",
+    minHeight: 50,
+    marginInline: 8,
     outline: {
       default: "none",
       ":focus-visible": `2px solid ${tokens.colorFocusRing}`,
     },
     outlineOffset: -2,
-    paddingInline: tokens.space4,
+    paddingInline: 6,
     textAlign: "left",
-    width: "100%",
+    width: "calc(100% - 16px)",
   },
   rowSelected: {
     backgroundColor: {
@@ -148,11 +150,34 @@ const styles = stylex.create({
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
-    display: "grid",
-    gap: tokens.space2,
-    padding: tokens.space4,
+    alignItems: "center",
+    display: "flex",
+    gap: tokens.space3,
+    justifyContent: "space-between",
+    minHeight: 50,
+    paddingBlock: 8,
+    paddingInline: 14,
   },
-  inspectorTitle: { fontSize: 16, fontWeight: 600, margin: 0 },
+  inspector: {
+    borderInlineStartColor: tokens.colorBorderTertiary,
+    borderInlineStartStyle: "solid",
+    borderInlineStartWidth: 1,
+    minWidth: 0,
+    "@media (max-width: 1000px)": {
+      borderBlockStartColor: tokens.colorBorderTertiary,
+      borderBlockStartStyle: "solid",
+      borderBlockStartWidth: 1,
+      borderInlineStartStyle: "none",
+    },
+  },
+  inspectorIdentity: { display: "grid", gap: 1, minWidth: 0 },
+  inspectorTitle: {
+    color: tokens.colorContentPrimary,
+    fontSize: 13,
+    fontWeight: 500,
+    lineHeight: "18px",
+    margin: 0,
+  },
   inspectorBody: { display: "grid" },
   section: {
     borderBottomColor: tokens.colorBorderTertiary,
@@ -160,14 +185,14 @@ const styles = stylex.create({
     borderBottomWidth: 1,
     display: "grid",
     gap: tokens.space2,
-    padding: tokens.space4,
+    paddingBlock: tokens.space3,
+    paddingInline: 14,
   },
   sectionTitle: {
     color: tokens.colorContentTertiary,
     fontSize: 11,
     fontWeight: 500,
     margin: 0,
-    textTransform: "uppercase",
   },
   fields: { display: "grid", gap: tokens.space2, margin: 0 },
   field: {
@@ -195,7 +220,12 @@ const styles = stylex.create({
     paddingBlock: tokens.space2,
     paddingInline: tokens.space3,
   },
-  empty: { color: tokens.colorContentTertiary, padding: tokens.space4 },
+  empty: {
+    color: tokens.colorContentTertiary,
+    fontSize: 12,
+    margin: 0,
+    padding: 14,
+  },
 });
 
 export function PluginWorkbenchPage() {
@@ -211,7 +241,7 @@ export function PluginWorkbenchPage() {
       <PageHeader.Root
         aria-label="Plugin navigation"
         {...stylex.props(styles.header)}
-        variant="simple"
+        variant="team"
       >
         <PageHeader.Row>
           <Breadcrumb.Root aria-label="Plugin breadcrumb">
@@ -241,149 +271,145 @@ export function PluginWorkbenchPage() {
             </StatusMarker>
           </PageHeader.Actions>
         </PageHeader.Row>
-      </PageHeader.Root>
-      <div {...stylex.props(styles.content)}>
-        <h1 {...stylex.props(styles.visuallyHidden)}>Plugins</h1>
-        <p {...stylex.props(styles.description)}>
-          Inspect the active App Generation, resolved Plugin packages, and
-          current Host evidence.
-        </p>
-
-        <div {...stylex.props(styles.workspace)}>
-          <Surface
-            {...stylex.props(styles.panel)}
-            level="panel"
-            style={{ alignItems: "stretch", gap: 0, padding: 0 }}
-          >
-            <div {...stylex.props(styles.panelHeader)}>
-              <h2 {...stylex.props(styles.panelTitle)}>Active generation</h2>
-              <span {...stylex.props(styles.panelMeta)}>
-                {plugins.length} plugins
-              </span>
-            </div>
-            <div aria-hidden="true" {...stylex.props(styles.columns)}>
-              <span>Plugin</span>
-              <span>Resolved package</span>
-              <span>Version</span>
-              <span>State</span>
-            </div>
-            {plugins.length === 0 ? (
-              <p {...stylex.props(styles.empty)}>
-                No Plugins are present in this generation.
-              </p>
-            ) : (
-              plugins.map((plugin) => (
-                <button
-                  aria-pressed={selected?.instanceKey === plugin.instanceKey}
-                  key={plugin.instanceKey}
-                  onClick={() => setSelectedKey(plugin.instanceKey)}
-                  type="button"
-                  {...stylex.props(
-                    styles.row,
-                    selected?.instanceKey === plugin.instanceKey &&
-                      styles.rowSelected
-                  )}
-                >
-                  <span {...stylex.props(styles.identity)}>
-                    <span {...stylex.props(styles.primary)}>
-                      {plugin.instanceKey}
-                    </span>
-                    <span {...stylex.props(styles.secondary)}>
-                      {shortPluginDigest(plugin.receiptDigest)}
-                    </span>
-                  </span>
-                  <span {...stylex.props(styles.ellipsis)}>
-                    {plugin.packageId}
-                  </span>
-                  <span>{plugin.packageVersion}</span>
-                  <StatusMarker
-                    presentation="label"
-                    status={stateStatus(plugin.state)}
-                  >
-                    {stateLabel(plugin.state)}
-                  </StatusMarker>
-                </button>
-              ))
-            )}
-          </Surface>
-
-          <Surface
-            {...stylex.props(styles.panel)}
-            level="panel"
-            style={{ alignItems: "stretch", gap: 0, padding: 0 }}
-          >
-            {selected && projection ? (
-              <>
-                <header {...stylex.props(styles.inspectorHeader)}>
-                  <div>
-                    <h2 {...stylex.props(styles.inspectorTitle)}>
-                      {selected.instanceKey}
-                    </h2>
-                    <span {...stylex.props(styles.secondary)}>
-                      {selected.packageId}
-                    </span>
-                  </div>
-                  <StatusMarker
-                    presentation="label"
-                    status={stateStatus(selected.state)}
-                  >
-                    {stateLabel(selected.state)}
-                  </StatusMarker>
-                </header>
-                <div {...stylex.props(styles.inspectorBody)}>
-                  <DetailSection title="Resolved package">
-                    <Detail label="Package" value={selected.packageId} />
-                    <Detail label="Version" value={selected.packageVersion} />
-                    <Detail
-                      label="Receipt"
-                      value={shortPluginDigest(selected.receiptDigest)}
-                    />
-                  </DetailSection>
-                  <DetailSection title="App Generation">
-                    <Detail
-                      label="Generation"
-                      value={projection.generation.generationId}
-                    />
-                    <Detail
-                      label="Plan"
-                      value={shortPluginDigest(
-                        projection.generation.planDigest
-                      )}
-                    />
-                    <Detail
-                      label="Activated"
-                      value={formatTimestamp(projection.generation.activatedAt)}
-                    />
-                  </DetailSection>
-                  <DetailSection title="Provided capabilities">
-                    {selected.capabilityIds.map((capability) => (
-                      <code
-                        key={capability}
-                        {...stylex.props(styles.capability)}
-                      >
-                        {capability}
-                      </code>
-                    ))}
-                  </DetailSection>
-                  <DetailSection title="Live evidence">
-                    <Detail
-                      label="Observed"
-                      value={formatTimestamp(projection.observedAt)}
-                    />
-                    <Detail
-                      label="Cursor"
-                      value={String(projection.stream.cursor)}
-                    />
-                  </DetailSection>
-                </div>
-              </>
-            ) : (
-              <p {...stylex.props(styles.empty)}>
-                Select a Plugin to inspect its receipt.
-              </p>
-            )}
-          </Surface>
+        <div {...stylex.props(styles.contextRow)}>
+          <div {...stylex.props(styles.contextCopy)}>
+            <h2
+              id="active-generation-heading"
+              {...stylex.props(styles.contextTitle)}
+            >
+              Active generation
+            </h2>
+            <p {...stylex.props(styles.description)}>
+              Resolved Plugin packages and current Host evidence
+            </p>
+          </div>
+          <span {...stylex.props(styles.contextMeta)}>
+            {plugins.length} {plugins.length === 1 ? "plugin" : "plugins"}
+          </span>
         </div>
+      </PageHeader.Root>
+      <h1 {...stylex.props(styles.visuallyHidden)}>Plugins</h1>
+      <div {...stylex.props(styles.workspace)}>
+        <section
+          aria-labelledby="active-generation-heading"
+          {...stylex.props(styles.tableRegion)}
+        >
+          <div aria-hidden="true" {...stylex.props(styles.columns)}>
+            <span>Plugin</span>
+            <span>Resolved package</span>
+            <span>Version</span>
+            <span>State</span>
+          </div>
+          {plugins.length === 0 ? (
+            <p {...stylex.props(styles.empty)}>
+              No Plugins are present in this generation.
+            </p>
+          ) : (
+            plugins.map((plugin) => (
+              <button
+                aria-pressed={selected?.instanceKey === plugin.instanceKey}
+                key={plugin.instanceKey}
+                onClick={() => setSelectedKey(plugin.instanceKey)}
+                type="button"
+                {...stylex.props(
+                  styles.row,
+                  selected?.instanceKey === plugin.instanceKey &&
+                    styles.rowSelected
+                )}
+              >
+                <span {...stylex.props(styles.identity)}>
+                  <span {...stylex.props(styles.primary)}>
+                    {plugin.instanceKey}
+                  </span>
+                  <span {...stylex.props(styles.secondary)}>
+                    {shortPluginDigest(plugin.receiptDigest)}
+                  </span>
+                </span>
+                <span {...stylex.props(styles.ellipsis)}>
+                  {plugin.packageId}
+                </span>
+                <span>{plugin.packageVersion}</span>
+                <StatusMarker
+                  presentation="label"
+                  status={stateStatus(plugin.state)}
+                >
+                  {stateLabel(plugin.state)}
+                </StatusMarker>
+              </button>
+            ))
+          )}
+        </section>
+
+        <aside
+          aria-label="Plugin inspector"
+          {...stylex.props(styles.inspector)}
+        >
+          {selected && projection ? (
+            <>
+              <header {...stylex.props(styles.inspectorHeader)}>
+                <div {...stylex.props(styles.inspectorIdentity)}>
+                  <h2 {...stylex.props(styles.inspectorTitle)}>
+                    {selected.instanceKey}
+                  </h2>
+                  <span {...stylex.props(styles.secondary)}>
+                    {selected.packageId}
+                  </span>
+                </div>
+                <StatusMarker
+                  presentation="label"
+                  status={stateStatus(selected.state)}
+                >
+                  {stateLabel(selected.state)}
+                </StatusMarker>
+              </header>
+              <div {...stylex.props(styles.inspectorBody)}>
+                <DetailSection title="Resolved package">
+                  <Detail label="Package" value={selected.packageId} />
+                  <Detail label="Version" value={selected.packageVersion} />
+                  <Detail
+                    label="Receipt"
+                    value={shortPluginDigest(selected.receiptDigest)}
+                  />
+                </DetailSection>
+                <DetailSection title="App Generation">
+                  <Detail
+                    label="Generation"
+                    value={projection.generation.generationId}
+                  />
+                  <Detail
+                    label="Plan"
+                    value={shortPluginDigest(projection.generation.planDigest)}
+                  />
+                  <Detail
+                    label="Activated"
+                    value={formatTimestamp(projection.generation.activatedAt)}
+                  />
+                </DetailSection>
+                <DetailSection title="Provided capabilities">
+                  {selected.capabilityIds.map((capability) => (
+                    <code key={capability} {...stylex.props(styles.capability)}>
+                      {capability}
+                    </code>
+                  ))}
+                </DetailSection>
+                <DetailSection title="Live evidence">
+                  <Detail
+                    label="Observed"
+                    value={formatTimestamp(projection.observedAt)}
+                  />
+                  <Detail
+                    label="Cursor"
+                    value={String(projection.stream.cursor)}
+                  />
+                </DetailSection>
+              </div>
+            </>
+          ) : (
+            <p {...stylex.props(styles.empty)}>
+              Select a Plugin to inspect its receipt.
+            </p>
+          )}
+        </aside>
       </div>
     </div>
   );
