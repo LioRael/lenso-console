@@ -14,6 +14,7 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as ChangesRouteImport } from './routes/changes'
 import { Route as DeliveryRouteImport } from './routes/delivery'
 import { Route as ModulesRouteImport } from './routes/modules'
+import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as RuntimeRouteImport } from './routes/runtime'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SystemRouteImport } from './routes/system'
@@ -44,6 +45,11 @@ const ModulesRoute = ModulesRouteImport.update({
   path: '/modules',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RuntimeRoute = RuntimeRouteImport.update({
   id: '/runtime',
   path: '/runtime',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/changes': typeof ChangesRoute
   '/delivery': typeof DeliveryRoute
   '/modules': typeof ModulesRoute
+  '/plugins': typeof PluginsRoute
   '/runtime': typeof RuntimeRoute
   '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/changes': typeof ChangesRoute
   '/delivery': typeof DeliveryRoute
   '/modules': typeof ModulesRoute
+  '/plugins': typeof PluginsRoute
   '/runtime': typeof RuntimeRoute
   '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/changes': typeof ChangesRoute
   '/delivery': typeof DeliveryRoute
   '/modules': typeof ModulesRoute
+  '/plugins': typeof PluginsRoute
   '/runtime': typeof RuntimeRoute
   '/settings': typeof SettingsRoute
   '/system': typeof SystemRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/changes'
     | '/delivery'
     | '/modules'
+    | '/plugins'
     | '/runtime'
     | '/settings'
     | '/system'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/changes'
     | '/delivery'
     | '/modules'
+    | '/plugins'
     | '/runtime'
     | '/settings'
     | '/system'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/changes'
     | '/delivery'
     | '/modules'
+    | '/plugins'
     | '/runtime'
     | '/settings'
     | '/system'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   ChangesRoute: typeof ChangesRoute
   DeliveryRoute: typeof DeliveryRoute
   ModulesRoute: typeof ModulesRoute
+  PluginsRoute: typeof PluginsRoute
   RuntimeRoute: typeof RuntimeRoute
   SettingsRoute: typeof SettingsRoute
   SystemRoute: typeof SystemRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ModulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/runtime': {
       id: '/runtime'
       path: '/runtime'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChangesRoute: ChangesRoute,
   DeliveryRoute: DeliveryRoute,
   ModulesRoute: ModulesRoute,
+  PluginsRoute: PluginsRoute,
   RuntimeRoute: RuntimeRoute,
   SettingsRoute: SettingsRoute,
   SystemRoute: SystemRoute,

@@ -85,6 +85,29 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,crm_service.contacts.
 - `service/modules/story`: Console-owned Story backend, federation, projections, and Store migrations released with the Story workbench.
 - `packages/system-registry-console`: linked mandatory System Registry Console Module UI.
 
+### Plugin Workbench v1
+
+`/plugins` is the first read-only Console slice for a Lenso Host. It answers a
+small operator question: which immutable App Generation is active, which exact
+Plugin packages and receipts it contains, and whether new evidence is still
+arriving. It does not install, switch, drain, or roll back a Generation.
+
+The browser reads one versioned snapshot from
+`GET /api/console/v1/plugin-workbench`, then connects to the same-origin stream
+path returned by that snapshot. The stream uses `text/event-stream` and emits
+`workbench.snapshot` envelopes carrying the full
+`lenso.console.plugin-workbench.v1` projection. The Browser client uses
+streaming `fetch` so it can preserve the Console bearer token and
+`Last-Event-ID`; malformed or future-version projections are ignored.
+
+The production endpoint is intended to be a Host-owned Console projection
+Module bound to `lenso-web`'s `lenso.http.endpoint@1` snapshot route and
+`lenso.http.sse-endpoint@1` event route. Console owns presentation and
+read-model semantics; `lenso-web` owns the HTTP listener and SSE transport; the
+Host remains the only Generation authority. The Vite development middleware
+provides a clearly labeled demo stream and proxies a configured Host response
+incrementally rather than buffering it.
+
 ## Module Console UI
 
 The intended installable Module path binds an immutable `console_ui_esm` UI artifact to the same Module Release. The prebuilt Console Shell validates its receipt, verifies the public Module manifest, and dynamically imports the same-origin ESM entry without rebuilding the Shell. `@lenso/console-module-api` and `@lenso/console-ui` are the authoring boundary for that path.

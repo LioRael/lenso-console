@@ -17,6 +17,7 @@ import { ChangesPage } from "../features/changes/changes-page";
 import { DeliveryPage } from "../features/delivery/delivery-page";
 import { HomePage } from "../features/home/home-page";
 import { ModulesPage } from "../features/modules/modules-page";
+import { PluginWorkbenchPage } from "../features/plugins/plugin-workbench-page";
 import { RuntimePage } from "../features/runtime/runtime-page";
 import { SettingsPage } from "../features/settings/settings-page";
 import { SystemPage } from "../features/system/system-page";
@@ -128,7 +129,15 @@ const consoleWorkbenchModule: ConsoleModule = {
   id: "lenso/console-workbench",
   surfaces: [
     workbenchSurface("house", "Overview", "概览", "/", HomePage, 0),
-    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 30),
+    workbenchSurface(
+      "blocks",
+      "Plugins",
+      "插件",
+      "/plugins",
+      PluginWorkbenchPage,
+      30
+    ),
+    workbenchSurface("boxes", "Modules", "模块", "/modules", ModulesPage, 35),
     workbenchSurface(
       "settings",
       "Settings",

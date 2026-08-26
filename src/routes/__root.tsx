@@ -47,7 +47,11 @@ const RootDocument = ({ children }: { children: ReactNode }) => (
       <style>{consoleLayerStyle}</style>
       {import.meta.env.DEV ? (
         <>
-          <link rel="stylesheet" href="/virtual:stylex.css" />
+          <link
+            href="/virtual:stylex.css"
+            rel="stylesheet"
+            suppressHydrationWarning
+          />
           <script type="module" src="/@id/virtual:stylex:runtime" />
         </>
       ) : null}
