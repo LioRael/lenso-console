@@ -1,0 +1,105 @@
+.theme {
+  min-height: 100dvh;
+  background: var(--color-surface-sidebar);
+  color: var(--color-content-primary);
+  font-family: var(--font-sans);
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 36px;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-surface-sidebar);
+}
+
+.sidebar {
+  --size-sidebar: 100%;
+
+  grid-column: 1;
+  grid-row: 1 / -1;
+  width: 244px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidebar > [data-slot="sidebar-panel"] {
+  width: 100%;
+  height: 100%;
+}
+
+.main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  margin: 8px 8px 0 0;
+  overflow: auto;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 12px;
+  background: var(--color-surface-canvas);
+  box-shadow:
+    0 var(--elevation-panel-key-y) var(--elevation-panel-key-blur)
+      var(--elevation-panel-key-spread) var(--elevation-panel-key),
+    0 1px 1px var(--elevation-panel-detail);
+}
+
+.utilities {
+  display: flex;
+  grid-column: 2;
+  grid-row: 2;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 4px 10px;
+}
+
+.operator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.operatorCopy {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.operatorName {
+  color: var(--color-content-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.operatorRole {
+  color: var(--color-content-tertiary);
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    --size-sidebar: 72px;
+
+    width: 72px;
+  }
+
+  .sidebar [data-slot="sidebar-workspace"],
+  .sidebar [data-slot="sidebar-item"] {
+    justify-content: center;
+  }
+
+  .sidebar [data-slot="sidebar-workspace"] > :not(:first-child),
+  .sidebar [data-slot="sidebar-item"] > :not(:first-child),
+  .sidebar [data-slot="sidebar-section-header"],
+  .operatorCopy {
+    display: none;
+  }
+}

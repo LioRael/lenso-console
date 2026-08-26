@@ -1,64 +1,13 @@
 import { Avatar } from "@lenso/ui/avatar";
+import { Button } from "@lenso/ui/button";
 import { Sidebar } from "@lenso/ui/sidebar";
+import { StatusMarker } from "@lenso/ui/status-marker";
 import { ThemeScope } from "@lenso/ui/theme-scope";
-import * as stylex from "@stylexjs/stylex";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Blocks, Boxes, House, Plug, ServerCog, Settings } from "lucide-react";
 import type { ComponentType, PropsWithChildren } from "react";
 
-import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
-
-const styles = stylex.create({
-  theme: {
-    backgroundColor: tokens.colorSurfaceCanvas,
-    color: tokens.colorContentPrimary,
-    fontFamily: tokens.fontSans,
-    minHeight: "100vh",
-  },
-  shell: {
-    display: "grid",
-    gridTemplateColumns: `${tokens.sizeSidebar} minmax(0, 1fr)`,
-    minHeight: "100vh",
-  },
-  sidebarRoot: {
-    height: "100vh",
-    position: "sticky",
-    top: 0,
-  },
-  brand: {
-    alignItems: "center",
-    display: "flex",
-    gap: tokens.space2,
-    minWidth: 0,
-  },
-  brandMark: {
-    alignItems: "center",
-    backgroundColor: tokens.colorContentPrimary,
-    borderRadius: tokens.radiusControl,
-    color: tokens.colorContentInverse,
-    display: "inline-flex",
-    fontSize: 11,
-    fontWeight: 600,
-    height: 20,
-    justifyContent: "center",
-    width: 20,
-  },
-  brandName: { fontSize: 13, fontWeight: 600 },
-  main: { minWidth: 0 },
-  footer: {
-    alignItems: "center",
-    display: "flex",
-    gap: tokens.space2,
-    minWidth: 0,
-  },
-  footerCopy: { display: "grid", lineHeight: 1.25, minWidth: 0 },
-  footerName: {
-    color: tokens.colorContentSecondary,
-    fontSize: 12,
-    fontWeight: 500,
-  },
-  footerRole: { color: tokens.colorContentTertiary, fontSize: 11 },
-});
+import styles from "./console-shell.module.css";
 
 type NavigationItem = {
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
@@ -81,20 +30,19 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   });
 
   return (
-    <ThemeScope {...stylex.props(styles.theme)} theme="system">
-      <div {...stylex.props(styles.shell)}>
-        <Sidebar.Root defaultOpen {...stylex.props(styles.sidebarRoot)}>
-          <Sidebar.Panel>
+    <ThemeScope className={styles.theme} theme="system">
+      <Sidebar.Group className={styles.shell}>
+        <Sidebar.Root
+          className={styles.sidebar}
+          defaultOpen
+          id="console-sidebar"
+        >
+          <Sidebar.Panel aria-label="Console navigation">
             <Sidebar.Header>
-              <div {...stylex.props(styles.brand)}>
-                <span aria-hidden="true" {...stylex.props(styles.brandMark)}>
-                  L
-                </span>
-                <span {...stylex.props(styles.brandName)}>Lenso</span>
-              </div>
+              <Sidebar.Workspace icon="L">Lenso</Sidebar.Workspace>
             </Sidebar.Header>
             <Sidebar.Content>
-              <Sidebar.Menu aria-label="Console navigation">
+              <Sidebar.Menu aria-label="Primary navigation">
                 {primaryNavigation.map((item) => {
                   const Icon = item.icon;
                   const selected =
@@ -132,7 +80,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
               </Sidebar.Section>
             </Sidebar.Content>
             <Sidebar.Footer>
-              <div {...stylex.props(styles.footer)}>
+              <div className={styles.operator}>
                 <Avatar.Root size="compact">
                   <Avatar.Fallback>LO</Avatar.Fallback>
                   <Avatar.Status
@@ -141,20 +89,30 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                     state="online"
                   />
                 </Avatar.Root>
-                <span {...stylex.props(styles.footerCopy)}>
-                  <span {...stylex.props(styles.footerName)}>
-                    Local operator
-                  </span>
-                  <span {...stylex.props(styles.footerRole)}>
-                    System console
-                  </span>
+                <span className={styles.operatorCopy}>
+                  <span className={styles.operatorName}>Local operator</span>
+                  <span className={styles.operatorRole}>System console</span>
                 </span>
               </div>
             </Sidebar.Footer>
           </Sidebar.Panel>
         </Sidebar.Root>
-        <main {...stylex.props(styles.main)}>{children}</main>
-      </div>
+
+        <main className={styles.main}>{children}</main>
+
+        <footer aria-label="Application utilities" className={styles.utilities}>
+          <StatusMarker presentation="label" status="success">
+            Local environment
+          </StatusMarker>
+          <Button
+            onClick={() => navigate({ to: "/settings" })}
+            size="compact"
+            variant="ghost"
+          >
+            Settings
+          </Button>
+        </footer>
+      </Sidebar.Group>
     </ThemeScope>
   );
 }
