@@ -17,7 +17,7 @@ import {
   type RuntimeSummaryItem,
 } from "../../hooks/use-runtime-queries";
 import { httpClient, isApiMode } from "../../lib/http-client";
-import type { DeliveryConsoleProjection } from "../../pages/delivery-console";
+import type { DeliveryStatus } from "../delivery/delivery-status";
 import type { RuntimeServiceRow } from "../runtime/runtime-service-model";
 
 export type ConsoleDataMode = "live" | "demo";
@@ -145,14 +145,12 @@ export function useChangeEvidence() {
   return { ...summary, mode: dataMode(), rows };
 }
 
-export function useDeliveryEvidence() {
+export function useDeliveryStatus() {
   const current = useQuery({
     enabled: isApiMode(),
     queryKey: ["runtime", "delivery", "current"],
     queryFn: () =>
-      httpClient
-        .get("admin/runtime/deliveries/current")
-        .json<DeliveryConsoleProjection>(),
+      httpClient.get("admin/runtime/deliveries/current").json<DeliveryStatus>(),
     retry: false,
   });
   return { current, mode: dataMode() };

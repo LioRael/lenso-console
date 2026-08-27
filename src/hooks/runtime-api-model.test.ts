@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { buildProviderCallInspectorDetail } from "../components/runtime/execution-inspector-model";
 import { buildExecutionTimelineRows } from "../components/runtime/execution-timeline-model";
+import { buildRuntimeStory } from "../lib/story";
 import {
   normalizeExecutionLogs,
   normalizeExecutionPayload,
@@ -14,6 +15,7 @@ import {
 
 const normalStory: ApiRuntimeStoryDetail = {
   summary: {
+    story_kind: "runtime",
     correlation_id: "corr_normal",
     created_at: "2026-06-01T12:00:00.000Z",
     duration: 500,
@@ -27,6 +29,7 @@ const normalStory: ApiRuntimeStoryDetail = {
   },
   nodes: [
     {
+      display_name: "identity.create_user",
       duration_ms: 120,
       id: "fn_create_user",
       metadata: { attempts: 1, max_attempts: 3 },
@@ -111,6 +114,7 @@ describe("runtime API model normalization", () => {
       },
       nodes: [
         {
+          display_name: "support.ticket.escalation-requested.v1",
           duration_ms: 80,
           id: "evt_support_failed",
           metadata: { attempt: 3 },
@@ -121,6 +125,7 @@ describe("runtime API model normalization", () => {
           type: "outbox_event",
         },
       ],
+      edges: [],
       federation: {
         assembledAt: "2026-07-18T08:05:00.000Z",
         gaps: [
@@ -185,6 +190,7 @@ describe("runtime API model normalization", () => {
           },
         ],
       },
+      timeline_items: [],
     });
 
     expect(story.source).toBe("federated-runtime-story");
@@ -214,6 +220,7 @@ describe("runtime API model normalization", () => {
       nodes: [
         ...(normalStory.nodes ?? []),
         {
+          display_name: "Fetch Contact",
           duration_ms: 42,
           id: "remoteproxy_rproxy_1",
           metadata: {
@@ -241,6 +248,7 @@ describe("runtime API model normalization", () => {
           type: "remote_proxy_call",
         },
         {
+          display_name: "crm.after_provider",
           duration_ms: 5,
           id: "fn_after_provider",
           metadata: {
@@ -356,6 +364,7 @@ describe("runtime API model normalization", () => {
       ...normalStory,
       nodes: [
         {
+          display_name: "Fetch Contact",
           duration_ms: 42,
           id: "provider_rproxy_1",
           metadata: {
@@ -414,6 +423,7 @@ describe("runtime API model normalization", () => {
       },
       nodes: [
         {
+          display_name: "ResourceVersionPublished",
           duration_ms: 100,
           id: "event",
           metadata: {},
@@ -424,6 +434,7 @@ describe("runtime API model normalization", () => {
           type: "outbox_event",
         },
         ...["search", "cdn", "notifications"].map((id, index) => ({
+          display_name: id,
           duration_ms: 1000 + index,
           id,
           metadata: {},
@@ -471,7 +482,8 @@ describe("runtime API model normalization", () => {
       },
       nodes: [
         {
-          duration_ms: -20,
+          display_name: "SendWelcomeEmail",
+          duration_ms: 20,
           error: "connect ETIMEDOUT",
           id: "dead_fn",
           metadata: { attempts: 3, max_attempts: 3 },
@@ -489,7 +501,7 @@ describe("runtime API model normalization", () => {
     expect(story.status).toBe("dead");
     expect(story.nodes[0]).toMatchObject({
       attempts: 3,
-      durationMs: 0,
+      durationMs: 20,
       maxAttempts: 3,
       retryable: true,
       status: "dead",
@@ -500,13 +512,14 @@ describe("runtime API model normalization", () => {
   test("handles an empty backend story detail", () => {
     const story = normalizeRuntimeStory({
       summary: {
+        story_kind: "runtime",
         correlation_id: "corr_empty",
         created_at: "2026-06-01T12:00:00.000Z",
         duration: 0,
         error_count: 0,
         node_count: 0,
         pattern: [],
-        services: [],
+        services: ["runtime"],
         status: "completed",
         title: "Empty Story",
         updated_at: "2026-06-01T12:00:00.000Z",
@@ -522,64 +535,16 @@ describe("runtime API model normalization", () => {
     expect(story.service).toBe("runtime");
   });
 
-  test("repairs malformed but valid story data", () => {
-    const story = normalizeRuntimeStory({
-      summary: {
-        correlation_id: "corr_malformed",
-        created_at: "not-a-date",
-        duration: -1,
-        status: "mysterious",
-        title: "",
-      },
-      nodes: [
-        {
-          id: "duplicate",
-          metadata: null,
-          name: "",
-          service: "",
-          status: "strange",
-          timestamp: "not-a-date",
-          type: "database_write",
-        },
-        {
-          duration_ms: 10,
-          id: "duplicate",
-          metadata: { causation_id: "missing" },
-          name: "Second",
-          service: "worker",
-          status: "running",
-          timestamp: "2026-06-01T12:00:00.010Z",
-          type: "worker",
-        },
-      ],
-      edges: [
-        {
-          id: "orphan",
-          source: "missing",
-          target: "duplicate",
-          type: "causation",
-        },
-      ],
-    });
-
-    expect(story.durationMs).toBe(10);
-    expect(story.timestamp).toBe("1970-01-01T00:00:00.000Z");
-    expect(story.status).toBe("pending");
-    expect(story.nodes.map((node) => node.id)).toEqual([
-      "duplicate",
-      "duplicate__2",
-    ]);
-    expect(story.nodes[0]).toMatchObject({
-      durationMs: 0,
-      kind: "runtime",
-      name: "Runtime Work",
-      service: "runtime",
-      status: "pending",
-    });
-    expect(story.edges).toEqual([]);
+  test("rejects malformed story data instead of repairing it", () => {
+    expect(() =>
+      normalizeRuntimeStory({
+        ...normalStory,
+        summary: { ...normalStory.summary, created_at: "not-a-date" },
+      })
+    ).toThrow("Runtime API response has an invalid created_at");
   });
 
-  test("preserves disconnected components and drops only orphan edges", () => {
+  test("preserves disconnected components", () => {
     const story = normalizeRuntimeStory({
       ...normalStory,
       summary: {
@@ -590,6 +555,7 @@ describe("runtime API model normalization", () => {
         { ...normalStory.nodes![0]!, id: "component_a" },
         { ...normalStory.nodes![1]!, id: "component_b" },
         {
+          display_name: "cleanup",
           duration_ms: 40,
           id: "component_c",
           metadata: {},
@@ -605,12 +571,6 @@ describe("runtime API model normalization", () => {
           id: "valid",
           source: "component_a",
           target: "component_b",
-          type: "sequence",
-        },
-        {
-          id: "invalid",
-          source: "component_b",
-          target: "missing",
           type: "sequence",
         },
       ],
@@ -632,6 +592,22 @@ describe("runtime API model normalization", () => {
     ]);
   });
 
+  test("rejects dangling story edges instead of hiding them", () => {
+    expect(() =>
+      normalizeRuntimeStory({
+        ...normalStory,
+        edges: [
+          {
+            id: "invalid",
+            source: "fn_create_user",
+            target: "missing",
+            type: "sequence",
+          },
+        ],
+      })
+    ).toThrow("Runtime API response has a dangling edge invalid");
+  });
+
   test("normalizes story list items without detail payloads", () => {
     const story = normalizeRuntimeStoryListItem({
       correlation_id: "corr_list",
@@ -643,6 +619,7 @@ describe("runtime API model normalization", () => {
       root_error: "boom",
       services: ["runtime"],
       status: "failed",
+      story_kind: "runtime",
       title: "Listed Story",
       updated_at: "2026-06-01T12:00:00.125Z",
     });
@@ -653,46 +630,46 @@ describe("runtime API model normalization", () => {
       name: "Listed Story",
       status: "failed",
     });
-    expect(story.nodes).toHaveLength(3);
-    expect(story.nodes[0]?.kind).toBe("function");
+    expect(story.nodes).toEqual([]);
+    expect(buildRuntimeStory(story)).toMatchObject({
+      errorCount: 1,
+      nodeCount: 3,
+      pattern: ["function"],
+      rootError: "boom",
+      services: ["runtime"],
+    });
   });
 
-  test("normalizes backend heatmap cells defensively", () => {
-    const heatmap = normalizeRuntimeHeatmap({
-      bucket_seconds: -60,
-      data: [
-        {
-          avg_duration_ms: -10,
-          bucket_end: "bad",
-          bucket_start: "2026-06-01T12:00:00.000Z",
-          dead_count: -1,
-          error_count: 2,
-          max_duration_ms: 100,
-          node_type: "database",
-          service: "",
-          total_count: -5,
-        },
-      ],
-      page: { limit: 20, next_created_before: "2026-06-01T11:00:00.000Z" },
-    });
+  test("rejects malformed story summaries instead of fabricating identity", () => {
+    expect(() =>
+      normalizeRuntimeStoryListItem({
+        correlation_id: "",
+        created_at: "2026-06-01T12:00:00.000Z",
+        duration: 125,
+        error_count: 0,
+        node_count: 1,
+        pattern: ["function_run"],
+        services: ["runtime"],
+        status: "completed",
+        story_kind: "runtime",
+        title: "Listed Story",
+        updated_at: "2026-06-01T12:00:00.125Z",
+      })
+    ).toThrow("Runtime API response is missing correlation_id");
+  });
 
-    expect(heatmap.bucketSeconds).toBe(300);
-    expect(heatmap.page).toEqual({
-      limit: 20,
-      nextCreatedBefore: "2026-06-01T11:00:00.000Z",
-    });
-    expect(heatmap.cells).toEqual([
-      {
-        bucketEnd: "2026-06-01T12:00:00.000Z",
-        bucketStart: "2026-06-01T12:00:00.000Z",
-        deadCount: 0,
-        errorCount: 2,
-        maxDurationMs: 100,
-        nodeType: "function",
-        service: "runtime",
-        totalCount: 0,
-      },
-    ]);
+  test("rejects malformed heatmap data instead of repairing it", () => {
+    expect(() =>
+      normalizeRuntimeHeatmap({
+        bucket_seconds: -60,
+        data: [],
+        order: "desc",
+        page: {
+          limit: 20,
+          next_created_before: "2026-06-01T11:00:00.000Z",
+        },
+      })
+    ).toThrow("Runtime API response has an invalid bucket_seconds");
   });
 
   test("normalizes provider heatmap cells as external work", () => {
@@ -705,10 +682,13 @@ describe("runtime API model normalization", () => {
           dead_count: 0,
           error_count: 1,
           node_type: "provider_call",
+          retry_count: 0,
           service: "support/tickets",
           total_count: 1,
         },
       ],
+      order: "desc",
+      page: { limit: 20 },
     });
 
     expect(heatmap.cells[0]).toMatchObject({
@@ -744,6 +724,7 @@ describe("runtime API model normalization", () => {
         ],
         input: { user_id: "usr_1" },
         metadata: { function_name: "notifications.send_welcome_email.v1" },
+        node_id: "fnrun_1",
         node_type: "function",
         output: null,
         redacted_fields: ["input.email"],
@@ -805,6 +786,7 @@ describe("runtime API model normalization", () => {
           story_id: "corr_1",
         },
       ],
+      order: "asc",
     });
 
     expect(operations[0]).toMatchObject({
@@ -850,6 +832,7 @@ describe("runtime API model normalization", () => {
           story_id: "corr_1",
         },
       ],
+      order: "asc",
     });
 
     expect(operations[0]).toMatchObject({
@@ -888,6 +871,7 @@ describe("runtime API model normalization", () => {
           story_id: "corr_1",
         },
       ],
+      order: "asc",
     });
 
     expect(operations[0]).toMatchObject({
@@ -918,6 +902,7 @@ describe("runtime API model normalization", () => {
             story_id: "corr_legacy",
           },
         ],
+        order: "asc",
       })
     ).toEqual([]);
   });
@@ -965,6 +950,8 @@ describe("runtime API model normalization", () => {
           trace_id: "trace_1",
         },
       ],
+      order: "asc",
+      page: { limit: 20 },
     });
 
     expect(result).toEqual({
@@ -1012,8 +999,10 @@ describe("runtime API model normalization", () => {
     });
   });
 
-  test("keeps legacy execution log coverage unknown", () => {
-    expect(normalizeExecutionLogs({ data: [] })).toEqual({ entries: [] });
+  test("rejects execution logs without coverage", () => {
+    expect(() => normalizeExecutionLogs({ data: [] } as never)).toThrow(
+      "Runtime API response is missing coverage"
+    );
   });
 
   test.each(["complete", "disabled", "partial", "unavailable"] as const)(
@@ -1023,13 +1012,15 @@ describe("runtime API model normalization", () => {
         normalizeExecutionLogs({
           coverage: { gaps: [], sources: [], status },
           data: [],
+          order: "asc",
+          page: { limit: 20 },
         }).coverage?.status
       ).toBe(status);
     }
   );
 
-  test("treats an unrecognized execution log coverage status as unavailable", () => {
-    expect(
+  test("rejects an unrecognized execution log coverage status", () => {
+    expect(() =>
       normalizeExecutionLogs({
         coverage: {
           gaps: [],
@@ -1037,7 +1028,9 @@ describe("runtime API model normalization", () => {
           status: "future-state" as never,
         },
         data: [],
-      }).coverage?.status
-    ).toBe("unavailable");
+        order: "asc",
+        page: { limit: 20 },
+      })
+    ).toThrow("Runtime API response has an invalid coverage.status");
   });
 });

@@ -117,9 +117,8 @@ export function ConsoleProvider({ children }: PropsWithChildren) {
         apiMode: isApiMode(),
         data: storiesQuery.data,
         fallback: runtimeStories,
-        isError: storiesQuery.isError,
       }),
-    [storiesQuery.data, storiesQuery.isError]
+    [storiesQuery.data]
   );
 
   const openStoryTarget = useCallback(

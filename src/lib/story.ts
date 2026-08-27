@@ -66,17 +66,27 @@ export function buildRuntimeStory(story: RuntimeStory): RuntimeStorySummary {
       },
     ];
   });
-  const services = Array.from(new Set(story.nodes.map((node) => node.service)));
-  const pattern = collapsePattern(nodes.map((node) => node.type));
-  const rootError = findRootError(nodes);
+  const services =
+    story.summary?.services ??
+    Array.from(new Set(story.nodes.map((node) => node.service)));
+  const pattern = story.summary
+    ? collapsePattern(
+        story.summary.pattern.flatMap((kind) => {
+          const type = runtimeNodeKindType(kind);
+          return type ? [type] : [];
+        })
+      )
+    : collapsePattern(nodes.map((node) => node.type));
+  const rootError = story.summary?.rootError ?? findRootError(nodes);
 
   return {
     ...(rootError ? { rootError } : {}),
     correlationId: story.correlationId,
     duration: story.durationMs,
-    errorCount: story.nodes.filter(isErrorStatus).length,
+    errorCount:
+      story.summary?.errorCount ?? story.nodes.filter(isErrorStatus).length,
     id: story.correlationId,
-    nodeCount: nodes.length,
+    nodeCount: story.summary?.nodeCount ?? nodes.length,
     nodes,
     pattern,
     patternLabel: pattern.map(runtimeNodeTypeLabel).join(" -> "),
@@ -86,28 +96,34 @@ export function buildRuntimeStory(story: RuntimeStory): RuntimeStorySummary {
   };
 }
 
-export function runtimeNodeType(node: ExecutionNode): RuntimeNodeType | null {
-  if (node.kind === "http") {
+function runtimeNodeKindType(
+  kind: ExecutionNode["kind"]
+): RuntimeNodeType | null {
+  if (kind === "http") {
     return "request";
   }
 
-  if (node.kind === "command" || node.kind === "function") {
+  if (kind === "command" || kind === "function") {
     return "function";
   }
 
-  if (node.kind === "event") {
+  if (kind === "event") {
     return "event";
   }
 
-  if (node.kind === "handler" || node.kind === "runtime") {
+  if (kind === "handler" || kind === "runtime") {
     return "worker";
   }
 
-  if (node.kind === "external") {
+  if (kind === "external") {
     return "external";
   }
 
   return null;
+}
+
+export function runtimeNodeType(node: ExecutionNode): RuntimeNodeType | null {
+  return runtimeNodeKindType(node.kind);
 }
 
 export function runtimeNodeTypeLabel(type: RuntimeNodeType) {

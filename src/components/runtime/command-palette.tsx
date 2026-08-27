@@ -441,7 +441,6 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
       apiMode: isApiMode(),
       data: storiesQuery.data,
       fallback: runtimeStories,
-      isError: storiesQuery.isError,
     });
     const storyItems = buildStoryCommandItems({
       onOpenStory: openStory,
@@ -504,7 +503,6 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
     onToggleTheme,
     openStory,
     storiesQuery.data,
-    storiesQuery.isError,
     theme,
   ]);
 

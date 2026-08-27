@@ -286,6 +286,13 @@ export type RuntimeStory = {
   timestamp: string;
   correlationId: string;
   nodes: ExecutionNode[];
+  summary?: {
+    errorCount: number;
+    nodeCount: number;
+    pattern: ExecutionNode["kind"][];
+    rootError?: string;
+    services: string[];
+  };
   edges?: ExecutionEdge[];
   timelineItems?: TimelineItem[];
   federation?: FederatedStoryEvidence;
