@@ -55,82 +55,63 @@ export type PageInfo = {
   nextCreatedBefore?: string;
 };
 
-type DeepPartial<T> =
-  T extends Array<infer Item>
-    ? Array<DeepPartial<Item>>
-    : T extends object
-      ? { [Key in keyof T]?: DeepPartial<T[Key]> }
-      : T;
-
-export type ApiRuntimeStoryListResponse =
-  DeepPartial<AdminRuntimeStoryListResponse>;
-export type ApiRuntimeStoryListItem = DeepPartial<AdminRuntimeStoryListItem>;
-export type ApiRuntimeStoryDetailResponse =
-  DeepPartial<AdminRuntimeStoryDetailResponse>;
-export type ApiRuntimeStoryDetail = DeepPartial<AdminRuntimeStoryDetail>;
-export type ApiRuntimeStoryEdge = DeepPartial<AdminRuntimeStoryEdge>;
-export type ApiTimelineItem = DeepPartial<AdminRuntimeTimelineItem>;
-export type ApiRuntimeHeatmapResponse =
-  DeepPartial<AdminRuntimeHeatmapResponse>;
-export type ApiRuntimeHeatmapCell = DeepPartial<AdminRuntimeHeatmapCell>;
-export type ApiExecutionPayloadResponse =
-  DeepPartial<AdminRuntimeExecutionPayloadResponse>;
-export type ApiExecutionLogResponse =
-  DeepPartial<AdminRuntimeExecutionLogListResponse>;
-export type ApiExecutionLog = DeepPartial<AdminRuntimeExecutionLog>;
+export type ApiRuntimeStoryListResponse = AdminRuntimeStoryListResponse;
+export type ApiRuntimeStoryListItem = AdminRuntimeStoryListItem;
+export type ApiRuntimeStoryDetailResponse = AdminRuntimeStoryDetailResponse;
+export type ApiRuntimeStoryDetail = AdminRuntimeStoryDetail;
+export type ApiRuntimeStoryEdge = AdminRuntimeStoryEdge;
+export type ApiTimelineItem = AdminRuntimeTimelineItem;
+export type ApiRuntimeHeatmapResponse = AdminRuntimeHeatmapResponse;
+export type ApiRuntimeHeatmapCell = AdminRuntimeHeatmapCell;
+export type ApiExecutionPayloadResponse = AdminRuntimeExecutionPayloadResponse;
+export type ApiExecutionLogResponse = AdminRuntimeExecutionLogListResponse;
+export type ApiExecutionLog = AdminRuntimeExecutionLog;
 export type ApiTechnicalOperationResponse =
-  DeepPartial<AdminRuntimeTechnicalOperationListResponse>;
-export type ApiTechnicalOperation = DeepPartial<AdminRuntimeTechnicalOperation>;
-
-const fallbackTimestamp = "1970-01-01T00:00:00.000Z";
+  AdminRuntimeTechnicalOperationListResponse;
+export type ApiTechnicalOperation = AdminRuntimeTechnicalOperation;
 
 export function normalizeRuntimeStoryListResponse(
   response: ApiRuntimeStoryListResponse
 ): { stories: RuntimeStory[]; page?: PageInfo } {
   return {
-    ...(response.page ? { page: normalizePageInfoPartial(response.page) } : {}),
-    stories: (response.data ?? []).map(normalizeRuntimeStoryListItem),
+    page: normalizePageInfo(response.page),
+    stories: response.data.map(normalizeRuntimeStoryListItem),
   };
 }
 
 export function normalizeRuntimeStoryListItem(
   item: ApiRuntimeStoryListItem
 ): RuntimeStory {
-  const correlationId = safeString(item.correlation_id, "unknown");
-  const timestamp = normalizeTimestamp(item.created_at);
-  const durationMs = normalizeDuration(item.duration);
-  const services = normalizeStringArray(item.services);
-  const pattern = normalizeStringArray(item.pattern);
-  const nodeCount = normalizeInteger(item.node_count, 0);
-  const errorCount = normalizeInteger(item.error_count, 0);
-  const nodes = Array.from({ length: nodeCount }, (_, index) =>
-    placeholderNode({
-      correlationId,
-      durationMs: index === 0 ? durationMs : 0,
-      ...(index === 0 && item.root_error ? { error: item.root_error } : {}),
-      id: `${correlationId}:summary:${index + 1}`,
-      index,
-      kind: toExecutionNodeKind(pattern[index] ?? pattern.at(-1)),
-      service: services[index] ?? services.at(-1) ?? "runtime",
-      status: normalizeRuntimeStatus(
-        index < errorCount ? "failed" : item.status
-      ),
-      timestamp,
-    })
+  const correlationId = requiredString(item.correlation_id, "correlation_id");
+  const timestamp = requiredTimestamp(item.created_at, "created_at");
+  const durationMs = requiredNonNegativeInteger(item.duration, "duration");
+  const services = requiredStringArray(item.services, "services");
+  const pattern = requiredStringArray(item.pattern, "pattern");
+  const nodeCount = requiredNonNegativeInteger(item.node_count, "node_count");
+  const errorCount = requiredNonNegativeInteger(
+    item.error_count,
+    "error_count"
   );
+  const service = requiredString(services[0], "services[0]");
+  const storyKind = requiredStoryKind(item.story_kind, "story_kind");
 
   return {
     correlationId,
     durationMs,
     id: correlationId,
-    name: safeString(item.title, "Runtime Story"),
-    nodes,
-    service: services[0] ?? "runtime",
+    name: requiredString(item.title, "title"),
+    nodes: [],
+    service,
     source:
-      item.story_kind === "federated"
-        ? "federated-runtime-story"
-        : "runtime-story",
-    status: normalizeRuntimeStatus(item.status),
+      storyKind === "federated" ? "federated-runtime-story" : "runtime-story",
+    status: requiredRuntimeStatus(item.status, "status"),
+    summary: {
+      errorCount,
+      nodeCount,
+      pattern: pattern.map(toExecutionNodeKind),
+      ...(item.root_error ? { rootError: item.root_error } : {}),
+      services,
+    },
     timestamp,
   };
 }
@@ -138,46 +119,48 @@ export function normalizeRuntimeStoryListItem(
 export function normalizeRuntimeStory(
   detail: ApiRuntimeStoryDetail
 ): RuntimeStory {
-  const summary = detail.summary ?? {};
-  const isFederated = summary.story_kind === "federated";
-  const correlationId = safeString(summary.correlation_id, "unknown");
-  const timestamp = normalizeTimestamp(summary.created_at);
-  const hasValidBaseTimestamp =
-    typeof summary.created_at === "string" &&
-    Number.isFinite(Date.parse(summary.created_at));
+  const { summary } = detail;
+  const isFederated =
+    requiredStoryKind(summary.story_kind, "story_kind") === "federated";
+  const correlationId = requiredString(
+    summary.correlation_id,
+    "correlation_id"
+  );
+  const timestamp = requiredTimestamp(summary.created_at, "created_at");
   const baseTimestamp = Date.parse(timestamp);
-  const rawNodes = detail.nodes ?? [];
   const nodeIdAliases = new Map<string, string>();
-  const seenIds = new Map<string, number>();
-  const nodes = rawNodes.map((node, index): ExecutionNode => {
-    const inputId = safeString(node.id, `node_${index + 1}`);
+  const seenIds = new Set<string>();
+  const nodes = detail.nodes.map((node): ExecutionNode => {
+    const inputId = requiredString(node.id, "nodes[].id");
     const nodeType = normalizeProviderCallType(node.type);
     const canonicalId = normalizeProviderNodeId(inputId, nodeType);
-    const seenCount = seenIds.get(canonicalId) ?? 0;
-    seenIds.set(canonicalId, seenCount + 1);
-    const id =
-      seenCount === 0 ? canonicalId : `${canonicalId}__${seenCount + 1}`;
-    if (!nodeIdAliases.has(inputId)) {
-      nodeIdAliases.set(inputId, id);
+    if (seenIds.has(canonicalId)) {
+      throw new Error(
+        `Runtime API response has duplicate node id ${canonicalId}`
+      );
     }
-    nodeIdAliases.set(canonicalId, id);
+    seenIds.add(canonicalId);
+    nodeIdAliases.set(inputId, canonicalId);
+    nodeIdAliases.set(canonicalId, canonicalId);
 
     const metadata = normalizeProviderNodeReferences(
       normalizeProviderNodeMetadata(node.metadata, nodeType)
     );
-    const nodeTimestamp = normalizeTimestamp(node.timestamp, timestamp);
+    const nodeTimestamp = requiredTimestamp(
+      node.timestamp,
+      "nodes[].timestamp"
+    );
     const parsedNodeTimestamp = Date.parse(nodeTimestamp);
-    const startMs = hasValidBaseTimestamp
-      ? Number.isFinite(baseTimestamp) && Number.isFinite(parsedNodeTimestamp)
-        ? Math.max(0, parsedNodeTimestamp - baseTimestamp)
-        : index
-      : 0;
+    const startMs = Math.max(0, parsedNodeTimestamp - baseTimestamp);
     const error = node.error ?? undefined;
-    const status = normalizeRuntimeStatus(node.status);
+    const status = requiredRuntimeStatus(node.status, "nodes[].status");
     const attempts = normalizeOptionalInteger(metadata.attempts);
     const maxAttempts = normalizeOptionalInteger(metadata.max_attempts);
-    const canonicalName = safeString(node.name, "Runtime Work");
-    const displayName = safeString(node.display_name, canonicalName);
+    const canonicalName = requiredString(node.name, "nodes[].name");
+    const displayName = requiredString(
+      node.display_name,
+      "nodes[].display_name"
+    );
 
     return {
       ...(attempts === undefined ? {} : { attempts }),
@@ -190,24 +173,23 @@ export function normalizeRuntimeStory(
           ? { causation_id: metadata.causation_id }
           : {}),
       },
-      durationMs: normalizeDuration(node.duration_ms),
+      durationMs: requiredNonNegativeInteger(
+        node.duration_ms,
+        "nodes[].duration_ms"
+      ),
       events: [],
-      id,
+      id: canonicalId,
       kind: toExecutionNodeKind(nodeType),
       logs: error ? [error] : [],
       name: displayName,
       retryable: !isFederated && isRetryable(status),
-      service: safeString(node.service, "runtime"),
+      service: requiredString(node.service, "nodes[].service"),
       startMs,
       status,
     };
   });
   const nodeIds = new Set(nodes.map((node) => node.id));
-  const edges = normalizeRuntimeEdges(
-    detail.edges ?? [],
-    nodeIdAliases,
-    nodeIds
-  );
+  const edges = normalizeRuntimeEdges(detail.edges, nodeIdAliases, nodeIds);
   const parentByTarget = new Map(
     edges.map((edge) => [edge.target, edge.source])
   );
@@ -215,10 +197,9 @@ export function normalizeRuntimeStory(
     const parentId = parentByTarget.get(node.id);
     return parentId ? { ...node, parentId } : node;
   });
-  const timelineItems =
-    detail.timeline_items?.map((item, index) =>
-      normalizeTimelineItem(item, correlationId, index)
-    ) ?? [];
+  const timelineItems = detail.timeline_items.map((item) =>
+    normalizeTimelineItem(item, correlationId)
+  );
   const lastNodeEnd = Math.max(
     0,
     ...nodesWithParents.map((node) => node.startMs + node.durationMs),
@@ -229,14 +210,20 @@ export function normalizeRuntimeStory(
 
   return {
     correlationId,
-    durationMs: Math.max(normalizeDuration(summary.duration), lastNodeEnd),
+    durationMs: Math.max(
+      requiredNonNegativeInteger(summary.duration, "duration"),
+      lastNodeEnd
+    ),
     edges,
     id: correlationId,
-    name: safeString(summary.title, "Runtime Story"),
+    name: requiredString(summary.title, "title"),
     nodes: nodesWithParents,
-    service: nodesWithParents[0]?.service ?? "runtime",
+    service: requiredString(
+      nodesWithParents[0]?.service ?? summary.services[0],
+      "services[0]"
+    ),
     source: isFederated ? "federated-runtime-story" : "runtime-story",
-    status: normalizeRuntimeStatus(summary.status),
+    status: requiredRuntimeStatus(summary.status, "status"),
     timelineItems,
     timestamp,
     ...(detail.federation
@@ -249,16 +236,19 @@ function normalizeFederatedStoryEvidence(
   evidence: NonNullable<ApiRuntimeStoryDetail["federation"]>
 ): FederatedStoryEvidence {
   return {
-    assembledAt: normalizeTimestamp(evidence.assembledAt),
-    gaps: (evidence.gaps ?? []).map(normalizeFederatedStoryGap),
-    protocol: safeString(evidence.protocol, "lenso.federated-runtime-story.v1"),
-    reliability: (evidence.reliability ?? []).map(
+    assembledAt: requiredTimestamp(
+      evidence.assembledAt,
+      "federation.assembledAt"
+    ),
+    gaps: evidence.gaps.map(normalizeFederatedStoryGap),
+    protocol: requiredString(evidence.protocol, "federation.protocol"),
+    reliability: evidence.reliability.map(
       normalizeFederatedReliabilityEvidence
     ),
     ...(typeof evidence.tenantId === "string"
       ? { tenantId: evidence.tenantId }
       : {}),
-    workflowEntities: (evidence.workflowEntities ?? []).map(
+    workflowEntities: evidence.workflowEntities.map(
       normalizeFederatedWorkflowEntity
     ),
   };
@@ -270,12 +260,21 @@ function normalizeFederatedStoryGap(
   >[number]
 ): FederatedStoryGap {
   return {
-    detail: safeString(gap.detail, "Story Segment evidence is unavailable"),
-    detectedAt: normalizeTimestamp(gap.detectedAt),
+    detail: requiredString(gap.detail, "federation.gaps[].detail"),
+    detectedAt: requiredTimestamp(
+      gap.detectedAt,
+      "federation.gaps[].detectedAt"
+    ),
     kind: normalizeFederatedGapKind(gap.kind),
-    lastObservedAt: normalizeTimestamp(gap.lastObservedAt),
-    nextAction: safeString(gap.nextAction, "inspect_story_segment_source"),
-    sourceServiceId: safeString(gap.sourceServiceId, "unknown-service"),
+    lastObservedAt: requiredTimestamp(
+      gap.lastObservedAt,
+      "federation.gaps[].lastObservedAt"
+    ),
+    nextAction: requiredString(gap.nextAction, "federation.gaps[].nextAction"),
+    sourceServiceId: requiredString(
+      gap.sourceServiceId,
+      "federation.gaps[].sourceServiceId"
+    ),
     ...(typeof gap.tenantId === "string" ? { tenantId: gap.tenantId } : {}),
   };
 }
@@ -286,18 +285,33 @@ function normalizeFederatedWorkflowEntity(
   >[number]
 ): FederatedWorkflowEntity {
   return {
-    attempt: normalizeInteger(entity.attempt, 1),
-    id: safeString(entity.id, "unknown-workflow-entity"),
-    instanceId: safeString(entity.instanceId, "unknown-workflow"),
+    attempt: requiredNonNegativeInteger(
+      entity.attempt,
+      "federation.workflowEntities[].attempt"
+    ),
+    id: requiredString(entity.id, "federation.workflowEntities[].id"),
+    instanceId: requiredString(
+      entity.instanceId,
+      "federation.workflowEntities[].instanceId"
+    ),
     kind: normalizeFederatedWorkflowKind(entity.kind),
-    label: safeString(entity.label, "Workflow evidence"),
-    nodeId: safeString(entity.nodeId, "unknown-node"),
-    observedAt: normalizeTimestamp(entity.observedAt),
+    label: requiredString(entity.label, "federation.workflowEntities[].label"),
+    nodeId: requiredString(
+      entity.nodeId,
+      "federation.workflowEntities[].nodeId"
+    ),
+    observedAt: requiredTimestamp(
+      entity.observedAt,
+      "federation.workflowEntities[].observedAt"
+    ),
     ...(typeof entity.parentId === "string"
       ? { parentId: entity.parentId }
       : {}),
-    serviceId: safeString(entity.serviceId, "unknown-service"),
-    state: safeString(entity.state, "unknown"),
+    serviceId: requiredString(
+      entity.serviceId,
+      "federation.workflowEntities[].serviceId"
+    ),
+    state: requiredString(entity.state, "federation.workflowEntities[].state"),
   };
 }
 
@@ -312,53 +326,71 @@ function normalizeFederatedReliabilityEvidence(
     ...(typeof evidence.nextAction === "string"
       ? { nextAction: evidence.nextAction }
       : {}),
-    observedAt: normalizeTimestamp(evidence.observedAt),
+    observedAt: requiredTimestamp(
+      evidence.observedAt,
+      "federation.reliability[].observedAt"
+    ),
     ...(report
       ? {
           report: {
-            activeDegradedModes: (report.activeDegradedModes ?? []).map(
-              (mode) => ({
-                dependencyId: safeString(
-                  mode.dependencyId,
-                  "unknown-dependency"
-                ),
-                evidenceReferences: normalizeStringArray(
-                  mode.evidenceReferences
-                ),
-                mode: safeString(mode.mode, "degraded"),
-              })
-            ),
-            checks: (report.checks ?? []).map((check) => ({
-              code: safeString(check.code, "unknown_check"),
-              evidenceReferences: normalizeStringArray(
-                check.evidenceReferences
+            activeDegradedModes: report.activeDegradedModes.map((mode) => ({
+              dependencyId: requiredString(
+                mode.dependencyId,
+                "federation.reliability[].report.activeDegradedModes[].dependencyId"
               ),
+              evidenceReferences: mode.evidenceReferences,
+              mode: requiredString(
+                mode.mode,
+                "federation.reliability[].report.activeDegradedModes[].mode"
+              ),
+            })),
+            checks: report.checks.map((check) => ({
+              code: requiredString(
+                check.code,
+                "federation.reliability[].report.checks[].code"
+              ),
+              evidenceReferences: check.evidenceReferences,
               expected: check.expected,
               ...(typeof check.issueCode === "string"
                 ? { issueCode: check.issueCode }
                 : {}),
-              nextActions: normalizeStringArray(check.nextActions),
+              nextActions: check.nextActions,
               observed: check.observed,
               state: normalizeReliabilityCheckState(check.state),
             })),
-            contractId: safeString(report.contractId, "unknown-contract"),
-            contractVersion: safeString(report.contractVersion, "unknown"),
-            effectiveValues: objectRecord(report.effectiveValues),
-            overrides: objectRecord(report.overrides),
-            profile: normalizeReliabilityProfile(report.profile),
-            protocol: safeString(
-              report.protocol,
-              "lenso.reliability-report.v1"
+            contractId: requiredString(
+              report.contractId,
+              "federation.reliability[].report.contractId"
             ),
-            serviceId: safeString(
+            contractVersion: requiredString(
+              report.contractVersion,
+              "federation.reliability[].report.contractVersion"
+            ),
+            effectiveValues: requiredObject(
+              report.effectiveValues,
+              "federation.reliability[].report.effectiveValues"
+            ),
+            overrides: requiredObject(
+              report.overrides,
+              "federation.reliability[].report.overrides"
+            ),
+            profile: normalizeReliabilityProfile(report.profile),
+            protocol: requiredString(
+              report.protocol,
+              "federation.reliability[].report.protocol"
+            ),
+            serviceId: requiredString(
               report.serviceId,
-              safeString(evidence.sourceServiceId, "unknown-service")
+              "federation.reliability[].report.serviceId"
             ),
             state: normalizeReliabilityState(report.state),
           },
         }
       : {}),
-    sourceServiceId: safeString(evidence.sourceServiceId, "unknown-service"),
+    sourceServiceId: requiredString(
+      evidence.sourceServiceId,
+      "federation.reliability[].sourceServiceId"
+    ),
     status: normalizeReliabilityEvidenceStatus(evidence.status),
   };
 }
@@ -367,20 +399,19 @@ export function normalizeRuntimeHeatmap(
   response: ApiRuntimeHeatmapResponse
 ): RuntimeHeatmap {
   return {
-    bucketSeconds:
-      normalizeOptionalInteger(response.bucket_seconds) &&
-      Number(response.bucket_seconds) > 0
-        ? Number(response.bucket_seconds)
-        : 300,
-    cells: (response.data ?? []).map(normalizeRuntimeHeatmapCell),
-    ...(response.page ? { page: normalizePageInfoPartial(response.page) } : {}),
+    bucketSeconds: requiredPositiveInteger(
+      response.bucket_seconds,
+      "bucket_seconds"
+    ),
+    cells: response.data.map(normalizeRuntimeHeatmapCell),
+    page: normalizePageInfo(response.page),
   };
 }
 
 export function normalizeTechnicalOperations(
   response: ApiTechnicalOperationResponse
 ): TechnicalOperation[] {
-  return (response.data ?? [])
+  return response.data
     .filter((operation) => operation.source !== "admin_action")
     .map(normalizeTechnicalOperation);
 }
@@ -388,48 +419,36 @@ export function normalizeTechnicalOperations(
 export function normalizeExecutionPayload(
   response: ApiExecutionPayloadResponse
 ): ExecutionPayload {
-  const data = response.data ?? {};
+  const { data } = response;
   return {
-    groups: (data.groups ?? []).map((group) => ({
+    groups: data.groups.map((group) => ({
       content: group.content,
-      defaultExpanded: group.default_expanded === true,
-      gaps: (group.gaps ?? []).flatMap((gap) => {
-        const status =
-          gap.status === "not_applicable" || gap.status === "not_captured"
-            ? gap.status
-            : undefined;
-        if (!status) {
-          return [];
-        }
-        return [
-          {
-            detail: safeString(
-              gap.detail,
-              "The evidence source did not provide this field."
-            ),
-            field: safeString(gap.field, "evidence"),
-            status,
-          },
-        ];
-      }),
-      key: safeString(group.key, "evidence"),
-      redactedFields: normalizeStringArray(group.redacted_fields),
+      defaultExpanded: group.default_expanded,
+      gaps: group.gaps.map((gap) => ({
+        detail: requiredString(gap.detail, "groups[].gaps[].detail"),
+        field: requiredString(gap.field, "groups[].gaps[].field"),
+        status: requiredEvidenceGapStatus(gap.status, "groups[].gaps[].status"),
+      })),
+      key: requiredString(group.key, "groups[].key"),
+      redactedFields: group.redacted_fields,
     })),
     input: data.input,
     metadata: data.metadata,
-    ...(typeof data.node_type === "string" ? { nodeType: data.node_type } : {}),
+    nodeType: requiredString(data.node_type, "node_type"),
     output: data.output,
-    redactedFields: normalizeStringArray(data.redacted_fields),
+    redactedFields: data.redacted_fields,
   };
 }
 
 export function normalizeExecutionLogs(
   response: ApiExecutionLogResponse
 ): ExecutionLogsResult {
-  const coverage = normalizeExecutionLogCoverage(response.coverage);
+  if (!response.coverage) {
+    throw new Error("Runtime API response is missing coverage");
+  }
   return {
-    ...(coverage ? { coverage } : {}),
-    entries: (response.data ?? []).map(normalizeExecutionLog),
+    coverage: normalizeExecutionLogCoverage(response.coverage),
+    entries: response.data.map(normalizeExecutionLog),
   };
 }
 
@@ -442,17 +461,18 @@ function normalizeRuntimeEdges(
   const normalizedEdges: ExecutionEdge[] = [];
 
   for (const edge of edges) {
-    const source = nodeIdAliases.get(edge.source ?? "") ?? edge.source;
-    const target = nodeIdAliases.get(edge.target ?? "") ?? edge.target;
-    if (!source || !target || !nodeIds.has(source) || !nodeIds.has(target)) {
-      continue;
+    const rawSource = requiredString(edge.source, "edges[].source");
+    const rawTarget = requiredString(edge.target, "edges[].target");
+    const source = nodeIdAliases.get(rawSource) ?? rawSource;
+    const target = nodeIdAliases.get(rawTarget) ?? rawTarget;
+    if (!nodeIds.has(source) || !nodeIds.has(target)) {
+      throw new Error(`Runtime API response has a dangling edge ${edge.id}`);
     }
-    const id = normalizeProviderEdgeId(
-      safeString(edge.id, `${source}:${target}:${edge.type ?? "edge"}`)
-    );
-    const dedupeKey = `${source}:${target}:${edge.type ?? "edge"}:${id}`;
+    const id = normalizeProviderEdgeId(requiredString(edge.id, "edges[].id"));
+    const type = requiredString(edge.type, "edges[].type");
+    const dedupeKey = `${source}:${target}:${type}:${id}`;
     if (seenEdges.has(dedupeKey)) {
-      continue;
+      throw new Error(`Runtime API response has duplicate edge ${id}`);
     }
     seenEdges.add(dedupeKey);
     normalizedEdges.push({
@@ -460,7 +480,7 @@ function normalizeRuntimeEdges(
       ...(edge.label ? { label: edge.label } : {}),
       source,
       target,
-      type: safeString(edge.type, "sequence"),
+      type,
     });
   }
 
@@ -469,95 +489,104 @@ function normalizeRuntimeEdges(
 
 function normalizeTimelineItem(
   item: ApiTimelineItem,
-  fallbackCorrelationId: string,
-  index: number
+  storyCorrelationId: string
 ): TimelineItem {
   const type = normalizeProviderCallType(item.type);
   const id = normalizeProviderNodeId(
-    safeString(item.id, `timeline_${index + 1}`),
+    requiredString(item.id, "timeline_items[].id"),
     type
   );
-  const createdAt = normalizeTimestamp(item.created_at);
-  const completedAt = maybeTimestamp(item.completed_at);
+  const createdAt = requiredTimestamp(
+    item.created_at,
+    "timeline_items[].created_at"
+  );
+  const completedAt = optionalTimestamp(
+    item.completed_at,
+    "timeline_items[].completed_at"
+  );
   const lastError = item.last_error;
-  const startedAt = maybeTimestamp(item.started_at);
+  const startedAt = optionalTimestamp(
+    item.started_at,
+    "timeline_items[].started_at"
+  );
+  const correlationId = requiredString(
+    item.correlation_id,
+    "timeline_items[].correlation_id"
+  );
+  if (correlationId !== storyCorrelationId) {
+    throw new Error(
+      `Runtime API response has a mismatched timeline correlation`
+    );
+  }
   return {
-    attempts: normalizeInteger(item.attempts, 1),
-    correlationId: safeString(item.correlation_id, fallbackCorrelationId),
+    attempts: requiredNonNegativeInteger(
+      item.attempts,
+      "timeline_items[].attempts"
+    ),
+    correlationId,
     createdAt,
     detailId: id,
     id,
-    maxAttempts: normalizeInteger(item.max_attempts, 1),
-    name: safeString(item.name, "Runtime Work"),
+    maxAttempts: requiredNonNegativeInteger(
+      item.max_attempts,
+      "timeline_items[].max_attempts"
+    ),
+    name: requiredString(item.name, "timeline_items[].name"),
     ...(completedAt ? { completedAt } : {}),
     ...(lastError ? { lastError } : {}),
     ...(startedAt ? { startedAt } : {}),
-    status: normalizeRuntimeStatus(item.status),
+    status: requiredRuntimeStatus(item.status, "timeline_items[].status"),
     type,
   };
 }
 
 function normalizeExecutionLog(log: ApiExecutionLog): ExecutionLogEntry {
   return {
-    attributes: objectRecord(log.attributes),
-    body: safeString(log.body, ""),
-    correlationId: safeString(log.correlation_id, "unknown"),
-    executionName: safeString(log.execution_name, "Runtime Work"),
-    id: safeString(log.id, "execution_log"),
-    nodeId: safeString(log.node_id, "unknown"),
-    nodeType: safeString(log.node_type, "runtime"),
-    occurredAt: normalizeTimestamp(log.occurred_at),
-    redactedFields: normalizeStringArray(log.redacted_fields),
-    serviceName: safeString(log.service_name, "runtime"),
-    severity: normalizeLogSeverity(log.severity),
+    attributes: requiredObject(log.attributes, "logs[].attributes"),
+    body: log.body,
+    correlationId: requiredString(log.correlation_id, "logs[].correlation_id"),
+    executionName: requiredString(log.execution_name, "logs[].execution_name"),
+    id: requiredString(log.id, "logs[].id"),
+    nodeId: requiredString(log.node_id, "logs[].node_id"),
+    nodeType: requiredString(log.node_type, "logs[].node_type"),
+    occurredAt: requiredTimestamp(log.occurred_at, "logs[].occurred_at"),
+    redactedFields: log.redacted_fields,
+    serviceName: requiredString(log.service_name, "logs[].service_name"),
+    severity: requiredLogSeverity(log.severity, "logs[].severity"),
     ...(typeof log.span_id === "string" ? { spanId: log.span_id } : {}),
-    storyId: safeString(
-      log.story_id,
-      safeString(log.correlation_id, "unknown")
-    ),
+    storyId: requiredString(log.story_id, "logs[].story_id"),
     ...(typeof log.trace_id === "string" ? { traceId: log.trace_id } : {}),
   };
 }
 
 function normalizeExecutionLogCoverage(
   coverage: ApiExecutionLogResponse["coverage"]
-): ExecutionLogCoverage | undefined {
-  if (!coverage) {
-    return undefined;
-  }
-
+): ExecutionLogCoverage {
   return {
-    gaps: (coverage.gaps ?? []).map((gap) => ({
-      detail: safeString(gap.detail, "Log source coverage is unavailable"),
-      kind: safeString(gap.kind, "unavailable"),
+    gaps: coverage.gaps.map((gap) => ({
+      detail: requiredString(gap.detail, "coverage.gaps[].detail"),
+      kind: requiredString(gap.kind, "coverage.gaps[].kind"),
       ...(typeof gap.next_action === "string" && gap.next_action.length > 0
         ? { nextAction: gap.next_action }
         : {}),
-      sourceId: safeString(gap.source_id, "unknown"),
+      sourceId: requiredString(gap.source_id, "coverage.gaps[].source_id"),
     })),
-    sources: (coverage.sources ?? []).map((source) => ({
-      serviceName: safeString(source.service_name, "unknown"),
-      sourceId: safeString(source.source_id, "unknown"),
-      status: normalizeExecutionLogCoverageStatus(source.status),
+    sources: coverage.sources.map((source) => ({
+      serviceName: requiredString(
+        source.service_name,
+        "coverage.sources[].service_name"
+      ),
+      sourceId: requiredString(
+        source.source_id,
+        "coverage.sources[].source_id"
+      ),
+      status: requiredCoverageStatus(
+        source.status,
+        "coverage.sources[].status"
+      ),
     })),
-    status: normalizeExecutionLogCoverageStatus(coverage.status),
+    status: requiredCoverageStatus(coverage.status, "coverage.status"),
   };
-}
-
-function normalizeExecutionLogCoverageStatus(
-  status: string | undefined
-): ExecutionLogCoverage["status"] {
-  switch (status) {
-    case "complete":
-    case "disabled":
-    case "partial":
-    case "unavailable": {
-      return status;
-    }
-    default: {
-      return "unavailable";
-    }
-  }
 }
 
 function normalizeTechnicalOperation(
@@ -565,16 +594,25 @@ function normalizeTechnicalOperation(
 ): TechnicalOperation {
   const source = normalizeTechnicalOperationSource(operation.source);
   return {
-    attributes: normalizeProviderAttributes(operation.attributes, source),
-    category: normalizeTechnicalOperationCategory(operation.category),
-    correlationId: safeString(operation.correlation_id, "unknown"),
-    durationMs: normalizeDuration(operation.duration_ms),
-    endedAt: normalizeTimestamp(operation.ended_at),
-    id: normalizeProviderOperationId(
-      safeString(operation.id, "technical_operation"),
+    attributes: normalizeProviderAttributes(
+      requiredObject(operation.attributes, "operations[].attributes"),
       source
     ),
-    name: safeString(operation.name, "Technical Operation"),
+    category: normalizeTechnicalOperationCategory(operation.category),
+    correlationId: requiredString(
+      operation.correlation_id,
+      "operations[].correlation_id"
+    ),
+    durationMs: requiredNonNegativeInteger(
+      operation.duration_ms,
+      "operations[].duration_ms"
+    ),
+    endedAt: requiredTimestamp(operation.ended_at, "operations[].ended_at"),
+    id: normalizeProviderOperationId(
+      requiredString(operation.id, "operations[].id"),
+      source
+    ),
+    name: requiredString(operation.name, "operations[].name"),
     ...(operation.related_node_id
       ? {
           relatedNodeId: normalizeProviderNodeId(
@@ -584,13 +622,16 @@ function normalizeTechnicalOperation(
         }
       : {}),
     source,
-    startedAt: normalizeTimestamp(operation.started_at),
-    status: safeString(operation.status, "unknown"),
-    storyId: safeString(operation.story_id, "unknown"),
+    startedAt: requiredTimestamp(
+      operation.started_at,
+      "operations[].started_at"
+    ),
+    status: requiredString(operation.status, "operations[].status"),
+    storyId: requiredString(operation.story_id, "operations[].story_id"),
   };
 }
 
-function normalizeLogSeverity(severity: string | undefined) {
+function requiredLogSeverity(severity: unknown, field: string) {
   switch (severity) {
     case "trace":
     case "debug":
@@ -600,13 +641,13 @@ function normalizeLogSeverity(severity: string | undefined) {
       return severity;
     }
     default: {
-      return "info";
+      throw new Error(`Runtime API response has an invalid ${field}`);
     }
   }
 }
 
 function normalizeTechnicalOperationCategory(
-  category: string | undefined
+  category: string
 ): TechnicalOperation["category"] {
   switch (category) {
     case "http":
@@ -621,13 +662,15 @@ function normalizeTechnicalOperationCategory(
       return category;
     }
     default: {
-      return "unknown";
+      throw new Error(
+        "Runtime API response has an invalid operations[].category"
+      );
     }
   }
 }
 
 function normalizeTechnicalOperationSource(
-  source: string | undefined
+  source: string
 ): TechnicalOperation["source"] {
   switch (source) {
     case "provider":
@@ -637,8 +680,13 @@ function normalizeTechnicalOperationSource(
     case "remote_proxy": {
       return "provider";
     }
-    default: {
+    case "otel": {
       return "otel";
+    }
+    default: {
+      throw new Error(
+        "Runtime API response has an invalid operations[].source"
+      );
     }
   }
 }
@@ -646,23 +694,41 @@ function normalizeTechnicalOperationSource(
 function normalizeRuntimeHeatmapCell(
   cell: ApiRuntimeHeatmapCell
 ): RuntimeHeatmapCell {
-  const bucketStart = normalizeTimestamp(cell.bucket_start);
-  const avgDurationMs = normalizeOptionalPositiveDuration(cell.avg_duration_ms);
-  const maxDurationMs = normalizeOptionalPositiveDuration(cell.max_duration_ms);
+  const bucketStart = requiredTimestamp(
+    cell.bucket_start,
+    "heatmap[].bucket_start"
+  );
+  const avgDurationMs = optionalNonNegativeInteger(
+    cell.avg_duration_ms,
+    "heatmap[].avg_duration_ms"
+  );
+  const maxDurationMs = optionalNonNegativeInteger(
+    cell.max_duration_ms,
+    "heatmap[].max_duration_ms"
+  );
   return {
-    bucketEnd: normalizeTimestamp(cell.bucket_end, bucketStart),
+    bucketEnd: requiredTimestamp(cell.bucket_end, "heatmap[].bucket_end"),
     bucketStart,
-    deadCount: normalizeInteger(cell.dead_count, 0),
-    errorCount: normalizeInteger(cell.error_count, 0),
+    deadCount: requiredNonNegativeInteger(
+      cell.dead_count,
+      "heatmap[].dead_count"
+    ),
+    errorCount: requiredNonNegativeInteger(
+      cell.error_count,
+      "heatmap[].error_count"
+    ),
     ...(avgDurationMs === undefined ? {} : { avgDurationMs }),
     ...(maxDurationMs === undefined ? {} : { maxDurationMs }),
     nodeType: normalizeHeatmapNodeType(cell.node_type),
-    service: safeString(cell.service, "runtime"),
-    totalCount: normalizeInteger(cell.total_count, 0),
+    service: requiredString(cell.service, "heatmap[].service"),
+    totalCount: requiredNonNegativeInteger(
+      cell.total_count,
+      "heatmap[].total_count"
+    ),
   };
 }
 
-function normalizeHeatmapNodeType(type: string | undefined) {
+function normalizeHeatmapNodeType(type: string) {
   switch (type) {
     case "event":
     case "outbox_event": {
@@ -677,49 +743,35 @@ function normalizeHeatmapNodeType(type: string | undefined) {
     case "remote_proxy_call": {
       return "provider_call";
     }
-    default: {
+    case "function":
+    case "function_run":
+    case "flow_step":
+    case "agent_tool_call": {
       return "function";
+    }
+    default: {
+      throw new Error(
+        "Runtime API response has an invalid heatmap[].node_type"
+      );
     }
   }
 }
 
-function normalizePageInfoPartial(page: DeepPartial<ApiPageInfo>): PageInfo {
+function normalizePageInfo(page: ApiPageInfo): PageInfo {
   return {
-    limit: normalizeInteger(page.limit, 0),
-    ...(maybeTimestamp(page.next_created_before)
-      ? { nextCreatedBefore: maybeTimestamp(page.next_created_before)! }
+    limit: requiredNonNegativeInteger(page.limit, "page.limit"),
+    ...(page.next_created_before
+      ? {
+          nextCreatedBefore: requiredTimestamp(
+            page.next_created_before,
+            "page.next_created_before"
+          ),
+        }
       : {}),
   };
 }
 
-function placeholderNode(input: {
-  correlationId: string;
-  durationMs: number;
-  error?: string | null;
-  id: string;
-  index: number;
-  kind: ExecutionNode["kind"];
-  service: string;
-  status: RuntimeStatus;
-  timestamp: string;
-}): ExecutionNode {
-  return {
-    attributes: {},
-    context: { correlation_id: input.correlationId },
-    durationMs: input.durationMs,
-    events: [],
-    id: input.id,
-    kind: input.kind,
-    logs: input.error ? [input.error] : [],
-    name: "Runtime Work",
-    retryable: isRetryable(input.status),
-    service: input.service,
-    startMs: input.index === 0 ? 0 : input.index,
-    status: input.status,
-  };
-}
-
-function toExecutionNodeKind(type: string | undefined): ExecutionNode["kind"] {
+function toExecutionNodeKind(type: string): ExecutionNode["kind"] {
   switch (type) {
     case "http":
     case "http_request":
@@ -756,12 +808,12 @@ function toExecutionNodeKind(type: string | undefined): ExecutionNode["kind"] {
       return "runtime";
     }
     default: {
-      return "runtime";
+      throw new Error("Runtime API response has an invalid nodes[].type");
     }
   }
 }
 
-function normalizeProviderCallType(type: string | undefined) {
+function normalizeProviderCallType(type: string) {
   switch (type) {
     case "remote_proxy_call":
     case "external_provider_call":
@@ -769,7 +821,7 @@ function normalizeProviderCallType(type: string | undefined) {
       return "provider_call";
     }
     default: {
-      return safeString(type, "runtime");
+      return requiredString(type, "nodes[].type");
     }
   }
 }
@@ -799,14 +851,17 @@ function normalizeProviderNodeMetadata(
   value: unknown,
   type: string
 ): Record<string, unknown> {
-  const metadata = objectRecord(value);
+  const metadata = requiredObject(value, "nodes[].metadata");
   if (type !== "provider_call") {
     return metadata;
   }
   const normalized = normalizeProviderAttributes(metadata, "provider");
   if (Object.hasOwn(metadata, "source_metadata")) {
     normalized.source_metadata = normalizeProviderAttributes(
-      metadata.source_metadata,
+      requiredObject(
+        metadata.source_metadata,
+        "nodes[].metadata.source_metadata"
+      ),
       "provider"
     );
   }
@@ -830,10 +885,10 @@ function normalizeProviderReferenceId(id: string) {
 }
 
 function normalizeProviderAttributes(
-  value: unknown,
+  value: Record<string, unknown>,
   source: TechnicalOperation["source"]
 ): Record<string, unknown> {
-  const attributes = { ...objectRecord(value) };
+  const attributes = { ...value };
   if (source !== "provider") {
     return attributes;
   }
@@ -855,26 +910,7 @@ function normalizeProviderAttributes(
   return attributes;
 }
 
-function normalizeRuntimeStatus(status: string | undefined): RuntimeStatus {
-  switch (status) {
-    case "pending":
-    case "processing":
-    case "running":
-    case "published":
-    case "completed":
-    case "failed":
-    case "dead": {
-      return status;
-    }
-    default: {
-      return "pending";
-    }
-  }
-}
-
-function normalizeFederatedGapKind(
-  kind: string | undefined
-): FederatedStoryGap["kind"] {
+function normalizeFederatedGapKind(kind: string): FederatedStoryGap["kind"] {
   switch (kind) {
     case "unreachable":
     case "stale":
@@ -884,13 +920,15 @@ function normalizeFederatedGapKind(
       return kind;
     }
     default: {
-      return "unreachable";
+      throw new Error(
+        "Runtime API response has an invalid federation.gaps[].kind"
+      );
     }
   }
 }
 
 function normalizeFederatedWorkflowKind(
-  kind: string | undefined
+  kind: string
 ): FederatedWorkflowEntity["kind"] {
   switch (kind) {
     case "instance":
@@ -903,13 +941,15 @@ function normalizeFederatedWorkflowKind(
       return kind;
     }
     default: {
-      return "instance";
+      throw new Error(
+        "Runtime API response has an invalid federation.workflowEntities[].kind"
+      );
     }
   }
 }
 
 function normalizeReliabilityEvidenceStatus(
-  status: string | undefined
+  status: string
 ): FederatedReliabilityEvidence["status"] {
   switch (status) {
     case "available":
@@ -918,13 +958,15 @@ function normalizeReliabilityEvidenceStatus(
       return status;
     }
     default: {
-      return "unavailable";
+      throw new Error(
+        "Runtime API response has an invalid federation.reliability[].status"
+      );
     }
   }
 }
 
 function normalizeReliabilityProfile(
-  profile: string | undefined
+  profile: string
 ): NonNullable<FederatedReliabilityEvidence["report"]>["profile"] {
   switch (profile) {
     case "development":
@@ -933,13 +975,15 @@ function normalizeReliabilityProfile(
       return profile;
     }
     default: {
-      return "development";
+      throw new Error(
+        "Runtime API response has an invalid federation.reliability[].report.profile"
+      );
     }
   }
 }
 
 function normalizeReliabilityState(
-  state: string | undefined
+  state: string
 ): NonNullable<FederatedReliabilityEvidence["report"]>["state"] {
   switch (state) {
     case "healthy":
@@ -948,13 +992,15 @@ function normalizeReliabilityState(
       return state;
     }
     default: {
-      return "unavailable";
+      throw new Error(
+        "Runtime API response has an invalid federation.reliability[].report.state"
+      );
     }
   }
 }
 
 function normalizeReliabilityCheckState(
-  state: string | undefined
+  state: string
 ): NonNullable<
   FederatedReliabilityEvidence["report"]
 >["checks"][number]["state"] {
@@ -966,72 +1012,125 @@ function normalizeReliabilityCheckState(
       return state;
     }
     default: {
-      return "unknown";
+      throw new Error(
+        "Runtime API response has an invalid federation.reliability[].report.checks[].state"
+      );
     }
   }
 }
 
-function normalizeTimestamp(value: unknown, fallback = fallbackTimestamp) {
-  if (typeof value === "string" && Number.isFinite(Date.parse(value))) {
-    return value;
-  }
-  return fallback;
-}
-
-function maybeTimestamp(value: unknown) {
-  if (typeof value === "string" && Number.isFinite(Date.parse(value))) {
-    return value;
-  }
-  return undefined;
-}
-
 function timelineItemOffset(baseTimestamp: string, timestamp: string) {
-  const base = Date.parse(baseTimestamp);
-  const value = Date.parse(timestamp);
-  if (Number.isFinite(base) && Number.isFinite(value)) {
-    return Math.max(0, value - base);
-  }
-  return 0;
-}
-
-function normalizeDuration(value: unknown) {
-  return normalizeInteger(value, 0);
-}
-
-function normalizeOptionalPositiveDuration(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? Math.trunc(value)
-    : undefined;
-}
-
-function normalizeInteger(value: unknown, fallback: number) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, Math.trunc(value))
-    : fallback;
+  return Math.max(0, Date.parse(timestamp) - Date.parse(baseTimestamp));
 }
 
 function normalizeOptionalInteger(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, Math.trunc(value))
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
     : undefined;
 }
 
-function safeString(value: unknown, fallback: string) {
-  return typeof value === "string" && value.trim().length > 0
-    ? value
-    : fallback;
+function requiredString(value: unknown, field: string) {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+  throw new Error(`Runtime API response is missing ${field}`);
 }
 
-function normalizeStringArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter(
-        (item): item is string => typeof item === "string" && item.length > 0
-      )
-    : [];
+function requiredTimestamp(value: unknown, field: string) {
+  const timestamp = requiredString(value, field);
+  if (Number.isFinite(Date.parse(timestamp))) {
+    return timestamp;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
 }
 
-function objectRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+function requiredNonNegativeInteger(value: unknown, field: string) {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function requiredPositiveInteger(value: unknown, field: string) {
+  const integer = requiredNonNegativeInteger(value, field);
+  if (integer > 0) {
+    return integer;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function optionalNonNegativeInteger(value: unknown, field: string) {
+  return value === undefined || value === null
+    ? undefined
+    : requiredNonNegativeInteger(value, field);
+}
+
+function optionalTimestamp(value: unknown, field: string) {
+  return value === undefined || value === null
+    ? undefined
+    : requiredTimestamp(value, field);
+}
+
+function requiredRuntimeStatus(value: unknown, field: string): RuntimeStatus {
+  if (
+    value === "pending" ||
+    value === "processing" ||
+    value === "running" ||
+    value === "published" ||
+    value === "completed" ||
+    value === "failed" ||
+    value === "dead"
+  ) {
+    return value;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function requiredStoryKind(value: unknown, field: string) {
+  if (value === "runtime" || value === "federated") {
+    return value;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function requiredEvidenceGapStatus(value: unknown, field: string) {
+  if (value === "not_applicable" || value === "not_captured") {
+    return value;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function requiredCoverageStatus(
+  value: unknown,
+  field: string
+): ExecutionLogCoverage["status"] {
+  if (
+    value === "complete" ||
+    value === "disabled" ||
+    value === "partial" ||
+    value === "unavailable"
+  ) {
+    return value;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function requiredStringArray(value: unknown, field: string) {
+  if (
+    Array.isArray(value) &&
+    value.every((item) => typeof item === "string" && item.length > 0)
+  ) {
+    return value as string[];
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
+}
+
+function requiredObject(
+  value: unknown,
+  field: string
+): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  throw new Error(`Runtime API response has an invalid ${field}`);
 }

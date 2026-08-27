@@ -1,7 +1,7 @@
 import { Button, useConsoleLocale } from "@lenso/console-ui";
 import { useMemo, useState } from "react";
 
-import { useDeliveryEvidence } from "../console-data/use-console-product-data";
+import { useDeliveryStatus } from "../console-data/use-console-product-data";
 import {
   Inspector,
   ProductPage,
@@ -22,7 +22,7 @@ const demoDeliveryPreview = {
   metrics: {
     approvals: "2",
     artifacts: "8",
-    evidenceAge: "31s",
+    statusAge: "31s",
     subtitle: "commit 6e41d3a",
   },
   releases: [
@@ -56,7 +56,7 @@ const demoDeliveryPreview = {
 export function DeliveryPage() {
   const { locale } = useConsoleLocale();
   const copy = consoleProductCopy(locale);
-  const delivery = useDeliveryEvidence();
+  const delivery = useDeliveryStatus();
   const projection = delivery.current.data;
   const isDemoPreview = delivery.mode === "demo" && !projection;
   const releases = useMemo<ReleaseCandidate[]>(() => {
@@ -134,10 +134,8 @@ export function DeliveryPage() {
                   value={projection?.policy ? "1" : (metrics?.approvals ?? "0")}
                 />
                 <Metric
-                  label={copy.delivery.evidenceAge}
-                  value={
-                    projection ? "recorded" : (metrics?.evidenceAge ?? "—")
-                  }
+                  label={copy.delivery.statusAge}
+                  value={projection ? "current" : (metrics?.statusAge ?? "—")}
                 />
               </div>
               <div data-page-slot="delivery-page__divider" />
@@ -221,7 +219,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function buildDeliveryGates(
-  projection: ReturnType<typeof useDeliveryEvidence>["current"]["data"],
+  projection: ReturnType<typeof useDeliveryStatus>["current"]["data"],
   copy: ReturnType<typeof consoleProductCopy>["delivery"],
   demoPreview = false
 ) {
@@ -285,7 +283,7 @@ function releaseStateLabel(
     }
     case "needs_attention":
     case "blocked": {
-      return copy.evidencePending;
+      return copy.needsAttention;
     }
     case "draft": {
       return copy.draft;

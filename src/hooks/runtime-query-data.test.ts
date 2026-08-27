@@ -17,7 +17,6 @@ describe("runtime query data helpers", () => {
         apiMode: true,
         data: undefined,
         fallback: runtimeStories,
-        isError: false,
       })
     ).toEqual([]);
   });
@@ -28,20 +27,18 @@ describe("runtime query data helpers", () => {
         apiMode: false,
         data: undefined,
         fallback: runtimeStories,
-        isError: false,
       })
     ).toBe(runtimeStories);
   });
 
-  test("keeps mock fallback when API data is unavailable after an error", () => {
+  test("does not expose mock fallback after an API error", () => {
     expect(
       queryDataWithMockFallback({
         apiMode: true,
         data: undefined,
         fallback: runtimeStories,
-        isError: true,
       })
-    ).toBe(runtimeStories);
+    ).toEqual([]);
   });
 });
 
