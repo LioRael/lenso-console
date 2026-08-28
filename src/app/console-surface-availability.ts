@@ -97,7 +97,7 @@ export function consoleSurfaceAvailability({
       {
         label: module.moduleId,
         moduleId: module.moduleId,
-        path: "/modules",
+        path: "/plugins",
         reason: expected
           ? "The exact Console UI artifact receipt has not been reconciled for this Module Release"
           : "The connected Module Release does not declare a Console UI artifact",

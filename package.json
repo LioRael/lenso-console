@@ -37,9 +37,12 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/inter": "^5.3.0",
     "@fontsource/ibm-plex-sans": "^5.3.0",
     "@fontsource/roboto-mono": "^5.3.0",
     "@gsap/react": "^2.1.2",
+    "@lenso/tokens": "0.4.0",
+    "@lenso/ui": "0.4.0",
     "@stylexjs/stylex": "0.19.0",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.21",

@@ -32,8 +32,8 @@ describe("Console router", () => {
   });
 
   test("keeps legacy paths at the file-route catch-all seam", () => {
-    expect(legacyConsoleTargetForPath("/console/overview", "/console")).toBe(
-      "/runtime"
+    expect(legacyConsoleTargetForPath("/console/launchpad", "/console")).toBe(
+      "/"
     );
     expect(
       legacyConsoleTargetForPath(
@@ -57,7 +57,9 @@ describe("Console router", () => {
     expect(
       isRetiredConsolePath("/console/operations/admin-actions", "/console")
     ).toBe(true);
-    expect(isRetiredConsolePath("/console/modules", "/console")).toBe(false);
+    expect(isRetiredConsolePath("/console/modules", "/console")).toBe(true);
+    expect(isRetiredConsolePath("/console/overview", "/console")).toBe(true);
+    expect(isRetiredConsolePath("/console/runtime", "/console")).toBe(true);
   });
 
   test("normalizes the console base path once for module surfaces", () => {

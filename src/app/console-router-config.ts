@@ -6,16 +6,19 @@ export const consoleBasePath = consoleBasePathFromBaseUrl(
 
 export const legacyConsoleRedirects = {
   "/launchpad": "/",
-  "/overview": "/runtime",
-  "/operations": "/runtime",
-  "/operations/queues": "/runtime",
-  "/operations/dead-letters": "/runtime",
-  "/operations/functions": "/runtime",
-  "/operations/remote-calls": "/runtime",
   "/config": "/settings",
 } as const;
 
-const retiredConsolePaths = ["/data", "/operations/admin-actions"] as const;
+const retiredConsolePaths = [
+  "/changes",
+  "/data",
+  "/delivery",
+  "/modules",
+  "/operations",
+  "/overview",
+  "/runtime",
+  "/system",
+] as const;
 
 export type LegacyConsolePath = keyof typeof legacyConsoleRedirects;
 export type LegacyConsoleTarget =

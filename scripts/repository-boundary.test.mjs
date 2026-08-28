@@ -234,23 +234,6 @@ describe("Lenso Console repository boundary", () => {
     expect(failures).toEqual([]);
   });
 
-  test("keeps the Delivery divider inside the page gutter", async () => {
-    const styles = await source("src/styles.css");
-    const deliveryHeaderRule = styles.match(
-      /\[data-page~="delivery-page"\] \[data-ui~="page__header"\] \{([^}]*)\}/u
-    )?.[1];
-    const deliveryWorkspaceRule = styles.match(
-      /\[data-page-slot~="delivery-page__workspace"\] \{([^}]*)\}/u
-    )?.[1];
-
-    expect(deliveryHeaderRule ?? "").not.toMatch(
-      /\b(?:box-shadow|border-(?:bottom|block-end))\s*:/u
-    );
-    expect(deliveryWorkspaceRule ?? "").toContain(
-      "border-top: 1px solid var(--line-subtle)"
-    );
-  });
-
   test("keeps the Services inventory table owned by shared primitives", async () => {
     const styles = await source("src/styles.css");
 

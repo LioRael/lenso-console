@@ -89,7 +89,7 @@ describe("Console Module composition", () => {
 
     expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
       "/",
-      "/modules",
+      "/plugins",
       "/services",
       "/stories",
       "/settings",
@@ -132,7 +132,7 @@ describe("Console Module composition", () => {
 
     expect(systemWorkspace?.items.map((item) => item.path)).toEqual([
       "/",
-      "/modules",
+      "/plugins",
       "/settings",
     ]);
   });

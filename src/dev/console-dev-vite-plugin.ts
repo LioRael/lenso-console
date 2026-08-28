@@ -3,6 +3,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { PluginOption } from "vite";
 
+import demoPluginWorkbenchProjection from "../features/plugins/demo-plugin-workbench.json" with { type: "json" };
+
 interface ConsoleDevPluginOptions {
   diagnosticsFile?: string | undefined;
   hostUrl?: string | undefined;
@@ -78,6 +80,11 @@ async function handleConsoleDevRequest({
     return;
   }
 
+  if (pathname === "/console/dev/plugin-workbench/events") {
+    sendPluginWorkbenchEvents(res);
+    return;
+  }
+
   if (options.hostUrl && shouldProxyToHost(pathname)) {
     await proxyToHost({ hostUrl: options.hostUrl, req, res });
     return;
@@ -119,6 +126,28 @@ function sendJson(res: ServerResponse, value: unknown) {
   res.end(JSON.stringify(value));
 }
 
+function sendPluginWorkbenchEvents(res: ServerResponse) {
+  res.statusCode = 200;
+  res.setHeader("cache-control", "no-cache");
+  res.setHeader("content-type", "text/event-stream");
+  res.flushHeaders();
+  const projection = {
+    ...demoPluginWorkbenchProjection,
+    observedAt: new Date().toISOString(),
+    stream: { ...demoPluginWorkbenchProjection.stream, cursor: "18" },
+  };
+  res.write(
+    `id: 18\nevent: workbench.snapshot\ndata: ${JSON.stringify({
+      eventId: "18",
+      occurredAt: projection.observedAt,
+      projection,
+      type: "workbench.snapshot",
+    })}\n\n`
+  );
+  const heartbeat = setInterval(() => res.write(": keep-alive\n\n"), 15_000);
+  res.on("close", () => clearInterval(heartbeat));
+}
+
 export function consoleDevComposition() {
   return {
     issues: [],
@@ -149,8 +178,11 @@ async function proxyToHost({
 }) {
   const target = new URL(req.url ?? "/", hostUrl);
   const body = await requestBody(req);
+  const controller = new AbortController();
+  res.on("close", () => controller.abort());
   const init: RequestInit = {
     headers: proxyHeaders(req),
+    signal: controller.signal,
   };
   if (req.method) {
     init.method = req.method;
@@ -161,7 +193,19 @@ async function proxyToHost({
   const response = await fetch(target, init);
   res.statusCode = response.status;
   response.headers.forEach((value, key) => res.setHeader(key, value));
-  res.end(Buffer.from(await response.arrayBuffer()));
+  if (!response.body) {
+    res.end();
+    return;
+  }
+  const reader = response.body.getReader();
+  while (!controller.signal.aborted) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    res.write(Buffer.from(value));
+  }
+  res.end();
 }
 
 function proxyHeaders(req: IncomingMessage) {

@@ -1,0 +1,40 @@
+{
+  "generation": {
+    "activatedAt": "2026-08-26T02:16:00.000Z",
+    "generationId": "generation-17",
+    "planDigest": "sha256:9d6b1b0f4f5a7b11",
+    "state": "active"
+  },
+  "observedAt": "2026-08-26T02:18:12.000Z",
+  "plugins": [
+    {
+      "capabilityIds": ["lenso.http.endpoint@1"],
+      "instanceKey": "orders-http",
+      "packageId": "example.orders-http",
+      "packageVersion": "0.4.2",
+      "receiptDigest": "sha256:76b5dbe181ac0042",
+      "state": "active"
+    },
+    {
+      "capabilityIds": ["lenso.auth.user-actor@1"],
+      "instanceKey": "auth",
+      "packageId": "lenso.auth-module",
+      "packageVersion": "0.2.0",
+      "receiptDigest": "sha256:c62f18aa034b921f",
+      "state": "active"
+    },
+    {
+      "capabilityIds": ["lenso.http.sse-endpoint@1"],
+      "instanceKey": "console-observer",
+      "packageId": "lenso.console-observer",
+      "packageVersion": "0.1.0",
+      "receiptDigest": "sha256:498d7ccb26dd1710",
+      "state": "active"
+    }
+  ],
+  "schema": "lenso.console.plugin-workbench.v1",
+  "stream": {
+    "cursor": "17",
+    "path": "/console/dev/plugin-workbench/events"
+  }
+}

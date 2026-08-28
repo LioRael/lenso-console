@@ -5,8 +5,6 @@ import * as ReactJsxRuntime from "react/jsx-runtime";
 
 import "./app/console-host-api";
 
-import "./styles.css";
-
 const consoleRuntime = globalThis as Record<string, unknown>;
 consoleRuntime.__LENSO_CONSOLE_REACT_RUNTIME__ = ReactRuntime;
 consoleRuntime.__LENSO_CONSOLE_REACT_JSX_RUNTIME__ = ReactJsxRuntime;

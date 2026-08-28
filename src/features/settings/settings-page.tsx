@@ -1,314 +1,94 @@
 import {
-  Button,
-  Input,
-  Select,
-  SettingsRow,
-  settingsStyles,
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "@lenso/console-ui";
-import * as stylex from "@stylexjs/stylex";
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Select } from "@lenso/ui/select";
+import { SettingsRow as LensoSettingsRow } from "@lenso/ui/settings-row";
+import { Surface } from "@lenso/ui/surface";
+import { useRef, type ComponentProps, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { embeddedOfficialDefaultThemeBundle } from "../../app/console-theme-bundle";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
-import { ProductPage } from "../console-design/components";
-import { consoleProductCopy } from "../console-design/copy";
+
+import styles from "./settings-page.module.css";
 
 type GeneralSettings = {
-  agentDrafts: boolean;
-  environment: string;
-  experimentalSurfaces: boolean;
-  manualApprovalReason: boolean;
-  refreshInterval: string;
   timeZone: string;
-  workspaceName: string;
-  workspaceSlug: string;
 };
 
 const defaultGeneralSettings: GeneralSettings = {
-  agentDrafts: true,
-  environment: "production",
-  experimentalSurfaces: false,
-  manualApprovalReason: true,
-  refreshInterval: "15",
   timeZone: "Asia/Shanghai",
-  workspaceName: "Leo's team",
-  workspaceSlug: "leos-team",
 };
 
-export function SettingsPage({
-  section = "general",
-}: {
-  section?: "appearance" | "general";
-}) {
+const timeZones = [
+  { label: "Asia / Shanghai", value: "Asia/Shanghai" },
+  { label: "Asia / Tokyo", value: "Asia/Tokyo" },
+  { label: "Europe / London", value: "Europe/London" },
+  { label: "America / Los Angeles", value: "America/Los_Angeles" },
+] as const;
+
+export function SettingsPage() {
   const appearance = useConsoleAppearance();
   const locale = useConsoleLocale();
-  const copy = consoleProductCopy(locale.locale);
   const zh = locale.locale === "zh-CN";
-  const [storedSettings, setStoredSettings] = usePersistedLayout(
-    "lenso-console-general-settings",
+  const [general, setGeneral] = usePersistedLayout(
+    "lenso-console-general-preferences-v1",
     defaultGeneralSettings
   );
-  const [draft, setDraft] = useState(storedSettings);
-  const [saved, setSaved] = useState(false);
-  const isDirty = JSON.stringify(draft) !== JSON.stringify(storedSettings);
-
-  const update = <Key extends keyof GeneralSettings>(
-    key: Key,
-    value: GeneralSettings[Key]
-  ) => {
-    setSaved(false);
-    setDraft((current) => ({ ...current, [key]: value }));
-  };
 
   return (
-    <ProductPage
-      description={copy.settings.description}
-      pageKind="settings-product-page"
-      title={copy.settings.title}
-    >
-      <div data-page-slot="settings-page">
-        <SettingsNavigation section={section} zh={zh} />
-        <div data-page-slot="settings-page__content" data-section={section}>
-          <header data-page-slot="settings-page__header">
-            <div data-page-slot="settings-page__header-copy">
-              <h2>
-                {section === "appearance"
-                  ? zh
-                    ? "外观"
-                    : "Appearance"
-                  : zh
-                    ? "通用"
-                    : "General"}
-              </h2>
-              <p>
-                {section === "appearance"
-                  ? zh
-                    ? "个人颜色模式与已安装的展示主题包。"
-                    : "Personal color mode and installed presentation bundle."
-                  : zh
-                    ? "当前 Console 工作区的身份与默认设置。"
-                    : "Identity and defaults for this Console workspace."}
-              </p>
-            </div>
-          </header>
-          {section === "general" ? (
-            <>
-              <SettingsRow
-                data-page-slot="settings-page__row"
-                description={
-                  zh
-                    ? "显示给操作员，并写入导出的证据。"
-                    : "Shown to operators and in exported evidence."
-                }
-                label={zh ? "工作区名称" : "Workspace name"}
-              >
-                <Input
-                  aria-label={zh ? "工作区名称" : "Workspace name"}
-                  data-page-slot="settings-page__input"
-                  onChange={(event) =>
-                    update("workspaceName", event.target.value)
-                  }
-                  value={draft.workspaceName}
-                />
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row"
-                description={
-                  zh
-                    ? "API 客户端使用的稳定标识符。"
-                    : "Stable identifier used by API clients."
-                }
-                label={zh ? "工作区标识" : "Workspace slug"}
-              >
-                <Input
-                  aria-label={zh ? "工作区标识" : "Workspace slug"}
-                  data-page-slot="settings-page__input settings-page__input--mono"
-                  onChange={(event) =>
-                    update("workspaceSlug", event.target.value)
-                  }
-                  value={draft.workspaceSlug}
-                />
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row"
-                description={
-                  zh
-                    ? "运营视图的初始环境。"
-                    : "Initial context for operational views."
-                }
-                label={zh ? "默认环境" : "Default environment"}
-              >
-                <SettingsSelect
-                  label={zh ? "默认环境" : "Default environment"}
-                  onChange={(value) => update("environment", value)}
-                  value={draft.environment}
-                >
-                  <option value="production">
-                    {zh ? "生产环境" : "Production"}
-                  </option>
-                  <option value="staging">
-                    {zh ? "预发布环境" : "Staging"}
-                  </option>
-                </SettingsSelect>
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row"
-                description={
-                  zh
-                    ? "用于时间线显示与证据导出。"
-                    : "Used for timeline display and evidence exports."
-                }
-                label={copy.settings.timeZone}
-              >
-                <SettingsSelect
-                  label={copy.settings.timeZone}
-                  onChange={(value) => update("timeZone", value)}
-                  value={draft.timeZone}
-                >
-                  <option value="Asia/Shanghai">Asia / Shanghai</option>
-                  <option value="Asia/Tokyo">Asia / Tokyo</option>
-                  <option value="Europe/London">Europe / London</option>
-                  <option value="America/Los_Angeles">
-                    America / Los Angeles
-                  </option>
-                </SettingsSelect>
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row"
-                description={copy.settings.languageDescription}
-                label={copy.settings.consoleLanguage}
-              >
-                <Select
-                  aria-label={copy.settings.consoleLanguage}
-                  data-page-slot="settings-page__select"
-                  onChange={(event) =>
-                    locale.setPreference(
-                      event.target.value as ConsoleLanguagePreference
-                    )
-                  }
-                  value={locale.preference}
-                >
-                  <option value="system">{copy.settings.followSystem}</option>
-                  <option value="en">English (US)</option>
-                  <option value="zh-CN">简体中文</option>
-                </Select>
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row"
-                description={
-                  zh
-                    ? "流式更新不可用时的轮询间隔。"
-                    : "Live polling interval when streaming is unavailable."
-                }
-                label={zh ? "运行时刷新" : "Runtime refresh"}
-              >
-                <SettingsSelect
-                  label={zh ? "运行时刷新" : "Runtime refresh"}
-                  onChange={(value) => update("refreshInterval", value)}
-                  value={draft.refreshInterval}
-                >
-                  <option value="5">{zh ? "5 秒" : "5 seconds"}</option>
-                  <option value="15">{zh ? "15 秒" : "15 seconds"}</option>
-                  <option value="30">{zh ? "30 秒" : "30 seconds"}</option>
-                </SettingsSelect>
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row settings-page__row--toggle"
-                description={
-                  zh
-                    ? "操作员必须在审批前记录简明理由。"
-                    : "Operators must record a concise rationale before approval."
-                }
-                label={
-                  zh
-                    ? "手动审批必须填写理由"
-                    : "Require reason for manual approval"
-                }
-              >
-                <SettingsToggle
-                  label={
-                    zh
-                      ? "手动审批必须填写理由"
-                      : "Require reason for manual approval"
-                  }
-                  onChange={(value) => update("manualApprovalReason", value)}
-                  value={draft.manualApprovalReason}
-                />
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row settings-page__row--toggle"
-                description={
-                  zh
-                    ? "Agent 可以准备有边界的草稿，但不能批准。"
-                    : "Agents may prepare bounded drafts; they cannot approve them."
-                }
-                label={
-                  zh
-                    ? "允许 Agent 编写计划草稿"
-                    : "Allow agent-authored draft plans"
-                }
-              >
-                <SettingsToggle
-                  label={
-                    zh
-                      ? "允许 Agent 编写计划草稿"
-                      : "Allow agent-authored draft plans"
-                  }
-                  onChange={(value) => update("agentDrafts", value)}
-                  value={draft.agentDrafts}
-                />
-              </SettingsRow>
-              <SettingsRow
-                data-page-slot="settings-page__row settings-page__row--toggle"
-                description={
-                  zh
-                    ? "显示标记为实验性的 Console 页面。"
-                    : "Expose Console surfaces marked experimental."
-                }
-                label={zh ? "显示实验性页面" : "Show experimental surfaces"}
-              >
-                <SettingsToggle
-                  label={zh ? "显示实验性页面" : "Show experimental surfaces"}
-                  onChange={(value) => update("experimentalSurfaces", value)}
-                  value={draft.experimentalSurfaces}
-                />
-              </SettingsRow>
-              <div data-page-slot="settings-page__actions">
-                <span aria-live="polite" data-page-slot="settings-page__status">
-                  {saved
-                    ? copy.settings.saved
-                    : isDirty
-                      ? copy.settings.unsaved
-                      : copy.settings.noChanges}
-                </span>
-                <Button
-                  disabled={!isDirty}
-                  onClick={() => {
-                    setStoredSettings(draft);
-                    setSaved(true);
-                  }}
-                  variant="primary"
-                >
-                  {saved
-                    ? zh
-                      ? "已保存"
-                      : "Saved"
-                    : zh
-                      ? "保存更改"
-                      : "Save changes"}
-                </Button>
-              </div>
-            </>
-          ) : (
-            <AppearanceSettings appearance={appearance} zh={zh} />
-          )}
-        </div>
+    <main className={styles.page}>
+      <div className={styles.column}>
+        <h1>{zh ? "偏好设置" : "Preferences"}</h1>
+
+        <SettingsSection title={zh ? "通用" : "General"}>
+          <SettingsRow
+            description={
+              zh
+                ? "Console 中日期和时间的显示时区。"
+                : "Time zone used for dates and times in Console."
+            }
+            title={zh ? "时区" : "Time zone"}
+          >
+            <PreferenceSelect
+              aria-label={zh ? "时区" : "Time zone"}
+              onValueChange={(value) =>
+                setGeneral((current) => ({ ...current, timeZone: value }))
+              }
+              options={timeZones}
+              value={general.timeZone}
+            />
+          </SettingsRow>
+          <SettingsRow
+            description={
+              zh
+                ? "更改 Console 导航和界面的语言。"
+                : "Change the language used in Console navigation and controls."
+            }
+            title={zh ? "Console 语言" : "Console language"}
+          >
+            <PreferenceSelect
+              aria-label={zh ? "Console 语言" : "Console language"}
+              onValueChange={(value) =>
+                locale.setPreference(value as ConsoleLanguagePreference)
+              }
+              options={[
+                {
+                  label: zh ? "跟随系统" : "System default",
+                  value: "system",
+                },
+                { label: "English (US)", value: "en" },
+                { label: "简体中文", value: "zh-CN" },
+              ]}
+              value={locale.preference}
+            />
+          </SettingsRow>
+        </SettingsSection>
+
+        <AppearanceSettings appearance={appearance} zh={zh} />
       </div>
-    </ProductPage>
+    </main>
   );
 }
 
@@ -331,237 +111,210 @@ function AppearanceSettings({
   const defaultBundleId = embeddedOfficialDefaultThemeBundle.manifest.bundleId;
 
   return (
-    <>
+    <SettingsSection title={zh ? "界面与主题" : "Interface and theme"}>
       <SettingsRow
-        data-page-slot="settings-page__row"
-        description={
-          zh ? "跟随系统、浅色或深色。" : "Match system, light, or dark."
-        }
-        label={zh ? "颜色模式" : "Color mode"}
-      >
-        <Select
-          aria-label={zh ? "颜色模式" : "Color mode"}
-          data-page-slot="settings-page__select"
-          onChange={(event) => {
-            appearance.setPreference(
-              event.target.value as "system" | "light" | "dark"
-            );
-          }}
-          value={appearance.preference}
-        >
-          <option value="system">{zh ? "跟随系统" : "System"}</option>
-          <option value="light">{zh ? "浅色" : "Light"}</option>
-          <option value="dark">{zh ? "深色" : "Dark"}</option>
-        </Select>
-      </SettingsRow>
-      <SettingsRow
-        data-page-slot="settings-page__row"
         description={
           zh
-            ? "Console 已安装的展示主题包。"
-            : "Installed presentation package for the Console."
+            ? "使用系统外观，或始终使用浅色或深色模式。"
+            : "Use your system appearance, or always use light or dark mode."
         }
-        label={zh ? "主题包" : "Theme Bundle"}
+        title={zh ? "颜色模式" : "Color mode"}
       >
-        <Select
-          aria-label={zh ? "主题包" : "Theme Bundle"}
-          data-page-slot="settings-page__select"
-          onChange={(event) => {
-            if (event.target.value === defaultBundleId) {
+        <PreferenceSelect
+          aria-label={zh ? "颜色模式" : "Color mode"}
+          onValueChange={(value) =>
+            appearance.setPreference(value as "system" | "light" | "dark")
+          }
+          options={[
+            { label: zh ? "跟随系统" : "System", value: "system" },
+            { label: zh ? "浅色" : "Light", value: "light" },
+            { label: zh ? "深色" : "Dark", value: "dark" },
+          ]}
+          value={appearance.preference}
+        />
+      </SettingsRow>
+      <SettingsRow
+        description={
+          zh
+            ? "Console 当前使用的展示主题包。"
+            : "Presentation theme package used by Console."
+        }
+        title={zh ? "主题包" : "Theme bundle"}
+      >
+        <PreferenceSelect
+          aria-label={zh ? "主题包" : "Theme bundle"}
+          onValueChange={(value) => {
+            if (value === defaultBundleId) {
               appearance.recoverToOfficialDefault();
             } else {
-              appearance.setBundleId(event.target.value);
+              appearance.setBundleId(value);
               appearance.setVariantId(null);
             }
             reloadThemeSelection();
           }}
+          options={[
+            {
+              label: zh ? "默认 Console" : "Default Console",
+              value: defaultBundleId,
+            },
+            ...appearance.themeBundles.map((bundle) => ({
+              label: bundle.manifest.displayName,
+              value: bundle.bundleId,
+            })),
+          ]}
           value={appearance.bundleId ?? defaultBundleId}
-        >
-          <option value={defaultBundleId}>
-            {zh ? "默认 Console" : "Default Console"}
-          </option>
-          {appearance.themeBundles.map((bundle) => (
-            <option key={bundle.bundleId} value={bundle.bundleId}>
-              {bundle.manifest.displayName}
-            </option>
-          ))}
-        </Select>
+        />
       </SettingsRow>
       <SettingsRow
-        data-page-slot="settings-page__row"
         description={
           zh
-            ? "所选主题包提供的变体。"
-            : "Variant exposed by the selected bundle."
+            ? "所选主题包提供的外观变体。"
+            : "Appearance variant exposed by the selected theme package."
         }
-        label={zh ? "主题变体" : "Theme Variant"}
+        disabled={
+          !selectedBundle || selectedBundle.manifest.variants.length < 2
+        }
+        title={zh ? "主题变体" : "Theme variant"}
       >
-        <Select
-          aria-label={zh ? "主题变体" : "Theme Variant"}
-          data-page-slot="settings-page__select"
+        <PreferenceSelect
+          aria-label={zh ? "主题变体" : "Theme variant"}
           disabled={
             !selectedBundle || selectedBundle.manifest.variants.length < 2
           }
-          onChange={(event) => {
-            appearance.setVariantId(event.target.value);
+          onValueChange={(value) => {
+            appearance.setVariantId(value);
             reloadThemeSelection();
           }}
+          options={
+            selectedBundle
+              ? selectedBundle.manifest.variants.map((variant) => ({
+                  label: variant.label,
+                  value: variant.id,
+                }))
+              : [
+                  {
+                    label: zh ? "自动（系统）" : "Automatic (System)",
+                    value: "automatic",
+                  },
+                ]
+          }
           value={
             selectedBundle
               ? (appearance.variantId ?? selectedBundle.manifest.defaultVariant)
               : "automatic"
           }
-        >
-          {selectedBundle ? (
-            selectedBundle.manifest.variants.map((variant) => (
-              <option key={variant.id} value={variant.id}>
-                {variant.label}
-              </option>
-            ))
-          ) : (
-            <option value="automatic">
-              {zh ? "自动（系统）" : "Automatic (System)"}
-            </option>
-          )}
-        </Select>
+        />
       </SettingsRow>
-      <p data-page-slot="settings-page__appearance-note">
-        {zh
-          ? "主题更改会重新加载 Console。"
-          : "Theme changes reload the Console."}
-      </p>
-    </>
+    </SettingsSection>
   );
 }
 
-function SettingsNavigation({
-  section,
-  zh,
-}: {
-  section: "appearance" | "general";
-  zh: boolean;
-}) {
-  const groups = zh
-    ? [
-        ["工作区", ["通用", "外观", "环境", "成员"]],
-        ["运营", ["审批策略", "Agent 边界", "恢复"]],
-        ["证据", ["保留", "导出", "审计日志"]],
-        ["开发者", ["API 访问", "Webhooks"]],
-      ]
-    : [
-        ["Workspace", ["General", "Appearance", "Environments", "Members"]],
-        ["Operations", ["Approval policy", "Agent bounds", "Recovery"]],
-        ["Evidence", ["Retention", "Exports", "Audit log"]],
-        ["Developer", ["API access", "Webhooks"]],
-      ];
-  return (
-    <nav
-      data-page-slot="settings-page__navigation"
-      aria-label={zh ? "设置分类" : "Settings categories"}
-    >
-      {groups.map(([label, items], groupIndex) => (
-        <div
-          data-page-slot="settings-page__navigation-group"
-          data-first={groupIndex === 0 ? "true" : "false"}
-          key={label as string}
-        >
-          <div data-page-slot="settings-page__navigation-label">
-            {label as string}
-          </div>
-          <div data-page-slot="settings-page__navigation-items">
-            {(items as string[]).map((item, itemIndex) => {
-              const targetSection =
-                groupIndex === 0 && itemIndex === 0
-                  ? "general"
-                  : groupIndex === 0 && itemIndex === 1
-                    ? "appearance"
-                    : null;
-              const active = targetSection === section;
-              return targetSection ? (
-                <Link
-                  aria-current={active ? "page" : undefined}
-                  data-page-slot={`settings-page__navigation-item ${
-                    active ? "settings-page__navigation-item--active" : ""
-                  }`}
-                  key={item}
-                  to={
-                    targetSection === "appearance"
-                      ? "/settings/appearance"
-                      : "/settings"
-                  }
-                >
-                  {item}
-                </Link>
-              ) : (
-                <button
-                  data-page-slot="settings-page__navigation-item"
-                  key={item}
-                  type="button"
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
-
-function SettingsSelect({
+function SettingsSection({
   children,
-  label,
-  onChange,
-  value,
-}: React.PropsWithChildren<{
-  label: string;
-  onChange: (value: string) => void;
-  value: string;
-}>) {
+  title,
+}: PropsWithChildren<{ title: string }>) {
   return (
-    <Select
-      aria-label={label}
-      data-page-slot="settings-page__select"
-      onChange={(event) => onChange(event.target.value)}
+    <section className={styles.section}>
+      <h2>{title}</h2>
+      <Surface className={styles.group} level="panel">
+        {children}
+      </Surface>
+    </section>
+  );
+}
+
+function SettingsRow({
+  children,
+  description,
+  title,
+  ...props
+}: PropsWithChildren<
+  Omit<ComponentProps<typeof LensoSettingsRow.Root>, "children"> & {
+    description: string;
+    title: string;
+  }
+>) {
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  const getControl = () =>
+    rowRef.current?.querySelector<HTMLElement>(
+      '[data-slot="select-trigger"], [data-slot="switch"], button'
+    );
+
+  const setControlHover = (hovered: boolean) => {
+    const control = getControl();
+    if (!control || control.matches(":disabled, [data-disabled]")) {
+      return;
+    }
+    if (hovered) {
+      control.dataset.visualState = "hover";
+    } else {
+      delete control.dataset.visualState;
+    }
+  };
+
+  return (
+    <LensoSettingsRow.Root className={styles.row} ref={rowRef} {...props}>
+      <LensoSettingsRow.Copy>
+        <LensoSettingsRow.Title
+          onClick={() => getControl()?.click()}
+          onPointerEnter={() => setControlHover(true)}
+          onPointerLeave={() => setControlHover(false)}
+        >
+          {title}
+        </LensoSettingsRow.Title>
+        <LensoSettingsRow.Description>
+          {description}
+        </LensoSettingsRow.Description>
+      </LensoSettingsRow.Copy>
+      <LensoSettingsRow.Control>{children}</LensoSettingsRow.Control>
+    </LensoSettingsRow.Root>
+  );
+}
+
+function PreferenceSelect({
+  "aria-label": ariaLabel,
+  disabled,
+  onValueChange,
+  options,
+  value,
+}: {
+  "aria-label": string;
+  disabled?: boolean;
+  onValueChange: (value: string) => void;
+  options: ReadonlyArray<{ label: string; value: string }>;
+  value: string;
+}) {
+  return (
+    <Select.Root
+      disabled={disabled}
+      onValueChange={(nextValue) => {
+        if (typeof nextValue === "string") {
+          onValueChange(nextValue);
+        }
+      }}
       value={value}
     >
-      {children}
-    </Select>
-  );
-}
-
-function SettingsToggle({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: boolean) => void;
-  value: boolean;
-}) {
-  const toggleStyleProps = stylex.props(
-    settingsStyles.settingsToggle,
-    value ? settingsStyles.settingsToggleOn : settingsStyles.settingsToggleOff
-  );
-  const knobStyleProps = stylex.props(
-    settingsStyles.settingsToggleKnob,
-    value
-      ? settingsStyles.settingsToggleKnobOn
-      : settingsStyles.settingsToggleKnobOff
-  );
-
-  return (
-    <button
-      aria-checked={value}
-      aria-label={label}
-      {...toggleStyleProps}
-      data-page-slot="settings-page__toggle"
-      onClick={() => onChange(!value)}
-      role="switch"
-      type="button"
-    >
-      <span {...knobStyleProps} data-page-slot="settings-page__toggle-knob" />
-    </button>
+      <Select.Trigger aria-label={ariaLabel} className={styles.selectTrigger}>
+        <Select.Value>
+          {options.find((option) => option.value === value)?.label ?? value}
+        </Select.Value>
+        <Select.Icon />
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Positioner align="end" position="item-aligned">
+          <Select.Popup>
+            <Select.List>
+              {options.map((option) => (
+                <Select.Item key={option.value} value={option.value}>
+                  <Select.ItemText>{option.label}</Select.ItemText>
+                  <Select.ItemIndicator />
+                </Select.Item>
+              ))}
+            </Select.List>
+          </Select.Popup>
+        </Select.Positioner>
+      </Select.Portal>
+    </Select.Root>
   );
 }
