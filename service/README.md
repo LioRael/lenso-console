@@ -408,6 +408,14 @@ Remote authority transports require a separate Adapter and security review.
 The Compose installation does not expose this setting: a loopback URL inside
 the Console container cannot address a host-side Local Adapter.
 
+Agent Tool policy uses the same server-side authority shape without becoming a
+generic settings API. Configure `LENSO_CONSOLE_AGENT_CONTROL_URL` with a clean
+loopback HTTP origin and `LENSO_CONSOLE_AGENT_CONTROL_TOKEN` with the matching
+Harness control token. Console checks `console.agent.tool-policy.read` or
+`console.agent.tool-policy.manage` before forwarding the request, and never
+returns the control token to the browser. Policy updates are revision-fenced;
+the Harness applies the accepted allowlist only to newly admitted Turns.
+
 Console posts observations and mutations to the framework-defined Adapter paths
 and polls the returned operation handle. Transport failure leaves observation
 fail-closed as `unknown` with no revision; mutation and nonterminal operation

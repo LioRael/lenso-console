@@ -8,6 +8,7 @@ import { consoleStylex } from "./config/console-stylex.ts";
 import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin.ts";
 
 const consoleDevMiddleware = consoleDevPlugin({
+  agentControlToken: process.env.LENSO_AGENT_CONTROL_TOKEN,
   diagnosticsFile: process.env.LENSO_CONSOLE_DEV_DIAGNOSTICS_FILE,
   hostUrl: process.env.LENSO_CONSOLE_DEV_HOST,
 });

@@ -1,3 +1,4 @@
+pub mod agent_control;
 pub mod console_access;
 mod console_artifacts;
 pub mod console_shell;

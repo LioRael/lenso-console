@@ -20,6 +20,8 @@ const developmentApiAuthScopes = [
   "console.workload.operation.read",
   "console.module.business.read",
   "console.module.business.write",
+  "console.agent.tool-policy.read",
+  "console.agent.tool-policy.manage",
 ] as const;
 const developmentApiAuthToken = `dev-service:admin:${developmentApiAuthScopes.join(",")}`;
 export const apiAuthToken =

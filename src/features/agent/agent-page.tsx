@@ -8,7 +8,6 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowUp,
   Box,
-  Check,
   ChevronDown,
   Copy,
   MoreHorizontal,
@@ -16,6 +15,7 @@ import {
   Paperclip,
   Plus,
   Search,
+  Square,
   Star,
   Trash2,
   Wrench,
@@ -26,17 +26,29 @@ import {
   useEffect,
   useRef,
   useState,
+  type Dispatch,
   type FormEvent,
   type KeyboardEvent,
   type ReactElement,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 
+import { AgentHistoryItems } from "./agent-history-menu";
 import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
-import { agentConversations, demoAgentConversation } from "./agent-model";
+import {
+  cancelAgentTurn,
+  projectAgentSession,
+  readAgentBootstrap,
+  readAgentSession,
+  streamAgentTurn,
+  type AgentStreamEvent,
+  type AgentTraceRecord,
+  type AgentTurn,
+} from "./agent-runtime";
 import { AgentTrajectory } from "./agent-trajectory";
 
 import styles from "./agent-page.module.css";
@@ -46,14 +58,6 @@ type AgentPageProps = {
 };
 
 type AgentView = "conversation" | "trajectory";
-
-type AgentTurn = {
-  answer: readonly string[];
-  duration: string;
-  result: boolean;
-  thought: string;
-  user: string;
-};
 
 const suggestions = [
   {
@@ -79,49 +83,194 @@ const suggestions = [
 export function AgentPage({ conversationId }: AgentPageProps) {
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
-  const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [canCancel, setCanCancel] = useState(false);
+  const [editingTurnId, setEditingTurnId] = useState<string>();
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [view, setView] = useState<AgentView>("conversation");
-  const [turns, setTurns] = useState<AgentTurn[]>(() =>
-    demoAgentConversation.turns.map((turn) => ({ ...turn }))
-  );
+  const [turns, setTurns] = useState<AgentTurn[]>([]);
+  const [traces, setTraces] = useState<AgentTraceRecord[]>([]);
+  const [runtimeError, setRuntimeError] = useState<string>();
+  const [isRunning, setIsRunning] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const conversation = conversationId ? demoAgentConversation : null;
-  const conversationTitle = conversationId
-    ? (agentConversations.find((item) => item.id === conversationId)?.title ??
-      demoAgentConversation.title)
+  const activeTurn = useRef<
+    { controller: AbortController; requestId: string } | undefined
+  >(undefined);
+  const sessionId = useRef(
+    conversationId && conversationId !== "new-task" ? conversationId : undefined
+  );
+  const conversation = Boolean(conversationId || turns.length > 0);
+  const displayedConversationId = conversation
+    ? (conversationId ?? "new-task")
+    : undefined;
+  const conversationTitle = conversation
+    ? (turns[0]?.user ?? "New chat")
     : null;
-  const isEditing = editingTurnIndex !== null;
+  const editingTurnIndex = editingTurnId
+    ? turns.findIndex((turn) => turn.id === editingTurnId)
+    : -1;
+  const visibleTurns =
+    editingTurnIndex >= 0 ? turns.slice(0, editingTurnIndex) : turns;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadBootstrap = async () => {
+      try {
+        const bootstrap = await readAgentBootstrap(controller.signal);
+        setCanCancel(bootstrap.capabilities.cancel);
+        setCanEdit(bootstrap.capabilities.edit);
+      } catch {
+        setCanCancel(false);
+        setCanEdit(false);
+      }
+    };
+    void loadBootstrap();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (!(conversationId && conversationId !== "new-task")) {
+      return;
+    }
+    const controller = new AbortController();
+    sessionId.current = conversationId;
+    setRuntimeError(undefined);
+    const loadSession = async () => {
+      try {
+        const session = await readAgentSession(
+          conversationId,
+          controller.signal
+        );
+        const projection = projectAgentSession(session);
+        setTurns(projection.turns);
+        setTraces(projection.traces);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setRuntimeError(errorMessage(error));
+        }
+      }
+    };
+    void loadSession();
+    return () => controller.abort();
+  }, [conversationId]);
+
+  useEffect(
+    () => () => {
+      activeTurn.current?.controller.abort();
+    },
+    []
+  );
 
   const submit = useCallback(() => {
     const prompt = draft.trim();
-    if (!prompt) {
+    if (!prompt || activeTurn.current) {
       return;
     }
-    if (editingTurnIndex !== null) {
-      setTurns((current) =>
-        current.map((turn, index) =>
-          index === editingTurnIndex ? { ...turn, user: prompt } : turn
-        )
-      );
-      setEditingTurnIndex(null);
-      setDraft("");
+    const pendingTurnId = `pending-${Date.now()}`;
+    const editedTurnId = editingTurnId;
+    const editedTurnIndex = editedTurnId
+      ? turns.findIndex((turn) => turn.id === editedTurnId)
+      : -1;
+    if (editedTurnId && (!sessionId.current || editedTurnIndex < 0)) {
       return;
     }
+    const controller = new AbortController();
+    const requestId = crypto.randomUUID();
+    activeTurn.current = { controller, requestId };
+    setIsRunning(true);
+    setRuntimeError(undefined);
     setDraft("");
-    navigate({ params: { chatId: "new-task" }, to: "/agent/$chatId" });
-  }, [draft, editingTurnIndex, navigate]);
+    setEditingTurnId(undefined);
+    setTurns((current) => [
+      ...(editedTurnIndex >= 0 ? current.slice(0, editedTurnIndex) : current),
+      {
+        answer: "",
+        id: pendingTurnId,
+        status: "running",
+        thought: "",
+        user: prompt,
+      },
+    ]);
+    const runSubmittedTurn = async () => {
+      try {
+        await streamAgentTurn({
+          ...(editedTurnId ? { editTurnId: editedTurnId } : {}),
+          input: prompt,
+          onEvent: (event) => {
+            handleStreamEvent(event, pendingTurnId, setTurns);
+            if (event.type === "turn_message" && event.message.sessionId) {
+              sessionId.current = event.message.sessionId;
+            }
+            if (
+              (event.type === "turn_completed" ||
+                event.type === "turn_cancelled") &&
+              event.sessionId
+            ) {
+              sessionId.current = event.sessionId;
+            }
+          },
+          requestId,
+          ...(sessionId.current ? { sessionId: sessionId.current } : {}),
+          signal: controller.signal,
+        });
+        const completedSessionId = sessionId.current;
+        if (completedSessionId) {
+          navigate({
+            params: { chatId: completedSessionId },
+            to: "/agent/$chatId",
+          });
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const detail = errorMessage(error);
+        setRuntimeError(detail);
+        setTurns((current) =>
+          current.map((turn) =>
+            turn.id === pendingTurnId
+              ? { ...turn, error: detail, status: "failed" }
+              : turn
+          )
+        );
+      } finally {
+        if (activeTurn.current?.controller === controller) {
+          activeTurn.current = undefined;
+          setIsRunning(false);
+        }
+      }
+    };
+    void runSubmittedTurn();
+  }, [draft, editingTurnId, navigate, turns]);
 
-  const beginEditing = (index: number) => {
-    setEditingTurnIndex(index);
-    setDraft(turns[index]?.user ?? "");
-    window.requestAnimationFrame(() => textarea.current?.focus());
+  const cancelRunningTurn = useCallback(() => {
+    const active = activeTurn.current;
+    if (!(active && canCancel)) {
+      return;
+    }
+    const requestCancel = async () => {
+      try {
+        await cancelAgentTurn(active.requestId);
+      } catch (error) {
+        setRuntimeError(errorMessage(error));
+      }
+    };
+    void requestCancel();
+  }, [canCancel]);
+
+  const beginEditing = (turn: AgentTurn) => {
+    if (!(canEdit && turn.status === "completed" && !activeTurn.current)) {
+      return;
+    }
+    setEditingTurnId(turn.id);
+    setDraft(turn.user);
+    requestAnimationFrame(() => textarea.current?.focus());
   };
 
   const cancelEditing = () => {
-    setEditingTurnIndex(null);
+    setEditingTurnId(undefined);
     setDraft("");
-    window.requestAnimationFrame(() => textarea.current?.focus());
+    requestAnimationFrame(() => textarea.current?.focus());
   };
 
   const onSubmit = (event: FormEvent) => {
@@ -142,27 +291,31 @@ export function AgentPage({ conversationId }: AgentPageProps) {
       data-view={conversation ? view : undefined}
     >
       <AgentHeader
-        conversationId={conversationId}
+        conversationId={displayedConversationId}
         conversationTitle={conversationTitle}
         onViewChange={setView}
         view={view}
       />
       {conversation ? (
         view === "trajectory" ? (
-          <AgentTrajectory />
+          <AgentTrajectory records={traces} />
         ) : (
           <AgentConversation
-            editingTurnIndex={editingTurnIndex}
+            canEdit={canEdit}
             onEdit={beginEditing}
-            turns={turns}
+            runtimeError={runtimeError}
+            turns={visibleTurns}
           />
         )
       ) : (
         <div className={styles.emptyCanvas}>
           <section className={styles.emptyCenter}>
             <AgentComposer
+              canCancel={canCancel}
               draft={draft}
+              isRunning={isRunning}
               onChange={setDraft}
+              onCancel={cancelRunningTurn}
               onKeyDown={onComposerKeyDown}
               onSubmit={onSubmit}
               ref={textarea}
@@ -215,21 +368,24 @@ export function AgentPage({ conversationId }: AgentPageProps) {
       {conversation ? (
         <div
           className={styles.composerDock}
-          data-editing={isEditing || undefined}
+          data-editing={Boolean(editingTurnId) || undefined}
           data-view={view}
         >
           <div
-            aria-hidden={!isEditing}
+            aria-hidden={!editingTurnId}
             className={styles.editingMessageReveal}
-            data-open={isEditing || undefined}
+            data-open={Boolean(editingTurnId) || undefined}
           >
             <div className={styles.editingMessageClip}>
               <EditingMessageBar onCancel={cancelEditing} />
             </div>
           </div>
           <AgentComposer
+            canCancel={canCancel}
             draft={draft}
+            isRunning={isRunning}
             onChange={setDraft}
+            onCancel={cancelRunningTurn}
             onKeyDown={onComposerKeyDown}
             onSubmit={onSubmit}
             placeholder="Reply…"
@@ -252,14 +408,6 @@ function AgentHeader({
   onViewChange: (view: AgentView) => void;
   view: AgentView;
 }) {
-  const navigate = useNavigate();
-  const [historyQuery, setHistoryQuery] = useState("");
-  const normalizedQuery = historyQuery.trim().toLocaleLowerCase();
-  const visibleConversations = agentConversations.filter((item) =>
-    item.title.toLocaleLowerCase().includes(normalizedQuery)
-  );
-  const sections = ["Today", "2 weeks ago"] as const;
-
   return (
     <PageHeader.Root
       aria-label="Agent chat navigation"
@@ -287,74 +435,15 @@ function AgentHeader({
               sideOffset={3.5}
             >
               <Menu.Popup aria-label="Chat history" className={styles.chatMenu}>
-                <form
-                  className={styles.chatSearch}
-                  onSubmit={(event) => event.preventDefault()}
-                >
-                  <input
-                    aria-label="Chat history"
-                    autoFocus
-                    onChange={(event) => setHistoryQuery(event.target.value)}
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Escape") {
-                        event.stopPropagation();
-                      }
-                    }}
-                    placeholder="Chat history"
-                    type="search"
-                    value={historyQuery}
-                  />
-                </form>
-                {conversationId ? (
-                  <Menu.Item
-                    className={styles.newChatItem}
-                    onClick={() => navigate({ to: "/" })}
-                  >
-                    <Menu.Leading>
-                      <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
-                    </Menu.Leading>
-                    <Menu.Label>New chat</Menu.Label>
-                  </Menu.Item>
-                ) : null}
-                {conversationId ? <Menu.Separator /> : null}
-                {sections.map((section, sectionIndex) => {
-                  const items = visibleConversations.filter(
-                    (item) => item.section === section
-                  );
-                  if (items.length === 0) {
-                    return null;
-                  }
-                  return (
-                    <div className={styles.chatSection} key={section}>
-                      {sectionIndex > 0 ? <Menu.Separator /> : null}
-                      <div className={styles.chatSectionLabel}>{section}</div>
-                      {items.map((item) => (
-                        <Menu.Item
-                          className={styles.chatHistoryItem}
-                          data-current={item.id === conversationId || undefined}
-                          key={item.id}
-                          onClick={() =>
-                            navigate({
-                              params: { chatId: item.id },
-                              to: "/agent/$chatId",
-                            })
-                          }
-                        >
-                          <Menu.Label>{item.title}</Menu.Label>
-                          <Menu.Trailing>
-                            <span className={styles.chatItemMeta}>
-                              {item.id === conversationId ? (
-                                <span>Current</span>
-                              ) : null}
-                              <span>{item.age}</span>
-                            </span>
-                          </Menu.Trailing>
-                        </Menu.Item>
-                      ))}
-                    </div>
-                  );
-                })}
+                <AgentHistoryItems
+                  classes={{
+                    item: styles.chatHistoryItem,
+                    meta: styles.chatItemMeta,
+                    newChat: styles.newChatItem,
+                    section: styles.chatSectionLabel,
+                  }}
+                  currentSessionId={conversationId}
+                />
               </Menu.Popup>
             </Menu.Positioner>
           </Menu.Portal>
@@ -423,24 +512,24 @@ function AgentHeader({
 }
 
 function AgentConversation({
-  editingTurnIndex,
+  canEdit,
   onEdit,
+  runtimeError,
   turns,
 }: {
-  editingTurnIndex: number | null;
-  onEdit: (index: number) => void;
+  canEdit: boolean;
+  onEdit: (turn: AgentTurn) => void;
+  runtimeError: string | undefined;
   turns: AgentTurn[];
 }) {
   const conversationRef = useRef<HTMLElement>(null);
-  const visibleTurns =
-    editingTurnIndex === null ? turns : turns.slice(0, editingTurnIndex);
 
   useEffect(() => {
     const element = conversationRef.current;
     if (element) {
       element.scrollTop = element.scrollHeight;
     }
-  }, []);
+  }, [turns]);
 
   return (
     <section
@@ -449,74 +538,60 @@ function AgentConversation({
       ref={conversationRef}
     >
       <div className={styles.conversationContent}>
-        <time className={styles.conversationTime}>
-          {demoAgentConversation.createdAt}
-        </time>
-        {visibleTurns.map((turn, index) => (
-          <div className={styles.turn} key={turn.user}>
+        <time className={styles.conversationTime}>Today</time>
+        {turns.map((turn) => (
+          <div className={styles.turn} key={turn.id}>
             <div className={styles.userMessageGroup}>
               <div className={styles.userMessage}>{turn.user}</div>
               <div className={styles.userMessageActions}>
                 <AgentMessageActions
                   content={turn.user}
-                  onEdit={() => onEdit(index)}
+                  {...(canEdit ? { onEdit: () => onEdit(turn) } : {})}
                 />
               </div>
             </div>
             <details className={styles.worked}>
-              <summary>{turn.duration}</summary>
-              <p>{turn.thought}</p>
-              {turn.result ? (
-                <span className={styles.toolResult}>
-                  <Check size={13} /> Created App
-                </span>
-              ) : null}
+              <summary>{turnStatusLabel(turn.status)}</summary>
+              <p>{turn.thought || "No reasoning summary was provided."}</p>
             </details>
             <div className={styles.assistantMessage}>
-              {turn.answer.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
+              {turn.answer ? <p>{turn.answer}</p> : null}
+              {turn.status === "running" ? <p>Working…</p> : null}
+              {turn.error ? <p>{turn.error}</p> : null}
             </div>
-            {turn.result ? <AppResultCard /> : null}
-            <div className={styles.copyMessage}>
-              <AgentMessageActions content={turn.answer.join("\n\n")} />
-            </div>
+            {turn.answer ? (
+              <div className={styles.copyMessage}>
+                <AgentMessageActions content={turn.answer} />
+              </div>
+            ) : null}
           </div>
         ))}
+        {turns.length === 0 && runtimeError ? (
+          <div className={styles.assistantMessage}>
+            <p>{runtimeError}</p>
+          </div>
+        ) : null}
       </div>
     </section>
   );
 }
 
-function AppResultCard() {
-  return (
-    <article className={styles.resultCard}>
-      <div className={styles.resultTitle}>
-        <Box size={15} /> Support Desk
-      </div>
-      <div className={styles.resultMeta}>
-        <span>
-          <span className={styles.statusRing} /> Ready
-        </span>
-        <span>
-          <Package size={13} /> 3 Plugins
-        </span>
-        <span>Local workspace</span>
-      </div>
-    </article>
-  );
-}
-
 function AgentComposer({
+  canCancel,
   draft,
+  isRunning,
   onChange,
+  onCancel,
   onKeyDown,
   onSubmit,
   placeholder = "Ask Lenso…",
   ref,
 }: {
+  canCancel: boolean;
   draft: string;
+  isRunning: boolean;
   onChange: (value: string) => void;
+  onCancel: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (event: FormEvent) => void;
   placeholder?: string;
@@ -560,19 +635,81 @@ function AgentComposer({
           <Paperclip size={14} strokeWidth={1.7} />
         </IconButton>
         <IconButton
-          aria-label="Submit comment"
+          aria-label={isRunning ? "Stop generating" : "Submit comment"}
           className={styles.sendButton}
-          data-active={Boolean(draft.trim()) || undefined}
-          disabled={!draft.trim()}
+          data-active={
+            (isRunning ? canCancel : Boolean(draft.trim())) || undefined
+          }
+          disabled={isRunning ? !canCancel : !draft.trim()}
+          onClick={isRunning ? onCancel : undefined}
           size="compact"
-          type="submit"
+          type={isRunning ? "button" : "submit"}
           variant="secondary"
         >
-          <ArrowUp size={14} strokeWidth={1.9} />
+          {isRunning ? (
+            <Square fill="currentColor" size={9} strokeWidth={0} />
+          ) : (
+            <ArrowUp size={14} strokeWidth={1.9} />
+          )}
         </IconButton>
       </div>
     </Surface>
   );
+}
+
+function handleStreamEvent(
+  event: AgentStreamEvent,
+  turnId: string,
+  setTurns: Dispatch<SetStateAction<AgentTurn[]>>
+) {
+  setTurns((current) =>
+    current.map((turn) => {
+      if (turn.id !== turnId) {
+        return turn;
+      }
+      if (event.type === "turn_completed") {
+        return { ...turn, status: "completed" };
+      }
+      if (event.type === "turn_cancelled") {
+        return { ...turn, status: "cancelled" };
+      }
+      if (event.type === "turn_failed") {
+        return { ...turn, error: event.detail, status: "failed" };
+      }
+      const { kind, text } = event.message;
+      if (!kind || kind === "text_delta") {
+        return { ...turn, answer: turn.answer + text };
+      }
+      if (kind === "reasoning_delta") {
+        return { ...turn, thought: turn.thought + text };
+      }
+      return turn;
+    })
+  );
+}
+
+function turnStatusLabel(status: AgentTurn["status"]) {
+  switch (status) {
+    case "running": {
+      return "Working…";
+    }
+    case "completed": {
+      return "Completed";
+    }
+    case "failed": {
+      return "Failed";
+    }
+    case "cancelled": {
+      return "Cancelled";
+    }
+    default: {
+      return status;
+    }
+  }
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Agent request failed";
 }
 
 function SkillsMenu({ children }: { children: ReactNode }) {
