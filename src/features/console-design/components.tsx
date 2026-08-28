@@ -184,7 +184,7 @@ export function ProductPage({
                   <Breadcrumb.Icon>
                     <Boxes size={14} strokeWidth={1.75} />
                   </Breadcrumb.Icon>
-                  System
+                  Lenso
                 </Breadcrumb.Link>
               </Breadcrumb.Item>
               <Breadcrumb.Separator />

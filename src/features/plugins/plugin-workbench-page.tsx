@@ -1,4 +1,6 @@
 import { Breadcrumb } from "@lenso/ui/breadcrumb";
+import { Button } from "@lenso/ui/button";
+import { Disclosure } from "@lenso/ui/disclosure";
 import { PageHeader } from "@lenso/ui/page-header";
 import { StatusMarker, type StatusMarkerStatus } from "@lenso/ui/status-marker";
 import * as stylex from "@stylexjs/stylex";
@@ -11,12 +13,14 @@ import {
   shortPluginDigest,
   type PluginGenerationState,
 } from "./plugin-workbench-model";
+import type { PluginWorkbenchStreamState } from "./plugin-workbench-stream";
 import { usePluginWorkbench } from "./use-plugin-workbench";
 
 const styles = stylex.create({
   page: {
     boxSizing: "border-box",
     display: "grid",
+    gridTemplateRows: "44px minmax(0, 1fr)",
     height: "100%",
     minHeight: 0,
     width: "100%",
@@ -26,6 +30,13 @@ const styles = stylex.create({
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
     height: 44,
+  },
+  headerStatus: {
+    alignItems: "center",
+    color: tokens.colorContentTertiary,
+    display: "inline-flex",
+    fontSize: 11,
+    gap: tokens.space2,
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -40,13 +51,15 @@ const styles = stylex.create({
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
     minHeight: 0,
+    overflow: "hidden",
     "@media (max-width: 1000px)": {
-      gridTemplateColumns: "minmax(0, 1fr)",
+      display: "block",
+      overflow: "auto",
     },
   },
   tableRegion: {
     minWidth: 0,
-    overflow: "hidden",
+    overflow: "auto",
   },
   columns: {
     alignItems: "center",
@@ -55,9 +68,12 @@ const styles = stylex.create({
     fontSize: 11,
     fontWeight: 500,
     gap: tokens.space4,
-    gridTemplateColumns: "minmax(170px, 1.35fr) minmax(140px, 1fr) 64px 88px",
-    height: 30,
+    gridTemplateColumns: "minmax(180px, 1.4fr) minmax(180px, 1fr) 88px",
+    height: 32,
     paddingInline: 14,
+    "@media (max-width: 720px)": {
+      gridTemplateColumns: "minmax(0, 1fr) 88px",
+    },
   },
   row: {
     alignItems: "center",
@@ -65,17 +81,17 @@ const styles = stylex.create({
       default: "transparent",
       ":hover": tokens.colorSurfaceInteractiveHover,
     },
-    borderStyle: "none",
     borderRadius: tokens.radiusControl,
+    borderStyle: "none",
     color: tokens.colorContentSecondary,
     cursor: "pointer",
     display: "grid",
     fontFamily: tokens.fontSans,
     fontSize: 12,
     gap: tokens.space4,
-    gridTemplateColumns: "minmax(162px, 1.35fr) minmax(132px, 1fr) 64px 88px",
-    minHeight: 50,
+    gridTemplateColumns: "minmax(172px, 1.4fr) minmax(172px, 1fr) 88px",
     marginInline: 8,
+    minHeight: 54,
     outline: {
       default: "none",
       ":focus-visible": `2px solid ${tokens.colorFocusRing}`,
@@ -84,6 +100,9 @@ const styles = stylex.create({
     paddingInline: 6,
     textAlign: "left",
     width: "calc(100% - 16px)",
+    "@media (max-width: 720px)": {
+      gridTemplateColumns: "minmax(0, 1fr) 88px",
+    },
   },
   rowSelected: {
     backgroundColor: {
@@ -102,42 +121,46 @@ const styles = stylex.create({
   },
   secondary: {
     color: tokens.colorContentTertiary,
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
     fontSize: 11,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  ellipsis: {
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+  mono: {
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
   },
-  inspectorHeader: {
-    borderBottomColor: tokens.colorBorderTertiary,
-    borderBottomStyle: "solid",
-    borderBottomWidth: 1,
-    alignItems: "center",
-    display: "flex",
-    gap: tokens.space3,
-    justifyContent: "space-between",
-    minHeight: 50,
-    paddingBlock: 8,
-    paddingInline: 14,
+  packageColumn: {
+    "@media (max-width: 720px)": {
+      display: "none",
+    },
   },
   inspector: {
     borderInlineStartColor: tokens.colorBorderTertiary,
     borderInlineStartStyle: "solid",
     borderInlineStartWidth: 1,
     minWidth: 0,
+    overflow: "auto",
     "@media (max-width: 1000px)": {
       borderBlockStartColor: tokens.colorBorderTertiary,
       borderBlockStartStyle: "solid",
       borderBlockStartWidth: 1,
       borderInlineStartStyle: "none",
+      minHeight: 280,
     },
   },
-  inspectorIdentity: { display: "grid", gap: 1, minWidth: 0 },
+  inspectorHeader: {
+    alignItems: "center",
+    borderBottomColor: tokens.colorBorderTertiary,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+    display: "flex",
+    gap: tokens.space3,
+    justifyContent: "space-between",
+    minHeight: 58,
+    paddingBlock: 8,
+    paddingInline: 14,
+  },
+  inspectorIdentity: { display: "grid", gap: 2, minWidth: 0 },
   inspectorTitle: {
     color: tokens.colorContentPrimary,
     fontSize: 13,
@@ -145,7 +168,6 @@ const styles = stylex.create({
     lineHeight: "18px",
     margin: 0,
   },
-  inspectorBody: { display: "grid" },
   section: {
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
@@ -174,6 +196,10 @@ const styles = stylex.create({
     margin: 0,
     overflowWrap: "anywhere",
   },
+  capabilities: {
+    display: "grid",
+    gap: tokens.space2,
+  },
   capability: {
     backgroundColor: tokens.colorSurfaceSubtle,
     borderColor: tokens.colorBorderTertiary,
@@ -187,11 +213,35 @@ const styles = stylex.create({
     paddingBlock: tokens.space2,
     paddingInline: tokens.space3,
   },
-  empty: {
+  disclosure: {
+    borderBottomColor: tokens.colorBorderTertiary,
+    borderBottomStyle: "solid",
+    borderBottomWidth: 1,
+  },
+  technicalPanel: {
+    paddingBlockEnd: tokens.space3,
+    paddingInline: 14,
+  },
+  state: {
+    alignContent: "center",
     color: tokens.colorContentTertiary,
-    fontSize: 12,
+    display: "grid",
+    gap: tokens.space3,
+    justifyItems: "start",
+    minHeight: 160,
+    padding: 24,
+  },
+  stateTitle: {
+    color: tokens.colorContentPrimary,
+    fontSize: 13,
+    fontWeight: 500,
     margin: 0,
-    padding: 14,
+  },
+  stateDescription: {
+    fontSize: 12,
+    lineHeight: "18px",
+    margin: 0,
+    maxWidth: 420,
   },
 });
 
@@ -202,6 +252,7 @@ export function PluginWorkbenchPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const selected =
     plugins.find((plugin) => plugin.instanceKey === selectedKey) ?? plugins[0];
+  const connection = connectionState(workbench.mode, workbench.streamState);
 
   return (
     <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
@@ -218,7 +269,7 @@ export function PluginWorkbenchPage() {
                   <Breadcrumb.Icon>
                     <Boxes size={14} strokeWidth={1.75} />
                   </Breadcrumb.Icon>
-                  System
+                  Lenso
                 </Breadcrumb.Link>
               </Breadcrumb.Item>
               <Breadcrumb.Separator />
@@ -227,31 +278,56 @@ export function PluginWorkbenchPage() {
               </Breadcrumb.Item>
             </Breadcrumb.List>
           </Breadcrumb.Root>
+          <PageHeader.Spacer />
+          <PageHeader.Actions>
+            <span {...stylex.props(styles.headerStatus)}>
+              <StatusMarker presentation="dot" status={connection.status} />
+              {connection.label}
+            </span>
+          </PageHeader.Actions>
         </PageHeader.Row>
       </PageHeader.Root>
-      <h1
-        id="active-generation-heading"
-        {...stylex.props(styles.visuallyHidden)}
-      >
+      <h1 id="plugins-heading" {...stylex.props(styles.visuallyHidden)}>
         Plugins
       </h1>
-      <div {...stylex.props(styles.workspace)}>
-        <section
-          aria-labelledby="active-generation-heading"
-          {...stylex.props(styles.tableRegion)}
-        >
-          <div aria-hidden="true" {...stylex.props(styles.columns)}>
-            <span>Plugin</span>
-            <span>Resolved package</span>
-            <span>Version</span>
-            <span>State</span>
-          </div>
-          {plugins.length === 0 ? (
-            <p {...stylex.props(styles.empty)}>
-              No Plugins are present in this generation.
-            </p>
-          ) : (
-            plugins.map((plugin) => (
+      {workbench.isPending ? (
+        <WorkbenchState
+          description="Reading the active App configuration."
+          title="Loading Plugins"
+        />
+      ) : workbench.isError ? (
+        <WorkbenchState
+          action={
+            <Button
+              onClick={() => {
+                void workbench.refetch();
+              }}
+              size="compact"
+              variant="secondary"
+            >
+              Try again
+            </Button>
+          }
+          description="The active App configuration could not be loaded."
+          title="Plugins unavailable"
+        />
+      ) : plugins.length === 0 ? (
+        <WorkbenchState
+          description="This App does not currently include any Plugins."
+          title="No Plugins installed"
+        />
+      ) : (
+        <div {...stylex.props(styles.workspace)}>
+          <section
+            aria-labelledby="plugins-heading"
+            {...stylex.props(styles.tableRegion)}
+          >
+            <div aria-hidden="true" {...stylex.props(styles.columns)}>
+              <span>Plugin</span>
+              <span {...stylex.props(styles.packageColumn)}>Package</span>
+              <span>Status</span>
+            </div>
+            {plugins.map((plugin) => (
               <button
                 aria-pressed={selected?.instanceKey === plugin.instanceKey}
                 key={plugin.instanceKey}
@@ -268,13 +344,20 @@ export function PluginWorkbenchPage() {
                     {plugin.instanceKey}
                   </span>
                   <span {...stylex.props(styles.secondary)}>
-                    {shortPluginDigest(plugin.receiptDigest)}
+                    {plugin.capabilityIds.length}{" "}
+                    {plugin.capabilityIds.length === 1
+                      ? "capability"
+                      : "capabilities"}
                   </span>
                 </span>
-                <span {...stylex.props(styles.ellipsis)}>
-                  {plugin.packageId}
+                <span {...stylex.props(styles.identity, styles.packageColumn)}>
+                  <span {...stylex.props(styles.secondary, styles.mono)}>
+                    {plugin.packageId}
+                  </span>
+                  <span {...stylex.props(styles.secondary)}>
+                    {plugin.packageVersion}
+                  </span>
                 </span>
-                <span>{plugin.packageVersion}</span>
                 <StatusMarker
                   presentation="label"
                   status={stateStatus(plugin.state)}
@@ -282,82 +365,126 @@ export function PluginWorkbenchPage() {
                   {stateLabel(plugin.state)}
                 </StatusMarker>
               </button>
-            ))
-          )}
-        </section>
+            ))}
+          </section>
 
-        <aside
-          aria-label="Plugin inspector"
-          {...stylex.props(styles.inspector)}
-        >
-          {selected && projection ? (
-            <>
-              <header {...stylex.props(styles.inspectorHeader)}>
-                <div {...stylex.props(styles.inspectorIdentity)}>
-                  <h2 {...stylex.props(styles.inspectorTitle)}>
-                    {selected.instanceKey}
-                  </h2>
-                  <span {...stylex.props(styles.secondary)}>
-                    {selected.packageId}
-                  </span>
-                </div>
-                <StatusMarker
-                  presentation="label"
-                  status={stateStatus(selected.state)}
-                >
-                  {stateLabel(selected.state)}
-                </StatusMarker>
-              </header>
-              <div {...stylex.props(styles.inspectorBody)}>
-                <DetailSection title="Resolved package">
-                  <Detail label="Package" value={selected.packageId} />
+          <aside
+            aria-label="Plugin details"
+            {...stylex.props(styles.inspector)}
+          >
+            {selected && projection ? (
+              <>
+                <header {...stylex.props(styles.inspectorHeader)}>
+                  <div {...stylex.props(styles.inspectorIdentity)}>
+                    <h2 {...stylex.props(styles.inspectorTitle)}>
+                      {selected.instanceKey}
+                    </h2>
+                    <span {...stylex.props(styles.secondary, styles.mono)}>
+                      {selected.packageId}
+                    </span>
+                  </div>
+                  <StatusMarker
+                    presentation="label"
+                    status={stateStatus(selected.state)}
+                  >
+                    {stateLabel(selected.state)}
+                  </StatusMarker>
+                </header>
+                <DetailListSection title="Package">
+                  <Detail label="Package" value={selected.packageId} mono />
                   <Detail label="Version" value={selected.packageVersion} />
-                  <Detail
-                    label="Receipt"
-                    value={shortPluginDigest(selected.receiptDigest)}
-                  />
+                </DetailListSection>
+                <DetailSection title="Capabilities">
+                  <div {...stylex.props(styles.capabilities)}>
+                    {selected.capabilityIds.length > 0 ? (
+                      selected.capabilityIds.map((capability) => (
+                        <code
+                          key={capability}
+                          {...stylex.props(styles.capability)}
+                        >
+                          {capability}
+                        </code>
+                      ))
+                    ) : (
+                      <span {...stylex.props(styles.value)}>
+                        No capabilities declared
+                      </span>
+                    )}
+                  </div>
                 </DetailSection>
-                <DetailSection title="App Generation">
-                  <Detail
-                    label="Generation"
-                    value={projection.generation.generationId}
-                  />
-                  <Detail
-                    label="Plan"
-                    value={shortPluginDigest(projection.generation.planDigest)}
-                  />
-                  <Detail
-                    label="Activated"
-                    value={formatTimestamp(projection.generation.activatedAt)}
-                  />
-                </DetailSection>
-                <DetailSection title="Provided capabilities">
-                  {selected.capabilityIds.map((capability) => (
-                    <code key={capability} {...stylex.props(styles.capability)}>
-                      {capability}
-                    </code>
-                  ))}
-                </DetailSection>
-                <DetailSection title="Live evidence">
-                  <Detail
-                    label="Observed"
-                    value={formatTimestamp(projection.observedAt)}
-                  />
-                  <Detail
-                    label="Cursor"
-                    value={String(projection.stream.cursor)}
-                  />
-                </DetailSection>
-              </div>
-            </>
-          ) : (
-            <p {...stylex.props(styles.empty)}>
-              Select a Plugin to inspect its receipt.
-            </p>
-          )}
-        </aside>
-      </div>
+                <Disclosure.Root {...stylex.props(styles.disclosure)}>
+                  <Disclosure.Item value="technical-details">
+                    <Disclosure.Header>
+                      <Disclosure.Trigger>
+                        <Disclosure.Icon />
+                        Technical details
+                      </Disclosure.Trigger>
+                    </Disclosure.Header>
+                    <Disclosure.Panel
+                      layout="auto"
+                      {...stylex.props(styles.technicalPanel)}
+                    >
+                      <dl {...stylex.props(styles.fields)}>
+                        <Detail
+                          label="Instance"
+                          value={selected.instanceKey}
+                          mono
+                        />
+                        <Detail
+                          label="Receipt"
+                          value={shortPluginDigest(selected.receiptDigest)}
+                          mono
+                        />
+                        <Detail
+                          label="Generation"
+                          value={projection.generation.generationId}
+                          mono
+                        />
+                        <Detail
+                          label="Plan"
+                          value={shortPluginDigest(
+                            projection.generation.planDigest
+                          )}
+                          mono
+                        />
+                        <Detail
+                          label="Activated"
+                          value={formatTimestamp(
+                            projection.generation.activatedAt
+                          )}
+                        />
+                        <Detail
+                          label="Updated"
+                          value={formatTimestamp(projection.observedAt)}
+                        />
+                      </dl>
+                    </Disclosure.Panel>
+                  </Disclosure.Item>
+                </Disclosure.Root>
+              </>
+            ) : null}
+          </aside>
+        </div>
+      )}
     </div>
+  );
+}
+
+function WorkbenchState({
+  action,
+  description,
+  title,
+}: {
+  action?: ReactNode;
+  description: string;
+  title: string;
+}) {
+  return (
+    <section aria-live="polite" {...stylex.props(styles.state)}>
+      <h2 {...stylex.props(styles.stateTitle)}>{title}</h2>
+      <p {...stylex.props(styles.stateDescription)}>{description}</p>
+      {action}
+    </section>
   );
 }
 
@@ -371,18 +498,56 @@ function DetailSection({
   return (
     <section {...stylex.props(styles.section)}>
       <h3 {...stylex.props(styles.sectionTitle)}>{title}</h3>
-      <dl {...stylex.props(styles.fields)}>{children}</dl>
+      {children}
     </section>
   );
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function DetailListSection({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  title: string;
+}) {
+  return (
+    <DetailSection title={title}>
+      <dl {...stylex.props(styles.fields)}>{children}</dl>
+    </DetailSection>
+  );
+}
+
+function Detail({
+  label,
+  mono = false,
+  value,
+}: {
+  label: string;
+  mono?: boolean;
+  value: string;
+}) {
   return (
     <div {...stylex.props(styles.field)}>
       <dt {...stylex.props(styles.term)}>{label}</dt>
-      <dd {...stylex.props(styles.value)}>{value}</dd>
+      <dd {...stylex.props(styles.value, mono && styles.mono)}>{value}</dd>
     </div>
   );
+}
+
+function connectionState(
+  mode: "demo" | "live",
+  streamState: PluginWorkbenchStreamState
+): { label: string; status: StatusMarkerStatus } {
+  if (mode === "demo") {
+    return { label: "Preview data", status: "neutral" };
+  }
+  if (streamState === "live") {
+    return { label: "Live", status: "success" };
+  }
+  if (streamState === "connecting" || streamState === "reconnecting") {
+    return { label: "Updating", status: "warning" };
+  }
+  return { label: "Offline", status: "neutral" };
 }
 
 function stateStatus(state: PluginGenerationState): StatusMarkerStatus {

@@ -85,12 +85,27 @@ VITE_API_AUTH_TOKEN=dev-service:admin:runtime.stories.read,crm_service.contacts.
 - `service/modules/story`: Console-owned Story backend, federation, projections, and Store migrations released with the Story workbench.
 - `packages/system-registry-console`: linked mandatory System Registry Console Module UI.
 
+### Agent surfaces
+
+The Shell currently provides the complete frontend surface set for the Agent
+workflow using local mock conversation data. No Agent runtime or tool execution
+contract is implied yet.
+
+- `/`: new task composer and first-use examples.
+- `/agent/:chatId`: conversation, worked-details disclosure, result card, chat
+  switcher, and chat actions.
+- `/settings/agent`: Agent guidance, Skills, and MCP entry points.
+- `/settings/agent/skills/new`: Skill authoring form.
+- `/settings/ai`: AI and Agent configuration overview.
+- `/settings/ai/agent`: web-search, MCP, and workspace-guidance controls.
+
 ### Plugin Workbench v1
 
-`/plugins` is the first read-only Console slice for a Lenso Host. It answers a
-small operator question: which immutable App Generation is active, which exact
-Plugin packages and receipts it contains, and whether new evidence is still
-arriving. It does not install, switch, drain, or roll back a Generation.
+`/plugins` is the read-only Plugin inventory for the current Lenso App. Its
+default view shows the installed Plugin instances, resolved package versions,
+status, and provided capabilities. Receipt and App Generation identifiers stay
+available under Technical details instead of competing with the inventory. It
+does not install, switch, drain, or roll back a Generation.
 
 The browser reads one versioned snapshot from
 `GET /api/console/v1/plugin-workbench`, then connects to the same-origin stream

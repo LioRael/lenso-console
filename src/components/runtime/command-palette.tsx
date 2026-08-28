@@ -15,7 +15,6 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { useConsoleNavigation } from "../../app/console-module-metadata";
 import type { ConsoleNavigationItem } from "../../app/console-modules";
-import { SYSTEM_WORKSPACE } from "../../app/console-workspace-navigation";
 import { runtimeStories } from "../../data/mock-runtime";
 import { queryDataWithMockFallback } from "../../hooks/runtime-query-data";
 import { currentBrowserUrl } from "../../hooks/use-browser-url-state";
@@ -350,81 +349,6 @@ type CommandEntry = {
   index: number;
 };
 
-const systemCommandNavigationItems = [
-  {
-    keywords: "runtime health",
-    label: "Overview",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/overview",
-  },
-  {
-    keywords: "runtime operations",
-    label: "Operations",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/operations",
-  },
-  {
-    keywords: "failure inbox",
-    label: "Dead Letters",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/operations/dead-letters",
-  },
-  {
-    keywords: "runtime function runs module queue",
-    label: "Functions",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/operations/functions",
-  },
-  {
-    keywords: "proxy module remote operations",
-    label: "Remote Calls",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/operations/remote-calls",
-  },
-  {
-    keywords: "queue pressure",
-    label: "Queues",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/operations/queues",
-  },
-  {
-    keywords: "module registry packages installs",
-    label: "Modules",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/modules",
-  },
-  {
-    keywords: "settings configuration",
-    label: "Configuration",
-    moduleId: "host",
-    navigation: {
-      workspace: SYSTEM_WORKSPACE,
-    },
-    path: "/config",
-  },
-] satisfies CommandNavigationItem[];
-
 export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { closeCommandPalette, commandOpen, focusGlobalSearch, openStory } =
@@ -446,12 +370,9 @@ export function CommandPalette({ theme, onToggleTheme }: CommandPaletteProps) {
       onOpenStory: openStory,
       stories,
     });
-    const commandNavigationItems: CommandNavigationItem[] = [
-      ...systemCommandNavigationItems,
-      ...consoleNavigation,
-    ];
+    const commandNavigationItems: CommandNavigationItem[] = consoleNavigation;
     const consoleItems: CommandItem[] = commandNavigationItems.map((item) => {
-      const workspaceLabel = item.navigation?.workspace.label ?? "System";
+      const workspaceLabel = item.navigation?.workspace.label ?? "Workspace";
       const keywords = item.keywords ? ` ${item.keywords}` : "";
 
       return {

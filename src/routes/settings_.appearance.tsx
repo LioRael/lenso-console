@@ -7,5 +7,5 @@ export const Route = createFileRoute("/settings_/appearance")({
 });
 
 function AppearanceSettingsPage() {
-  return <SettingsPage section="appearance" />;
+  return <SettingsPage />;
 }

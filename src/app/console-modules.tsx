@@ -13,14 +13,9 @@ import {
   type ConsoleDevMode,
 } from "../dev/console-dev-config";
 import { ConsoleAccessPage } from "../features/access/access-page";
-import { ChangesPage } from "../features/changes/changes-page";
-import { DeliveryPage } from "../features/delivery/delivery-page";
-import { HomePage } from "../features/home/home-page";
-import { ModulesPage } from "../features/modules/modules-page";
+import { AgentPage } from "../features/agent/agent-page";
 import { PluginWorkbenchPage } from "../features/plugins/plugin-workbench-page";
-import { RuntimePage } from "../features/runtime/runtime-page";
 import { SettingsPage } from "../features/settings/settings-page";
-import { SystemPage } from "../features/system/system-page";
 import { SYSTEM_WORKSPACE } from "./console-workspace-navigation";
 
 export { defineConsoleModule } from "@lenso/console-ui";
@@ -128,7 +123,7 @@ function defaultSystemNavigationOrder(area: ConsoleSurfaceArea): number {
 const consoleWorkbenchModule: ConsoleModule = {
   id: "lenso/console-workbench",
   surfaces: [
-    workbenchSurface("house", "Overview", "概览", "/", HomePage, 0),
+    workbenchSurface("workflow", "Agent", "Agent", "/", AgentPage, 0),
     workbenchSurface(
       "blocks",
       "Plugins",
@@ -137,7 +132,6 @@ const consoleWorkbenchModule: ConsoleModule = {
       PluginWorkbenchPage,
       30
     ),
-    workbenchSurface("boxes", "Surfaces", "界面", "/modules", ModulesPage, 35),
     workbenchSurface(
       "settings",
       "Settings",
@@ -149,8 +143,8 @@ const consoleWorkbenchModule: ConsoleModule = {
   ],
 };
 
-const consoleUtilityModule: ConsoleModule = {
-  id: "lenso/console-workbench-utility",
+const consoleAccessModule: ConsoleModule = {
+  id: "lenso/console-access",
   surfaces: [
     workbenchSurface(
       "shield",
@@ -159,31 +153,6 @@ const consoleUtilityModule: ConsoleModule = {
       "/access",
       ConsoleAccessPage,
       10
-    ),
-    workbenchSurface("server-cog", "System", "系统", "/system", SystemPage, 20),
-    workbenchSurface(
-      "git-compare-arrows",
-      "Changes",
-      "变更",
-      "/changes",
-      ChangesPage,
-      40
-    ),
-    workbenchSurface(
-      "activity",
-      "Operations",
-      "运行操作",
-      "/runtime",
-      RuntimePage,
-      50
-    ),
-    workbenchSurface(
-      "rocket",
-      "Releases",
-      "发布",
-      "/delivery",
-      DeliveryPage,
-      70
     ),
   ],
 };
@@ -232,13 +201,13 @@ export function consoleModulesForDevMode(
  */
 export const consoleRuntimeModules = [
   ...consoleModulesForDevMode(consoleDevConfig.mode),
-  consoleUtilityModule,
+  consoleAccessModule,
 ];
 
 export const consoleRoutes = buildConsoleRoutes(consoleRuntimeModules);
-// The Shell keeps only host-owned primary items statically. System-owned
-// Services and Stories are supplied by useConsoleNavigation so their presence
-// can follow the current System Connection projection.
+// The Shell keeps only host-owned primary items statically. Linked Module
+// Surfaces are supplied by useConsoleNavigation so their presence can follow
+// the current System Connection projection.
 export const consoleNavigation = buildConsoleNavigation([
   consoleWorkbenchModule,
 ]);
