@@ -12,11 +12,12 @@ import {
   projectAgentSession,
   readAgentBootstrap,
   readAgentSession,
+  readAgentTrajectory,
   streamAgentTurn,
   type AgentStreamMessage,
   type AgentStreamEvent,
   type AgentToolCall,
-  type AgentTraceRecord,
+  type AgentTrajectory,
   type AgentTurn,
 } from "./agent-runtime";
 
@@ -24,6 +25,51 @@ type ActiveTurn = {
   controller: AbortController;
   requestId: string;
 };
+
+async function loadBootstrap(
+  signal: AbortSignal,
+  apply: (
+    bootstrap: Awaited<ReturnType<typeof readAgentBootstrap>> | undefined
+  ) => void
+) {
+  try {
+    const bootstrap = await readAgentBootstrap(signal);
+    if (!signal.aborted) {
+      apply(bootstrap);
+    }
+  } catch {
+    if (!signal.aborted) {
+      apply(undefined);
+    }
+  }
+}
+
+async function loadSessionData(
+  sessionId: string,
+  signal: AbortSignal,
+  apply: (
+    result:
+      | {
+          session: Awaited<ReturnType<typeof readAgentSession>>;
+          trajectory: Awaited<ReturnType<typeof readAgentTrajectory>>;
+        }
+      | Error
+  ) => void
+) {
+  try {
+    const [session, trajectory] = await Promise.all([
+      readAgentSession(sessionId, signal),
+      readAgentTrajectory(sessionId, signal),
+    ]);
+    if (!signal.aborted) {
+      apply({ session, trajectory });
+    }
+  } catch (error) {
+    if (!signal.aborted) {
+      apply(error instanceof Error ? error : new Error(errorMessage(error)));
+    }
+  }
+}
 
 export function useAgentConversation({
   initialSessionId,
@@ -37,7 +83,7 @@ export function useAgentConversation({
   const [canCancel, setCanCancel] = useState(false);
   const [editingTurnId, setEditingTurnId] = useState<string>();
   const [turns, setTurns] = useState<AgentTurn[]>([]);
-  const [traces, setTraces] = useState<AgentTraceRecord[]>([]);
+  const [trajectory, setTrajectory] = useState<AgentTrajectory>();
   const [runtimeError, setRuntimeError] = useState<string>();
   const [isRunning, setIsRunning] = useState(false);
   const [sessionId, setSessionId] = useState(initialSessionId);
@@ -51,19 +97,15 @@ export function useAgentConversation({
 
   useEffect(() => {
     const controller = new AbortController();
-    const loadBootstrap = async () => {
-      try {
-        const bootstrap = await readAgentBootstrap(controller.signal);
+    void loadBootstrap(controller.signal, (bootstrap) => {
+      if (bootstrap) {
         setCanCancel(bootstrap.capabilities.cancel);
         setCanEdit(bootstrap.capabilities.edit);
-      } catch {
-        if (!controller.signal.aborted) {
-          setCanCancel(false);
-          setCanEdit(false);
-        }
+        return;
       }
-    };
-    void loadBootstrap();
+      setCanCancel(false);
+      setCanEdit(false);
+    });
     return () => controller.abort();
   }, []);
 
@@ -76,28 +118,21 @@ export function useAgentConversation({
     setDraft("");
     setEditingTurnId(undefined);
     setTurns([]);
-    setTraces([]);
+    setTrajectory(undefined);
     setRuntimeError(undefined);
     if (!initialSessionId) {
       return;
     }
     const controller = new AbortController();
-    const loadSession = async () => {
-      try {
-        const session = await readAgentSession(
-          initialSessionId,
-          controller.signal
-        );
-        const projection = projectAgentSession(session);
+    void loadSessionData(initialSessionId, controller.signal, (result) => {
+      if (!(result instanceof Error)) {
+        const projection = projectAgentSession(result.session);
         setTurns(projection.turns);
-        setTraces(projection.traces);
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setRuntimeError(errorMessage(error));
-        }
+        setTrajectory(result.trajectory);
+        return;
       }
-    };
-    void loadSession();
+      setRuntimeError(errorMessage(result));
+    });
     return () => controller.abort();
   }, [initialSessionId]);
 
@@ -163,13 +198,13 @@ export function useAgentConversation({
         const completedSessionId = sessionIdRef.current;
         if (completedSessionId) {
           try {
-            const session = await readAgentSession(
-              completedSessionId,
-              controller.signal
-            );
+            const [session, projectedTrajectory] = await Promise.all([
+              readAgentSession(completedSessionId, controller.signal),
+              readAgentTrajectory(completedSessionId, controller.signal),
+            ]);
             const projection = projectAgentSession(session);
             setTurns(projection.turns);
-            setTraces(projection.traces);
+            setTrajectory(projectedTrajectory);
           } catch {
             // The streamed Turn remains usable if the canonical refresh is unavailable.
           }
@@ -246,7 +281,7 @@ export function useAgentConversation({
     sessionId,
     setDraft,
     submit,
-    traces,
+    trajectory,
     turns,
     visibleTurns:
       editingTurnIndex >= 0 ? turns.slice(0, editingTurnIndex) : turns,

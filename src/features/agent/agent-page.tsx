@@ -105,7 +105,7 @@ export function AgentPage({ conversationId }: AgentPageProps) {
     sessionId,
     setDraft,
     submit,
-    traces,
+    trajectory,
     turns,
     visibleTurns,
   } = useAgentConversation({
@@ -158,7 +158,7 @@ export function AgentPage({ conversationId }: AgentPageProps) {
       />
       {conversation ? (
         view === "trajectory" ? (
-          <AgentTrajectory records={traces} />
+          <AgentTrajectory trajectory={trajectory} />
         ) : (
           <AgentConversation
             canEdit={canEdit}

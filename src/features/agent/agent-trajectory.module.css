@@ -127,6 +127,11 @@
   white-space: nowrap;
 }
 
+.statusLabel {
+  color: var(--color-content-secondary);
+  font-weight: 500;
+}
+
 .liveDot {
   width: 6px;
   height: 6px;
@@ -134,6 +139,24 @@
   background: var(--color-status-success-content);
   box-shadow: 0 0 0 2px
     color-mix(in srgb, var(--color-status-success-content) 13%, transparent);
+}
+
+.liveDot[data-status="failed"] {
+  background: var(--color-status-danger-content);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-status-danger-content) 13%, transparent);
+}
+
+.liveDot[data-status="cancelled"],
+.liveDot[data-status="idle"],
+.liveDot[data-status="completed"] {
+  background: var(--color-content-tertiary);
+  box-shadow: none;
+}
+
+.liveDot[data-status="loading"],
+.liveDot[data-status="running"] {
+  animation: trajectoryPulse 1.6s ease-in-out infinite;
 }
 
 .searchField {
@@ -324,7 +347,8 @@
   background: lch(95 6 286);
 }
 
-.row[data-kind="context"] .kindTag {
+.row[data-kind="system"] .kindTag,
+.row[data-kind="memory"] .kindTag {
   color: var(--color-status-success-content);
   background: color-mix(
     in srgb,
@@ -333,7 +357,7 @@
   );
 }
 
-.row[data-kind="assistant"] .kindTag {
+.row[data-kind="model"] .kindTag {
   color: lch(48 32 305);
   background: lch(95 6 305);
 }
@@ -341,6 +365,15 @@
 .row[data-kind="tool"] .kindTag {
   color: lch(49 34 75);
   background: lch(95 8 80);
+}
+
+.row[data-kind="compaction"] .kindTag {
+  color: lch(48 18 235);
+  background: lch(95 5 235);
+}
+
+.row[data-status="failed"] .content strong {
+  color: var(--color-status-danger-content);
 }
 
 .content {
@@ -371,6 +404,26 @@
 
 .duration {
   text-align: right;
+}
+
+.emptyState {
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  color: var(--color-content-tertiary);
+  font-size: 10px;
+}
+
+.emptyState[data-loading="true"] {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--color-content-primary) 8%, transparent) 48%,
+    transparent 66%
+  );
+  background-position: 120% 0;
+  background-size: 220% 100%;
+  animation: trajectoryShimmer 1.5s linear infinite;
 }
 
 .inspector {
@@ -539,5 +592,24 @@
   .row,
   .timelineSpan {
     transition: none;
+  }
+
+  .emptyState[data-loading="true"],
+  .liveDot[data-status="loading"],
+  .liveDot[data-status="running"] {
+    animation: none;
+  }
+}
+
+@keyframes trajectoryPulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes trajectoryShimmer {
+  to {
+    background-position: -120% 0;
   }
 }

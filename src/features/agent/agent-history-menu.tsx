@@ -136,15 +136,18 @@ export function AgentHistoryItems({
   return (
     <>
       {showNewChat ? (
-        <Menu.Item
-          className={classes.newChat}
-          onClick={() => navigate({ to: "/" })}
-        >
-          <Menu.Leading>
-            <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
-          </Menu.Leading>
-          <Menu.Label>New chat</Menu.Label>
-        </Menu.Item>
+        <>
+          <Menu.Item
+            className={classes.newChat}
+            onClick={() => navigate({ to: "/" })}
+          >
+            <Menu.Leading>
+              <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
+            </Menu.Leading>
+            <Menu.Label>New chat</Menu.Label>
+          </Menu.Item>
+          <Menu.Separator />
+        </>
       ) : null}
       {today.length > 0 ? (
         <HistorySection
@@ -155,12 +158,15 @@ export function AgentHistoryItems({
         />
       ) : null}
       {earlier.length > 0 ? (
-        <HistorySection
-          classes={classes}
-          currentSessionId={currentSessionId}
-          label="Earlier"
-          sessions={earlier}
-        />
+        <>
+          {today.length > 0 ? <Menu.Separator /> : null}
+          <HistorySection
+            classes={classes}
+            currentSessionId={currentSessionId}
+            label="Earlier"
+            sessions={earlier}
+          />
+        </>
       ) : null}
       {emptyLabel ? <div className={styles.empty}>{emptyLabel}</div> : null}
     </>
@@ -195,7 +201,6 @@ function HistorySection({
   const navigate = useNavigate();
   return (
     <>
-      <Menu.Separator />
       <div className={classes.section}>{label}</div>
       {sessions.map((session) => {
         const current = session.sessionId === currentSessionId;
