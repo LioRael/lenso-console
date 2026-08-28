@@ -1,8 +1,20 @@
 import { Menu } from "@lenso/ui/menu";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { useEffect, useState, type ReactElement, type ReactNode } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
+import {
+  filterAgentSessions,
+  getAgentHistoryEmptyLabel,
+} from "./agent-history-menu-filter";
 import { listAgentSessions, type AgentSessionSummary } from "./agent-runtime";
 
 import styles from "./agent-history-menu.module.css";
@@ -20,18 +32,25 @@ export function AgentHistoryMenu({
   children,
   currentSessionId,
   placement = "utility",
+  showNewChat = true,
 }: {
   children: ReactNode;
   currentSessionId?: string | undefined;
   placement?: "header" | "utility";
+  showNewChat?: boolean;
 }) {
   const headerPlacement = placement === "header";
+  const menuId = useId();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   return (
     <Menu.Root
       onOpenChange={(open) => {
         if (open) {
+          setQuery("");
           setRefreshKey((current) => current + 1);
+          requestAnimationFrame(() => searchInput.current?.focus());
         }
       }}
     >
@@ -43,7 +62,28 @@ export function AgentHistoryMenu({
           side={headerPlacement ? "bottom" : "top"}
           sideOffset={headerPlacement ? 3.5 : 6}
         >
-          <Menu.Popup aria-label="Chat history" className={styles.menu}>
+          <Menu.Popup
+            aria-label="Chat history"
+            className={styles.menu}
+            id={menuId}
+          >
+            <div className={styles.search}>
+              <input
+                aria-autocomplete="list"
+                aria-controls={menuId}
+                aria-expanded="true"
+                aria-haspopup="menu"
+                aria-label="Search chat history"
+                autoComplete="off"
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={focusFirstHistoryItem}
+                placeholder="Chat history"
+                ref={searchInput}
+                role="combobox"
+                type="search"
+                value={query}
+              />
+            </div>
             <AgentHistoryItems
               classes={{
                 item: styles.item,
@@ -52,7 +92,9 @@ export function AgentHistoryMenu({
                 section: styles.section,
               }}
               currentSessionId={currentSessionId}
+              query={query}
               refreshKey={refreshKey}
+              showNewChat={showNewChat}
             />
           </Menu.Popup>
         </Menu.Positioner>
@@ -64,42 +106,46 @@ export function AgentHistoryMenu({
 export function AgentHistoryItems({
   classes = emptyHistoryClasses,
   currentSessionId,
+  query = "",
   refreshKey = 0,
+  showNewChat = true,
 }: {
   classes?: HistoryClasses;
   currentSessionId?: string | undefined;
+  query?: string;
   refreshKey?: number;
+  showNewChat?: boolean;
 }) {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<AgentSessionSummary[]>([]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const loadSessions = async () => {
-      try {
-        setSessions(await listAgentSessions(controller.signal));
-      } catch {
-        // History remains empty when the selected runtime cannot enumerate Sessions.
-      }
-    };
-    void loadSessions();
-    return () => controller.abort();
-  }, [refreshKey]);
-
-  const today = sessions.filter((session) => isToday(session.updatedAt));
-  const earlier = sessions.filter((session) => !isToday(session.updatedAt));
+  const { data: sessions = [], isPending: loading } = useQuery({
+    queryFn: ({ signal }) => listAgentSessions(signal),
+    queryKey: ["agent-history", refreshKey],
+    retry: false,
+  });
+  const visibleSessions = filterAgentSessions(sessions, query);
+  const today = visibleSessions.filter((session) => isToday(session.updatedAt));
+  const earlier = visibleSessions.filter(
+    (session) => !isToday(session.updatedAt)
+  );
+  const emptyLabel = getAgentHistoryEmptyLabel({
+    loading,
+    query,
+    sessionCount: visibleSessions.length,
+  });
 
   return (
     <>
-      <Menu.Item
-        className={classes.newChat}
-        onClick={() => navigate({ to: "/" })}
-      >
-        <Menu.Leading>
-          <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
-        </Menu.Leading>
-        <Menu.Label>New chat</Menu.Label>
-      </Menu.Item>
+      {showNewChat ? (
+        <Menu.Item
+          className={classes.newChat}
+          onClick={() => navigate({ to: "/" })}
+        >
+          <Menu.Leading>
+            <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
+          </Menu.Leading>
+          <Menu.Label>New chat</Menu.Label>
+        </Menu.Item>
+      ) : null}
       {today.length > 0 ? (
         <HistorySection
           classes={classes}
@@ -116,8 +162,23 @@ export function AgentHistoryItems({
           sessions={earlier}
         />
       ) : null}
+      {emptyLabel ? <div className={styles.empty}>{emptyLabel}</div> : null}
     </>
   );
+}
+
+function focusFirstHistoryItem(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    event.currentTarget
+      .closest('[role="menu"]')
+      ?.querySelector<HTMLElement>('[role="menuitem"]')
+      ?.focus();
+    return;
+  }
+  if (event.key !== "Escape") {
+    event.stopPropagation();
+  }
 }
 
 function HistorySection({

@@ -56,6 +56,28 @@ final result: passed
 
 ---
 
+# Agent history menu Design QA
+
+- Source visual truth: `/var/folders/hp/q9psfx3j2l58mrp6g7d8x8000000gn/T/codex-clipboard-57c6c875-acda-4380-aed9-aebeeaa3a8eb.png`
+- Density-normalized source: `/tmp/linear-agent-history-reference-half.png`
+- Implementation crop: `/tmp/lenso-console-agent-history-entry.png`
+- Focused side-by-side comparison: `/tmp/agent-history-menu-input-comparison.png`
+- Browser state: Console Agent entry route at `http://127.0.0.1:5174/`, header history menu open and search input focused
+
+## Comparison and findings
+
+- The source was captured at 776 × 822 physical pixels and normalized to its 388 × 411 CSS-pixel presentation before comparison.
+- The shared Console menu measures 321px wide with a 36px input inside a 43px top region. This matches the source menu's approximately 320px width and 36px search region after density normalization.
+- The search field uses the same quiet placeholder hierarchy, 12px menu radius, white panel surface, bottom divider, and focused caret treatment as the source.
+- The local API returned no saved sessions during this pass, so the screenshot comparison is intentionally scoped to the source-matched search region. History filtering and empty-query preservation are covered by focused tests.
+- Entry route verification: the menu contains the combobox and no `New chat` menu item.
+- Conversation route and bottom utility verification: both menus contain the same combobox and retain the `New chat` menu item.
+- No actionable P0, P1, or P2 mismatch remains in the scoped menu behavior or search region.
+
+final result: passed
+
+---
+
 # Codex-style Agent Tool activity Design QA
 
 ## Evidence
