@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  answerAgentInteraction,
   decodeAgentSseFrames,
   decodeAgentStreamEvent,
   cancelAgentTurn,
@@ -9,6 +10,7 @@ import {
   readAgentBootstrap,
   readAgentSession,
   readAgentTrajectory,
+  readPendingAgentInteractions,
   readAgentToolPolicy,
   streamAgentTurn,
   updateAgentToolPolicy,
@@ -333,6 +335,7 @@ describe("Agent runtime projection", () => {
             edit: true,
             sessionList: true,
             sessionRead: true,
+            userInteraction: true,
           },
           mode: "console",
           profile: "default",
@@ -437,6 +440,72 @@ describe("Agent runtime projection", () => {
 
     expect(url).toContain("/agent/turns/request-1/cancel");
     expect(method).toBe("POST");
+  });
+
+  it("reads and answers a pending Agent interaction", async () => {
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return new Response(undefined, { status: 204 });
+      }
+      return Response.json({
+        interactions: [
+          {
+            interactionId: "interaction-1",
+            questions: [
+              {
+                header: "Mode",
+                multiSelect: false,
+                options: [
+                  {
+                    description: "Prefer bounded changes.",
+                    label: "Safe",
+                    optionId: "safe",
+                    preview: 'mode = "safe"',
+                  },
+                ],
+                prompt: "Which mode should I use?",
+                questionId: "mode",
+              },
+            ],
+          },
+        ],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      readPendingAgentInteractions("request-1")
+    ).resolves.toMatchObject([
+      {
+        interactionId: "interaction-1",
+        questions: [{ questionId: "mode" }],
+      },
+    ]);
+    await answerAgentInteraction({
+      answers: [
+        {
+          questionId: "mode",
+          selectedOptionIds: ["safe"],
+        },
+      ],
+      interactionId: "interaction-1",
+      requestId: "request-1",
+    });
+
+    expect(fetchMock.mock.calls[1]?.[0]).toContain(
+      "/agent/turns/request-1/interactions/interaction-1/answer"
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      body: JSON.stringify({
+        answers: [
+          {
+            questionId: "mode",
+            selectedOptionIds: ["safe"],
+          },
+        ],
+      }),
+      method: "POST",
+    });
   });
 });
 
