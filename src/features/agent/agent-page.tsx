@@ -274,7 +274,11 @@ function AgentHeader({
       className={styles.header}
     >
       <PageHeader.Row>
-        <AgentHistoryMenu currentSessionId={conversationId} placement="header">
+        <AgentHistoryMenu
+          currentSessionId={conversationId}
+          placement="header"
+          showNewChat={Boolean(conversationId)}
+        >
           <Button
             className={styles.chatSwitcher}
             size="compact"
