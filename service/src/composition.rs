@@ -91,6 +91,11 @@ pub fn official_composition(workload_mode: ConsoleRecoveryMode) -> ConsoleServic
                 None,
             ),
             module(
+                modules::agent_control::MODULE_NAME,
+                ConsoleModuleKind::Optional,
+                None,
+            ),
+            module(
                 modules::surface_gateway::MODULE_NAME,
                 ConsoleModuleKind::Optional,
                 None,
@@ -114,6 +119,7 @@ pub fn official_host_composition() -> HostComposition {
         .linked_module(organization::module::linked_module())
         .linked_module(modules::system_registry::linked_module())
         .linked_module(modules::console_access::linked_module())
+        .linked_module(modules::agent_control::linked_module())
         .linked_module(modules::surface_gateway::linked_module())
         .linked_module(modules::story::linked_module())
         .build()

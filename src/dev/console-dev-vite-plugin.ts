@@ -6,6 +6,7 @@ import type { PluginOption } from "vite";
 import demoPluginWorkbenchProjection from "../features/plugins/demo-plugin-workbench.json" with { type: "json" };
 
 interface ConsoleDevPluginOptions {
+  agentControlToken?: string | undefined;
   diagnosticsFile?: string | undefined;
   hostUrl?: string | undefined;
 }
@@ -13,6 +14,7 @@ interface ConsoleDevPluginOptions {
 type NextFunction = (error?: unknown) => void;
 
 export function consoleDevPlugin({
+  agentControlToken,
   diagnosticsFile,
   hostUrl,
 }: ConsoleDevPluginOptions = {}): PluginOption {
@@ -22,7 +24,7 @@ export function consoleDevPlugin({
       server.middlewares.use((req, res, next) => {
         runConsoleDevRequest({
           next,
-          options: { diagnosticsFile, hostUrl },
+          options: { agentControlToken, diagnosticsFile, hostUrl },
           req,
           res,
         });
@@ -86,7 +88,12 @@ async function handleConsoleDevRequest({
   }
 
   if (options.hostUrl && shouldProxyToHost(pathname)) {
-    await proxyToHost({ hostUrl: options.hostUrl, req, res });
+    await proxyToHost({
+      agentControlToken: options.agentControlToken,
+      hostUrl: options.hostUrl,
+      req,
+      res,
+    });
     return;
   }
 
@@ -168,10 +175,12 @@ export function consoleDevComposition() {
 }
 
 async function proxyToHost({
+  agentControlToken,
   hostUrl,
   req,
   res,
 }: {
+  agentControlToken?: string | undefined;
   hostUrl: string;
   req: IncomingMessage;
   res: ServerResponse;
@@ -179,9 +188,16 @@ async function proxyToHost({
   const target = new URL(req.url ?? "/", hostUrl);
   const body = await requestBody(req);
   const controller = new AbortController();
-  res.on("close", () => controller.abort());
+  const abort = () => controller.abort();
+  const abortIfIncomplete = () => {
+    if (!res.writableEnded) {
+      abort();
+    }
+  };
+  req.once("aborted", abort);
+  res.once("close", abortIfIncomplete);
   const init: RequestInit = {
-    headers: proxyHeaders(req),
+    headers: proxyHeaders(req, agentControlToken),
     signal: controller.signal,
   };
   if (req.method) {
@@ -190,32 +206,49 @@ async function proxyToHost({
   if (body) {
     init.body = new Uint8Array(body);
   }
-  const response = await fetch(target, init);
-  res.statusCode = response.status;
-  response.headers.forEach((value, key) => res.setHeader(key, value));
-  if (!response.body) {
-    res.end();
-    return;
-  }
-  const reader = response.body.getReader();
-  while (!controller.signal.aborted) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  try {
+    const response = await fetch(target, init);
+    res.statusCode = response.status;
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+    if (response.body) {
+      const reader = response.body.getReader();
+      while (!controller.signal.aborted) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        res.write(Buffer.from(value));
+      }
     }
-    res.write(Buffer.from(value));
+    if (!(res.destroyed || res.writableEnded)) {
+      res.end();
+    }
+  } catch (error) {
+    if (!controller.signal.aborted) {
+      throw error;
+    }
+  } finally {
+    req.off("aborted", abort);
+    res.off("close", abortIfIncomplete);
   }
-  res.end();
 }
 
-function proxyHeaders(req: IncomingMessage) {
+function proxyHeaders(
+  req: IncomingMessage,
+  agentControlToken?: string | undefined
+) {
   const headers = new Headers();
   const accept = firstHeader(req.headers.accept) ?? "*/*";
   const authorization = firstHeader(req.headers.authorization);
   const contentType = firstHeader(req.headers["content-type"]);
 
   headers.set("accept", accept);
-  if (authorization) {
+  if (
+    agentControlToken &&
+    requestPathname(req.url ?? "").startsWith("/api/console/v1/agent/control/")
+  ) {
+    headers.set("authorization", `Bearer ${agentControlToken}`);
+  } else if (authorization) {
     headers.set("authorization", authorization);
   }
   if (contentType) {

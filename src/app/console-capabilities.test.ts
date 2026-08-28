@@ -125,6 +125,8 @@ describe("console capabilities", () => {
       "console.workload.read",
       "console.workload.control",
       "console.workload.operation.read",
+      "console.agent.tool-policy.read",
+      "console.agent.tool-policy.manage",
     ]);
   });
 });

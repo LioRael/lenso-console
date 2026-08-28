@@ -17,7 +17,17 @@ import {
   Plus,
   Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { useConsoleCapabilities } from "../../app/console-capabilities";
+import { hasConsoleCapability } from "../../app/console-capability-matching";
+import {
+  readAgentBootstrap,
+  readAgentToolPolicy,
+  updateAgentToolPolicy,
+  type AgentBootstrap,
+  type AgentToolPolicy,
+} from "./agent-runtime";
 
 import styles from "./agent-settings-page.module.css";
 
@@ -223,10 +233,88 @@ function AiAgentsPage() {
 }
 
 function AgentConfigurationPage() {
+  const capabilities = useConsoleCapabilities();
+  const canManageToolPolicy = hasConsoleCapability(
+    new Set(capabilities),
+    "console.agent.tool-policy.manage"
+  );
   const [agentEnabled, setAgentEnabled] = useState(true);
   const [webEnabled, setWebEnabled] = useState(false);
   const [mcpEnabled, setMcpEnabled] = useState(false);
   const [guidance, setGuidance] = useState("");
+  const [runtime, setRuntime] = useState<AgentBootstrap>();
+  const [toolPolicy, setToolPolicy] = useState<AgentToolPolicy>();
+  const [toolPolicyError, setToolPolicyError] = useState<string>();
+  const [savingTool, setSavingTool] = useState<string>();
+  const [runtimeUnavailable, setRuntimeUnavailable] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadRuntimePolicy = async () => {
+      try {
+        const policyRequest = canManageToolPolicy
+          ? settleAgentToolPolicy(controller.signal)
+          : undefined;
+        const bootstrap = await readAgentBootstrap(controller.signal);
+        setRuntime(bootstrap);
+        setRuntimeUnavailable(false);
+        if (policyRequest) {
+          const result = await policyRequest;
+          if ("policy" in result) {
+            setToolPolicy(result.policy);
+            setToolPolicyError(undefined);
+          } else if (!controller.signal.aborted) {
+            setToolPolicyError(
+              result.error instanceof Error
+                ? result.error.message
+                : "Tool policy is unavailable"
+            );
+          }
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setRuntimeUnavailable(true);
+        }
+      }
+    };
+    void loadRuntimePolicy();
+    return () => controller.abort();
+  }, [canManageToolPolicy]);
+
+  const setToolEnabled = async (toolName: string, enabled: boolean) => {
+    if (!toolPolicy || savingTool) {
+      return;
+    }
+    const allowed = enabled
+      ? [...new Set([...toolPolicy.allowed, toolName])].sort()
+      : toolPolicy.allowed.filter((name) => name !== toolName);
+    setSavingTool(toolName);
+    setToolPolicyError(undefined);
+    try {
+      const updated = await updateAgentToolPolicy({
+        allowed,
+        expectedRevision: toolPolicy.revision,
+      });
+      setToolPolicy(updated);
+      setRuntime((current) =>
+        current
+          ? {
+              ...current,
+              tools: { ...current.tools, allowed: updated.allowed },
+            }
+          : current
+      );
+    } catch (error) {
+      setToolPolicyError(
+        error instanceof Error ? error.message : "Tool policy update failed"
+      );
+    } finally {
+      setSavingTool(undefined);
+    }
+  };
+
+  const effectiveTools = toolPolicy ?? runtime?.tools;
+
   return (
     <div className={styles.contentColumn}>
       <Link className={styles.backLink} to="/settings/ai">
@@ -250,6 +338,69 @@ function AgentConfigurationPage() {
           onChange={setWebEnabled}
         />
       </Surface>
+      <SettingsSection
+        description="Choose which Tools the Console Agent may use. Changes apply to new turns."
+        title="Tool access"
+      >
+        <Surface className={styles.toolPolicy} level="panel">
+          <div className={styles.toolPolicySummary}>
+            <span>
+              <strong>
+                {runtimeUnavailable
+                  ? "Runtime unavailable"
+                  : effectiveTools
+                    ? `${effectiveTools.allowed.length} ${effectiveTools.allowed.length === 1 ? "tool" : "tools"} enabled`
+                    : "Loading runtime policy…"}
+              </strong>
+              <small>
+                {runtime && effectiveTools
+                  ? `${effectiveTools.available.length} available · Profile: ${runtime.profile}`
+                  : "Reading the effective Harness policy"}
+              </small>
+            </span>
+          </div>
+          {effectiveTools?.available.length ? (
+            <ul className={styles.toolList}>
+              {effectiveTools.available.map((tool) => (
+                <li key={tool.name}>
+                  <span>
+                    <code>{tool.name}</code>
+                    <small>{tool.description}</small>
+                  </span>
+                  {canManageToolPolicy && toolPolicy ? (
+                    <Switch.Root
+                      aria-label={`Allow ${tool.name}`}
+                      checked={toolPolicy.allowed.includes(tool.name)}
+                      disabled={Boolean(savingTool)}
+                      onCheckedChange={(checked) =>
+                        void setToolEnabled(tool.name, checked)
+                      }
+                      size="default"
+                    >
+                      <Switch.Thumb />
+                    </Switch.Root>
+                  ) : (
+                    <em>
+                      {effectiveTools.allowed.includes(tool.name)
+                        ? "Enabled"
+                        : "Not enabled"}
+                    </em>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : effectiveTools ? (
+            <p className={styles.noTools}>
+              This Console Agent cannot call Tools.
+            </p>
+          ) : null}
+          {toolPolicyError ? (
+            <p className={styles.toolPolicyError} role="alert">
+              {toolPolicyError}
+            </p>
+          ) : null}
+        </Surface>
+      </SettingsSection>
       <SettingsSection
         description="Allow Lenso Agent to use MCP connectors added by workspace members."
         title="MCP connectors"
@@ -300,6 +451,14 @@ function AgentConfigurationPage() {
       </SettingsSection>
     </div>
   );
+}
+
+async function settleAgentToolPolicy(signal: AbortSignal) {
+  try {
+    return { policy: await readAgentToolPolicy(signal) };
+  } catch (error) {
+    return { error };
+  }
 }
 
 function SettingsSection({
