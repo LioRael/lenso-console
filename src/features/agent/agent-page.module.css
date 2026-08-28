@@ -72,10 +72,6 @@
   width: min(712px, calc(100% - 48px));
 }
 
-.emptyCenter:has(.suggestions) {
-  transform: translateY(97px);
-}
-
 .composer {
   position: relative;
   z-index: 1;
@@ -148,7 +144,10 @@
 }
 
 .suggestions {
-  margin-top: 16px;
+  position: absolute;
+  top: calc(100% + 16px);
+  left: 0;
+  width: 100%;
 }
 
 .suggestionsHeader {
@@ -545,10 +544,8 @@
     margin-left: 6px;
   }
 
-  .emptyCenter,
-  .emptyCenter:has(.suggestions) {
+  .emptyCenter {
     width: calc(100% - 46px);
-    transform: translateY(-8px);
   }
 
   .suggestions {

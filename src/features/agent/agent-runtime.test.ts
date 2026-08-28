@@ -8,6 +8,7 @@ import {
   projectAgentSession,
   readAgentBootstrap,
   readAgentSession,
+  readAgentTrajectory,
   readAgentToolPolicy,
   streamAgentTurn,
   updateAgentToolPolicy,
@@ -72,12 +73,6 @@ describe("Agent runtime projection", () => {
       },
     ]);
     expect(projected.turns[0]).not.toHaveProperty("work");
-    expect(projected.traces.map((trace) => trace.label)).toEqual([
-      "Hello",
-      "Model request",
-      "Model output",
-      "Turn completed",
-    ]);
   });
 
   it("marks only Turns with visible Agent work", () => {
@@ -267,6 +262,67 @@ describe("Agent runtime projection", () => {
     ]);
   });
 
+  it("decodes the Harness-owned semantic Trajectory projection", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          records: [
+            {
+              completedAt: "2026-08-29T00:00:03Z",
+              detail: {
+                model: "gpt-test",
+                output: "Done",
+                summary: "Model request and completion for one Agent step.",
+              },
+              durationMs: 2000,
+              id: "event-2",
+              inputTokens: 20,
+              kind: "model",
+              label: "Model call",
+              outputTokens: 4,
+              preview: "Done",
+              sourceEventIds: ["event-2", "event-3"],
+              startedAt: "2026-08-29T00:00:01Z",
+              status: "completed",
+              step: 1,
+              timeToFirstTokenMs: 400,
+              turn: 1,
+            },
+          ],
+          revision: 4,
+          schema: "lenso.agent.trajectory@1",
+          sessionId: "session-1",
+          summary: {
+            durationMs: 3000,
+            failedOperations: 0,
+            inputTokens: 20,
+            modelCalls: 1,
+            outputTokens: 4,
+            startedAt: "2026-08-29T00:00:00Z",
+            status: "completed",
+            toolCalls: 0,
+            turns: 1,
+            updatedAt: "2026-08-29T00:00:03Z",
+          },
+        })
+      )
+    );
+
+    await expect(readAgentTrajectory("session-1")).resolves.toMatchObject({
+      records: [
+        {
+          durationMs: 2000,
+          inputTokens: 20,
+          kind: "model",
+          sourceEventIds: ["event-2", "event-3"],
+          timeToFirstTokenMs: 400,
+        },
+      ],
+      summary: { inputTokens: 20, modelCalls: 1, outputTokens: 4 },
+    });
+  });
+
   it("decodes the effective immutable Tool policy from bootstrap", async () => {
     vi.stubGlobal(
       "fetch",
@@ -289,7 +345,7 @@ describe("Agent runtime projection", () => {
               },
             ],
           },
-          trajectory: "summary",
+          trajectory: "lenso.agent.trajectory@1",
         })
       )
     );

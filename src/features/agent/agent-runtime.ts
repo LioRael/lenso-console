@@ -39,6 +39,7 @@ export type AgentBootstrap = {
   };
   mode: string;
   profile: string;
+  trajectory: "lenso.agent.trajectory@1";
   tools: {
     allowed: string[];
     available: AgentToolSummary[];
@@ -122,25 +123,65 @@ export type AgentTurn = {
   };
 };
 
-export type AgentTraceKind =
-  | "assistant"
-  | "context"
+export type AgentTrajectoryStatus =
+  | "cancelled"
+  | "completed"
+  | "failed"
+  | "idle"
+  | "running";
+
+export type AgentTrajectoryKind =
+  | "compaction"
+  | "memory"
+  | "model"
   | "system"
   | "tool"
   | "user";
 
-export type AgentTraceRecord = {
+export type AgentTrajectoryRecord = {
+  completedAt?: string;
   detail: {
     input?: string;
+    metadataJson?: string;
+    model?: string;
     output?: string;
     summary: string;
+    systemInstructionDigest?: string;
+    toolCallId?: string;
+    toolName?: string;
   };
+  durationMs?: number;
   id: string;
-  kind: AgentTraceKind;
+  inputTokens?: number;
+  kind: AgentTrajectoryKind;
   label: string;
+  outputTokens?: number;
   preview: string;
-  time: string;
+  sourceEventIds: string[];
+  startedAt: string;
+  status: AgentTrajectoryStatus;
+  step?: number;
+  timeToFirstTokenMs?: number;
   turn: number;
+};
+
+export type AgentTrajectory = {
+  records: AgentTrajectoryRecord[];
+  revision: number;
+  schema: "lenso.agent.trajectory@1";
+  sessionId: string;
+  summary: {
+    durationMs?: number;
+    failedOperations: number;
+    inputTokens: number;
+    modelCalls: number;
+    outputTokens: number;
+    startedAt?: string;
+    status: AgentTrajectoryStatus;
+    toolCalls: number;
+    turns: number;
+    updatedAt?: string;
+  };
 };
 
 export async function streamAgentTurn({
@@ -300,21 +341,33 @@ export async function readAgentSession(
   return agentSession(await response.json());
 }
 
+export async function readAgentTrajectory(
+  sessionId: string,
+  signal?: AbortSignal
+): Promise<AgentTrajectory> {
+  const response = await fetch(
+    agentApiUrl(
+      `api/console/v1/agent/sessions/${encodeURIComponent(sessionId)}/trajectory`
+    ),
+    {
+      headers: agentHeaders("application/json", false),
+      ...(signal ? { signal } : {}),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  return agentTrajectory(await response.json());
+}
+
 export function projectAgentSession(session: AgentSession): {
-  traces: AgentTraceRecord[];
   turns: AgentTurn[];
 } {
   const turns = new Map<string, AgentTurn>();
   const turnStartedAt = new Map<string, number>();
-  const turnNumbers = new Map<string, number>();
-  const traces: AgentTraceRecord[] = [];
   for (const event of session.events) {
     const payload = jsonObject(event.payloadJson);
     const { turnId } = event;
-    if (turnId && !turnNumbers.has(turnId)) {
-      turnNumbers.set(turnId, turnNumbers.size + 1);
-    }
-    const turnNumber = turnId ? (turnNumbers.get(turnId) ?? 1) : 1;
     if (event.kind === "turn_started" && turnId) {
       const input = stringValue(payload.input);
       turnStartedAt.set(turnId, Date.parse(event.occurredAt));
@@ -359,10 +412,6 @@ export function projectAgentSession(session: AgentSession): {
         }
       }
     }
-    const trace = sessionEventTrace(event, payload, turnNumber);
-    if (trace) {
-      traces.push(trace);
-    }
   }
   for (const turn of turns.values()) {
     if (!turn.tools?.length) {
@@ -373,7 +422,7 @@ export function projectAgentSession(session: AgentSession): {
       }
     }
   }
-  return { traces, turns: [...turns.values()] };
+  return { turns: [...turns.values()] };
 }
 
 function projectToolEvent(
@@ -598,6 +647,7 @@ function agentBootstrap(value: unknown): AgentBootstrap {
   if (
     typeof object.mode !== "string" ||
     typeof object.profile !== "string" ||
+    object.trajectory !== "lenso.agent.trajectory@1" ||
     !Array.isArray(tools.allowed) ||
     !tools.allowed.every((tool) => typeof tool === "string") ||
     !Array.isArray(tools.available)
@@ -613,6 +663,7 @@ function agentBootstrap(value: unknown): AgentBootstrap {
     },
     mode: object.mode,
     profile: object.profile,
+    trajectory: object.trajectory,
     tools: {
       allowed: tools.allowed,
       available: tools.available.map(agentToolSummary),
@@ -761,110 +812,155 @@ const sessionEventKinds = new Set<AgentSessionEventKind>([
   "turn_started",
 ]);
 
-function sessionEventTrace(
-  event: AgentSessionEvent,
-  payload: Record<string, unknown>,
-  turn: number
-): AgentTraceRecord | undefined {
-  const base = {
-    id: event.eventId,
-    time: event.occurredAt,
-    turn,
-  };
-  switch (event.kind) {
-    case "system_instruction_installed": {
-      return {
-        ...base,
-        detail: { summary: "The resolved system instruction was installed." },
-        kind: "system",
-        label: "System instruction",
-        preview: "Installed for this Session",
-      };
-    }
-    case "turn_started": {
-      const input = stringValue(payload.input);
-      return {
-        ...base,
-        detail: { input, summary: "The operator submitted a message." },
-        kind: "user",
-        label: input,
-        preview: input,
-      };
-    }
-    case "model_requested": {
-      return {
-        ...base,
-        detail: { summary: "The Agent requested the next model step." },
-        kind: "context",
-        label: "Model request",
-        preview: `Step ${numberValue(payload.step) ?? 1}`,
-      };
-    }
-    case "model_output": {
-      const output = stringValue(payload.text);
-      return {
-        ...base,
-        detail: { output, summary: "The model produced an output." },
-        kind: "assistant",
-        label: "Model output",
-        preview: output,
-      };
-    }
-    case "tool_requested": {
-      const name = stringValue(payload.name) || "Tool";
-      return {
-        ...base,
-        detail: {
-          input: stringValue(payload.arguments_json),
-          summary: "The Agent requested a Tool call.",
-        },
-        kind: "tool",
-        label: name,
-        preview: "Requested",
-      };
-    }
-    case "tool_result": {
-      const name = stringValue(payload.name) || "Tool";
-      return {
-        ...base,
-        detail: {
-          output: stringValue(payload.metadata_json),
-          summary: "The Tool provider returned a result.",
-        },
-        kind: "tool",
-        label: name,
-        preview: "Completed",
-      };
-    }
-    case "turn_completed": {
-      return {
-        ...base,
-        detail: {
-          output: stringValue(payload.output),
-          summary: "The Agent Turn completed.",
-        },
-        kind: "assistant",
-        label: "Turn completed",
-        preview: stringValue(payload.output),
-      };
-    }
-    case "turn_failed":
-    case "turn_cancelled": {
-      return {
-        ...base,
-        detail: { summary: stringValue(payload.error) || "The Turn stopped." },
-        kind: "assistant",
-        label: event.kind === "turn_failed" ? "Turn failed" : "Turn cancelled",
-        preview: stringValue(payload.error),
-      };
-    }
-    case "session_created": {
-      return undefined;
-    }
-    default: {
-      return undefined;
-    }
+const trajectoryStatuses = new Set<AgentTrajectoryStatus>([
+  "cancelled",
+  "completed",
+  "failed",
+  "idle",
+  "running",
+]);
+
+const trajectoryKinds = new Set<AgentTrajectoryKind>([
+  "compaction",
+  "memory",
+  "model",
+  "system",
+  "tool",
+  "user",
+]);
+
+function agentTrajectory(value: unknown): AgentTrajectory {
+  const object = requiredObject(value, "Agent Trajectory");
+  const summary = requiredObject(object.summary, "Agent Trajectory summary");
+  if (
+    object.schema !== "lenso.agent.trajectory@1" ||
+    typeof object.sessionId !== "string" ||
+    !validMetric(object.revision) ||
+    !Array.isArray(object.records) ||
+    !trajectoryStatuses.has(summary.status as AgentTrajectoryStatus) ||
+    !validMetric(summary.turns) ||
+    !validMetric(summary.modelCalls) ||
+    !validMetric(summary.toolCalls) ||
+    !validMetric(summary.failedOperations) ||
+    !validMetric(summary.inputTokens) ||
+    !validMetric(summary.outputTokens) ||
+    !validOptionalMetric(summary.durationMs) ||
+    !validOptionalString(summary.startedAt) ||
+    !validOptionalString(summary.updatedAt)
+  ) {
+    throw new TypeError("Agent Trajectory is malformed");
   }
+  return {
+    records: object.records.map(agentTrajectoryRecord),
+    revision: object.revision,
+    schema: object.schema,
+    sessionId: object.sessionId,
+    summary: {
+      failedOperations: summary.failedOperations,
+      inputTokens: summary.inputTokens,
+      modelCalls: summary.modelCalls,
+      outputTokens: summary.outputTokens,
+      status: summary.status as AgentTrajectoryStatus,
+      toolCalls: summary.toolCalls,
+      turns: summary.turns,
+      ...(validMetric(summary.durationMs)
+        ? { durationMs: summary.durationMs }
+        : {}),
+      ...(typeof summary.startedAt === "string"
+        ? { startedAt: summary.startedAt }
+        : {}),
+      ...(typeof summary.updatedAt === "string"
+        ? { updatedAt: summary.updatedAt }
+        : {}),
+    },
+  };
+}
+
+function agentTrajectoryRecord(value: unknown): AgentTrajectoryRecord {
+  const object = requiredObject(value, "Agent Trajectory record");
+  const detail = requiredObject(object.detail, "Agent Trajectory detail");
+  if (
+    typeof object.id !== "string" ||
+    !validMetric(object.turn) ||
+    !trajectoryKinds.has(object.kind as AgentTrajectoryKind) ||
+    !trajectoryStatuses.has(object.status as AgentTrajectoryStatus) ||
+    typeof object.label !== "string" ||
+    typeof object.preview !== "string" ||
+    typeof object.startedAt !== "string" ||
+    typeof detail.summary !== "string" ||
+    !Array.isArray(object.sourceEventIds) ||
+    !object.sourceEventIds.every((id) => typeof id === "string") ||
+    ![
+      object.completedAt,
+      detail.input,
+      detail.metadataJson,
+      detail.model,
+      detail.output,
+      detail.systemInstructionDigest,
+      detail.toolCallId,
+      detail.toolName,
+    ].every(validOptionalString) ||
+    ![
+      object.durationMs,
+      object.inputTokens,
+      object.outputTokens,
+      object.step,
+      object.timeToFirstTokenMs,
+    ].every(validOptionalMetric)
+  ) {
+    throw new TypeError("Agent Trajectory record is malformed");
+  }
+  return {
+    detail: {
+      summary: detail.summary,
+      ...optionalString("input", detail.input),
+      ...optionalString("metadataJson", detail.metadataJson),
+      ...optionalString("model", detail.model),
+      ...optionalString("output", detail.output),
+      ...optionalString(
+        "systemInstructionDigest",
+        detail.systemInstructionDigest
+      ),
+      ...optionalString("toolCallId", detail.toolCallId),
+      ...optionalString("toolName", detail.toolName),
+    },
+    id: object.id,
+    kind: object.kind as AgentTrajectoryKind,
+    label: object.label,
+    preview: object.preview,
+    sourceEventIds: object.sourceEventIds,
+    startedAt: object.startedAt,
+    status: object.status as AgentTrajectoryStatus,
+    turn: object.turn,
+    ...optionalString("completedAt", object.completedAt),
+    ...optionalMetric("durationMs", object.durationMs),
+    ...optionalMetric("inputTokens", object.inputTokens),
+    ...optionalMetric("outputTokens", object.outputTokens),
+    ...optionalMetric("step", object.step),
+    ...optionalMetric("timeToFirstTokenMs", object.timeToFirstTokenMs),
+  };
+}
+
+function validMetric(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function validOptionalMetric(value: unknown) {
+  return value === undefined || validMetric(value);
+}
+
+function validOptionalString(value: unknown) {
+  return value === undefined || typeof value === "string";
+}
+
+function optionalMetric<K extends string>(key: K, value: unknown) {
+  return validMetric(value) ? ({ [key]: value } as Record<K, number>) : {};
+}
+
+function optionalString<K extends string>(key: K, value: unknown) {
+  return typeof value === "string"
+    ? ({ [key]: value } as Record<K, string>)
+    : {};
 }
 
 function jsonObject(value: string): Record<string, unknown> {
@@ -888,10 +984,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value : "";
-}
-
-function numberValue(value: unknown) {
-  return typeof value === "number" ? value : undefined;
 }
 
 function assignOptionalString<
