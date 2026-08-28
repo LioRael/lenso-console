@@ -53,6 +53,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     select: (state) => state.location.pathname,
   });
   const settingsOpen = currentPath.startsWith("/settings");
+  const currentAgentSessionId = agentSessionIdFromPath(currentPath);
 
   return (
     <ThemeScope className={styles.theme} theme="system">
@@ -176,14 +177,18 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 
         <footer aria-label="Application utilities" className={styles.utilities}>
           <AgentQuickPanel
-            onOpenFullPage={() =>
-              navigate({
-                params: { chatId: "support-desk" },
-                to: "/agent/$chatId",
-              })
-            }
+            onOpenFullPage={(sessionId) => {
+              if (sessionId) {
+                navigate({
+                  params: { chatId: sessionId },
+                  to: "/agent/$chatId",
+                });
+                return;
+              }
+              navigate({ to: "/" });
+            }}
           />
-          <AgentHistoryMenu>
+          <AgentHistoryMenu currentSessionId={currentAgentSessionId}>
             <IconButton
               aria-label="Chat history"
               data-agent-action="history"
@@ -197,6 +202,11 @@ export function ConsoleShell({ children }: PropsWithChildren) {
       </Sidebar.Group>
     </ThemeScope>
   );
+}
+
+function agentSessionIdFromPath(path: string) {
+  const match = /^\/agent\/([^/]+)$/u.exec(path);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
 function SettingsSidebar({

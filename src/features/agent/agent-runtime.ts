@@ -65,6 +65,13 @@ export type AgentSessionSummary = {
 };
 
 export type AgentSessionEventKind =
+  | "context_compaction_committed"
+  | "context_compaction_failed"
+  | "context_compaction_started"
+  | "memory_commit_failed"
+  | "memory_committed"
+  | "memory_recall_failed"
+  | "memory_recalled"
   | "model_output"
   | "model_requested"
   | "session_created"
@@ -93,13 +100,26 @@ export type AgentSession = {
 
 export type AgentTurnStatus = "cancelled" | "completed" | "failed" | "running";
 
+export type AgentToolCall = {
+  argumentsJson?: string;
+  callId: string;
+  error?: string;
+  metadataJson?: string;
+  name: string;
+  status: "completed" | "failed" | "not_run" | "running";
+};
+
 export type AgentTurn = {
   answer: string;
   error?: string;
   id: string;
   status: AgentTurnStatus;
   thought: string;
+  tools?: AgentToolCall[];
   user: string;
+  work?: {
+    durationMs?: number;
+  };
 };
 
 export type AgentTraceKind =
@@ -285,6 +305,7 @@ export function projectAgentSession(session: AgentSession): {
   turns: AgentTurn[];
 } {
   const turns = new Map<string, AgentTurn>();
+  const turnStartedAt = new Map<string, number>();
   const turnNumbers = new Map<string, number>();
   const traces: AgentTraceRecord[] = [];
   for (const event of session.events) {
@@ -296,6 +317,7 @@ export function projectAgentSession(session: AgentSession): {
     const turnNumber = turnId ? (turnNumbers.get(turnId) ?? 1) : 1;
     if (event.kind === "turn_started" && turnId) {
       const input = stringValue(payload.input);
+      turnStartedAt.set(turnId, Date.parse(event.occurredAt));
       turns.set(turnId, {
         answer: "",
         id: turnId,
@@ -308,11 +330,21 @@ export function projectAgentSession(session: AgentSession): {
       if (turn) {
         turn.answer += stringValue(payload.text);
       }
+    } else if (
+      (event.kind === "tool_requested" || event.kind === "tool_result") &&
+      turnId
+    ) {
+      const turn = turns.get(turnId);
+      if (turn) {
+        turn.work ??= {};
+        projectToolEvent(turn, event, payload);
+      }
     } else if (event.kind === "turn_completed" && turnId) {
       const turn = turns.get(turnId);
       if (turn) {
         turn.answer = stringValue(payload.output) || turn.answer;
         turn.status = "completed";
+        assignWorkDuration(turn, turnStartedAt.get(turnId), event.occurredAt);
       }
     } else if (
       (event.kind === "turn_failed" || event.kind === "turn_cancelled") &&
@@ -321,6 +353,7 @@ export function projectAgentSession(session: AgentSession): {
       const turn = turns.get(turnId);
       if (turn) {
         turn.status = event.kind === "turn_cancelled" ? "cancelled" : "failed";
+        assignWorkDuration(turn, turnStartedAt.get(turnId), event.occurredAt);
         if (event.kind === "turn_failed") {
           turn.error = stringValue(payload.error);
         }
@@ -331,7 +364,134 @@ export function projectAgentSession(session: AgentSession): {
       traces.push(trace);
     }
   }
+  for (const turn of turns.values()) {
+    if (!turn.tools?.length) {
+      const attempt = unexecutedToolAttempt(turn.answer, turn.id);
+      if (attempt) {
+        turn.answer = "";
+        turn.tools = [attempt];
+      }
+    }
+  }
   return { traces, turns: [...turns.values()] };
+}
+
+function projectToolEvent(
+  turn: AgentTurn,
+  event: AgentSessionEvent,
+  payload: Record<string, unknown>
+) {
+  const callId = stringValue(payload.call_id) || event.eventId;
+  const tools = (turn.tools ??= []);
+  const existing = tools.find((tool) => tool.callId === callId);
+  if (event.kind === "tool_requested") {
+    const requested: AgentToolCall = {
+      callId,
+      name: stringValue(payload.name) || "Tool",
+      status: "running",
+      ...(stringValue(payload.arguments_json)
+        ? { argumentsJson: stringValue(payload.arguments_json) }
+        : {}),
+    };
+    if (existing) {
+      Object.assign(existing, requested);
+    } else {
+      tools.push(requested);
+    }
+    return;
+  }
+  const completed = existing ?? {
+    callId,
+    name: stringValue(payload.name) || "Tool",
+    status: "running" as const,
+  };
+  completed.name = stringValue(payload.name) || completed.name;
+  completed.status = "completed";
+  const metadataJson = stringValue(payload.metadata_json);
+  if (metadataJson) {
+    completed.metadataJson = metadataJson;
+  }
+  if (!existing) {
+    tools.push(completed);
+  }
+}
+
+function unexecutedToolAttempt(
+  answer: string,
+  turnId: string
+): AgentToolCall | undefined {
+  const match = /^\s*to=([A-Za-z0-9_.-]+)\s+\([^\n)]*\)\s+code:\s*/.exec(
+    answer
+  );
+  if (!match) {
+    const skillClaim = /^\s*已调用\s+`([^`]+)`\s+技能[。.]?\s*$/.exec(answer);
+    if (!skillClaim) {
+      return undefined;
+    }
+    return {
+      argumentsJson: JSON.stringify({ name: skillClaim[1] }),
+      callId: `unexecuted:${turnId}`,
+      error: "No Tool event was recorded for this request.",
+      name: "skill",
+      status: "not_run",
+    };
+  }
+  const argumentsJson = leadingJsonObject(answer.slice(match[0].length));
+  return {
+    ...(argumentsJson ? { argumentsJson } : {}),
+    callId: `unexecuted:${turnId}`,
+    error: "No Tool event was recorded for this request.",
+    name: match[1] ?? "Tool",
+    status: "not_run",
+  };
+}
+
+function leadingJsonObject(value: string) {
+  const trimmed = value.trimStart();
+  if (!trimmed.startsWith("{")) {
+    return undefined;
+  }
+  let depth = 0;
+  let escaped = false;
+  let quoted = false;
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const character = trimmed[index];
+    if (quoted) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        quoted = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+    } else if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return trimmed.slice(0, index + 1);
+      }
+    }
+  }
+  return undefined;
+}
+
+function assignWorkDuration(
+  turn: AgentTurn,
+  startedAt: number | undefined,
+  endedAt: string
+) {
+  if (!turn.work || startedAt === undefined) {
+    return;
+  }
+  const durationMs = Date.parse(endedAt) - startedAt;
+  if (Number.isFinite(durationMs) && durationMs >= 0) {
+    turn.work.durationMs = durationMs;
+  }
 }
 
 export function decodeAgentSseFrames(input: string): {
@@ -582,6 +742,13 @@ function agentSessionEvent(value: unknown): AgentSessionEvent {
 }
 
 const sessionEventKinds = new Set<AgentSessionEventKind>([
+  "context_compaction_committed",
+  "context_compaction_failed",
+  "context_compaction_started",
+  "memory_commit_failed",
+  "memory_committed",
+  "memory_recall_failed",
+  "memory_recalled",
   "model_output",
   "model_requested",
   "session_created",

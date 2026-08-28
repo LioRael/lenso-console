@@ -395,6 +395,10 @@
   text-align: center;
 }
 
+.quickTurn {
+  display: grid;
+}
+
 .userTurn {
   display: flex;
   align-items: flex-end;
@@ -428,7 +432,7 @@
   margin-bottom: 12px;
 }
 
-.assistantTurn p {
+.assistantTurn > p {
   margin: 0;
   padding-left: 10px;
   white-space: pre-wrap;

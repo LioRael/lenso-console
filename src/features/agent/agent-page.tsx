@@ -9,7 +9,12 @@ import {
   ArrowUp,
   Box,
   ChevronDown,
+  ChevronRight,
+  CircleAlert,
   Copy,
+  FileText,
+  ImageIcon,
+  List,
   MoreHorizontal,
   Package,
   Paperclip,
@@ -17,6 +22,7 @@ import {
   Search,
   Square,
   Star,
+  Terminal,
   Trash2,
   Wrench,
   X,
@@ -26,30 +32,22 @@ import {
   useEffect,
   useRef,
   useState,
-  type Dispatch,
   type FormEvent,
   type KeyboardEvent,
   type ReactElement,
   type ReactNode,
-  type SetStateAction,
 } from "react";
 
-import { AgentHistoryItems } from "./agent-history-menu";
+import { AgentHistoryMenu } from "./agent-history-menu";
+import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
-import {
-  cancelAgentTurn,
-  projectAgentSession,
-  readAgentBootstrap,
-  readAgentSession,
-  streamAgentTurn,
-  type AgentStreamEvent,
-  type AgentTraceRecord,
-  type AgentTurn,
-} from "./agent-runtime";
+import type { AgentToolCall, AgentTurn } from "./agent-runtime";
+import { AgentShimmerText } from "./agent-shimmer-text";
 import { AgentTrajectory } from "./agent-trajectory";
+import { useAgentConversation } from "./use-agent-conversation";
 
 import styles from "./agent-page.module.css";
 
@@ -82,194 +80,56 @@ const suggestions = [
 
 export function AgentPage({ conversationId }: AgentPageProps) {
   const navigate = useNavigate();
-  const [draft, setDraft] = useState("");
-  const [canEdit, setCanEdit] = useState(false);
-  const [canCancel, setCanCancel] = useState(false);
-  const [editingTurnId, setEditingTurnId] = useState<string>();
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [view, setView] = useState<AgentView>("conversation");
-  const [turns, setTurns] = useState<AgentTurn[]>([]);
-  const [traces, setTraces] = useState<AgentTraceRecord[]>([]);
-  const [runtimeError, setRuntimeError] = useState<string>();
-  const [isRunning, setIsRunning] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const activeTurn = useRef<
-    { controller: AbortController; requestId: string } | undefined
-  >(undefined);
-  const sessionId = useRef(
-    conversationId && conversationId !== "new-task" ? conversationId : undefined
+  const onSessionResolved = useCallback(
+    (resolvedSessionId: string) => {
+      navigate({
+        params: { chatId: resolvedSessionId },
+        to: "/agent/$chatId",
+      });
+    },
+    [navigate]
   );
+  const {
+    beginEditing: beginEditingTurn,
+    canCancel,
+    canEdit,
+    cancelEditing: cancelEditingTurn,
+    cancelRunningTurn,
+    draft,
+    editingTurnId,
+    isRunning,
+    runtimeError,
+    sessionId,
+    setDraft,
+    submit,
+    traces,
+    turns,
+    visibleTurns,
+  } = useAgentConversation({
+    initialSessionId:
+      conversationId && conversationId !== "new-task"
+        ? conversationId
+        : undefined,
+    onSessionResolved,
+  });
   const conversation = Boolean(conversationId || turns.length > 0);
   const displayedConversationId = conversation
-    ? (conversationId ?? "new-task")
+    ? (sessionId ?? conversationId ?? "new-task")
     : undefined;
   const conversationTitle = conversation
     ? (turns[0]?.user ?? "New chat")
     : null;
-  const editingTurnIndex = editingTurnId
-    ? turns.findIndex((turn) => turn.id === editingTurnId)
-    : -1;
-  const visibleTurns =
-    editingTurnIndex >= 0 ? turns.slice(0, editingTurnIndex) : turns;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const loadBootstrap = async () => {
-      try {
-        const bootstrap = await readAgentBootstrap(controller.signal);
-        setCanCancel(bootstrap.capabilities.cancel);
-        setCanEdit(bootstrap.capabilities.edit);
-      } catch {
-        setCanCancel(false);
-        setCanEdit(false);
-      }
-    };
-    void loadBootstrap();
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (!(conversationId && conversationId !== "new-task")) {
-      return;
-    }
-    const controller = new AbortController();
-    sessionId.current = conversationId;
-    setRuntimeError(undefined);
-    const loadSession = async () => {
-      try {
-        const session = await readAgentSession(
-          conversationId,
-          controller.signal
-        );
-        const projection = projectAgentSession(session);
-        setTurns(projection.turns);
-        setTraces(projection.traces);
-      } catch (error) {
-        if (!controller.signal.aborted) {
-          setRuntimeError(errorMessage(error));
-        }
-      }
-    };
-    void loadSession();
-    return () => controller.abort();
-  }, [conversationId]);
-
-  useEffect(
-    () => () => {
-      activeTurn.current?.controller.abort();
-    },
-    []
-  );
-
-  const submit = useCallback(() => {
-    const prompt = draft.trim();
-    if (!prompt || activeTurn.current) {
-      return;
-    }
-    const pendingTurnId = `pending-${Date.now()}`;
-    const editedTurnId = editingTurnId;
-    const editedTurnIndex = editedTurnId
-      ? turns.findIndex((turn) => turn.id === editedTurnId)
-      : -1;
-    if (editedTurnId && (!sessionId.current || editedTurnIndex < 0)) {
-      return;
-    }
-    const controller = new AbortController();
-    const requestId = crypto.randomUUID();
-    activeTurn.current = { controller, requestId };
-    setIsRunning(true);
-    setRuntimeError(undefined);
-    setDraft("");
-    setEditingTurnId(undefined);
-    setTurns((current) => [
-      ...(editedTurnIndex >= 0 ? current.slice(0, editedTurnIndex) : current),
-      {
-        answer: "",
-        id: pendingTurnId,
-        status: "running",
-        thought: "",
-        user: prompt,
-      },
-    ]);
-    const runSubmittedTurn = async () => {
-      try {
-        await streamAgentTurn({
-          ...(editedTurnId ? { editTurnId: editedTurnId } : {}),
-          input: prompt,
-          onEvent: (event) => {
-            handleStreamEvent(event, pendingTurnId, setTurns);
-            if (event.type === "turn_message" && event.message.sessionId) {
-              sessionId.current = event.message.sessionId;
-            }
-            if (
-              (event.type === "turn_completed" ||
-                event.type === "turn_cancelled") &&
-              event.sessionId
-            ) {
-              sessionId.current = event.sessionId;
-            }
-          },
-          requestId,
-          ...(sessionId.current ? { sessionId: sessionId.current } : {}),
-          signal: controller.signal,
-        });
-        const completedSessionId = sessionId.current;
-        if (completedSessionId) {
-          navigate({
-            params: { chatId: completedSessionId },
-            to: "/agent/$chatId",
-          });
-        }
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-        const detail = errorMessage(error);
-        setRuntimeError(detail);
-        setTurns((current) =>
-          current.map((turn) =>
-            turn.id === pendingTurnId
-              ? { ...turn, error: detail, status: "failed" }
-              : turn
-          )
-        );
-      } finally {
-        if (activeTurn.current?.controller === controller) {
-          activeTurn.current = undefined;
-          setIsRunning(false);
-        }
-      }
-    };
-    void runSubmittedTurn();
-  }, [draft, editingTurnId, navigate, turns]);
-
-  const cancelRunningTurn = useCallback(() => {
-    const active = activeTurn.current;
-    if (!(active && canCancel)) {
-      return;
-    }
-    const requestCancel = async () => {
-      try {
-        await cancelAgentTurn(active.requestId);
-      } catch (error) {
-        setRuntimeError(errorMessage(error));
-      }
-    };
-    void requestCancel();
-  }, [canCancel]);
 
   const beginEditing = (turn: AgentTurn) => {
-    if (!(canEdit && turn.status === "completed" && !activeTurn.current)) {
-      return;
-    }
-    setEditingTurnId(turn.id);
-    setDraft(turn.user);
+    beginEditingTurn(turn);
     requestAnimationFrame(() => textarea.current?.focus());
   };
 
   const cancelEditing = () => {
-    setEditingTurnId(undefined);
-    setDraft("");
+    cancelEditingTurn();
     requestAnimationFrame(() => textarea.current?.focus());
   };
 
@@ -414,40 +274,16 @@ function AgentHeader({
       className={styles.header}
     >
       <PageHeader.Row>
-        <Menu.Root>
-          <Menu.Trigger
-            render={
-              <Button
-                className={styles.chatSwitcher}
-                size="compact"
-                variant="ghost"
-              />
-            }
+        <AgentHistoryMenu currentSessionId={conversationId} placement="header">
+          <Button
+            className={styles.chatSwitcher}
+            size="compact"
+            variant="ghost"
           >
             <span>{conversationTitle ?? "New chat"}</span>
             <ChevronDown aria-hidden="true" size={12} />
-          </Menu.Trigger>
-          <Menu.Portal>
-            <Menu.Positioner
-              align="start"
-              alignOffset={8.5}
-              side="bottom"
-              sideOffset={3.5}
-            >
-              <Menu.Popup aria-label="Chat history" className={styles.chatMenu}>
-                <AgentHistoryItems
-                  classes={{
-                    item: styles.chatHistoryItem,
-                    meta: styles.chatItemMeta,
-                    newChat: styles.newChatItem,
-                    section: styles.chatSectionLabel,
-                  }}
-                  currentSessionId={conversationId}
-                />
-              </Menu.Popup>
-            </Menu.Positioner>
-          </Menu.Portal>
-        </Menu.Root>
+          </Button>
+        </AgentHistoryMenu>
         {conversationId ? (
           <Tabs.Root
             className={styles.viewTabs}
@@ -550,13 +386,39 @@ function AgentConversation({
                 />
               </div>
             </div>
-            <details className={styles.worked}>
-              <summary>{turnStatusLabel(turn.status)}</summary>
-              <p>{turn.thought || "No reasoning summary was provided."}</p>
-            </details>
+            {turn.work ? (
+              <details className={styles.worked}>
+                <summary>
+                  <AgentShimmerText
+                    active={
+                      turn.status === "running" && !turnHasRunningTool(turn)
+                    }
+                  >
+                    {turnStatusLabel(turn)}
+                  </AgentShimmerText>
+                  <span aria-hidden="true" className={styles.workedChevron}>
+                    <ChevronRight size={14} />
+                  </span>
+                </summary>
+                <div className={styles.workedBody}>
+                  <AgentMarkdown streaming={turn.status === "running"}>
+                    {turn.thought || "Open Trajectory to inspect this work."}
+                  </AgentMarkdown>
+                </div>
+              </details>
+            ) : null}
+            {turn.tools?.length ? <AgentToolCalls tools={turn.tools} /> : null}
             <div className={styles.assistantMessage}>
-              {turn.answer ? <p>{turn.answer}</p> : null}
-              {turn.status === "running" ? <p>Working…</p> : null}
+              {turn.answer ? (
+                <AgentMarkdown streaming={turn.status === "running"}>
+                  {turn.answer}
+                </AgentMarkdown>
+              ) : null}
+              {turn.status === "running" && !turn.work ? (
+                <p>
+                  <AgentShimmerText active>Working…</AgentShimmerText>
+                </p>
+              ) : null}
               {turn.error ? <p>{turn.error}</p> : null}
             </div>
             {turn.answer ? (
@@ -574,6 +436,171 @@ function AgentConversation({
       </div>
     </section>
   );
+}
+
+function AgentToolCalls({ tools }: { tools: AgentToolCall[] }) {
+  return (
+    <div aria-label="Tool activity" className={styles.toolCalls}>
+      {tools.map((tool) => {
+        const Icon = toolIcon(tool.name);
+        const label = toolActivityLabel(tool);
+        const rows = toolActivityRows(tool);
+        return (
+          <details
+            className={styles.toolCall}
+            data-status={tool.status}
+            key={tool.callId}
+          >
+            <summary>
+              <Icon aria-hidden="true" size={15} strokeWidth={1.65} />
+              <AgentShimmerText
+                active={tool.status === "running"}
+                className={styles.toolName}
+              >
+                {label}
+              </AgentShimmerText>
+              <span aria-hidden="true" className={styles.toolChevron}>
+                <ChevronRight size={14} />
+              </span>
+            </summary>
+            <div className={styles.toolDetails}>
+              {rows.map((row) => {
+                const RowIcon = row.icon;
+                return (
+                  <div className={styles.toolDetailRow} key={row.label}>
+                    <RowIcon aria-hidden="true" size={14} strokeWidth={1.55} />
+                    <span title={row.title}>{row.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        );
+      })}
+    </div>
+  );
+}
+
+type ToolActivityRow = {
+  icon: typeof Wrench;
+  label: string;
+  title?: string;
+};
+
+function toolActivityLabel(tool: AgentToolCall) {
+  const target = toolTarget(tool);
+  if (tool.status === "not_run") {
+    return target ? `Did not run ${target}` : `Did not run ${tool.name}`;
+  }
+  if (tool.status === "failed") {
+    return target ? `Could not run ${target}` : `Could not run ${tool.name}`;
+  }
+  if (tool.name === "skill") {
+    return tool.status === "running" ? "Loading skill" : "Loaded skill";
+  }
+  if (tool.name === "skill_list") {
+    return tool.status === "running" ? "Listing skills" : "Listed skills";
+  }
+  return `${tool.status === "running" ? "Running" : "Ran"} ${tool.name}`;
+}
+
+function turnHasRunningTool(turn: AgentTurn) {
+  return turn.tools?.some((tool) => tool.status === "running") ?? false;
+}
+
+function toolActivityRows(tool: AgentToolCall): ToolActivityRow[] {
+  const input = toolPayload(tool.argumentsJson);
+  const result = toolPayload(tool.metadataJson);
+  const target = toolTarget(tool);
+  const rows: ToolActivityRow[] = [];
+  if (tool.name === "skill" && target) {
+    rows.push({
+      icon: Wrench,
+      label: `${tool.status === "completed" ? "Read" : "Requested"} ${target} skill`,
+    });
+  } else if (tool.name === "skill_list") {
+    rows.push({ icon: List, label: "Read the available skill catalog" });
+  } else if (tool.argumentsJson) {
+    rows.push({
+      icon: toolIcon(tool.name),
+      label: toolInputLabel(tool.name, input),
+      title: tool.argumentsJson,
+    });
+  }
+  const version = stringField(result, "version");
+  if (version) {
+    rows.push({
+      icon: Search,
+      label: `Resolved version ${version.slice(0, 12)}`,
+      title: version,
+    });
+  }
+  if (tool.error) {
+    rows.push({ icon: CircleAlert, label: tool.error, title: tool.error });
+  }
+  if (rows.length === 0) {
+    rows.push({
+      icon: toolIcon(tool.name),
+      label:
+        tool.status === "running" ? "Waiting for result" : "Tool completed",
+    });
+  }
+  return rows;
+}
+
+function toolIcon(name: string) {
+  const normalized = name.toLowerCase();
+  if (normalized.includes("search")) {
+    return Search;
+  }
+  if (normalized.includes("image")) {
+    return ImageIcon;
+  }
+  if (
+    normalized.includes("terminal") ||
+    normalized.includes("shell") ||
+    normalized.includes("exec")
+  ) {
+    return Terminal;
+  }
+  if (normalized.includes("file") || normalized.includes("read")) {
+    return FileText;
+  }
+  if (normalized.includes("list")) {
+    return List;
+  }
+  return Wrench;
+}
+
+function toolInputLabel(name: string, input: Record<string, unknown>) {
+  const value =
+    stringField(input, "path") ||
+    stringField(input, "query") ||
+    stringField(input, "command") ||
+    stringField(input, "name");
+  return value ? `${name} ${value}` : `Called ${name}`;
+}
+
+function toolTarget(tool: AgentToolCall) {
+  return stringField(toolPayload(tool.argumentsJson), "name");
+}
+
+function stringField(value: Record<string, unknown>, field: string) {
+  return typeof value[field] === "string" ? value[field] : undefined;
+}
+
+function toolPayload(value?: string): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 function AgentComposer({
@@ -657,44 +684,15 @@ function AgentComposer({
   );
 }
 
-function handleStreamEvent(
-  event: AgentStreamEvent,
-  turnId: string,
-  setTurns: Dispatch<SetStateAction<AgentTurn[]>>
-) {
-  setTurns((current) =>
-    current.map((turn) => {
-      if (turn.id !== turnId) {
-        return turn;
-      }
-      if (event.type === "turn_completed") {
-        return { ...turn, status: "completed" };
-      }
-      if (event.type === "turn_cancelled") {
-        return { ...turn, status: "cancelled" };
-      }
-      if (event.type === "turn_failed") {
-        return { ...turn, error: event.detail, status: "failed" };
-      }
-      const { kind, text } = event.message;
-      if (!kind || kind === "text_delta") {
-        return { ...turn, answer: turn.answer + text };
-      }
-      if (kind === "reasoning_delta") {
-        return { ...turn, thought: turn.thought + text };
-      }
-      return turn;
-    })
-  );
-}
-
-function turnStatusLabel(status: AgentTurn["status"]) {
-  switch (status) {
+function turnStatusLabel(turn: AgentTurn) {
+  switch (turn.status) {
     case "running": {
       return "Working…";
     }
     case "completed": {
-      return "Completed";
+      return turn.work?.durationMs === undefined
+        ? "Completed"
+        : `Worked for ${formatWorkDuration(turn.work.durationMs)}`;
     }
     case "failed": {
       return "Failed";
@@ -703,13 +701,18 @@ function turnStatusLabel(status: AgentTurn["status"]) {
       return "Cancelled";
     }
     default: {
-      return status;
+      return turn.status;
     }
   }
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Agent request failed";
+function formatWorkDuration(durationMs: number) {
+  const seconds = Math.max(1, Math.round(durationMs / 1000));
+  if (seconds < 60) {
+    return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+  }
+  const minutes = Math.round(seconds / 60);
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 }
 
 function SkillsMenu({ children }: { children: ReactNode }) {
