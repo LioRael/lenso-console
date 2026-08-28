@@ -36,6 +36,7 @@ export type AgentBootstrap = {
     edit: boolean;
     sessionList: boolean;
     sessionRead: boolean;
+    userInteraction: boolean;
   };
   mode: string;
   profile: string;
@@ -44,6 +45,32 @@ export type AgentBootstrap = {
     allowed: string[];
     available: AgentToolSummary[];
   };
+};
+
+export type AgentInteractionOption = {
+  description: string;
+  label: string;
+  optionId: string;
+  preview?: string;
+};
+
+export type AgentInteractionQuestion = {
+  header: string;
+  multiSelect: boolean;
+  options: AgentInteractionOption[];
+  prompt: string;
+  questionId: string;
+};
+
+export type AgentPendingInteraction = {
+  interactionId: string;
+  questions: AgentInteractionQuestion[];
+};
+
+export type AgentInteractionAnswer = {
+  other?: string;
+  questionId: string;
+  selectedOptionIds: string[];
 };
 
 export type AgentToolSummary = {
@@ -247,6 +274,59 @@ export async function cancelAgentTurn(requestId: string): Promise<void> {
     ),
     {
       headers: agentHeaders("application/json", false),
+      method: "POST",
+    }
+  );
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+}
+
+export async function readPendingAgentInteractions(
+  requestId: string,
+  signal?: AbortSignal
+): Promise<AgentPendingInteraction[]> {
+  const response = await fetch(
+    agentApiUrl(
+      `api/console/v1/agent/turns/${encodeURIComponent(requestId)}/interactions`
+    ),
+    {
+      headers: agentHeaders("application/json", false),
+      ...(signal ? { signal } : {}),
+    }
+  );
+  if (response.status === 404) {
+    return [];
+  }
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(
+    await response.json(),
+    "Agent pending interactions"
+  );
+  if (!Array.isArray(object.interactions)) {
+    throw new TypeError("Agent pending interactions are malformed");
+  }
+  return object.interactions.map(agentPendingInteraction);
+}
+
+export async function answerAgentInteraction({
+  answers,
+  interactionId,
+  requestId,
+}: {
+  answers: AgentInteractionAnswer[];
+  interactionId: string;
+  requestId: string;
+}): Promise<void> {
+  const response = await fetch(
+    agentApiUrl(
+      `api/console/v1/agent/turns/${encodeURIComponent(requestId)}/interactions/${encodeURIComponent(interactionId)}/answer`
+    ),
+    {
+      body: JSON.stringify({ answers }),
+      headers: agentHeaders("application/json", true),
       method: "POST",
     }
   );
@@ -639,7 +719,8 @@ function agentBootstrap(value: unknown): AgentBootstrap {
     typeof capabilities.cancel !== "boolean" ||
     typeof capabilities.edit !== "boolean" ||
     typeof capabilities.sessionList !== "boolean" ||
-    typeof capabilities.sessionRead !== "boolean"
+    typeof capabilities.sessionRead !== "boolean" ||
+    typeof capabilities.userInteraction !== "boolean"
   ) {
     throw new TypeError("Agent bootstrap capabilities are malformed");
   }
@@ -660,6 +741,7 @@ function agentBootstrap(value: unknown): AgentBootstrap {
       edit: capabilities.edit,
       sessionList: capabilities.sessionList,
       sessionRead: capabilities.sessionRead,
+      userInteraction: capabilities.userInteraction,
     },
     mode: object.mode,
     profile: object.profile,
@@ -668,6 +750,58 @@ function agentBootstrap(value: unknown): AgentBootstrap {
       allowed: tools.allowed,
       available: tools.available.map(agentToolSummary),
     },
+  };
+}
+
+function agentPendingInteraction(value: unknown): AgentPendingInteraction {
+  const object = requiredObject(value, "Agent pending interaction");
+  if (
+    typeof object.interactionId !== "string" ||
+    !Array.isArray(object.questions)
+  ) {
+    throw new TypeError("Agent pending interaction is malformed");
+  }
+  return {
+    interactionId: object.interactionId,
+    questions: object.questions.map(agentInteractionQuestion),
+  };
+}
+
+function agentInteractionQuestion(value: unknown): AgentInteractionQuestion {
+  const object = requiredObject(value, "Agent interaction question");
+  if (
+    typeof object.header !== "string" ||
+    typeof object.multiSelect !== "boolean" ||
+    !Array.isArray(object.options) ||
+    typeof object.prompt !== "string" ||
+    typeof object.questionId !== "string"
+  ) {
+    throw new TypeError("Agent interaction question is malformed");
+  }
+  return {
+    header: object.header,
+    multiSelect: object.multiSelect,
+    options: object.options.map(agentInteractionOption),
+    prompt: object.prompt,
+    questionId: object.questionId,
+  };
+}
+
+function agentInteractionOption(value: unknown): AgentInteractionOption {
+  const object = requiredObject(value, "Agent interaction option");
+  if (
+    typeof object.description !== "string" ||
+    typeof object.label !== "string" ||
+    typeof object.optionId !== "string" ||
+    !(object.preview === null || typeof object.preview === "string")
+  ) {
+    throw new TypeError("Agent interaction option is malformed");
+  }
+  return {
+    description: object.description,
+    label: object.label,
+    optionId: object.optionId,
+    ...(typeof object.preview === "string" ? { preview: object.preview } : {}),
   };
 }
 

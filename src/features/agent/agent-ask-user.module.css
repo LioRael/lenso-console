@@ -1,0 +1,202 @@
+.card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 14px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 10px;
+  background: var(--color-surface-panel);
+  box-shadow:
+    0 3px 6px -2px lch(0 0 0 / 2%),
+    0 1px 1px lch(0 0 0 / 4%);
+  animation: reveal 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.header > div {
+  min-width: 0;
+}
+
+.eyebrow,
+.progress {
+  color: var(--color-content-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.prompt {
+  margin: 2px 0 0;
+  color: var(--color-content-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 19px;
+}
+
+.progress {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.options {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.option,
+.other {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 9px;
+  border: 0.5px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-content-primary);
+  font: inherit;
+  text-align: left;
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease;
+}
+
+.option:hover,
+.other:hover {
+  background: var(--color-surface-interactive-hover);
+}
+
+.option[data-selected="true"],
+.other[data-active="true"] {
+  border-color: var(--color-border-secondary);
+  background: var(--color-surface-selected);
+}
+
+.indicator,
+.otherIndicator {
+  display: grid;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  place-items: center;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 999px;
+  color: var(--color-content-inverse);
+}
+
+.indicator[data-multiple="true"] {
+  border-radius: 4px;
+}
+
+.option[data-selected="true"] .indicator {
+  border-color: lch(53 52.26 286.91);
+  background: lch(53 52.26 286.91);
+}
+
+.optionCopy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.optionCopy strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.optionCopy > span {
+  color: var(--color-content-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.preview {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 7px;
+  overflow: hidden;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 5px;
+  background: var(--color-surface-canvas);
+  color: var(--color-content-secondary);
+  font-size: 10px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: pre-wrap;
+}
+
+.other {
+  align-items: center;
+}
+
+.other input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-content-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.other input::placeholder {
+  color: var(--color-content-tertiary);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--color-border-tertiary);
+}
+
+.back,
+.cancel {
+  color: var(--color-content-tertiary);
+}
+
+.continue {
+  margin-left: auto;
+}
+
+.card[data-compact="true"] {
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.card[data-compact="true"] .options {
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+@keyframes reveal {
+  from {
+    transform: translateY(4px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}

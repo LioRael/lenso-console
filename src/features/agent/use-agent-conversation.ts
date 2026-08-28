@@ -8,17 +8,21 @@ import {
 } from "react";
 
 import {
+  answerAgentInteraction,
   cancelAgentTurn,
   projectAgentSession,
   readAgentBootstrap,
   readAgentSession,
   readAgentTrajectory,
+  readPendingAgentInteractions,
   streamAgentTurn,
   type AgentStreamMessage,
   type AgentStreamEvent,
   type AgentToolCall,
   type AgentTrajectory,
   type AgentTurn,
+  type AgentInteractionAnswer,
+  type AgentPendingInteraction,
 } from "./agent-runtime";
 
 type ActiveTurn = {
@@ -81,11 +85,15 @@ export function useAgentConversation({
   const [draft, setDraft] = useState("");
   const [canEdit, setCanEdit] = useState(false);
   const [canCancel, setCanCancel] = useState(false);
+  const [canUserInteraction, setCanUserInteraction] = useState(false);
   const [editingTurnId, setEditingTurnId] = useState<string>();
   const [turns, setTurns] = useState<AgentTurn[]>([]);
   const [trajectory, setTrajectory] = useState<AgentTrajectory>();
   const [runtimeError, setRuntimeError] = useState<string>();
   const [isRunning, setIsRunning] = useState(false);
+  const [isAnsweringInteraction, setIsAnsweringInteraction] = useState(false);
+  const [pendingInteraction, setPendingInteraction] =
+    useState<AgentPendingInteraction>();
   const [sessionId, setSessionId] = useState(initialSessionId);
   const activeTurn = useRef<ActiveTurn | undefined>(undefined);
   const sessionIdRef = useRef(initialSessionId);
@@ -101,10 +109,12 @@ export function useAgentConversation({
       if (bootstrap) {
         setCanCancel(bootstrap.capabilities.cancel);
         setCanEdit(bootstrap.capabilities.edit);
+        setCanUserInteraction(bootstrap.capabilities.userInteraction);
         return;
       }
       setCanCancel(false);
       setCanEdit(false);
+      setCanUserInteraction(false);
     });
     return () => controller.abort();
   }, []);
@@ -113,6 +123,8 @@ export function useAgentConversation({
     activeTurn.current?.controller.abort();
     activeTurn.current = undefined;
     setIsRunning(false);
+    setIsAnsweringInteraction(false);
+    setPendingInteraction(undefined);
     sessionIdRef.current = initialSessionId;
     setSessionId(initialSessionId);
     setDraft("");
@@ -180,6 +192,19 @@ export function useAgentConversation({
     ]);
 
     const runSubmittedTurn = async () => {
+      let turnFinished = false;
+      const interactionPolling = canUserInteraction
+        ? pollPendingInteraction({
+            apply: (interaction) => {
+              if (activeTurn.current?.requestId === requestId) {
+                setPendingInteraction(interaction);
+              }
+            },
+            isFinished: () => turnFinished,
+            requestId,
+            signal: controller.signal,
+          })
+        : Promise.resolve();
       try {
         await streamAgentTurn({
           ...(editedTurnId ? { editTurnId: editedTurnId } : {}),
@@ -224,14 +249,47 @@ export function useAgentConversation({
           )
         );
       } finally {
+        turnFinished = true;
+        await interactionPolling;
         if (activeTurn.current?.controller === controller) {
           activeTurn.current = undefined;
           setIsRunning(false);
+          setIsAnsweringInteraction(false);
+          setPendingInteraction(undefined);
         }
       }
     };
     void runSubmittedTurn();
-  }, [draft, editingTurnId, resolveSession, turns]);
+  }, [canUserInteraction, draft, editingTurnId, resolveSession, turns]);
+
+  const answerInteraction = useCallback(
+    (answers: AgentInteractionAnswer[]) => {
+      const active = activeTurn.current;
+      if (!(active && pendingInteraction && !isAnsweringInteraction)) {
+        return;
+      }
+      const submitAnswer = async () => {
+        setIsAnsweringInteraction(true);
+        setRuntimeError(undefined);
+        try {
+          await answerAgentInteraction({
+            answers,
+            interactionId: pendingInteraction.interactionId,
+            requestId: active.requestId,
+          });
+          if (activeTurn.current?.requestId === active.requestId) {
+            setPendingInteraction(undefined);
+          }
+        } catch (error) {
+          setRuntimeError(errorMessage(error));
+        } finally {
+          setIsAnsweringInteraction(false);
+        }
+      };
+      void submitAnswer();
+    },
+    [isAnsweringInteraction, pendingInteraction]
+  );
 
   const cancelRunningTurn = useCallback(() => {
     const active = activeTurn.current;
@@ -270,6 +328,7 @@ export function useAgentConversation({
 
   return {
     beginEditing,
+    answerInteraction,
     canCancel,
     canEdit,
     cancelEditing,
@@ -277,6 +336,8 @@ export function useAgentConversation({
     draft,
     editingTurnId,
     isRunning,
+    isAnsweringInteraction,
+    pendingInteraction,
     runtimeError,
     sessionId,
     setDraft,
@@ -286,6 +347,37 @@ export function useAgentConversation({
     visibleTurns:
       editingTurnIndex >= 0 ? turns.slice(0, editingTurnIndex) : turns,
   };
+}
+
+async function pollPendingInteraction({
+  apply,
+  isFinished,
+  requestId,
+  signal,
+}: {
+  apply: (interaction: AgentPendingInteraction) => void;
+  isFinished: () => boolean;
+  requestId: string;
+  signal: AbortSignal;
+}) {
+  while (!(signal.aborted || isFinished())) {
+    try {
+      const interactions = await readPendingAgentInteractions(
+        requestId,
+        signal
+      );
+      const [interaction] = interactions;
+      if (interaction) {
+        apply(interaction);
+      }
+    } catch {
+      if (signal.aborted) {
+        return;
+      }
+      // The Turn may not have reached the active runtime actor yet.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 160));
+  }
 }
 
 function handleStreamEvent(

@@ -38,6 +38,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { AgentAskUser } from "./agent-ask-user";
 import { AgentHistoryMenu } from "./agent-history-menu";
 import { AgentMarkdown } from "./agent-markdown";
 import {
@@ -93,6 +94,7 @@ export function AgentPage({ conversationId }: AgentPageProps) {
     [navigate]
   );
   const {
+    answerInteraction,
     beginEditing: beginEditingTurn,
     canCancel,
     canEdit,
@@ -101,6 +103,8 @@ export function AgentPage({ conversationId }: AgentPageProps) {
     draft,
     editingTurnId,
     isRunning,
+    isAnsweringInteraction,
+    pendingInteraction,
     runtimeError,
     sessionId,
     setDraft,
@@ -240,17 +244,27 @@ export function AgentPage({ conversationId }: AgentPageProps) {
               <EditingMessageBar onCancel={cancelEditing} />
             </div>
           </div>
-          <AgentComposer
-            canCancel={canCancel}
-            draft={draft}
-            isRunning={isRunning}
-            onChange={setDraft}
-            onCancel={cancelRunningTurn}
-            onKeyDown={onComposerKeyDown}
-            onSubmit={onSubmit}
-            placeholder="Reply…"
-            ref={textarea}
-          />
+          {pendingInteraction ? (
+            <AgentAskUser
+              canCancel={canCancel}
+              interaction={pendingInteraction}
+              isSubmitting={isAnsweringInteraction}
+              onCancel={cancelRunningTurn}
+              onSubmit={answerInteraction}
+            />
+          ) : (
+            <AgentComposer
+              canCancel={canCancel}
+              draft={draft}
+              isRunning={isRunning}
+              onChange={setDraft}
+              onCancel={cancelRunningTurn}
+              onKeyDown={onComposerKeyDown}
+              onSubmit={onSubmit}
+              placeholder="Reply…"
+              ref={textarea}
+            />
+          )}
         </div>
       ) : null}
     </div>

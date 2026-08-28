@@ -27,6 +27,7 @@ import {
   type KeyboardEvent,
 } from "react";
 
+import { AgentAskUser } from "./agent-ask-user";
 import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
@@ -72,6 +73,7 @@ export function AgentQuickPanel({
 }) {
   const [open, setOpen] = useState(false);
   const {
+    answerInteraction,
     beginEditing: beginEditingTurn,
     canCancel,
     canEdit,
@@ -80,6 +82,8 @@ export function AgentQuickPanel({
     draft,
     editingTurnId,
     isRunning,
+    isAnsweringInteraction,
+    pendingInteraction,
     runtimeError,
     sessionId,
     setDraft,
@@ -319,99 +323,110 @@ export function AgentQuickPanel({
               )}
 
               <div className={styles.composerDock}>
-                <div
-                  className={styles.inputWrapper}
-                  data-editing={isEditing || undefined}
-                >
+                {pendingInteraction ? (
+                  <AgentAskUser
+                    canCancel={canCancel}
+                    compact
+                    interaction={pendingInteraction}
+                    isSubmitting={isAnsweringInteraction}
+                    onCancel={cancelRunningTurn}
+                    onSubmit={answerInteraction}
+                  />
+                ) : (
                   <div
-                    aria-hidden={!isEditing}
-                    className={styles.editingSlot}
-                    data-open={isEditing || undefined}
+                    className={styles.inputWrapper}
+                    data-editing={isEditing || undefined}
                   >
-                    <div className={styles.editingSlotContent}>
-                      <EditingMessageBar compact onCancel={cancelEditing} />
+                    <div
+                      aria-hidden={!isEditing}
+                      className={styles.editingSlot}
+                      data-open={isEditing || undefined}
+                    >
+                      <div className={styles.editingSlotContent}>
+                        <EditingMessageBar compact onCancel={cancelEditing} />
+                      </div>
                     </div>
-                  </div>
-                  <Surface
-                    className={styles.composer}
-                    level="panel"
-                    render={<form onSubmit={onSubmit} />}
-                  >
-                    <textarea
-                      aria-label="Send a message to Lenso Agent"
-                      autoFocus
-                      className={styles.textarea}
-                      onChange={(event) => setDraft(event.target.value)}
-                      onKeyDown={onComposerKeyDown}
-                      placeholder={
-                        hasConversation
-                          ? "Reply…"
-                          : "@ to mention any App, Plugin, or workspace"
-                      }
-                      ref={textareaRef}
-                      rows={1}
-                      value={draft}
-                    />
-                    <div className={styles.composerFooter}>
-                      <Button
-                        aria-label="Skills"
-                        className={styles.skills}
-                        size="compact"
-                        variant="ghost"
-                      >
-                        <Box aria-hidden="true" size={14} strokeWidth={1.6} />
-                        Skills
-                        <ChevronDown
-                          aria-hidden="true"
-                          size={8}
-                          strokeWidth={2}
-                        />
-                      </Button>
-                      <IconButton
-                        aria-label="Attach images, files, or videos"
-                        className={styles.attach}
-                        size="compact"
-                        variant="ghost"
-                      >
-                        <Paperclip
-                          aria-hidden="true"
-                          size={14}
-                          strokeWidth={1.7}
-                        />
-                      </IconButton>
-                      <IconButton
-                        aria-label={
-                          isRunning ? "Stop generating" : "Submit comment"
+                    <Surface
+                      className={styles.composer}
+                      level="panel"
+                      render={<form onSubmit={onSubmit} />}
+                    >
+                      <textarea
+                        aria-label="Send a message to Lenso Agent"
+                        autoFocus
+                        className={styles.textarea}
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={onComposerKeyDown}
+                        placeholder={
+                          hasConversation
+                            ? "Reply…"
+                            : "@ to mention any App, Plugin, or workspace"
                         }
-                        className={styles.submit}
-                        data-active={
-                          (isRunning ? canCancel : Boolean(draft.trim())) ||
-                          undefined
-                        }
-                        disabled={isRunning ? !canCancel : !draft.trim()}
-                        onClick={isRunning ? cancelRunningTurn : undefined}
-                        size="compact"
-                        type={isRunning ? "button" : "submit"}
-                        variant="secondary"
-                      >
-                        {isRunning ? (
-                          <Square
+                        ref={textareaRef}
+                        rows={1}
+                        value={draft}
+                      />
+                      <div className={styles.composerFooter}>
+                        <Button
+                          aria-label="Skills"
+                          className={styles.skills}
+                          size="compact"
+                          variant="ghost"
+                        >
+                          <Box aria-hidden="true" size={14} strokeWidth={1.6} />
+                          Skills
+                          <ChevronDown
                             aria-hidden="true"
-                            fill="currentColor"
                             size={8}
-                            strokeWidth={0}
+                            strokeWidth={2}
                           />
-                        ) : (
-                          <ArrowUp
+                        </Button>
+                        <IconButton
+                          aria-label="Attach images, files, or videos"
+                          className={styles.attach}
+                          size="compact"
+                          variant="ghost"
+                        >
+                          <Paperclip
                             aria-hidden="true"
-                            size={16}
+                            size={14}
                             strokeWidth={1.7}
                           />
-                        )}
-                      </IconButton>
-                    </div>
-                  </Surface>
-                </div>
+                        </IconButton>
+                        <IconButton
+                          aria-label={
+                            isRunning ? "Stop generating" : "Submit comment"
+                          }
+                          className={styles.submit}
+                          data-active={
+                            (isRunning ? canCancel : Boolean(draft.trim())) ||
+                            undefined
+                          }
+                          disabled={isRunning ? !canCancel : !draft.trim()}
+                          onClick={isRunning ? cancelRunningTurn : undefined}
+                          size="compact"
+                          type={isRunning ? "button" : "submit"}
+                          variant="secondary"
+                        >
+                          {isRunning ? (
+                            <Square
+                              aria-hidden="true"
+                              fill="currentColor"
+                              size={8}
+                              strokeWidth={0}
+                            />
+                          ) : (
+                            <ArrowUp
+                              aria-hidden="true"
+                              size={16}
+                              strokeWidth={1.7}
+                            />
+                          )}
+                        </IconButton>
+                      </div>
+                    </Surface>
+                  </div>
+                )}
               </div>
             </div>
           </Dialog.Popup>
