@@ -54,6 +54,47 @@ The shell, sidebar, toolbar, page header, filter band, split workspace, table ge
 
 final result: passed
 
+---
+
+# Codex-style Agent Tool activity Design QA
+
+## Evidence
+
+- Source visual truth: `/var/folders/hp/q9psfx3j2l58mrp6g7d8x8000000gn/T/codex-clipboard-0660fb4f-3a71-4e74-990a-571364abceeb.png`, `/var/folders/hp/q9psfx3j2l58mrp6g7d8x8000000gn/T/codex-clipboard-9007abd0-ec66-4e4c-8d8f-e7b4efad05e4.png`, `/var/folders/hp/q9psfx3j2l58mrp6g7d8x8000000gn/T/codex-clipboard-426360d3-895d-4df8-89e6-401aeadecadb.png`, and `/var/folders/hp/q9psfx3j2l58mrp6g7d8x8000000gn/T/codex-clipboard-af0fa457-25d5-4b1c-a514-01319b218bce.png`.
+- Implementation route: `http://127.0.0.1:5174/agent/4df5b361-4752-4b95-8154-6f0e26b48df9`.
+- Implementation screenshots: `/tmp/lenso-tool-default.png`, `/tmp/lenso-tool-hover.png`, `/tmp/lenso-tool-expanded-hover.png`, and `/tmp/lenso-tool-expanded.png`.
+- Combined comparisons: `/tmp/lenso-tool-hover-comparison.png`, `/tmp/lenso-tool-expanded-hover-comparison.png`, and `/tmp/lenso-tool-expanded-comparison.png`.
+- Browser viewport: 868 × 801 CSS px at device scale 1. Focused implementation crops are 260 × 58 and 360 × 112 px.
+- Source crops are 380 × 94, 668 × 202, and 680 × 338 px. Comparisons normalize the implementation crops to the corresponding source height; theme color is intentionally not normalized because Lenso remains in its light theme.
+- States: collapsed/default, collapsed/hover, expanded/hover, and expanded/default.
+
+## Comparison history and fixes
+
+- Earlier P1: every Tool rendered as a bordered card with a surface fill, monospace name, detached status label, and raw JSON sections. This materially differed from Codex's quiet inline activity hierarchy.
+- Fix: remove the card border, fill, radius, status badge, raw payload blocks, and permanent chevron; use one muted activity line with a real library icon and reveal its right chevron only on hover or while open.
+- Earlier P2: expanded content retained a panel divider and Input/Result framing. Fix: project arguments and result metadata into compact, truncated child activity rows using tool-specific library icons.
+- Earlier P2: pointer expansion exposed a rectangular focus ring absent from the supplied hover/open reference. Fix: retain focus feedback through foreground contrast and chevron visibility without drawing a box around the row.
+- Post-fix evidence: the combined crops show the same icon/text/chevron sequence, quiet default state, hover-only closed chevron, persistent open chevron, and two-row expanded hierarchy as the references.
+
+## Fidelity surfaces
+
+- Fonts and typography: Lenso's existing interface font is retained at 13 px / 20 px with regular weight; activity and child rows now share one typographic rhythm instead of mixing code and status styles.
+- Spacing and layout rhythm: the row is 26 px high with a 9 px icon gap, no surrounding card chrome, 2 px child-row rhythm, and content-width hover target matching the source structure.
+- Colors and visual tokens: Lenso tertiary content is used at rest and primary content on hover/focus. The supplied dark-theme colors are mapped semantically rather than copied into the light Console theme.
+- Image quality and icon fidelity: Wrench, Search, List, FileText, Image, Terminal, and chevron marks are vector icons from the project's existing Lucide dependency; no text-glyph or CSS-drawn icon remains.
+- Copy and content: raw JSON is replaced with readable activity copy such as `Loaded skill`, `Read ask-matt skill`, and a truncated resolved version. Full values remain available through native title text where truncation occurs.
+
+## Verification
+
+- Tested collapsed/default, collapsed/hover, expanded/hover, and expanded/default interaction states in the running Console.
+- A fresh browser tab reported no console errors.
+- Focused TypeScript, formatting, runtime projection tests, and React diagnostics were run after implementation.
+
+## Findings
+
+No actionable P0, P1, or P2 visual mismatch remains for the scoped Tool activity component. The dark-to-light theme mapping and different tool-specific copy are intentional product constraints.
+
+final result: passed
 # Agent quick-panel composer edge Design QA — Pass 14 initial
 
 ## Finding
@@ -854,5 +895,51 @@ final result: passed
 - The source and local editing wrapper, bar, composer, cancel control, and icon coordinates match after normalizing for viewport position.
 
 ## Final result
+
+final result: passed
+
+---
+
+# Agent work-status design QA
+
+- Source visual truth: `/tmp/linear-agent-work-reference.png`
+- Implementation screenshots: `/tmp/lenso-agent-work-implementation.png` and `/tmp/lenso-agent-ordinary-implementation.png`
+- Combined comparison: `/tmp/agent-work-comparison.png`
+- Viewport: 1280 × 720 CSS px at device scale 1
+- Image dimensions: source and implementation are both 1280 × 720; no density normalization was required
+- State: completed tool-backed Turn and completed ordinary Turn
+
+## Full-view comparison evidence
+
+The side-by-side comparison confirms that a tool-backed Turn renders a quiet inline `Worked for 7 seconds ›` disclosure above the answer, matching Linear's hierarchy and placement. The ordinary Lenso Turn was separately captured and contains no work-status disclosure.
+
+## Focused region comparison evidence
+
+The work-status row is legible at full-view scale, so an additional crop was not required. The attached user reference `/var/folders/hp/q9psfx3j2l58mrp6g7d8x8000000gn/T/codex-clipboard-d37a238f-76c1-4080-a2eb-bf281e1313f7.png` confirms the intended muted label and chevron treatment.
+
+## Fidelity surfaces
+
+- Fonts and typography: existing Console typography remains unchanged; the label uses the established 12 px muted work-row style and Linear-compatible sentence casing.
+- Spacing and layout rhythm: the disclosure remains in the existing pre-answer slot; ordinary replies no longer reserve an empty row.
+- Colors and visual tokens: existing tertiary-content token is retained and matches the quiet source hierarchy.
+- Image quality and assets: no image assets are involved; the existing CSS chevron remains sharp at native density.
+- Copy and content: tool-backed work now reads `Worked for N seconds`; ordinary model replies no longer read `Completed`.
+
+## Comparison history
+
+- Earlier P1: every completed Turn rendered `Completed ›`, including ordinary replies with no operator-visible work.
+- Fix: attach work metadata only to reasoning/tool activity, persist tool-backed work from durable Session events, calculate its duration, and conditionally render the disclosure.
+- Post-fix evidence: ordinary reply has zero `details` elements; the tool-backed reply has one disclosure labeled `Worked for 7 seconds`.
+
+## Findings
+
+No actionable P0, P1, or P2 mismatch remains for the scoped work-status component.
+
+## Implementation checklist
+
+- [x] Hide work status for ordinary replies.
+- [x] Keep work status for real Agent reasoning/tool activity.
+- [x] Use the durable Turn timestamps for the completed duration.
+- [x] Preserve running, failed, and cancelled labels when work exists.
 
 final result: passed

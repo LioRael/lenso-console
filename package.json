@@ -43,6 +43,7 @@
     "@gsap/react": "^2.1.2",
     "@lenso/tokens": "0.4.0",
     "@lenso/ui": "0.4.0",
+    "@streamdown/cjk": "^1.0.3",
     "@stylexjs/stylex": "0.19.0",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-router": "^1.170.21",
@@ -53,6 +54,7 @@
     "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "streamdown": "^2.6.0",
     "vite": "^8.2.0"
   },
   "devDependencies": {

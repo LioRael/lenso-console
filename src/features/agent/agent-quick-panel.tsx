@@ -13,6 +13,7 @@ import {
   MousePointer2,
   Paperclip,
   Search,
+  Square,
   UsersRound,
   X,
 } from "lucide-react";
@@ -26,11 +27,15 @@ import {
   type KeyboardEvent,
 } from "react";
 
+import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
 import agentPointerGradient from "./agent-pointer-gradient.svg";
+import type { AgentTurn } from "./agent-runtime";
+import { AgentShimmerText } from "./agent-shimmer-text";
+import { useAgentConversation } from "./use-agent-conversation";
 
 import styles from "./agent-quick-panel.module.css";
 
@@ -39,12 +44,6 @@ const suggestions = [
   { icon: Search, label: "Research a topic" },
   { icon: UsersRound, label: "Set up new team" },
 ] as const;
-
-type QuickMessage = {
-  content: string;
-  id: number;
-  role: "assistant" | "user";
-};
 
 function chatTitleFor(prompt: string) {
   const normalizedPrompt = (prompt.split(/[.!?]/u)[0] || prompt).replace(
@@ -59,13 +58,6 @@ function chatTitleFor(prompt: string) {
   return words.join(" ") || "New chat";
 }
 
-function mockReplyFor(prompt: string) {
-  if (/\bhello\b/iu.test(prompt)) {
-    return "hello";
-  }
-  return "I’m ready to help with that. Agent execution will appear here once it is connected.";
-}
-
 function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -76,24 +68,32 @@ function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
 export function AgentQuickPanel({
   onOpenFullPage,
 }: {
-  onOpenFullPage: () => void;
+  onOpenFullPage: (sessionId?: string) => void;
 }) {
-  const [draft, setDraft] = useState("");
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<QuickMessage[]>([]);
-  const [thinking, setThinking] = useState(false);
-  const [title, setTitle] = useState("New chat");
-  const [createdAt, setCreatedAt] = useState("");
-  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
-  const replyDraft = useRef("");
+  const {
+    beginEditing: beginEditingTurn,
+    canCancel,
+    canEdit,
+    cancelEditing: cancelEditingTurn,
+    cancelRunningTurn,
+    draft,
+    editingTurnId,
+    isRunning,
+    runtimeError,
+    sessionId,
+    setDraft,
+    submit,
+    turns,
+    visibleTurns,
+  } = useAgentConversation();
   const conversationRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const nextMessageId = useRef(0);
-  const timers = useRef<number[]>([]);
 
-  const hasConversation = messages.length > 0 || thinking;
-  const isEditing = editingMessageId !== null;
+  const hasConversation = turns.length > 0 || isRunning;
+  const isEditing = Boolean(editingTurnId);
   const showWelcome = !hasConversation && !draft.trim();
+  const title = turns[0]?.user ? chatTitleFor(turns[0].user) : "New chat";
 
   const resizeTextarea = useCallback(() => {
     const textarea = textareaRef.current;
@@ -114,107 +114,26 @@ export function AgentQuickPanel({
     resizeTextarea();
   }, [draft, resizeTextarea]);
 
-  useEffect(
-    () => () => {
-      timers.current.forEach((timer) => window.clearTimeout(timer));
-    },
-    []
-  );
-
   useEffect(() => {
     const conversation = conversationRef.current;
     if (conversation) {
       conversation.scrollTop = conversation.scrollHeight;
     }
-  }, [messages, thinking]);
+  }, [isRunning, visibleTurns]);
 
-  const submit = (event: FormEvent) => {
+  const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const prompt = draft.trim();
-    if (!prompt || thinking) {
-      return;
-    }
-    if (editingMessageId !== null) {
-      const editedMessageIndex = messages.findIndex(
-        (message) => message.id === editingMessageId
-      );
-      if (editedMessageIndex === -1) {
-        return;
-      }
-      const retainedMessages = messages.slice(0, editedMessageIndex);
-      const editedMessage = messages[editedMessageIndex];
-      if (!editedMessage) {
-        return;
-      }
-      setMessages([...retainedMessages, { ...editedMessage, content: prompt }]);
-      setEditingMessageId(null);
-      setDraft(replyDraft.current);
-      setThinking(true);
-      timers.current.push(
-        window.setTimeout(() => {
-          const assistantMessageId = nextMessageId.current;
-          nextMessageId.current += 1;
-          setMessages((current) => [
-            ...current,
-            {
-              content: mockReplyFor(prompt),
-              id: assistantMessageId,
-              role: "assistant",
-            },
-          ]);
-          setThinking(false);
-        }, 1100)
-      );
-      return;
-    }
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      hour12: false,
-      minute: "2-digit",
-    }).format(new Date());
-    setCreatedAt((current) => current || `Today ${time}`);
-    const userMessageId = nextMessageId.current;
-    nextMessageId.current += 1;
-    setMessages((current) => [
-      ...current,
-      { content: prompt, id: userMessageId, role: "user" },
-    ]);
-    setDraft("");
-    setThinking(true);
+    submit();
     window.requestAnimationFrame(() => textareaRef.current?.focus());
-
-    if (messages.length === 0) {
-      timers.current.push(
-        window.setTimeout(() => setTitle(chatTitleFor(prompt)), 300)
-      );
-    }
-    timers.current.push(
-      window.setTimeout(() => {
-        const assistantMessageId = nextMessageId.current;
-        nextMessageId.current += 1;
-        setMessages((current) => [
-          ...current,
-          {
-            content: mockReplyFor(prompt),
-            id: assistantMessageId,
-            role: "assistant",
-          },
-        ]);
-        setThinking(false);
-      }, 1100)
-    );
   };
 
-  const beginEditing = (message: QuickMessage) => {
-    replyDraft.current = draft;
-    setEditingMessageId(message.id);
-    setDraft(message.content);
+  const beginEditing = (turn: AgentTurn) => {
+    beginEditingTurn(turn);
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   const cancelEditing = () => {
-    setEditingMessageId(null);
-    setDraft(replyDraft.current);
+    cancelEditingTurn();
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -275,7 +194,7 @@ export function AgentQuickPanel({
                   aria-label="Open full page"
                   onClick={() => {
                     setOpen(false);
-                    onOpenFullPage();
+                    onOpenFullPage(sessionId);
                   }}
                   size="default"
                   variant="ghost"
@@ -354,33 +273,47 @@ export function AgentQuickPanel({
                   className={styles.conversation}
                   ref={conversationRef}
                 >
-                  {createdAt ? (
-                    <time className={styles.conversationTime}>{createdAt}</time>
-                  ) : null}
-                  {messages.map((message) =>
-                    message.role === "user" ? (
-                      <div className={styles.userTurn} key={message.id}>
-                        <div className={styles.userMessage}>
-                          {message.content}
-                        </div>
+                  <time className={styles.conversationTime}>Today</time>
+                  {visibleTurns.map((turn) => (
+                    <div className={styles.quickTurn} key={turn.id}>
+                      <div className={styles.userTurn}>
+                        <div className={styles.userMessage}>{turn.user}</div>
                         <div className={styles.messageActions}>
                           <AgentMessageActions
-                            content={message.content}
-                            onEdit={() => beginEditing(message)}
+                            content={turn.user}
+                            {...(canEdit && turn.status === "completed"
+                              ? { onEdit: () => beginEditing(turn) }
+                              : {})}
                           />
                         </div>
                       </div>
-                    ) : (
-                      <div className={styles.assistantTurn} key={message.id}>
-                        <p>{message.content}</p>
-                        <div className={styles.assistantCopy}>
-                          <AgentMessageActions content={message.content} />
-                        </div>
+                      <div className={styles.assistantTurn}>
+                        {turn.answer ? (
+                          <AgentMarkdown
+                            compact
+                            streaming={turn.status === "running"}
+                          >
+                            {turn.answer}
+                          </AgentMarkdown>
+                        ) : null}
+                        {turn.status === "running" ? (
+                          <p>
+                            <AgentShimmerText active>Working…</AgentShimmerText>
+                          </p>
+                        ) : null}
+                        {turn.error ? <p>{turn.error}</p> : null}
+                        {turn.answer ? (
+                          <div className={styles.assistantCopy}>
+                            <AgentMessageActions content={turn.answer} />
+                          </div>
+                        ) : null}
                       </div>
-                    )
-                  )}
-                  {thinking ? (
-                    <div className={styles.thinking}>Thinking…</div>
+                    </div>
+                  ))}
+                  {visibleTurns.length === 0 && runtimeError ? (
+                    <div className={styles.assistantTurn}>
+                      <p>{runtimeError}</p>
+                    </div>
                   ) : null}
                 </section>
               )}
@@ -402,7 +335,7 @@ export function AgentQuickPanel({
                   <Surface
                     className={styles.composer}
                     level="panel"
-                    render={<form onSubmit={submit} />}
+                    render={<form onSubmit={onSubmit} />}
                   >
                     <textarea
                       aria-label="Send a message to Lenso Agent"
@@ -447,18 +380,34 @@ export function AgentQuickPanel({
                         />
                       </IconButton>
                       <IconButton
-                        aria-label="Submit comment"
+                        aria-label={
+                          isRunning ? "Stop generating" : "Submit comment"
+                        }
                         className={styles.submit}
-                        data-active={Boolean(draft.trim()) || undefined}
+                        data-active={
+                          (isRunning ? canCancel : Boolean(draft.trim())) ||
+                          undefined
+                        }
+                        disabled={isRunning ? !canCancel : !draft.trim()}
+                        onClick={isRunning ? cancelRunningTurn : undefined}
                         size="compact"
-                        type="submit"
+                        type={isRunning ? "button" : "submit"}
                         variant="secondary"
                       >
-                        <ArrowUp
-                          aria-hidden="true"
-                          size={16}
-                          strokeWidth={1.7}
-                        />
+                        {isRunning ? (
+                          <Square
+                            aria-hidden="true"
+                            fill="currentColor"
+                            size={8}
+                            strokeWidth={0}
+                          />
+                        ) : (
+                          <ArrowUp
+                            aria-hidden="true"
+                            size={16}
+                            strokeWidth={1.7}
+                          />
+                        )}
                       </IconButton>
                     </div>
                   </Surface>

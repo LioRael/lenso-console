@@ -52,125 +52,6 @@
   white-space: nowrap;
 }
 
-.chatMenu {
-  width: 321px;
-  padding: 0 0 5.5px;
-  overflow: hidden;
-  border: 0.5px solid lch(91.9 0 282);
-  border-radius: 12px;
-  background: lch(100 0 282);
-  box-shadow:
-    0 6px 18px lch(0 0 0 / 2%),
-    0 3px 9px lch(0 0 0 / 4%),
-    0 1px 1px lch(0 0 0 / 4%);
-}
-
-.chatSearch {
-  width: 320px;
-  height: 36.5px;
-  padding: 0 12px 0 14px;
-  border-bottom: 0.5px solid lch(91.9 0 282);
-}
-
-.chatSearch input {
-  width: 100%;
-  height: 36px;
-  padding: 10px 0 9px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: lch(20 1 282);
-  font: inherit;
-  font-size: 13px;
-}
-
-.chatSearch input::-webkit-search-cancel-button {
-  display: none;
-}
-
-.chatSearch input::placeholder {
-  color: lch(40 1 282);
-  opacity: 1;
-}
-
-.newChatItem,
-.chatHistoryItem {
-  position: relative;
-  width: 320px;
-  height: 32px;
-  padding: 0 18px 0 14px;
-  border-radius: 0;
-  color: lch(20 1 282);
-  font-size: 13px;
-  line-height: 19.5px;
-}
-
-.newChatItem {
-  margin: 6px 0 0;
-}
-
-.chatHistoryItem {
-  margin-inline: 0;
-}
-
-.newChatItem::before,
-.chatHistoryItem::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0 6px;
-  border-radius: 7px;
-  content: "";
-  pointer-events: none;
-}
-
-.newChatItem:hover,
-.newChatItem[data-highlighted],
-.chatHistoryItem:hover,
-.chatHistoryItem[data-highlighted] {
-  background: transparent;
-}
-
-.newChatItem:hover::before,
-.newChatItem[data-highlighted]::before,
-.chatHistoryItem:hover::before,
-.chatHistoryItem[data-highlighted]::before {
-  background: lch(94.854 0.5 282);
-}
-
-.newChatItem > *,
-.chatHistoryItem > * {
-  position: relative;
-  z-index: 1;
-}
-
-.chatMenu [role="separator"] {
-  height: 12px;
-  padding: 6px 0;
-}
-
-.chatSectionLabel {
-  display: flex;
-  align-items: center;
-  width: 320px;
-  height: 30px;
-  padding: 8px 14px;
-  color: lch(40 1 282);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.chatItemMeta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: lch(66 1 282);
-  white-space: nowrap;
-}
-
-.chatHistoryItem[data-current="true"] .chatItemMeta > :first-child {
-  color: lch(58 1 282);
-}
-
 .headerActions {
   display: flex;
   align-items: center;
@@ -360,20 +241,22 @@
 
 .userMessageGroup {
   display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: flex-end;
   flex-direction: column;
-  justify-self: end;
   margin-bottom: 24px;
 }
 
 .userMessage {
-  justify-self: end;
+  width: fit-content;
   max-width: 76%;
   padding: 9px 12px;
   border-radius: 10px;
   background: var(--color-surface-selected);
   font-size: 13px;
   line-height: 20px;
+  overflow-wrap: anywhere;
 }
 
 .userMessageActions {
@@ -389,39 +272,161 @@
 }
 
 .worked {
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   margin: 0 8px 12px;
   color: var(--color-content-tertiary);
   font-size: 12px;
 }
 
 .worked summary {
+  display: flex;
+  align-items: center;
   width: fit-content;
+  gap: 5px;
   cursor: pointer;
   list-style: none;
 }
 
-.worked summary::after {
-  margin-left: 6px;
-  content: "›";
+.worked summary::-webkit-details-marker {
+  display: none;
 }
 
-.worked[open] summary::after {
-  content: "⌄";
+.workedChevron {
+  display: inline-flex;
+  transform: rotate(0deg);
+  transform-origin: center;
+  transition: transform var(--acc-chevron) var(--acc-ease);
 }
 
-.worked p {
+.worked[open] .workedChevron {
+  transform: rotate(90deg);
+}
+
+.workedBody {
   margin: 10px 0 0 10px;
   padding-left: 12px;
   border-left: 2px solid var(--color-border-secondary);
   line-height: 20px;
 }
 
-.toolResult {
-  display: inline-flex;
+.toolCalls {
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  display: grid;
+  width: min(500px, calc(100% - 16px));
+  gap: 4px;
+  margin: 1px 8px 14px;
+}
+
+.toolCall {
+  min-width: 0;
+}
+
+.toolCall summary {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 10px 0 0 22px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 26px;
+  gap: 9px;
+  padding: 2px 0;
+  color: var(--color-content-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 20px;
+  list-style: none;
+}
+
+.toolCall summary::-webkit-details-marker {
+  display: none;
+}
+
+.toolCall summary:focus {
+  outline: none;
+}
+
+.toolCall summary:focus-visible {
+  color: var(--color-content-primary);
+}
+
+.toolChevron {
+  position: relative;
+  display: grid;
+  width: 14px;
+  height: 14px;
+  margin-left: -2px;
+  color: var(--color-content-tertiary);
+  opacity: 0;
+  transform: translateX(-2px) rotate(0deg);
+  transform-origin: center;
+  transition:
+    opacity 120ms ease,
+    transform var(--acc-chevron) var(--acc-ease);
+}
+
+.toolChevron > svg {
+  position: absolute;
+  inset: 0;
+}
+
+.toolCall[open] .toolChevron {
+  opacity: 1;
+  transform: translateX(0) rotate(90deg);
+}
+
+.toolCall summary:hover,
+.toolCall summary:focus-visible {
+  color: var(--color-content-primary);
+}
+
+.toolCall:not([open]) summary:hover .toolChevron,
+.toolCall:not([open]) summary:focus-visible .toolChevron {
+  opacity: 1;
+  transform: translateX(0) rotate(0deg);
+}
+
+.toolName {
+  overflow: hidden;
+  color: inherit;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolCall[data-status="failed"] summary,
+.toolCall[data-status="not_run"] summary {
+  color: var(--color-status-error-content);
+}
+
+.toolDetails {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 0 0 1px;
+}
+
+.toolDetailRow {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 24px;
+  gap: 9px;
   color: var(--color-content-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.toolDetailRow > svg {
+  flex: 0 0 auto;
+}
+
+.toolDetailRow > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .assistantMessage {
@@ -430,49 +435,8 @@
   line-height: 22px;
 }
 
-.assistantMessage p {
+.assistantMessage > p {
   margin: 0 0 12px;
-}
-
-.resultCard {
-  width: min(500px, calc(100% - 16px));
-  margin: 2px 8px 6px;
-  padding: 10px 12px;
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: 7px;
-}
-
-.resultTitle,
-.resultMeta,
-.resultMeta span {
-  display: flex;
-  align-items: center;
-}
-
-.resultTitle {
-  gap: 7px;
-  padding-bottom: 9px;
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-  font-size: 13px;
-}
-
-.resultMeta {
-  flex-wrap: wrap;
-  gap: 16px;
-  padding-top: 9px;
-  color: var(--color-content-tertiary);
-  font-size: 11px;
-}
-
-.resultMeta span {
-  gap: 6px;
-}
-
-.statusRing {
-  width: 12px;
-  height: 12px;
-  border: 1.5px dotted var(--color-status-success-content);
-  border-radius: 50%;
 }
 
 .copyMessage {
@@ -623,7 +587,7 @@
     max-width: 88%;
   }
 
-  .resultCard {
+  .toolCalls {
     width: calc(100% - 16px);
   }
 }
@@ -635,6 +599,14 @@
   }
 
   .suggestion {
+    transition: none;
+  }
+
+  .toolChevron {
+    transition: none;
+  }
+
+  .workedChevron {
     transition: none;
   }
 }

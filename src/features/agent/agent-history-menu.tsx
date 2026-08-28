@@ -5,6 +5,8 @@ import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 
 import { listAgentSessions, type AgentSessionSummary } from "./agent-runtime";
 
+import styles from "./agent-history-menu.module.css";
+
 type HistoryClasses = {
   item?: string | undefined;
   meta?: string | undefined;
@@ -14,14 +16,44 @@ type HistoryClasses = {
 
 const emptyHistoryClasses: HistoryClasses = {};
 
-export function AgentHistoryMenu({ children }: { children: ReactNode }) {
+export function AgentHistoryMenu({
+  children,
+  currentSessionId,
+  placement = "utility",
+}: {
+  children: ReactNode;
+  currentSessionId?: string | undefined;
+  placement?: "header" | "utility";
+}) {
+  const headerPlacement = placement === "header";
+  const [refreshKey, setRefreshKey] = useState(0);
   return (
-    <Menu.Root>
+    <Menu.Root
+      onOpenChange={(open) => {
+        if (open) {
+          setRefreshKey((current) => current + 1);
+        }
+      }}
+    >
       <Menu.Trigger render={children as ReactElement} />
       <Menu.Portal>
-        <Menu.Positioner align="end" side="top" sideOffset={6}>
-          <Menu.Popup aria-label="Agent history">
-            <AgentHistoryItems />
+        <Menu.Positioner
+          align={headerPlacement ? "start" : "end"}
+          alignOffset={headerPlacement ? 8.5 : 0}
+          side={headerPlacement ? "bottom" : "top"}
+          sideOffset={headerPlacement ? 3.5 : 6}
+        >
+          <Menu.Popup aria-label="Chat history" className={styles.menu}>
+            <AgentHistoryItems
+              classes={{
+                item: styles.item,
+                meta: styles.meta,
+                newChat: styles.newChat,
+                section: styles.section,
+              }}
+              currentSessionId={currentSessionId}
+              refreshKey={refreshKey}
+            />
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
@@ -32,9 +64,11 @@ export function AgentHistoryMenu({ children }: { children: ReactNode }) {
 export function AgentHistoryItems({
   classes = emptyHistoryClasses,
   currentSessionId,
+  refreshKey = 0,
 }: {
   classes?: HistoryClasses;
   currentSessionId?: string | undefined;
+  refreshKey?: number;
 }) {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<AgentSessionSummary[]>([]);
@@ -50,7 +84,7 @@ export function AgentHistoryItems({
     };
     void loadSessions();
     return () => controller.abort();
-  }, []);
+  }, [refreshKey]);
 
   const today = sessions.filter((session) => isToday(session.updatedAt));
   const earlier = sessions.filter((session) => !isToday(session.updatedAt));
