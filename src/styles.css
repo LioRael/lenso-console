@@ -1,64 +1,10 @@
 /* Host-only page contracts. Component primitives are authored and compiled by
  * StyleX; document reset/base styles live in their own layers. */
 @layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;
-@import "../packages/console-ui/tokens.css";
 @import "./styles-reset.css";
 @import "./styles-base.css";
 
-/* Transitional host aliases for pages that are still moving from the former
- * Console primitives. Lenso UI semantic tokens remain the color authority. */
 :root {
-  --font-ui: var(--font-sans);
-  --font-code: var(--font-mono);
-  --bg-canvas: var(--color-surface-canvas);
-  --bg-window: var(--color-surface-canvas);
-  --bg-sidebar: var(--color-surface-sidebar);
-  --bg-chrome: var(--color-surface-surface);
-  --bg-surface: var(--color-surface-surface);
-  --bg-surface-raised: var(--color-surface-elevated);
-  --bg-surface-muted: var(--color-surface-subtle);
-  --bg-panel: var(--color-surface-panel);
-  --bg-panel-muted: var(--color-surface-subtle);
-  --bg-panel-header: var(--color-surface-subtle);
-  --bg-row-hover: var(--color-surface-interactive-hover);
-  --bg-row-selected: var(--color-surface-selected);
-  --bg-control: var(--color-surface-control);
-  --bg-control-hover: var(--color-surface-overlay-hover);
-  --bg-control-active: var(--color-surface-level3);
-  --bg-overlay: var(--color-surface-popover);
-  --fg-primary: var(--color-content-primary);
-  --fg-secondary: var(--color-content-secondary);
-  --fg-tertiary: var(--color-content-tertiary);
-  --fg-quaternary: var(--color-content-tertiary);
-  --fg-on-accent: var(--color-action-primary-content);
-  --fg-inverse: var(--color-content-inverse);
-  --line-subtle: var(--color-border-tertiary);
-  --line: var(--color-border-tertiary);
-  --line-strong: var(--color-border-secondary);
-  --accent: var(--color-action-primary);
-  --accent-hover: var(--color-action-primary-hover);
-  --accent-muted: var(--color-surface-selected);
-  --accent-foreground: var(--color-action-primary-content);
-  --success: var(--color-status-success-content);
-  --warning: var(--color-status-warning-content);
-  --error: var(--color-status-error-content);
-  --info: var(--color-status-info-content);
-  --tone-muted-bg: var(--color-surface-subtle);
-  --tone-muted-border: var(--color-border-tertiary);
-  --tone-muted-fg: var(--color-content-secondary);
-  --tone-info-bg: var(--color-surface-subtle);
-  --tone-info-border: var(--color-border-tertiary);
-  --tone-info-fg: var(--color-status-info-content);
-  --tone-success-bg: var(--color-surface-subtle);
-  --tone-success-border: var(--color-border-tertiary);
-  --tone-success-fg: var(--color-status-success-content);
-  --tone-warning-bg: var(--color-surface-subtle);
-  --tone-warning-border: var(--color-border-tertiary);
-  --tone-warning-fg: var(--color-status-warning-content);
-  --tone-error-bg: var(--color-status-error-surface);
-  --tone-error-border: var(--color-status-error-border);
-  --tone-error-fg: var(--color-status-error-content);
-  --focus-ring-muted: var(--color-border-control-focus);
   --shimmer-dur: 2000ms;
   --shimmer-base: var(--color-content-tertiary);
   --shimmer-highlight: var(--color-content-primary);
@@ -104,101 +50,9 @@
   }
 }
 
-[data-page-slot~="product-page__body"] {
-  overflow: visible;
-}
-
-[data-page~="services-page"] [data-page-slot~="product-page__body"] {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 144px);
-  min-height: 0;
-  overflow: hidden;
-  padding-bottom: 0;
-}
-
-[data-page~="services-page"] [data-ui~="page__description"] {
-  color: var(--fg-secondary);
-}
-
-[data-page~="services-page"] [data-ui~="page__actions"] {
-  color: var(--fg-tertiary);
-  font-size: 11px;
-  line-height: 16px;
-  white-space: nowrap;
-}
-
-[data-page-slot~="services-page__workspace"] {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-[data-page~="services-page"] [data-ui~="inline-status"] {
-  column-gap: 8px;
-}
-
-[data-page~="services-page"],
-[data-page-slot~="services-page__workspace"] [data-ui~="split-view__main"] {
-  overscroll-behavior-y: none;
-}
-
-[data-page-slot~="services-page__workspace"] [data-ui~="split-view__main"] {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-[data-page-slot~="services-page__filters"]
-  [data-page-slot~="services-filter-control"]:nth-child(1) {
-  width: 126px;
-}
-
-[data-page-slot~="services-page__filters"]
-  [data-page-slot~="services-filter-control"]:nth-child(2) {
-  width: 93px;
-}
-
-[data-page-slot~="services-page__filters"]
-  [data-page-slot~="services-filter-control"]:nth-child(3) {
-  width: 101px;
-}
-
-[data-page-slot~="services-page__filters"] {
-  flex: 0 0 48px;
-}
-
-[data-page-slot~="services-page__empty"] {
-  display: grid;
-  min-width: 732px;
-  min-height: 64px;
-  place-items: center;
-  color: var(--fg-tertiary);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-[data-page-slot~="product-split-workspace"] {
-  border-top: 0;
-}
-
-[data-page~="product-page"] [data-ui~="page__header"],
-[data-page~="services-page"] [data-ui~="page__header"] {
-  border-bottom: 0;
-}
-
-[data-page-slot~="product-page__filters"] {
-  border-top: 1px solid var(--line-subtle);
-  border-bottom: 1px solid var(--line-subtle);
-}
-
-[data-page~="services-page"]
-  [data-page-slot~="system-connection-page__workspace"] {
-  border-top: 1px solid var(--line-subtle);
-}
-
 code,
 pre {
-  font-family: var(--font-code);
+  font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 a {
@@ -222,51 +76,6 @@ code,
 [contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
-}
-
-[data-runtime-page="true"] {
-  min-width: 0;
-}
-
-[data-runtime-slot~="workbench"] {
-  min-width: 0;
-}
-
-[data-runtime-slot~="explorer"],
-[data-runtime-slot~="main"] {
-  min-width: 0;
-}
-
-[data-page~="services-page"] {
-  overscroll-behavior-y: none;
-  overflow: hidden;
-}
-
-@media (max-width: 720px) {
-  [data-runtime-page="true"] {
-    overflow: auto;
-  }
-
-  [data-runtime-slot~="workbench"] {
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-rows: minmax(220px, 42vh) minmax(420px, 1fr) auto !important;
-    height: auto;
-    min-height: 100%;
-    overflow: visible;
-  }
-
-  [data-runtime-slot~="explorer"] {
-    min-height: 220px;
-  }
-
-  [data-resize-slot="list-resize"],
-  [data-resize-slot="inspector-resize"] {
-    display: none;
-  }
-
-  [data-runtime-slot~="main"] {
-    min-height: 420px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

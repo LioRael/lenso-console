@@ -1,11 +1,10 @@
 # Repository Operations
 
-This repository owns the complete Lenso Console product and deployable Console
-Service. It contains the React Shell, Console Service API, Worker and Migration
-Workloads, Console-owned Store migrations, Console Module UI packages, and the
-quality and delivery gates that verify them together.
+This repository owns the Agent-focused Lenso Console. It contains the TanStack
+Start application, bounded server-side Agent Harness bridges, and their quality and
+delivery gates.
 
-For the framework and managed-Service side of the seam, see
+For the framework runtime, see
 [`LioRael/lenso`](https://github.com/LioRael/lenso).
 
 ## Repository Boundary
@@ -22,17 +21,12 @@ framework/
 - Lenso Console: `LioRael/lenso-console`
 - Lenso framework: `LioRael/lenso`
 
-This repository owns the Console Shell, Console Service API, Console Operator
-identity integration, System Registry Module, Management Intents, Console
-Projections, reconciliation, System Operations, the `lenso/platform-story`
-Module backend and UI artifact, and Console-specific release artifacts.
+This repository owns the Console Shell, Agent routes, and Console-specific
+release artifacts. Shared design primitives come from published `@lenso/ui` and
+`@lenso/tokens` packages; this repository does not publish another UI layer.
 
-The framework repository owns public cross-repository contracts and the
-managed-Service System Plane Capability Providers that expose authoritative
-Observations and Operations. Managed Services retain their own state and must
-not depend on this repository. Lenso Console consumes the published `lenso`
-facade and System Plane contracts without directly reading a managed Service
-Store.
+The framework repository owns Plugin Plan and Kernel runtime contracts. The
+Console does not embed or compose that runtime.
 
 ## Branch Protection
 
@@ -65,18 +59,18 @@ compatibility is validated through published package and contract versions rathe
 than a central integration-set checkout. The workflow uses Node 24 with Node
 24-native GitHub Actions.
 
-## Backend Compatibility
+## Agent Harness boundary
 
-The Console Service consumes published framework and Module contracts. Local
-development may still use sibling checkouts, but CI does not fetch a central
-integration set or depend on a shared release repository.
+Normal Agent traffic targets the configured Agent Harness. The same-origin
+Agent Control route forwards only Tool policy reads and updates with a
+server-only Harness credential.
 
 ## GitHub Repository Metadata
 
 Current repository metadata should stay aligned with the README:
 
-- Description: `Lenso Console frontend, Console Service backend, extension packages, and service SDKs.`
-- Topics: `admin-console`, `lenso`, `react`, `service-management`, `system-plane`, `typescript`, `vite`
+- Description: `Agent-focused Lenso Console.`
+- Topics: `agent`, `lenso`, `react`, `typescript`, `vite`
 
 Update GitHub metadata when the repository role changes materially.
 
@@ -84,23 +78,16 @@ Update GitHub metadata when the repository role changes materially.
 
 The coordinated rename and independent-release cutover keep these invariants:
 
-1. `LioRael/lenso-console` owns its public npm packages and Console Service OCI
-   image; no central publisher is a normal release dependency.
+1. `LioRael/lenso-console` owns its Console OCI image; no central publisher is a
+   normal release dependency.
 2. Update the repository-local Changesets and OCI release configuration before
    attempting another release.
-3. Repository write access alone is not release authority; registry writes use
-   the approved Trusted Publisher workflows.
-4. Package metadata, OCI source labels, CI checkout paths, and the
+3. Repository write access alone is not release authority; GHCR writes use the
+   approved GitHub OIDC workflow.
+4. Application metadata, OCI source labels, CI checkout paths, and the
    repository-boundary test must change together; never leave old and new live
    identities mixed.
 5. Verify `main` branch protection and the required `quality` check after the
    rename.
-6. Configure npm Trusted Publisher bindings for both public packages before
-   the next production release; do not add a long-lived npm token.
-7. CI validates this checkout against published framework and Module contracts;
-   it does not require a deploy key or a central integration-set checkout.
-8. Run the Console quality gate and the framework's main-branch gate when a
-   release consumes a new framework contract.
-9. Use the repository-local Changesets and OCI workflows for a post-rename
-   release. Verify public npm metadata, the digest-pinned GHCR image, the
-   release manifest, and the GitHub attestation before production activation.
+6. Use the repository-local Changesets and OCI workflows for a release. Verify
+   the digest-pinned GHCR image and GitHub attestation before production activation.

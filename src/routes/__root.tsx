@@ -15,27 +15,20 @@ import "@lenso/ui/preflight.css";
 import "@lenso/ui/styles.css";
 import "../styles.css";
 
-import "../app/console-host-api";
 import { HostConsoleLocaleProvider } from "../app/console-locale";
 import { Providers } from "../app/providers";
 import { RouteError, RouteNotFound } from "../app/route-states";
-import { ConsoleProvider } from "../components/runtime/console-context";
 import { ConsoleShell } from "../components/runtime/console-shell";
-import { consoleDevConfig } from "../dev/console-dev-config";
-import { ConsoleDevOverlay } from "../dev/console-dev-overlay";
 
 const consoleLayerStyle = `@layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;`;
 
 const RootComponent = () => (
   <Providers>
     <HostConsoleLocaleProvider>
-      <ConsoleProvider>
-        <ConsoleShell>
-          <Outlet />
-        </ConsoleShell>
-      </ConsoleProvider>
+      <ConsoleShell>
+        <Outlet />
+      </ConsoleShell>
     </HostConsoleLocaleProvider>
-    <ConsoleDevOverlay config={consoleDevConfig} />
   </Providers>
 );
 
@@ -73,8 +66,7 @@ export const Route = createRootRoute({
       },
       {
         name: "description",
-        content:
-          "Lenso Console is the independent system plane for operating the services in one Lenso System.",
+        content: "Lenso Console is the Agent workspace for a Lenso App.",
       },
       { title: "Lenso Console" },
     ],

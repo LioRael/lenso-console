@@ -1,11 +1,29 @@
 import {
-  ConsoleLocaleProvider,
-  type ConsoleLanguagePreference,
-  type ConsoleLocale,
-} from "@lenso/console-ui";
-import { useLayoutEffect, useMemo, type PropsWithChildren } from "react";
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  type PropsWithChildren,
+} from "react";
 
 import { usePersistedLayout } from "../hooks/use-persisted-layout";
+
+export type ConsoleLocale = "en" | "zh-CN";
+export type ConsoleLanguagePreference = ConsoleLocale | "system";
+
+type ConsoleLocaleContextValue = {
+  locale: ConsoleLocale;
+  preference: ConsoleLanguagePreference;
+  setPreference: (preference: ConsoleLanguagePreference) => void;
+};
+
+const ConsoleLocaleContext = createContext<ConsoleLocaleContextValue>({
+  locale: "en",
+  preference: "system",
+  setPreference: () => undefined,
+});
+
+export const useConsoleLocale = () => useContext(ConsoleLocaleContext);
 
 export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] =
@@ -25,7 +43,9 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
   }, [locale, preference]);
 
   return (
-    <ConsoleLocaleProvider value={value}>{children}</ConsoleLocaleProvider>
+    <ConsoleLocaleContext.Provider value={value}>
+      {children}
+    </ConsoleLocaleContext.Provider>
   );
 }
 
