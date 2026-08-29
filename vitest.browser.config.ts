@@ -13,6 +13,7 @@ export default defineConfig({
       "@tanstack/react-query",
       "@tanstack/react-router",
       "gsap",
+      "ky",
     ],
   },
   plugins: [react(), consoleStylex()],
@@ -28,5 +29,6 @@ export default defineConfig({
       }),
     },
     include: ["src/**/*.browser.test.tsx"],
+    passWithNoTests: true,
   },
 });

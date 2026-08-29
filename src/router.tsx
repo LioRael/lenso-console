@@ -12,7 +12,8 @@ export {
 
 /**
  * TanStack Start creates a fresh router for each server request and client
- * hydration. The generated file route tree is the application routing seam.
+ * hydration. The generated file route tree is the application routing seam;
+ * Console Module UI remains a catch-all route inside that tree.
  */
 export function getRouter() {
   return createRouter({

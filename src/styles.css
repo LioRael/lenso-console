@@ -1,10 +1,25 @@
-/* Host-only page contracts. Component primitives are authored and compiled by
- * StyleX; document reset/base styles live in their own layers. */
 @layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;
 @import "./styles-reset.css";
 @import "./styles-base.css";
 
 :root {
+  --font-ui: var(--font-sans);
+  --font-code: var(--font-mono);
+  --bg-panel: var(--color-surface-panel);
+  --bg-row-selected: var(--color-surface-selected);
+  --fg-primary: var(--color-content-primary);
+  --fg-secondary: var(--color-content-secondary);
+  --fg-tertiary: var(--color-content-tertiary);
+  --line: var(--color-border-tertiary);
+  --line-subtle: var(--color-border-tertiary);
+  --accent: var(--color-action-primary);
+  --focus-ring: var(--color-focus-ring);
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
   --shimmer-dur: 2000ms;
   --shimmer-base: var(--color-content-tertiary);
   --shimmer-highlight: var(--color-content-primary);
@@ -35,24 +50,24 @@
   background-repeat: no-repeat;
   background-size: var(--shimmer-band) 100%;
   background-clip: text;
+  animation: t-shimmer var(--shimmer-dur) var(--shimmer-ease) infinite;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: t-shimmer var(--shimmer-dur) var(--shimmer-ease) infinite;
 }
 
 @keyframes t-shimmer {
-  0% {
+  from {
     background-position: 100% 0;
   }
 
-  100% {
-    background-position: 0% 0;
+  to {
+    background-position: 0 0;
   }
 }
 
 code,
 pre {
-  font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--font-code);
 }
 
 a {
@@ -65,8 +80,8 @@ label,
 nav,
 aside,
 header {
-  -webkit-user-select: none;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 input,
@@ -74,15 +89,16 @@ textarea,
 pre,
 code,
 [contenteditable="true"] {
-  -webkit-user-select: text;
   user-select: text;
+  -webkit-user-select: text;
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation: none !important;
-    transition: none !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

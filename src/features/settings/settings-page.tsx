@@ -3,16 +3,38 @@ import { SettingsRow as LensoSettingsRow } from "@lenso/ui/settings-row";
 import { Surface } from "@lenso/ui/surface";
 import { useRef, type ComponentProps, type PropsWithChildren } from "react";
 
+import { useConsoleAppearance } from "../../app/console-appearance";
 import {
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "../../app/console-locale";
+import { usePersistedLayout } from "../../hooks/use-persisted-layout";
 
 import styles from "./settings-page.module.css";
 
+type GeneralSettings = {
+  timeZone: string;
+};
+
+const defaultGeneralSettings: GeneralSettings = {
+  timeZone: "Asia/Shanghai",
+};
+
+const timeZones = [
+  { label: "Asia / Shanghai", value: "Asia/Shanghai" },
+  { label: "Asia / Tokyo", value: "Asia/Tokyo" },
+  { label: "Europe / London", value: "Europe/London" },
+  { label: "America / Los Angeles", value: "America/Los_Angeles" },
+] as const;
+
 export function SettingsPage() {
+  const appearance = useConsoleAppearance();
   const locale = useConsoleLocale();
   const zh = locale.locale === "zh-CN";
+  const [general, setGeneral] = usePersistedLayout(
+    "lenso-console-general-preferences-v1",
+    defaultGeneralSettings
+  );
 
   return (
     <main className={styles.page}>
@@ -20,6 +42,23 @@ export function SettingsPage() {
         <h1>{zh ? "偏好设置" : "Preferences"}</h1>
 
         <SettingsSection title={zh ? "通用" : "General"}>
+          <SettingsRow
+            description={
+              zh
+                ? "Console 中日期和时间的显示时区。"
+                : "Time zone used for dates and times in Console."
+            }
+            title={zh ? "时区" : "Time zone"}
+          >
+            <PreferenceSelect
+              aria-label={zh ? "时区" : "Time zone"}
+              onValueChange={(value) =>
+                setGeneral((current) => ({ ...current, timeZone: value }))
+              }
+              options={timeZones}
+              value={general.timeZone}
+            />
+          </SettingsRow>
           <SettingsRow
             description={
               zh
@@ -45,8 +84,44 @@ export function SettingsPage() {
             />
           </SettingsRow>
         </SettingsSection>
+
+        <AppearanceSettings appearance={appearance} zh={zh} />
       </div>
     </main>
+  );
+}
+
+function AppearanceSettings({
+  appearance,
+  zh,
+}: {
+  appearance: ReturnType<typeof useConsoleAppearance>;
+  zh: boolean;
+}) {
+  return (
+    <SettingsSection title={zh ? "界面与主题" : "Interface and theme"}>
+      <SettingsRow
+        description={
+          zh
+            ? "使用系统外观，或始终使用浅色或深色模式。"
+            : "Use your system appearance, or always use light or dark mode."
+        }
+        title={zh ? "颜色模式" : "Color mode"}
+      >
+        <PreferenceSelect
+          aria-label={zh ? "颜色模式" : "Color mode"}
+          onValueChange={(value) =>
+            appearance.setPreference(value as "system" | "light" | "dark")
+          }
+          options={[
+            { label: zh ? "跟随系统" : "System", value: "system" },
+            { label: zh ? "浅色" : "Light", value: "light" },
+            { label: zh ? "深色" : "Dark", value: "dark" },
+          ]}
+          value={appearance.preference}
+        />
+      </SettingsRow>
+    </SettingsSection>
   );
 }
 

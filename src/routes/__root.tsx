@@ -4,7 +4,7 @@ import {
   Scripts,
   createRootRoute,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
@@ -17,20 +17,33 @@ import "../styles.css";
 
 import { HostConsoleLocaleProvider } from "../app/console-locale";
 import { Providers } from "../app/providers";
-import { RouteError, RouteNotFound } from "../app/route-states";
+import { RouteError, RouteNotFound, RoutePending } from "../app/route-states";
 import { ConsoleShell } from "../components/runtime/console-shell";
+import { consoleDevConfig } from "../dev/console-dev-config";
+import { ConsoleDevOverlay } from "../dev/console-dev-overlay";
 
 const consoleLayerStyle = `@layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;`;
 
-const RootComponent = () => (
-  <Providers>
-    <HostConsoleLocaleProvider>
-      <ConsoleShell>
-        <Outlet />
-      </ConsoleShell>
-    </HostConsoleLocaleProvider>
-  </Providers>
-);
+const RootComponent = () => {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => setHydrated(true), []);
+
+  if (!hydrated) {
+    return <RoutePending />;
+  }
+
+  return (
+    <Providers>
+      <HostConsoleLocaleProvider>
+        <ConsoleShell>
+          <Outlet />
+        </ConsoleShell>
+      </HostConsoleLocaleProvider>
+      <ConsoleDevOverlay config={consoleDevConfig} />
+    </Providers>
+  );
+};
 
 const RootDocument = ({ children }: { children: ReactNode }) => (
   <html lang="en">
@@ -66,7 +79,7 @@ export const Route = createRootRoute({
       },
       {
         name: "description",
-        content: "Lenso Console is the Agent workspace for a Lenso App.",
+        content: "Local management and Agent workspace for one Lenso App.",
       },
       { title: "Lenso Console" },
     ],

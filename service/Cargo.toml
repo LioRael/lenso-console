@@ -1,0 +1,31 @@
+[package]
+name = "lenso-console-service"
+version = "0.1.0"
+edition = "2024"
+publish = false
+rust-version = "1.94"
+
+[[bin]]
+name = "lenso-console"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+axum = "0.8"
+directories = "6.0"
+dotenvy = "0.15"
+lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "95f3c56fc9826b29f26aa47720f9a21ca12ac7cf", default-features = false }
+lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "95f3c56fc9826b29f26aa47720f9a21ca12ac7cf" }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.52", features = ["macros", "net", "rt", "signal"] }
+tower-http = { version = "0.7", features = ["fs", "set-header"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

@@ -125,6 +125,15 @@
   box-shadow: none;
 }
 
+.chatOptions {
+  margin-left: 8px;
+  padding: 0 2px;
+  border: 0.5px solid transparent;
+  border-radius: 9999px;
+  color: lch(40 1 282);
+  box-shadow: none;
+}
+
 .body {
   position: relative;
   display: flex;
@@ -440,7 +449,22 @@
   font-weight: 450;
 }
 
-.submit {
+.skills {
+  gap: 6px;
+  width: 74px;
+  height: 24px;
+  padding-inline: 4px 6px;
+  border: 0.5px solid transparent;
+  border-radius: 9999px;
+  color: lch(40 1 282);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: normal;
+  box-shadow: none;
+}
+
+.attach {
   margin-left: auto;
   padding: 0 2px;
   border: 0.5px solid transparent;
@@ -450,6 +474,8 @@
 }
 
 .submit {
+  padding: 0 2px;
+  border: 0.5px solid transparent;
   border-radius: 12px;
   background: lch(100 0 282);
   color: lch(20 1 282);
