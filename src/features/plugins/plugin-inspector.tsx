@@ -3,33 +3,46 @@ import { Disclosure } from "@lenso/ui/disclosure";
 import { Switch } from "@lenso/ui/switch";
 import * as stylex from "@stylexjs/stylex";
 import { RotateCcw } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
+import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
 import {
   configurationProposalReadyPresentation,
+  configurationChangeCanSubmit,
+  configurationPublicationIsCurrent,
   desiredSelectionChecked,
   mutationTargetsPlugin,
   operationMatchesInventory,
   pluginConfigurationStatusLabel,
   pluginOriginLabel,
   pluginStatusPresentation,
+  pluginTechnicalSelection,
+  rollbackProposalReadyPresentation,
 } from "./plugin-runtime-state";
 import { PluginStatus } from "./plugin-status";
 import { RemovePluginDialog } from "./plugin-workbench-dialogs";
-import type {
-  PluginConfigurationAuthority,
-  PluginConfigurationRollbackProposal,
-  PluginInventory,
-  PluginManagement,
-  PluginWorkbenchItem,
+import {
+  pluginKey,
+  type PluginConfigurationAuthority,
+  type PluginConfigurationRollbackProposal,
+  type PluginInventory,
+  type PluginManagement,
+  type PluginWorkbenchItem,
 } from "./plugin-workbench-model";
 import {
+  pluginHistoryQueryEnabled,
+  usePluginConfigurationDraft,
   usePluginConfigurationHistory,
   usePluginConfigurationProposal,
   usePluginConfigurationRollbackProposal,
   type usePluginMutation,
 } from "./use-plugin-workbench";
+
+const publicationTimeFormatter = new Intl.DateTimeFormat("en", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 const styles = stylex.create({
   capabilities: {
@@ -209,19 +222,32 @@ const styles = stylex.create({
 
 export function PluginInspector({
   authoringEnabled,
+  configurationDraftStore,
   inventory,
   management: pluginManagement,
   mutation,
   plugin,
 }: {
   authoringEnabled: boolean;
+  configurationDraftStore: PluginConfigurationDraftStore;
   inventory: PluginInventory;
   management: PluginManagement;
   mutation: ReturnType<typeof usePluginMutation>;
   plugin: PluginWorkbenchItem;
 }) {
-  const proposal = usePluginConfigurationProposal();
-  const rollback = usePluginConfigurationRollbackProposal();
+  const proposal = usePluginConfigurationProposal(inventory.streamId);
+  const rollback = usePluginConfigurationRollbackProposal(inventory.streamId);
+  const previousStreamId = useRef(inventory.streamId);
+  const resetProposal = proposal.reset;
+  const resetRollback = rollback.reset;
+  useEffect(() => {
+    if (previousStreamId.current === inventory.streamId) {
+      return;
+    }
+    previousStreamId.current = inventory.streamId;
+    resetProposal();
+    resetRollback();
+  }, [inventory.streamId, resetProposal, resetRollback]);
   const { management } = plugin;
   const restoreWasVisible = useRef(
     management?.hasRootDifference ?? false
@@ -295,6 +321,7 @@ export function PluginInspector({
                 mutation.reset();
                 mutation.mutate({
                   enabled: checked,
+                  expectedStreamId: inventory.streamId,
                   instanceKey: plugin.instanceKey,
                   packageId: plugin.packageId,
                   type: "select",
@@ -311,6 +338,7 @@ export function PluginInspector({
       {management ? (
         <PluginConfigurationSection
           authoringEnabled={authoringEnabled}
+          draftStore={configurationDraftStore}
           inventory={inventory}
           management={management}
           mutation={mutation}
@@ -351,9 +379,16 @@ export function PluginInspector({
       <DetailListSection title="Package">
         <Detail label="Package" value={plugin.packageId} mono />
         <Detail
-          label="Revision"
+          label={plugin.active ? "Active revision" : "Resolved revision"}
           value={plugin.packageRevision || "linked into Host"}
         />
+        {plugin.desired &&
+        plugin.desired.packageRevision !== plugin.packageRevision ? (
+          <Detail
+            label="Desired revision"
+            value={plugin.desired.packageRevision}
+          />
+        ) : null}
         <Detail
           label="Authority"
           value={
@@ -390,14 +425,23 @@ export function PluginInspector({
         <DetailSection title="Plugin Root">
           <RemovePluginDialog
             disabled={!authoringEnabled}
+            error={
+              mutation.variables?.type === "remove" &&
+              mutation.variables.packageId === plugin.packageId &&
+              mutation.error instanceof Error
+                ? mutation.error
+                : null
+            }
             isPending={mutation.isPending}
             onRemove={async () => {
               proposal.reset();
               rollback.reset();
               await mutation.mutateAsync({
+                expectedStreamId: inventory.streamId,
                 packageId: plugin.packageId,
                 type: "remove",
               });
+              configurationDraftStore.discardPrefix(`${plugin.packageId}/`);
             }}
             packageId={plugin.packageId}
           />
@@ -409,6 +453,7 @@ export function PluginInspector({
 
 function PluginConfigurationSection({
   authoringEnabled,
+  draftStore,
   inventory,
   management,
   mutation,
@@ -419,6 +464,7 @@ function PluginConfigurationSection({
   restoreVisible,
 }: {
   authoringEnabled: boolean;
+  draftStore: PluginConfigurationDraftStore;
   inventory: PluginInventory;
   management: NonNullable<PluginWorkbenchItem["management"]>;
   mutation: ReturnType<typeof usePluginMutation>;
@@ -429,21 +475,51 @@ function PluginConfigurationSection({
   restoreVisible: boolean;
 }) {
   const hostToml = management.rootConfigurationToml ?? "";
-  const draft = useConfigurationDraft(hostToml);
+  const draft = usePluginConfigurationDraft({
+    draftKey: pluginKey(plugin),
+    source: { sourceDigest: management.sourceDigest, toml: hostToml },
+    store: draftStore,
+    streamId: inventory.streamId,
+  });
   const historyAvailable =
     pluginManagement.configurationAuthority.publicationHistory;
+  const [historyOpen, setHistoryOpen] = useState(false);
   const history = usePluginConfigurationHistory({
-    enabled: historyAvailable,
+    enabled: pluginHistoryQueryEnabled(
+      historyAvailable,
+      historyOpen,
+      authoringEnabled
+    ),
     instanceKey: plugin.instanceKey,
     packageId: plugin.packageId,
     revision: pluginManagement.revision,
+    sourceDigest: management.sourceDigest,
+    streamId: inventory.streamId,
   });
+  const proposalRequestIsCurrent =
+    proposal.variables?.expectedRevision === pluginManagement.revision &&
+    proposal.variables.expectedSourceDigest === management.sourceDigest &&
+    proposal.variables.streamId === inventory.streamId &&
+    proposal.variables.instanceKey === plugin.instanceKey &&
+    proposal.variables.packageId === plugin.packageId;
+  const rollbackRequestIsCurrent =
+    rollback.variables?.expectedRevision === pluginManagement.revision &&
+    rollback.variables.expectedSourceDigest === management.sourceDigest &&
+    rollback.variables.streamId === inventory.streamId &&
+    rollback.variables.instanceKey === plugin.instanceKey &&
+    rollback.variables.packageId === plugin.packageId;
   const currentProposal =
-    proposal.data?.baseRevision === pluginManagement.revision
+    proposalRequestIsCurrent &&
+    proposal.data?.baseRevision === pluginManagement.revision &&
+    proposal.data.baseSourceDigest === management.sourceDigest &&
+    proposal.data.instanceKey === plugin.instanceKey &&
+    proposal.data.pluginId === plugin.packageId
       ? proposal.data
       : undefined;
   const currentRollback: PluginConfigurationRollbackProposal | undefined =
+    rollbackRequestIsCurrent &&
     rollback.data?.proposal.baseRevision === pluginManagement.revision &&
+    rollback.data.proposal.baseSourceDigest === management.sourceDigest &&
     rollback.data.proposal.instanceKey === plugin.instanceKey &&
     rollback.data.proposal.pluginId === plugin.packageId
       ? rollback.data
@@ -453,16 +529,18 @@ function PluginConfigurationSection({
     reviewedProposal,
     shortRevision(reviewedProposal?.candidateRevision ?? "")
   );
+  const readyRollbackPresentation = rollbackProposalReadyPresentation(
+    currentRollback?.proposal,
+    shortRevision(currentRollback?.proposal.candidateRevision ?? "")
+  );
   const reviewError =
-    proposal.variables?.expectedRevision === pluginManagement.revision &&
-    proposal.error instanceof Error
+    proposalRequestIsCurrent && proposal.error instanceof Error
       ? proposal.error.message
-      : rollback.variables?.expectedRevision === pluginManagement.revision &&
-          rollback.variables.instanceKey === plugin.instanceKey &&
-          rollback.variables.packageId === plugin.packageId &&
-          rollback.error instanceof Error
+      : rollbackRequestIsCurrent && rollback.error instanceof Error
         ? rollback.error.message
         : null;
+  const proposalPending = proposalRequestIsCurrent && proposal.isPending;
+  const rollbackPending = rollbackRequestIsCurrent && rollback.isPending;
 
   return (
     <>
@@ -494,6 +572,7 @@ function PluginConfigurationSection({
               rollback.reset();
               mutation.reset();
               mutation.mutate({
+                expectedStreamId: inventory.streamId,
                 instanceKey: plugin.instanceKey,
                 packageId: plugin.packageId,
                 type: "reset",
@@ -510,10 +589,14 @@ function PluginConfigurationSection({
           <Button
             disabled={
               !authoringEnabled ||
-              proposal.isPending ||
-              rollback.isPending ||
+              proposalPending ||
+              rollbackPending ||
               mutation.isPending ||
-              draft.value === hostToml
+              !configurationChangeCanSubmit(
+                reviewedProposal,
+                draft.value,
+                hostToml
+              )
             }
             onClick={() => {
               if (reviewedProposal?.status === "ready") {
@@ -521,9 +604,17 @@ function PluginConfigurationSection({
                 mutation.mutate(
                   {
                     expectedRevision: reviewedProposal.baseRevision,
+                    expectedSourceDigest: reviewedProposal.baseSourceDigest,
+                    expectedStreamId: inventory.streamId,
                     instanceKey: plugin.instanceKey,
                     packageId: plugin.packageId,
                     proposalDigest: reviewedProposal.proposalDigest,
+                    ...(currentRollback
+                      ? {
+                          rollbackOfProposalDigest:
+                            currentRollback.rollbackOfProposalDigest,
+                        }
+                      : {}),
                     toml: draft.value,
                     type: "configure",
                   },
@@ -541,17 +632,19 @@ function PluginConfigurationSection({
               mutation.reset();
               proposal.mutate({
                 expectedRevision: pluginManagement.revision,
+                expectedSourceDigest: management.sourceDigest,
                 instanceKey: plugin.instanceKey,
                 packageId: plugin.packageId,
+                streamId: inventory.streamId,
                 toml: draft.value,
               });
             }}
             size="compact"
             variant="primary"
           >
-            {currentRollback
-              ? "Publish rollback"
-              : (readyProposalPresentation?.actionLabel ?? "Preview change")}
+            {readyRollbackPresentation?.actionLabel ??
+              readyProposalPresentation?.actionLabel ??
+              "Preview change"}
           </Button>
         </div>
         {draft.hasExternalChange ? (
@@ -583,9 +676,8 @@ function PluginConfigurationSection({
           </p>
         ) : reviewedProposal?.status === "ready" ? (
           <p aria-live="polite" {...stylex.props(styles.feedback)}>
-            {currentRollback
-              ? `Rollback review ready. Publishing will prepare revision ${shortRevision(reviewedProposal.candidateRevision)}.`
-              : readyProposalPresentation?.description}
+            {readyRollbackPresentation?.description ??
+              readyProposalPresentation?.description}
           </p>
         ) : reviewedProposal ? (
           <p
@@ -612,6 +704,7 @@ function PluginConfigurationSection({
           authoringEnabled={authoringEnabled}
           history={history}
           mutationPending={mutation.isPending}
+          onOpenChange={setHistoryOpen}
           onReview={(publicationProposalDigest) => {
             proposal.reset();
             rollback.reset();
@@ -619,20 +712,25 @@ function PluginConfigurationSection({
             rollback.mutate(
               {
                 expectedRevision: pluginManagement.revision,
+                expectedSourceDigest: management.sourceDigest,
                 instanceKey: plugin.instanceKey,
                 packageId: plugin.packageId,
                 publicationProposalDigest,
+                streamId: inventory.streamId,
               },
               {
                 onSuccess: (review) => {
-                  draft.useReviewedValue(review.configurationToml);
+                  draft.useReviewedValue(review.configurationToml, {
+                    sourceDigest: review.proposal.baseSourceDigest,
+                    streamId: inventory.streamId,
+                  });
                 },
               }
             );
           }}
-          proposalPending={proposal.isPending}
-          revision={pluginManagement.revision}
-          rollbackPending={rollback.isPending}
+          proposalPending={proposalPending}
+          currentToml={management.rootConfigurationToml}
+          rollbackPending={rollbackPending}
           rollbackSupported={
             pluginManagement.configurationAuthority.rollbackProposals
           }
@@ -644,26 +742,33 @@ function PluginConfigurationSection({
 
 function PluginConfigurationHistorySection({
   authoringEnabled,
+  currentToml,
   history,
   mutationPending,
+  onOpenChange,
   onReview,
   proposalPending,
-  revision,
   rollbackPending,
   rollbackSupported,
 }: {
   authoringEnabled: boolean;
+  currentToml: string | null;
   history: ReturnType<typeof usePluginConfigurationHistory>;
   mutationPending: boolean;
+  onOpenChange: (open: boolean) => void;
   onReview: (publicationProposalDigest: string) => void;
   proposalPending: boolean;
-  revision: string;
   rollbackPending: boolean;
   rollbackSupported: boolean;
 }) {
   const publications = history.data?.publications;
   return (
-    <Disclosure.Root {...stylex.props(styles.disclosure)}>
+    <Disclosure.Root
+      onValueChange={(value) => {
+        onOpenChange(value.includes("configuration-history"));
+      }}
+      {...stylex.props(styles.disclosure)}
+    >
       <Disclosure.Item value="configuration-history">
         <Disclosure.Header>
           <Disclosure.Trigger>
@@ -673,10 +778,22 @@ function PluginConfigurationHistorySection({
         </Disclosure.Header>
         <Disclosure.Panel layout="auto" {...stylex.props(styles.historyPanel)}>
           {history.error && publications ? (
-            <p role="alert" {...stylex.props(styles.feedback)}>
-              Showing the last verified publication history because the latest
-              refresh failed.
-            </p>
+            <div {...stylex.props(styles.editorActions)}>
+              <p role="alert" {...stylex.props(styles.feedback)}>
+                Showing the last verified publication history because the latest
+                refresh failed.
+              </p>
+              <Button
+                disabled={history.isFetching}
+                onClick={() => {
+                  void history.refetch();
+                }}
+                size="compact"
+                variant="ghost"
+              >
+                Try again
+              </Button>
+            </div>
           ) : null}
           {publications ? (
             publications.length === 0 ? (
@@ -685,90 +802,76 @@ function PluginConfigurationHistorySection({
               </p>
             ) : (
               <div {...stylex.props(styles.historyList)}>
-                {publications.map((publication) => (
-                  <div
-                    key={publication.proposalDigest}
-                    {...stylex.props(styles.historyRow)}
-                  >
-                    <div {...stylex.props(styles.historyIdentity)}>
-                      <span {...stylex.props(styles.historyTitle)}>
-                        {formatPublicationTime(publication.publishedAtUnixMs)}
-                        {publication.revision === revision
-                          ? " · Desired content"
-                          : ""}
-                        {publication.rollbackOfProposalDigest
-                          ? " · Rollback"
-                          : ""}
-                      </span>
-                      <span {...stylex.props(styles.historyMeta)}>
-                        {shortRevision(publication.revision)} · proposal{" "}
-                        {shortRevision(publication.proposalDigest)}
-                      </span>
+                {publications.map((publication) => {
+                  const isCurrent = configurationPublicationIsCurrent(
+                    publication.configurationToml,
+                    currentToml
+                  );
+                  return (
+                    <div
+                      key={publication.proposalDigest}
+                      {...stylex.props(styles.historyRow)}
+                    >
+                      <div {...stylex.props(styles.historyIdentity)}>
+                        <span {...stylex.props(styles.historyTitle)}>
+                          {formatPublicationTime(publication.publishedAtUnixMs)}
+                          {isCurrent ? " · Current content" : ""}
+                          {publication.rollbackOfProposalDigest
+                            ? " · Rollback"
+                            : ""}
+                        </span>
+                        <span {...stylex.props(styles.historyMeta)}>
+                          {shortRevision(publication.revision)} · proposal{" "}
+                          {shortRevision(publication.proposalDigest)}
+                        </span>
+                      </div>
+                      {rollbackSupported && !isCurrent ? (
+                        <Button
+                          disabled={
+                            !authoringEnabled ||
+                            rollbackPending ||
+                            proposalPending ||
+                            mutationPending
+                          }
+                          onClick={() => onReview(publication.proposalDigest)}
+                          size="compact"
+                          variant="ghost"
+                          {...stylex.props(styles.historyAction)}
+                        >
+                          Review rollback
+                        </Button>
+                      ) : null}
                     </div>
-                    {rollbackSupported ? (
-                      <Button
-                        disabled={
-                          !authoringEnabled ||
-                          rollbackPending ||
-                          proposalPending ||
-                          mutationPending
-                        }
-                        onClick={() => onReview(publication.proposalDigest)}
-                        size="compact"
-                        variant="ghost"
-                        {...stylex.props(styles.historyAction)}
-                      >
-                        Review rollback
-                      </Button>
-                    ) : null}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )
           ) : history.isPending ? (
             <p {...stylex.props(styles.feedback)}>Loading publications…</p>
           ) : (
-            <p
-              role="alert"
-              {...stylex.props(styles.feedback, styles.feedbackError)}
-            >
-              Publication history could not be loaded.
-            </p>
+            <div {...stylex.props(styles.editorActions)}>
+              <p
+                role="alert"
+                {...stylex.props(styles.feedback, styles.feedbackError)}
+              >
+                Publication history could not be loaded.
+              </p>
+              <Button
+                disabled={history.isFetching}
+                onClick={() => {
+                  void history.refetch();
+                }}
+                size="compact"
+                variant="ghost"
+              >
+                Try again
+              </Button>
+            </div>
           )}
         </Disclosure.Panel>
       </Disclosure.Item>
     </Disclosure.Root>
   );
-}
-
-function useConfigurationDraft(hostToml: string) {
-  const [draft, setDraft] = useState(() => ({
-    baseToml: hostToml,
-    value: hostToml,
-  }));
-  const hostChanged = draft.baseToml !== hostToml;
-  const isClean = draft.value === draft.baseToml;
-  const value = hostChanged && isClean ? hostToml : draft.value;
-
-  return {
-    hasExternalChange: hostChanged && !isClean && draft.value !== hostToml,
-    setValue(nextValue: string) {
-      setDraft((current) => ({
-        baseToml:
-          current.value === current.baseToml || current.value === hostToml
-            ? hostToml
-            : current.baseToml,
-        value: nextValue,
-      }));
-    },
-    useHostValue() {
-      setDraft({ baseToml: hostToml, value: hostToml });
-    },
-    useReviewedValue(nextValue: string) {
-      setDraft({ baseToml: hostToml, value: nextValue });
-    },
-    value,
-  };
 }
 
 function PluginTechnicalDetails({
@@ -778,7 +881,7 @@ function PluginTechnicalDetails({
   inventory: PluginInventory;
   plugin: PluginWorkbenchItem;
 }) {
-  const selection = plugin.active ?? plugin.preparing ?? plugin.desired;
+  const technical = pluginTechnicalSelection(plugin);
   return (
     <Disclosure.Root {...stylex.props(styles.disclosure)}>
       <Disclosure.Item value="technical-details">
@@ -799,18 +902,20 @@ function PluginTechnicalDetails({
               mono
             />
             <Detail
-              label="Entrypoint"
-              value={selection?.entrypoint ?? "Unavailable"}
+              label={`${technical.phase} entrypoint`}
+              value={technical.selection?.entrypoint ?? "Unavailable"}
               mono
             />
             <Detail
-              label="Execution"
-              value={selection?.executionClass ?? "Unavailable"}
+              label={`${technical.phase} execution`}
+              value={technical.selection?.executionClass ?? "Unavailable"}
               mono
             />
             <Detail
-              label="Requires"
-              value={selection?.requiredCapabilities.join(", ") || "None"}
+              label={`${technical.phase} requires`}
+              value={
+                technical.selection?.requiredCapabilities.join(", ") || "None"
+              }
               mono
             />
             <Detail
@@ -825,12 +930,32 @@ function PluginTechnicalDetails({
               label="Active"
               value={plugin.active ? "Present" : "Absent"}
             />
+            <Detail
+              label="Active package revision"
+              value={plugin.active?.packageRevision ?? "Absent"}
+              mono
+            />
+            <Detail
+              label="Desired package revision"
+              value={plugin.desired?.packageRevision ?? "Absent"}
+              mono
+            />
+            <Detail
+              label="Preparing package revision"
+              value={plugin.preparing?.packageRevision ?? "Absent"}
+              mono
+            />
             <Detail label="Event cursor" value={inventory.cursor} mono />
             <Detail
               label="Configuration"
               value={pluginConfigurationStatusLabel(
                 inventory.configurationStatus
               )}
+            />
+            <Detail
+              label="Configuration source digest"
+              value={plugin.management?.sourceDigest ?? "Unavailable"}
+              mono
             />
             <Detail
               label="Applied Plugin Root revision"
@@ -939,10 +1064,7 @@ function configurationAuthorityLabel(
 }
 
 function formatPublicationTime(unixTimeMs: number): string {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(unixTimeMs));
+  return publicationTimeFormatter.format(new Date(unixTimeMs));
 }
 
 function shortRevision(revision: string | null): string {

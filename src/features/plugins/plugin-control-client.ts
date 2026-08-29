@@ -26,18 +26,32 @@ import {
 } from "./plugin-operation";
 
 export type PluginMutation =
-  | { bundlePath: string; type: "install" }
+  | { bundlePath: string; expectedStreamId: string; type: "install" }
   | {
       expectedRevision: string;
+      expectedSourceDigest: string;
+      expectedStreamId: string;
       instanceKey: string;
       packageId: string;
       proposalDigest: string;
+      rollbackOfProposalDigest?: string;
       toml: string;
       type: "configure";
     }
-  | { enabled: boolean; instanceKey: string; packageId: string; type: "select" }
-  | { instanceKey: string; packageId: string; type: "reset" }
-  | { packageId: string; type: "remove" };
+  | {
+      enabled: boolean;
+      expectedStreamId: string;
+      instanceKey: string;
+      packageId: string;
+      type: "select";
+    }
+  | {
+      expectedStreamId: string;
+      instanceKey: string;
+      packageId: string;
+      type: "reset";
+    }
+  | { expectedStreamId: string; packageId: string; type: "remove" };
 
 export async function executePluginMutation({
   mutation,
@@ -87,26 +101,65 @@ export async function readPluginInventory(
       ...(signal ? { signal } : {}),
     })
     .json<unknown>();
-  return decodePluginInventory(value);
+  return decodePluginInventory(value, after);
 }
 
 export async function readPluginManagement(
   signal?: AbortSignal
 ): Promise<PluginManagement> {
-  const value = await httpClient
-    .get("api/console/v1/agent/control/plugins", signal ? { signal } : {})
-    .json<unknown>();
-  return decodePluginManagement(value);
+  const result = await readPluginManagementConditional(undefined, signal);
+  if (!result.management) {
+    throw new TypeError(
+      "Agent Host returned an unchanged Plugin management response without a cached value"
+    );
+  }
+  return result.management;
+}
+
+export type ConditionalPluginManagement = {
+  etag: string | null;
+  management: PluginManagement | null;
+};
+
+export async function readPluginManagementConditional(
+  ifNoneMatch: string | undefined,
+  signal?: AbortSignal
+): Promise<ConditionalPluginManagement> {
+  try {
+    const response = await httpClient.get(
+      "api/console/v1/agent/control/plugins",
+      {
+        ...(ifNoneMatch ? { headers: { "If-None-Match": ifNoneMatch } } : {}),
+        ...(signal ? { signal } : {}),
+      }
+    );
+    return {
+      etag: response.headers.get("etag"),
+      management: decodePluginManagement(await response.json<unknown>()),
+    };
+  } catch (error) {
+    if (isHTTPError(error) && error.response.status === 304) {
+      return {
+        etag: error.response.headers.get("etag") ?? ifNoneMatch ?? null,
+        management: null,
+      };
+    }
+    throw error;
+  }
 }
 
 export async function readPluginConfigurationProposal(
   {
     expectedRevision,
+    expectedSourceDigest,
+    expectedStreamId,
     instanceKey,
     packageId,
     toml,
   }: {
     expectedRevision: string;
+    expectedSourceDigest: string;
+    expectedStreamId: string;
     instanceKey: string;
     packageId: string;
     toml: string;
@@ -117,7 +170,12 @@ export async function readPluginConfigurationProposal(
     .post(
       `${pluginInstancePath(packageId, instanceKey)}/configuration/proposals`,
       {
-        json: { expectedRevision, toml },
+        json: {
+          expectedRevision,
+          expectedSourceDigest,
+          expectedStreamId,
+          toml,
+        },
         ...(signal ? { signal } : {}),
       }
     )
@@ -125,6 +183,7 @@ export async function readPluginConfigurationProposal(
   const proposal = decodePluginConfigurationProposal(value);
   if (
     proposal.baseRevision !== expectedRevision ||
+    proposal.baseSourceDigest !== expectedSourceDigest ||
     proposal.instanceKey !== instanceKey ||
     proposal.pluginId !== packageId
   ) {
@@ -158,11 +217,15 @@ export async function readPluginConfigurationHistory(
 export async function readPluginConfigurationRollbackProposal(
   {
     expectedRevision,
+    expectedSourceDigest,
+    expectedStreamId,
     instanceKey,
     packageId,
     publicationProposalDigest,
   }: {
     expectedRevision: string;
+    expectedSourceDigest: string;
+    expectedStreamId: string;
     instanceKey: string;
     packageId: string;
     publicationProposalDigest: string;
@@ -173,7 +236,12 @@ export async function readPluginConfigurationRollbackProposal(
     .post(
       `${pluginInstancePath(packageId, instanceKey)}/configuration/rollback-proposals`,
       {
-        json: { expectedRevision, publicationProposalDigest },
+        json: {
+          expectedRevision,
+          expectedSourceDigest,
+          expectedStreamId,
+          publicationProposalDigest,
+        },
         ...(signal ? { signal } : {}),
       }
     )
@@ -182,6 +250,7 @@ export async function readPluginConfigurationRollbackProposal(
   if (
     rollback.rollbackOfProposalDigest !== publicationProposalDigest ||
     rollback.proposal.baseRevision !== expectedRevision ||
+    rollback.proposal.baseSourceDigest !== expectedSourceDigest ||
     rollback.proposal.instanceKey !== instanceKey ||
     rollback.proposal.pluginId !== packageId
   ) {
@@ -228,17 +297,25 @@ export async function submitPluginMutation(
   if (mutation.type === "install") {
     return requestMutationReceipt(
       httpClient.post("api/console/v1/agent/control/plugins/install", {
-        json: { bundlePath: mutation.bundlePath },
+        json: {
+          bundlePath: mutation.bundlePath,
+          expectedStreamId: mutation.expectedStreamId,
+        },
+        retry: 0,
         signal,
-      })
+      }),
+      mutation.expectedStreamId
     );
   }
   const packageId = encodeURIComponent(mutation.packageId);
   if (mutation.type === "remove") {
     return requestMutationReceipt(
       httpClient.delete(`api/console/v1/agent/control/plugins/${packageId}`, {
+        json: { expectedStreamId: mutation.expectedStreamId },
+        retry: 0,
         signal,
-      })
+      }),
+      mutation.expectedStreamId
     );
   }
   const instanceKey = encodeURIComponent(mutation.instanceKey);
@@ -248,9 +325,17 @@ export async function submitPluginMutation(
       httpClient.put(`${instancePath}/configuration`, {
         json: {
           expectedRevision: mutation.expectedRevision,
+          expectedSourceDigest: mutation.expectedSourceDigest,
+          expectedStreamId: mutation.expectedStreamId,
           proposalDigest: mutation.proposalDigest,
+          ...(mutation.rollbackOfProposalDigest
+            ? {
+                rollbackOfProposalDigest: mutation.rollbackOfProposalDigest,
+              }
+            : {}),
           toml: mutation.toml,
         },
+        retry: 0,
         signal,
       }),
       (responseValue) => {
@@ -261,29 +346,72 @@ export async function submitPluginMutation(
         ) {
           const publication =
             decodePluginConfigurationPublication(responseValue);
+          if (
+            publication.baseRevision !== mutation.expectedRevision ||
+            publication.baseSourceDigest !== mutation.expectedSourceDigest ||
+            publication.proposalDigest !== mutation.proposalDigest ||
+            publication.streamId !== mutation.expectedStreamId
+          ) {
+            throw new TypeError(
+              "Agent Host returned a configuration publication for a different reviewed proposal"
+            );
+          }
           return {
             desired: publication.desired,
             operation: publication.operation,
             schema: "lenso.agent.plugin-operation.v1",
+            streamId: publication.streamId,
           } satisfies PluginMutationReceipt;
         }
-        return decodePluginMutationReceipt(responseValue);
+        return assertMutationStream(
+          decodePluginMutationReceipt(responseValue),
+          mutation.expectedStreamId
+        );
       }
     );
   }
   if (mutation.type === "select") {
     return requestMutationReceipt(
       httpClient.put(`${instancePath}/enabled`, {
-        json: { enabled: mutation.enabled },
+        json: {
+          enabled: mutation.enabled,
+          expectedStreamId: mutation.expectedStreamId,
+        },
+        retry: 0,
         signal,
-      })
+      }),
+      mutation.expectedStreamId
     );
   }
-  return requestMutationReceipt(httpClient.delete(instancePath, { signal }));
+  return requestMutationReceipt(
+    httpClient.delete(instancePath, {
+      json: { expectedStreamId: mutation.expectedStreamId },
+      retry: 0,
+      signal,
+    }),
+    mutation.expectedStreamId
+  );
 }
 
-function requestMutationReceipt(request: Promise<Response>) {
-  return requestDecodedMutation(request, decodePluginMutationReceipt);
+function requestMutationReceipt(
+  request: Promise<Response>,
+  expectedStreamId: string
+) {
+  return requestDecodedMutation(request, (value) =>
+    assertMutationStream(decodePluginMutationReceipt(value), expectedStreamId)
+  );
+}
+
+function assertMutationStream(
+  receipt: PluginMutationReceipt,
+  expectedStreamId: string
+) {
+  if (receipt.streamId !== expectedStreamId) {
+    throw new TypeError(
+      "Agent Host returned a Plugin operation from a different Host stream"
+    );
+  }
+  return receipt;
 }
 
 async function requestDecodedMutation<T>(
@@ -296,13 +424,12 @@ async function requestDecodedMutation<T>(
     const response = await request;
     value = await response.json();
   } catch (error) {
-    if (!isHTTPError(error)) {
+    if (!isHTTPError(error) || error.response.status !== 409) {
       throw error;
     }
     httpError = error;
-    try {
-      value = await error.response.clone().json();
-    } catch {
+    value = error.data;
+    if (value === undefined) {
       throw error;
     }
   }
@@ -330,6 +457,7 @@ type PublishedDesiredPluginSelection = DesiredPluginSelection & {
 
 type PluginConfigurationPublication = {
   baseRevision: string;
+  baseSourceDigest: string;
   configurationAuthority: PluginConfigurationAuthority;
   desired: PublishedDesiredPluginSelection;
   operation: PluginOperation;
@@ -338,6 +466,7 @@ type PluginConfigurationPublication = {
   proposalDigest: string;
   revision: string;
   schema: "lenso.agent.plugin-operation.v1";
+  streamId: string;
 };
 
 export function decodePluginConfigurationPublication(
@@ -348,8 +477,12 @@ export function decodePluginConfigurationPublication(
     value.schema !== "lenso.agent.plugin-operation.v1" ||
     value.publicationSchema !== "lenso.plugin-configuration-publication.v1" ||
     value.publicationStatus !== "published" ||
+    typeof value.streamId !== "string" ||
+    value.streamId.length === 0 ||
     typeof value.baseRevision !== "string" ||
     value.baseRevision.length === 0 ||
+    typeof value.baseSourceDigest !== "string" ||
+    value.baseSourceDigest.length === 0 ||
     !isConfigurationAuthority(value.configurationAuthority) ||
     typeof value.proposalDigest !== "string" ||
     value.proposalDigest.length === 0 ||
@@ -369,6 +502,7 @@ export function decodePluginConfigurationPublication(
   const { operation } = decodePluginOperationResponse({
     operation: value.operation,
     schema: "lenso.agent.plugin-operation.v1",
+    streamId: value.streamId,
   });
   if (
     desired.pluginRootRevision !== value.revision ||
@@ -382,7 +516,23 @@ export function decodePluginConfigurationPublication(
       "Agent Host returned an inconsistent configuration publication"
     );
   }
-  return value as PluginConfigurationPublication;
+  return {
+    baseRevision: value.baseRevision,
+    baseSourceDigest: value.baseSourceDigest,
+    configurationAuthority: value.configurationAuthority,
+    desired: {
+      ...desired,
+      configurationStatus: value.desired.configurationStatus,
+      desiredRevision: value.desired.desiredRevision,
+    },
+    operation,
+    publicationSchema: "lenso.plugin-configuration-publication.v1",
+    publicationStatus: "published",
+    proposalDigest: value.proposalDigest,
+    revision: value.revision,
+    schema: "lenso.agent.plugin-operation.v1",
+    streamId: value.streamId,
+  };
 }
 
 function configurationStatusForOperation(

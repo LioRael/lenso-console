@@ -5,19 +5,30 @@ import { StatusMarker } from "@lenso/ui/status-marker";
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { PluginInspector } from "./plugin-inspector";
 import {
   generationStatusPresentation,
   pluginOriginLabel,
+  pluginSelectionIdentityMatches,
   pluginStatusPresentation,
 } from "./plugin-runtime-state";
 import { PluginStatus } from "./plugin-status";
 import { InstallPluginDialog } from "./plugin-workbench-dialogs";
-import { pluginKey } from "./plugin-workbench-model";
-import { usePluginMutation, usePluginWorkbench } from "./use-plugin-workbench";
+import {
+  pluginKey,
+  reconcilePluginSelectionKey,
+  type PluginWorkbenchItem,
+} from "./plugin-workbench-model";
+import {
+  usePluginConfigurationDraftStore,
+  usePluginMutation,
+  usePluginWorkbench,
+} from "./use-plugin-workbench";
+
+const EMPTY_PLUGIN_ITEMS: readonly PluginWorkbenchItem[] = [];
 
 const styles = stylex.create({
   columns: {
@@ -181,9 +192,26 @@ const styles = stylex.create({
 
 export function PluginWorkbenchPage() {
   const workbench = usePluginWorkbench();
-  const mutation = usePluginMutation();
-  const plugins = workbench.data?.items ?? [];
+  const plugins = workbench.data?.items ?? EMPTY_PLUGIN_ITEMS;
   const inventory = workbench.data?.inventory;
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedKey((current) =>
+      reconcilePluginSelectionKey(current, workbench.data ? plugins : undefined)
+    );
+  }, [plugins, workbench.data]);
+  const selected =
+    plugins.find((plugin) => pluginKey(plugin) === selectedKey) ?? plugins[0];
+  const configurationDraftStore = usePluginConfigurationDraftStore();
+  useEffect(() => {
+    if (!workbench.data) {
+      return;
+    }
+    configurationDraftStore.retainKeys(
+      new Set(workbench.data.items.map(pluginKey))
+    );
+  }, [configurationDraftStore, workbench.data]);
+  const mutation = usePluginMutation(inventory?.streamId);
   const generation = inventory
     ? generationStatusPresentation({
         inventory,
@@ -197,10 +225,6 @@ export function PluginWorkbenchPage() {
         ? null
         : "Plugin changes are paused until the Host authoring and runtime revisions agree."
     : null;
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const selected =
-    plugins.find((plugin) => pluginKey(plugin) === selectedKey) ?? plugins[0];
-
   return (
     <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
       <PageHeader.Root
@@ -256,7 +280,16 @@ export function PluginWorkbenchPage() {
                 }
                 isPending={mutation.isPending}
                 onInstall={async (bundlePath) => {
-                  await mutation.mutateAsync({ bundlePath, type: "install" });
+                  if (!inventory) {
+                    throw new TypeError(
+                      "The Console cannot install a Plugin before Host inventory is available"
+                    );
+                  }
+                  await mutation.mutateAsync({
+                    bundlePath,
+                    expectedStreamId: inventory.streamId,
+                    type: "install",
+                  });
                 }}
               />
             </div>
@@ -352,7 +385,14 @@ export function PluginWorkbenchPage() {
                       {plugin.packageId}
                     </span>
                     <span {...stylex.props(styles.secondary)}>
-                      {plugin.packageRevision || "linked"}
+                      {plugin.active &&
+                      plugin.desired &&
+                      !pluginSelectionIdentityMatches(
+                        plugin.active,
+                        plugin.desired
+                      )
+                        ? `${plugin.active.packageRevision} → ${plugin.desired.packageRevision}`
+                        : plugin.packageRevision || "linked"}
                     </span>
                   </span>
                   <PluginStatus state={state} />
@@ -368,6 +408,7 @@ export function PluginWorkbenchPage() {
             {selected && inventory && workbench.data ? (
               <PluginInspector
                 authoringEnabled={workbench.authoringEnabled}
+                configurationDraftStore={configurationDraftStore}
                 inventory={inventory}
                 key={pluginKey(selected)}
                 management={workbench.data.management}

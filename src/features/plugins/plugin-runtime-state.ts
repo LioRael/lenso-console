@@ -40,6 +40,41 @@ export function configurationProposalReadyPresentation(
   };
 }
 
+export function rollbackProposalReadyPresentation(
+  proposal: PluginConfigurationProposal | undefined,
+  candidateRevisionLabel: string
+) {
+  if (proposal?.status !== "ready") {
+    return null;
+  }
+  if (proposal.application === "noop") {
+    return {
+      actionLabel: "Confirm rollback",
+      description:
+        "Rollback review ready. The resolved App Generation does not change, so publication can apply immediately.",
+    };
+  }
+  return {
+    actionLabel: "Publish rollback",
+    description: `Rollback review ready. Publishing will create revision ${candidateRevisionLabel} and prepare a new App Generation.`,
+  };
+}
+
+export function configurationChangeCanSubmit(
+  proposal: PluginConfigurationProposal | undefined,
+  draftToml: string,
+  hostToml: string
+) {
+  return proposal?.status === "ready" || draftToml !== hostToml;
+}
+
+export function configurationPublicationIsCurrent(
+  publicationToml: string,
+  currentToml: string | null
+) {
+  return currentToml !== null && publicationToml === currentToml;
+}
+
 const PLUGIN_CONFIGURATION_STATUS_LABELS = {
   applied: "Applied",
   pending: "Pending",
@@ -84,7 +119,10 @@ export function generationStatusPresentation({
       tone: "warning",
     };
   }
-  const event = latestFailure(inventory);
+  const event =
+    inventory.configurationStatus === "applied"
+      ? undefined
+      : latestFailure(inventory);
   if (event?.status === "rejected") {
     return {
       description: event.detail ?? "The desired Generation was not activated.",
@@ -112,6 +150,19 @@ export function generationStatusPresentation({
       description: "The Host is preparing the desired App Generation.",
       label: "Preparing Generation",
       tone: "info",
+    };
+  }
+  if (
+    inventory.truncated &&
+    inventory.configurationStatus === "pending" &&
+    (inventory.active.pluginRootRevision !== inventory.desiredRevision ||
+      inventory.active.planDigest !== inventory.desired.planDigest)
+  ) {
+    return {
+      description:
+        "The desired and active Generations differ, but the retained event window does not prove whether preparation is still running or already ended.",
+      label: "Generation state incomplete",
+      tone: "warning",
     };
   }
   if (inventory.configurationStatus === "pending") {
@@ -147,6 +198,19 @@ export function generationStatusPresentation({
     label: "Generation active",
     tone: "success",
   };
+}
+
+export function pluginTechnicalSelection(plugin: PluginWorkbenchItem) {
+  if (plugin.active) {
+    return { phase: "Serving", selection: plugin.active } as const;
+  }
+  if (plugin.preparing) {
+    return { phase: "Candidate", selection: plugin.preparing } as const;
+  }
+  if (plugin.desired) {
+    return { phase: "Desired", selection: plugin.desired } as const;
+  }
+  return { phase: "Resolved", selection: null } as const;
 }
 
 export function pluginStatusPresentation({
@@ -192,6 +256,20 @@ export function pluginStatusPresentation({
     }
   }
   if (item.active && item.desired) {
+    if (!pluginSelectionIdentityMatches(item.active, item.desired)) {
+      if (inventory.configurationStatus === "rejected") {
+        return {
+          description: `Active revision ${item.active.packageRevision} remains in service because desired revision ${item.desired.packageRevision} was rejected.`,
+          label: "Desired rejected",
+          tone: "error",
+        };
+      }
+      return {
+        description: `Active revision ${item.active.packageRevision} remains in service while desired revision ${item.desired.packageRevision} prepares.`,
+        label: "Updating",
+        tone: "info",
+      };
+    }
     return {
       description: "This Instance is present in the active and desired Plans.",
       label: "Active",
@@ -199,6 +277,14 @@ export function pluginStatusPresentation({
     };
   }
   if (item.active) {
+    if (inventory.configurationStatus === "rejected") {
+      return {
+        description:
+          "The desired removal was rejected, so this Instance remains in the active Generation.",
+        label: "Removal rejected",
+        tone: "error",
+      };
+    }
     return {
       description:
         "This Instance is still active while the desired Plan removes it.",
@@ -215,6 +301,14 @@ export function pluginStatusPresentation({
     };
   }
   if (item.desired) {
+    if (inventory.configurationStatus === "rejected") {
+      return {
+        description:
+          "The desired addition was rejected, so this Instance is not part of the active Generation.",
+        label: "Activation rejected",
+        tone: "error",
+      };
+    }
     return {
       description:
         "This Instance is desired but is not part of the active Generation yet.",
@@ -227,6 +321,27 @@ export function pluginStatusPresentation({
     label: "Inactive",
     tone: "neutral",
   };
+}
+
+export function pluginSelectionIdentityMatches(
+  left: NonNullable<PluginWorkbenchItem["active"]>,
+  right: NonNullable<PluginWorkbenchItem["desired"]>
+) {
+  return (
+    left.packageRevision === right.packageRevision &&
+    left.entrypoint === right.entrypoint &&
+    left.executionClass === right.executionClass &&
+    left.disableable === right.disableable &&
+    stringArraysEqual(left.providedCapabilities, right.providedCapabilities) &&
+    stringArraysEqual(left.requiredCapabilities, right.requiredCapabilities)
+  );
+}
+
+function stringArraysEqual(left: readonly string[], right: readonly string[]) {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
 export function desiredSelectionChecked({
@@ -257,9 +372,10 @@ export function operationMatchesInventory(
   operation: PluginOperation,
   inventory: PluginInventory
 ) {
-  const isFailure =
-    operation.status === "rejected" || operation.status === "rolled_back";
-  if (isFailure && BigInt(inventory.cursor) > BigInt(operation.cursor)) {
+  if (operation.streamId !== inventory.streamId) {
+    return false;
+  }
+  if (BigInt(inventory.cursor) > BigInt(operation.cursor)) {
     return false;
   }
   if (operation.pluginRootRevision === undefined) {

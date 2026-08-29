@@ -22,17 +22,22 @@ export type PluginOperation = {
   planDigest?: string;
   pluginRootRevision?: string;
   status: PluginOperationStatus;
+  streamId: string;
 };
+
+type PluginOperationPayload = Omit<PluginOperation, "streamId">;
 
 export type PluginMutationReceipt = {
   desired: DesiredPluginSelection | null;
   operation: PluginOperation;
   schema: "lenso.agent.plugin-operation.v1";
+  streamId: string;
 };
 
 export type PluginOperationResponse = {
   operation: PluginOperation;
   schema: "lenso.agent.plugin-operation.v1";
+  streamId: string;
 };
 
 export class PluginOperationFailedError extends Error {
@@ -63,7 +68,12 @@ export class PluginOperationTimeoutError extends Error {
 export function decodePluginMutationReceipt(
   value: unknown
 ): PluginMutationReceipt {
-  if (!isRecord(value) || value.schema !== "lenso.agent.plugin-operation.v1") {
+  if (
+    !isRecord(value) ||
+    value.schema !== "lenso.agent.plugin-operation.v1" ||
+    typeof value.streamId !== "string" ||
+    value.streamId.length === 0
+  ) {
     throw new TypeError(
       "Agent Host accepted the write without a verifiable Plugin operation receipt; upgrade the Host before using Console Plugin controls"
     );
@@ -73,8 +83,9 @@ export function decodePluginMutationReceipt(
       "Agent Host returned an invalid Plugin operation receipt"
     );
   }
+  let desired: DesiredPluginSelection | null = null;
   if (value.desired !== null) {
-    const desired = decodeDesiredPluginSelection(value.desired);
+    desired = decodeDesiredPluginSelection(value.desired);
     if (
       value.operation.pluginRootRevision !== desired.pluginRootRevision ||
       value.operation.desiredStateDigest !== desired.desiredStateDigest ||
@@ -89,7 +100,12 @@ export function decodePluginMutationReceipt(
       "Agent Host returned a Plugin operation without its Desired selection"
     );
   }
-  return value as PluginMutationReceipt;
+  return {
+    desired,
+    operation: { ...value.operation, streamId: value.streamId },
+    schema: "lenso.agent.plugin-operation.v1",
+    streamId: value.streamId,
+  };
 }
 
 export function decodePluginOperationResponse(
@@ -98,13 +114,19 @@ export function decodePluginOperationResponse(
   if (
     !isRecord(value) ||
     value.schema !== "lenso.agent.plugin-operation.v1" ||
+    typeof value.streamId !== "string" ||
+    value.streamId.length === 0 ||
     !isPluginOperation(value.operation)
   ) {
     throw new TypeError(
       "Agent Host returned an invalid Plugin operation response"
     );
   }
-  return value as PluginOperationResponse;
+  return {
+    operation: { ...value.operation, streamId: value.streamId },
+    schema: "lenso.agent.plugin-operation.v1",
+    streamId: value.streamId,
+  };
 }
 
 export function isTerminalPluginOperation(operation: PluginOperation) {
@@ -194,6 +216,7 @@ function assertOperationContinuation(
 ) {
   if (
     current.id !== previous.id ||
+    current.streamId !== previous.streamId ||
     current.acceptedAfterCursor !== previous.acceptedAfterCursor ||
     current.pluginRootRevision !== previous.pluginRootRevision ||
     current.desiredStateDigest !== previous.desiredStateDigest ||
@@ -265,7 +288,7 @@ function isCursor(value: unknown): value is string {
   return typeof value === "string" && /^(0|[1-9]\d*)$/.test(value);
 }
 
-function isPluginOperation(value: unknown): value is PluginOperation {
+function isPluginOperation(value: unknown): value is PluginOperationPayload {
   if (
     !(
       isRecord(value) &&
@@ -294,6 +317,10 @@ function isPluginOperation(value: unknown): value is PluginOperation {
     typeof value.desiredStateDigest === "string" &&
     typeof value.planDigest === "string" &&
     typeof value.pluginRootRevision === "string";
+  const hasNoDesiredIdentity =
+    value.desiredStateDigest === undefined &&
+    value.planDigest === undefined &&
+    value.pluginRootRevision === undefined;
   if (value.status === "accepted") {
     return hasDesiredIdentity;
   }
@@ -307,7 +334,11 @@ function isPluginOperation(value: unknown): value is PluginOperation {
       typeof value.detail === "string"
     );
   }
-  return typeof value.detail === "string";
+  return (
+    typeof value.detail === "string" &&
+    (hasDesiredIdentity || hasNoDesiredIdentity) &&
+    (value.generationSpecDigest === undefined || hasDesiredIdentity)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

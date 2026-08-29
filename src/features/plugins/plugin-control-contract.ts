@@ -67,6 +67,7 @@ export type PluginInventory = {
   events: readonly PluginGenerationEvent[];
   preparing: PreparingPluginSelection | null;
   schema: "lenso.agent.plugin-inventory.v2";
+  streamId: string;
   truncated: boolean;
 };
 
@@ -77,6 +78,7 @@ export type ManagedPluginInstance = {
   origin: "host-default" | "plugin-root";
   rootConfigurationToml: string | null;
   selection: "disabled-by-root" | "enabled" | "excluded-by-profile";
+  sourceDigest: string;
 };
 
 export type ManagedPlugin = {
@@ -96,6 +98,7 @@ export type PluginManagement = {
 export type PluginConfigurationProposal = {
   application: "app_generation" | "blocked" | "noop";
   baseRevision: string;
+  baseSourceDigest: string;
   candidateRevision: string;
   configurationAuthority: PluginConfigurationAuthority;
   diagnostics: readonly { code: string; detail: string }[];
@@ -108,6 +111,7 @@ export type PluginConfigurationProposal = {
 
 export type PluginConfigurationPublicationRecord = {
   baseRevision: string;
+  baseSourceDigest: string | null;
   configurationToml: string;
   proposalDigest: string;
   publishedAtUnixMs: number;
@@ -130,7 +134,10 @@ export type PluginConfigurationRollbackProposal = {
   schema: "lenso.agent.plugin-configuration-rollback-proposal.v1";
 };
 
-export function decodePluginInventory(value: unknown): PluginInventory {
+export function decodePluginInventory(
+  value: unknown,
+  after?: string
+): PluginInventory {
   if (!isRecord(value) || value.schema !== "lenso.agent.plugin-inventory.v2") {
     throw new TypeError(
       "Agent Host does not expose the cursor-based Plugin inventory v2 contract"
@@ -190,15 +197,24 @@ export function decodePluginInventory(value: unknown): PluginInventory {
   if (typeof value.truncated !== "boolean") {
     throw new TypeError("Agent Host returned invalid Plugin event pagination");
   }
-  const revisionsMatch = value.appliedRevision === value.desiredRevision;
+  if (typeof value.streamId !== "string" || value.streamId.length === 0) {
+    throw new TypeError("Agent Host returned an invalid Plugin event stream");
+  }
   if (
-    (value.configurationStatus === "applied") !== revisionsMatch ||
+    (value.configurationStatus === "applied" &&
+      (value.appliedRevision !== value.desiredRevision ||
+        value.active.planDigest !== value.desired.planDigest)) ||
     (value.preparing !== null &&
       (value.preparing.pluginRootRevision !== value.desiredRevision ||
         value.preparing.desiredStateDigest !==
           value.desired.desiredStateDigest ||
         value.preparing.planDigest !== value.desired.planDigest)) ||
-    !eventsAreOrderedThrough(value.events, value.cursor)
+    !eventsAreCompleteThrough(
+      value.events,
+      value.cursor,
+      value.truncated,
+      after
+    )
   ) {
     throw new TypeError(
       "Agent Host returned internally inconsistent Plugin inventory evidence"
@@ -207,20 +223,58 @@ export function decodePluginInventory(value: unknown): PluginInventory {
   return value as PluginInventory;
 }
 
-function eventsAreOrderedThrough(
-  events: readonly PluginGenerationEvent[],
-  cursor: string
+export function assertPluginInventoryPage(
+  inventory: PluginInventory,
+  after?: string
 ) {
-  let previous = -1n;
+  if (
+    !eventsAreCompleteThrough(
+      inventory.events,
+      inventory.cursor,
+      inventory.truncated,
+      after
+    )
+  ) {
+    throw new TypeError(
+      "Agent Host returned an incomplete Plugin inventory event page"
+    );
+  }
+}
+
+function eventsAreCompleteThrough(
+  events: readonly PluginGenerationEvent[],
+  cursor: string,
+  truncated: boolean,
+  after: string | undefined
+) {
+  const requestedAfter = after === undefined ? 0n : BigInt(after);
   const pageCursor = BigInt(cursor);
+  if (pageCursor < requestedAfter) {
+    return events.length === 0 && !truncated;
+  }
+  if (pageCursor === requestedAfter) {
+    return events.length === 0 && !truncated;
+  }
+  if (events.length === 0) {
+    return false;
+  }
+  let previous: bigint | undefined;
   for (const event of events) {
     const current = BigInt(event.cursor);
-    if (current <= previous || current > pageCursor) {
+    if (
+      current > pageCursor ||
+      (previous !== undefined && current !== previous + 1n)
+    ) {
       return false;
     }
     previous = current;
   }
-  return true;
+  const first = BigInt(events[0]?.cursor ?? "0");
+  const expectedFirst = requestedAfter + 1n;
+  return (
+    previous === pageCursor &&
+    (truncated ? first > expectedFirst : first === expectedFirst)
+  );
 }
 
 export function decodeDesiredPluginSelection(
@@ -236,7 +290,11 @@ export function decodePluginManagement(value: unknown): PluginManagement {
   if (!isRecord(value) || value.schema !== "lenso.agent.plugin-management.v1") {
     throw new TypeError("Agent Host returned invalid Plugin management state");
   }
-  if (!Array.isArray(value.plugins) || !value.plugins.every(isManagedPlugin)) {
+  if (
+    !Array.isArray(value.plugins) ||
+    !value.plugins.every(isManagedPlugin) ||
+    !hasUniqueValues(value.plugins, (plugin) => plugin.packageId)
+  ) {
     throw new TypeError("Agent Host returned invalid managed Plugin entries");
   }
   if (
@@ -262,6 +320,8 @@ export function decodePluginConfigurationProposal(
       value.application !== "noop") ||
     typeof value.baseRevision !== "string" ||
     value.baseRevision.length === 0 ||
+    typeof value.baseSourceDigest !== "string" ||
+    value.baseSourceDigest.length === 0 ||
     typeof value.candidateRevision !== "string" ||
     value.candidateRevision.length === 0 ||
     !isConfigurationAuthority(value.configurationAuthority) ||
@@ -279,6 +339,25 @@ export function decodePluginConfigurationProposal(
   ) {
     throw new TypeError(
       "Agent Host returned an invalid configuration proposal"
+    );
+  }
+  const readyNoop =
+    value.status === "ready" &&
+    value.application === "noop" &&
+    value.candidateRevision === value.baseRevision &&
+    value.diagnostics.length === 0;
+  const readyGeneration =
+    value.status === "ready" &&
+    value.application === "app_generation" &&
+    value.candidateRevision !== value.baseRevision &&
+    value.diagnostics.length === 0;
+  const blocked =
+    (value.status === "needs_decision" || value.status === "rejected") &&
+    value.application === "blocked" &&
+    value.diagnostics.length > 0;
+  if (!(readyNoop || readyGeneration || blocked)) {
+    throw new TypeError(
+      "Agent Host returned an internally inconsistent configuration proposal"
     );
   }
   return value as PluginConfigurationProposal;
@@ -327,8 +406,11 @@ function isActiveSelection(value: unknown): value is ActivePluginSelection {
   return (
     isRecord(value) &&
     typeof value.generationSpecDigest === "string" &&
+    value.generationSpecDigest.length > 0 &&
     typeof value.planDigest === "string" &&
+    value.planDigest.length > 0 &&
     typeof value.pluginRootRevision === "string" &&
+    value.pluginRootRevision.length > 0 &&
     isPluginSelection(value.plugins)
   );
 }
@@ -347,29 +429,69 @@ function isDesiredSelection(value: unknown): value is DesiredPluginSelection {
   return (
     isRecord(value) &&
     typeof value.desiredStateDigest === "string" &&
+    value.desiredStateDigest.length > 0 &&
     typeof value.planDigest === "string" &&
+    value.planDigest.length > 0 &&
     typeof value.pluginRootRevision === "string" &&
+    value.pluginRootRevision.length > 0 &&
     isPluginSelection(value.plugins)
   );
 }
 
 function isGenerationEvent(value: unknown): value is PluginGenerationEvent {
+  if (
+    !isRecord(value) ||
+    !isCursor(value.cursor) ||
+    !optionalNonEmptyString(value.desiredStateDigest) ||
+    !optionalNonEmptyString(value.detail) ||
+    !optionalNonEmptyString(value.generationSpecDigest) ||
+    !optionalNonEmptyString(value.planDigest) ||
+    !optionalNonEmptyString(value.pluginRootRevision) ||
+    !optionalNonEmptyString(value.previousGenerationSpecDigest) ||
+    !optionalNonEmptyString(value.restoredGenerationSpecDigest) ||
+    !optionalCursor(value.routingEpoch)
+  ) {
+    return false;
+  }
+  const hasDesiredIdentity =
+    typeof value.desiredStateDigest === "string" &&
+    typeof value.planDigest === "string" &&
+    typeof value.pluginRootRevision === "string";
+  const hasNoDesiredIdentity =
+    value.desiredStateDigest === undefined &&
+    value.planDigest === undefined &&
+    value.pluginRootRevision === undefined;
+  if (value.status === "preparing") {
+    return (
+      hasDesiredIdentity &&
+      typeof value.generationSpecDigest === "string" &&
+      typeof value.previousGenerationSpecDigest === "string"
+    );
+  }
+  if (value.status === "switched") {
+    return (
+      hasDesiredIdentity &&
+      typeof value.generationSpecDigest === "string" &&
+      typeof value.previousGenerationSpecDigest === "string" &&
+      typeof value.routingEpoch === "string"
+    );
+  }
+  if (value.status === "rolled_back") {
+    return (
+      (hasDesiredIdentity || hasNoDesiredIdentity) &&
+      typeof value.detail === "string" &&
+      typeof value.generationSpecDigest === "string" &&
+      typeof value.restoredGenerationSpecDigest === "string" &&
+      typeof value.routingEpoch === "string"
+    );
+  }
+  if (value.status === "rejected") {
+    return typeof value.detail === "string";
+  }
   return (
-    isRecord(value) &&
-    isCursor(value.cursor) &&
-    optionalString(value.desiredStateDigest) &&
-    optionalString(value.detail) &&
-    optionalString(value.generationSpecDigest) &&
-    optionalString(value.planDigest) &&
-    optionalString(value.pluginRootRevision) &&
-    optionalString(value.previousGenerationSpecDigest) &&
-    optionalString(value.restoredGenerationSpecDigest) &&
-    optionalCursor(value.routingEpoch) &&
-    (value.status === "preparing" ||
-      value.status === "rejected" ||
-      value.status === "rolled_back" ||
-      value.status === "switched" ||
-      value.status === "watch_degraded")
+    value.status === "watch_degraded" &&
+    hasNoDesiredIdentity &&
+    typeof value.detail === "string"
   );
 }
 
@@ -377,10 +499,14 @@ function isManagedPlugin(value: unknown): value is ManagedPlugin {
   return (
     isRecord(value) &&
     typeof value.packageId === "string" &&
+    value.packageId.length > 0 &&
+    !value.packageId.includes("/") &&
     typeof value.packageRevision === "string" &&
+    value.packageRevision.length > 0 &&
     typeof value.rootSupplied === "boolean" &&
     Array.isArray(value.instances) &&
-    value.instances.every(isManagedPluginInstance)
+    value.instances.every(isManagedPluginInstance) &&
+    hasUniqueValues(value.instances, (instance) => instance.instanceKey)
   );
 }
 
@@ -392,17 +518,25 @@ function isManagedPluginInstance(
     typeof value.disableable === "boolean" &&
     typeof value.hasRootDifference === "boolean" &&
     typeof value.instanceKey === "string" &&
+    value.instanceKey.length > 0 &&
+    !value.instanceKey.includes("/") &&
     (value.origin === "host-default" || value.origin === "plugin-root") &&
     (value.rootConfigurationToml === null ||
       typeof value.rootConfigurationToml === "string") &&
     (value.selection === "enabled" ||
       value.selection === "disabled-by-root" ||
-      value.selection === "excluded-by-profile")
+      value.selection === "excluded-by-profile") &&
+    typeof value.sourceDigest === "string" &&
+    value.sourceDigest.length > 0
   );
 }
 
 function isPluginSelection(value: unknown): value is PluginSelectionItem[] {
-  return Array.isArray(value) && value.every(isPluginSelectionItem);
+  return (
+    Array.isArray(value) &&
+    value.every(isPluginSelectionItem) &&
+    hasUniqueValues(value, (item) => item.instanceKey)
+  );
 }
 
 function isPluginSelectionItem(value: unknown): value is PluginSelectionItem {
@@ -410,10 +544,16 @@ function isPluginSelectionItem(value: unknown): value is PluginSelectionItem {
     isRecord(value) &&
     typeof value.disableable === "boolean" &&
     typeof value.entrypoint === "string" &&
+    value.entrypoint.length > 0 &&
     typeof value.executionClass === "string" &&
+    value.executionClass.length > 0 &&
     typeof value.instanceKey === "string" &&
     typeof value.packageId === "string" &&
+    value.packageId.length > 0 &&
+    !value.packageId.includes("/") &&
+    isCanonicalSelectionInstanceKey(value.instanceKey, value.packageId) &&
     typeof value.packageRevision === "string" &&
+    value.packageRevision.length > 0 &&
     isStringArray(value.providedCapabilities) &&
     isStringArray(value.requiredCapabilities)
   );
@@ -425,14 +565,38 @@ function isPreparingSelection(
   return (
     isDesiredSelection(value) &&
     "generationSpecDigest" in value &&
-    typeof value.generationSpecDigest === "string"
+    typeof value.generationSpecDigest === "string" &&
+    value.generationSpecDigest.length > 0
   );
 }
 
 function isStringArray(value: unknown): value is string[] {
   return (
-    Array.isArray(value) && value.every((item) => typeof item === "string")
+    Array.isArray(value) &&
+    value.every((item) => typeof item === "string" && item.length > 0) &&
+    new Set(value).size === value.length
   );
+}
+
+function isCanonicalSelectionInstanceKey(
+  instanceKey: string,
+  packageId: string
+) {
+  const separator = instanceKey.indexOf("/");
+  return (
+    separator === instanceKey.lastIndexOf("/") &&
+    separator === packageId.length &&
+    instanceKey.startsWith(`${packageId}/`) &&
+    separator < instanceKey.length - 1
+  );
+}
+
+function hasUniqueValues<T>(
+  values: readonly T[],
+  select: (value: T) => string
+) {
+  const selected = values.map(select);
+  return new Set(selected).size === selected.length;
 }
 
 function isConfigurationAuthority(
@@ -459,7 +623,9 @@ function isConfigurationDiagnostic(value: unknown) {
   return (
     isRecord(value) &&
     typeof value.code === "string" &&
-    typeof value.detail === "string"
+    value.code.length > 0 &&
+    typeof value.detail === "string" &&
+    value.detail.length > 0
   );
 }
 
@@ -468,6 +634,9 @@ function isPluginConfigurationPublicationRecord(value: unknown) {
     isRecord(value) &&
     typeof value.baseRevision === "string" &&
     value.baseRevision.length > 0 &&
+    (value.baseSourceDigest === null ||
+      (typeof value.baseSourceDigest === "string" &&
+        value.baseSourceDigest.length > 0)) &&
     typeof value.configurationToml === "string" &&
     typeof value.proposalDigest === "string" &&
     value.proposalDigest.length > 0 &&
@@ -482,8 +651,8 @@ function isPluginConfigurationPublicationRecord(value: unknown) {
   );
 }
 
-function optionalString(value: unknown) {
-  return value === undefined || typeof value === "string";
+function optionalNonEmptyString(value: unknown) {
+  return value === undefined || (typeof value === "string" && value.length > 0);
 }
 
 function optionalCursor(value: unknown) {

@@ -1,9 +1,10 @@
-import type {
-  PluginConfigurationHistory,
-  ManagedPluginInstance,
-  PluginInventory,
-  PluginManagement,
-  PluginSelectionItem,
+import {
+  assertPluginInventoryPage,
+  type ManagedPluginInstance,
+  type PluginConfigurationHistory,
+  type PluginInventory,
+  type PluginManagement,
+  type PluginSelectionItem,
 } from "./plugin-control-contract";
 
 export type PluginWorkbenchItem = {
@@ -65,6 +66,7 @@ export const demoPluginInventory: PluginInventory = {
   events: [],
   preparing: null,
   schema: "lenso.agent.plugin-inventory.v2",
+  streamId: "018f0f5f-8b8a-7c3e-9b34-7f7f8d3f6b20",
   truncated: false,
 };
 
@@ -85,6 +87,7 @@ export const demoPluginManagement: PluginManagement = {
           origin: "host-default",
           rootConfigurationToml: null,
           selection: "enabled",
+          sourceDigest: "sha256:demo-agent-source",
         },
       ],
       packageId: "lenso.agent.loop",
@@ -103,6 +106,7 @@ export const demoPluginConfigurationHistory: PluginConfigurationHistory = {
   publications: [
     {
       baseRevision: "demo-root-previous",
+      baseSourceDigest: "sha256:demo-agent-source-previous",
       configurationToml: 'model = "gpt-5.6-luna"\nmax_steps = 9\n',
       proposalDigest: "demo-proposal-current",
       publishedAtUnixMs: 1_788_000_000_000,
@@ -111,6 +115,7 @@ export const demoPluginConfigurationHistory: PluginConfigurationHistory = {
     },
     {
       baseRevision: "demo-root-original",
+      baseSourceDigest: null,
       configurationToml: 'model = "gpt-5.6-luna"\nmax_steps = 7\n',
       proposalDigest: "demo-proposal-previous",
       publishedAtUnixMs: 1_787_900_000_000,
@@ -125,21 +130,29 @@ export function mergePluginInventory(
   previous: PluginInventory | undefined,
   current: PluginInventory
 ): PluginInventory {
-  if (!previous || compareCursor(current.cursor, previous.cursor) < 0) {
+  if (!previous || current.streamId !== previous.streamId) {
+    assertPluginInventoryPage(current);
     return current;
   }
-  const events = new Map(
+  if (compareCursor(current.cursor, previous.cursor) < 0) {
+    throw new TypeError(
+      "Agent Host regressed the Plugin cursor within one event stream"
+    );
+  }
+  assertPluginInventoryPage(current, previous.cursor);
+  const eventsByCursor = new Map(
     [...previous.events, ...current.events].map((event) => [
       event.cursor,
       event,
     ])
   );
+  const events = [...eventsByCursor.values()].sort((left, right) =>
+    compareCursor(left.cursor, right.cursor)
+  );
   return {
     ...current,
-    events: [...events.values()]
-      .sort((left, right) => compareCursor(left.cursor, right.cursor))
-      .slice(-64),
-    truncated: previous.truncated || current.truncated,
+    events: events.slice(-64),
+    truncated: previous.truncated || current.truncated || events.length > 64,
   };
 }
 
@@ -188,7 +201,7 @@ export function pluginWorkbenchItems(
   return [...keys]
     .map((key) => {
       const selection =
-        desired.get(key) ?? preparing.get(key) ?? active.get(key) ?? null;
+        active.get(key) ?? desired.get(key) ?? preparing.get(key) ?? null;
       const { instanceKey, packageId } = splitInstanceKey(key);
       const details = packageDetails.get(packageId);
       return {
@@ -208,6 +221,29 @@ export function pluginWorkbenchItems(
 
 export function pluginKey(plugin: { instanceKey: string; packageId: string }) {
   return `${plugin.packageId}/${plugin.instanceKey}`;
+}
+
+export function stablePluginSelectionKey(
+  currentKey: string | null,
+  plugins: readonly PluginWorkbenchItem[]
+) {
+  if (
+    currentKey !== null &&
+    plugins.some((plugin) => pluginKey(plugin) === currentKey)
+  ) {
+    return currentKey;
+  }
+  const [first] = plugins;
+  return first ? pluginKey(first) : null;
+}
+
+export function reconcilePluginSelectionKey(
+  currentKey: string | null,
+  verifiedPlugins: readonly PluginWorkbenchItem[] | undefined
+) {
+  return verifiedPlugins === undefined
+    ? currentKey
+    : stablePluginSelectionKey(currentKey, verifiedPlugins);
 }
 
 function compareCursor(left: string, right: string) {

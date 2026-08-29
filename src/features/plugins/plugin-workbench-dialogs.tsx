@@ -133,11 +133,13 @@ export function InstallPluginDialog({
 
 export function RemovePluginDialog({
   disabled,
+  error,
   isPending,
   onRemove,
   packageId,
 }: {
   disabled: boolean;
+  error: Error | null;
   isPending: boolean;
   onRemove: () => Promise<void>;
   packageId: string;
@@ -169,6 +171,16 @@ export function RemovePluginDialog({
               </div>
               <Dialog.Close />
             </Dialog.Header>
+            {error ? (
+              <Dialog.Body>
+                <p
+                  role="alert"
+                  {...stylex.props(styles.feedback, styles.feedbackError)}
+                >
+                  {error.message}
+                </p>
+              </Dialog.Body>
+            ) : null}
             <Dialog.Footer>
               <Dialog.Close render={<Button size="compact" variant="ghost" />}>
                 Cancel
@@ -180,7 +192,7 @@ export function RemovePluginDialog({
                     await onRemove();
                     setOpen(false);
                   } catch {
-                    // The receipt-aware mutation error is rendered by the inspector.
+                    // The receipt-aware mutation error remains visible above.
                   }
                 }}
                 size="compact"
