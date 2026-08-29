@@ -9,6 +9,9 @@ export type PluginInventoryItem = {
 };
 
 export type PluginInventory = {
+  appliedRevision: string | null;
+  configurationStatus: "applied" | "pending" | "rejected" | "unavailable";
+  desiredRevision: string | null;
   plugins: readonly PluginInventoryItem[];
   schema: "lenso.agent.plugin-inventory.v1";
 };
@@ -31,7 +34,29 @@ export type ManagedPlugin = {
 
 export type PluginManagement = {
   plugins: readonly ManagedPlugin[];
+  revision: string;
   schema: "lenso.agent.plugin-management.v1";
+};
+
+export type PluginConfigurationProposal = {
+  application: "app_generation" | "blocked" | "noop";
+  baseRevision: string;
+  candidateRevision: string;
+  diagnostics: readonly { code: string; detail: string }[];
+  instanceKey: string;
+  pluginId: string;
+  proposalDigest: string;
+  schema: "lenso.plugin-configuration-proposal.v1";
+  status: "needs_decision" | "ready" | "rejected";
+};
+
+export type PluginConfigurationPublication = {
+  baseRevision: string;
+  desired: PluginInventory;
+  proposalDigest: string;
+  revision: string;
+  schema: "lenso.plugin-configuration-publication.v1";
+  status: "published";
 };
 
 export type PluginWorkbenchItem = ManagedPluginInstance & {
@@ -42,6 +67,11 @@ export type PluginWorkbenchItem = ManagedPluginInstance & {
 };
 
 export const demoPluginInventory: PluginInventory = {
+  appliedRevision:
+    "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  configurationStatus: "applied",
+  desiredRevision:
+    "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   plugins: [
     {
       entrypoint: "default",
@@ -74,6 +104,8 @@ export const demoPluginManagement: PluginManagement = {
       rootSupplied: false,
     },
   ],
+  revision:
+    "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   schema: "lenso.agent.plugin-management.v1",
 };
 
@@ -83,6 +115,15 @@ export function decodePluginInventory(value: unknown): PluginInventory {
   }
   if (!Array.isArray(value.plugins) || !value.plugins.every(isPlugin)) {
     throw new TypeError("Agent Host returned invalid Plugin entries");
+  }
+  if (
+    !isOptionalRevision(value.appliedRevision) ||
+    !isOptionalRevision(value.desiredRevision) ||
+    !isConfigurationStatus(value.configurationStatus)
+  ) {
+    throw new TypeError(
+      "Agent Host returned invalid Plugin configuration state"
+    );
   }
   return value as PluginInventory;
 }
@@ -94,7 +135,56 @@ export function decodePluginManagement(value: unknown): PluginManagement {
   if (!Array.isArray(value.plugins) || !value.plugins.every(isManagedPlugin)) {
     throw new TypeError("Agent Host returned invalid managed Plugin entries");
   }
+  if (!isRevision(value.revision)) {
+    throw new TypeError("Agent Host returned an invalid Plugin Root revision");
+  }
   return value as PluginManagement;
+}
+
+export function decodePluginConfigurationProposal(
+  value: unknown
+): PluginConfigurationProposal {
+  if (
+    !isRecord(value) ||
+    value.schema !== "lenso.plugin-configuration-proposal.v1" ||
+    !isRevision(value.baseRevision) ||
+    !isRevision(value.candidateRevision) ||
+    !isRevision(value.proposalDigest) ||
+    (value.status !== "ready" &&
+      value.status !== "needs_decision" &&
+      value.status !== "rejected") ||
+    (value.application !== "noop" &&
+      value.application !== "app_generation" &&
+      value.application !== "blocked") ||
+    typeof value.pluginId !== "string" ||
+    typeof value.instanceKey !== "string" ||
+    !Array.isArray(value.diagnostics) ||
+    !value.diagnostics.every(isDiagnostic)
+  ) {
+    throw new TypeError(
+      "Agent Host returned an invalid configuration proposal"
+    );
+  }
+  return value as PluginConfigurationProposal;
+}
+
+export function decodePluginConfigurationPublication(
+  value: unknown
+): PluginConfigurationPublication {
+  if (
+    !isRecord(value) ||
+    value.schema !== "lenso.plugin-configuration-publication.v1" ||
+    value.status !== "published" ||
+    !isRevision(value.baseRevision) ||
+    !isRevision(value.revision) ||
+    !isRevision(value.proposalDigest)
+  ) {
+    throw new TypeError(
+      "Agent Host returned an invalid configuration publication"
+    );
+  }
+  decodePluginInventory(value.desired);
+  return value as PluginConfigurationPublication;
 }
 
 export function pluginWorkbenchItems(
@@ -158,6 +248,33 @@ function isStringArray(value: unknown): value is string[] {
   return (
     Array.isArray(value) && value.every((item) => typeof item === "string")
   );
+}
+
+function isConfigurationStatus(
+  value: unknown
+): value is PluginInventory["configurationStatus"] {
+  return (
+    value === "applied" ||
+    value === "pending" ||
+    value === "rejected" ||
+    value === "unavailable"
+  );
+}
+
+function isDiagnostic(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.code === "string" &&
+    typeof value.detail === "string"
+  );
+}
+
+function isOptionalRevision(value: unknown): value is string | null {
+  return value === null || isRevision(value);
+}
+
+function isRevision(value: unknown): value is string {
+  return typeof value === "string" && /^sha256:[0-9a-f]{64}$/u.test(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
