@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { httpClient, isApiMode } from "../../lib/http-client";
 import {
+  decodePluginConfigurationProposal,
+  decodePluginConfigurationPublication,
   decodePluginInventory,
   decodePluginManagement,
   demoPluginInventory,
@@ -13,7 +15,14 @@ export const pluginWorkbenchQueryKey = ["agent", "plugin-workbench"] as const;
 
 export type PluginMutation =
   | { bundlePath: string; type: "install" }
-  | { instanceKey: string; packageId: string; toml: string; type: "configure" }
+  | {
+      expectedRevision: string;
+      instanceKey: string;
+      packageId: string;
+      proposalDigest: string;
+      toml: string;
+      type: "configure";
+    }
   | { enabled: boolean; instanceKey: string; packageId: string; type: "select" }
   | { instanceKey: string; packageId: string; type: "reset" }
   | { packageId: string; type: "remove" };
@@ -44,6 +53,49 @@ export function usePluginWorkbench() {
       };
     },
     queryKey: pluginWorkbenchQueryKey,
+    refetchInterval: (query) =>
+      query.state.data?.inventory.configurationStatus === "pending"
+        ? 750
+        : false,
+  });
+}
+
+export function usePluginConfigurationProposal() {
+  return useMutation({
+    mutationFn: async ({
+      expectedRevision,
+      instanceKey,
+      packageId,
+      toml,
+    }: {
+      expectedRevision: string;
+      instanceKey: string;
+      packageId: string;
+      toml: string;
+    }) => {
+      if (!isApiMode()) {
+        return decodePluginConfigurationProposal({
+          application: "app_generation",
+          baseRevision: expectedRevision,
+          candidateRevision:
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          diagnostics: [],
+          instanceKey,
+          pluginId: packageId,
+          proposalDigest:
+            "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          schema: "lenso.plugin-configuration-proposal.v1",
+          status: "ready",
+        });
+      }
+      const path = pluginInstancePath(packageId, instanceKey);
+      const value = await httpClient
+        .post(`${path}/configuration/proposals`, {
+          json: { expectedRevision, toml },
+        })
+        .json<unknown>();
+      return decodePluginConfigurationProposal(value);
+    },
   });
 }
 
@@ -70,10 +122,16 @@ export function usePluginMutation() {
       const instanceKey = encodeURIComponent(mutation.instanceKey);
       const instancePath = `api/console/v1/agent/control/plugins/${packageId}/${instanceKey}`;
       if (mutation.type === "configure") {
-        await httpClient.put(`${instancePath}/configuration`, {
-          json: { toml: mutation.toml },
-        });
-        return;
+        const value = await httpClient
+          .put(`${instancePath}/configuration`, {
+            json: {
+              expectedRevision: mutation.expectedRevision,
+              proposalDigest: mutation.proposalDigest,
+              toml: mutation.toml,
+            },
+          })
+          .json<unknown>();
+        return decodePluginConfigurationPublication(value);
       }
       if (mutation.type === "select") {
         await httpClient.put(`${instancePath}/enabled`, {
@@ -89,4 +147,10 @@ export function usePluginMutation() {
       });
     },
   });
+}
+
+function pluginInstancePath(packageId: string, instanceKey: string): string {
+  return `api/console/v1/agent/control/plugins/${encodeURIComponent(
+    packageId
+  )}/${encodeURIComponent(instanceKey)}`;
 }

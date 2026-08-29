@@ -12,7 +12,11 @@ import { useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import type { PluginWorkbenchItem } from "./plugin-workbench-model";
-import { usePluginMutation, usePluginWorkbench } from "./use-plugin-workbench";
+import {
+  usePluginConfigurationProposal,
+  usePluginMutation,
+  usePluginWorkbench,
+} from "./use-plugin-workbench";
 
 const styles = stylex.create({
   page: {
@@ -432,7 +436,10 @@ export function PluginWorkbenchPage() {
                   selected && pluginKey(selected) === pluginKey(plugin)
                 }
                 key={pluginKey(plugin)}
-                onClick={() => setSelectedKey(pluginKey(plugin))}
+                onClick={() => {
+                  mutation.reset();
+                  setSelectedKey(pluginKey(plugin));
+                }}
                 type="button"
                 {...stylex.props(
                   styles.row,
@@ -477,9 +484,16 @@ export function PluginWorkbenchPage() {
           >
             {selected ? (
               <PluginInspector
+                appliedRevision={
+                  workbench.data?.inventory.appliedRevision ?? null
+                }
+                configurationStatus={
+                  workbench.data?.inventory.configurationStatus ?? "unavailable"
+                }
                 key={pluginKey(selected)}
                 mutation={mutation}
                 plugin={selected}
+                revision={workbench.data?.management.revision ?? ""}
               />
             ) : null}
           </aside>
@@ -490,18 +504,30 @@ export function PluginWorkbenchPage() {
 }
 
 function PluginInspector({
+  appliedRevision,
+  configurationStatus,
   mutation,
   plugin,
+  revision,
 }: {
+  appliedRevision: string | null;
+  configurationStatus: "applied" | "pending" | "rejected" | "unavailable";
   mutation: ReturnType<typeof usePluginMutation>;
   plugin: PluginWorkbenchItem;
+  revision: string;
 }) {
+  const proposal = usePluginConfigurationProposal();
   const initialToml = plugin.rootConfigurationToml ?? "";
   const [toml, setToml] = useState(initialToml);
   const restoreWasVisible = useRef(plugin.hasRootDifference).current;
   const enabled = plugin.selection === "enabled";
   const restoreVisible = plugin.hasRootDifference || restoreWasVisible;
-  const error = mutation.error instanceof Error ? mutation.error.message : null;
+  const error =
+    proposal.error instanceof Error
+      ? proposal.error.message
+      : mutation.error instanceof Error
+        ? mutation.error.message
+        : null;
 
   return (
     <>
@@ -539,6 +565,7 @@ function PluginInspector({
             checked={enabled}
             disabled={!plugin.disableable || mutation.isPending}
             onCheckedChange={(checked) => {
+              proposal.reset();
               mutation.reset();
               mutation.mutate({
                 enabled: checked,
@@ -558,6 +585,7 @@ function PluginInspector({
         <textarea
           aria-label={`TOML configuration for ${plugin.packageId}/${plugin.instanceKey}`}
           onChange={(event) => {
+            proposal.reset();
             mutation.reset();
             setToml(event.target.value);
           }}
@@ -571,6 +599,7 @@ function PluginInspector({
             aria-hidden={!restoreVisible}
             disabled={mutation.isPending || !plugin.hasRootDifference}
             onClick={() => {
+              proposal.reset();
               mutation.reset();
               mutation.mutate({
                 instanceKey: plugin.instanceKey,
@@ -587,20 +616,36 @@ function PluginInspector({
             Restore Host value
           </Button>
           <Button
-            disabled={mutation.isPending || toml === initialToml}
+            disabled={
+              proposal.isPending || mutation.isPending || toml === initialToml
+            }
             onClick={() => {
-              mutation.reset();
-              mutation.mutate({
+              if (proposal.data?.status === "ready") {
+                mutation.reset();
+                mutation.mutate({
+                  expectedRevision: proposal.data.baseRevision,
+                  instanceKey: plugin.instanceKey,
+                  packageId: plugin.packageId,
+                  proposalDigest: proposal.data.proposalDigest,
+                  toml,
+                  type: "configure",
+                });
+                return;
+              }
+              proposal.reset();
+              proposal.mutate({
+                expectedRevision: revision,
                 instanceKey: plugin.instanceKey,
                 packageId: plugin.packageId,
                 toml,
-                type: "configure",
               });
             }}
             size="compact"
             variant="primary"
           >
-            Save configuration
+            {proposal.data?.status === "ready"
+              ? "Publish configuration"
+              : "Preview change"}
           </Button>
         </div>
         {error ? (
@@ -610,11 +655,33 @@ function PluginInspector({
           >
             {error}
           </p>
-        ) : mutation.isSuccess ? (
+        ) : mutation.isSuccess && mutation.variables?.type === "configure" ? (
           <p aria-live="polite" {...stylex.props(styles.feedback)}>
-            Change accepted. The Host is preparing the next Generation.
+            {configurationStatus === "applied"
+              ? "Published and applied to the active Generation."
+              : configurationStatus === "rejected"
+                ? "Published, but the Host rejected the candidate Generation."
+                : "Published. The Host is preparing the next Generation."}
+          </p>
+        ) : proposal.data?.status === "ready" ? (
+          <p aria-live="polite" {...stylex.props(styles.feedback)}>
+            Preview ready. Publishing will create revision{" "}
+            {shortRevision(proposal.data.candidateRevision)} and prepare a new
+            App Generation.
+          </p>
+        ) : proposal.data ? (
+          <p
+            role="alert"
+            {...stylex.props(styles.feedback, styles.feedbackError)}
+          >
+            {proposal.data.diagnostics[0]?.detail ??
+              "This configuration cannot be published."}
           </p>
         ) : null}
+        <p {...stylex.props(styles.feedback)}>
+          Desired {shortRevision(revision)} · Applied{" "}
+          {shortRevision(appliedRevision)} · {configurationStatus}
+        </p>
       </DetailSection>
 
       <DetailListSection title="Package">
@@ -843,6 +910,12 @@ function RemovePluginDialog({
       </Dialog.Portal>
     </Dialog.Root>
   );
+}
+
+function shortRevision(revision: string | null): string {
+  return revision
+    ? revision.slice("sha256:".length, "sha256:".length + 8)
+    : "—";
 }
 
 function pluginKey(plugin: PluginWorkbenchItem) {
