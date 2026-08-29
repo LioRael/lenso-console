@@ -16,13 +16,42 @@ pnpm service:serve
 
 Open `http://127.0.0.1:3030`.
 
-The first start creates the Console Agent Home at `~/.lenso/console/agent`.
-Its visible App configuration is the ordinary Plugin Root:
+## Embed in a Lenso App Host
+
+`lenso-console-plugin` is an endpoint-free lifecycle Plugin with Plugin ID
+`lenso.console.web`. A Console-capable native Host links it once:
+
+```rust
+lenso_console_plugin::link();
+```
+
+The target App selects and configures the ordinary Plugin instance at
+`plugins/lenso.console.web/console.toml`:
+
+```toml
+address = "127.0.0.1:3030"
+agent_home = ".lenso/console/agent"
+allowed_tools = []
+managed_app_root = "."
+web_root = "console-web"
+```
+
+Relative paths resolve from the App Host working directory. Activation binds
+the listener and starts the restricted Console Agent before the Plugin reaches
+Ready; generation cancellation shuts down both. Removing or disabling this
+Plugin removes only the Console surface.
+
+The current generic `lenso run` binary does not yet link this native package.
+This slice defines the real Plugin and reference launcher; making it available
+in every stock Host is a separate distribution step, not a compatibility
+Module.
+
+The first start creates the private Console Agent Home at
+`~/.lenso/console/agent`. The App being managed is selected independently with
+`LENSO_APP_ROOT`; it defaults to the directory where the launcher is run:
 
 ```text
-~/.lenso/console/agent/
-  .lenso/
-    host-catalog.json
+<managed-app>/
   plugins/
     <plugin-id>/
       <instance>.toml
@@ -33,9 +62,9 @@ This is a standard Lenso App root. The regular CLI can validate and inspect the
 same resolved App:
 
 ```sh
-lenso app check --root ~/.lenso/console/agent
-lenso app show --root ~/.lenso/console/agent
-lenso plugins list --root ~/.lenso/console/agent
+lenso app check --root <managed-app>
+lenso app show --root <managed-app>
+lenso plugins list --root <managed-app>
 ```
 
 The same-origin Agent surface also authorizes Console Plugin Root mutations.

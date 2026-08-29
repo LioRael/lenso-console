@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "address": {
+      "description": "Loopback address used by the embedded Console Web server.",
+      "type": "string"
+    },
+    "agent_home": {
+      "description": "Private state root for the restricted Console Agent.",
+      "type": "string"
+    },
+    "allowed_tools": {
+      "description": "Reviewed model-visible Tools admitted to the Console Agent.",
+      "items": { "type": "string" },
+      "type": "array"
+    },
+    "managed_app_root": {
+      "description": "Lenso App whose ordinary Plugin Root is managed by Console.",
+      "type": "string"
+    },
+    "web_root": {
+      "description": "Directory containing the built Console Shell index.html.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "address",
+    "agent_home",
+    "allowed_tools",
+    "managed_app_root",
+    "web_root"
+  ],
+  "type": "object"
+}
