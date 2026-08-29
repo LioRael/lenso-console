@@ -6,12 +6,9 @@
 build
 dist
 node_modules
-service/target
 
 .env
 .env.*
-!service/.env.example
-!service/.env.container.example
 
 *.log
 *.tsbuildinfo

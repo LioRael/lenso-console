@@ -1,4 +1,4 @@
-name: Release Console Service OCI
+name: Release Console OCI
 
 on:
   push:
@@ -6,15 +6,13 @@ on:
     paths:
       - "package.json"
       - "pnpm-lock.yaml"
-      - "packages/**"
       - "src/**"
-      - "service/**"
       - "Dockerfile"
       - ".github/workflows/release-oci.yml"
   workflow_dispatch:
     inputs:
       version:
-        description: "Existing immutable Console Service version to finish publishing"
+        description: "Existing immutable Console version to finish publishing"
         required: true
         type: string
       source_commit:
@@ -34,7 +32,7 @@ concurrency:
 
 jobs:
   prepare:
-    name: Prepare Console Service OCI release
+    name: Prepare Console OCI release
     if: ${{ github.repository == 'LioRael/lenso-console' }}
     runs-on: ubuntu-24.04
     permissions:
@@ -52,7 +50,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Detect a new Console Service version
+      - name: Detect a new Console version
         id: version
         shell: bash
         env:
@@ -100,14 +98,14 @@ jobs:
             echo "GHCR version tag already exists: $IMAGE:$VERSION" >&2
             exit 1
           fi
-          tag="lenso-console-service@$VERSION"
+          tag="lenso-console@$VERSION"
           if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
             echo "Git tag already exists: $tag" >&2
             exit 1
           fi
 
   build:
-    name: Build Console Service OCI (${{ matrix.platform }})
+    name: Build Console OCI (${{ matrix.platform }})
     needs: prepare
     if: needs.prepare.outputs.changed == 'true' && needs.prepare.outputs.recovery != 'true'
     runs-on: ${{ matrix.runner }}
@@ -165,7 +163,7 @@ jobs:
           retention-days: 1
 
   publish:
-    name: Publish Console Service OCI release
+    name: Publish Console OCI release
     needs: [prepare, build]
     if: ${{ always() && needs.prepare.outputs.changed == 'true' && (needs.prepare.outputs.recovery == 'true' || needs.build.result == 'success') }}
     runs-on: ubuntu-24.04
@@ -242,38 +240,13 @@ jobs:
           subject-name: ghcr.io/liorael/lenso-console
           subject-digest: ${{ steps.image.outputs.digest }}
           push-to-registry: true
-      - name: Generate the digest-pinned release manifest
-        env:
-          IMAGE_DIGEST: ${{ needs.prepare.outputs.image_digest || steps.image.outputs.digest }}
-          SOURCE_COMMIT: ${{ needs.prepare.outputs.source_commit }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          mkdir -p .artifacts
-          pnpm service:release-manifest \
-            --version "$VERSION" \
-            --source-commit "$SOURCE_COMMIT" \
-            --image "ghcr.io/liorael/lenso-console@$IMAGE_DIGEST" \
-            --output .artifacts/lenso-console-release.json
-          jq -e \
-            --arg version "$VERSION" \
-            --arg commit "$SOURCE_COMMIT" \
-            --arg digest "$IMAGE_DIGEST" \
-            '.releaseId == ("lenso-console@" + $version) and .sourceCommit == $commit and .image.digest == $digest' \
-            .artifacts/lenso-console-release.json
-      - name: Upload the release manifest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: lenso-console-service-${{ needs.prepare.outputs.version }}
-          path: .artifacts/lenso-console-release.json
-          if-no-files-found: error
-      - name: Create the immutable Service release
+      - name: Create the immutable Console release
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
           VERSION: ${{ needs.prepare.outputs.version }}
           SOURCE_COMMIT: ${{ needs.prepare.outputs.source_commit }}
         run: |
-          gh release create "lenso-console-service@$VERSION" \
-            .artifacts/lenso-console-release.json \
+          gh release create "lenso-console@$VERSION" \
             --target "$SOURCE_COMMIT" \
-            --title "Console Service $VERSION" \
-            --notes "Digest-pinned Console Service OCI release owned by LioRael/lenso-console."
+            --title "Lenso Console $VERSION" \
+            --notes "Digest-pinned Console OCI release owned by LioRael/lenso-console."

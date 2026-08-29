@@ -80,7 +80,6 @@ describe("Lenso Console repository boundary", () => {
     "docs/agents/issue-tracker.md",
     "docs/release-process.md",
     "docs/repository-operations.md",
-    "service/README.md",
   ])("%s uses the renamed repository identity", async (file) => {
     const contents = await source(file);
 
@@ -112,8 +111,6 @@ describe("Lenso Console repository boundary", () => {
       source("package.json"),
       source(".github/workflows/release-changesets.yml"),
       source(".github/workflows/release-oci.yml"),
-      source("scripts/build-console-release-artifacts.mjs"),
-      source("scripts/oci-release-artifact.mjs"),
     ]);
     for (const contents of trackedReleaseSources) {
       expect(contents).not.toContain("lenso-release");
@@ -121,50 +118,28 @@ describe("Lenso Console repository boundary", () => {
     }
   });
 
-  test("uses Changesets for the public npm workspace", async () => {
+  test("uses Changesets to version the private Console application", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const config = JSON.parse(await source(".changeset/config.json"));
     const workflow = await source(".github/workflows/release-changesets.yml");
-    const publicPackagePaths = [
-      "packages/console-composition-api/package.json",
-      "packages/console-module-api/package.json",
-      "packages/console-tokens/package.json",
-      "packages/console-ui/package.json",
-    ];
-    const publicPackages = await Promise.all(
-      publicPackagePaths.map(async (packagePath) => ({
-        directory: path.dirname(packagePath),
-        manifest: JSON.parse(await source(packagePath)),
-      }))
-    );
 
     expect(manifest.private).toBe(true);
     expect(manifest.scripts.changeset).toBe("changeset");
     expect(manifest.scripts.version).toBe("changeset version");
-    expect(manifest.scripts.release).toContain("changeset publish");
+    expect(manifest.scripts.release).toBeUndefined();
     expect(manifest.devDependencies["@changesets/cli"]).toBe("2.31.1");
     expect(config.privatePackages).toEqual({ tag: false, version: true });
     expect(workflow).toContain("changesets/action@");
-    expect(workflow).toContain("id-token: write");
-    expect(workflow).toContain("NPM_CONFIG_PROVENANCE");
+    expect(workflow).toContain("version: pnpm version");
+    expect(workflow).not.toContain("id-token: write");
+    expect(workflow).not.toContain("NPM_CONFIG_PROVENANCE");
     expect(workflow).not.toContain("NPM_TOKEN");
-    for (const { directory, manifest: packageManifest } of publicPackages) {
-      expect(manifest.scripts.release).toContain(
-        `pnpm --filter ${packageManifest.name} build`
-      );
-      expect(packageManifest.publishConfig).toEqual({ access: "public" });
-      expect(packageManifest.repository).toEqual({
-        directory,
-        type: "git",
-        url: "https://github.com/LioRael/lenso-console",
-      });
-    }
+    await missing("packages/console-tokens");
+    await missing("packages/console-ui");
   });
 
   test("owns OCI publication in the Console repository", async () => {
     const workflow = await source(".github/workflows/release-oci.yml");
-    const builder = await source("scripts/build-console-release-artifacts.mjs");
-    const inspector = await source("scripts/oci-release-artifact.mjs");
 
     expect(workflow).toContain("ghcr.io/liorael/lenso-console");
     expect(workflow).toContain("docker/build-push-action@");
@@ -173,18 +148,16 @@ describe("Lenso Console repository boundary", () => {
     expect(workflow).toContain("Refuse an existing immutable version tag");
     expect(workflow).not.toContain("LENSO_COORDINATOR");
     expect(workflow).not.toContain("NONCE");
-    expect(builder).toContain('from "./oci-release-artifact.mjs"');
-    expect(builder).not.toContain(".lenso-release");
-    expect(inspector).toContain("inspectOciInstallManifest");
   });
 
-  test("builds the public Shell UI before the application bundle", async () => {
+  test("builds the application without retired local UI packages", async () => {
     const manifest = JSON.parse(await source("package.json"));
     const build = manifest.scripts["build:local"];
-    const packageBuild = "pnpm --filter @lenso/console-ui build";
 
-    expect(build).toContain(packageBuild);
-    expect(build.indexOf(packageBuild)).toBeLessThan(build.indexOf("tsc -b"));
+    expect(build).toContain("tsc -b");
+    expect(build).toContain("vite build");
+    expect(build).not.toContain("@lenso/console-ui");
+    expect(build).not.toContain("@lenso/console-tokens");
   });
 
   test("does not retain retired service SDK packages", async () => {
@@ -202,10 +175,7 @@ describe("Lenso Console repository boundary", () => {
       await missing(file);
     }
 
-    const files = [
-      ...(await sourceFiles("src")),
-      ...(await sourceFiles("packages")),
-    ];
+    const files = [...(await sourceFiles("src"))];
     const contents = await Promise.all(files.map((file) => source(file)));
     const joined = contents.join("\n");
 
@@ -219,10 +189,7 @@ describe("Lenso Console repository boundary", () => {
   });
 
   test("keeps authored borders independent from the browser reset", async () => {
-    const sourceFileList = [
-      ...(await sourceFiles("src")),
-      ...(await sourceFiles("packages")),
-    ];
+    const sourceFileList = [...(await sourceFiles("src"))];
     const files = sourceFileList.filter((file) => /\.(?:ts|tsx)$/u.test(file));
     const failureGroups = await Promise.all(
       files.map(async (file) =>
@@ -232,14 +199,6 @@ describe("Lenso Console repository boundary", () => {
     const failures = failureGroups.flat();
 
     expect(failures).toEqual([]);
-  });
-
-  test("keeps the Services inventory table owned by shared primitives", async () => {
-    const styles = await source("src/styles.css");
-
-    expect(styles).not.toMatch(
-      /\[data-page~="services-page"\]\s+\[data-ui~="(?:data-grid|table-header|data-row)"\]/u
-    );
   });
 
   test("documents the local release boundary", async () => {
@@ -252,19 +211,15 @@ describe("Lenso Console repository boundary", () => {
     expect(contents).not.toContain("shadow release");
   });
 
-  test("owns the Runtime Story backend beside its linked Console Module", async () => {
-    const storyManifest = await source("service/modules/story/Cargo.toml");
-    const storyModule = await source("service/modules/story/src/module.rs");
-    const serviceManifest = await source("service/Cargo.toml");
-
-    expect(storyManifest).toContain('name = "lenso-module-story"');
-    expect(storyManifest).toContain("publish = false");
-    expect(storyManifest).toContain(
-      'repository = "https://github.com/LioRael/lenso-console"'
+  test("keeps Agent control as one server-only route", async () => {
+    const route = await source(
+      "src/routes/api.console.v1.agent.control.tool-policy.ts"
     );
-    expect(storyModule).toContain('"component": "lenso/runtime-stories"');
-    expect(storyModule).toContain("ConsoleSurfacePresentation::Declarative");
-    expect(serviceManifest).toContain('path = "modules/story"');
-    expect(serviceManifest).toContain("publish = false");
+    const proxy = await source("src/server/agent-control.server.ts");
+
+    expect(route).toContain('"/api/console/v1/agent/control/tool-policy"');
+    expect(proxy).toContain("LENSO_CONSOLE_AGENT_CONTROL_TOKEN");
+    expect(proxy).toContain("LENSO_CONSOLE_AGENT_URL");
+    await missing("service/Cargo.toml");
   });
 });

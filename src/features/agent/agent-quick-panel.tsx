@@ -5,16 +5,13 @@ import { IconButton } from "@lenso/ui/icon-button";
 import { Surface } from "@lenso/ui/surface";
 import {
   ArrowUp,
-  Box,
-  ChevronDown,
+  FileText,
   Minus,
-  MoreHorizontal,
   MoveDiagonal2,
   MousePointer2,
-  Paperclip,
   Search,
   Square,
-  UsersRound,
+  Wrench,
   X,
 } from "lucide-react";
 import {
@@ -41,9 +38,9 @@ import { useAgentConversation } from "./use-agent-conversation";
 import styles from "./agent-quick-panel.module.css";
 
 const suggestions = [
-  { icon: Box, label: "Create a new App" },
+  { icon: FileText, label: "Plan next steps" },
   { icon: Search, label: "Research a topic" },
-  { icon: UsersRound, label: "Set up new team" },
+  { icon: Wrench, label: "Review a decision" },
 ] as const;
 
 function chatTitleFor(prompt: string) {
@@ -175,16 +172,6 @@ export function AgentQuickPanel({
           <Dialog.Popup className={styles.panel}>
             <header className={styles.header}>
               <Dialog.Title className={styles.title}>{title}</Dialog.Title>
-              {hasConversation ? (
-                <IconButton
-                  aria-label="Chat options"
-                  className={styles.chatOptions}
-                  size="default"
-                  variant="ghost"
-                >
-                  <MoreHorizontal aria-hidden="true" size={14} />
-                </IconButton>
-              ) : null}
               <div className={styles.headerActions}>
                 <IconButton
                   aria-label="Minimize chat"
@@ -358,41 +345,13 @@ export function AgentQuickPanel({
                         onChange={(event) => setDraft(event.target.value)}
                         onKeyDown={onComposerKeyDown}
                         placeholder={
-                          hasConversation
-                            ? "Reply…"
-                            : "@ to mention any App, Plugin, or workspace"
+                          hasConversation ? "Reply…" : "Ask Lenso anything…"
                         }
                         ref={textareaRef}
                         rows={1}
                         value={draft}
                       />
                       <div className={styles.composerFooter}>
-                        <Button
-                          aria-label="Skills"
-                          className={styles.skills}
-                          size="compact"
-                          variant="ghost"
-                        >
-                          <Box aria-hidden="true" size={14} strokeWidth={1.6} />
-                          Skills
-                          <ChevronDown
-                            aria-hidden="true"
-                            size={8}
-                            strokeWidth={2}
-                          />
-                        </Button>
-                        <IconButton
-                          aria-label="Attach images, files, or videos"
-                          className={styles.attach}
-                          size="compact"
-                          variant="ghost"
-                        >
-                          <Paperclip
-                            aria-hidden="true"
-                            size={14}
-                            strokeWidth={1.7}
-                          />
-                        </IconButton>
                         <IconButton
                           aria-label={
                             isRunning ? "Stop generating" : "Submit comment"

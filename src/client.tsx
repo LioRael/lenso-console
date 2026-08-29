@@ -1,17 +1,10 @@
 import { StartClient } from "@tanstack/react-start/client";
-import React, * as ReactRuntime from "react";
+import { StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
-import * as ReactJsxRuntime from "react/jsx-runtime";
-
-import "./app/console-host-api";
-
-const consoleRuntime = globalThis as Record<string, unknown>;
-consoleRuntime.__LENSO_CONSOLE_REACT_RUNTIME__ = ReactRuntime;
-consoleRuntime.__LENSO_CONSOLE_REACT_JSX_RUNTIME__ = ReactJsxRuntime;
 
 hydrateRoot(
   document,
-  <React.StrictMode>
+  <StrictMode>
     <StartClient />
-  </React.StrictMode>
+  </StrictMode>
 );

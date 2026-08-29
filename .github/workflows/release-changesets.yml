@@ -7,9 +7,7 @@ on:
       - ".changeset/**"
       - "package.json"
       - "pnpm-lock.yaml"
-      - "packages/**"
       - "src/**"
-      - "service/**"
       - "Dockerfile"
       - ".github/workflows/release-changesets.yml"
 
@@ -21,13 +19,12 @@ concurrency:
 
 jobs:
   release:
-    name: Version or publish npm packages
+    name: Version Console
     if: ${{ github.repository_owner == 'LioRael' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
-      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,15 +42,9 @@ jobs:
           cache: pnpm
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build public packages
-        run: |
-          pnpm --filter @lenso/console-module-api build
-          pnpm --filter @lenso/console-ui build
-      - name: Create version PR or publish merged versions
+      - name: Create or update the version PR
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          publish: pnpm release
+          version: pnpm version
           createGithubReleases: false
-        env:
-          NPM_CONFIG_PROVENANCE: "true"

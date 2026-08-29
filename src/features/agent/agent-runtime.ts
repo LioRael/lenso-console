@@ -1,5 +1,3 @@
-import { consoleApiAuthToken, consoleApiPrefix } from "../../lib/http-client";
-
 export type AgentMessageKind =
   | "reasoning_completed"
   | "reasoning_delta"
@@ -351,13 +349,10 @@ export async function readAgentBootstrap(
 export async function readAgentToolPolicy(
   signal?: AbortSignal
 ): Promise<AgentToolPolicy> {
-  const response = await fetch(
-    agentApiUrl("api/console/v1/agent/control/tool-policy"),
-    {
-      headers: agentHeaders("application/json", false),
-      ...(signal ? { signal } : {}),
-    }
-  );
+  const response = await fetch("/api/console/v1/agent/control/tool-policy", {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -371,14 +366,11 @@ export async function updateAgentToolPolicy({
   allowed: string[];
   expectedRevision: number;
 }): Promise<AgentToolPolicy> {
-  const response = await fetch(
-    agentApiUrl("api/console/v1/agent/control/tool-policy"),
-    {
-      body: JSON.stringify({ allowed, expectedRevision }),
-      headers: agentHeaders("application/json", true),
-      method: "PUT",
-    }
-  );
+  const response = await fetch("/api/console/v1/agent/control/tool-policy", {
+    body: JSON.stringify({ allowed, expectedRevision }),
+    headers: agentHeaders("application/json", true),
+    method: "PUT",
+  });
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -660,21 +652,13 @@ export function decodeAgentStreamEvent(data: string): AgentStreamEvent {
 }
 
 function agentApiUrl(path: string) {
-  const prefix = consoleApiPrefix();
-  if (!prefix || prefix === "/") {
-    return `/${path.replace(/^\/+/, "")}`;
-  }
-  return `${prefix}/${path.replace(/^\/+/, "")}`;
+  return `/${path.replace(/^\/+/, "")}`;
 }
 
 function agentHeaders(accept: string, json: boolean) {
   const headers = new Headers({ Accept: accept });
   if (json) {
     headers.set("Content-Type", "application/json");
-  }
-  const token = consoleApiAuthToken();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
   }
   return headers;
 }

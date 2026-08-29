@@ -5,26 +5,26 @@
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
-    font-family: var(--font-ui);
+    font-family: var(--font-sans);
     font-feature-settings:
       "liga" 1,
       "calt" 1;
     font-variation-settings: normal;
-    background: var(--background);
+    background: var(--color-surface-canvas);
   }
 
   body {
     min-height: 100vh;
-    background: var(--background);
-    color: var(--foreground);
+    background: var(--color-surface-canvas);
+    color: var(--color-content-primary);
     line-height: inherit;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
-    background: var(--bg-row-selected);
-    color: var(--fg-primary);
+    background: var(--color-surface-selected);
+    color: var(--color-content-primary);
   }
 
   hr {
@@ -74,7 +74,8 @@
   kbd,
   samp,
   pre {
-    font-family: var(--font-code);
+    font-family:
+      "Roboto Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
     font-feature-settings: inherit;
     font-variation-settings: inherit;
     font-size: 1em;
@@ -146,13 +147,12 @@
   }
 }
 
-/* These are Host fallbacks for native or legacy surfaces. First-party
- * components provide their own StyleX focus and form states, which win in
- * the later generated StyleX layers. */
+/* Native-element fallbacks. First-party components provide their own StyleX
+ * focus and form states, which win in the later generated StyleX layers. */
 @layer console-base {
   button:focus-visible,
   a:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--color-focus-ring);
     outline-offset: 1px;
   }
 
@@ -166,6 +166,6 @@
   input,
   select,
   textarea {
-    caret-color: var(--accent);
+    caret-color: var(--color-action-primary);
   }
 }
