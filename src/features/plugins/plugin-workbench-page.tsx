@@ -11,7 +11,10 @@ import { Boxes, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
-import type { PluginWorkbenchItem } from "./plugin-workbench-model";
+import type {
+  PluginConfigurationAuthority,
+  PluginWorkbenchItem,
+} from "./plugin-workbench-model";
 import {
   usePluginConfigurationProposal,
   usePluginMutation,
@@ -487,6 +490,9 @@ export function PluginWorkbenchPage() {
                 appliedRevision={
                   workbench.data?.inventory.appliedRevision ?? null
                 }
+                configurationAuthority={
+                  workbench.data?.management.configurationAuthority
+                }
                 configurationStatus={
                   workbench.data?.inventory.configurationStatus ?? "unavailable"
                 }
@@ -505,12 +511,14 @@ export function PluginWorkbenchPage() {
 
 function PluginInspector({
   appliedRevision,
+  configurationAuthority,
   configurationStatus,
   mutation,
   plugin,
   revision,
 }: {
   appliedRevision: string | null;
+  configurationAuthority: PluginConfigurationAuthority | null;
   configurationStatus: "applied" | "pending" | "rejected" | "unavailable";
   mutation: ReturnType<typeof usePluginMutation>;
   plugin: PluginWorkbenchItem;
@@ -682,6 +690,12 @@ function PluginInspector({
           Desired {shortRevision(revision)} · Applied{" "}
           {shortRevision(appliedRevision)} · {configurationStatus}
         </p>
+        <p {...stylex.props(styles.feedback)}>
+          Source {configurationAuthorityLabel(configurationAuthority)}
+          {configurationAuthority
+            ? ` · ${configurationAuthority.reference}`
+            : null}
+        </p>
       </DetailSection>
 
       <DetailListSection title="Package">
@@ -768,6 +782,17 @@ function PluginInspector({
       ) : null}
     </>
   );
+}
+
+function configurationAuthorityLabel(
+  authority: PluginConfigurationAuthority | null
+): string {
+  if (!authority) {
+    return "Unavailable";
+  }
+  return authority.kind === "local_plugin_root"
+    ? "Local Plugin Root"
+    : authority.kind;
 }
 
 function InstallPluginDialog({

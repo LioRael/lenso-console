@@ -79,6 +79,7 @@ export function usePluginConfigurationProposal() {
           baseRevision: expectedRevision,
           candidateRevision:
             "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          configurationAuthority: demoPluginManagement.configurationAuthority,
           diagnostics: [],
           instanceKey,
           pluginId: packageId,

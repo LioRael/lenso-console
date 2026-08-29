@@ -8,8 +8,14 @@ export type PluginInventoryItem = {
   requiredCapabilities: readonly string[];
 };
 
+export type PluginConfigurationAuthority = {
+  kind: string;
+  reference: string;
+};
+
 export type PluginInventory = {
   appliedRevision: string | null;
+  configurationAuthority: PluginConfigurationAuthority | null;
   configurationStatus: "applied" | "pending" | "rejected" | "unavailable";
   desiredRevision: string | null;
   plugins: readonly PluginInventoryItem[];
@@ -33,6 +39,7 @@ export type ManagedPlugin = {
 };
 
 export type PluginManagement = {
+  configurationAuthority: PluginConfigurationAuthority | null;
   plugins: readonly ManagedPlugin[];
   revision: string;
   schema: "lenso.agent.plugin-management.v1";
@@ -42,6 +49,7 @@ export type PluginConfigurationProposal = {
   application: "app_generation" | "blocked" | "noop";
   baseRevision: string;
   candidateRevision: string;
+  configurationAuthority: PluginConfigurationAuthority | null;
   diagnostics: readonly { code: string; detail: string }[];
   instanceKey: string;
   pluginId: string;
@@ -52,6 +60,7 @@ export type PluginConfigurationProposal = {
 
 export type PluginConfigurationPublication = {
   baseRevision: string;
+  configurationAuthority: PluginConfigurationAuthority | null;
   desired: PluginInventory;
   proposalDigest: string;
   revision: string;
@@ -69,6 +78,10 @@ export type PluginWorkbenchItem = ManagedPluginInstance & {
 export const demoPluginInventory: PluginInventory = {
   appliedRevision:
     "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  configurationAuthority: {
+    kind: "local_plugin_root",
+    reference: "app",
+  },
   configurationStatus: "applied",
   desiredRevision:
     "sha256:0000000000000000000000000000000000000000000000000000000000000000",
@@ -87,6 +100,10 @@ export const demoPluginInventory: PluginInventory = {
 };
 
 export const demoPluginManagement: PluginManagement = {
+  configurationAuthority: {
+    kind: "local_plugin_root",
+    reference: "app",
+  },
   plugins: [
     {
       instances: [
@@ -118,6 +135,7 @@ export function decodePluginInventory(value: unknown): PluginInventory {
   }
   if (
     !isOptionalRevision(value.appliedRevision) ||
+    !isOptionalConfigurationAuthority(value.configurationAuthority) ||
     !isOptionalRevision(value.desiredRevision) ||
     !isConfigurationStatus(value.configurationStatus)
   ) {
@@ -138,6 +156,11 @@ export function decodePluginManagement(value: unknown): PluginManagement {
   if (!isRevision(value.revision)) {
     throw new TypeError("Agent Host returned an invalid Plugin Root revision");
   }
+  if (!isOptionalConfigurationAuthority(value.configurationAuthority)) {
+    throw new TypeError(
+      "Agent Host returned an invalid Plugin configuration authority"
+    );
+  }
   return value as PluginManagement;
 }
 
@@ -149,6 +172,7 @@ export function decodePluginConfigurationProposal(
     value.schema !== "lenso.plugin-configuration-proposal.v1" ||
     !isRevision(value.baseRevision) ||
     !isRevision(value.candidateRevision) ||
+    !isOptionalConfigurationAuthority(value.configurationAuthority) ||
     !isRevision(value.proposalDigest) ||
     (value.status !== "ready" &&
       value.status !== "needs_decision" &&
@@ -176,6 +200,7 @@ export function decodePluginConfigurationPublication(
     value.schema !== "lenso.plugin-configuration-publication.v1" ||
     value.status !== "published" ||
     !isRevision(value.baseRevision) ||
+    !isOptionalConfigurationAuthority(value.configurationAuthority) ||
     !isRevision(value.revision) ||
     !isRevision(value.proposalDigest)
   ) {
@@ -259,6 +284,24 @@ function isConfigurationStatus(
     value === "rejected" ||
     value === "unavailable"
   );
+}
+
+function isConfigurationAuthority(
+  value: unknown
+): value is PluginConfigurationAuthority {
+  return (
+    isRecord(value) &&
+    typeof value.kind === "string" &&
+    value.kind.length > 0 &&
+    typeof value.reference === "string" &&
+    value.reference.length > 0
+  );
+}
+
+function isOptionalConfigurationAuthority(
+  value: unknown
+): value is PluginConfigurationAuthority | null {
+  return value === null || isConfigurationAuthority(value);
 }
 
 function isDiagnostic(value: unknown): boolean {
