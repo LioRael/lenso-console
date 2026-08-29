@@ -10,7 +10,9 @@ export type PluginInventoryItem = {
 
 export type PluginConfigurationAuthority = {
   kind: string;
+  publicationHistory: boolean;
   reference: string;
+  rollbackProposals: boolean;
 };
 
 export type PluginInventory = {
@@ -68,6 +70,30 @@ export type PluginConfigurationPublication = {
   status: "published";
 };
 
+export type PluginConfigurationPublicationRecord = {
+  baseRevision: string;
+  configurationToml: string;
+  proposalDigest: string;
+  publishedAtUnixMs: number;
+  revision: string;
+  rollbackOfProposalDigest: string | null;
+};
+
+export type PluginConfigurationHistory = {
+  configurationAuthority: PluginConfigurationAuthority;
+  instanceKey: string;
+  pluginId: string;
+  publications: readonly PluginConfigurationPublicationRecord[];
+  schema: "lenso.agent.plugin-configuration-history.v1";
+};
+
+export type PluginConfigurationRollbackProposal = {
+  configurationToml: string;
+  proposal: PluginConfigurationProposal;
+  rollbackOfProposalDigest: string;
+  schema: "lenso.agent.plugin-configuration-rollback-proposal.v1";
+};
+
 export type PluginWorkbenchItem = ManagedPluginInstance & {
   active: PluginInventoryItem | null;
   packageId: string;
@@ -79,8 +105,10 @@ export const demoPluginInventory: PluginInventory = {
   appliedRevision:
     "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   configurationAuthority: {
-    kind: "local_plugin_root",
-    reference: "app",
+    kind: "sqlite_configuration_store",
+    publicationHistory: true,
+    reference: "agent",
+    rollbackProposals: true,
   },
   configurationStatus: "applied",
   desiredRevision:
@@ -101,8 +129,10 @@ export const demoPluginInventory: PluginInventory = {
 
 export const demoPluginManagement: PluginManagement = {
   configurationAuthority: {
-    kind: "local_plugin_root",
-    reference: "app",
+    kind: "sqlite_configuration_store",
+    publicationHistory: true,
+    reference: "agent",
+    rollbackProposals: true,
   },
   plugins: [
     {
@@ -124,6 +154,36 @@ export const demoPluginManagement: PluginManagement = {
   revision:
     "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   schema: "lenso.agent.plugin-management.v1",
+};
+
+export const demoPluginConfigurationHistory: PluginConfigurationHistory = {
+  configurationAuthority: demoPluginManagement.configurationAuthority!,
+  instanceKey: "agent",
+  pluginId: "lenso.agent.loop",
+  publications: [
+    {
+      baseRevision:
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      configurationToml: 'model = "gpt-5.6-luna"\nmax_steps = 9\n',
+      proposalDigest:
+        "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      publishedAtUnixMs: 1_788_000_000_000,
+      revision: demoPluginManagement.revision,
+      rollbackOfProposalDigest: null,
+    },
+    {
+      baseRevision:
+        "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      configurationToml: 'model = "gpt-5.6-luna"\nmax_steps = 7\n',
+      proposalDigest:
+        "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      publishedAtUnixMs: 1_787_900_000_000,
+      revision:
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      rollbackOfProposalDigest: null,
+    },
+  ],
+  schema: "lenso.agent.plugin-configuration-history.v1",
 };
 
 export function decodePluginInventory(value: unknown): PluginInventory {
@@ -212,6 +272,42 @@ export function decodePluginConfigurationPublication(
   return value as PluginConfigurationPublication;
 }
 
+export function decodePluginConfigurationHistory(
+  value: unknown
+): PluginConfigurationHistory {
+  if (
+    !isRecord(value) ||
+    value.schema !== "lenso.agent.plugin-configuration-history.v1" ||
+    !isConfigurationAuthority(value.configurationAuthority) ||
+    typeof value.pluginId !== "string" ||
+    typeof value.instanceKey !== "string" ||
+    !Array.isArray(value.publications) ||
+    !value.publications.every(isPluginConfigurationPublicationRecord)
+  ) {
+    throw new TypeError(
+      "Agent Host returned invalid Plugin configuration history"
+    );
+  }
+  return value as PluginConfigurationHistory;
+}
+
+export function decodePluginConfigurationRollbackProposal(
+  value: unknown
+): PluginConfigurationRollbackProposal {
+  if (
+    !isRecord(value) ||
+    value.schema !== "lenso.agent.plugin-configuration-rollback-proposal.v1" ||
+    typeof value.configurationToml !== "string" ||
+    !isRevision(value.rollbackOfProposalDigest)
+  ) {
+    throw new TypeError(
+      "Agent Host returned an invalid Plugin configuration rollback proposal"
+    );
+  }
+  decodePluginConfigurationProposal(value.proposal);
+  return value as PluginConfigurationRollbackProposal;
+}
+
 export function pluginWorkbenchItems(
   inventory: PluginInventory,
   management: PluginManagement
@@ -293,8 +389,10 @@ function isConfigurationAuthority(
     isRecord(value) &&
     typeof value.kind === "string" &&
     value.kind.length > 0 &&
+    typeof value.publicationHistory === "boolean" &&
     typeof value.reference === "string" &&
-    value.reference.length > 0
+    value.reference.length > 0 &&
+    typeof value.rollbackProposals === "boolean"
   );
 }
 
@@ -309,6 +407,21 @@ function isDiagnostic(value: unknown): boolean {
     isRecord(value) &&
     typeof value.code === "string" &&
     typeof value.detail === "string"
+  );
+}
+
+function isPluginConfigurationPublicationRecord(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isRevision(value.baseRevision) &&
+    typeof value.configurationToml === "string" &&
+    isRevision(value.proposalDigest) &&
+    typeof value.publishedAtUnixMs === "number" &&
+    Number.isSafeInteger(value.publishedAtUnixMs) &&
+    value.publishedAtUnixMs >= 0 &&
+    isRevision(value.revision) &&
+    (value.rollbackOfProposalDigest === null ||
+      isRevision(value.rollbackOfProposalDigest))
   );
 }
 

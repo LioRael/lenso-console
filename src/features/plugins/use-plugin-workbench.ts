@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { httpClient, isApiMode } from "../../lib/http-client";
 import {
+  decodePluginConfigurationHistory,
   decodePluginConfigurationProposal,
   decodePluginConfigurationPublication,
+  decodePluginConfigurationRollbackProposal,
   decodePluginInventory,
   decodePluginManagement,
+  demoPluginConfigurationHistory,
   demoPluginInventory,
   demoPluginManagement,
   pluginWorkbenchItems,
@@ -96,6 +99,90 @@ export function usePluginConfigurationProposal() {
         })
         .json<unknown>();
       return decodePluginConfigurationProposal(value);
+    },
+  });
+}
+
+export function usePluginConfigurationHistory({
+  enabled,
+  instanceKey,
+  packageId,
+}: {
+  enabled: boolean;
+  instanceKey: string;
+  packageId: string;
+}) {
+  return useQuery({
+    enabled,
+    queryFn: async () => {
+      if (!isApiMode()) {
+        return demoPluginConfigurationHistory;
+      }
+      const value = await httpClient
+        .get(
+          `${pluginInstancePath(packageId, instanceKey)}/configuration/publications`
+        )
+        .json<unknown>();
+      return decodePluginConfigurationHistory(value);
+    },
+    queryKey: [
+      ...pluginWorkbenchQueryKey,
+      "configuration-history",
+      packageId,
+      instanceKey,
+    ],
+  });
+}
+
+export function usePluginConfigurationRollbackProposal() {
+  return useMutation({
+    mutationFn: async ({
+      expectedRevision,
+      instanceKey,
+      packageId,
+      publicationProposalDigest,
+    }: {
+      expectedRevision: string;
+      instanceKey: string;
+      packageId: string;
+      publicationProposalDigest: string;
+    }) => {
+      if (!isApiMode()) {
+        const publication = demoPluginConfigurationHistory.publications.find(
+          (candidate) => candidate.proposalDigest === publicationProposalDigest
+        );
+        if (!publication) {
+          throw new TypeError("Plugin configuration publication was not found");
+        }
+        return decodePluginConfigurationRollbackProposal({
+          configurationToml: publication.configurationToml,
+          proposal: {
+            application: "app_generation",
+            baseRevision: expectedRevision,
+            candidateRevision: publication.revision,
+            configurationAuthority:
+              demoPluginConfigurationHistory.configurationAuthority,
+            diagnostics: [],
+            instanceKey,
+            pluginId: packageId,
+            proposalDigest:
+              "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+            schema: "lenso.plugin-configuration-proposal.v1",
+            status: "ready",
+          },
+          rollbackOfProposalDigest: publicationProposalDigest,
+          schema: "lenso.agent.plugin-configuration-rollback-proposal.v1",
+        });
+      }
+      const value = await httpClient
+        .post(
+          `${pluginInstancePath(packageId, instanceKey)}/configuration/rollback-proposals`,
+          {
+            json: { expectedRevision, publicationProposalDigest },
+          }
+        )
+        .json<unknown>();
+      return decodePluginConfigurationRollbackProposal(value);
     },
   });
 }

@@ -13,10 +13,13 @@ import { useRef, useState, type ReactNode } from "react";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import type {
   PluginConfigurationAuthority,
+  PluginConfigurationRollbackProposal,
   PluginWorkbenchItem,
 } from "./plugin-workbench-model";
 import {
+  usePluginConfigurationHistory,
   usePluginConfigurationProposal,
+  usePluginConfigurationRollbackProposal,
   usePluginMutation,
   usePluginWorkbench,
 } from "./use-plugin-workbench";
@@ -313,6 +316,50 @@ const styles = stylex.create({
     paddingBlockEnd: tokens.space3,
     paddingInline: 14,
   },
+  historyPanel: {
+    display: "grid",
+    paddingBlockEnd: tokens.space3,
+    paddingInline: 14,
+  },
+  historyList: {
+    display: "grid",
+  },
+  historyRow: {
+    alignItems: "center",
+    borderTopColor: tokens.colorBorderTertiary,
+    borderTopStyle: "solid",
+    borderTopWidth: 1,
+    display: "grid",
+    gap: tokens.space2,
+    gridTemplateColumns: "minmax(0, 1fr)",
+    minHeight: 48,
+    paddingBlock: tokens.space2,
+  },
+  historyIdentity: {
+    display: "grid",
+    gap: 2,
+    minWidth: 0,
+  },
+  historyTitle: {
+    color: tokens.colorContentSecondary,
+    fontSize: 11,
+    lineHeight: "16px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  historyMeta: {
+    color: tokens.colorContentTertiary,
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: 10,
+    lineHeight: "14px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  historyAction: {
+    justifySelf: "start",
+  },
   state: {
     alignContent: "center",
     color: tokens.colorContentTertiary,
@@ -525,17 +572,29 @@ function PluginInspector({
   revision: string;
 }) {
   const proposal = usePluginConfigurationProposal();
+  const rollback = usePluginConfigurationRollbackProposal();
+  const historyAvailable = configurationAuthority?.publicationHistory === true;
+  const history = usePluginConfigurationHistory({
+    enabled: historyAvailable,
+    instanceKey: plugin.instanceKey,
+    packageId: plugin.packageId,
+  });
   const initialToml = plugin.rootConfigurationToml ?? "";
   const [toml, setToml] = useState(initialToml);
+  const [rollbackReview, setRollbackReview] =
+    useState<PluginConfigurationRollbackProposal | null>(null);
+  const reviewedProposal = rollbackReview?.proposal ?? proposal.data;
   const restoreWasVisible = useRef(plugin.hasRootDifference).current;
   const enabled = plugin.selection === "enabled";
   const restoreVisible = plugin.hasRootDifference || restoreWasVisible;
   const error =
     proposal.error instanceof Error
       ? proposal.error.message
-      : mutation.error instanceof Error
-        ? mutation.error.message
-        : null;
+      : rollback.error instanceof Error
+        ? rollback.error.message
+        : mutation.error instanceof Error
+          ? mutation.error.message
+          : null;
 
   return (
     <>
@@ -574,6 +633,8 @@ function PluginInspector({
             disabled={!plugin.disableable || mutation.isPending}
             onCheckedChange={(checked) => {
               proposal.reset();
+              rollback.reset();
+              setRollbackReview(null);
               mutation.reset();
               mutation.mutate({
                 enabled: checked,
@@ -594,6 +655,8 @@ function PluginInspector({
           aria-label={`TOML configuration for ${plugin.packageId}/${plugin.instanceKey}`}
           onChange={(event) => {
             proposal.reset();
+            rollback.reset();
+            setRollbackReview(null);
             mutation.reset();
             setToml(event.target.value);
           }}
@@ -608,6 +671,8 @@ function PluginInspector({
             disabled={mutation.isPending || !plugin.hasRootDifference}
             onClick={() => {
               proposal.reset();
+              rollback.reset();
+              setRollbackReview(null);
               mutation.reset();
               mutation.mutate({
                 instanceKey: plugin.instanceKey,
@@ -625,22 +690,36 @@ function PluginInspector({
           </Button>
           <Button
             disabled={
-              proposal.isPending || mutation.isPending || toml === initialToml
+              proposal.isPending ||
+              mutation.isPending ||
+              toml === initialToml ||
+              rollback.isPending
             }
             onClick={() => {
-              if (proposal.data?.status === "ready") {
+              if (reviewedProposal?.status === "ready") {
                 mutation.reset();
-                mutation.mutate({
-                  expectedRevision: proposal.data.baseRevision,
-                  instanceKey: plugin.instanceKey,
-                  packageId: plugin.packageId,
-                  proposalDigest: proposal.data.proposalDigest,
-                  toml,
-                  type: "configure",
-                });
+                mutation.mutate(
+                  {
+                    expectedRevision: reviewedProposal.baseRevision,
+                    instanceKey: plugin.instanceKey,
+                    packageId: plugin.packageId,
+                    proposalDigest: reviewedProposal.proposalDigest,
+                    toml,
+                    type: "configure",
+                  },
+                  {
+                    onSuccess: () => {
+                      proposal.reset();
+                      rollback.reset();
+                      setRollbackReview(null);
+                    },
+                  }
+                );
                 return;
               }
               proposal.reset();
+              rollback.reset();
+              setRollbackReview(null);
               proposal.mutate({
                 expectedRevision: revision,
                 instanceKey: plugin.instanceKey,
@@ -651,7 +730,7 @@ function PluginInspector({
             size="compact"
             variant="primary"
           >
-            {proposal.data?.status === "ready"
+            {reviewedProposal?.status === "ready"
               ? "Publish configuration"
               : "Preview change"}
           </Button>
@@ -671,11 +750,12 @@ function PluginInspector({
                 ? "Published, but the Host rejected the candidate Generation."
                 : "Published. The Host is preparing the next Generation."}
           </p>
-        ) : proposal.data?.status === "ready" ? (
+        ) : reviewedProposal?.status === "ready" ? (
           <p aria-live="polite" {...stylex.props(styles.feedback)}>
-            Preview ready. Publishing will create revision{" "}
-            {shortRevision(proposal.data.candidateRevision)} and prepare a new
-            App Generation.
+            {rollbackReview ? "Rollback review ready" : "Preview ready"}.
+            Publishing will create revision{" "}
+            {shortRevision(reviewedProposal.candidateRevision)} and prepare a
+            new App Generation.
           </p>
         ) : proposal.data ? (
           <p
@@ -697,6 +777,98 @@ function PluginInspector({
             : null}
         </p>
       </DetailSection>
+
+      {historyAvailable ? (
+        <Disclosure.Root {...stylex.props(styles.disclosure)}>
+          <Disclosure.Item value="configuration-history">
+            <Disclosure.Header>
+              <Disclosure.Trigger>
+                <Disclosure.Icon />
+                Publication history
+              </Disclosure.Trigger>
+            </Disclosure.Header>
+            <Disclosure.Panel
+              layout="auto"
+              {...stylex.props(styles.historyPanel)}
+            >
+              {history.isPending ? (
+                <p {...stylex.props(styles.feedback)}>Loading publications…</p>
+              ) : history.isError ? (
+                <p
+                  role="alert"
+                  {...stylex.props(styles.feedback, styles.feedbackError)}
+                >
+                  Publication history could not be loaded.
+                </p>
+              ) : history.data.publications.length === 0 ? (
+                <p {...stylex.props(styles.feedback)}>
+                  No configuration has been published yet.
+                </p>
+              ) : (
+                <div {...stylex.props(styles.historyList)}>
+                  {history.data.publications.map((publication) => (
+                    <div
+                      key={publication.proposalDigest}
+                      {...stylex.props(styles.historyRow)}
+                    >
+                      <div {...stylex.props(styles.historyIdentity)}>
+                        <span {...stylex.props(styles.historyTitle)}>
+                          {formatPublicationTime(publication.publishedAtUnixMs)}
+                          {publication.revision === revision
+                            ? " · Desired content"
+                            : ""}
+                          {publication.rollbackOfProposalDigest
+                            ? " · Rollback"
+                            : ""}
+                        </span>
+                        <span {...stylex.props(styles.historyMeta)}>
+                          {shortRevision(publication.revision)} · proposal{" "}
+                          {shortRevision(publication.proposalDigest)}
+                        </span>
+                      </div>
+                      {configurationAuthority.rollbackProposals ? (
+                        <Button
+                          disabled={
+                            rollback.isPending ||
+                            proposal.isPending ||
+                            mutation.isPending
+                          }
+                          onClick={() => {
+                            proposal.reset();
+                            rollback.reset();
+                            setRollbackReview(null);
+                            mutation.reset();
+                            rollback.mutate(
+                              {
+                                expectedRevision: revision,
+                                instanceKey: plugin.instanceKey,
+                                packageId: plugin.packageId,
+                                publicationProposalDigest:
+                                  publication.proposalDigest,
+                              },
+                              {
+                                onSuccess: (review) => {
+                                  setToml(review.configurationToml);
+                                  setRollbackReview(review);
+                                },
+                              }
+                            );
+                          }}
+                          size="compact"
+                          variant="ghost"
+                          {...stylex.props(styles.historyAction)}
+                        >
+                          Review rollback
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Disclosure.Panel>
+          </Disclosure.Item>
+        </Disclosure.Root>
+      ) : null}
 
       <DetailListSection title="Package">
         <Detail label="Package" value={plugin.packageId} mono />
@@ -792,7 +964,9 @@ function configurationAuthorityLabel(
   }
   return authority.kind === "local_plugin_root"
     ? "Local Plugin Root"
-    : authority.kind;
+    : authority.kind === "sqlite_configuration_store"
+      ? "Managed configuration"
+      : authority.kind;
 }
 
 function InstallPluginDialog({
@@ -941,6 +1115,13 @@ function shortRevision(revision: string | null): string {
   return revision
     ? revision.slice("sha256:".length, "sha256:".length + 8)
     : "—";
+}
+
+function formatPublicationTime(unixTimeMs: number): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(unixTimeMs));
 }
 
 function pluginKey(plugin: PluginWorkbenchItem) {
