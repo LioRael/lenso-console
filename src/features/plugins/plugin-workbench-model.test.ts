@@ -46,6 +46,7 @@ describe("Plugin workbench management model", () => {
       application: "app_generation",
       baseRevision: revision,
       candidateRevision: revision,
+      configurationAuthority: demoPluginManagement.configurationAuthority,
       diagnostics: [],
       instanceKey: "agent",
       pluginId: "lenso.agent.loop",
@@ -55,6 +56,7 @@ describe("Plugin workbench management model", () => {
     });
     const publication = decodePluginConfigurationPublication({
       baseRevision: proposal.baseRevision,
+      configurationAuthority: proposal.configurationAuthority,
       desired: demoPluginInventory,
       proposalDigest: proposal.proposalDigest,
       revision: proposal.candidateRevision,
@@ -63,6 +65,7 @@ describe("Plugin workbench management model", () => {
     });
 
     expect(publication.desired.configurationStatus).toBe("applied");
+    expect(publication.configurationAuthority?.kind).toBe("local_plugin_root");
   });
 
   it("rejects malformed revisions and configuration state", () => {
@@ -77,6 +80,7 @@ describe("Plugin workbench management model", () => {
         application: "app_generation",
         baseRevision: "sha256:not-a-digest",
         candidateRevision: demoPluginManagement.revision,
+        configurationAuthority: demoPluginManagement.configurationAuthority,
         diagnostics: [],
         instanceKey: "agent",
         pluginId: "lenso.agent.loop",
@@ -85,5 +89,11 @@ describe("Plugin workbench management model", () => {
         status: "ready",
       })
     ).toThrow("invalid configuration proposal");
+    expect(() =>
+      decodePluginManagement({
+        ...demoPluginManagement,
+        configurationAuthority: { kind: "", reference: "app" },
+      })
+    ).toThrow("invalid Plugin configuration authority");
   });
 });
