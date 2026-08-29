@@ -9,7 +9,10 @@ import { Boxes } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
-import { usePluginWorkbench } from "./use-plugin-workbench";
+import {
+  usePluginWorkbench,
+  useSetPluginEnabled,
+} from "./use-plugin-workbench";
 
 const styles = stylex.create({
   page: {
@@ -238,10 +241,18 @@ const styles = stylex.create({
     margin: 0,
     maxWidth: 420,
   },
+  mutationFeedback: {
+    color: tokens.colorContentTertiary,
+    fontSize: 11,
+    lineHeight: "16px",
+    margin: 0,
+    overflowWrap: "anywhere",
+  },
 });
 
 export function PluginWorkbenchPage() {
   const workbench = usePluginWorkbench();
+  const pluginMutation = useSetPluginEnabled();
   const inventory = workbench.data;
   const plugins = inventory?.plugins ?? [];
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -352,8 +363,11 @@ export function PluginWorkbenchPage() {
                     {plugin.packageRevision || "linked"}
                   </span>
                 </span>
-                <StatusMarker presentation="label" status="success">
-                  Active
+                <StatusMarker
+                  presentation="label"
+                  status={plugin.status === "active" ? "success" : "neutral"}
+                >
+                  {plugin.status === "active" ? "Active" : "Disabled"}
                 </StatusMarker>
               </button>
             ))}
@@ -374,10 +388,52 @@ export function PluginWorkbenchPage() {
                       {selected.packageId}
                     </span>
                   </div>
-                  <StatusMarker presentation="label" status="success">
-                    Active
+                  <StatusMarker
+                    presentation="label"
+                    status={
+                      selected.status === "active" ? "success" : "neutral"
+                    }
+                  >
+                    {selected.status === "active" ? "Active" : "Disabled"}
                   </StatusMarker>
                 </header>
+                {selected.disableable ? (
+                  <DetailSection title="Lifecycle">
+                    <Button
+                      disabled={pluginMutation.isPending}
+                      onClick={() => {
+                        pluginMutation.reset();
+                        pluginMutation.mutate({
+                          enabled: selected.status !== "active",
+                          instanceKey: selected.instanceKey,
+                        });
+                      }}
+                      size="compact"
+                      variant="secondary"
+                    >
+                      {pluginMutation.isPending
+                        ? "Running Ready Gate…"
+                        : selected.status === "active"
+                          ? "Disable Plugin"
+                          : "Enable Plugin"}
+                    </Button>
+                    {pluginMutation.isError ? (
+                      <p
+                        aria-live="polite"
+                        {...stylex.props(styles.mutationFeedback)}
+                      >
+                        {pluginMutation.error.message}
+                      </p>
+                    ) : null}
+                  </DetailSection>
+                ) : (
+                  <DetailSection title="Lifecycle">
+                    <p {...stylex.props(styles.mutationFeedback)}>
+                      This Instance is owned by the Host and cannot be disabled
+                      from the Plugin Root.
+                    </p>
+                  </DetailSection>
+                )}
                 <DetailListSection title="Package">
                   <Detail label="Package" value={selected.packageId} mono />
                   <Detail
