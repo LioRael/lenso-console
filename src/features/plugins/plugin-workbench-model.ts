@@ -1,109 +1,42 @@
-export type PluginInventoryItem = {
-  entrypoint: string;
-  executionClass: string;
+import {
+  assertPluginInventoryPage,
+  type ManagedPluginInstance,
+  type PluginConfigurationHistory,
+  type PluginInventory,
+  type PluginManagement,
+  type PluginSelectionItem,
+} from "./plugin-control-contract";
+
+export type PluginWorkbenchItem = {
+  active: PluginSelectionItem | null;
+  desired: PluginSelectionItem | null;
   instanceKey: string;
+  management: ManagedPluginInstance | null;
   packageId: string;
   packageRevision: string;
-  providedCapabilities: readonly string[];
-  requiredCapabilities: readonly string[];
-};
-
-export type PluginConfigurationAuthority = {
-  kind: string;
-  publicationHistory: boolean;
-  reference: string;
-  rollbackProposals: boolean;
-};
-
-export type PluginInventory = {
-  appliedRevision: string | null;
-  configurationAuthority: PluginConfigurationAuthority | null;
-  configurationStatus: "applied" | "pending" | "rejected" | "unavailable";
-  desiredRevision: string | null;
-  plugins: readonly PluginInventoryItem[];
-  schema: "lenso.agent.plugin-inventory.v1";
-};
-
-export type ManagedPluginInstance = {
-  disableable: boolean;
-  hasRootDifference: boolean;
-  instanceKey: string;
-  origin: "host-default" | "plugin-root";
-  rootConfigurationToml: string | null;
-  selection: "enabled" | "disabled-by-root";
-};
-
-export type ManagedPlugin = {
-  instances: readonly ManagedPluginInstance[];
-  packageId: string;
-  packageRevision: string;
-  rootSupplied: boolean;
-};
-
-export type PluginManagement = {
-  configurationAuthority: PluginConfigurationAuthority | null;
-  plugins: readonly ManagedPlugin[];
-  revision: string;
-  schema: "lenso.agent.plugin-management.v1";
-};
-
-export type PluginConfigurationProposal = {
-  application: "app_generation" | "blocked" | "noop";
-  baseRevision: string;
-  candidateRevision: string;
-  configurationAuthority: PluginConfigurationAuthority | null;
-  diagnostics: readonly { code: string; detail: string }[];
-  instanceKey: string;
-  pluginId: string;
-  proposalDigest: string;
-  schema: "lenso.plugin-configuration-proposal.v1";
-  status: "needs_decision" | "ready" | "rejected";
-};
-
-export type PluginConfigurationPublication = {
-  baseRevision: string;
-  configurationAuthority: PluginConfigurationAuthority | null;
-  desired: PluginInventory;
-  proposalDigest: string;
-  revision: string;
-  schema: "lenso.plugin-configuration-publication.v1";
-  status: "published";
-};
-
-export type PluginConfigurationPublicationRecord = {
-  baseRevision: string;
-  configurationToml: string;
-  proposalDigest: string;
-  publishedAtUnixMs: number;
-  revision: string;
-  rollbackOfProposalDigest: string | null;
-};
-
-export type PluginConfigurationHistory = {
-  configurationAuthority: PluginConfigurationAuthority;
-  instanceKey: string;
-  pluginId: string;
-  publications: readonly PluginConfigurationPublicationRecord[];
-  schema: "lenso.agent.plugin-configuration-history.v1";
-};
-
-export type PluginConfigurationRollbackProposal = {
-  configurationToml: string;
-  proposal: PluginConfigurationProposal;
-  rollbackOfProposalDigest: string;
-  schema: "lenso.agent.plugin-configuration-rollback-proposal.v1";
-};
-
-export type PluginWorkbenchItem = ManagedPluginInstance & {
-  active: PluginInventoryItem | null;
-  packageId: string;
-  packageRevision: string;
+  preparing: PluginSelectionItem | null;
   rootSupplied: boolean;
 };
 
 export const demoPluginInventory: PluginInventory = {
-  appliedRevision:
-    "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  active: {
+    generationSpecDigest: "demo-generation",
+    planDigest: "demo-plan",
+    pluginRootRevision: "demo-root",
+    plugins: [
+      {
+        disableable: false,
+        entrypoint: "default",
+        executionClass: "lenso.native-rust@1",
+        instanceKey: "lenso.agent.loop/agent",
+        packageId: "lenso.agent.loop",
+        packageRevision: "linked",
+        providedCapabilities: ["lenso.agent@1"],
+        requiredCapabilities: ["lenso.agent.model@1", "lenso.agent.session@1"],
+      },
+    ],
+  },
+  appliedRevision: "demo-root",
   configurationAuthority: {
     kind: "sqlite_configuration_store",
     publicationHistory: true,
@@ -111,20 +44,30 @@ export const demoPluginInventory: PluginInventory = {
     rollbackProposals: true,
   },
   configurationStatus: "applied",
-  desiredRevision:
-    "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  plugins: [
-    {
-      entrypoint: "default",
-      executionClass: "lenso.native-rust@1",
-      instanceKey: "lenso.agent.loop/agent",
-      packageId: "lenso.agent.loop",
-      packageRevision: "linked",
-      providedCapabilities: ["lenso.agent@1"],
-      requiredCapabilities: ["lenso.agent.model@1", "lenso.agent.session@1"],
-    },
-  ],
-  schema: "lenso.agent.plugin-inventory.v1",
+  cursor: "0",
+  desired: {
+    desiredStateDigest: "demo-desired-state",
+    planDigest: "demo-plan",
+    pluginRootRevision: "demo-root",
+    plugins: [
+      {
+        disableable: false,
+        entrypoint: "default",
+        executionClass: "lenso.native-rust@1",
+        instanceKey: "lenso.agent.loop/agent",
+        packageId: "lenso.agent.loop",
+        packageRevision: "linked",
+        providedCapabilities: ["lenso.agent@1"],
+        requiredCapabilities: ["lenso.agent.model@1", "lenso.agent.session@1"],
+      },
+    ],
+  },
+  desiredRevision: "demo-root",
+  events: [],
+  preparing: null,
+  schema: "lenso.agent.plugin-inventory.v2",
+  streamId: "018f0f5f-8b8a-7c3e-9b34-7f7f8d3f6b20",
+  truncated: false,
 };
 
 export const demoPluginManagement: PluginManagement = {
@@ -144,6 +87,7 @@ export const demoPluginManagement: PluginManagement = {
           origin: "host-default",
           rootConfigurationToml: null,
           selection: "enabled",
+          sourceDigest: "sha256:demo-agent-source",
         },
       ],
       packageId: "lenso.agent.loop",
@@ -151,288 +95,188 @@ export const demoPluginManagement: PluginManagement = {
       rootSupplied: false,
     },
   ],
-  revision:
-    "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  revision: "demo-root",
   schema: "lenso.agent.plugin-management.v1",
 };
 
 export const demoPluginConfigurationHistory: PluginConfigurationHistory = {
-  configurationAuthority: demoPluginManagement.configurationAuthority!,
+  configurationAuthority: demoPluginManagement.configurationAuthority,
   instanceKey: "agent",
   pluginId: "lenso.agent.loop",
   publications: [
     {
-      baseRevision:
-        "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      baseRevision: "demo-root-previous",
+      baseSourceDigest: "sha256:demo-agent-source-previous",
       configurationToml: 'model = "gpt-5.6-luna"\nmax_steps = 9\n',
-      proposalDigest:
-        "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      proposalDigest: "demo-proposal-current",
       publishedAtUnixMs: 1_788_000_000_000,
       revision: demoPluginManagement.revision,
       rollbackOfProposalDigest: null,
     },
     {
-      baseRevision:
-        "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      baseRevision: "demo-root-original",
+      baseSourceDigest: null,
       configurationToml: 'model = "gpt-5.6-luna"\nmax_steps = 7\n',
-      proposalDigest:
-        "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      proposalDigest: "demo-proposal-previous",
       publishedAtUnixMs: 1_787_900_000_000,
-      revision:
-        "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      revision: "demo-root-previous",
       rollbackOfProposalDigest: null,
     },
   ],
   schema: "lenso.agent.plugin-configuration-history.v1",
 };
 
-export function decodePluginInventory(value: unknown): PluginInventory {
-  if (!isRecord(value) || value.schema !== "lenso.agent.plugin-inventory.v1") {
-    throw new TypeError("Agent Host returned an invalid Plugin inventory");
+export function mergePluginInventory(
+  previous: PluginInventory | undefined,
+  current: PluginInventory
+): PluginInventory {
+  if (!previous || current.streamId !== previous.streamId) {
+    assertPluginInventoryPage(current);
+    return current;
   }
-  if (!Array.isArray(value.plugins) || !value.plugins.every(isPlugin)) {
-    throw new TypeError("Agent Host returned invalid Plugin entries");
-  }
-  if (
-    !isOptionalRevision(value.appliedRevision) ||
-    !isOptionalConfigurationAuthority(value.configurationAuthority) ||
-    !isOptionalRevision(value.desiredRevision) ||
-    !isConfigurationStatus(value.configurationStatus)
-  ) {
+  if (compareCursor(current.cursor, previous.cursor) < 0) {
     throw new TypeError(
-      "Agent Host returned invalid Plugin configuration state"
+      "Agent Host regressed the Plugin cursor within one event stream"
     );
   }
-  return value as PluginInventory;
+  assertPluginInventoryPage(current, previous.cursor);
+  const eventsByCursor = new Map(
+    [...previous.events, ...current.events].map((event) => [
+      event.cursor,
+      event,
+    ])
+  );
+  const events = [...eventsByCursor.values()].sort((left, right) =>
+    compareCursor(left.cursor, right.cursor)
+  );
+  return {
+    ...current,
+    events: events.slice(-64),
+    truncated: previous.truncated || current.truncated || events.length > 64,
+  };
 }
 
-export function decodePluginManagement(value: unknown): PluginManagement {
-  if (!isRecord(value) || value.schema !== "lenso.agent.plugin-management.v1") {
-    throw new TypeError("Agent Host returned invalid Plugin management state");
-  }
-  if (!Array.isArray(value.plugins) || !value.plugins.every(isManagedPlugin)) {
-    throw new TypeError("Agent Host returned invalid managed Plugin entries");
-  }
-  if (!isRevision(value.revision)) {
-    throw new TypeError("Agent Host returned an invalid Plugin Root revision");
-  }
-  if (!isOptionalConfigurationAuthority(value.configurationAuthority)) {
-    throw new TypeError(
-      "Agent Host returned an invalid Plugin configuration authority"
-    );
-  }
-  return value as PluginManagement;
+export function pluginManagementNeedsRefresh(
+  previousRevision: string | null,
+  currentRevision: string
+) {
+  return previousRevision !== null && previousRevision !== currentRevision;
 }
 
-export function decodePluginConfigurationProposal(
-  value: unknown
-): PluginConfigurationProposal {
-  if (
-    !isRecord(value) ||
-    value.schema !== "lenso.plugin-configuration-proposal.v1" ||
-    !isRevision(value.baseRevision) ||
-    !isRevision(value.candidateRevision) ||
-    !isOptionalConfigurationAuthority(value.configurationAuthority) ||
-    !isRevision(value.proposalDigest) ||
-    (value.status !== "ready" &&
-      value.status !== "needs_decision" &&
-      value.status !== "rejected") ||
-    (value.application !== "noop" &&
-      value.application !== "app_generation" &&
-      value.application !== "blocked") ||
-    typeof value.pluginId !== "string" ||
-    typeof value.instanceKey !== "string" ||
-    !Array.isArray(value.diagnostics) ||
-    !value.diagnostics.every(isDiagnostic)
-  ) {
-    throw new TypeError(
-      "Agent Host returned an invalid configuration proposal"
-    );
-  }
-  return value as PluginConfigurationProposal;
-}
-
-export function decodePluginConfigurationPublication(
-  value: unknown
-): PluginConfigurationPublication {
-  if (
-    !isRecord(value) ||
-    value.schema !== "lenso.plugin-configuration-publication.v1" ||
-    value.status !== "published" ||
-    !isRevision(value.baseRevision) ||
-    !isOptionalConfigurationAuthority(value.configurationAuthority) ||
-    !isRevision(value.revision) ||
-    !isRevision(value.proposalDigest)
-  ) {
-    throw new TypeError(
-      "Agent Host returned an invalid configuration publication"
-    );
-  }
-  decodePluginInventory(value.desired);
-  return value as PluginConfigurationPublication;
-}
-
-export function decodePluginConfigurationHistory(
-  value: unknown
-): PluginConfigurationHistory {
-  if (
-    !isRecord(value) ||
-    value.schema !== "lenso.agent.plugin-configuration-history.v1" ||
-    !isConfigurationAuthority(value.configurationAuthority) ||
-    typeof value.pluginId !== "string" ||
-    typeof value.instanceKey !== "string" ||
-    !Array.isArray(value.publications) ||
-    !value.publications.every(isPluginConfigurationPublicationRecord)
-  ) {
-    throw new TypeError(
-      "Agent Host returned invalid Plugin configuration history"
-    );
-  }
-  return value as PluginConfigurationHistory;
-}
-
-export function decodePluginConfigurationRollbackProposal(
-  value: unknown
-): PluginConfigurationRollbackProposal {
-  if (
-    !isRecord(value) ||
-    value.schema !== "lenso.agent.plugin-configuration-rollback-proposal.v1" ||
-    typeof value.configurationToml !== "string" ||
-    !isRevision(value.rollbackOfProposalDigest)
-  ) {
-    throw new TypeError(
-      "Agent Host returned an invalid Plugin configuration rollback proposal"
-    );
-  }
-  decodePluginConfigurationProposal(value.proposal);
-  return value as PluginConfigurationRollbackProposal;
+export function pluginAuthoringIsReady(
+  managementRevision: string,
+  desiredRevision: string,
+  hasQueryError: boolean
+) {
+  return !hasQueryError && managementRevision === desiredRevision;
 }
 
 export function pluginWorkbenchItems(
   inventory: PluginInventory,
   management: PluginManagement
 ): readonly PluginWorkbenchItem[] {
-  const active = new Map(
-    inventory.plugins.map((plugin) => [plugin.instanceKey, plugin])
-  );
-  return management.plugins.flatMap((plugin) =>
-    plugin.instances.map((instance) => ({
-      ...instance,
-      active: active.get(`${plugin.packageId}/${instance.instanceKey}`) ?? null,
-      packageId: plugin.packageId,
+  const active = selectionMap(inventory.active.plugins);
+  const desired = selectionMap(inventory.desired.plugins);
+  const preparing = selectionMap(inventory.preparing?.plugins ?? []);
+  const managed = new Map<string, ManagedPluginInstance>();
+  const packageDetails = new Map<
+    string,
+    { packageRevision: string; rootSupplied: boolean }
+  >();
+  for (const plugin of management.plugins) {
+    packageDetails.set(plugin.packageId, {
       packageRevision: plugin.packageRevision,
       rootSupplied: plugin.rootSupplied,
-    }))
-  );
+    });
+    for (const instance of plugin.instances) {
+      managed.set(`${plugin.packageId}/${instance.instanceKey}`, instance);
+    }
+  }
+  const keys = new Set([
+    ...active.keys(),
+    ...desired.keys(),
+    ...managed.keys(),
+    ...preparing.keys(),
+  ]);
+  return [...keys]
+    .map((key) => {
+      const selection =
+        active.get(key) ?? desired.get(key) ?? preparing.get(key) ?? null;
+      const { instanceKey, packageId } = splitInstanceKey(key);
+      const details = packageDetails.get(packageId);
+      return {
+        active: active.get(key) ?? null,
+        desired: desired.get(key) ?? null,
+        instanceKey,
+        management: managed.get(key) ?? null,
+        packageId,
+        packageRevision:
+          selection?.packageRevision ?? details?.packageRevision ?? "",
+        preparing: preparing.get(key) ?? null,
+        rootSupplied: details?.rootSupplied ?? false,
+      } satisfies PluginWorkbenchItem;
+    })
+    .sort((left, right) => pluginKey(left).localeCompare(pluginKey(right)));
 }
 
-function isPlugin(value: unknown): value is PluginInventoryItem {
-  return (
-    isRecord(value) &&
-    typeof value.entrypoint === "string" &&
-    typeof value.executionClass === "string" &&
-    typeof value.instanceKey === "string" &&
-    typeof value.packageId === "string" &&
-    typeof value.packageRevision === "string" &&
-    isStringArray(value.providedCapabilities) &&
-    isStringArray(value.requiredCapabilities)
-  );
+export function pluginKey(plugin: { instanceKey: string; packageId: string }) {
+  return `${plugin.packageId}/${plugin.instanceKey}`;
 }
 
-function isManagedPlugin(value: unknown): value is ManagedPlugin {
-  return (
-    isRecord(value) &&
-    typeof value.packageId === "string" &&
-    typeof value.packageRevision === "string" &&
-    typeof value.rootSupplied === "boolean" &&
-    Array.isArray(value.instances) &&
-    value.instances.every(isManagedPluginInstance)
-  );
+export function stablePluginSelectionKey(
+  currentKey: string | null,
+  plugins: readonly PluginWorkbenchItem[]
+) {
+  if (
+    currentKey !== null &&
+    plugins.some((plugin) => pluginKey(plugin) === currentKey)
+  ) {
+    return currentKey;
+  }
+  const [first] = plugins;
+  return first ? pluginKey(first) : null;
 }
 
-function isManagedPluginInstance(
-  value: unknown
-): value is ManagedPluginInstance {
-  return (
-    isRecord(value) &&
-    typeof value.disableable === "boolean" &&
-    typeof value.hasRootDifference === "boolean" &&
-    typeof value.instanceKey === "string" &&
-    (value.origin === "host-default" || value.origin === "plugin-root") &&
-    (value.rootConfigurationToml === null ||
-      typeof value.rootConfigurationToml === "string") &&
-    (value.selection === "enabled" || value.selection === "disabled-by-root")
-  );
+export function reconcilePluginSelectionKey(
+  currentKey: string | null,
+  verifiedPlugins: readonly PluginWorkbenchItem[] | undefined
+) {
+  return verifiedPlugins === undefined
+    ? currentKey
+    : stablePluginSelectionKey(currentKey, verifiedPlugins);
 }
 
-function isStringArray(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) && value.every((item) => typeof item === "string")
-  );
+function compareCursor(left: string, right: string) {
+  const leftValue = BigInt(left);
+  const rightValue = BigInt(right);
+  return leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
 }
 
-function isConfigurationStatus(
-  value: unknown
-): value is PluginInventory["configurationStatus"] {
-  return (
-    value === "applied" ||
-    value === "pending" ||
-    value === "rejected" ||
-    value === "unavailable"
-  );
+function selectionMap(plugins: readonly PluginSelectionItem[]) {
+  return new Map(plugins.map((plugin) => [plugin.instanceKey, plugin]));
 }
 
-function isConfigurationAuthority(
-  value: unknown
-): value is PluginConfigurationAuthority {
-  return (
-    isRecord(value) &&
-    typeof value.kind === "string" &&
-    value.kind.length > 0 &&
-    typeof value.publicationHistory === "boolean" &&
-    typeof value.reference === "string" &&
-    value.reference.length > 0 &&
-    typeof value.rollbackProposals === "boolean"
-  );
+function splitInstanceKey(key: string) {
+  const separator = key.indexOf("/");
+  if (separator < 1 || separator === key.length - 1) {
+    throw new TypeError(
+      `Agent Host returned invalid Plugin Instance key \`${key}\``
+    );
+  }
+  return {
+    instanceKey: key.slice(separator + 1),
+    packageId: key.slice(0, separator),
+  };
 }
 
-function isOptionalConfigurationAuthority(
-  value: unknown
-): value is PluginConfigurationAuthority | null {
-  return value === null || isConfigurationAuthority(value);
-}
-
-function isDiagnostic(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof value.code === "string" &&
-    typeof value.detail === "string"
-  );
-}
-
-function isPluginConfigurationPublicationRecord(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    isRevision(value.baseRevision) &&
-    typeof value.configurationToml === "string" &&
-    isRevision(value.proposalDigest) &&
-    typeof value.publishedAtUnixMs === "number" &&
-    Number.isSafeInteger(value.publishedAtUnixMs) &&
-    value.publishedAtUnixMs >= 0 &&
-    isRevision(value.revision) &&
-    (value.rollbackOfProposalDigest === null ||
-      isRevision(value.rollbackOfProposalDigest))
-  );
-}
-
-function isOptionalRevision(value: unknown): value is string | null {
-  return value === null || isRevision(value);
-}
-
-function isRevision(value: unknown): value is string {
-  return typeof value === "string" && /^sha256:[0-9a-f]{64}$/u.test(value);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object");
-}
+export type {
+  PluginConfigurationAuthority,
+  PluginConfigurationHistory,
+  PluginConfigurationProposal,
+  PluginConfigurationRollbackProposal,
+  ManagedPluginInstance,
+  PluginGenerationEvent,
+  PluginInventory,
+  PluginManagement,
+  PluginSelectionItem,
+} from "./plugin-control-contract";
