@@ -17,10 +17,20 @@ pnpm service:serve
 
 Open `http://127.0.0.1:3030`.
 
-The Console Agent Home defaults to `~/.lenso/console/agent`. Its ordinary
-Plugin Root is visible at `~/.lenso/console/agent/plugins`. The default App
-admits no model-visible Tools; `ask_user` remains available as the web
-interaction primitive.
+The Console Agent Home defaults to `~/.lenso/console/agent`. It is also a
+standard Lenso App root: the Host Catalog lives at
+`~/.lenso/console/agent/.lenso/host-catalog.json`, and its ordinary Plugin Root
+is visible at `~/.lenso/console/agent/plugins`. The default App admits no
+model-visible Tools; `ask_user` remains available as the web interaction
+primitive.
+
+The installed CLI can inspect the same App without Console-specific adapters:
+
+```sh
+lenso app check --root ~/.lenso/console/agent
+lenso app show --root ~/.lenso/console/agent
+lenso plugins list --root ~/.lenso/console/agent
+```
 
 The local Host currently binds only to loopback. A remotely reachable Console
 must first provide identity and authorization as reviewed vNext Plugins.

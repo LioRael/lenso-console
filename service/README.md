@@ -20,10 +20,22 @@ The first start creates the Console Agent Home at `~/.lenso/console/agent`.
 Its visible App configuration is the ordinary Plugin Root:
 
 ```text
-~/.lenso/console/agent/plugins/
-  <plugin-id>/
-    <instance>.toml
-    <instance>.disabled
+~/.lenso/console/agent/
+  .lenso/
+    host-catalog.json
+  plugins/
+    <plugin-id>/
+      <instance>.toml
+      <instance>.disabled
+```
+
+This is a standard Lenso App root. The regular CLI can validate and inspect the
+same resolved App:
+
+```sh
+lenso app check --root ~/.lenso/console/agent
+lenso app show --root ~/.lenso/console/agent
+lenso plugins list --root ~/.lenso/console/agent
 ```
 
 The Console Agent admits no Tools by default. Set
