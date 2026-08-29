@@ -32,6 +32,10 @@ lenso app show --root ~/.lenso/console/agent
 lenso plugins list --root ~/.lenso/console/agent
 ```
 
+Console and the CLI share that Plugin Root as their only App-owned
+configuration. Console-authorized mutations are candidate-resolved before
+write and are reconciled into a new immutable Generation by the embedded Host.
+
 The local Host currently binds only to loopback. A remotely reachable Console
 must first provide identity and authorization as reviewed vNext Plugins.
 

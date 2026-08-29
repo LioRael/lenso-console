@@ -74,6 +74,16 @@ impl ConsoleConfig {
         );
         Ok(())
     }
+
+    fn agent_web_config(&self) -> AgentWebConfig {
+        let mut config = AgentWebConfig::new(lenso_agent_console_plugins::link);
+        config.agent_home = Some(self.agent_home.clone());
+        config.allowed_tools.clone_from(&self.allowed_tools);
+        config.tool_policy = Some(self.tool_policy.clone());
+        config.control = AgentWebControl::HostAuthorized;
+        config.plugin_control = true;
+        config
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -90,12 +100,7 @@ async fn main() -> anyhow::Result<()> {
 async fn run(config: ConsoleConfig) -> anyhow::Result<()> {
     config.validate()?;
     std::fs::create_dir_all(&config.agent_home)?;
-    let mut agent_config = AgentWebConfig::new(lenso_agent_console_plugins::link);
-    agent_config.agent_home = Some(config.agent_home.clone());
-    agent_config.allowed_tools = config.allowed_tools;
-    agent_config.tool_policy = Some(config.tool_policy);
-    agent_config.control = AgentWebControl::HostAuthorized;
-    let agent = AgentWebSurface::start(agent_config)
+    let agent = AgentWebSurface::start(config.agent_web_config())
         .await
         .map_err(anyhow::Error::msg)?;
     let index = config.web_root.join("index.html");
@@ -156,5 +161,23 @@ mod tests {
         assert!(parse_loopback_host("127.0.0.1").is_ok());
         assert!(parse_loopback_host("::1").is_ok());
         assert!(parse_loopback_host("0.0.0.0").is_err());
+    }
+
+    #[test]
+    fn console_host_authorizes_plugin_root_control() {
+        let root = tempfile::tempdir().unwrap();
+        let agent_home = root.path().join("agent");
+        let config = ConsoleConfig {
+            address: "127.0.0.1:3030".parse().unwrap(),
+            tool_policy: agent_home.join("tool-policy.json"),
+            agent_home,
+            allowed_tools: Vec::new(),
+            web_root: root.path().join("web"),
+        };
+
+        let agent = config.agent_web_config();
+
+        assert!(agent.plugin_control);
+        assert!(matches!(agent.control, AgentWebControl::HostAuthorized));
     }
 }
