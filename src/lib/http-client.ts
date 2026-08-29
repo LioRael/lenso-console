@@ -39,12 +39,11 @@ export const httpClient = ky.create({
       ({ request }) => request.headers.set("Accept", "application/json"),
     ],
     beforeError: [
-      async ({ error }) => {
+      ({ error }) => {
         if (!isHTTPError(error)) {
           return error;
         }
-        const body = await error.response.json().catch(() => undefined);
-        const message = lensoApiErrorMessage(body);
+        const message = lensoApiErrorMessage(error.data);
         if (message) {
           error.message = message;
         }

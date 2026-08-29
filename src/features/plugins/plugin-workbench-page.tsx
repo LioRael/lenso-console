@@ -1,18 +1,18 @@
 import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { Button } from "@lenso/ui/button";
+import { Dialog } from "@lenso/ui/dialog";
 import { Disclosure } from "@lenso/ui/disclosure";
 import { PageHeader } from "@lenso/ui/page-header";
 import { StatusMarker } from "@lenso/ui/status-marker";
+import { Switch } from "@lenso/ui/switch";
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
-import { Boxes } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Boxes, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
-import {
-  usePluginWorkbench,
-  useSetPluginEnabled,
-} from "./use-plugin-workbench";
+import type { PluginWorkbenchItem } from "./plugin-workbench-model";
+import { usePluginMutation, usePluginWorkbench } from "./use-plugin-workbench";
 
 const styles = stylex.create({
   page: {
@@ -35,6 +35,11 @@ const styles = stylex.create({
     display: "inline-flex",
     fontSize: 11,
     gap: tokens.space2,
+  },
+  headerActions: {
+    alignItems: "center",
+    display: "flex",
+    gap: tokens.space3,
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -181,6 +186,87 @@ const styles = stylex.create({
     fontWeight: 500,
     margin: 0,
   },
+  controlRow: {
+    alignItems: "center",
+    display: "flex",
+    gap: tokens.space4,
+    justifyContent: "space-between",
+    minHeight: 32,
+  },
+  controlCopy: { display: "grid", gap: 2, minWidth: 0 },
+  controlTitle: {
+    color: tokens.colorContentPrimary,
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  controlDescription: {
+    color: tokens.colorContentTertiary,
+    fontSize: 11,
+    lineHeight: "16px",
+  },
+  editor: {
+    backgroundColor: tokens.colorSurfaceSubtle,
+    borderColor: tokens.colorBorderTertiary,
+    borderRadius: tokens.radiusControl,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxSizing: "border-box",
+    color: tokens.colorContentPrimary,
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: 11,
+    lineHeight: "17px",
+    minHeight: 168,
+    outline: {
+      default: "none",
+      ":focus": `2px solid ${tokens.colorFocusRing}`,
+    },
+    outlineOffset: -1,
+    padding: 10,
+    resize: "vertical",
+    width: "100%",
+  },
+  editorActions: {
+    alignItems: "center",
+    display: "flex",
+    gap: tokens.space2,
+    justifyContent: "flex-end",
+  },
+  hiddenAction: { visibility: "hidden" },
+  feedback: {
+    color: tokens.colorContentTertiary,
+    fontSize: 11,
+    lineHeight: "16px",
+    margin: 0,
+  },
+  feedbackError: { color: "var(--color-status-error-content)" },
+  destructive: {
+    color: "var(--color-action-danger)",
+  },
+  dialogPopup: { maxWidth: 440, width: "calc(100vw - 32px)" },
+  dialogField: { display: "grid", gap: tokens.space2 },
+  dialogLabel: {
+    color: tokens.colorContentSecondary,
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  input: {
+    backgroundColor: tokens.colorSurfaceSubtle,
+    borderColor: tokens.colorBorderTertiary,
+    borderRadius: tokens.radiusControl,
+    borderStyle: "solid",
+    borderWidth: 1,
+    boxSizing: "border-box",
+    color: tokens.colorContentPrimary,
+    fontFamily: tokens.fontSans,
+    fontSize: 12,
+    height: 32,
+    outline: {
+      default: "none",
+      ":focus": `2px solid ${tokens.colorFocusRing}`,
+    },
+    paddingInline: 9,
+    width: "100%",
+  },
   fields: { display: "grid", gap: tokens.space2, margin: 0 },
   field: {
     display: "grid",
@@ -252,12 +338,11 @@ const styles = stylex.create({
 
 export function PluginWorkbenchPage() {
   const workbench = usePluginWorkbench();
-  const pluginMutation = useSetPluginEnabled();
-  const inventory = workbench.data;
-  const plugins = inventory?.plugins ?? [];
+  const mutation = usePluginMutation();
+  const plugins = workbench.data?.items ?? [];
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const selected =
-    plugins.find((plugin) => plugin.instanceKey === selectedKey) ?? plugins[0];
+    plugins.find((plugin) => pluginKey(plugin) === selectedKey) ?? plugins[0];
 
   return (
     <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
@@ -285,10 +370,19 @@ export function PluginWorkbenchPage() {
           </Breadcrumb.Root>
           <PageHeader.Spacer />
           <PageHeader.Actions>
-            <span {...stylex.props(styles.headerStatus)}>
-              <StatusMarker presentation="dot" status="success" />
-              Started App
-            </span>
+            <div {...stylex.props(styles.headerActions)}>
+              <span {...stylex.props(styles.headerStatus)}>
+                <StatusMarker presentation="dot" status="success" />
+                Plugin Root ready
+              </span>
+              <InstallPluginDialog
+                error={mutation.error}
+                isPending={mutation.isPending}
+                onInstall={async (bundlePath) => {
+                  await mutation.mutateAsync({ bundlePath, type: "install" });
+                }}
+              />
+            </div>
           </PageHeader.Actions>
         </PageHeader.Row>
       </PageHeader.Root>
@@ -334,25 +428,27 @@ export function PluginWorkbenchPage() {
             </div>
             {plugins.map((plugin) => (
               <button
-                aria-pressed={selected?.instanceKey === plugin.instanceKey}
-                key={plugin.instanceKey}
-                onClick={() => setSelectedKey(plugin.instanceKey)}
+                aria-pressed={
+                  selected && pluginKey(selected) === pluginKey(plugin)
+                }
+                key={pluginKey(plugin)}
+                onClick={() => setSelectedKey(pluginKey(plugin))}
                 type="button"
                 {...stylex.props(
                   styles.row,
-                  selected?.instanceKey === plugin.instanceKey &&
+                  selected &&
+                    pluginKey(selected) === pluginKey(plugin) &&
                     styles.rowSelected
                 )}
               >
                 <span {...stylex.props(styles.identity)}>
                   <span {...stylex.props(styles.primary)}>
-                    {plugin.instanceKey}
+                    {plugin.packageId}/{plugin.instanceKey}
                   </span>
                   <span {...stylex.props(styles.secondary)}>
-                    {plugin.providedCapabilities.length}{" "}
-                    {plugin.providedCapabilities.length === 1
-                      ? "capability"
-                      : "capabilities"}
+                    {plugin.origin === "host-default"
+                      ? "Included by Host"
+                      : "Added to Plugin Root"}
                   </span>
                 </span>
                 <span {...stylex.props(styles.identity, styles.packageColumn)}>
@@ -365,9 +461,11 @@ export function PluginWorkbenchPage() {
                 </span>
                 <StatusMarker
                   presentation="label"
-                  status={plugin.status === "active" ? "success" : "neutral"}
+                  status={
+                    plugin.selection === "enabled" ? "success" : "neutral"
+                  }
                 >
-                  {plugin.status === "active" ? "Active" : "Disabled"}
+                  {plugin.selection === "enabled" ? "Enabled" : "Disabled"}
                 </StatusMarker>
               </button>
             ))}
@@ -377,134 +475,378 @@ export function PluginWorkbenchPage() {
             aria-label="Plugin details"
             {...stylex.props(styles.inspector)}
           >
-            {selected && inventory ? (
-              <>
-                <header {...stylex.props(styles.inspectorHeader)}>
-                  <div {...stylex.props(styles.inspectorIdentity)}>
-                    <h2 {...stylex.props(styles.inspectorTitle)}>
-                      {selected.instanceKey}
-                    </h2>
-                    <span {...stylex.props(styles.secondary, styles.mono)}>
-                      {selected.packageId}
-                    </span>
-                  </div>
-                  <StatusMarker
-                    presentation="label"
-                    status={
-                      selected.status === "active" ? "success" : "neutral"
-                    }
-                  >
-                    {selected.status === "active" ? "Active" : "Disabled"}
-                  </StatusMarker>
-                </header>
-                {selected.disableable ? (
-                  <DetailSection title="Lifecycle">
-                    <Button
-                      disabled={pluginMutation.isPending}
-                      onClick={() => {
-                        pluginMutation.reset();
-                        pluginMutation.mutate({
-                          enabled: selected.status !== "active",
-                          instanceKey: selected.instanceKey,
-                        });
-                      }}
-                      size="compact"
-                      variant="secondary"
-                    >
-                      {pluginMutation.isPending
-                        ? "Running Ready Gate…"
-                        : selected.status === "active"
-                          ? "Disable Plugin"
-                          : "Enable Plugin"}
-                    </Button>
-                    {pluginMutation.isError ? (
-                      <p
-                        aria-live="polite"
-                        {...stylex.props(styles.mutationFeedback)}
-                      >
-                        {pluginMutation.error.message}
-                      </p>
-                    ) : null}
-                  </DetailSection>
-                ) : (
-                  <DetailSection title="Lifecycle">
-                    <p {...stylex.props(styles.mutationFeedback)}>
-                      This Instance is owned by the Host and cannot be disabled
-                      from the Plugin Root.
-                    </p>
-                  </DetailSection>
-                )}
-                <DetailListSection title="Package">
-                  <Detail label="Package" value={selected.packageId} mono />
-                  <Detail
-                    label="Revision"
-                    value={selected.packageRevision || "linked into Host"}
-                  />
-                </DetailListSection>
-                <DetailSection title="Capabilities">
-                  <div {...stylex.props(styles.capabilities)}>
-                    {selected.providedCapabilities.length > 0 ? (
-                      selected.providedCapabilities.map((capability) => (
-                        <code
-                          key={capability}
-                          {...stylex.props(styles.capability)}
-                        >
-                          {capability}
-                        </code>
-                      ))
-                    ) : (
-                      <span {...stylex.props(styles.value)}>
-                        No capabilities provided
-                      </span>
-                    )}
-                  </div>
-                </DetailSection>
-                <Disclosure.Root {...stylex.props(styles.disclosure)}>
-                  <Disclosure.Item value="technical-details">
-                    <Disclosure.Header>
-                      <Disclosure.Trigger>
-                        <Disclosure.Icon />
-                        Technical details
-                      </Disclosure.Trigger>
-                    </Disclosure.Header>
-                    <Disclosure.Panel
-                      layout="auto"
-                      {...stylex.props(styles.technicalPanel)}
-                    >
-                      <dl {...stylex.props(styles.fields)}>
-                        <Detail
-                          label="Instance"
-                          value={selected.instanceKey}
-                          mono
-                        />
-                        <Detail
-                          label="Entrypoint"
-                          value={selected.entrypoint}
-                          mono
-                        />
-                        <Detail
-                          label="Execution"
-                          value={selected.executionClass}
-                          mono
-                        />
-                        <Detail
-                          label="Requires"
-                          value={
-                            selected.requiredCapabilities.join(", ") || "None"
-                          }
-                          mono
-                        />
-                      </dl>
-                    </Disclosure.Panel>
-                  </Disclosure.Item>
-                </Disclosure.Root>
-              </>
+            {selected ? (
+              <PluginInspector
+                key={pluginKey(selected)}
+                mutation={mutation}
+                plugin={selected}
+              />
             ) : null}
           </aside>
         </div>
       )}
     </div>
   );
+}
+
+function PluginInspector({
+  mutation,
+  plugin,
+}: {
+  mutation: ReturnType<typeof usePluginMutation>;
+  plugin: PluginWorkbenchItem;
+}) {
+  const initialToml = plugin.rootConfigurationToml ?? "";
+  const [toml, setToml] = useState(initialToml);
+  const restoreWasVisible = useRef(plugin.hasRootDifference).current;
+  const enabled = plugin.selection === "enabled";
+  const restoreVisible = plugin.hasRootDifference || restoreWasVisible;
+  const error = mutation.error instanceof Error ? mutation.error.message : null;
+
+  return (
+    <>
+      <header {...stylex.props(styles.inspectorHeader)}>
+        <div {...stylex.props(styles.inspectorIdentity)}>
+          <h2 {...stylex.props(styles.inspectorTitle)}>
+            {plugin.packageId}/{plugin.instanceKey}
+          </h2>
+          <span {...stylex.props(styles.secondary)}>
+            {plugin.origin === "host-default"
+              ? "Included by Host"
+              : "Added to Plugin Root"}
+          </span>
+        </div>
+        <StatusMarker
+          presentation="label"
+          status={enabled ? "success" : "neutral"}
+        >
+          {enabled ? "Enabled" : "Disabled"}
+        </StatusMarker>
+      </header>
+
+      <DetailSection title="Selection">
+        <div {...stylex.props(styles.controlRow)}>
+          <div {...stylex.props(styles.controlCopy)}>
+            <span {...stylex.props(styles.controlTitle)}>Enabled</span>
+            <span {...stylex.props(styles.controlDescription)}>
+              {plugin.disableable
+                ? "Changes prepare and switch to a new App Generation."
+                : "This Host requires the Instance and does not allow disabling it."}
+            </span>
+          </div>
+          <Switch.Root
+            aria-label={`Enable ${plugin.packageId}/${plugin.instanceKey}`}
+            checked={enabled}
+            disabled={!plugin.disableable || mutation.isPending}
+            onCheckedChange={(checked) => {
+              mutation.reset();
+              mutation.mutate({
+                enabled: checked,
+                instanceKey: plugin.instanceKey,
+                packageId: plugin.packageId,
+                type: "select",
+              });
+            }}
+            size="default"
+          >
+            <Switch.Thumb />
+          </Switch.Root>
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Configuration">
+        <textarea
+          aria-label={`TOML configuration for ${plugin.packageId}/${plugin.instanceKey}`}
+          onChange={(event) => {
+            mutation.reset();
+            setToml(event.target.value);
+          }}
+          placeholder="# App-owned TOML override"
+          spellCheck={false}
+          value={toml}
+          {...stylex.props(styles.editor)}
+        />
+        <div {...stylex.props(styles.editorActions)}>
+          <Button
+            aria-hidden={!restoreVisible}
+            disabled={mutation.isPending || !plugin.hasRootDifference}
+            onClick={() => {
+              mutation.reset();
+              mutation.mutate({
+                instanceKey: plugin.instanceKey,
+                packageId: plugin.packageId,
+                type: "reset",
+              });
+            }}
+            size="compact"
+            tabIndex={plugin.hasRootDifference ? 0 : -1}
+            variant="ghost"
+            {...stylex.props(!restoreVisible && styles.hiddenAction)}
+          >
+            <RotateCcw size={13} strokeWidth={1.75} />
+            Restore Host value
+          </Button>
+          <Button
+            disabled={mutation.isPending || toml === initialToml}
+            onClick={() => {
+              mutation.reset();
+              mutation.mutate({
+                instanceKey: plugin.instanceKey,
+                packageId: plugin.packageId,
+                toml,
+                type: "configure",
+              });
+            }}
+            size="compact"
+            variant="primary"
+          >
+            Save configuration
+          </Button>
+        </div>
+        {error ? (
+          <p
+            role="alert"
+            {...stylex.props(styles.feedback, styles.feedbackError)}
+          >
+            {error}
+          </p>
+        ) : mutation.isSuccess ? (
+          <p aria-live="polite" {...stylex.props(styles.feedback)}>
+            Change accepted. The Host is preparing the next Generation.
+          </p>
+        ) : null}
+      </DetailSection>
+
+      <DetailListSection title="Package">
+        <Detail label="Package" value={plugin.packageId} mono />
+        <Detail
+          label="Revision"
+          value={plugin.packageRevision || "linked into Host"}
+        />
+        <Detail
+          label="Authority"
+          value={plugin.rootSupplied ? "Plugin Root" : "Host Catalog"}
+        />
+      </DetailListSection>
+
+      {plugin.active ? (
+        <DetailSection title="Capabilities">
+          <div {...stylex.props(styles.capabilities)}>
+            {plugin.active.providedCapabilities.length > 0 ? (
+              plugin.active.providedCapabilities.map((capability) => (
+                <code key={capability} {...stylex.props(styles.capability)}>
+                  {capability}
+                </code>
+              ))
+            ) : (
+              <span {...stylex.props(styles.value)}>
+                No capabilities provided
+              </span>
+            )}
+          </div>
+        </DetailSection>
+      ) : null}
+
+      <Disclosure.Root {...stylex.props(styles.disclosure)}>
+        <Disclosure.Item value="technical-details">
+          <Disclosure.Header>
+            <Disclosure.Trigger>
+              <Disclosure.Icon />
+              Technical details
+            </Disclosure.Trigger>
+          </Disclosure.Header>
+          <Disclosure.Panel
+            layout="auto"
+            {...stylex.props(styles.technicalPanel)}
+          >
+            <dl {...stylex.props(styles.fields)}>
+              <Detail
+                label="Instance"
+                value={`${plugin.packageId}/${plugin.instanceKey}`}
+                mono
+              />
+              <Detail
+                label="Entrypoint"
+                value={plugin.active?.entrypoint ?? "Not active"}
+                mono
+              />
+              <Detail
+                label="Execution"
+                value={plugin.active?.executionClass ?? "Not active"}
+                mono
+              />
+              <Detail
+                label="Requires"
+                value={plugin.active?.requiredCapabilities.join(", ") || "None"}
+                mono
+              />
+            </dl>
+          </Disclosure.Panel>
+        </Disclosure.Item>
+      </Disclosure.Root>
+
+      {plugin.rootSupplied ? (
+        <DetailSection title="Plugin Root">
+          <RemovePluginDialog
+            isPending={mutation.isPending}
+            onRemove={async () => {
+              await mutation.mutateAsync({
+                packageId: plugin.packageId,
+                type: "remove",
+              });
+            }}
+            packageId={plugin.packageId}
+          />
+        </DetailSection>
+      ) : null}
+    </>
+  );
+}
+
+function InstallPluginDialog({
+  error,
+  isPending,
+  onInstall,
+}: {
+  error: Error | null;
+  isPending: boolean;
+  onInstall: (bundlePath: string) => Promise<void>;
+}) {
+  const [bundlePath, setBundlePath] = useState("");
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog.Root onOpenChange={setOpen} open={open}>
+      <Button onClick={() => setOpen(true)} size="compact" variant="secondary">
+        <Plus size={13} strokeWidth={1.75} />
+        Install
+      </Button>
+      <Dialog.Portal>
+        <Dialog.Backdrop />
+        <Dialog.Viewport>
+          <Dialog.Popup {...stylex.props(styles.dialogPopup)}>
+            <Dialog.Header>
+              <div>
+                <Dialog.Title>Install Plugin</Dialog.Title>
+                <Dialog.Description>
+                  Add a verified Plugin Bundle available on this Host.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close />
+            </Dialog.Header>
+            <Dialog.Body>
+              <label {...stylex.props(styles.dialogField)}>
+                <span {...stylex.props(styles.dialogLabel)}>
+                  Absolute bundle path
+                </span>
+                <input
+                  autoFocus
+                  onChange={(event) => setBundlePath(event.target.value)}
+                  placeholder="/opt/lenso/plugins/example.lenso-plugin"
+                  value={bundlePath}
+                  {...stylex.props(styles.input)}
+                />
+              </label>
+              {error ? (
+                <p
+                  role="alert"
+                  {...stylex.props(styles.feedback, styles.feedbackError)}
+                >
+                  {error.message}
+                </p>
+              ) : null}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Dialog.Close render={<Button size="compact" variant="ghost" />}>
+                Cancel
+              </Dialog.Close>
+              <Button
+                disabled={isPending || !bundlePath.trim()}
+                onClick={async () => {
+                  try {
+                    await onInstall(bundlePath.trim());
+                    setOpen(false);
+                    setBundlePath("");
+                  } catch {
+                    // The shared mutation error is rendered above.
+                  }
+                }}
+                size="compact"
+                variant="primary"
+              >
+                Install Plugin
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function RemovePluginDialog({
+  isPending,
+  onRemove,
+  packageId,
+}: {
+  isPending: boolean;
+  onRemove: () => Promise<void>;
+  packageId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog.Root onOpenChange={setOpen} open={open}>
+      <Button
+        onClick={() => setOpen(true)}
+        size="compact"
+        variant="ghost"
+        {...stylex.props(styles.destructive)}
+      >
+        <Trash2 size={13} strokeWidth={1.75} />
+        Remove Plugin
+      </Button>
+      <Dialog.Portal>
+        <Dialog.Backdrop />
+        <Dialog.Viewport>
+          <Dialog.Popup {...stylex.props(styles.dialogPopup)}>
+            <Dialog.Header>
+              <div>
+                <Dialog.Title>Remove {packageId}?</Dialog.Title>
+                <Dialog.Description>
+                  The Plugin directory will move to recoverable Lenso trash
+                  after the remaining App validates.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close />
+            </Dialog.Header>
+            <Dialog.Footer>
+              <Dialog.Close render={<Button size="compact" variant="ghost" />}>
+                Cancel
+              </Dialog.Close>
+              <Button
+                disabled={isPending}
+                onClick={async () => {
+                  try {
+                    await onRemove();
+                    setOpen(false);
+                  } catch {
+                    // The shared mutation error is rendered in the inspector.
+                  }
+                }}
+                size="compact"
+                variant="primary"
+              >
+                Remove Plugin
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function pluginKey(plugin: PluginWorkbenchItem) {
+  return `${plugin.packageId}/${plugin.instanceKey}`;
 }
 
 function WorkbenchState({
