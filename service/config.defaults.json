@@ -1,0 +1,7 @@
+{
+  "address": "127.0.0.1:3030",
+  "agent_home": ".lenso/console/agent",
+  "allowed_tools": [],
+  "managed_app_root": ".",
+  "web_root": "console-web"
+}

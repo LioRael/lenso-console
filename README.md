@@ -17,31 +17,29 @@ pnpm service:serve
 
 Open `http://127.0.0.1:3030`.
 
-The Console Agent Home defaults to `~/.lenso/console/agent`. It is also a
-standard Lenso App root: the Host Catalog lives at
-`~/.lenso/console/agent/.lenso/host-catalog.json`, and its ordinary Plugin Root
-is visible at `~/.lenso/console/agent/plugins`. The default App admits no
-model-visible Tools; `ask_user` remains available as the web interaction
-primitive.
+The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
+being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
+the launcher directory. The Console Agent admits no model-visible Tools by
+default; `ask_user` remains available as the web interaction primitive.
 
 The installed CLI can inspect the same App without Console-specific adapters:
 
 ```sh
-lenso app check --root ~/.lenso/console/agent
-lenso app show --root ~/.lenso/console/agent
-lenso plugins list --root ~/.lenso/console/agent
+lenso app check --root <managed-app>
+lenso app show --root <managed-app>
+lenso plugins list --root <managed-app>
 ```
 
-Console and the CLI share that Plugin Root as their only App-owned
-configuration. Console-authorized mutations are candidate-resolved before
-write and are reconciled into a new immutable Generation by the embedded Host.
+Console and the CLI share the managed App's ordinary Plugin Root.
+Console-authorized mutations are candidate-resolved before files are changed.
 
 The local Host currently binds only to loopback. A remotely reachable Console
 must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `service`: the single Console launcher and same-origin web host.
+- `service`: the `lenso.console.web` lifecycle Plugin, reusable Console Surface,
+  and thin standalone launcher.
 - `src/routes`: Agent, Plugins, and Settings routes.
 - `src/features/agent`: Agent conversation, trajectory, history, editing, and
   ask-user UI.
