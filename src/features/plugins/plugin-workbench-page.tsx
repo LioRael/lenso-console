@@ -327,6 +327,13 @@ const styles = stylex.create({
     margin: 0,
     maxWidth: 420,
   },
+  mutationFeedback: {
+    color: tokens.colorContentTertiary,
+    fontSize: 11,
+    lineHeight: "16px",
+    margin: 0,
+    overflowWrap: "anywhere",
+  },
 });
 
 export function PluginWorkbenchPage() {
