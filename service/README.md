@@ -38,6 +38,12 @@ lenso app show --root ~/.lenso/console/agent
 lenso plugins list --root ~/.lenso/console/agent
 ```
 
+The same-origin Agent surface also authorizes Console Plugin Root mutations.
+Install, configuration, selection, and removal requests resolve the complete
+candidate App before changing files. Successful mutations return as accepted
+desired state; the Host then stages the candidate and switches routing only
+after its Generation reaches Ready.
+
 The Console Agent admits no Tools by default. Set
 `LENSO_CONSOLE_AGENT_TOOLS` to a comma-separated list of exact Tool names only
 after the corresponding Tool Plugins are selected by the derived App.

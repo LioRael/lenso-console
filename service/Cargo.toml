@@ -14,11 +14,14 @@ anyhow = "1.0"
 axum = "0.8"
 directories = "6.0"
 dotenvy = "0.15"
-lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "669599b2b2ab9af04e76c39d08423253ecc7cbd2", default-features = false }
-lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "669599b2b2ab9af04e76c39d08423253ecc7cbd2" }
+lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "d513d1a6f03356158c678db658f973239c797331", default-features = false }
+lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "d513d1a6f03356158c678db658f973239c797331" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.52", features = ["macros", "net", "rt", "signal"] }
 tower-http = { version = "0.7", features = ["fs", "set-header"] }
+
+[dev-dependencies]
+tempfile = "3.27"
 
 [lints.rust]
 unsafe_code = "forbid"
