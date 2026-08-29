@@ -52,6 +52,13 @@
   white-space: nowrap;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
 .emptyCanvas {
   position: relative;
   display: grid;
@@ -107,8 +114,18 @@
   height: 24px;
 }
 
-.sendButton {
+.skillsButton {
+  height: 24px;
+  padding-inline: 4px 6px;
+  color: var(--color-content-tertiary);
+}
+
+.attachButton {
   margin-left: auto;
+}
+
+.attachButton,
+.sendButton {
   width: 24px;
   min-width: 24px;
   height: 24px;

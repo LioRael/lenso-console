@@ -14,16 +14,14 @@ export type ConsoleLanguagePreference = ConsoleLocale | "system";
 type ConsoleLocaleContextValue = {
   locale: ConsoleLocale;
   preference: ConsoleLanguagePreference;
-  setPreference: (preference: ConsoleLanguagePreference) => void;
+  setPreference: (value: ConsoleLanguagePreference) => void;
 };
 
 const ConsoleLocaleContext = createContext<ConsoleLocaleContextValue>({
   locale: "en",
-  preference: "system",
+  preference: "en",
   setPreference: () => undefined,
 });
-
-export const useConsoleLocale = () => useContext(ConsoleLocaleContext);
 
 export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
   const [preference, setPreference] =
@@ -47,6 +45,10 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
       {children}
     </ConsoleLocaleContext.Provider>
   );
+}
+
+export function useConsoleLocale() {
+  return useContext(ConsoleLocaleContext);
 }
 
 function resolveLocale(preference: ConsoleLanguagePreference): ConsoleLocale {

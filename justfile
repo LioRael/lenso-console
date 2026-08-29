@@ -37,13 +37,17 @@ console:
     pnpm dev
 
 console-api:
-    LENSO_CONSOLE_AGENT_URL=http://127.0.0.1:8788 pnpm dev
+    VITE_CONSOLE_MODE=api VITE_CONSOLE_DEV_MODE=production VITE_API_BASE_URL=http://localhost:3000 pnpm dev
 
 console-preview:
     pnpm preview
 
-console-start:
-    pnpm start
+# Console Service
+service-serve:
+    pnpm service:serve
+
+service-check:
+    pnpm service:check
 
 # Console web
 console-fmt: fmt

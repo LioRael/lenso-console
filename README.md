@@ -2,87 +2,69 @@
 
 [![CI](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml)
 
-Agent-focused Lenso Console. This repository owns the TanStack Start app and
-server-side bridges to the Agent Harness.
+Lenso Console is the local management and Agent workspace for one Lenso App.
+The installable Service is one process: it starts a latest-generation Lenso
+Agent Host, links a reviewed Plugin inventory, and serves the React Shell and
+Agent HTTP/SSE surface from the same origin.
 
-The Console server proxies Agent API requests to one loopback Agent Harness.
+## Run
 
-## Repository shape
-
-- Lenso Console: this repository owns the Console app, Agent Control route, and
-  delivery gates.
-- Lenso framework: [`LioRael/lenso`](https://github.com/LioRael/lenso) owns the
-  independent Plugin Plan and Kernel runtime.
-
-Keep both repositories checked out as siblings for backend-backed Console work:
-
-```text
-framework/
-  lenso/
-  lenso-console/
-```
-
-Repository operations notes, including branch protection and backend checkout secrets, live in [docs/repository-operations.md](docs/repository-operations.md).
-
-## Run the Console
-
-```bash
+```sh
 pnpm install
-pnpm build
-LENSO_CONSOLE_AGENT_URL=http://127.0.0.1:8788 \
-LENSO_CONSOLE_AGENT_CONTROL_TOKEN=replace-with-the-harness-control-token \
-pnpm start
+test -f service/.env || cp service/.env.example service/.env
+pnpm service:serve
 ```
 
-Open:
+Open `http://127.0.0.1:3030`.
 
-```text
-http://localhost:3030
-```
+The Console Agent Home defaults to `~/.lenso/console/agent`. Its ordinary
+Plugin Root is visible at `~/.lenso/console/agent/plugins`. The default App
+admits no model-visible Tools; `ask_user` remains available as the web
+interaction primitive.
 
-## Shell development
-
-Run TanStack Start through Vite when working on the Shell with hot reload:
-
-```bash
-pnpm dev
-```
-
-Set `LENSO_CONSOLE_AGENT_URL` and `LENSO_CONSOLE_AGENT_CONTROL_TOKEN` in the
-server environment to connect the local Harness. Browser traffic remains
-same-origin; the control token is never included in client assets.
+The local Host currently binds only to loopback. A remotely reachable Console
+must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `src/routes` and `src/router.tsx`: TanStack Start SPA file routes, document shell, and the single router factory; `src/app`: root providers and route lifecycle states.
-- `src/components/runtime`: Console Shell and shared presentation components.
-- `src/hooks`: Shell and Agent interaction hooks.
-- `src/lib`: query and API configuration helpers.
-- `src/server`: bounded server-only bridges for Agent runtime and Tool Policy requests.
-- `src/features`: route-level Console screens and product data.
+- `service`: the single Console launcher and same-origin web host.
+- `src/routes`: Agent, Plugins, and Settings routes.
+- `src/features/agent`: Agent conversation, trajectory, history, editing, and
+  ask-user UI.
+- `src/features/plugins`: installed Plugin inventory for the current App.
+- `src/features/settings`: local Console and Agent policy settings.
 
-### Agent surfaces
+System Registry, Runtime Story, Surface Gateway, generic managed-Service,
+PostgreSQL migration, worker, deployment-recovery, and dynamic Console Module
+composition are not part of this Host or its frontend source.
 
-The Shell provides the Agent workflow through the configured Agent Harness.
+## Development
 
-- `/`: new task composer and first-use examples.
-- `/agent/:chatId`: conversation, trajectory, Tool activity, and chat history.
-- `/settings/agent`: Agent Tool Policy controls backed by the Agent Harness.
+For Shell-only work with seeded frontend adapters:
 
+```sh
+pnpm dev
+```
+
+For hot reload against a running local Console Service:
+
+```sh
+VITE_CONSOLE_MODE=api \
+VITE_CONSOLE_DEV_MODE=production \
+VITE_API_BASE_URL=http://127.0.0.1:3030 \
+pnpm dev
+```
 
 ## Checks
 
-The console uses Ultracite with the Oxlint/Oxfmt provider:
-
-- `oxlint.config.ts` extends `ultracite/oxlint/core`, `ultracite/oxlint/react`, and `ultracite/oxlint/tanstack`.
-- `oxfmt.config.ts` extends `ultracite/oxfmt`.
-- No ESLint, Prettier, or Biome stack is configured.
-
-```bash
-pnpm format
+```sh
 pnpm format:check
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm build
-pnpm check
+pnpm service:check
 ```
+
+Repository operations notes live in
+[docs/repository-operations.md](docs/repository-operations.md).

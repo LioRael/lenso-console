@@ -1,34 +1,28 @@
-.page {
+.root {
+  align-content: center;
+  color: var(--color-content-tertiary);
   display: grid;
+  gap: 10px;
+  justify-items: start;
   min-height: 100%;
-  place-items: center;
-  padding: var(--space-6);
+  padding: 32px;
 }
 
-.card {
-  display: grid;
-  width: min(420px, 100%);
-  justify-items: center;
-  gap: var(--space-3);
-  padding: 32px;
-  text-align: center;
+.root h1,
+.root p {
+  margin: 0;
+}
+
+.root h1 {
+  color: var(--color-content-primary);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.root p {
+  font-size: 13px;
 }
 
 .icon {
-  color: var(--color-content-secondary);
-}
-
-.card h1 {
-  color: var(--color-content-primary);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.card p {
-  color: var(--color-content-secondary);
-  font-size: 14px;
-}
-
-.action {
-  margin-top: var(--space-2);
+  display: inline-flex;
 }

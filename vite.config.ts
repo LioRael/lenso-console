@@ -1,9 +1,15 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
-import { nitro } from "nitro/vite";
 import { defineConfig } from "vitest/config";
 
 import { consoleStylex } from "./config/console-stylex.ts";
+import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin.ts";
+
+const consoleDevMiddleware = consoleDevPlugin({
+  agentControlToken: process.env.LENSO_AGENT_CONTROL_TOKEN,
+  diagnosticsFile: process.env.LENSO_CONSOLE_DEV_DIAGNOSTICS_FILE,
+  hostUrl: process.env.LENSO_CONSOLE_DEV_HOST,
+});
 
 const isVitest = process.env.VITEST === "true";
 const startPlugin = isVitest
@@ -25,7 +31,7 @@ const startPlugin = isVitest
         },
       }),
     ];
-const deploymentPlugin = isVitest ? [] : [nitro()];
+const devPlugin = isVitest ? [] : [consoleDevMiddleware];
 
 export default defineConfig({
   base: "/",
@@ -41,7 +47,8 @@ export default defineConfig({
           }
           if (
             id.includes("node_modules/@base-ui") ||
-            id.includes("node_modules/lucide-react")
+            id.includes("node_modules/lucide-react") ||
+            id.includes("node_modules/ky")
           ) {
             return "ui-vendor";
           }
@@ -49,7 +56,7 @@ export default defineConfig({
       },
     },
   },
-  plugins: [...startPlugin, ...deploymentPlugin, react(), consoleStylex()],
+  plugins: [...startPlugin, react(), consoleStylex(), ...devPlugin],
   preview: {
     // TanStack Start prerenders through a build-time Vite preview server.
     // Bind it explicitly so CI/Docker resolve the same loopback address.

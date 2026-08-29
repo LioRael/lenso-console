@@ -28,11 +28,3 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Run quality gates
         run: pnpm check
-
-  console-container:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Lenso Console
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Build Console image
-        run: docker build --tag lenso-console:ci .

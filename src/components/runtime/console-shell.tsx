@@ -5,6 +5,7 @@ import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
+  Blocks,
   Bot,
   ChevronLeft,
   History,
@@ -13,10 +14,12 @@ import {
   Search,
   Settings,
   SlidersHorizontal,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useState, type ComponentType, type PropsWithChildren } from "react";
 
+import { useConsoleAppearance } from "../../app/console-appearance";
 import { AgentHistoryMenu } from "../../features/agent/agent-history-menu";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
 
@@ -36,9 +39,16 @@ const primaryNavigation: readonly NavigationItem[] = [
     matchPaths: ["/", "/agent"],
     path: "/",
   },
+  {
+    icon: Blocks,
+    label: "Plugins",
+    matchPaths: ["/plugins"],
+    path: "/plugins",
+  },
 ];
 
 export function ConsoleShell({ children }: PropsWithChildren) {
+  const appearance = useConsoleAppearance();
   const navigate = useNavigate();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const currentPath = useRouterState({
@@ -48,7 +58,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const currentAgentSessionId = agentSessionIdFromPath(currentPath);
 
   return (
-    <ThemeScope className={styles.theme} theme="system">
+    <ThemeScope className={styles.theme} theme={appearance.preference}>
       <Sidebar.Group className={styles.shell}>
         <Sidebar.Root
           className={styles.sidebar}
@@ -206,7 +216,9 @@ function SettingsSidebar({
   navigate,
 }: {
   currentPath: string;
-  navigate: (to: "/" | "/settings" | "/settings/agent") => void;
+  navigate: (
+    to: "/" | "/settings" | "/settings/agent" | "/settings/ai"
+  ) => void;
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -214,7 +226,8 @@ function SettingsSidebar({
     normalizedQuery.length === 0 ||
     label.toLocaleLowerCase().includes(normalizedQuery);
   const showPreferences = matches("Preferences");
-  const showAgentControls = matches("Agent tool access");
+  const showPersonalization = matches("Agent personalization");
+  const showAiAgents = matches("AI & Agents");
 
   return (
     <>
@@ -239,7 +252,7 @@ function SettingsSidebar({
             value={query}
           />
         </label>
-        {showPreferences || showAgentControls ? (
+        {showPreferences || showPersonalization ? (
           <Sidebar.Section>
             <Sidebar.SectionHeader>
               <Sidebar.SectionLabel>Personal</Sidebar.SectionLabel>
@@ -250,27 +263,48 @@ function SettingsSidebar({
                   <Sidebar.Item
                     icon={<SlidersHorizontal size={14} strokeWidth={1.7} />}
                     onClick={() => navigate("/settings")}
-                    selected={currentPath === "/settings"}
+                    selected={
+                      currentPath === "/settings" ||
+                      currentPath === "/settings/appearance"
+                    }
                   >
                     Preferences
                   </Sidebar.Item>
                 </Sidebar.MenuItem>
               ) : null}
-              {showAgentControls ? (
+              {showPersonalization ? (
                 <Sidebar.MenuItem>
                   <Sidebar.Item
                     icon={<Bot size={14} strokeWidth={1.7} />}
                     onClick={() => navigate("/settings/agent")}
-                    selected={currentPath === "/settings/agent"}
+                    selected={currentPath.startsWith("/settings/agent")}
                   >
-                    Agent tool access
+                    Agent personalization
                   </Sidebar.Item>
                 </Sidebar.MenuItem>
               ) : null}
             </Sidebar.Menu>
           </Sidebar.Section>
         ) : null}
-        {!showPreferences && !showAgentControls ? (
+        {showAiAgents ? (
+          <Sidebar.Section>
+            <Sidebar.SectionHeader>
+              <Sidebar.SectionLabel>Features</Sidebar.SectionLabel>
+            </Sidebar.SectionHeader>
+            <Sidebar.Menu>
+              <Sidebar.MenuItem>
+                <Sidebar.Item
+                  icon={<Sparkles size={14} strokeWidth={1.7} />}
+                  onClick={() => navigate("/settings/ai")}
+                  selected={currentPath.startsWith("/settings/ai")}
+                >
+                  AI &amp; Agents
+                </Sidebar.Item>
+              </Sidebar.MenuItem>
+            </Sidebar.Menu>
+          </Sidebar.Section>
+        ) : null}
+        {!showPreferences && !showPersonalization && !showAiAgents ? (
           <p className={styles.settingsSearchEmpty}>No settings found</p>
         ) : null}
       </Sidebar.Content>

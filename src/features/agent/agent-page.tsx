@@ -1,20 +1,29 @@
 import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
+import { Menu } from "@lenso/ui/menu";
 import { PageHeader } from "@lenso/ui/page-header";
 import { Surface } from "@lenso/ui/surface";
 import { Tabs } from "@lenso/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowUp,
+  Box,
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  Copy,
   FileText,
   ImageIcon,
   List,
+  MoreHorizontal,
+  Package,
+  Paperclip,
+  Plus,
   Search,
   Square,
+  Star,
   Terminal,
+  Trash2,
   Wrench,
   X,
 } from "lucide-react";
@@ -25,6 +34,8 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
 } from "react";
 
 import { AgentAskUser } from "./agent-ask-user";
@@ -49,22 +60,22 @@ type AgentView = "conversation" | "trajectory";
 
 const suggestions = [
   {
-    description: "Turn an outcome into a concrete sequence of actions",
-    icon: FileText,
-    prompt: "Help me turn an idea into an actionable plan",
-    title: "Plan next steps",
+    description: "Turn an outcome into a focused App workspace",
+    icon: Package,
+    prompt: "Create a customer support workspace",
+    title: "Create a new App",
   },
   {
-    description: "Gather current information and summarize the evidence",
+    description: "Research the Plugins available in this App",
     icon: Search,
-    prompt: "Research a topic and summarize what matters",
+    prompt: "Research the Plugins in this App",
     title: "Research a topic",
   },
   {
-    description: "Examine a technical choice and identify its tradeoffs",
+    description: "Configure a team around a shared workflow",
     icon: Wrench,
-    prompt: "Review a technical decision and challenge its assumptions",
-    title: "Review a decision",
+    prompt: "Set up a new support team",
+    title: "Set up a new team",
   },
 ] as const;
 
@@ -302,6 +313,52 @@ function AgentHeader({
               <Tabs.Tab value="trajectory">Trajectory</Tabs.Tab>
             </Tabs.List>
           </Tabs.Root>
+        ) : null}
+        {conversationId ? (
+          <div className={styles.headerActions}>
+            <IconButton
+              aria-label="Add to favorites"
+              size="compact"
+              variant="ghost"
+            >
+              <Star size={14} strokeWidth={1.7} />
+            </IconButton>
+            <Menu.Root>
+              <Menu.Trigger
+                render={
+                  <IconButton
+                    aria-label="Chat options"
+                    size="compact"
+                    variant="ghost"
+                  >
+                    <MoreHorizontal size={15} />
+                  </IconButton>
+                }
+              />
+              <Menu.Portal>
+                <Menu.Positioner align="end" side="bottom" sideOffset={6}>
+                  <Menu.Popup aria-label="Chat options">
+                    <Menu.Item>
+                      <Menu.Leading>
+                        <Copy size={15} />
+                      </Menu.Leading>
+                      <Menu.Label>Copy as markdown</Menu.Label>
+                    </Menu.Item>
+                    <Menu.Separator />
+                    <Menu.Item tone="danger">
+                      <Menu.Leading>
+                        <Trash2 size={15} />
+                      </Menu.Leading>
+                      <Menu.Label>Delete</Menu.Label>
+                      <Menu.Trailing>
+                        <Menu.Shortcut>⌘ ⌫</Menu.Shortcut>
+                      </Menu.Trailing>
+                    </Menu.Item>
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          </div>
         ) : null}
       </PageHeader.Row>
     </PageHeader.Root>
@@ -602,6 +659,26 @@ function AgentComposer({
         value={draft}
       />
       <div className={styles.composerFooter}>
+        <SkillsMenu>
+          <Button
+            aria-label="Skills"
+            className={styles.skillsButton}
+            size="compact"
+            variant="ghost"
+          >
+            <Box aria-hidden="true" size={13} strokeWidth={1.7} />
+            Skills
+            <ChevronDown aria-hidden="true" size={12} />
+          </Button>
+        </SkillsMenu>
+        <IconButton
+          aria-label="Attach images, files, or videos"
+          className={styles.attachButton}
+          size="compact"
+          variant="ghost"
+        >
+          <Paperclip size={14} strokeWidth={1.7} />
+        </IconButton>
         <IconButton
           aria-label={isRunning ? "Stop generating" : "Submit comment"}
           className={styles.sendButton}
@@ -654,4 +731,27 @@ function formatWorkDuration(durationMs: number) {
   }
   const minutes = Math.round(seconds / 60);
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
+function SkillsMenu({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  return (
+    <Menu.Root>
+      <Menu.Trigger render={children as ReactElement} />
+      <Menu.Portal>
+        <Menu.Positioner align="start" side="bottom" sideOffset={6}>
+          <Menu.Popup aria-label="Skills">
+            <Menu.Item
+              onClick={() => navigate({ to: "/settings/agent/skills/new" })}
+            >
+              <Menu.Leading>
+                <Plus size={15} />
+              </Menu.Leading>
+              <Menu.Label>Create skill</Menu.Label>
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
 }
