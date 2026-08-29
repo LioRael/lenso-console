@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  decodePluginConfigurationHistory,
   decodePluginConfigurationProposal,
   decodePluginConfigurationPublication,
+  decodePluginConfigurationRollbackProposal,
   decodePluginInventory,
   decodePluginManagement,
   demoPluginInventory,
+  demoPluginConfigurationHistory,
   demoPluginManagement,
   pluginWorkbenchItems,
 } from "./plugin-workbench-model";
@@ -65,7 +68,41 @@ describe("Plugin workbench management model", () => {
     });
 
     expect(publication.desired.configurationStatus).toBe("applied");
-    expect(publication.configurationAuthority?.kind).toBe("local_plugin_root");
+    expect(publication.configurationAuthority?.kind).toBe(
+      "sqlite_configuration_store"
+    );
+  });
+
+  it("decodes immutable publication history and a traceable rollback proposal", () => {
+    const history = decodePluginConfigurationHistory(
+      demoPluginConfigurationHistory
+    );
+    const [, previous] = history.publications;
+    expect(previous).toBeDefined();
+    if (!previous) {
+      throw new TypeError("Fixture should include a previous publication");
+    }
+    const rollback = decodePluginConfigurationRollbackProposal({
+      configurationToml: previous.configurationToml,
+      proposal: {
+        application: "app_generation",
+        baseRevision: demoPluginManagement.revision,
+        candidateRevision: previous.revision,
+        configurationAuthority: history.configurationAuthority,
+        diagnostics: [],
+        instanceKey: history.instanceKey,
+        pluginId: history.pluginId,
+        proposalDigest:
+          "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        schema: "lenso.plugin-configuration-proposal.v1",
+        status: "ready",
+      },
+      rollbackOfProposalDigest: previous.proposalDigest,
+      schema: "lenso.agent.plugin-configuration-rollback-proposal.v1",
+    });
+
+    expect(history.publications).toHaveLength(2);
+    expect(rollback.rollbackOfProposalDigest).toBe(previous.proposalDigest);
   });
 
   it("rejects malformed revisions and configuration state", () => {
