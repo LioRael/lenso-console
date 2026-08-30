@@ -1,5 +1,13 @@
 import { consoleApiPrefix } from "../../lib/http-client";
 
+export type AgentTargetId = "connected" | "console";
+
+export type AgentTarget = {
+  id: AgentTargetId;
+  kind: AgentTargetId;
+  label: string;
+};
+
 export type AgentMessageKind =
   | "reasoning_completed"
   | "reasoning_delta"
@@ -218,6 +226,7 @@ export async function streamAgentTurn({
   requestId,
   sessionId,
   signal,
+  targetId = "console",
 }: {
   editTurnId?: string;
   input: string;
@@ -225,8 +234,9 @@ export async function streamAgentTurn({
   requestId: string;
   sessionId?: string;
   signal: AbortSignal;
+  targetId?: AgentTargetId;
 }): Promise<void> {
-  const response = await fetch(agentApiUrl("api/console/v1/agent/turns"), {
+  const response = await fetch(agentApiUrl(targetId, "turns"), {
     body: JSON.stringify({
       ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
       input,
@@ -267,11 +277,12 @@ export async function streamAgentTurn({
   }
 }
 
-export async function cancelAgentTurn(requestId: string): Promise<void> {
+export async function cancelAgentTurn(
+  requestId: string,
+  targetId: AgentTargetId = "console"
+): Promise<void> {
   const response = await fetch(
-    agentApiUrl(
-      `api/console/v1/agent/turns/${encodeURIComponent(requestId)}/cancel`
-    ),
+    agentApiUrl(targetId, `turns/${encodeURIComponent(requestId)}/cancel`),
     {
       headers: agentHeaders("application/json", false),
       method: "POST",
@@ -284,11 +295,13 @@ export async function cancelAgentTurn(requestId: string): Promise<void> {
 
 export async function readPendingAgentInteractions(
   requestId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
 ): Promise<AgentPendingInteraction[]> {
   const response = await fetch(
     agentApiUrl(
-      `api/console/v1/agent/turns/${encodeURIComponent(requestId)}/interactions`
+      targetId,
+      `turns/${encodeURIComponent(requestId)}/interactions`
     ),
     {
       headers: agentHeaders("application/json", false),
@@ -315,14 +328,17 @@ export async function answerAgentInteraction({
   answers,
   interactionId,
   requestId,
+  targetId = "console",
 }: {
   answers: AgentInteractionAnswer[];
   interactionId: string;
   requestId: string;
+  targetId?: AgentTargetId;
 }): Promise<void> {
   const response = await fetch(
     agentApiUrl(
-      `api/console/v1/agent/turns/${encodeURIComponent(requestId)}/interactions/${encodeURIComponent(interactionId)}/answer`
+      targetId,
+      `turns/${encodeURIComponent(requestId)}/interactions/${encodeURIComponent(interactionId)}/answer`
     ),
     {
       body: JSON.stringify({ answers }),
@@ -336,9 +352,10 @@ export async function answerAgentInteraction({
 }
 
 export async function readAgentBootstrap(
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
 ): Promise<AgentBootstrap> {
-  const response = await fetch(agentApiUrl("api/console/v1/agent/bootstrap"), {
+  const response = await fetch(agentApiUrl(targetId, "bootstrap"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -351,13 +368,10 @@ export async function readAgentBootstrap(
 export async function readAgentToolPolicy(
   signal?: AbortSignal
 ): Promise<AgentToolPolicy> {
-  const response = await fetch(
-    agentApiUrl("api/console/v1/agent/control/tool-policy"),
-    {
-      headers: agentHeaders("application/json", false),
-      ...(signal ? { signal } : {}),
-    }
-  );
+  const response = await fetch(agentApiUrl("console", "control/tool-policy"), {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -371,14 +385,11 @@ export async function updateAgentToolPolicy({
   allowed: string[];
   expectedRevision: number;
 }): Promise<AgentToolPolicy> {
-  const response = await fetch(
-    agentApiUrl("api/console/v1/agent/control/tool-policy"),
-    {
-      body: JSON.stringify({ allowed, expectedRevision }),
-      headers: agentHeaders("application/json", true),
-      method: "PUT",
-    }
-  );
+  const response = await fetch(agentApiUrl("console", "control/tool-policy"), {
+    body: JSON.stringify({ allowed, expectedRevision }),
+    headers: agentHeaders("application/json", true),
+    method: "PUT",
+  });
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -386,9 +397,10 @@ export async function updateAgentToolPolicy({
 }
 
 export async function listAgentSessions(
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
 ): Promise<AgentSessionSummary[]> {
-  const response = await fetch(agentApiUrl("api/console/v1/agent/sessions"), {
+  const response = await fetch(agentApiUrl(targetId, "sessions"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -404,12 +416,11 @@ export async function listAgentSessions(
 
 export async function readAgentSession(
   sessionId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
 ): Promise<AgentSession> {
   const response = await fetch(
-    agentApiUrl(
-      `api/console/v1/agent/sessions/${encodeURIComponent(sessionId)}`
-    ),
+    agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}`),
     {
       headers: agentHeaders("application/json", false),
       ...(signal ? { signal } : {}),
@@ -423,11 +434,13 @@ export async function readAgentSession(
 
 export async function readAgentTrajectory(
   sessionId: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
 ): Promise<AgentTrajectory> {
   const response = await fetch(
     agentApiUrl(
-      `api/console/v1/agent/sessions/${encodeURIComponent(sessionId)}/trajectory`
+      targetId,
+      `sessions/${encodeURIComponent(sessionId)}/trajectory`
     ),
     {
       headers: agentHeaders("application/json", false),
@@ -659,12 +672,51 @@ export function decodeAgentStreamEvent(data: string): AgentStreamEvent {
   return agentStreamEvent(JSON.parse(data));
 }
 
-function agentApiUrl(path: string) {
+export async function listAgentTargets(
+  signal?: AbortSignal
+): Promise<AgentTarget[]> {
+  const response = await fetch(consoleApiUrl("api/console/v1/agents"), {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(await response.json(), "Agent target list");
+  if (!Array.isArray(object.targets)) {
+    throw new TypeError("Agent target list is missing targets");
+  }
+  return object.targets.map(agentTarget);
+}
+
+function agentApiUrl(targetId: AgentTargetId, path: string) {
+  const targetPath =
+    targetId === "console"
+      ? "api/console/v1/agent"
+      : `api/console/v1/agents/${encodeURIComponent(targetId)}`;
+  return consoleApiUrl(`${targetPath}/${path.replace(/^\/+/, "")}`);
+}
+
+function consoleApiUrl(path: string) {
   const prefix = consoleApiPrefix();
   if (!prefix || prefix === "/") {
     return `/${path.replace(/^\/+/, "")}`;
   }
   return `${prefix}/${path.replace(/^\/+/, "")}`;
+}
+
+function agentTarget(value: unknown): AgentTarget {
+  const object = requiredObject(value, "Agent target");
+  const { id, kind, label } = object;
+  if (
+    (id !== "console" && id !== "connected") ||
+    kind !== id ||
+    typeof label !== "string" ||
+    label.trim().length === 0
+  ) {
+    throw new TypeError("Agent target is malformed");
+  }
+  return { id, kind: id, label };
 }
 
 function agentHeaders(accept: string, json: boolean) {

@@ -48,8 +48,10 @@ const RootComponent = () => {
 const RootDocument = ({ children }: { children: ReactNode }) => (
   <html lang="en">
     <head>
+      <style href="lenso-console-layer-order" precedence="layer-order">
+        {consoleLayerStyle}
+      </style>
       <HeadContent />
-      <style>{consoleLayerStyle}</style>
       {import.meta.env.DEV ? (
         <>
           <link

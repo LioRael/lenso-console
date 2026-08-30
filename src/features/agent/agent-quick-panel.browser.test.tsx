@@ -1,13 +1,16 @@
 import { ThemeScope } from "@lenso/ui/theme-scope";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { AgentQuickPanel } from "./agent-quick-panel";
+import { AgentTargetProvider } from "./agent-target-context";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
+let queryClient: QueryClient | undefined;
 
 beforeEach(() => {
   container = document.createElement("div");
@@ -19,6 +22,8 @@ afterEach(() => {
     flushSync(() => root?.unmount());
   }
   root = undefined;
+  queryClient?.clear();
+  queryClient = undefined;
   container?.remove();
   container = undefined;
   vi.unstubAllGlobals();
@@ -68,11 +73,19 @@ async function renderPanel(fetchMock: ReturnType<typeof agentFetch>) {
     throw new Error("Browser test container is missing");
   }
   root = createRoot(container);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  queryClient = client;
   flushSync(() => {
     root?.render(
-      <ThemeScope>
-        <AgentQuickPanel onOpenFullPage={() => undefined} />
-      </ThemeScope>
+      <QueryClientProvider client={client}>
+        <AgentTargetProvider>
+          <ThemeScope>
+            <AgentQuickPanel onOpenFullPage={() => undefined} />
+          </ThemeScope>
+        </AgentTargetProvider>
+      </QueryClientProvider>
     );
   });
   await nextFrame();

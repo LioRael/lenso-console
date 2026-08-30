@@ -15,7 +15,12 @@ import {
   filterAgentSessions,
   getAgentHistoryEmptyLabel,
 } from "./agent-history-menu-filter";
-import { listAgentSessions, type AgentSessionSummary } from "./agent-runtime";
+import {
+  listAgentSessions,
+  type AgentSessionSummary,
+  type AgentTargetId,
+} from "./agent-runtime";
+import { useAgentTarget } from "./agent-target-context";
 
 import styles from "./agent-history-menu.module.css";
 
@@ -39,6 +44,7 @@ export function AgentHistoryMenu({
   placement?: "header" | "utility";
   showNewChat?: boolean;
 }) {
+  const { selectedTarget } = useAgentTarget();
   const headerPlacement = placement === "header";
   const menuId = useId();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -95,6 +101,7 @@ export function AgentHistoryMenu({
               query={query}
               refreshKey={refreshKey}
               showNewChat={showNewChat}
+              targetId={selectedTarget.id}
             />
           </Menu.Popup>
         </Menu.Positioner>
@@ -109,17 +116,19 @@ export function AgentHistoryItems({
   query = "",
   refreshKey = 0,
   showNewChat = true,
+  targetId = "console",
 }: {
   classes?: HistoryClasses;
   currentSessionId?: string | undefined;
   query?: string;
   refreshKey?: number;
   showNewChat?: boolean;
+  targetId?: AgentTargetId;
 }) {
   const navigate = useNavigate();
   const { data: sessions = [], isPending: loading } = useQuery({
-    queryFn: ({ signal }) => listAgentSessions(signal),
-    queryKey: ["agent-history", refreshKey],
+    queryFn: ({ signal }) => listAgentSessions(signal, targetId),
+    queryKey: ["agent-history", targetId, refreshKey],
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);

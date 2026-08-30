@@ -13,6 +13,17 @@ root-slot = "console"
 name = "lenso-console"
 path = "src/main.rs"
 
+[[bin]]
+name = "lenso-agent-web"
+path = "src/agent_main.rs"
+required-features = ["agent-web"]
+
+[features]
+agent-web = [
+  "dep:lenso-agent-default-plugins-current",
+  "dep:lenso-agent-web-current",
+]
+
 [dependencies]
 anyhow = "1.0"
 axum = "0.8"
@@ -20,8 +31,16 @@ directories = "6.0"
 dotenvy = "0.15"
 lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776", default-features = false }
 lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
+lenso-agent-web-current = { package = "lenso-agent-web", version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "5f2ea4f452a90feffa5812eb6970f0603b26d6e4", default-features = false, optional = true }
+lenso-agent-default-plugins-current = { package = "lenso-agent-default-plugins", version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "5f2ea4f452a90feffa5812eb6970f0603b26d6e4", optional = true }
 lenso = { version = "0.5.0", git = "https://github.com/LioRael/lenso-runtime-rust", rev = "6bd5b88f3c6610581fcc4306c6cf356f71f7c611" }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "rustls-tls",
+  "stream",
+] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 tokio = { version = "1.52", features = [
   "macros",
   "net",
@@ -29,11 +48,10 @@ tokio = { version = "1.52", features = [
   "signal",
   "sync",
 ] }
-tower-http = { version = "0.7", features = ["fs", "set-header"] }
+tower-http = { version = "0.7", features = ["fs", "limit", "set-header"] }
 
 [dev-dependencies]
 lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
-serde_json = "1.0"
 tempfile = "3.27"
 
 [lints.rust]

@@ -14,6 +14,7 @@ import {
   type AgentTurn,
   type AgentInteractionAnswer,
   type AgentPendingInteraction,
+  type AgentTargetId,
 } from "./agent-runtime";
 import {
   createAgentStreamEventBuffer,
@@ -28,12 +29,13 @@ type ActiveTurn = {
 
 async function loadBootstrap(
   signal: AbortSignal,
+  targetId: AgentTargetId,
   apply: (
     bootstrap: Awaited<ReturnType<typeof readAgentBootstrap>> | undefined
   ) => void
 ) {
   try {
-    const bootstrap = await readAgentBootstrap(signal);
+    const bootstrap = await readAgentBootstrap(signal, targetId);
     if (!signal.aborted) {
       apply(bootstrap);
     }
@@ -47,6 +49,7 @@ async function loadBootstrap(
 async function loadSessionData(
   sessionId: string,
   signal: AbortSignal,
+  targetId: AgentTargetId,
   apply: (
     result:
       | {
@@ -58,8 +61,8 @@ async function loadSessionData(
 ) {
   try {
     const [session, trajectory] = await Promise.all([
-      readAgentSession(sessionId, signal),
-      readAgentTrajectory(sessionId, signal),
+      readAgentSession(sessionId, signal, targetId),
+      readAgentTrajectory(sessionId, signal, targetId),
     ]);
     if (!signal.aborted) {
       apply({ session, trajectory });
@@ -74,9 +77,11 @@ async function loadSessionData(
 export function useAgentConversation({
   initialSessionId,
   onSessionResolved,
+  targetId = "console",
 }: {
   initialSessionId?: string | undefined;
   onSessionResolved?: ((sessionId: string) => void) | undefined;
+  targetId?: AgentTargetId;
 } = {}) {
   const [draft, setDraft] = useState("");
   const [canEdit, setCanEdit] = useState(false);
@@ -101,7 +106,7 @@ export function useAgentConversation({
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadBootstrap(controller.signal, (bootstrap) => {
+    void loadBootstrap(controller.signal, targetId, (bootstrap) => {
       if (bootstrap) {
         setCanCancel(bootstrap.capabilities.cancel);
         setCanEdit(bootstrap.capabilities.edit);
@@ -113,7 +118,7 @@ export function useAgentConversation({
       setCanUserInteraction(false);
     });
     return () => controller.abort();
-  }, []);
+  }, [targetId]);
 
   useEffect(() => {
     activeTurn.current?.stream.stop();
@@ -133,17 +138,22 @@ export function useAgentConversation({
       return;
     }
     const controller = new AbortController();
-    void loadSessionData(initialSessionId, controller.signal, (result) => {
-      if (!(result instanceof Error)) {
-        const projection = projectAgentSession(result.session);
-        setTurns(projection.turns);
-        setTrajectory(result.trajectory);
-        return;
+    void loadSessionData(
+      initialSessionId,
+      controller.signal,
+      targetId,
+      (result) => {
+        if (!(result instanceof Error)) {
+          const projection = projectAgentSession(result.session);
+          setTurns(projection.turns);
+          setTrajectory(result.trajectory);
+          return;
+        }
+        setRuntimeError(errorMessage(result));
       }
-      setRuntimeError(errorMessage(result));
-    });
+    );
     return () => controller.abort();
-  }, [initialSessionId]);
+  }, [initialSessionId, targetId]);
 
   useEffect(
     () => () => {
@@ -207,6 +217,7 @@ export function useAgentConversation({
             isFinished: () => turnFinished,
             requestId,
             signal: controller.signal,
+            targetId,
           })
         : Promise.resolve();
       try {
@@ -223,14 +234,19 @@ export function useAgentConversation({
           requestId,
           ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}),
           signal: controller.signal,
+          targetId,
         });
         stream.flush();
         const completedSessionId = sessionIdRef.current;
         if (completedSessionId) {
           try {
             const [session, projectedTrajectory] = await Promise.all([
-              readAgentSession(completedSessionId, controller.signal),
-              readAgentTrajectory(completedSessionId, controller.signal),
+              readAgentSession(completedSessionId, controller.signal, targetId),
+              readAgentTrajectory(
+                completedSessionId,
+                controller.signal,
+                targetId
+              ),
             ]);
             const projection = projectAgentSession(session);
             setTurns(projection.turns);
@@ -269,7 +285,14 @@ export function useAgentConversation({
       }
     };
     void runSubmittedTurn();
-  }, [canUserInteraction, draft, editingTurnId, resolveSession, turns]);
+  }, [
+    canUserInteraction,
+    draft,
+    editingTurnId,
+    resolveSession,
+    targetId,
+    turns,
+  ]);
 
   const answerInteraction = useCallback(
     (answers: AgentInteractionAnswer[]) => {
@@ -285,6 +308,7 @@ export function useAgentConversation({
             answers,
             interactionId: pendingInteraction.interactionId,
             requestId: active.requestId,
+            targetId,
           });
           if (activeTurn.current?.requestId === active.requestId) {
             setPendingInteraction(undefined);
@@ -297,7 +321,7 @@ export function useAgentConversation({
       };
       void submitAnswer();
     },
-    [isAnsweringInteraction, pendingInteraction]
+    [isAnsweringInteraction, pendingInteraction, targetId]
   );
 
   const cancelRunningTurn = useCallback(() => {
@@ -307,13 +331,13 @@ export function useAgentConversation({
     }
     const requestCancel = async () => {
       try {
-        await cancelAgentTurn(active.requestId);
+        await cancelAgentTurn(active.requestId, targetId);
       } catch (error) {
         setRuntimeError(errorMessage(error));
       }
     };
     void requestCancel();
-  }, [canCancel]);
+  }, [canCancel, targetId]);
 
   const beginEditing = useCallback(
     (turn: AgentTurn) => {
@@ -363,17 +387,20 @@ async function pollPendingInteraction({
   isFinished,
   requestId,
   signal,
+  targetId,
 }: {
   apply: (interaction: AgentPendingInteraction) => void;
   isFinished: () => boolean;
   requestId: string;
   signal: AbortSignal;
+  targetId: AgentTargetId;
 }) {
   while (!(signal.aborted || isFinished())) {
     try {
       const interactions = await readPendingAgentInteractions(
         requestId,
-        signal
+        signal,
+        targetId
       );
       const [interaction] = interactions;
       if (interaction) {
