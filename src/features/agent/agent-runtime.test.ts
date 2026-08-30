@@ -6,6 +6,7 @@ import {
   decodeAgentStreamEvent,
   cancelAgentTurn,
   listAgentSessions,
+  listAgentTargets,
   projectAgentSession,
   readAgentBootstrap,
   readAgentSession,
@@ -366,6 +367,48 @@ describe("Agent runtime projection", () => {
         ],
       },
     });
+  });
+
+  it("discovers and routes an explicitly selected connected Harness", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | RequestInfo) => {
+        const url = String(input);
+        urls.push(url);
+        if (url.endsWith("/api/console/v1/agents")) {
+          return Response.json({
+            targets: [
+              { id: "console", kind: "console", label: "Console Agent" },
+              {
+                id: "connected",
+                kind: "connected",
+                label: "Current Harness",
+              },
+            ],
+          });
+        }
+        return Response.json({
+          capabilities: {
+            cancel: true,
+            edit: true,
+            sessionList: true,
+            sessionRead: true,
+            userInteraction: true,
+          },
+          mode: "console",
+          profile: "coding",
+          tools: { allowed: ["read"], available: [] },
+          trajectory: "lenso.agent.trajectory@1",
+        });
+      })
+    );
+
+    await expect(listAgentTargets()).resolves.toHaveLength(2);
+    await expect(
+      readAgentBootstrap(undefined, "connected")
+    ).resolves.toMatchObject({ profile: "coding" });
+    expect(urls[1]).toContain("/api/console/v1/agents/connected/bootstrap");
   });
 
   it("reads and revision-fences Agent Tool policy updates", async () => {

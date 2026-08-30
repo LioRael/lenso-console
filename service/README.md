@@ -8,6 +8,20 @@ or recovery subsystems.
 
 ## Start
 
+Start a standard Harness and connect Console directly to it:
+
+```sh
+pnpm install
+pnpm agent:web
+```
+
+This starts the Harness Agent Web surface on `127.0.0.1:8787` and the Console
+surface on `127.0.0.1:3030`. Console still owns a separate private Agent. Use
+the selector in the Agent page's upper-right corner to switch between
+`Connected Harness` and `Console Agent`.
+
+Start only the standalone Console and its private Agent:
+
 ```sh
 pnpm install
 test -f service/.env || cp service/.env.example service/.env
@@ -34,12 +48,20 @@ agent_home = ".lenso/console/agent"
 allowed_tools = []
 managed_app_root = "."
 web_root = "console-web"
+connected_agent_url = "http://127.0.0.1:8787"
+connected_agent_label = "Connected Harness"
 ```
 
 Relative paths resolve from the App Host working directory. Activation binds
 the listener and starts the restricted Console Agent before the Plugin reaches
 Ready; generation cancellation shuts down both. Removing or disabling this
 Plugin removes only the Console surface.
+
+`connected_agent_url` is optional (use an empty string to omit it), must be a
+clean loopback HTTP origin, and identifies an Agent Web surface already owned
+by the embedding Host. Console does not start a second target Harness. It
+forwards only bounded Agent data-plane routes and streams SSE responses; it
+does not forward `/control` routes.
 
 The current generic `lenso run` binary does not yet link this native package.
 This slice defines the real Plugin and reference launcher; making it available

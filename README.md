@@ -9,6 +9,20 @@ Agent HTTP/SSE surface from the same origin.
 
 ## Run
 
+To start a normal Harness together with its Console Web UI:
+
+```sh
+pnpm install
+pnpm agent:web
+```
+
+Open `http://127.0.0.1:3030`. The selector in the Agent page's upper-right
+corner switches between the Harness that launched Console (`Connected
+Harness`) and Console's own private Agent (`Console Agent`). Their Sessions and
+active conversations remain separate.
+
+To run Console without a connected Harness:
+
 ```sh
 pnpm install
 test -f service/.env || cp service/.env.example service/.env
@@ -21,6 +35,11 @@ The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
 being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
 the launcher directory. The Console Agent admits no model-visible Tools by
 default; `ask_user` remains available as the web interaction primitive.
+
+An App Host embedding `lenso.console.web` can expose one existing Harness by
+setting `connected_agent_url` to its loopback Agent Web origin. Console proxies
+only the Agent data plane; Tool-policy control remains owned by the target
+Host.
 
 The installed CLI can inspect the same App without Console-specific adapters:
 

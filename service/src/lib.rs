@@ -6,16 +6,21 @@ use std::{
 
 use axum::{
     Json, Router,
-    http::StatusCode,
+    body::{Body, Bytes},
+    extract::{OriginalUri, Path as AxumPath, State},
+    http::{HeaderMap, Method, StatusCode, header},
+    response::{IntoResponse, Response},
     routing::{any, get},
 };
 use directories::BaseDirs;
 use lenso::prelude::*;
 use lenso_agent_web::{AgentWebConfig, AgentWebControl, AgentWebSurface};
 use serde::{Deserialize, Serialize};
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
 const DEFAULT_PORT: u16 = 3030;
+const MAX_AGENT_REQUEST_BYTES: usize = 64 * 1024;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -23,6 +28,8 @@ pub struct ConsolePluginConfig {
     address: String,
     agent_home: String,
     allowed_tools: Vec<String>,
+    connected_agent_label: String,
+    connected_agent_url: String,
     managed_app_root: String,
     web_root: String,
 }
@@ -36,11 +43,14 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
         return Err(invalid_plan("Console address must be loopback"));
     }
     if config.agent_home.is_empty()
+        || config.connected_agent_label.trim().is_empty()
         || config.managed_app_root.is_empty()
         || config.web_root.is_empty()
     {
         return Err(invalid_plan("Console paths must not be empty"));
     }
+    ConnectedAgent::parse(&config.connected_agent_url, &config.connected_agent_label)
+        .map_err(invalid_plan)?;
     Ok(())
 }
 
@@ -98,11 +108,18 @@ pub struct ConsoleConfig {
     pub agent_home: PathBuf,
     pub managed_app_root: PathBuf,
     pub allowed_tools: Vec<String>,
+    pub connected_agent: Option<ConnectedAgent>,
     pub tool_policy: PathBuf,
     pub web_root: PathBuf,
 }
 
 impl ConsoleConfig {
+    /// Connects the Console Shell to one existing loopback Agent Harness.
+    pub fn with_connected_agent(mut self, origin: &str, label: &str) -> anyhow::Result<Self> {
+        self.connected_agent = ConnectedAgent::parse(origin, label).map_err(anyhow::Error::msg)?;
+        Ok(self)
+    }
+
     pub fn from_plugin(config: &ConsolePluginConfig) -> anyhow::Result<Self> {
         let current = std::env::current_dir()?;
         let agent_home = resolve_path(&current, &config.agent_home);
@@ -112,6 +129,11 @@ impl ConsoleConfig {
             agent_home,
             managed_app_root: resolve_path(&current, &config.managed_app_root),
             allowed_tools: config.allowed_tools.clone(),
+            connected_agent: ConnectedAgent::parse(
+                &config.connected_agent_url,
+                &config.connected_agent_label,
+            )
+            .map_err(anyhow::Error::msg)?,
             web_root: resolve_path(&current, &config.web_root),
         })
     }
@@ -143,6 +165,10 @@ impl ConsoleConfig {
             .filter(|value| !value.is_empty())
             .map(str::to_owned)
             .collect();
+        let connected_agent_url =
+            std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_URL").unwrap_or_default();
+        let connected_agent_label = std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_LABEL")
+            .unwrap_or_else(|_| "Connected Harness".to_owned());
         let web_root = std::env::var_os("CONSOLE_WEB_ROOT")
             .map_or_else(|| manifest.join("../dist/client"), PathBuf::from);
         Ok(Self {
@@ -151,6 +177,8 @@ impl ConsoleConfig {
             agent_home,
             managed_app_root,
             allowed_tools,
+            connected_agent: ConnectedAgent::parse(&connected_agent_url, &connected_agent_label)
+                .map_err(anyhow::Error::msg)?,
             web_root,
         })
     }
@@ -216,11 +244,13 @@ impl ConsoleServer {
             .map_err(anyhow::Error::msg)?;
         let index = config.web_root.join("index.html");
         let shell = ServeDir::new(config.web_root).fallback(ServeFile::new(index));
+        let agent_targets = AgentTargets::new(config.connected_agent);
         let app = Router::new()
             .route("/health/live", get(health))
             .route("/health/ready", get(health))
             .route("/health/startup", get(health))
             .merge(agent.router())
+            .merge(agent_target_routes(agent_targets))
             .route("/api/{*path}", any(api_not_found))
             .fallback_service(shell);
         let listener = match tokio::net::TcpListener::bind(config.address).await {
@@ -254,6 +284,205 @@ impl ConsoleServer {
         result?;
         agent_shutdown
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct ConnectedAgent {
+    client: reqwest::Client,
+    label: String,
+    origin: reqwest::Url,
+}
+
+impl ConnectedAgent {
+    fn parse(origin: &str, label: &str) -> Result<Option<Self>, String> {
+        if origin.trim().is_empty() {
+            return Ok(None);
+        }
+        let origin = reqwest::Url::parse(origin.trim())
+            .map_err(|error| format!("connected Agent URL is invalid: {error}"))?;
+        let loopback = origin.host_str().is_some_and(|host| {
+            host == "localhost" || host.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback())
+        });
+        if origin.scheme() != "http"
+            || !loopback
+            || !origin.username().is_empty()
+            || origin.password().is_some()
+            || origin.path() != "/"
+            || origin.query().is_some()
+            || origin.fragment().is_some()
+        {
+            return Err("connected Agent URL must be a clean loopback HTTP origin".to_owned());
+        }
+        let label = label.trim();
+        if label.is_empty() {
+            return Err("connected Agent label must not be empty".to_owned());
+        }
+        let client = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(3))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|error| format!("connected Agent client is invalid: {error}"))?;
+        Ok(Some(Self {
+            client,
+            label: label.to_owned(),
+            origin,
+        }))
+    }
+}
+
+#[derive(Clone, Debug)]
+struct AgentTargets {
+    connected: Option<ConnectedAgent>,
+}
+
+impl AgentTargets {
+    const fn new(connected: Option<ConnectedAgent>) -> Self {
+        Self { connected }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentTarget {
+    id: &'static str,
+    kind: &'static str,
+    label: String,
+}
+
+#[derive(Debug, Serialize)]
+struct AgentTargetList {
+    targets: Vec<AgentTarget>,
+}
+
+fn agent_target_routes(targets: AgentTargets) -> Router {
+    Router::new()
+        .route("/api/console/v1/agents", get(list_agent_targets))
+        .route(
+            "/api/console/v1/agents/{target}/{*path}",
+            any(proxy_connected_agent),
+        )
+        .layer(RequestBodyLimitLayer::new(MAX_AGENT_REQUEST_BYTES))
+        .with_state(targets)
+}
+
+async fn list_agent_targets(State(targets): State<AgentTargets>) -> Json<AgentTargetList> {
+    let mut available = vec![AgentTarget {
+        id: "console",
+        kind: "console",
+        label: "Console Agent".to_owned(),
+    }];
+    if let Some(connected) = targets.connected {
+        available.push(AgentTarget {
+            id: "connected",
+            kind: "connected",
+            label: connected.label,
+        });
+    }
+    Json(AgentTargetList { targets: available })
+}
+
+async fn proxy_connected_agent(
+    State(targets): State<AgentTargets>,
+    AxumPath((target, path)): AxumPath<(String, String)>,
+    OriginalUri(incoming): OriginalUri,
+    method: Method,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if target != "connected" {
+        return problem(StatusCode::NOT_FOUND, "Agent target was not found");
+    }
+    let Some(connected) = targets.connected else {
+        return problem(StatusCode::NOT_FOUND, "Connected Harness is not configured");
+    };
+    if !allowed_agent_route(&method, &path) {
+        return problem(StatusCode::NOT_FOUND, "Connected Agent route was not found");
+    }
+    let mut target_url = connected.origin;
+    target_url.set_path(&format!("/api/console/v1/agent/{path}"));
+    target_url.set_query(incoming.query());
+    let mut request = connected.client.request(method, target_url).body(body);
+    for name in [header::ACCEPT, header::CONTENT_TYPE] {
+        if let Some(value) = headers.get(&name) {
+            request = request.header(name, value);
+        }
+    }
+    if let Some(value) = headers.get("last-event-id") {
+        request = request.header("last-event-id", value);
+    }
+    let response = match request.send().await {
+        Ok(response) => response,
+        Err(error) => {
+            return problem(
+                StatusCode::BAD_GATEWAY,
+                &format!("Connected Harness is unavailable: {error}"),
+            );
+        }
+    };
+    let status = response.status();
+    let headers = response.headers().clone();
+    let mut proxied = Response::builder()
+        .status(status)
+        .header(header::CACHE_CONTROL, "no-store");
+    for name in [header::CONTENT_TYPE] {
+        if let Some(value) = headers.get(&name) {
+            proxied = proxied.header(name, value);
+        }
+    }
+    if let Some(value) = headers.get("last-event-id") {
+        proxied = proxied.header("last-event-id", value);
+    }
+    proxied
+        .body(Body::from_stream(response.bytes_stream()))
+        .unwrap_or_else(|_| problem(StatusCode::BAD_GATEWAY, "Connected Harness response failed"))
+}
+
+fn allowed_agent_route(method: &Method, path: &str) -> bool {
+    let parts = path.split('/').collect::<Vec<_>>();
+    match (method, parts.as_slice()) {
+        (&Method::GET, ["bootstrap" | "models" | "sessions" | "tasks"])
+        | (&Method::POST, ["turns"]) => true,
+        (&Method::GET | &Method::PATCH, ["sessions", session_id]) => {
+            valid_agent_identity(session_id)
+        }
+        (
+            &Method::GET,
+            ["sessions", session_id, "trajectory"] | ["turns", session_id, "interactions"],
+        )
+        | (&Method::POST, ["turns", session_id, "cancel"]) => valid_agent_identity(session_id),
+        (
+            &Method::POST,
+            [
+                "turns",
+                request_id,
+                "interactions",
+                interaction_id,
+                "answer",
+            ],
+        ) => valid_agent_identity(request_id) && valid_agent_identity(interaction_id),
+        _ => false,
+    }
+}
+
+fn valid_agent_identity(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
+fn problem(status: StatusCode, detail: &str) -> Response {
+    (
+        status,
+        Json(serde_json::json!({
+            "detail": detail,
+            "status": status.as_u16(),
+            "title": status.canonical_reason().unwrap_or("Agent target error"),
+            "type": "about:blank"
+        })),
+    )
+        .into_response()
 }
 
 async fn health() -> Json<Health> {
@@ -336,6 +565,72 @@ mod tests {
     }
 
     #[test]
+    fn connected_agent_accepts_only_clean_loopback_origins() {
+        assert!(
+            ConnectedAgent::parse("http://127.0.0.1:8787", "Current Harness")
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            ConnectedAgent::parse("", "Current Harness")
+                .unwrap()
+                .is_none()
+        );
+        assert!(ConnectedAgent::parse("https://127.0.0.1:8787", "Current Harness").is_err());
+        assert!(ConnectedAgent::parse("http://example.com", "Current Harness").is_err());
+        assert!(ConnectedAgent::parse("http://127.0.0.1:8787/path", "Current Harness").is_err());
+    }
+
+    #[test]
+    fn connected_agent_proxy_exposes_only_the_agent_data_plane() {
+        assert!(allowed_agent_route(&Method::GET, "bootstrap"));
+        assert!(allowed_agent_route(&Method::POST, "turns"));
+        assert!(allowed_agent_route(
+            &Method::GET,
+            "sessions/session-1/trajectory"
+        ));
+        assert!(!allowed_agent_route(&Method::GET, "control/tool-policy"));
+        assert!(!allowed_agent_route(&Method::DELETE, "sessions/session-1"));
+        assert!(!allowed_agent_route(&Method::GET, "sessions/../trajectory"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn connected_agent_proxy_preserves_the_target_bootstrap() {
+        let target_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let target_address = target_listener.local_addr().unwrap();
+        let target = Router::new().route(
+            "/api/console/v1/agent/bootstrap",
+            get(|| async { Json(serde_json::json!({ "profile": "coding" })) }),
+        );
+        let target_task = tokio::spawn(async move {
+            axum::serve(target_listener, target).await.unwrap();
+        });
+
+        let connected =
+            ConnectedAgent::parse(&format!("http://{target_address}"), "Current Harness").unwrap();
+        let console_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let console_address = console_listener.local_addr().unwrap();
+        let console = agent_target_routes(AgentTargets::new(connected));
+        let console_task = tokio::spawn(async move {
+            axum::serve(console_listener, console).await.unwrap();
+        });
+
+        let response = reqwest::get(format!(
+            "http://{console_address}/api/console/v1/agents/connected/bootstrap"
+        ))
+        .await
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.json::<serde_json::Value>().await.unwrap()["profile"],
+            "coding"
+        );
+
+        console_task.abort();
+        target_task.abort();
+    }
+
+    #[test]
     fn console_host_authorizes_the_managed_app_plugin_root() {
         let root = tempfile::tempdir().unwrap();
         let agent_home = root.path().join("agent");
@@ -345,6 +640,7 @@ mod tests {
             agent_home,
             managed_app_root: root.path().join("app"),
             allowed_tools: Vec::new(),
+            connected_agent: None,
             web_root: root.path().join("web"),
         };
 
@@ -379,7 +675,7 @@ mod tests {
         std::fs::write(
             plugin_root.join("console.toml"),
             format!(
-                "address = \"127.0.0.1:0\"\nagent_home = {:?}\nallowed_tools = []\nmanaged_app_root = {:?}\nweb_root = {:?}\n",
+                "address = \"127.0.0.1:0\"\nagent_home = {:?}\nallowed_tools = []\nconnected_agent_label = \"Connected Harness\"\nconnected_agent_url = \"\"\nmanaged_app_root = {:?}\nweb_root = {:?}\n",
                 root.path().join("console-agent").display().to_string(),
                 root.path().display().to_string(),
                 web_root.display().to_string(),

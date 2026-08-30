@@ -15,6 +15,14 @@
       "items": { "type": "string" },
       "type": "array"
     },
+    "connected_agent_label": {
+      "description": "Label shown for the optional Agent Harness connected to this Console.",
+      "type": "string"
+    },
+    "connected_agent_url": {
+      "description": "Clean loopback HTTP origin for the optional connected Agent Harness.",
+      "type": "string"
+    },
     "managed_app_root": {
       "description": "Lenso App whose ordinary Plugin Root is managed by Console.",
       "type": "string"
@@ -28,6 +36,8 @@
     "address",
     "agent_home",
     "allowed_tools",
+    "connected_agent_label",
+    "connected_agent_url",
     "managed_app_root",
     "web_root"
   ],

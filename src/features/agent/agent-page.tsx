@@ -7,6 +7,7 @@ import { Tabs } from "@lenso/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowUp,
+  Bot,
   Box,
   ChevronDown,
   ChevronRight,
@@ -47,6 +48,7 @@ import {
 } from "./agent-message-controls";
 import type { AgentToolCall, AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
+import { useAgentTarget } from "./agent-target-context";
 import { AgentTrajectory } from "./agent-trajectory";
 import { useAgentConversation } from "./use-agent-conversation";
 
@@ -81,6 +83,7 @@ const suggestions = [
 
 export function AgentPage({ conversationId }: AgentPageProps) {
   const navigate = useNavigate();
+  const { selectedTarget } = useAgentTarget();
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [view, setView] = useState<AgentView>("conversation");
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -118,6 +121,7 @@ export function AgentPage({ conversationId }: AgentPageProps) {
         ? conversationId
         : undefined,
     onSessionResolved,
+    targetId: selectedTarget.id,
   });
   const conversation = Boolean(conversationId || turns.length > 0);
   const displayedConversationId = conversation
@@ -282,6 +286,9 @@ function AgentHeader({
   onViewChange: (view: AgentView) => void;
   view: AgentView;
 }) {
+  const navigate = useNavigate();
+  const { selectTarget, selectedTarget, targets } = useAgentTarget();
+
   return (
     <PageHeader.Root
       aria-label="Agent chat navigation"
@@ -314,50 +321,73 @@ function AgentHeader({
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {conversationId ? (
+        {targets.length > 1 || conversationId ? (
           <div className={styles.headerActions}>
-            <IconButton
-              aria-label="Add to favorites"
-              size="compact"
-              variant="ghost"
-            >
-              <Star size={14} strokeWidth={1.7} />
-            </IconButton>
-            <Menu.Root>
-              <Menu.Trigger
-                render={
-                  <IconButton
-                    aria-label="Chat options"
-                    size="compact"
-                    variant="ghost"
-                  >
-                    <MoreHorizontal size={15} />
-                  </IconButton>
-                }
-              />
-              <Menu.Portal>
-                <Menu.Positioner align="end" side="bottom" sideOffset={6}>
-                  <Menu.Popup aria-label="Chat options">
-                    <Menu.Item>
-                      <Menu.Leading>
-                        <Copy size={15} />
-                      </Menu.Leading>
-                      <Menu.Label>Copy as markdown</Menu.Label>
-                    </Menu.Item>
-                    <Menu.Separator />
-                    <Menu.Item tone="danger">
-                      <Menu.Leading>
-                        <Trash2 size={15} />
-                      </Menu.Leading>
-                      <Menu.Label>Delete</Menu.Label>
-                      <Menu.Trailing>
-                        <Menu.Shortcut>⌘ ⌫</Menu.Shortcut>
-                      </Menu.Trailing>
-                    </Menu.Item>
-                  </Menu.Popup>
-                </Menu.Positioner>
-              </Menu.Portal>
-            </Menu.Root>
+            {targets.length > 1 ? (
+              <label className={styles.agentTarget}>
+                <Bot aria-hidden="true" size={13} strokeWidth={1.7} />
+                <select
+                  aria-label="Active Agent"
+                  onChange={(event) => {
+                    selectTarget(event.target.value as "connected" | "console");
+                    navigate({ to: "/" });
+                  }}
+                  value={selectedTarget.id}
+                >
+                  {targets.map((target) => (
+                    <option key={target.id} value={target.id}>
+                      {target.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {conversationId ? (
+              <>
+                <IconButton
+                  aria-label="Add to favorites"
+                  size="compact"
+                  variant="ghost"
+                >
+                  <Star size={14} strokeWidth={1.7} />
+                </IconButton>
+                <Menu.Root>
+                  <Menu.Trigger
+                    render={
+                      <IconButton
+                        aria-label="Chat options"
+                        size="compact"
+                        variant="ghost"
+                      >
+                        <MoreHorizontal size={15} />
+                      </IconButton>
+                    }
+                  />
+                  <Menu.Portal>
+                    <Menu.Positioner align="end" side="bottom" sideOffset={6}>
+                      <Menu.Popup aria-label="Chat options">
+                        <Menu.Item>
+                          <Menu.Leading>
+                            <Copy size={15} />
+                          </Menu.Leading>
+                          <Menu.Label>Copy as markdown</Menu.Label>
+                        </Menu.Item>
+                        <Menu.Separator />
+                        <Menu.Item tone="danger">
+                          <Menu.Leading>
+                            <Trash2 size={15} />
+                          </Menu.Leading>
+                          <Menu.Label>Delete</Menu.Label>
+                          <Menu.Trailing>
+                            <Menu.Shortcut>⌘ ⌫</Menu.Shortcut>
+                          </Menu.Trailing>
+                        </Menu.Item>
+                      </Menu.Popup>
+                    </Menu.Positioner>
+                  </Menu.Portal>
+                </Menu.Root>
+              </>
+            ) : null}
           </div>
         ) : null}
       </PageHeader.Row>

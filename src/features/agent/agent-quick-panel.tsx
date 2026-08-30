@@ -36,6 +36,7 @@ import {
 import agentPointerGradient from "./agent-pointer-gradient.svg";
 import type { AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
+import { useAgentTarget } from "./agent-target-context";
 import { useAgentConversation } from "./use-agent-conversation";
 
 import styles from "./agent-quick-panel.module.css";
@@ -72,6 +73,7 @@ export function AgentQuickPanel({
   onOpenFullPage: (sessionId?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { selectedTarget } = useAgentTarget();
   const {
     answerInteraction,
     beginEditing: beginEditingTurn,
@@ -90,7 +92,7 @@ export function AgentQuickPanel({
     submit,
     turns,
     visibleTurns,
-  } = useAgentConversation();
+  } = useAgentConversation({ targetId: selectedTarget.id });
   const conversationRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
