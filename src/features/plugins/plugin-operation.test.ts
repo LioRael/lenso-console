@@ -57,7 +57,7 @@ describe("Plugin operation lifecycle", () => {
   });
 
   it("decodes the Host-owned golden contract without numeric cursor loss", () => {
-    // Vendored from lenso-agent-harness/apps/lenso-agent-web/tests/fixtures/
+    // Vendored from lenso-agent/apps/lenso-agent-web/tests/fixtures/
     // plugin-control-contract.json; the Host asserts its actual serializers
     // against the same fixture.
     expect(decodePluginInventory(contractFixture.inventory).cursor).toBe(
