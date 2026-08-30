@@ -67,6 +67,17 @@ VITE_API_BASE_URL=http://127.0.0.1:3030 \
 pnpm dev
 ```
 
+The development server binds `127.0.0.1` by default. Its diagnostics and Host
+proxy routes require a trusted socket peer and Host. Requests must either carry
+the exact same Origin, or be an Origin-less `GET`/`HEAD` browser fetch with
+same-origin Fetch Metadata (`same-origin`, `cors`, and `empty`). Cross-site
+metadata and requests without either browser signal are rejected. To opt into
+remote development, set `LENSO_CONSOLE_DEV_REMOTE_ORIGIN` to the exact HTTP(S)
+Origin opened in the browser. That single opt-in binds Vite to all interfaces
+and trusts only the configured Origin and Host for non-loopback requests; use
+it only on a trusted network. The privileged proxy also rejects request bodies
+larger than 1 MiB.
+
 ## Checks
 
 ```sh
@@ -77,6 +88,10 @@ pnpm test
 pnpm build
 pnpm service:check
 ```
+
+Browser tests use Playwright-managed Chromium. Install it with
+`pnpm exec playwright install chromium`; set `LENSO_BROWSER_EXECUTABLE_PATH`
+only when a local environment must use a specific Chromium-compatible binary.
 
 Repository operations notes live in
 [docs/repository-operations.md](docs/repository-operations.md).
