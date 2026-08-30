@@ -1625,7 +1625,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-ask-user-tools-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1639,7 +1639,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-auth-openai-codex-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "base64",
  "directories",
@@ -1660,7 +1660,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-console-plugins"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "lenso-agent-ask-user-tools-plugin",
  "lenso-agent-auth-openai-codex-plugin",
@@ -1679,7 +1679,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-context-compaction-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "lenso",
  "lenso-capability-agent-context-compaction",
@@ -1690,7 +1690,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-host"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "directories",
  "fs2",
@@ -1739,7 +1739,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-http-fetch-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1754,7 +1754,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-loop-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1779,7 +1779,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-memory-sqlite-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "lenso",
  "lenso-capability-agent-memory",
@@ -1793,7 +1793,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-model-openai-codex-direct-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "bytes",
  "futures",
@@ -1810,7 +1810,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-prompt-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1826,7 +1826,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-prompt-static-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1840,7 +1840,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-session-file-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1856,7 +1856,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-session-inspection"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "serde",
  "serde_json",
@@ -1866,7 +1866,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-session-sqlite-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1883,7 +1883,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-tools-plugin"
 version = "0.2.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -1899,7 +1899,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-user-interaction-local-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "lenso",
  "lenso-capability-agent-user-interaction",
@@ -1911,7 +1911,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-web"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "axum",
  "clap",
@@ -1935,7 +1935,7 @@ dependencies = [
 [[package]]
 name = "lenso-agent-web-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "lenso",
  "lenso-capability-agent",
@@ -1970,7 +1970,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -1986,7 +1986,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-auth-openai-codex"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -2000,7 +2000,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-context-compaction"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -2020,7 +2020,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-context-source"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2038,7 +2038,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-http-fetch"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2055,7 +2055,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-lifecycle"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2074,7 +2074,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-memory"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -2094,7 +2094,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-model"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2112,7 +2112,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-prompt"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -2128,7 +2128,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-prompt-provider"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -2142,7 +2142,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-session"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -2158,7 +2158,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-session-presentation"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -2178,7 +2178,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-tool-hook"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2197,7 +2197,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-tool-progress"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2215,7 +2215,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-tool-provider"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2233,7 +2233,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-tools"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -2249,7 +2249,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-tui-contribution"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-codegen",
@@ -2263,7 +2263,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-tui-suggestion"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2281,7 +2281,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-turn-input"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -2301,7 +2301,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-user-interaction"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso",
@@ -2321,7 +2321,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-agent-workspace-read"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-agent-harness?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
+source = "git+https://github.com/LioRael/lenso-agent?rev=884efbf5233f0fbb039ffc38a01943c363ff9776#884efbf5233f0fbb039ffc38a01943c363ff9776"
 dependencies = [
  "futures",
  "lenso-contract-authoring",

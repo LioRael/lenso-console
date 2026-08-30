@@ -138,7 +138,7 @@ describe("Agent runtime projection", () => {
 
   it("does not expose an unexecuted internal Tool attempt as assistant text", () => {
     const leaked =
-      ' to=skill  (Lenso Agent Harness)  code:\n{"name":"ask-matt"}已调用 `ask-matt` 技能。';
+      ' to=skill  (Lenso Agent)  code:\n{"name":"ask-matt"}已调用 `ask-matt` 技能。';
     const projected = projectAgentSession({
       events: [
         event("1", "turn_started", { input: "Call a tool" }, "turn-1"),

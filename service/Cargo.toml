@@ -18,8 +18,8 @@ anyhow = "1.0"
 axum = "0.8"
 directories = "6.0"
 dotenvy = "0.15"
-lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776", default-features = false }
-lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
+lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776", default-features = false }
+lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
 lenso = { version = "0.5.0", git = "https://github.com/LioRael/lenso-runtime-rust", rev = "6bd5b88f3c6610581fcc4306c6cf356f71f7c611" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.52", features = [
@@ -32,7 +32,7 @@ tokio = { version = "1.52", features = [
 tower-http = { version = "0.7", features = ["fs", "set-header"] }
 
 [dev-dependencies]
-lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent-harness", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
+lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
 serde_json = "1.0"
 tempfile = "3.27"
 
