@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   answerAgentInteraction,
@@ -16,18 +9,21 @@ import {
   readAgentTrajectory,
   readPendingAgentInteractions,
   streamAgentTurn,
-  type AgentStreamMessage,
   type AgentStreamEvent,
-  type AgentToolCall,
   type AgentTrajectory,
   type AgentTurn,
   type AgentInteractionAnswer,
   type AgentPendingInteraction,
 } from "./agent-runtime";
+import {
+  createAgentStreamEventBuffer,
+  type AgentStreamEventBuffer,
+} from "./agent-stream-buffer";
 
 type ActiveTurn = {
   controller: AbortController;
   requestId: string;
+  stream: AgentStreamEventBuffer;
 };
 
 async function loadBootstrap(
@@ -120,6 +116,7 @@ export function useAgentConversation({
   }, []);
 
   useEffect(() => {
+    activeTurn.current?.stream.stop();
     activeTurn.current?.controller.abort();
     activeTurn.current = undefined;
     setIsRunning(false);
@@ -150,7 +147,10 @@ export function useAgentConversation({
 
   useEffect(
     () => () => {
-      activeTurn.current?.controller.abort();
+      const active = activeTurn.current;
+      activeTurn.current = undefined;
+      active?.stream.stop();
+      active?.controller.abort();
     },
     []
   );
@@ -175,7 +175,11 @@ export function useAgentConversation({
     }
     const controller = new AbortController();
     const requestId = crypto.randomUUID();
-    activeTurn.current = { controller, requestId };
+    const stream = createAgentStreamEventBuffer({
+      setTurns,
+      turnId: pendingTurnId,
+    });
+    activeTurn.current = { controller, requestId, stream };
     setIsRunning(true);
     setRuntimeError(undefined);
     setDraft("");
@@ -210,7 +214,7 @@ export function useAgentConversation({
           ...(editedTurnId ? { editTurnId: editedTurnId } : {}),
           input: prompt,
           onEvent: (event) => {
-            handleStreamEvent(event, pendingTurnId, setTurns);
+            stream.handle(event);
             const resolvedSessionId = streamSessionId(event);
             if (resolvedSessionId) {
               resolveSession(resolvedSessionId);
@@ -220,6 +224,7 @@ export function useAgentConversation({
           ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}),
           signal: controller.signal,
         });
+        stream.flush();
         const completedSessionId = sessionIdRef.current;
         if (completedSessionId) {
           try {
@@ -239,6 +244,7 @@ export function useAgentConversation({
         if (controller.signal.aborted) {
           return;
         }
+        stream.flush();
         const detail = errorMessage(error);
         setRuntimeError(detail);
         setTurns((current) =>
@@ -252,10 +258,13 @@ export function useAgentConversation({
         turnFinished = true;
         await interactionPolling;
         if (activeTurn.current?.controller === controller) {
+          stream.stop();
           activeTurn.current = undefined;
           setIsRunning(false);
           setIsAnsweringInteraction(false);
           setPendingInteraction(undefined);
+        } else {
+          stream.stop();
         }
       }
     };
@@ -378,85 +387,6 @@ async function pollPendingInteraction({
     }
     await new Promise((resolve) => setTimeout(resolve, 160));
   }
-}
-
-function handleStreamEvent(
-  event: AgentStreamEvent,
-  turnId: string,
-  setTurns: Dispatch<SetStateAction<AgentTurn[]>>
-) {
-  setTurns((current) =>
-    current.map((turn) => {
-      if (turn.id !== turnId) {
-        return turn;
-      }
-      if (event.type === "turn_completed") {
-        return { ...turn, status: "completed" };
-      }
-      if (event.type === "turn_cancelled") {
-        return { ...turn, status: "cancelled" };
-      }
-      if (event.type === "turn_failed") {
-        return { ...turn, error: event.detail, status: "failed" };
-      }
-      const { kind, text } = event.message;
-      if (!kind || kind === "text_delta") {
-        return { ...turn, answer: turn.answer + text };
-      }
-      if (kind === "reasoning_delta") {
-        return { ...turn, thought: turn.thought + text, work: turn.work ?? {} };
-      }
-      if (
-        kind === "tool_started" ||
-        kind === "tool_progress" ||
-        kind === "tool_completed" ||
-        kind === "tool_failed"
-      ) {
-        return {
-          ...turn,
-          tools: projectStreamTool(turn.tools, event.message),
-          work: turn.work ?? {},
-        };
-      }
-      if (kind === "reasoning_completed") {
-        return { ...turn, work: turn.work ?? {} };
-      }
-      return turn;
-    })
-  );
-}
-
-function projectStreamTool(
-  current: AgentToolCall[] | undefined,
-  message: AgentStreamMessage
-) {
-  const tools = current ? [...current] : [];
-  const callId = message.toolCallId ?? `stream:${message.sequence}`;
-  const index = tools.findIndex((tool) => tool.callId === callId);
-  const existing = index === -1 ? undefined : tools[index];
-  const argumentsJson = message.argumentsJson || existing?.argumentsJson;
-  const metadataJson = message.metadataJson || existing?.metadataJson;
-  const error = message.error || existing?.error;
-  const status =
-    message.kind === "tool_completed"
-      ? "completed"
-      : message.kind === "tool_failed"
-        ? "failed"
-        : "running";
-  const next: AgentToolCall = {
-    callId,
-    name: message.toolName || existing?.name || "Tool",
-    status,
-    ...(argumentsJson ? { argumentsJson } : {}),
-    ...(metadataJson ? { metadataJson } : {}),
-    ...(error ? { error } : {}),
-  };
-  if (index === -1) {
-    tools.push(next);
-  } else {
-    tools[index] = next;
-  }
-  return tools;
 }
 
 function streamSessionId(event: AgentStreamEvent) {

@@ -3,12 +3,15 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 import { consoleStylex } from "./config/console-stylex.ts";
+import { consoleDevServerConfigFromEnv } from "./src/dev/console-dev-server-config.ts";
 import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin.ts";
 
+const consoleDevServer = consoleDevServerConfigFromEnv(process.env);
 const consoleDevMiddleware = consoleDevPlugin({
   agentControlToken: process.env.LENSO_AGENT_CONTROL_TOKEN,
   diagnosticsFile: process.env.LENSO_CONSOLE_DEV_DIAGNOSTICS_FILE,
   hostUrl: process.env.LENSO_CONSOLE_DEV_HOST,
+  trustedOrigin: consoleDevServer.trustedOrigin,
 });
 
 const isVitest = process.env.VITEST === "true";
@@ -63,6 +66,8 @@ export default defineConfig({
     host: "127.0.0.1",
   },
   server: {
+    allowedHosts: consoleDevServer.allowedHosts,
+    host: consoleDevServer.host,
     port: 5174,
   },
 });
