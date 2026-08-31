@@ -1,0 +1,69 @@
+.surface {
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+}
+
+.root {
+  display: grid;
+  box-sizing: border-box;
+  gap: var(--space-2, 8px);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3, 12px);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-content-primary);
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.input::placeholder {
+  color: var(--color-content-tertiary);
+  opacity: 1;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.toolbar,
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar {
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.actions {
+  gap: var(--space-1, 4px);
+}
+
+@media (forced-colors: active) {
+  .surface {
+    border: 1px solid CanvasText;
+  }
+
+  .input:focus-visible {
+    outline-color: Highlight;
+  }
+}

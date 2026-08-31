@@ -304,17 +304,13 @@
   color: transparent;
 }
 
-.composer {
+.composerSurface {
   position: relative;
-  display: flex;
   flex: 0 0 auto;
-  flex-direction: column;
-  gap: 8px;
   height: auto;
-  min-height: 72.8px;
   width: 100%;
   margin: 0;
-  padding: 6px 4px;
+  padding: 0;
   border-radius: 7px;
   background: lch(100 0 282);
   box-shadow:
@@ -322,7 +318,17 @@
     0 1px 1px lch(0 0 0 / 4%);
 }
 
-.composer::before {
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: 72.8px;
+  margin: 0;
+  padding: 6px 4px;
+}
+
+.composerSurface::before {
   position: absolute;
   inset: -0.5px;
   border: 0.5px solid transparent;
@@ -369,6 +375,10 @@
   height: 28px;
   min-height: 28px;
   padding: 0 6px 4px 2px;
+}
+
+.composerActions {
+  gap: 8px;
 }
 
 .conversation {
@@ -465,7 +475,6 @@
 }
 
 .attach {
-  margin-left: auto;
   padding: 0 2px;
   border: 0.5px solid transparent;
   border-radius: 9999px;

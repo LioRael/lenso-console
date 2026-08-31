@@ -49,6 +49,30 @@ describe("Agent quick panel", () => {
     expect(turnRequests(fetchMock)).toHaveLength(0);
   });
 
+  test("does not submit Enter while IME composition is active", async () => {
+    const fetchMock = agentFetch();
+    await renderPanel(fetchMock);
+
+    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await nextFrame();
+    const composerElement = requiredComposer();
+    const composer = page.elementLocator(composerElement);
+    await userEvent.fill(composer, "输入中");
+
+    composerElement.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        isComposing: true,
+        key: "Enter",
+      })
+    );
+    await nextFrame();
+
+    await expect.element(composer).toHaveValue("输入中");
+    expect(turnRequests(fetchMock)).toHaveLength(0);
+  });
+
   test("renders an exact long streamed answer after Enter submission", async () => {
     const answer = "batched ".repeat(200).trimEnd();
     const fetchMock = agentFetch(answer);

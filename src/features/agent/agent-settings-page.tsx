@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import {
   readAgentBootstrap,
   readAgentToolPolicy,
@@ -69,10 +70,24 @@ function PersonalizationPage() {
         description="Your personal settings for Lenso Agent"
         title="Agent personalization"
       />
-      <SettingsSection
-        description="Provide personal instructions and context for Lenso Agent when responding to conversations"
-        title="Guidance"
+      <SettingsSection.Root
+        aria-labelledby="personal-guidance-title"
+        className={styles.settingsSection}
       >
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="personal-guidance-title"
+          >
+            Guidance
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Provide personal instructions and context for Lenso Agent when
+            responding to conversations
+          </SettingsSection.Description>
+        </SettingsSection.Header>
         <textarea
           aria-label="Agent guidance"
           className={styles.guidance}
@@ -80,12 +95,26 @@ function PersonalizationPage() {
           placeholder="Enter personal guidance for Lenso Agent (optional)…"
           value={guidance}
         />
-      </SettingsSection>
-      <SettingsSection
-        description="Reusable prompts auto-selected by the agent or invoked via slash commands"
-        title="Skills"
+      </SettingsSection.Root>
+      <SettingsSection.Root
+        aria-labelledby="skills-title"
+        className={styles.settingsSection}
       >
-        <Surface className={styles.singleRow} level="panel">
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="skills-title"
+          >
+            Skills
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Reusable prompts auto-selected by the agent or invoked via slash
+            commands
+          </SettingsSection.Description>
+        </SettingsSection.Header>
+        <SettingsSection.Group className={styles.singleRow}>
           <div className={styles.singleRowInner}>
             <span>No skills created</span>
             <IconButton
@@ -97,21 +126,35 @@ function PersonalizationPage() {
               <Plus size={14} />
             </IconButton>
           </div>
-        </Surface>
-      </SettingsSection>
-      <SettingsSection
-        description="Add MCP connectors for use with Lenso Agent. Workspace admins can manage available connectors in security settings."
-        title="MCP connectors"
+        </SettingsSection.Group>
+      </SettingsSection.Root>
+      <SettingsSection.Root
+        aria-labelledby="mcp-connectors-title"
+        className={styles.settingsSection}
       >
-        <Surface className={styles.singleRow} level="panel">
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="mcp-connectors-title"
+          >
+            MCP connectors
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Add MCP connectors for use with Lenso Agent. Workspace admins can
+            manage available connectors in security settings.
+          </SettingsSection.Description>
+        </SettingsSection.Header>
+        <SettingsSection.Group className={styles.singleRow}>
           <div className={styles.singleRowInner}>
             <span>Agent MCP access disabled in this workspace</span>
             <Button size="compact" variant="ghost">
               Configure
             </Button>
           </div>
-        </Surface>
-      </SettingsSection>
+        </SettingsSection.Group>
+      </SettingsSection.Root>
     </div>
   );
 }
@@ -178,11 +221,24 @@ function AiAgentsPage() {
           title="AI & Agents"
         />
       </div>
-      <SettingsSection
-        description="Create Apps and answer questions about your workspace."
-        title="Lenso Agent"
+      <SettingsSection.Root
+        aria-labelledby="lenso-agent-settings-title"
+        className={styles.settingsSection}
       >
-        <Surface className={styles.featureList} level="panel">
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="lenso-agent-settings-title"
+          >
+            Lenso Agent
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Create Apps and answer questions about your workspace.
+          </SettingsSection.Description>
+        </SettingsSection.Header>
+        <SettingsSection.Group className={styles.featureList}>
           <Link className={styles.featureRow} to="/settings/ai/agent">
             <Bot size={16} />
             <span>
@@ -213,18 +269,32 @@ function AiAgentsPage() {
             subtitle="Allow Lenso Agent to answer questions about your code"
             title="Code Intelligence"
           />
-        </Surface>
-      </SettingsSection>
-      <SettingsSection
-        description="Integrations available to Lenso Agent."
-        title="Lenso Agent integrations"
+        </SettingsSection.Group>
+      </SettingsSection.Root>
+      <SettingsSection.Root
+        aria-labelledby="lenso-agent-integrations-title"
+        className={styles.settingsSection}
       >
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="lenso-agent-integrations-title"
+          >
+            Lenso Agent integrations
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Integrations available to Lenso Agent.
+          </SettingsSection.Description>
+        </SettingsSection.Header>
         <SettingsLinkRow
+          grouped
           icon={<Box size={16} />}
           subtitle="Add connectors to your workspace for Agent use"
           title="Available integrations"
         />
-      </SettingsSection>
+      </SettingsSection.Root>
     </div>
   );
 }
@@ -314,11 +384,25 @@ function AgentConfigurationPage() {
         description="Create Apps and answer questions about your workspace"
         title="Lenso Agent"
       />
-      <SettingsSection
-        description="Choose which Tools the Console Agent may use. Changes apply to new turns."
-        title="Tool access"
+      <SettingsSection.Root
+        aria-labelledby="tool-access-title"
+        className={styles.settingsSection}
       >
-        <Surface className={styles.toolPolicy} level="panel">
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="tool-access-title"
+          >
+            Tool access
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Choose which Tools the Console Agent may use. Changes apply to new
+            turns.
+          </SettingsSection.Description>
+        </SettingsSection.Header>
+        <SettingsSection.Group className={styles.toolPolicy}>
           <div className={styles.toolPolicySummary}>
             <span>
               <strong>
@@ -375,13 +459,27 @@ function AgentConfigurationPage() {
               {toolPolicyError}
             </p>
           ) : null}
-        </Surface>
-      </SettingsSection>
-      <SettingsSection
-        description="Provide instructions and context for Lenso Agent when responding to conversations"
-        title="Workspace guidance"
+        </SettingsSection.Group>
+      </SettingsSection.Root>
+      <SettingsSection.Root
+        aria-labelledby="workspace-guidance-title"
+        className={styles.settingsSection}
       >
-        <Surface className={styles.singleRow} level="panel">
+        <SettingsSection.Header className={styles.settingsSectionHeader}>
+          <SettingsSection.Title
+            className={styles.settingsSectionTitle}
+            id="workspace-guidance-title"
+          >
+            Workspace guidance
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            className={styles.settingsSectionDescription}
+          >
+            Provide instructions and context for Lenso Agent when responding to
+            conversations
+          </SettingsSection.Description>
+        </SettingsSection.Header>
+        <SettingsSection.Group className={styles.singleRow}>
           <div className={styles.singleRowInner}>
             <span className={styles.rowWithIcon}>
               <CheckCircle2 size={15} />{" "}
@@ -392,7 +490,7 @@ function AgentConfigurationPage() {
             </span>
             <ChevronRight size={14} />
           </div>
-        </Surface>
+        </SettingsSection.Group>
         <textarea
           aria-label="Workspace guidance"
           className={styles.guidance}
@@ -400,7 +498,7 @@ function AgentConfigurationPage() {
           placeholder="Optional agent guidance…"
           value={guidance}
         />
-      </SettingsSection>
+      </SettingsSection.Root>
     </div>
   );
 }
@@ -413,53 +511,45 @@ async function settleAgentToolPolicy(signal: AbortSignal) {
   }
 }
 
-function SettingsSection({
-  children,
-  description,
-  title,
-}: {
-  children: React.ReactNode;
-  description: string;
-  title: string;
-}) {
-  return (
-    <section className={styles.settingsSection}>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      {children}
-    </section>
-  );
-}
-
 function SettingsLinkRow({
   action,
+  grouped = false,
   icon,
   subtitle,
   title,
 }: {
   action?: string;
+  grouped?: boolean;
   icon: React.ReactNode;
   subtitle: string;
   title: string;
 }) {
-  return (
-    <Surface className={styles.singleRow} level="panel">
-      <div className={styles.singleRowInner}>
-        <span className={styles.rowWithIcon}>
-          {icon}
-          <span>
-            <strong>{title}</strong>
-            <small>{subtitle}</small>
-          </span>
+  const content = (
+    <div className={styles.singleRowInner}>
+      <span className={styles.rowWithIcon}>
+        {icon}
+        <span>
+          <strong>{title}</strong>
+          <small>{subtitle}</small>
         </span>
-        {action ? (
-          <Button size="compact" variant="secondary">
-            {action}
-          </Button>
-        ) : (
-          <ChevronRight size={14} />
-        )}
-      </div>
+      </span>
+      {action ? (
+        <Button size="compact" variant="secondary">
+          {action}
+        </Button>
+      ) : (
+        <ChevronRight size={14} />
+      )}
+    </div>
+  );
+
+  return grouped ? (
+    <SettingsSection.Group className={styles.singleRow}>
+      {content}
+    </SettingsSection.Group>
+  ) : (
+    <Surface className={styles.singleRow} level="panel">
+      {content}
     </Surface>
   );
 }

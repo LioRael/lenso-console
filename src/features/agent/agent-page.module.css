@@ -96,19 +96,23 @@
   width: min(712px, calc(100% - 48px));
 }
 
-.composer {
+.composerSurface {
   position: relative;
   z-index: 1;
-  display: grid;
   width: 100%;
-  min-height: 104px;
-  padding: 12px;
-  gap: 8px;
   border-radius: 10px;
   background: var(--color-surface-panel);
   box-shadow:
     0 3px 6px -2px lch(0 0 0 / 2%),
     0 1px 1px lch(0 0 0 / 4%);
+}
+
+.composer {
+  display: grid;
+  width: 100%;
+  min-height: 104px;
+  padding: 12px;
+  gap: 8px;
 }
 
 .textarea {
@@ -138,14 +142,14 @@
   height: 24px;
 }
 
+.composerActions {
+  gap: 8px;
+}
+
 .skillsButton {
   height: 24px;
   padding-inline: 4px 6px;
   color: var(--color-content-tertiary);
-}
-
-.attachButton {
-  margin-left: auto;
 }
 
 .attachButton,

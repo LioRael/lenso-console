@@ -20,6 +20,7 @@
 }
 
 .section {
+  gap: 16px;
   margin-top: 32px;
 }
 
@@ -27,21 +28,18 @@
   margin-top: 48px;
 }
 
-.section > h2 {
-  margin: 0 0 16px 16px;
+.sectionTitle {
+  margin: 0 0 0 16px;
   font-size: 15px;
   font-weight: 520;
   line-height: 20px;
 }
 
 .group {
-  overflow: hidden;
-  padding: 0;
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: 10px;
   background: var(--color-surface-panel);
   box-shadow: none;
-  gap: 0;
 }
 
 .row {
@@ -49,10 +47,6 @@
   padding: 10px 16px;
   border: 0;
   border-bottom: 0.5px solid var(--color-border-tertiary);
-}
-
-.row:last-child {
-  border-bottom: 0;
 }
 
 .row:hover:not([aria-disabled="true"]) {
