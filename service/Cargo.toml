@@ -31,8 +31,8 @@ directories = "6.0"
 dotenvy = "0.15"
 lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776", default-features = false }
 lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "884efbf5233f0fbb039ffc38a01943c363ff9776" }
-lenso-agent-web-current = { package = "lenso-agent-web", version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "9991fbbfad2fc0f0fceb8375fdc64e82a7232db3", default-features = false, optional = true }
-lenso-agent-default-plugins-current = { package = "lenso-agent-default-plugins", version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "9991fbbfad2fc0f0fceb8375fdc64e82a7232db3", optional = true }
+lenso-agent-web-current = { package = "lenso-agent-web", version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "2d228dec69ae0659ed0476af4df737d52c08ef1a", default-features = false, optional = true }
+lenso-agent-default-plugins-current = { package = "lenso-agent-default-plugins", version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "2d228dec69ae0659ed0476af4df737d52c08ef1a", optional = true }
 lenso = { version = "0.5.0", git = "https://github.com/LioRael/lenso-runtime-rust", rev = "6bd5b88f3c6610581fcc4306c6cf356f71f7c611" }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",

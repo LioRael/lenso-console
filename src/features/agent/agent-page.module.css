@@ -254,24 +254,33 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
+  box-shadow: none;
   color: var(--color-content-tertiary);
   font: inherit;
   font-size: 11px;
+  transition-property: background-color, color;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
 }
 
 .turnControl:hover,
-.turnControlButton:hover {
+.turnControlButton:hover,
+.turnControl:focus-visible,
+.turnControl[data-popup-open] {
   background: var(--color-surface-interactive-hover);
   color: var(--color-content-secondary);
 }
 
-.turnControl select {
+.turnControl:disabled,
+.turnControlButton:disabled {
+  opacity: 0.5;
+}
+
+.turnControl [data-slot="select-value"] {
+  overflow: hidden;
   max-width: 148px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compactButton {
