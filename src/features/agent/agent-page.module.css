@@ -76,6 +76,30 @@
   white-space: nowrap;
 }
 
+.renameForm {
+  display: flex;
+  min-width: min(360px, calc(100vw - 520px));
+  align-items: center;
+  gap: 6px;
+}
+
+.renameForm input {
+  width: 100%;
+  height: 28px;
+  padding-inline: 9px;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--radius-control);
+  outline: 0;
+  background: var(--color-surface-panel);
+  color: var(--color-content-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.renameForm input:focus {
+  border-color: var(--color-border-control-focus);
+}
+
 .headerActions {
   display: flex;
   align-items: center;
@@ -135,30 +159,312 @@
   color: var(--color-content-tertiary);
 }
 
+.contextSuggestions {
+  position: absolute;
+  z-index: 4;
+  top: 64px;
+  right: 12px;
+  left: 12px;
+  display: grid;
+  max-height: 240px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 8px;
+  background: var(--color-surface-panel);
+  box-shadow: 0 8px 24px lch(0 0 0 / 10%);
+}
+
+.contextSuggestion {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-content-secondary);
+  font: inherit;
+  text-align: left;
+}
+
+.contextSuggestion:hover,
+.contextSuggestion:focus-visible {
+  background: var(--color-surface-interactive-hover);
+  color: var(--color-content-primary);
+}
+
+.contextSuggestion > svg {
+  margin-top: 2px;
+}
+
+.contextSuggestion strong,
+.contextSuggestion small {
+  display: block;
+}
+
+.contextSuggestion strong {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 17px;
+}
+
+.contextSuggestion small {
+  margin-top: 1px;
+  overflow: hidden;
+  color: var(--color-content-tertiary);
+  font-size: 11px;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .composerFooter {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 24px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .composerActions {
+  flex: 0 0 auto;
+  margin-left: auto;
   gap: 8px;
 }
 
 .skillsButton {
+  flex: 0 0 auto;
   height: 24px;
   padding-inline: 4px 6px;
   color: var(--color-content-tertiary);
 }
 
+.turnControl,
+.turnControlButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 24px;
+  align-items: center;
+  gap: 5px;
+  padding-inline: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-content-tertiary);
+  font: inherit;
+  font-size: 11px;
+}
+
+.turnControl:hover,
+.turnControlButton:hover {
+  background: var(--color-surface-interactive-hover);
+  color: var(--color-content-secondary);
+}
+
+.turnControl select {
+  max-width: 148px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.compactButton {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.terminalShelf {
+  display: grid;
+  max-height: 180px;
+  margin-bottom: 8px;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.emptyCenter .terminalShelf {
+  margin-top: 8px;
+}
+
+.terminalRun {
+  overflow: hidden;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 8px;
+  background: var(--color-surface-panel);
+}
+
+.terminalRun summary {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 8px;
+  gap: 5px;
+  color: var(--color-content-secondary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.terminalRun summary::-webkit-details-marker {
+  display: none;
+}
+
+.terminalRun summary > code {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminalRun summary > span {
+  color: var(--color-content-tertiary);
+  font-size: 10px;
+  text-transform: capitalize;
+}
+
+.terminalRun pre {
+  max-height: 112px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-top: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-surface-subtle);
+  color: var(--color-content-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 17px;
+  white-space: pre-wrap;
+}
+
+.terminalRun pre > span {
+  display: inline;
+}
+
+.terminalRun pre > span[data-kind="stderr"] {
+  color: var(--color-status-error-content);
+}
+
+.taskShelf {
+  display: grid;
+  max-height: 112px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  gap: 3px;
+  overflow-y: auto;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 8px;
+  background: var(--color-surface-panel);
+}
+
+.promptQueue {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  gap: 8px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 8px;
+  background: var(--color-surface-panel);
+}
+
+.queueLabel {
+  padding-top: 4px;
+  color: var(--color-content-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.queueItems {
+  display: grid;
+  gap: 3px;
+}
+
+.queueItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  align-items: center;
+  min-height: 24px;
+  padding-inline-start: 6px;
+  border-radius: 5px;
+  background: var(--color-surface-subtle);
+  color: var(--color-content-secondary);
+  font-size: 11px;
+}
+
+.queueItem > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskItem {
+  display: grid;
+  grid-template-columns: 7px minmax(72px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  color: var(--color-content-tertiary);
+  font-size: 11px;
+}
+
+.taskStatus {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-content-tertiary);
+}
+
+.taskItem[data-status="running"] .taskStatus {
+  background: lch(58 54 145);
+  box-shadow: 0 0 0 3px lch(58 54 145 / 12%);
+}
+
+.taskAgent {
+  color: var(--color-content-secondary);
+  font-weight: 500;
+}
+
+.taskProgress {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .attachButton,
+.stopButton,
 .sendButton {
   width: 24px;
   min-width: 24px;
   height: 24px;
   padding: 0;
   border-radius: 999px;
+}
+
+.stopButton {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--color-content-secondary);
+}
+
+.sendButton {
+  margin-left: auto;
+}
+
+.stopButton + .sendButton {
+  margin-left: 0;
+}
+
+.compactButton + .stopButton {
+  margin-left: 0;
 }
 
 .sendButton:disabled {
@@ -241,12 +547,24 @@
 }
 
 .conversation {
+  position: relative;
   grid-row: 2;
   width: 100%;
   min-height: 0;
   padding: 36px 0;
   overflow-y: auto;
   scrollbar-width: thin;
+}
+
+.jumpToLatest {
+  position: sticky;
+  z-index: 2;
+  bottom: 12px;
+  display: flex;
+  margin: -18px auto 0;
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px lch(0 0 0 / 10%);
 }
 
 .conversationContent {

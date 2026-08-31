@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   answerAgentInteraction,
+  cancelAgentTerminal,
   decodeAgentSseFrames,
   decodeAgentStreamEvent,
   cancelAgentTurn,
@@ -9,11 +10,17 @@ import {
   listAgentTargets,
   projectAgentSession,
   readAgentBootstrap,
+  readAgentContextSources,
+  readAgentModels,
   readAgentSession,
+  readAgentTasks,
+  readAgentTerminalCatalog,
   readAgentTrajectory,
   readPendingAgentInteractions,
+  renameAgentSession,
   readAgentToolPolicy,
   streamAgentTurn,
+  streamAgentTerminal,
   updateAgentToolPolicy,
   type AgentSession,
 } from "./agent-runtime";
@@ -437,6 +444,141 @@ describe("Agent runtime projection", () => {
     });
   });
 
+  it("reads the Web-scoped Context Source catalog", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          prompts: [
+            {
+              arguments_schema_json: '{"type":"object"}',
+              description: "Use the project brief",
+              name: "brief",
+              source: "workspace",
+            },
+          ],
+          resources: [
+            {
+              description: "Current architecture",
+              mime_type: "text/markdown",
+              name: "architecture",
+              source: "workspace",
+              uri: "file:///architecture.md",
+            },
+          ],
+        })
+      )
+    );
+
+    await expect(readAgentContextSources()).resolves.toEqual({
+      prompts: [
+        {
+          argumentsSchemaJson: '{"type":"object"}',
+          description: "Use the project brief",
+          name: "brief",
+          source: "workspace",
+        },
+      ],
+      resources: [
+        {
+          description: "Current architecture",
+          mimeType: "text/markdown",
+          name: "architecture",
+          source: "workspace",
+          uri: "file:///architecture.md",
+        },
+      ],
+    });
+  });
+
+  it("reads the Web Terminal command catalog", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          commands: [
+            {
+              description: "List durable Sessions",
+              id: "agent.sessions.list",
+              output_formats: ["text", "json"],
+              parameters: [],
+              path: ["sessions", "list"],
+              summary: "List Sessions",
+            },
+          ],
+        })
+      )
+    );
+
+    await expect(readAgentTerminalCatalog()).resolves.toEqual({
+      commands: [
+        {
+          description: "List durable Sessions",
+          id: "agent.sessions.list",
+          outputFormats: ["text", "json"],
+          parameters: [],
+          path: ["sessions", "list"],
+          summary: "List Sessions",
+        },
+      ],
+    });
+  });
+
+  it("streams and cancels Web Terminal executions", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | RequestInfo) => {
+        const url = String(input);
+        urls.push(url);
+        if (url.endsWith("/cancel")) {
+          return new Response(null, { status: 202 });
+        }
+        return new Response(
+          'event: terminal.message\ndata: {"type":"terminal_message","message":{"content":"ok\\n","content_type":"text","kind":"stdout"}}\n\nevent: terminal.completed\ndata: {"type":"terminal_completed"}\n\n',
+          { headers: { "content-type": "text/event-stream" } }
+        );
+      })
+    );
+    const events: string[] = [];
+
+    await streamAgentTerminal({
+      commandLine: "/sessions list",
+      onEvent: (terminalEvent) => events.push(terminalEvent.type),
+      requestId: "terminal-1",
+      signal: new AbortController().signal,
+    });
+    await cancelAgentTerminal("terminal-1");
+
+    expect(events).toEqual(["terminal_message", "terminal_completed"]);
+    expect(urls[0]).toContain("/agent/terminal/executions");
+    expect(urls[1]).toContain("/agent/terminal/executions/terminal-1/cancel");
+  });
+
+  it("renames a Session through its title revision fence", async () => {
+    let requestInit: RequestInit | undefined;
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      requestInit = init;
+      return Response.json({ title: "Focused work", titleRevision: "4" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      renameAgentSession({
+        expectedTitleRevision: "3",
+        sessionId: "session-1",
+        title: "Focused work",
+      })
+    ).resolves.toEqual({ title: "Focused work", titleRevision: "4" });
+    expect(requestInit).toMatchObject({
+      body: JSON.stringify({
+        expectedTitleRevision: "3",
+        title: "Focused work",
+      }),
+      method: "PATCH",
+    });
+  });
+
   it("sends edit intent as a branch request", async () => {
     let body = "";
     vi.stubGlobal(
@@ -465,6 +607,91 @@ describe("Agent runtime projection", () => {
       request_id: "request-edit",
       session_id: "session-1",
     });
+  });
+
+  it("sends negotiated per-Turn model and Tool controls", async () => {
+    let body = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: unknown, init?: RequestInit) => {
+        body = String(init?.body);
+        return new Response(
+          'event: turn.completed\ndata: {"type":"turn_completed","session_id":"session-1"}\n\n',
+          { headers: { "content-type": "text/event-stream" } }
+        );
+      })
+    );
+
+    await streamAgentTurn({
+      allowedTools: [],
+      input: "Inspect only",
+      model: "gpt-test",
+      onEvent: () => undefined,
+      reasoningEffort: "high",
+      requestId: "request-controls",
+      serviceTier: "priority",
+      signal: new AbortController().signal,
+    });
+
+    expect(JSON.parse(body)).toMatchObject({
+      allowed_tools: [],
+      model: "gpt-test",
+      reasoning_effort: "high",
+      service_tier: "priority",
+    });
+  });
+
+  it("projects model catalogs and task supervision snapshots", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | RequestInfo) =>
+        String(input).endsWith("/models")
+          ? Response.json({
+              providers: [
+                {
+                  models: [
+                    {
+                      capabilities: {
+                        reasoning: {
+                          efforts: ["low", "high"],
+                          kind: "selectable",
+                        },
+                        service_tiers: { kind: "unsupported" },
+                      },
+                      id: "gpt-test",
+                      selected: true,
+                    },
+                  ],
+                  selected_instance: "provider/model",
+                },
+              ],
+              resolved_turn_profile: {
+                model: "gpt-test",
+                provider_instance: "provider/model",
+                reasoning_effort: "high",
+              },
+            })
+          : Response.json({
+              tasks: [
+                {
+                  agent: "researcher",
+                  progress: { content: "Reading sources" },
+                  status: "running",
+                  task_id: "task-1",
+                  workspace: "/workspace",
+                },
+              ],
+            })
+      )
+    );
+
+    await expect(readAgentModels()).resolves.toMatchObject({
+      models: [{ id: "gpt-test", reasoningEfforts: ["low", "high"] }],
+      selectedModel: "gpt-test",
+    });
+    await expect(readAgentTasks()).resolves.toMatchObject([
+      { progress: "Reading sources", status: "running", taskId: "task-1" },
+    ]);
   });
 
   it("cancels an active Turn by its request identity", async () => {

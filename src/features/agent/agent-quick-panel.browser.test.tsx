@@ -7,6 +7,7 @@ import { page, userEvent } from "vitest/browser";
 
 import { AgentQuickPanel } from "./agent-quick-panel";
 import { AgentTargetProvider } from "./agent-target-context";
+import { useAgentConversation } from "./use-agent-conversation";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -91,6 +92,26 @@ describe("Agent quick panel", () => {
   });
 });
 
+describe("Agent prompt queue", () => {
+  test("runs a queued follow-up after the active Turn completes", async () => {
+    const { fetchMock, finishFirstTurn } = queuedAgentFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    await renderQueueHarness();
+
+    const composer = page.getByRole("textbox", { name: "Queue prompt" });
+    await userEvent.fill(composer, "First prompt");
+    await userEvent.click(page.getByRole("button", { name: "Submit prompt" }));
+    await expect.poll(() => turnRequests(fetchMock).length).toBe(1);
+
+    await userEvent.fill(composer, "Follow-up prompt");
+    await userEvent.click(page.getByRole("button", { name: "Submit prompt" }));
+    await expect.element(page.getByText("Follow-up prompt")).toBeVisible();
+
+    finishFirstTurn();
+    await expect.poll(() => turnRequests(fetchMock).length).toBe(2);
+  });
+});
+
 async function renderPanel(fetchMock: ReturnType<typeof agentFetch>) {
   vi.stubGlobal("fetch", fetchMock);
   if (!container) {
@@ -113,6 +134,43 @@ async function renderPanel(fetchMock: ReturnType<typeof agentFetch>) {
     );
   });
   await nextFrame();
+}
+
+async function renderQueueHarness() {
+  if (!container) {
+    throw new Error("Browser test container is missing");
+  }
+  root = createRoot(container);
+  flushSync(() => {
+    root?.render(
+      <ThemeScope>
+        <QueueHarness />
+      </ThemeScope>
+    );
+  });
+  await nextFrame();
+}
+
+function QueueHarness() {
+  const { draft, queuedPrompts, setDraft, submit } = useAgentConversation();
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <textarea
+        aria-label="Queue prompt"
+        onChange={(event) => setDraft(event.target.value)}
+        value={draft}
+      />
+      <button type="submit">Submit prompt</button>
+      {queuedPrompts.map((prompt) => (
+        <span key={prompt.id}>{prompt.prompt}</span>
+      ))}
+    </form>
+  );
 }
 
 function requiredComposer() {
@@ -162,6 +220,68 @@ function agentFetch(answer = "") {
       }
     );
   });
+}
+
+function queuedAgentFetch() {
+  const encoder = new TextEncoder();
+  let finishFirstTurn: (() => void) | undefined;
+  let turn = 0;
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (url.endsWith("/api/console/v1/agent/bootstrap")) {
+        return Response.json({
+          capabilities: {
+            cancel: true,
+            edit: true,
+            sessionList: true,
+            sessionRead: true,
+            userInteraction: false,
+          },
+          mode: "console",
+          profile: "default",
+          tools: { allowed: [], available: [] },
+          trajectory: "lenso.agent.trajectory@1",
+        });
+      }
+      if (
+        url.endsWith("/api/console/v1/agent/turns") &&
+        init?.method === "POST"
+      ) {
+        turn += 1;
+        if (turn === 1) {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                finishFirstTurn = () => {
+                  controller.enqueue(
+                    encoder.encode(
+                      'event: turn.completed\ndata: {"type":"turn_completed","session_id":"session-queue"}\n\n'
+                    )
+                  );
+                  controller.close();
+                };
+              },
+            }),
+            { headers: { "content-type": "text/event-stream" } }
+          );
+        }
+        return new Response(streamBody("done"), {
+          headers: { "content-type": "text/event-stream" },
+        });
+      }
+      return Response.json({ detail: "unavailable" }, { status: 503 });
+    }
+  );
+  return {
+    fetchMock,
+    finishFirstTurn: () => {
+      if (!finishFirstTurn) {
+        throw new Error("First Turn has not started");
+      }
+      finishFirstTurn();
+    },
+  };
 }
 
 function streamBody(answer: string) {

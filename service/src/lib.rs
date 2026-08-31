@@ -440,16 +440,23 @@ async fn proxy_connected_agent(
 fn allowed_agent_route(method: &Method, path: &str) -> bool {
     let parts = path.split('/').collect::<Vec<_>>();
     match (method, parts.as_slice()) {
-        (&Method::GET, ["bootstrap" | "models" | "sessions" | "tasks"])
-        | (&Method::POST, ["turns"]) => true,
-        (&Method::GET | &Method::PATCH, ["sessions", session_id]) => {
-            valid_agent_identity(session_id)
-        }
         (
+            &Method::GET,
+            ["bootstrap" | "context-sources" | "models" | "sessions" | "tasks"]
+            | ["terminal", "commands"],
+        )
+        | (&Method::POST, ["turns"] | ["terminal", "executions"]) => true,
+        (&Method::GET | &Method::PATCH, ["sessions", session_id])
+        | (
             &Method::GET,
             ["sessions", session_id, "trajectory"] | ["turns", session_id, "interactions"],
         )
-        | (&Method::POST, ["turns", session_id, "cancel"]) => valid_agent_identity(session_id),
+        | (
+            &Method::POST,
+            ["turns", session_id, "cancel"]
+            | ["sessions", session_id, "compact"]
+            | ["terminal", "executions", session_id, "cancel"],
+        ) => valid_agent_identity(session_id),
         (
             &Method::POST,
             [
@@ -584,10 +591,20 @@ mod tests {
     #[test]
     fn connected_agent_proxy_exposes_only_the_agent_data_plane() {
         assert!(allowed_agent_route(&Method::GET, "bootstrap"));
+        assert!(allowed_agent_route(&Method::GET, "context-sources"));
+        assert!(allowed_agent_route(&Method::GET, "terminal/commands"));
+        assert!(allowed_agent_route(
+            &Method::POST,
+            "terminal/executions/request-1/cancel"
+        ));
         assert!(allowed_agent_route(&Method::POST, "turns"));
         assert!(allowed_agent_route(
             &Method::GET,
             "sessions/session-1/trajectory"
+        ));
+        assert!(allowed_agent_route(
+            &Method::POST,
+            "sessions/session-1/compact"
         ));
         assert!(!allowed_agent_route(&Method::GET, "control/tool-policy"));
         assert!(!allowed_agent_route(&Method::DELETE, "sessions/session-1"));

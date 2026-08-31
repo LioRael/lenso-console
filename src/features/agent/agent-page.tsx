@@ -6,24 +6,25 @@ import { Tabs } from "@lenso/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowUp,
+  ArrowDown,
   Bot,
   Box,
   ChevronDown,
   ChevronRight,
   CircleAlert,
-  Copy,
   FileText,
+  Gauge,
   ImageIcon,
   List,
-  MoreHorizontal,
+  Minimize2,
   Package,
   Paperclip,
+  Pencil,
   Plus,
   Search,
+  ShieldCheck,
   Square,
-  Star,
   Terminal,
-  Trash2,
   Wrench,
   X,
 } from "lucide-react";
@@ -45,7 +46,16 @@ import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
-import type { AgentToolCall, AgentTurn } from "./agent-runtime";
+import type {
+  AgentBootstrap,
+  AgentContextCatalog,
+  AgentModelCatalog,
+  AgentTask,
+  AgentTerminalCatalog,
+  AgentTerminalRun,
+  AgentToolCall,
+  AgentTurn,
+} from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
 import { useAgentTarget } from "./agent-target-context";
 import { AgentTrajectory } from "./agent-trajectory";
@@ -80,10 +90,93 @@ const suggestions = [
   },
 ] as const;
 
+type ContextSuggestion = {
+  description: string;
+  icon: typeof FileText;
+  insertText: string;
+  label: string;
+};
+
+function matchingComposerSuggestions(
+  contextCatalog: AgentContextCatalog | undefined,
+  terminalCatalog: AgentTerminalCatalog | undefined,
+  draft: string
+): ContextSuggestion[] {
+  const query = draft.trim().toLowerCase();
+  if (!(query.startsWith("/") && !query.includes(" "))) {
+    return [];
+  }
+  const matches: ContextSuggestion[] = [];
+  for (const command of terminalCatalog?.commands ?? []) {
+    const label = `/${command.path.join(" ")}`;
+    if (label.toLowerCase().includes(query)) {
+      matches.push({
+        description: command.summary,
+        icon: Terminal,
+        insertText: `${label}${command.parameters.length > 0 ? " " : ""}`,
+        label,
+      });
+    }
+  }
+  for (const prompt of contextCatalog?.prompts ?? []) {
+    if (
+      !promptAcceptsEmptyArguments(prompt.argumentsSchemaJson) ||
+      !safeContextToken(prompt.source) ||
+      !safeContextToken(prompt.name)
+    ) {
+      continue;
+    }
+    const label = `/prompt:${prompt.source}/${prompt.name}`;
+    if (label.toLowerCase().includes(query)) {
+      matches.push({
+        description: prompt.description,
+        icon: Package,
+        insertText: `/mcp-prompt ${prompt.source}/${prompt.name} `,
+        label,
+      });
+    }
+  }
+  for (const resource of contextCatalog?.resources ?? []) {
+    if (!safeContextToken(resource.source) || /\s/u.test(resource.uri)) {
+      continue;
+    }
+    const label = `/resource:${resource.source}/${resource.name}`;
+    if (label.toLowerCase().includes(query)) {
+      matches.push({
+        description: resource.description,
+        icon: FileText,
+        insertText: `/mcp-resource ${resource.source}=${resource.uri} `,
+        label,
+      });
+    }
+  }
+  return matches;
+}
+
+function safeContextToken(value: string) {
+  return /^[\w.-]+$/u.test(value);
+}
+
+function promptAcceptsEmptyArguments(schemaJson: string) {
+  try {
+    const schema: unknown = JSON.parse(schemaJson);
+    if (!(schema && typeof schema === "object" && "required" in schema)) {
+      return true;
+    }
+    return !(Array.isArray(schema.required) && schema.required.length > 0);
+  } catch {
+    return false;
+  }
+}
+
 export function AgentPage({ conversationId }: AgentPageProps) {
   const navigate = useNavigate();
   const { selectedTarget } = useAgentTarget();
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
+  const [titleOverride, setTitleOverride] = useState<{
+    sessionId: string;
+    title: string;
+  }>();
   const [view, setView] = useState<AgentView>("conversation");
   const textarea = useRef<HTMLTextAreaElement>(null);
   const onSessionResolved = useCallback(
@@ -102,19 +195,40 @@ export function AgentPage({ conversationId }: AgentPageProps) {
     canEdit,
     cancelEditing: cancelEditingTurn,
     cancelRunningTurn,
+    changeProfile,
+    compactSession,
+    contextCatalog,
     draft,
     editingTurnId,
     isRunning,
     isAnsweringInteraction,
+    modelCatalog,
     pendingInteraction,
     runtimeError,
+    profile,
+    queuedPrompts,
+    removeQueuedPrompt,
+    renameSession,
+    runtime,
+    selectedModel,
+    selectedReasoningEffort,
+    selectedServiceTier,
+    selectedTools,
     sessionId,
     setDraft,
+    setSelectedModel,
+    setSelectedReasoningEffort,
+    setSelectedServiceTier,
+    setSelectedTools,
     submit,
     trajectory,
+    tasks,
+    terminalCatalog,
+    terminalRuns,
     turns,
     visibleTurns,
   } = useAgentConversation({
+    enableTerminal: true,
     initialSessionId:
       conversationId && conversationId !== "new-task"
         ? conversationId
@@ -127,7 +241,9 @@ export function AgentPage({ conversationId }: AgentPageProps) {
     ? (sessionId ?? conversationId ?? "new-task")
     : undefined;
   const conversationTitle = conversation
-    ? (turns[0]?.user ?? "New chat")
+    ? titleOverride && titleOverride.sessionId === displayedConversationId
+      ? titleOverride.title
+      : (turns[0]?.user ?? "New chat")
     : null;
 
   const beginEditing = (turn: AgentTurn) => {
@@ -153,6 +269,17 @@ export function AgentPage({ conversationId }: AgentPageProps) {
       <AgentHeader
         conversationId={displayedConversationId}
         conversationTitle={conversationTitle}
+        onRename={
+          sessionId && runtime?.capabilities.sessionRename && !isRunning
+            ? async (title) => {
+                const renamed = await renameSession(title);
+                if (renamed) {
+                  setTitleOverride({ sessionId, title: renamed });
+                }
+                return renamed;
+              }
+            : undefined
+        }
         onViewChange={setView}
         view={view}
       />
@@ -162,6 +289,7 @@ export function AgentPage({ conversationId }: AgentPageProps) {
         ) : (
           <AgentConversation
             canEdit={canEdit}
+            key={displayedConversationId}
             onEdit={beginEditing}
             runtimeError={runtimeError}
             turns={visibleTurns}
@@ -171,14 +299,33 @@ export function AgentPage({ conversationId }: AgentPageProps) {
         <div className={styles.emptyCanvas}>
           <section className={styles.emptyCenter}>
             <AgentComposer
+              canCompact={Boolean(sessionId)}
               canCancel={canCancel}
+              contextCatalog={contextCatalog}
               draft={draft}
               isRunning={isRunning}
+              modelCatalog={modelCatalog}
               onChange={setDraft}
               onCancel={cancelRunningTurn}
+              onCompact={compactSession}
+              onModelChange={setSelectedModel}
+              onProfileChange={changeProfile}
+              onReasoningEffortChange={setSelectedReasoningEffort}
+              onServiceTierChange={setSelectedServiceTier}
+              onToolsChange={setSelectedTools}
               onSubmit={onSubmit}
+              profile={profile}
               ref={textarea}
+              runtime={runtime}
+              selectedModel={selectedModel}
+              selectedReasoningEffort={selectedReasoningEffort}
+              selectedServiceTier={selectedServiceTier}
+              selectedTools={selectedTools}
+              terminalCatalog={terminalCatalog}
             />
+            {terminalRuns.length > 0 ? (
+              <AgentTerminalShelf runs={terminalRuns} />
+            ) : null}
             {suggestionsVisible ? (
               <div className={styles.suggestions}>
                 <div className={styles.suggestionsHeader}>
@@ -248,16 +395,44 @@ export function AgentPage({ conversationId }: AgentPageProps) {
               onSubmit={answerInteraction}
             />
           ) : (
-            <AgentComposer
-              canCancel={canCancel}
-              draft={draft}
-              isRunning={isRunning}
-              onChange={setDraft}
-              onCancel={cancelRunningTurn}
-              onSubmit={onSubmit}
-              placeholder="Reply…"
-              ref={textarea}
-            />
+            <>
+              {tasks.length > 0 ? <AgentTaskShelf tasks={tasks} /> : null}
+              {terminalRuns.length > 0 ? (
+                <AgentTerminalShelf runs={terminalRuns} />
+              ) : null}
+              {queuedPrompts.length > 0 ? (
+                <AgentPromptQueue
+                  onRemove={removeQueuedPrompt}
+                  prompts={queuedPrompts}
+                />
+              ) : null}
+              <AgentComposer
+                canCompact={Boolean(sessionId)}
+                canCancel={canCancel}
+                contextCatalog={contextCatalog}
+                draft={draft}
+                isRunning={isRunning}
+                modelCatalog={modelCatalog}
+                onChange={setDraft}
+                onCancel={cancelRunningTurn}
+                onCompact={compactSession}
+                onModelChange={setSelectedModel}
+                onProfileChange={changeProfile}
+                onReasoningEffortChange={setSelectedReasoningEffort}
+                onServiceTierChange={setSelectedServiceTier}
+                onToolsChange={setSelectedTools}
+                onSubmit={onSubmit}
+                placeholder="Reply…"
+                profile={profile}
+                ref={textarea}
+                runtime={runtime}
+                selectedModel={selectedModel}
+                selectedReasoningEffort={selectedReasoningEffort}
+                selectedServiceTier={selectedServiceTier}
+                selectedTools={selectedTools}
+                terminalCatalog={terminalCatalog}
+              />
+            </>
           )}
         </div>
       ) : null}
@@ -268,16 +443,39 @@ export function AgentPage({ conversationId }: AgentPageProps) {
 function AgentHeader({
   conversationId,
   conversationTitle,
+  onRename,
   onViewChange,
   view,
 }: {
   conversationId: string | undefined;
   conversationTitle: string | null;
+  onRename?: ((title: string) => Promise<string | undefined>) | undefined;
   onViewChange: (view: AgentView) => void;
   view: AgentView;
 }) {
   const navigate = useNavigate();
   const { selectTarget, selectedTarget, targets } = useAgentTarget();
+  const [renaming, setRenaming] = useState(false);
+  const [savingTitle, setSavingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const renameInput = useRef<HTMLInputElement>(null);
+
+  const beginRenaming = () => {
+    setTitleDraft(conversationTitle ?? "");
+    setRenaming(true);
+    requestAnimationFrame(() => renameInput.current?.select());
+  };
+  const saveRename = async () => {
+    setSavingTitle(true);
+    try {
+      const renamed = await onRename?.(titleDraft);
+      if (renamed) {
+        setRenaming(false);
+      }
+    } finally {
+      setSavingTitle(false);
+    }
+  };
 
   return (
     <PageHeader.Root
@@ -285,20 +483,51 @@ function AgentHeader({
       className={styles.header}
     >
       <PageHeader.Row>
-        <AgentHistoryMenu
-          currentSessionId={conversationId}
-          placement="header"
-          showNewChat={Boolean(conversationId)}
-        >
-          <Button
-            className={styles.chatSwitcher}
-            size="compact"
-            variant="ghost"
+        {renaming && onRename ? (
+          <form
+            className={styles.renameForm}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveRename();
+            }}
           >
-            <span>{conversationTitle ?? "New chat"}</span>
-            <ChevronDown aria-hidden="true" size={12} />
-          </Button>
-        </AgentHistoryMenu>
+            <input
+              aria-label="Conversation title"
+              disabled={savingTitle}
+              maxLength={200}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setRenaming(false);
+                }
+              }}
+              ref={renameInput}
+              value={titleDraft}
+            />
+            <Button
+              disabled={savingTitle || !titleDraft.trim()}
+              size="compact"
+              type="submit"
+            >
+              Save
+            </Button>
+          </form>
+        ) : (
+          <AgentHistoryMenu
+            currentSessionId={conversationId}
+            placement="header"
+            showNewChat={Boolean(conversationId)}
+          >
+            <Button
+              className={styles.chatSwitcher}
+              size="compact"
+              variant="ghost"
+            >
+              <span>{conversationTitle ?? "New chat"}</span>
+              <ChevronDown aria-hidden="true" size={12} />
+            </Button>
+          </AgentHistoryMenu>
+        )}
         {conversationId ? (
           <Tabs.Root
             className={styles.viewTabs}
@@ -311,7 +540,7 @@ function AgentHeader({
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {targets.length > 1 || conversationId ? (
+        {targets.length > 1 || (onRename && !renaming) ? (
           <div className={styles.headerActions}>
             {targets.length > 1 ? (
               <label className={styles.agentTarget}>
@@ -332,51 +561,15 @@ function AgentHeader({
                 </select>
               </label>
             ) : null}
-            {conversationId ? (
-              <>
-                <IconButton
-                  aria-label="Add to favorites"
-                  size="compact"
-                  variant="ghost"
-                >
-                  <Star size={14} strokeWidth={1.7} />
-                </IconButton>
-                <Menu.Root>
-                  <Menu.Trigger
-                    render={
-                      <IconButton
-                        aria-label="Chat options"
-                        size="compact"
-                        variant="ghost"
-                      >
-                        <MoreHorizontal size={15} />
-                      </IconButton>
-                    }
-                  />
-                  <Menu.Portal>
-                    <Menu.Positioner align="end" side="bottom" sideOffset={6}>
-                      <Menu.Popup aria-label="Chat options">
-                        <Menu.Item>
-                          <Menu.Leading>
-                            <Copy size={15} />
-                          </Menu.Leading>
-                          <Menu.Label>Copy as markdown</Menu.Label>
-                        </Menu.Item>
-                        <Menu.Separator />
-                        <Menu.Item tone="danger">
-                          <Menu.Leading>
-                            <Trash2 size={15} />
-                          </Menu.Leading>
-                          <Menu.Label>Delete</Menu.Label>
-                          <Menu.Trailing>
-                            <Menu.Shortcut>⌘ ⌫</Menu.Shortcut>
-                          </Menu.Trailing>
-                        </Menu.Item>
-                      </Menu.Popup>
-                    </Menu.Positioner>
-                  </Menu.Portal>
-                </Menu.Root>
-              </>
+            {onRename && !renaming ? (
+              <IconButton
+                aria-label="Rename conversation"
+                onClick={beginRenaming}
+                size="compact"
+                variant="ghost"
+              >
+                <Pencil size={13} />
+              </IconButton>
             ) : null}
           </div>
         ) : null}
@@ -397,18 +590,33 @@ function AgentConversation({
   turns: AgentTurn[];
 }) {
   const conversationRef = useRef<HTMLElement>(null);
+  const [followTail, setFollowTail] = useState(true);
 
   useEffect(() => {
     const element = conversationRef.current;
-    if (element) {
+    if (element && followTail) {
       element.scrollTop = element.scrollHeight;
     }
-  }, [turns]);
+  }, [followTail, turns]);
+
+  const jumpToLatest = () => {
+    const element = conversationRef.current;
+    if (element) {
+      element.scrollTop = element.scrollHeight;
+      setFollowTail(true);
+    }
+  };
 
   return (
     <section
       aria-label="Agent conversation"
       className={styles.conversation}
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        const distance =
+          element.scrollHeight - element.scrollTop - element.clientHeight;
+        setFollowTail(distance <= 48);
+      }}
       ref={conversationRef}
     >
       <div className={styles.conversationContent}>
@@ -472,6 +680,17 @@ function AgentConversation({
           </div>
         ) : null}
       </div>
+      {!followTail && (
+        <IconButton
+          aria-label="Jump to latest"
+          className={styles.jumpToLatest}
+          onClick={jumpToLatest}
+          size="compact"
+          variant="secondary"
+        >
+          <ArrowDown size={14} />
+        </IconButton>
+      )}
     </section>
   );
 }
@@ -642,24 +861,72 @@ function toolPayload(value?: string): Record<string, unknown> {
 }
 
 function AgentComposer({
+  canCompact,
   canCancel,
+  contextCatalog,
   draft,
   isRunning,
+  modelCatalog,
   onChange,
   onCancel,
+  onCompact,
+  onModelChange,
+  onProfileChange,
+  onReasoningEffortChange,
+  onServiceTierChange,
+  onToolsChange,
   onSubmit,
   placeholder = "Ask Lenso…",
+  profile,
   ref,
+  runtime,
+  selectedModel,
+  selectedReasoningEffort,
+  selectedServiceTier,
+  selectedTools,
+  terminalCatalog,
 }: {
+  canCompact: boolean;
   canCancel: boolean;
+  contextCatalog: AgentContextCatalog | undefined;
   draft: string;
   isRunning: boolean;
+  modelCatalog: AgentModelCatalog | undefined;
   onChange: (value: string) => void;
   onCancel: () => void;
+  onCompact: () => void;
+  onModelChange: (value: string | undefined) => void;
+  onProfileChange: (value: string | undefined) => void;
+  onReasoningEffortChange: (value: string | undefined) => void;
+  onServiceTierChange: (value: string | undefined) => void;
+  onToolsChange: (value: string[]) => void;
   onSubmit: (event: FormEvent) => void;
   placeholder?: string;
+  profile: string | undefined;
   ref: React.Ref<HTMLTextAreaElement>;
+  runtime: AgentBootstrap | undefined;
+  selectedModel: string | undefined;
+  selectedReasoningEffort: string | undefined;
+  selectedServiceTier: string | undefined;
+  selectedTools: string[] | undefined;
+  terminalCatalog: AgentTerminalCatalog | undefined;
 }) {
+  const activeModel = modelCatalog?.models.find(
+    (model) => model.id === selectedModel
+  );
+  const allowedToolNames = new Set(runtime?.tools.allowed);
+  const selectedToolNames = new Set(selectedTools);
+  const availableTurnTools = [];
+  for (const tool of runtime?.tools.available ?? []) {
+    if (allowedToolNames.has(tool.name)) {
+      availableTurnTools.push(tool);
+    }
+  }
+  const contextSuggestions = matchingComposerSuggestions(
+    contextCatalog,
+    terminalCatalog,
+    draft
+  );
   return (
     <PromptComposer.Root
       className={styles.composer}
@@ -676,6 +943,29 @@ function AgentComposer({
         ref={ref}
         rows={2}
       />
+      {contextSuggestions.length > 0 ? (
+        <div
+          aria-label="Context Source suggestions"
+          className={styles.contextSuggestions}
+        >
+          {contextSuggestions.map((suggestion) => (
+            <button
+              aria-label={`${suggestion.label}: ${suggestion.description}`}
+              className={styles.contextSuggestion}
+              key={suggestion.insertText}
+              onClick={() => onChange(suggestion.insertText)}
+              onMouseDown={(event) => event.preventDefault()}
+              type="button"
+            >
+              <suggestion.icon aria-hidden="true" size={14} />
+              <span>
+                <strong>{suggestion.label}</strong>
+                <small>{suggestion.description}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <PromptComposer.Toolbar className={styles.composerFooter}>
         <SkillsMenu>
           <Button
@@ -689,6 +979,147 @@ function AgentComposer({
             <ChevronDown aria-hidden="true" size={12} />
           </Button>
         </SkillsMenu>
+        {runtime?.capabilities.profileSelection ? (
+          <label className={styles.turnControl}>
+            <Terminal aria-hidden="true" size={12} />
+            <select
+              aria-label="Agent mode"
+              disabled={isRunning}
+              onChange={(event) =>
+                onProfileChange(event.target.value || undefined)
+              }
+              value={profile ?? ""}
+            >
+              <option value="">Normal</option>
+              <option value="plan">Plan</option>
+              <option value="code">Auto</option>
+            </select>
+          </label>
+        ) : null}
+        {modelCatalog?.models.length ? (
+          <label className={styles.turnControl}>
+            <Bot aria-hidden="true" size={12} />
+            <select
+              aria-label="Model"
+              disabled={isRunning}
+              onChange={(event) => {
+                onModelChange(event.target.value);
+                onReasoningEffortChange(undefined);
+                onServiceTierChange(undefined);
+              }}
+              value={selectedModel ?? modelCatalog.models[0]?.id ?? ""}
+            >
+              {modelCatalog.models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.id}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {activeModel?.reasoningEfforts.length ? (
+          <label className={styles.turnControl}>
+            <Gauge aria-hidden="true" size={12} />
+            <select
+              aria-label="Reasoning effort"
+              disabled={isRunning}
+              onChange={(event) =>
+                onReasoningEffortChange(event.target.value || undefined)
+              }
+              value={selectedReasoningEffort ?? ""}
+            >
+              <option value="">Default</option>
+              {activeModel.reasoningEfforts.map((effort) => (
+                <option key={effort} value={effort}>
+                  {effort}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {activeModel?.serviceTiers.length ? (
+          <label className={styles.turnControl}>
+            <Gauge aria-hidden="true" size={12} />
+            <select
+              aria-label="Service tier"
+              disabled={isRunning}
+              onChange={(event) =>
+                onServiceTierChange(event.target.value || undefined)
+              }
+              value={selectedServiceTier ?? ""}
+            >
+              <option value="">Standard</option>
+              {activeModel.serviceTiers.map((tier) => (
+                <option key={tier} value={tier}>
+                  {tier}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {runtime?.capabilities.turnToolSelection && selectedTools ? (
+          <Menu.Root>
+            <Menu.Trigger
+              render={
+                <Button
+                  className={styles.turnControlButton}
+                  disabled={isRunning}
+                  size="compact"
+                  variant="ghost"
+                >
+                  <ShieldCheck aria-hidden="true" size={12} />
+                  {runtime.tools.allowed.length === 0
+                    ? "No tools"
+                    : selectedTools.length === runtime.tools.allowed.length
+                      ? "Tools"
+                      : `${selectedTools.length} tools`}
+                  <ChevronDown aria-hidden="true" size={11} />
+                </Button>
+              }
+            />
+            <Menu.Portal>
+              <Menu.Positioner align="start" side="top" sideOffset={6}>
+                <Menu.Popup aria-label="Turn permissions">
+                  {availableTurnTools.map((tool) => {
+                    const enabled = selectedToolNames.has(tool.name);
+                    return (
+                      <Menu.Item
+                        key={tool.name}
+                        onClick={() =>
+                          onToolsChange(
+                            enabled
+                              ? selectedTools.filter(
+                                  (name) => name !== tool.name
+                                )
+                              : [...selectedTools, tool.name]
+                          )
+                        }
+                      >
+                        <Menu.Label>
+                          {enabled ? "✓ " : ""}
+                          {tool.name}
+                        </Menu.Label>
+                      </Menu.Item>
+                    );
+                  })}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+        ) : null}
+        {runtime?.capabilities.sessionCompact && canCompact ? (
+          <IconButton
+            aria-label="Compact conversation context"
+            className={styles.compactButton}
+            disabled={isRunning}
+            onClick={onCompact}
+            size="compact"
+            type="button"
+            variant="ghost"
+          >
+            <Minimize2 size={13} />
+          </IconButton>
+        ) : null}
         <PromptComposer.Actions className={styles.composerActions}>
           <IconButton
             aria-label="Attach images, files, or videos"
@@ -698,27 +1129,110 @@ function AgentComposer({
           >
             <Paperclip size={14} strokeWidth={1.7} />
           </IconButton>
+          {isRunning && canCancel ? (
+            <IconButton
+              aria-label="Stop generating"
+              className={styles.stopButton}
+              onClick={onCancel}
+              size="compact"
+              type="button"
+              variant="ghost"
+            >
+              <Square fill="currentColor" size={9} strokeWidth={0} />
+            </IconButton>
+          ) : null}
           <IconButton
-            aria-label={isRunning ? "Stop generating" : "Submit comment"}
+            aria-label={isRunning ? "Queue follow-up" : "Submit comment"}
             className={styles.sendButton}
-            data-active={
-              (isRunning ? canCancel : Boolean(draft.trim())) || undefined
-            }
-            disabled={isRunning ? !canCancel : !draft.trim()}
-            onClick={isRunning ? onCancel : undefined}
+            data-active={Boolean(draft.trim()) || undefined}
+            disabled={!draft.trim()}
             size="compact"
-            type={isRunning ? "button" : "submit"}
+            type="submit"
             variant="secondary"
           >
-            {isRunning ? (
-              <Square fill="currentColor" size={9} strokeWidth={0} />
-            ) : (
-              <ArrowUp size={14} strokeWidth={1.9} />
-            )}
+            <ArrowUp size={14} strokeWidth={1.9} />
           </IconButton>
         </PromptComposer.Actions>
       </PromptComposer.Toolbar>
     </PromptComposer.Root>
+  );
+}
+
+function AgentPromptQueue({
+  onRemove,
+  prompts,
+}: {
+  onRemove: (id: string) => void;
+  prompts: { id: string; prompt: string }[];
+}) {
+  return (
+    <div aria-label="Queued prompts" className={styles.promptQueue}>
+      <span className={styles.queueLabel}>Queued</span>
+      <div className={styles.queueItems}>
+        {prompts.map((prompt) => (
+          <div className={styles.queueItem} key={prompt.id}>
+            <span>{prompt.prompt}</span>
+            <IconButton
+              aria-label="Remove queued prompt"
+              onClick={() => onRemove(prompt.id)}
+              size="compact"
+              variant="ghost"
+            >
+              <X size={11} />
+            </IconButton>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AgentTerminalShelf({ runs }: { runs: AgentTerminalRun[] }) {
+  return (
+    <div aria-label="Terminal command output" className={styles.terminalShelf}>
+      {runs.map((run) => (
+        <details
+          className={styles.terminalRun}
+          data-status={run.status}
+          key={run.id}
+          open={run.status === "running"}
+        >
+          <summary>
+            <Terminal aria-hidden="true" size={13} />
+            <code>{run.commandLine}</code>
+            <span>{run.status}</span>
+          </summary>
+          <pre>
+            {run.messages.map((message, index) => (
+              <span data-kind={message.kind} key={`${run.id}:${index}`}>
+                {message.content}
+              </span>
+            ))}
+            {run.error ? <span data-kind="stderr">{run.error}</span> : null}
+          </pre>
+        </details>
+      ))}
+    </div>
+  );
+}
+
+function AgentTaskShelf({ tasks }: { tasks: AgentTask[] }) {
+  return (
+    <div aria-label="Agent tasks" className={styles.taskShelf}>
+      {tasks.map((task) => (
+        <div
+          className={styles.taskItem}
+          data-status={task.status}
+          key={task.taskId}
+        >
+          <span className={styles.taskStatus} />
+          <span className={styles.taskAgent}>{task.agent}</span>
+          <span className={styles.taskProgress}>
+            {task.progress ?? task.status}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
