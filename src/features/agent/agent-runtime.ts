@@ -41,9 +41,17 @@ export type AgentStreamEvent =
 export type AgentBootstrap = {
   capabilities: {
     cancel: boolean;
+    contextSources: boolean;
     edit: boolean;
+    profileSelection: boolean;
+    sessionCompact: boolean;
     sessionList: boolean;
     sessionRead: boolean;
+    sessionRename: boolean;
+    taskSnapshot: boolean;
+    terminalCommands: boolean;
+    turnModelSelection: boolean;
+    turnToolSelection: boolean;
     userInteraction: boolean;
   };
   mode: string;
@@ -53,6 +61,89 @@ export type AgentBootstrap = {
     allowed: string[];
     available: AgentToolSummary[];
   };
+};
+
+export type AgentContextPrompt = {
+  argumentsSchemaJson: string;
+  description: string;
+  name: string;
+  source: string;
+};
+
+export type AgentContextResource = {
+  description: string;
+  mimeType: string;
+  name: string;
+  source: string;
+  uri: string;
+};
+
+export type AgentContextCatalog = {
+  prompts: AgentContextPrompt[];
+  resources: AgentContextResource[];
+};
+
+export type AgentTerminalParameter = {
+  description: string;
+  id: string;
+  kind: "flag" | "option" | "positional";
+  multiple: boolean;
+  required: boolean;
+};
+
+export type AgentTerminalCommand = {
+  description: string;
+  id: string;
+  outputFormats: Array<"json" | "text">;
+  parameters: AgentTerminalParameter[];
+  path: string[];
+  summary: string;
+};
+
+export type AgentTerminalCatalog = {
+  commands: AgentTerminalCommand[];
+};
+
+export type AgentTerminalMessage = {
+  content: string;
+  contentType: "json" | "text";
+  kind: "progress" | "result" | "stderr" | "stdout";
+};
+
+export type AgentTerminalEvent =
+  | { type: "terminal_cancelled" }
+  | { type: "terminal_completed" }
+  | { detail: string; type: "terminal_failed" }
+  | { message: AgentTerminalMessage; type: "terminal_message" };
+
+export type AgentTerminalRun = {
+  commandLine: string;
+  error?: string;
+  id: string;
+  messages: AgentTerminalMessage[];
+  status: "cancelled" | "completed" | "failed" | "running";
+};
+
+export type AgentModel = {
+  id: string;
+  reasoningEfforts: string[];
+  selected: boolean;
+  serviceTiers: string[];
+};
+
+export type AgentModelCatalog = {
+  models: AgentModel[];
+  selectedModel?: string;
+  selectedReasoningEffort?: string;
+  selectedServiceTier?: string;
+};
+
+export type AgentTask = {
+  agent: string;
+  progress?: string;
+  status: string;
+  taskId: string;
+  workspace: string;
 };
 
 export type AgentInteractionOption = {
@@ -97,6 +188,7 @@ export type AgentSessionSummary = {
   revision: string;
   sessionId: string;
   title: string;
+  titleRevision?: string;
   updatedAt: string;
 };
 
@@ -220,28 +312,40 @@ export type AgentTrajectory = {
 };
 
 export async function streamAgentTurn({
+  allowedTools,
   editTurnId,
   input,
+  model,
   onEvent,
   requestId,
+  reasoningEffort,
   sessionId,
   signal,
+  serviceTier,
   targetId = "console",
 }: {
+  allowedTools?: string[];
   editTurnId?: string;
   input: string;
+  model?: string;
   onEvent: (event: AgentStreamEvent) => void;
   requestId: string;
+  reasoningEffort?: string;
   sessionId?: string;
   signal: AbortSignal;
+  serviceTier?: string;
   targetId?: AgentTargetId;
 }): Promise<void> {
   const response = await fetch(agentApiUrl(targetId, "turns"), {
     body: JSON.stringify({
+      ...(allowedTools ? { allowed_tools: allowedTools } : {}),
       ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
       input,
+      ...(model ? { model } : {}),
       request_id: requestId,
+      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
       ...(sessionId ? { session_id: sessionId } : {}),
+      ...(serviceTier ? { service_tier: serviceTier } : {}),
     }),
     headers: agentHeaders("text/event-stream", true),
     method: "POST",
@@ -363,6 +467,213 @@ export async function readAgentBootstrap(
     throw new Error(await responseError(response));
   }
   return agentBootstrap(await response.json());
+}
+
+export async function readAgentModels(
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
+): Promise<AgentModelCatalog> {
+  const response = await fetch(agentApiUrl(targetId, "models"), {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  return agentModelCatalog(await response.json());
+}
+
+export async function readAgentContextSources(
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
+): Promise<AgentContextCatalog> {
+  const response = await fetch(agentApiUrl(targetId, "context-sources"), {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(await response.json(), "Agent Context catalog");
+  if (!(Array.isArray(object.prompts) && Array.isArray(object.resources))) {
+    throw new TypeError("Agent Context catalog is malformed");
+  }
+  return {
+    prompts: object.prompts.map(agentContextPrompt),
+    resources: object.resources.map(agentContextResource),
+  };
+}
+
+export async function readAgentTerminalCatalog(
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
+): Promise<AgentTerminalCatalog> {
+  const response = await fetch(agentApiUrl(targetId, "terminal/commands"), {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(
+    await response.json(),
+    "Agent Terminal catalog"
+  );
+  if (!Array.isArray(object.commands)) {
+    throw new TypeError("Agent Terminal catalog is malformed");
+  }
+  return { commands: object.commands.map(agentTerminalCommand) };
+}
+
+export async function streamAgentTerminal({
+  commandLine,
+  onEvent,
+  requestId,
+  signal,
+  targetId = "console",
+}: {
+  commandLine: string;
+  onEvent: (event: AgentTerminalEvent) => void;
+  requestId: string;
+  signal: AbortSignal;
+  targetId?: AgentTargetId;
+}): Promise<void> {
+  const response = await fetch(agentApiUrl(targetId, "terminal/executions"), {
+    body: JSON.stringify({ commandLine, requestId }),
+    headers: agentHeaders("text/event-stream", true),
+    method: "POST",
+    signal,
+  });
+  if (!(response.ok && response.body)) {
+    throw new Error(await responseError(response));
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = "";
+  let completed = false;
+  while (!signal.aborted) {
+    const { done, value } = await reader.read();
+    pending += decoder.decode(value, { stream: !done });
+    const { frames, pending: nextPending } = decodeAgentSseFrames(pending);
+    pending = nextPending;
+    for (const frame of frames) {
+      const event = agentTerminalEvent(JSON.parse(frame.data));
+      onEvent(event);
+      if (event.type === "terminal_failed") {
+        throw new Error(event.detail);
+      }
+      completed ||=
+        event.type === "terminal_completed" ||
+        event.type === "terminal_cancelled";
+    }
+    if (done) {
+      break;
+    }
+  }
+  if (!(signal.aborted || completed)) {
+    throw new Error("Terminal stream ended before the command completed");
+  }
+}
+
+export async function cancelAgentTerminal(
+  requestId: string,
+  targetId: AgentTargetId = "console"
+): Promise<void> {
+  const response = await fetch(
+    agentApiUrl(
+      targetId,
+      `terminal/executions/${encodeURIComponent(requestId)}/cancel`
+    ),
+    { headers: agentHeaders("application/json", false), method: "POST" }
+  );
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+}
+
+export async function readAgentTasks(
+  signal?: AbortSignal,
+  targetId: AgentTargetId = "console"
+): Promise<AgentTask[]> {
+  const response = await fetch(agentApiUrl(targetId, "tasks"), {
+    headers: agentHeaders("application/json", false),
+    ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(await response.json(), "Agent task snapshot");
+  if (!Array.isArray(object.tasks)) {
+    throw new TypeError("Agent task snapshot is missing tasks");
+  }
+  return object.tasks.map(agentTask);
+}
+
+export async function compactAgentSession(
+  sessionId: string,
+  targetId: AgentTargetId = "console"
+): Promise<void> {
+  const response = await fetch(
+    agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/compact`),
+    { headers: agentHeaders("application/json", false), method: "POST" }
+  );
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+}
+
+export async function renameAgentSession({
+  expectedTitleRevision,
+  sessionId,
+  targetId = "console",
+  title,
+}: {
+  expectedTitleRevision: string;
+  sessionId: string;
+  targetId?: AgentTargetId;
+  title: string;
+}): Promise<{ title: string; titleRevision: string }> {
+  const response = await fetch(
+    agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}`),
+    {
+      body: JSON.stringify({ expectedTitleRevision, title }),
+      headers: agentHeaders("application/json", true),
+      method: "PATCH",
+    }
+  );
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(await response.json(), "Agent Session rename");
+  if (
+    typeof object.title !== "string" ||
+    typeof object.titleRevision !== "string"
+  ) {
+    throw new TypeError("Agent Session rename response is malformed");
+  }
+  return { title: object.title, titleRevision: object.titleRevision };
+}
+
+export async function selectAgentProfile(
+  profile: string | undefined,
+  targetId: AgentTargetId = "console"
+): Promise<string | undefined> {
+  const response = await fetch(agentApiUrl(targetId, "control/profile"), {
+    body: JSON.stringify({ profile: profile ?? null }),
+    headers: agentHeaders("application/json", true),
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+  const object = requiredObject(
+    await response.json(),
+    "Agent Profile selection"
+  );
+  if (!(object.profile === null || typeof object.profile === "string")) {
+    throw new TypeError("Agent Profile selection response is malformed");
+  }
+  return typeof object.profile === "string" ? object.profile : undefined;
 }
 
 export async function readAgentToolPolicy(
@@ -786,9 +1097,17 @@ function agentBootstrap(value: unknown): AgentBootstrap {
   return {
     capabilities: {
       cancel: capabilities.cancel,
+      contextSources: capabilities.contextSources === true,
       edit: capabilities.edit,
+      profileSelection: capabilities.profileSelection === true,
+      sessionCompact: capabilities.sessionCompact === true,
       sessionList: capabilities.sessionList,
       sessionRead: capabilities.sessionRead,
+      sessionRename: capabilities.sessionRename === true,
+      taskSnapshot: capabilities.taskSnapshot === true,
+      terminalCommands: capabilities.terminalCommands === true,
+      turnModelSelection: capabilities.turnModelSelection === true,
+      turnToolSelection: capabilities.turnToolSelection === true,
       userInteraction: capabilities.userInteraction,
     },
     mode: object.mode,
@@ -798,6 +1117,217 @@ function agentBootstrap(value: unknown): AgentBootstrap {
       allowed: tools.allowed,
       available: tools.available.map(agentToolSummary),
     },
+  };
+}
+
+function agentContextPrompt(value: unknown): AgentContextPrompt {
+  const object = requiredObject(value, "Agent Context Prompt");
+  if (
+    typeof object.arguments_schema_json !== "string" ||
+    typeof object.description !== "string" ||
+    typeof object.name !== "string" ||
+    typeof object.source !== "string"
+  ) {
+    throw new TypeError("Agent Context Prompt is malformed");
+  }
+  return {
+    argumentsSchemaJson: object.arguments_schema_json,
+    description: object.description,
+    name: object.name,
+    source: object.source,
+  };
+}
+
+function agentContextResource(value: unknown): AgentContextResource {
+  const object = requiredObject(value, "Agent Context Resource");
+  if (
+    typeof object.description !== "string" ||
+    typeof object.mime_type !== "string" ||
+    typeof object.name !== "string" ||
+    typeof object.source !== "string" ||
+    typeof object.uri !== "string"
+  ) {
+    throw new TypeError("Agent Context Resource is malformed");
+  }
+  return {
+    description: object.description,
+    mimeType: object.mime_type,
+    name: object.name,
+    source: object.source,
+    uri: object.uri,
+  };
+}
+
+function agentTerminalCommand(value: unknown): AgentTerminalCommand {
+  const object = requiredObject(value, "Agent Terminal command");
+  if (
+    typeof object.description !== "string" ||
+    typeof object.id !== "string" ||
+    !Array.isArray(object.output_formats) ||
+    !object.output_formats.every(
+      (format) => format === "json" || format === "text"
+    ) ||
+    !Array.isArray(object.parameters) ||
+    !Array.isArray(object.path) ||
+    !object.path.every((segment) => typeof segment === "string") ||
+    typeof object.summary !== "string"
+  ) {
+    throw new TypeError("Agent Terminal command is malformed");
+  }
+  return {
+    description: object.description,
+    id: object.id,
+    outputFormats: object.output_formats,
+    parameters: object.parameters.map(agentTerminalParameter),
+    path: object.path,
+    summary: object.summary,
+  };
+}
+
+function agentTerminalParameter(value: unknown): AgentTerminalParameter {
+  const object = requiredObject(value, "Agent Terminal parameter");
+  if (
+    typeof object.description !== "string" ||
+    typeof object.id !== "string" ||
+    (object.kind !== "flag" &&
+      object.kind !== "option" &&
+      object.kind !== "positional") ||
+    typeof object.multiple !== "boolean" ||
+    typeof object.required !== "boolean"
+  ) {
+    throw new TypeError("Agent Terminal parameter is malformed");
+  }
+  return {
+    description: object.description,
+    id: object.id,
+    kind: object.kind,
+    multiple: object.multiple,
+    required: object.required,
+  };
+}
+
+function agentTerminalEvent(value: unknown): AgentTerminalEvent {
+  const object = requiredObject(value, "Agent Terminal event");
+  if (
+    object.type === "terminal_completed" ||
+    object.type === "terminal_cancelled"
+  ) {
+    return { type: object.type };
+  }
+  if (object.type === "terminal_failed" && typeof object.detail === "string") {
+    return { detail: object.detail, type: "terminal_failed" };
+  }
+  if (object.type === "terminal_message") {
+    return {
+      message: agentTerminalMessage(object.message),
+      type: "terminal_message",
+    };
+  }
+  throw new TypeError("Agent Terminal event has an unsupported shape");
+}
+
+function agentTerminalMessage(value: unknown): AgentTerminalMessage {
+  const object = requiredObject(value, "Agent Terminal message");
+  if (
+    typeof object.content !== "string" ||
+    (object.content_type !== "json" && object.content_type !== "text") ||
+    (object.kind !== "progress" &&
+      object.kind !== "result" &&
+      object.kind !== "stderr" &&
+      object.kind !== "stdout")
+  ) {
+    throw new TypeError("Agent Terminal message is malformed");
+  }
+  return {
+    content: object.content,
+    contentType: object.content_type,
+    kind: object.kind,
+  };
+}
+
+function agentModelCatalog(value: unknown): AgentModelCatalog {
+  const object = requiredObject(value, "Agent Model catalog");
+  const resolved = object.resolved_turn_profile;
+  if (!Array.isArray(object.providers)) {
+    throw new TypeError("Agent Model catalog is missing providers");
+  }
+  const profile =
+    resolved === null || resolved === undefined
+      ? undefined
+      : requiredObject(resolved, "Agent resolved Turn profile");
+  const providers = profile
+    ? object.providers.filter((providerValue) => {
+        const provider = requiredObject(providerValue, "Agent Model provider");
+        return provider.selected_instance === profile.provider_instance;
+      })
+    : object.providers;
+  const models = providers.flatMap((providerValue) => {
+    const provider = requiredObject(providerValue, "Agent Model provider");
+    if (!Array.isArray(provider.models)) {
+      throw new TypeError("Agent Model provider is missing models");
+    }
+    return provider.models.map(agentModel);
+  });
+  if (!profile) {
+    return { models };
+  }
+  return {
+    models,
+    ...(typeof profile.model === "string"
+      ? { selectedModel: profile.model }
+      : {}),
+    ...(typeof profile.reasoning_effort === "string"
+      ? { selectedReasoningEffort: profile.reasoning_effort }
+      : {}),
+    ...(typeof profile.service_tier === "string"
+      ? { selectedServiceTier: profile.service_tier }
+      : {}),
+  };
+}
+
+function agentModel(value: unknown): AgentModel {
+  const object = requiredObject(value, "Agent Model");
+  const capabilities = requiredObject(
+    object.capabilities,
+    "Agent Model capabilities"
+  );
+  if (typeof object.id !== "string" || typeof object.selected !== "boolean") {
+    throw new TypeError("Agent Model is malformed");
+  }
+  return {
+    id: object.id,
+    reasoningEfforts: selectableValues(capabilities.reasoning, "efforts"),
+    selected: object.selected,
+    serviceTiers: selectableValues(capabilities.service_tiers, "tiers"),
+  };
+}
+
+function selectableValues(value: unknown, field: "efforts" | "tiers") {
+  const object = requiredObject(value, `Agent Model ${field}`);
+  return object.kind === "selectable" && Array.isArray(object[field])
+    ? object[field].filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function agentTask(value: unknown): AgentTask {
+  const object = requiredObject(value, "Agent task");
+  const { progress } = object;
+  if (
+    typeof object.agent !== "string" ||
+    typeof object.status !== "string" ||
+    typeof object.task_id !== "string" ||
+    typeof object.workspace !== "string"
+  ) {
+    throw new TypeError("Agent task is malformed");
+  }
+  return {
+    agent: object.agent,
+    ...(isObject(progress) && typeof progress.content === "string"
+      ? { progress: progress.content }
+      : {}),
+    status: object.status,
+    taskId: object.task_id,
+    workspace: object.workspace,
   };
 }
 
@@ -899,6 +1429,9 @@ function agentSessionSummary(value: unknown): AgentSessionSummary {
     revision: object.revision,
     sessionId: object.sessionId,
     title: object.title,
+    ...(typeof object.titleRevision === "string"
+      ? { titleRevision: object.titleRevision }
+      : {}),
     updatedAt: object.updatedAt,
   };
 }
