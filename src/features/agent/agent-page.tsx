@@ -2,6 +2,7 @@ import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
 import { Menu } from "@lenso/ui/menu";
 import { PageHeader } from "@lenso/ui/page-header";
+import { Select } from "@lenso/ui/select";
 import { Tabs } from "@lenso/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -980,82 +981,69 @@ function AgentComposer({
           </Button>
         </SkillsMenu>
         {runtime?.capabilities.profileSelection ? (
-          <label className={styles.turnControl}>
-            <Terminal aria-hidden="true" size={12} />
-            <select
-              aria-label="Agent mode"
-              disabled={isRunning}
-              onChange={(event) =>
-                onProfileChange(event.target.value || undefined)
-              }
-              value={profile ?? ""}
-            >
-              <option value="">Normal</option>
-              <option value="plan">Plan</option>
-              <option value="code">Auto</option>
-            </select>
-          </label>
+          <TurnSelect
+            aria-label="Agent mode"
+            disabled={isRunning}
+            icon={<Terminal aria-hidden="true" size={12} />}
+            onValueChange={(value) => onProfileChange(value || undefined)}
+            options={[
+              { label: "Normal", value: "" },
+              { label: "Plan", value: "plan" },
+              { label: "Auto", value: "code" },
+            ]}
+            value={profile ?? ""}
+          />
         ) : null}
         {modelCatalog?.models.length ? (
-          <label className={styles.turnControl}>
-            <Bot aria-hidden="true" size={12} />
-            <select
-              aria-label="Model"
-              disabled={isRunning}
-              onChange={(event) => {
-                onModelChange(event.target.value);
-                onReasoningEffortChange(undefined);
-                onServiceTierChange(undefined);
-              }}
-              value={selectedModel ?? modelCatalog.models[0]?.id ?? ""}
-            >
-              {modelCatalog.models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.id}
-                </option>
-              ))}
-            </select>
-          </label>
+          <TurnSelect
+            aria-label="Model"
+            disabled={isRunning}
+            icon={<Bot aria-hidden="true" size={12} />}
+            onValueChange={(value) => {
+              onModelChange(value);
+              onReasoningEffortChange(undefined);
+              onServiceTierChange(undefined);
+            }}
+            options={modelCatalog.models.map((model) => ({
+              label: model.id,
+              value: model.id,
+            }))}
+            value={selectedModel ?? modelCatalog.models[0]?.id ?? ""}
+          />
         ) : null}
         {activeModel?.reasoningEfforts.length ? (
-          <label className={styles.turnControl}>
-            <Gauge aria-hidden="true" size={12} />
-            <select
-              aria-label="Reasoning effort"
-              disabled={isRunning}
-              onChange={(event) =>
-                onReasoningEffortChange(event.target.value || undefined)
-              }
-              value={selectedReasoningEffort ?? ""}
-            >
-              <option value="">Default</option>
-              {activeModel.reasoningEfforts.map((effort) => (
-                <option key={effort} value={effort}>
-                  {effort}
-                </option>
-              ))}
-            </select>
-          </label>
+          <TurnSelect
+            aria-label="Reasoning effort"
+            disabled={isRunning}
+            icon={<Gauge aria-hidden="true" size={12} />}
+            onValueChange={(value) =>
+              onReasoningEffortChange(value || undefined)
+            }
+            options={[
+              { label: "Default", value: "" },
+              ...activeModel.reasoningEfforts.map((effort) => ({
+                label: effort,
+                value: effort,
+              })),
+            ]}
+            value={selectedReasoningEffort ?? ""}
+          />
         ) : null}
         {activeModel?.serviceTiers.length ? (
-          <label className={styles.turnControl}>
-            <Gauge aria-hidden="true" size={12} />
-            <select
-              aria-label="Service tier"
-              disabled={isRunning}
-              onChange={(event) =>
-                onServiceTierChange(event.target.value || undefined)
-              }
-              value={selectedServiceTier ?? ""}
-            >
-              <option value="">Standard</option>
-              {activeModel.serviceTiers.map((tier) => (
-                <option key={tier} value={tier}>
-                  {tier}
-                </option>
-              ))}
-            </select>
-          </label>
+          <TurnSelect
+            aria-label="Service tier"
+            disabled={isRunning}
+            icon={<Gauge aria-hidden="true" size={12} />}
+            onValueChange={(value) => onServiceTierChange(value || undefined)}
+            options={[
+              { label: "Standard", value: "" },
+              ...activeModel.serviceTiers.map((tier) => ({
+                label: tier,
+                value: tier,
+              })),
+            ]}
+            value={selectedServiceTier ?? ""}
+          />
         ) : null}
         {runtime?.capabilities.turnToolSelection && selectedTools ? (
           <Menu.Root>
@@ -1155,6 +1143,56 @@ function AgentComposer({
         </PromptComposer.Actions>
       </PromptComposer.Toolbar>
     </PromptComposer.Root>
+  );
+}
+
+function TurnSelect({
+  "aria-label": ariaLabel,
+  disabled,
+  icon,
+  onValueChange,
+  options,
+  value,
+}: {
+  "aria-label": string;
+  disabled: boolean;
+  icon: ReactNode;
+  onValueChange: (value: string) => void;
+  options: ReadonlyArray<{ label: string; value: string }>;
+  value: string;
+}) {
+  const selectedOption =
+    options.find((option) => option.value === value) ?? options[0];
+  return (
+    <Select.Root
+      disabled={disabled}
+      onValueChange={(nextValue) => {
+        if (typeof nextValue === "string") {
+          onValueChange(nextValue);
+        }
+      }}
+      value={value}
+    >
+      <Select.Trigger aria-label={ariaLabel} className={styles.turnControl}>
+        {icon}
+        <Select.Value>{selectedOption?.label ?? value}</Select.Value>
+        <ChevronDown aria-hidden="true" size={11} />
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Positioner align="start" position="popper" sideOffset={6}>
+          <Select.Popup>
+            <Select.List>
+              {options.map((option) => (
+                <Select.Item key={option.value} value={option.value}>
+                  <Select.ItemText>{option.label}</Select.ItemText>
+                  <Select.ItemIndicator />
+                </Select.Item>
+              ))}
+            </Select.List>
+          </Select.Popup>
+        </Select.Positioner>
+      </Select.Portal>
+    </Select.Root>
   );
 }
 
