@@ -2,7 +2,6 @@ import "@fontsource-variable/inter/wght.css";
 import { Button } from "@lenso/ui/button";
 import { Dialog } from "@lenso/ui/dialog";
 import { IconButton } from "@lenso/ui/icon-button";
-import { Surface } from "@lenso/ui/surface";
 import {
   ArrowUp,
   Box,
@@ -17,16 +16,9 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type FormEvent,
-  type KeyboardEvent,
-} from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
 import { AgentMarkdown } from "./agent-markdown";
 import {
@@ -58,13 +50,6 @@ function chatTitleFor(prompt: string) {
     .split(/\s+/u)
     .slice(0, 4);
   return words.join(" ") || "New chat";
-}
-
-function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    event.currentTarget.form?.requestSubmit();
-  }
 }
 
 export function AgentQuickPanel({
@@ -100,25 +85,6 @@ export function AgentQuickPanel({
   const isEditing = Boolean(editingTurnId);
   const showWelcome = !hasConversation && !draft.trim();
   const title = turns[0]?.user ? chatTitleFor(turns[0].user) : "New chat";
-
-  const resizeTextarea = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
-    textarea.style.height = "0px";
-    const lineHeight = 20.796_875;
-    const verticalPadding = 4;
-    const lineCount = Math.max(
-      1,
-      Math.round((textarea.scrollHeight - verticalPadding) / lineHeight)
-    );
-    textarea.style.height = `${Math.min(lineCount * lineHeight + verticalPadding, 124)}px`;
-  }, []);
-
-  useLayoutEffect(() => {
-    resizeTextarea();
-  }, [draft, resizeTextarea]);
 
   useEffect(() => {
     const conversation = conversationRef.current;
@@ -348,17 +314,19 @@ export function AgentQuickPanel({
                         <EditingMessageBar compact onCancel={cancelEditing} />
                       </div>
                     </div>
-                    <Surface
+                    <PromptComposer.Root
                       className={styles.composer}
-                      level="panel"
-                      render={<form onSubmit={onSubmit} />}
+                      maxRows={6}
+                      onSubmit={onSubmit}
+                      onValueChange={setDraft}
+                      submitShortcut="enter"
+                      surfaceClassName={styles.composerSurface}
+                      value={draft}
                     >
-                      <textarea
+                      <PromptComposer.Input
                         aria-label="Send a message to Lenso Agent"
                         autoFocus
                         className={styles.textarea}
-                        onChange={(event) => setDraft(event.target.value)}
-                        onKeyDown={onComposerKeyDown}
                         placeholder={
                           hasConversation
                             ? "Reply…"
@@ -366,9 +334,8 @@ export function AgentQuickPanel({
                         }
                         ref={textareaRef}
                         rows={1}
-                        value={draft}
                       />
-                      <div className={styles.composerFooter}>
+                      <PromptComposer.Toolbar className={styles.composerFooter}>
                         <Button
                           aria-label="Skills"
                           className={styles.skills}
@@ -383,50 +350,54 @@ export function AgentQuickPanel({
                             strokeWidth={2}
                           />
                         </Button>
-                        <IconButton
-                          aria-label="Attach images, files, or videos"
-                          className={styles.attach}
-                          size="compact"
-                          variant="ghost"
+                        <PromptComposer.Actions
+                          className={styles.composerActions}
                         >
-                          <Paperclip
-                            aria-hidden="true"
-                            size={14}
-                            strokeWidth={1.7}
-                          />
-                        </IconButton>
-                        <IconButton
-                          aria-label={
-                            isRunning ? "Stop generating" : "Submit comment"
-                          }
-                          className={styles.submit}
-                          data-active={
-                            (isRunning ? canCancel : Boolean(draft.trim())) ||
-                            undefined
-                          }
-                          disabled={isRunning ? !canCancel : !draft.trim()}
-                          onClick={isRunning ? cancelRunningTurn : undefined}
-                          size="compact"
-                          type={isRunning ? "button" : "submit"}
-                          variant="secondary"
-                        >
-                          {isRunning ? (
-                            <Square
+                          <IconButton
+                            aria-label="Attach images, files, or videos"
+                            className={styles.attach}
+                            size="compact"
+                            variant="ghost"
+                          >
+                            <Paperclip
                               aria-hidden="true"
-                              fill="currentColor"
-                              size={8}
-                              strokeWidth={0}
-                            />
-                          ) : (
-                            <ArrowUp
-                              aria-hidden="true"
-                              size={16}
+                              size={14}
                               strokeWidth={1.7}
                             />
-                          )}
-                        </IconButton>
-                      </div>
-                    </Surface>
+                          </IconButton>
+                          <IconButton
+                            aria-label={
+                              isRunning ? "Stop generating" : "Submit comment"
+                            }
+                            className={styles.submit}
+                            data-active={
+                              (isRunning ? canCancel : Boolean(draft.trim())) ||
+                              undefined
+                            }
+                            disabled={isRunning ? !canCancel : !draft.trim()}
+                            onClick={isRunning ? cancelRunningTurn : undefined}
+                            size="compact"
+                            type={isRunning ? "button" : "submit"}
+                            variant="secondary"
+                          >
+                            {isRunning ? (
+                              <Square
+                                aria-hidden="true"
+                                fill="currentColor"
+                                size={8}
+                                strokeWidth={0}
+                              />
+                            ) : (
+                              <ArrowUp
+                                aria-hidden="true"
+                                size={16}
+                                strokeWidth={1.7}
+                              />
+                            )}
+                          </IconButton>
+                        </PromptComposer.Actions>
+                      </PromptComposer.Toolbar>
+                    </PromptComposer.Root>
                   </div>
                 )}
               </div>

@@ -19,27 +19,34 @@
   line-height: 32px;
   letter-spacing: -0.02em;
 }
-.sectionHeading p,
-.settingsSection > p {
+.sectionHeading p {
   margin: 2px 16px 0;
   color: var(--color-content-tertiary);
   font-size: 12px;
   line-height: 18px;
 }
 .settingsSection {
+  gap: 0;
   margin-top: 32px;
 }
 .settingsSection + .settingsSection {
   margin-top: 48px;
 }
-.settingsSection h2 {
+.settingsSectionHeader {
+  gap: 2px;
+  margin-bottom: 12px;
+}
+.settingsSectionTitle {
   margin: 0 16px;
   font-size: 15px;
   font-weight: 520;
   line-height: 20px;
 }
-.settingsSection > p {
-  margin: 2px 16px 12px;
+.settingsSectionDescription {
+  margin: 0 16px;
+  color: var(--color-content-tertiary);
+  font-size: 12px;
+  line-height: 18px;
 }
 .guidance,
 .skillInstructions {
@@ -148,12 +155,9 @@
 }
 .featureList,
 .toggleList {
-  overflow: hidden;
-  padding: 0;
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: 10px;
   box-shadow: none;
-  gap: 0;
 }
 .featureRow,
 .toggleRow,
@@ -202,8 +206,6 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 .toolPolicy {
-  overflow: hidden;
-  padding: 0;
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: 10px;
   box-shadow: none;

@@ -2,7 +2,6 @@ import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
 import { Menu } from "@lenso/ui/menu";
 import { PageHeader } from "@lenso/ui/page-header";
-import { Surface } from "@lenso/ui/surface";
 import { Tabs } from "@lenso/ui/tabs";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -34,11 +33,11 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type KeyboardEvent,
   type ReactElement,
   type ReactNode,
 } from "react";
 
+import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
 import { AgentHistoryMenu } from "./agent-history-menu";
 import { AgentMarkdown } from "./agent-markdown";
@@ -146,13 +145,6 @@ export function AgentPage({ conversationId }: AgentPageProps) {
     submit();
   };
 
-  const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      submit();
-    }
-  };
-
   return (
     <div
       className={`${styles.page} ${conversation ? styles.conversationPage : styles.emptyPage}`}
@@ -184,7 +176,6 @@ export function AgentPage({ conversationId }: AgentPageProps) {
               isRunning={isRunning}
               onChange={setDraft}
               onCancel={cancelRunningTurn}
-              onKeyDown={onComposerKeyDown}
               onSubmit={onSubmit}
               ref={textarea}
             />
@@ -263,7 +254,6 @@ export function AgentPage({ conversationId }: AgentPageProps) {
               isRunning={isRunning}
               onChange={setDraft}
               onCancel={cancelRunningTurn}
-              onKeyDown={onComposerKeyDown}
               onSubmit={onSubmit}
               placeholder="Reply…"
               ref={textarea}
@@ -657,7 +647,6 @@ function AgentComposer({
   isRunning,
   onChange,
   onCancel,
-  onKeyDown,
   onSubmit,
   placeholder = "Ask Lenso…",
   ref,
@@ -667,28 +656,27 @@ function AgentComposer({
   isRunning: boolean;
   onChange: (value: string) => void;
   onCancel: () => void;
-  onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (event: FormEvent) => void;
   placeholder?: string;
   ref: React.Ref<HTMLTextAreaElement>;
 }) {
   return (
-    <Surface
+    <PromptComposer.Root
       className={styles.composer}
-      level="panel"
-      render={<form onSubmit={onSubmit} />}
+      onSubmit={onSubmit}
+      onValueChange={onChange}
+      submitShortcut="enter"
+      surfaceClassName={styles.composerSurface}
+      value={draft}
     >
-      <textarea
+      <PromptComposer.Input
         aria-label="Send a message to Lenso Agent"
         className={styles.textarea}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
         placeholder={placeholder}
         ref={ref}
         rows={2}
-        value={draft}
       />
-      <div className={styles.composerFooter}>
+      <PromptComposer.Toolbar className={styles.composerFooter}>
         <SkillsMenu>
           <Button
             aria-label="Skills"
@@ -701,34 +689,36 @@ function AgentComposer({
             <ChevronDown aria-hidden="true" size={12} />
           </Button>
         </SkillsMenu>
-        <IconButton
-          aria-label="Attach images, files, or videos"
-          className={styles.attachButton}
-          size="compact"
-          variant="ghost"
-        >
-          <Paperclip size={14} strokeWidth={1.7} />
-        </IconButton>
-        <IconButton
-          aria-label={isRunning ? "Stop generating" : "Submit comment"}
-          className={styles.sendButton}
-          data-active={
-            (isRunning ? canCancel : Boolean(draft.trim())) || undefined
-          }
-          disabled={isRunning ? !canCancel : !draft.trim()}
-          onClick={isRunning ? onCancel : undefined}
-          size="compact"
-          type={isRunning ? "button" : "submit"}
-          variant="secondary"
-        >
-          {isRunning ? (
-            <Square fill="currentColor" size={9} strokeWidth={0} />
-          ) : (
-            <ArrowUp size={14} strokeWidth={1.9} />
-          )}
-        </IconButton>
-      </div>
-    </Surface>
+        <PromptComposer.Actions className={styles.composerActions}>
+          <IconButton
+            aria-label="Attach images, files, or videos"
+            className={styles.attachButton}
+            size="compact"
+            variant="ghost"
+          >
+            <Paperclip size={14} strokeWidth={1.7} />
+          </IconButton>
+          <IconButton
+            aria-label={isRunning ? "Stop generating" : "Submit comment"}
+            className={styles.sendButton}
+            data-active={
+              (isRunning ? canCancel : Boolean(draft.trim())) || undefined
+            }
+            disabled={isRunning ? !canCancel : !draft.trim()}
+            onClick={isRunning ? onCancel : undefined}
+            size="compact"
+            type={isRunning ? "button" : "submit"}
+            variant="secondary"
+          >
+            {isRunning ? (
+              <Square fill="currentColor" size={9} strokeWidth={0} />
+            ) : (
+              <ArrowUp size={14} strokeWidth={1.9} />
+            )}
+          </IconButton>
+        </PromptComposer.Actions>
+      </PromptComposer.Toolbar>
+    </PromptComposer.Root>
   );
 }
 

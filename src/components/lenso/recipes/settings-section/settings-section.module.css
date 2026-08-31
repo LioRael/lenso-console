@@ -1,0 +1,38 @@
+.root {
+  display: grid;
+  gap: var(--space-3, 12px);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-1, 4px);
+}
+
+.title {
+  margin: 0;
+  color: var(--color-content-primary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.description {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--color-content-tertiary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.group {
+  gap: 0;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+}
+
+.group > :global([data-slot="settings-row"]:last-child) {
+  border-bottom: 0;
+}

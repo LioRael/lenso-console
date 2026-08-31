@@ -1,6 +1,5 @@
 import { Select } from "@lenso/ui/select";
 import { SettingsRow as LensoSettingsRow } from "@lenso/ui/settings-row";
-import { Surface } from "@lenso/ui/surface";
 import { useRef, type ComponentProps, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
@@ -8,6 +7,7 @@ import {
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "../../app/console-locale";
+import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
 
 import styles from "./settings-page.module.css";
@@ -41,49 +41,62 @@ export function SettingsPage() {
       <div className={styles.column}>
         <h1>{zh ? "偏好设置" : "Preferences"}</h1>
 
-        <SettingsSection title={zh ? "通用" : "General"}>
-          <SettingsRow
-            description={
-              zh
-                ? "Console 中日期和时间的显示时区。"
-                : "Time zone used for dates and times in Console."
-            }
-            title={zh ? "时区" : "Time zone"}
-          >
-            <PreferenceSelect
-              aria-label={zh ? "时区" : "Time zone"}
-              onValueChange={(value) =>
-                setGeneral((current) => ({ ...current, timeZone: value }))
+        <SettingsSection.Root
+          aria-labelledby="general-settings-title"
+          className={styles.section}
+        >
+          <SettingsSection.Header>
+            <SettingsSection.Title
+              className={styles.sectionTitle}
+              id="general-settings-title"
+            >
+              {zh ? "通用" : "General"}
+            </SettingsSection.Title>
+          </SettingsSection.Header>
+          <SettingsSection.Group className={styles.group}>
+            <SettingsRow
+              description={
+                zh
+                  ? "Console 中日期和时间的显示时区。"
+                  : "Time zone used for dates and times in Console."
               }
-              options={timeZones}
-              value={general.timeZone}
-            />
-          </SettingsRow>
-          <SettingsRow
-            description={
-              zh
-                ? "更改 Console 导航和界面的语言。"
-                : "Change the language used in Console navigation and controls."
-            }
-            title={zh ? "Console 语言" : "Console language"}
-          >
-            <PreferenceSelect
-              aria-label={zh ? "Console 语言" : "Console language"}
-              onValueChange={(value) =>
-                locale.setPreference(value as ConsoleLanguagePreference)
+              title={zh ? "时区" : "Time zone"}
+            >
+              <PreferenceSelect
+                aria-label={zh ? "时区" : "Time zone"}
+                onValueChange={(value) =>
+                  setGeneral((current) => ({ ...current, timeZone: value }))
+                }
+                options={timeZones}
+                value={general.timeZone}
+              />
+            </SettingsRow>
+            <SettingsRow
+              description={
+                zh
+                  ? "更改 Console 导航和界面的语言。"
+                  : "Change the language used in Console navigation and controls."
               }
-              options={[
-                {
-                  label: zh ? "跟随系统" : "System default",
-                  value: "system",
-                },
-                { label: "English (US)", value: "en" },
-                { label: "简体中文", value: "zh-CN" },
-              ]}
-              value={locale.preference}
-            />
-          </SettingsRow>
-        </SettingsSection>
+              title={zh ? "Console 语言" : "Console language"}
+            >
+              <PreferenceSelect
+                aria-label={zh ? "Console 语言" : "Console language"}
+                onValueChange={(value) =>
+                  locale.setPreference(value as ConsoleLanguagePreference)
+                }
+                options={[
+                  {
+                    label: zh ? "跟随系统" : "System default",
+                    value: "system",
+                  },
+                  { label: "English (US)", value: "en" },
+                  { label: "简体中文", value: "zh-CN" },
+                ]}
+                value={locale.preference}
+              />
+            </SettingsRow>
+          </SettingsSection.Group>
+        </SettingsSection.Root>
 
         <AppearanceSettings appearance={appearance} zh={zh} />
       </div>
@@ -99,43 +112,42 @@ function AppearanceSettings({
   zh: boolean;
 }) {
   return (
-    <SettingsSection title={zh ? "界面与主题" : "Interface and theme"}>
-      <SettingsRow
-        description={
-          zh
-            ? "使用系统外观，或始终使用浅色或深色模式。"
-            : "Use your system appearance, or always use light or dark mode."
-        }
-        title={zh ? "颜色模式" : "Color mode"}
-      >
-        <PreferenceSelect
-          aria-label={zh ? "颜色模式" : "Color mode"}
-          onValueChange={(value) =>
-            appearance.setPreference(value as "system" | "light" | "dark")
+    <SettingsSection.Root
+      aria-labelledby="appearance-settings-title"
+      className={styles.section}
+    >
+      <SettingsSection.Header>
+        <SettingsSection.Title
+          className={styles.sectionTitle}
+          id="appearance-settings-title"
+        >
+          {zh ? "界面与主题" : "Interface and theme"}
+        </SettingsSection.Title>
+      </SettingsSection.Header>
+      <SettingsSection.Group className={styles.group}>
+        <SettingsRow
+          description={
+            zh
+              ? "使用系统外观，或始终使用浅色或深色模式。"
+              : "Use your system appearance, or always use light or dark mode."
           }
-          options={[
-            { label: zh ? "跟随系统" : "System", value: "system" },
-            { label: zh ? "浅色" : "Light", value: "light" },
-            { label: zh ? "深色" : "Dark", value: "dark" },
-          ]}
-          value={appearance.preference}
-        />
-      </SettingsRow>
-    </SettingsSection>
-  );
-}
-
-function SettingsSection({
-  children,
-  title,
-}: PropsWithChildren<{ title: string }>) {
-  return (
-    <section className={styles.section}>
-      <h2>{title}</h2>
-      <Surface className={styles.group} level="panel">
-        {children}
-      </Surface>
-    </section>
+          title={zh ? "颜色模式" : "Color mode"}
+        >
+          <PreferenceSelect
+            aria-label={zh ? "颜色模式" : "Color mode"}
+            onValueChange={(value) =>
+              appearance.setPreference(value as "system" | "light" | "dark")
+            }
+            options={[
+              { label: zh ? "跟随系统" : "System", value: "system" },
+              { label: zh ? "浅色" : "Light", value: "light" },
+              { label: zh ? "深色" : "Dark", value: "dark" },
+            ]}
+            value={appearance.preference}
+          />
+        </SettingsRow>
+      </SettingsSection.Group>
+    </SettingsSection.Root>
   );
 }
 
