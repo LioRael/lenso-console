@@ -147,6 +147,30 @@ describe("Plugin operation lifecycle", () => {
     });
   });
 
+  it("addresses Plugin configuration through the selected App Agent", async () => {
+    const request = vi
+      .spyOn(httpClient, "get")
+      .mockImplementationOnce((_input, options) =>
+        ky("https://console.invalid/plugin-management", {
+          ...options,
+          fetch: async () =>
+            Response.json(contractFixture.management, {
+              headers: { etag: '"sha256:management"' },
+            }),
+        })
+      );
+
+    await readPluginManagementConditional(
+      undefined,
+      new AbortController().signal,
+      "support-agent"
+    );
+
+    expect(request.mock.calls[0]?.[0]).toBe(
+      "api/console/v1/agents/support-agent/control/plugins"
+    );
+  });
+
   it("sends the Host-owned exact-source proposal and rollback fences", async () => {
     const request = vi.spyOn(httpClient, "post");
     request.mockImplementationOnce(() =>

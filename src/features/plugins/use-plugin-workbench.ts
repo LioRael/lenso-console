@@ -47,27 +47,34 @@ import {
   type PluginWorkbenchItem,
 } from "./plugin-workbench-model";
 
-export const pluginWorkbenchQueryKey = ["agent", "plugin-workbench"] as const;
-const pluginInventoryQueryKey = [
-  ...pluginWorkbenchQueryKey,
-  "inventory",
-] as const;
+export function pluginWorkbenchQueryKey(agentId: string) {
+  return ["agent", agentId, "plugin-workbench"] as const;
+}
 
-export function pluginManagementQueryKey(streamId: string | undefined) {
+function pluginInventoryQueryKey(agentId: string) {
+  return [...pluginWorkbenchQueryKey(agentId), "inventory"] as const;
+}
+
+export function pluginManagementQueryKey(
+  agentId: string,
+  streamId: string | undefined
+) {
   return [
-    ...pluginWorkbenchQueryKey,
+    ...pluginWorkbenchQueryKey(agentId),
     "management",
     streamId ?? "awaiting-stream",
   ] as const;
 }
 
 export function pluginConfigurationHistoryQueryKey({
+  agentId,
   instanceKey,
   packageId,
   revision,
   sourceDigest,
   streamId,
 }: {
+  agentId: string;
   instanceKey: string;
   packageId: string;
   revision: string;
@@ -75,7 +82,7 @@ export function pluginConfigurationHistoryQueryKey({
   streamId: string;
 }) {
   return [
-    ...pluginWorkbenchQueryKey,
+    ...pluginWorkbenchQueryKey(agentId),
     "configuration-history",
     streamId,
     packageId,
@@ -86,11 +93,12 @@ export function pluginConfigurationHistoryQueryKey({
 }
 
 export function pluginConfigurationHistoryMutationPrefix(
+  agentId: string,
   mutation: PluginMutation
 ) {
   return mutation.type === "configure"
     ? [
-        ...pluginWorkbenchQueryKey,
+        ...pluginWorkbenchQueryKey(agentId),
         "configuration-history",
         mutation.expectedStreamId,
         mutation.packageId,
@@ -138,23 +146,28 @@ export type PluginWorkbenchData = {
   management: PluginManagement;
 };
 
-export function usePluginWorkbench() {
+export function usePluginWorkbench(
+  agentId: string,
+  configurationAvailable = true
+) {
   const queryClient = useQueryClient();
   const managementValidator = useRef<{
+    agentId: string;
     etag: string;
     streamId: string;
   } | null>(null);
   const inventory = useQuery({
+    enabled: configurationAvailable,
     queryFn: ({ signal }) => {
       if (!isApiMode()) {
         return Promise.resolve(demoPluginInventory);
       }
       const previous = queryClient.getQueryData<PluginInventory>(
-        pluginInventoryQueryKey
+        pluginInventoryQueryKey(agentId)
       );
-      return readNextPluginInventory(previous, signal);
+      return readNextPluginInventory(previous, signal, undefined, agentId);
     },
-    queryKey: pluginInventoryQueryKey,
+    queryKey: pluginInventoryQueryKey(agentId),
     refetchInterval: (query) =>
       isApiMode() ? (query.state.status === "error" ? 5000 : 2000) : false,
   });
@@ -164,9 +177,10 @@ export function usePluginWorkbench() {
     latestInventoryStreamId.current = inventoryStreamId;
   }, [inventoryStreamId]);
   const inventoryDesiredRevision = inventory.data?.desiredRevision;
-  const managementKey = pluginManagementQueryKey(inventoryStreamId);
+  const managementKey = pluginManagementQueryKey(agentId, inventoryStreamId);
   const management = useQuery<PluginManagement>({
-    enabled: !isApiMode() || inventory.data !== undefined,
+    enabled:
+      configurationAvailable && (!isApiMode() || inventory.data !== undefined),
     placeholderData: (previous) => previous,
     queryFn: async ({ signal }) => {
       if (!isApiMode()) {
@@ -174,10 +188,16 @@ export function usePluginWorkbench() {
       }
       const currentValidator = managementValidator.current;
       const validator =
-        currentValidator && currentValidator.streamId === inventoryStreamId
+        currentValidator &&
+        currentValidator.agentId === agentId &&
+        currentValidator.streamId === inventoryStreamId
           ? currentValidator.etag
           : undefined;
-      const result = await readPluginManagementConditional(validator, signal);
+      const result = await readPluginManagementConditional(
+        validator,
+        signal,
+        agentId
+      );
       if (result.management) {
         if (
           result.etag &&
@@ -185,6 +205,7 @@ export function usePluginWorkbench() {
           latestInventoryStreamId.current === inventoryStreamId
         ) {
           managementValidator.current = {
+            agentId,
             etag: result.etag,
             streamId: inventoryStreamId,
           };
@@ -231,10 +252,11 @@ export function usePluginWorkbench() {
     ) {
       void queryClient.invalidateQueries({
         exact: true,
-        queryKey: pluginManagementQueryKey(inventoryStreamId),
+        queryKey: pluginManagementQueryKey(agentId, inventoryStreamId),
       });
     }
   }, [
+    agentId,
     inventoryDesiredRevision,
     inventoryStreamId,
     management.data?.revision,
@@ -258,11 +280,18 @@ export function usePluginWorkbench() {
   );
   return {
     authoringEnabled,
+    configurationAvailable,
     data,
     error,
     isDegraded: Boolean(data && (!authoringEnabled || error)),
-    isError: !data && (inventory.isError || management.isError),
-    isPending: !data && (inventory.isPending || management.isPending),
+    isError:
+      configurationAvailable &&
+      !data &&
+      (inventory.isError || management.isError),
+    isPending:
+      configurationAvailable &&
+      !data &&
+      (inventory.isPending || management.isPending),
     refetch: () => Promise.all([inventory.refetch(), management.refetch()]),
   };
 }
@@ -270,19 +299,27 @@ export function usePluginWorkbench() {
 export async function readNextPluginInventory(
   previous: PluginInventory | undefined,
   signal: AbortSignal,
-  read: (
+  read?: (
     after: string | undefined,
     signal: AbortSignal
-  ) => Promise<PluginInventory> = readPluginInventory
+  ) => Promise<PluginInventory>,
+  agentId = "console"
 ) {
-  const next = await read(previous?.cursor, signal);
+  const readInventory =
+    read ??
+    ((after: string | undefined, requestSignal: AbortSignal) =>
+      readPluginInventory(after, requestSignal, agentId));
+  const next = await readInventory(previous?.cursor, signal);
   if (previous && next.streamId !== previous.streamId) {
-    return read(undefined, signal);
+    return readInventory(undefined, signal);
   }
   return mergePluginInventory(previous, next);
 }
 
-export function usePluginConfigurationProposal(streamId: string) {
+export function usePluginConfigurationProposal(
+  agentId: string,
+  streamId: string
+) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({
@@ -315,19 +352,23 @@ export function usePluginConfigurationProposal(streamId: string) {
           status: "ready",
         });
       }
-      return readPluginConfigurationProposal({
-        expectedRevision,
-        expectedSourceDigest,
-        expectedStreamId: requestStreamId,
-        instanceKey,
-        packageId,
-        toml,
-      });
+      return readPluginConfigurationProposal(
+        {
+          expectedRevision,
+          expectedSourceDigest,
+          expectedStreamId: requestStreamId,
+          instanceKey,
+          packageId,
+          toml,
+        },
+        undefined,
+        agentId
+      );
     },
     onError: async (_error, variables) => {
       await queryClient.invalidateQueries({
         exact: true,
-        queryKey: pluginManagementQueryKey(variables.streamId),
+        queryKey: pluginManagementQueryKey(agentId, variables.streamId),
       });
     },
   });
@@ -342,6 +383,7 @@ export function usePluginConfigurationProposal(streamId: string) {
 }
 
 export function usePluginConfigurationHistory({
+  agentId,
   enabled,
   instanceKey,
   packageId,
@@ -349,6 +391,7 @@ export function usePluginConfigurationHistory({
   sourceDigest,
   streamId,
 }: {
+  agentId: string;
   enabled: boolean;
   instanceKey: string;
   packageId: string;
@@ -360,9 +403,15 @@ export function usePluginConfigurationHistory({
     enabled,
     queryFn: ({ signal }) =>
       isApiMode()
-        ? readPluginConfigurationHistory(packageId, instanceKey, signal)
+        ? readPluginConfigurationHistory(
+            packageId,
+            instanceKey,
+            signal,
+            agentId
+          )
         : Promise.resolve(demoPluginConfigurationHistory),
     queryKey: pluginConfigurationHistoryQueryKey({
+      agentId,
       instanceKey,
       packageId,
       revision,
@@ -374,7 +423,10 @@ export function usePluginConfigurationHistory({
   });
 }
 
-export function usePluginConfigurationRollbackProposal(streamId: string) {
+export function usePluginConfigurationRollbackProposal(
+  agentId: string,
+  streamId: string
+) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: async ({
@@ -393,14 +445,18 @@ export function usePluginConfigurationRollbackProposal(streamId: string) {
       streamId: string;
     }) => {
       if (isApiMode()) {
-        return readPluginConfigurationRollbackProposal({
-          expectedRevision,
-          expectedSourceDigest,
-          expectedStreamId: requestStreamId,
-          instanceKey,
-          packageId,
-          publicationProposalDigest,
-        });
+        return readPluginConfigurationRollbackProposal(
+          {
+            expectedRevision,
+            expectedSourceDigest,
+            expectedStreamId: requestStreamId,
+            instanceKey,
+            packageId,
+            publicationProposalDigest,
+          },
+          undefined,
+          agentId
+        );
       }
       const publication = demoPluginConfigurationHistory.publications.find(
         (candidate) => candidate.proposalDigest === publicationProposalDigest
@@ -434,7 +490,7 @@ export function usePluginConfigurationRollbackProposal(streamId: string) {
     onError: async (_error, variables) => {
       await queryClient.invalidateQueries({
         exact: true,
-        queryKey: pluginManagementQueryKey(variables.streamId),
+        queryKey: pluginManagementQueryKey(agentId, variables.streamId),
       });
     },
   });
@@ -570,7 +626,10 @@ export function usePluginConfigurationDraft({
   };
 }
 
-export function usePluginMutation(streamId: string | undefined) {
+export function usePluginMutation(
+  agentId: string,
+  streamId: string | undefined
+) {
   const queryClient = useQueryClient();
   const stream = useRef(streamId);
   useLayoutEffect(() => {
@@ -616,6 +675,7 @@ export function usePluginMutation(streamId: string | undefined) {
       };
       try {
         const result = await executePluginMutation({
+          agentId,
           mutation,
           onProgress: (progress) => {
             if (progress.streamId !== startedStreamId) {
@@ -649,18 +709,24 @@ export function usePluginMutation(streamId: string | undefined) {
       if (reservedRequest.current?.mutation === mutation) {
         reservedRequest.current = null;
       }
-      const historyPrefix = pluginConfigurationHistoryMutationPrefix(mutation);
+      const historyPrefix = pluginConfigurationHistoryMutationPrefix(
+        agentId,
+        mutation
+      );
       if (historyPrefix) {
         void queryClient.invalidateQueries({ queryKey: historyPrefix });
       }
       await Promise.all([
         queryClient.invalidateQueries({
           exact: true,
-          queryKey: pluginInventoryQueryKey,
+          queryKey: pluginInventoryQueryKey(agentId),
         }),
         queryClient.invalidateQueries({
           exact: true,
-          queryKey: pluginManagementQueryKey(mutation.expectedStreamId),
+          queryKey: pluginManagementQueryKey(
+            agentId,
+            mutation.expectedStreamId
+          ),
         }),
       ]);
     },

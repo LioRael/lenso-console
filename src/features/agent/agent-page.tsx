@@ -44,16 +44,19 @@ import {
   TurnSelect,
 } from "./agent-composer-controls";
 import { AgentHistoryMenu } from "./agent-history-menu";
+import { useAgentIdentity } from "./agent-identity-context";
 import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
+import { hasAgentConversation } from "./agent-page-state";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 import {
   modelsForSelector,
   type AgentBootstrap,
   type AgentContextCatalog,
+  type AgentIdentity,
   type AgentModelCatalog,
   type AgentTask,
   type AgentTerminalCatalog,
@@ -62,11 +65,11 @@ import {
   type AgentTurn,
 } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
-import { useAgentTarget } from "./agent-target-context";
 import { AgentTrajectory } from "./agent-trajectory";
 import { useAgentConversation } from "./use-agent-conversation";
 
 type AgentPageProps = {
+  agentId?: string;
   conversationId?: string;
 };
 
@@ -172,9 +175,10 @@ function promptAcceptsEmptyArguments(schemaJson: string) {
   }
 }
 
-export function AgentPage({ conversationId }: AgentPageProps) {
+export function AgentPage({ agentId, conversationId }: AgentPageProps) {
   const navigate = useNavigate();
-  const { selectedTarget } = useAgentTarget();
+  const { agents, selectAgent, selectedAgent } = useAgentIdentity();
+  const activeAgentId = agentId ?? selectedAgent.id;
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [titleOverride, setTitleOverride] = useState<{
     sessionId: string;
@@ -185,12 +189,17 @@ export function AgentPage({ conversationId }: AgentPageProps) {
   const onSessionResolved = useCallback(
     (resolvedSessionId: string) => {
       navigate({
-        params: { chatId: resolvedSessionId },
-        to: "/agent/$chatId",
+        params: { agentId: activeAgentId, chatId: resolvedSessionId },
+        to: "/agent/$agentId/$chatId",
       });
     },
-    [navigate]
+    [activeAgentId, navigate]
   );
+  useEffect(() => {
+    if (selectedAgent.id !== activeAgentId) {
+      selectAgent(activeAgentId);
+    }
+  }, [activeAgentId, selectAgent, selectedAgent.id]);
   const {
     answerInteraction,
     beginEditing: beginEditingTurn,
@@ -237,9 +246,9 @@ export function AgentPage({ conversationId }: AgentPageProps) {
         ? conversationId
         : undefined,
     onSessionResolved,
-    targetId: selectedTarget.id,
+    targetId: activeAgentId,
   });
-  const conversation = Boolean(conversationId || turns.length > 0);
+  const conversation = hasAgentConversation(conversationId, turns.length);
   const displayedConversationId = conversation
     ? (sessionId ?? conversationId ?? "new-task")
     : undefined;
@@ -276,6 +285,8 @@ export function AgentPage({ conversationId }: AgentPageProps) {
       data-view={conversation ? view : undefined}
     >
       <AgentHeader
+        activeAgentId={activeAgentId}
+        agents={agents}
         conversationId={displayedConversationId}
         conversationTitle={conversationTitle}
         onRename={
@@ -465,12 +476,16 @@ export function AgentPage({ conversationId }: AgentPageProps) {
 }
 
 function AgentHeader({
+  activeAgentId,
+  agents,
   conversationId,
   conversationTitle,
   onRename,
   onViewChange,
   view,
 }: {
+  activeAgentId: string;
+  agents: AgentIdentity[];
   conversationId: string | undefined;
   conversationTitle: string | null;
   onRename?: ((title: string) => Promise<string | undefined>) | undefined;
@@ -478,7 +493,7 @@ function AgentHeader({
   view: AgentView;
 }) {
   const navigate = useNavigate();
-  const { selectTarget, selectedTarget, targets } = useAgentTarget();
+  const { selectAgent } = useAgentIdentity();
   const [renaming, setRenaming] = useState(false);
   const [savingTitle, setSavingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -536,6 +551,7 @@ function AgentHeader({
           </form>
         ) : (
           <AgentHistoryMenu
+            agentId={activeAgentId}
             currentSessionId={conversationId}
             placement="header"
             showNewChat={Boolean(conversationId)}
@@ -560,23 +576,27 @@ function AgentHeader({
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {targets.length > 1 || (onRename && !renaming) ? (
+        {agents.length > 1 || (onRename && !renaming) ? (
           <div {...stylex.props(styles.headerActions)}>
-            {targets.length > 1 ? (
+            {agents.length > 1 ? (
               <label {...stylex.props(styles.agentTarget)}>
                 <Bot aria-hidden="true" size={13} strokeWidth={1.7} />
                 <select
                   {...stylex.props(styles.agentTargetSelect)}
-                  aria-label="Active Agent"
+                  aria-label="Agent"
                   onChange={(event) => {
-                    selectTarget(event.target.value as "connected" | "console");
-                    navigate({ to: "/" });
+                    const nextAgentId = event.target.value;
+                    selectAgent(nextAgentId);
+                    navigate({
+                      params: { agentId: nextAgentId, chatId: "new-task" },
+                      to: "/agent/$agentId/$chatId",
+                    });
                   }}
-                  value={selectedTarget.id}
+                  value={activeAgentId}
                 >
-                  {targets.map((target) => (
-                    <option key={target.id} value={target.id}>
-                      {target.label}
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.label}
                     </option>
                   ))}
                 </select>

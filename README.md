@@ -16,12 +16,21 @@ pnpm install
 pnpm agent:web
 ```
 
-Open `http://127.0.0.1:3030`. The selector in the Agent page's upper-right
-corner switches between the Harness that launched Console (`Connected
-Harness`) and Console's own private Agent (`Console Agent`). Their Sessions and
-active conversations remain separate.
+Open `http://127.0.0.1:3030`. Console discovers two complete Agent identities:
+the App Agent (`Lenso Agent`) and Console's own `Console Agent`. Each Agent owns
+its Sessions, Profiles, Tools, Tasks, Trajectory, and conversation state. The
+Agent selector changes identity rather than switching connection modes, and
+canonical Session URLs include the owning Agent identity.
 
-To run Console without a connected Harness:
+The App Agent Host selects its configuration authority explicitly with
+`LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY`. It defaults to
+`sqlite_configuration_store`; `local_plugin_root` and
+`remote_configuration_service` are also supported. Remote selection requires
+the service URL, App and environment identities, and
+`LENSO_PLUGIN_CONFIGURATION_REMOTE_TOKEN`. Those credentials remain inside the
+App Agent Host—Console still consumes only the common configuration Capability.
+
+To run Console without an App Agent:
 
 ```sh
 pnpm install
@@ -36,10 +45,14 @@ being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
 the launcher directory. The Console Agent admits no model-visible Tools by
 default; `ask_user` remains available as the web interaction primitive.
 
-An App Host embedding `lenso.console.web` can expose one existing Harness by
-setting `connected_agent_url` to its loopback Agent Web origin. Console proxies
-only the Agent data plane; Tool-policy control remains owned by the target
-Host.
+An App Host embedding `lenso.console.web` can contribute one App Agent by
+setting `connected_agent_url` to its loopback Agent Web origin. The setting is
+an Adapter detail retained for configuration compatibility; the Agent catalog
+exposes a stable App Agent identity instead of connection topology. Console
+proxies the Agent data plane. Plugin configuration control is exposed only
+when the App Host explicitly contributes
+`lenso.agent.plugin-configuration@1`; Tool-policy and Plugin lifecycle control
+remain owned by the App Agent's Host.
 
 The installed CLI can inspect the same App without Console-specific adapters:
 
@@ -49,8 +62,14 @@ lenso app show --root <managed-app>
 lenso plugins list --root <managed-app>
 ```
 
-Console and the CLI share the managed App's ordinary Plugin Root.
-Console-authorized mutations are candidate-resolved before files are changed.
+The Console Host persists the Console Agent's proposal, compare-and-swap
+publication, history, and recovery state in
+`~/.lenso/console/agent-configuration.sqlite3` by default. The Web Shell does
+not own this state, and the Console Agent's authority cannot mutate the
+separate managed App implicitly. The `agent:web` launcher enables a durable
+configuration authority on the App Agent Host and contributes that capability
+to Console. Other embedding Hosts must opt in explicitly; catalog membership
+alone grants no control authority.
 
 The local Host currently binds only to loopback. A remotely reachable Console
 must first provide identity and authorization as reviewed vNext Plugins.

@@ -10,17 +10,25 @@
       "description": "Private state root for the restricted Console Agent.",
       "type": "string"
     },
+    "agent_configuration_store": {
+      "description": "Host-owned SQLite authority for durable Console Agent configuration proposals, publication history, and desired-state recovery.",
+      "type": "string"
+    },
     "allowed_tools": {
       "description": "Reviewed model-visible Tools admitted to the Console Agent.",
       "items": { "type": "string" },
       "type": "array"
     },
     "connected_agent_label": {
-      "description": "Label shown for the optional Agent Harness connected to this Console.",
+      "description": "Identity label for the optional App Agent contributed to this Console.",
       "type": "string"
     },
+    "connected_agent_plugin_configuration": {
+      "description": "Explicitly authorizes Console to consume the App Agent Host's Plugin configuration capability.",
+      "type": "boolean"
+    },
     "connected_agent_url": {
-      "description": "Clean loopback HTTP origin for the optional connected Agent Harness.",
+      "description": "Clean loopback HTTP origin used by the optional App Agent Adapter.",
       "type": "string"
     },
     "managed_app_root": {
@@ -35,8 +43,10 @@
   "required": [
     "address",
     "agent_home",
+    "agent_configuration_store",
     "allowed_tools",
     "connected_agent_label",
+    "connected_agent_plugin_configuration",
     "connected_agent_url",
     "managed_app_root",
     "web_root"

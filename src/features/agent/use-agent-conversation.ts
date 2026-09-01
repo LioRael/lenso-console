@@ -27,7 +27,7 @@ import {
   type AgentTurn,
   type AgentInteractionAnswer,
   type AgentPendingInteraction,
-  type AgentTargetId,
+  type AgentId,
   type AgentTask,
   type AgentTerminalCatalog,
   type AgentTerminalRun,
@@ -55,7 +55,7 @@ type QueuedPrompt = {
 
 async function loadBootstrap(
   signal: AbortSignal,
-  targetId: AgentTargetId,
+  targetId: AgentId,
   apply: (
     bootstrap: Awaited<ReturnType<typeof readAgentBootstrap>> | undefined
   ) => void
@@ -75,7 +75,7 @@ async function loadBootstrap(
 async function loadSessionData(
   sessionId: string,
   signal: AbortSignal,
-  targetId: AgentTargetId,
+  targetId: AgentId,
   apply: (
     result:
       | {
@@ -109,7 +109,7 @@ export function useAgentConversation({
   enableTerminal?: boolean;
   initialSessionId?: string | undefined;
   onSessionResolved?: ((sessionId: string) => void) | undefined;
-  targetId?: AgentTargetId;
+  targetId?: AgentId;
 } = {}) {
   const [draft, setDraft] = useState("");
   const [runtime, setRuntime] = useState<AgentBootstrap>();
@@ -827,10 +827,7 @@ function terminalCommandMatches(
   );
 }
 
-async function cancelTerminalBestEffort(
-  requestId: string,
-  targetId: AgentTargetId
-) {
+async function cancelTerminalBestEffort(requestId: string, targetId: AgentId) {
   try {
     await cancelAgentTerminal(requestId, targetId);
   } catch {
@@ -849,7 +846,7 @@ async function pollPendingInteraction({
   isFinished: () => boolean;
   requestId: string;
   signal: AbortSignal;
-  targetId: AgentTargetId;
+  targetId: AgentId;
 }) {
   while (!(signal.aborted || isFinished())) {
     try {

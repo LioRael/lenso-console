@@ -8,6 +8,11 @@ import { Boxes } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
+import { useAgentIdentity } from "../agent/agent-identity-context";
+import {
+  AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
+  type AgentIdentity,
+} from "../agent/agent-runtime";
 import { PluginInspector } from "./plugin-inspector";
 import {
   generationStatusPresentation,
@@ -191,17 +196,37 @@ const styles = stylex.create({
 });
 
 export function PluginWorkbenchPage() {
-  const workbench = usePluginWorkbench();
+  const { selectedAgent } = useAgentIdentity();
+  return (
+    <AgentPluginWorkbench
+      key={selectedAgent.id}
+      selectedAgent={selectedAgent}
+    />
+  );
+}
+
+function AgentPluginWorkbench({
+  selectedAgent,
+}: {
+  selectedAgent: AgentIdentity;
+}) {
+  const configurationAvailable = selectedAgent.capabilities.includes(
+    AGENT_PLUGIN_CONFIGURATION_CAPABILITY
+  );
+  const workbench = usePluginWorkbench(
+    selectedAgent.id,
+    configurationAvailable
+  );
   const plugins = workbench.data?.items ?? EMPTY_PLUGIN_ITEMS;
   const inventory = workbench.data?.inventory;
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  useEffect(() => {
-    setSelectedKey((current) =>
-      reconcilePluginSelectionKey(current, workbench.data ? plugins : undefined)
-    );
-  }, [plugins, workbench.data]);
+  const reconciledSelectedKey = reconcilePluginSelectionKey(
+    selectedKey,
+    workbench.data ? plugins : undefined
+  );
   const selected =
-    plugins.find((plugin) => pluginKey(plugin) === selectedKey) ?? plugins[0];
+    plugins.find((plugin) => pluginKey(plugin) === reconciledSelectedKey) ??
+    plugins[0];
   const configurationDraftStore = usePluginConfigurationDraftStore();
   useEffect(() => {
     if (!workbench.data) {
@@ -211,7 +236,7 @@ export function PluginWorkbenchPage() {
       new Set(workbench.data.items.map(pluginKey))
     );
   }, [configurationDraftStore, workbench.data]);
-  const mutation = usePluginMutation(inventory?.streamId);
+  const mutation = usePluginMutation(selectedAgent.id, inventory?.streamId);
   const generation = inventory
     ? generationStatusPresentation({
         inventory,
@@ -271,7 +296,10 @@ export function PluginWorkbenchPage() {
                 </output>
               ) : null}
               <InstallPluginDialog
-                disabled={!workbench.authoringEnabled}
+                disabled={
+                  !workbench.authoringEnabled ||
+                  selectedAgent.role !== "console"
+                }
                 error={
                   mutation.variables?.type === "install" &&
                   mutation.error instanceof Error
@@ -303,6 +331,11 @@ export function PluginWorkbenchPage() {
         <WorkbenchState
           description="Reading the active App configuration."
           title="Loading Plugins"
+        />
+      ) : workbench.configurationAvailable === false ? (
+        <WorkbenchState
+          description={`${selectedAgent.label} does not provide ${AGENT_PLUGIN_CONFIGURATION_CAPABILITY}, so Console cannot read or change its Plugin configuration.`}
+          title="Plugin configuration unavailable"
         />
       ) : workbench.isError ? (
         <WorkbenchState
@@ -407,6 +440,7 @@ export function PluginWorkbenchPage() {
           >
             {selected && inventory && workbench.data ? (
               <PluginInspector
+                agentId={selectedAgent.id}
                 authoringEnabled={workbench.authoringEnabled}
                 configurationDraftStore={configurationDraftStore}
                 inventory={inventory}
@@ -414,6 +448,7 @@ export function PluginWorkbenchPage() {
                 management={workbench.data.management}
                 mutation={mutation}
                 plugin={selected}
+                selectionAuthoringEnabled={selectedAgent.role === "console"}
               />
             ) : null}
           </aside>
