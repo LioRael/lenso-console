@@ -728,20 +728,67 @@ mod tests {
     use super::*;
     use lenso_agent_host::{AgentHost, Profile, WebSurface};
 
-    fn configure_test_codex_catalog(root: &Path) {
+    fn configure_test_codex_catalog(root: &Path, base_url: &str) {
         std::fs::create_dir_all(root).unwrap();
+        let credentials = root.join("auth.json");
         std::fs::write(
-            root.join("auth.json"),
+            &credentials,
             r#"{"openai-codex":{"type":"oauth","access":"ci-access","refresh":"ci-refresh","accountId":"ci-account","expires":4102444800000}}"#,
         )
         .unwrap();
-        let snapshot = root.join("runtime/model-catalog/effective");
-        std::fs::create_dir_all(&snapshot).unwrap();
+        let auth = root.join("plugins/lenso.agent.auth.openai-codex");
+        std::fs::create_dir_all(&auth).unwrap();
         std::fs::write(
-            snapshot.join("openai-codex-direct.json"),
-            r#"{"schema":"lenso.agent.model-catalog-generation-snapshot.v1","source_key":"sha256:8046d6f4ab67e9f091109d9214fa35c992c956f201a599d46325c9198eb0b93c","fetched_at_unix_seconds":1,"revision":"ci-fixture","response":{"models":[{"slug":"gpt-5.6-luna","display_name":"CI Fixture","default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"medium","description":"Balanced"}],"visibility":"list","additional_speed_tiers":[],"service_tiers":[],"default_service_tier":null,"supports_parallel_tool_calls":true,"context_window":272000,"max_context_window":null,"effective_context_window_percent":95,"comp_hash":null,"input_modalities":["text"]}]}}"#,
+            auth.join("auth.toml"),
+            format!(
+                "issuer = \"https://auth.openai.com\"\nprofile = \"default\"\ncredential_file = {:?}\nrefresh_margin_seconds = 60\n",
+                credentials.display().to_string()
+            ),
         )
         .unwrap();
+        let model = root.join("plugins/lenso.agent.model.openai-codex-direct");
+        std::fs::create_dir_all(&model).unwrap();
+        std::fs::write(
+            model.join("model.toml"),
+            format!(
+                "base_url = {base_url:?}\nmodel = \"gpt-5.6-luna\"\nreasoning_effort = \"medium\"\nmax_event_bytes = 1048576\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    async fn start_test_codex_catalog() -> (String, tokio::task::JoinHandle<()>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                Router::new().route(
+                    "/codex/models",
+                    get(|| async {
+                        Json(serde_json::json!({
+                            "models": [{
+                                "slug": "gpt-5.6-luna",
+                                "display_name": "CI Fixture",
+                                "default_reasoning_level": "medium",
+                                "supported_reasoning_levels": [{
+                                    "effort": "medium",
+                                    "description": "Balanced"
+                                }],
+                                "visibility": "list",
+                                "supports_parallel_tool_calls": true,
+                                "context_window": 272_000,
+                                "effective_context_window_percent": 95,
+                                "input_modalities": ["text"]
+                            }]
+                        }))
+                    }),
+                ),
+            )
+            .await
+            .unwrap();
+        });
+        (format!("http://{address}"), server)
     }
 
     #[test]
@@ -1061,8 +1108,9 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn selected_console_plugin_activates_and_removal_restores_the_non_console_app() {
         let root = tempfile::tempdir().unwrap();
-        configure_test_codex_catalog(root.path());
-        configure_test_codex_catalog(&root.path().join("console-agent"));
+        let (catalog_url, catalog_server) = start_test_codex_catalog().await;
+        configure_test_codex_catalog(root.path(), &catalog_url);
+        configure_test_codex_catalog(&root.path().join("console-agent"), &catalog_url);
         let web_root = root.path().join("console-web");
         std::fs::create_dir_all(&web_root).unwrap();
         std::fs::write(
@@ -1141,5 +1189,6 @@ mod tests {
                 app.shutdown().await.unwrap();
             })
             .await;
+        catalog_server.abort();
     }
 }
