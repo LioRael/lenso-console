@@ -20,24 +20,30 @@ import {
   groupAgentSessions,
   relativeAgentSessionAge,
 } from "./agent-history-menu-filter";
-import { listAgentSessions, type AgentSessionSummary } from "./agent-runtime";
-import { useAgentTarget } from "./agent-target-context";
+import {
+  listAgentSessions,
+  type AgentId,
+  type AgentSessionSummary,
+} from "./agent-runtime";
 
 export function AgentContextNavigation({
+  agentId,
+  agentLabel,
   currentSessionId,
   onNavigate,
   onRequestClose,
 }: {
+  agentId: AgentId;
+  agentLabel: string;
   currentSessionId?: string | undefined;
   onNavigate: () => void;
   onRequestClose: () => void;
 }) {
   const navigate = useNavigate();
-  const { selectedTarget } = useAgentTarget();
   const [query, setQuery] = useState("");
   const { data: sessions = [], isPending: loading } = useQuery({
-    queryFn: ({ signal }) => listAgentSessions(signal, selectedTarget.id),
-    queryKey: ["agent-history", selectedTarget.id],
+    queryFn: ({ signal }) => listAgentSessions(signal, agentId),
+    queryKey: ["agent-history", agentId],
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);
@@ -47,17 +53,20 @@ export function AgentContextNavigation({
     query,
     sessionCount: visibleSessions.length,
   });
-  const goTo = (to: "/") => {
+  const openNewChat = () => {
     onNavigate();
-    navigate({ to });
+    navigate({
+      params: { agentId, chatId: "new-task" },
+      to: "/agent/$agentId/$chatId",
+    });
   };
 
   return (
     <>
-      <ContextNavigationHeader title="Agent">
+      <ContextNavigationHeader title={agentLabel}>
         <IconButton
           aria-label="New chat"
-          onClick={() => goTo("/")}
+          onClick={openNewChat}
           size="default"
           variant="ghost"
         >
@@ -85,7 +94,7 @@ export function AgentContextNavigation({
             <Sidebar.MenuItem>
               <ContextNavigationItem
                 icon={<MessageSquarePlus size={14} strokeWidth={1.7} />}
-                onClick={() => goTo("/")}
+                onClick={openNewChat}
                 selected={currentSessionId === undefined}
               >
                 New chat
@@ -94,12 +103,14 @@ export function AgentContextNavigation({
           </Sidebar.Menu>
         </div>
         <SessionSection
+          agentId={agentId}
           currentSessionId={currentSessionId}
           label="Today"
           onNavigate={onNavigate}
           sessions={today}
         />
         <SessionSection
+          agentId={agentId}
           currentSessionId={currentSessionId}
           label="Earlier"
           onNavigate={onNavigate}
@@ -115,11 +126,13 @@ export function AgentContextNavigation({
 }
 
 function SessionSection({
+  agentId,
   currentSessionId,
   label,
   onNavigate,
   sessions,
 }: {
+  agentId: AgentId;
   currentSessionId: string | undefined;
   label: string;
   onNavigate: () => void;
@@ -143,8 +156,8 @@ function SessionSection({
               onClick={() => {
                 onNavigate();
                 navigate({
-                  params: { chatId: session.sessionId },
-                  to: "/agent/$chatId",
+                  params: { agentId, chatId: session.sessionId },
+                  to: "/agent/$agentId/$chatId",
                 });
               }}
               selected={session.sessionId === currentSessionId}

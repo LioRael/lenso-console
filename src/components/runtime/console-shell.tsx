@@ -17,6 +17,7 @@ import { useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
+import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
 import { shellStyles } from "./console-shell.stylex";
 import {
@@ -32,12 +33,16 @@ type ConsoleArea = "agent" | "settings" | "system";
 export function ConsoleShell({ children }: PropsWithChildren) {
   const appearance = useConsoleAppearance();
   const navigate = useNavigate();
+  const { agents, selectedAgent } = useAgentIdentity();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
   const currentArea = consoleAreaFromPath(currentPath);
-  const currentAgentSessionId = agentSessionIdFromPath(currentPath);
+  const currentAgentLocation = agentLocationFromPath(currentPath);
+  const activeAgent =
+    agents.find((agent) => agent.id === currentAgentLocation.agentId) ??
+    selectedAgent;
 
   return (
     <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
@@ -89,7 +94,9 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                 />
               ) : (
                 <AgentContextNavigation
-                  currentSessionId={currentAgentSessionId}
+                  agentId={activeAgent.id}
+                  agentLabel={activeAgent.label}
+                  currentSessionId={currentAgentLocation.sessionId}
                   onNavigate={() => setMobileNavigationOpen(false)}
                   onRequestClose={() => setMobileNavigationOpen(false)}
                 />
@@ -114,15 +121,11 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           {...stylex.props(shellStyles.utilities)}
         >
           <AgentQuickPanel
-            onOpenFullPage={(sessionId) => {
-              if (sessionId) {
-                navigate({
-                  params: { chatId: sessionId },
-                  to: "/agent/$chatId",
-                });
-                return;
-              }
-              navigate({ to: "/" });
+            onOpenFullPage={(agentId, sessionId) => {
+              navigate({
+                params: { agentId, chatId: sessionId ?? "new-task" },
+                to: "/agent/$agentId/$chatId",
+              });
             }}
           />
         </footer>
@@ -237,9 +240,22 @@ function PrimaryRail({
   );
 }
 
-function agentSessionIdFromPath(path: string) {
-  const match = /^\/agent\/([^/]+)$/u.exec(path);
-  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+function agentLocationFromPath(path: string) {
+  const qualified = /^\/agent\/([^/]+)\/([^/]+)$/u.exec(path);
+  if (qualified?.[1] && qualified[2]) {
+    return {
+      agentId: decodeURIComponent(qualified[1]),
+      sessionId:
+        qualified[2] === "new-task"
+          ? undefined
+          : decodeURIComponent(qualified[2]),
+    };
+  }
+  const legacy = /^\/agent\/([^/]+)$/u.exec(path);
+  return {
+    agentId: undefined,
+    sessionId: legacy?.[1] ? decodeURIComponent(legacy[1]) : undefined,
+  };
 }
 
 function consoleAreaFromPath(path: string): ConsoleArea {

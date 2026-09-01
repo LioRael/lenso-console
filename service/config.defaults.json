@@ -1,8 +1,10 @@
 {
   "address": "127.0.0.1:3030",
   "agent_home": ".lenso/console/agent",
+  "agent_configuration_store": ".lenso/console/agent-configuration.sqlite3",
   "allowed_tools": [],
-  "connected_agent_label": "Connected Harness",
+  "connected_agent_label": "Lenso Agent",
+  "connected_agent_plugin_configuration": false,
   "connected_agent_url": "",
   "managed_app_root": ".",
   "web_root": "console-web"

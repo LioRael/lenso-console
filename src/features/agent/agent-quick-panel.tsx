@@ -21,6 +21,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
+import { useAgentIdentity } from "./agent-identity-context";
 import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
@@ -30,7 +31,6 @@ import agentPointerGradient from "./agent-pointer-gradient.svg";
 import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
 import type { AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
-import { useAgentTarget } from "./agent-target-context";
 import { useAgentConversation } from "./use-agent-conversation";
 
 const suggestions = [
@@ -55,10 +55,10 @@ function chatTitleFor(prompt: string) {
 export function AgentQuickPanel({
   onOpenFullPage,
 }: {
-  onOpenFullPage: (sessionId?: string) => void;
+  onOpenFullPage: (agentId: string, sessionId?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { selectedTarget } = useAgentTarget();
+  const { selectedAgent } = useAgentIdentity();
   const {
     answerInteraction,
     beginEditing: beginEditingTurn,
@@ -77,7 +77,7 @@ export function AgentQuickPanel({
     submit,
     turns,
     visibleTurns,
-  } = useAgentConversation({ targetId: selectedTarget.id });
+  } = useAgentConversation({ targetId: selectedAgent.id });
   const conversationRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -167,7 +167,7 @@ export function AgentQuickPanel({
                   aria-label="Open full page"
                   onClick={() => {
                     setOpen(false);
-                    onOpenFullPage(sessionId);
+                    onOpenFullPage(selectedAgent.id, sessionId);
                   }}
                   size="default"
                   variant="ghost"

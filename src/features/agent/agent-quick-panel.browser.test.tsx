@@ -5,8 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentQuickPanel } from "./agent-quick-panel";
-import { AgentTargetProvider } from "./agent-target-context";
 import { useAgentConversation } from "./use-agent-conversation";
 
 let root: Root | undefined;
@@ -111,6 +111,26 @@ describe("Agent quick panel", () => {
       .toBe(true);
     expect(turnRequests(fetchMock)).toHaveLength(1);
   });
+
+  test("opens the full App Agent identity discovered from the catalog", async () => {
+    const fetchMock = agentFetch("", true);
+    const onOpenFullPage = vi.fn();
+    await renderPanel(fetchMock, onOpenFullPage);
+
+    await expect
+      .poll(() =>
+        fetchMock.mock.calls.some(([input]) =>
+          String(input instanceof Request ? input.url : input).endsWith(
+            "/api/console/v1/agents/app/bootstrap"
+          )
+        )
+      )
+      .toBe(true);
+    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Open full page" }));
+
+    expect(onOpenFullPage).toHaveBeenCalledWith("app", undefined);
+  });
 });
 
 describe("Agent prompt queue", () => {
@@ -133,7 +153,11 @@ describe("Agent prompt queue", () => {
   });
 });
 
-async function renderPanel(fetchMock: ReturnType<typeof agentFetch>) {
+async function renderPanel(
+  fetchMock: ReturnType<typeof agentFetch>,
+  onOpenFullPage: (agentId: string, sessionId?: string) => void = () =>
+    undefined
+) {
   vi.stubGlobal("fetch", fetchMock);
   if (!container) {
     throw new Error("Browser test container is missing");
@@ -146,11 +170,11 @@ async function renderPanel(fetchMock: ReturnType<typeof agentFetch>) {
   flushSync(() => {
     root?.render(
       <QueryClientProvider client={client}>
-        <AgentTargetProvider>
+        <AgentIdentityProvider>
           <ThemeScope>
-            <AgentQuickPanel onOpenFullPage={() => undefined} />
+            <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
           </ThemeScope>
-        </AgentTargetProvider>
+        </AgentIdentityProvider>
       </QueryClientProvider>
     );
   });
@@ -208,10 +232,35 @@ function nextFrame() {
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-function agentFetch(answer = "") {
+function agentFetch(answer = "", includeAppAgent = false) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
-    if (url.endsWith("/api/console/v1/agent/bootstrap")) {
+    if (url.endsWith("/api/console/v1/agents")) {
+      return Response.json({
+        agents: [
+          {
+            capabilities: ["lenso.agent.plugin-configuration@1"],
+            id: "console",
+            label: "Console Agent",
+            role: "console",
+          },
+          ...(includeAppAgent
+            ? [
+                {
+                  capabilities: [],
+                  id: "app",
+                  label: "Lenso Agent",
+                  role: "app",
+                },
+              ]
+            : []),
+        ],
+      });
+    }
+    const bootstrapPath = includeAppAgent
+      ? "/api/console/v1/agents/app/bootstrap"
+      : "/api/console/v1/agent/bootstrap";
+    if (url.endsWith(bootstrapPath)) {
       return Response.json({
         capabilities: {
           cancel: true,

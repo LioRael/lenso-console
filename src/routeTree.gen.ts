@@ -17,6 +17,7 @@ import { Route as AgentChatIdRouteImport } from './routes/agent.$chatId'
 import { Route as SettingsAgentRouteImport } from './routes/settings_.agent'
 import { Route as SettingsAiRouteImport } from './routes/settings_.ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings_.appearance'
+import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
 import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
 import { Route as SettingsAgentSkillsNewRouteImport } from './routes/settings_.agent_.skills.new'
 
@@ -60,6 +61,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/settings/appearance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentAgentIdChatIdRoute = AgentAgentIdChatIdRouteImport.update({
+  id: '/agent/$agentId/$chatId',
+  path: '/agent/$agentId/$chatId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsAiAgentRoute = SettingsAiAgentRouteImport.update({
   id: '/settings_/ai_/agent',
   path: '/settings/ai/agent',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/settings/agent': typeof SettingsAgentRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/settings/agent': typeof SettingsAgentRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/settings_/agent': typeof SettingsAgentRoute
   '/settings_/ai': typeof SettingsAiRoute
   '/settings_/appearance': typeof SettingsAppearanceRoute
+  '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings_/ai_/agent': typeof SettingsAiAgentRoute
   '/settings_/agent_/skills/new': typeof SettingsAgentSkillsNewRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/settings/agent'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
     | '/settings/agent/skills/new'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/settings/agent'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
     | '/settings/agent/skills/new'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/settings_/agent'
     | '/settings_/ai'
     | '/settings_/appearance'
+    | '/agent/$agentId/$chatId'
     | '/settings_/ai_/agent'
     | '/settings_/agent_/skills/new'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   SettingsAgentRoute: typeof SettingsAgentRoute
   SettingsAiRoute: typeof SettingsAiRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
   SettingsAiAgentRoute: typeof SettingsAiAgentRoute
   SettingsAgentSkillsNewRoute: typeof SettingsAgentSkillsNewRoute
 }
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agent/$agentId/$chatId': {
+      id: '/agent/$agentId/$chatId'
+      path: '/agent/$agentId/$chatId'
+      fullPath: '/agent/$agentId/$chatId'
+      preLoaderRoute: typeof AgentAgentIdChatIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings_/ai_/agent': {
       id: '/settings_/ai_/agent'
       path: '/settings/ai/agent'
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsAgentRoute: SettingsAgentRoute,
   SettingsAiRoute: SettingsAiRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
+  AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
   SettingsAiAgentRoute: SettingsAiAgentRoute,
   SettingsAgentSkillsNewRoute: SettingsAgentSkillsNewRoute,
 }

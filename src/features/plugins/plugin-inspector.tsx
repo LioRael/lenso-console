@@ -221,22 +221,29 @@ const styles = stylex.create({
 });
 
 export function PluginInspector({
+  agentId,
   authoringEnabled,
   configurationDraftStore,
   inventory,
   management: pluginManagement,
   mutation,
   plugin,
+  selectionAuthoringEnabled,
 }: {
+  agentId: string;
   authoringEnabled: boolean;
   configurationDraftStore: PluginConfigurationDraftStore;
   inventory: PluginInventory;
   management: PluginManagement;
   mutation: ReturnType<typeof usePluginMutation>;
   plugin: PluginWorkbenchItem;
+  selectionAuthoringEnabled: boolean;
 }) {
-  const proposal = usePluginConfigurationProposal(inventory.streamId);
-  const rollback = usePluginConfigurationRollbackProposal(inventory.streamId);
+  const proposal = usePluginConfigurationProposal(agentId, inventory.streamId);
+  const rollback = usePluginConfigurationRollbackProposal(
+    agentId,
+    inventory.streamId
+  );
   const previousStreamId = useRef(inventory.streamId);
   const resetProposal = proposal.reset;
   const resetRollback = rollback.reset;
@@ -314,7 +321,12 @@ export function PluginInspector({
             <Switch.Root
               aria-label={`Include ${plugin.packageId}/${plugin.instanceKey} in the desired Plan`}
               checked={desiredEnabled}
-              disabled={!authoringEnabled || !disableable || mutation.isPending}
+              disabled={
+                !authoringEnabled ||
+                !selectionAuthoringEnabled ||
+                !disableable ||
+                mutation.isPending
+              }
               onCheckedChange={(checked) => {
                 proposal.reset();
                 rollback.reset();
@@ -337,6 +349,7 @@ export function PluginInspector({
 
       {management ? (
         <PluginConfigurationSection
+          agentId={agentId}
           authoringEnabled={authoringEnabled}
           draftStore={configurationDraftStore}
           inventory={inventory}
@@ -424,7 +437,7 @@ export function PluginInspector({
       {plugin.rootSupplied && management ? (
         <DetailSection title="Plugin Root">
           <RemovePluginDialog
-            disabled={!authoringEnabled}
+            disabled={!authoringEnabled || !selectionAuthoringEnabled}
             error={
               mutation.variables?.type === "remove" &&
               mutation.variables.packageId === plugin.packageId &&
@@ -452,6 +465,7 @@ export function PluginInspector({
 }
 
 function PluginConfigurationSection({
+  agentId,
   authoringEnabled,
   draftStore,
   inventory,
@@ -463,6 +477,7 @@ function PluginConfigurationSection({
   rollback,
   restoreVisible,
 }: {
+  agentId: string;
   authoringEnabled: boolean;
   draftStore: PluginConfigurationDraftStore;
   inventory: PluginInventory;
@@ -485,6 +500,7 @@ function PluginConfigurationSection({
     pluginManagement.configurationAuthority.publicationHistory;
   const [historyOpen, setHistoryOpen] = useState(false);
   const history = usePluginConfigurationHistory({
+    agentId,
     enabled: pluginHistoryQueryEnabled(
       historyAvailable,
       historyOpen,
@@ -1058,8 +1074,11 @@ function configurationAuthorityLabel(
   if (authority.kind === "local_plugin_root") {
     return "Local Plugin Root";
   }
-  return authority.kind === "sqlite_configuration_store"
-    ? "Managed configuration"
+  if (authority.kind === "sqlite_configuration_store") {
+    return "Managed configuration";
+  }
+  return authority.kind === "remote_configuration_service"
+    ? "Remote configuration"
     : authority.kind;
 }
 

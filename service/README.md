@@ -8,17 +8,48 @@ or recovery subsystems.
 
 ## Start
 
-Start a standard Harness and connect Console directly to it:
+Start an Agent App together with its Console surface:
 
 ```sh
 pnpm install
 pnpm agent:web
 ```
 
-This starts the Harness Agent Web surface on `127.0.0.1:8787` and the Console
-surface on `127.0.0.1:3030`. Console still owns a separate private Agent. Use
-the selector in the Agent page's upper-right corner to switch between
-`Connected Harness` and `Console Agent`.
+This starts the App Agent on `127.0.0.1:8787` and the Console surface on
+`127.0.0.1:3030`. Console still owns a separate private Agent. The Agent page
+discovers both full identities and keeps their Sessions, profiles, memory,
+tasks, trajectory, and Tools independently scoped.
+
+The reference App Agent Host defaults to its durable SQLite authority. Select
+one concrete authority before `pnpm agent:web`:
+
+```sh
+# Built-in local Plugin Root authority (no publication history).
+LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY=local_plugin_root pnpm agent:web
+
+# Durable SQLite authority; the database defaults inside LENSO_AGENT_HOME.
+LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY=sqlite_configuration_store \
+LENSO_AGENT_PLUGIN_CONFIGURATION_STORE=/absolute/path/plugin-configuration.sqlite3 \
+pnpm agent:web
+
+# Remote authority; the token is read only by the App Agent Host.
+LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY=remote_configuration_service \
+LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_URL=https://configuration.example.com \
+LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_APP=my-agent \
+LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_ENVIRONMENT=production \
+LENSO_PLUGIN_CONFIGURATION_REMOTE_TOKEN=replace-me \
+pnpm agent:web
+```
+
+The selector is exclusive: settings belonging to a non-selected authority are
+rejected instead of being ignored. This prevents an ambient remote token or
+stale database path from silently changing which authority owns desired state.
+
+An embedding Rust Host may instead inject its own
+`PluginConfigurationAuthority` and optional
+`PluginConfigurationHistoryAuthority` into its Agent Web surface before
+contributing `lenso.agent.plugin-configuration@1` to Console. Custom authority
+selection remains Host code rather than serialized Console configuration.
 
 Start only the standalone Console and its private Agent:
 
@@ -44,12 +75,14 @@ The target App selects and configures the ordinary Plugin instance at
 
 ```toml
 address = "127.0.0.1:3030"
+agent_configuration_store = ".lenso/console/agent-configuration.sqlite3"
 agent_home = ".lenso/console/agent"
 allowed_tools = []
 managed_app_root = "."
 web_root = "console-web"
 connected_agent_url = "http://127.0.0.1:8787"
-connected_agent_label = "Connected Harness"
+connected_agent_label = "Lenso Agent"
+connected_agent_plugin_configuration = false
 ```
 
 Relative paths resolve from the App Host working directory. Activation binds
@@ -57,11 +90,17 @@ the listener and starts the restricted Console Agent before the Plugin reaches
 Ready; generation cancellation shuts down both. Removing or disabling this
 Plugin removes only the Console surface.
 
-`connected_agent_url` is optional (use an empty string to omit it), must be a
-clean loopback HTTP origin, and identifies an Agent Web surface already owned
-by the embedding Host. Console does not start a second target Harness. It
-forwards only bounded Agent data-plane routes and streams SSE responses; it
-does not forward `/control` routes.
+`connected_agent_url` is a compatibility configuration key for the optional
+App Agent Adapter. Use an empty string to omit it. The value must be a clean
+loopback HTTP origin and identifies an Agent Web surface already owned by the
+embedding Host. Console does not start another Agent process. It forwards
+bounded Agent data-plane routes and streams SSE responses. The embedding Host
+may set `connected_agent_plugin_configuration = true` only when that Agent Host
+provides Host-authorized durable Plugin configuration. Console then advertises
+`lenso.agent.plugin-configuration@1` and forwards only configuration
+management, proposal, publication, history, rollback, reset, and operation
+receipt routes. Install, selection, removal, and Tool-policy control remain
+blocked.
 
 The current generic `lenso run` binary does not yet link this native package.
 This slice defines the real Plugin and reference launcher; making it available
@@ -89,11 +128,25 @@ lenso app show --root <managed-app>
 lenso plugins list --root <managed-app>
 ```
 
-The same-origin Agent surface also authorizes Console Plugin Root mutations.
-Install, configuration, selection, and removal requests resolve the complete
-candidate App before changing files. Successful mutations return as accepted
-desired state; the Host then stages the candidate and switches routing only
-after its Generation reaches Ready.
+The same-origin Agent surface authorizes mutations only for the Console Agent's
+own Plugin Root. Install, configuration, selection, and removal requests resolve
+the complete candidate Agent App before changing files. Successful mutations
+return as accepted desired state; its Host then stages the candidate and
+switches routing only after its Generation reaches Ready.
+
+The Console Host selects `agent_configuration_store` as the persistent
+configuration authority for the Console Agent. Its SQLite database owns compare-and-swap
+revisions, reviewed proposals, publication history, rollback evidence, and
+crash recovery. Published desired state is still materialized atomically into
+the Agent's visible Plugin Root; the Shell is a client of this Host authority
+and never owns configuration files directly. The standalone launcher defaults
+the database to `~/.lenso/console/agent-configuration.sqlite3`.
+
+The separate `managed_app_root` remains the Host-selected target for future
+App-management capabilities. This slice does not expose its files or
+Generation to the Console Agent. Its configuration must be supplied through
+an explicit Host/Capability port; Console Agent membership does not grant that
+authority.
 
 The Console Agent admits no Tools by default. Set
 `LENSO_CONSOLE_AGENT_TOOLS` to a comma-separated list of exact Tool names only

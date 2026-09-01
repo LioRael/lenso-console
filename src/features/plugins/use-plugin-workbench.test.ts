@@ -61,12 +61,16 @@ describe("Plugin workbench query boundaries", () => {
     }
   );
 
-  it("partitions management and history caches by Host stream", () => {
-    expect(pluginManagementQueryKey("stream-1")).not.toEqual(
-      pluginManagementQueryKey("stream-2")
+  it("partitions management and history caches by Agent and Host stream", () => {
+    expect(pluginManagementQueryKey("console", "stream-1")).not.toEqual(
+      pluginManagementQueryKey("console", "stream-2")
+    );
+    expect(pluginManagementQueryKey("console", "stream-1")).not.toEqual(
+      pluginManagementQueryKey("support", "stream-1")
     );
     expect(
       pluginConfigurationHistoryQueryKey({
+        agentId: "console",
         instanceKey: "default",
         packageId: "example.echo",
         revision: "root",
@@ -75,6 +79,7 @@ describe("Plugin workbench query boundaries", () => {
       })
     ).not.toEqual(
       pluginConfigurationHistoryQueryKey({
+        agentId: "console",
         instanceKey: "default",
         packageId: "example.echo",
         revision: "root",
@@ -151,7 +156,7 @@ describe("Plugin workbench query boundaries", () => {
 
   it("refreshes publication history only after a configuration publication", () => {
     expect(
-      pluginConfigurationHistoryMutationPrefix({
+      pluginConfigurationHistoryMutationPrefix("console", {
         enabled: false,
         expectedStreamId: "stream-a",
         instanceKey: "default",
@@ -160,7 +165,7 @@ describe("Plugin workbench query boundaries", () => {
       })
     ).toBeNull();
     expect(
-      pluginConfigurationHistoryMutationPrefix({
+      pluginConfigurationHistoryMutationPrefix("console", {
         expectedRevision: "root-a",
         expectedSourceDigest: "source-a",
         expectedStreamId: "stream-a",
@@ -171,7 +176,7 @@ describe("Plugin workbench query boundaries", () => {
         type: "configure",
       })
     ).toEqual([
-      ...pluginWorkbenchQueryKey,
+      ...pluginWorkbenchQueryKey("console"),
       "configuration-history",
       "stream-a",
       "example.echo",

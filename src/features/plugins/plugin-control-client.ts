@@ -54,14 +54,16 @@ export type PluginMutation =
   | { expectedStreamId: string; packageId: string; type: "remove" };
 
 export async function executePluginMutation({
+  agentId = "console",
   mutation,
   onProgress,
   pollIntervalMs,
-  readOperation = readPluginOperation,
-  requestMutation = submitPluginMutation,
+  readOperation,
+  requestMutation,
   signal,
   timeoutMs,
 }: {
+  agentId?: string;
   mutation: PluginMutation;
   onProgress?: (operation: PluginOperation) => void;
   pollIntervalMs?: number;
@@ -76,12 +78,17 @@ export async function executePluginMutation({
   signal: AbortSignal;
   timeoutMs?: number;
 }) {
-  const receipt = await requestMutation(mutation, signal);
+  const receipt = requestMutation
+    ? await requestMutation(mutation, signal)
+    : await submitPluginMutation(mutation, signal, agentId);
   const operation = await waitForPluginOperation({
     initial: receipt.operation,
     ...(onProgress === undefined ? {} : { onProgress }),
     ...(pollIntervalMs === undefined ? {} : { pollIntervalMs }),
-    read: readOperation,
+    read:
+      readOperation ??
+      ((operationId, operationSignal) =>
+        readPluginOperation(operationId, operationSignal, agentId)),
     signal,
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
   });
@@ -93,10 +100,11 @@ export async function executePluginMutation({
 
 export async function readPluginInventory(
   after: string | undefined,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agentId = "console"
 ): Promise<PluginInventory> {
   const value = await httpClient
-    .get("api/console/v1/agent/plugins", {
+    .get(`${agentApiBase(agentId)}/plugins`, {
       ...(after ? { searchParams: { after } } : {}),
       ...(signal ? { signal } : {}),
     })
@@ -105,9 +113,14 @@ export async function readPluginInventory(
 }
 
 export async function readPluginManagement(
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agentId = "console"
 ): Promise<PluginManagement> {
-  const result = await readPluginManagementConditional(undefined, signal);
+  const result = await readPluginManagementConditional(
+    undefined,
+    signal,
+    agentId
+  );
   if (!result.management) {
     throw new TypeError(
       "Agent Host returned an unchanged Plugin management response without a cached value"
@@ -123,11 +136,12 @@ export type ConditionalPluginManagement = {
 
 export async function readPluginManagementConditional(
   ifNoneMatch: string | undefined,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agentId = "console"
 ): Promise<ConditionalPluginManagement> {
   try {
     const response = await httpClient.get(
-      "api/console/v1/agent/control/plugins",
+      `${agentApiBase(agentId)}/control/plugins`,
       {
         ...(ifNoneMatch ? { headers: { "If-None-Match": ifNoneMatch } } : {}),
         ...(signal ? { signal } : {}),
@@ -164,11 +178,12 @@ export async function readPluginConfigurationProposal(
     packageId: string;
     toml: string;
   },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agentId = "console"
 ): Promise<PluginConfigurationProposal> {
   const value = await httpClient
     .post(
-      `${pluginInstancePath(packageId, instanceKey)}/configuration/proposals`,
+      `${pluginInstancePath(agentId, packageId, instanceKey)}/configuration/proposals`,
       {
         json: {
           expectedRevision,
@@ -197,11 +212,12 @@ export async function readPluginConfigurationProposal(
 export async function readPluginConfigurationHistory(
   packageId: string,
   instanceKey: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agentId = "console"
 ): Promise<PluginConfigurationHistory> {
   const value = await httpClient
     .get(
-      `${pluginInstancePath(packageId, instanceKey)}/configuration/publications`,
+      `${pluginInstancePath(agentId, packageId, instanceKey)}/configuration/publications`,
       signal ? { signal } : {}
     )
     .json<unknown>();
@@ -230,11 +246,12 @@ export async function readPluginConfigurationRollbackProposal(
     packageId: string;
     publicationProposalDigest: string;
   },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  agentId = "console"
 ): Promise<PluginConfigurationRollbackProposal> {
   const value = await httpClient
     .post(
-      `${pluginInstancePath(packageId, instanceKey)}/configuration/rollback-proposals`,
+      `${pluginInstancePath(agentId, packageId, instanceKey)}/configuration/rollback-proposals`,
       {
         json: {
           expectedRevision,
@@ -263,12 +280,13 @@ export async function readPluginConfigurationRollbackProposal(
 
 export async function readPluginOperation(
   operationId: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  agentId = "console"
 ) {
   try {
     const value = await httpClient
       .get(
-        `api/console/v1/agent/control/plugin-operations/${encodeURIComponent(operationId)}`,
+        `${agentApiBase(agentId)}/control/plugin-operations/${encodeURIComponent(operationId)}`,
         { signal }
       )
       .json<unknown>();
@@ -292,11 +310,12 @@ export async function readPluginOperation(
 
 export async function submitPluginMutation(
   mutation: PluginMutation,
-  signal: AbortSignal
+  signal: AbortSignal,
+  agentId = "console"
 ) {
   if (mutation.type === "install") {
     return requestMutationReceipt(
-      httpClient.post("api/console/v1/agent/control/plugins/install", {
+      httpClient.post(`${agentApiBase(agentId)}/control/plugins/install`, {
         json: {
           bundlePath: mutation.bundlePath,
           expectedStreamId: mutation.expectedStreamId,
@@ -310,16 +329,19 @@ export async function submitPluginMutation(
   const packageId = encodeURIComponent(mutation.packageId);
   if (mutation.type === "remove") {
     return requestMutationReceipt(
-      httpClient.delete(`api/console/v1/agent/control/plugins/${packageId}`, {
-        json: { expectedStreamId: mutation.expectedStreamId },
-        retry: 0,
-        signal,
-      }),
+      httpClient.delete(
+        `${agentApiBase(agentId)}/control/plugins/${packageId}`,
+        {
+          json: { expectedStreamId: mutation.expectedStreamId },
+          retry: 0,
+          signal,
+        }
+      ),
       mutation.expectedStreamId
     );
   }
   const instanceKey = encodeURIComponent(mutation.instanceKey);
-  const instancePath = `api/console/v1/agent/control/plugins/${packageId}/${instanceKey}`;
+  const instancePath = `${agentApiBase(agentId)}/control/plugins/${packageId}/${instanceKey}`;
   if (mutation.type === "configure") {
     return requestDecodedMutation(
       httpClient.put(`${instancePath}/configuration`, {
@@ -565,8 +587,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object");
 }
 
-function pluginInstancePath(packageId: string, instanceKey: string): string {
-  return `api/console/v1/agent/control/plugins/${encodeURIComponent(
+function pluginInstancePath(
+  agentId: string,
+  packageId: string,
+  instanceKey: string
+): string {
+  return `${agentApiBase(agentId)}/control/plugins/${encodeURIComponent(
     packageId
   )}/${encodeURIComponent(instanceKey)}`;
+}
+
+function agentApiBase(agentId: string) {
+  return agentId === "console"
+    ? "api/console/v1/agent"
+    : `api/console/v1/agents/${encodeURIComponent(agentId)}`;
 }

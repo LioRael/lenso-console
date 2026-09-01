@@ -7,7 +7,7 @@ import {
   decodeAgentStreamEvent,
   cancelAgentTurn,
   listAgentSessions,
-  listAgentTargets,
+  listAgents,
   modelsForSelector,
   projectAgentSession,
   readAgentBootstrap,
@@ -377,7 +377,7 @@ describe("Agent runtime projection", () => {
     });
   });
 
-  it("discovers and routes an explicitly selected connected Harness", async () => {
+  it("discovers catalog Agents and routes one selected App Agent", async () => {
     const urls: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -386,12 +386,18 @@ describe("Agent runtime projection", () => {
         urls.push(url);
         if (url.endsWith("/api/console/v1/agents")) {
           return Response.json({
-            targets: [
-              { id: "console", kind: "console", label: "Console Agent" },
+            agents: [
               {
-                id: "connected",
-                kind: "connected",
-                label: "Current Harness",
+                capabilities: ["lenso.agent.plugin-configuration@1"],
+                id: "console",
+                label: "Console Agent",
+                role: "console",
+              },
+              {
+                capabilities: ["lenso.agent.plugin-configuration@1"],
+                id: "support-agent",
+                label: "Support Agent",
+                role: "app",
               },
             ],
           });
@@ -412,11 +418,47 @@ describe("Agent runtime projection", () => {
       })
     );
 
-    await expect(listAgentTargets()).resolves.toHaveLength(2);
+    await expect(listAgents()).resolves.toEqual([
+      {
+        capabilities: ["lenso.agent.plugin-configuration@1"],
+        id: "console",
+        label: "Console Agent",
+        role: "console",
+      },
+      {
+        capabilities: ["lenso.agent.plugin-configuration@1"],
+        id: "support-agent",
+        label: "Support Agent",
+        role: "app",
+      },
+    ]);
     await expect(
-      readAgentBootstrap(undefined, "connected")
+      readAgentBootstrap(undefined, "support-agent")
     ).resolves.toMatchObject({ profile: "coding" });
-    expect(urls[1]).toContain("/api/console/v1/agents/connected/bootstrap");
+    expect(urls[1]).toContain("/api/console/v1/agents/support-agent/bootstrap");
+  });
+
+  it("qualifies equal local Session identities by their owning Agent", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | RequestInfo) => {
+        urls.push(String(input));
+        return Response.json({
+          events: [],
+          revision: "1",
+          session_id: "same-session",
+        });
+      })
+    );
+
+    await readAgentSession("same-session", undefined, "console");
+    await readAgentSession("same-session", undefined, "support-agent");
+
+    expect(urls).toEqual([
+      "/api/console/v1/agent/sessions/same-session",
+      "/api/console/v1/agents/support-agent/sessions/same-session",
+    ]);
   });
 
   it("reads and revision-fences Agent Tool policy updates", async () => {

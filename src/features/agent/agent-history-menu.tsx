@@ -19,25 +19,27 @@ import {
   relativeAgentSessionAge,
 } from "./agent-history-menu-filter";
 import { agentHistoryMenuStyles as styles } from "./agent-history-menu.stylex";
+import { useAgentIdentity } from "./agent-identity-context";
 import {
   listAgentSessions,
   type AgentSessionSummary,
-  type AgentTargetId,
+  type AgentId,
 } from "./agent-runtime";
-import { useAgentTarget } from "./agent-target-context";
 
 export function AgentHistoryMenu({
+  agentId,
   children,
   currentSessionId,
   placement = "utility",
   showNewChat = true,
 }: {
+  agentId?: AgentId;
   children: ReactNode;
   currentSessionId?: string | undefined;
   placement?: "header" | "utility";
   showNewChat?: boolean;
 }) {
-  const { selectedTarget } = useAgentTarget();
+  const { selectedAgent } = useAgentIdentity();
   const headerPlacement = placement === "header";
   const menuId = useId();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -89,7 +91,7 @@ export function AgentHistoryMenu({
               query={query}
               refreshKey={refreshKey}
               showNewChat={showNewChat}
-              targetId={selectedTarget.id}
+              targetId={agentId ?? selectedAgent.id}
             />
           </Menu.Popup>
         </Menu.Positioner>
@@ -109,7 +111,7 @@ export function AgentHistoryItems({
   query?: string;
   refreshKey?: number;
   showNewChat?: boolean;
-  targetId?: AgentTargetId;
+  targetId?: AgentId;
 }) {
   const navigate = useNavigate();
   const { data: sessions = [], isPending: loading } = useQuery({
@@ -130,7 +132,12 @@ export function AgentHistoryItems({
       {showNewChat ? (
         <>
           <Menu.Item
-            onClick={() => navigate({ to: "/" })}
+            onClick={() =>
+              navigate({
+                params: { agentId: targetId, chatId: "new-task" },
+                to: "/agent/$agentId/$chatId",
+              })
+            }
             xstyle={[styles.item, styles.newChat]}
           >
             <Menu.Leading>
@@ -143,6 +150,7 @@ export function AgentHistoryItems({
       ) : null}
       {today.length > 0 ? (
         <HistorySection
+          agentId={targetId}
           currentSessionId={currentSessionId}
           label="Today"
           sessions={today}
@@ -152,6 +160,7 @@ export function AgentHistoryItems({
         <>
           {today.length > 0 ? <Menu.Separator /> : null}
           <HistorySection
+            agentId={targetId}
             currentSessionId={currentSessionId}
             label="Earlier"
             sessions={earlier}
@@ -180,10 +189,12 @@ function focusFirstHistoryItem(event: KeyboardEvent<HTMLInputElement>) {
 }
 
 function HistorySection({
+  agentId,
   currentSessionId,
   label,
   sessions,
 }: {
+  agentId: AgentId;
   currentSessionId: string | undefined;
   label: string;
   sessions: AgentSessionSummary[];
@@ -200,8 +211,8 @@ function HistorySection({
             key={session.sessionId}
             onClick={() =>
               navigate({
-                params: { chatId: session.sessionId },
-                to: "/agent/$chatId",
+                params: { agentId, chatId: session.sessionId },
+                to: "/agent/$agentId/$chatId",
               })
             }
             xstyle={styles.item}
