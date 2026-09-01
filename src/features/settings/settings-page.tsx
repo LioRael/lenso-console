@@ -1,5 +1,6 @@
 import { Select } from "@lenso/ui/select";
 import { SettingsRow as LensoSettingsRow } from "@lenso/ui/settings-row";
+import * as stylex from "@stylexjs/stylex";
 import { useRef, type ComponentProps, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
@@ -9,8 +10,7 @@ import {
 } from "../../app/console-locale";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
-
-import styles from "./settings-page.module.css";
+import { settingsPageStyles as styles } from "./settings-page.stylex";
 
 type GeneralSettings = {
   timeZone: string;
@@ -37,23 +37,25 @@ export function SettingsPage() {
   );
 
   return (
-    <main className={styles.page}>
-      <div className={styles.column}>
-        <h1>{zh ? "偏好设置" : "Preferences"}</h1>
+    <main {...stylex.props(styles.page)}>
+      <div {...stylex.props(styles.column)}>
+        <h1 {...stylex.props(styles.pageTitle)}>
+          {zh ? "偏好设置" : "Preferences"}
+        </h1>
 
         <SettingsSection.Root
           aria-labelledby="general-settings-title"
-          className={styles.section}
+          xstyle={styles.section}
         >
           <SettingsSection.Header>
             <SettingsSection.Title
-              className={styles.sectionTitle}
               id="general-settings-title"
+              xstyle={styles.sectionTitle}
             >
               {zh ? "通用" : "General"}
             </SettingsSection.Title>
           </SettingsSection.Header>
-          <SettingsSection.Group className={styles.group}>
+          <SettingsSection.Group xstyle={styles.group}>
             <SettingsRow
               description={
                 zh
@@ -114,17 +116,17 @@ function AppearanceSettings({
   return (
     <SettingsSection.Root
       aria-labelledby="appearance-settings-title"
-      className={styles.section}
+      xstyle={[styles.section, styles.sectionFollowing]}
     >
       <SettingsSection.Header>
         <SettingsSection.Title
-          className={styles.sectionTitle}
           id="appearance-settings-title"
+          xstyle={styles.sectionTitle}
         >
           {zh ? "界面与主题" : "Interface and theme"}
         </SettingsSection.Title>
       </SettingsSection.Header>
-      <SettingsSection.Group className={styles.group}>
+      <SettingsSection.Group xstyle={styles.group}>
         <SettingsRow
           description={
             zh
@@ -154,7 +156,9 @@ function AppearanceSettings({
 function SettingsRow({
   children,
   description,
+  disabled,
   title,
+  xstyle,
   ...props
 }: PropsWithChildren<
   Omit<ComponentProps<typeof LensoSettingsRow.Root>, "children"> & {
@@ -182,16 +186,22 @@ function SettingsRow({
   };
 
   return (
-    <LensoSettingsRow.Root className={styles.row} ref={rowRef} {...props}>
+    <LensoSettingsRow.Root
+      ref={rowRef}
+      {...props}
+      {...(disabled === undefined ? {} : { disabled })}
+      xstyle={[styles.row, disabled && styles.rowDisabled, xstyle]}
+    >
       <LensoSettingsRow.Copy>
         <LensoSettingsRow.Title
           onClick={() => getControl()?.click()}
           onPointerEnter={() => setControlHover(true)}
           onPointerLeave={() => setControlHover(false)}
+          xstyle={styles.rowTitle}
         >
           {title}
         </LensoSettingsRow.Title>
-        <LensoSettingsRow.Description>
+        <LensoSettingsRow.Description xstyle={styles.rowDescription}>
           {description}
         </LensoSettingsRow.Description>
       </LensoSettingsRow.Copy>
@@ -223,7 +233,7 @@ function PreferenceSelect({
       }}
       value={value}
     >
-      <Select.Trigger aria-label={ariaLabel} className={styles.selectTrigger}>
+      <Select.Trigger aria-label={ariaLabel} xstyle={styles.selectTrigger}>
         <Select.Value>
           {options.find((option) => option.value === value)?.label ?? value}
         </Select.Value>

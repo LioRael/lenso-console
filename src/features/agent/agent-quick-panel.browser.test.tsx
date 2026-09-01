@@ -31,6 +31,25 @@ afterEach(() => {
 });
 
 describe("Agent quick panel", () => {
+  test("keeps product hover feedback after the Lenso xstyle boundary", async () => {
+    const fetchMock = agentFetch();
+    await renderPanel(fetchMock);
+
+    const trigger = page.getByRole("button", { name: "Agent" });
+    const triggerElement = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Agent"]'
+    );
+    if (!triggerElement) {
+      throw new Error("Agent trigger was not rendered");
+    }
+    const restingBackground = getComputedStyle(triggerElement).backgroundColor;
+    await userEvent.hover(trigger);
+
+    expect(getComputedStyle(triggerElement).backgroundColor).not.toBe(
+      restingBackground
+    );
+  });
+
   test("focuses the composer and keeps Shift+Enter as a newline", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
@@ -42,6 +61,8 @@ describe("Agent quick panel", () => {
 
     await userEvent.click(composer);
     await expect.element(composer).toHaveFocus();
+    expect(getComputedStyle(composerElement).outlineStyle).toBe("none");
+    expect(getComputedStyle(composerElement).outlineWidth).toBe("0px");
     await userEvent.fill(composer, "First line");
     await userEvent.keyboard("{Shift>}{Enter}{/Shift}Second line");
     await nextFrame();

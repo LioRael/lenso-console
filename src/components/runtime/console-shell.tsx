@@ -1,51 +1,32 @@
-import { Avatar } from "@lenso/ui/avatar";
-import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
 import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
+import * as stylex from "@stylexjs/stylex";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Blocks,
   Bot,
   ChevronLeft,
-  History,
+  CircleHelp,
   MousePointer2,
-  PanelLeft,
   Search,
   Settings,
   SlidersHorizontal,
   Sparkles,
-  X,
 } from "lucide-react";
-import { useState, type ComponentType, type PropsWithChildren } from "react";
+import { useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
-import { AgentHistoryMenu } from "../../features/agent/agent-history-menu";
+import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
+import { shellStyles } from "./console-shell.stylex";
+import {
+  ContextNavigationHeader,
+  ContextNavigationItem,
+  ContextNavigationSection,
+} from "./context-navigation";
 
-import styles from "./console-shell.module.css";
-
-type NavigationItem = {
-  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
-  label: string;
-  matchPaths: readonly string[];
-  path: string;
-};
-
-const primaryNavigation: readonly NavigationItem[] = [
-  {
-    icon: MousePointer2,
-    label: "Agent",
-    matchPaths: ["/", "/agent"],
-    path: "/",
-  },
-  {
-    icon: Blocks,
-    label: "Plugins",
-    matchPaths: ["/plugins"],
-    path: "/plugins",
-  },
-];
+type ConsoleArea = "agent" | "settings" | "system";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
   const appearance = useConsoleAppearance();
@@ -54,130 +35,83 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const settingsOpen = currentPath.startsWith("/settings");
+  const currentArea = consoleAreaFromPath(currentPath);
   const currentAgentSessionId = agentSessionIdFromPath(currentPath);
 
   return (
-    <ThemeScope className={styles.theme} theme={appearance.preference}>
-      <Sidebar.Group className={styles.shell}>
-        <Sidebar.Root
-          className={styles.sidebar}
-          data-mobile-open={mobileNavigationOpen || undefined}
-          defaultOpen
-          id="console-sidebar"
-        >
-          <Sidebar.Panel aria-label="Console navigation">
-            {settingsOpen ? (
-              <SettingsSidebar
-                currentPath={currentPath}
-                navigate={(to) => {
-                  setMobileNavigationOpen(false);
-                  navigate({ to });
-                }}
-              />
-            ) : (
-              <>
-                <Sidebar.Header>
-                  <Sidebar.Workspace icon="L">Lenso</Sidebar.Workspace>
-                </Sidebar.Header>
-                <Sidebar.Content>
-                  <Sidebar.Menu aria-label="Primary navigation">
-                    {primaryNavigation.map((item) => {
-                      const Icon = item.icon;
-                      const selected = item.matchPaths.some((path) =>
-                        path === "/"
-                          ? currentPath === path
-                          : currentPath.startsWith(path)
-                      );
-                      return (
-                        <Sidebar.MenuItem key={item.path}>
-                          <Sidebar.Item
-                            icon={<Icon size={15} strokeWidth={1.75} />}
-                            onClick={() => {
-                              setMobileNavigationOpen(false);
-                              navigate({ to: item.path });
-                            }}
-                            selected={selected}
-                          >
-                            {item.label}
-                          </Sidebar.Item>
-                        </Sidebar.MenuItem>
-                      );
-                    })}
-                  </Sidebar.Menu>
-                  <Sidebar.Section>
-                    <Sidebar.SectionHeader>
-                      <Sidebar.SectionLabel>Workspace</Sidebar.SectionLabel>
-                    </Sidebar.SectionHeader>
-                    <Sidebar.Menu>
-                      <Sidebar.MenuItem>
-                        <Sidebar.Item
-                          icon={<Settings size={15} strokeWidth={1.75} />}
-                          onClick={() => {
-                            setMobileNavigationOpen(false);
-                            navigate({ to: "/settings" });
-                          }}
-                        >
-                          Settings
-                        </Sidebar.Item>
-                      </Sidebar.MenuItem>
-                    </Sidebar.Menu>
-                  </Sidebar.Section>
-                </Sidebar.Content>
-                <Sidebar.Footer>
-                  <div className={styles.operator}>
-                    <Avatar.Root size="compact">
-                      <Avatar.Fallback>LO</Avatar.Fallback>
-                      <Avatar.Status
-                        aria-label="Connected"
-                        attached
-                        state="online"
-                      />
-                    </Avatar.Root>
-                    <span className={styles.operatorCopy}>
-                      <span className={styles.operatorName}>
-                        Local operator
-                      </span>
-                      <span className={styles.operatorRole}>
-                        Local workspace
-                      </span>
-                    </span>
-                  </div>
-                </Sidebar.Footer>
-              </>
-            )}
-          </Sidebar.Panel>
-        </Sidebar.Root>
+    <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
+      <Sidebar.Group xstyle={shellStyles.shell}>
+        <div {...stylex.props(shellStyles.navigationRegion)}>
+          <PrimaryRail
+            contextNavigationOpen={mobileNavigationOpen}
+            currentArea={currentArea}
+            navigate={(to) => {
+              setMobileNavigationOpen(false);
+              navigate({ to });
+            }}
+            onToggleContextNavigation={() =>
+              setMobileNavigationOpen((open) => !open)
+            }
+          />
+          <Sidebar.Root
+            data-mobile-open={mobileNavigationOpen || undefined}
+            defaultOpen
+            id="console-sidebar"
+            xstyle={[
+              shellStyles.contextSidebarRoot,
+              mobileNavigationOpen && shellStyles.contextSidebarRootOpen,
+            ]}
+          >
+            <Sidebar.Panel
+              aria-label="Console context navigation"
+              xstyle={[
+                shellStyles.contextSidebarPanel,
+                mobileNavigationOpen && shellStyles.contextSidebarPanelOpen,
+              ]}
+            >
+              {currentArea === "settings" ? (
+                <SettingsSidebar
+                  currentPath={currentPath}
+                  navigate={(to) => {
+                    setMobileNavigationOpen(false);
+                    navigate({ to });
+                  }}
+                  onRequestClose={() => setMobileNavigationOpen(false)}
+                />
+              ) : currentArea === "system" ? (
+                <SystemSidebar
+                  navigate={() => {
+                    setMobileNavigationOpen(false);
+                    navigate({ to: "/plugins" });
+                  }}
+                  onRequestClose={() => setMobileNavigationOpen(false)}
+                />
+              ) : (
+                <AgentContextNavigation
+                  currentSessionId={currentAgentSessionId}
+                  onNavigate={() => setMobileNavigationOpen(false)}
+                  onRequestClose={() => setMobileNavigationOpen(false)}
+                />
+              )}
+            </Sidebar.Panel>
+          </Sidebar.Root>
+        </div>
 
-        <main className={styles.main}>{children}</main>
-
-        <IconButton
-          aria-label={
-            mobileNavigationOpen ? "Close navigation" : "Open navigation"
-          }
-          className={styles.mobileMenuTrigger}
-          data-open={mobileNavigationOpen || undefined}
-          data-settings={currentPath.startsWith("/settings") || undefined}
-          onClick={() => setMobileNavigationOpen((open) => !open)}
-          size="compact"
-          variant="ghost"
-        >
-          {mobileNavigationOpen ? (
-            <X aria-hidden="true" size={14} strokeWidth={1.7} />
-          ) : (
-            <PanelLeft aria-hidden="true" size={14} strokeWidth={1.7} />
-          )}
-        </IconButton>
         {mobileNavigationOpen ? (
           <button
-            aria-label="Close navigation"
-            className={styles.mobileBackdrop}
+            aria-label="Close workspace navigation"
+            {...stylex.props(shellStyles.mobileBackdrop)}
             onClick={() => setMobileNavigationOpen(false)}
             type="button"
           />
         ) : null}
 
-        <footer aria-label="Application utilities" className={styles.utilities}>
+        <main {...stylex.props(shellStyles.main)}>{children}</main>
+
+        <footer
+          aria-label="Application utilities"
+          {...stylex.props(shellStyles.utilities)}
+        >
           <AgentQuickPanel
             onOpenFullPage={(sessionId) => {
               if (sessionId) {
@@ -190,19 +124,115 @@ export function ConsoleShell({ children }: PropsWithChildren) {
               navigate({ to: "/" });
             }}
           />
-          <AgentHistoryMenu currentSessionId={currentAgentSessionId}>
-            <IconButton
-              aria-label="Chat history"
-              data-agent-action="history"
-              size="default"
-              variant="ghost"
-            >
-              <History aria-hidden="true" size={14} strokeWidth={1.6} />
-            </IconButton>
-          </AgentHistoryMenu>
         </footer>
       </Sidebar.Group>
     </ThemeScope>
+  );
+}
+
+function PrimaryRail({
+  contextNavigationOpen,
+  currentArea,
+  navigate,
+  onToggleContextNavigation,
+}: {
+  contextNavigationOpen: boolean;
+  currentArea: ConsoleArea;
+  navigate: (to: "/" | "/plugins" | "/settings") => void;
+  onToggleContextNavigation: () => void;
+}) {
+  return (
+    <Sidebar.Root
+      defaultOpen
+      id="console-primary-rail"
+      xstyle={shellStyles.primaryRailRoot}
+    >
+      <Sidebar.Panel
+        aria-label="Global navigation"
+        render={<nav />}
+        xstyle={shellStyles.primaryRail}
+      >
+        <button
+          aria-label="Open workspace switcher"
+          {...stylex.props(
+            shellStyles.railWorkspace,
+            shellStyles.desktopWorkspace
+          )}
+          type="button"
+        >
+          L
+        </button>
+        <button
+          aria-controls="console-sidebar"
+          aria-expanded={contextNavigationOpen}
+          aria-label={
+            contextNavigationOpen
+              ? "Close workspace navigation"
+              : "Open workspace navigation"
+          }
+          {...stylex.props(shellStyles.railWorkspace, shellStyles.mobileOnly)}
+          onClick={onToggleContextNavigation}
+          type="button"
+        >
+          L
+        </button>
+        <div {...stylex.props(shellStyles.railAreas)}>
+          <IconButton
+            aria-label="Agent"
+            onClick={() => navigate("/")}
+            size="default"
+            variant="ghost"
+            xstyle={[
+              shellStyles.railButton,
+              currentArea === "agent" && shellStyles.activeRailButton,
+            ]}
+          >
+            <MousePointer2 aria-hidden="true" size={15} strokeWidth={1.7} />
+          </IconButton>
+          <IconButton
+            aria-label="System"
+            onClick={() => navigate("/plugins")}
+            size="default"
+            variant="ghost"
+            xstyle={[
+              shellStyles.railButton,
+              currentArea === "system" && shellStyles.activeRailButton,
+            ]}
+          >
+            <Blocks aria-hidden="true" size={15} strokeWidth={1.7} />
+          </IconButton>
+        </div>
+        <div {...stylex.props(shellStyles.railFooter)}>
+          <IconButton
+            aria-label="Preferences"
+            onClick={() => navigate("/settings")}
+            size="default"
+            variant="ghost"
+            xstyle={[
+              shellStyles.railButton,
+              currentArea === "settings" && shellStyles.activeRailButton,
+            ]}
+          >
+            <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
+          </IconButton>
+          <IconButton
+            aria-label="Help"
+            size="default"
+            variant="ghost"
+            xstyle={shellStyles.railButton}
+          >
+            <CircleHelp aria-hidden="true" size={15} strokeWidth={1.7} />
+          </IconButton>
+          <button
+            aria-label="Local operator profile"
+            {...stylex.props(shellStyles.railProfile)}
+            type="button"
+          >
+            LO
+          </button>
+        </div>
+      </Sidebar.Panel>
+    </Sidebar.Root>
   );
 }
 
@@ -211,14 +241,63 @@ function agentSessionIdFromPath(path: string) {
   return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
+function consoleAreaFromPath(path: string): ConsoleArea {
+  if (path.startsWith("/settings")) {
+    return "settings";
+  }
+  if (path.startsWith("/plugins")) {
+    return "system";
+  }
+  return "agent";
+}
+
+function SystemSidebar({
+  navigate,
+  onRequestClose,
+}: {
+  navigate: () => void;
+  onRequestClose: () => void;
+}) {
+  return (
+    <>
+      <ContextNavigationHeader title="System">
+        <IconButton
+          aria-label="Close workspace navigation"
+          onClick={onRequestClose}
+          size="default"
+          variant="ghost"
+          xstyle={shellStyles.mobileOnly}
+        >
+          <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
+        </IconButton>
+      </ContextNavigationHeader>
+      <Sidebar.Content>
+        <Sidebar.Menu aria-label="System navigation">
+          <Sidebar.MenuItem>
+            <ContextNavigationItem
+              icon={<Blocks size={15} strokeWidth={1.75} />}
+              onClick={navigate}
+              selected
+            >
+              Plugins
+            </ContextNavigationItem>
+          </Sidebar.MenuItem>
+        </Sidebar.Menu>
+      </Sidebar.Content>
+    </>
+  );
+}
+
 function SettingsSidebar({
   currentPath,
   navigate,
+  onRequestClose,
 }: {
   currentPath: string;
   navigate: (
     to: "/" | "/settings" | "/settings/agent" | "/settings/ai"
   ) => void;
+  onRequestClose: () => void;
 }) {
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -231,21 +310,22 @@ function SettingsSidebar({
 
   return (
     <>
-      <Sidebar.Header className={styles.settingsSidebarHeader}>
-        <Button
-          className={styles.settingsBack}
-          onClick={() => navigate("/")}
-          size="compact"
+      <ContextNavigationHeader title="Settings">
+        <IconButton
+          aria-label="Close workspace navigation"
+          onClick={onRequestClose}
+          size="default"
           variant="ghost"
+          xstyle={shellStyles.mobileOnly}
         >
           <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
-          Back to app
-        </Button>
-      </Sidebar.Header>
-      <Sidebar.Content className={styles.settingsSidebarContent}>
-        <label className={styles.settingsSearch}>
+        </IconButton>
+      </ContextNavigationHeader>
+      <Sidebar.Content xstyle={shellStyles.settingsSidebarContent}>
+        <label {...stylex.props(shellStyles.settingsSearch)}>
           <Search aria-hidden="true" size={14} strokeWidth={1.7} />
           <input
+            {...stylex.props(shellStyles.settingsSearchInput)}
             aria-label="Search settings"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search…"
@@ -253,14 +333,11 @@ function SettingsSidebar({
           />
         </label>
         {showPreferences || showPersonalization ? (
-          <Sidebar.Section>
-            <Sidebar.SectionHeader>
-              <Sidebar.SectionLabel>Personal</Sidebar.SectionLabel>
-            </Sidebar.SectionHeader>
+          <ContextNavigationSection label="Personal">
             <Sidebar.Menu>
               {showPreferences ? (
                 <Sidebar.MenuItem>
-                  <Sidebar.Item
+                  <ContextNavigationItem
                     icon={<SlidersHorizontal size={14} strokeWidth={1.7} />}
                     onClick={() => navigate("/settings")}
                     selected={
@@ -269,43 +346,42 @@ function SettingsSidebar({
                     }
                   >
                     Preferences
-                  </Sidebar.Item>
+                  </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
               {showPersonalization ? (
                 <Sidebar.MenuItem>
-                  <Sidebar.Item
+                  <ContextNavigationItem
                     icon={<Bot size={14} strokeWidth={1.7} />}
                     onClick={() => navigate("/settings/agent")}
                     selected={currentPath.startsWith("/settings/agent")}
                   >
                     Agent personalization
-                  </Sidebar.Item>
+                  </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
             </Sidebar.Menu>
-          </Sidebar.Section>
+          </ContextNavigationSection>
         ) : null}
         {showAiAgents ? (
-          <Sidebar.Section>
-            <Sidebar.SectionHeader>
-              <Sidebar.SectionLabel>Features</Sidebar.SectionLabel>
-            </Sidebar.SectionHeader>
+          <ContextNavigationSection label="Features">
             <Sidebar.Menu>
               <Sidebar.MenuItem>
-                <Sidebar.Item
+                <ContextNavigationItem
                   icon={<Sparkles size={14} strokeWidth={1.7} />}
                   onClick={() => navigate("/settings/ai")}
                   selected={currentPath.startsWith("/settings/ai")}
                 >
                   AI &amp; Agents
-                </Sidebar.Item>
+                </ContextNavigationItem>
               </Sidebar.MenuItem>
             </Sidebar.Menu>
-          </Sidebar.Section>
+          </ContextNavigationSection>
         ) : null}
         {!showPreferences && !showPersonalization && !showAiAgents ? (
-          <p className={styles.settingsSearchEmpty}>No settings found</p>
+          <p {...stylex.props(shellStyles.settingsSearchEmpty)}>
+            No settings found
+          </p>
         ) : null}
       </Sidebar.Content>
     </>

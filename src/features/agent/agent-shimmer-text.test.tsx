@@ -11,7 +11,14 @@ describe("AgentShimmerText", () => {
           Working…
         </AgentShimmerText>
       )
-    ).toContain('class="status t-shimmer" data-text="Working…"');
+    ).toContain('class="status ');
+    expect(
+      renderToStaticMarkup(
+        <AgentShimmerText active className="status">
+          Working…
+        </AgentShimmerText>
+      )
+    ).toContain('aria-hidden="true"');
 
     expect(
       renderToStaticMarkup(

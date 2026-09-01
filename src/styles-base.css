@@ -5,7 +5,7 @@
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
-    font-family: var(--font-ui);
+    font-family: var(--font-sans);
     font-feature-settings:
       "liga" 1,
       "calt" 1;
@@ -23,8 +23,8 @@
   }
 
   ::selection {
-    background: var(--bg-row-selected);
-    color: var(--fg-primary);
+    background: var(--color-surface-selected);
+    color: var(--color-content-primary);
   }
 
   hr {
@@ -74,7 +74,7 @@
   kbd,
   samp,
   pre {
-    font-family: var(--font-code);
+    font-family: var(--font-mono);
     font-feature-settings: inherit;
     font-variation-settings: inherit;
     font-size: 1em;
@@ -152,20 +152,20 @@
 @layer console-base {
   button:focus-visible,
   a:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--color-action-primary);
     outline-offset: 1px;
   }
 
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid var(--focus-ring);
+    outline: 2px solid var(--color-focus-ring);
     outline-offset: 1px;
   }
 
   input,
   select,
   textarea {
-    caret-color: var(--accent);
+    caret-color: var(--color-action-primary);
   }
 }

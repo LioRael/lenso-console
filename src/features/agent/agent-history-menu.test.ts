@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   filterAgentSessions,
   getAgentHistoryEmptyLabel,
+  groupAgentSessions,
+  relativeAgentSessionAge,
 } from "./agent-history-menu-filter";
 import type { AgentSessionSummary } from "./agent-runtime";
 
@@ -55,5 +57,22 @@ describe("getAgentHistoryEmptyLabel", () => {
         sessionCount: 0,
       })
     ).toBe("No chats found");
+  });
+});
+
+describe("groupAgentSessions", () => {
+  it("separates sessions by the current local day", () => {
+    expect(
+      groupAgentSessions(sessions, new Date("2026-08-29T12:00:00Z"))
+    ).toEqual({ earlier: [sessions[1]], today: [sessions[0]] });
+  });
+});
+
+describe("relativeAgentSessionAge", () => {
+  it("formats recent session age without unstable wall-clock time", () => {
+    const now = new Date("2026-08-29T03:30:00Z").getTime();
+    expect(relativeAgentSessionAge(sessions[0]?.updatedAt ?? "", now)).toBe(
+      "2h"
+    );
   });
 });

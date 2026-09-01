@@ -23,10 +23,10 @@ const localStyles = stylex.create({
     borderWidth: "1px",
   },
   utilityBorderLine: {
-    borderColor: "var(--line)",
+    borderColor: "var(--color-border-tertiary)",
   },
   utilityBgBgPanel: {
-    backgroundColor: "var(--bg-panel)",
+    backgroundColor: "var(--color-surface-panel)",
   },
   utilityPx3: {
     paddingInline: "calc(0.25rem * 3)",
@@ -39,7 +39,7 @@ const localStyles = stylex.create({
     lineHeight: "var(--text-xs--line-height, 1rem)",
   },
   utilityTextFgSecondary: {
-    color: "var(--fg-secondary)",
+    color: "var(--color-content-secondary)",
   },
   utilityShadowElevationPanel: {
     boxShadow: "var(--elevation-panel)",
@@ -48,7 +48,7 @@ const localStyles = stylex.create({
     fontWeight: "600",
   },
   utilityTextFgPrimary: {
-    color: "var(--fg-primary)",
+    color: "var(--color-content-primary)",
   },
 });
 
