@@ -125,6 +125,8 @@ export type AgentTerminalRun = {
 };
 
 export type AgentModel = {
+  displayName: string;
+  hidden: boolean;
   id: string;
   reasoningEfforts: string[];
   selected: boolean;
@@ -137,6 +139,19 @@ export type AgentModelCatalog = {
   selectedReasoningEffort?: string;
   selectedServiceTier?: string;
 };
+
+export function modelsForSelector(
+  catalog: AgentModelCatalog | undefined,
+  selectedModel: string | undefined
+) {
+  if (!catalog) {
+    return [];
+  }
+  const selectedId = selectedModel ?? catalog.selectedModel;
+  return catalog.models.filter(
+    (model) => !model.hidden || model.id === selectedId
+  );
+}
 
 export type AgentTask = {
   agent: string;
@@ -1291,10 +1306,19 @@ function agentModel(value: unknown): AgentModel {
     object.capabilities,
     "Agent Model capabilities"
   );
-  if (typeof object.id !== "string" || typeof object.selected !== "boolean") {
+  if (
+    typeof object.id !== "string" ||
+    typeof object.hidden !== "boolean" ||
+    typeof object.selected !== "boolean"
+  ) {
     throw new TypeError("Agent Model is malformed");
   }
   return {
+    displayName:
+      typeof object.display_name === "string" && object.display_name
+        ? object.display_name
+        : object.id,
+    hidden: object.hidden,
     id: object.id,
     reasoningEfforts: selectableValues(capabilities.reasoning, "efforts"),
     selected: object.selected,

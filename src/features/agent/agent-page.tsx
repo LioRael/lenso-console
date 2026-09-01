@@ -47,15 +47,16 @@ import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
-import type {
-  AgentBootstrap,
-  AgentContextCatalog,
-  AgentModelCatalog,
-  AgentTask,
-  AgentTerminalCatalog,
-  AgentTerminalRun,
-  AgentToolCall,
-  AgentTurn,
+import {
+  modelsForSelector,
+  type AgentBootstrap,
+  type AgentContextCatalog,
+  type AgentModelCatalog,
+  type AgentTask,
+  type AgentTerminalCatalog,
+  type AgentTerminalRun,
+  type AgentToolCall,
+  type AgentTurn,
 } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
 import { useAgentTarget } from "./agent-target-context";
@@ -912,8 +913,11 @@ function AgentComposer({
   selectedTools: string[] | undefined;
   terminalCatalog: AgentTerminalCatalog | undefined;
 }) {
+  const selectableModels = modelsForSelector(modelCatalog, selectedModel);
+  const effectiveModel =
+    selectedModel ?? modelCatalog?.selectedModel ?? selectableModels[0]?.id;
   const activeModel = modelCatalog?.models.find(
-    (model) => model.id === selectedModel
+    (model) => model.id === effectiveModel
   );
   const allowedToolNames = new Set(runtime?.tools.allowed);
   const selectedToolNames = new Set(selectedTools);
@@ -994,7 +998,7 @@ function AgentComposer({
             value={profile ?? ""}
           />
         ) : null}
-        {modelCatalog?.models.length ? (
+        {selectableModels.length ? (
           <TurnSelect
             aria-label="Model"
             disabled={isRunning}
@@ -1004,11 +1008,13 @@ function AgentComposer({
               onReasoningEffortChange(undefined);
               onServiceTierChange(undefined);
             }}
-            options={modelCatalog.models.map((model) => ({
-              label: model.id,
+            options={selectableModels.map((model) => ({
+              label: model.hidden
+                ? `${model.displayName} (hidden)`
+                : model.displayName,
               value: model.id,
             }))}
-            value={selectedModel ?? modelCatalog.models[0]?.id ?? ""}
+            value={effectiveModel ?? ""}
           />
         ) : null}
         {activeModel?.reasoningEfforts.length ? (

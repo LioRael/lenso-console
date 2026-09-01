@@ -8,6 +8,7 @@ import {
   cancelAgentTurn,
   listAgentSessions,
   listAgentTargets,
+  modelsForSelector,
   projectAgentSession,
   readAgentBootstrap,
   readAgentContextSources,
@@ -658,8 +659,23 @@ describe("Agent runtime projection", () => {
                         },
                         service_tiers: { kind: "unsupported" },
                       },
+                      display_name: "GPT Test",
+                      hidden: false,
                       id: "gpt-test",
                       selected: true,
+                    },
+                    {
+                      capabilities: {
+                        reasoning: {
+                          efforts: ["medium"],
+                          kind: "selectable",
+                        },
+                        service_tiers: { kind: "unsupported" },
+                      },
+                      display_name: "Internal Review",
+                      hidden: true,
+                      id: "internal-review",
+                      selected: false,
                     },
                   ],
                   selected_instance: "provider/model",
@@ -686,12 +702,55 @@ describe("Agent runtime projection", () => {
     );
 
     await expect(readAgentModels()).resolves.toMatchObject({
-      models: [{ id: "gpt-test", reasoningEfforts: ["low", "high"] }],
+      models: [
+        {
+          displayName: "GPT Test",
+          hidden: false,
+          id: "gpt-test",
+          reasoningEfforts: ["low", "high"],
+        },
+        {
+          displayName: "Internal Review",
+          hidden: true,
+          id: "internal-review",
+        },
+      ],
       selectedModel: "gpt-test",
     });
     await expect(readAgentTasks()).resolves.toMatchObject([
       { progress: "Reading sources", status: "running", taskId: "task-1" },
     ]);
+  });
+
+  it("omits hidden models from ordinary selection but retains an explicit selection", () => {
+    const catalog = {
+      models: [
+        {
+          displayName: "GPT Visible",
+          hidden: false,
+          id: "gpt-visible",
+          reasoningEfforts: [],
+          selected: false,
+          serviceTiers: [],
+        },
+        {
+          displayName: "Internal Review",
+          hidden: true,
+          id: "internal-review",
+          reasoningEfforts: ["medium"],
+          selected: true,
+          serviceTiers: [],
+        },
+      ],
+      selectedModel: "internal-review",
+    };
+
+    expect(
+      modelsForSelector(catalog, undefined).map((model) => model.id)
+    ).toEqual(["gpt-visible", "internal-review"]);
+    expect(
+      modelsForSelector(catalog, "gpt-visible").map((model) => model.id)
+    ).toEqual(["gpt-visible"]);
   });
 
   it("cancels an active Turn by its request identity", async () => {
