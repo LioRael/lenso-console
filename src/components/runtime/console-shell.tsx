@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   CircleHelp,
   MousePointer2,
-  Search,
   Settings,
   SlidersHorizontal,
   Sparkles,
@@ -21,8 +20,10 @@ import { AgentContextNavigation } from "../../features/agent/agent-context-navig
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
 import { shellStyles } from "./console-shell.stylex";
 import {
+  ContextNavigationContent,
   ContextNavigationHeader,
   ContextNavigationItem,
+  ContextNavigationSearch,
   ContextNavigationSection,
 } from "./context-navigation";
 
@@ -321,17 +322,13 @@ function SettingsSidebar({
           <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
         </IconButton>
       </ContextNavigationHeader>
-      <Sidebar.Content xstyle={shellStyles.settingsSidebarContent}>
-        <label {...stylex.props(shellStyles.settingsSearch)}>
-          <Search aria-hidden="true" size={14} strokeWidth={1.7} />
-          <input
-            {...stylex.props(shellStyles.settingsSearchInput)}
-            aria-label="Search settings"
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search…"
-            value={query}
-          />
-        </label>
+      <ContextNavigationContent>
+        <ContextNavigationSearch
+          aria-label="Search settings"
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search…"
+          value={query}
+        />
         {showPreferences || showPersonalization ? (
           <ContextNavigationSection label="Personal">
             <Sidebar.Menu>
@@ -383,7 +380,7 @@ function SettingsSidebar({
             No settings found
           </p>
         ) : null}
-      </Sidebar.Content>
+      </ContextNavigationContent>
     </>
   );
 }

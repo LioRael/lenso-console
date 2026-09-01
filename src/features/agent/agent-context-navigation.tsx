@@ -3,12 +3,14 @@ import { Sidebar } from "@lenso/ui/sidebar";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, MessageSquarePlus, Search } from "lucide-react";
+import { ChevronLeft, MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
 
 import {
+  ContextNavigationContent,
   ContextNavigationHeader,
   ContextNavigationItem,
+  ContextNavigationSearch,
   ContextNavigationSection,
 } from "../../components/runtime/context-navigation";
 import { agentContextNavigationStyles as styles } from "./agent-context-navigation.stylex";
@@ -71,29 +73,26 @@ export function AgentContextNavigation({
           <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
         </IconButton>
       </ContextNavigationHeader>
-      <Sidebar.Content xstyle={styles.content}>
-        <label {...stylex.props(styles.search)}>
-          <Search aria-hidden="true" size={14} strokeWidth={1.7} />
-          <input
-            {...stylex.props(styles.searchInput)}
+      <ContextNavigationContent>
+        <div {...stylex.props(styles.stickyActions)}>
+          <ContextNavigationSearch
             aria-label="Search chats"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search chats…"
-            type="search"
             value={query}
           />
-        </label>
-        <Sidebar.Menu aria-label="Agent actions">
-          <Sidebar.MenuItem>
-            <ContextNavigationItem
-              icon={<MessageSquarePlus size={14} strokeWidth={1.7} />}
-              onClick={() => goTo("/")}
-              selected={currentSessionId === undefined}
-            >
-              New chat
-            </ContextNavigationItem>
-          </Sidebar.MenuItem>
-        </Sidebar.Menu>
+          <Sidebar.Menu aria-label="Agent actions">
+            <Sidebar.MenuItem>
+              <ContextNavigationItem
+                icon={<MessageSquarePlus size={14} strokeWidth={1.7} />}
+                onClick={() => goTo("/")}
+                selected={currentSessionId === undefined}
+              >
+                New chat
+              </ContextNavigationItem>
+            </Sidebar.MenuItem>
+          </Sidebar.Menu>
+        </div>
         <SessionSection
           currentSessionId={currentSessionId}
           label="Today"
@@ -110,7 +109,7 @@ export function AgentContextNavigation({
         {emptyLabel ? (
           <p {...stylex.props(styles.empty)}>{emptyLabel}</p>
         ) : null}
-      </Sidebar.Content>
+      </ContextNavigationContent>
     </>
   );
 }

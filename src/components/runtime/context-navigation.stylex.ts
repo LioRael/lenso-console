@@ -1,6 +1,10 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const contextNavigationStyles = stylex.create({
+  content: {
+    gap: "6px",
+    padding: "0 12px 16px",
+  },
   header: {
     paddingInline: "12px 8px",
   },
@@ -39,6 +43,39 @@ export const contextNavigationStyles = stylex.create({
     letterSpacing: "0.04em",
     lineHeight: "14px",
     textTransform: "uppercase",
+  },
+  search: {
+    alignItems: "center",
+    backgroundColor: "var(--color-surface-canvas)",
+    borderColor: {
+      default: "var(--color-border-secondary)",
+      ":focus-within": "var(--color-border-control-focus)",
+      ":hover": "var(--color-border-control)",
+    },
+    borderRadius: "var(--radius-rounded)",
+    borderStyle: "solid",
+    borderWidth: "0.5px",
+    boxShadow: "0 1px 0.5px rgb(0 0 0 / 4%), 0 3px 3px rgb(0 0 0 / 2%)",
+    color: "var(--color-content-tertiary)",
+    display: "flex",
+    flex: "0 0 28px",
+    gap: "8px",
+    paddingInline: "8px",
+  },
+  searchInput: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    color: {
+      default: "var(--color-content-primary)",
+      "::placeholder": "var(--color-content-tertiary)",
+    },
+    font: "inherit",
+    fontSize: "13px",
+    lineHeight: "16px",
+    minWidth: 0,
+    outline: 0,
+    padding: 0,
+    width: "100%",
   },
   title: {
     color: "var(--color-content-primary)",

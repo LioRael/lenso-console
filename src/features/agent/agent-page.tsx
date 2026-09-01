@@ -2,7 +2,6 @@ import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
 import { Menu } from "@lenso/ui/menu";
 import { PageHeader } from "@lenso/ui/page-header";
-import { Select } from "@lenso/ui/select";
 import { Tabs } from "@lenso/ui/tabs";
 import * as stylex from "@stylexjs/stylex";
 import { useNavigate } from "@tanstack/react-router";
@@ -10,19 +9,16 @@ import {
   ArrowUp,
   ArrowDown,
   Bot,
-  Box,
   ChevronDown,
   ChevronRight,
   CircleAlert,
   FileText,
-  Gauge,
   ImageIcon,
   List,
   Minimize2,
   Package,
   Paperclip,
   Pencil,
-  Plus,
   Search,
   ShieldCheck,
   Square,
@@ -33,15 +29,20 @@ import {
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type FormEvent,
-  type ReactElement,
-  type ReactNode,
+  type KeyboardEvent,
 } from "react";
 
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
+import {
+  ComposerSlashMenu,
+  RunConfigurationMenu,
+  TurnSelect,
+} from "./agent-composer-controls";
 import { AgentHistoryMenu } from "./agent-history-menu";
 import { AgentMarkdown } from "./agent-markdown";
 import {
@@ -888,6 +889,33 @@ function toolPayload(value?: string): Record<string, unknown> {
   }
 }
 
+type AgentComposerProps = {
+  canCompact: boolean;
+  canCancel: boolean;
+  contextCatalog: AgentContextCatalog | undefined;
+  draft: string;
+  isRunning: boolean;
+  modelCatalog: AgentModelCatalog | undefined;
+  onChange: (value: string) => void;
+  onCancel: () => void;
+  onCompact: () => void;
+  onModelChange: (value: string | undefined) => void;
+  onProfileChange: (value: string | undefined) => void;
+  onReasoningEffortChange: (value: string | undefined) => void;
+  onServiceTierChange: (value: string | undefined) => void;
+  onToolsChange: (value: string[]) => void;
+  onSubmit: (event: FormEvent) => void;
+  placeholder?: string;
+  profile: string | undefined;
+  ref: React.Ref<HTMLTextAreaElement>;
+  runtime: AgentBootstrap | undefined;
+  selectedModel: string | undefined;
+  selectedReasoningEffort: string | undefined;
+  selectedServiceTier: string | undefined;
+  selectedTools: string[] | undefined;
+  terminalCatalog: AgentTerminalCatalog | undefined;
+};
+
 function AgentComposer({
   canCompact,
   canCancel,
@@ -913,32 +941,7 @@ function AgentComposer({
   selectedServiceTier,
   selectedTools,
   terminalCatalog,
-}: {
-  canCompact: boolean;
-  canCancel: boolean;
-  contextCatalog: AgentContextCatalog | undefined;
-  draft: string;
-  isRunning: boolean;
-  modelCatalog: AgentModelCatalog | undefined;
-  onChange: (value: string) => void;
-  onCancel: () => void;
-  onCompact: () => void;
-  onModelChange: (value: string | undefined) => void;
-  onProfileChange: (value: string | undefined) => void;
-  onReasoningEffortChange: (value: string | undefined) => void;
-  onServiceTierChange: (value: string | undefined) => void;
-  onToolsChange: (value: string[]) => void;
-  onSubmit: (event: FormEvent) => void;
-  placeholder?: string;
-  profile: string | undefined;
-  ref: React.Ref<HTMLTextAreaElement>;
-  runtime: AgentBootstrap | undefined;
-  selectedModel: string | undefined;
-  selectedReasoningEffort: string | undefined;
-  selectedServiceTier: string | undefined;
-  selectedTools: string[] | undefined;
-  terminalCatalog: AgentTerminalCatalog | undefined;
-}) {
+}: AgentComposerProps) {
   const selectableModels = modelsForSelector(modelCatalog, selectedModel);
   const effectiveModel =
     selectedModel ?? modelCatalog?.selectedModel ?? selectableModels[0]?.id;
@@ -958,66 +961,176 @@ function AgentComposer({
     terminalCatalog,
     draft
   );
+  const slashMenuId = useId();
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [dismissedSlashDraft, setDismissedSlashDraft] = useState<string | null>(
+    null
+  );
+  const visibleContextSuggestions =
+    dismissedSlashDraft === draft ? [] : contextSuggestions;
+  const effectiveSuggestionIndex = Math.min(
+    activeSuggestionIndex,
+    Math.max(visibleContextSuggestions.length - 1, 0)
+  );
+
+  const handleComposerChange = (value: string) => {
+    setDismissedSlashDraft(null);
+    setActiveSuggestionIndex(0);
+    onChange(value);
+  };
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (visibleContextSuggestions.length === 0) {
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveSuggestionIndex(
+        (effectiveSuggestionIndex + 1) % visibleContextSuggestions.length
+      );
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveSuggestionIndex(
+        (effectiveSuggestionIndex - 1 + visibleContextSuggestions.length) %
+          visibleContextSuggestions.length
+      );
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const suggestion = visibleContextSuggestions[effectiveSuggestionIndex];
+      if (suggestion) {
+        handleComposerChange(suggestion.insertText);
+      }
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setDismissedSlashDraft(draft);
+    }
+  };
   return (
     <PromptComposer.Root
       xstyle={styles.composer}
       onSubmit={onSubmit}
-      onValueChange={onChange}
+      onValueChange={handleComposerChange}
       submitShortcut="enter"
       surfaceXstyle={styles.composerSurface}
       value={draft}
     >
       <PromptComposer.Input
+        aria-activedescendant={
+          visibleContextSuggestions.length
+            ? `${slashMenuId}-item-${effectiveSuggestionIndex}`
+            : undefined
+        }
+        aria-autocomplete="list"
+        aria-controls={
+          visibleContextSuggestions.length ? slashMenuId : undefined
+        }
+        aria-expanded={visibleContextSuggestions.length > 0}
         aria-label="Send a message to Lenso Agent"
         xstyle={styles.textarea}
+        onKeyDown={handleComposerKeyDown}
         placeholder={placeholder}
         ref={ref}
         rows={2}
       />
-      {contextSuggestions.length > 0 ? (
-        <div
-          aria-label="Context Source suggestions"
-          {...stylex.props(styles.contextSuggestions)}
+      <ComposerSlashMenu
+        activeIndex={effectiveSuggestionIndex}
+        menuId={slashMenuId}
+        onActiveIndexChange={setActiveSuggestionIndex}
+        onSelect={(suggestion) => handleComposerChange(suggestion.insertText)}
+        suggestions={visibleContextSuggestions}
+      />
+      <AgentComposerToolbar
+        activeModel={activeModel}
+        availableTurnTools={availableTurnTools}
+        canCancel={canCancel}
+        canCompact={canCompact}
+        draft={draft}
+        effectiveModel={effectiveModel}
+        isRunning={isRunning}
+        onCancel={onCancel}
+        onCompact={onCompact}
+        onModelChange={onModelChange}
+        onProfileChange={onProfileChange}
+        onReasoningEffortChange={onReasoningEffortChange}
+        onServiceTierChange={onServiceTierChange}
+        onToolsChange={onToolsChange}
+        profile={profile}
+        runtime={runtime}
+        selectableModels={selectableModels}
+        selectedReasoningEffort={selectedReasoningEffort}
+        selectedServiceTier={selectedServiceTier}
+        selectedToolNames={selectedToolNames}
+        selectedTools={selectedTools}
+      />
+    </PromptComposer.Root>
+  );
+}
+
+type AgentComposerToolbarProps = Pick<
+  AgentComposerProps,
+  | "canCancel"
+  | "canCompact"
+  | "draft"
+  | "isRunning"
+  | "onCancel"
+  | "onCompact"
+  | "onModelChange"
+  | "onProfileChange"
+  | "onReasoningEffortChange"
+  | "onServiceTierChange"
+  | "onToolsChange"
+  | "profile"
+  | "runtime"
+  | "selectedReasoningEffort"
+  | "selectedServiceTier"
+  | "selectedTools"
+> & {
+  activeModel: AgentModelCatalog["models"][number] | undefined;
+  availableTurnTools: AgentBootstrap["tools"]["available"];
+  effectiveModel: string | undefined;
+  selectableModels: ReturnType<typeof modelsForSelector>;
+  selectedToolNames: Set<string>;
+};
+
+function AgentComposerToolbar({
+  activeModel,
+  availableTurnTools,
+  canCancel,
+  canCompact,
+  draft,
+  effectiveModel,
+  isRunning,
+  onCancel,
+  onCompact,
+  onModelChange,
+  onProfileChange,
+  onReasoningEffortChange,
+  onServiceTierChange,
+  onToolsChange,
+  profile,
+  runtime,
+  selectableModels,
+  selectedReasoningEffort,
+  selectedServiceTier,
+  selectedToolNames,
+  selectedTools,
+}: AgentComposerToolbarProps) {
+  return (
+    <PromptComposer.Toolbar xstyle={styles.composerFooter}>
+      <div {...stylex.props(styles.composerFooterStart)}>
+        <IconButton
+          aria-label="Attach images, files, or videos"
+          size="compact"
+          variant="ghost"
+          xstyle={styles.attachButton}
         >
-          {contextSuggestions.map((suggestion) => (
-            <button
-              aria-label={`${suggestion.label}: ${suggestion.description}`}
-              {...stylex.props(styles.contextSuggestion)}
-              key={suggestion.insertText}
-              onClick={() => onChange(suggestion.insertText)}
-              onMouseDown={(event) => event.preventDefault()}
-              type="button"
-            >
-              <suggestion.icon
-                aria-hidden="true"
-                className={stylex.props(styles.contextSuggestionIcon).className}
-                size={14}
-              />
-              <span>
-                <strong {...stylex.props(styles.contextSuggestionTitle)}>
-                  {suggestion.label}
-                </strong>
-                <small {...stylex.props(styles.contextSuggestionDescription)}>
-                  {suggestion.description}
-                </small>
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <PromptComposer.Toolbar xstyle={styles.composerFooter}>
-        <SkillsMenu>
-          <Button
-            aria-label="Skills"
-            size="compact"
-            variant="ghost"
-            xstyle={styles.skillsButton}
-          >
-            <Box aria-hidden="true" size={13} strokeWidth={1.7} />
-            Skills
-            <ChevronDown aria-hidden="true" size={12} />
-          </Button>
-        </SkillsMenu>
+          <Paperclip size={14} strokeWidth={1.7} />
+        </IconButton>
         {runtime?.capabilities.profileSelection ? (
           <TurnSelect
             aria-label="Agent mode"
@@ -1032,68 +1145,16 @@ function AgentComposer({
             value={profile ?? ""}
           />
         ) : null}
-        {selectableModels.length ? (
-          <TurnSelect
-            aria-label="Model"
-            disabled={isRunning}
-            icon={<Bot aria-hidden="true" size={12} />}
-            onValueChange={(value) => {
-              onModelChange(value);
-              onReasoningEffortChange(undefined);
-              onServiceTierChange(undefined);
-            }}
-            options={selectableModels.map((model) => ({
-              label: model.hidden
-                ? `${model.displayName} (hidden)`
-                : model.displayName,
-              value: model.id,
-            }))}
-            value={effectiveModel ?? ""}
-          />
-        ) : null}
-        {activeModel?.reasoningEfforts.length ? (
-          <TurnSelect
-            aria-label="Reasoning effort"
-            disabled={isRunning}
-            icon={<Gauge aria-hidden="true" size={12} />}
-            onValueChange={(value) =>
-              onReasoningEffortChange(value || undefined)
-            }
-            options={[
-              { label: "Default", value: "" },
-              ...activeModel.reasoningEfforts.map((effort) => ({
-                label: effort,
-                value: effort,
-              })),
-            ]}
-            value={selectedReasoningEffort ?? ""}
-          />
-        ) : null}
-        {activeModel?.serviceTiers.length ? (
-          <TurnSelect
-            aria-label="Service tier"
-            disabled={isRunning}
-            icon={<Gauge aria-hidden="true" size={12} />}
-            onValueChange={(value) => onServiceTierChange(value || undefined)}
-            options={[
-              { label: "Standard", value: "" },
-              ...activeModel.serviceTiers.map((tier) => ({
-                label: tier,
-                value: tier,
-              })),
-            ]}
-            value={selectedServiceTier ?? ""}
-          />
-        ) : null}
         {runtime?.capabilities.turnToolSelection && selectedTools ? (
           <Menu.Root>
             <Menu.Trigger
               render={
                 <Button
+                  aria-label="Turn permissions"
                   disabled={isRunning}
                   size="compact"
                   variant="ghost"
-                  xstyle={styles.turnControl}
+                  xstyle={styles.composerControl}
                 >
                   <ShieldCheck aria-hidden="true" size={12} />
                   {runtime.tools.allowed.length === 0
@@ -1148,94 +1209,75 @@ function AgentComposer({
             <Minimize2 size={13} />
           </IconButton>
         ) : null}
-        <PromptComposer.Actions xstyle={styles.composerActions}>
-          <IconButton
-            aria-label="Attach images, files, or videos"
-            size="compact"
-            variant="ghost"
-            xstyle={styles.attachButton}
-          >
-            <Paperclip size={14} strokeWidth={1.7} />
-          </IconButton>
-          {isRunning && canCancel ? (
-            <IconButton
-              aria-label="Stop generating"
-              onClick={onCancel}
-              size="compact"
-              type="button"
-              variant="ghost"
-              xstyle={styles.stopButton}
-            >
-              <Square fill="currentColor" size={9} strokeWidth={0} />
-            </IconButton>
-          ) : null}
-          <IconButton
-            aria-label={isRunning ? "Queue follow-up" : "Submit comment"}
-            data-active={Boolean(draft.trim()) || undefined}
-            disabled={!draft.trim()}
-            size="compact"
-            type="submit"
-            variant="secondary"
-            xstyle={[
-              styles.sendButton,
-              Boolean(draft.trim()) && styles.sendButtonActive,
+      </div>
+      <PromptComposer.Actions xstyle={styles.composerActions}>
+        {selectableModels.length ? (
+          <RunConfigurationMenu
+            disabled={isRunning}
+            modelOptions={selectableModels.map((model) => ({
+              label: model.hidden
+                ? `${model.displayName} (hidden)`
+                : model.displayName,
+              value: model.id,
+            }))}
+            modelValue={effectiveModel ?? ""}
+            onModelChange={(value) => {
+              onModelChange(value);
+              onReasoningEffortChange(undefined);
+              onServiceTierChange(undefined);
+            }}
+            onReasoningEffortChange={(value) =>
+              onReasoningEffortChange(value || undefined)
+            }
+            onServiceTierChange={(value) =>
+              onServiceTierChange(value || undefined)
+            }
+            reasoningEffortOptions={[
+              { label: "Default", value: "" },
+              ...(activeModel?.reasoningEfforts ?? []).map((effort) => ({
+                label: effort,
+                value: effort,
+              })),
             ]}
+            reasoningEffortValue={selectedReasoningEffort ?? ""}
+            serviceTierOptions={[
+              { label: "Standard", value: "" },
+              ...(activeModel?.serviceTiers ?? []).map((tier) => ({
+                label: tier,
+                value: tier,
+              })),
+            ]}
+            serviceTierValue={selectedServiceTier ?? ""}
+          />
+        ) : null}
+        {isRunning && canCancel ? (
+          <IconButton
+            aria-label="Stop generating"
+            onClick={onCancel}
+            size="compact"
+            type="button"
+            variant="ghost"
+            xstyle={styles.stopButton}
           >
-            <ArrowUp size={14} strokeWidth={1.9} />
+            <Square fill="currentColor" size={9} strokeWidth={0} />
           </IconButton>
-        </PromptComposer.Actions>
-      </PromptComposer.Toolbar>
-    </PromptComposer.Root>
-  );
-}
-
-function TurnSelect({
-  "aria-label": ariaLabel,
-  disabled,
-  icon,
-  onValueChange,
-  options,
-  value,
-}: {
-  "aria-label": string;
-  disabled: boolean;
-  icon: ReactNode;
-  onValueChange: (value: string) => void;
-  options: ReadonlyArray<{ label: string; value: string }>;
-  value: string;
-}) {
-  const selectedOption =
-    options.find((option) => option.value === value) ?? options[0];
-  return (
-    <Select.Root
-      disabled={disabled}
-      onValueChange={(nextValue) => {
-        if (typeof nextValue === "string") {
-          onValueChange(nextValue);
-        }
-      }}
-      value={value}
-    >
-      <Select.Trigger aria-label={ariaLabel} xstyle={styles.turnControl}>
-        {icon}
-        <Select.Value>{selectedOption?.label ?? value}</Select.Value>
-        <ChevronDown aria-hidden="true" size={11} />
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Positioner align="start" position="popper" sideOffset={6}>
-          <Select.Popup>
-            <Select.List>
-              {options.map((option) => (
-                <Select.Item key={option.value} value={option.value}>
-                  <Select.ItemText>{option.label}</Select.ItemText>
-                  <Select.ItemIndicator />
-                </Select.Item>
-              ))}
-            </Select.List>
-          </Select.Popup>
-        </Select.Positioner>
-      </Select.Portal>
-    </Select.Root>
+        ) : null}
+        <IconButton
+          aria-label={isRunning ? "Queue follow-up" : "Submit comment"}
+          data-active={Boolean(draft.trim()) || undefined}
+          disabled={!draft.trim()}
+          size="compact"
+          type="submit"
+          variant="secondary"
+          xstyle={[
+            styles.sendButton,
+            Boolean(draft.trim()) && styles.sendButtonActive,
+          ]}
+        >
+          <ArrowUp size={14} strokeWidth={1.9} />
+        </IconButton>
+      </PromptComposer.Actions>
+    </PromptComposer.Toolbar>
   );
 }
 
@@ -1368,27 +1410,4 @@ function formatWorkDuration(durationMs: number) {
   }
   const minutes = Math.round(seconds / 60);
   return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
-}
-
-function SkillsMenu({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
-  return (
-    <Menu.Root>
-      <Menu.Trigger render={children as ReactElement} />
-      <Menu.Portal>
-        <Menu.Positioner align="start" side="bottom" sideOffset={6}>
-          <Menu.Popup aria-label="Skills">
-            <Menu.Item
-              onClick={() => navigate({ to: "/settings/agent/skills/new" })}
-            >
-              <Menu.Leading>
-                <Plus size={15} />
-              </Menu.Leading>
-              <Menu.Label>Create skill</Menu.Label>
-            </Menu.Item>
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
-  );
 }

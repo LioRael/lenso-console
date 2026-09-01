@@ -1,6 +1,7 @@
 import { IconButton } from "@lenso/ui/icon-button";
 import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
+import * as stylex from "@stylexjs/stylex";
 
 import "@lenso/tokens/styles.css";
 import "@lenso/ui/styles.css";
@@ -10,8 +11,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import { agentContextNavigationStyles } from "../../features/agent/agent-context-navigation.stylex";
 import { shellStyles } from "./console-shell.stylex";
-import { ContextNavigationItem } from "./context-navigation";
+import {
+  ContextNavigationContent,
+  ContextNavigationItem,
+  ContextNavigationSearch,
+} from "./context-navigation";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -156,6 +162,105 @@ describe("Context navigation", () => {
 
     expect(getComputedStyle(itemElement).backgroundColor).not.toBe(
       restingBackground
+    );
+  });
+
+  test("scrolls overflowing context navigation without moving its header", async () => {
+    if (!container) {
+      throw new Error("Browser test container is missing");
+    }
+    root = createRoot(container);
+    flushSync(() => {
+      root?.render(
+        <ThemeScope>
+          <div {...stylex.props(shellStyles.shell)}>
+            <div {...stylex.props(shellStyles.navigationRegion)}>
+              <Sidebar.Root defaultOpen xstyle={shellStyles.contextSidebarRoot}>
+                <Sidebar.Panel xstyle={shellStyles.contextSidebarPanel}>
+                  <Sidebar.Header>Agent</Sidebar.Header>
+                  <ContextNavigationContent aria-label="Scrollable navigation">
+                    <div
+                      data-testid="sticky-agent-actions"
+                      {...stylex.props(
+                        agentContextNavigationStyles.stickyActions
+                      )}
+                    >
+                      <ContextNavigationSearch
+                        aria-label="Search chats"
+                        placeholder="Search chats…"
+                      />
+                      <Sidebar.Menu aria-label="Agent actions">
+                        <Sidebar.MenuItem>
+                          <ContextNavigationItem>
+                            New chat
+                          </ContextNavigationItem>
+                        </Sidebar.MenuItem>
+                      </Sidebar.Menu>
+                    </div>
+                    <Sidebar.Menu>
+                      {Array.from({ length: 60 }, (_, index) => (
+                        <Sidebar.MenuItem key={index}>
+                          <ContextNavigationItem>
+                            Session {index + 1}
+                          </ContextNavigationItem>
+                        </Sidebar.MenuItem>
+                      ))}
+                    </Sidebar.Menu>
+                  </ContextNavigationContent>
+                </Sidebar.Panel>
+              </Sidebar.Root>
+            </div>
+          </div>
+        </ThemeScope>
+      );
+    });
+    await nextFrame();
+
+    const content = container.querySelector<HTMLElement>(
+      '[aria-label="Scrollable navigation"]'
+    );
+    const header = container.querySelector<HTMLElement>(
+      '[data-slot="sidebar-header"]'
+    );
+    const stickyActions = container.querySelector<HTMLElement>(
+      '[data-testid="sticky-agent-actions"]'
+    );
+    const firstSession = Array.from(
+      content?.querySelectorAll<HTMLButtonElement>(
+        'button[data-slot="sidebar-item"]'
+      ) ?? []
+    ).find((item) => item.textContent === "Session 1");
+    if (!(content && header && stickyActions && firstSession)) {
+      throw new Error("Scrollable sidebar was not rendered");
+    }
+    const headerTop = header.getBoundingClientRect().top;
+    const stickyActionsTop = stickyActions.getBoundingClientRect().top;
+    const firstSessionTop = firstSession.getBoundingClientRect().top;
+    const softFade = getComputedStyle(stickyActions, "::before");
+    const strongFade = getComputedStyle(stickyActions, "::after");
+
+    expect(content.scrollHeight).toBeGreaterThan(content.clientHeight);
+    expect(getComputedStyle(content).overflowY).toBe("auto");
+    const stickyStyle = getComputedStyle(stickyActions);
+    expect(stickyStyle.borderBottomLeftRadius).toBe("14px");
+    expect(stickyStyle.borderBottomRightRadius).toBe("14px");
+    expect(stickyStyle.paddingBottom).toBe("0px");
+    expect(softFade.backdropFilter).toContain("blur(1px)");
+    expect(softFade.borderTopLeftRadius).toBe("14px");
+    expect(softFade.borderTopRightRadius).toBe("14px");
+    expect(softFade.maskImage).toContain("linear-gradient");
+    expect(strongFade.backdropFilter).toContain("blur(3px)");
+    expect(strongFade.borderTopLeftRadius).toBe("14px");
+    expect(strongFade.borderTopRightRadius).toBe("14px");
+    expect(strongFade.maskImage).toContain("linear-gradient");
+    content.scrollTop = 100;
+    await nextFrame();
+
+    expect(content.scrollTop).toBeGreaterThan(0);
+    expect(header.getBoundingClientRect().top).toBe(headerTop);
+    expect(stickyActions.getBoundingClientRect().top).toBe(stickyActionsTop);
+    expect(firstSession.getBoundingClientRect().top).toBeLessThan(
+      firstSessionTop
     );
   });
 });
