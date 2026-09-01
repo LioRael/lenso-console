@@ -728,6 +728,22 @@ mod tests {
     use super::*;
     use lenso_agent_host::{AgentHost, Profile, WebSurface};
 
+    fn configure_test_codex_catalog(root: &Path) {
+        std::fs::create_dir_all(root).unwrap();
+        std::fs::write(
+            root.join("auth.json"),
+            r#"{"openai-codex":{"type":"oauth","access":"ci-access","refresh":"ci-refresh","accountId":"ci-account","expires":4102444800000}}"#,
+        )
+        .unwrap();
+        let snapshot = root.join("runtime/model-catalog/effective");
+        std::fs::create_dir_all(&snapshot).unwrap();
+        std::fs::write(
+            snapshot.join("openai-codex-direct.json"),
+            r#"{"schema":"lenso.agent.model-catalog-generation-snapshot.v1","source_key":"sha256:8046d6f4ab67e9f091109d9214fa35c992c956f201a599d46325c9198eb0b93c","fetched_at_unix_seconds":1,"revision":"ci-fixture","response":{"models":[{"slug":"gpt-5.6-luna","display_name":"CI Fixture","default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"medium","description":"Balanced"}],"visibility":"list","additional_speed_tiers":[],"service_tiers":[],"default_service_tier":null,"supports_parallel_tool_calls":true,"context_window":272000,"max_context_window":null,"effective_context_window_percent":95,"comp_hash":null,"input_modalities":["text"]}]}}"#,
+        )
+        .unwrap();
+    }
+
     #[test]
     fn plugin_descriptor_is_an_endpoint_free_lifecycle_root() {
         let descriptor: serde_json::Value = serde_json::from_str(PLUGIN_DESCRIPTOR_JSON).unwrap();
@@ -1045,6 +1061,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn selected_console_plugin_activates_and_removal_restores_the_non_console_app() {
         let root = tempfile::tempdir().unwrap();
+        configure_test_codex_catalog(root.path());
+        configure_test_codex_catalog(&root.path().join("console-agent"));
         let web_root = root.path().join("console-web");
         std::fs::create_dir_all(&web_root).unwrap();
         std::fs::write(
