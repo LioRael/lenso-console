@@ -1,6 +1,7 @@
 "use client";
 
-import { Surface, type SurfaceProps } from "@lenso/ui/surface";
+import { Surface } from "@lenso/ui/surface";
+import * as stylex from "@stylexjs/stylex";
 import * as React from "react";
 
 import {
@@ -12,8 +13,7 @@ import {
   shouldSubmitPrompt,
   type PromptComposerSubmitShortcut,
 } from "./keyboard";
-
-import styles from "./prompt-composer.module.css";
+import { promptComposerStyles as styles } from "./prompt-composer.stylex";
 
 interface PromptComposerContextValue {
   maxRows: number;
@@ -56,9 +56,10 @@ export interface PromptComposerRootProps extends Omit<
 > {
   maxRows?: number;
   onValueChange: (value: string) => void;
-  surfaceClassName?: SurfaceProps["className"];
+  surfaceXstyle?: stylex.StyleXStyles;
   submitShortcut?: PromptComposerSubmitShortcut;
   value: string;
+  xstyle?: stylex.StyleXStyles;
 }
 
 export const PromptComposerRoot = React.forwardRef<
@@ -71,9 +72,10 @@ export const PromptComposerRoot = React.forwardRef<
       className,
       maxRows = 8,
       onValueChange,
-      surfaceClassName,
+      surfaceXstyle,
       submitShortcut = "mod-enter",
       value,
+      xstyle,
       ...props
     },
     ref
@@ -90,13 +92,13 @@ export const PromptComposerRoot = React.forwardRef<
 
     return (
       <PromptComposerContext.Provider value={context}>
-        <Surface
-          className={mergeClassName(styles.surface, surfaceClassName)}
-          level="panel"
-        >
+        <Surface level="panel" xstyle={[styles.surface, surfaceXstyle]}>
           <form
             {...props}
-            className={mergeClassName(styles.root, className)}
+            className={mergeClassName(
+              stylex.props(styles.root, xstyle).className,
+              className
+            )}
             data-slot="prompt-composer"
             ref={ref}
           >
@@ -114,98 +116,116 @@ export interface PromptComposerInputProps extends Omit<
   "defaultValue" | "onChange" | "value"
 > {
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
+  xstyle?: stylex.StyleXStyles;
 }
 
 export const PromptComposerInput = React.forwardRef<
   HTMLTextAreaElement,
   PromptComposerInputProps
->(({ className, onChange, onKeyDown, rows = 1, ...props }, forwardedRef) => {
-  const { maxRows, onValueChange, submitShortcut, value } = usePromptComposer();
-  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const resize = React.useCallback(() => {
-    if (textareaRef.current) {
-      autosizePromptComposerInput(textareaRef.current, maxRows);
-    }
-  }, [maxRows]);
+>(
+  (
+    { className, onChange, onKeyDown, rows = 1, xstyle, ...props },
+    forwardedRef
+  ) => {
+    const { maxRows, onValueChange, submitShortcut, value } =
+      usePromptComposer();
+    const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+    const resize = React.useCallback(() => {
+      if (textareaRef.current) {
+        autosizePromptComposerInput(textareaRef.current, maxRows);
+      }
+    }, [maxRows]);
 
-  React.useLayoutEffect(resize, [resize, value]);
+    React.useLayoutEffect(resize, [resize, value]);
 
-  React.useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
+    React.useLayoutEffect(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
 
-    return observePromptComposerReflow(textarea, resize);
-  }, [resize]);
+      return observePromptComposerReflow(textarea, resize);
+    }, [resize]);
 
-  return (
-    <textarea
-      {...props}
-      className={mergeClassName(styles.input, className)}
-      data-slot="prompt-composer-input"
-      onChange={(event) => {
-        onValueChange(event.currentTarget.value);
-        onChange?.(event);
-      }}
-      onKeyDown={(event) => {
-        onKeyDown?.(event);
-        if (event.defaultPrevented) {
-          return;
-        }
+    return (
+      <textarea
+        {...props}
+        className={mergeClassName(
+          stylex.props(styles.input, xstyle).className,
+          className
+        )}
+        data-slot="prompt-composer-input"
+        onChange={(event) => {
+          onValueChange(event.currentTarget.value);
+          onChange?.(event);
+        }}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          if (event.defaultPrevented) {
+            return;
+          }
 
-        if (
-          shouldSubmitPrompt(
-            {
-              altKey: event.altKey,
-              ctrlKey: event.ctrlKey,
-              isComposing: event.nativeEvent.isComposing,
-              key: event.key,
-              metaKey: event.metaKey,
-              shiftKey: event.shiftKey,
-            },
-            submitShortcut
-          )
-        ) {
-          event.preventDefault();
-          event.currentTarget.form?.requestSubmit();
-        }
-      }}
-      ref={(node) => {
-        textareaRef.current = node;
-        assignRef(forwardedRef, node);
-      }}
-      rows={rows}
-      value={value}
-    />
-  );
-});
+          if (
+            shouldSubmitPrompt(
+              {
+                altKey: event.altKey,
+                ctrlKey: event.ctrlKey,
+                isComposing: event.nativeEvent.isComposing,
+                key: event.key,
+                metaKey: event.metaKey,
+                shiftKey: event.shiftKey,
+              },
+              submitShortcut
+            )
+          ) {
+            event.preventDefault();
+            event.currentTarget.form?.requestSubmit();
+          }
+        }}
+        ref={(node) => {
+          textareaRef.current = node;
+          assignRef(forwardedRef, node);
+        }}
+        rows={rows}
+        value={value}
+      />
+    );
+  }
+);
 PromptComposerInput.displayName = "PromptComposer.Input";
 
-export type PromptComposerToolbarProps = React.ComponentPropsWithoutRef<"div">;
+export type PromptComposerToolbarProps =
+  React.ComponentPropsWithoutRef<"div"> & { xstyle?: stylex.StyleXStyles };
 
 export const PromptComposerToolbar = React.forwardRef<
   HTMLDivElement,
   PromptComposerToolbarProps
->(({ className, ...props }, ref) => (
+>(({ className, xstyle, ...props }, ref) => (
   <div
     {...props}
-    className={mergeClassName(styles.toolbar, className)}
+    className={mergeClassName(
+      stylex.props(styles.toolbar, xstyle).className,
+      className
+    )}
     data-slot="prompt-composer-toolbar"
     ref={ref}
   />
 ));
 PromptComposerToolbar.displayName = "PromptComposer.Toolbar";
 
-export type PromptComposerActionsProps = React.ComponentPropsWithoutRef<"div">;
+export type PromptComposerActionsProps =
+  React.ComponentPropsWithoutRef<"div"> & { xstyle?: stylex.StyleXStyles };
 
 export const PromptComposerActions = React.forwardRef<
   HTMLDivElement,
   PromptComposerActionsProps
->(({ className, ...props }, ref) => (
+>(({ className, xstyle, ...props }, ref) => (
   <div
     {...props}
-    className={mergeClassName(styles.actions, className)}
+    className={mergeClassName(
+      stylex.props(styles.actions, xstyle).className,
+      className
+    )}
     data-slot="prompt-composer-actions"
     ref={ref}
   />

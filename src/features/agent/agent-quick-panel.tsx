@@ -2,6 +2,7 @@ import "@fontsource-variable/inter/wght.css";
 import { Button } from "@lenso/ui/button";
 import { Dialog } from "@lenso/ui/dialog";
 import { IconButton } from "@lenso/ui/icon-button";
+import * as stylex from "@stylexjs/stylex";
 import {
   ArrowUp,
   Box,
@@ -26,12 +27,11 @@ import {
   EditingMessageBar,
 } from "./agent-message-controls";
 import agentPointerGradient from "./agent-pointer-gradient.svg";
+import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
 import type { AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
 import { useAgentTarget } from "./agent-target-context";
 import { useAgentConversation } from "./use-agent-conversation";
-
-import styles from "./agent-quick-panel.module.css";
 
 const suggestions = [
   { icon: Box, label: "Create a new App" },
@@ -114,10 +114,10 @@ export function AgentQuickPanel({
       {hasConversation ? (
         <Button
           aria-label={title}
-          className={styles.chatChip}
           onClick={() => setOpen(true)}
           size="compact"
           variant="secondary"
+          xstyle={styles.chatChip}
         >
           {title}
         </Button>
@@ -127,11 +127,11 @@ export function AgentQuickPanel({
           render={
             <Button
               aria-label="Agent"
-              className={styles.trigger}
               data-agent-action="open"
               data-open={open || undefined}
               size="compact"
               variant="ghost"
+              xstyle={[styles.trigger, open && styles.triggerOpen]}
             />
           }
         >
@@ -139,26 +139,27 @@ export function AgentQuickPanel({
           Agent
         </Dialog.Trigger>
 
-        <Dialog.Portal className={styles.portal}>
-          <Dialog.Popup className={styles.panel}>
-            <header className={styles.header}>
-              <Dialog.Title className={styles.title}>{title}</Dialog.Title>
+        <Dialog.Portal className={stylex.props(styles.portal).className}>
+          <Dialog.Popup xstyle={styles.panel}>
+            <header {...stylex.props(styles.header)}>
+              <Dialog.Title xstyle={styles.title}>{title}</Dialog.Title>
               {hasConversation ? (
                 <IconButton
                   aria-label="Chat options"
-                  className={styles.chatOptions}
                   size="default"
                   variant="ghost"
+                  xstyle={styles.chatOptions}
                 >
                   <MoreHorizontal aria-hidden="true" size={14} />
                 </IconButton>
               ) : null}
-              <div className={styles.headerActions}>
+              <div {...stylex.props(styles.headerActions)}>
                 <IconButton
                   aria-label="Minimize chat"
                   onClick={() => setOpen(false)}
                   size="default"
                   variant="ghost"
+                  xstyle={styles.headerAction}
                 >
                   <Minus aria-hidden="true" size={14} strokeWidth={1.7} />
                 </IconButton>
@@ -170,6 +171,7 @@ export function AgentQuickPanel({
                   }}
                   size="default"
                   variant="ghost"
+                  xstyle={styles.headerAction}
                 >
                   <MoveDiagonal2
                     aria-hidden="true"
@@ -187,6 +189,7 @@ export function AgentQuickPanel({
                   }}
                   size="default"
                   variant="ghost"
+                  xstyle={styles.headerAction}
                 >
                   <X aria-hidden="true" size={14} strokeWidth={1.7} />
                 </IconButton>
@@ -194,44 +197,48 @@ export function AgentQuickPanel({
             </header>
 
             <div
-              className={styles.body}
+              {...stylex.props(styles.body, showWelcome && styles.bodyEmpty)}
               data-conversation={!showWelcome || undefined}
             >
               {showWelcome ? (
                 <>
-                  <div className={styles.welcome}>
+                  <div {...stylex.props(styles.welcome)}>
                     <img
                       alt=""
                       aria-hidden="true"
-                      className={styles.welcomeIcon}
+                      className={stylex.props(styles.welcomeIcon).className}
                       height={14}
                       src={agentPointerGradient}
                       width={14}
                     />
-                    <strong>Welcome to Lenso</strong>
-                    <span>Ask anything or tell Lenso what you need</span>
+                    <strong {...stylex.props(styles.welcomeTitle)}>
+                      Welcome to Lenso
+                    </strong>
+                    <span {...stylex.props(styles.welcomeSubtitle)}>
+                      Ask anything or tell Lenso what you need
+                    </span>
                   </div>
 
                   <div
                     aria-label="Agent suggestions"
-                    className={styles.suggestions}
+                    {...stylex.props(styles.suggestions)}
                   >
                     {suggestions.map((suggestion) => {
                       const Icon = suggestion.icon;
                       return (
                         <Button
-                          className={styles.suggestion}
                           key={suggestion.label}
                           onClick={() => setDraft(suggestion.label)}
                           size="compact"
                           variant="secondary"
+                          xstyle={styles.suggestion}
                         >
                           <Icon
                             aria-hidden="true"
                             size={14}
                             strokeWidth={1.6}
                           />
-                          <span className={styles.suggestionLabel}>
+                          <span {...stylex.props(styles.suggestionLabel)}>
                             {suggestion.label}
                           </span>
                         </Button>
@@ -242,15 +249,17 @@ export function AgentQuickPanel({
               ) : isEditing ? null : (
                 <section
                   aria-label="Agent conversation"
-                  className={styles.conversation}
+                  {...stylex.props(styles.conversation)}
                   ref={conversationRef}
                 >
-                  <time className={styles.conversationTime}>Today</time>
+                  <time {...stylex.props(styles.conversationTime)}>Today</time>
                   {visibleTurns.map((turn) => (
-                    <div className={styles.quickTurn} key={turn.id}>
-                      <div className={styles.userTurn}>
-                        <div className={styles.userMessage}>{turn.user}</div>
-                        <div className={styles.messageActions}>
+                    <div {...stylex.props(styles.quickTurn)} key={turn.id}>
+                      <div {...stylex.props(styles.userTurn)}>
+                        <div {...stylex.props(styles.userMessage)}>
+                          {turn.user}
+                        </div>
+                        <div {...stylex.props(styles.messageActions)}>
                           <AgentMessageActions
                             content={turn.user}
                             {...(canEdit && turn.status === "completed"
@@ -259,7 +268,7 @@ export function AgentQuickPanel({
                           />
                         </div>
                       </div>
-                      <div className={styles.assistantTurn}>
+                      <div {...stylex.props(styles.assistantTurn)}>
                         {turn.answer ? (
                           <AgentMarkdown
                             compact
@@ -275,7 +284,7 @@ export function AgentQuickPanel({
                         ) : null}
                         {turn.error ? <p>{turn.error}</p> : null}
                         {turn.answer ? (
-                          <div className={styles.assistantCopy}>
+                          <div {...stylex.props(styles.assistantCopy)}>
                             <AgentMessageActions content={turn.answer} />
                           </div>
                         ) : null}
@@ -283,14 +292,14 @@ export function AgentQuickPanel({
                     </div>
                   ))}
                   {visibleTurns.length === 0 && runtimeError ? (
-                    <div className={styles.assistantTurn}>
+                    <div {...stylex.props(styles.assistantTurn)}>
                       <p>{runtimeError}</p>
                     </div>
                   ) : null}
                 </section>
               )}
 
-              <div className={styles.composerDock}>
+              <div {...stylex.props(styles.composerDock)}>
                 {pendingInteraction ? (
                   <AgentAskUser
                     canCancel={canCancel}
@@ -302,31 +311,37 @@ export function AgentQuickPanel({
                   />
                 ) : (
                   <div
-                    className={styles.inputWrapper}
+                    {...stylex.props(
+                      styles.inputWrapper,
+                      isEditing && styles.inputWrapperEditing
+                    )}
                     data-editing={isEditing || undefined}
                   >
                     <div
                       aria-hidden={!isEditing}
-                      className={styles.editingSlot}
+                      {...stylex.props(
+                        styles.editingSlot,
+                        isEditing && styles.editingSlotOpen
+                      )}
                       data-open={isEditing || undefined}
                     >
-                      <div className={styles.editingSlotContent}>
+                      <div {...stylex.props(styles.editingSlotContent)}>
                         <EditingMessageBar compact onCancel={cancelEditing} />
                       </div>
                     </div>
                     <PromptComposer.Root
-                      className={styles.composer}
+                      xstyle={styles.composer}
                       maxRows={6}
                       onSubmit={onSubmit}
                       onValueChange={setDraft}
                       submitShortcut="enter"
-                      surfaceClassName={styles.composerSurface}
+                      surfaceXstyle={styles.composerSurface}
                       value={draft}
                     >
                       <PromptComposer.Input
                         aria-label="Send a message to Lenso Agent"
                         autoFocus
-                        className={styles.textarea}
+                        xstyle={styles.textarea}
                         placeholder={
                           hasConversation
                             ? "Reply…"
@@ -335,12 +350,12 @@ export function AgentQuickPanel({
                         ref={textareaRef}
                         rows={1}
                       />
-                      <PromptComposer.Toolbar className={styles.composerFooter}>
+                      <PromptComposer.Toolbar xstyle={styles.composerFooter}>
                         <Button
                           aria-label="Skills"
-                          className={styles.skills}
                           size="compact"
                           variant="ghost"
+                          xstyle={styles.skills}
                         >
                           <Box aria-hidden="true" size={14} strokeWidth={1.6} />
                           Skills
@@ -350,14 +365,12 @@ export function AgentQuickPanel({
                             strokeWidth={2}
                           />
                         </Button>
-                        <PromptComposer.Actions
-                          className={styles.composerActions}
-                        >
+                        <PromptComposer.Actions xstyle={styles.composerActions}>
                           <IconButton
                             aria-label="Attach images, files, or videos"
-                            className={styles.attach}
                             size="compact"
                             variant="ghost"
+                            xstyle={styles.attach}
                           >
                             <Paperclip
                               aria-hidden="true"
@@ -369,7 +382,6 @@ export function AgentQuickPanel({
                             aria-label={
                               isRunning ? "Stop generating" : "Submit comment"
                             }
-                            className={styles.submit}
                             data-active={
                               (isRunning ? canCancel : Boolean(draft.trim())) ||
                               undefined
@@ -379,6 +391,11 @@ export function AgentQuickPanel({
                             size="compact"
                             type={isRunning ? "button" : "submit"}
                             variant="secondary"
+                            xstyle={[
+                              styles.submit,
+                              (isRunning ? canCancel : Boolean(draft.trim())) &&
+                                styles.submitActive,
+                            ]}
                           >
                             {isRunning ? (
                               <Square

@@ -1,4 +1,5 @@
 import { IconButton } from "@lenso/ui/icon-button";
+import * as stylex from "@stylexjs/stylex";
 import {
   Archive,
   Bot,
@@ -18,8 +19,7 @@ import type {
   AgentTrajectoryKind,
   AgentTrajectoryRecord,
 } from "./agent-runtime";
-
-import styles from "./agent-trajectory.module.css";
+import { agentTrajectoryStyles as styles } from "./agent-trajectory.stylex";
 
 const kindMeta: Record<
   AgentTrajectoryKind,
@@ -80,19 +80,32 @@ export function AgentTrajectory({
   };
 
   return (
-    <section aria-label="Agent trajectory" className={styles.root}>
-      <div className={styles.main}>
-        <div className={styles.toolbar}>
-          <div className={styles.summary}>
+    <section aria-label="Agent trajectory" {...stylex.props(styles.root)}>
+      <div {...stylex.props(styles.main)}>
+        <div {...stylex.props(styles.toolbar)}>
+          <div {...stylex.props(styles.summary)}>
             <span
-              className={styles.liveDot}
+              {...stylex.props(
+                styles.liveDot,
+                trajectory?.summary.status === "failed" && styles.liveDotFailed,
+                ["cancelled", "idle", "completed"].includes(
+                  trajectory?.summary.status ?? "loading"
+                ) && styles.liveDotIdle,
+                ["loading", "running"].includes(
+                  trajectory?.summary.status ?? "loading"
+                ) && styles.liveDotRunning
+              )}
               data-status={trajectory?.summary.status ?? "loading"}
             />
-            <span className={styles.statusLabel}>
+            <span {...stylex.props(styles.statusLabel)}>
               {formatStatus(trajectory?.summary.status)}
             </span>
-            <span>{trajectory?.summary.turns ?? 0} turns</span>
-            <span>{trajectory?.summary.modelCalls ?? 0} model calls</span>
+            <span {...stylex.props(styles.summaryOptional)}>
+              {trajectory?.summary.turns ?? 0} turns
+            </span>
+            <span {...stylex.props(styles.summaryOptional)}>
+              {trajectory?.summary.modelCalls ?? 0} model calls
+            </span>
             <span>{trajectory?.summary.toolCalls ?? 0} tool calls</span>
             {trajectory?.summary.inputTokens ||
             trajectory?.summary.outputTokens ? (
@@ -105,9 +118,10 @@ export function AgentTrajectory({
               <span>{trajectory.summary.failedOperations} failed</span>
             ) : null}
           </div>
-          <label className={styles.searchField}>
+          <label {...stylex.props(styles.searchField)}>
             <Search aria-hidden="true" size={12} strokeWidth={1.7} />
             <input
+              {...stylex.props(styles.searchInput)}
               aria-label="Search trajectory"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search trajectory"
@@ -116,8 +130,11 @@ export function AgentTrajectory({
             />
           </label>
         </div>
-        <div className={styles.ledger}>
-          <div aria-hidden="true" className={styles.ledgerHeader}>
+        <div {...stylex.props(styles.ledger)}>
+          <div
+            aria-hidden="true"
+            {...stylex.props(styles.ledgerGrid, styles.ledgerHeader)}
+          >
             <span>#</span>
             <span>Event</span>
             <span>Content</span>
@@ -129,10 +146,10 @@ export function AgentTrajectory({
             );
             const collapsed = collapsedTurns.has(turn);
             return (
-              <div className={styles.turnGroup} key={turn}>
+              <div {...stylex.props(styles.turnGroup)} key={turn}>
                 <button
                   aria-expanded={!collapsed}
-                  className={styles.turnHeader}
+                  {...stylex.props(styles.turnHeader)}
                   onClick={() => toggleTurn(turn)}
                   type="button"
                 >
@@ -142,7 +159,7 @@ export function AgentTrajectory({
                     <ChevronDown size={12} />
                   )}
                   <span>{turn === 0 ? "Session" : `Turn ${turn}`}</span>
-                  <span className={styles.turnMeta}>
+                  <span {...stylex.props(styles.turnMeta)}>
                     {records.filter((record) => record.turn === turn).length}{" "}
                     records
                   </span>
@@ -162,12 +179,15 @@ export function AgentTrajectory({
             );
           })}
           {trajectory ? null : (
-            <div className={styles.emptyState} data-loading="true">
+            <div
+              {...stylex.props(styles.emptyState, styles.emptyStateLoading)}
+              data-loading="true"
+            >
               Loading durable trajectory…
             </div>
           )}
           {trajectory && records.length === 0 ? (
-            <div className={styles.emptyState}>
+            <div {...stylex.props(styles.emptyState)}>
               Trajectory will appear after the first Turn.
             </div>
           ) : null}
@@ -198,25 +218,36 @@ function TrajectoryRow({
   const Icon = meta.icon;
   return (
     <button
-      className={styles.row}
+      {...stylex.props(
+        styles.ledgerGrid,
+        styles.row,
+        selected && styles.rowSelected
+      )}
       data-kind={record.kind}
       data-selected={selected || undefined}
       data-status={record.status}
       onClick={onSelect}
       type="button"
     >
-      <span className={styles.index}>{index}</span>
-      <span className={styles.event}>
-        <span className={styles.kindTag}>
+      <span {...stylex.props(styles.index)}>{index}</span>
+      <span {...stylex.props(styles.event)}>
+        <span {...stylex.props(styles.kindTag, kindStyle(record.kind))}>
           <Icon aria-hidden="true" size={11} strokeWidth={1.8} />
           {meta.label}
         </span>
       </span>
-      <span className={styles.content}>
-        <strong>{record.label}</strong>
-        <span>{record.preview}</span>
+      <span {...stylex.props(styles.content)}>
+        <strong
+          {...stylex.props(
+            styles.contentTitle,
+            record.status === "failed" && styles.contentTitleFailed
+          )}
+        >
+          {record.label}
+        </strong>
+        <span {...stylex.props(styles.contentPreview)}>{record.preview}</span>
       </span>
-      <span className={styles.duration}>
+      <span {...stylex.props(styles.duration)}>
         {record.durationMs === undefined
           ? record.status === "running"
             ? "Running"
@@ -225,6 +256,30 @@ function TrajectoryRow({
       </span>
     </button>
   );
+}
+
+function kindStyle(kind: AgentTrajectoryKind) {
+  switch (kind) {
+    case "user": {
+      return styles.kindUser;
+    }
+    case "system":
+    case "memory": {
+      return styles.kindSystem;
+    }
+    case "model": {
+      return styles.kindModel;
+    }
+    case "tool": {
+      return styles.kindTool;
+    }
+    case "compaction": {
+      return styles.kindCompaction;
+    }
+    default: {
+      return undefined;
+    }
+  }
 }
 
 function TrajectoryInspector({
@@ -236,11 +291,16 @@ function TrajectoryInspector({
 }) {
   const meta = kindMeta[record.kind];
   return (
-    <aside aria-label="Trajectory record details" className={styles.inspector}>
-      <header className={styles.inspectorHeader}>
-        <div>
-          <span className={styles.inspectorKind}>{meta.label}</span>
-          <strong>{record.label}</strong>
+    <aside
+      aria-label="Trajectory record details"
+      {...stylex.props(styles.inspector)}
+    >
+      <header {...stylex.props(styles.inspectorHeader)}>
+        <div {...stylex.props(styles.inspectorHeaderCopy)}>
+          <span {...stylex.props(styles.inspectorKind)}>{meta.label}</span>
+          <strong {...stylex.props(styles.inspectorTitle)}>
+            {record.label}
+          </strong>
         </div>
         <IconButton
           aria-label="Close details"
@@ -251,8 +311,8 @@ function TrajectoryInspector({
           <X size={13} />
         </IconButton>
       </header>
-      <div className={styles.inspectorBody}>
-        <dl className={styles.facts}>
+      <div {...stylex.props(styles.inspectorBody)}>
+        <dl {...stylex.props(styles.facts)}>
           <Fact label="Status" value={record.status} />
           <Fact
             label="Duration"
@@ -291,31 +351,37 @@ function TrajectoryInspector({
             value={String(record.sourceEventIds.length)}
           />
         </dl>
-        <section className={styles.detailSection}>
-          <h3>Summary</h3>
-          <p>{record.detail.summary}</p>
+        <section {...stylex.props(styles.detailSection)}>
+          <h3 {...stylex.props(styles.detailTitle)}>Summary</h3>
+          <p {...stylex.props(styles.detailText)}>{record.detail.summary}</p>
         </section>
         {record.detail.input ? (
-          <section className={styles.detailSection}>
-            <h3>Input</h3>
-            <pre>{record.detail.input}</pre>
+          <section {...stylex.props(styles.detailSection)}>
+            <h3 {...stylex.props(styles.detailTitle)}>Input</h3>
+            <pre {...stylex.props(styles.detailPre)}>{record.detail.input}</pre>
           </section>
         ) : null}
         {record.detail.output ? (
-          <section className={styles.detailSection}>
-            <h3>Output</h3>
-            <pre>{record.detail.output}</pre>
+          <section {...stylex.props(styles.detailSection)}>
+            <h3 {...stylex.props(styles.detailTitle)}>Output</h3>
+            <pre {...stylex.props(styles.detailPre)}>
+              {record.detail.output}
+            </pre>
           </section>
         ) : null}
         {record.detail.metadataJson ? (
-          <section className={styles.detailSection}>
-            <h3>Metadata</h3>
-            <pre>{record.detail.metadataJson}</pre>
+          <section {...stylex.props(styles.detailSection)}>
+            <h3 {...stylex.props(styles.detailTitle)}>Metadata</h3>
+            <pre {...stylex.props(styles.detailPre)}>
+              {record.detail.metadataJson}
+            </pre>
           </section>
         ) : null}
-        <section className={styles.detailSection}>
-          <h3>Source events</h3>
-          <pre>{record.sourceEventIds.join("\n")}</pre>
+        <section {...stylex.props(styles.detailSection)}>
+          <h3 {...stylex.props(styles.detailTitle)}>Source events</h3>
+          <pre {...stylex.props(styles.detailPre)}>
+            {record.sourceEventIds.join("\n")}
+          </pre>
         </section>
       </div>
     </aside>
@@ -324,9 +390,9 @@ function TrajectoryInspector({
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
+    <div {...stylex.props(styles.fact)}>
+      <dt {...stylex.props(styles.factLabel)}>{label}</dt>
+      <dd {...stylex.props(styles.factValue)}>{value}</dd>
     </div>
   );
 }

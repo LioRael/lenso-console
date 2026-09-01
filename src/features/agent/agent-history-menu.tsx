@@ -1,4 +1,5 @@
 import { Menu } from "@lenso/ui/menu";
+import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -14,24 +15,16 @@ import {
 import {
   filterAgentSessions,
   getAgentHistoryEmptyLabel,
+  groupAgentSessions,
+  relativeAgentSessionAge,
 } from "./agent-history-menu-filter";
+import { agentHistoryMenuStyles as styles } from "./agent-history-menu.stylex";
 import {
   listAgentSessions,
   type AgentSessionSummary,
   type AgentTargetId,
 } from "./agent-runtime";
 import { useAgentTarget } from "./agent-target-context";
-
-import styles from "./agent-history-menu.module.css";
-
-type HistoryClasses = {
-  item?: string | undefined;
-  meta?: string | undefined;
-  newChat?: string | undefined;
-  section?: string | undefined;
-};
-
-const emptyHistoryClasses: HistoryClasses = {};
 
 export function AgentHistoryMenu({
   children,
@@ -70,11 +63,12 @@ export function AgentHistoryMenu({
         >
           <Menu.Popup
             aria-label="Chat history"
-            className={styles.menu}
             id={menuId}
+            xstyle={styles.menu}
           >
-            <div className={styles.search}>
+            <div {...stylex.props(styles.search)}>
               <input
+                {...stylex.props(styles.searchInput)}
                 aria-autocomplete="list"
                 aria-controls={menuId}
                 aria-expanded="true"
@@ -91,12 +85,6 @@ export function AgentHistoryMenu({
               />
             </div>
             <AgentHistoryItems
-              classes={{
-                item: styles.item,
-                meta: styles.meta,
-                newChat: styles.newChat,
-                section: styles.section,
-              }}
               currentSessionId={currentSessionId}
               query={query}
               refreshKey={refreshKey}
@@ -111,14 +99,12 @@ export function AgentHistoryMenu({
 }
 
 export function AgentHistoryItems({
-  classes = emptyHistoryClasses,
   currentSessionId,
   query = "",
   refreshKey = 0,
   showNewChat = true,
   targetId = "console",
 }: {
-  classes?: HistoryClasses;
   currentSessionId?: string | undefined;
   query?: string;
   refreshKey?: number;
@@ -132,10 +118,7 @@ export function AgentHistoryItems({
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);
-  const today = visibleSessions.filter((session) => isToday(session.updatedAt));
-  const earlier = visibleSessions.filter(
-    (session) => !isToday(session.updatedAt)
-  );
+  const { earlier, today } = groupAgentSessions(visibleSessions);
   const emptyLabel = getAgentHistoryEmptyLabel({
     loading,
     query,
@@ -147,8 +130,8 @@ export function AgentHistoryItems({
       {showNewChat ? (
         <>
           <Menu.Item
-            className={classes.newChat}
             onClick={() => navigate({ to: "/" })}
+            xstyle={[styles.item, styles.newChat]}
           >
             <Menu.Leading>
               <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
@@ -160,7 +143,6 @@ export function AgentHistoryItems({
       ) : null}
       {today.length > 0 ? (
         <HistorySection
-          classes={classes}
           currentSessionId={currentSessionId}
           label="Today"
           sessions={today}
@@ -170,14 +152,15 @@ export function AgentHistoryItems({
         <>
           {today.length > 0 ? <Menu.Separator /> : null}
           <HistorySection
-            classes={classes}
             currentSessionId={currentSessionId}
             label="Earlier"
             sessions={earlier}
           />
         </>
       ) : null}
-      {emptyLabel ? <div className={styles.empty}>{emptyLabel}</div> : null}
+      {emptyLabel ? (
+        <div {...stylex.props(styles.empty)}>{emptyLabel}</div>
+      ) : null}
     </>
   );
 }
@@ -197,12 +180,10 @@ function focusFirstHistoryItem(event: KeyboardEvent<HTMLInputElement>) {
 }
 
 function HistorySection({
-  classes,
   currentSessionId,
   label,
   sessions,
 }: {
-  classes: HistoryClasses;
   currentSessionId: string | undefined;
   label: string;
   sessions: AgentSessionSummary[];
@@ -210,12 +191,11 @@ function HistorySection({
   const navigate = useNavigate();
   return (
     <>
-      <div className={classes.section}>{label}</div>
+      <div {...stylex.props(styles.section)}>{label}</div>
       {sessions.map((session) => {
         const current = session.sessionId === currentSessionId;
         return (
           <Menu.Item
-            className={classes.item}
             data-current={current || undefined}
             key={session.sessionId}
             onClick={() =>
@@ -224,12 +204,15 @@ function HistorySection({
                 to: "/agent/$chatId",
               })
             }
+            xstyle={styles.item}
           >
             <Menu.Label>{session.title}</Menu.Label>
             <Menu.Trailing>
-              <span className={classes.meta}>
-                {current ? <span>Current</span> : null}
-                <span>{relativeAge(session.updatedAt)}</span>
+              <span {...stylex.props(styles.meta)}>
+                {current ? (
+                  <span {...stylex.props(styles.metaCurrent)}>Current</span>
+                ) : null}
+                <span>{relativeAgentSessionAge(session.updatedAt)}</span>
               </span>
             </Menu.Trailing>
           </Menu.Item>
@@ -237,27 +220,4 @@ function HistorySection({
       })}
     </>
   );
-}
-
-function isToday(value: string) {
-  const date = new Date(value);
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  );
-}
-
-function relativeAge(value: string) {
-  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
-  const minutes = Math.max(1, Math.floor(elapsed / 60_000));
-  if (minutes < 60) {
-    return `${minutes}min`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h`;
-  }
-  return `${Math.floor(hours / 24)}d`;
 }

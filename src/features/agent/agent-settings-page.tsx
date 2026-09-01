@@ -2,6 +2,7 @@ import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
 import { Surface } from "@lenso/ui/surface";
 import { Switch } from "@lenso/ui/switch";
+import * as stylex from "@stylexjs/stylex";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -26,8 +27,7 @@ import {
   type AgentBootstrap,
   type AgentToolPolicy,
 } from "./agent-runtime";
-
-import styles from "./agent-settings-page.module.css";
+import { agentSettingsStyles as styles } from "./agent-settings-page.stylex";
 
 export type AgentSettingsKind =
   | "ai"
@@ -37,7 +37,7 @@ export type AgentSettingsKind =
 
 export function AgentSettingsPage({ kind }: { kind: AgentSettingsKind }) {
   return (
-    <main className={styles.page}>
+    <main {...stylex.props(styles.page)}>
       {kind === "personalization" ? <PersonalizationPage /> : null}
       {kind === "skill-new" ? <SkillEditorPage /> : null}
       {kind === "ai" ? <AiAgentsPage /> : null}
@@ -54,9 +54,9 @@ function SectionHeading({
   title: string;
 }) {
   return (
-    <header className={styles.sectionHeading}>
-      <h1>{title}</h1>
-      <p>{description}</p>
+    <header {...stylex.props(styles.sectionHeading)}>
+      <h1 {...stylex.props(styles.sectionHeadingTitle)}>{title}</h1>
+      <p {...stylex.props(styles.sectionHeadingDescription)}>{description}</p>
     </header>
   );
 }
@@ -65,32 +65,30 @@ function PersonalizationPage() {
   const navigate = useNavigate();
   const [guidance, setGuidance] = useState("");
   return (
-    <div className={styles.contentColumn}>
+    <div {...stylex.props(styles.contentColumn)}>
       <SectionHeading
         description="Your personal settings for Lenso Agent"
         title="Agent personalization"
       />
       <SettingsSection.Root
         aria-labelledby="personal-guidance-title"
-        className={styles.settingsSection}
+        xstyle={styles.sectionRoot}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
           <SettingsSection.Title
-            className={styles.settingsSectionTitle}
+            xstyle={styles.sectionTitle}
             id="personal-guidance-title"
           >
             Guidance
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Provide personal instructions and context for Lenso Agent when
             responding to conversations
           </SettingsSection.Description>
         </SettingsSection.Header>
         <textarea
           aria-label="Agent guidance"
-          className={styles.guidance}
+          {...stylex.props(styles.guidance)}
           onChange={(event) => setGuidance(event.target.value)}
           placeholder="Enter personal guidance for Lenso Agent (optional)…"
           value={guidance}
@@ -98,24 +96,19 @@ function PersonalizationPage() {
       </SettingsSection.Root>
       <SettingsSection.Root
         aria-labelledby="skills-title"
-        className={styles.settingsSection}
+        xstyle={[styles.sectionRoot, styles.sectionRootFollowing]}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
-          <SettingsSection.Title
-            className={styles.settingsSectionTitle}
-            id="skills-title"
-          >
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
+          <SettingsSection.Title xstyle={styles.sectionTitle} id="skills-title">
             Skills
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Reusable prompts auto-selected by the agent or invoked via slash
             commands
           </SettingsSection.Description>
         </SettingsSection.Header>
-        <SettingsSection.Group className={styles.singleRow}>
-          <div className={styles.singleRowInner}>
+        <SettingsSection.Group xstyle={styles.singleRow}>
+          <div {...stylex.props(styles.singleRowInner)}>
             <span>No skills created</span>
             <IconButton
               aria-label="Create skill"
@@ -130,24 +123,22 @@ function PersonalizationPage() {
       </SettingsSection.Root>
       <SettingsSection.Root
         aria-labelledby="mcp-connectors-title"
-        className={styles.settingsSection}
+        xstyle={[styles.sectionRoot, styles.sectionRootFollowing]}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
           <SettingsSection.Title
-            className={styles.settingsSectionTitle}
+            xstyle={styles.sectionTitle}
             id="mcp-connectors-title"
           >
             MCP connectors
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Add MCP connectors for use with Lenso Agent. Workspace admins can
             manage available connectors in security settings.
           </SettingsSection.Description>
         </SettingsSection.Header>
-        <SettingsSection.Group className={styles.singleRow}>
-          <div className={styles.singleRowInner}>
+        <SettingsSection.Group xstyle={styles.singleRow}>
+          <div {...stylex.props(styles.singleRowInner)}>
             <span>Agent MCP access disabled in this workspace</span>
             <Button size="compact" variant="ghost">
               Configure
@@ -164,25 +155,28 @@ function SkillEditorPage() {
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
   return (
-    <div className={`${styles.contentColumn} ${styles.skillEditor}`}>
-      <Link className={styles.backLink} to="/settings/agent">
+    <div {...stylex.props(styles.contentColumn, styles.skillEditor)}>
+      <Link
+        className={stylex.props(styles.backLink).className}
+        to="/settings/agent"
+      >
         <ArrowLeft size={14} /> Agent personalization
       </Link>
       <input
         aria-label="Skill name"
-        className={styles.skillName}
+        {...stylex.props(styles.skillName)}
         onChange={(event) => setName(event.target.value)}
         placeholder="Skill name"
         value={name}
       />
       <textarea
         aria-label="Skill instructions"
-        className={styles.skillInstructions}
+        {...stylex.props(styles.skillInstructions)}
         onChange={(event) => setInstructions(event.target.value)}
         placeholder="Add instructions…"
         value={instructions}
       />
-      <div className={styles.editorActions}>
+      <div {...stylex.props(styles.editorActions)}>
         <Button
           onClick={() => navigate({ to: "/settings/agent" })}
           variant="secondary"
@@ -203,12 +197,12 @@ function SkillEditorPage() {
 
 function AiAgentsPage() {
   return (
-    <div className={styles.contentColumn}>
+    <div {...stylex.props(styles.contentColumn)}>
       <SectionHeading
         description="Automate product workflows and operations with AI"
         title="AI & Agents"
       />
-      <div className={styles.summaryCards}>
+      <div {...stylex.props(styles.summaryCards)}>
         <SettingsLinkRow
           icon={<CircleDollarSign size={16} />}
           subtitle="$0.00 remaining"
@@ -223,29 +217,32 @@ function AiAgentsPage() {
       </div>
       <SettingsSection.Root
         aria-labelledby="lenso-agent-settings-title"
-        className={styles.settingsSection}
+        xstyle={styles.sectionRoot}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
           <SettingsSection.Title
-            className={styles.settingsSectionTitle}
+            xstyle={styles.sectionTitle}
             id="lenso-agent-settings-title"
           >
             Lenso Agent
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Create Apps and answer questions about your workspace.
           </SettingsSection.Description>
         </SettingsSection.Header>
-        <SettingsSection.Group className={styles.featureList}>
-          <Link className={styles.featureRow} to="/settings/ai/agent">
+        <SettingsSection.Group xstyle={styles.featureList}>
+          <Link
+            className={stylex.props(styles.featureRow).className}
+            to="/settings/ai/agent"
+          >
             <Bot size={16} />
             <span>
-              <strong>Lenso Agent</strong>
-              <small>Configure for your workspace</small>
+              <strong {...stylex.props(styles.rowTitle)}>Lenso Agent</strong>
+              <small {...stylex.props(styles.rowDescription)}>
+                Configure for your workspace
+              </small>
             </span>
-            <em>Enabled</em>
+            <em {...stylex.props(styles.rowStatus)}>Enabled</em>
             <ChevronRight size={14} />
           </Link>
           <FeatureRow
@@ -273,18 +270,16 @@ function AiAgentsPage() {
       </SettingsSection.Root>
       <SettingsSection.Root
         aria-labelledby="lenso-agent-integrations-title"
-        className={styles.settingsSection}
+        xstyle={[styles.sectionRoot, styles.sectionRootFollowing]}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
           <SettingsSection.Title
-            className={styles.settingsSectionTitle}
+            xstyle={styles.sectionTitle}
             id="lenso-agent-integrations-title"
           >
             Lenso Agent integrations
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Integrations available to Lenso Agent.
           </SettingsSection.Description>
         </SettingsSection.Header>
@@ -376,8 +371,11 @@ function AgentConfigurationPage() {
   const effectiveTools = toolPolicy ?? runtime?.tools;
 
   return (
-    <div className={styles.contentColumn}>
-      <Link className={styles.backLink} to="/settings/ai">
+    <div {...stylex.props(styles.contentColumn)}>
+      <Link
+        className={stylex.props(styles.backLink).className}
+        to="/settings/ai"
+      >
         <ArrowLeft size={14} /> AI & Agents
       </Link>
       <SectionHeading
@@ -386,33 +384,31 @@ function AgentConfigurationPage() {
       />
       <SettingsSection.Root
         aria-labelledby="tool-access-title"
-        className={styles.settingsSection}
+        xstyle={styles.sectionRoot}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
           <SettingsSection.Title
-            className={styles.settingsSectionTitle}
+            xstyle={styles.sectionTitle}
             id="tool-access-title"
           >
             Tool access
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Choose which Tools the Console Agent may use. Changes apply to new
             turns.
           </SettingsSection.Description>
         </SettingsSection.Header>
-        <SettingsSection.Group className={styles.toolPolicy}>
-          <div className={styles.toolPolicySummary}>
+        <SettingsSection.Group xstyle={styles.toolPolicy}>
+          <div {...stylex.props(styles.toolPolicySummary)}>
             <span>
-              <strong>
+              <strong {...stylex.props(styles.rowTitle)}>
                 {runtimeUnavailable
                   ? "Runtime unavailable"
                   : effectiveTools
                     ? `${effectiveTools.allowed.length} ${effectiveTools.allowed.length === 1 ? "tool" : "tools"} enabled`
                     : "Loading runtime policy…"}
               </strong>
-              <small>
+              <small {...stylex.props(styles.rowDescription)}>
                 {runtime && effectiveTools
                   ? `${effectiveTools.available.length} available · Profile: ${runtime.profile}`
                   : "Reading the effective Harness policy"}
@@ -420,12 +416,14 @@ function AgentConfigurationPage() {
             </span>
           </div>
           {effectiveTools?.available.length ? (
-            <ul className={styles.toolList}>
+            <ul {...stylex.props(styles.toolList)}>
               {effectiveTools.available.map((tool) => (
-                <li key={tool.name}>
+                <li {...stylex.props(styles.toolListRow)} key={tool.name}>
                   <span>
-                    <code>{tool.name}</code>
-                    <small>{tool.description}</small>
+                    <code {...stylex.props(styles.toolCode)}>{tool.name}</code>
+                    <small {...stylex.props(styles.toolDescription)}>
+                      {tool.description}
+                    </small>
                   </span>
                   {canManageToolPolicy && toolPolicy ? (
                     <Switch.Root
@@ -440,7 +438,7 @@ function AgentConfigurationPage() {
                       <Switch.Thumb />
                     </Switch.Root>
                   ) : (
-                    <em>
+                    <em {...stylex.props(styles.toolDescription)}>
                       {effectiveTools.allowed.includes(tool.name)
                         ? "Enabled"
                         : "Not enabled"}
@@ -450,12 +448,12 @@ function AgentConfigurationPage() {
               ))}
             </ul>
           ) : effectiveTools ? (
-            <p className={styles.noTools}>
+            <p {...stylex.props(styles.noTools)}>
               This Console Agent cannot call Tools.
             </p>
           ) : null}
           {toolPolicyError ? (
-            <p className={styles.toolPolicyError} role="alert">
+            <p {...stylex.props(styles.toolPolicyError)} role="alert">
               {toolPolicyError}
             </p>
           ) : null}
@@ -463,29 +461,29 @@ function AgentConfigurationPage() {
       </SettingsSection.Root>
       <SettingsSection.Root
         aria-labelledby="workspace-guidance-title"
-        className={styles.settingsSection}
+        xstyle={[styles.sectionRoot, styles.sectionRootFollowing]}
       >
-        <SettingsSection.Header className={styles.settingsSectionHeader}>
+        <SettingsSection.Header xstyle={styles.sectionHeader}>
           <SettingsSection.Title
-            className={styles.settingsSectionTitle}
+            xstyle={styles.sectionTitle}
             id="workspace-guidance-title"
           >
             Workspace guidance
           </SettingsSection.Title>
-          <SettingsSection.Description
-            className={styles.settingsSectionDescription}
-          >
+          <SettingsSection.Description xstyle={styles.sectionDescription}>
             Provide instructions and context for Lenso Agent when responding to
             conversations
           </SettingsSection.Description>
         </SettingsSection.Header>
-        <SettingsSection.Group className={styles.singleRow}>
-          <div className={styles.singleRowInner}>
-            <span className={styles.rowWithIcon}>
+        <SettingsSection.Group xstyle={styles.singleRow}>
+          <div {...stylex.props(styles.singleRowInner)}>
+            <span {...stylex.props(styles.rowWithIcon)}>
               <CheckCircle2 size={15} />{" "}
               <span>
-                <strong>Updates</strong>
-                <small>Customize how project updates should be written</small>
+                <strong {...stylex.props(styles.rowTitle)}>Updates</strong>
+                <small {...stylex.props(styles.rowDescription)}>
+                  Customize how project updates should be written
+                </small>
               </span>
             </span>
             <ChevronRight size={14} />
@@ -493,7 +491,7 @@ function AgentConfigurationPage() {
         </SettingsSection.Group>
         <textarea
           aria-label="Workspace guidance"
-          className={styles.guidance}
+          {...stylex.props(styles.guidance)}
           onChange={(event) => setGuidance(event.target.value)}
           placeholder="Optional agent guidance…"
           value={guidance}
@@ -525,12 +523,12 @@ function SettingsLinkRow({
   title: string;
 }) {
   const content = (
-    <div className={styles.singleRowInner}>
-      <span className={styles.rowWithIcon}>
+    <div {...stylex.props(styles.singleRowInner)}>
+      <span {...stylex.props(styles.rowWithIcon)}>
         {icon}
         <span>
-          <strong>{title}</strong>
-          <small>{subtitle}</small>
+          <strong {...stylex.props(styles.rowTitle)}>{title}</strong>
+          <small {...stylex.props(styles.rowDescription)}>{subtitle}</small>
         </span>
       </span>
       {action ? (
@@ -544,11 +542,11 @@ function SettingsLinkRow({
   );
 
   return grouped ? (
-    <SettingsSection.Group className={styles.singleRow}>
+    <SettingsSection.Group xstyle={styles.singleRow}>
       {content}
     </SettingsSection.Group>
   ) : (
-    <Surface className={styles.singleRow} level="panel">
+    <Surface level="panel" xstyle={styles.singleRow}>
       {content}
     </Surface>
   );
@@ -568,13 +566,19 @@ function FeatureRow({
   title: string;
 }) {
   return (
-    <div className={styles.featureRow} data-disabled={disabled || undefined}>
+    <div
+      {...stylex.props(
+        styles.featureRow,
+        disabled && styles.featureRowDisabled
+      )}
+      data-disabled={disabled || undefined}
+    >
       {icon}
       <span>
-        <strong>{title}</strong>
-        <small>{subtitle}</small>
+        <strong {...stylex.props(styles.rowTitle)}>{title}</strong>
+        <small {...stylex.props(styles.rowDescription)}>{subtitle}</small>
       </span>
-      <em>{status}</em>
+      <em {...stylex.props(styles.rowStatus)}>{status}</em>
     </div>
   );
 }

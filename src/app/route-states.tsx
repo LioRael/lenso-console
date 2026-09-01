@@ -1,9 +1,10 @@
 import { Button } from "@lenso/ui/button";
+import * as stylex from "@stylexjs/stylex";
 import { Link, useRouter } from "@tanstack/react-router";
 import { AlertTriangle, House, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
-import styles from "./route-states.module.css";
+import { routeStateStyles as styles } from "./route-states.stylex";
 
 export const RoutePending = () => (
   <RouteState
@@ -55,10 +56,10 @@ function RouteState({
   title: string;
 }) {
   return (
-    <main className={styles.root}>
-      <span className={styles.icon}>{icon}</span>
-      <h1>{title}</h1>
-      <p>{description}</p>
+    <main {...stylex.props(styles.root)}>
+      <span {...stylex.props(styles.icon)}>{icon}</span>
+      <h1 {...stylex.props(styles.title)}>{title}</h1>
+      <p {...stylex.props(styles.description)}>{description}</p>
       {action}
     </main>
   );

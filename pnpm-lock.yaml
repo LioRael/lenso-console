@@ -24,11 +24,11 @@ importers:
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.8)
       '@lenso/tokens':
-        specifier: 0.4.0
-        version: 0.4.0
+        specifier: 0.5.0
+        version: 0.5.0
       '@lenso/ui':
-        specifier: 0.4.0
-        version: 0.4.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 0.5.0
+        version: 0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@streamdown/cjk':
         specifier: ^1.0.3
         version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1)(unified@11.0.5)
@@ -518,17 +518,18 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lenso/primitives@0.4.0':
-    resolution: {integrity: sha512-LfHkMdOJGafUJdhemnHLwnxHdBXDWfP6kGpf0cx1f7xif28g0TNwl7N08EReZiT4wX/mLSjIvRlbHCFqI5oKBw==}
+  '@lenso/primitives@0.5.0':
+    resolution: {integrity: sha512-WsMOvlylzSE94CrCHR8nDw+Obc5i/BzwTjK3KdtTPikLcfh4qSwAt061NtBwgjKQA8szgciLNXBXSNIcvp2bAw==}
     peerDependencies:
       '@base-ui/react': '>=1.7.0 <2.0.0'
+      '@stylexjs/stylex': '>=0.19.0 <1.0.0'
       react: '>=19.2.0 <20.0.0'
 
-  '@lenso/tokens@0.4.0':
-    resolution: {integrity: sha512-NsR0LD4Sn+E5jQi+9vZXbP35xhE/4IKWr+6QkBQhsQQCqQ9P/qX9zNJ2TQijIh+md7xv0puE4uyU1Hmh5H+Zkw==}
+  '@lenso/tokens@0.5.0':
+    resolution: {integrity: sha512-Pnprgd3+k2sL/Kfng7eel5Vqh4YAk90NKzGIgnmOTx12seN5W9sIAFEgSEK08Sm7VstD56cE3XOShr5TPEFojA==}
 
-  '@lenso/ui@0.4.0':
-    resolution: {integrity: sha512-fLojKmPwTKW3wH464354ak9b2OwliZsbRMEGPumIZuUmTUZJXIQ8MmwlZNTmIHQaDTTnKdrey3dAFe4xG3Eaxg==}
+  '@lenso/ui@0.5.0':
+    resolution: {integrity: sha512-tUKbmx64f83oZx/jUDPN/7wVS/awmx0QlxIG41C6btnlnV3qOtfb1G2QgeGAVfPmxnYSY9rZilCGthP7zTtxpA==}
     peerDependencies:
       '@base-ui/react': '>=1.7.0 <2.0.0'
       react: '>=19.2.0 <20.0.0'
@@ -3478,20 +3479,21 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@lenso/primitives@0.4.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
+  '@lenso/primitives@0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react@19.2.8)':
     dependencies:
       '@base-ui/react': 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@stylexjs/stylex': 0.19.0
       react: 19.2.8
 
-  '@lenso/tokens@0.4.0':
+  '@lenso/tokens@0.5.0':
     dependencies:
       '@stylexjs/stylex': 0.19.0
 
-  '@lenso/ui@0.4.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@lenso/ui@0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@base-ui/react': 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@lenso/primitives': 0.4.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
-      '@lenso/tokens': 0.4.0
+      '@lenso/primitives': 0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react@19.2.8)
+      '@lenso/tokens': 0.5.0
       '@stylexjs/stylex': 0.19.0
       lucide-react: 1.31.0(react@19.2.8)
       react: 19.2.8

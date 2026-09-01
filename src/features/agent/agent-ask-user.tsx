@@ -1,13 +1,13 @@
 import { Button } from "@lenso/ui/button";
+import * as stylex from "@stylexjs/stylex";
 import { Check, ChevronLeft, Square } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { agentAskUserStyles as styles } from "./agent-ask-user.stylex";
 import type {
   AgentInteractionAnswer,
   AgentPendingInteraction,
 } from "./agent-runtime";
-
-import styles from "./agent-ask-user.module.css";
 
 type AnswerDraft = {
   other: string;
@@ -99,21 +99,21 @@ export function AgentAskUser({
   return (
     <section
       aria-labelledby={`agent-question-${question.questionId}`}
-      className={styles.card}
+      {...stylex.props(styles.card, compact && styles.cardCompact)}
       data-compact={compact || undefined}
     >
-      <header className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}>{question.header}</span>
+      <header {...stylex.props(styles.header)}>
+        <div {...stylex.props(styles.headerCopy)}>
+          <span {...stylex.props(styles.eyebrow)}>{question.header}</span>
           <h2
-            className={styles.prompt}
+            {...stylex.props(styles.prompt)}
             id={`agent-question-${question.questionId}`}
           >
             {question.prompt}
           </h2>
         </div>
         {interaction.questions.length > 1 ? (
-          <span className={styles.progress}>
+          <span {...stylex.props(styles.progress)}>
             {questionIndex + 1}/{interaction.questions.length}
           </span>
         ) : null}
@@ -121,7 +121,7 @@ export function AgentAskUser({
 
       <div
         aria-label={question.prompt}
-        className={styles.options}
+        {...stylex.props(styles.options, compact && styles.optionsCompact)}
         role={question.multiSelect ? "group" : "radiogroup"}
       >
         {question.options.map((option) => {
@@ -129,7 +129,10 @@ export function AgentAskUser({
           return (
             <button
               aria-checked={selected}
-              className={styles.option}
+              {...stylex.props(
+                styles.option,
+                selected && styles.optionSelected
+              )}
               data-selected={selected || undefined}
               key={option.optionId}
               onClick={() => selectOption(option.optionId)}
@@ -137,29 +140,46 @@ export function AgentAskUser({
               type="button"
             >
               <span
-                className={styles.indicator}
+                {...stylex.props(
+                  styles.indicator,
+                  question.multiSelect && styles.indicatorMultiple,
+                  selected && styles.indicatorSelected
+                )}
                 data-multiple={question.multiSelect || undefined}
               >
                 {selected ? (
                   <Check aria-hidden="true" size={11} strokeWidth={2.2} />
                 ) : null}
               </span>
-              <span className={styles.optionCopy}>
-                <strong>{option.label}</strong>
-                {option.description ? <span>{option.description}</span> : null}
+              <span {...stylex.props(styles.copy)}>
+                <strong {...stylex.props(styles.copyTitle)}>
+                  {option.label}
+                </strong>
+                {option.description ? (
+                  <span {...stylex.props(styles.copyDescription)}>
+                    {option.description}
+                  </span>
+                ) : null}
                 {selected && option.preview ? (
-                  <code className={styles.preview}>{option.preview}</code>
+                  <code {...stylex.props(styles.preview)}>
+                    {option.preview}
+                  </code>
                 ) : null}
               </span>
             </button>
           );
         })}
         <label
-          className={styles.other}
+          {...stylex.props(
+            styles.option,
+            styles.other,
+            Boolean(draft.other) && styles.optionSelected
+          )}
           data-active={Boolean(draft.other) || undefined}
         >
-          <span className={styles.otherIndicator} />
+          <span {...stylex.props(styles.indicator)} />
           <input
+            {...stylex.props(styles.otherInput)}
             aria-label={`Other answer for ${question.header}`}
             onChange={(event) =>
               updateDraft({ other: event.target.value, selectedOptionIds: [] })
@@ -170,15 +190,15 @@ export function AgentAskUser({
         </label>
       </div>
 
-      <footer className={styles.footer}>
+      <footer {...stylex.props(styles.footer)}>
         {questionIndex > 0 ? (
           <Button
             aria-label="Previous question"
-            className={styles.back}
             onClick={() => setQuestionIndex((current) => current - 1)}
             size="compact"
             type="button"
             variant="ghost"
+            xstyle={styles.actionSecondary}
           >
             <ChevronLeft aria-hidden="true" size={13} />
             Back
@@ -186,11 +206,11 @@ export function AgentAskUser({
         ) : null}
         {canCancel ? (
           <Button
-            className={styles.cancel}
             onClick={onCancel}
             size="compact"
             type="button"
             variant="ghost"
+            xstyle={styles.actionSecondary}
           >
             <Square
               aria-hidden="true"
@@ -202,7 +222,6 @@ export function AgentAskUser({
           </Button>
         ) : null}
         <Button
-          className={styles.continue}
           disabled={
             !canContinue || isSubmitting || answeredCount < questionIndex
           }
@@ -210,6 +229,7 @@ export function AgentAskUser({
           size="compact"
           type="button"
           variant="secondary"
+          xstyle={styles.continue}
         >
           {isSubmitting
             ? "Submitting…"

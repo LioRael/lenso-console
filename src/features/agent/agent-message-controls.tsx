@@ -1,7 +1,8 @@
 import { IconButton } from "@lenso/ui/icon-button";
+import * as stylex from "@stylexjs/stylex";
 import { Copy, Pencil, X } from "lucide-react";
 
-import styles from "./agent-message-controls.module.css";
+import { agentMessageControlStyles as styles } from "./agent-message-controls.stylex";
 
 export function AgentMessageActions({
   content,
@@ -15,17 +16,17 @@ export function AgentMessageActions({
   };
 
   return (
-    <div className={styles.actions}>
+    <div {...stylex.props(styles.actions)}>
       <IconButton
         aria-label="Copy message"
-        className={styles.action}
         onClick={copyMessage}
         size="compact"
         variant="ghost"
+        xstyle={styles.action}
       >
         <Copy
           aria-hidden="true"
-          className={styles.icon}
+          className={stylex.props(styles.icon).className}
           size={12}
           strokeWidth={1.7}
         />
@@ -33,14 +34,14 @@ export function AgentMessageActions({
       {onEdit ? (
         <IconButton
           aria-label="Edit message"
-          className={styles.action}
           onClick={onEdit}
           size="compact"
           variant="ghost"
+          xstyle={styles.action}
         >
           <Pencil
             aria-hidden="true"
-            className={styles.icon}
+            className={stylex.props(styles.icon).className}
             size={12}
             strokeWidth={1.7}
           />
@@ -58,13 +59,11 @@ export function EditingMessageBar({
   onCancel: () => void;
 }) {
   return (
-    <div
-      className={`${styles.editingBar} ${compact ? styles.compactEditingBar : ""}`}
-    >
-      <span className={styles.editingLabel}>
+    <div {...stylex.props(styles.editingBar)}>
+      <span {...stylex.props(styles.editingLabel)}>
         <Pencil
           aria-hidden="true"
-          className={styles.editingIcon}
+          className={stylex.props(styles.icon).className}
           size={12}
           strokeWidth={1.7}
         />
@@ -72,12 +71,18 @@ export function EditingMessageBar({
       </span>
       <IconButton
         aria-label="Cancel editing"
-        className={styles.cancel}
         onClick={onCancel}
         size="compact"
         variant="ghost"
+        xstyle={[styles.cancel, compact && styles.compactCancel]}
       >
-        <X aria-hidden="true" className={styles.cancelIcon} />
+        <X
+          aria-hidden="true"
+          className={
+            stylex.props(styles.icon, compact && styles.compactCancelIcon)
+              .className
+          }
+        />
       </IconButton>
     </div>
   );

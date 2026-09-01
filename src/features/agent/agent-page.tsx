@@ -4,6 +4,7 @@ import { Menu } from "@lenso/ui/menu";
 import { PageHeader } from "@lenso/ui/page-header";
 import { Select } from "@lenso/ui/select";
 import { Tabs } from "@lenso/ui/tabs";
+import * as stylex from "@stylexjs/stylex";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowUp,
@@ -47,6 +48,7 @@ import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
+import { agentPageStyles as styles } from "./agent-page.stylex";
 import {
   modelsForSelector,
   type AgentBootstrap,
@@ -62,8 +64,6 @@ import { AgentShimmerText } from "./agent-shimmer-text";
 import { useAgentTarget } from "./agent-target-context";
 import { AgentTrajectory } from "./agent-trajectory";
 import { useAgentConversation } from "./use-agent-conversation";
-
-import styles from "./agent-page.module.css";
 
 type AgentPageProps = {
   conversationId?: string;
@@ -265,7 +265,13 @@ export function AgentPage({ conversationId }: AgentPageProps) {
 
   return (
     <div
-      className={`${styles.page} ${conversation ? styles.conversationPage : styles.emptyPage}`}
+      {...stylex.props(
+        styles.page,
+        conversation ? styles.conversationPage : styles.emptyPage,
+        conversation &&
+          view === "trajectory" &&
+          styles.conversationPageTrajectory
+      )}
       data-view={conversation ? view : undefined}
     >
       <AgentHeader
@@ -298,8 +304,8 @@ export function AgentPage({ conversationId }: AgentPageProps) {
           />
         )
       ) : (
-        <div className={styles.emptyCanvas}>
-          <section className={styles.emptyCenter}>
+        <div {...stylex.props(styles.emptyCanvas)}>
+          <section {...stylex.props(styles.emptyCenter)}>
             <AgentComposer
               canCompact={Boolean(sessionId)}
               canCancel={canCancel}
@@ -329,23 +335,24 @@ export function AgentPage({ conversationId }: AgentPageProps) {
               <AgentTerminalShelf runs={terminalRuns} />
             ) : null}
             {suggestionsVisible ? (
-              <div className={styles.suggestions}>
-                <div className={styles.suggestionsHeader}>
+              <div {...stylex.props(styles.suggestions)}>
+                <div {...stylex.props(styles.suggestionsHeader)}>
                   <span>Get started with some examples</span>
                   <IconButton
                     aria-label="Dismiss examples"
                     onClick={() => setSuggestionsVisible(false)}
                     size="compact"
                     variant="ghost"
+                    xstyle={styles.suggestionsHeaderAction}
                   >
                     <X size={13} />
                   </IconButton>
                 </div>
-                <div className={styles.suggestionGrid}>
+                <div {...stylex.props(styles.suggestionGrid)}>
                   {suggestions.map((suggestion) => (
                     <button
                       aria-label={suggestion.title}
-                      className={styles.suggestion}
+                      {...stylex.props(styles.suggestion)}
                       key={suggestion.title}
                       onClick={() => {
                         setDraft(suggestion.prompt);
@@ -358,9 +365,13 @@ export function AgentPage({ conversationId }: AgentPageProps) {
                         size={15}
                         strokeWidth={1.6}
                       />
-                      <span className={styles.suggestionCopy}>
-                        <strong>{suggestion.title}</strong>
-                        <span>{suggestion.description}</span>
+                      <span {...stylex.props(styles.suggestionCopy)}>
+                        <strong {...stylex.props(styles.suggestionTitle)}>
+                          {suggestion.title}
+                        </strong>
+                        <span {...stylex.props(styles.suggestionDescription)}>
+                          {suggestion.description}
+                        </span>
                       </span>
                     </button>
                   ))}
@@ -371,20 +382,30 @@ export function AgentPage({ conversationId }: AgentPageProps) {
         </div>
       )}
       {conversation && view === "trajectory" ? (
-        <div aria-hidden="true" className={styles.trajectoryComposerBackdrop} />
+        <div
+          aria-hidden="true"
+          {...stylex.props(styles.trajectoryComposerBackdrop)}
+        />
       ) : null}
       {conversation ? (
         <div
-          className={styles.composerDock}
+          {...stylex.props(
+            styles.composerDock,
+            Boolean(editingTurnId) && styles.composerDockEditing,
+            view === "trajectory" && styles.composerDockTrajectory
+          )}
           data-editing={Boolean(editingTurnId) || undefined}
           data-view={view}
         >
           <div
             aria-hidden={!editingTurnId}
-            className={styles.editingMessageReveal}
+            {...stylex.props(
+              styles.editingMessageReveal,
+              Boolean(editingTurnId) && styles.editingMessageRevealOpen
+            )}
             data-open={Boolean(editingTurnId) || undefined}
           >
-            <div className={styles.editingMessageClip}>
+            <div {...stylex.props(styles.editingMessageClip)}>
               <EditingMessageBar onCancel={cancelEditing} />
             </div>
           </div>
@@ -480,20 +501,18 @@ function AgentHeader({
   };
 
   return (
-    <PageHeader.Root
-      aria-label="Agent chat navigation"
-      className={styles.header}
-    >
+    <PageHeader.Root aria-label="Agent chat navigation" xstyle={styles.header}>
       <PageHeader.Row>
         {renaming && onRename ? (
           <form
-            className={styles.renameForm}
+            {...stylex.props(styles.renameForm)}
             onSubmit={(event) => {
               event.preventDefault();
               void saveRename();
             }}
           >
             <input
+              {...stylex.props(styles.renameInput)}
               aria-label="Conversation title"
               disabled={savingTitle}
               maxLength={200}
@@ -520,21 +539,19 @@ function AgentHeader({
             placement="header"
             showNewChat={Boolean(conversationId)}
           >
-            <Button
-              className={styles.chatSwitcher}
-              size="compact"
-              variant="ghost"
-            >
-              <span>{conversationTitle ?? "New chat"}</span>
+            <Button size="compact" variant="ghost" xstyle={styles.chatSwitcher}>
+              <span {...stylex.props(styles.chatSwitcherLabel)}>
+                {conversationTitle ?? "New chat"}
+              </span>
               <ChevronDown aria-hidden="true" size={12} />
             </Button>
           </AgentHistoryMenu>
         )}
         {conversationId ? (
           <Tabs.Root
-            className={styles.viewTabs}
             onValueChange={(value) => onViewChange(value as AgentView)}
             value={view}
+            xstyle={styles.viewTabs}
           >
             <Tabs.List aria-label="Agent view">
               <Tabs.Tab value="conversation">Conversation</Tabs.Tab>
@@ -543,11 +560,12 @@ function AgentHeader({
           </Tabs.Root>
         ) : null}
         {targets.length > 1 || (onRename && !renaming) ? (
-          <div className={styles.headerActions}>
+          <div {...stylex.props(styles.headerActions)}>
             {targets.length > 1 ? (
-              <label className={styles.agentTarget}>
+              <label {...stylex.props(styles.agentTarget)}>
                 <Bot aria-hidden="true" size={13} strokeWidth={1.7} />
                 <select
+                  {...stylex.props(styles.agentTargetSelect)}
                   aria-label="Active Agent"
                   onChange={(event) => {
                     selectTarget(event.target.value as "connected" | "console");
@@ -612,7 +630,7 @@ function AgentConversation({
   return (
     <section
       aria-label="Agent conversation"
-      className={styles.conversation}
+      {...stylex.props(styles.conversation)}
       onScroll={(event) => {
         const element = event.currentTarget;
         const distance =
@@ -621,13 +639,13 @@ function AgentConversation({
       }}
       ref={conversationRef}
     >
-      <div className={styles.conversationContent}>
-        <time className={styles.conversationTime}>Today</time>
+      <div {...stylex.props(styles.conversationContent)}>
+        <time {...stylex.props(styles.conversationTime)}>Today</time>
         {turns.map((turn) => (
-          <div className={styles.turn} key={turn.id}>
-            <div className={styles.userMessageGroup}>
-              <div className={styles.userMessage}>{turn.user}</div>
-              <div className={styles.userMessageActions}>
+          <div {...stylex.props(styles.turn)} key={turn.id}>
+            <div {...stylex.props(styles.userMessageGroup)}>
+              <div {...stylex.props(styles.userMessage)}>{turn.user}</div>
+              <div {...stylex.props(styles.userMessageActions)}>
                 <AgentMessageActions
                   content={turn.user}
                   {...(canEdit ? { onEdit: () => onEdit(turn) } : {})}
@@ -635,8 +653,8 @@ function AgentConversation({
               </div>
             </div>
             {turn.work ? (
-              <details className={styles.worked}>
-                <summary>
+              <details {...stylex.props(styles.worked)}>
+                <summary {...stylex.props(styles.workedSummary)}>
                   <AgentShimmerText
                     active={
                       turn.status === "running" && !turnHasRunningTool(turn)
@@ -644,11 +662,14 @@ function AgentConversation({
                   >
                     {turnStatusLabel(turn)}
                   </AgentShimmerText>
-                  <span aria-hidden="true" className={styles.workedChevron}>
+                  <span
+                    aria-hidden="true"
+                    {...stylex.props(styles.workedChevron)}
+                  >
                     <ChevronRight size={14} />
                   </span>
                 </summary>
-                <div className={styles.workedBody}>
+                <div {...stylex.props(styles.workedBody)}>
                   <AgentMarkdown streaming={turn.status === "running"}>
                     {turn.thought || "Open Trajectory to inspect this work."}
                   </AgentMarkdown>
@@ -656,7 +677,7 @@ function AgentConversation({
               </details>
             ) : null}
             {turn.tools?.length ? <AgentToolCalls tools={turn.tools} /> : null}
-            <div className={styles.assistantMessage}>
+            <div {...stylex.props(styles.assistantMessage)}>
               {turn.answer ? (
                 <AgentMarkdown streaming={turn.status === "running"}>
                   {turn.answer}
@@ -670,14 +691,14 @@ function AgentConversation({
               {turn.error ? <p>{turn.error}</p> : null}
             </div>
             {turn.answer ? (
-              <div className={styles.copyMessage}>
+              <div {...stylex.props(styles.copyMessage)}>
                 <AgentMessageActions content={turn.answer} />
               </div>
             ) : null}
           </div>
         ))}
         {turns.length === 0 && runtimeError ? (
-          <div className={styles.assistantMessage}>
+          <div {...stylex.props(styles.assistantMessage)}>
             <p>{runtimeError}</p>
           </div>
         ) : null}
@@ -685,10 +706,10 @@ function AgentConversation({
       {!followTail && (
         <IconButton
           aria-label="Jump to latest"
-          className={styles.jumpToLatest}
           onClick={jumpToLatest}
           size="compact"
           variant="secondary"
+          xstyle={styles.jumpToLatest}
         >
           <ArrowDown size={14} />
         </IconButton>
@@ -699,36 +720,41 @@ function AgentConversation({
 
 function AgentToolCalls({ tools }: { tools: AgentToolCall[] }) {
   return (
-    <div aria-label="Tool activity" className={styles.toolCalls}>
+    <div aria-label="Tool activity" {...stylex.props(styles.toolCalls)}>
       {tools.map((tool) => {
         const Icon = toolIcon(tool.name);
         const label = toolActivityLabel(tool);
         const rows = toolActivityRows(tool);
         return (
           <details
-            className={styles.toolCall}
+            {...stylex.props(styles.toolCall)}
             data-status={tool.status}
             key={tool.callId}
           >
-            <summary>
+            <summary {...stylex.props(styles.toolSummary)}>
               <Icon aria-hidden="true" size={15} strokeWidth={1.65} />
               <AgentShimmerText
                 active={tool.status === "running"}
-                className={styles.toolName}
+                className={stylex.props(styles.toolName).className}
               >
                 {label}
               </AgentShimmerText>
-              <span aria-hidden="true" className={styles.toolChevron}>
+              <span aria-hidden="true" {...stylex.props(styles.toolChevron)}>
                 <ChevronRight size={14} />
               </span>
             </summary>
-            <div className={styles.toolDetails}>
+            <div {...stylex.props(styles.toolDetails)}>
               {rows.map((row) => {
                 const RowIcon = row.icon;
                 return (
-                  <div className={styles.toolDetailRow} key={row.label}>
+                  <div {...stylex.props(styles.toolDetailRow)} key={row.label}>
                     <RowIcon aria-hidden="true" size={14} strokeWidth={1.55} />
-                    <span title={row.title}>{row.label}</span>
+                    <span
+                      {...stylex.props(styles.toolDetailLabel)}
+                      title={row.title}
+                    >
+                      {row.label}
+                    </span>
                   </div>
                 );
               })}
@@ -934,16 +960,16 @@ function AgentComposer({
   );
   return (
     <PromptComposer.Root
-      className={styles.composer}
+      xstyle={styles.composer}
       onSubmit={onSubmit}
       onValueChange={onChange}
       submitShortcut="enter"
-      surfaceClassName={styles.composerSurface}
+      surfaceXstyle={styles.composerSurface}
       value={draft}
     >
       <PromptComposer.Input
         aria-label="Send a message to Lenso Agent"
-        className={styles.textarea}
+        xstyle={styles.textarea}
         placeholder={placeholder}
         ref={ref}
         rows={2}
@@ -951,33 +977,41 @@ function AgentComposer({
       {contextSuggestions.length > 0 ? (
         <div
           aria-label="Context Source suggestions"
-          className={styles.contextSuggestions}
+          {...stylex.props(styles.contextSuggestions)}
         >
           {contextSuggestions.map((suggestion) => (
             <button
               aria-label={`${suggestion.label}: ${suggestion.description}`}
-              className={styles.contextSuggestion}
+              {...stylex.props(styles.contextSuggestion)}
               key={suggestion.insertText}
               onClick={() => onChange(suggestion.insertText)}
               onMouseDown={(event) => event.preventDefault()}
               type="button"
             >
-              <suggestion.icon aria-hidden="true" size={14} />
+              <suggestion.icon
+                aria-hidden="true"
+                className={stylex.props(styles.contextSuggestionIcon).className}
+                size={14}
+              />
               <span>
-                <strong>{suggestion.label}</strong>
-                <small>{suggestion.description}</small>
+                <strong {...stylex.props(styles.contextSuggestionTitle)}>
+                  {suggestion.label}
+                </strong>
+                <small {...stylex.props(styles.contextSuggestionDescription)}>
+                  {suggestion.description}
+                </small>
               </span>
             </button>
           ))}
         </div>
       ) : null}
-      <PromptComposer.Toolbar className={styles.composerFooter}>
+      <PromptComposer.Toolbar xstyle={styles.composerFooter}>
         <SkillsMenu>
           <Button
             aria-label="Skills"
-            className={styles.skillsButton}
             size="compact"
             variant="ghost"
+            xstyle={styles.skillsButton}
           >
             <Box aria-hidden="true" size={13} strokeWidth={1.7} />
             Skills
@@ -1056,10 +1090,10 @@ function AgentComposer({
             <Menu.Trigger
               render={
                 <Button
-                  className={styles.turnControlButton}
                   disabled={isRunning}
                   size="compact"
                   variant="ghost"
+                  xstyle={styles.turnControl}
                 >
                   <ShieldCheck aria-hidden="true" size={12} />
                   {runtime.tools.allowed.length === 0
@@ -1104,45 +1138,48 @@ function AgentComposer({
         {runtime?.capabilities.sessionCompact && canCompact ? (
           <IconButton
             aria-label="Compact conversation context"
-            className={styles.compactButton}
             disabled={isRunning}
             onClick={onCompact}
             size="compact"
             type="button"
             variant="ghost"
+            xstyle={styles.compactButton}
           >
             <Minimize2 size={13} />
           </IconButton>
         ) : null}
-        <PromptComposer.Actions className={styles.composerActions}>
+        <PromptComposer.Actions xstyle={styles.composerActions}>
           <IconButton
             aria-label="Attach images, files, or videos"
-            className={styles.attachButton}
             size="compact"
             variant="ghost"
+            xstyle={styles.attachButton}
           >
             <Paperclip size={14} strokeWidth={1.7} />
           </IconButton>
           {isRunning && canCancel ? (
             <IconButton
               aria-label="Stop generating"
-              className={styles.stopButton}
               onClick={onCancel}
               size="compact"
               type="button"
               variant="ghost"
+              xstyle={styles.stopButton}
             >
               <Square fill="currentColor" size={9} strokeWidth={0} />
             </IconButton>
           ) : null}
           <IconButton
             aria-label={isRunning ? "Queue follow-up" : "Submit comment"}
-            className={styles.sendButton}
             data-active={Boolean(draft.trim()) || undefined}
             disabled={!draft.trim()}
             size="compact"
             type="submit"
             variant="secondary"
+            xstyle={[
+              styles.sendButton,
+              Boolean(draft.trim()) && styles.sendButtonActive,
+            ]}
           >
             <ArrowUp size={14} strokeWidth={1.9} />
           </IconButton>
@@ -1179,7 +1216,7 @@ function TurnSelect({
       }}
       value={value}
     >
-      <Select.Trigger aria-label={ariaLabel} className={styles.turnControl}>
+      <Select.Trigger aria-label={ariaLabel} xstyle={styles.turnControl}>
         {icon}
         <Select.Value>{selectedOption?.label ?? value}</Select.Value>
         <ChevronDown aria-hidden="true" size={11} />
@@ -1210,12 +1247,14 @@ function AgentPromptQueue({
   prompts: { id: string; prompt: string }[];
 }) {
   return (
-    <div aria-label="Queued prompts" className={styles.promptQueue}>
-      <span className={styles.queueLabel}>Queued</span>
-      <div className={styles.queueItems}>
+    <div aria-label="Queued prompts" {...stylex.props(styles.promptQueue)}>
+      <span {...stylex.props(styles.queueLabel)}>Queued</span>
+      <div {...stylex.props(styles.queueItems)}>
         {prompts.map((prompt) => (
-          <div className={styles.queueItem} key={prompt.id}>
-            <span>{prompt.prompt}</span>
+          <div {...stylex.props(styles.queueItem)} key={prompt.id}>
+            <span {...stylex.props(styles.queueItemLabel)}>
+              {prompt.prompt}
+            </span>
             <IconButton
               aria-label="Remove queued prompt"
               onClick={() => onRemove(prompt.id)}
@@ -1233,26 +1272,41 @@ function AgentPromptQueue({
 
 function AgentTerminalShelf({ runs }: { runs: AgentTerminalRun[] }) {
   return (
-    <div aria-label="Terminal command output" className={styles.terminalShelf}>
+    <div
+      aria-label="Terminal command output"
+      {...stylex.props(styles.terminalShelf)}
+    >
       {runs.map((run) => (
         <details
-          className={styles.terminalRun}
+          {...stylex.props(styles.terminalRun)}
           data-status={run.status}
           key={run.id}
           open={run.status === "running"}
         >
-          <summary>
+          <summary {...stylex.props(styles.terminalSummary)}>
             <Terminal aria-hidden="true" size={13} />
-            <code>{run.commandLine}</code>
-            <span>{run.status}</span>
+            <code {...stylex.props(styles.terminalCode)}>
+              {run.commandLine}
+            </code>
+            <span {...stylex.props(styles.terminalStatus)}>{run.status}</span>
           </summary>
-          <pre>
+          <pre {...stylex.props(styles.terminalOutput)}>
             {run.messages.map((message, index) => (
-              <span data-kind={message.kind} key={`${run.id}:${index}`}>
+              <span
+                {...stylex.props(
+                  message.kind === "stderr" && styles.terminalStderr
+                )}
+                data-kind={message.kind}
+                key={`${run.id}:${index}`}
+              >
                 {message.content}
               </span>
             ))}
-            {run.error ? <span data-kind="stderr">{run.error}</span> : null}
+            {run.error ? (
+              <span {...stylex.props(styles.terminalStderr)} data-kind="stderr">
+                {run.error}
+              </span>
+            ) : null}
           </pre>
         </details>
       ))}
@@ -1262,16 +1316,21 @@ function AgentTerminalShelf({ runs }: { runs: AgentTerminalRun[] }) {
 
 function AgentTaskShelf({ tasks }: { tasks: AgentTask[] }) {
   return (
-    <div aria-label="Agent tasks" className={styles.taskShelf}>
+    <div aria-label="Agent tasks" {...stylex.props(styles.taskShelf)}>
       {tasks.map((task) => (
         <div
-          className={styles.taskItem}
+          {...stylex.props(styles.taskItem)}
           data-status={task.status}
           key={task.taskId}
         >
-          <span className={styles.taskStatus} />
-          <span className={styles.taskAgent}>{task.agent}</span>
-          <span className={styles.taskProgress}>
+          <span
+            {...stylex.props(
+              styles.taskStatus,
+              task.status === "running" && styles.taskStatusRunning
+            )}
+          />
+          <span {...stylex.props(styles.taskAgent)}>{task.agent}</span>
+          <span {...stylex.props(styles.taskProgress)}>
             {task.progress ?? task.status}
           </span>
         </div>
