@@ -1,8 +1,16 @@
 import { Sidebar, type SidebarItemProps } from "@lenso/ui/sidebar";
 import * as stylex from "@stylexjs/stylex";
-import type { PropsWithChildren, ReactNode } from "react";
+import { Search } from "lucide-react";
+import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 
 import { contextNavigationStyles as styles } from "./context-navigation.stylex";
+
+export function ContextNavigationContent({
+  xstyle,
+  ...props
+}: ComponentProps<typeof Sidebar.Content>) {
+  return <Sidebar.Content {...props} xstyle={[styles.content, xstyle]} />;
+}
 
 export function ContextNavigationItem({
   selected,
@@ -44,5 +52,17 @@ export function ContextNavigationSection({
       </Sidebar.SectionHeader>
       {children}
     </Sidebar.Section>
+  );
+}
+
+export function ContextNavigationSearch({
+  type = "search",
+  ...props
+}: ComponentProps<"input">) {
+  return (
+    <label {...stylex.props(styles.search)}>
+      <Search aria-hidden="true" size={14} strokeWidth={1.7} />
+      <input {...props} {...stylex.props(styles.searchInput)} type={type} />
+    </label>
   );
 }

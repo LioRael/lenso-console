@@ -1,10 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const agentContextNavigationStyles = stylex.create({
-  content: {
-    gap: "6px",
-    padding: "0 12px 16px",
-  },
   empty: {
     color: "var(--color-content-tertiary)",
     fontSize: "12px",
@@ -22,36 +18,42 @@ export const agentContextNavigationStyles = stylex.create({
       "@media (max-width: 760px)": "flex",
     },
   },
-  search: {
-    alignItems: "center",
-    backgroundColor: "var(--color-surface-canvas)",
-    borderColor: {
-      default: "var(--color-border-secondary)",
-      ":hover": "var(--color-border-control)",
-      ":focus-within": "var(--color-border-control-focus)",
-    },
-    borderRadius: "var(--radius-rounded)",
-    borderStyle: "solid",
-    borderWidth: "0.5px",
-    color: "var(--color-content-tertiary)",
+  stickyActions: {
+    backgroundColor: "var(--color-surface-sidebar)",
+    borderEndEndRadius: "14px",
+    borderEndStartRadius: "14px",
     display: "flex",
-    flex: "0 0 28px",
-    gap: "8px",
-    paddingInline: "8px",
-  },
-  searchInput: {
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    color: {
-      default: "var(--color-content-primary)",
-      "::placeholder": "var(--color-content-tertiary)",
+    flexDirection: "column",
+    flexShrink: 0,
+    gap: "6px",
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+    "::before": {
+      backdropFilter: "blur(1px)",
+      borderStartEndRadius: "14px",
+      borderStartStartRadius: "14px",
+      content: "''",
+      height: "12px",
+      insetInline: 0,
+      maskImage:
+        "linear-gradient(to bottom, rgb(0 0 0 / 70%), rgb(0 0 0 / 18%) 58%, transparent)",
+      pointerEvents: "none",
+      position: "absolute",
+      top: "calc(100% - 0.5px)",
     },
-    font: "inherit",
-    fontSize: "12px",
-    lineHeight: "16px",
-    minWidth: 0,
-    outline: 0,
-    padding: 0,
-    width: "100%",
+    "::after": {
+      backdropFilter: "blur(3px)",
+      borderStartEndRadius: "14px",
+      borderStartStartRadius: "14px",
+      content: "''",
+      height: "6px",
+      insetInline: 0,
+      maskImage:
+        "linear-gradient(to bottom, rgb(0 0 0 / 82%), rgb(0 0 0 / 26%) 62%, transparent)",
+      pointerEvents: "none",
+      position: "absolute",
+      top: "calc(100% - 0.5px)",
+    },
   },
 });
