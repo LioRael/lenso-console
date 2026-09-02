@@ -212,6 +212,46 @@ describe("Plugin Agent receipts", () => {
       revision: revisionB,
     });
   });
+
+  test("decodes one exact Plugin selection change", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "set_plugin_enabled",
+          {
+            enabled: false,
+            expected_revision: revisionA,
+            instance: "default",
+            plugin_id: "example.echo",
+          },
+          {
+            authority: {
+              kind: "sqlite_configuration_store",
+              reference: "console",
+            },
+            baseRevision: revisionA,
+            enabled: false,
+            instance: "default",
+            pluginId: "example.echo",
+            revision: revisionB,
+            schema: "lenso.plugin-selection-publication.v1",
+            status: "disabled",
+          }
+        )
+      )
+    ).toEqual({
+      authority: {
+        kind: "sqlite_configuration_store",
+        reference: "console",
+      },
+      baseRevision: revisionA,
+      enabled: false,
+      instanceKey: "default",
+      kind: "selection",
+      packageId: "example.echo",
+      revision: revisionB,
+    });
+  });
 });
 
 function proposalTool(): AgentToolCall {
