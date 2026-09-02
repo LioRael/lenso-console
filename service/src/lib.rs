@@ -1190,21 +1190,18 @@ mod tests {
                     assert!(available.iter().any(|entry| entry["name"] == tool));
                 }
 
-                let plugins = reqwest::get(format!(
-                    "http://{address}/api/console/v1/agent/plugins"
-                ))
-                .await
-                .unwrap()
-                .json::<serde_json::Value>()
-                .await
-                .unwrap();
+                let plugins =
+                    reqwest::get(format!("http://{address}/api/console/v1/agent/plugins"))
+                        .await
+                        .unwrap()
+                        .json::<serde_json::Value>()
+                        .await
+                        .unwrap();
                 let instruction = plugins["active"]["plugins"]
                     .as_array()
                     .unwrap()
                     .iter()
-                    .find(|plugin| {
-                        plugin["packageId"] == "lenso.agent.console-instructions"
-                    })
+                    .find(|plugin| plugin["packageId"] == "lenso.agent.console-instructions")
                     .expect("Console instruction should be active");
                 assert_eq!(
                     instruction["providedCapabilities"],
