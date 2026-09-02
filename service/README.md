@@ -83,6 +83,9 @@ allowed_tools = [
   "inspect_plugin",
   "check_plugin_change",
   "apply_plugin_change",
+  "list_plugin_changes",
+  "check_plugin_rollback",
+  "apply_plugin_rollback",
   "set_plugin_enabled",
 ]
 managed_app_root = "."
@@ -155,16 +158,20 @@ Generation to the Console Agent. Its configuration must be supplied through
 an explicit Host/Capability port; Console Agent membership does not grant that
 authority.
 
-The standalone Console Agent admits six Plugin management Tools
+The standalone Console Agent admits nine Plugin management Tools
 by default: `inspect_app`, `list_plugins`, `inspect_plugin`,
-`check_plugin_change`, `apply_plugin_change`, and `set_plugin_enabled`. Set
+`check_plugin_change`, `apply_plugin_change`, `list_plugin_changes`,
+`check_plugin_rollback`, `apply_plugin_rollback`, and `set_plugin_enabled`. Set
 `LENSO_CONSOLE_AGENT_TOOLS` to an exact comma-separated subset to narrow access,
 or to an empty value to disable all model-visible Tools. Embedded Apps own the
 same policy explicitly through `allowed_tools`; `[]` disables every Tool.
-`apply_plugin_change` and `set_plugin_enabled` remain subject to the interactive
-approval hook before the selected authority changes desired state. Selection
-support is authority-specific; unsupported remote or custom authorities fail
-explicitly instead of falling back to direct Plugin Root mutation.
+`apply_plugin_change`, `apply_plugin_rollback`, and `set_plugin_enabled` remain
+subject to the interactive approval hook before the selected authority changes
+desired state. Plugin history receipts expose only publication metadata;
+retained configuration values stay inside the selected authority. Selection and
+rollback support are authority-specific; unsupported remote or custom
+authorities fail explicitly instead of falling back to direct Plugin Root
+mutation.
 
 The process binds only to loopback until Console identity and authorization are
 implemented as vNext Plugins. Agent sessions, Tool policy, and Host runtime

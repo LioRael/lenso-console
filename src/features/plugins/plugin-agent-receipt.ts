@@ -5,6 +5,9 @@ const LIST_PLUGINS_TOOL = "list_plugins";
 const INSPECT_PLUGIN_TOOL = "inspect_plugin";
 const CHECK_PLUGIN_CHANGE_TOOL = "check_plugin_change";
 const APPLY_PLUGIN_CHANGE_TOOL = "apply_plugin_change";
+const LIST_PLUGIN_CHANGES_TOOL = "list_plugin_changes";
+const CHECK_PLUGIN_ROLLBACK_TOOL = "check_plugin_rollback";
+const APPLY_PLUGIN_ROLLBACK_TOOL = "apply_plugin_rollback";
 const SET_PLUGIN_ENABLED_TOOL = "set_plugin_enabled";
 const MAX_CONFIGURATION_BYTES = 7168;
 
@@ -91,13 +94,47 @@ export type AgentPluginSelectionReceipt = AgentPluginInspectionBase & {
   packageId: string;
 };
 
+export type AgentPluginHistoryItem = {
+  baseRevision: string;
+  baseSourceDigest: string | null;
+  proposalDigest: string;
+  publishedAtUnixMs: number;
+  revision: string;
+  rollbackOfProposalDigest: string | null;
+};
+
+export type AgentPluginHistoryReceipt = AgentPluginInspectionBase & {
+  instanceKey: string;
+  kind: "history";
+  packageId: string;
+  publications: readonly AgentPluginHistoryItem[];
+};
+
+export type AgentPluginRollbackProposalReceipt = AgentPluginReceiptBase & {
+  application: "app_generation" | "blocked" | "noop";
+  candidateRevision: string;
+  diagnostics: readonly { code: string; detail: string }[];
+  kind: "rollback_proposal";
+  rollbackOfProposalDigest: string;
+  status: "needs_decision" | "ready" | "rejected";
+};
+
+export type AgentPluginRollbackPublicationReceipt = AgentPluginReceiptBase & {
+  kind: "rollback_publication";
+  revision: string;
+  rollbackOfProposalDigest: string;
+};
+
 export type AgentPluginReceipt =
   | AgentAppInspectionReceipt
   | AgentPluginListReceipt
   | AgentPluginDetailReceipt
   | AgentPluginProposalReceipt
   | AgentPluginPublicationReceipt
-  | AgentPluginSelectionReceipt;
+  | AgentPluginSelectionReceipt
+  | AgentPluginHistoryReceipt
+  | AgentPluginRollbackProposalReceipt
+  | AgentPluginRollbackPublicationReceipt;
 
 export function decodeAgentPluginReceipt(
   tool: AgentToolCall
@@ -130,10 +167,189 @@ export function decodeAgentPluginReceipt(
   if (tool.name === APPLY_PLUGIN_CHANGE_TOOL) {
     return decodePublication(argumentsValue, result);
   }
+  if (tool.name === LIST_PLUGIN_CHANGES_TOOL) {
+    return decodeHistory(argumentsValue, result);
+  }
+  if (tool.name === CHECK_PLUGIN_ROLLBACK_TOOL) {
+    return decodeRollbackProposal(argumentsValue, result);
+  }
+  if (tool.name === APPLY_PLUGIN_ROLLBACK_TOOL) {
+    return decodeRollbackPublication(argumentsValue, result);
+  }
   if (tool.name === SET_PLUGIN_ENABLED_TOOL) {
     return decodeSelection(argumentsValue, result);
   }
   return null;
+}
+
+function decodeHistory(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentPluginHistoryReceipt | null {
+  const agentId = decodeTargetAgent(argumentsValue, result);
+  const authority = decodeAuthority(result.authority);
+  if (
+    !agentId ||
+    !authority ||
+    !hasOnlyOptionalLimitKeys(argumentsValue) ||
+    !isBoundedString(argumentsValue.instance, 1, 128) ||
+    !isBoundedString(argumentsValue.plugin_id, 1, 128) ||
+    (argumentsValue.limit !== undefined &&
+      !isIntegerInRange(argumentsValue.limit, 1, 50)) ||
+    result.schema !== "lenso.agent.console-plugin-history.v1" ||
+    result.instance !== argumentsValue.instance ||
+    result.pluginId !== argumentsValue.plugin_id ||
+    !isBoundedString(result.revision, 71, 71) ||
+    !Array.isArray(result.publications) ||
+    result.publications.length > (argumentsValue.limit ?? 10)
+  ) {
+    return null;
+  }
+  const publications: AgentPluginHistoryItem[] = [];
+  for (const publication of result.publications) {
+    if (
+      !isRecord(publication) ||
+      !hasOnlyKeys(publication, [
+        "baseRevision",
+        "baseSourceDigest",
+        "proposalDigest",
+        "publishedAtUnixMs",
+        "revision",
+        "rollbackOfProposalDigest",
+      ]) ||
+      !isBoundedString(publication.baseRevision, 71, 71) ||
+      !isNullableDigest(publication.baseSourceDigest) ||
+      !isBoundedString(publication.proposalDigest, 71, 71) ||
+      !isIntegerInRange(
+        publication.publishedAtUnixMs,
+        0,
+        Number.MAX_SAFE_INTEGER
+      ) ||
+      !isBoundedString(publication.revision, 71, 71) ||
+      !isNullableDigest(publication.rollbackOfProposalDigest)
+    ) {
+      return null;
+    }
+    publications.push({
+      baseRevision: publication.baseRevision,
+      baseSourceDigest: publication.baseSourceDigest,
+      proposalDigest: publication.proposalDigest,
+      publishedAtUnixMs: publication.publishedAtUnixMs,
+      revision: publication.revision,
+      rollbackOfProposalDigest: publication.rollbackOfProposalDigest,
+    });
+  }
+  return {
+    agentId,
+    authority,
+    instanceKey: argumentsValue.instance,
+    kind: "history",
+    packageId: argumentsValue.plugin_id,
+    publications,
+    revision: result.revision,
+  };
+}
+
+function decodeRollbackProposal(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentPluginRollbackProposalReceipt | null {
+  const input = decodeRollbackInput(argumentsValue, false);
+  const agentId = decodeTargetAgent(argumentsValue, result);
+  const authority = decodeAuthority(result.authority);
+  const diagnostics = decodeDiagnostics(result.diagnostics);
+  const application = enumValue(result.application, [
+    "app_generation",
+    "blocked",
+    "noop",
+  ] as const);
+  const status = enumValue(result.status, [
+    "needs_decision",
+    "ready",
+    "rejected",
+  ] as const);
+  if (
+    !input ||
+    !agentId ||
+    !authority ||
+    !diagnostics ||
+    !application ||
+    !status ||
+    result.schema !== "lenso.plugin-configuration-proposal.v1" ||
+    result.pluginId !== input.packageId ||
+    result.instance !== input.instanceKey ||
+    result.baseRevision !== input.expectedRevision ||
+    result.rollbackOfProposalDigest !== input.publicationProposalDigest ||
+    !isBoundedString(result.baseSourceDigest, 71, 71) ||
+    !isBoundedString(result.candidateRevision, 71, 71) ||
+    !isBoundedString(result.proposalDigest, 71, 71)
+  ) {
+    return null;
+  }
+  const ready =
+    status === "ready" &&
+    diagnostics.length === 0 &&
+    ((application === "noop" &&
+      result.candidateRevision === result.baseRevision) ||
+      (application === "app_generation" &&
+        result.candidateRevision !== result.baseRevision));
+  const blocked =
+    (status === "needs_decision" || status === "rejected") &&
+    application === "blocked" &&
+    diagnostics.length > 0;
+  return ready || blocked
+    ? {
+        agentId,
+        application,
+        authority,
+        baseRevision: result.baseRevision,
+        baseSourceDigest: result.baseSourceDigest,
+        candidateRevision: result.candidateRevision,
+        diagnostics,
+        instanceKey: input.instanceKey,
+        kind: "rollback_proposal",
+        packageId: input.packageId,
+        proposalDigest: result.proposalDigest,
+        rollbackOfProposalDigest: input.publicationProposalDigest,
+        status,
+      }
+    : null;
+}
+
+function decodeRollbackPublication(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentPluginRollbackPublicationReceipt | null {
+  const input = decodeRollbackInput(argumentsValue, true);
+  const agentId = decodeTargetAgent(argumentsValue, result);
+  const authority = decodeAuthority(result.authority);
+  if (
+    !input ||
+    !agentId ||
+    !authority ||
+    !input.proposalDigest ||
+    result.schema !== "lenso.plugin-configuration-publication.v1" ||
+    result.status !== "published_desired_state" ||
+    result.baseRevision !== input.expectedRevision ||
+    result.proposalDigest !== input.proposalDigest ||
+    result.rollbackOfProposalDigest !== input.publicationProposalDigest ||
+    !isBoundedString(result.baseSourceDigest, 71, 71) ||
+    !isBoundedString(result.revision, 71, 71)
+  ) {
+    return null;
+  }
+  return {
+    agentId,
+    authority,
+    baseRevision: result.baseRevision,
+    baseSourceDigest: result.baseSourceDigest,
+    instanceKey: input.instanceKey,
+    kind: "rollback_publication",
+    packageId: input.packageId,
+    proposalDigest: input.proposalDigest,
+    revision: result.revision,
+    rollbackOfProposalDigest: input.publicationProposalDigest,
+  };
 }
 
 function decodeSelection(
@@ -432,6 +648,37 @@ function decodeInput(value: Record<string, unknown>) {
   };
 }
 
+function decodeRollbackInput(
+  value: Record<string, unknown>,
+  publication: boolean
+) {
+  const expectedKeys = [
+    "agent_id",
+    "expected_revision",
+    "instance",
+    "plugin_id",
+    "publication_proposal_digest",
+    ...(publication ? ["proposal_digest"] : []),
+  ];
+  if (
+    !hasOnlyKeys(value, expectedKeys) ||
+    !isBoundedString(value.expected_revision, 71, 71) ||
+    !isBoundedString(value.instance, 1, 128) ||
+    !isBoundedString(value.plugin_id, 1, 128) ||
+    !isBoundedString(value.publication_proposal_digest, 71, 71) ||
+    (publication && !isBoundedString(value.proposal_digest, 71, 71))
+  ) {
+    return null;
+  }
+  return {
+    expectedRevision: value.expected_revision,
+    instanceKey: value.instance,
+    packageId: value.plugin_id,
+    proposalDigest: publication ? (value.proposal_digest as string) : null,
+    publicationProposalDigest: value.publication_proposal_digest,
+  };
+}
+
 function decodeInspectionBase(
   value: Record<string, unknown>
 ): AgentPluginInspectionBase | null {
@@ -453,6 +700,18 @@ function decodeListQuery(value: Record<string, unknown>) {
   return typeof value.query === "string" && value.query.length <= 256
     ? value.query
     : null;
+}
+
+function hasOnlyOptionalLimitKeys(value: Record<string, unknown>) {
+  const keys = Object.keys(value);
+  return (
+    keys.length >= 3 &&
+    keys.length <= 4 &&
+    keys.every((key) =>
+      ["agent_id", "instance", "limit", "plugin_id"].includes(key)
+    ) &&
+    ["agent_id", "instance", "plugin_id"].every((key) => keys.includes(key))
+  );
 }
 
 function decodeInspectPluginArguments(value: Record<string, unknown>) {
@@ -567,4 +826,8 @@ function isNullableIntegerInRange(
   maximum: number
 ): value is number | null {
   return value === null || isIntegerInRange(value, minimum, maximum);
+}
+
+function isNullableDigest(value: unknown): value is string | null {
+  return value === null || isBoundedString(value, 71, 71);
 }

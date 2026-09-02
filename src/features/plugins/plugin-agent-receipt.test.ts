@@ -223,6 +223,146 @@ describe("Plugin Agent receipts", () => {
     });
   });
 
+  test("decodes bounded publication metadata without historical TOML", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "list_plugin_changes",
+          {
+            instance: "default",
+            limit: 10,
+            plugin_id: "example.echo",
+          },
+          {
+            authority: {
+              kind: "remote_configuration_service",
+              reference: "app",
+            },
+            instance: "default",
+            pluginId: "example.echo",
+            publications: [
+              {
+                baseRevision: revisionA,
+                baseSourceDigest: sourceDigest,
+                proposalDigest,
+                publishedAtUnixMs: 1_788_310_800_000,
+                revision: revisionB,
+                rollbackOfProposalDigest: null,
+              },
+            ],
+            revision: revisionB,
+            schema: "lenso.agent.console-plugin-history.v1",
+          }
+        )
+      )
+    ).toMatchObject({
+      kind: "history",
+      packageId: "example.echo",
+      publications: [{ proposalDigest }],
+    });
+  });
+
+  test("rejects publication history that leaks retained configuration", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "list_plugin_changes",
+          { instance: "default", plugin_id: "example.echo" },
+          {
+            authority: {
+              kind: "remote_configuration_service",
+              reference: "app",
+            },
+            instance: "default",
+            pluginId: "example.echo",
+            publications: [
+              {
+                baseRevision: revisionA,
+                baseSourceDigest: sourceDigest,
+                configurationToml: "secret = true\n",
+                proposalDigest,
+                publishedAtUnixMs: 1_788_310_800_000,
+                revision: revisionB,
+                rollbackOfProposalDigest: null,
+              },
+            ],
+            revision: revisionB,
+            schema: "lenso.agent.console-plugin-history.v1",
+          }
+        )
+      )
+    ).toBeNull();
+  });
+
+  test("decodes reviewed rollback proposal and publication provenance", () => {
+    const publicationDigest = `sha256:${"e".repeat(64)}`;
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "check_plugin_rollback",
+          {
+            expected_revision: revisionA,
+            instance: "default",
+            plugin_id: "example.echo",
+            publication_proposal_digest: publicationDigest,
+          },
+          {
+            application: "app_generation",
+            authority: {
+              kind: "remote_configuration_service",
+              reference: "app",
+            },
+            baseRevision: revisionA,
+            baseSourceDigest: sourceDigest,
+            candidateRevision: revisionB,
+            diagnostics: [],
+            instance: "default",
+            pluginId: "example.echo",
+            proposalDigest,
+            rollbackOfProposalDigest: publicationDigest,
+            schema: "lenso.plugin-configuration-proposal.v1",
+            status: "ready",
+          }
+        )
+      )
+    ).toMatchObject({
+      kind: "rollback_proposal",
+      proposalDigest,
+      rollbackOfProposalDigest: publicationDigest,
+    });
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "apply_plugin_rollback",
+          {
+            expected_revision: revisionA,
+            instance: "default",
+            plugin_id: "example.echo",
+            proposal_digest: proposalDigest,
+            publication_proposal_digest: publicationDigest,
+          },
+          {
+            authority: {
+              kind: "remote_configuration_service",
+              reference: "app",
+            },
+            baseRevision: revisionA,
+            baseSourceDigest: sourceDigest,
+            proposalDigest,
+            revision: revisionB,
+            rollbackOfProposalDigest: publicationDigest,
+            schema: "lenso.plugin-configuration-publication.v1",
+            status: "published_desired_state",
+          }
+        )
+      )
+    ).toMatchObject({
+      kind: "rollback_publication",
+      revision: revisionB,
+      rollbackOfProposalDigest: publicationDigest,
+    });
+  });
+
   test("decodes one exact Plugin selection change", () => {
     expect(
       decodeAgentPluginReceipt(

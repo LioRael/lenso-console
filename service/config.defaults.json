@@ -8,6 +8,9 @@
     "inspect_plugin",
     "check_plugin_change",
     "apply_plugin_change",
+    "list_plugin_changes",
+    "check_plugin_rollback",
+    "apply_plugin_rollback",
     "set_plugin_enabled"
   ],
   "connected_agent_label": "Lenso Agent",
