@@ -20,6 +20,7 @@ import {
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
+import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentMarkdown } from "./agent-markdown";
@@ -290,6 +291,12 @@ export function AgentQuickPanel({
                         </div>
                       </div>
                       <div {...stylex.props(styles.assistantTurn)}>
+                        {turn.tools?.length ? (
+                          <PluginAgentReceipts
+                            agentId={selectedAgent.id}
+                            tools={turn.tools}
+                          />
+                        ) : null}
                         {turn.answer ? (
                           <AgentMarkdown
                             compact

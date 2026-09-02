@@ -5,7 +5,7 @@ import { StatusMarker } from "@lenso/ui/status-marker";
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { useAgentIdentity } from "../agent/agent-identity-context";
@@ -13,6 +13,8 @@ import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   type AgentIdentity,
 } from "../agent/agent-runtime";
+import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
+import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
 import { PluginInspector } from "./plugin-inspector";
 import {
   generationStatusPresentation,
@@ -174,6 +176,20 @@ const styles = stylex.create({
     minWidth: 0,
     overflow: "auto",
   },
+  workbenchNotice: {
+    alignItems: "center",
+    backgroundColor: tokens.colorSurfaceSubtle,
+    borderBlockEndColor: tokens.colorBorderTertiary,
+    borderBlockEndStyle: "solid",
+    borderBlockEndWidth: 1,
+    color: tokens.colorContentSecondary,
+    display: "flex",
+    fontSize: 12,
+    gridColumn: "1 / -1",
+    lineHeight: "18px",
+    minHeight: 36,
+    paddingInline: 14,
+  },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
     clipPath: "inset(50%)",
@@ -220,6 +236,9 @@ function AgentPluginWorkbench({
   const plugins = workbench.data?.items ?? EMPTY_PLUGIN_ITEMS;
   const inventory = workbench.data?.inventory;
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [workbenchNotice, setWorkbenchNotice] = useState<string | null>(null);
+  const { request } = usePluginAgentWorkbench();
+  const appliedRequestId = useRef(0);
   const reconciledSelectedKey = reconcilePluginSelectionKey(
     selectedKey,
     workbench.data ? plugins : undefined
@@ -236,6 +255,28 @@ function AgentPluginWorkbench({
       new Set(workbench.data.items.map(pluginKey))
     );
   }, [configurationDraftStore, workbench.data]);
+  useEffect(() => {
+    if (
+      !request ||
+      request.id === appliedRequestId.current ||
+      request.agentId !== selectedAgent.id ||
+      !workbench.data
+    ) {
+      return;
+    }
+    const result = applyPluginWorkbenchRequest({
+      draftStore: configurationDraftStore,
+      items: workbench.data.items,
+      managementRevision: workbench.data.management.revision,
+      request,
+    });
+    if (!result) {
+      return;
+    }
+    appliedRequestId.current = request.id;
+    setSelectedKey(result.selectedKey);
+    setWorkbenchNotice(result.notice);
+  }, [configurationDraftStore, request, selectedAgent.id, workbench.data]);
   const mutation = usePluginMutation(selectedAgent.id, inventory?.streamId);
   const generation = inventory
     ? generationStatusPresentation({
@@ -369,6 +410,14 @@ function AgentPluginWorkbench({
         />
       ) : (
         <div {...stylex.props(styles.workspace)}>
+          {workbenchNotice ? (
+            <output
+              aria-live="polite"
+              {...stylex.props(styles.workbenchNotice)}
+            >
+              {workbenchNotice}
+            </output>
+          ) : null}
           <section
             aria-labelledby="plugins-heading"
             {...stylex.props(styles.tableRegion)}

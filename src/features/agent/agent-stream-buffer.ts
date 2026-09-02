@@ -1,10 +1,11 @@
 import type { Dispatch, SetStateAction } from "react";
 
-import type {
-  AgentStreamEvent,
-  AgentStreamMessage,
-  AgentToolCall,
-  AgentTurn,
+import {
+  boundedToolResult,
+  type AgentStreamEvent,
+  type AgentStreamMessage,
+  type AgentToolCall,
+  type AgentTurn,
 } from "./agent-runtime";
 
 type ScheduleFrame = (callback: () => void) => () => void;
@@ -184,6 +185,10 @@ function projectStreamTool(
   const existing = index === -1 ? undefined : tools[index];
   const argumentsJson = message.argumentsJson || existing?.argumentsJson;
   const metadataJson = message.metadataJson || existing?.metadataJson;
+  const result = boundedToolResult(
+    message.content || existing?.resultContent || "",
+    existing?.resultTruncated
+  );
   const error = message.error || existing?.error;
   const status =
     message.kind === "tool_completed"
@@ -197,6 +202,8 @@ function projectStreamTool(
     status,
     ...(argumentsJson ? { argumentsJson } : {}),
     ...(metadataJson ? { metadataJson } : {}),
+    ...(result.content ? { resultContent: result.content } : {}),
+    ...(result.truncated ? { resultTruncated: true } : {}),
     ...(error ? { error } : {}),
   };
   if (index === -1) {

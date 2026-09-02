@@ -37,6 +37,7 @@ import {
 } from "react";
 
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
+import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
 import {
   ComposerSlashMenu,
@@ -308,6 +309,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
           <AgentTrajectory trajectory={trajectory} />
         ) : (
           <AgentConversation
+            agentId={activeAgentId}
             canEdit={canEdit}
             key={displayedConversationId}
             onEdit={beginEditing}
@@ -620,11 +622,13 @@ function AgentHeader({
 }
 
 function AgentConversation({
+  agentId,
   canEdit,
   onEdit,
   runtimeError,
   turns,
 }: {
+  agentId: string;
   canEdit: boolean;
   onEdit: (turn: AgentTurn) => void;
   runtimeError: string | undefined;
@@ -697,7 +701,12 @@ function AgentConversation({
                 </div>
               </details>
             ) : null}
-            {turn.tools?.length ? <AgentToolCalls tools={turn.tools} /> : null}
+            {turn.tools?.length ? (
+              <>
+                <AgentToolCalls tools={turn.tools} />
+                <PluginAgentReceipts agentId={agentId} tools={turn.tools} />
+              </>
+            ) : null}
             <div {...stylex.props(styles.assistantMessage)}>
               {turn.answer ? (
                 <AgentMarkdown streaming={turn.status === "running"}>

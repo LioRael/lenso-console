@@ -112,6 +112,7 @@ describe("Agent runtime projection", () => {
           "tool_result",
           {
             call_id: "call-1",
+            content: '{"loaded":true}',
             metadata_json: '{"name":"ask-matt"}',
             name: "skill",
           },
@@ -138,10 +139,38 @@ describe("Agent runtime projection", () => {
           callId: "call-1",
           metadataJson: '{"name":"ask-matt"}',
           name: "skill",
+          resultContent: '{"loaded":true}',
           status: "completed",
         },
       ],
       work: { durationMs: 7000 },
+    });
+  });
+
+  it("bounds durable Tool result content and preserves truncation evidence", () => {
+    const content = "x".repeat(40_000);
+    const projected = projectAgentSession({
+      events: [
+        event("1", "turn_started", { input: "Run" }, "turn-1"),
+        event(
+          "2",
+          "tool_result",
+          {
+            call_id: "call-1",
+            content,
+            content_truncated: false,
+            name: "read",
+          },
+          "turn-1"
+        ),
+      ],
+      revision: "2",
+      sessionId: "session-1",
+    });
+
+    expect(projected.turns[0]?.tools?.[0]).toMatchObject({
+      resultContent: "x".repeat(32_768),
+      resultTruncated: true,
     });
   });
 
