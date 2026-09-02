@@ -38,6 +38,12 @@ import {
 const EMPTY_PLUGIN_ITEMS: readonly PluginWorkbenchItem[] = [];
 
 const styles = stylex.create({
+  breadcrumbParent: {
+    display: "inline-flex",
+    "@media (max-width: 420px)": {
+      display: "none",
+    },
+  },
   columns: {
     alignItems: "center",
     color: tokens.colorContentTertiary,
@@ -46,22 +52,42 @@ const styles = stylex.create({
     fontWeight: 500,
     gap: tokens.space4,
     gridTemplateColumns: "minmax(180px, 1.4fr) minmax(180px, 1fr) 88px",
-    height: 32,
+    height: "100%",
     paddingInline: 14,
     "@media (max-width: 720px)": {
       gridTemplateColumns: "minmax(0, 1fr) 88px",
+    },
+  },
+  detailsColumnHeading: {
+    alignItems: "center",
+    borderInlineStartColor: tokens.colorBorderTertiary,
+    borderInlineStartStyle: "solid",
+    borderInlineStartWidth: 1,
+    color: tokens.colorContentTertiary,
+    display: "flex",
+    fontSize: 11,
+    fontWeight: 500,
+    height: "100%",
+    paddingInline: 14,
+    "@media (max-width: 1120px)": {
+      display: "none",
     },
   },
   header: {
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
-    height: 44,
   },
   headerActions: {
     alignItems: "center",
     display: "flex",
+    flexShrink: 0,
     gap: tokens.space3,
+  },
+  headerStatusLabel: {
+    "@media (max-width: 560px)": {
+      display: "none",
+    },
   },
   headerStatus: {
     alignItems: "center",
@@ -70,14 +96,23 @@ const styles = stylex.create({
     fontSize: 11,
     gap: tokens.space2,
   },
+  headerSubrow: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
+    paddingInline: 0,
+    "@media (max-width: 1120px)": {
+      gridTemplateColumns: "minmax(0, 1fr)",
+    },
+  },
   identity: { display: "grid", gap: 2, minWidth: 0 },
   inspector: {
     borderInlineStartColor: tokens.colorBorderTertiary,
     borderInlineStartStyle: "solid",
     borderInlineStartWidth: 1,
     minWidth: 0,
-    overflow: "auto",
-    "@media (max-width: 1000px)": {
+    overflowX: "hidden",
+    overflowY: "auto",
+    "@media (max-width: 1120px)": {
       borderBlockStartColor: tokens.colorBorderTertiary,
       borderBlockStartStyle: "solid",
       borderBlockStartWidth: 1,
@@ -96,7 +131,7 @@ const styles = stylex.create({
   page: {
     boxSizing: "border-box",
     display: "grid",
-    gridTemplateRows: "44px minmax(0, 1fr)",
+    gridTemplateRows: "87.5px minmax(0, 1fr)",
     height: "100%",
     minHeight: 0,
     width: "100%",
@@ -179,15 +214,12 @@ const styles = stylex.create({
   workbenchNotice: {
     alignItems: "center",
     backgroundColor: tokens.colorSurfaceSubtle,
-    borderBlockEndColor: tokens.colorBorderTertiary,
-    borderBlockEndStyle: "solid",
-    borderBlockEndWidth: 1,
     color: tokens.colorContentSecondary,
     display: "flex",
     fontSize: 12,
     gridColumn: "1 / -1",
     lineHeight: "18px",
-    minHeight: 36,
+    height: "100%",
     paddingInline: 14,
   },
   visuallyHidden: {
@@ -204,7 +236,7 @@ const styles = stylex.create({
     gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
     minHeight: 0,
     overflow: "hidden",
-    "@media (max-width: 1000px)": {
+    "@media (max-width: 1120px)": {
       display: "block",
       overflow: "auto",
     },
@@ -301,7 +333,7 @@ function AgentPluginWorkbench({
         <PageHeader.Row>
           <Breadcrumb.Root aria-label="Plugin breadcrumb">
             <Breadcrumb.List>
-              <Breadcrumb.Item>
+              <Breadcrumb.Item xstyle={styles.breadcrumbParent}>
                 <Breadcrumb.Link nativeButton={false} render={<Link to="/" />}>
                   <Breadcrumb.Icon>
                     <Boxes size={14} strokeWidth={1.75} />
@@ -309,7 +341,7 @@ function AgentPluginWorkbench({
                   Lenso
                 </Breadcrumb.Link>
               </Breadcrumb.Item>
-              <Breadcrumb.Separator />
+              <Breadcrumb.Separator xstyle={styles.breadcrumbParent} />
               <Breadcrumb.Item>
                 <Breadcrumb.Page>Plugins</Breadcrumb.Page>
               </Breadcrumb.Item>
@@ -324,7 +356,9 @@ function AgentPluginWorkbench({
                   {...stylex.props(styles.headerStatus)}
                 >
                   <StatusMarker presentation="dot" status={generation.tone} />
-                  {generation.label}
+                  <span {...stylex.props(styles.headerStatusLabel)}>
+                    {generation.label}
+                  </span>
                 </span>
               ) : null}
               {degradedDescription ? (
@@ -364,6 +398,30 @@ function AgentPluginWorkbench({
             </div>
           </PageHeader.Actions>
         </PageHeader.Row>
+        <PageHeader.TabsRow xstyle={styles.headerSubrow}>
+          {workbenchNotice ? (
+            <output
+              aria-live="polite"
+              {...stylex.props(styles.workbenchNotice)}
+            >
+              {workbenchNotice}
+            </output>
+          ) : (
+            <>
+              <div aria-hidden="true" {...stylex.props(styles.columns)}>
+                <span>Plugin</span>
+                <span {...stylex.props(styles.packageColumn)}>Package</span>
+                <span>Status</span>
+              </div>
+              <span
+                aria-hidden="true"
+                {...stylex.props(styles.detailsColumnHeading)}
+              >
+                Details
+              </span>
+            </>
+          )}
+        </PageHeader.TabsRow>
       </PageHeader.Root>
       <h1 id="plugins-heading" {...stylex.props(styles.visuallyHidden)}>
         Plugins
@@ -410,23 +468,10 @@ function AgentPluginWorkbench({
         />
       ) : (
         <div {...stylex.props(styles.workspace)}>
-          {workbenchNotice ? (
-            <output
-              aria-live="polite"
-              {...stylex.props(styles.workbenchNotice)}
-            >
-              {workbenchNotice}
-            </output>
-          ) : null}
           <section
             aria-labelledby="plugins-heading"
             {...stylex.props(styles.tableRegion)}
           >
-            <div aria-hidden="true" {...stylex.props(styles.columns)}>
-              <span>Plugin</span>
-              <span {...stylex.props(styles.packageColumn)}>Package</span>
-              <span>Status</span>
-            </div>
             {plugins.map((plugin) => {
               const state = pluginStatusPresentation({
                 inventory,

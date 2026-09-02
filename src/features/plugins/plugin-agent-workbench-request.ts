@@ -21,16 +21,25 @@ export function applyPluginWorkbenchRequest({
   managementRevision: string;
   request: PluginWorkbenchRequest;
 }): PluginWorkbenchRequestResult | null {
-  const requestedKey = `${request.packageId}/${request.instanceKey}`;
-  const requestedPlugin = items.find(
-    (plugin) => pluginKey(plugin) === requestedKey
-  );
+  if (request.draftReview && !request.instanceKey) {
+    return null;
+  }
+  const { instanceKey } = request;
+  const requestedPlugin = instanceKey
+    ? items.find(
+        (plugin) => pluginKey(plugin) === `${request.packageId}/${instanceKey}`
+      )
+    : items.find((plugin) => plugin.packageId === request.packageId);
   if (!requestedPlugin) {
     return null;
   }
+  const requestedKey = pluginKey(requestedPlugin);
   if (!(request.draftReview && requestedPlugin.management)) {
     return {
-      notice: `Showing ${requestedKey} after the Agent management action.`,
+      notice:
+        request.intent === "inspection"
+          ? `Showing ${requestedKey} from the Agent inspection.`
+          : `Showing ${requestedKey} after the Agent management action.`,
       selectedKey: requestedKey,
     };
   }

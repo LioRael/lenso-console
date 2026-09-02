@@ -71,9 +71,9 @@ const styles = stylex.create({
   },
   controlRow: {
     alignItems: "center",
-    display: "flex",
+    display: "grid",
     gap: tokens.space4,
-    justifyContent: "space-between",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
     minHeight: 32,
   },
   controlTitle: {
@@ -85,6 +85,17 @@ const styles = stylex.create({
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
+    gap: 0,
+    width: "100%",
+  },
+  disclosureIcon: {
+    marginInlineStart: 0,
+  },
+  disclosureTrigger: {
+    borderRadius: 0,
+    height: 44,
+    justifyContent: "flex-start",
+    paddingInline: 14,
   },
   editor: {
     backgroundColor: tokens.colorSurfaceSubtle,
@@ -106,6 +117,10 @@ const styles = stylex.create({
     padding: 10,
     resize: "vertical",
     width: "100%",
+    "@media (max-width: 720px)": {
+      fontSize: 16,
+      lineHeight: "22px",
+    },
   },
   editorActions: {
     alignItems: "center",
@@ -142,6 +157,7 @@ const styles = stylex.create({
   historyPanel: {
     display: "grid",
     paddingBlockEnd: tokens.space3,
+    paddingBlockStart: 0,
     paddingInline: 14,
   },
   historyRow: {
@@ -174,6 +190,11 @@ const styles = stylex.create({
     minHeight: 58,
     paddingBlock: 8,
     paddingInline: 14,
+    "@media (max-width: 480px)": {
+      alignItems: "start",
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr)",
+    },
   },
   inspectorIdentity: { display: "grid", gap: 2, minWidth: 0 },
   inspectorActions: {
@@ -181,6 +202,9 @@ const styles = stylex.create({
     display: "flex",
     flexShrink: 0,
     gap: tokens.space2,
+    "@media (max-width: 480px)": {
+      justifyContent: "flex-end",
+    },
   },
   inspectorTitle: {
     color: tokens.colorContentPrimary,
@@ -188,6 +212,7 @@ const styles = stylex.create({
     fontWeight: 500,
     lineHeight: "18px",
     margin: 0,
+    overflowWrap: "anywhere",
   },
   mono: {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -205,6 +230,8 @@ const styles = stylex.create({
     borderBottomWidth: 1,
     display: "grid",
     gap: tokens.space2,
+    gridTemplateColumns: "minmax(0, 1fr)",
+    minWidth: 0,
     paddingBlock: tokens.space3,
     paddingInline: 14,
   },
@@ -216,6 +243,7 @@ const styles = stylex.create({
   },
   technicalPanel: {
     paddingBlockEnd: tokens.space3,
+    paddingBlockStart: 0,
     paddingInline: 14,
   },
   term: { color: tokens.colorContentTertiary, fontSize: 12 },
@@ -802,16 +830,16 @@ function PluginConfigurationHistorySection({
       onValueChange={(value) => {
         onOpenChange(value.includes("configuration-history"));
       }}
-      {...stylex.props(styles.disclosure)}
+      xstyle={styles.disclosure}
     >
       <Disclosure.Item value="configuration-history">
         <Disclosure.Header>
-          <Disclosure.Trigger>
-            <Disclosure.Icon />
+          <Disclosure.Trigger xstyle={styles.disclosureTrigger}>
+            <Disclosure.Icon xstyle={styles.disclosureIcon} />
             Publication history
           </Disclosure.Trigger>
         </Disclosure.Header>
-        <Disclosure.Panel layout="auto" {...stylex.props(styles.historyPanel)}>
+        <Disclosure.Panel layout="auto" xstyle={styles.historyPanel}>
           {history.error && publications ? (
             <div {...stylex.props(styles.editorActions)}>
               <p role="alert" {...stylex.props(styles.feedback)}>
@@ -918,18 +946,15 @@ function PluginTechnicalDetails({
 }) {
   const technical = pluginTechnicalSelection(plugin);
   return (
-    <Disclosure.Root {...stylex.props(styles.disclosure)}>
+    <Disclosure.Root xstyle={styles.disclosure}>
       <Disclosure.Item value="technical-details">
         <Disclosure.Header>
-          <Disclosure.Trigger>
-            <Disclosure.Icon />
+          <Disclosure.Trigger xstyle={styles.disclosureTrigger}>
+            <Disclosure.Icon xstyle={styles.disclosureIcon} />
             Technical details
           </Disclosure.Trigger>
         </Disclosure.Header>
-        <Disclosure.Panel
-          layout="auto"
-          {...stylex.props(styles.technicalPanel)}
-        >
+        <Disclosure.Panel layout="auto" xstyle={styles.technicalPanel}>
           <dl {...stylex.props(styles.fields)}>
             <Detail
               label="Instance"

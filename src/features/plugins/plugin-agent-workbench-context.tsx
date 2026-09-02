@@ -19,7 +19,8 @@ export type PluginWorkbenchRequest = {
   agentId: string;
   draftReview?: PluginDraftReview;
   id: number;
-  instanceKey: string;
+  instanceKey?: string;
+  intent?: "inspection";
   packageId: string;
 };
 
