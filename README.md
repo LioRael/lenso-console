@@ -50,6 +50,13 @@ or to an empty value to disable all model-visible Tools. `ask_user` remains
 available as the web interaction primitive, and `apply_plugin_change` still
 passes through the interactive approval hook before publication.
 
+The Console Host also links `lenso.agent.console-instructions`, a stateless
+Prompt Provider used only by the Console Agent identity. It instructs the Agent
+to inspect current Host and Capability state, respect the Plugin's reported
+configuration authority, keep review requests read-only, validate proposals
+before publication, and apply only after an explicit user request. App Agents
+remain independent and do not inherit this instruction.
+
 An App Host embedding `lenso.console.web` can contribute one App Agent by
 setting `connected_agent_url` to its loopback Agent Web origin. The setting is
 an Adapter detail retained for configuration compatibility; the Agent catalog

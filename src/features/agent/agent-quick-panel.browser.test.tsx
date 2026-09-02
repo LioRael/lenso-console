@@ -5,8 +5,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import {
+  PluginAgentAction,
+  pluginAgentDraft,
+} from "../plugins/plugin-agent-handoff";
 import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentQuickPanel } from "./agent-quick-panel";
+import { AgentQuickPanelProvider } from "./agent-quick-panel-context";
 import { useAgentConversation } from "./use-agent-conversation";
 
 let root: Root | undefined;
@@ -131,6 +136,26 @@ describe("Agent quick panel", () => {
 
     expect(onOpenFullPage).toHaveBeenCalledWith("app", undefined);
   });
+
+  test("opens an exact Plugin context as a draft without submitting it", async () => {
+    const fetchMock = agentFetch();
+    await renderPanel(fetchMock, () => undefined, true);
+
+    await userEvent.click(
+      page.getByRole("button", {
+        name: "Ask Agent about lenso.agent.loop/agent",
+      })
+    );
+    await nextFrame();
+    const composer = page.elementLocator(requiredComposer());
+
+    await expect.element(composer).toBeVisible();
+    await expect.element(composer).toHaveFocus();
+    await expect
+      .element(composer)
+      .toHaveValue(pluginAgentDraft(pluginAgentContext));
+    expect(turnRequests(fetchMock)).toHaveLength(0);
+  });
 });
 
 describe("Agent prompt queue", () => {
@@ -156,7 +181,8 @@ describe("Agent prompt queue", () => {
 async function renderPanel(
   fetchMock: ReturnType<typeof agentFetch>,
   onOpenFullPage: (agentId: string, sessionId?: string) => void = () =>
-    undefined
+    undefined,
+  includePluginAction = false
 ) {
   vi.stubGlobal("fetch", fetchMock);
   if (!container) {
@@ -171,15 +197,29 @@ async function renderPanel(
     root?.render(
       <QueryClientProvider client={client}>
         <AgentIdentityProvider>
-          <ThemeScope>
-            <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
-          </ThemeScope>
+          <AgentQuickPanelProvider>
+            <ThemeScope>
+              {includePluginAction ? (
+                <PluginAgentAction {...pluginAgentContext} />
+              ) : null}
+              <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+            </ThemeScope>
+          </AgentQuickPanelProvider>
         </AgentIdentityProvider>
       </QueryClientProvider>
     );
   });
   await nextFrame();
 }
+
+const pluginAgentContext = {
+  agentId: "console",
+  instanceKey: "agent",
+  managementRevision: "sha256:management-revision",
+  packageId: "lenso.agent.loop",
+  rootConfigurationToml: 'max_steps = 8\nmodel = "gpt-5.6-luna"\n',
+  sourceDigest: "sha256:plugin-source",
+} as const;
 
 async function renderQueueHarness() {
   if (!container) {

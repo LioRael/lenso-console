@@ -6,6 +6,7 @@ import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
+import { PluginAgentAction } from "./plugin-agent-handoff";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
 import {
   configurationProposalReadyPresentation,
@@ -175,6 +176,12 @@ const styles = stylex.create({
     paddingInline: 14,
   },
   inspectorIdentity: { display: "grid", gap: 2, minWidth: 0 },
+  inspectorActions: {
+    alignItems: "center",
+    display: "flex",
+    flexShrink: 0,
+    gap: tokens.space2,
+  },
   inspectorTitle: {
     color: tokens.colorContentPrimary,
     fontSize: 13,
@@ -302,7 +309,19 @@ export function PluginInspector({
             {pluginOriginLabel(plugin)}
           </span>
         </div>
-        <PluginStatus state={state} />
+        <div {...stylex.props(styles.inspectorActions)}>
+          {selectionAuthoringEnabled ? (
+            <PluginAgentAction
+              agentId={agentId}
+              instanceKey={plugin.instanceKey}
+              managementRevision={pluginManagement.revision}
+              packageId={plugin.packageId}
+              rootConfigurationToml={management?.rootConfigurationToml}
+              sourceDigest={management?.sourceDigest}
+            />
+          ) : null}
+          <PluginStatus state={state} />
+        </div>
       </header>
 
       {management ? (
