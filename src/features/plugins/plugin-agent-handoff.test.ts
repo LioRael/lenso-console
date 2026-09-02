@@ -3,11 +3,11 @@ import { describe, expect, test } from "vitest";
 import { pluginAgentDraft } from "./plugin-agent-handoff";
 
 const baseContext = {
-  agentId: "console",
   instanceKey: "agent",
   managementRevision: "sha256:management-revision",
   packageId: "lenso.agent.loop",
   sourceDigest: "sha256:plugin-source",
+  targetAgentId: "app-agent",
 } as const;
 
 describe("Plugin Agent handoff", () => {
@@ -24,6 +24,8 @@ describe("Plugin Agent handoff", () => {
     expect(prompt).toContain(
       "Do not apply or publish any change unless I explicitly ask"
     );
+    expect(prompt).toContain("Target Agent: app-agent");
+    expect(prompt).toContain("exact Target Agent as agent_id");
   });
 
   test("does not copy a partial oversized configuration into the prompt", () => {

@@ -309,7 +309,6 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
           <AgentTrajectory trajectory={trajectory} />
         ) : (
           <AgentConversation
-            agentId={activeAgentId}
             canEdit={canEdit}
             key={displayedConversationId}
             onEdit={beginEditing}
@@ -622,13 +621,11 @@ function AgentHeader({
 }
 
 function AgentConversation({
-  agentId,
   canEdit,
   onEdit,
   runtimeError,
   turns,
 }: {
-  agentId: string;
   canEdit: boolean;
   onEdit: (turn: AgentTurn) => void;
   runtimeError: string | undefined;
@@ -704,7 +701,7 @@ function AgentConversation({
             {turn.tools?.length ? (
               <>
                 <AgentToolCalls tools={turn.tools} />
-                <PluginAgentReceipts agentId={agentId} tools={turn.tools} />
+                <PluginAgentReceipts tools={turn.tools} />
               </>
             ) : null}
             <div {...stylex.props(styles.assistantMessage)}>

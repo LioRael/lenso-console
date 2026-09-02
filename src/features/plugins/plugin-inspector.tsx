@@ -338,14 +338,14 @@ export function PluginInspector({
           </span>
         </div>
         <div {...stylex.props(styles.inspectorActions)}>
-          {selectionAuthoringEnabled ? (
+          {authoringEnabled ? (
             <PluginAgentAction
-              agentId={agentId}
               instanceKey={plugin.instanceKey}
               managementRevision={pluginManagement.revision}
               packageId={plugin.packageId}
               rootConfigurationToml={management?.rootConfigurationToml}
               sourceDigest={management?.sourceDigest}
+              targetAgentId={agentId}
             />
           ) : null}
           <PluginStatus state={state} />

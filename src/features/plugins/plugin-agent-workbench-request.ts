@@ -21,6 +21,9 @@ export function applyPluginWorkbenchRequest({
   managementRevision: string;
   request: PluginWorkbenchRequest;
 }): PluginWorkbenchRequestResult | null {
+  if (!request.packageId) {
+    return null;
+  }
   if (request.draftReview && !request.instanceKey) {
     return null;
   }

@@ -244,7 +244,17 @@ const styles = stylex.create({
 });
 
 export function PluginWorkbenchPage() {
-  const { selectedAgent } = useAgentIdentity();
+  const { agents, selectAgent, selectedAgent } = useAgentIdentity();
+  const { request } = usePluginAgentWorkbench();
+  useEffect(() => {
+    if (
+      request &&
+      request.agentId !== selectedAgent.id &&
+      agents.some((agent) => agent.id === request.agentId)
+    ) {
+      selectAgent(request.agentId);
+    }
+  }, [agents, request, selectAgent, selectedAgent.id]);
   return (
     <AgentPluginWorkbench
       key={selectedAgent.id}

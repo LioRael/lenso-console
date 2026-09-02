@@ -22,6 +22,10 @@ use serde::{Deserialize, Serialize};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
+mod plugin_management_target;
+
+use plugin_management_target::AppAgentPluginManagementTarget;
+
 const DEFAULT_PORT: u16 = 3030;
 const MAX_AGENT_REQUEST_BYTES: usize = 64 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
@@ -310,6 +314,9 @@ impl ConsoleConfig {
         config.plugin_configuration_store = Some(PluginConfigurationStoreConfig::new(
             self.agent_configuration_store.clone(),
             "console-agent",
+        ));
+        config.plugin_management_target = Some(std::sync::Arc::new(
+            AppAgentPluginManagementTarget::new(self.app_agents.clone()),
         ));
         config
     }
@@ -624,7 +631,7 @@ fn allowed_plugin_configuration_route(method: &Method, parts: &[&str]) -> bool {
                 "plugins",
                 package_id,
                 instance_key,
-                "configuration",
+                "configuration" | "enabled",
             ],
         )
         | (&Method::DELETE, ["control", "plugins", package_id, instance_key]) => {
@@ -992,7 +999,7 @@ mod tests {
             "control/plugins/install",
             true
         ));
-        assert!(!allowed_agent_route(
+        assert!(allowed_agent_route(
             &Method::PUT,
             "control/plugins/lenso_agent_loop/agent/enabled",
             true

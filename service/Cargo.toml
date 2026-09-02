@@ -26,10 +26,13 @@ anyhow = "1.0"
 axum = "0.8"
 directories = "6.0"
 dotenvy = "0.15"
-lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "97288d7a5e74751f5aea8fceb9b0bcfcd48e1991", default-features = false }
-lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "97288d7a5e74751f5aea8fceb9b0bcfcd48e1991" }
-lenso-agent-default-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "97288d7a5e74751f5aea8fceb9b0bcfcd48e1991", optional = true }
+lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "e0d3f6244f01e570470f2d49fde6a0b6047b764f", default-features = false }
+lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "e0d3f6244f01e570470f2d49fde6a0b6047b764f" }
+lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "e0d3f6244f01e570470f2d49fde6a0b6047b764f" }
+lenso-agent-default-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "e0d3f6244f01e570470f2d49fde6a0b6047b764f", optional = true }
+lenso-capability-agent-plugin-management-target = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "e0d3f6244f01e570470f2d49fde6a0b6047b764f" }
 lenso = { version = "0.5.0", git = "https://github.com/LioRael/lenso-runtime-rust", rev = "89815107385475c8b5be378bdcf5e21aa74e02f0" }
+lenso-kernel = { version = "0.2.0", git = "https://github.com/LioRael/lenso", rev = "8599db7e4a214ed92f32089f81d14c833d4becf6" }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "rustls-tls",
@@ -43,11 +46,11 @@ tokio = { version = "1.52", features = [
   "rt",
   "signal",
   "sync",
+  "time",
 ] }
 tower-http = { version = "0.7", features = ["fs", "limit", "set-header"] }
 
 [dev-dependencies]
-lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "97288d7a5e74751f5aea8fceb9b0bcfcd48e1991" }
 lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", git = "https://github.com/LioRael/lenso-cli", rev = "1a9155b7a8309882b81ca5bde305281594b07577", default-features = false }
 tempfile = "3.27"
 
