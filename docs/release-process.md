@@ -39,8 +39,9 @@ pnpm install --frozen-lockfile
 pnpm changeset status --output /tmp/lenso-console-changesets.json
 pnpm format:check
 pnpm lint
-pnpm typecheck
 pnpm build
 pnpm test
-pnpm test:browser
 ```
+
+`pnpm build` includes TypeScript validation. `pnpm test` runs both the local
+Vitest suite and the browser suite.
