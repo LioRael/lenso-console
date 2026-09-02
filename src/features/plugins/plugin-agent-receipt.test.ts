@@ -9,6 +9,146 @@ const sourceDigest = `sha256:${"c".repeat(64)}`;
 const proposalDigest = `sha256:${"d".repeat(64)}`;
 
 describe("Plugin Agent receipts", () => {
+  test("decodes an exact App inspection without inventing runtime state", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "inspect_app",
+          {},
+          {
+            authority: {
+              kind: "remote_configuration_service",
+              reference: "app",
+            },
+            bindingCount: 4,
+            enabledInstanceCount: 2,
+            pluginCount: 3,
+            revision: revisionA,
+            schema: "lenso.agent.console-app-inspection.v1",
+          }
+        )
+      )
+    ).toEqual({
+      authority: { kind: "remote_configuration_service", reference: "app" },
+      bindingCount: 4,
+      enabledInstanceCount: 2,
+      kind: "app_inspection",
+      pluginCount: 3,
+      revision: revisionA,
+    });
+  });
+
+  test("decodes a bounded Plugin list and preserves its query", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "list_plugins",
+          { query: "agent" },
+          {
+            authority: {
+              kind: "sqlite_configuration_store",
+              reference: "console",
+            },
+            plugins: [
+              {
+                enabledInstanceCount: 1,
+                instanceCount: 1,
+                packageId: "lenso.agent.loop",
+                packageRevision: "linked",
+                source: "host-default",
+              },
+            ],
+            query: "agent",
+            revision: revisionA,
+            schema: "lenso.agent.console-plugin-list.v1",
+          }
+        )
+      )
+    ).toMatchObject({
+      kind: "plugin_list",
+      plugins: [{ packageId: "lenso.agent.loop" }],
+      query: "agent",
+    });
+  });
+
+  test("decodes an exact Plugin inspection and its Instance differences", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "inspect_plugin",
+          { plugin_id: "lenso.agent.loop" },
+          {
+            authority: {
+              kind: "local_plugin_root",
+              reference: "/managed/app",
+            },
+            instances: [
+              {
+                disableable: false,
+                hasRootDifference: true,
+                instanceKey: "agent",
+                origin: "host-default",
+                rootConfigurationBytes: 42,
+                selection: "enabled",
+                sourceDigest,
+              },
+            ],
+            packageId: "lenso.agent.loop",
+            packageRevision: "linked",
+            revision: revisionA,
+            schema: "lenso.agent.console-plugin-inspection.v1",
+            source: "host-default",
+          }
+        )
+      )
+    ).toMatchObject({
+      instances: [
+        {
+          hasRootDifference: true,
+          instanceKey: "agent",
+          rootConfigurationBytes: 42,
+        },
+      ],
+      kind: "plugin_inspection",
+      packageId: "lenso.agent.loop",
+    });
+  });
+
+  test("rejects inspection results that do not match their request", () => {
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "list_plugins",
+          { query: "agent" },
+          {
+            authority: { kind: "local_plugin_root", reference: "app" },
+            plugins: [],
+            query: "other",
+            revision: revisionA,
+            schema: "lenso.agent.console-plugin-list.v1",
+          }
+        )
+      )
+    ).toBeNull();
+    expect(
+      decodeAgentPluginReceipt(
+        completedTool(
+          "inspect_plugin",
+          { plugin_id: "lenso.agent.loop" },
+          {
+            authority: { kind: "local_plugin_root", reference: "app" },
+            instances: [],
+            packageId: "example.other",
+            packageRevision: "linked",
+            revision: revisionA,
+            schema: "lenso.agent.console-plugin-inspection.v1",
+            source: "host-default",
+          }
+        )
+      )
+    ).toBeNull();
+  });
+
   test("decodes an exact ready proposal with its candidate TOML", () => {
     expect(decodeAgentPluginReceipt(proposalTool())).toEqual({
       application: "app_generation",
@@ -104,4 +244,18 @@ function proposalResult(overrides: Record<string, unknown> = {}) {
     status: "ready",
     ...overrides,
   });
+}
+
+function completedTool(
+  name: string,
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentToolCall {
+  return {
+    argumentsJson: JSON.stringify(argumentsValue),
+    callId: `call-${name}`,
+    name,
+    resultContent: JSON.stringify(result),
+    status: "completed",
+  };
 }

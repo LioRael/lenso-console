@@ -1,7 +1,14 @@
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useNavigate } from "@tanstack/react-router";
-import { CircleAlert, ExternalLink, ShieldCheck } from "lucide-react";
+import {
+  Boxes,
+  CircleAlert,
+  ExternalLink,
+  List,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 
 import type { AgentToolCall } from "../agent/agent-runtime";
 import {
@@ -57,6 +64,15 @@ const styles = stylex.create({
   },
 });
 
+type AgentPluginInspectionReceipt = Extract<
+  AgentPluginReceipt,
+  { kind: "app_inspection" | "plugin_inspection" | "plugin_list" }
+>;
+type AgentPluginChangeReceipt = Extract<
+  AgentPluginReceipt,
+  { kind: "proposal" | "publication" }
+>;
+
 export function PluginAgentReceipts({
   agentId,
   tools,
@@ -66,17 +82,17 @@ export function PluginAgentReceipts({
 }) {
   const receipts = tools.flatMap((tool) => {
     const receipt = decodeAgentPluginReceipt(tool);
-    return receipt ? [receipt] : [];
+    return receipt ? [{ callId: tool.callId, receipt }] : [];
   });
   if (receipts.length === 0) {
     return null;
   }
   return (
-    <div aria-label="Plugin change receipts" {...stylex.props(styles.list)}>
-      {receipts.map((receipt) => (
+    <div aria-label="Plugin management receipts" {...stylex.props(styles.list)}>
+      {receipts.map(({ callId, receipt }) => (
         <PluginAgentReceiptCard
           agentId={agentId}
-          key={`${receipt.kind}:${receipt.proposalDigest}`}
+          key={callId}
           receipt={receipt}
         />
       ))}
@@ -90,6 +106,23 @@ function PluginAgentReceiptCard({
 }: {
   agentId: string;
   receipt: AgentPluginReceipt;
+}) {
+  if (
+    receipt.kind === "app_inspection" ||
+    receipt.kind === "plugin_list" ||
+    receipt.kind === "plugin_inspection"
+  ) {
+    return <PluginInspectionReceiptCard agentId={agentId} receipt={receipt} />;
+  }
+  return <PluginChangeReceiptCard agentId={agentId} receipt={receipt} />;
+}
+
+function PluginChangeReceiptCard({
+  agentId,
+  receipt,
+}: {
+  agentId: string;
+  receipt: AgentPluginChangeReceipt;
 }) {
   const navigate = useNavigate();
   const { requestWorkbench } = usePluginAgentWorkbench();
@@ -147,7 +180,123 @@ function PluginAgentReceiptCard({
   );
 }
 
-function receiptTitle(receipt: AgentPluginReceipt) {
+function PluginInspectionReceiptCard({
+  agentId,
+  receipt,
+}: {
+  agentId: string;
+  receipt: AgentPluginInspectionReceipt;
+}) {
+  const navigate = useNavigate();
+  const { requestWorkbench } = usePluginAgentWorkbench();
+  const openWorkbench = () => {
+    if (receipt.kind === "plugin_inspection") {
+      const onlyInstance =
+        receipt.instances.length === 1 ? receipt.instances[0] : undefined;
+      requestWorkbench({
+        agentId,
+        ...(onlyInstance ? { instanceKey: onlyInstance.instanceKey } : {}),
+        intent: "inspection",
+        packageId: receipt.packageId,
+      });
+    }
+    navigate({ to: "/plugins" });
+  };
+  const Icon = inspectionIcon(receipt);
+  return (
+    <section {...stylex.props(styles.card)}>
+      <div {...stylex.props(styles.title)}>
+        <Icon aria-hidden="true" size={14} strokeWidth={1.7} />
+        {inspectionTitle(receipt)}
+      </div>
+      <div
+        {...stylex.props(styles.identity)}
+        title={inspectionIdentityTitle(receipt)}
+      >
+        {inspectionIdentity(receipt)}
+      </div>
+      <p {...stylex.props(styles.description)}>
+        {inspectionDescription(receipt)}
+      </p>
+      <Button
+        onClick={openWorkbench}
+        size="compact"
+        variant="secondary"
+        xstyle={styles.action}
+      >
+        <ExternalLink aria-hidden="true" size={13} strokeWidth={1.7} />
+        {receipt.kind === "plugin_inspection" ? "View Plugin" : "Open Plugins"}
+      </Button>
+    </section>
+  );
+}
+
+function inspectionIcon(receipt: AgentPluginInspectionReceipt) {
+  if (receipt.kind === "app_inspection") {
+    return Boxes;
+  }
+  return receipt.kind === "plugin_list" ? List : Search;
+}
+
+function inspectionTitle(receipt: AgentPluginInspectionReceipt) {
+  if (receipt.kind === "app_inspection") {
+    return "App Plugin state inspected";
+  }
+  return receipt.kind === "plugin_list"
+    ? "Plugin catalog inspected"
+    : "Plugin inspected";
+}
+
+function inspectionIdentity(receipt: AgentPluginInspectionReceipt) {
+  if (receipt.kind === "plugin_inspection") {
+    return receipt.packageId;
+  }
+  if (receipt.kind === "plugin_list" && receipt.query) {
+    return `Query · ${receipt.query}`;
+  }
+  return `Revision · ${shortRevision(receipt.revision)}`;
+}
+
+function inspectionIdentityTitle(receipt: AgentPluginInspectionReceipt) {
+  return receipt.kind === "plugin_inspection"
+    ? `${receipt.packageId}@${receipt.packageRevision}`
+    : receipt.revision;
+}
+
+function inspectionDescription(receipt: AgentPluginInspectionReceipt) {
+  const authority = `${authorityLabel(receipt.authority.kind)} · ${receipt.authority.reference}`;
+  if (receipt.kind === "app_inspection") {
+    return `${authority} reports ${countLabel(receipt.pluginCount, "Plugin")}, ${countLabel(receipt.enabledInstanceCount, "enabled Instance")}, and ${countLabel(receipt.bindingCount, "binding")}.`;
+  }
+  if (receipt.kind === "plugin_list") {
+    const scope = receipt.query ? ` matching “${receipt.query}”` : "";
+    const packages = receipt.plugins
+      .slice(0, 3)
+      .map((plugin) => plugin.packageId);
+    const examples =
+      packages.length > 0
+        ? ` ${packages.join(", ")}${receipt.plugins.length > packages.length ? ", …" : ""}.`
+        : "";
+    return `${authority} returned ${countLabel(receipt.plugins.length, "Plugin")}${scope}.${examples}`;
+  }
+  const enabled = receipt.instances.filter(
+    (instance) => instance.selection === "enabled"
+  ).length;
+  const changed = receipt.instances.filter(
+    (instance) => instance.hasRootDifference
+  ).length;
+  return `${authority} reports ${countLabel(receipt.instances.length, "Instance")}, ${enabled} enabled, and ${countLabel(changed, "Host difference")}.`;
+}
+
+function countLabel(count: number, label: string) {
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
+}
+
+function shortRevision(revision: string) {
+  return revision.length > 16 ? `${revision.slice(0, 16)}…` : revision;
+}
+
+function receiptTitle(receipt: AgentPluginChangeReceipt) {
   if (receipt.kind === "publication") {
     return "Plugin desired state published";
   }
@@ -161,7 +310,7 @@ function receiptTitle(receipt: AgentPluginReceipt) {
     : "Plugin change needs a decision";
 }
 
-function receiptDescription(receipt: AgentPluginReceipt) {
+function receiptDescription(receipt: AgentPluginChangeReceipt) {
   const authority = `${authorityLabel(receipt.authority.kind)} · ${receipt.authority.reference}`;
   if (receipt.kind === "publication") {
     return `${authority} accepted the reviewed proposal. Host reconciliation may still be pending.`;

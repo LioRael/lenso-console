@@ -69,6 +69,39 @@ describe("Plugin Agent workbench requests", () => {
     });
     expect(draftStore.get(selectedKey)).toBeUndefined();
   });
+
+  test("selects the first matching Instance for a package inspection", () => {
+    expect(
+      applyPluginWorkbenchRequest({
+        draftStore: new PluginConfigurationDraftStore(),
+        items: pluginWorkbenchItems(demoPluginInventory, demoPluginManagement),
+        managementRevision: demoPluginManagement.revision,
+        request: {
+          agentId: "console",
+          id: 3,
+          intent: "inspection",
+          packageId: "lenso.agent.loop",
+        },
+      })
+    ).toEqual({
+      notice: "Showing lenso.agent.loop/agent from the Agent inspection.",
+      selectedKey,
+    });
+  });
+
+  test("rejects a draft handoff without an exact Instance", () => {
+    const request = proposalRequest();
+    delete request.instanceKey;
+
+    expect(
+      applyPluginWorkbenchRequest({
+        draftStore: new PluginConfigurationDraftStore(),
+        items: pluginWorkbenchItems(demoPluginInventory, demoPluginManagement),
+        managementRevision: demoPluginManagement.revision,
+        request,
+      })
+    ).toBeNull();
+  });
 });
 
 function proposalRequest(): PluginWorkbenchRequest {

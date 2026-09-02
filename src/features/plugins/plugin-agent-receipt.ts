@@ -1,5 +1,8 @@
 import type { AgentToolCall } from "../agent/agent-runtime";
 
+const INSPECT_APP_TOOL = "inspect_app";
+const LIST_PLUGINS_TOOL = "list_plugins";
+const INSPECT_PLUGIN_TOOL = "inspect_plugin";
 const CHECK_PLUGIN_CHANGE_TOOL = "check_plugin_change";
 const APPLY_PLUGIN_CHANGE_TOOL = "apply_plugin_change";
 const MAX_CONFIGURATION_BYTES = 7168;
@@ -7,6 +10,50 @@ const MAX_CONFIGURATION_BYTES = 7168;
 type AgentPluginAuthority = {
   kind: string;
   reference: string;
+};
+
+type AgentPluginInspectionBase = {
+  authority: AgentPluginAuthority;
+  revision: string;
+};
+
+export type AgentAppInspectionReceipt = AgentPluginInspectionBase & {
+  bindingCount: number;
+  enabledInstanceCount: number;
+  kind: "app_inspection";
+  pluginCount: number;
+};
+
+export type AgentPluginListItem = {
+  enabledInstanceCount: number;
+  instanceCount: number;
+  packageId: string;
+  packageRevision: string;
+  source: string;
+};
+
+export type AgentPluginListReceipt = AgentPluginInspectionBase & {
+  kind: "plugin_list";
+  plugins: readonly AgentPluginListItem[];
+  query: string;
+};
+
+export type AgentPluginInstanceInspection = {
+  disableable: boolean;
+  hasRootDifference: boolean;
+  instanceKey: string;
+  origin: string;
+  rootConfigurationBytes: number | null;
+  selection: "disabled" | "enabled";
+  sourceDigest: string;
+};
+
+export type AgentPluginDetailReceipt = AgentPluginInspectionBase & {
+  instances: readonly AgentPluginInstanceInspection[];
+  kind: "plugin_inspection";
+  packageId: string;
+  packageRevision: string;
+  source: string;
 };
 
 type AgentPluginReceiptBase = {
@@ -34,6 +81,9 @@ export type AgentPluginPublicationReceipt = AgentPluginReceiptBase & {
 };
 
 export type AgentPluginReceipt =
+  | AgentAppInspectionReceipt
+  | AgentPluginListReceipt
+  | AgentPluginDetailReceipt
   | AgentPluginProposalReceipt
   | AgentPluginPublicationReceipt;
 
@@ -53,6 +103,15 @@ export function decodeAgentPluginReceipt(
   if (!(argumentsValue && result)) {
     return null;
   }
+  if (tool.name === INSPECT_APP_TOOL) {
+    return decodeAppInspection(argumentsValue, result);
+  }
+  if (tool.name === LIST_PLUGINS_TOOL) {
+    return decodePluginList(argumentsValue, result);
+  }
+  if (tool.name === INSPECT_PLUGIN_TOOL) {
+    return decodePluginInspection(argumentsValue, result);
+  }
   if (tool.name === CHECK_PLUGIN_CHANGE_TOOL) {
     return decodeProposal(argumentsValue, result);
   }
@@ -60,6 +119,122 @@ export function decodeAgentPluginReceipt(
     return decodePublication(argumentsValue, result);
   }
   return null;
+}
+
+function decodeAppInspection(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentAppInspectionReceipt | null {
+  const base = decodeInspectionBase(result);
+  if (
+    Object.keys(argumentsValue).length !== 0 ||
+    !base ||
+    result.schema !== "lenso.agent.console-app-inspection.v1" ||
+    !isIntegerInRange(result.bindingCount, 0, 65_536) ||
+    !isIntegerInRange(result.enabledInstanceCount, 0, 65_536) ||
+    !isIntegerInRange(result.pluginCount, 0, 1_024)
+  ) {
+    return null;
+  }
+  return {
+    ...base,
+    bindingCount: result.bindingCount,
+    enabledInstanceCount: result.enabledInstanceCount,
+    kind: "app_inspection",
+    pluginCount: result.pluginCount,
+  };
+}
+
+function decodePluginList(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentPluginListReceipt | null {
+  const base = decodeInspectionBase(result);
+  const query = decodeListQuery(argumentsValue);
+  if (
+    !base ||
+    query === null ||
+    result.schema !== "lenso.agent.console-plugin-list.v1" ||
+    result.query !== query ||
+    !Array.isArray(result.plugins) ||
+    result.plugins.length > 1_024
+  ) {
+    return null;
+  }
+  const plugins: AgentPluginListItem[] = [];
+  for (const value of result.plugins) {
+    if (
+      !isRecord(value) ||
+      !isIntegerInRange(value.enabledInstanceCount, 0, 4_096) ||
+      !isIntegerInRange(value.instanceCount, 0, 4_096) ||
+      value.enabledInstanceCount > value.instanceCount ||
+      !isBoundedString(value.packageId, 1, 128) ||
+      !isBoundedString(value.packageRevision, 1, 128) ||
+      !isBoundedString(value.source, 1, 32)
+    ) {
+      return null;
+    }
+    plugins.push({
+      enabledInstanceCount: value.enabledInstanceCount,
+      instanceCount: value.instanceCount,
+      packageId: value.packageId,
+      packageRevision: value.packageRevision,
+      source: value.source,
+    });
+  }
+  return { ...base, kind: "plugin_list", plugins, query };
+}
+
+function decodePluginInspection(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentPluginDetailReceipt | null {
+  const base = decodeInspectionBase(result);
+  const packageId = decodeInspectPluginArguments(argumentsValue);
+  if (
+    !base ||
+    !packageId ||
+    result.schema !== "lenso.agent.console-plugin-inspection.v1" ||
+    result.packageId !== packageId ||
+    !isBoundedString(result.packageRevision, 1, 128) ||
+    !isBoundedString(result.source, 1, 32) ||
+    !Array.isArray(result.instances) ||
+    result.instances.length > 4_096
+  ) {
+    return null;
+  }
+  const instances: AgentPluginInstanceInspection[] = [];
+  for (const value of result.instances) {
+    if (
+      !isRecord(value) ||
+      typeof value.disableable !== "boolean" ||
+      typeof value.hasRootDifference !== "boolean" ||
+      !isBoundedString(value.instanceKey, 1, 128) ||
+      !isBoundedString(value.origin, 1, 32) ||
+      !isNullableIntegerInRange(value.rootConfigurationBytes, 0, 262_144) ||
+      (value.selection !== "enabled" && value.selection !== "disabled") ||
+      !isBoundedString(value.sourceDigest, 71, 71)
+    ) {
+      return null;
+    }
+    instances.push({
+      disableable: value.disableable,
+      hasRootDifference: value.hasRootDifference,
+      instanceKey: value.instanceKey,
+      origin: value.origin,
+      rootConfigurationBytes: value.rootConfigurationBytes,
+      selection: value.selection,
+      sourceDigest: value.sourceDigest,
+    });
+  }
+  return {
+    ...base,
+    instances,
+    kind: "plugin_inspection",
+    packageId,
+    packageRevision: result.packageRevision,
+    source: result.source,
+  };
 }
 
 function decodeProposal(
@@ -176,11 +351,39 @@ function decodeInput(value: Record<string, unknown>) {
   };
 }
 
+function decodeInspectionBase(
+  value: Record<string, unknown>
+): AgentPluginInspectionBase | null {
+  const authority = decodeAuthority(value.authority);
+  return authority && isBoundedString(value.revision, 71, 71)
+    ? { authority, revision: value.revision }
+    : null;
+}
+
+function decodeListQuery(value: Record<string, unknown>) {
+  if (Object.keys(value).some((key) => key !== "query")) {
+    return null;
+  }
+  if (value.query === undefined || value.query === null) {
+    return "";
+  }
+  return typeof value.query === "string" && value.query.length <= 256
+    ? value.query
+    : null;
+}
+
+function decodeInspectPluginArguments(value: Record<string, unknown>) {
+  return Object.keys(value).length === 1 &&
+    isBoundedString(value.plugin_id, 1, 128)
+    ? value.plugin_id
+    : null;
+}
+
 function decodeAuthority(value: unknown): AgentPluginAuthority | null {
   if (
     !isRecord(value) ||
-    !isNonEmptyString(value.kind) ||
-    !isNonEmptyString(value.reference)
+    !isBoundedString(value.kind, 1, 64) ||
+    !isBoundedString(value.reference, 1, 256)
   ) {
     return null;
   }
@@ -227,4 +430,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+function isBoundedString(
+  value: unknown,
+  minimum: number,
+  maximum: number
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= minimum &&
+    value.length <= maximum
+  );
+}
+
+function isIntegerInRange(
+  value: unknown,
+  minimum: number,
+  maximum: number
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= minimum &&
+    value <= maximum
+  );
+}
+
+function isNullableIntegerInRange(
+  value: unknown,
+  minimum: number,
+  maximum: number
+): value is number | null {
+  return value === null || isIntegerInRange(value, minimum, maximum);
 }

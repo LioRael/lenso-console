@@ -2,6 +2,7 @@ import { ThemeScope } from "@lenso/ui/theme-scope";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
+  Outlet,
   createRootRoute,
   createRoute,
   createRouter,
@@ -16,7 +17,10 @@ import {
   PluginAgentAction,
   pluginAgentDraft,
 } from "../plugins/plugin-agent-handoff";
-import { PluginAgentWorkbenchProvider } from "../plugins/plugin-agent-workbench-context";
+import {
+  PluginAgentWorkbenchProvider,
+  usePluginAgentWorkbench,
+} from "../plugins/plugin-agent-workbench-context";
 import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentQuickPanel } from "./agent-quick-panel";
 import { AgentQuickPanelProvider } from "./agent-quick-panel-context";
@@ -143,6 +147,27 @@ describe("Agent quick panel", () => {
       .toBeVisible();
   });
 
+  test("opens an inspected Plugin in the exact Agent workbench context", async () => {
+    const fetchMock = agentFetch("", false, pluginInspectionMessages());
+    await renderPanel(fetchMock);
+
+    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    const composer = page.elementLocator(requiredComposer());
+    await userEvent.fill(composer, "Inspect the Agent loop Plugin");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(page.getByText("Plugin inspected")).toBeVisible();
+    await expect.element(page.getByText("lenso.agent.loop")).toBeVisible();
+    await expect
+      .element(page.getByText(/1 Instance, 1 enabled, and 1 Host difference/))
+      .toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "View Plugin" }));
+
+    await expect
+      .element(page.getByText("Plugin request · lenso.agent.loop/agent"))
+      .toBeVisible();
+  });
+
   test("opens the full App Agent identity discovered from the catalog", async () => {
     const fetchMock = agentFetch("", true);
     const onOpenFullPage = vi.fn();
@@ -219,35 +244,56 @@ async function renderPanel(
     defaultOptions: { queries: { retry: false } },
   });
   queryClient = client;
-  const rootRoute = createRootRoute();
-  const panelRoute = createRoute({
+  const rootRoute = createRootRoute({
     component: () => (
       <QueryClientProvider client={client}>
         <AgentIdentityProvider>
           <PluginAgentWorkbenchProvider>
             <AgentQuickPanelProvider>
               <ThemeScope>
-                {includePluginAction ? (
-                  <PluginAgentAction {...pluginAgentContext} />
-                ) : null}
-                <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+                <Outlet />
               </ThemeScope>
             </AgentQuickPanelProvider>
           </PluginAgentWorkbenchProvider>
         </AgentIdentityProvider>
       </QueryClientProvider>
     ),
+  });
+  const panelRoute = createRoute({
+    component: () => (
+      <>
+        {includePluginAction ? (
+          <PluginAgentAction {...pluginAgentContext} />
+        ) : null}
+        <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+      </>
+    ),
     getParentRoute: () => rootRoute,
     path: "/",
   });
+  const pluginsRoute = createRoute({
+    component: PluginWorkbenchRequestProbe,
+    getParentRoute: () => rootRoute,
+    path: "/plugins",
+  });
   const router = createRouter({
     history: createMemoryHistory({ initialEntries: ["/"] }),
-    routeTree: rootRoute.addChildren([panelRoute]),
+    routeTree: rootRoute.addChildren([panelRoute, pluginsRoute]),
   });
   flushSync(() => {
     root?.render(<RouterProvider router={router} />);
   });
   await nextFrame();
+}
+
+function PluginWorkbenchRequestProbe() {
+  const { request } = usePluginAgentWorkbench();
+  return (
+    <output>
+      Plugin request · {request?.packageId ?? "none"}/
+      {request?.instanceKey ?? "any"}
+    </output>
+  );
 }
 
 const pluginAgentContext = {
@@ -502,6 +548,56 @@ function pluginProposalMessages() {
         text: "",
         tool_call_id: "call-plugin-proposal",
         tool_name: "check_plugin_change",
+      },
+      type: "turn_message",
+    },
+  ];
+}
+
+function pluginInspectionMessages() {
+  const argumentsJson = JSON.stringify({ plugin_id: "lenso.agent.loop" });
+  return [
+    {
+      message: {
+        arguments_json: argumentsJson,
+        kind: "tool_started",
+        sequence: "inspect-plugin-1",
+        text: "",
+        tool_call_id: "call-plugin-inspection",
+        tool_name: "inspect_plugin",
+      },
+      type: "turn_message",
+    },
+    {
+      message: {
+        arguments_json: argumentsJson,
+        content: JSON.stringify({
+          authority: {
+            kind: "remote_configuration_service",
+            reference: "app",
+          },
+          instances: [
+            {
+              disableable: false,
+              hasRootDifference: true,
+              instanceKey: "agent",
+              origin: "host-default",
+              rootConfigurationBytes: 48,
+              selection: "enabled",
+              sourceDigest: `sha256:${"c".repeat(64)}`,
+            },
+          ],
+          packageId: "lenso.agent.loop",
+          packageRevision: "linked",
+          revision: `sha256:${"a".repeat(64)}`,
+          schema: "lenso.agent.console-plugin-inspection.v1",
+          source: "host-default",
+        }),
+        kind: "tool_completed",
+        sequence: "inspect-plugin-2",
+        text: "",
+        tool_call_id: "call-plugin-inspection",
+        tool_name: "inspect_plugin",
       },
       type: "turn_message",
     },
