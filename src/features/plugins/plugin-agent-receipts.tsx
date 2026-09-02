@@ -66,11 +66,18 @@ const styles = stylex.create({
 
 type AgentPluginInspectionReceipt = Extract<
   AgentPluginReceipt,
-  { kind: "app_inspection" | "plugin_inspection" | "plugin_list" }
+  { kind: "app_inspection" | "history" | "plugin_inspection" | "plugin_list" }
 >;
 type AgentPluginChangeReceipt = Extract<
   AgentPluginReceipt,
-  { kind: "proposal" | "publication" | "selection" }
+  {
+    kind:
+      | "proposal"
+      | "publication"
+      | "rollback_proposal"
+      | "rollback_publication"
+      | "selection";
+  }
 >;
 
 export function PluginAgentReceipts({
@@ -97,6 +104,7 @@ export function PluginAgentReceipts({
 function PluginAgentReceiptCard({ receipt }: { receipt: AgentPluginReceipt }) {
   if (
     receipt.kind === "app_inspection" ||
+    receipt.kind === "history" ||
     receipt.kind === "plugin_list" ||
     receipt.kind === "plugin_inspection"
   ) {
@@ -112,9 +120,14 @@ function PluginChangeReceiptCard({
 }) {
   const navigate = useNavigate();
   const { requestWorkbench } = usePluginAgentWorkbench();
-  const ready = receipt.kind === "proposal" && receipt.status === "ready";
+  const ready =
+    (receipt.kind === "proposal" || receipt.kind === "rollback_proposal") &&
+    receipt.status === "ready";
   const Icon =
-    ready || receipt.kind === "publication" || receipt.kind === "selection"
+    ready ||
+    receipt.kind === "publication" ||
+    receipt.kind === "rollback_publication" ||
+    receipt.kind === "selection"
       ? ShieldCheck
       : CircleAlert;
   const title = receiptTitle(receipt);
@@ -122,7 +135,7 @@ function PluginChangeReceiptCard({
   const openWorkbench = () => {
     requestWorkbench({
       agentId: receipt.agentId,
-      ...(ready
+      ...(receipt.kind === "proposal" && ready
         ? {
             draftReview: {
               baseRevision: receipt.baseRevision,
@@ -147,7 +160,8 @@ function PluginChangeReceiptCard({
         {receipt.packageId}/{receipt.instanceKey}
       </div>
       <p {...stylex.props(styles.description)}>{description}</p>
-      {receipt.kind === "proposal" && receipt.diagnostics.length > 0 ? (
+      {(receipt.kind === "proposal" || receipt.kind === "rollback_proposal") &&
+      receipt.diagnostics.length > 0 ? (
         <div role="alert" {...stylex.props(styles.diagnostic)}>
           <CircleAlert aria-hidden="true" size={14} strokeWidth={1.7} />
           <span>{receipt.diagnostics[0]?.detail}</span>
@@ -155,6 +169,7 @@ function PluginChangeReceiptCard({
       ) : null}
       {ready ||
       receipt.kind === "publication" ||
+      receipt.kind === "rollback_publication" ||
       receipt.kind === "selection" ? (
         <Button
           onClick={openWorkbench}
@@ -178,12 +193,18 @@ function PluginInspectionReceiptCard({
   const navigate = useNavigate();
   const { requestWorkbench } = usePluginAgentWorkbench();
   const openWorkbench = () => {
-    if (receipt.kind === "plugin_inspection") {
+    if (receipt.kind === "plugin_inspection" || receipt.kind === "history") {
       const onlyInstance =
-        receipt.instances.length === 1 ? receipt.instances[0] : undefined;
+        receipt.kind === "plugin_inspection" && receipt.instances.length === 1
+          ? receipt.instances[0]
+          : undefined;
       requestWorkbench({
         agentId: receipt.agentId,
-        ...(onlyInstance ? { instanceKey: onlyInstance.instanceKey } : {}),
+        ...(receipt.kind === "history"
+          ? { instanceKey: receipt.instanceKey }
+          : onlyInstance
+            ? { instanceKey: onlyInstance.instanceKey }
+            : {}),
         intent: "inspection",
         packageId: receipt.packageId,
       });
@@ -215,7 +236,9 @@ function PluginInspectionReceiptCard({
         xstyle={styles.action}
       >
         <ExternalLink aria-hidden="true" size={13} strokeWidth={1.7} />
-        {receipt.kind === "plugin_inspection" ? "View Plugin" : "Open Plugins"}
+        {receipt.kind === "plugin_inspection" || receipt.kind === "history"
+          ? "View Plugin"
+          : "Open Plugins"}
       </Button>
     </section>
   );
@@ -225,12 +248,18 @@ function inspectionIcon(receipt: AgentPluginInspectionReceipt) {
   if (receipt.kind === "app_inspection") {
     return Boxes;
   }
+  if (receipt.kind === "history") {
+    return List;
+  }
   return receipt.kind === "plugin_list" ? List : Search;
 }
 
 function inspectionTitle(receipt: AgentPluginInspectionReceipt) {
   if (receipt.kind === "app_inspection") {
     return "App Plugin state inspected";
+  }
+  if (receipt.kind === "history") {
+    return "Plugin history inspected";
   }
   return receipt.kind === "plugin_list"
     ? "Plugin catalog inspected"
@@ -241,6 +270,9 @@ function inspectionIdentity(receipt: AgentPluginInspectionReceipt) {
   if (receipt.kind === "plugin_inspection") {
     return receipt.packageId;
   }
+  if (receipt.kind === "history") {
+    return `${receipt.packageId}/${receipt.instanceKey}`;
+  }
   if (receipt.kind === "plugin_list" && receipt.query) {
     return `Query · ${receipt.query}`;
   }
@@ -248,9 +280,10 @@ function inspectionIdentity(receipt: AgentPluginInspectionReceipt) {
 }
 
 function inspectionIdentityTitle(receipt: AgentPluginInspectionReceipt) {
-  return receipt.kind === "plugin_inspection"
-    ? `${receipt.packageId}@${receipt.packageRevision}`
-    : receipt.revision;
+  if (receipt.kind === "plugin_inspection") {
+    return `${receipt.packageId}@${receipt.packageRevision}`;
+  }
+  return receipt.revision;
 }
 
 function inspectionDescription(receipt: AgentPluginInspectionReceipt) {
@@ -268,6 +301,12 @@ function inspectionDescription(receipt: AgentPluginInspectionReceipt) {
         ? ` ${packages.join(", ")}${receipt.plugins.length > packages.length ? ", …" : ""}.`
         : "";
     return `${authority} returned ${countLabel(receipt.plugins.length, "Plugin")}${scope}.${examples}`;
+  }
+  if (receipt.kind === "history") {
+    const rollbacks = receipt.publications.filter(
+      (publication) => publication.rollbackOfProposalDigest
+    ).length;
+    return `${authority} returned ${countLabel(receipt.publications.length, "publication")}, including ${countLabel(rollbacks, "rollback")}. Historical configuration contents stayed with the authority.`;
   }
   const enabled = receipt.instances.filter(
     (instance) => instance.selection === "enabled"
@@ -293,6 +332,14 @@ function receiptTitle(receipt: AgentPluginChangeReceipt) {
   if (receipt.kind === "publication") {
     return "Plugin desired state published";
   }
+  if (receipt.kind === "rollback_publication") {
+    return "Plugin rollback published";
+  }
+  if (receipt.kind === "rollback_proposal" && receipt.status === "ready") {
+    return receipt.application === "noop"
+      ? "Plugin already matches this publication"
+      : "Plugin rollback ready for approval";
+  }
   if (receipt.status === "ready") {
     return receipt.application === "noop"
       ? "Plugin configuration already matches"
@@ -311,8 +358,16 @@ function receiptDescription(receipt: AgentPluginChangeReceipt) {
   if (receipt.kind === "publication") {
     return `${authority} accepted the reviewed proposal. Host reconciliation may still be pending.`;
   }
+  if (receipt.kind === "rollback_publication") {
+    return `${authority} accepted the reviewed rollback. Host reconciliation may still be pending.`;
+  }
   if (receipt.status !== "ready") {
     return `${authority} did not admit this candidate for publication.`;
+  }
+  if (receipt.kind === "rollback_proposal") {
+    return receipt.application === "noop"
+      ? `${authority} confirmed that the selected historical publication already matches desired state.`
+      : `${authority} validated the rollback without exposing its retained configuration.`;
   }
   return receipt.application === "noop"
     ? `${authority} confirmed that no configuration change is required.`
