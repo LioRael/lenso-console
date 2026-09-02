@@ -14,6 +14,7 @@ type AgentPluginAuthority = {
 };
 
 type AgentPluginInspectionBase = {
+  agentId: string;
   authority: AgentPluginAuthority;
   revision: string;
 };
@@ -58,6 +59,7 @@ export type AgentPluginDetailReceipt = AgentPluginInspectionBase & {
 };
 
 type AgentPluginReceiptBase = {
+  agentId: string;
   authority: AgentPluginAuthority;
   baseRevision: string;
   baseSourceDigest: string;
@@ -139,9 +141,17 @@ function decodeSelection(
   result: Record<string, unknown>
 ): AgentPluginSelectionReceipt | null {
   const authority = decodeAuthority(result.authority);
+  const agentId = decodeTargetAgent(argumentsValue, result);
   if (
     !authority ||
-    Object.keys(argumentsValue).length !== 4 ||
+    !agentId ||
+    !hasOnlyKeys(argumentsValue, [
+      "agent_id",
+      "enabled",
+      "expected_revision",
+      "instance",
+      "plugin_id",
+    ]) ||
     typeof argumentsValue.enabled !== "boolean" ||
     !isBoundedString(argumentsValue.expected_revision, 71, 71) ||
     !isBoundedString(argumentsValue.instance, 1, 128) ||
@@ -157,6 +167,7 @@ function decodeSelection(
     return null;
   }
   return {
+    agentId,
     authority,
     baseRevision: result.baseRevision,
     enabled: result.enabled,
@@ -173,7 +184,8 @@ function decodeAppInspection(
 ): AgentAppInspectionReceipt | null {
   const base = decodeInspectionBase(result);
   if (
-    Object.keys(argumentsValue).length !== 0 ||
+    !decodeTargetAgent(argumentsValue, result) ||
+    !hasOnlyKeys(argumentsValue, ["agent_id"]) ||
     !base ||
     result.schema !== "lenso.agent.console-app-inspection.v1" ||
     !isIntegerInRange(result.bindingCount, 0, 65_536) ||
@@ -199,6 +211,7 @@ function decodePluginList(
   const query = decodeListQuery(argumentsValue);
   if (
     !base ||
+    !decodeTargetAgent(argumentsValue, result) ||
     query === null ||
     result.schema !== "lenso.agent.console-plugin-list.v1" ||
     result.query !== query ||
@@ -239,6 +252,7 @@ function decodePluginInspection(
   const packageId = decodeInspectPluginArguments(argumentsValue);
   if (
     !base ||
+    !decodeTargetAgent(argumentsValue, result) ||
     !packageId ||
     result.schema !== "lenso.agent.console-plugin-inspection.v1" ||
     result.packageId !== packageId ||
@@ -288,6 +302,7 @@ function decodeProposal(
   result: Record<string, unknown>
 ): AgentPluginProposalReceipt | null {
   const input = decodeInput(argumentsValue);
+  const agentId = decodeTargetAgent(argumentsValue, result);
   const authority = decodeAuthority(result.authority);
   const diagnostics = decodeDiagnostics(result.diagnostics);
   const application = enumValue(result.application, [
@@ -302,6 +317,14 @@ function decodeProposal(
   ] as const);
   if (
     !input ||
+    !agentId ||
+    !hasOnlyKeys(argumentsValue, [
+      "agent_id",
+      "configuration_toml",
+      "expected_revision",
+      "instance",
+      "plugin_id",
+    ]) ||
     !authority ||
     !diagnostics ||
     !application ||
@@ -331,6 +354,7 @@ function decodeProposal(
     return null;
   }
   return {
+    agentId,
     application,
     authority,
     baseRevision: result.baseRevision,
@@ -351,9 +375,19 @@ function decodePublication(
   result: Record<string, unknown>
 ): AgentPluginPublicationReceipt | null {
   const input = decodeInput(argumentsValue);
+  const agentId = decodeTargetAgent(argumentsValue, result);
   const authority = decodeAuthority(result.authority);
   if (
     !input ||
+    !agentId ||
+    !hasOnlyKeys(argumentsValue, [
+      "agent_id",
+      "configuration_toml",
+      "expected_revision",
+      "instance",
+      "plugin_id",
+      "proposal_digest",
+    ]) ||
     !authority ||
     !isNonEmptyString(argumentsValue.proposal_digest) ||
     result.schema !== "lenso.plugin-configuration-publication.v1" ||
@@ -366,6 +400,7 @@ function decodePublication(
     return null;
   }
   return {
+    agentId,
     authority,
     baseRevision: result.baseRevision,
     baseSourceDigest: result.baseSourceDigest,
@@ -401,13 +436,15 @@ function decodeInspectionBase(
   value: Record<string, unknown>
 ): AgentPluginInspectionBase | null {
   const authority = decodeAuthority(value.authority);
-  return authority && isBoundedString(value.revision, 71, 71)
-    ? { authority, revision: value.revision }
+  return authority &&
+    isBoundedString(value.agentId, 1, 128) &&
+    isBoundedString(value.revision, 71, 71)
+    ? { agentId: value.agentId, authority, revision: value.revision }
     : null;
 }
 
 function decodeListQuery(value: Record<string, unknown>) {
-  if (Object.keys(value).some((key) => key !== "query")) {
+  if (Object.keys(value).some((key) => key !== "agent_id" && key !== "query")) {
     return null;
   }
   if (value.query === undefined || value.query === null) {
@@ -419,10 +456,31 @@ function decodeListQuery(value: Record<string, unknown>) {
 }
 
 function decodeInspectPluginArguments(value: Record<string, unknown>) {
-  return Object.keys(value).length === 1 &&
+  return hasOnlyKeys(value, ["agent_id", "plugin_id"]) &&
     isBoundedString(value.plugin_id, 1, 128)
     ? value.plugin_id
     : null;
+}
+
+function decodeTargetAgent(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+) {
+  return isBoundedString(argumentsValue.agent_id, 1, 128) &&
+    result.agentId === argumentsValue.agent_id
+    ? argumentsValue.agent_id
+    : null;
+}
+
+function hasOnlyKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[]
+) {
+  const keys = Object.keys(value);
+  return (
+    keys.length === expected.length &&
+    keys.every((key) => expected.includes(key))
+  );
 }
 
 function decodeAuthority(value: unknown): AgentPluginAuthority | null {

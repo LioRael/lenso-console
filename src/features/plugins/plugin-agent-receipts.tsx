@@ -74,10 +74,8 @@ type AgentPluginChangeReceipt = Extract<
 >;
 
 export function PluginAgentReceipts({
-  agentId,
   tools,
 }: {
-  agentId: string;
   tools: readonly AgentToolCall[];
 }) {
   const receipts = tools.flatMap((tool) => {
@@ -90,38 +88,26 @@ export function PluginAgentReceipts({
   return (
     <div aria-label="Plugin management receipts" {...stylex.props(styles.list)}>
       {receipts.map(({ callId, receipt }) => (
-        <PluginAgentReceiptCard
-          agentId={agentId}
-          key={callId}
-          receipt={receipt}
-        />
+        <PluginAgentReceiptCard key={callId} receipt={receipt} />
       ))}
     </div>
   );
 }
 
-function PluginAgentReceiptCard({
-  agentId,
-  receipt,
-}: {
-  agentId: string;
-  receipt: AgentPluginReceipt;
-}) {
+function PluginAgentReceiptCard({ receipt }: { receipt: AgentPluginReceipt }) {
   if (
     receipt.kind === "app_inspection" ||
     receipt.kind === "plugin_list" ||
     receipt.kind === "plugin_inspection"
   ) {
-    return <PluginInspectionReceiptCard agentId={agentId} receipt={receipt} />;
+    return <PluginInspectionReceiptCard receipt={receipt} />;
   }
-  return <PluginChangeReceiptCard agentId={agentId} receipt={receipt} />;
+  return <PluginChangeReceiptCard receipt={receipt} />;
 }
 
 function PluginChangeReceiptCard({
-  agentId,
   receipt,
 }: {
-  agentId: string;
   receipt: AgentPluginChangeReceipt;
 }) {
   const navigate = useNavigate();
@@ -135,7 +121,7 @@ function PluginChangeReceiptCard({
   const description = receiptDescription(receipt);
   const openWorkbench = () => {
     requestWorkbench({
-      agentId,
+      agentId: receipt.agentId,
       ...(ready
         ? {
             draftReview: {
@@ -185,10 +171,8 @@ function PluginChangeReceiptCard({
 }
 
 function PluginInspectionReceiptCard({
-  agentId,
   receipt,
 }: {
-  agentId: string;
   receipt: AgentPluginInspectionReceipt;
 }) {
   const navigate = useNavigate();
@@ -198,11 +182,13 @@ function PluginInspectionReceiptCard({
       const onlyInstance =
         receipt.instances.length === 1 ? receipt.instances[0] : undefined;
       requestWorkbench({
-        agentId,
+        agentId: receipt.agentId,
         ...(onlyInstance ? { instanceKey: onlyInstance.instanceKey } : {}),
         intent: "inspection",
         packageId: receipt.packageId,
       });
+    } else {
+      requestWorkbench({ agentId: receipt.agentId });
     }
     navigate({ to: "/plugins" });
   };

@@ -297,12 +297,12 @@ function PluginWorkbenchRequestProbe() {
 }
 
 const pluginAgentContext = {
-  agentId: "console",
   instanceKey: "agent",
   managementRevision: "sha256:management-revision",
   packageId: "lenso.agent.loop",
   rootConfigurationToml: 'max_steps = 8\nmodel = "gpt-5.6-luna"\n',
   sourceDigest: "sha256:plugin-source",
+  targetAgentId: "app",
 } as const;
 
 async function renderQueueHarness() {
@@ -507,6 +507,7 @@ function streamBody(
 
 function pluginProposalMessages() {
   const argumentsJson = JSON.stringify({
+    agent_id: "app",
     configuration_toml: 'model = "gpt-5.6-luna"\nmax_steps = 12\n',
     expected_revision: "sha256:demo-root",
     instance: "agent",
@@ -528,6 +529,7 @@ function pluginProposalMessages() {
       message: {
         arguments_json: argumentsJson,
         content: JSON.stringify({
+          agentId: "app",
           application: "app_generation",
           authority: {
             kind: "remote_configuration_service",
@@ -555,7 +557,10 @@ function pluginProposalMessages() {
 }
 
 function pluginInspectionMessages() {
-  const argumentsJson = JSON.stringify({ plugin_id: "lenso.agent.loop" });
+  const argumentsJson = JSON.stringify({
+    agent_id: "app",
+    plugin_id: "lenso.agent.loop",
+  });
   return [
     {
       message: {
@@ -572,6 +577,7 @@ function pluginInspectionMessages() {
       message: {
         arguments_json: argumentsJson,
         content: JSON.stringify({
+          agentId: "app",
           authority: {
             kind: "remote_configuration_service",
             reference: "app",

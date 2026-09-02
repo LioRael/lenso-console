@@ -21,7 +21,7 @@ export type PluginWorkbenchRequest = {
   id: number;
   instanceKey?: string;
   intent?: "inspection";
-  packageId: string;
+  packageId?: string;
 };
 
 type PluginAgentWorkbenchState = {

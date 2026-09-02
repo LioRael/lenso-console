@@ -292,10 +292,7 @@ export function AgentQuickPanel({
                       </div>
                       <div {...stylex.props(styles.assistantTurn)}>
                         {turn.tools?.length ? (
-                          <PluginAgentReceipts
-                            agentId={selectedAgent.id}
-                            tools={turn.tools}
-                          />
+                          <PluginAgentReceipts tools={turn.tools} />
                         ) : null}
                         {turn.answer ? (
                           <AgentMarkdown

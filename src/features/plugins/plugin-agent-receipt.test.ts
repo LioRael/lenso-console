@@ -29,6 +29,7 @@ describe("Plugin Agent receipts", () => {
         )
       )
     ).toEqual({
+      agentId: "app-agent",
       authority: { kind: "remote_configuration_service", reference: "app" },
       bindingCount: 4,
       enabledInstanceCount: 2,
@@ -151,6 +152,7 @@ describe("Plugin Agent receipts", () => {
 
   test("decodes an exact ready proposal with its candidate TOML", () => {
     expect(decodeAgentPluginReceipt(proposalTool())).toEqual({
+      agentId: "app-agent",
       application: "app_generation",
       authority: { kind: "remote_configuration_service", reference: "app" },
       baseRevision: revisionA,
@@ -179,6 +181,12 @@ describe("Plugin Agent receipts", () => {
         resultContent: proposalResult({ pluginId: "example.other" }),
       })
     ).toBeNull();
+    expect(
+      decodeAgentPluginReceipt({
+        ...proposalTool(),
+        resultContent: proposalResult({ agentId: "other-agent" }),
+      })
+    ).toBeNull();
   });
 
   test("decodes a publication as desired state rather than applied state", () => {
@@ -186,6 +194,7 @@ describe("Plugin Agent receipts", () => {
       decodeAgentPluginReceipt({
         ...proposalTool(),
         argumentsJson: JSON.stringify({
+          agent_id: "app-agent",
           configuration_toml: "enabled = true\n",
           expected_revision: revisionA,
           instance: "default",
@@ -194,6 +203,7 @@ describe("Plugin Agent receipts", () => {
         }),
         name: "apply_plugin_change",
         resultContent: JSON.stringify({
+          agentId: "app-agent",
           authority: {
             kind: "remote_configuration_service",
             reference: "app",
@@ -240,6 +250,7 @@ describe("Plugin Agent receipts", () => {
         )
       )
     ).toEqual({
+      agentId: "app-agent",
       authority: {
         kind: "sqlite_configuration_store",
         reference: "console",
@@ -257,6 +268,7 @@ describe("Plugin Agent receipts", () => {
 function proposalTool(): AgentToolCall {
   return {
     argumentsJson: JSON.stringify({
+      agent_id: "app-agent",
       configuration_toml: "enabled = true\n",
       expected_revision: revisionA,
       instance: "default",
@@ -271,6 +283,7 @@ function proposalTool(): AgentToolCall {
 
 function proposalResult(overrides: Record<string, unknown> = {}) {
   return JSON.stringify({
+    agentId: "app-agent",
     application: "app_generation",
     authority: { kind: "remote_configuration_service", reference: "app" },
     baseRevision: revisionA,
@@ -292,10 +305,10 @@ function completedTool(
   result: Record<string, unknown>
 ): AgentToolCall {
   return {
-    argumentsJson: JSON.stringify(argumentsValue),
+    argumentsJson: JSON.stringify({ agent_id: "app-agent", ...argumentsValue }),
     callId: `call-${name}`,
     name,
-    resultContent: JSON.stringify(result),
+    resultContent: JSON.stringify({ agentId: "app-agent", ...result }),
     status: "completed",
   };
 }
