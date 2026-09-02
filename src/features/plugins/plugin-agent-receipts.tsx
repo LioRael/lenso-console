@@ -70,7 +70,7 @@ type AgentPluginInspectionReceipt = Extract<
 >;
 type AgentPluginChangeReceipt = Extract<
   AgentPluginReceipt,
-  { kind: "proposal" | "publication" }
+  { kind: "proposal" | "publication" | "selection" }
 >;
 
 export function PluginAgentReceipts({
@@ -128,7 +128,9 @@ function PluginChangeReceiptCard({
   const { requestWorkbench } = usePluginAgentWorkbench();
   const ready = receipt.kind === "proposal" && receipt.status === "ready";
   const Icon =
-    ready || receipt.kind === "publication" ? ShieldCheck : CircleAlert;
+    ready || receipt.kind === "publication" || receipt.kind === "selection"
+      ? ShieldCheck
+      : CircleAlert;
   const title = receiptTitle(receipt);
   const description = receiptDescription(receipt);
   const openWorkbench = () => {
@@ -165,7 +167,9 @@ function PluginChangeReceiptCard({
           <span>{receipt.diagnostics[0]?.detail}</span>
         </div>
       ) : null}
-      {ready || receipt.kind === "publication" ? (
+      {ready ||
+      receipt.kind === "publication" ||
+      receipt.kind === "selection" ? (
         <Button
           onClick={openWorkbench}
           size="compact"
@@ -297,6 +301,9 @@ function shortRevision(revision: string) {
 }
 
 function receiptTitle(receipt: AgentPluginChangeReceipt) {
+  if (receipt.kind === "selection") {
+    return receipt.enabled ? "Plugin enabled" : "Plugin disabled";
+  }
   if (receipt.kind === "publication") {
     return "Plugin desired state published";
   }
@@ -312,6 +319,9 @@ function receiptTitle(receipt: AgentPluginChangeReceipt) {
 
 function receiptDescription(receipt: AgentPluginChangeReceipt) {
   const authority = `${authorityLabel(receipt.authority.kind)} · ${receipt.authority.reference}`;
+  if (receipt.kind === "selection") {
+    return `${authority} changed the Plugin Instance selection to ${receipt.enabled ? "enabled" : "disabled"}.`;
+  }
   if (receipt.kind === "publication") {
     return `${authority} accepted the reviewed proposal. Host reconciliation may still be pending.`;
   }

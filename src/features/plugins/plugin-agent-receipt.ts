@@ -5,6 +5,7 @@ const LIST_PLUGINS_TOOL = "list_plugins";
 const INSPECT_PLUGIN_TOOL = "inspect_plugin";
 const CHECK_PLUGIN_CHANGE_TOOL = "check_plugin_change";
 const APPLY_PLUGIN_CHANGE_TOOL = "apply_plugin_change";
+const SET_PLUGIN_ENABLED_TOOL = "set_plugin_enabled";
 const MAX_CONFIGURATION_BYTES = 7168;
 
 type AgentPluginAuthority = {
@@ -80,12 +81,21 @@ export type AgentPluginPublicationReceipt = AgentPluginReceiptBase & {
   revision: string;
 };
 
+export type AgentPluginSelectionReceipt = AgentPluginInspectionBase & {
+  baseRevision: string;
+  enabled: boolean;
+  instanceKey: string;
+  kind: "selection";
+  packageId: string;
+};
+
 export type AgentPluginReceipt =
   | AgentAppInspectionReceipt
   | AgentPluginListReceipt
   | AgentPluginDetailReceipt
   | AgentPluginProposalReceipt
-  | AgentPluginPublicationReceipt;
+  | AgentPluginPublicationReceipt
+  | AgentPluginSelectionReceipt;
 
 export function decodeAgentPluginReceipt(
   tool: AgentToolCall
@@ -118,7 +128,43 @@ export function decodeAgentPluginReceipt(
   if (tool.name === APPLY_PLUGIN_CHANGE_TOOL) {
     return decodePublication(argumentsValue, result);
   }
+  if (tool.name === SET_PLUGIN_ENABLED_TOOL) {
+    return decodeSelection(argumentsValue, result);
+  }
   return null;
+}
+
+function decodeSelection(
+  argumentsValue: Record<string, unknown>,
+  result: Record<string, unknown>
+): AgentPluginSelectionReceipt | null {
+  const authority = decodeAuthority(result.authority);
+  if (
+    !authority ||
+    Object.keys(argumentsValue).length !== 4 ||
+    typeof argumentsValue.enabled !== "boolean" ||
+    !isBoundedString(argumentsValue.expected_revision, 71, 71) ||
+    !isBoundedString(argumentsValue.instance, 1, 128) ||
+    !isBoundedString(argumentsValue.plugin_id, 1, 128) ||
+    result.schema !== "lenso.plugin-selection-publication.v1" ||
+    result.baseRevision !== argumentsValue.expected_revision ||
+    result.enabled !== argumentsValue.enabled ||
+    result.instance !== argumentsValue.instance ||
+    result.pluginId !== argumentsValue.plugin_id ||
+    result.status !== (argumentsValue.enabled ? "enabled" : "disabled") ||
+    !isBoundedString(result.revision, 71, 71)
+  ) {
+    return null;
+  }
+  return {
+    authority,
+    baseRevision: result.baseRevision,
+    enabled: result.enabled,
+    instanceKey: result.instance,
+    kind: "selection",
+    packageId: result.pluginId,
+    revision: result.revision,
+  };
 }
 
 function decodeAppInspection(

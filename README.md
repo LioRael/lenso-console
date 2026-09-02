@@ -42,13 +42,14 @@ Open `http://127.0.0.1:3030`.
 
 The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
 being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
-the launcher directory. The Console Agent admits the five reviewed Plugin
+the launcher directory. The Console Agent admits six Plugin
 management Tools by default: `inspect_app`, `list_plugins`, `inspect_plugin`,
-`check_plugin_change`, and `apply_plugin_change`. Set
+`check_plugin_change`, `apply_plugin_change`, and `set_plugin_enabled`. Set
 `LENSO_CONSOLE_AGENT_TOOLS` to an exact comma-separated subset to narrow access,
 or to an empty value to disable all model-visible Tools. `ask_user` remains
-available as the web interaction primitive, and `apply_plugin_change` still
-passes through the interactive approval hook before publication.
+available as the web interaction primitive. `apply_plugin_change` and the
+direct `set_plugin_enabled` lifecycle action pass through the interactive
+approval hook.
 
 The Console Host also links `lenso.agent.console-instructions`, a stateless
 Prompt Provider used only by the Console Agent identity. It instructs the Agent
