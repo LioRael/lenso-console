@@ -15,7 +15,8 @@ use axum::{
 use directories::BaseDirs;
 use lenso::prelude::*;
 use lenso_agent_web::{
-    AgentWebConfig, AgentWebControl, AgentWebSurface, PluginConfigurationStoreConfig,
+    AgentWebAccess, AgentWebConfig, AgentWebControl, AgentWebSurface,
+    PluginConfigurationStoreConfig,
 };
 use serde::{Deserialize, Serialize};
 use tower_http::limit::RequestBodyLimitLayer;
@@ -24,6 +25,24 @@ use tower_http::services::{ServeDir, ServeFile};
 const DEFAULT_PORT: u16 = 3030;
 const MAX_AGENT_REQUEST_BYTES: usize = 64 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
+
+fn default_console_agent_tools() -> Vec<String> {
+    lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS
+        .iter()
+        .map(|tool| (*tool).to_owned())
+        .collect()
+}
+
+fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
+    value.map_or_else(default_console_agent_tools, |value| {
+        value
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .collect()
+    })
+}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -223,13 +242,11 @@ impl ConsoleConfig {
             })?;
         let agent_home = console_home.join("agent");
         let managed_app_root = resolve_app_root(std::env::var_os("LENSO_APP_ROOT"))?;
-        let allowed_tools = std::env::var("LENSO_CONSOLE_AGENT_TOOLS")
-            .unwrap_or_default()
-            .split(',')
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_owned)
-            .collect();
+        let allowed_tools = match std::env::var("LENSO_CONSOLE_AGENT_TOOLS") {
+            Ok(value) => configured_console_agent_tools(Some(&value)),
+            Err(std::env::VarError::NotPresent) => configured_console_agent_tools(None),
+            Err(error) => return Err(error.into()),
+        };
         let connected_agent_url =
             std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_URL").unwrap_or_default();
         let connected_agent_label = std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_LABEL")
@@ -284,6 +301,7 @@ impl ConsoleConfig {
 
     fn agent_web_config(&self) -> AgentWebConfig {
         let mut config = AgentWebConfig::new(lenso_agent_console_plugins::link);
+        config.access = AgentWebAccess::HostAuthorized;
         config.agent_home = Some(self.agent_home.clone());
         config.allowed_tools.clone_from(&self.allowed_tools);
         config.tool_policy = Some(self.tool_policy.clone());
@@ -727,6 +745,8 @@ fn plugin_failure(detail: impl std::fmt::Display) -> RuntimeFailure {
 mod tests {
     use super::*;
     use lenso_agent_host::{AgentHost, Profile, WebSurface};
+    use lenso_app_authoring::LocalPluginRootAuthority;
+    use std::sync::Arc;
 
     fn configure_test_codex_catalog(root: &Path, base_url: &str) {
         std::fs::create_dir_all(root).unwrap();
@@ -799,6 +819,25 @@ mod tests {
         assert_eq!(descriptor["root_slot"], "console");
         assert_eq!(descriptor["provided_capabilities"], serde_json::json!([]));
         assert_eq!(descriptor["required_capabilities"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn console_agent_tool_defaults_are_reviewed_and_removable() {
+        let expected = lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS
+            .iter()
+            .map(|tool| (*tool).to_owned())
+            .collect::<Vec<_>>();
+        let defaults: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+
+        assert_eq!(default_console_agent_tools(), expected);
+        assert_eq!(configured_console_agent_tools(None), expected);
+        assert_eq!(defaults.allowed_tools, expected);
+        assert!(configured_console_agent_tools(Some("")).is_empty());
+        assert_eq!(
+            configured_console_agent_tools(Some(" inspect_app, check_plugin_change ")),
+            ["inspect_app", "check_plugin_change"]
+        );
     }
 
     #[test]
@@ -1084,6 +1123,8 @@ mod tests {
         let agent = config.agent_web_config();
 
         assert!(agent.plugin_control);
+        assert!(agent.allowed_tools.is_empty());
+        assert!(matches!(agent.access, AgentWebAccess::HostAuthorized));
         assert_eq!(agent.managed_app_root, None);
         assert!(matches!(agent.control, AgentWebControl::HostAuthorized));
         let store = agent
@@ -1094,6 +1135,66 @@ mod tests {
             root.path().join("agent-configuration.sqlite3")
         );
         assert_eq!(store.reference, "console-agent");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn console_product_bootstrap_admits_the_reviewed_plugin_tools() {
+        let root = tempfile::tempdir().unwrap();
+        let (catalog_url, catalog_server) = start_test_codex_catalog().await;
+        let agent_home = root.path().join("console-agent");
+        configure_test_codex_catalog(&agent_home, &catalog_url);
+        let web_root = root.path().join("console-web");
+        std::fs::create_dir_all(&web_root).unwrap();
+        std::fs::write(
+            web_root.join("index.html"),
+            "<!doctype html><title>Console</title>",
+        )
+        .unwrap();
+        let config = ConsoleConfig {
+            address: "127.0.0.1:0".parse().unwrap(),
+            tool_policy: agent_home.join("tool-policy.json"),
+            agent_home,
+            managed_app_root: root.path().join("app"),
+            allowed_tools: default_console_agent_tools(),
+            app_agents: Vec::new(),
+            agent_configuration_store: root.path().join("agent-configuration.sqlite3"),
+            web_root,
+        };
+
+        let local = tokio::task::LocalSet::new();
+        local
+            .run_until(async {
+                let server = ConsoleServer::start(config).await.unwrap();
+                let address = server.address;
+                let (shutdown, shutdown_signal) = tokio::sync::oneshot::channel();
+                let server_task = tokio::task::spawn_local(server.run(async move {
+                    let _ = shutdown_signal.await;
+                }));
+
+                let bootstrap =
+                    reqwest::get(format!("http://{address}/api/console/v1/agent/bootstrap"))
+                        .await
+                        .unwrap()
+                        .json::<serde_json::Value>()
+                        .await
+                        .unwrap();
+                let mut expected = default_console_agent_tools();
+                expected.sort();
+                assert_eq!(
+                    bootstrap["tools"]["allowed"],
+                    serde_json::json!(expected),
+                    "unexpected bootstrap response: {bootstrap:#}"
+                );
+                let available = bootstrap["tools"]["available"].as_array().unwrap();
+                for tool in lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS {
+                    assert!(available.iter().any(|entry| entry["name"] == tool));
+                }
+
+                shutdown.send(()).unwrap();
+                server_task.await.unwrap().unwrap();
+            })
+            .await;
+        catalog_server.abort();
     }
 
     #[test]
@@ -1141,6 +1242,9 @@ mod tests {
                     .plugins(lenso_agent_console_plugins::link)
                     .agent_home(root.path())
                     .unwrap()
+                    .plugin_configuration_authority(Arc::new(LocalPluginRootAuthority::new(
+                        root.path(),
+                    )))
                     .surface(WebSurface::browser())
                     .build()
                     .unwrap();
@@ -1164,6 +1268,9 @@ mod tests {
                     .plugins(lenso_agent_console_plugins::link)
                     .agent_home(root.path())
                     .unwrap()
+                    .plugin_configuration_authority(Arc::new(LocalPluginRootAuthority::new(
+                        root.path(),
+                    )))
                     .surface(WebSurface::browser())
                     .build()
                     .unwrap();
@@ -1176,6 +1283,9 @@ mod tests {
                     .plugins(lenso_agent_console_plugins::link)
                     .agent_home(root.path())
                     .unwrap()
+                    .plugin_configuration_authority(Arc::new(LocalPluginRootAuthority::new(
+                        root.path(),
+                    )))
                     .surface(WebSurface::browser())
                     .build()
                     .unwrap();

@@ -2,7 +2,13 @@
   "address": "127.0.0.1:3030",
   "agent_home": ".lenso/console/agent",
   "agent_configuration_store": ".lenso/console/agent-configuration.sqlite3",
-  "allowed_tools": [],
+  "allowed_tools": [
+    "inspect_app",
+    "list_plugins",
+    "inspect_plugin",
+    "check_plugin_change",
+    "apply_plugin_change"
+  ],
   "connected_agent_label": "Lenso Agent",
   "connected_agent_plugin_configuration": false,
   "connected_agent_url": "",

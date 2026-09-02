@@ -77,7 +77,13 @@ The target App selects and configures the ordinary Plugin instance at
 address = "127.0.0.1:3030"
 agent_configuration_store = ".lenso/console/agent-configuration.sqlite3"
 agent_home = ".lenso/console/agent"
-allowed_tools = []
+allowed_tools = [
+  "inspect_app",
+  "list_plugins",
+  "inspect_plugin",
+  "check_plugin_change",
+  "apply_plugin_change",
+]
 managed_app_root = "."
 web_root = "console-web"
 connected_agent_url = "http://127.0.0.1:8787"
@@ -148,9 +154,14 @@ Generation to the Console Agent. Its configuration must be supplied through
 an explicit Host/Capability port; Console Agent membership does not grant that
 authority.
 
-The Console Agent admits no Tools by default. Set
-`LENSO_CONSOLE_AGENT_TOOLS` to a comma-separated list of exact Tool names only
-after the corresponding Tool Plugins are selected by the derived App.
+The standalone Console Agent admits the five reviewed Plugin management Tools
+by default: `inspect_app`, `list_plugins`, `inspect_plugin`,
+`check_plugin_change`, and `apply_plugin_change`. Set
+`LENSO_CONSOLE_AGENT_TOOLS` to an exact comma-separated subset to narrow access,
+or to an empty value to disable all model-visible Tools. Embedded Apps own the
+same policy explicitly through `allowed_tools`; `[]` disables every Tool.
+`apply_plugin_change` remains subject to the interactive approval hook before
+the selected authority publishes a change.
 
 The process binds only to loopback until Console identity and authorization are
 implemented as vNext Plugins. Agent sessions, Tool policy, and Host runtime
