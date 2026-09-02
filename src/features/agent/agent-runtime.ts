@@ -252,6 +252,8 @@ export type AgentToolCall = {
   error?: string;
   metadataJson?: string;
   name: string;
+  resultContent?: string;
+  resultTruncated?: boolean;
   status: "completed" | "failed" | "not_run" | "running";
 };
 
@@ -882,9 +884,30 @@ function projectToolEvent(
   if (metadataJson) {
     completed.metadataJson = metadataJson;
   }
+  const result = boundedToolResult(
+    stringValue(payload.content),
+    payload.content_truncated === true
+  );
+  if (result.content) {
+    completed.resultContent = result.content;
+  }
+  if (result.truncated) {
+    completed.resultTruncated = true;
+  }
   if (!existing) {
     tools.push(completed);
   }
+}
+
+export const MAX_TOOL_RESULT_CONTENT_CHARS = 32_768;
+
+export function boundedToolResult(content: string, alreadyTruncated = false) {
+  const truncated =
+    alreadyTruncated || content.length > MAX_TOOL_RESULT_CONTENT_CHARS;
+  return {
+    content: content.slice(0, MAX_TOOL_RESULT_CONTENT_CHARS),
+    truncated,
+  };
 }
 
 function unexecutedToolAttempt(

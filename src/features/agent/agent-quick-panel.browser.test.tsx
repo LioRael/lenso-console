@@ -1,5 +1,12 @@
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -9,6 +16,7 @@ import {
   PluginAgentAction,
   pluginAgentDraft,
 } from "../plugins/plugin-agent-handoff";
+import { PluginAgentWorkbenchProvider } from "../plugins/plugin-agent-workbench-context";
 import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentQuickPanel } from "./agent-quick-panel";
 import { AgentQuickPanelProvider } from "./agent-quick-panel-context";
@@ -117,6 +125,24 @@ describe("Agent quick panel", () => {
     expect(turnRequests(fetchMock)).toHaveLength(1);
   });
 
+  test("renders a validated Plugin proposal as a review receipt", async () => {
+    const fetchMock = agentFetch("", false, pluginProposalMessages());
+    await renderPanel(fetchMock);
+
+    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    const composer = page.elementLocator(requiredComposer());
+    await userEvent.fill(composer, "Prepare a Plugin proposal");
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .element(page.getByText("Plugin change ready for review"))
+      .toBeVisible();
+    await expect.element(page.getByText("Remote service · app")).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Review in Plugins" }))
+      .toBeVisible();
+  });
+
   test("opens the full App Agent identity discovered from the catalog", async () => {
     const fetchMock = agentFetch("", true);
     const onOpenFullPage = vi.fn();
@@ -193,21 +219,33 @@ async function renderPanel(
     defaultOptions: { queries: { retry: false } },
   });
   queryClient = client;
-  flushSync(() => {
-    root?.render(
+  const rootRoute = createRootRoute();
+  const panelRoute = createRoute({
+    component: () => (
       <QueryClientProvider client={client}>
         <AgentIdentityProvider>
-          <AgentQuickPanelProvider>
-            <ThemeScope>
-              {includePluginAction ? (
-                <PluginAgentAction {...pluginAgentContext} />
-              ) : null}
-              <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
-            </ThemeScope>
-          </AgentQuickPanelProvider>
+          <PluginAgentWorkbenchProvider>
+            <AgentQuickPanelProvider>
+              <ThemeScope>
+                {includePluginAction ? (
+                  <PluginAgentAction {...pluginAgentContext} />
+                ) : null}
+                <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+              </ThemeScope>
+            </AgentQuickPanelProvider>
+          </PluginAgentWorkbenchProvider>
         </AgentIdentityProvider>
       </QueryClientProvider>
-    );
+    ),
+    getParentRoute: () => rootRoute,
+    path: "/",
+  });
+  const router = createRouter({
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+    routeTree: rootRoute.addChildren([panelRoute]),
+  });
+  flushSync(() => {
+    root?.render(<RouterProvider router={router} />);
   });
   await nextFrame();
 }
@@ -272,7 +310,11 @@ function nextFrame() {
   return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-function agentFetch(answer = "", includeAppAgent = false) {
+function agentFetch(
+  answer = "",
+  includeAppAgent = false,
+  toolMessages: readonly Record<string, unknown>[] = []
+) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url.endsWith("/api/console/v1/agents")) {
@@ -319,7 +361,7 @@ function agentFetch(answer = "", includeAppAgent = false) {
       url.endsWith("/api/console/v1/agent/turns") &&
       init?.method === "POST"
     ) {
-      return new Response(streamBody(answer), {
+      return new Response(streamBody(answer, toolMessages), {
         headers: { "content-type": "text/event-stream" },
       });
     }
@@ -394,21 +436,76 @@ function queuedAgentFetch() {
   };
 }
 
-function streamBody(answer: string) {
-  const frames: unknown[] = [...answer].map((text, index) => ({
-    message: {
-      kind: "text_delta",
-      sequence: String(index + 1),
+function streamBody(
+  answer: string,
+  toolMessages: readonly Record<string, unknown>[] = []
+) {
+  const frames: unknown[] = [
+    ...toolMessages,
+    ...[...answer].map((text, index) => ({
+      message: {
+        kind: "text_delta",
+        sequence: String(index + 1),
+        session_id: "session-browser",
+        text,
+      },
+      type: "turn_message",
+    })),
+    {
       session_id: "session-browser",
-      text,
+      type: "turn_completed",
     },
-    type: "turn_message",
-  }));
-  frames.push({
-    session_id: "session-browser",
-    type: "turn_completed",
-  });
+  ];
   return `${frames.map((frame) => `data: ${JSON.stringify(frame)}`).join("\n\n")}\n\n`;
+}
+
+function pluginProposalMessages() {
+  const argumentsJson = JSON.stringify({
+    configuration_toml: 'model = "gpt-5.6-luna"\nmax_steps = 12\n',
+    expected_revision: "sha256:demo-root",
+    instance: "agent",
+    plugin_id: "lenso.agent.loop",
+  });
+  return [
+    {
+      message: {
+        arguments_json: argumentsJson,
+        kind: "tool_started",
+        sequence: "tool-1",
+        text: "",
+        tool_call_id: "call-plugin-proposal",
+        tool_name: "check_plugin_change",
+      },
+      type: "turn_message",
+    },
+    {
+      message: {
+        arguments_json: argumentsJson,
+        content: JSON.stringify({
+          application: "app_generation",
+          authority: {
+            kind: "remote_configuration_service",
+            reference: "app",
+          },
+          baseRevision: "sha256:demo-root",
+          baseSourceDigest: "sha256:demo-source",
+          candidateRevision: "sha256:demo-candidate",
+          diagnostics: [],
+          instance: "agent",
+          pluginId: "lenso.agent.loop",
+          proposalDigest: "sha256:demo-proposal",
+          schema: "lenso.plugin-configuration-proposal.v1",
+          status: "ready",
+        }),
+        kind: "tool_completed",
+        sequence: "tool-2",
+        text: "",
+        tool_call_id: "call-plugin-proposal",
+        tool_name: "check_plugin_change",
+      },
+      type: "turn_message",
+    },
+  ];
 }
 
 function turnRequests(fetchMock: ReturnType<typeof agentFetch>) {

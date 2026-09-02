@@ -120,6 +120,37 @@ describe("Agent stream event buffer", () => {
     expect(commits).toBe(0);
     expect(scheduled).toBeUndefined();
   });
+
+  test("preserves bounded Tool completion content from the live stream", () => {
+    let turns: AgentTurn[] = [runningTurn()];
+    const buffer = createAgentStreamEventBuffer({
+      scheduleFrame() {
+        return () => undefined;
+      },
+      setTurns(update) {
+        turns = typeof update === "function" ? update(turns) : update;
+      },
+      turnId: "pending-1",
+    });
+
+    buffer.handle({
+      message: {
+        content: "x".repeat(40_000),
+        kind: "tool_completed",
+        sequence: "tool-1",
+        text: "",
+        toolCallId: "call-1",
+        toolName: "check_plugin_change",
+      },
+      type: "turn_message",
+    });
+
+    expect(turns[0]?.tools?.[0]).toMatchObject({
+      resultContent: "x".repeat(32_768),
+      resultTruncated: true,
+      status: "completed",
+    });
+  });
 });
 
 function message(
