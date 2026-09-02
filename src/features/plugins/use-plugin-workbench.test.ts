@@ -132,6 +132,7 @@ describe("Plugin workbench query boundaries", () => {
   it("reserves a write synchronously and rejects a second click", () => {
     const mutation = {
       enabled: false,
+      expectedRevision: "sha256:root-a",
       expectedStreamId: "stream-a",
       instanceKey: "default",
       packageId: "example.echo",
@@ -158,6 +159,7 @@ describe("Plugin workbench query boundaries", () => {
     expect(
       pluginConfigurationHistoryMutationPrefix("console", {
         enabled: false,
+        expectedRevision: "sha256:root-a",
         expectedStreamId: "stream-a",
         instanceKey: "default",
         packageId: "example.echo",

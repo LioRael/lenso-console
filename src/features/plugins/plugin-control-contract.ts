@@ -27,6 +27,11 @@ export type PluginConfigurationAuthority = {
   rollbackProposals: boolean;
 };
 
+export type PluginSelectionAuthority = {
+  kind: string;
+  reference: string;
+};
+
 export type PluginSelectionItem = {
   disableable: boolean;
   entrypoint: string;
@@ -93,6 +98,7 @@ export type PluginManagement = {
   plugins: readonly ManagedPlugin[];
   revision: string;
   schema: "lenso.agent.plugin-management.v1";
+  selectionAuthority: PluginSelectionAuthority | null;
 };
 
 export type PluginConfigurationProposal = {
@@ -299,6 +305,8 @@ export function decodePluginManagement(value: unknown): PluginManagement {
   }
   if (
     !isConfigurationAuthority(value.configurationAuthority) ||
+    (value.selectionAuthority !== undefined &&
+      !isOptionalSelectionAuthority(value.selectionAuthority)) ||
     typeof value.revision !== "string" ||
     value.revision.length === 0
   ) {
@@ -306,7 +314,28 @@ export function decodePluginManagement(value: unknown): PluginManagement {
       "Agent Host returned invalid Plugin management authority"
     );
   }
-  return value as PluginManagement;
+  return {
+    ...value,
+    selectionAuthority: value.selectionAuthority ?? null,
+  } as PluginManagement;
+}
+
+function isSelectionAuthority(
+  value: unknown
+): value is PluginSelectionAuthority {
+  return (
+    isRecord(value) &&
+    typeof value.kind === "string" &&
+    value.kind.length > 0 &&
+    typeof value.reference === "string" &&
+    value.reference.length > 0
+  );
+}
+
+function isOptionalSelectionAuthority(
+  value: unknown
+): value is PluginSelectionAuthority | null {
+  return value === null || isSelectionAuthority(value);
 }
 
 export function decodePluginConfigurationProposal(

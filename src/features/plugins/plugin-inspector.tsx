@@ -263,7 +263,6 @@ export function PluginInspector({
   management: pluginManagement,
   mutation,
   plugin,
-  selectionAuthoringEnabled,
 }: {
   agentId: string;
   authoringEnabled: boolean;
@@ -272,7 +271,6 @@ export function PluginInspector({
   management: PluginManagement;
   mutation: ReturnType<typeof usePluginMutation>;
   plugin: PluginWorkbenchItem;
-  selectionAuthoringEnabled: boolean;
 }) {
   const proposal = usePluginConfigurationProposal(agentId, inventory.streamId);
   const rollback = usePluginConfigurationRollbackProposal(
@@ -306,6 +304,8 @@ export function PluginInspector({
     plugin.desired?.disableable ??
     plugin.active?.disableable ??
     false;
+  const selectionAuthoringEnabled =
+    pluginManagement.selectionAuthority !== null;
   const restoreVisible =
     (management?.hasRootDifference ?? false) || restoreWasVisible;
   const currentOperation =
@@ -361,7 +361,9 @@ export function PluginInspector({
               </span>
               <span {...stylex.props(styles.controlDescription)}>
                 {disableable
-                  ? "The active state changes only after the next Generation passes its Ready-Gate."
+                  ? selectionAuthoringEnabled
+                    ? "The active state changes only after the next Generation passes its Ready-Gate."
+                    : "The selected Plugin authority does not support selection changes."
                   : "This Host requires the Instance and does not allow removing it from the desired Plan."}
               </span>
             </div>
@@ -380,6 +382,7 @@ export function PluginInspector({
                 mutation.reset();
                 mutation.mutate({
                   enabled: checked,
+                  expectedRevision: pluginManagement.revision,
                   expectedStreamId: inventory.streamId,
                   instanceKey: plugin.instanceKey,
                   packageId: plugin.packageId,

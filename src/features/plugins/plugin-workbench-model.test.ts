@@ -659,4 +659,18 @@ describe("Plugin workbench state model", () => {
       }).plugins[0]?.instances[0]?.selection
     ).toBe("excluded-by-profile");
   });
+
+  it("accepts an authority that does not support selection changes", () => {
+    expect(
+      decodePluginManagement({
+        ...demoPluginManagement,
+        selectionAuthority: null,
+      }).selectionAuthority
+    ).toBeNull();
+    const { selectionAuthority: _selectionAuthority, ...legacyManagement } =
+      demoPluginManagement;
+    expect(
+      decodePluginManagement(legacyManagement).selectionAuthority
+    ).toBeNull();
+  });
 });
