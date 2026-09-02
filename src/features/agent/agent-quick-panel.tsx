@@ -28,6 +28,7 @@ import {
   EditingMessageBar,
 } from "./agent-message-controls";
 import agentPointerGradient from "./agent-pointer-gradient.svg";
+import { useAgentQuickPanel } from "./agent-quick-panel-context";
 import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
 import type { AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
@@ -59,6 +60,7 @@ export function AgentQuickPanel({
 }) {
   const [open, setOpen] = useState(false);
   const { selectedAgent } = useAgentIdentity();
+  const { draftRequest } = useAgentQuickPanel();
   const {
     answerInteraction,
     beginEditing: beginEditingTurn,
@@ -80,6 +82,7 @@ export function AgentQuickPanel({
   } = useAgentConversation({ targetId: selectedAgent.id });
   const conversationRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const appliedDraftRequest = useRef(0);
 
   const hasConversation = turns.length > 0 || isRunning;
   const isEditing = Boolean(editingTurnId);
@@ -92,6 +95,24 @@ export function AgentQuickPanel({
       conversation.scrollTop = conversation.scrollHeight;
     }
   }, [isRunning, visibleTurns]);
+
+  useEffect(() => {
+    if (
+      !draftRequest ||
+      draftRequest.agentId !== selectedAgent.id ||
+      draftRequest.id === appliedDraftRequest.current
+    ) {
+      return;
+    }
+    appliedDraftRequest.current = draftRequest.id;
+    setDraft((current) =>
+      current.trim()
+        ? `${current.trimEnd()}\n\n${draftRequest.draft}`
+        : draftRequest.draft
+    );
+    setOpen(true);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [draftRequest, selectedAgent.id, setDraft]);
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
