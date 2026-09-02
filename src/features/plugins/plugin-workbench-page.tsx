@@ -542,7 +542,6 @@ function AgentPluginWorkbench({
                 management={workbench.data.management}
                 mutation={mutation}
                 plugin={selected}
-                selectionAuthoringEnabled={selectedAgent.role === "console"}
               />
             ) : null}
           </aside>

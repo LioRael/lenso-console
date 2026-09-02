@@ -40,6 +40,7 @@ export type PluginMutation =
     }
   | {
       enabled: boolean;
+      expectedRevision: string;
       expectedStreamId: string;
       instanceKey: string;
       packageId: string;
@@ -397,6 +398,7 @@ export async function submitPluginMutation(
       httpClient.put(`${instancePath}/enabled`, {
         json: {
           enabled: mutation.enabled,
+          expectedRevision: mutation.expectedRevision,
           expectedStreamId: mutation.expectedStreamId,
         },
         retry: 0,

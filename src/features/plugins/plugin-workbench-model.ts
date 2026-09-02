@@ -97,6 +97,10 @@ export const demoPluginManagement: PluginManagement = {
   ],
   revision: "demo-root",
   schema: "lenso.agent.plugin-management.v1",
+  selectionAuthority: {
+    kind: "sqlite_configuration_store",
+    reference: "agent",
+  },
 };
 
 export const demoPluginConfigurationHistory: PluginConfigurationHistory = {

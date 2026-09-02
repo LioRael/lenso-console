@@ -247,6 +247,7 @@ describe("Plugin runtime presentation", () => {
     });
     const mutation = {
       enabled: true,
+      expectedRevision: demoPluginManagement.revision,
       expectedStreamId: demoPluginInventory.streamId,
       instanceKey: "agent",
       packageId: "lenso.agent.loop",
@@ -280,6 +281,7 @@ describe("Plugin runtime presentation", () => {
         item,
         mutation: {
           enabled: false,
+          expectedRevision: demoPluginManagement.revision,
           expectedStreamId: demoPluginInventory.streamId,
           instanceKey: "agent",
           packageId: "lenso.agent.loop",
@@ -491,6 +493,7 @@ describe("Plugin runtime presentation", () => {
     const item = firstItem(demoPluginInventory);
     const mutation = {
       enabled: false,
+      expectedRevision: demoPluginManagement.revision,
       expectedStreamId: demoPluginInventory.streamId,
       instanceKey: "agent",
       packageId: "lenso.agent.loop",

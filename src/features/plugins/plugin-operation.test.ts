@@ -86,6 +86,10 @@ describe("Plugin operation lifecycle", () => {
     expect(decodePluginManagement(contractFixture.management)).toMatchObject({
       revision: "sha256:root-next",
       schema: "lenso.agent.plugin-management.v1",
+      selectionAuthority: {
+        kind: "sqlite_configuration_store",
+        reference: "agent",
+      },
     });
     expect(
       decodePluginConfigurationProposal(contractFixture.proposal)
@@ -268,6 +272,7 @@ describe("Plugin operation lifecycle", () => {
       submitPluginMutation(
         {
           enabled: false,
+          expectedRevision: contractFixture.management.revision,
           expectedStreamId: contractFixture.inventory.streamId,
           instanceKey: "default",
           packageId: "example.echo",
@@ -303,6 +308,7 @@ describe("Plugin operation lifecycle", () => {
     const result = submitPluginMutation(
       {
         enabled: false,
+        expectedRevision: contractFixture.management.revision,
         expectedStreamId: contractFixture.inventory.streamId,
         instanceKey: "default",
         packageId: "example.echo",
@@ -314,7 +320,10 @@ describe("Plugin operation lifecycle", () => {
     await expect(result).rejects.toMatchObject({ response: { status: 500 } });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(request.mock.calls[0]?.[1]).toMatchObject({
-      json: { expectedStreamId: contractFixture.inventory.streamId },
+      json: {
+        expectedRevision: contractFixture.management.revision,
+        expectedStreamId: contractFixture.inventory.streamId,
+      },
       retry: 0,
     });
   });
@@ -358,6 +367,7 @@ describe("Plugin operation lifecycle", () => {
       "put",
       {
         enabled: false,
+        expectedRevision: contractFixture.management.revision,
         expectedStreamId: contractFixture.inventory.streamId,
         instanceKey: "default",
         packageId: "example.echo",
@@ -579,6 +589,7 @@ describe("Plugin operation lifecycle", () => {
       executePluginMutation({
         mutation: {
           enabled: false,
+          expectedRevision: "sha256:root-1",
           expectedStreamId: "stream-1",
           instanceKey: "agent",
           packageId: "lenso.agent.loop",
