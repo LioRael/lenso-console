@@ -45,6 +45,24 @@ The selector is exclusive: settings belonging to a non-selected authority are
 rejected instead of being ignored. This prevents an ambient remote token or
 stale database path from silently changing which authority owns desired state.
 
+Trusted package installation is a separate Host capability. The reference App
+Agent accepts a JSON object whose keys are opaque catalog entry IDs and whose
+values are absolute reviewed Bundle paths:
+
+```sh
+LENSO_AGENT_TRUSTED_PLUGIN_BUNDLES='{"reviewed.tools":"/opt/lenso/plugins/reviewed-tools"}' \
+pnpm agent:web
+```
+
+For Console Agent's own managed App, use the same object shape in
+`LENSO_CONSOLE_TRUSTED_PLUGIN_BUNDLES` (or `trusted_plugin_bundles` in the
+Console Plugin configuration).
+
+Console Agent sees catalog metadata but never receives these paths or package
+bytes. Install and removal use their own explicit capability; choosing a local,
+SQLite, remote, or custom configuration authority does not grant package-source
+authority. Removal is recoverable and does not purge Plugin data.
+
 An embedding Rust Host may instead inject its own
 `PluginConfigurationAuthority` and optional
 `PluginConfigurationHistoryAuthority` into its Agent Web surface before

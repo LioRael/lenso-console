@@ -28,7 +28,9 @@ The App Agent Host selects its configuration authority explicitly with
 `remote_configuration_service` are also supported. Remote selection requires
 the service URL, App and environment identities, and
 `LENSO_PLUGIN_CONFIGURATION_REMOTE_TOKEN`. Those credentials remain inside the
-App Agent Host—Console still consumes only the common configuration Capability.
+App Agent Host. Trusted package lifecycle is separately exposed as
+`lenso.agent.plugin-package-management@1`; configuration authority does not
+imply package-source authority.
 
 To run Console without an App Agent:
 
@@ -42,12 +44,12 @@ Open `http://127.0.0.1:3030`.
 
 The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
 being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
-the launcher directory. The Console Agent admits six Plugin
-management Tools by default: `inspect_app`, `list_plugins`, `inspect_plugin`,
-`check_plugin_change`, `apply_plugin_change`, and `set_plugin_enabled`. Set
+the launcher directory. The Console Agent admits the reviewed inspection,
+configuration, rollback, enablement, trusted-catalog installation, and
+recoverable-removal Tools by default. Set
 `LENSO_CONSOLE_AGENT_TOOLS` to an exact comma-separated subset to narrow access,
 or to an empty value to disable all model-visible Tools. `ask_user` remains
-available as the web interaction primitive. `apply_plugin_change` and the
+available as the web interaction primitive. Every apply operation and the
 direct `set_plugin_enabled` lifecycle action pass through the interactive
 approval hook.
 

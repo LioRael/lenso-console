@@ -8,7 +8,7 @@ use directories::BaseDirs;
 use lenso_agent_web::{
     AgentWebAccess, AgentWebConfig, AgentWebControl, AgentWebSurface,
     PluginConfigurationStoreConfig, RemotePluginConfigurationConfig,
-    RemotePluginConfigurationResource,
+    RemotePluginConfigurationResource, TrustedPluginBundle,
 };
 use lenso_console_plugin::{ConsoleConfig, serve};
 
@@ -19,6 +19,7 @@ const REMOTE_URL_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_URL";
 const REMOTE_APP_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_APP";
 const REMOTE_ENVIRONMENT_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_ENVIRONMENT";
 const REMOTE_TOKEN_ENV: &str = "LENSO_PLUGIN_CONFIGURATION_REMOTE_TOKEN";
+const TRUSTED_BUNDLES_ENV: &str = "LENSO_AGENT_TRUSTED_PLUGIN_BUNDLES";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AgentConfigurationAuthorityKind {
@@ -69,13 +70,15 @@ async fn run() -> anyhow::Result<()> {
     let agent_address = agent_listener.local_addr()?;
     let agent_home = agent_home()?;
     let console = ConsoleConfig::load()?
-        .with_app_agent_configuration(&format!("http://{agent_address}"), "Lenso Agent")?;
+        .with_app_agent_management(&format!("http://{agent_address}"), "Lenso Agent")?;
     let mut agent_config = AgentWebConfig::new(lenso_agent_default_plugins::link);
     agent_config.access = AgentWebAccess::Local;
     agent_config.agent_home = Some(agent_home.clone());
     agent_config.control = AgentWebControl::HostAuthorized;
     agent_config.plugin_control = true;
     configure_agent_authority(&mut agent_config, &agent_home)?;
+    agent_config.trusted_plugin_bundles =
+        parse_trusted_bundles(std::env::var(TRUSTED_BUNDLES_ENV).ok().as_deref())?;
     let agent = AgentWebSurface::start(agent_config)
         .await
         .map_err(anyhow::Error::msg)?;
@@ -99,6 +102,18 @@ async fn run() -> anyhow::Result<()> {
     console_result?;
     agent_server_result?;
     agent_shutdown_result
+}
+
+fn parse_trusted_bundles(value: Option<&str>) -> anyhow::Result<Vec<TrustedPluginBundle>> {
+    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
+        return Ok(Vec::new());
+    };
+    let entries = serde_json::from_str::<std::collections::BTreeMap<String, PathBuf>>(value)
+        .map_err(|error| anyhow::anyhow!("{TRUSTED_BUNDLES_ENV} must be a JSON object: {error}"))?;
+    entries
+        .into_iter()
+        .map(|(id, path)| TrustedPluginBundle::new(id, path).map_err(anyhow::Error::msg))
+        .collect()
 }
 
 fn agent_address() -> anyhow::Result<SocketAddr> {
@@ -283,6 +298,22 @@ mod tests {
             AgentConfigurationAuthorityKind::Remote
         );
         assert!(parse_authority_kind(Some("custom")).is_err());
+    }
+
+    #[test]
+    fn trusted_bundle_catalog_keeps_paths_in_host_configuration() {
+        let bundles = parse_trusted_bundles(Some(
+            r#"{"reviewed.tools":"/opt/lenso/plugins/reviewed-tools"}"#,
+        ))
+        .unwrap();
+
+        assert_eq!(bundles.len(), 1);
+        assert_eq!(bundles[0].id, "reviewed.tools");
+        assert_eq!(
+            bundles[0].path,
+            PathBuf::from("/opt/lenso/plugins/reviewed-tools")
+        );
+        assert!(parse_trusted_bundles(Some(r#"{"reviewed":"relative"}"#)).is_err());
     }
 
     #[test]
