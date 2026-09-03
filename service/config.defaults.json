@@ -22,6 +22,7 @@
   "connected_agent_plugin_configuration": false,
   "connected_agent_plugin_lifecycle": false,
   "connected_agent_url": "",
+  "console_agent_url": "http://127.0.0.1:8788",
   "managed_app_root": ".",
   "trusted_plugin_bundles": {},
   "web_root": "console-web"

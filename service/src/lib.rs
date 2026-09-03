@@ -15,28 +15,59 @@ use axum::{
 };
 use directories::BaseDirs;
 use lenso::prelude::*;
-use lenso_agent_web::{
-    AgentWebAccess, AgentWebConfig, AgentWebControl, AgentWebSurface,
-    PluginConfigurationStoreConfig, TrustedPluginBundle,
-};
 use serde::{Deserialize, Serialize};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::{ServeDir, ServeFile};
 
-mod plugin_management_target;
-
-use plugin_management_target::AppAgentPluginManagementTarget;
-
 const DEFAULT_PORT: u16 = 3030;
+const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
 const MAX_AGENT_REQUEST_BYTES: usize = 64 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
 fn default_console_agent_tools() -> Vec<String> {
-    lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS
-        .iter()
-        .map(|tool| (*tool).to_owned())
-        .collect()
+    [
+        "inspect_app",
+        "list_plugins",
+        "inspect_plugin",
+        "check_plugin_change",
+        "apply_plugin_change",
+        "list_plugin_changes",
+        "check_plugin_rollback",
+        "apply_plugin_rollback",
+        "set_plugin_enabled",
+        "list_available_plugins",
+        "check_plugin_install",
+        "apply_plugin_install",
+        "check_plugin_removal",
+        "apply_plugin_removal",
+    ]
+    .iter()
+    .map(|tool| (*tool).to_owned())
+    .collect()
+}
+
+#[derive(Clone, Debug)]
+pub struct TrustedPluginBundle {
+    pub id: String,
+    pub path: PathBuf,
+}
+
+impl TrustedPluginBundle {
+    fn new(id: impl Into<String>, path: impl Into<PathBuf>) -> Result<Self, String> {
+        let id = id.into();
+        let path = path.into();
+        if id.is_empty()
+            || id.len() > 128
+            || !id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+            || !path.is_absolute()
+        {
+            return Err("trusted Plugin Bundle entry is invalid".to_owned());
+        }
+        Ok(Self { id, path })
+    }
 }
 
 fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
@@ -57,6 +88,7 @@ pub struct ConsolePluginConfig {
     agent_home: String,
     allowed_tools: Vec<String>,
     agent_configuration_store: String,
+    console_agent_url: String,
     connected_agent_label: String,
     connected_agent_plugin_configuration: bool,
     connected_agent_plugin_lifecycle: bool,
@@ -82,6 +114,8 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
     {
         return Err(invalid_plan("Console paths must not be empty"));
     }
+    AppAgentAdapter::parse_console(&config.console_agent_url, None)
+        .map_err(|error| invalid_plan(error.to_string()))?;
     AppAgentAdapter::parse(&config.connected_agent_url, &config.connected_agent_label)
         .map_err(invalid_plan)?;
     Ok(())
@@ -142,6 +176,7 @@ pub struct ConsoleConfig {
     pub managed_app_root: PathBuf,
     pub allowed_tools: Vec<String>,
     pub app_agents: Vec<AppAgentAdapter>,
+    console_agent: AppAgentAdapter,
     pub agent_configuration_store: PathBuf,
     pub tool_policy: PathBuf,
     pub trusted_plugin_bundles: Vec<TrustedPluginBundle>,
@@ -149,6 +184,16 @@ pub struct ConsoleConfig {
 }
 
 impl ConsoleConfig {
+    /// Selects the separately released Console Agent process and its Host-only control token.
+    pub fn with_console_agent(
+        mut self,
+        origin: &str,
+        control_token: Option<String>,
+    ) -> anyhow::Result<Self> {
+        self.console_agent = AppAgentAdapter::parse_console(origin, control_token)?;
+        Ok(self)
+    }
+
     /// Contributes one App Agent through an existing loopback Agent Web Adapter.
     pub fn with_app_agent(self, origin: &str, label: &str) -> anyhow::Result<Self> {
         self.with_app_agent_identity("app", origin, label)
@@ -201,6 +246,20 @@ impl ConsoleConfig {
     /// Contributes one App Agent with both independent Plugin control capabilities.
     pub fn with_app_agent_management(self, origin: &str, label: &str) -> anyhow::Result<Self> {
         self.with_app_agent_identity_management("app", origin, label)
+    }
+
+    /// Contributes one managed App Agent while keeping its control token in the Host proxy.
+    pub fn with_app_agent_management_token(
+        mut self,
+        origin: &str,
+        label: &str,
+        control_token: &str,
+    ) -> anyhow::Result<Self> {
+        self = self.with_app_agent_management(origin, label)?;
+        if let Some(agent) = self.app_agents.iter_mut().find(|agent| agent.id == "app") {
+            agent.authorization = Some(format!("Bearer {control_token}"));
+        }
+        Ok(self)
     }
 
     /// Contributes one independently addressed App Agent with both Plugin control capabilities.
@@ -273,6 +332,10 @@ impl ConsoleConfig {
                     .map(|(id, path)| (id.clone(), resolve_path(&current, path))),
             )?,
             allowed_tools: config.allowed_tools.clone(),
+            console_agent: AppAgentAdapter::parse_console(
+                &config.console_agent_url,
+                console_agent_control_token(),
+            )?,
             app_agents,
             web_root: resolve_path(&current, &config.web_root),
         })
@@ -305,6 +368,8 @@ impl ConsoleConfig {
         };
         let connected_agent_url =
             std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_URL").unwrap_or_default();
+        let console_agent_url = std::env::var("LENSO_CONSOLE_AGENT_URL")
+            .unwrap_or_else(|_| DEFAULT_CONSOLE_AGENT_URL.to_owned());
         let connected_agent_label = std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_LABEL")
             .unwrap_or_else(|_| "Lenso Agent".to_owned());
         let connected_agent_plugin_configuration =
@@ -332,6 +397,10 @@ impl ConsoleConfig {
             managed_app_root,
             trusted_plugin_bundles,
             allowed_tools,
+            console_agent: AppAgentAdapter::parse_console(
+                &console_agent_url,
+                console_agent_control_token(),
+            )?,
             app_agents: AppAgentAdapter::parse(&connected_agent_url, &connected_agent_label)
                 .map_err(anyhow::Error::msg)?
                 .into_iter()
@@ -369,27 +438,12 @@ impl ConsoleConfig {
         );
         Ok(())
     }
+}
 
-    fn agent_web_config(&self) -> AgentWebConfig {
-        let mut config = AgentWebConfig::new(lenso_agent_console_plugins::link);
-        config.access = AgentWebAccess::HostAuthorized;
-        config.agent_home = Some(self.agent_home.clone());
-        config.allowed_tools.clone_from(&self.allowed_tools);
-        config.tool_policy = Some(self.tool_policy.clone());
-        config.control = AgentWebControl::HostAuthorized;
-        config.plugin_control = true;
-        config
-            .trusted_plugin_bundles
-            .clone_from(&self.trusted_plugin_bundles);
-        config.plugin_configuration_store = Some(PluginConfigurationStoreConfig::new(
-            self.agent_configuration_store.clone(),
-            "console-agent",
-        ));
-        config.plugin_management_target = Some(std::sync::Arc::new(
-            AppAgentPluginManagementTarget::new(self.app_agents.clone()),
-        ));
-        config
-    }
+fn console_agent_control_token() -> Option<String> {
+    std::env::var("LENSO_CONSOLE_AGENT_CONTROL_TOKEN")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
 }
 
 fn trusted_plugin_bundles(
@@ -415,7 +469,6 @@ pub async fn serve(
 
 struct ConsoleServer {
     address: SocketAddr,
-    agent: AgentWebSurface,
     app: Router,
     listener: tokio::net::TcpListener,
 }
@@ -423,38 +476,21 @@ struct ConsoleServer {
 impl ConsoleServer {
     async fn start(config: ConsoleConfig) -> anyhow::Result<Self> {
         config.validate()?;
-        std::fs::create_dir_all(&config.agent_home)?;
-        let agent = AgentWebSurface::start(config.agent_web_config())
-            .await
-            .map_err(anyhow::Error::msg)?;
+        config.console_agent.require_ready().await?;
         let index = config.web_root.join("index.html");
         let shell = ServeDir::new(config.web_root).fallback(ServeFile::new(index));
-        let agent_catalog = AgentCatalog::new(config.app_agents);
+        let agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
         let app = Router::new()
             .route("/health/live", get(health))
             .route("/health/ready", get(health))
             .route("/health/startup", get(health))
-            .merge(agent.router())
             .merge(agent_catalog_routes(agent_catalog))
             .route("/api/{*path}", any(api_not_found))
             .fallback_service(shell);
-        let listener = match tokio::net::TcpListener::bind(config.address).await {
-            Ok(listener) => listener,
-            Err(error) => {
-                agent.shutdown().await.map_err(anyhow::Error::msg)?;
-                return Err(error.into());
-            }
-        };
-        let address = match listener.local_addr() {
-            Ok(address) => address,
-            Err(error) => {
-                agent.shutdown().await.map_err(anyhow::Error::msg)?;
-                return Err(error.into());
-            }
-        };
+        let listener = tokio::net::TcpListener::bind(config.address).await?;
+        let address = listener.local_addr()?;
         Ok(Self {
             address,
-            agent,
             app,
             listener,
         })
@@ -462,18 +498,17 @@ impl ConsoleServer {
 
     async fn run(self, shutdown: impl Future<Output = ()> + Send + 'static) -> anyhow::Result<()> {
         println!("Lenso Console listening on http://{}", self.address);
-        let result = axum::serve(self.listener, self.app)
+        axum::serve(self.listener, self.app)
             .with_graceful_shutdown(shutdown)
-            .await;
-        let agent_shutdown = self.agent.shutdown().await.map_err(anyhow::Error::msg);
-        result?;
-        agent_shutdown
+            .await?;
+        Ok(())
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct AppAgentAdapter {
     client: reqwest::Client,
+    authorization: Option<String>,
     id: String,
     label: String,
     origin: reqwest::Url,
@@ -519,6 +554,7 @@ impl AppAgentAdapter {
             .map_err(|error| format!("App Agent Adapter client is invalid: {error}"))?;
         Ok(Some(Self {
             client,
+            authorization: None,
             id: id.to_owned(),
             label: label.to_owned(),
             origin,
@@ -526,16 +562,48 @@ impl AppAgentAdapter {
             plugin_lifecycle: false,
         }))
     }
+
+    fn parse_console(origin: &str, token: Option<String>) -> anyhow::Result<Self> {
+        let mut agent = Self::parse_as("console-proxy", origin, "Console Agent")
+            .map_err(anyhow::Error::msg)?
+            .ok_or_else(|| anyhow::anyhow!("Console Agent URL must not be empty"))?;
+        "console".clone_into(&mut agent.id);
+        agent.authorization = token.map(|value| format!("Bearer {value}"));
+        agent.plugin_configuration = true;
+        agent.plugin_lifecycle = true;
+        Ok(agent)
+    }
+
+    async fn require_ready(&self) -> anyhow::Result<()> {
+        let mut url = self.origin.clone();
+        url.set_path("/api/console/v1/agent/bootstrap");
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|error| anyhow::anyhow!("Console Agent is unavailable: {error}"))?;
+        anyhow::ensure!(
+            response.status().is_success(),
+            "Console Agent readiness failed with HTTP {}",
+            response.status()
+        );
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
 struct AgentCatalog {
+    console_agent: AppAgentAdapter,
     app_agents: Vec<AppAgentAdapter>,
 }
 
 impl AgentCatalog {
-    fn new(app_agents: Vec<AppAgentAdapter>) -> Self {
-        Self { app_agents }
+    fn new(console_agent: AppAgentAdapter, app_agents: Vec<AppAgentAdapter>) -> Self {
+        Self {
+            console_agent,
+            app_agents,
+        }
     }
 }
 
@@ -556,12 +624,24 @@ struct AgentIdentityList {
 fn agent_catalog_routes(catalog: AgentCatalog) -> Router {
     Router::new()
         .route("/api/console/v1/agents", get(list_agents))
+        .route("/api/console/v1/agent/{*path}", any(route_console_agent))
         .route(
             "/api/console/v1/agents/{agent_id}/{*path}",
             any(route_app_agent),
         )
         .layer(RequestBodyLimitLayer::new(MAX_AGENT_REQUEST_BYTES))
         .with_state(catalog)
+}
+
+async fn route_console_agent(
+    State(catalog): State<AgentCatalog>,
+    AxumPath(path): AxumPath<String>,
+    OriginalUri(incoming): OriginalUri,
+    method: Method,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    proxy_agent_request(catalog.console_agent, path, incoming, method, headers, body).await
 }
 
 async fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityList> {
@@ -618,6 +698,17 @@ async fn route_app_agent(
     ) {
         return problem(StatusCode::NOT_FOUND, "App Agent route was not found");
     }
+    proxy_agent_request(app_agent, path, incoming, method, headers, body).await
+}
+
+async fn proxy_agent_request(
+    app_agent: AppAgentAdapter,
+    path: String,
+    incoming: axum::http::Uri,
+    method: Method,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let mut target_url = app_agent.origin;
     target_url.set_path(&format!("/api/console/v1/agent/{path}"));
     target_url.set_query(incoming.query());
@@ -629,6 +720,9 @@ async fn route_app_agent(
     }
     if let Some(value) = headers.get("last-event-id") {
         request = request.header("last-event-id", value);
+    }
+    if let Some(value) = app_agent.authorization {
+        request = request.header(header::AUTHORIZATION, value);
     }
     let response = match request.send().await {
         Ok(response) => response,
@@ -876,71 +970,10 @@ fn plugin_failure(detail: impl std::fmt::Display) -> RuntimeFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lenso_agent_host::{AgentHost, Profile, WebSurface};
-    use lenso_app_authoring::LocalPluginRootAuthority;
-    use std::sync::Arc;
 
-    fn configure_test_codex_catalog(root: &Path, base_url: &str) {
-        std::fs::create_dir_all(root).unwrap();
-        let credentials = root.join("auth.json");
-        std::fs::write(
-            &credentials,
-            r#"{"openai-codex":{"type":"oauth","access":"ci-access","refresh":"ci-refresh","accountId":"ci-account","expires":4102444800000}}"#,
-        )
-        .unwrap();
-        let auth = root.join("plugins/lenso.agent.auth.openai-codex");
-        std::fs::create_dir_all(&auth).unwrap();
-        std::fs::write(
-            auth.join("auth.toml"),
-            format!(
-                "issuer = \"https://auth.openai.com\"\nprofile = \"default\"\ncredential_file = {:?}\nrefresh_margin_seconds = 60\n",
-                credentials.display().to_string()
-            ),
-        )
-        .unwrap();
-        let model = root.join("plugins/lenso.agent.model.openai-codex-direct");
-        std::fs::create_dir_all(&model).unwrap();
-        std::fs::write(
-            model.join("model.toml"),
-            format!(
-                "base_url = {base_url:?}\nmodel = \"gpt-5.6-luna\"\nreasoning_effort = \"medium\"\nmax_event_bytes = 1048576\n"
-            ),
-        )
-        .unwrap();
-    }
-
-    async fn start_test_codex_catalog() -> (String, tokio::task::JoinHandle<()>) {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            axum::serve(
-                listener,
-                Router::new().route(
-                    "/codex/models",
-                    get(|| async {
-                        Json(serde_json::json!({
-                            "models": [{
-                                "slug": "gpt-5.6-luna",
-                                "display_name": "CI Fixture",
-                                "default_reasoning_level": "medium",
-                                "supported_reasoning_levels": [{
-                                    "effort": "medium",
-                                    "description": "Balanced"
-                                }],
-                                "visibility": "list",
-                                "supports_parallel_tool_calls": true,
-                                "context_window": 272_000,
-                                "effective_context_window_percent": 95,
-                                "input_modalities": ["text"]
-                            }]
-                        }))
-                    }),
-                ),
-            )
-            .await
-            .unwrap();
-        });
-        (format!("http://{address}"), server)
+    fn console_agent() -> AppAgentAdapter {
+        AppAgentAdapter::parse_console("http://127.0.0.1:8788", Some("host-secret".to_owned()))
+            .unwrap()
     }
 
     #[test]
@@ -955,32 +988,27 @@ mod tests {
 
     #[test]
     fn console_agent_tool_defaults_are_reviewed_and_removable() {
-        let expected = lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS
-            .iter()
-            .map(|tool| (*tool).to_owned())
-            .collect::<Vec<_>>();
         let defaults: ConsolePluginConfig =
             serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
 
-        assert_eq!(default_console_agent_tools(), expected);
-        assert_eq!(configured_console_agent_tools(None), expected);
-        assert_eq!(defaults.allowed_tools, expected);
+        assert_eq!(defaults.allowed_tools, default_console_agent_tools());
+        assert_eq!(
+            configured_console_agent_tools(None),
+            default_console_agent_tools()
+        );
         assert!(configured_console_agent_tools(Some("")).is_empty());
         assert_eq!(
             configured_console_agent_tools(Some(" inspect_app, check_plugin_change ")),
             ["inspect_app", "check_plugin_change"]
         );
+        assert_eq!(defaults.console_agent_url, DEFAULT_CONSOLE_AGENT_URL);
     }
 
     #[test]
-    fn rejects_non_loopback_hosts() {
+    fn rejects_non_loopback_hosts_and_agent_origins() {
         assert!(parse_loopback_host("127.0.0.1").is_ok());
         assert!(parse_loopback_host("::1").is_ok());
         assert!(parse_loopback_host("0.0.0.0").is_err());
-    }
-
-    #[test]
-    fn app_agent_adapter_accepts_only_clean_loopback_origins() {
         assert!(
             AppAgentAdapter::parse("http://127.0.0.1:8787", "Lenso Agent")
                 .unwrap()
@@ -989,20 +1017,21 @@ mod tests {
         assert!(AppAgentAdapter::parse("", "Lenso Agent").unwrap().is_none());
         assert!(AppAgentAdapter::parse("https://127.0.0.1:8787", "Lenso Agent").is_err());
         assert!(AppAgentAdapter::parse("http://example.com", "Lenso Agent").is_err());
-        assert!(AppAgentAdapter::parse("http://127.0.0.1:8787/path", "Lenso Agent").is_err());
-        assert!(
-            AppAgentAdapter::parse_as("Console", "http://127.0.0.1:8787", "Lenso Agent").is_err()
-        );
+        assert!(AppAgentAdapter::parse_console("", None).is_err());
     }
 
     #[tokio::test]
-    async fn ordinary_app_catalog_contains_the_full_console_agent() {
-        let Json(catalog) = list_agents(State(AgentCatalog::new(Vec::new()))).await;
+    async fn catalog_preserves_complete_agent_identities_and_capabilities() {
+        let mut app_agent = AppAgentAdapter::parse("http://127.0.0.1:8787", "App Agent")
+            .unwrap()
+            .unwrap();
+        app_agent.plugin_configuration = true;
+        let Json(catalog) =
+            list_agents(State(AgentCatalog::new(console_agent(), vec![app_agent]))).await;
 
-        assert_eq!(catalog.agents.len(), 1);
+        assert_eq!(catalog.agents.len(), 2);
         assert_eq!(catalog.agents[0].id, "console");
         assert_eq!(catalog.agents[0].role, "console");
-        assert_eq!(catalog.agents[0].label, "Console Agent");
         assert_eq!(
             catalog.agents[0].capabilities,
             [
@@ -1010,504 +1039,86 @@ mod tests {
                 AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
             ]
         );
-    }
-
-    #[tokio::test]
-    async fn agent_app_catalog_adds_an_app_agent_identity() {
-        let app_agent = AppAgentAdapter::parse("http://127.0.0.1:8787", "Support Agent").unwrap();
-        let Json(catalog) =
-            list_agents(State(AgentCatalog::new(app_agent.into_iter().collect()))).await;
-
-        assert_eq!(catalog.agents.len(), 2);
         assert_eq!(catalog.agents[1].id, "app");
         assert_eq!(catalog.agents[1].role, "app");
-        assert_eq!(catalog.agents[1].label, "Support Agent");
-        assert!(catalog.agents[1].capabilities.is_empty());
-    }
-
-    #[tokio::test]
-    async fn catalog_advertises_only_explicit_app_agent_configuration() {
-        let mut app_agent = AppAgentAdapter::parse("http://127.0.0.1:8787", "Support Agent")
-            .unwrap()
-            .unwrap();
-        app_agent.plugin_configuration = true;
-
-        let Json(catalog) = list_agents(State(AgentCatalog::new(vec![app_agent]))).await;
-
         assert_eq!(
             catalog.agents[1].capabilities,
             [AGENT_PLUGIN_CONFIGURATION_CAPABILITY]
         );
     }
 
+    #[test]
+    fn app_agent_proxy_exposes_only_the_declared_data_plane() {
+        for (method, route) in [
+            (Method::GET, "bootstrap"),
+            (Method::GET, "sessions"),
+            (Method::POST, "turns"),
+            (Method::GET, "sessions/session-1/trajectory"),
+        ] {
+            assert!(
+                allowed_agent_route(&method, route, false),
+                "{method} {route}"
+            );
+        }
+        assert!(!allowed_agent_route(&Method::GET, "control/plugins", false));
+        assert!(allowed_agent_route(&Method::GET, "control/plugins", true));
+        assert!(!allowed_agent_route(
+            &Method::GET,
+            "../control/plugins",
+            true
+        ));
+    }
+
     #[tokio::test]
-    async fn catalog_advertises_plugin_lifecycle_independently() {
-        let mut app_agent = AppAgentAdapter::parse("http://127.0.0.1:8787", "Support Agent")
-            .unwrap()
-            .unwrap();
-        app_agent.plugin_lifecycle = true;
-
-        let Json(catalog) = list_agents(State(AgentCatalog::new(vec![app_agent]))).await;
-
-        assert_eq!(
-            catalog.agents[1].capabilities,
-            [AGENT_PLUGIN_LIFECYCLE_CAPABILITY]
-        );
-    }
-
-    #[tokio::test]
-    async fn catalog_keeps_multiple_app_agent_identities_independent() {
-        let support =
-            AppAgentAdapter::parse_as("support", "http://127.0.0.1:8787", "Support Agent")
-                .unwrap()
-                .unwrap();
-        let research =
-            AppAgentAdapter::parse_as("research", "http://127.0.0.1:8788", "Research Agent")
-                .unwrap()
-                .unwrap();
-        let Json(catalog) = list_agents(State(AgentCatalog {
-            app_agents: vec![support, research],
-        }))
-        .await;
-
-        assert_eq!(catalog.agents.len(), 3);
-        assert_eq!(catalog.agents[1].id, "support");
-        assert_eq!(catalog.agents[2].id, "research");
-    }
-
-    #[test]
-    fn app_agent_adapter_exposes_only_the_agent_data_plane() {
-        assert!(allowed_agent_route(&Method::GET, "bootstrap", false));
-        assert!(allowed_agent_route(&Method::GET, "context-sources", false));
-        assert!(allowed_agent_route(
-            &Method::GET,
-            "terminal/commands",
-            false
-        ));
-        assert!(allowed_agent_route(
-            &Method::POST,
-            "terminal/executions/request-1/cancel",
-            false
-        ));
-        assert!(allowed_agent_route(&Method::POST, "turns", false));
-        assert!(allowed_agent_route(
-            &Method::GET,
-            "sessions/session-1/trajectory",
-            false
-        ));
-        assert!(allowed_agent_route(
-            &Method::POST,
-            "sessions/session-1/compact",
-            false
-        ));
-        assert!(!allowed_agent_route(
-            &Method::GET,
-            "control/tool-policy",
-            false
-        ));
-        assert!(!allowed_agent_route(
-            &Method::DELETE,
-            "sessions/session-1",
-            false
-        ));
-        assert!(!allowed_agent_route(
-            &Method::GET,
-            "sessions/../trajectory",
-            false
-        ));
-    }
-
-    #[test]
-    fn plugin_configuration_capability_is_narrow_and_explicit() {
-        let management = "control/plugins";
-        let proposal = "control/plugins/lenso_agent_loop/agent/configuration/proposals";
-        let publication = "control/plugins/lenso_agent_loop/agent/configuration";
-
-        assert!(!allowed_agent_route(&Method::GET, management, false));
-        assert!(allowed_agent_route(&Method::GET, management, true));
-        assert!(allowed_agent_route(&Method::POST, proposal, true));
-        assert!(allowed_agent_route(&Method::PUT, publication, true));
-        assert!(allowed_agent_route(
-            &Method::DELETE,
-            "control/plugins/lenso.agent.loop/agent",
-            true
-        ));
-        assert!(!allowed_agent_route(
-            &Method::GET,
-            "control/tool-policy",
-            true
-        ));
-        assert!(!allowed_agent_route(
-            &Method::POST,
-            "control/plugins/install",
-            true
-        ));
-        assert!(allowed_agent_route(
-            &Method::PUT,
-            "control/plugins/lenso_agent_loop/agent/enabled",
-            true
-        ));
-        assert!(!allowed_agent_route(
-            &Method::DELETE,
-            "control/plugins",
-            true
-        ));
-    }
-
-    #[test]
-    fn plugin_lifecycle_capability_is_narrow_and_explicit() {
-        assert!(allowed_agent_route_with_capabilities(
-            &Method::GET,
-            "control/plugins/trusted-catalog",
-            false,
-            true,
-        ));
-        assert!(allowed_agent_route_with_capabilities(
-            &Method::POST,
-            "control/plugin-installations/proposals",
-            false,
-            true,
-        ));
-        assert!(allowed_agent_route_with_capabilities(
-            &Method::POST,
-            "control/plugin-removals/publications",
-            false,
-            true,
-        ));
-        assert!(!allowed_agent_route_with_capabilities(
-            &Method::GET,
-            "control/plugins",
-            false,
-            true,
-        ));
-        assert!(!allowed_agent_route_with_capabilities(
-            &Method::POST,
-            "control/plugin-installations/proposals",
-            true,
-            false,
-        ));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn app_agent_adapter_preserves_the_agent_bootstrap() {
-        let target_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let target_address = target_listener.local_addr().unwrap();
-        let target = Router::new().route(
-            "/api/console/v1/agent/bootstrap",
-            get(|| async { Json(serde_json::json!({ "profile": "coding" })) }),
-        );
-        let target_task = tokio::spawn(async move {
-            axum::serve(target_listener, target).await.unwrap();
-        });
-
-        let app_agent =
-            AppAgentAdapter::parse(&format!("http://{target_address}"), "Lenso Agent").unwrap();
-        let console_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let console_address = console_listener.local_addr().unwrap();
-        let console = agent_catalog_routes(AgentCatalog::new(app_agent.into_iter().collect()));
-        let console_task = tokio::spawn(async move {
-            axum::serve(console_listener, console).await.unwrap();
-        });
-
-        let response = reqwest::get(format!(
-            "http://{console_address}/api/console/v1/agents/app/bootstrap"
-        ))
-        .await
-        .unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.json::<serde_json::Value>().await.unwrap()["profile"],
-            "coding"
-        );
-
-        console_task.abort();
-        target_task.abort();
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn app_agent_configuration_requires_capability_and_preserves_validators() {
-        let target_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let target_address = target_listener.local_addr().unwrap();
-        let target = Router::new().route(
-            "/api/console/v1/agent/control/plugins",
-            get(|headers: HeaderMap| async move {
-                assert_eq!(
-                    headers.get(header::IF_NONE_MATCH).unwrap(),
-                    "\"management-revision\""
-                );
-                (
-                    [(header::ETAG, "\"management-revision\"")],
-                    Json(serde_json::json!({ "schema": "management" })),
-                )
-            }),
-        );
-        let target_task = tokio::spawn(async move {
-            axum::serve(target_listener, target).await.unwrap();
-        });
-
-        let origin = format!("http://{target_address}");
-        let ordinary = AppAgentAdapter::parse_as("ordinary", &origin, "Ordinary Agent")
-            .unwrap()
-            .unwrap();
-        let mut configurable =
-            AppAgentAdapter::parse_as("configurable", &origin, "Configurable Agent")
-                .unwrap()
-                .unwrap();
-        configurable.plugin_configuration = true;
-        let console_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let console_address = console_listener.local_addr().unwrap();
-        let console = agent_catalog_routes(AgentCatalog::new(vec![ordinary, configurable]));
-        let console_task = tokio::spawn(async move {
-            axum::serve(console_listener, console).await.unwrap();
-        });
-        let client = reqwest::Client::new();
-
-        let denied = client
-            .get(format!(
-                "http://{console_address}/api/console/v1/agents/ordinary/control/plugins"
-            ))
-            .send()
+    async fn console_agent_proxy_keeps_control_authorization_host_side() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let target = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                Router::new().route(
+                    "/api/console/v1/agent/bootstrap",
+                    get(|headers: HeaderMap| async move {
+                        Json(serde_json::json!({
+                            "authorization": headers
+                                .get(header::AUTHORIZATION)
+                                .and_then(|value| value.to_str().ok())
+                        }))
+                    }),
+                ),
+            )
             .await
             .unwrap();
-        assert_eq!(denied.status(), StatusCode::NOT_FOUND);
+        });
 
-        let allowed = client
-            .get(format!(
-                "http://{console_address}/api/console/v1/agents/configurable/control/plugins"
-            ))
-            .header(header::IF_NONE_MATCH, "\"management-revision\"")
-            .send()
-            .await
-            .unwrap();
-        assert_eq!(allowed.status(), StatusCode::OK);
-        assert_eq!(
-            allowed.headers().get(header::ETAG).unwrap(),
-            "\"management-revision\""
-        );
-
-        console_task.abort();
-        target_task.abort();
-    }
-
-    #[test]
-    fn console_host_persists_only_its_own_agent_configuration() {
-        let root = tempfile::tempdir().unwrap();
-        let agent_home = root.path().join("agent");
-        let config = ConsoleConfig {
-            address: "127.0.0.1:3030".parse().unwrap(),
-            tool_policy: agent_home.join("tool-policy.json"),
-            agent_home,
-            managed_app_root: root.path().join("app"),
-            allowed_tools: Vec::new(),
-            app_agents: Vec::new(),
-            agent_configuration_store: root.path().join("agent-configuration.sqlite3"),
-            trusted_plugin_bundles: vec![
-                TrustedPluginBundle::new("reviewed.tools", root.path().join("reviewed.bundle"))
-                    .unwrap(),
-            ],
-            web_root: root.path().join("web"),
-        };
-
-        let agent = config.agent_web_config();
-
-        assert!(agent.plugin_control);
-        assert_eq!(agent.trusted_plugin_bundles.len(), 1);
-        assert_eq!(agent.trusted_plugin_bundles[0].id, "reviewed.tools");
-        assert!(agent.allowed_tools.is_empty());
-        assert!(matches!(agent.access, AgentWebAccess::HostAuthorized));
-        assert_eq!(agent.managed_app_root, None);
-        assert!(matches!(agent.control, AgentWebControl::HostAuthorized));
-        let store = agent
-            .plugin_configuration_store
-            .expect("Console Host should select a durable configuration authority");
-        assert_eq!(
-            store.database,
-            root.path().join("agent-configuration.sqlite3")
-        );
-        assert_eq!(store.reference, "console-agent");
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn console_product_bootstrap_admits_the_reviewed_plugin_tools() {
-        let root = tempfile::tempdir().unwrap();
-        let (catalog_url, catalog_server) = start_test_codex_catalog().await;
-        let agent_home = root.path().join("console-agent");
-        configure_test_codex_catalog(&agent_home, &catalog_url);
-        let web_root = root.path().join("console-web");
-        std::fs::create_dir_all(&web_root).unwrap();
-        std::fs::write(
-            web_root.join("index.html"),
-            "<!doctype html><title>Console</title>",
+        let console = AppAgentAdapter::parse_console(
+            &format!("http://{address}"),
+            Some("host-secret".to_owned()),
         )
         .unwrap();
-        let config = ConsoleConfig {
-            address: "127.0.0.1:0".parse().unwrap(),
-            tool_policy: agent_home.join("tool-policy.json"),
-            agent_home,
-            managed_app_root: root.path().join("app"),
-            allowed_tools: default_console_agent_tools(),
-            app_agents: Vec::new(),
-            agent_configuration_store: root.path().join("agent-configuration.sqlite3"),
-            trusted_plugin_bundles: Vec::new(),
-            web_root,
-        };
+        let router = agent_catalog_routes(AgentCatalog::new(console, Vec::new()));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
 
-        let local = tokio::task::LocalSet::new();
-        local
-            .run_until(async {
-                let server = ConsoleServer::start(config).await.unwrap();
-                let address = server.address;
-                let (shutdown, shutdown_signal) = tokio::sync::oneshot::channel();
-                let server_task = tokio::task::spawn_local(server.run(async move {
-                    let _ = shutdown_signal.await;
-                }));
+        let body = reqwest::get(format!("http://{address}/api/console/v1/agent/bootstrap"))
+            .await
+            .unwrap()
+            .json::<serde_json::Value>()
+            .await
+            .unwrap();
+        assert_eq!(body["authorization"], "Bearer host-secret");
 
-                let bootstrap =
-                    reqwest::get(format!("http://{address}/api/console/v1/agent/bootstrap"))
-                        .await
-                        .unwrap()
-                        .json::<serde_json::Value>()
-                        .await
-                        .unwrap();
-                let mut expected = default_console_agent_tools();
-                expected.sort();
-                assert_eq!(
-                    bootstrap["tools"]["allowed"],
-                    serde_json::json!(expected),
-                    "unexpected bootstrap response: {bootstrap:#}"
-                );
-                let available = bootstrap["tools"]["available"].as_array().unwrap();
-                for tool in lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS {
-                    assert!(available.iter().any(|entry| entry["name"] == tool));
-                }
-
-                let plugins =
-                    reqwest::get(format!("http://{address}/api/console/v1/agent/plugins"))
-                        .await
-                        .unwrap()
-                        .json::<serde_json::Value>()
-                        .await
-                        .unwrap();
-                let instruction = plugins["active"]["plugins"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .find(|plugin| plugin["packageId"] == "lenso.agent.console-instructions")
-                    .expect("Console instruction should be active");
-                assert_eq!(
-                    instruction["providedCapabilities"],
-                    serde_json::json!(["lenso.agent.prompt-provider@1"])
-                );
-
-                shutdown.send(()).unwrap();
-                server_task.await.unwrap().unwrap();
-            })
-            .await;
-        catalog_server.abort();
+        server.abort();
+        target.abort();
     }
 
     #[test]
     fn resolves_relative_app_roots_against_the_launcher_directory() {
         let current = std::env::current_dir().unwrap();
-
         let root = resolve_app_root(Some("fixtures/app".into())).unwrap();
-
         assert_eq!(root, current.join("fixtures/app"));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn selected_console_plugin_activates_and_removal_restores_the_non_console_app() {
-        let root = tempfile::tempdir().unwrap();
-        let (catalog_url, catalog_server) = start_test_codex_catalog().await;
-        configure_test_codex_catalog(root.path(), &catalog_url);
-        configure_test_codex_catalog(&root.path().join("console-agent"), &catalog_url);
-        let web_root = root.path().join("console-web");
-        std::fs::create_dir_all(&web_root).unwrap();
-        std::fs::write(
-            web_root.join("index.html"),
-            "<!doctype html><title>Console</title>",
-        )
-        .unwrap();
-        let configuration_store = root.path().join("agent-configuration.sqlite3");
-        let plugin_root = root.path().join("plugins/lenso.console.web");
-        std::fs::create_dir_all(&plugin_root).unwrap();
-        std::fs::write(
-            plugin_root.join("console.toml"),
-            format!(
-                "address = \"127.0.0.1:0\"\nagent_home = {:?}\nagent_configuration_store = {:?}\nallowed_tools = []\nconnected_agent_label = \"Lenso Agent\"\nconnected_agent_url = \"\"\nmanaged_app_root = {:?}\nweb_root = {:?}\n",
-                root.path().join("console-agent").display().to_string(),
-                configuration_store.display().to_string(),
-                root.path().display().to_string(),
-                web_root.display().to_string(),
-            ),
-        )
-        .unwrap();
-
-        let local = tokio::task::LocalSet::new();
-        local
-            .run_until(async {
-                let host = AgentHost::builder()
-                    .plugins(link)
-                    .plugins(lenso_agent_console_plugins::link)
-                    .agent_home(root.path())
-                    .unwrap()
-                    .plugin_configuration_authority(Arc::new(LocalPluginRootAuthority::new(
-                        root.path(),
-                    )))
-                    .surface(WebSurface::browser())
-                    .build()
-                    .unwrap();
-                let mut app = host.run(Profile::Default).await.unwrap();
-
-                assert!(app.resolved_plan().plugin_instances().iter().any(|plugin| {
-                    plugin.package_id() == "lenso.console.web"
-                        && plugin.instance_key() == "lenso.console.web/console"
-                }));
-                app.shutdown().await.unwrap();
-
-                assert!(configuration_store.is_file());
-                assert!(
-                    std::fs::read(&configuration_store)
-                        .unwrap()
-                        .starts_with(b"SQLite format 3\0")
-                );
-
-                let host = AgentHost::builder()
-                    .plugins(link)
-                    .plugins(lenso_agent_console_plugins::link)
-                    .agent_home(root.path())
-                    .unwrap()
-                    .plugin_configuration_authority(Arc::new(LocalPluginRootAuthority::new(
-                        root.path(),
-                    )))
-                    .surface(WebSurface::browser())
-                    .build()
-                    .unwrap();
-                let mut restarted = host.run(Profile::Default).await.unwrap();
-                restarted.shutdown().await.unwrap();
-
-                std::fs::remove_file(plugin_root.join("console.toml")).unwrap();
-                let host = AgentHost::builder()
-                    .plugins(link)
-                    .plugins(lenso_agent_console_plugins::link)
-                    .agent_home(root.path())
-                    .unwrap()
-                    .plugin_configuration_authority(Arc::new(LocalPluginRootAuthority::new(
-                        root.path(),
-                    )))
-                    .surface(WebSurface::browser())
-                    .build()
-                    .unwrap();
-                let mut app = host.run(Profile::Default).await.unwrap();
-                assert!(
-                    app.resolved_plan()
-                        .plugin_instances()
-                        .iter()
-                        .all(|plugin| plugin.package_id() != "lenso.console.web")
-                );
-                app.shutdown().await.unwrap();
-            })
-            .await;
-        catalog_server.abort();
     }
 }

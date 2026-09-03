@@ -23,6 +23,10 @@
       "description": "Identity label for the optional App Agent contributed to this Console.",
       "type": "string"
     },
+    "console_agent_url": {
+      "description": "Clean loopback HTTP origin of the separately released Console Agent process.",
+      "type": "string"
+    },
     "connected_agent_plugin_configuration": {
       "description": "Explicitly authorizes Console to consume the App Agent Host's Plugin configuration capability.",
       "type": "boolean"
@@ -58,6 +62,7 @@
     "connected_agent_plugin_configuration",
     "connected_agent_plugin_lifecycle",
     "connected_agent_url",
+    "console_agent_url",
     "managed_app_root",
     "trusted_plugin_bundles",
     "web_root"
