@@ -11,11 +11,18 @@
     "list_plugin_changes",
     "check_plugin_rollback",
     "apply_plugin_rollback",
-    "set_plugin_enabled"
+    "set_plugin_enabled",
+    "list_available_plugins",
+    "check_plugin_install",
+    "apply_plugin_install",
+    "check_plugin_removal",
+    "apply_plugin_removal"
   ],
   "connected_agent_label": "Lenso Agent",
   "connected_agent_plugin_configuration": false,
+  "connected_agent_plugin_lifecycle": false,
   "connected_agent_url": "",
   "managed_app_root": ".",
+  "trusted_plugin_bundles": {},
   "web_root": "console-web"
 }

@@ -21,11 +21,31 @@ impl AppAgentPluginManagementTarget {
         Self { agents }
     }
 
-    fn target<E>(&self, agent_id: &str, missing: E, unsupported: E) -> Result<AppAgentAdapter, E> {
+    fn configuration_target<E>(
+        &self,
+        agent_id: &str,
+        missing: E,
+        unsupported: E,
+    ) -> Result<AppAgentAdapter, E> {
         let Some(agent) = self.agents.iter().find(|agent| agent.id == agent_id) else {
             return Err(missing);
         };
         if !agent.plugin_configuration {
+            return Err(unsupported);
+        }
+        Ok(agent.clone())
+    }
+
+    fn lifecycle_target<E>(
+        &self,
+        agent_id: &str,
+        missing: E,
+        unsupported: E,
+    ) -> Result<AppAgentAdapter, E> {
+        let Some(agent) = self.agents.iter().find(|agent| agent.id == agent_id) else {
+            return Err(missing);
+        };
+        if !agent.plugin_lifecycle {
             return Err(unsupported);
         }
         Ok(agent.clone())
@@ -53,7 +73,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::HistoryRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetHistory> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::HistoryError::TargetNotFound,
             contract::HistoryError::Unsupported,
@@ -100,7 +120,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::InspectRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetInspect> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::InspectError::TargetNotFound,
             contract::InspectError::Unsupported,
@@ -167,7 +187,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::ProposeRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetPropose> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::ProposeError::TargetNotFound,
             contract::ProposeError::Unsupported,
@@ -224,7 +244,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::ProposeRollbackRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetProposeRollback> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::ProposeRollbackError::TargetNotFound,
             contract::ProposeRollbackError::Unsupported,
@@ -264,7 +284,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::PublishRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetPublish> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::PublishError::TargetNotFound,
             contract::PublishError::Unsupported,
@@ -329,7 +349,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::PublishRollbackRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetPublishRollback> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::PublishRollbackError::TargetNotFound,
             contract::PublishRollbackError::Unsupported,
@@ -421,7 +441,7 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
         &self,
         request: contract::SetEnabledRequest,
     ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetSetEnabled> {
-        let target = self.target(
+        let target = self.configuration_target(
             &request.agent_id,
             contract::SetEnabledError::TargetNotFound,
             contract::SetEnabledError::Unsupported,
@@ -507,6 +527,177 @@ impl PluginManagementTarget for AppAgentPluginManagementTarget {
             }))
         })
     }
+
+    fn catalog(
+        &self,
+        request: contract::CatalogRequest,
+    ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetCatalog> {
+        let target = self.lifecycle_target(
+            &request.agent_id,
+            contract::CatalogError::TargetNotFound,
+            contract::CatalogError::Unsupported,
+        );
+        Box::pin(async move {
+            let agent = match target {
+                Ok(agent) => agent,
+                Err(error) => return Ok(Err(error)),
+            };
+            let response: TrustedCatalogResponse = match get_json_domain(
+                &agent,
+                &["control", "plugins", "trusted-catalog"],
+                "list trusted Plugins",
+            )
+            .await
+            {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => {
+                    return Ok(Err(map_lifecycle_status(status)));
+                }
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            if response.schema != "lenso.agent.trusted-plugin-catalog.v1"
+                || response.revision.len() != 71
+            {
+                return Err(protocol_failure(
+                    "Agent Host returned an invalid trusted Plugin catalog",
+                ));
+            }
+            let folded = request.query.to_lowercase();
+            Ok(Ok(contract::CatalogResponse {
+                agent_id: request.agent_id,
+                authority: response.authority.into(),
+                entries: response
+                    .entries
+                    .into_iter()
+                    .filter(|entry| {
+                        folded.is_empty()
+                            || entry.catalog_entry_id.to_lowercase().contains(&folded)
+                            || entry.package_id.to_lowercase().contains(&folded)
+                    })
+                    .map(|entry| contract::CatalogEntry {
+                        catalog_entry_id: entry.catalog_entry_id,
+                        package_id: entry.package_id,
+                        package_revision: entry.package_revision,
+                        source_digest: entry.source_digest,
+                    })
+                    .collect(),
+                query: request.query,
+                revision: response.revision,
+            }))
+        })
+    }
+
+    fn propose_install(
+        &self,
+        request: contract::ProposeInstallRequest,
+    ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetProposeInstall> {
+        let target = self.lifecycle_target(
+            &request.agent_id,
+            contract::ProposeInstallError::TargetNotFound,
+            contract::ProposeInstallError::Unsupported,
+        );
+        Box::pin(async move {
+            let agent = match target {
+                Ok(agent) => agent,
+                Err(error) => return Ok(Err(error)),
+            };
+            let response: InstallProposalResponse = match send_json(&agent, Method::POST, &["control", "plugin-installations", "proposals"], serde_json::json!({"catalogEntryId": request.catalog_entry_id, "expectedRevision": request.expected_revision}), "propose install").await {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => return Ok(Err(map_propose_install_status(status))),
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            validate_install_proposal(&response, &request)?;
+            Ok(Ok(response.into_contract(request.agent_id)))
+        })
+    }
+
+    fn publish_install(
+        &self,
+        request: contract::PublishInstallRequest,
+    ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetPublishInstall> {
+        let target = self.lifecycle_target(
+            &request.agent_id,
+            contract::PublishInstallError::TargetNotFound,
+            contract::PublishInstallError::Unsupported,
+        );
+        Box::pin(async move {
+            let agent = match target {
+                Ok(agent) => agent,
+                Err(error) => return Ok(Err(error)),
+            };
+            let checked: InstallProposalResponse = match send_json(&agent, Method::POST, &["control", "plugin-installations", "proposals"], serde_json::json!({"catalogEntryId": request.catalog_entry_id, "expectedRevision": request.expected_revision}), "recheck install").await {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => return Ok(Err(map_publish_install_status(status))),
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            if checked.proposal_digest != request.proposal_digest {
+                return Ok(Err(contract::PublishInstallError::ProposalMismatch));
+            }
+            let response: InstallPublicationResponse = match send_json(&agent, Method::POST, &["control", "plugin-installations", "publications"], serde_json::json!({"catalogEntryId": request.catalog_entry_id, "expectedRevision": request.expected_revision, "proposalDigest": request.proposal_digest}), "publish install").await {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => return Ok(Err(map_publish_install_status(status))),
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            validate_install_publication(&response, &request)?;
+            Ok(Ok(response.into_contract(request.agent_id)))
+        })
+    }
+
+    fn propose_removal(
+        &self,
+        request: contract::ProposeRemovalRequest,
+    ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetProposeRemoval> {
+        let target = self.lifecycle_target(
+            &request.agent_id,
+            contract::ProposeRemovalError::TargetNotFound,
+            contract::ProposeRemovalError::Unsupported,
+        );
+        Box::pin(async move {
+            let agent = match target {
+                Ok(agent) => agent,
+                Err(error) => return Ok(Err(error)),
+            };
+            let response: RemovalProposalResponse = match send_json(&agent, Method::POST, &["control", "plugin-removals", "proposals"], serde_json::json!({"expectedRevision": request.expected_revision, "pluginId": request.plugin_id}), "propose removal").await {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => return Ok(Err(map_propose_removal_status(status))),
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            validate_removal_proposal(&response, &request)?;
+            Ok(Ok(response.into_contract(request.agent_id)))
+        })
+    }
+
+    fn publish_removal(
+        &self,
+        request: contract::PublishRemovalRequest,
+    ) -> lenso_kernel::NativeRequestFuture<contract::PluginManagementTargetPublishRemoval> {
+        let target = self.lifecycle_target(
+            &request.agent_id,
+            contract::PublishRemovalError::TargetNotFound,
+            contract::PublishRemovalError::Unsupported,
+        );
+        Box::pin(async move {
+            let agent = match target {
+                Ok(agent) => agent,
+                Err(error) => return Ok(Err(error)),
+            };
+            let checked: RemovalProposalResponse = match send_json(&agent, Method::POST, &["control", "plugin-removals", "proposals"], serde_json::json!({"expectedRevision": request.expected_revision, "pluginId": request.plugin_id}), "recheck removal").await {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => return Ok(Err(map_publish_removal_status(status))),
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            if checked.proposal_digest != request.proposal_digest {
+                return Ok(Err(contract::PublishRemovalError::ProposalMismatch));
+            }
+            let response: RemovalPublicationResponse = match send_json(&agent, Method::POST, &["control", "plugin-removals", "publications"], serde_json::json!({"expectedRevision": request.expected_revision, "pluginId": request.plugin_id, "proposalDigest": request.proposal_digest}), "publish removal").await {
+                Ok(value) => value,
+                Err(TargetRequestError::Domain(status)) => return Ok(Err(map_publish_removal_status(status))),
+                Err(TargetRequestError::Runtime(error)) => return Err(error),
+            };
+            validate_removal_publication(&response, &request)?;
+            Ok(Ok(response.into_contract(request.agent_id)))
+        })
+    }
 }
 
 #[derive(Deserialize)]
@@ -525,6 +716,138 @@ impl From<AuthorityResponse> for contract::AuthoritySource {
         Self {
             kind: value.kind,
             reference: value.reference,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrustedCatalogResponse {
+    authority: AuthorityResponse,
+    entries: Vec<TrustedCatalogEntry>,
+    revision: String,
+    schema: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrustedCatalogEntry {
+    catalog_entry_id: String,
+    package_id: String,
+    package_revision: String,
+    source_digest: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InstallProposalResponse {
+    authority: AuthorityResponse,
+    base_revision: String,
+    candidate_revision: String,
+    catalog_entry_id: String,
+    package_id: String,
+    package_revision: String,
+    proposal_digest: String,
+    schema: String,
+    source_digest: String,
+}
+
+impl InstallProposalResponse {
+    fn into_contract(self, agent_id: String) -> contract::InstallProposalResponse {
+        contract::InstallProposalResponse {
+            agent_id,
+            authority: self.authority.into(),
+            base_revision: self.base_revision,
+            catalog_entry_id: self.catalog_entry_id,
+            candidate_revision: self.candidate_revision,
+            package_id: self.package_id,
+            package_revision: self.package_revision,
+            proposal_digest: self.proposal_digest,
+            source_digest: self.source_digest,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InstallPublicationResponse {
+    authority: AuthorityResponse,
+    base_revision: String,
+    catalog_entry_id: String,
+    package_id: String,
+    package_revision: String,
+    proposal_digest: String,
+    revision: String,
+    schema: String,
+}
+
+impl InstallPublicationResponse {
+    fn into_contract(self, agent_id: String) -> contract::PublishInstallResponse {
+        contract::PublishInstallResponse {
+            agent_id,
+            authority: self.authority.into(),
+            base_revision: self.base_revision,
+            catalog_entry_id: self.catalog_entry_id,
+            package_id: self.package_id,
+            package_revision: self.package_revision,
+            proposal_digest: self.proposal_digest,
+            revision: self.revision,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemovalProposalResponse {
+    authority: AuthorityResponse,
+    base_revision: String,
+    candidate_revision: String,
+    package_id: String,
+    package_revision: String,
+    proposal_digest: String,
+    recoverable: bool,
+    schema: String,
+}
+
+impl RemovalProposalResponse {
+    fn into_contract(self, agent_id: String) -> contract::RemovalProposalResponse {
+        contract::RemovalProposalResponse {
+            agent_id,
+            authority: self.authority.into(),
+            base_revision: self.base_revision,
+            candidate_revision: self.candidate_revision,
+            package_id: self.package_id,
+            package_revision: self.package_revision,
+            proposal_digest: self.proposal_digest,
+            recoverable: self.recoverable,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemovalPublicationResponse {
+    authority: AuthorityResponse,
+    base_revision: String,
+    package_id: String,
+    package_revision: String,
+    proposal_digest: String,
+    recoverable: bool,
+    revision: String,
+    schema: String,
+}
+
+impl RemovalPublicationResponse {
+    fn into_contract(self, agent_id: String) -> contract::PublishRemovalResponse {
+        contract::PublishRemovalResponse {
+            agent_id,
+            authority: self.authority.into(),
+            base_revision: self.base_revision,
+            package_id: self.package_id,
+            package_revision: self.package_revision,
+            proposal_digest: self.proposal_digest,
+            recoverable: self.recoverable,
+            revision: self.revision,
         }
     }
 }
@@ -957,6 +1280,81 @@ fn validate_rollback_publication(
     Ok(())
 }
 
+fn validate_install_proposal(
+    value: &InstallProposalResponse,
+    request: &contract::ProposeInstallRequest,
+) -> Result<(), RuntimeFailure> {
+    if value.schema != "lenso.agent.plugin-install-proposal.v1"
+        || value.base_revision != request.expected_revision
+        || value.catalog_entry_id != request.catalog_entry_id
+        || value.candidate_revision.len() != 71
+        || value.proposal_digest.len() != 71
+        || value.source_digest.len() != 71
+        || value.package_id.is_empty()
+        || value.package_revision.is_empty()
+    {
+        return Err(protocol_failure(
+            "Agent Host returned an invalid Plugin installation proposal",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_install_publication(
+    value: &InstallPublicationResponse,
+    request: &contract::PublishInstallRequest,
+) -> Result<(), RuntimeFailure> {
+    if value.schema != "lenso.agent.plugin-install-publication.v1"
+        || value.base_revision != request.expected_revision
+        || value.catalog_entry_id != request.catalog_entry_id
+        || value.proposal_digest != request.proposal_digest
+        || value.revision.len() != 71
+        || value.package_id.is_empty()
+        || value.package_revision.is_empty()
+    {
+        return Err(protocol_failure(
+            "Agent Host returned an invalid Plugin installation publication",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_removal_proposal(
+    value: &RemovalProposalResponse,
+    request: &contract::ProposeRemovalRequest,
+) -> Result<(), RuntimeFailure> {
+    if value.schema != "lenso.agent.plugin-removal-proposal.v1"
+        || value.base_revision != request.expected_revision
+        || value.package_id != request.plugin_id
+        || value.candidate_revision.len() != 71
+        || value.proposal_digest.len() != 71
+        || !value.recoverable
+    {
+        return Err(protocol_failure(
+            "Agent Host returned an invalid recoverable Plugin removal proposal",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_removal_publication(
+    value: &RemovalPublicationResponse,
+    request: &contract::PublishRemovalRequest,
+) -> Result<(), RuntimeFailure> {
+    if value.schema != "lenso.agent.plugin-removal-publication.v1"
+        || value.base_revision != request.expected_revision
+        || value.package_id != request.plugin_id
+        || value.proposal_digest != request.proposal_digest
+        || value.revision.len() != 71
+        || !value.recoverable
+    {
+        return Err(protocol_failure(
+            "Agent Host returned an invalid recoverable Plugin removal publication",
+        ));
+    }
+    Ok(())
+}
+
 async fn get_json<T: DeserializeOwned>(
     agent: &AppAgentAdapter,
     segments: &[&str],
@@ -1088,6 +1486,39 @@ enum TargetRequestError {
     Runtime(RuntimeFailure),
 }
 
+fn map_lifecycle_status(status: StatusCode) -> contract::CatalogError {
+    match status {
+        StatusCode::NOT_FOUND => contract::CatalogError::PluginNotFound,
+        StatusCode::FORBIDDEN => contract::CatalogError::Unsupported,
+        StatusCode::CONFLICT => contract::CatalogError::Conflict,
+        StatusCode::BAD_REQUEST | StatusCode::UNPROCESSABLE_ENTITY => {
+            contract::CatalogError::InvalidRequest
+        }
+        _ => contract::CatalogError::Unknown(unknown_status(status)),
+    }
+}
+
+macro_rules! lifecycle_status_mapper {
+    ($name:ident, $error:ident) => {
+        fn $name(status: StatusCode) -> contract::$error {
+            match status {
+                StatusCode::NOT_FOUND => contract::$error::PluginNotFound,
+                StatusCode::FORBIDDEN => contract::$error::Unsupported,
+                StatusCode::CONFLICT => contract::$error::Conflict,
+                StatusCode::BAD_REQUEST | StatusCode::UNPROCESSABLE_ENTITY => {
+                    contract::$error::InvalidRequest
+                }
+                _ => contract::$error::Unknown(unknown_status(status)),
+            }
+        }
+    };
+}
+
+lifecycle_status_mapper!(map_propose_install_status, ProposeInstallError);
+lifecycle_status_mapper!(map_publish_install_status, PublishInstallError);
+lifecycle_status_mapper!(map_propose_removal_status, ProposeRemovalError);
+lifecycle_status_mapper!(map_publish_removal_status, PublishRemovalError);
+
 fn map_propose_fence(error: FenceError) -> contract::ProposeError {
     match error {
         FenceError::Conflict => contract::ProposeError::Conflict,
@@ -1214,35 +1645,48 @@ fn protocol_failure(detail: impl Into<String>) -> RuntimeFailure {
 mod tests {
     use super::*;
 
-    fn adapter(id: &str, plugin_configuration: bool) -> AppAgentAdapter {
+    fn adapter(id: &str, plugin_configuration: bool, plugin_lifecycle: bool) -> AppAgentAdapter {
         let mut adapter = AppAgentAdapter::parse_as(id, "http://127.0.0.1:3031", id)
             .unwrap()
             .unwrap();
         adapter.plugin_configuration = plugin_configuration;
+        adapter.plugin_lifecycle = plugin_lifecycle;
         adapter
     }
 
     #[test]
     fn target_selection_is_exact_and_fails_closed() {
         let target = AppAgentPluginManagementTarget::new(vec![
-            adapter("managed", true),
-            adapter("observed", false),
+            adapter("managed", true, false),
+            adapter("lifecycle", false, true),
+            adapter("observed", false, false),
         ]);
 
         assert!(matches!(
-            target.target("missing", "missing", "unsupported"),
+            target.configuration_target("missing", "missing", "unsupported"),
             Err("missing")
         ));
         assert!(matches!(
-            target.target("observed", "missing", "unsupported"),
+            target.configuration_target("observed", "missing", "unsupported"),
+            Err("unsupported")
+        ));
+        assert!(matches!(
+            target.lifecycle_target("managed", "missing", "unsupported"),
             Err("unsupported")
         ));
         assert_eq!(
             target
-                .target("managed", "missing", "unsupported")
+                .configuration_target("managed", "missing", "unsupported")
                 .unwrap()
                 .id,
             "managed"
+        );
+        assert_eq!(
+            target
+                .lifecycle_target("lifecycle", "missing", "unsupported")
+                .unwrap()
+                .id,
+            "lifecycle"
         );
     }
 

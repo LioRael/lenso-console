@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     future::Future,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
@@ -16,7 +17,7 @@ use directories::BaseDirs;
 use lenso::prelude::*;
 use lenso_agent_web::{
     AgentWebAccess, AgentWebConfig, AgentWebControl, AgentWebSurface,
-    PluginConfigurationStoreConfig,
+    PluginConfigurationStoreConfig, TrustedPluginBundle,
 };
 use serde::{Deserialize, Serialize};
 use tower_http::limit::RequestBodyLimitLayer;
@@ -29,6 +30,7 @@ use plugin_management_target::AppAgentPluginManagementTarget;
 const DEFAULT_PORT: u16 = 3030;
 const MAX_AGENT_REQUEST_BYTES: usize = 64 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
+pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
 fn default_console_agent_tools() -> Vec<String> {
     lenso_agent_console_plugins::PLUGIN_CONTROL_TOOLS
@@ -57,8 +59,10 @@ pub struct ConsolePluginConfig {
     agent_configuration_store: String,
     connected_agent_label: String,
     connected_agent_plugin_configuration: bool,
+    connected_agent_plugin_lifecycle: bool,
     connected_agent_url: String,
     managed_app_root: String,
+    trusted_plugin_bundles: BTreeMap<String, String>,
     web_root: String,
 }
 
@@ -140,6 +144,7 @@ pub struct ConsoleConfig {
     pub app_agents: Vec<AppAgentAdapter>,
     pub agent_configuration_store: PathBuf,
     pub tool_policy: PathBuf,
+    pub trusted_plugin_bundles: Vec<TrustedPluginBundle>,
     pub web_root: PathBuf,
 }
 
@@ -151,22 +156,12 @@ impl ConsoleConfig {
 
     /// Contributes one independently addressed App Agent identity.
     pub fn with_app_agent_identity(
-        mut self,
+        self,
         id: &str,
         origin: &str,
         label: &str,
     ) -> anyhow::Result<Self> {
-        let Some(app_agent) =
-            AppAgentAdapter::parse_as(id, origin, label).map_err(anyhow::Error::msg)?
-        else {
-            return Ok(self);
-        };
-        anyhow::ensure!(
-            self.app_agents.iter().all(|agent| agent.id != app_agent.id),
-            "App Agent identity `{id}` is already configured"
-        );
-        self.app_agents.push(app_agent);
-        Ok(self)
+        self.with_app_agent_identity_capabilities(id, origin, label, false, false)
     }
 
     /// Contributes one App Agent whose Host explicitly provides Plugin configuration control.
@@ -176,17 +171,63 @@ impl ConsoleConfig {
 
     /// Contributes one independently addressed App Agent with Plugin configuration control.
     pub fn with_app_agent_identity_configuration(
+        self,
+        id: &str,
+        origin: &str,
+        label: &str,
+    ) -> anyhow::Result<Self> {
+        self.with_app_agent_identity_capabilities(id, origin, label, true, false)
+    }
+
+    /// Contributes one App Agent whose Host explicitly provides trusted package lifecycle control.
+    pub fn with_app_agent_plugin_lifecycle(
+        self,
+        origin: &str,
+        label: &str,
+    ) -> anyhow::Result<Self> {
+        self.with_app_agent_identity_plugin_lifecycle("app", origin, label)
+    }
+
+    /// Contributes one independently addressed App Agent with trusted package lifecycle control.
+    pub fn with_app_agent_identity_plugin_lifecycle(
+        self,
+        id: &str,
+        origin: &str,
+        label: &str,
+    ) -> anyhow::Result<Self> {
+        self.with_app_agent_identity_capabilities(id, origin, label, false, true)
+    }
+
+    /// Contributes one App Agent with both independent Plugin control capabilities.
+    pub fn with_app_agent_management(self, origin: &str, label: &str) -> anyhow::Result<Self> {
+        self.with_app_agent_identity_management("app", origin, label)
+    }
+
+    /// Contributes one independently addressed App Agent with both Plugin control capabilities.
+    pub fn with_app_agent_identity_management(
+        self,
+        id: &str,
+        origin: &str,
+        label: &str,
+    ) -> anyhow::Result<Self> {
+        self.with_app_agent_identity_capabilities(id, origin, label, true, true)
+    }
+
+    fn with_app_agent_identity_capabilities(
         mut self,
         id: &str,
         origin: &str,
         label: &str,
+        plugin_configuration: bool,
+        plugin_lifecycle: bool,
     ) -> anyhow::Result<Self> {
         let Some(mut app_agent) =
             AppAgentAdapter::parse_as(id, origin, label).map_err(anyhow::Error::msg)?
         else {
             return Ok(self);
         };
-        app_agent.plugin_configuration = true;
+        app_agent.plugin_configuration = plugin_configuration;
+        app_agent.plugin_lifecycle = plugin_lifecycle;
         anyhow::ensure!(
             self.app_agents.iter().all(|agent| agent.id != app_agent.id),
             "App Agent identity `{id}` is already configured"
@@ -214,12 +255,23 @@ impl ConsoleConfig {
                 agent.plugin_configuration = true;
             }
         }
+        if config.connected_agent_plugin_lifecycle {
+            for agent in &mut app_agents {
+                agent.plugin_lifecycle = true;
+            }
+        }
         Ok(Self {
             address: config.address.parse()?,
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
             agent_configuration_store: resolve_path(&current, &config.agent_configuration_store),
             managed_app_root: resolve_path(&current, &config.managed_app_root),
+            trusted_plugin_bundles: trusted_plugin_bundles(
+                config
+                    .trusted_plugin_bundles
+                    .iter()
+                    .map(|(id, path)| (id.clone(), resolve_path(&current, path))),
+            )?,
             allowed_tools: config.allowed_tools.clone(),
             app_agents,
             web_root: resolve_path(&current, &config.web_root),
@@ -257,6 +309,19 @@ impl ConsoleConfig {
             .unwrap_or_else(|_| "Lenso Agent".to_owned());
         let connected_agent_plugin_configuration =
             parse_boolean_environment("LENSO_CONSOLE_CONNECTED_AGENT_PLUGIN_CONFIGURATION")?;
+        let connected_agent_plugin_lifecycle =
+            parse_boolean_environment("LENSO_CONSOLE_CONNECTED_AGENT_PLUGIN_LIFECYCLE")?;
+        let trusted_plugin_bundles = match std::env::var("LENSO_CONSOLE_TRUSTED_PLUGIN_BUNDLES") {
+            Ok(value) => trusted_plugin_bundles(
+                serde_json::from_str::<BTreeMap<String, PathBuf>>(&value).map_err(|error| {
+                    anyhow::anyhow!(
+                        "LENSO_CONSOLE_TRUSTED_PLUGIN_BUNDLES must be a JSON object: {error}"
+                    )
+                })?,
+            )?,
+            Err(std::env::VarError::NotPresent) => Vec::new(),
+            Err(error) => return Err(error.into()),
+        };
         let web_root = std::env::var_os("CONSOLE_WEB_ROOT")
             .map_or_else(|| manifest.join("../dist/client"), PathBuf::from);
         Ok(Self {
@@ -265,12 +330,14 @@ impl ConsoleConfig {
             agent_home,
             agent_configuration_store: console_home.join("agent-configuration.sqlite3"),
             managed_app_root,
+            trusted_plugin_bundles,
             allowed_tools,
             app_agents: AppAgentAdapter::parse(&connected_agent_url, &connected_agent_label)
                 .map_err(anyhow::Error::msg)?
                 .into_iter()
                 .map(|mut agent| {
                     agent.plugin_configuration = connected_agent_plugin_configuration;
+                    agent.plugin_lifecycle = connected_agent_plugin_lifecycle;
                     agent
                 })
                 .collect(),
@@ -311,6 +378,9 @@ impl ConsoleConfig {
         config.tool_policy = Some(self.tool_policy.clone());
         config.control = AgentWebControl::HostAuthorized;
         config.plugin_control = true;
+        config
+            .trusted_plugin_bundles
+            .clone_from(&self.trusted_plugin_bundles);
         config.plugin_configuration_store = Some(PluginConfigurationStoreConfig::new(
             self.agent_configuration_store.clone(),
             "console-agent",
@@ -320,6 +390,15 @@ impl ConsoleConfig {
         ));
         config
     }
+}
+
+fn trusted_plugin_bundles(
+    entries: impl IntoIterator<Item = (String, PathBuf)>,
+) -> anyhow::Result<Vec<TrustedPluginBundle>> {
+    entries
+        .into_iter()
+        .map(|(id, path)| TrustedPluginBundle::new(id, path).map_err(anyhow::Error::msg))
+        .collect()
 }
 
 #[derive(Debug, Serialize)]
@@ -399,6 +478,7 @@ pub struct AppAgentAdapter {
     label: String,
     origin: reqwest::Url,
     plugin_configuration: bool,
+    plugin_lifecycle: bool,
 }
 
 impl AppAgentAdapter {
@@ -443,6 +523,7 @@ impl AppAgentAdapter {
             label: label.to_owned(),
             origin,
             plugin_configuration: false,
+            plugin_lifecycle: false,
         }))
     }
 }
@@ -485,18 +566,27 @@ fn agent_catalog_routes(catalog: AgentCatalog) -> Router {
 
 async fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityList> {
     let mut agents = vec![AgentIdentity {
-        capabilities: vec![AGENT_PLUGIN_CONFIGURATION_CAPABILITY],
+        capabilities: vec![
+            AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
+            AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
+        ],
         id: "console".to_owned(),
         role: "console",
         label: "Console Agent".to_owned(),
     }];
     for app_agent in catalog.app_agents {
         agents.push(AgentIdentity {
-            capabilities: app_agent
-                .plugin_configuration
-                .then_some(AGENT_PLUGIN_CONFIGURATION_CAPABILITY)
-                .into_iter()
-                .collect(),
+            capabilities: [
+                app_agent
+                    .plugin_configuration
+                    .then_some(AGENT_PLUGIN_CONFIGURATION_CAPABILITY),
+                app_agent
+                    .plugin_lifecycle
+                    .then_some(AGENT_PLUGIN_LIFECYCLE_CAPABILITY),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
             id: app_agent.id,
             role: "app",
             label: app_agent.label,
@@ -520,7 +610,12 @@ async fn route_app_agent(
     else {
         return problem(StatusCode::NOT_FOUND, "Agent identity was not found");
     };
-    if !allowed_agent_route(&method, &path, app_agent.plugin_configuration) {
+    if !allowed_agent_route_with_capabilities(
+        &method,
+        &path,
+        app_agent.plugin_configuration,
+        app_agent.plugin_lifecycle,
+    ) {
         return problem(StatusCode::NOT_FOUND, "App Agent route was not found");
     }
     let mut target_url = app_agent.origin;
@@ -562,7 +657,12 @@ async fn route_app_agent(
         .unwrap_or_else(|_| problem(StatusCode::BAD_GATEWAY, "App Agent response failed"))
 }
 
-fn allowed_agent_route(method: &Method, path: &str, plugin_configuration: bool) -> bool {
+fn allowed_agent_route_with_capabilities(
+    method: &Method,
+    path: &str,
+    plugin_configuration: bool,
+    plugin_lifecycle: bool,
+) -> bool {
     let parts = path.split('/').collect::<Vec<_>>();
     match (method, parts.as_slice()) {
         (
@@ -592,8 +692,33 @@ fn allowed_agent_route(method: &Method, path: &str, plugin_configuration: bool) 
                 "answer",
             ],
         ) => valid_agent_identity(request_id) && valid_agent_identity(interaction_id),
-        _ => plugin_configuration && allowed_plugin_configuration_route(method, parts.as_slice()),
+        _ if plugin_configuration
+            && allowed_plugin_configuration_route(method, parts.as_slice()) =>
+        {
+            true
+        }
+        _ => plugin_lifecycle && allowed_plugin_lifecycle_route(method, parts.as_slice()),
     }
+}
+
+#[cfg(test)]
+fn allowed_agent_route(method: &Method, path: &str, plugin_configuration: bool) -> bool {
+    allowed_agent_route_with_capabilities(method, path, plugin_configuration, false)
+}
+
+fn allowed_plugin_lifecycle_route(method: &Method, parts: &[&str]) -> bool {
+    matches!(
+        (method, parts),
+        (&Method::GET, ["control", "plugins", "trusted-catalog"])
+            | (
+                &Method::POST,
+                [
+                    "control",
+                    "plugin-installations" | "plugin-removals",
+                    "proposals" | "publications"
+                ]
+            )
+    )
 }
 
 fn allowed_plugin_configuration_route(method: &Method, parts: &[&str]) -> bool {
@@ -880,7 +1005,10 @@ mod tests {
         assert_eq!(catalog.agents[0].label, "Console Agent");
         assert_eq!(
             catalog.agents[0].capabilities,
-            [AGENT_PLUGIN_CONFIGURATION_CAPABILITY]
+            [
+                AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
+                AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
+            ]
         );
     }
 
@@ -909,6 +1037,21 @@ mod tests {
         assert_eq!(
             catalog.agents[1].capabilities,
             [AGENT_PLUGIN_CONFIGURATION_CAPABILITY]
+        );
+    }
+
+    #[tokio::test]
+    async fn catalog_advertises_plugin_lifecycle_independently() {
+        let mut app_agent = AppAgentAdapter::parse("http://127.0.0.1:8787", "Support Agent")
+            .unwrap()
+            .unwrap();
+        app_agent.plugin_lifecycle = true;
+
+        let Json(catalog) = list_agents(State(AgentCatalog::new(vec![app_agent]))).await;
+
+        assert_eq!(
+            catalog.agents[1].capabilities,
+            [AGENT_PLUGIN_LIFECYCLE_CAPABILITY]
         );
     }
 
@@ -1008,6 +1151,40 @@ mod tests {
             &Method::DELETE,
             "control/plugins",
             true
+        ));
+    }
+
+    #[test]
+    fn plugin_lifecycle_capability_is_narrow_and_explicit() {
+        assert!(allowed_agent_route_with_capabilities(
+            &Method::GET,
+            "control/plugins/trusted-catalog",
+            false,
+            true,
+        ));
+        assert!(allowed_agent_route_with_capabilities(
+            &Method::POST,
+            "control/plugin-installations/proposals",
+            false,
+            true,
+        ));
+        assert!(allowed_agent_route_with_capabilities(
+            &Method::POST,
+            "control/plugin-removals/publications",
+            false,
+            true,
+        ));
+        assert!(!allowed_agent_route_with_capabilities(
+            &Method::GET,
+            "control/plugins",
+            false,
+            true,
+        ));
+        assert!(!allowed_agent_route_with_capabilities(
+            &Method::POST,
+            "control/plugin-installations/proposals",
+            true,
+            false,
         ));
     }
 
@@ -1124,12 +1301,18 @@ mod tests {
             allowed_tools: Vec::new(),
             app_agents: Vec::new(),
             agent_configuration_store: root.path().join("agent-configuration.sqlite3"),
+            trusted_plugin_bundles: vec![
+                TrustedPluginBundle::new("reviewed.tools", root.path().join("reviewed.bundle"))
+                    .unwrap(),
+            ],
             web_root: root.path().join("web"),
         };
 
         let agent = config.agent_web_config();
 
         assert!(agent.plugin_control);
+        assert_eq!(agent.trusted_plugin_bundles.len(), 1);
+        assert_eq!(agent.trusted_plugin_bundles[0].id, "reviewed.tools");
         assert!(agent.allowed_tools.is_empty());
         assert!(matches!(agent.access, AgentWebAccess::HostAuthorized));
         assert_eq!(agent.managed_app_root, None);
@@ -1165,6 +1348,7 @@ mod tests {
             allowed_tools: default_console_agent_tools(),
             app_agents: Vec::new(),
             agent_configuration_store: root.path().join("agent-configuration.sqlite3"),
+            trusted_plugin_bundles: Vec::new(),
             web_root,
         };
 

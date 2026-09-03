@@ -27,6 +27,10 @@
       "description": "Explicitly authorizes Console to consume the App Agent Host's Plugin configuration capability.",
       "type": "boolean"
     },
+    "connected_agent_plugin_lifecycle": {
+      "description": "Explicitly authorizes Console to consume the App Agent Host's trusted Plugin package lifecycle capability.",
+      "type": "boolean"
+    },
     "connected_agent_url": {
       "description": "Clean loopback HTTP origin used by the optional App Agent Adapter.",
       "type": "string"
@@ -34,6 +38,11 @@
     "managed_app_root": {
       "description": "Lenso App whose ordinary Plugin Root is managed by Console.",
       "type": "string"
+    },
+    "trusted_plugin_bundles": {
+      "additionalProperties": { "type": "string" },
+      "description": "Host-private trusted Bundle catalog keyed by opaque entry ID. Paths resolve from the launcher directory and are never exposed to Console Agent.",
+      "type": "object"
     },
     "web_root": {
       "description": "Directory containing the built Console Shell index.html.",
@@ -47,8 +56,10 @@
     "allowed_tools",
     "connected_agent_label",
     "connected_agent_plugin_configuration",
+    "connected_agent_plugin_lifecycle",
     "connected_agent_url",
     "managed_app_root",
+    "trusted_plugin_bundles",
     "web_root"
   ],
   "type": "object"
