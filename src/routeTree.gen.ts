@@ -19,6 +19,7 @@ import { Route as SettingsAiRouteImport } from './routes/settings_.ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings_.appearance'
 import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
 import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
+import { Route as PluginsAgentIdPackageIdInstanceKeyRouteImport } from './routes/plugins_.$agentId.$packageId.$instanceKey'
 import { Route as SettingsAgentSkillsNewRouteImport } from './routes/settings_.agent_.skills.new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,12 @@ const SettingsAiAgentRoute = SettingsAiAgentRouteImport.update({
   path: '/settings/ai/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PluginsAgentIdPackageIdInstanceKeyRoute =
+  PluginsAgentIdPackageIdInstanceKeyRouteImport.update({
+    id: '/plugins_/$agentId/$packageId/$instanceKey',
+    path: '/plugins/$agentId/$packageId/$instanceKey',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SettingsAgentSkillsNewRoute = SettingsAgentSkillsNewRouteImport.update({
   id: '/settings_/agent_/skills/new',
   path: '/settings/agent/skills/new',
@@ -88,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
+  '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
 }
 export interface FileRoutesByTo {
@@ -101,6 +109,7 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
+  '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
 }
 export interface FileRoutesById {
@@ -115,6 +124,7 @@ export interface FileRoutesById {
   '/settings_/appearance': typeof SettingsAppearanceRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings_/ai_/agent': typeof SettingsAiAgentRoute
+  '/plugins_/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings_/agent_/skills/new': typeof SettingsAgentSkillsNewRoute
 }
 export interface FileRouteTypes {
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
+    | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
+    | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
   id:
     | '__root__'
@@ -156,6 +168,7 @@ export interface FileRouteTypes {
     | '/settings_/appearance'
     | '/agent/$agentId/$chatId'
     | '/settings_/ai_/agent'
+    | '/plugins_/$agentId/$packageId/$instanceKey'
     | '/settings_/agent_/skills/new'
   fileRoutesById: FileRoutesById
 }
@@ -170,6 +183,7 @@ export interface RootRouteChildren {
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
   SettingsAiAgentRoute: typeof SettingsAiAgentRoute
+  PluginsAgentIdPackageIdInstanceKeyRoute: typeof PluginsAgentIdPackageIdInstanceKeyRoute
   SettingsAgentSkillsNewRoute: typeof SettingsAgentSkillsNewRoute
 }
 
@@ -245,6 +259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/plugins_/$agentId/$packageId/$instanceKey': {
+      id: '/plugins_/$agentId/$packageId/$instanceKey'
+      path: '/plugins/$agentId/$packageId/$instanceKey'
+      fullPath: '/plugins/$agentId/$packageId/$instanceKey'
+      preLoaderRoute: typeof PluginsAgentIdPackageIdInstanceKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings_/agent_/skills/new': {
       id: '/settings_/agent_/skills/new'
       path: '/settings/agent/skills/new'
@@ -266,6 +287,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
   SettingsAiAgentRoute: SettingsAiAgentRoute,
+  PluginsAgentIdPackageIdInstanceKeyRoute:
+    PluginsAgentIdPackageIdInstanceKeyRoute,
   SettingsAgentSkillsNewRoute: SettingsAgentSkillsNewRoute,
 }
 export const routeTree = rootRouteImport

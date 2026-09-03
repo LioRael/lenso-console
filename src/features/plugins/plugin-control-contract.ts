@@ -87,11 +87,23 @@ export type ManagedPluginInstance = {
 };
 
 export type ManagedPlugin = {
+  configurationDefaults: JsonObject;
+  configurationSchema: JsonObject | null;
   instances: readonly ManagedPluginInstance[];
   packageId: string;
   packageRevision: string;
   rootSupplied: boolean;
 };
+
+export type JsonValue =
+  | boolean
+  | number
+  | string
+  | null
+  | readonly JsonValue[]
+  | JsonObject;
+
+export type JsonObject = { readonly [key: string]: JsonValue };
 
 export type PluginManagement = {
   configurationAuthority: PluginConfigurationAuthority;
@@ -315,9 +327,16 @@ export function decodePluginManagement(value: unknown): PluginManagement {
     );
   }
   return {
-    ...value,
+    configurationAuthority: value.configurationAuthority,
+    plugins: value.plugins.map((plugin) => ({
+      ...plugin,
+      configurationDefaults: plugin.configurationDefaults ?? {},
+      configurationSchema: plugin.configurationSchema ?? null,
+    })),
+    revision: value.revision,
+    schema: "lenso.agent.plugin-management.v1",
     selectionAuthority: value.selectionAuthority ?? null,
-  } as PluginManagement;
+  };
 }
 
 function isSelectionAuthority(
@@ -532,10 +551,30 @@ function isManagedPlugin(value: unknown): value is ManagedPlugin {
     !value.packageId.includes("/") &&
     typeof value.packageRevision === "string" &&
     value.packageRevision.length > 0 &&
+    (value.configurationDefaults === undefined ||
+      isJsonObject(value.configurationDefaults)) &&
+    (value.configurationSchema === undefined ||
+      value.configurationSchema === null ||
+      isJsonObject(value.configurationSchema)) &&
     typeof value.rootSupplied === "boolean" &&
     Array.isArray(value.instances) &&
     value.instances.every(isManagedPluginInstance) &&
     hasUniqueValues(value.instances, (instance) => instance.instanceKey)
+  );
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return isRecord(value) && Object.values(value).every(isJsonValue);
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  return (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string" ||
+    (Array.isArray(value) && value.every(isJsonValue)) ||
+    isJsonObject(value)
   );
 }
 

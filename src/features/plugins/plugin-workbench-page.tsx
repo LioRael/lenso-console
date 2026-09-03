@@ -1,11 +1,10 @@
 import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { Button } from "@lenso/ui/button";
 import { PageHeader } from "@lenso/ui/page-header";
-import { StatusMarker } from "@lenso/ui/status-marker";
 import * as stylex from "@stylexjs/stylex";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { useAgentIdentity } from "../agent/agent-identity-context";
@@ -15,20 +14,14 @@ import {
 } from "../agent/agent-runtime";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
-import { PluginInspector } from "./plugin-inspector";
 import {
-  generationStatusPresentation,
   pluginOriginLabel,
   pluginSelectionIdentityMatches,
   pluginStatusPresentation,
 } from "./plugin-runtime-state";
 import { PluginStatus } from "./plugin-status";
 import { InstallPluginDialog } from "./plugin-workbench-dialogs";
-import {
-  pluginKey,
-  reconcilePluginSelectionKey,
-  type PluginWorkbenchItem,
-} from "./plugin-workbench-model";
+import { pluginKey, type PluginWorkbenchItem } from "./plugin-workbench-model";
 import {
   usePluginConfigurationDraftStore,
   usePluginMutation,
@@ -58,21 +51,6 @@ const styles = stylex.create({
       gridTemplateColumns: "minmax(0, 1fr) 88px",
     },
   },
-  detailsColumnHeading: {
-    alignItems: "center",
-    borderInlineStartColor: tokens.colorBorderTertiary,
-    borderInlineStartStyle: "solid",
-    borderInlineStartWidth: 1,
-    color: tokens.colorContentTertiary,
-    display: "flex",
-    fontSize: 11,
-    fontWeight: 500,
-    height: "100%",
-    paddingInline: 14,
-    "@media (max-width: 1120px)": {
-      display: "none",
-    },
-  },
   header: {
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
@@ -84,42 +62,10 @@ const styles = stylex.create({
     flexShrink: 0,
     gap: tokens.space3,
   },
-  headerStatusLabel: {
-    "@media (max-width: 560px)": {
-      display: "none",
-    },
-  },
-  headerStatus: {
-    alignItems: "center",
-    color: tokens.colorContentTertiary,
-    display: "inline-flex",
-    fontSize: 11,
-    gap: tokens.space2,
-  },
   headerSubrow: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
     paddingInline: 0,
-    "@media (max-width: 1120px)": {
-      gridTemplateColumns: "minmax(0, 1fr)",
-    },
   },
   identity: { display: "grid", gap: 2, minWidth: 0 },
-  inspector: {
-    borderInlineStartColor: tokens.colorBorderTertiary,
-    borderInlineStartStyle: "solid",
-    borderInlineStartWidth: 1,
-    minWidth: 0,
-    overflowX: "hidden",
-    overflowY: "auto",
-    "@media (max-width: 1120px)": {
-      borderBlockStartColor: tokens.colorBorderTertiary,
-      borderBlockStartStyle: "solid",
-      borderBlockStartWidth: 1,
-      borderInlineStartStyle: "none",
-      minHeight: 280,
-    },
-  },
   mono: {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
   },
@@ -168,15 +114,10 @@ const styles = stylex.create({
     outlineOffset: -2,
     paddingInline: 6,
     textAlign: "left",
+    textDecoration: "none",
     width: "calc(100% - 16px)",
     "@media (max-width: 720px)": {
       gridTemplateColumns: "minmax(0, 1fr) 88px",
-    },
-  },
-  rowSelected: {
-    backgroundColor: {
-      default: tokens.colorSurfaceSelected,
-      ":hover": tokens.colorSurfaceSelected,
     },
   },
   secondary: {
@@ -211,17 +152,6 @@ const styles = stylex.create({
     minWidth: 0,
     overflow: "auto",
   },
-  workbenchNotice: {
-    alignItems: "center",
-    backgroundColor: tokens.colorSurfaceSubtle,
-    color: tokens.colorContentSecondary,
-    display: "flex",
-    fontSize: 12,
-    gridColumn: "1 / -1",
-    lineHeight: "18px",
-    height: "100%",
-    paddingInline: 14,
-  },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
     clipPath: "inset(50%)",
@@ -230,16 +160,6 @@ const styles = stylex.create({
     position: "absolute",
     whiteSpace: "nowrap",
     width: 1,
-  },
-  workspace: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) minmax(300px, 340px)",
-    minHeight: 0,
-    overflow: "hidden",
-    "@media (max-width: 1120px)": {
-      display: "block",
-      overflow: "auto",
-    },
   },
 });
 
@@ -277,17 +197,9 @@ function AgentPluginWorkbench({
   );
   const plugins = workbench.data?.items ?? EMPTY_PLUGIN_ITEMS;
   const inventory = workbench.data?.inventory;
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [workbenchNotice, setWorkbenchNotice] = useState<string | null>(null);
-  const { request } = usePluginAgentWorkbench();
+  const navigate = useNavigate();
+  const { completeRequest, request } = usePluginAgentWorkbench();
   const appliedRequestId = useRef(0);
-  const reconciledSelectedKey = reconcilePluginSelectionKey(
-    selectedKey,
-    workbench.data ? plugins : undefined
-  );
-  const selected =
-    plugins.find((plugin) => pluginKey(plugin) === reconciledSelectedKey) ??
-    plugins[0];
   const configurationDraftStore = usePluginConfigurationDraftStore();
   useEffect(() => {
     if (!workbench.data) {
@@ -316,23 +228,29 @@ function AgentPluginWorkbench({
       return;
     }
     appliedRequestId.current = request.id;
-    setSelectedKey(result.selectedKey);
-    setWorkbenchNotice(result.notice);
-  }, [configurationDraftStore, request, selectedAgent.id, workbench.data]);
+    const requestedPlugin = workbench.data.items.find(
+      (plugin) => pluginKey(plugin) === result.selectedKey
+    );
+    if (requestedPlugin) {
+      completeRequest(request.id);
+      navigate({
+        params: {
+          agentId: selectedAgent.id,
+          instanceKey: requestedPlugin.instanceKey,
+          packageId: requestedPlugin.packageId,
+        },
+        to: "/plugins/$agentId/$packageId/$instanceKey",
+      });
+    }
+  }, [
+    configurationDraftStore,
+    completeRequest,
+    navigate,
+    request,
+    selectedAgent.id,
+    workbench.data,
+  ]);
   const mutation = usePluginMutation(selectedAgent.id, inventory?.streamId);
-  const generation = inventory
-    ? generationStatusPresentation({
-        inventory,
-        operation: mutation.operation,
-      })
-    : null;
-  const degradedDescription = workbench.data
-    ? workbench.error instanceof Error
-      ? `Showing the last verified Plugin state while the Host reconnects: ${workbench.error.message}`
-      : workbench.authoringEnabled
-        ? null
-        : "Plugin changes are paused until the Host authoring and runtime revisions agree."
-    : null;
   return (
     <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
       <PageHeader.Root
@@ -360,26 +278,6 @@ function AgentPluginWorkbench({
           <PageHeader.Spacer />
           <PageHeader.Actions>
             <div {...stylex.props(styles.headerActions)}>
-              {generation ? (
-                <span
-                  title={generation.description}
-                  {...stylex.props(styles.headerStatus)}
-                >
-                  <StatusMarker presentation="dot" status={generation.tone} />
-                  <span {...stylex.props(styles.headerStatusLabel)}>
-                    {generation.label}
-                  </span>
-                </span>
-              ) : null}
-              {degradedDescription ? (
-                <output
-                  title={degradedDescription}
-                  {...stylex.props(styles.headerStatus)}
-                >
-                  <StatusMarker presentation="dot" status="warning" />
-                  Changes paused
-                </output>
-              ) : null}
               <InstallPluginDialog
                 disabled={
                   !workbench.authoringEnabled ||
@@ -409,28 +307,11 @@ function AgentPluginWorkbench({
           </PageHeader.Actions>
         </PageHeader.Row>
         <PageHeader.TabsRow xstyle={styles.headerSubrow}>
-          {workbenchNotice ? (
-            <output
-              aria-live="polite"
-              {...stylex.props(styles.workbenchNotice)}
-            >
-              {workbenchNotice}
-            </output>
-          ) : (
-            <>
-              <div aria-hidden="true" {...stylex.props(styles.columns)}>
-                <span>Plugin</span>
-                <span {...stylex.props(styles.packageColumn)}>Package</span>
-                <span>Status</span>
-              </div>
-              <span
-                aria-hidden="true"
-                {...stylex.props(styles.detailsColumnHeading)}
-              >
-                Details
-              </span>
-            </>
-          )}
+          <div aria-hidden="true" {...stylex.props(styles.columns)}>
+            <span>Plugin</span>
+            <span {...stylex.props(styles.packageColumn)}>Package</span>
+            <span>Status</span>
+          </div>
         </PageHeader.TabsRow>
       </PageHeader.Root>
       <h1 id="plugins-heading" {...stylex.props(styles.visuallyHidden)}>
@@ -477,85 +358,56 @@ function AgentPluginWorkbench({
           title="No Plugins installed"
         />
       ) : (
-        <div {...stylex.props(styles.workspace)}>
-          <section
-            aria-labelledby="plugins-heading"
-            {...stylex.props(styles.tableRegion)}
-          >
-            {plugins.map((plugin) => {
-              const state = pluginStatusPresentation({
-                inventory,
-                item: plugin,
-                mutation: mutation.variables,
-                operation: mutation.operation,
-              });
-              return (
-                <button
-                  aria-pressed={
-                    selected && pluginKey(selected) === pluginKey(plugin)
-                  }
-                  key={pluginKey(plugin)}
-                  onClick={() => {
-                    mutation.reset();
-                    setSelectedKey(pluginKey(plugin));
-                  }}
-                  type="button"
-                  {...stylex.props(
-                    styles.row,
-                    selected &&
-                      pluginKey(selected) === pluginKey(plugin) &&
-                      styles.rowSelected
-                  )}
-                >
-                  <span {...stylex.props(styles.identity)}>
-                    <span {...stylex.props(styles.primary)}>
-                      {plugin.packageId}/{plugin.instanceKey}
-                    </span>
-                    <span {...stylex.props(styles.secondary)}>
-                      {pluginOriginLabel(plugin)}
-                    </span>
+        <section
+          aria-labelledby="plugins-heading"
+          {...stylex.props(styles.tableRegion)}
+        >
+          {plugins.map((plugin) => {
+            const state = pluginStatusPresentation({
+              inventory,
+              item: plugin,
+              mutation: mutation.variables,
+              operation: mutation.operation,
+            });
+            return (
+              <Link
+                key={pluginKey(plugin)}
+                params={{
+                  agentId: selectedAgent.id,
+                  instanceKey: plugin.instanceKey,
+                  packageId: plugin.packageId,
+                }}
+                to="/plugins/$agentId/$packageId/$instanceKey"
+                {...stylex.props(styles.row)}
+              >
+                <span {...stylex.props(styles.identity)}>
+                  <span {...stylex.props(styles.primary)}>
+                    {plugin.packageId}/{plugin.instanceKey}
                   </span>
-                  <span
-                    {...stylex.props(styles.identity, styles.packageColumn)}
-                  >
-                    <span {...stylex.props(styles.secondary, styles.mono)}>
-                      {plugin.packageId}
-                    </span>
-                    <span {...stylex.props(styles.secondary)}>
-                      {plugin.active &&
-                      plugin.desired &&
-                      !pluginSelectionIdentityMatches(
-                        plugin.active,
-                        plugin.desired
-                      )
-                        ? `${plugin.active.packageRevision} → ${plugin.desired.packageRevision}`
-                        : plugin.packageRevision || "linked"}
-                    </span>
+                  <span {...stylex.props(styles.secondary)}>
+                    {pluginOriginLabel(plugin)}
                   </span>
-                  <PluginStatus state={state} />
-                </button>
-              );
-            })}
-          </section>
-
-          <aside
-            aria-label="Plugin details"
-            {...stylex.props(styles.inspector)}
-          >
-            {selected && inventory && workbench.data ? (
-              <PluginInspector
-                agentId={selectedAgent.id}
-                authoringEnabled={workbench.authoringEnabled}
-                configurationDraftStore={configurationDraftStore}
-                inventory={inventory}
-                key={pluginKey(selected)}
-                management={workbench.data.management}
-                mutation={mutation}
-                plugin={selected}
-              />
-            ) : null}
-          </aside>
-        </div>
+                </span>
+                <span {...stylex.props(styles.identity, styles.packageColumn)}>
+                  <span {...stylex.props(styles.secondary, styles.mono)}>
+                    {plugin.packageId}
+                  </span>
+                  <span {...stylex.props(styles.secondary)}>
+                    {plugin.active &&
+                    plugin.desired &&
+                    !pluginSelectionIdentityMatches(
+                      plugin.active,
+                      plugin.desired
+                    )
+                      ? `${plugin.active.packageRevision} → ${plugin.desired.packageRevision}`
+                      : plugin.packageRevision || "linked"}
+                  </span>
+                </span>
+                <PluginStatus state={state} />
+              </Link>
+            );
+          })}
+        </section>
       )}
     </div>
   );

@@ -148,7 +148,14 @@ function PluginChangeReceiptCard({
       instanceKey: receipt.instanceKey,
       packageId: receipt.packageId,
     });
-    navigate({ to: "/plugins" });
+    navigate({
+      params: {
+        agentId: receipt.agentId,
+        instanceKey: receipt.instanceKey,
+        packageId: receipt.packageId,
+      },
+      to: "/plugins/$agentId/$packageId/$instanceKey",
+    });
   };
   return (
     <section {...stylex.props(styles.card)}>
@@ -208,6 +215,21 @@ function PluginInspectionReceiptCard({
         intent: "inspection",
         packageId: receipt.packageId,
       });
+      const requestedInstanceKey =
+        receipt.kind === "history"
+          ? receipt.instanceKey
+          : onlyInstance?.instanceKey;
+      if (requestedInstanceKey) {
+        navigate({
+          params: {
+            agentId: receipt.agentId,
+            instanceKey: requestedInstanceKey,
+            packageId: receipt.packageId,
+          },
+          to: "/plugins/$agentId/$packageId/$instanceKey",
+        });
+        return;
+      }
     } else {
       requestWorkbench({ agentId: receipt.agentId });
     }
