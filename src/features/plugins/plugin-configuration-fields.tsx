@@ -114,7 +114,6 @@ export function PluginConfigurationFields({
       : []
   );
   const parsed = useMemo(() => parseConfiguration(toml), [toml]);
-  const values = parsed ? { ...defaults, ...parsed } : null;
 
   if (properties.length === 0) {
     return (
@@ -123,7 +122,7 @@ export function PluginConfigurationFields({
       </p>
     );
   }
-  if (!values) {
+  if (!parsed) {
     return (
       <p role="alert" {...stylex.props(styles.empty)}>
         The current configuration is not valid TOML. Fix it in Advanced before
@@ -131,12 +130,13 @@ export function PluginConfigurationFields({
       </p>
     );
   }
+  const values = { ...defaults, ...parsed };
 
   const update = (name: string, value: unknown) => {
-    const next = { ...(parsed ?? {}) };
-    if (value === undefined) {
-      delete next[name];
-    } else {
+    const next = Object.fromEntries(
+      Object.entries(parsed).filter(([key]) => key !== name)
+    );
+    if (value !== undefined) {
       next[name] = value;
     }
     onChange(stringify(next));
@@ -217,7 +217,7 @@ function ConfigurationControl({
         value={typeof value === "string" ? value : ""}
         {...stylex.props(styles.input)}
       >
-        {!required ? <option value="">Not set</option> : null}
+        {required ? null : <option value="">Not set</option>}
         {property.enum.map((option) => (
           <option key={String(option)} value={String(option)}>
             {humanize(String(option))}

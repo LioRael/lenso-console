@@ -1,5 +1,6 @@
 import {
   assertPluginInventoryPage,
+  type JsonObject,
   type ManagedPluginInstance,
   type PluginConfigurationHistory,
   type PluginInventory,
@@ -9,8 +10,8 @@ import {
 
 export type PluginWorkbenchItem = {
   active: PluginSelectionItem | null;
-  configurationDefaults: import("./plugin-control-contract").JsonObject;
-  configurationSchema: import("./plugin-control-contract").JsonObject | null;
+  configurationDefaults: JsonObject;
+  configurationSchema: JsonObject | null;
   desired: PluginSelectionItem | null;
   instanceKey: string;
   management: ManagedPluginInstance | null;
@@ -209,10 +210,8 @@ export function pluginWorkbenchItems(
   const packageDetails = new Map<
     string,
     {
-      configurationDefaults: import("./plugin-control-contract").JsonObject;
-      configurationSchema:
-        | import("./plugin-control-contract").JsonObject
-        | null;
+      configurationDefaults: JsonObject;
+      configurationSchema: JsonObject | null;
       packageRevision: string;
       rootSupplied: boolean;
     }
