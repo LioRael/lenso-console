@@ -276,9 +276,18 @@ async function renderPanel(
     getParentRoute: () => rootRoute,
     path: "/plugins",
   });
+  const pluginDetailRoute = createRoute({
+    component: PluginWorkbenchRequestProbe,
+    getParentRoute: () => rootRoute,
+    path: "/plugins/$agentId/$packageId/$instanceKey",
+  });
   const router = createRouter({
     history: createMemoryHistory({ initialEntries: ["/"] }),
-    routeTree: rootRoute.addChildren([panelRoute, pluginsRoute]),
+    routeTree: rootRoute.addChildren([
+      panelRoute,
+      pluginsRoute,
+      pluginDetailRoute,
+    ]),
   });
   flushSync(() => {
     root?.render(<RouterProvider router={router} />);

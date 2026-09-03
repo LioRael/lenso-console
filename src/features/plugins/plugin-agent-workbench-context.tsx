@@ -25,6 +25,7 @@ export type PluginWorkbenchRequest = {
 };
 
 type PluginAgentWorkbenchState = {
+  completeRequest: (requestId: number) => void;
   request: PluginWorkbenchRequest | null;
   requestWorkbench: (request: Omit<PluginWorkbenchRequest, "id">) => void;
 };
@@ -43,9 +44,12 @@ export function PluginAgentWorkbenchProvider({ children }: PropsWithChildren) {
     },
     []
   );
+  const completeRequest = useCallback((requestId: number) => {
+    setRequest((current) => (current?.id === requestId ? null : current));
+  }, []);
   const value = useMemo(
-    () => ({ request, requestWorkbench }),
-    [request, requestWorkbench]
+    () => ({ completeRequest, request, requestWorkbench }),
+    [completeRequest, request, requestWorkbench]
   );
   return (
     <PluginAgentWorkbenchContext.Provider value={value}>

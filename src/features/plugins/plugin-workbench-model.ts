@@ -9,6 +9,8 @@ import {
 
 export type PluginWorkbenchItem = {
   active: PluginSelectionItem | null;
+  configurationDefaults: import("./plugin-control-contract").JsonObject;
+  configurationSchema: import("./plugin-control-contract").JsonObject | null;
   desired: PluginSelectionItem | null;
   instanceKey: string;
   management: ManagedPluginInstance | null;
@@ -79,6 +81,27 @@ export const demoPluginManagement: PluginManagement = {
   },
   plugins: [
     {
+      configurationDefaults: {
+        max_steps: 12,
+        model: "gpt-5.6-luna",
+      },
+      configurationSchema: {
+        additionalProperties: false,
+        properties: {
+          max_steps: {
+            description: "Maximum tool and reasoning steps for one turn.",
+            maximum: 64,
+            minimum: 1,
+            type: "integer",
+          },
+          model: {
+            description: "Model used by this Agent loop.",
+            type: "string",
+          },
+        },
+        required: ["model", "max_steps"],
+        type: "object",
+      },
       instances: [
         {
           disableable: false,
@@ -185,10 +208,19 @@ export function pluginWorkbenchItems(
   const managed = new Map<string, ManagedPluginInstance>();
   const packageDetails = new Map<
     string,
-    { packageRevision: string; rootSupplied: boolean }
+    {
+      configurationDefaults: import("./plugin-control-contract").JsonObject;
+      configurationSchema:
+        | import("./plugin-control-contract").JsonObject
+        | null;
+      packageRevision: string;
+      rootSupplied: boolean;
+    }
   >();
   for (const plugin of management.plugins) {
     packageDetails.set(plugin.packageId, {
+      configurationDefaults: plugin.configurationDefaults,
+      configurationSchema: plugin.configurationSchema,
       packageRevision: plugin.packageRevision,
       rootSupplied: plugin.rootSupplied,
     });
@@ -210,6 +242,8 @@ export function pluginWorkbenchItems(
       const details = packageDetails.get(packageId);
       return {
         active: active.get(key) ?? null,
+        configurationDefaults: details?.configurationDefaults ?? {},
+        configurationSchema: details?.configurationSchema ?? null,
         desired: desired.get(key) ?? null,
         instanceKey,
         management: managed.get(key) ?? null,
