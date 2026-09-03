@@ -1,55 +1,13 @@
-use std::{
-    net::SocketAddr,
-    path::{Path, PathBuf},
-    process::ExitCode,
-};
+use std::{path::PathBuf, process::ExitCode, time::Duration};
 
 use directories::BaseDirs;
-use lenso_agent_web::{
-    AgentWebAccess, AgentWebConfig, AgentWebControl, AgentWebSurface,
-    PluginConfigurationStoreConfig, RemotePluginConfigurationConfig,
-    RemotePluginConfigurationResource, TrustedPluginBundle,
-};
 use lenso_console_plugin::{ConsoleConfig, serve};
+use tokio::process::{Child, Command};
 
-const DEFAULT_AGENT_ADDRESS: &str = "127.0.0.1:8787";
-const AUTHORITY_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY";
-const STORE_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_STORE";
-const REMOTE_URL_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_URL";
-const REMOTE_APP_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_APP";
-const REMOTE_ENVIRONMENT_ENV: &str = "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_ENVIRONMENT";
-const REMOTE_TOKEN_ENV: &str = "LENSO_PLUGIN_CONFIGURATION_REMOTE_TOKEN";
-const TRUSTED_BUNDLES_ENV: &str = "LENSO_AGENT_TRUSTED_PLUGIN_BUNDLES";
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AgentConfigurationAuthorityKind {
-    Local,
-    Remote,
-    Sqlite,
-}
-
-#[derive(Default)]
-struct AgentAuthorityEnvironment {
-    selection: Option<String>,
-    store: Option<PathBuf>,
-    remote_url: Option<String>,
-    remote_app: Option<String>,
-    remote_environment: Option<String>,
-    remote_token: Option<String>,
-}
-
-impl AgentAuthorityEnvironment {
-    fn load() -> Self {
-        Self {
-            selection: std::env::var(AUTHORITY_ENV).ok(),
-            store: std::env::var_os(STORE_ENV).map(PathBuf::from),
-            remote_url: std::env::var(REMOTE_URL_ENV).ok(),
-            remote_app: std::env::var(REMOTE_APP_ENV).ok(),
-            remote_environment: std::env::var(REMOTE_ENVIRONMENT_ENV).ok(),
-            remote_token: std::env::var(REMOTE_TOKEN_ENV).ok(),
-        }
-    }
-}
+const APP_AGENT_ADDRESS: &str = "127.0.0.1:8787";
+const APP_AGENT_ORIGIN: &str = "http://127.0.0.1:8787";
+const CONSOLE_AGENT_ADDRESS: &str = "127.0.0.1:8788";
+const CONSOLE_AGENT_ORIGIN: &str = "http://127.0.0.1:8788";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
@@ -65,327 +23,203 @@ async fn main() -> ExitCode {
 
 async fn run() -> anyhow::Result<()> {
     lenso_console_plugin::link();
-    let agent_address = agent_address()?;
-    let agent_listener = tokio::net::TcpListener::bind(agent_address).await?;
-    let agent_address = agent_listener.local_addr()?;
-    let agent_home = agent_home()?;
-    let console = ConsoleConfig::load()?
-        .with_app_agent_management(&format!("http://{agent_address}"), "Lenso Agent")?;
-    let mut agent_config = AgentWebConfig::new(lenso_agent_default_plugins::link);
-    agent_config.access = AgentWebAccess::Local;
-    agent_config.agent_home = Some(agent_home.clone());
-    agent_config.control = AgentWebControl::HostAuthorized;
-    agent_config.plugin_control = true;
-    configure_agent_authority(&mut agent_config, &agent_home)?;
-    agent_config.trusted_plugin_bundles =
-        parse_trusted_bundles(std::env::var(TRUSTED_BUNDLES_ENV).ok().as_deref())?;
-    let agent = AgentWebSurface::start(agent_config)
-        .await
-        .map_err(anyhow::Error::msg)?;
-    let (stop_agent, agent_shutdown) = tokio::sync::oneshot::channel();
-    let agent_router = agent.router();
-    let agent_server = tokio::task::spawn_local(async move {
-        axum::serve(agent_listener, agent_router)
-            .with_graceful_shutdown(async move {
-                let _ = agent_shutdown.await;
-            })
+    let app_agent_binary =
+        std::env::var_os("LENSO_AGENT_WEB_BIN").unwrap_or_else(|| "lenso-agent-web".into());
+    let console_agent_binary = std::env::var_os("LENSO_CONSOLE_AGENT_WEB_BIN")
+        .unwrap_or_else(|| "lenso-agent-console-web".into());
+    let console_home = console_home()?;
+    let control_token = uuid::Uuid::new_v4().simple().to_string();
+
+    let mut app_command = Command::new(&app_agent_binary);
+    app_command
+        .arg("--listen")
+        .arg(APP_AGENT_ADDRESS)
+        .arg("--plugin-control")
+        .env_remove("LENSO_AGENT_DATA_PLANE_TOKEN")
+        .env("LENSO_AGENT_HOME", agent_home()?)
+        .env("LENSO_AGENT_CONTROL_TOKEN", &control_token);
+    configure_app_agent_authority(&mut app_command)?;
+    append_trusted_bundles(&mut app_command, "LENSO_AGENT_TRUSTED_PLUGIN_BUNDLES")?;
+
+    let mut console_command = Command::new(&console_agent_binary);
+    console_command
+        .arg("--listen")
+        .arg(CONSOLE_AGENT_ADDRESS)
+        .arg("--plugin-control")
+        .arg("--plugin-configuration-store")
+        .arg(console_home.join("agent-configuration.sqlite3"))
+        .arg("--tool-policy")
+        .arg(console_home.join("agent/tool-policy.json"))
+        .arg("--managed-agent")
+        .arg(format!("app={APP_AGENT_ORIGIN}"))
+        .env_remove("LENSO_AGENT_DATA_PLANE_TOKEN")
+        .env("LENSO_AGENT_HOME", console_home.join("agent"))
+        .env("LENSO_AGENT_CONTROL_TOKEN", &control_token);
+    for tool in configured_console_agent_tools()? {
+        console_command.arg("--allow-tool").arg(tool);
+    }
+    append_trusted_bundles(&mut console_command, "LENSO_CONSOLE_TRUSTED_PLUGIN_BUNDLES")?;
+
+    let mut app_agent = spawn(&mut app_command, "App Agent")?;
+    wait_until_ready(APP_AGENT_ORIGIN, "App Agent").await?;
+    let mut console_agent = spawn(&mut console_command, "Console Agent")?;
+    wait_until_ready(CONSOLE_AGENT_ORIGIN, "Console Agent").await?;
+
+    let config = ConsoleConfig::load()?
+        .with_console_agent(CONSOLE_AGENT_ORIGIN, Some(control_token.clone()))?
+        .with_app_agent_management_token(APP_AGENT_ORIGIN, "Lenso Agent", &control_token)?;
+    let result = serve(config, shutdown_signal()).await;
+    stop(&mut console_agent).await;
+    stop(&mut app_agent).await;
+    result
+}
+
+fn spawn(command: &mut Command, label: &str) -> anyhow::Result<Child> {
+    command.kill_on_drop(true);
+    command
+        .spawn()
+        .map_err(|error| anyhow::anyhow!("failed to start {label}: {error}"))
+}
+
+async fn stop(child: &mut Child) {
+    let _ = child.start_kill();
+    let _ = child.wait().await;
+}
+
+async fn wait_until_ready(origin: &str, label: &str) -> anyhow::Result<()> {
+    let client = reqwest::Client::new();
+    let url = format!("{origin}/api/console/v1/agent/bootstrap");
+    for _ in 0..100 {
+        if client
+            .get(&url)
+            .send()
             .await
-    });
-    println!("Connected Lenso Agent listening on http://{agent_address}");
-
-    let console_result = serve(console, shutdown_signal()).await;
-    let _ = stop_agent.send(());
-    let agent_server_result = agent_server
-        .await
-        .map_err(|error| anyhow::anyhow!("Agent Web server task failed: {error}"))?;
-    let agent_shutdown_result = agent.shutdown().await.map_err(anyhow::Error::msg);
-    console_result?;
-    agent_server_result?;
-    agent_shutdown_result
+            .is_ok_and(|response| response.status().is_success())
+        {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    anyhow::bail!("{label} did not become ready at {origin}")
 }
 
-fn parse_trusted_bundles(value: Option<&str>) -> anyhow::Result<Vec<TrustedPluginBundle>> {
-    let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) else {
-        return Ok(Vec::new());
-    };
-    let entries = serde_json::from_str::<std::collections::BTreeMap<String, PathBuf>>(value)
-        .map_err(|error| anyhow::anyhow!("{TRUSTED_BUNDLES_ENV} must be a JSON object: {error}"))?;
-    entries
-        .into_iter()
-        .map(|(id, path)| TrustedPluginBundle::new(id, path).map_err(anyhow::Error::msg))
-        .collect()
-}
-
-fn agent_address() -> anyhow::Result<SocketAddr> {
-    let value = std::env::var("LENSO_AGENT_WEB_LISTEN")
-        .unwrap_or_else(|_| DEFAULT_AGENT_ADDRESS.to_owned());
-    let address = value.parse::<SocketAddr>()?;
-    anyhow::ensure!(
-        address.ip().is_loopback(),
-        "LENSO_AGENT_WEB_LISTEN must be a loopback address"
-    );
-    Ok(address)
+fn console_home() -> anyhow::Result<PathBuf> {
+    std::env::var_os("LENSO_CONSOLE_HOME").map_or_else(
+        || {
+            BaseDirs::new()
+                .map(|base| base.home_dir().join(".lenso/console"))
+                .ok_or_else(|| anyhow::anyhow!("the user home directory is unavailable"))
+        },
+        |value| absolute_path(value.into(), "LENSO_CONSOLE_HOME"),
+    )
 }
 
 fn agent_home() -> anyhow::Result<PathBuf> {
-    let home = std::env::var_os("LENSO_AGENT_HOME").map_or_else(
+    std::env::var_os("LENSO_AGENT_HOME").map_or_else(
         || {
             BaseDirs::new()
                 .map(|base| base.home_dir().join(".lenso/agent"))
                 .ok_or_else(|| anyhow::anyhow!("the user home directory is unavailable"))
         },
-        |value| Ok(PathBuf::from(value)),
-    )?;
-    anyhow::ensure!(
-        home.is_absolute(),
-        "LENSO_AGENT_HOME must be an absolute path"
-    );
-    Ok(home)
+        |value| absolute_path(value.into(), "LENSO_AGENT_HOME"),
+    )
 }
 
-fn configure_agent_authority(config: &mut AgentWebConfig, agent_home: &Path) -> anyhow::Result<()> {
-    configure_agent_authority_from(config, agent_home, AgentAuthorityEnvironment::load())
+fn absolute_path(value: PathBuf, name: &str) -> anyhow::Result<PathBuf> {
+    anyhow::ensure!(value.is_absolute(), "{name} must be an absolute path");
+    Ok(value)
 }
 
-fn configure_agent_authority_from(
-    config: &mut AgentWebConfig,
-    agent_home: &Path,
-    environment: AgentAuthorityEnvironment,
-) -> anyhow::Result<()> {
-    let AgentAuthorityEnvironment {
-        selection,
-        store,
-        remote_url,
-        remote_app,
-        remote_environment,
-        remote_token,
-    } = environment;
-    let kind = parse_authority_kind(selection.as_deref())?;
-    match kind {
-        AgentConfigurationAuthorityKind::Local => {
-            reject_present(store.is_some(), STORE_ENV, kind)?;
-            reject_remote_settings(
-                kind,
-                remote_url.as_ref(),
-                remote_app.as_ref(),
-                remote_environment.as_ref(),
-                remote_token.as_ref(),
-            )?;
+fn configure_app_agent_authority(command: &mut Command) -> anyhow::Result<()> {
+    let kind = std::env::var("LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY")
+        .unwrap_or_else(|_| "sqlite_configuration_store".to_owned());
+    match kind.as_str() {
+        "local_plugin_root" => {}
+        "sqlite_configuration_store" => {
+            let store = std::env::var_os("LENSO_AGENT_PLUGIN_CONFIGURATION_STORE")
+                .map(PathBuf::from)
+                .map_or_else(
+                    || agent_home().map(|home| home.join("plugin-configuration.sqlite3")),
+                    Ok,
+                )?;
+            command.arg("--plugin-configuration-store").arg(store);
         }
-        AgentConfigurationAuthorityKind::Sqlite => {
-            reject_remote_settings(
-                kind,
-                remote_url.as_ref(),
-                remote_app.as_ref(),
-                remote_environment.as_ref(),
-                remote_token.as_ref(),
-            )?;
-            let database = store.unwrap_or_else(|| agent_home.join("plugin-configuration.sqlite3"));
-            anyhow::ensure!(
-                database.is_absolute(),
-                "{STORE_ENV} must be an absolute path"
-            );
-            config.plugin_configuration_store =
-                Some(PluginConfigurationStoreConfig::new(database, "app-agent"));
+        "remote_configuration_service" => {
+            for (argument, variable) in [
+                (
+                    "--plugin-configuration-remote",
+                    "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_URL",
+                ),
+                (
+                    "--plugin-configuration-app",
+                    "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_APP",
+                ),
+                (
+                    "--plugin-configuration-environment",
+                    "LENSO_AGENT_PLUGIN_CONFIGURATION_REMOTE_ENVIRONMENT",
+                ),
+            ] {
+                command.arg(argument).arg(required_environment(variable)?);
+            }
         }
-        AgentConfigurationAuthorityKind::Remote => {
-            reject_present(store.is_some(), STORE_ENV, kind)?;
-            let service_url = required_setting(remote_url, REMOTE_URL_ENV, kind)?;
-            let app = required_setting(remote_app, REMOTE_APP_ENV, kind)?;
-            let environment = required_setting(remote_environment, REMOTE_ENVIRONMENT_ENV, kind)?;
-            let token = required_setting(remote_token, REMOTE_TOKEN_ENV, kind)?;
-            let resource = RemotePluginConfigurationResource::new(service_url, app, environment)
-                .map_err(|error| anyhow::anyhow!(error.to_string()))?;
-            config.plugin_configuration_remote = Some(
-                RemotePluginConfigurationConfig::new(resource, token)
-                    .map_err(|error| anyhow::anyhow!(error.to_string()))?,
-            );
-        }
+        _ => anyhow::bail!("unsupported LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY: {kind}"),
     }
     Ok(())
 }
 
-fn parse_authority_kind(value: Option<&str>) -> anyhow::Result<AgentConfigurationAuthorityKind> {
-    match value.map(str::trim).filter(|value| !value.is_empty()) {
-        None | Some("sqlite_configuration_store") => Ok(AgentConfigurationAuthorityKind::Sqlite),
-        Some("local_plugin_root") => Ok(AgentConfigurationAuthorityKind::Local),
-        Some("remote_configuration_service") => Ok(AgentConfigurationAuthorityKind::Remote),
-        Some(value) => anyhow::bail!(
-            "{AUTHORITY_ENV} must be local_plugin_root, sqlite_configuration_store, or remote_configuration_service; received `{value}`"
-        ),
-    }
-}
-
-fn reject_remote_settings(
-    kind: AgentConfigurationAuthorityKind,
-    url: Option<&String>,
-    app: Option<&String>,
-    environment: Option<&String>,
-    token: Option<&String>,
-) -> anyhow::Result<()> {
-    for (name, present) in [
-        (REMOTE_URL_ENV, url.is_some()),
-        (REMOTE_APP_ENV, app.is_some()),
-        (REMOTE_ENVIRONMENT_ENV, environment.is_some()),
-        (REMOTE_TOKEN_ENV, token.is_some()),
-    ] {
-        reject_present(present, name, kind)?;
-    }
-    Ok(())
-}
-
-fn reject_present(
-    present: bool,
-    name: &str,
-    kind: AgentConfigurationAuthorityKind,
-) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        !present,
-        "{name} conflicts with selected authority {}",
-        authority_kind_name(kind)
-    );
-    Ok(())
-}
-
-fn required_setting(
-    value: Option<String>,
-    name: &str,
-    kind: AgentConfigurationAuthorityKind,
-) -> anyhow::Result<String> {
-    value
+fn required_environment(name: &str) -> anyhow::Result<String> {
+    std::env::var(name)
+        .ok()
         .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| anyhow::anyhow!("{name} is required for {}", authority_kind_name(kind)))
+        .ok_or_else(|| anyhow::anyhow!("{name} is required"))
 }
 
-const fn authority_kind_name(kind: AgentConfigurationAuthorityKind) -> &'static str {
-    match kind {
-        AgentConfigurationAuthorityKind::Local => "local_plugin_root",
-        AgentConfigurationAuthorityKind::Remote => "remote_configuration_service",
-        AgentConfigurationAuthorityKind::Sqlite => "sqlite_configuration_store",
+fn append_trusted_bundles(command: &mut Command, name: &str) -> anyhow::Result<()> {
+    let Ok(value) = std::env::var(name) else {
+        return Ok(());
+    };
+    let entries = serde_json::from_str::<std::collections::BTreeMap<String, PathBuf>>(&value)
+        .map_err(|error| anyhow::anyhow!("{name} must be a JSON object: {error}"))?;
+    for (id, path) in entries {
+        anyhow::ensure!(path.is_absolute(), "{name} paths must be absolute");
+        command
+            .arg("--trusted-plugin-bundle")
+            .arg(format!("{id}={}", path.display()));
+    }
+    Ok(())
+}
+
+fn configured_console_agent_tools() -> anyhow::Result<Vec<String>> {
+    match std::env::var("LENSO_CONSOLE_AGENT_TOOLS") {
+        Ok(value) => Ok(value
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .collect()),
+        Err(std::env::VarError::NotPresent) => Ok([
+            "inspect_app",
+            "list_plugins",
+            "inspect_plugin",
+            "check_plugin_change",
+            "apply_plugin_change",
+            "list_plugin_changes",
+            "check_plugin_rollback",
+            "apply_plugin_rollback",
+            "set_plugin_enabled",
+            "list_available_plugins",
+            "check_plugin_install",
+            "apply_plugin_install",
+            "check_plugin_removal",
+            "apply_plugin_removal",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()),
+        Err(error) => Err(error.into()),
     }
 }
 
 async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn test_config() -> AgentWebConfig {
-        AgentWebConfig::new(|| {})
-    }
-
-    #[test]
-    fn default_agent_address_is_loopback() {
-        let address = DEFAULT_AGENT_ADDRESS.parse::<SocketAddr>().unwrap();
-        assert!(address.ip().is_loopback());
-    }
-
-    #[test]
-    fn authority_selection_accepts_exact_host_kinds() {
-        assert_eq!(
-            parse_authority_kind(None).unwrap(),
-            AgentConfigurationAuthorityKind::Sqlite
-        );
-        assert_eq!(
-            parse_authority_kind(Some("local_plugin_root")).unwrap(),
-            AgentConfigurationAuthorityKind::Local
-        );
-        assert_eq!(
-            parse_authority_kind(Some("remote_configuration_service")).unwrap(),
-            AgentConfigurationAuthorityKind::Remote
-        );
-        assert!(parse_authority_kind(Some("custom")).is_err());
-    }
-
-    #[test]
-    fn trusted_bundle_catalog_keeps_paths_in_host_configuration() {
-        let bundles = parse_trusted_bundles(Some(
-            r#"{"reviewed.tools":"/opt/lenso/plugins/reviewed-tools"}"#,
-        ))
-        .unwrap();
-
-        assert_eq!(bundles.len(), 1);
-        assert_eq!(bundles[0].id, "reviewed.tools");
-        assert_eq!(
-            bundles[0].path,
-            PathBuf::from("/opt/lenso/plugins/reviewed-tools")
-        );
-        assert!(parse_trusted_bundles(Some(r#"{"reviewed":"relative"}"#)).is_err());
-    }
-
-    #[test]
-    fn authority_selection_defaults_to_durable_sqlite() {
-        let mut config = test_config();
-        configure_agent_authority_from(
-            &mut config,
-            Path::new("/agent-home"),
-            AgentAuthorityEnvironment::default(),
-        )
-        .unwrap();
-
-        assert!(config.plugin_configuration_store.is_some());
-        assert!(config.plugin_configuration_remote.is_none());
-    }
-
-    #[test]
-    fn local_authority_rejects_remote_credentials() {
-        let mut config = test_config();
-        let error = configure_agent_authority_from(
-            &mut config,
-            Path::new("/agent-home"),
-            AgentAuthorityEnvironment {
-                selection: Some("local_plugin_root".to_owned()),
-                remote_token: Some("must-not-be-ignored".to_owned()),
-                ..AgentAuthorityEnvironment::default()
-            },
-        )
-        .unwrap_err();
-
-        assert!(error.to_string().contains(REMOTE_TOKEN_ENV));
-        assert!(config.plugin_configuration_store.is_none());
-        assert!(config.plugin_configuration_remote.is_none());
-    }
-
-    #[test]
-    fn remote_authority_requires_every_resource_coordinate() {
-        let mut config = test_config();
-        let error = configure_agent_authority_from(
-            &mut config,
-            Path::new("/agent-home"),
-            AgentAuthorityEnvironment {
-                selection: Some("remote_configuration_service".to_owned()),
-                remote_url: Some("https://configuration.example.com".to_owned()),
-                remote_app: Some("agent".to_owned()),
-                remote_token: Some("secret".to_owned()),
-                ..AgentAuthorityEnvironment::default()
-            },
-        )
-        .unwrap_err();
-
-        assert!(error.to_string().contains(REMOTE_ENVIRONMENT_ENV));
-    }
-
-    #[test]
-    fn remote_authority_is_selected_when_coordinates_are_complete() {
-        let mut config = test_config();
-        configure_agent_authority_from(
-            &mut config,
-            Path::new("/agent-home"),
-            AgentAuthorityEnvironment {
-                selection: Some("remote_configuration_service".to_owned()),
-                remote_url: Some("https://configuration.example.com".to_owned()),
-                remote_app: Some("agent".to_owned()),
-                remote_environment: Some("production".to_owned()),
-                remote_token: Some("secret".to_owned()),
-                ..AgentAuthorityEnvironment::default()
-            },
-        )
-        .unwrap();
-
-        assert!(config.plugin_configuration_store.is_none());
-        assert!(config.plugin_configuration_remote.is_some());
-    }
 }

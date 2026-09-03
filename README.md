@@ -3,9 +3,10 @@
 [![CI](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml)
 
 Lenso Console is the local management and Agent workspace for one Lenso App.
-The installable Service is one process: it starts a latest-generation Lenso
-Agent Host, links a reviewed Plugin inventory, and serves the React Shell and
-Agent HTTP/SSE surface from the same origin.
+The Console service owns the React Shell, Agent catalog, and same-origin proxy.
+The separately released `lenso-agent-web` binary owns Agent execution and its
+reviewed Plugin compositions; Console no longer links Agent's private Rust
+workspace.
 
 ## Run
 
@@ -15,6 +16,13 @@ To start a normal Harness together with its Console Web UI:
 pnpm install
 pnpm agent:web
 ```
+
+This launcher requires `lenso-agent-web` and `lenso-agent-console-web` v0.1.1
+or later on `PATH`; set `LENSO_AGENT_WEB_BIN` or
+`LENSO_CONSOLE_AGENT_WEB_BIN` to an absolute binary path for a nonstandard
+install. It starts separate loopback App Agent and Console Agent processes,
+then exposes both through Console's same-origin API. The generated Host-only
+control token never reaches the browser.
 
 Open `http://127.0.0.1:3030`. Console discovers two complete Agent identities:
 the App Agent (`Lenso Agent`) and Console's own `Console Agent`. Each Agent owns
@@ -32,13 +40,17 @@ App Agent Host. Trusted package lifecycle is separately exposed as
 `lenso.agent.plugin-package-management@1`; configuration authority does not
 imply package-source authority.
 
-To run Console without an App Agent:
+To run Console against an already-running Console Agent:
 
 ```sh
 pnpm install
 test -f service/.env || cp service/.env.example service/.env
 pnpm service:serve
 ```
+
+The Console Agent defaults to `http://127.0.0.1:8788`; override it with
+`LENSO_CONSOLE_AGENT_URL`. Privileged control requires the matching
+`LENSO_CONSOLE_AGENT_CONTROL_TOKEN` in both processes.
 
 Open `http://127.0.0.1:3030`.
 
@@ -91,8 +103,8 @@ must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `service`: the `lenso.console.web` lifecycle Plugin, reusable Console Surface,
-  and thin standalone launcher.
+- `service`: the `lenso.console.web` lifecycle Plugin, same-origin Agent proxy,
+  and thin supervisor for released Agent Web processes.
 - `src/routes`: Agent, Plugins, and Settings routes.
 - `src/features/agent`: Agent conversation, trajectory, history, editing, and
   ask-user UI.

@@ -14,23 +14,14 @@ name = "lenso-console"
 path = "src/main.rs"
 
 [[bin]]
-name = "lenso-agent-web"
+name = "lenso-console-with-agent"
 path = "src/agent_main.rs"
-required-features = ["agent-web"]
-
-[features]
-agent-web = ["dep:lenso-agent-default-plugins"]
 
 [dependencies]
 anyhow = "1.0"
 axum = "0.8"
 directories = "6.0"
 dotenvy = "0.15"
-lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc", default-features = false }
-lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc" }
-lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc" }
-lenso-agent-default-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc", optional = true }
-lenso-capability-agent-plugin-management-target = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc" }
 lenso = "0.5.0"
 lenso-kernel = "0.2.0"
 reqwest = { version = "0.12", default-features = false, features = [
@@ -43,12 +34,14 @@ serde_json = "1.0"
 tokio = { version = "1.52", features = [
   "macros",
   "net",
+  "process",
   "rt",
   "signal",
   "sync",
   "time",
 ] }
 tower-http = { version = "0.7", features = ["fs", "limit", "set-header"] }
+uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
 lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", default-features = false }
