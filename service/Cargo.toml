@@ -26,13 +26,13 @@ anyhow = "1.0"
 axum = "0.8"
 directories = "6.0"
 dotenvy = "0.15"
-lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3b767dbf2256a45f3caf65e46dc5cb5369c7ec36", default-features = false }
-lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3b767dbf2256a45f3caf65e46dc5cb5369c7ec36" }
-lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3b767dbf2256a45f3caf65e46dc5cb5369c7ec36" }
-lenso-agent-default-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3b767dbf2256a45f3caf65e46dc5cb5369c7ec36", optional = true }
-lenso-capability-agent-plugin-management-target = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3b767dbf2256a45f3caf65e46dc5cb5369c7ec36" }
-lenso = { version = "0.5.0", git = "https://github.com/LioRael/lenso-runtime-rust", rev = "89815107385475c8b5be378bdcf5e21aa74e02f0" }
-lenso-kernel = { version = "0.2.0", git = "https://github.com/LioRael/lenso", rev = "8599db7e4a214ed92f32089f81d14c833d4becf6" }
+lenso-agent-web = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc", default-features = false }
+lenso-agent-host = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc" }
+lenso-agent-console-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc" }
+lenso-agent-default-plugins = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc", optional = true }
+lenso-capability-agent-plugin-management-target = { version = "0.1.0", git = "https://github.com/LioRael/lenso-agent", rev = "3337439343ca65588b339e480385f746173231bc" }
+lenso = "0.5.0"
+lenso-kernel = "0.2.0"
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "rustls-tls",
@@ -51,7 +51,7 @@ tokio = { version = "1.52", features = [
 tower-http = { version = "0.7", features = ["fs", "limit", "set-header"] }
 
 [dev-dependencies]
-lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", git = "https://github.com/LioRael/lenso-cli", rev = "1a9155b7a8309882b81ca5bde305281594b07577", default-features = false }
+lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", default-features = false }
 tempfile = "3.27"
 
 [lints.rust]
