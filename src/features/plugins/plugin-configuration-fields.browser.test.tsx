@@ -21,7 +21,11 @@ afterEach(() => {
   container?.remove();
 });
 
-function renderFields(schema: JsonObject, initial: string) {
+function renderFields(
+  schema: JsonObject,
+  initial: string,
+  defaults: JsonObject = {}
+) {
   current = initial;
   container = document.createElement("div");
   document.body.append(container);
@@ -31,7 +35,7 @@ function renderFields(schema: JsonObject, initial: string) {
     return (
       <ThemeScope>
         <PluginConfigurationFields
-          defaults={{}}
+          defaults={defaults}
           disabled={false}
           schema={schema}
           toml={toml}
@@ -75,6 +79,55 @@ test("edits typed array items without trimming strings and respects collection b
   await expect
     .element(page.getByRole("button", { name: "Remove Label 1" }))
     .toBeDisabled();
+});
+
+test("restores one inherited field without promoting or removing sibling values", async () => {
+  renderFields(
+    {
+      type: "object",
+      properties: {
+        options: {
+          type: "object",
+          properties: { first: { type: "string" }, second: { type: "string" } },
+        },
+      },
+    },
+    '[options]\nfirst = "override"',
+    { options: { first: "default", second: "untouched" } }
+  );
+  await page
+    .getByRole("textbox", { name: "Second", exact: true })
+    .fill("edited");
+  expect(parse(current)).toEqual({
+    options: { first: "override", second: "edited" },
+  });
+  await page.getByRole("button", { name: "Reset First", exact: true }).click();
+  expect(parse(current)).toEqual({ options: { second: "edited" } });
+  await expect
+    .element(page.getByRole("textbox", { name: "First", exact: true }))
+    .toHaveValue("default");
+  await page.getByRole("button", { name: "Reset Second", exact: true }).click();
+  expect(parse(current)).toEqual({});
+});
+
+test("shows native format errors next to the field", async () => {
+  renderFields(
+    {
+      type: "object",
+      properties: {
+        code: { type: "string", pattern: "^[A-Z]+$" },
+        other: { type: "string" },
+      },
+    },
+    'code = "OK"'
+  );
+  await page.getByRole("textbox", { name: "Code", exact: true }).fill("wrong");
+  await page.getByRole("textbox", { name: "Other", exact: true }).click();
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("Use the required format.");
+  await page.getByRole("textbox", { name: "Code", exact: true }).fill("RIGHT");
+  await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
 });
 
 test("edits dynamic keys without overwriting collisions or changing fixed fields", async () => {

@@ -6,10 +6,20 @@ import { TextArea } from "@lenso/ui/text-area";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { parse, stringify } from "smol-toml";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
+import { editField, readField } from "./configuration-field-state";
 import { resolveConfigurationSchema } from "./plugin-configuration-schema";
 import type { JsonObject, JsonValue } from "./plugin-control-contract";
 
@@ -40,6 +50,12 @@ type SchemaProperty = JsonObject & {
 };
 
 const unsetSelectValue = "__lenso_configuration_unset__";
+const FieldSource = createContext<{
+  defaults: Record<string, unknown>;
+  overrides: Record<string, unknown>;
+  disabled: boolean;
+  update: (path: readonly string[], value: unknown) => void;
+} | null>(null);
 
 const styles = stylex.create({
   collection: {
@@ -180,6 +196,28 @@ export function PluginConfigurationFields({
   toml: string;
 }) {
   const parsed = useMemo(() => parseConfiguration(toml), [toml]);
+  const values = useMemo(
+    () => deepMerge(defaults, parsed ?? {}),
+    [defaults, parsed]
+  );
+  const resolved = useMemo(
+    () => resolveConfigurationSchema(schema, values),
+    [schema, values]
+  );
+  const readOnly = resolved?.readOnly === true;
+  const fieldSource = useMemo(
+    () => ({
+      defaults,
+      overrides: parsed ?? {},
+      disabled: disabled || readOnly,
+      update: (path: readonly string[], value: unknown) => {
+        if (parsed) {
+          onChange(stringify(editField(parsed, path, value)));
+        }
+      },
+    }),
+    [defaults, parsed, disabled, readOnly, onChange]
+  );
   if (!parsed) {
     return (
       <p role="alert" {...stylex.props(styles.empty)}>
@@ -188,8 +226,6 @@ export function PluginConfigurationFields({
       </p>
     );
   }
-  const values = deepMerge(defaults, parsed);
-  const resolved = resolveConfigurationSchema(schema, values);
   if (!resolved || resolved.writeOnly === true) {
     return <AdvancedFieldsNotice />;
   }
@@ -211,31 +247,33 @@ export function PluginConfigurationFields({
   };
 
   return (
-    <div {...stylex.props(styles.fields)}>
-      {properties.map(([name, property]) => (
-        <ConfigurationField
-          disabled={disabled || resolved.readOnly === true}
-          key={name}
-          name={name}
-          onChange={(value) => update(name, value)}
-          path={[name]}
-          property={property}
-          required={required.has(name)}
-          value={values[name]}
-        />
-      ))}
-      {isPlainObject(resolved.additionalProperties) ? (
-        <TypedMapControl
-          disabled={disabled || resolved.readOnly === true}
-          onChange={(value) =>
-            onChange(stringify(value as Record<string, unknown>))
-          }
-          path={[]}
-          schema={resolved as SchemaProperty}
-          value={parsed}
-        />
-      ) : null}
-    </div>
+    <FieldSource value={fieldSource}>
+      <div {...stylex.props(styles.fields)}>
+        {properties.map(([name, property]) => (
+          <ConfigurationField
+            disabled={disabled || resolved.readOnly === true}
+            key={name}
+            name={name}
+            onChange={(value) => update(name, value)}
+            path={[name]}
+            property={property}
+            required={required.has(name)}
+            value={values[name]}
+          />
+        ))}
+        {isPlainObject(resolved.additionalProperties) ? (
+          <TypedMapControl
+            disabled={disabled || resolved.readOnly === true}
+            onChange={(value) =>
+              onChange(stringify(value as Record<string, unknown>))
+            }
+            path={[]}
+            schema={resolved as SchemaProperty}
+            value={parsed}
+          />
+        ) : null}
+      </div>
+    </FieldSource>
   );
 }
 
@@ -259,7 +297,14 @@ function ConfigurationField({
   const id = fieldId(path);
   return (
     <div {...stylex.props(styles.field)}>
-      <FieldCopy id={id} name={name} property={property} required={required} />
+      <FieldCopy
+        disabled={disabled}
+        id={id}
+        name={name}
+        path={path}
+        property={property}
+        required={required}
+      />
       <ConfigurationControl
         disabled={disabled}
         id={id}
@@ -275,16 +320,31 @@ function ConfigurationField({
 }
 
 function FieldCopy({
+  disabled,
   id,
   name,
+  path,
   property,
   required,
 }: {
+  disabled: boolean;
   id: string;
   name: string;
+  path: readonly (number | string)[];
   property: SchemaProperty;
   required: boolean;
 }) {
+  const source = useContext(FieldSource);
+  const overridden = source && readField(source.overrides, path) !== undefined;
+  const inherited = source && readField(source.defaults, path) !== undefined;
+  const effective = resolveConfigurationSchema(
+    property,
+    source
+      ? readField(deepMerge(source.defaults, source.overrides), path)
+      : undefined
+  );
+  const readOnly =
+    !effective || effective.readOnly === true || effective.const !== undefined;
   return (
     <div {...stylex.props(styles.fieldCopy)}>
       <label htmlFor={id} {...stylex.props(styles.fieldName)}>
@@ -299,6 +359,33 @@ function FieldCopy({
       </label>
       {property.description ? (
         <p {...stylex.props(styles.description)}>{property.description}</p>
+      ) : null}
+      {source ? (
+        <div {...stylex.props(styles.fieldCopy)}>
+          <span {...stylex.props(styles.description)}>
+            {readOnly
+              ? "Read only"
+              : overridden
+                ? "Overridden"
+                : inherited
+                  ? "Inherited"
+                  : "Not configured"}
+          </span>
+          {overridden &&
+          !readOnly &&
+          path.every((key) => typeof key === "string") ? (
+            <Button
+              size="compact"
+              variant="ghost"
+              disabled={disabled || source.disabled}
+              onClick={() => source.update(path as string[], undefined)}
+              aria-label={`Reset ${property.title ?? humanize(name)}`}
+              {...stylex.props(styles.collectionAction)}
+            >
+              {inherited ? "Use inherited value" : "Remove override"}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -346,15 +433,99 @@ function ConfigurationControl(props: ConfigurationControlProps) {
       return <AdvancedFieldsNotice />;
     }
     return (
-      <SensitiveControl {...props} property={property} disabled={disabled} />
+      <FieldFeedback id={props.id} value={props.value}>
+        <SensitiveControl {...props} property={property} disabled={disabled} />
+      </FieldFeedback>
     );
   }
   return (
-    <ConfigurationValueControl
-      {...props}
-      property={property}
-      disabled={disabled}
-    />
+    <FieldFeedback
+      id={props.id}
+      value={props.value}
+      active={
+        !["array", "object", "number", "integer"].includes(
+          property.type ?? ""
+        ) && schemaProperties(property).length === 0
+      }
+    >
+      <ConfigurationValueControl
+        {...props}
+        property={property}
+        disabled={disabled}
+      />
+    </FieldFeedback>
+  );
+}
+
+function FieldFeedback({
+  id,
+  value,
+  active = true,
+  children,
+}: {
+  id: string;
+  value: unknown;
+  active?: boolean;
+  children: ReactNode;
+}) {
+  const [failure, setFailure] = useState<{
+    value: unknown;
+    message: string;
+  } | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const error =
+    failure && Object.is(failure.value, value) ? failure.message : "";
+  useEffect(() => {
+    const input = root.current?.querySelector("input, textarea");
+    if (input) {
+      if (error) {
+        input.setAttribute("aria-invalid", "true");
+        input.setAttribute("aria-describedby", `${id}-error`);
+      } else {
+        input.removeAttribute("aria-invalid");
+        input.removeAttribute("aria-describedby");
+      }
+    }
+  }, [error, id]);
+  if (!active) {
+    return children;
+  }
+  return (
+    <div
+      ref={root}
+      onBlurCapture={(event) => {
+        const input = event.target;
+        if (
+          input instanceof HTMLInputElement ||
+          input instanceof HTMLTextAreaElement
+        ) {
+          const message = input.validity.valid
+            ? ""
+            : input.validity.valueMissing
+              ? "This field is required."
+              : input.validity.tooShort
+                ? "This value is too short."
+                : input.validity.tooLong
+                  ? "This value is too long."
+                  : input.validity.patternMismatch
+                    ? "Use the required format."
+                    : "Enter a valid value.";
+          setFailure({ value, message });
+        }
+      }}
+      onChangeCapture={() => setFailure(null)}
+    >
+      {children}
+      {error ? (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          {...stylex.props(styles.description)}
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -636,6 +807,7 @@ function ObjectFieldsControl({
   schema: SchemaProperty;
   value: Record<string, unknown>;
 }) {
+  const source = useContext(FieldSource);
   const resolved = resolveConfigurationSchema(schema, value);
   if (!resolved || resolved.writeOnly === true) {
     return <AdvancedFieldsNotice />;
@@ -649,8 +821,10 @@ function ObjectFieldsControl({
         return (
           <div key={name} {...stylex.props(styles.nestedField)}>
             <FieldCopy
+              disabled={disabled || resolved.readOnly === true}
               id={id}
               name={name}
+              path={nestedPath}
               property={property}
               required={required.has(name)}
             />
@@ -659,7 +833,9 @@ function ObjectFieldsControl({
               id={id}
               name={name}
               onChange={(nextValue) =>
-                onChange(updateObjectValue(value, name, nextValue))
+                source && nestedPath.every((key) => typeof key === "string")
+                  ? source.update(nestedPath as string[], nextValue)
+                  : onChange(updateObjectValue(value, name, nextValue))
               }
               path={nestedPath}
               property={property}
