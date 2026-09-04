@@ -322,7 +322,7 @@ function SettingsSidebar({
     normalizedQuery.length === 0 ||
     label.toLocaleLowerCase().includes(normalizedQuery);
   const showPreferences = matches("Preferences");
-  const showPersonalization = matches("Agent personalization");
+  const showPersonalization = matches("Guidance skills MCP integrations");
   const showAiAgents = matches("AI & Agents");
 
   return (
@@ -345,7 +345,7 @@ function SettingsSidebar({
           placeholder="Search…"
           value={query}
         />
-        {showPreferences || showPersonalization ? (
+        {showPreferences ? (
           <ContextNavigationSection label="Personal">
             <Sidebar.Menu>
               {showPreferences ? (
@@ -362,6 +362,12 @@ function SettingsSidebar({
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
+            </Sidebar.Menu>
+          </ContextNavigationSection>
+        ) : null}
+        {showAiAgents || showPersonalization ? (
+          <ContextNavigationSection label="Agents">
+            <Sidebar.Menu>
               {showPersonalization ? (
                 <Sidebar.MenuItem>
                   <ContextNavigationItem
@@ -369,25 +375,21 @@ function SettingsSidebar({
                     onClick={() => navigate("/settings/agent")}
                     selected={currentPath.startsWith("/settings/agent")}
                   >
-                    Agent personalization
+                    Guidance &amp; integrations
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
-            </Sidebar.Menu>
-          </ContextNavigationSection>
-        ) : null}
-        {showAiAgents ? (
-          <ContextNavigationSection label="Features">
-            <Sidebar.Menu>
-              <Sidebar.MenuItem>
-                <ContextNavigationItem
-                  icon={<Sparkles size={14} strokeWidth={1.7} />}
-                  onClick={() => navigate("/settings/ai")}
-                  selected={currentPath.startsWith("/settings/ai")}
-                >
-                  AI &amp; Agents
-                </ContextNavigationItem>
-              </Sidebar.MenuItem>
+              {showAiAgents ? (
+                <Sidebar.MenuItem>
+                  <ContextNavigationItem
+                    icon={<Sparkles size={14} strokeWidth={1.7} />}
+                    onClick={() => navigate("/settings/ai")}
+                    selected={currentPath.startsWith("/settings/ai")}
+                  >
+                    AI &amp; Agents
+                  </ContextNavigationItem>
+                </Sidebar.MenuItem>
+              ) : null}
             </Sidebar.Menu>
           </ContextNavigationSection>
         ) : null}
