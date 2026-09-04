@@ -708,6 +708,24 @@ function PluginConfigurationSection({
             </TextArea.Root>
           )}
           <div {...stylex.props(styles.editorActions)}>
+            {draft.isDirty ? (
+              <>
+                <output {...stylex.props(styles.feedback)}>
+                  Unsaved changes
+                </output>
+                <Button
+                  size="compact"
+                  variant="ghost"
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    resetReviews();
+                    draft.useHostValue();
+                  }}
+                >
+                  Discard changes
+                </Button>
+              </>
+            ) : null}
             <Button
               aria-hidden={!restoreVisible}
               disabled={

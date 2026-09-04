@@ -14,6 +14,7 @@ import {
 } from "../agent/agent-runtime";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
+import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginDetail } from "./plugin-inspector";
 import { pluginKey } from "./plugin-workbench-model";
 import {
@@ -203,6 +204,7 @@ function AgentPluginDetail({
 
   return (
     <PluginDetailShell instanceKey={instanceKey} packageId={packageId} withTabs>
+      <PluginDraftNavigationGuard store={configurationDraftStore} />
       {workbench.isPending ? (
         <DetailState
           description="Reading the active App configuration."

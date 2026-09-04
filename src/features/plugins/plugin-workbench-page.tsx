@@ -14,6 +14,7 @@ import {
 } from "../agent/agent-runtime";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
+import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import {
   pluginOriginLabel,
   pluginSelectionIdentityMatches,
@@ -253,6 +254,7 @@ function AgentPluginWorkbench({
   const mutation = usePluginMutation(selectedAgent.id, inventory?.streamId);
   return (
     <div data-page="plugin-workbench" {...stylex.props(styles.page)}>
+      <PluginDraftNavigationGuard store={configurationDraftStore} />
       <PageHeader.Root
         aria-label="Plugin navigation"
         {...stylex.props(styles.header)}

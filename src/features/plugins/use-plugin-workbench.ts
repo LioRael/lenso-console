@@ -505,6 +505,7 @@ export function usePluginConfigurationRollbackProposal(
 }
 
 export type PluginConfigurationDraftController = {
+  isDirty: boolean;
   hasExternalChange: boolean;
   setValue: (value: string) => void;
   useHostValue: () => void;
@@ -597,6 +598,7 @@ export function usePluginConfigurationDraft({
     streamId,
   };
   return {
+    isDirty: draft.dirty,
     hasExternalChange: pluginConfigurationDraftHasExternalChange(
       draft,
       currentSource

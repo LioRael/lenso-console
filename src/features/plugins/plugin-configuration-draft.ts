@@ -97,6 +97,16 @@ export function editPluginConfigurationDrafts(
 export class PluginConfigurationDraftStore {
   private readonly drafts = new Map<string, PluginConfigurationDraft>();
   private readonly listeners = new Map<string, Set<() => void>>();
+  private readonly storeListeners = new Set<() => void>();
+
+  hasDrafts = () => this.drafts.size > 0;
+
+  subscribeAll = (listener: () => void) => {
+    this.storeListeners.add(listener);
+    return () => {
+      this.storeListeners.delete(listener);
+    };
+  };
 
   get(draftKey: string) {
     return this.drafts.get(draftKey);
@@ -169,6 +179,9 @@ export class PluginConfigurationDraftStore {
   }
 
   private notify(draftKey: string) {
+    for (const listener of this.storeListeners) {
+      listener();
+    }
     for (const listener of this.listeners.get(draftKey) ?? []) {
       listener();
     }
