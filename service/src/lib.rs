@@ -272,6 +272,18 @@ impl ConsoleConfig {
         self.with_app_agent_identity_capabilities(id, origin, label, true, true)
     }
 
+    /// Allows authentication management for an already registered App Agent.
+    /// The target Host must independently authorize management requests.
+    pub fn with_app_agent_auth_connections(mut self, id: &str) -> anyhow::Result<Self> {
+        let agent = self
+            .app_agents
+            .iter_mut()
+            .find(|agent| agent.id == id)
+            .ok_or_else(|| anyhow::anyhow!("App Agent identity was not found"))?;
+        agent.auth_connections = true;
+        Ok(self)
+    }
+
     fn with_app_agent_identity_capabilities(
         mut self,
         id: &str,
@@ -507,6 +519,7 @@ impl ConsoleServer {
 
 #[derive(Clone, Debug)]
 pub struct AppAgentAdapter {
+    auth_connections: bool,
     client: reqwest::Client,
     authorization: Option<String>,
     id: String,
@@ -553,6 +566,7 @@ impl AppAgentAdapter {
             .build()
             .map_err(|error| format!("App Agent Adapter client is invalid: {error}"))?;
         Ok(Some(Self {
+            auth_connections: false,
             client,
             authorization: None,
             id: id.to_owned(),
@@ -571,6 +585,7 @@ impl AppAgentAdapter {
         agent.authorization = token.map(|value| format!("Bearer {value}"));
         agent.plugin_configuration = true;
         agent.plugin_lifecycle = true;
+        agent.auth_connections = true;
         Ok(agent)
     }
 
@@ -647,6 +662,7 @@ async fn route_console_agent(
 async fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityList> {
     let mut agents = vec![AgentIdentity {
         capabilities: vec![
+            "lenso.agent.auth-connection@1",
             AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
             AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
         ],
@@ -657,6 +673,9 @@ async fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityL
     for app_agent in catalog.app_agents {
         agents.push(AgentIdentity {
             capabilities: [
+                app_agent
+                    .auth_connections
+                    .then_some("lenso.agent.auth-connection@1"),
                 app_agent
                     .plugin_configuration
                     .then_some(AGENT_PLUGIN_CONFIGURATION_CAPABILITY),
@@ -690,12 +709,17 @@ async fn route_app_agent(
     else {
         return problem(StatusCode::NOT_FOUND, "Agent identity was not found");
     };
-    if !allowed_agent_route_with_capabilities(
+    if !(allowed_agent_route_with_capabilities(
         &method,
         &path,
         app_agent.plugin_configuration,
         app_agent.plugin_lifecycle,
-    ) {
+    ) || (app_agent.auth_connections
+        && matches!(
+            (&method, path.as_str()),
+            (&Method::GET, "auth/connections") | (&Method::POST, "auth/connections/actions")
+        )))
+    {
         return problem(StatusCode::NOT_FOUND, "App Agent route was not found");
     }
     proxy_agent_request(app_agent, path, incoming, method, headers, body).await
@@ -1035,6 +1059,7 @@ mod tests {
         assert_eq!(
             catalog.agents[0].capabilities,
             [
+                "lenso.agent.auth-connection@1",
                 AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
                 AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
             ]

@@ -1,5 +1,18 @@
 # Lenso Console Service
 
+## Account connections
+
+Agent settings consume `lenso.agent.auth-connection@1` through the Agent Web
+management routes (`auth/connections` and `auth/connections/actions`). Run this
+Console with a Harness binary containing those routes; older binaries cannot
+serve this section. No credentials are sent to the browser.
+
+App Agents opt in separately with `with_app_agent_auth_connections(id)` after
+registering the identity. Plugin configuration and chat permissions do not grant
+account management. The target Host must also authorize management requests.
+The Console Agent uses the existing server-owned management authorization.
+
+
 The Console Service is one local Lenso Agent Host with one same-origin Web
 Shell. Its default App contains only the Agent Web Surface and the Agent
 Plugins linked by the Harness Host. It does not contain compatibility-era
