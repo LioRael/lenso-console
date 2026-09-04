@@ -25,6 +25,7 @@ import {
 } from "./configuration-field-search";
 import { editField, readField } from "./configuration-field-state";
 import { expandConfigurationReferences } from "./configuration-schema-references";
+import { ConfigurationStringControl } from "./configuration-string-control";
 import {
   applyVariantConstants,
   configurationVariants,
@@ -801,27 +802,18 @@ function ConfigurationValueControl({
     );
   }
   return (
-    <TextField.Root size="compact" xstyle={styles.controlRoot}>
-      <TextField.Control
-        disabled={disabled}
-        id={id}
-        maxLength={property.maxLength}
-        minLength={property.minLength}
-        aria-label={property.title ?? humanize(name)}
-        onChange={(event) =>
-          onChange(
-            event.target.value === "" && !required
-              ? undefined
-              : event.target.value
-          )
-        }
-        placeholder={property.format === "uri" ? "https://…" : undefined}
-        pattern={property.pattern}
-        required={required}
-        type={property.format === "password" ? "password" : "text"}
-        value={typeof value === "string" ? value : ""}
-      />
-    </TextField.Root>
+    <ConfigurationStringControl
+      disabled={disabled}
+      id={id}
+      label={property.title ?? humanize(name)}
+      minLength={property.minLength}
+      maxLength={property.maxLength}
+      pattern={property.pattern}
+      placeholder={property.format === "uri" ? "https://…" : undefined}
+      required={required}
+      value={value}
+      onChange={onChange}
+    />
   );
 }
 

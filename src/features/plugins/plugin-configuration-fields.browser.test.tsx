@@ -50,6 +50,87 @@ function renderFields(
   flushSync(() => root?.render(<Editor />));
 }
 
+test("edits prompt contribution content as multiline text without changing sibling fields", async () => {
+  renderFields(
+    {
+      type: "object",
+      properties: {
+        contributions: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["id", "content"],
+            properties: { id: { type: "string" }, content: { type: "string" } },
+          },
+        },
+      },
+    },
+    '[[contributions]]\nid = "instructions"\ncontent = "first\\nsecond"'
+  );
+  const content = page.getByRole("textbox", { name: "Content", exact: true });
+  await expect.element(content).toHaveValue("first\nsecond");
+  expect(
+    container?.querySelector('textarea[aria-label="Content"]')
+  ).toBeTruthy();
+  await content.fill("First paragraph\n\n  Keep indentation\n最后一行");
+  expect(parse(current).contributions).toEqual([
+    {
+      id: "instructions",
+      content: "First paragraph\n\n  Keep indentation\n最后一行",
+    },
+  ]);
+  await content.fill("One line now");
+  expect(
+    container?.querySelector('textarea[aria-label="Content"]')
+  ).toBeTruthy();
+  await page.getByRole("button", { name: "Collapse Content editor" }).click();
+  await expect.element(content).toHaveValue("One line now");
+});
+
+test("expands an empty string editor without changing the draft", async () => {
+  renderFields(
+    { type: "object", properties: { instruction: { type: "string" } } },
+    ""
+  );
+  await page.getByRole("button", { name: "Expand Instruction editor" }).click();
+  expect(current).toBe("");
+  await page
+    .getByRole("textbox", { name: "Instruction", exact: true })
+    .fill("line one\nline two");
+  expect(parse(current).instruction).toBe("line one\nline two");
+});
+
+test("multiline paste preserves selection suffix and focuses the expanded editor", () => {
+  renderFields(
+    {
+      type: "object",
+      properties: { instruction: { type: "string", maxLength: 12 } },
+    },
+    'instruction = "abcXYZ"'
+  );
+  const input = container!.querySelector<HTMLInputElement>(
+    'input[aria-label="Instruction"]'
+  )!;
+  input.setSelectionRange(0, 3);
+  const data = new DataTransfer();
+  data.setData("text/plain", "one\ntwo");
+  flushSync(() =>
+    input.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+  );
+  expect(parse(current).instruction).toBe("one\ntwoXYZ");
+  const area = container!.querySelector<HTMLTextAreaElement>(
+    'textarea[aria-label="Instruction"]'
+  )!;
+  expect(document.activeElement).toBe(area);
+  expect(area.selectionStart).toBe(7);
+});
+
 test("searches schema metadata and retains nested field edits when clearing the filter", async () => {
   renderFields(
     {
