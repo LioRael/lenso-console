@@ -10,6 +10,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { parse, stringify } from "smol-toml";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
+import { resolveConfigurationSchema } from "./plugin-configuration-schema";
 import type { JsonObject, JsonValue } from "./plugin-control-contract";
 
 type SchemaProperty = JsonObject & {
@@ -30,6 +31,8 @@ type SchemaProperty = JsonObject & {
   pattern?: string;
   properties?: JsonObject;
   required?: readonly JsonValue[];
+  readOnly?: boolean;
+  writeOnly?: boolean;
   title?: string;
   type?: string;
 };
@@ -169,17 +172,7 @@ export function PluginConfigurationFields({
   schema: JsonObject;
   toml: string;
 }) {
-  const properties = schemaProperties(schema);
-  const required = schemaRequired(schema);
   const parsed = useMemo(() => parseConfiguration(toml), [toml]);
-
-  if (properties.length === 0) {
-    return (
-      <p {...stylex.props(styles.empty)}>
-        This Plugin does not declare editable fields.
-      </p>
-    );
-  }
   if (!parsed) {
     return (
       <p role="alert" {...stylex.props(styles.empty)}>
@@ -189,6 +182,19 @@ export function PluginConfigurationFields({
     );
   }
   const values = deepMerge(defaults, parsed);
+  const resolved = resolveConfigurationSchema(schema, values);
+  if (!resolved || resolved.writeOnly === true) {
+    return <AdvancedFieldsNotice />;
+  }
+  const properties = schemaProperties(resolved);
+  const required = schemaRequired(resolved);
+  if (properties.length === 0) {
+    return (
+      <p {...stylex.props(styles.empty)}>
+        This Plugin does not declare editable fields.
+      </p>
+    );
+  }
 
   const update = (name: string, value: unknown) => {
     onChange(stringify(updateObjectValue(parsed, name, value)));
@@ -198,7 +204,7 @@ export function PluginConfigurationFields({
     <div {...stylex.props(styles.fields)}>
       {properties.map(([name, property]) => (
         <ConfigurationField
-          disabled={disabled}
+          disabled={disabled || resolved.readOnly === true}
           key={name}
           name={name}
           onChange={(value) => update(name, value)}
@@ -262,7 +268,9 @@ function FieldCopy({
     <div {...stylex.props(styles.fieldCopy)}>
       <label htmlFor={id} {...stylex.props(styles.fieldName)}>
         {property.title ?? humanize(name)}
-        {property.deprecated ? (
+        {property.readOnly ? (
+          <span {...stylex.props(styles.fieldOptional)}>Read only</span>
+        ) : property.deprecated ? (
           <span {...stylex.props(styles.fieldOptional)}>Deprecated</span>
         ) : required ? null : (
           <span {...stylex.props(styles.fieldOptional)}>Optional</span>
@@ -275,16 +283,7 @@ function FieldCopy({
   );
 }
 
-function ConfigurationControl({
-  disabled,
-  id,
-  name,
-  onChange,
-  path,
-  property,
-  required,
-  value,
-}: {
+type ConfigurationControlProps = {
   disabled: boolean;
   id: string;
   name: string;
@@ -293,8 +292,95 @@ function ConfigurationControl({
   property: SchemaProperty;
   required: boolean;
   value: unknown;
-}) {
+};
+
+function AdvancedFieldsNotice() {
+  return (
+    <p {...stylex.props(styles.empty)}>
+      This schema needs Advanced editing. Existing values are preserved.
+    </p>
+  );
+}
+
+function ConfigurationControl(props: ConfigurationControlProps) {
+  const resolved = resolveConfigurationSchema(props.property, props.value);
+  if (!resolved) {
+    return <AdvancedFieldsNotice />;
+  }
+  const property = resolved as SchemaProperty;
+  const disabled =
+    props.disabled ||
+    property.readOnly === true ||
+    property.const !== undefined;
+  if (property.writeOnly || property.format === "password") {
+    if (property.type !== undefined && property.type !== "string") {
+      return <AdvancedFieldsNotice />;
+    }
+    return (
+      <SensitiveControl {...props} property={property} disabled={disabled} />
+    );
+  }
+  return (
+    <ConfigurationValueControl
+      {...props}
+      property={property}
+      disabled={disabled}
+    />
+  );
+}
+
+function SensitiveControl({
+  disabled,
+  id,
+  onChange,
+  property,
+  required,
+  value,
+}: ConfigurationControlProps) {
+  const [draft, setDraft] = useState("");
+  // Never hydrate a write-only value returned by the provider into an input.
+  const displayedDraft = draft === value ? draft : "";
+  return (
+    <TextField.Root size="compact" xstyle={styles.controlRoot}>
+      <TextField.Control
+        autoComplete="new-password"
+        disabled={disabled}
+        id={id}
+        maxLength={property.maxLength}
+        minLength={property.minLength}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraft(next);
+          onChange(next === "" && !required ? undefined : next);
+        }}
+        placeholder={
+          value === undefined || value === ""
+            ? "Not set"
+            : "Configured — enter a replacement"
+        }
+        required={required && value === undefined}
+        spellCheck={false}
+        type="password"
+        value={displayedDraft}
+      />
+    </TextField.Root>
+  );
+}
+
+function ConfigurationValueControl({
+  disabled,
+  id,
+  name,
+  onChange,
+  path,
+  property,
+  required,
+  value,
+}: ConfigurationControlProps) {
   if (property.const !== undefined) {
+    if (property.const !== null && typeof property.const === "object") {
+      return <AdvancedFieldsNotice />;
+    }
     return (
       <code id={id} {...stylex.props(styles.readOnlyValue)}>
         {displayValue(property.const)}
@@ -385,6 +471,13 @@ function ConfigurationControl({
   if (property.type === "array") {
     const items = Array.isArray(value) ? value : [];
     if (
+      property.items?.writeOnly ||
+      property.items?.readOnly ||
+      property.items?.format === "password"
+    ) {
+      return <AdvancedFieldsNotice />;
+    }
+    if (
       property.items?.type === "object" ||
       schemaProperties(property.items ?? {}).length > 0
     ) {
@@ -469,10 +562,14 @@ function ObjectFieldsControl({
   schema: SchemaProperty;
   value: Record<string, unknown>;
 }) {
-  const required = schemaRequired(schema);
+  const resolved = resolveConfigurationSchema(schema, value);
+  if (!resolved || resolved.writeOnly === true) {
+    return <AdvancedFieldsNotice />;
+  }
+  const required = schemaRequired(resolved);
   return (
     <div {...stylex.props(styles.nestedFields)}>
-      {schemaProperties(schema).map(([name, property]) => {
+      {schemaProperties(resolved).map(([name, property]) => {
         const nestedPath = [...path, name];
         const id = fieldId(nestedPath);
         return (
@@ -484,7 +581,7 @@ function ObjectFieldsControl({
               required={required.has(name)}
             />
             <ConfigurationControl
-              disabled={disabled}
+              disabled={disabled || resolved.readOnly === true}
               id={id}
               name={name}
               onChange={(nextValue) =>
@@ -541,7 +638,7 @@ function ObjectArrayControl({
           >
             <header {...stylex.props(styles.collectionItemHeader)}>
               <h4 {...stylex.props(styles.collectionItemTitle)}>
-                {collectionItemTitle(itemName, objectValue, index)}
+                {collectionItemTitle(itemName, objectValue, index, itemSchema)}
               </h4>
               <IconButton
                 aria-label={`Remove ${itemName} ${index + 1}`}
@@ -739,7 +836,12 @@ function createSchemaValue(schema: SchemaProperty): unknown {
     const required = schemaRequired(schema);
     return schemaProperties(schema).reduce<Record<string, unknown>>(
       (value, [name, property]) => {
-        if (required.has(name) || property.default !== undefined) {
+        if (
+          !property.readOnly &&
+          !property.writeOnly &&
+          property.format !== "password" &&
+          (required.has(name) || property.default !== undefined)
+        ) {
           value[name] = createSchemaValue(property);
         }
         return value;
@@ -762,10 +864,21 @@ function createSchemaValue(schema: SchemaProperty): unknown {
 function collectionItemTitle(
   itemName: string,
   value: Record<string, unknown>,
-  index: number
+  index: number,
+  schema: SchemaProperty
 ) {
+  const resolved = resolveConfigurationSchema(schema, value);
   for (const key of ["id", "name", "title", "model", "resource_uri", "uri"]) {
-    if (typeof value[key] === "string" && value[key].length > 0) {
+    const property = schemaProperties(resolved ?? {}).find(
+      ([name]) => name === key
+    )?.[1];
+    if (
+      property &&
+      !property.writeOnly &&
+      property.format !== "password" &&
+      typeof value[key] === "string" &&
+      value[key].length > 0
+    ) {
       return value[key];
     }
   }

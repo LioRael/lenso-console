@@ -195,7 +195,9 @@ function AgentSettingsContent({
           to={personalization ? "/settings/ai/agent" : "/settings/agent"}
           {...stylex.props(styles.textLink)}
         >
-          {personalization ? "Tools & configuration" : "Guidance, skills & MCP"}
+          {personalization
+            ? "Tools & configuration"
+            : "Guidance & integrations"}
         </Link>
         <Link
           to="/agent/$agentId/$chatId"
@@ -244,20 +246,11 @@ function AgentSettingsContent({
             />
             <ProviderSection
               agentId={agent.id}
-              title="Skills"
-              description="Configure skill discovery roots and limits. Edit skill files in their configured source."
-              empty="No filesystem Skills Plugin is present in this Agent's Plugin inventory."
-              items={items.filter(
-                (item) => item.packageId === "lenso.agent.skills.filesystem"
-              )}
-            />
-            <ProviderSection
-              agentId={agent.id}
-              title="MCP connectors"
-              description="Configure each MCP client instance, including its transport, credentials reference and roots."
-              empty="No MCP client instances are present in this Agent's Plugin inventory."
-              items={items.filter(
-                (item) => item.packageId === "lenso.agent.mcp-client"
+              title="Tool providers"
+              description="Configure Plugins that contribute Tools, including skill sources and external integrations."
+              empty="No Tool providers are present in this Agent's Plugin inventory."
+              items={items.filter((item) =>
+                provides(item, "lenso.agent.tool-provider")
               )}
             />
             <ProviderSection
