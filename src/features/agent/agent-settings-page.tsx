@@ -25,6 +25,7 @@ import {
   type AgentIdentity,
 } from "./agent-runtime";
 import { agentSettingsStyles as styles } from "./agent-settings-page.stylex";
+import { AuthConnections } from "./auth-connections";
 
 export type AgentSettingsKind =
   | "ai"
@@ -210,6 +211,10 @@ function AgentSettingsContent({
           All Plugins
         </Link>
       </div>
+      {!personalization &&
+      agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
+        <AuthConnections agentId={agent.id} />
+      ) : null}
       {configurationAvailable ? (
         workbench.isError ? (
           <p role="alert" {...stylex.props(styles.error)}>

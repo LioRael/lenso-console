@@ -1041,7 +1041,7 @@ export async function listAgents(
   return object.agents.map(agentIdentity);
 }
 
-function agentApiUrl(agentId: AgentId, path: string) {
+export function agentApiUrl(agentId: AgentId, path: string) {
   const targetPath =
     agentId === "console"
       ? "api/console/v1/agent"
