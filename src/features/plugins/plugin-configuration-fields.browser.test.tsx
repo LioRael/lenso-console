@@ -50,6 +50,54 @@ function renderFields(
   flushSync(() => root?.render(<Editor />));
 }
 
+test("searches schema metadata and retains nested field edits when clearing the filter", async () => {
+  renderFields(
+    {
+      type: "object",
+      properties: {
+        network: {
+          title: "Networking",
+          type: "object",
+          properties: {
+            endpoint: { type: "string", description: "Server address" },
+            retries: { type: "integer" },
+          },
+        },
+        name: { type: "string" },
+        token: { type: "string", writeOnly: true, default: "secret-only" },
+      },
+    },
+    'name = "untouched"\n[network]\nendpoint = "before"\nretries = 3'
+  );
+  const search = page.getByRole("searchbox", {
+    name: "Search configuration fields",
+  });
+  await search.fill("server address");
+  await expect
+    .element(page.getByRole("textbox", { name: "Endpoint" }))
+    .toBeVisible();
+  const retries = container?.querySelector('input[type="number"]');
+  expect(retries).toBeTruthy();
+  expect(retries?.closest("[hidden]")).not.toBeNull();
+  await page.getByRole("textbox", { name: "Endpoint" }).fill("after");
+  await search.fill("secret-only");
+  await expect
+    .element(
+      page.getByText(
+        "No matching fields. Try a field name, path or description."
+      )
+    )
+    .toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Endpoint" }))
+    .toHaveValue("after");
+  expect(parse(current)).toEqual({
+    name: "untouched",
+    network: { endpoint: "after", retries: 3 },
+  });
+});
+
 test("switches root variants while preserving overrides and inherited siblings", async () => {
   renderFields(
     {

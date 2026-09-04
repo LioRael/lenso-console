@@ -19,6 +19,10 @@ import {
 import { parse, stringify } from "smol-toml";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
+import {
+  ConfigurationFieldSearch,
+  ConfigurationFieldMatch,
+} from "./configuration-field-search";
 import { editField, readField } from "./configuration-field-state";
 import { expandConfigurationReferences } from "./configuration-schema-references";
 import {
@@ -291,29 +295,36 @@ function ConfigurationFieldsForm({
   return (
     <FieldSource value={fieldSource}>
       <div {...stylex.props(styles.fields)}>
-        {properties.map(([name, property]) => (
-          <ConfigurationField
-            disabled={disabled || resolved.readOnly === true}
-            key={name}
-            name={name}
-            onChange={(value) => update(name, value)}
-            path={[name]}
-            property={property}
-            required={required.has(name)}
-            value={values[name]}
-          />
-        ))}
-        {isPlainObject(resolved.additionalProperties) ? (
-          <TypedMapControl
-            disabled={disabled || resolved.readOnly === true}
-            onChange={(value) =>
-              onChange(stringify(value as Record<string, unknown>))
-            }
-            path={[]}
-            schema={resolved as SchemaProperty}
-            value={parsed}
-          />
-        ) : null}
+        <ConfigurationFieldSearch schema={resolved}>
+          {properties.map(([name, property]) => (
+            <ConfigurationField
+              disabled={disabled || resolved.readOnly === true}
+              key={name}
+              name={name}
+              onChange={(value) => update(name, value)}
+              path={[name]}
+              property={property}
+              required={required.has(name)}
+              value={values[name]}
+            />
+          ))}
+          {isPlainObject(resolved.additionalProperties) ? (
+            <ConfigurationFieldMatch
+              schema={resolved.additionalProperties}
+              path={["Additional entries"]}
+            >
+              <TypedMapControl
+                disabled={disabled || resolved.readOnly === true}
+                onChange={(value) =>
+                  onChange(stringify(value as Record<string, unknown>))
+                }
+                path={[]}
+                schema={resolved as SchemaProperty}
+                value={parsed}
+              />
+            </ConfigurationFieldMatch>
+          ) : null}
+        </ConfigurationFieldSearch>
       </div>
     </FieldSource>
   );
@@ -338,26 +349,28 @@ function ConfigurationField({
 }) {
   const id = fieldId(path);
   return (
-    <div {...stylex.props(styles.field)}>
-      <FieldCopy
-        disabled={disabled}
-        id={id}
-        name={name}
-        path={path}
-        property={property}
-        required={required}
-      />
-      <ConfigurationControl
-        disabled={disabled}
-        id={id}
-        name={name}
-        onChange={onChange}
-        path={path}
-        property={property}
-        required={required}
-        value={value}
-      />
-    </div>
+    <ConfigurationFieldMatch schema={property} path={path}>
+      <div {...stylex.props(styles.field)}>
+        <FieldCopy
+          disabled={disabled}
+          id={id}
+          name={name}
+          path={path}
+          property={property}
+          required={required}
+        />
+        <ConfigurationControl
+          disabled={disabled}
+          id={id}
+          name={name}
+          onChange={onChange}
+          path={path}
+          property={property}
+          required={required}
+          value={value}
+        />
+      </div>
+    </ConfigurationFieldMatch>
   );
 }
 
@@ -894,40 +907,51 @@ function ObjectFieldsControl({
         const nestedPath = [...path, name];
         const id = fieldId(nestedPath);
         return (
-          <div key={name} {...stylex.props(styles.nestedField)}>
-            <FieldCopy
-              disabled={disabled || resolved.readOnly === true}
-              id={id}
-              name={name}
-              path={nestedPath}
-              property={property}
-              required={required.has(name)}
-            />
-            <ConfigurationControl
-              disabled={disabled || resolved.readOnly === true}
-              id={id}
-              name={name}
-              onChange={(nextValue) =>
-                source && nestedPath.every((key) => typeof key === "string")
-                  ? source.update(nestedPath as string[], nextValue)
-                  : onChange(updateObjectValue(value, name, nextValue))
-              }
-              path={nestedPath}
-              property={property}
-              required={required.has(name)}
-              value={value[name]}
-            />
-          </div>
+          <ConfigurationFieldMatch
+            key={name}
+            schema={property}
+            path={nestedPath}
+          >
+            <div {...stylex.props(styles.nestedField)}>
+              <FieldCopy
+                disabled={disabled || resolved.readOnly === true}
+                id={id}
+                name={name}
+                path={nestedPath}
+                property={property}
+                required={required.has(name)}
+              />
+              <ConfigurationControl
+                disabled={disabled || resolved.readOnly === true}
+                id={id}
+                name={name}
+                onChange={(nextValue) =>
+                  source && nestedPath.every((key) => typeof key === "string")
+                    ? source.update(nestedPath as string[], nextValue)
+                    : onChange(updateObjectValue(value, name, nextValue))
+                }
+                path={nestedPath}
+                property={property}
+                required={required.has(name)}
+                value={value[name]}
+              />
+            </div>
+          </ConfigurationFieldMatch>
         );
       })}
       {isPlainObject(resolved.additionalProperties) ? (
-        <TypedMapControl
-          disabled={disabled || resolved.readOnly === true}
-          onChange={onChange}
-          path={path}
-          schema={resolved as SchemaProperty}
-          value={value}
-        />
+        <ConfigurationFieldMatch
+          schema={resolved.additionalProperties}
+          path={[...path, "Additional entries"]}
+        >
+          <TypedMapControl
+            disabled={disabled || resolved.readOnly === true}
+            onChange={onChange}
+            path={path}
+            schema={resolved as SchemaProperty}
+            value={value}
+          />
+        </ConfigurationFieldMatch>
       ) : null}
     </div>
   );
