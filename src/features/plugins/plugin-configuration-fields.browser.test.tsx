@@ -50,6 +50,71 @@ function renderFields(
   flushSync(() => root?.render(<Editor />));
 }
 
+test("groups and searches fields without changing flat TOML or losing editors", async () => {
+  renderFields(
+    {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        endpoint: { type: "string" },
+        instruction: { type: "string" },
+        enabled: { type: "boolean" },
+      },
+      allOf: [
+        {
+          title: "Connection",
+          description: "Server connection settings",
+          properties: { endpoint: true },
+        },
+        { title: "Advanced", properties: { instruction: true, enabled: true } },
+      ],
+    },
+    'endpoint = "https://example.com"\ninstruction = "one\\ntwo"\nenabled = true'
+  );
+  await expect
+    .element(page.getByRole("heading", { name: "Connection", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("heading", { name: "Advanced", exact: true }))
+    .toBeVisible();
+  const editor = container?.querySelector('textarea[aria-label="Instruction"]');
+  const search = page.getByRole("searchbox", {
+    name: "Search configuration fields",
+  });
+  await search.fill("Advanced");
+  await expect
+    .element(page.getByRole("textbox", { name: "Instruction", exact: true }))
+    .toBeVisible();
+  expect(
+    container?.querySelector('input[aria-label="Endpoint"]')?.closest("section")
+      ?.parentElement?.hidden
+  ).toBe(true);
+  expect(container?.textContent).not.toContain("No matching fields");
+  await search.fill("endpoint");
+  await expect
+    .element(page.getByRole("textbox", { name: "Endpoint", exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  expect(container?.querySelector('textarea[aria-label="Instruction"]')).toBe(
+    editor
+  );
+  await page
+    .getByRole("textbox", { name: "Endpoint", exact: true })
+    .fill("https://changed.example.com");
+  expect(parse(current)).toEqual({
+    endpoint: "https://changed.example.com",
+    instruction: "one\ntwo",
+    enabled: true,
+  });
+  for (const width of [320, 1040]) {
+    if (container) {
+      container.style.width = `${width}px`;
+      container.dir = "rtl";
+      expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth);
+    }
+  }
+});
+
 test("switches conditional fields without losing inactive values", async () => {
   renderFields(
     {

@@ -86,14 +86,17 @@ function matchesSchema(
 
 export function ConfigurationFieldSearch({
   schema,
+  groups,
   children,
 }: {
   schema: JsonObject;
+  groups?: readonly JsonObject[];
   children: ReactNode;
 }) {
   const [text, setText] = useState("");
   const query = text.trim().toLowerCase();
   const hasMatches =
+    groups?.some((group) => matchesSchema(group, [], query)) ||
     Object.entries(
       isSchemaObject(schema.properties) ? schema.properties : {}
     ).some(
