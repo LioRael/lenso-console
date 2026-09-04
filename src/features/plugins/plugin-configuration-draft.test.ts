@@ -16,6 +16,23 @@ const sourceA = source("A", "source-a");
 const sourceC = source("C", "source-c");
 
 describe("Plugin configuration drafts", () => {
+  it("notifies navigation protection when drafts are edited, discarded and published", () => {
+    const store = new PluginConfigurationDraftStore();
+    const states: boolean[] = [];
+    const unsubscribe = store.subscribeAll(() =>
+      states.push(store.hasDrafts())
+    );
+    store.set("plugin", sourceA, (current) =>
+      editPluginConfigurationDraft(current, sourceA, "B")
+    );
+    store.set("plugin", sourceA, () => cleanPluginConfigurationDraft(sourceA));
+    store.set("plugin", sourceA, (current) =>
+      editPluginConfigurationDraft(current, sourceA, "C")
+    );
+    store.reconcile("plugin", sourceC);
+    expect(states).toEqual([true, false, true, false]);
+    unsubscribe();
+  });
   it("follows Host updates while clean", () => {
     expect(
       reconcilePluginConfigurationDraft(
