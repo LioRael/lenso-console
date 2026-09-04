@@ -2,6 +2,7 @@ import { Button } from "@lenso/ui/button";
 import { PageHeader } from "@lenso/ui/page-header";
 import { SegmentedControl } from "@lenso/ui/segmented-control";
 import { Switch } from "@lenso/ui/switch";
+import { TextArea } from "@lenso/ui/text-area";
 import * as stylex from "@stylexjs/stylex";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -115,30 +116,17 @@ const styles = stylex.create({
     minHeight: 30,
   },
   editor: {
-    backgroundColor: tokens.colorSurfaceSubtle,
-    borderColor: tokens.colorBorderTertiary,
-    borderRadius: tokens.radiusControl,
-    borderStyle: "solid",
-    borderWidth: 1,
-    boxSizing: "border-box",
-    color: tokens.colorContentPrimary,
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
     fontSize: 11,
     lineHeight: "17px",
     minHeight: 200,
-    outline: {
-      default: "none",
-      ":focus": `2px solid ${tokens.colorFocusRing}`,
-    },
-    outlineOffset: -1,
-    padding: 12,
     resize: "vertical",
-    width: "100%",
     "@media (max-width: 720px)": {
       fontSize: 16,
       lineHeight: "22px",
     },
   },
+  editorRoot: { width: "100%" },
   editorActions: {
     alignItems: "center",
     display: "flex",
@@ -704,18 +692,20 @@ function PluginConfigurationSection({
               toml={draft.value}
             />
           ) : (
-            <textarea
-              aria-label={`TOML configuration for ${plugin.packageId}/${plugin.instanceKey}`}
-              onChange={(event) => {
-                resetReviews();
-                draft.setValue(event.target.value);
-              }}
-              placeholder="# App-owned TOML override"
-              readOnly={!authoringEnabled}
-              spellCheck={false}
-              value={draft.value}
-              {...stylex.props(styles.editor)}
-            />
+            <TextArea.Root xstyle={styles.editorRoot}>
+              <TextArea.Control
+                aria-label={`TOML configuration for ${plugin.packageId}/${plugin.instanceKey}`}
+                onChange={(event) => {
+                  resetReviews();
+                  draft.setValue(event.target.value);
+                }}
+                placeholder="# App-owned TOML override"
+                readOnly={!authoringEnabled}
+                spellCheck={false}
+                value={draft.value}
+                xstyle={styles.editor}
+              />
+            </TextArea.Root>
           )}
           <div {...stylex.props(styles.editorActions)}>
             <Button
