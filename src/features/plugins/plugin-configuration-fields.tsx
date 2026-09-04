@@ -20,6 +20,10 @@ import { parse, stringify } from "smol-toml";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
+  ConfigurationFieldGroups,
+  configurationFieldGroups,
+} from "./configuration-field-groups";
+import {
   ConfigurationFieldSearch,
   ConfigurationFieldMatch,
 } from "./configuration-field-search";
@@ -277,6 +281,8 @@ function ConfigurationFieldsForm({
     return <AdvancedFieldsNotice />;
   }
   const properties = schemaProperties(resolved);
+  const groups = configurationFieldGroups(schema, resolved, values);
+  const propertyByName = new Map(properties);
   const required = schemaRequired(resolved);
   if (
     properties.length === 0 &&
@@ -296,19 +302,28 @@ function ConfigurationFieldsForm({
   return (
     <FieldSource value={fieldSource}>
       <div {...stylex.props(styles.fields)}>
-        <ConfigurationFieldSearch schema={resolved}>
-          {properties.map(([name, property]) => (
-            <ConfigurationField
-              disabled={disabled || resolved.readOnly === true}
-              key={name}
-              name={name}
-              onChange={(value) => update(name, value)}
-              path={[name]}
-              property={property}
-              required={required.has(name)}
-              value={values[name]}
-            />
-          ))}
+        <ConfigurationFieldSearch
+          schema={resolved}
+          groups={groups.map((group) => group.schema)}
+        >
+          <ConfigurationFieldGroups
+            groups={groups}
+            renderField={(name) => {
+              const property = propertyByName.get(name);
+              return property ? (
+                <ConfigurationField
+                  disabled={disabled || resolved.readOnly === true}
+                  key={name}
+                  name={name}
+                  onChange={(value) => update(name, value)}
+                  path={[name]}
+                  property={property}
+                  required={required.has(name)}
+                  value={values[name]}
+                />
+              ) : null;
+            }}
+          />
           {isPlainObject(resolved.additionalProperties) ? (
             <ConfigurationFieldMatch
               schema={resolved.additionalProperties}
