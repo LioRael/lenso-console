@@ -28,6 +28,8 @@ type SchemaProperty = JsonObject & {
   minimum?: number;
   minLength?: number;
   minItems?: number;
+  maxProperties?: number;
+  minProperties?: number;
   pattern?: string;
   properties?: JsonObject;
   required?: readonly JsonValue[];
@@ -45,7 +47,13 @@ const styles = stylex.create({
     gap: tokens.space3,
     minWidth: 0,
   },
-  collectionAction: { justifySelf: "start" },
+  collectionAction: { justifySelf: "end" },
+  collectionActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: tokens.space2,
+  },
+  mapKey: { flex: 1, minWidth: 0 },
   collectionEmpty: {
     color: tokens.colorContentTertiary,
     fontSize: 11,
@@ -54,14 +62,12 @@ const styles = stylex.create({
     paddingBlock: tokens.space2,
   },
   collectionItem: {
-    backgroundColor: tokens.colorSurfaceSubtle,
     borderColor: tokens.colorBorderTertiary,
-    borderRadius: tokens.radiusControl,
     borderStyle: "solid",
-    borderWidth: 1,
+    borderWidth: "0 0 1px",
     display: "grid",
     minWidth: 0,
-    padding: tokens.space3,
+    paddingBlock: tokens.space3,
   },
   collectionItemHeader: {
     alignItems: "center",
@@ -151,6 +157,7 @@ const styles = stylex.create({
   switchControl: {
     alignItems: "center",
     display: "flex",
+    justifyContent: "flex-end",
     minHeight: 32,
   },
   textArea: {
@@ -188,7 +195,10 @@ export function PluginConfigurationFields({
   }
   const properties = schemaProperties(resolved);
   const required = schemaRequired(resolved);
-  if (properties.length === 0) {
+  if (
+    properties.length === 0 &&
+    !isPlainObject(resolved.additionalProperties)
+  ) {
     return (
       <p {...stylex.props(styles.empty)}>
         This Plugin does not declare editable fields.
@@ -214,6 +224,17 @@ export function PluginConfigurationFields({
           value={values[name]}
         />
       ))}
+      {isPlainObject(resolved.additionalProperties) ? (
+        <TypedMapControl
+          disabled={disabled || resolved.readOnly === true}
+          onChange={(value) =>
+            onChange(stringify(value as Record<string, unknown>))
+          }
+          path={[]}
+          schema={resolved as SchemaProperty}
+          value={parsed}
+        />
+      ) : null}
     </div>
   );
 }
@@ -308,6 +329,14 @@ function ConfigurationControl(props: ConfigurationControlProps) {
     return <AdvancedFieldsNotice />;
   }
   const property = resolved as SchemaProperty;
+  if (
+    property.type !== undefined &&
+    !["string", "boolean", "number", "integer", "array", "object"].includes(
+      property.type
+    )
+  ) {
+    return <AdvancedFieldsNotice />;
+  }
   const disabled =
     props.disabled ||
     property.readOnly === true ||
@@ -332,6 +361,7 @@ function ConfigurationControl(props: ConfigurationControlProps) {
 function SensitiveControl({
   disabled,
   id,
+  name,
   onChange,
   property,
   required,
@@ -343,6 +373,7 @@ function SensitiveControl({
   return (
     <TextField.Root size="compact" xstyle={styles.controlRoot}>
       <TextField.Control
+        aria-label={property.title ?? humanize(name)}
         autoComplete="new-password"
         disabled={disabled}
         id={id}
@@ -416,7 +447,11 @@ function ConfigurationValueControl({
         }}
         value={selectedValue}
       >
-        <Select.Trigger id={id} xstyle={styles.selectTrigger}>
+        <Select.Trigger
+          aria-label={property.title ?? humanize(name)}
+          id={id}
+          xstyle={styles.selectTrigger}
+        >
           <Select.Value>
             {selectedValue === unsetSelectValue
               ? "Not set"
@@ -449,57 +484,37 @@ function ConfigurationValueControl({
   }
   if (property.type === "integer" || property.type === "number") {
     return (
-      <TextField.Root size="compact" xstyle={styles.controlRoot}>
-        <TextField.Control
-          disabled={disabled}
-          id={id}
-          max={property.maximum}
-          min={property.minimum}
-          onChange={(event) =>
-            onChange(
-              event.target.value === "" ? undefined : Number(event.target.value)
-            )
-          }
-          required={required}
-          step={property.type === "integer" ? 1 : "any"}
-          type="number"
-          value={typeof value === "number" ? value : ""}
-        />
-      </TextField.Root>
+      <NumberControl
+        key={typeof value === "number" ? value : "unset"}
+        disabled={disabled}
+        id={id}
+        name={name}
+        onChange={onChange}
+        path={path}
+        property={property}
+        required={required}
+        value={value}
+      />
     );
   }
   if (property.type === "array") {
     const items = Array.isArray(value) ? value : [];
     if (
-      property.items?.writeOnly ||
-      property.items?.readOnly ||
-      property.items?.format === "password"
+      !isPlainObject(property.items) ||
+      property.prefixItems !== undefined ||
+      Array.isArray(property.items)
     ) {
       return <AdvancedFieldsNotice />;
     }
-    if (
-      property.items?.type === "object" ||
-      schemaProperties(property.items ?? {}).length > 0
-    ) {
-      return (
-        <ObjectArrayControl
-          disabled={disabled}
-          itemSchema={property.items ?? { type: "object" }}
-          maxItems={property.maxItems}
-          minItems={property.minItems}
-          name={name}
-          onChange={onChange}
-          path={path}
-          value={items}
-        />
-      );
-    }
     return (
-      <ScalarArrayControl
-        disabled={disabled}
-        id={id}
+      <ArrayControl
+        disabled={disabled || property.items.readOnly === true}
         itemSchema={property.items}
+        maxItems={property.maxItems}
+        minItems={property.minItems}
+        name={name}
         onChange={onChange}
+        path={path}
         value={items}
       />
     );
@@ -517,9 +532,10 @@ function ConfigurationValueControl({
       );
     }
     return (
-      <ObjectMapControl
+      <TypedMapControl
         disabled={disabled}
-        id={id}
+        path={path}
+        schema={property}
         onChange={onChange}
         value={isPlainObject(value) ? value : {}}
       />
@@ -532,6 +548,7 @@ function ConfigurationValueControl({
         id={id}
         maxLength={property.maxLength}
         minLength={property.minLength}
+        aria-label={property.title ?? humanize(name)}
         onChange={(event) =>
           onChange(
             event.target.value === "" && !required
@@ -546,6 +563,63 @@ function ConfigurationValueControl({
         value={typeof value === "string" ? value : ""}
       />
     </TextField.Root>
+  );
+}
+
+function NumberControl({
+  disabled,
+  id,
+  name,
+  onChange,
+  property,
+  required,
+  value,
+}: ConfigurationControlProps) {
+  const external = typeof value === "number" ? String(value) : "";
+  const [draft, setDraft] = useState(external);
+  const [error, setError] = useState(false);
+  return (
+    <div>
+      <TextField.Root size="compact" xstyle={styles.controlRoot}>
+        <TextField.Control
+          aria-label={property.title ?? humanize(name)}
+          disabled={disabled}
+          id={id}
+          type="number"
+          value={draft}
+          min={property.minimum}
+          max={property.maximum}
+          step={property.type === "integer" ? 1 : "any"}
+          required={required}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setError(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+          onBlur={(event) => {
+            if (
+              !event.currentTarget.validity.valid ||
+              (draft !== "" && !Number.isFinite(Number(draft)))
+            ) {
+              setDraft(external);
+              setError(true);
+              return;
+            }
+            onChange(draft === "" ? undefined : Number(draft));
+          }}
+        />
+      </TextField.Root>
+      {error ? (
+        <p role="alert" {...stylex.props(styles.description)}>
+          Enter a valid number within the allowed range. The value is unchanged.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -595,11 +669,20 @@ function ObjectFieldsControl({
           </div>
         );
       })}
+      {isPlainObject(resolved.additionalProperties) ? (
+        <TypedMapControl
+          disabled={disabled || resolved.readOnly === true}
+          onChange={onChange}
+          path={path}
+          schema={resolved as SchemaProperty}
+          value={value}
+        />
+      ) : null}
     </div>
   );
 }
 
-function ObjectArrayControl({
+function ArrayControl({
   disabled,
   itemSchema,
   maxItems,
@@ -624,6 +707,9 @@ function ObjectArrayControl({
   const [itemKeys, setItemKeys] = useState(() =>
     value.map((_, index) => `${keyPrefix}-${index}`)
   );
+  const visibleKeys = value.map(
+    (_, index) => itemKeys[index] ?? `${keyPrefix}-external-${index}`
+  );
   return (
     <div {...stylex.props(styles.collection)}>
       {value.length === 0 ? (
@@ -633,41 +719,72 @@ function ObjectArrayControl({
         const objectValue = isPlainObject(item) ? item : {};
         return (
           <section
-            key={itemKeys[index]}
+            key={visibleKeys[index]}
             {...stylex.props(styles.collectionItem)}
           >
             <header {...stylex.props(styles.collectionItemHeader)}>
               <h4 {...stylex.props(styles.collectionItemTitle)}>
                 {collectionItemTitle(itemName, objectValue, index, itemSchema)}
               </h4>
-              <IconButton
-                aria-label={`Remove ${itemName} ${index + 1}`}
-                disabled={
-                  disabled ||
-                  (minItems !== undefined && value.length <= minItems)
-                }
-                onClick={() => {
-                  setItemKeys((current) =>
-                    current.filter((_, itemIndex) => itemIndex !== index)
-                  );
-                  onChange(value.filter((_, itemIndex) => itemIndex !== index));
-                }}
-                size="compact"
-                variant="ghost"
-              >
-                <Trash2 />
-              </IconButton>
+              <div {...stylex.props(styles.collectionActions)}>
+                <Button
+                  size="compact"
+                  variant="ghost"
+                  disabled={disabled || index === 0}
+                  aria-label={`Move ${itemName} ${index + 1} up`}
+                  onClick={() => {
+                    const next = [...value];
+                    [next[index - 1], next[index]] = [
+                      next[index],
+                      next[index - 1],
+                    ];
+                    setItemKeys(() => {
+                      const keys = [...visibleKeys];
+                      [keys[index - 1], keys[index]] = [
+                        keys[index]!,
+                        keys[index - 1]!,
+                      ];
+                      return keys;
+                    });
+                    onChange(next);
+                  }}
+                >
+                  Move up
+                </Button>
+                <IconButton
+                  aria-label={`Remove ${itemName} ${index + 1}`}
+                  disabled={
+                    disabled ||
+                    (minItems !== undefined && value.length <= minItems)
+                  }
+                  onClick={() => {
+                    setItemKeys(() =>
+                      visibleKeys.filter((_, itemIndex) => itemIndex !== index)
+                    );
+                    onChange(
+                      value.filter((_, itemIndex) => itemIndex !== index)
+                    );
+                  }}
+                  size="compact"
+                  variant="ghost"
+                >
+                  <Trash2 />
+                </IconButton>
+              </div>
             </header>
-            <ObjectFieldsControl
+            <ConfigurationControl
               disabled={disabled}
+              id={fieldId([...path, index])}
+              name={`${itemName} ${index + 1}`}
+              required
               onChange={(nextValue) => {
                 const next = [...value];
                 next[index] = nextValue;
                 onChange(next);
               }}
               path={[...path, index]}
-              schema={itemSchema}
-              value={objectValue}
+              property={itemSchema}
+              value={item}
             />
           </section>
         );
@@ -679,7 +796,7 @@ function ObjectArrayControl({
         onClick={() => {
           const itemKey = `${keyPrefix}-${nextKey.current}`;
           nextKey.current += 1;
-          setItemKeys((current) => [...current, itemKey]);
+          setItemKeys([...visibleKeys, itemKey]);
           onChange([...value, createSchemaValue(itemSchema)]);
         }}
         size="compact"
@@ -693,39 +810,189 @@ function ObjectArrayControl({
   );
 }
 
-function ScalarArrayControl({
+function TypedMapControl({
   disabled,
-  id,
-  itemSchema,
   onChange,
+  path,
+  schema,
   value,
 }: {
   disabled: boolean;
-  id: string;
-  itemSchema: SchemaProperty | undefined;
   onChange: (value: unknown) => void;
-  value: readonly unknown[];
+  path: readonly (number | string)[];
+  schema: SchemaProperty;
+  value: Record<string, unknown>;
 }) {
-  return (
-    <TextArea.Root xstyle={styles.controlRoot}>
-      <TextArea.Control
+  const [newKey, setNewKey] = useState("");
+  const [error, setError] = useState("");
+  const itemSchema = schema.additionalProperties;
+  if (!isPlainObject(itemSchema)) {
+    return schema.additionalProperties === false ? (
+      <p {...stylex.props(styles.collectionEmpty)}>
+        No additional fields allowed.
+      </p>
+    ) : (
+      <ObjectMapControl
         disabled={disabled}
-        id={id}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-              .split("\n")
-              .map((item) => item.trim())
-              .filter(Boolean)
-              .map((item) => parseScalar(item, itemSchema))
-          )
-        }
-        placeholder="One value per line"
-        rows={3}
-        value={value.map(displayValue).join("\n")}
-        xstyle={styles.textArea}
+        id={fieldId(path)}
+        onChange={onChange}
+        value={value}
       />
-    </TextArea.Root>
+    );
+  }
+  const fixedNames = new Set(schemaProperties(schema).map(([name]) => name));
+  const requiredKeys = schemaRequired(schema);
+  const entries = Object.entries(value).filter(([key]) => !fixedNames.has(key));
+  const locked = disabled || itemSchema.readOnly === true;
+  const full =
+    schema.maxProperties !== undefined &&
+    Object.keys(value).length >= schema.maxProperties;
+  return (
+    <div {...stylex.props(styles.collection)}>
+      {entries.map(([key, entry]) => (
+        <section key={key} {...stylex.props(styles.collectionItem)}>
+          <header {...stylex.props(styles.collectionItemHeader)}>
+            <MapKey
+              name={key}
+              disabled={locked || requiredKeys.has(key)}
+              onRename={(next) => {
+                if (next === key) {
+                  return true;
+                }
+                if (
+                  !next ||
+                  requiredKeys.has(key) ||
+                  Object.hasOwn(value, next) ||
+                  fixedNames.has(next)
+                ) {
+                  return false;
+                }
+                onChange(
+                  Object.fromEntries(
+                    Object.entries(value).map(([name, item]) => [
+                      name === key ? next : name,
+                      item,
+                    ])
+                  )
+                );
+                return true;
+              }}
+            />
+            <IconButton
+              aria-label={`Remove ${key}`}
+              size="compact"
+              variant="ghost"
+              disabled={
+                locked ||
+                requiredKeys.has(key) ||
+                (schema.minProperties !== undefined &&
+                  Object.keys(value).length <= schema.minProperties)
+              }
+              onClick={() => onChange(updateObjectValue(value, key, undefined))}
+            >
+              <Trash2 />
+            </IconButton>
+          </header>
+          <ConfigurationControl
+            disabled={locked}
+            id={fieldId([...path, key])}
+            name={key}
+            onChange={(next) => onChange(updateObjectValue(value, key, next))}
+            path={[...path, key]}
+            property={itemSchema as SchemaProperty}
+            required
+            value={entry}
+          />
+        </section>
+      ))}
+      <div {...stylex.props(styles.collectionItemHeader)}>
+        <TextField.Root size="compact" xstyle={styles.mapKey}>
+          <TextField.Control
+            aria-label={`New ${humanize(String(path.at(-1) ?? "configuration"))} key`}
+            disabled={locked || full}
+            placeholder="New key"
+            value={newKey}
+            onChange={(event) => {
+              setNewKey(event.target.value);
+              setError("");
+            }}
+          />
+        </TextField.Root>
+        <Button
+          size="compact"
+          variant="secondary"
+          disabled={locked || full || !newKey}
+          onClick={() => {
+            if (Object.hasOwn(value, newKey) || fixedNames.has(newKey)) {
+              setError("This key already exists.");
+              return;
+            }
+            onChange(
+              updateObjectValue(
+                value,
+                newKey,
+                createSchemaValue(itemSchema as SchemaProperty)
+              )
+            );
+            setNewKey("");
+            setError("");
+          }}
+        >
+          Add entry
+        </Button>
+      </div>
+      {error ? (
+        <p role="alert" {...stylex.props(styles.description)}>
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function MapKey({
+  name,
+  disabled,
+  onRename,
+}: {
+  name: string;
+  disabled: boolean;
+  onRename: (name: string) => boolean;
+}) {
+  const [draft, setDraft] = useState(name);
+  const [invalid, setInvalid] = useState(false);
+  return (
+    <div {...stylex.props(styles.mapKey)}>
+      <TextField.Root size="compact">
+        <TextField.Control
+          aria-label={`Key ${name}`}
+          aria-invalid={invalid}
+          disabled={disabled}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setInvalid(false);
+          }}
+          onBlur={() => {
+            if (!onRename(draft)) {
+              setInvalid(true);
+              setDraft(name);
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      </TextField.Root>
+      {invalid ? (
+        <p role="alert" {...stylex.props(styles.description)}>
+          Use a non-empty, unique key. The original key is unchanged.
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -798,27 +1065,27 @@ function updateObjectValue(
   name: string,
   value: unknown
 ) {
-  const next = Object.fromEntries(
-    Object.entries(current).filter(([key]) => key !== name)
-  );
-  if (value !== undefined) {
-    next[name] = value;
-  }
-  return next;
+  return Object.fromEntries([
+    ...Object.entries(current).filter(([key]) => key !== name),
+    ...(value === undefined ? [] : [[name, value]]),
+  ]);
 }
 
 function deepMerge(
   defaults: Record<string, unknown>,
   overrides: Record<string, unknown>
 ): Record<string, unknown> {
-  const merged = { ...defaults };
-  for (const [key, value] of Object.entries(overrides)) {
-    merged[key] =
-      isPlainObject(value) && isPlainObject(defaults[key])
+  return Object.fromEntries([
+    ...Object.entries(defaults),
+    ...Object.entries(overrides).map(([key, value]) => [
+      key,
+      isPlainObject(value) &&
+      Object.hasOwn(defaults, key) &&
+      isPlainObject(defaults[key])
         ? deepMerge(defaults[key], value)
-        : value;
-  }
-  return merged;
+        : value,
+    ]),
+  ]);
 }
 
 function createSchemaValue(schema: SchemaProperty): unknown {
@@ -883,16 +1150,6 @@ function collectionItemTitle(
     }
   }
   return `${itemName} ${index + 1}`;
-}
-
-function parseScalar(value: string, schema: SchemaProperty | undefined) {
-  if (schema?.type === "integer" || schema?.type === "number") {
-    return Number(value);
-  }
-  if (schema?.type === "boolean") {
-    return value === "true";
-  }
-  return value;
 }
 
 function displayValue(value: unknown) {
