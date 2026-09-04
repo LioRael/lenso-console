@@ -50,6 +50,41 @@ function renderFields(
   flushSync(() => root?.render(<Editor />));
 }
 
+test("switches conditional fields without losing inactive values", async () => {
+  renderFields(
+    {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        mode: { enum: ["local", "remote"] },
+        path: true,
+        endpoint: true,
+      },
+      if: { properties: { mode: { const: "local" } }, required: ["mode"] },
+      // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema conditional keyword, not a Promise.
+      then: { properties: { path: { type: "string" } } },
+      else: { properties: { endpoint: { type: "string" } } },
+    },
+    'mode = "local"\npath = "/workspace"\nendpoint = "https://example.com"'
+  );
+  await expect
+    .element(page.getByRole("textbox", { name: "Path", exact: true }))
+    .toHaveValue("/workspace");
+  expect(container?.querySelector('input[aria-label="Endpoint"]')).toBeNull();
+  await page.getByRole("combobox", { name: "Mode", exact: true }).click();
+  await page.getByRole("option", { name: "Remote", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Endpoint", exact: true }))
+    .toHaveValue("https://example.com");
+  expect(parse(current).path).toBe("/workspace");
+  await page.getByRole("combobox", { name: "Mode", exact: true }).click();
+  await page.getByRole("option", { name: "Local", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Path", exact: true }))
+    .toHaveValue("/workspace");
+  expect(parse(current).endpoint).toBe("https://example.com");
+});
+
 test("edits prompt contribution content as multiline text without changing sibling fields", async () => {
   renderFields(
     {

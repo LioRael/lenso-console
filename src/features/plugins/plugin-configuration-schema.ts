@@ -96,8 +96,11 @@ export function mergeSchema(
       const properties = { ...previous };
       for (const [name, property] of Object.entries(value)) {
         const existing = properties[name];
-        if (existing === undefined) {
+        if (existing === undefined || existing === true) {
           properties[name] = property;
+        } else if (property === true) {
+          // The unrestricted schema is the identity of an intersection.
+          properties[name] = existing;
         } else if (isSchemaObject(existing) && isSchemaObject(property)) {
           const combined = mergeSchema(existing, property);
           if (!combined) {
