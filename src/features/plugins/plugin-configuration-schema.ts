@@ -26,10 +26,11 @@ export function isSchemaObject(value: unknown): value is JsonObject {
 // Presentation only. The configuration authority still validates every proposal.
 // Unknown condition semantics must never select an arbitrary editing branch.
 export function resolveConfigurationSchema(
-  schema: JsonObject,
+  inputSchema: JsonObject,
   value: unknown,
   depth = 0
 ): JsonObject | null {
+  const schema = editableNullableSchema(inputSchema);
   if (depth > 24 || unsupported.some((key) => key in schema)) {
     return null;
   }
@@ -72,7 +73,10 @@ export function resolveConfigurationSchema(
   return resolved;
 }
 
-function mergeSchema(base: JsonObject, branch: JsonObject): JsonObject | null {
+export function mergeSchema(
+  base: JsonObject,
+  branch: JsonObject
+): JsonObject | null {
   const merged = { ...base };
   for (const [key, value] of Object.entries(branch)) {
     const previous = merged[key];
@@ -117,6 +121,47 @@ function mergeSchema(base: JsonObject, branch: JsonObject): JsonObject | null {
     }
   }
   return merged;
+}
+
+// TOML has no null literal. Expose the concrete editor, never a fake "set null"
+// operation. Removing an override continues to mean inheritance, not null.
+function editableNullableSchema(schema: JsonObject): JsonObject {
+  if (Array.isArray(schema.type) && schema.type.includes("null")) {
+    const types = schema.type.filter((type) => type !== "null");
+    if (types.length === 1 && typeof types[0] === "string") {
+      return { ...schema, type: types[0] };
+    }
+  }
+  for (const keyword of ["anyOf", "oneOf"] as const) {
+    const branches = schema[keyword];
+    if (
+      !Array.isArray(branches) ||
+      branches.length !== 2 ||
+      !branches.every(isSchemaObject)
+    ) {
+      continue;
+    }
+    const nullBranch = branches.find(
+      (branch) =>
+        branch.type === "null" &&
+        Object.keys(branch).every(
+          (key) => key === "type" || annotations.has(key)
+        )
+    );
+    const concrete = branches.find((branch) => branch !== nullBranch);
+    if (
+      nullBranch &&
+      concrete &&
+      typeof concrete.type === "string" &&
+      concrete.type !== "null"
+    ) {
+      const siblings = Object.fromEntries(
+        Object.entries(schema).filter(([key]) => key !== keyword)
+      );
+      return mergeSchema(siblings, concrete) ?? schema;
+    }
+  }
+  return schema;
 }
 
 function matchCondition(

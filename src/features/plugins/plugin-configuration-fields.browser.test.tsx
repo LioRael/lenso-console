@@ -50,6 +50,120 @@ function renderFields(
   flushSync(() => root?.render(<Editor />));
 }
 
+test("switches root variants while preserving overrides and inherited siblings", async () => {
+  renderFields(
+    {
+      oneOf: [
+        {
+          title: "Local",
+          type: "object",
+          required: ["kind"],
+          properties: {
+            kind: { const: "local" },
+            directory: { type: "string" },
+          },
+        },
+        {
+          title: "Remote",
+          type: "object",
+          required: ["kind"],
+          properties: {
+            kind: { const: "remote" },
+            endpoint: { type: "string" },
+          },
+        },
+      ],
+    },
+    'directory = "keep"',
+    { inherited: "host" }
+  );
+  await page.getByRole("combobox", { name: "Configuration variant" }).click();
+  await page.getByRole("option", { name: "Remote", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Endpoint" })
+    .fill("https://example.com");
+  expect(parse(current)).toEqual({
+    directory: "keep",
+    kind: "remote",
+    endpoint: "https://example.com",
+  });
+  await page.getByRole("combobox", { name: "Configuration variant" }).click();
+  await page.getByRole("option", { name: "Local", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Directory" }))
+    .toHaveValue("keep");
+  expect(parse(current).endpoint).toBe("https://example.com");
+  expect(parse(current).kind).toBe("local");
+});
+
+test("allows explicit choice of overlapping anyOf forms without rewriting values", async () => {
+  renderFields(
+    {
+      type: "object",
+      properties: {
+        label: {
+          anyOf: [
+            { title: "Short", type: "string", maxLength: 10 },
+            { title: "Long", type: "string", maxLength: 100 },
+          ],
+        },
+      },
+    },
+    'label = "existing"'
+  );
+  await page.getByRole("combobox", { name: "Configuration variant" }).click();
+  await page.getByRole("option", { name: "Long", exact: true }).click();
+  expect(parse(current)).toEqual({ label: "existing" });
+  await page.getByRole("textbox", { name: "Long" }).fill("updated");
+  expect(parse(current)).toEqual({ label: "updated" });
+});
+
+test("keeps protected unions in Advanced without exposing stored values", async () => {
+  renderFields(
+    {
+      type: "object",
+      properties: {
+        credential: {
+          oneOf: [
+            { title: "Secret", type: "string", writeOnly: true },
+            { title: "Plain", type: "string" },
+          ],
+        },
+      },
+    },
+    'credential = "stored-secret"'
+  );
+  expect(container?.textContent).not.toContain("stored-secret");
+  await expect
+    .element(page.getByRole("combobox", { name: "Configuration variant" }))
+    .not.toBeInTheDocument();
+  expect(container?.textContent).toContain("Advanced editing");
+});
+
+test("renders referenced nullable fields and protects referenced credentials", async () => {
+  renderFields(
+    {
+      type: "object",
+      $defs: {
+        name: { type: ["string", "null"], title: "Display name" },
+        token: { type: "string", writeOnly: true, title: "Access token" },
+      },
+      properties: {
+        name: { $ref: "#/$defs/name" },
+        token: { $ref: "#/$defs/token" },
+      },
+    },
+    "",
+    { token: "stored-secret" }
+  );
+  await page.getByRole("textbox", { name: "Display name" }).fill("Agent");
+  expect(parse(current)).toEqual({ name: "Agent" });
+  expect(container?.textContent).not.toContain("stored-secret");
+  expect(
+    [...container!.querySelectorAll("input")].map((input) => input.value)
+  ).not.toContain("stored-secret");
+});
+
 test("edits typed array items without trimming strings and respects collection bounds", async () => {
   renderFields(
     {

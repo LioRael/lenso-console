@@ -20,6 +20,12 @@ import { parse, stringify } from "smol-toml";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { editField, readField } from "./configuration-field-state";
+import { expandConfigurationReferences } from "./configuration-schema-references";
+import {
+  applyVariantConstants,
+  configurationVariants,
+  ConfigurationVariants,
+} from "./configuration-variants";
 import { resolveConfigurationSchema } from "./plugin-configuration-schema";
 import type { JsonObject, JsonValue } from "./plugin-control-contract";
 
@@ -182,7 +188,43 @@ const styles = stylex.create({
   },
 });
 
-export function PluginConfigurationFields({
+type PluginConfigurationFieldsProps = {
+  defaults: JsonObject;
+  disabled: boolean;
+  onChange: (toml: string) => void;
+  schema: JsonObject;
+  toml: string;
+};
+
+export function PluginConfigurationFields(
+  props: PluginConfigurationFieldsProps
+) {
+  const schema = useMemo(
+    () => expandConfigurationReferences(props.schema),
+    [props.schema]
+  );
+  const parsed = useMemo(() => parseConfiguration(props.toml), [props.toml]);
+  if (!parsed) {
+    return <ConfigurationFieldsForm {...props} schema={schema} />;
+  }
+  return (
+    <ConfigurationVariants
+      schema={schema}
+      value={deepMerge(props.defaults, parsed)}
+      disabled={props.disabled}
+      onSelect={(selected) => {
+        const next = applyVariantConstants(parsed, selected);
+        if (next !== parsed && isPlainObject(next)) {
+          props.onChange(stringify(next));
+        }
+      }}
+    >
+      {(selected) => <ConfigurationFieldsForm {...props} schema={selected} />}
+    </ConfigurationVariants>
+  );
+}
+
+function ConfigurationFieldsForm({
   defaults,
   disabled,
   onChange,
@@ -343,8 +385,9 @@ function FieldCopy({
       ? readField(deepMerge(source.defaults, source.overrides), path)
       : undefined
   );
-  const readOnly =
-    !effective || effective.readOnly === true || effective.const !== undefined;
+  const readOnly = effective
+    ? effective.readOnly === true || effective.const !== undefined
+    : configurationVariants(property, undefined) === null;
   return (
     <div {...stylex.props(styles.fieldCopy)}>
       <label htmlFor={id} {...stylex.props(styles.fieldName)}>
@@ -411,6 +454,38 @@ function AdvancedFieldsNotice() {
 }
 
 function ConfigurationControl(props: ConfigurationControlProps) {
+  const source = useContext(FieldSource);
+  return (
+    <ConfigurationVariants
+      schema={props.property}
+      value={props.value}
+      disabled={props.disabled}
+      onSelect={(selected) => {
+        if (source && props.path.every((key) => typeof key === "string")) {
+          const previous = readField(source.overrides, props.path);
+          const next = applyVariantConstants(previous, selected);
+          if (next !== previous) {
+            source.update(props.path as string[], next);
+          }
+        } else {
+          const next = applyVariantConstants(props.value, selected);
+          if (next !== props.value) {
+            props.onChange(next);
+          }
+        }
+      }}
+    >
+      {(selected) => (
+        <ResolvedConfigurationControl
+          {...props}
+          property={selected as SchemaProperty}
+        />
+      )}
+    </ConfigurationVariants>
+  );
+}
+
+function ResolvedConfigurationControl(props: ConfigurationControlProps) {
   const resolved = resolveConfigurationSchema(props.property, props.value);
   if (!resolved) {
     return <AdvancedFieldsNotice />;
@@ -1264,14 +1339,16 @@ function deepMerge(
   ]);
 }
 
-function createSchemaValue(schema: SchemaProperty): unknown {
+function createSchemaValue(inputSchema: SchemaProperty): unknown {
+  const schema = (resolveConfigurationSchema(inputSchema, undefined) ??
+    inputSchema) as SchemaProperty;
   if (schema.const !== undefined) {
     return schema.const;
   }
-  if (schema.default !== undefined) {
+  if (schema.default !== undefined && schema.default !== null) {
     return schema.default;
   }
-  const firstOption = schema.enum?.[0];
+  const firstOption = schema.enum?.find((option) => option !== null);
   if (firstOption !== undefined) {
     return firstOption;
   }
