@@ -157,8 +157,8 @@ const styles = stylex.create({
   },
   deletion: {
     backgroundColor:
-      "color-mix(in srgb, var(--color-status-danger-content) 10%, transparent)",
-    color: "var(--color-status-danger-content)",
+      "color-mix(in srgb, var(--color-status-error-content) 10%, transparent)",
+    color: "var(--color-status-error-content)",
   },
   hunk: { color: "var(--color-content-tertiary)" },
   previous: {
