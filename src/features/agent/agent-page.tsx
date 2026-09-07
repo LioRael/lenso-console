@@ -658,9 +658,15 @@ function AgentHeader({
             xstyle={styles.viewTabs}
           >
             <Tabs.List aria-label="Agent view">
-              <Tabs.Tab value="conversation">Conversation</Tabs.Tab>
-              <Tabs.Tab value="changes">Changes</Tabs.Tab>
-              <Tabs.Tab value="trajectory">Trajectory</Tabs.Tab>
+              <Tabs.Tab value="conversation" xstyle={styles.viewTab}>
+                Conversation
+              </Tabs.Tab>
+              <Tabs.Tab value="changes" xstyle={styles.viewTab}>
+                Changes
+              </Tabs.Tab>
+              <Tabs.Tab value="trajectory" xstyle={styles.viewTab}>
+                Trajectory
+              </Tabs.Tab>
             </Tabs.List>
           </Tabs.Root>
         ) : null}
