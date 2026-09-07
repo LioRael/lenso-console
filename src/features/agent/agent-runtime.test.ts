@@ -240,7 +240,7 @@ describe("Agent runtime projection", () => {
     expect(projected.turns[0]).not.toHaveProperty("error");
   });
 
-  it("accepts durable compaction and memory events from the current Session contract", async () => {
+  it("accepts durable compaction, memory, and instruction revision events from the current Session contract", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -262,8 +262,19 @@ describe("Agent runtime projection", () => {
               revision: "2",
               turn_id: "turn-1",
             },
+            {
+              event_id: "event-3",
+              kind: "system_instruction_revised",
+              occurred_at: "2026-09-07T00:00:00Z",
+              payload_json: JSON.stringify({
+                previous_digest: "sha256:previous",
+                reason: "profile_changed",
+                instruction: { content: "Code", profile: { name: "code" } },
+              }),
+              revision: "3",
+            },
           ],
-          revision: "2",
+          revision: "3",
           session_id: "session-1",
         })
       )
@@ -273,6 +284,7 @@ describe("Agent runtime projection", () => {
       events: [
         { kind: "context_compaction_committed" },
         { kind: "memory_recalled" },
+        { kind: "system_instruction_revised" },
       ],
     });
   });
