@@ -272,35 +272,6 @@ test("a project task exposes its streamed diff in the existing conversation page
           .element()
           .getBoundingClientRect().right
     )
-    .toBeLessThanOrEqual(window.innerWidth)
-    .catch((error: unknown) => {
-      const elements = [
-        tabs,
-        tabs.parentElement,
-        ...tabs.querySelectorAll('[role="tab"]'),
-      ];
-      throw new Error(
-        JSON.stringify(
-          elements.map((element) => {
-            if (!element) {
-              return null;
-            }
-            const css = getComputedStyle(element);
-            return {
-              text: element.textContent,
-              rect: element.getBoundingClientRect().toJSON(),
-              font: css.font,
-              width: css.width,
-              minWidth: css.minWidth,
-              flex: css.flex,
-              padding: css.padding,
-              boxSizing: css.boxSizing,
-              className: element.className,
-            };
-          })
-        ),
-        { cause: error }
-      );
-    });
+    .toBeLessThanOrEqual(window.innerWidth);
   await page.viewport(1280, 800);
 });

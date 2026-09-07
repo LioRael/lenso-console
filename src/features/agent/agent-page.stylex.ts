@@ -248,7 +248,7 @@ export const agentPageStyles = stylex.create({
   emptyPage: { gridTemplateRows: "auto minmax(0, 1fr)" },
   header: { position: "relative", zIndex: 4 },
   headerRow: {
-    flexWrap: { default: "nowrap", "@media (max-width: 760px)": "wrap" },
+    flexWrap: "wrap",
     height: "auto",
     minHeight: "44px",
   },
@@ -790,6 +790,7 @@ export const agentPageStyles = stylex.create({
     paddingInline: { default: null, "@media (max-width: 760px)": "8px" },
   },
   viewTabs: {
+    flexShrink: 0,
     minWidth: 0,
     maxWidth: "100%",
     order: { default: 0, "@media (max-width: 760px)": 2 },
