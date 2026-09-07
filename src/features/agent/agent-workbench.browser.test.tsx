@@ -282,7 +282,9 @@ test("a project task exposes its streamed diff in the existing conversation page
       throw new Error(
         JSON.stringify(
           elements.map((element) => {
-            if (!element) return null;
+            if (!element) {
+              return null;
+            }
             const css = getComputedStyle(element);
             return {
               text: element.textContent,
