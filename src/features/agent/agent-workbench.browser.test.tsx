@@ -274,7 +274,9 @@ test("a project task exposes its streamed diff in the existing conversation page
     .element(page.getByLabelText("Recorded diff: app.ts"))
     .not.toBeVisible();
   await fileSummary.click();
-  await expect.element(page.getByLabelText("Recorded diff: app.ts")).toBeVisible();
+  await expect
+    .element(page.getByLabelText("Recorded diff: app.ts"))
+    .toBeVisible();
   const heading = page.getByRole("heading", { name: "Changes", exact: true });
   await page.viewport(390, 844);
   await expect.element(heading).toBeVisible();
