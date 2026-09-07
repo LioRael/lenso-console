@@ -1,31 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const agentPageStyles = stylex.create({
-  agentTarget: {
-    alignItems: "center",
-    backgroundColor: "var(--color-surface-panel)",
-    borderColor: "var(--color-border-secondary)",
-    borderRadius: "var(--radius-control)",
-    borderStyle: "solid",
-    borderWidth: "0.5px",
-    color: "var(--color-content-secondary)",
-    display: "flex",
-    gap: "6px",
-    height: "28px",
-    marginInlineEnd: "6px",
-    minWidth: 0,
-    paddingInline: "8px",
-  },
-  agentTargetSelect: {
-    backgroundColor: "transparent",
-    borderWidth: 0,
-    color: "var(--color-content-primary)",
-    font: "inherit",
-    fontSize: "12px",
-    minWidth: 0,
-    outlineStyle: "none",
-    outlineWidth: 0,
-  },
   assistantMessage: { fontSize: "14px", lineHeight: "22px", margin: "0 8px" },
   attachButton: {
     borderRadius: "999px",
@@ -36,12 +11,12 @@ export const agentPageStyles = stylex.create({
   },
   chatSwitcher: {
     backgroundColor: {
-      default: "lch(94.854 0.5 282)",
+      default: "transparent",
       ":hover": "var(--color-surface-interactive-hover)",
     },
-    borderRadius: "9999px",
+    borderRadius: "6px",
     boxShadow: "none",
-    color: "lch(9.794 0 282)",
+    color: "var(--color-content-primary)",
     fontSize: "12px",
     fontWeight: 500,
     gap: "6px",
@@ -58,7 +33,6 @@ export const agentPageStyles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  compactButton: { flex: "0 0 auto" },
   composer: {
     display: "grid",
     gap: "8px",

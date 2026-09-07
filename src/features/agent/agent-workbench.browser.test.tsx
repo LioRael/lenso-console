@@ -9,12 +9,13 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  useParams,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { AgentChanges } from "./agent-changes";
 import { AgentIdentityProvider } from "./agent-identity-context";
@@ -63,6 +64,11 @@ function render(content: ReactNode) {
     routeTree: rootRoute.addChildren([projectRoute]),
   });
   flushSync(() => root?.render(<RouterProvider router={router} />));
+}
+
+function RoutedAgentPage() {
+  const { agentId } = useParams({ strict: false });
+  return agentId ? <AgentPage agentId={agentId} /> : null;
 }
 
 test("project entry keeps new and resumed tasks scoped to the owning Agent", async () => {
@@ -169,6 +175,12 @@ test("a project task exposes its streamed diff in the existing conversation page
         return Response.json({
           agents: [
             { id: "support", label: "Support", role: "app", capabilities: [] },
+            {
+              id: "console",
+              label: "Console Agent",
+              role: "console",
+              capabilities: [],
+            },
           ],
         });
       }
@@ -183,6 +195,9 @@ test("a project task exposes its streamed diff in the existing conversation page
             edit: true,
             sessionList: true,
             sessionRead: true,
+            sessionRename: true,
+            sessionCompact: true,
+            turnToolSelection: true,
             userInteraction: false,
             profileSelection: true,
           },
@@ -243,7 +258,7 @@ test("a project task exposes its streamed diff in the existing conversation page
   );
   render(
     <div style={{ height: "100vh" }}>
-      <AgentPage agentId="support" />
+      <RoutedAgentPage />
     </div>
   );
   await expect
@@ -253,6 +268,23 @@ test("a project task exposes its streamed diff in the existing conversation page
     .getByRole("textbox", { name: "Send a message to Lenso Agent" })
     .fill("Review the change");
   await page.getByRole("button", { name: "Submit comment" }).click();
+  expect(
+    container?.querySelector('[aria-label="Turn permissions"]')
+  ).toBeNull();
+  expect(
+    container?.querySelector('[aria-label="Compact conversation context"]')
+  ).toBeNull();
+  expect(container?.querySelector('select[aria-label="Agent"]')).toBeNull();
+  const title = page.getByRole("button", { name: /^Rename conversation:/ });
+  await title.dblClick();
+  await expect
+    .element(page.getByRole("textbox", { name: "Conversation title" }))
+    .toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Conversation title" })
+    .fill("Renamed task");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(title).toBeVisible();
   await page.getByRole("tab", { name: "Changes", exact: true }).click();
   expect(
     getComputedStyle(
@@ -294,4 +326,13 @@ test("a project task exposes its streamed diff in the existing conversation page
     )
     .toBeLessThanOrEqual(window.innerWidth);
   await page.viewport(1280, 800);
+  await page.getByRole("combobox", { name: "Agent", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Console Agent", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      container?.querySelector('[aria-label="Agent working directory"]')
+    )
+    .toBeNull();
 });

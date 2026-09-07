@@ -1,6 +1,5 @@
 import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
-import { Menu } from "@lenso/ui/menu";
 import { PageHeader } from "@lenso/ui/page-header";
 import { Tabs } from "@lenso/ui/tabs";
 import * as stylex from "@stylexjs/stylex";
@@ -9,18 +8,14 @@ import {
   ArrowUp,
   ArrowDown,
   Bot,
-  ChevronDown,
   ChevronRight,
   CircleAlert,
   FileText,
   ImageIcon,
   List,
-  Minimize2,
   Package,
   Paperclip,
-  Pencil,
   Search,
-  ShieldCheck,
   Square,
   Terminal,
   Wrench,
@@ -47,7 +42,6 @@ import {
   RunConfigurationMenu,
   TurnSelect,
 } from "./agent-composer-controls";
-import { AgentHistoryMenu } from "./agent-history-menu";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentMarkdown } from "./agent-markdown";
 import {
@@ -239,7 +233,6 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
     changeProfile,
     configureRuntime,
     isConfiguring,
-    compactSession,
     contextCatalog,
     draft,
     editingTurnId,
@@ -256,13 +249,11 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
     selectedModel,
     selectedReasoningEffort,
     selectedServiceTier,
-    selectedTools,
     sessionId,
     setDraft,
     setSelectedModel,
     setSelectedReasoningEffort,
     setSelectedServiceTier,
-    setSelectedTools,
     submit,
     trajectory,
     tasks,
@@ -316,6 +307,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
       data-view={conversation ? view : undefined}
     >
       <AgentHeader
+        key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
         codingSetup={
           runtime?.capabilities.profileImport &&
           agents
@@ -348,7 +340,11 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
               }
             : undefined
         }
-        workspace={runtime?.workspace}
+        workspace={
+          agents.find((agent) => agent.id === activeAgentId)?.role === "app"
+            ? runtime?.workspace
+            : undefined
+        }
         onViewChange={setView}
         view={view}
       />
@@ -382,14 +378,15 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
       ) : (
         <div {...stylex.props(styles.emptyCanvas)}>
           <section {...stylex.props(styles.emptyCenter)}>
-            {runtime?.workspace ? (
+            {runtime?.workspace &&
+            agents.find((agent) => agent.id === activeAgentId)?.role ===
+              "app" ? (
               <AgentProjectContext
                 agentId={activeAgentId}
                 path={runtime.workspace.path}
               />
             ) : null}
             <AgentComposer
-              canCompact={Boolean(sessionId)}
               canCancel={canCancel}
               contextCatalog={contextCatalog}
               draft={draft}
@@ -398,12 +395,10 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
               modelCatalog={modelCatalog}
               onChange={setDraft}
               onCancel={cancelRunningTurn}
-              onCompact={compactSession}
               onModelChange={setSelectedModel}
               onProfileChange={changeProfile}
               onReasoningEffortChange={setSelectedReasoningEffort}
               onServiceTierChange={setSelectedServiceTier}
-              onToolsChange={setSelectedTools}
               onSubmit={onSubmit}
               profile={profile}
               ref={textarea}
@@ -411,7 +406,6 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
               selectedModel={selectedModel}
               selectedReasoningEffort={selectedReasoningEffort}
               selectedServiceTier={selectedServiceTier}
-              selectedTools={selectedTools}
               terminalCatalog={terminalCatalog}
             />
             {terminalRuns.length > 0 ? (
@@ -516,7 +510,6 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
                 />
               ) : null}
               <AgentComposer
-                canCompact={Boolean(sessionId)}
                 canCancel={canCancel}
                 contextCatalog={contextCatalog}
                 draft={draft}
@@ -525,12 +518,10 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
                 modelCatalog={modelCatalog}
                 onChange={setDraft}
                 onCancel={cancelRunningTurn}
-                onCompact={compactSession}
                 onModelChange={setSelectedModel}
                 onProfileChange={changeProfile}
                 onReasoningEffortChange={setSelectedReasoningEffort}
                 onServiceTierChange={setSelectedServiceTier}
-                onToolsChange={setSelectedTools}
                 onSubmit={onSubmit}
                 placeholder="Reply…"
                 profile={profile}
@@ -539,7 +530,6 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
                 selectedModel={selectedModel}
                 selectedReasoningEffort={selectedReasoningEffort}
                 selectedServiceTier={selectedServiceTier}
-                selectedTools={selectedTools}
                 terminalCatalog={terminalCatalog}
               />
             </>
@@ -629,19 +619,28 @@ function AgentHeader({
             </Button>
           </form>
         ) : (
-          <AgentHistoryMenu
-            agentId={activeAgentId}
-            currentSessionId={conversationId}
-            placement="header"
-            showNewChat={Boolean(conversationId)}
+          <Button
+            aria-label={
+              onRename
+                ? `Rename conversation: ${conversationTitle ?? "New chat"}`
+                : undefined
+            }
+            onDoubleClick={onRename ? beginRenaming : undefined}
+            onKeyDown={(event) => {
+              if (onRename && ["Enter", " ", "F2"].includes(event.key)) {
+                event.preventDefault();
+                beginRenaming();
+              }
+            }}
+            title={onRename ? "Double-click to rename" : undefined}
+            size="compact"
+            variant="ghost"
+            xstyle={styles.chatSwitcher}
           >
-            <Button size="compact" variant="ghost" xstyle={styles.chatSwitcher}>
-              <span {...stylex.props(styles.chatSwitcherLabel)}>
-                {conversationTitle ?? "New chat"}
-              </span>
-              <ChevronDown aria-hidden="true" size={12} />
-            </Button>
-          </AgentHistoryMenu>
+            <span {...stylex.props(styles.chatSwitcherLabel)}>
+              {conversationTitle ?? "New chat"}
+            </span>
+          </Button>
         )}
         {conversationId ? (
           <Tabs.Root
@@ -670,10 +669,7 @@ function AgentHeader({
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {workspace ||
-        codingSetup ||
-        agents.length > 1 ||
-        (onRename && !renaming) ? (
+        {workspace || codingSetup || agents.length > 1 ? (
           <div {...stylex.props(styles.headerActions)}>
             {workspace ? (
               <AgentProjectContext
@@ -683,40 +679,25 @@ function AgentHeader({
               />
             ) : null}
             {agents.length > 1 ? (
-              <label {...stylex.props(styles.agentTarget)}>
-                <Bot aria-hidden="true" size={13} strokeWidth={1.7} />
-                <select
-                  {...stylex.props(styles.agentTargetSelect)}
-                  aria-label="Agent"
-                  onChange={(event) => {
-                    const nextAgentId = event.target.value;
-                    selectAgent(nextAgentId);
-                    navigate({
-                      params: { agentId: nextAgentId, chatId: "new-task" },
-                      to: "/agent/$agentId/$chatId",
-                    });
-                  }}
-                  value={activeAgentId}
-                >
-                  {agents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <TurnSelect
+                aria-label="Agent"
+                disabled={false}
+                icon={<Bot aria-hidden="true" size={13} />}
+                onValueChange={(nextAgentId) => {
+                  selectAgent(nextAgentId);
+                  navigate({
+                    params: { agentId: nextAgentId, chatId: "new-task" },
+                    to: "/agent/$agentId/$chatId",
+                  });
+                }}
+                options={agents.map((agent) => ({
+                  label: agent.label,
+                  value: agent.id,
+                }))}
+                value={activeAgentId}
+              />
             ) : null}
             {codingSetup}
-            {onRename && !renaming ? (
-              <IconButton
-                aria-label="Rename conversation"
-                onClick={beginRenaming}
-                size="compact"
-                variant="ghost"
-              >
-                <Pencil size={13} />
-              </IconButton>
-            ) : null}
           </div>
         ) : null}
       </PageHeader.Row>
@@ -1020,7 +1001,6 @@ function toolPayload(value?: string): Record<string, unknown> {
 }
 
 type AgentComposerProps = {
-  canCompact: boolean;
   canCancel: boolean;
   contextCatalog: AgentContextCatalog | undefined;
   draft: string;
@@ -1029,12 +1009,10 @@ type AgentComposerProps = {
   modelCatalog: AgentModelCatalog | undefined;
   onChange: (value: string) => void;
   onCancel: () => void;
-  onCompact: () => void;
   onModelChange: (value: string | undefined) => void;
   onProfileChange: (value: string | undefined) => void;
   onReasoningEffortChange: (value: string | undefined) => void;
   onServiceTierChange: (value: string | undefined) => void;
-  onToolsChange: (value: string[]) => void;
   onSubmit: (event: FormEvent) => void;
   placeholder?: string;
   profile: string | undefined;
@@ -1043,12 +1021,10 @@ type AgentComposerProps = {
   selectedModel: string | undefined;
   selectedReasoningEffort: string | undefined;
   selectedServiceTier: string | undefined;
-  selectedTools: string[] | undefined;
   terminalCatalog: AgentTerminalCatalog | undefined;
 };
 
 function AgentComposer({
-  canCompact,
   canCancel,
   contextCatalog,
   draft,
@@ -1057,12 +1033,10 @@ function AgentComposer({
   modelCatalog,
   onChange,
   onCancel,
-  onCompact,
   onModelChange,
   onProfileChange,
   onReasoningEffortChange,
   onServiceTierChange,
-  onToolsChange,
   onSubmit,
   placeholder = "Ask Lenso…",
   profile,
@@ -1071,7 +1045,6 @@ function AgentComposer({
   selectedModel,
   selectedReasoningEffort,
   selectedServiceTier,
-  selectedTools,
   terminalCatalog,
 }: AgentComposerProps) {
   const selectableModels = modelsForSelector(modelCatalog, selectedModel);
@@ -1080,14 +1053,7 @@ function AgentComposer({
   const activeModel = modelCatalog?.models.find(
     (model) => model.id === effectiveModel
   );
-  const allowedToolNames = new Set(runtime?.tools.allowed);
-  const selectedToolNames = new Set(selectedTools);
-  const availableTurnTools = [];
-  for (const tool of runtime?.tools.available ?? []) {
-    if (allowedToolNames.has(tool.name)) {
-      availableTurnTools.push(tool);
-    }
-  }
+
   const contextSuggestions = matchingComposerSuggestions(
     contextCatalog,
     terminalCatalog,
@@ -1178,27 +1144,21 @@ function AgentComposer({
       />
       <AgentComposerToolbar
         activeModel={activeModel}
-        availableTurnTools={availableTurnTools}
         canCancel={canCancel}
-        canCompact={canCompact}
         draft={draft}
         effectiveModel={effectiveModel}
         isConfiguring={isConfiguring}
         isRunning={isRunning}
         onCancel={onCancel}
-        onCompact={onCompact}
         onModelChange={onModelChange}
         onProfileChange={onProfileChange}
         onReasoningEffortChange={onReasoningEffortChange}
         onServiceTierChange={onServiceTierChange}
-        onToolsChange={onToolsChange}
         profile={profile}
         runtime={runtime}
         selectableModels={selectableModels}
         selectedReasoningEffort={selectedReasoningEffort}
         selectedServiceTier={selectedServiceTier}
-        selectedToolNames={selectedToolNames}
-        selectedTools={selectedTools}
       />
     </PromptComposer.Root>
   );
@@ -1207,53 +1167,41 @@ function AgentComposer({
 type AgentComposerToolbarProps = Pick<
   AgentComposerProps,
   | "canCancel"
-  | "canCompact"
   | "draft"
   | "isRunning"
   | "isConfiguring"
   | "onCancel"
-  | "onCompact"
   | "onModelChange"
   | "onProfileChange"
   | "onReasoningEffortChange"
   | "onServiceTierChange"
-  | "onToolsChange"
   | "profile"
   | "runtime"
   | "selectedReasoningEffort"
   | "selectedServiceTier"
-  | "selectedTools"
 > & {
   activeModel: AgentModelCatalog["models"][number] | undefined;
-  availableTurnTools: AgentBootstrap["tools"]["available"];
   effectiveModel: string | undefined;
   selectableModels: ReturnType<typeof modelsForSelector>;
-  selectedToolNames: Set<string>;
 };
 
 function AgentComposerToolbar({
   activeModel,
-  availableTurnTools,
   canCancel,
-  canCompact,
   draft,
   effectiveModel,
   isConfiguring,
   isRunning,
   onCancel,
-  onCompact,
   onModelChange,
   onProfileChange,
   onReasoningEffortChange,
   onServiceTierChange,
-  onToolsChange,
   profile,
   runtime,
   selectableModels,
   selectedReasoningEffort,
   selectedServiceTier,
-  selectedToolNames,
-  selectedTools,
 }: AgentComposerToolbarProps) {
   return (
     <PromptComposer.Toolbar xstyle={styles.composerFooter}>
@@ -1279,70 +1227,6 @@ function AgentComposerToolbar({
             ]}
             value={profile ?? ""}
           />
-        ) : null}
-        {runtime?.capabilities.turnToolSelection && selectedTools ? (
-          <Menu.Root>
-            <Menu.Trigger
-              render={
-                <Button
-                  aria-label="Turn permissions"
-                  disabled={isRunning || isConfiguring}
-                  size="compact"
-                  variant="ghost"
-                  xstyle={styles.composerControl}
-                >
-                  <ShieldCheck aria-hidden="true" size={12} />
-                  {availableTurnTools.length === 0
-                    ? "No tools"
-                    : selectedTools.length === availableTurnTools.length
-                      ? "Tools"
-                      : `${selectedTools.length} tools`}
-                  <ChevronDown aria-hidden="true" size={11} />
-                </Button>
-              }
-            />
-            <Menu.Portal>
-              <Menu.Positioner align="start" side="top" sideOffset={6}>
-                <Menu.Popup aria-label="Turn permissions">
-                  {availableTurnTools.map((tool) => {
-                    const enabled = selectedToolNames.has(tool.name);
-                    return (
-                      <Menu.Item
-                        key={tool.name}
-                        onClick={() =>
-                          onToolsChange(
-                            enabled
-                              ? selectedTools.filter(
-                                  (name) => name !== tool.name
-                                )
-                              : [...selectedTools, tool.name]
-                          )
-                        }
-                      >
-                        <Menu.Label>
-                          {enabled ? "✓ " : ""}
-                          {tool.name}
-                        </Menu.Label>
-                      </Menu.Item>
-                    );
-                  })}
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
-        ) : null}
-        {runtime?.capabilities.sessionCompact && canCompact ? (
-          <IconButton
-            aria-label="Compact conversation context"
-            disabled={isRunning || isConfiguring}
-            onClick={onCompact}
-            size="compact"
-            type="button"
-            variant="ghost"
-            xstyle={styles.compactButton}
-          >
-            <Minimize2 size={13} />
-          </IconButton>
         ) : null}
       </div>
       <PromptComposer.Actions xstyle={styles.composerActions}>
