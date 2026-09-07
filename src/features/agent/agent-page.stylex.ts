@@ -201,8 +201,8 @@ export const agentPageStyles = stylex.create({
       "@media (max-width: 760px)": "calc(100% - 24px)",
     },
   },
-  conversationPage: { gridTemplateRows: "44px minmax(0, 1fr) auto" },
-  conversationPageTrajectory: { gridTemplateRows: "44px minmax(0, 1fr)" },
+  conversationPage: { gridTemplateRows: "auto minmax(0, 1fr) auto" },
+  conversationPageTrajectory: { gridTemplateRows: "auto minmax(0, 1fr)" },
   conversationTime: {
     color: "var(--color-content-tertiary)",
     display: { default: "block", "@media (max-width: 760px)": "none" },
@@ -245,8 +245,13 @@ export const agentPageStyles = stylex.create({
     },
     zIndex: 1,
   },
-  emptyPage: { gridTemplateRows: "44px minmax(0, 1fr)" },
+  emptyPage: { gridTemplateRows: "auto minmax(0, 1fr)" },
   header: { position: "relative", zIndex: 4 },
+  headerRow: {
+    flexWrap: { default: "nowrap", "@media (max-width: 760px)": "wrap" },
+    height: "auto",
+    minHeight: "44px",
+  },
   headerActions: {
     alignItems: "center",
     display: "flex",
@@ -779,6 +784,8 @@ export const agentPageStyles = stylex.create({
     width: "100%",
   },
   viewTabs: {
+    order: { default: 0, "@media (max-width: 760px)": 2 },
+    flexBasis: { default: "auto", "@media (max-width: 760px)": "100%" },
     alignSelf: "center",
     marginInlineStart: { default: "12px", "@media (max-width: 760px)": "6px" },
   },

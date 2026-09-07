@@ -40,6 +40,7 @@ import {
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
+import { AgentChanges } from "./agent-changes";
 import { AgentCodingSetup } from "./agent-coding-setup";
 import {
   ComposerSlashMenu,
@@ -55,6 +56,7 @@ import {
 } from "./agent-message-controls";
 import { hasAgentConversation } from "./agent-page-state";
 import { agentPageStyles as styles } from "./agent-page.stylex";
+import { AgentProjectContext } from "./agent-project-context";
 import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   modelsForSelector,
@@ -77,7 +79,7 @@ type AgentPageProps = {
   conversationId?: string;
 };
 
-type AgentView = "conversation" | "trajectory";
+type AgentView = "conversation" | "trajectory" | "changes";
 
 const suggestions = [
   {
@@ -97,6 +99,29 @@ const suggestions = [
     icon: Wrench,
     prompt: "Set up a new support team",
     title: "Set up a new team",
+  },
+] as const;
+
+const codingSuggestions = [
+  {
+    title: "Plan a change",
+    description: "Explore the project before editing",
+    icon: Search,
+    prompt:
+      "Inspect this project and help me plan a focused change. Do not edit files yet.",
+  },
+  {
+    title: "Fix an issue",
+    description: "Describe a bug to investigate",
+    icon: Wrench,
+    prompt: "Help me fix this issue in the current project: ",
+  },
+  {
+    title: "Review changes",
+    description: "Inspect the current diff",
+    icon: FileText,
+    prompt:
+      "Review the current project changes with git_status and git_diff. Explain concrete issues without modifying files.",
   },
 ] as const;
 
@@ -285,7 +310,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
         styles.page,
         conversation ? styles.conversationPage : styles.emptyPage,
         conversation &&
-          view === "trajectory" &&
+          view !== "conversation" &&
           styles.conversationPageTrajectory
       )}
       data-view={conversation ? view : undefined}
@@ -323,12 +348,28 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
               }
             : undefined
         }
+        workspace={runtime?.workspace}
         onViewChange={setView}
         view={view}
       />
       {conversation ? (
         view === "trajectory" ? (
           <AgentTrajectory trajectory={trajectory} />
+        ) : view === "changes" ? (
+          <AgentChanges
+            turns={turns}
+            onRequestReview={
+              runtime?.tools.available.some((tool) => tool.name === "git_diff")
+                ? () => {
+                    setDraft(
+                      "Capture and review the current project diff with git_status and git_diff. Do not modify files."
+                    );
+                    setView("conversation");
+                    requestAnimationFrame(() => textarea.current?.focus());
+                  }
+                : undefined
+            }
+          />
         ) : (
           <AgentConversation
             canEdit={canEdit}
@@ -341,6 +382,12 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
       ) : (
         <div {...stylex.props(styles.emptyCanvas)}>
           <section {...stylex.props(styles.emptyCenter)}>
+            {runtime?.workspace ? (
+              <AgentProjectContext
+                agentId={activeAgentId}
+                path={runtime.workspace.path}
+              />
+            ) : null}
             <AgentComposer
               canCompact={Boolean(sessionId)}
               canCancel={canCancel}
@@ -385,7 +432,10 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
                   </IconButton>
                 </div>
                 <div {...stylex.props(styles.suggestionGrid)}>
-                  {suggestions.map((suggestion) => (
+                  {(runtime?.workspace && runtime.capabilities.profileSelection
+                    ? codingSuggestions
+                    : suggestions
+                  ).map((suggestion) => (
                     <button
                       aria-label={suggestion.title}
                       {...stylex.props(styles.suggestion)}
@@ -417,7 +467,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
           </section>
         </div>
       )}
-      {conversation && view === "trajectory" ? (
+      {conversation && view !== "conversation" ? (
         <div
           aria-hidden="true"
           {...stylex.props(styles.trajectoryComposerBackdrop)}
@@ -428,7 +478,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
           {...stylex.props(
             styles.composerDock,
             Boolean(editingTurnId) && styles.composerDockEditing,
-            view === "trajectory" && styles.composerDockTrajectory
+            view !== "conversation" && styles.composerDockTrajectory
           )}
           data-editing={Boolean(editingTurnId) || undefined}
           data-view={view}
@@ -508,6 +558,7 @@ function AgentHeader({
   conversationTitle,
   onRename,
   onViewChange,
+  workspace,
   view,
 }: {
   codingSetup?: ReactNode;
@@ -516,6 +567,7 @@ function AgentHeader({
   conversationId: string | undefined;
   conversationTitle: string | null;
   onRename?: ((title: string) => Promise<string | undefined>) | undefined;
+  workspace?: AgentBootstrap["workspace"];
   onViewChange: (view: AgentView) => void;
   view: AgentView;
 }) {
@@ -545,7 +597,7 @@ function AgentHeader({
 
   return (
     <PageHeader.Root aria-label="Agent chat navigation" xstyle={styles.header}>
-      <PageHeader.Row>
+      <PageHeader.Row xstyle={styles.headerRow}>
         {renaming && onRename ? (
           <form
             {...stylex.props(styles.renameForm)}
@@ -593,18 +645,37 @@ function AgentHeader({
         )}
         {conversationId ? (
           <Tabs.Root
-            onValueChange={(value) => onViewChange(value as AgentView)}
+            onValueChange={(value) => {
+              if (
+                value === "conversation" ||
+                value === "trajectory" ||
+                value === "changes"
+              ) {
+                onViewChange(value);
+              }
+            }}
             value={view}
             xstyle={styles.viewTabs}
           >
             <Tabs.List aria-label="Agent view">
               <Tabs.Tab value="conversation">Conversation</Tabs.Tab>
+              <Tabs.Tab value="changes">Changes</Tabs.Tab>
               <Tabs.Tab value="trajectory">Trajectory</Tabs.Tab>
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {codingSetup || agents.length > 1 || (onRename && !renaming) ? (
+        {workspace ||
+        codingSetup ||
+        agents.length > 1 ||
+        (onRename && !renaming) ? (
           <div {...stylex.props(styles.headerActions)}>
+            {workspace ? (
+              <AgentProjectContext
+                agentId={activeAgentId}
+                compact
+                path={workspace.path}
+              />
+            ) : null}
             {agents.length > 1 ? (
               <label {...stylex.props(styles.agentTarget)}>
                 <Bot aria-hidden="true" size={13} strokeWidth={1.7} />

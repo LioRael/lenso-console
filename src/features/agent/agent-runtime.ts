@@ -42,6 +42,7 @@ export type AgentStreamEvent =
   | { detail: string; type: "turn_failed" };
 
 export type AgentBootstrap = {
+  workspace?: { path: string };
   capabilities: {
     cancel: boolean;
     contextSources: boolean;
@@ -1182,6 +1183,18 @@ function agentStreamEvent(value: unknown): AgentStreamEvent {
   throw new TypeError("Agent stream event has an unsupported shape");
 }
 
+function agentWorkspace(value: unknown): { path: string } {
+  const object = requiredObject(value, "Agent workspace");
+  if (
+    typeof object.path !== "string" ||
+    !object.path.trim() ||
+    object.path.includes("\0")
+  ) {
+    throw new TypeError("Agent workspace path is malformed");
+  }
+  return { path: object.path };
+}
+
 function agentBootstrap(value: unknown): AgentBootstrap {
   const object = requiredObject(value, "Agent bootstrap");
   const capabilities = requiredObject(
@@ -1225,6 +1238,9 @@ function agentBootstrap(value: unknown): AgentBootstrap {
       turnToolSelection: capabilities.turnToolSelection === true,
       userInteraction: capabilities.userInteraction,
     },
+    ...(object.workspace === undefined || object.workspace === null
+      ? {}
+      : { workspace: agentWorkspace(object.workspace) }),
     mode: object.mode,
     profile: object.profile,
     trajectory: object.trajectory,

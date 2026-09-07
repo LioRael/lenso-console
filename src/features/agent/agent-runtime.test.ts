@@ -389,6 +389,7 @@ describe("Agent runtime projection", () => {
             sessionRead: true,
             userInteraction: true,
           },
+          workspace: { path: "/projects/support" },
           mode: "console",
           profile: "default",
           tools: {
@@ -406,6 +407,7 @@ describe("Agent runtime projection", () => {
     );
 
     await expect(readAgentBootstrap()).resolves.toMatchObject({
+      workspace: { path: "/projects/support" },
       mode: "console",
       profile: "default",
       tools: {
@@ -419,6 +421,34 @@ describe("Agent runtime projection", () => {
       },
     });
   });
+
+  it.each([{}, { path: "" }, { path: 42 }, { path: "a\0b" }])(
+    "rejects malformed workspace metadata %j",
+    async (workspace) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json({
+            capabilities: {
+              cancel: true,
+              edit: true,
+              sessionList: true,
+              sessionRead: true,
+              userInteraction: true,
+            },
+            mode: "console",
+            profile: "default",
+            tools: { allowed: [], available: [] },
+            workspace,
+            trajectory: "lenso.agent.trajectory@1",
+          })
+        )
+      );
+      await expect(readAgentBootstrap()).rejects.toThrow(
+        "Agent workspace path is malformed"
+      );
+    }
+  );
 
   it("discovers catalog Agents and routes one selected App Agent", async () => {
     const urls: string[] = [];
