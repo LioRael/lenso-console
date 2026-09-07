@@ -788,6 +788,8 @@ export const agentPageStyles = stylex.create({
     paddingInline: { default: null, "@media (max-width: 760px)": "8px" },
   },
   viewTabs: {
+    minWidth: 0,
+    maxWidth: "100%",
     order: { default: 0, "@media (max-width: 760px)": 2 },
     flexBasis: { default: "auto", "@media (max-width: 760px)": "100%" },
     alignSelf: "center",

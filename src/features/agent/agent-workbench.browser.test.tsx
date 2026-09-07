@@ -261,8 +261,17 @@ test("a project task exposes its streamed diff in the existing conversation page
   await page.viewport(390, 844);
   await expect.element(heading).toBeVisible();
   const tabs = page.getByRole("tablist", { name: "Agent view" }).element();
-  expect(tabs.getBoundingClientRect().right).toBeLessThanOrEqual(
-    window.innerWidth
-  );
+  await expect
+    .poll(() => tabs.getBoundingClientRect().right)
+    .toBeLessThanOrEqual(window.innerWidth);
+  await expect
+    .poll(
+      () =>
+        page
+          .getByRole("tab", { name: "Trajectory", exact: true })
+          .element()
+          .getBoundingClientRect().right
+    )
+    .toBeLessThanOrEqual(window.innerWidth);
   await page.viewport(1280, 800);
 });
