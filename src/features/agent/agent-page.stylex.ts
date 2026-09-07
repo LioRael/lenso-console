@@ -786,8 +786,8 @@ export const agentPageStyles = stylex.create({
   viewTab: {
     flex: { default: null, "@media (max-width: 760px)": "1 1 0" },
     minWidth: { default: null, "@media (max-width: 760px)": 0 },
-    fontSize: { default: null, "@media (max-width: 760px)": "12px" },
-    paddingInline: { default: null, "@media (max-width: 760px)": "8px" },
+    fontSize: "12px",
+    paddingInline: { default: "10px", "@media (max-width: 760px)": "8px" },
   },
   viewTabs: {
     flexShrink: 0,

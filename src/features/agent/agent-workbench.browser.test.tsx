@@ -156,7 +156,7 @@ test("review shows successful captured diffs as text and keeps a fresh review ex
     .element(page.getByText("This recorded diff was truncated."))
     .toBeVisible();
   expect(container?.textContent).not.toContain("untrusted failed output");
-  await page.getByRole("button", { name: "Ask for a fresh diff" }).click();
+  await page.getByRole("button", { name: "Review changes" }).click();
   expect(requestReview).toHaveBeenCalledTimes(1);
 });
 
@@ -254,9 +254,27 @@ test("a project task exposes its streamed diff in the existing conversation page
     .fill("Review the change");
   await page.getByRole("button", { name: "Submit comment" }).click();
   await page.getByRole("tab", { name: "Changes", exact: true }).click();
+  expect(
+    getComputedStyle(
+      page.getByRole("tab", { name: "Conversation", exact: true }).element()
+    ).fontSize
+  ).toBe("12px");
+  expect(
+    getComputedStyle(
+      page.getByRole("tab", { name: "Conversation", exact: true }).element()
+    ).paddingLeft
+  ).toBe("10px");
   await expect
     .element(page.getByRole("region", { name: "Task changes" }))
     .toHaveTextContent("+export const ready = true;");
+  const fileSummary = page.getByText("app.ts", { exact: true });
+  await expect.element(page.getByLabelText("1 added, 1 removed")).toBeVisible();
+  await fileSummary.click();
+  await expect
+    .element(page.getByLabelText("Recorded diff: app.ts"))
+    .not.toBeVisible();
+  await fileSummary.click();
+  await expect.element(page.getByLabelText("Recorded diff: app.ts")).toBeVisible();
   const heading = page.getByRole("heading", { name: "Changes", exact: true });
   await page.viewport(390, 844);
   await expect.element(heading).toBeVisible();
