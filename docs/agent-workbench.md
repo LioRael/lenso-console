@@ -12,6 +12,5 @@ snapshots, and renders output as text. These snapshots may be stale. “Ask for 
 fresh diff” prepares a message for the user to submit through the existing Tool
 policy; it does not query or modify the filesystem directly.
 
-The optional bootstrap contract is defined in Agent ADR-0102. Deploy an Agent
-build containing that change to enable directory context; Agent v0.1.6 does not
+The optional bootstrap contract is defined in Agent ADR-0102. Install Agent v0.1.7 or newer to enable directory context; Agent v0.1.6 does not
 include the field. Changes remains available for existing recorded Tool results.
