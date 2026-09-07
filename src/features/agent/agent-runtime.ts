@@ -228,6 +228,7 @@ export type AgentSessionEventKind =
   | "model_requested"
   | "session_created"
   | "system_instruction_installed"
+  | "system_instruction_revised"
   | "tool_requested"
   | "tool_result"
   | "turn_cancelled"
@@ -1642,6 +1643,7 @@ const sessionEventKinds = new Set<AgentSessionEventKind>([
   "model_requested",
   "session_created",
   "system_instruction_installed",
+  "system_instruction_revised",
   "tool_requested",
   "tool_result",
   "turn_cancelled",
