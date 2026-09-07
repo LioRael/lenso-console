@@ -33,8 +33,8 @@ packaging and installation workflow.
 ## Accepted installation cohort
 
 The coding setup flow requires Lenso Agent 0.1.4 or newer, including its separate
-App Web and Console Web binaries. Install the matching Agent release before
-running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
+App Web and Console Web binaries. Use Lenso Agent 0.1.7 or newer for working-directory context in the task
+workbench. Install the matching Agent release before running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
 Cargo `lenso-cli 0.5.2` or npm `@lenso/cli 0.16.2`.
 
 SQLite-managed Agents can import official coding Profiles while running. Select
