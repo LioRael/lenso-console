@@ -357,6 +357,52 @@ test("a project task exposes its streamed diff in the existing conversation page
   await expect
     .element(page.getByLabelText("Recorded diff: app.ts"))
     .toBeVisible();
+  const taskPage = container?.querySelector<HTMLElement>(
+    'div[data-view="changes"]'
+  );
+  expect(taskPage).not.toBeNull();
+  if (!taskPage) {
+    throw new Error("Task page is missing");
+  }
+  taskPage.style.height = "640px";
+  const composer = taskPage.querySelector<HTMLElement>("div[data-editing]");
+  // data-editing is absent outside edit mode; the dock is the last grid item.
+  const dock = composer ?? (taskPage.lastElementChild as HTMLElement);
+  for (const [tab, region] of [
+    ["Conversation", "Agent conversation"],
+    ["Changes", "Task changes"],
+    ["Trajectory", "Agent trajectory"],
+  ] as const) {
+    await page.getByRole("tab", { name: tab, exact: true }).click();
+    const content = page
+      .getByRole("region", { name: region, exact: true })
+      .element();
+    await expect
+      .poll(() => content.getBoundingClientRect().bottom)
+      .toBeLessThanOrEqual(dock.getBoundingClientRect().top + 1);
+    expect(
+      taskPage.getBoundingClientRect().bottom -
+        dock.getBoundingClientRect().bottom
+    ).toBeLessThanOrEqual(12);
+  }
+  const reply = page.getByRole("textbox", {
+    name: "Send a message to Lenso Agent",
+  });
+  const initialDockHeight = dock.getBoundingClientRect().height;
+  await reply.fill(
+    "A longer prompt\nwith multiple lines\nto grow the composer\nwithout hiding content\nor reserving empty space"
+  );
+  await expect
+    .poll(() => dock.getBoundingClientRect().height)
+    .toBeGreaterThan(initialDockHeight);
+  expect(
+    page
+      .getByRole("region", { name: "Agent trajectory", exact: true })
+      .element()
+      .getBoundingClientRect().bottom
+  ).toBeLessThanOrEqual(dock.getBoundingClientRect().top + 1);
+  await reply.fill("");
+  await page.getByRole("tab", { name: "Changes", exact: true }).click();
   const heading = page.getByRole("heading", { name: "Changes", exact: true });
   await page.viewport(390, 844);
   await expect.element(heading).toBeVisible();

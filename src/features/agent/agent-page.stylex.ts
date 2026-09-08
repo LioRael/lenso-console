@@ -60,14 +60,6 @@ export const agentPageStyles = stylex.create({
   composerDockEditing: {
     backgroundImage: "linear-gradient(lch(96.5 0 282), lch(100 0 282))",
   },
-  composerDockTrajectory: {
-    bottom: { default: "8px", "@media (max-width: 760px)": "4px" },
-    gridRow: "auto",
-    left: "50%",
-    margin: 0,
-    position: "absolute",
-    transform: "translateX(-50%)",
-  },
   composerFooter: {
     alignItems: "center",
     display: "flex",
@@ -163,7 +155,10 @@ export const agentPageStyles = stylex.create({
     gridRow: 2,
     minHeight: 0,
     overflowY: "auto",
-    padding: { default: "36px 0", "@media (max-width: 760px)": "24px 0" },
+    padding: {
+      default: "36px 0 12px",
+      "@media (max-width: 760px)": "24px 0 12px",
+    },
     position: "relative",
     scrollbarWidth: "thin",
     width: "100%",
@@ -176,7 +171,6 @@ export const agentPageStyles = stylex.create({
     },
   },
   conversationPage: { gridTemplateRows: "auto minmax(0, 1fr) auto" },
-  conversationPageTrajectory: { gridTemplateRows: "auto minmax(0, 1fr)" },
   conversationTime: {
     color: "var(--color-content-tertiary)",
     display: { default: "block", "@media (max-width: 760px)": "none" },
@@ -729,18 +723,10 @@ export const agentPageStyles = stylex.create({
     padding: "2px 0",
     width: "fit-content",
   },
-  trajectoryComposerBackdrop: {
-    backgroundImage:
-      "linear-gradient(to bottom, transparent 0, color-mix(in srgb, var(--color-surface-canvas) 12%, transparent) 34px, color-mix(in srgb, var(--color-surface-canvas) 52%, transparent) 86px, color-mix(in srgb, var(--color-surface-canvas) 88%, transparent) 132px, var(--color-surface-canvas) 166px, var(--color-surface-canvas) 100%)",
-    bottom: 0,
-    height: "254px",
-    left: 0,
-    pointerEvents: "none",
-    position: "absolute",
-    right: 0,
-    zIndex: 2,
+  turn: {
+    display: "grid",
+    marginBottom: { default: "38px", ":last-child": 0 },
   },
-  turn: { display: "grid", marginBottom: "38px" },
   userMessage: {
     backgroundColor: "var(--color-surface-selected)",
     borderRadius: "10px",

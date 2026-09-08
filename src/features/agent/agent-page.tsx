@@ -310,10 +310,7 @@ export function AgentPage({
     <div
       {...stylex.props(
         styles.page,
-        conversation ? styles.conversationPage : styles.emptyPage,
-        conversation &&
-          view !== "conversation" &&
-          styles.conversationPageTrajectory
+        conversation ? styles.conversationPage : styles.emptyPage
       )}
       data-view={conversation ? view : undefined}
     >
@@ -473,18 +470,11 @@ export function AgentPage({
           </section>
         </div>
       )}
-      {conversation && view !== "conversation" ? (
-        <div
-          aria-hidden="true"
-          {...stylex.props(styles.trajectoryComposerBackdrop)}
-        />
-      ) : null}
       {conversation ? (
         <div
           {...stylex.props(
             styles.composerDock,
-            Boolean(editingTurnId) && styles.composerDockEditing,
-            view !== "conversation" && styles.composerDockTrajectory
+            Boolean(editingTurnId) && styles.composerDockEditing
           )}
           data-editing={Boolean(editingTurnId) || undefined}
           data-view={view}
