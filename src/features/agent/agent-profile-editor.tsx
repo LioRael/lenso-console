@@ -337,6 +337,48 @@ export function AgentProfileEditor({
                 </label>
               </>
             )}
+            <div {...stylex.props(ui.field)}>
+              <h3 {...stylex.props(ui.fieldTitle)}>Approval mode</h3>
+              <ProfileSelect
+                label="Approval mode"
+                value={String(profile.document.approval_mode ?? "request")}
+                display={
+                  (
+                    {
+                      request: "Request approval",
+                      assisted: "Help me approve",
+                      full: "Full access",
+                    } as Record<string, string>
+                  )[String(profile.document.approval_mode ?? "request")] ??
+                  "Request approval"
+                }
+                disabled={readonly}
+                options={[
+                  {
+                    value: "request",
+                    label: "Request approval",
+                    detail: "Ask before actions requiring approval",
+                  },
+                  {
+                    value: "assisted",
+                    label: "Help me approve",
+                    detail: "AI reviews actions; asks you when uncertain",
+                  },
+                  {
+                    value: "full",
+                    label: "Full access",
+                    detail: "Run enabled tools without approval",
+                  },
+                ]}
+                onChange={(value) =>
+                  edit({ ...profile.document, approval_mode: value })
+                }
+              />
+              <p {...stylex.props(ui.hint)}>
+                Default for new turns. You can override it in a conversation.
+                Disabled capabilities remain unavailable in every mode.
+              </p>
+            </div>
           </div>
           <section
             {...stylex.props(ui.capabilities)}

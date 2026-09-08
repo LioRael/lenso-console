@@ -125,6 +125,26 @@ export function useAgentConversation({
   const [selectedModel, setSelectedModel] = useState<string>();
   const [selectedReasoningEffort, setSelectedReasoningEffort] =
     useState<string>();
+  const [selectedApprovalMode, setSelectedApprovalMode] = useState<string>();
+  const approvalModeRef = useRef<string>(undefined);
+  const changeApprovalMode = useCallback(
+    (mode: string | undefined) => {
+      approvalModeRef.current = mode;
+      setSelectedApprovalMode(mode);
+      const id = sessionIdRef.current;
+      if (id) {
+        try {
+          sessionStorage.setItem(
+            `agent-approval:${targetId}:${id}`,
+            mode ?? ""
+          );
+        } catch {
+          /* Storage is optional. */
+        }
+      }
+    },
+    [targetId]
+  );
   const [selectedServiceTier, setSelectedServiceTier] = useState<string>();
   const [selectedTools, setSelectedTools] = useState<string[]>();
   const [tasks, setTasks] = useState<AgentTask[]>([]);
@@ -305,6 +325,22 @@ export function useAgentConversation({
     setQueuedPrompts([]);
     sessionIdRef.current = initialSessionId;
     setSessionId(initialSessionId);
+    let approvalMode: string | undefined;
+    try {
+      const stored = initialSessionId
+        ? sessionStorage.getItem(
+            `agent-approval:${targetId}:${initialSessionId}`
+          )
+        : undefined;
+      approvalMode =
+        stored && ["request", "assisted", "full"].includes(stored)
+          ? stored
+          : undefined;
+    } catch {
+      /* Storage is optional. */
+    }
+    approvalModeRef.current = approvalMode;
+    setSelectedApprovalMode(approvalMode);
     clearAttachments();
     setDraft("");
     setEditingTurnId(undefined);
@@ -349,10 +385,21 @@ export function useAgentConversation({
     [targetId]
   );
 
-  const resolveSession = useCallback((resolvedSessionId: string) => {
-    sessionIdRef.current = resolvedSessionId;
-    setSessionId(resolvedSessionId);
-  }, []);
+  const resolveSession = useCallback(
+    (resolvedSessionId: string) => {
+      sessionIdRef.current = resolvedSessionId;
+      setSessionId(resolvedSessionId);
+      try {
+        sessionStorage.setItem(
+          `agent-approval:${targetId}:${resolvedSessionId}`,
+          approvalModeRef.current ?? ""
+        );
+      } catch {
+        /* Storage is optional. */
+      }
+    },
+    [targetId]
+  );
 
   const startTurn = useCallback(
     (prompt: string, editedTurnId?: string, files: AgentAttachment[] = []) => {
@@ -412,6 +459,9 @@ export function useAgentConversation({
           : Promise.resolve();
         try {
           await streamAgentTurn({
+            ...(selectedApprovalMode
+              ? { approvalMode: selectedApprovalMode }
+              : {}),
             ...(runtime?.capabilities.turnToolSelection && selectedTools
               ? { allowedTools: selectedTools }
               : {}),
@@ -512,6 +562,7 @@ export function useAgentConversation({
       runtime,
       selectedModel,
       selectedReasoningEffort,
+      selectedApprovalMode,
       selectedServiceTier,
       selectedTools,
       targetId,
@@ -1047,12 +1098,14 @@ export function useAgentConversation({
     runtime,
     selectedModel,
     selectedReasoningEffort,
+    selectedApprovalMode,
     selectedServiceTier,
     selectedTools,
     sessionId,
     setDraft,
     setSelectedModel,
     setSelectedReasoningEffort,
+    setSelectedApprovalMode: changeApprovalMode,
     setSelectedServiceTier,
     setSelectedTools,
     submit,

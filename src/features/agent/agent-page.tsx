@@ -15,6 +15,7 @@ import {
   List,
   Package,
   Search,
+  Shield,
   Square,
   Terminal,
   Wrench,
@@ -270,11 +271,13 @@ export function AgentPage({
     runtime,
     selectedModel,
     selectedReasoningEffort,
+    selectedApprovalMode,
     selectedServiceTier,
     sessionId,
     setDraft,
     setSelectedModel,
     setSelectedReasoningEffort,
+    setSelectedApprovalMode,
     setSelectedServiceTier,
     submit,
     trajectory,
@@ -463,6 +466,8 @@ export function AgentPage({
                 onModelChange={setSelectedModel}
                 onProfileChange={selectProfile}
                 onReasoningEffortChange={setSelectedReasoningEffort}
+                onApprovalModeChange={setSelectedApprovalMode}
+                selectedApprovalMode={selectedApprovalMode}
                 onServiceTierChange={setSelectedServiceTier}
                 onSubmit={onSubmit}
                 profile={profile}
@@ -588,6 +593,8 @@ export function AgentPage({
                   onModelChange={setSelectedModel}
                   onProfileChange={selectProfile}
                   onReasoningEffortChange={setSelectedReasoningEffort}
+                  onApprovalModeChange={setSelectedApprovalMode}
+                  selectedApprovalMode={selectedApprovalMode}
                   onServiceTierChange={setSelectedServiceTier}
                   onSubmit={onSubmit}
                   placeholder="Reply…"
@@ -1115,6 +1122,8 @@ type AgentComposerProps = {
   onModelChange: (value: string | undefined) => void;
   onProfileChange: (value: string | undefined) => void;
   onReasoningEffortChange: (value: string | undefined) => void;
+  onApprovalModeChange: (value: string | undefined) => void;
+  selectedApprovalMode: string | undefined;
   onServiceTierChange: (value: string | undefined) => void;
   onSubmit: (event: FormEvent) => void;
   placeholder?: string;
@@ -1139,6 +1148,8 @@ function AgentComposer({
   onModelChange,
   onProfileChange,
   onReasoningEffortChange,
+  onApprovalModeChange,
+  selectedApprovalMode,
   onServiceTierChange,
   onSubmit,
   placeholder = "Ask Lenso…",
@@ -1258,6 +1269,8 @@ function AgentComposer({
           onModelChange={onModelChange}
           onProfileChange={onProfileChange}
           onReasoningEffortChange={onReasoningEffortChange}
+          onApprovalModeChange={onApprovalModeChange}
+          selectedApprovalMode={selectedApprovalMode}
           onServiceTierChange={onServiceTierChange}
           profile={profile}
           runtime={runtime}
@@ -1280,6 +1293,8 @@ type AgentComposerToolbarProps = Pick<
   | "onModelChange"
   | "onProfileChange"
   | "onReasoningEffortChange"
+  | "onApprovalModeChange"
+  | "selectedApprovalMode"
   | "onServiceTierChange"
   | "profile"
   | "runtime"
@@ -1302,6 +1317,8 @@ function AgentComposerToolbar({
   onModelChange,
   onProfileChange,
   onReasoningEffortChange,
+  onApprovalModeChange,
+  selectedApprovalMode,
   onServiceTierChange,
   profile,
   runtime,
@@ -1329,6 +1346,19 @@ function AgentComposerToolbar({
             value={profile ?? ""}
           />
         ) : null}
+        <TurnSelect
+          aria-label="Approval mode"
+          disabled={isRunning}
+          icon={<Shield aria-hidden="true" size={12} />}
+          value={selectedApprovalMode ?? ""}
+          onValueChange={(value) => onApprovalModeChange(value || undefined)}
+          options={[
+            { label: "Profile default", value: "" },
+            { label: "Request approval", value: "request" },
+            { label: "Help me approve", value: "assisted" },
+            { label: "Full access", value: "full" },
+          ]}
+        />
       </div>
       <PromptComposer.Actions xstyle={styles.composerActions}>
         {selectableModels.length ? (

@@ -800,6 +800,7 @@ describe("Agent runtime projection", () => {
     );
 
     await streamAgentTurn({
+      approvalMode: "assisted",
       editTurnId: "turn-1",
       input: "Edited",
       onEvent: () => undefined,
@@ -809,6 +810,7 @@ describe("Agent runtime projection", () => {
     });
 
     expect(JSON.parse(body)).toEqual({
+      approval_mode: "assisted",
       edit_turn_id: "turn-1",
       input: "Edited",
       request_id: "request-edit",

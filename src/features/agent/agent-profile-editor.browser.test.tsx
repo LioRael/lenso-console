@@ -139,10 +139,18 @@ test("Profile editor preserves hidden choices and saves without activation", asy
   await expect
     .element(page.getByRole("switch", { name: "Profile tool edit" }))
     .toBeDisabled();
+  await page.getByRole("combobox", { name: "Approval mode" }).click();
+  await page
+    .getByRole("option", {
+      name: "Help me approve · AI reviews actions; asks you when uncertain",
+      exact: true,
+    })
+    .click();
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect.poll(() => saves.length).toBe(1);
   expect(saves[0]?.allowed_tools).toEqual(["read"]);
   expect(saves[0]?.future_option).toBe("preserve");
+  expect(saves[0]?.approval_mode).toBe("assisted");
   expect(applies).toHaveLength(0);
   await expect
     .element(page.getByRole("button", { name: "Apply Profile" }))

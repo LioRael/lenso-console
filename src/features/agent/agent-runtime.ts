@@ -349,6 +349,7 @@ export type AgentTrajectory = {
 export async function streamAgentTurn({
   attachments,
   allowedTools,
+  approvalMode,
   editTurnId,
   input,
   model,
@@ -361,6 +362,7 @@ export async function streamAgentTurn({
   targetId = "console",
 }: {
   allowedTools?: string[];
+  approvalMode?: string;
   editTurnId?: string;
   input: string;
   attachments?: AgentAttachment[];
@@ -376,6 +378,7 @@ export async function streamAgentTurn({
   const response = await fetch(agentApiUrl(targetId, "turns"), {
     body: JSON.stringify({
       ...(allowedTools ? { allowed_tools: allowedTools } : {}),
+      ...(approvalMode ? { approval_mode: approvalMode } : {}),
       ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
       input,
       ...(attachments?.length
