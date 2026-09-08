@@ -352,6 +352,7 @@ export function AgentPage({
             : undefined
         }
         workspace={
+          conversation &&
           agents.find((agent) => agent.id === activeAgentId)?.role === "app"
             ? runtime?.workspace
             : undefined

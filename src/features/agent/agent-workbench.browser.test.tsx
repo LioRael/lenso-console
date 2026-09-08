@@ -74,7 +74,7 @@ function RoutedAgentPage() {
   return agentId ? <AgentPage agentId={agentId} /> : null;
 }
 
-test("project entry keeps new and resumed tasks scoped to the owning Agent", async () => {
+test("project entry keeps resumed tasks scoped without a redundant new-task action", async () => {
   const urls: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -109,9 +109,9 @@ test("project entry keeps new and resumed tasks scoped to the owning Agent", asy
   await expect
     .element(page.getByText("/projects/customer support", { exact: true }))
     .toBeVisible();
-  await expect
-    .element(page.getByRole("link", { name: "New task" }))
-    .toHaveAttribute("href", "/agent/support/new-task");
+  expect(
+    container?.querySelector('a[href="/agent/support/new-task"]')
+  ).toBeNull();
   await page.getByRole("button", { name: "Resume task" }).click();
   await expect
     .poll(() => urls.some((url) => url.endsWith("/agents/support/sessions")))
@@ -410,7 +410,7 @@ test("project picker preserves project identity in navigation and resumed histor
         return Response.json({
           path: "/work/default",
           parent: "/work",
-          directories: [],
+          directories: ["/work/default/child"],
           truncated: false,
         });
       }
