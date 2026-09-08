@@ -14,7 +14,7 @@ export const agentPageStyles = stylex.create({
       default: "transparent",
       ":hover": "transparent",
     },
-    borderRadius: "6px",
+    borderRadius: "999px",
     boxShadow: "none",
     color: "var(--color-content-primary)",
     fontSize: "12px",
