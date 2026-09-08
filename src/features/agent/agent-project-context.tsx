@@ -1,9 +1,10 @@
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { FolderOpen, History, Plus } from "lucide-react";
 
 import { AgentHistoryMenu } from "./agent-history-menu";
+import { AgentProjectPicker } from "./agent-project-picker";
 
 export function AgentProjectContext({
   agentId,
@@ -14,6 +15,8 @@ export function AgentProjectContext({
   path: string;
   compact?: boolean;
 }) {
+  const search = useSearch({ strict: false });
+  const projectId = agentId === "app" ? search.project : undefined;
   const name =
     path
       .replace(/[\\/]+$/u, "")
@@ -24,22 +27,29 @@ export function AgentProjectContext({
       aria-label="Agent working directory"
       {...stylex.props(styles.project, compact && styles.projectCompact)}
     >
-      <FolderOpen aria-hidden="true" size={compact ? 14 : 20} />
-      <div {...stylex.props(styles.projectCopy)} title={path}>
-        <span {...stylex.props(styles.projectName)}>{name}</span>
-        {compact ? null : <span {...stylex.props(styles.path)}>{path}</span>}
-      </div>
+      <AgentProjectPicker agentId={agentId} path={path}>
+        <FolderOpen aria-hidden="true" size={compact ? 14 : 20} />
+        <div {...stylex.props(styles.projectCopy)} title={path}>
+          <span {...stylex.props(styles.projectName)}>{name}</span>
+          {compact ? null : <span {...stylex.props(styles.path)}>{path}</span>}
+        </div>
+      </AgentProjectPicker>
       {compact ? null : (
         <div {...stylex.props(styles.actions)}>
           <Link
             {...stylex.props(styles.newTask)}
             params={{ agentId, chatId: "new-task" }}
+            search={{ project: projectId }}
             to="/agent/$agentId/$chatId"
           >
             <Plus aria-hidden="true" size={14} />
             New task
           </Link>
-          <AgentHistoryMenu agentId={agentId} showNewChat={false}>
+          <AgentHistoryMenu
+            projectId={projectId}
+            agentId={agentId}
+            showNewChat={false}
+          >
             <Button size="compact" variant="ghost">
               <History aria-hidden="true" size={14} />
               Resume task

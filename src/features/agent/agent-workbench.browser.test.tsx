@@ -55,6 +55,9 @@ function render(content: ReactNode) {
   const projectRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/agent/$agentId/$chatId",
+    validateSearch: (search: Record<string, unknown>) => ({
+      project: typeof search.project === "string" ? search.project : undefined,
+    }),
     component: () => content,
   });
   const router = createRouter({
@@ -380,4 +383,68 @@ test("a project task exposes its streamed diff in the existing conversation page
       container?.querySelector('[aria-label="Agent working directory"]')
     )
     .toBeNull();
+});
+
+test("project picker preserves project identity in navigation and resumed history", async () => {
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const urls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.endsWith("/agents")) {
+        return Response.json({
+          agents: [
+            { id: "app", label: "Lenso Agent", role: "app", capabilities: [] },
+          ],
+        });
+      }
+      if (url.endsWith("/projects")) {
+        return Response.json({
+          defaultPath: "/work/default",
+          projects: [{ id: projectId, path: "/work/second" }],
+        });
+      }
+      if (url.includes("/directories?")) {
+        return Response.json({
+          path: "/work/default",
+          parent: "/work",
+          directories: [],
+          truncated: false,
+        });
+      }
+      if (url.endsWith(`/projects/${projectId}/sessions`)) {
+        return Response.json({
+          sessions: [
+            {
+              sessionId: "project-task",
+              revision: "1",
+              titleRevision: "1",
+              title: "Second project task",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    })
+  );
+  render(<AgentProjectContext agentId="app" path="/work/default" />);
+  await page
+    .getByRole("button", { name: "Change project: /work/default" })
+    .click();
+  await expect
+    .element(page.getByRole("dialog"))
+    .toHaveTextContent("Tasks in other projects continue running.");
+  await page.getByRole("button", { name: "/work/second", exact: true }).click();
+  await page.getByRole("button", { name: "Resume task" }).click();
+  await expect
+    .element(page.getByRole("menuitem", { name: /Second project task/u }))
+    .toBeVisible();
+  expect(
+    urls.some((url) => url.endsWith(`/projects/${projectId}/sessions`))
+  ).toBe(true);
+  expect(urls.some((url) => url.endsWith("/agents/app/sessions"))).toBe(false);
 });

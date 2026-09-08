@@ -11,6 +11,7 @@ import {
   selectAgentProfile,
   updateAgentToolPolicy,
   type AgentToolPolicy,
+  type AgentTarget,
 } from "./agent-runtime";
 
 const styles = stylex.create({
@@ -57,7 +58,7 @@ export function AgentCodingSetup({
   busy,
   configure,
 }: {
-  agentId: string;
+  agentId: AgentTarget;
   agentLabel: string;
   busy: boolean;
   configure: (operation: () => Promise<unknown>) => Promise<void>;

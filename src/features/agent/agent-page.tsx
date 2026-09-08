@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import {
   useCallback,
+  useMemo,
   useEffect,
   useId,
   useRef,
@@ -69,6 +70,7 @@ import { AgentTrajectory } from "./agent-trajectory";
 import { useAgentConversation } from "./use-agent-conversation";
 
 type AgentPageProps = {
+  projectId?: string | undefined;
   agentId?: string;
   conversationId?: string;
 };
@@ -198,10 +200,18 @@ function promptAcceptsEmptyArguments(schemaJson: string) {
   }
 }
 
-export function AgentPage({ agentId, conversationId }: AgentPageProps) {
+export function AgentPage({
+  agentId,
+  conversationId,
+  projectId,
+}: AgentPageProps) {
   const navigate = useNavigate();
   const { agents, selectAgent, selectedAgent } = useAgentIdentity();
   const activeAgentId = agentId ?? selectedAgent.id;
+  const targetId = useMemo(
+    () => (projectId ? { agentId: activeAgentId, projectId } : activeAgentId),
+    [activeAgentId, projectId]
+  );
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [titleOverride, setTitleOverride] = useState<{
     sessionId: string;
@@ -213,10 +223,11 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
     (resolvedSessionId: string) => {
       navigate({
         params: { agentId: activeAgentId, chatId: resolvedSessionId },
+        search: { project: projectId },
         to: "/agent/$agentId/$chatId",
       });
     },
-    [activeAgentId, navigate]
+    [activeAgentId, navigate, projectId]
   );
   useEffect(() => {
     if (selectedAgent.id !== activeAgentId) {
@@ -268,7 +279,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
         ? conversationId
         : undefined,
     onSessionResolved,
-    targetId: activeAgentId,
+    targetId,
   });
   const conversation = hasAgentConversation(conversationId, turns.length);
   const displayedConversationId = conversation
@@ -314,7 +325,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
             .find((agent) => agent.id === activeAgentId)
             ?.capabilities.includes(AGENT_PLUGIN_CONFIGURATION_CAPABILITY) ? (
             <AgentCodingSetup
-              agentId={activeAgentId}
+              agentId={targetId}
               agentLabel={
                 agents.find((agent) => agent.id === activeAgentId)?.label ??
                 activeAgentId

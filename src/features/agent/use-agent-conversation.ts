@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   activeAgentTools,
+  readAgentActivity,
   answerAgentInteraction,
   cancelAgentTurn,
   cancelAgentTerminal,
@@ -28,7 +29,7 @@ import {
   type AgentTurn,
   type AgentInteractionAnswer,
   type AgentPendingInteraction,
-  type AgentId,
+  type AgentTarget,
   type AgentTask,
   type AgentTerminalCatalog,
   type AgentTerminalRun,
@@ -56,7 +57,7 @@ type QueuedPrompt = {
 
 async function loadBootstrap(
   signal: AbortSignal,
-  targetId: AgentId,
+  targetId: AgentTarget,
   apply: (
     bootstrap: Awaited<ReturnType<typeof readAgentBootstrap>> | undefined
   ) => void
@@ -76,7 +77,7 @@ async function loadBootstrap(
 async function loadSessionData(
   sessionId: string,
   signal: AbortSignal,
-  targetId: AgentId,
+  targetId: AgentTarget,
   apply: (
     result:
       | {
@@ -110,7 +111,7 @@ export function useAgentConversation({
   enableTerminal?: boolean;
   initialSessionId?: string | undefined;
   onSessionResolved?: ((sessionId: string) => void) | undefined;
-  targetId?: AgentId;
+  targetId?: AgentTarget;
 } = {}) {
   const [draft, setDraft] = useState("");
   const [runtime, setRuntime] = useState<AgentBootstrap>();
@@ -142,6 +143,7 @@ export function useAgentConversation({
     useState<AgentPendingInteraction>();
   const [sessionId, setSessionId] = useState(initialSessionId);
   const activeTurn = useRef<ActiveTurn | undefined>(undefined);
+  const backgroundTurn = useRef<{ requestId: string } | undefined>(undefined);
   const activeTerminal = useRef<ActiveTerminal | undefined>(undefined);
   const queuedPromptsRef = useRef<QueuedPrompt[]>([]);
   const startTurnRef = useRef<(prompt: string, editedTurnId?: string) => void>(
@@ -635,9 +637,83 @@ export function useAgentConversation({
     setQueuedPrompts(queuedPromptsRef.current);
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let wasRunning = false;
+    const poll = async () => {
+      try {
+        if (!activeTurn.current && !activeTerminal.current) {
+          const activity = await readAgentActivity(targetId, controller.signal);
+          if (controller.signal.aborted || !activity) {
+            return;
+          }
+          if (!activeTurn.current) {
+            backgroundTurn.current =
+              activity.running && activity.requestId
+                ? { requestId: activity.requestId }
+                : undefined;
+            setIsRunning(activity.running);
+            if (
+              activity.running &&
+              activity.sessionId &&
+              !sessionIdRef.current
+            ) {
+              onSessionResolvedRef.current?.(activity.sessionId);
+            }
+            if (
+              (activity.running || wasRunning) &&
+              sessionIdRef.current === activity.sessionId &&
+              activity.sessionId
+            ) {
+              await loadSessionData(
+                activity.sessionId,
+                controller.signal,
+                targetId,
+                (result) => {
+                  if (!(result instanceof Error) && !activeTurn.current) {
+                    setTurns(projectAgentSession(result.session).turns);
+                    setTrajectory(result.trajectory);
+                  }
+                }
+              );
+            }
+            if (activity.running && activity.requestId) {
+              const interactions = await readPendingAgentInteractions(
+                activity.requestId,
+                controller.signal,
+                targetId
+              );
+              if (!controller.signal.aborted) {
+                setPendingInteraction(interactions[0]);
+              }
+            } else {
+              setPendingInteraction(undefined);
+              if (wasRunning && activity.detail) {
+                setRuntimeError(activity.detail);
+              }
+            }
+            wasRunning = activity.running;
+          }
+        }
+      } catch {
+        // A transient status failure must not clear a running task or cancel it.
+      }
+      if (!controller.signal.aborted) {
+        timer = setTimeout(() => void poll(), 1500);
+      }
+    };
+    void poll();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+      backgroundTurn.current = undefined;
+    };
+  }, [targetId, initialSessionId]);
+
   const answerInteraction = useCallback(
     (answers: AgentInteractionAnswer[]) => {
-      const active = activeTurn.current;
+      const active = activeTurn.current ?? backgroundTurn.current;
       if (!(active && pendingInteraction && !isAnsweringInteraction)) {
         return;
       }
@@ -678,7 +754,7 @@ export function useAgentConversation({
       void requestCancel();
       return;
     }
-    const active = activeTurn.current;
+    const active = activeTurn.current ?? backgroundTurn.current;
     if (!(active && canCancel)) {
       return;
     }
@@ -927,7 +1003,10 @@ function terminalCommandMatches(
   );
 }
 
-async function cancelTerminalBestEffort(requestId: string, targetId: AgentId) {
+async function cancelTerminalBestEffort(
+  requestId: string,
+  targetId: AgentTarget
+) {
   try {
     await cancelAgentTerminal(requestId, targetId);
   } catch {
@@ -946,7 +1025,7 @@ async function pollPendingInteraction({
   isFinished: () => boolean;
   requestId: string;
   signal: AbortSignal;
-  targetId: AgentId;
+  targetId: AgentTarget;
 }) {
   while (!(signal.aborted || isFinished())) {
     try {

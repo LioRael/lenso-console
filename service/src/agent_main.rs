@@ -1,7 +1,7 @@
 use std::{path::PathBuf, process::ExitCode, time::Duration};
 
 use directories::BaseDirs;
-use lenso_console_plugin::{ConsoleConfig, serve};
+use lenso_console_plugin::{ConsoleConfig, LocalProjects, serve};
 use tokio::process::{Child, Command};
 
 const APP_AGENT_ADDRESS: &str = "127.0.0.1:8787";
@@ -83,13 +83,31 @@ async fn run() -> anyhow::Result<()> {
     let mut console_agent = spawn(&mut console_command, "Console Agent")?;
     wait_until_ready(CONSOLE_AGENT_ORIGIN, "Console Agent").await?;
 
+    let project_binary = resolve_program(&PathBuf::from(app_agent_binary))?;
+    let projects =
+        LocalProjects::load(console_home.join("projects"), agent_home()?, project_binary)?;
     let config = ConsoleConfig::load()?
+        .with_local_projects(projects.clone())
         .with_console_agent(CONSOLE_AGENT_ORIGIN, Some(control_token.clone()))?
         .with_app_agent_management_token(APP_AGENT_ORIGIN, "Lenso Agent", &control_token)?;
     let result = serve(config, shutdown_signal()).await;
+    projects.shutdown().await;
     stop(&mut console_agent).await;
     stop(&mut app_agent).await;
     result
+}
+
+fn resolve_program(program: &std::path::Path) -> anyhow::Result<PathBuf> {
+    if program.is_absolute() || program.components().count() > 1 {
+        return Ok(program.canonicalize()?);
+    }
+    for directory in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
+        let candidate = directory.join(program);
+        if candidate.is_file() {
+            return Ok(candidate.canonicalize()?);
+        }
+    }
+    anyhow::bail!("Agent Web executable is unavailable")
 }
 
 fn spawn(command: &mut Command, label: &str) -> anyhow::Result<Child> {
