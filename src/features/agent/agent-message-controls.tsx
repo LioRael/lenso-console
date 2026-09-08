@@ -43,7 +43,7 @@ export function AgentMessageActions({
       >
         <Copy
           aria-hidden="true"
-          className={stylex.props(styles.actionIcon).className}
+          style={{ width: 10, height: 10 }}
           size={10}
           strokeWidth={1.7}
         />
@@ -58,7 +58,7 @@ export function AgentMessageActions({
         >
           <Pencil
             aria-hidden="true"
-            className={stylex.props(styles.actionIcon).className}
+            style={{ width: 10, height: 10 }}
             size={10}
             strokeWidth={1.7}
           />

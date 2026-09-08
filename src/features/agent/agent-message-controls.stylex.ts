@@ -35,7 +35,6 @@ export const agentMessageControlStyles = stylex.create({
     fontVariantNumeric: "tabular-nums",
     marginInlineEnd: "6px",
   },
-  actionIcon: { height: "10px", width: "10px" },
   cancel: {
     borderColor: "transparent",
     borderRadius: "var(--radius-rounded)",

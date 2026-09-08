@@ -290,6 +290,19 @@ test("a project task exposes its streamed diff in the existing conversation page
     .getByRole("textbox", { name: "Send a message to Lenso Agent" })
     .fill("Review the change");
   await page.getByRole("button", { name: "Submit comment" }).click();
+  await expect
+    .poll(
+      () =>
+        container?.querySelectorAll('[aria-label="Copy message"] svg').length ??
+        0
+    )
+    .toBeGreaterThan(0);
+  for (const icon of container?.querySelectorAll(
+    '[aria-label="Copy message"] svg, [aria-label="Edit message"] svg'
+  ) ?? []) {
+    expect(icon.getBoundingClientRect().width).toBe(10);
+    expect(icon.getBoundingClientRect().height).toBe(10);
+  }
   expect(
     container?.querySelector('[aria-label="Turn permissions"]')
   ).toBeNull();
