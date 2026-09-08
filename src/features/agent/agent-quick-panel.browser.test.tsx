@@ -82,7 +82,7 @@ describe("Agent quick panel", () => {
     await userEvent.click(
       page.getByRole("button", { name: "Run configuration" })
     );
-    await userEvent.click(page.getByRole("menuitem", { name: /^Model/ }));
+    await userEvent.hover(page.getByRole("menuitem", { name: /^Model/ }));
     await expect
       .element(page.getByRole("combobox", { name: "Search models" }))
       .toBeVisible();
@@ -409,7 +409,7 @@ describe("Agent quick panel", () => {
     await page.getByText("Work completed", { exact: true }).click();
     await expect.element(page.getByText("Plugin inspected")).toBeVisible();
     await expect
-      .element(page.getByText("lenso.agent.loop", { exact: true }))
+      .element(page.getByTitle("lenso.agent.loop@linked"))
       .toBeVisible();
     await expect
       .element(page.getByText(/1 Instance, 1 enabled, and 1 Host difference/))

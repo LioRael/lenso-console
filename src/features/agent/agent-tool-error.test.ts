@@ -26,7 +26,7 @@ test("keeps unstructured errors inspectable and bounds their summary", () => {
 });
 
 test("recovers stderr from a truncated legacy wrapper", () => {
-  const raw = `Domain(ToolError { details_json: RawJson(${JSON.stringify(JSON.stringify({ exit_code: "129", stderr: `warning: Not a git repository.\n${  "usage ".repeat(1000)}` }))}) })`;
+  const raw = `Domain(ToolError { details_json: RawJson(${JSON.stringify(JSON.stringify({ exit_code: "129", stderr: `warning: Not a git repository.\n${"usage ".repeat(1000)}` }))}) })`;
   expect(toolErrorDetails(raw.slice(0, 500))).toMatchObject({
     summary: "warning: Not a git repository.",
     exitCode: "129",

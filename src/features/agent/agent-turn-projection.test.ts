@@ -2,19 +2,20 @@ import { expect, test } from "vitest";
 
 import { projectAgentSession, type AgentSessionEvent } from "./agent-runtime";
 
+const event = (
+  kind: AgentSessionEvent["kind"],
+  payload: object,
+  index: number
+): AgentSessionEvent => ({
+  kind,
+  payloadJson: JSON.stringify(payload),
+  eventId: String(index),
+  occurredAt: `2026-09-09T00:00:0${index}Z`,
+  revision: String(index),
+  turnId: "turn",
+});
+
 test("replay preserves process order, failure details and branch provenance", () => {
-  const event = (
-    kind: AgentSessionEvent["kind"],
-    payload: object,
-    index: number
-  ): AgentSessionEvent => ({
-    kind,
-    payloadJson: JSON.stringify(payload),
-    eventId: String(index),
-    occurredAt: `2026-09-09T00:00:0${index}Z`,
-    revision: String(index),
-    turnId: "turn",
-  });
   const projected = projectAgentSession({
     sessionId: "branch",
     revision: "6",
