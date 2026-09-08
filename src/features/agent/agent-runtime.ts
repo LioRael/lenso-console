@@ -136,6 +136,7 @@ export type AgentTerminalRun = {
 };
 
 export type AgentModel = {
+  providerId?: string;
   displayName: string;
   hidden: boolean;
   id: string;
@@ -1405,7 +1406,12 @@ function agentModelCatalog(value: unknown): AgentModelCatalog {
     if (!Array.isArray(provider.models)) {
       throw new TypeError("Agent Model provider is missing models");
     }
-    return provider.models.map(agentModel);
+    return provider.models.map((modelValue) => ({
+      ...agentModel(modelValue),
+      ...(typeof provider.provider_id === "string"
+        ? { providerId: provider.provider_id }
+        : {}),
+    }));
   });
   if (!profile) {
     return { models };

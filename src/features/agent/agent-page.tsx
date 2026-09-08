@@ -66,6 +66,7 @@ import {
   type AgentTurn,
 } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
+import { speedMenu } from "./agent-speed";
 import { AgentTrajectory } from "./agent-trajectory";
 import { useAgentConversation } from "./use-agent-conversation";
 
@@ -1242,6 +1243,7 @@ function AgentComposerToolbar({
   selectedReasoningEffort,
   selectedServiceTier,
 }: AgentComposerToolbarProps) {
+  const speed = speedMenu(activeModel, selectedServiceTier);
   return (
     <PromptComposer.Toolbar xstyle={styles.composerFooter}>
       <div {...stylex.props(styles.composerFooterStart)}>
@@ -1298,14 +1300,8 @@ function AgentComposerToolbar({
               })),
             ]}
             reasoningEffortValue={selectedReasoningEffort ?? ""}
-            serviceTierOptions={[
-              { label: "Standard", value: "" },
-              ...(activeModel?.serviceTiers ?? []).map((tier) => ({
-                label: tier,
-                value: tier,
-              })),
-            ]}
-            serviceTierValue={selectedServiceTier ?? ""}
+            serviceTierOptions={speed.options}
+            serviceTierValue={speed.value}
           />
         ) : null}
         {isRunning && canCancel ? (
