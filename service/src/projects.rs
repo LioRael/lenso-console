@@ -437,6 +437,9 @@ pub(super) fn routes(catalog: AgentCatalog) -> Router {
             "/api/console/v1/agents/{agent_id}/projects/{project_id}/{*path}",
             any(proxy),
         )
+        .layer(axum::extract::DefaultBodyLimit::max(
+            super::MAX_AGENT_REQUEST_BYTES,
+        ))
         .layer(super::RequestBodyLimitLayer::new(
             super::MAX_AGENT_REQUEST_BYTES,
         ))

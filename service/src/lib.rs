@@ -27,7 +27,7 @@ use tower_http::services::{ServeDir, ServeFile};
 
 const DEFAULT_PORT: u16 = 3030;
 const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
-const MAX_AGENT_REQUEST_BYTES: usize = 64 * 1024;
+const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
@@ -705,6 +705,9 @@ fn agent_catalog_routes(catalog: AgentCatalog) -> Router {
             "/api/console/v1/agents/{agent_id}/{*path}",
             any(route_app_agent),
         )
+        .layer(axum::extract::DefaultBodyLimit::max(
+            MAX_AGENT_REQUEST_BYTES,
+        ))
         .layer(RequestBodyLimitLayer::new(MAX_AGENT_REQUEST_BYTES))
         .with_state(catalog)
 }
@@ -874,6 +877,11 @@ fn allowed_agent_route_with_capabilities(
 ) -> bool {
     let parts = path.split('/').collect::<Vec<_>>();
     match (method, parts.as_slice()) {
+        (&Method::GET, ["sessions", session_id, "attachments", digest]) => {
+            valid_agent_identity(session_id)
+                && digest.len() == 64
+                && digest.bytes().all(|b| b.is_ascii_hexdigit())
+        }
         (
             &Method::GET,
             ["bootstrap" | "context-sources" | "models" | "plugins" | "sessions" | "tasks"]
@@ -1178,6 +1186,14 @@ mod tests {
                 "{method} {route}"
             );
         }
+        let attachment = format!("sessions/session-1/attachments/{}", "a".repeat(64));
+        assert!(allowed_agent_route(&Method::GET, &attachment, false));
+        assert!(!allowed_agent_route(&Method::POST, &attachment, false));
+        assert!(!allowed_agent_route(
+            &Method::GET,
+            "sessions/session-1/attachments/invalid",
+            false
+        ));
         assert!(!allowed_agent_route(&Method::GET, "control/plugins", false));
         assert!(allowed_agent_route(&Method::GET, "control/plugins", true));
         assert!(allowed_agent_route(&Method::POST, "control/profile", true));

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAttachmentDraft, type AgentAttachment } from "./agent-attachments";
 import {
   activeAgentTools,
   readAgentActivity,
@@ -51,6 +52,7 @@ type ActiveTerminal = {
 };
 
 type QueuedPrompt = {
+  attachments?: AgentAttachment[];
   id: string;
   prompt: string;
 };
@@ -143,13 +145,15 @@ export function useAgentConversation({
   const [pendingInteraction, setPendingInteraction] =
     useState<AgentPendingInteraction>();
   const [sessionId, setSessionId] = useState(initialSessionId);
+  const attachments = useAttachmentDraft(targetId, sessionId);
+  const clearAttachments = attachments.clear;
   const activeTurn = useRef<ActiveTurn | undefined>(undefined);
   const backgroundTurn = useRef<{ requestId: string } | undefined>(undefined);
   const activeTerminal = useRef<ActiveTerminal | undefined>(undefined);
   const queuedPromptsRef = useRef<QueuedPrompt[]>([]);
-  const startTurnRef = useRef<(prompt: string, editedTurnId?: string) => void>(
-    () => undefined
-  );
+  const startTurnRef = useRef<
+    (prompt: string, editedTurnId?: string, files?: AgentAttachment[]) => void
+  >(() => undefined);
   const sessionIdRef = useRef(initialSessionId);
   const onSessionResolvedRef = useRef(onSessionResolved);
 
@@ -301,6 +305,7 @@ export function useAgentConversation({
     setQueuedPrompts([]);
     sessionIdRef.current = initialSessionId;
     setSessionId(initialSessionId);
+    clearAttachments();
     setDraft("");
     setEditingTurnId(undefined);
     setTurns([]);
@@ -326,7 +331,7 @@ export function useAgentConversation({
       }
     );
     return () => controller.abort();
-  }, [initialSessionId, targetId]);
+  }, [initialSessionId, targetId, clearAttachments]);
 
   useEffect(
     () => () => {
@@ -350,9 +355,9 @@ export function useAgentConversation({
   }, []);
 
   const startTurn = useCallback(
-    (prompt: string, editedTurnId?: string) => {
+    (prompt: string, editedTurnId?: string, files: AgentAttachment[] = []) => {
       if (
-        !prompt ||
+        (!prompt && !files.length) ||
         configuration.current ||
         activeTurn.current ||
         activeTerminal.current
@@ -386,6 +391,7 @@ export function useAgentConversation({
           status: "running",
           thought: "",
           user: prompt,
+          attachments: files,
         },
       ]);
 
@@ -411,6 +417,7 @@ export function useAgentConversation({
               : {}),
             ...(editedTurnId ? { editTurnId: editedTurnId } : {}),
             input: prompt,
+            attachments: files,
             ...(runtime?.capabilities.turnModelSelection && selectedModel
               ? { model: selectedModel }
               : {}),
@@ -488,7 +495,9 @@ export function useAgentConversation({
             if (next) {
               queuedPromptsRef.current = remaining;
               setQueuedPrompts(remaining);
-              queueMicrotask(() => startTurnRef.current(next.prompt));
+              queueMicrotask(() =>
+                startTurnRef.current(next.prompt, undefined, next.attachments)
+              );
             }
           } else {
             stream.stop();
@@ -596,7 +605,9 @@ export function useAgentConversation({
             if (next) {
               queuedPromptsRef.current = remaining;
               setQueuedPrompts(remaining);
-              queueMicrotask(() => startTurnRef.current(next.prompt));
+              queueMicrotask(() =>
+                startTurnRef.current(next.prompt, undefined, next.attachments)
+              );
             }
           }
         }
@@ -607,14 +618,33 @@ export function useAgentConversation({
   );
 
   const submit = useCallback(() => {
-    if (configuration.current) {
+    if (
+      configuration.current ||
+      attachments.busy ||
+      attachments.items.some((file) => !file.data_base64)
+    ) {
+      return;
+    }
+    const model = modelCatalog?.models.find(
+      (item) => item.id === (selectedModel ?? modelCatalog.selectedModel)
+    );
+    if (
+      attachments.items.some((file) => file.media_type.startsWith("image/")) &&
+      model &&
+      !model.inputModalities?.includes("image")
+    ) {
+      setRuntimeError(
+        "The selected model does not support image attachments. Choose a model with image input."
+      );
       return;
     }
     const prompt = draft.trim();
-    if (!prompt) {
+    if (!prompt && !attachments.items.length) {
       return;
     }
-    const terminalCommand = terminalCommandMatches(terminalCatalog, prompt);
+    const terminalCommand =
+      !attachments.items.length &&
+      terminalCommandMatches(terminalCatalog, prompt);
     if (activeTurn.current || activeTerminal.current) {
       if (editingTurnId) {
         return;
@@ -622,7 +652,12 @@ export function useAgentConversation({
       if (terminalCommand) {
         return;
       }
-      const queued = { id: crypto.randomUUID(), prompt };
+      const queued = {
+        id: crypto.randomUUID(),
+        prompt,
+        attachments: attachments.items,
+      };
+      attachments.clear();
       queuedPromptsRef.current = [...queuedPromptsRef.current, queued];
       setQueuedPrompts(queuedPromptsRef.current);
       setDraft("");
@@ -631,9 +666,19 @@ export function useAgentConversation({
     if (terminalCommand) {
       startTerminal(prompt);
     } else {
-      startTurn(prompt, editingTurnId);
+      startTurn(prompt, editingTurnId, attachments.items);
+      attachments.clear();
     }
-  }, [draft, editingTurnId, startTerminal, startTurn, terminalCatalog]);
+  }, [
+    draft,
+    editingTurnId,
+    startTerminal,
+    startTurn,
+    terminalCatalog,
+    attachments,
+    modelCatalog,
+    selectedModel,
+  ]);
 
   const removeQueuedPrompt = useCallback((id: string) => {
     queuedPromptsRef.current = queuedPromptsRef.current.filter(
@@ -780,14 +825,16 @@ export function useAgentConversation({
       }
       setEditingTurnId(turn.id);
       setDraft(turn.user);
+      void attachments.restore(turn.attachments ?? []);
     },
-    [canEdit]
+    [canEdit, attachments]
   );
 
   const cancelEditing = useCallback(() => {
+    clearAttachments();
     setEditingTurnId(undefined);
     setDraft("");
-  }, []);
+  }, [clearAttachments]);
 
   const compactSession = useCallback(() => {
     const currentSessionId = sessionIdRef.current;
@@ -974,6 +1021,7 @@ export function useAgentConversation({
     : -1;
 
   return {
+    attachments,
     beginEditing,
     answerInteraction,
     canCancel: canCancel || Boolean(terminalCatalog),

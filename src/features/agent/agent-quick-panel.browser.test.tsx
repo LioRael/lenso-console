@@ -231,6 +231,43 @@ describe("Agent quick panel", () => {
     expect(strong?.textContent).toBe("Shared markdown");
     expect(strong && getComputedStyle(strong).fontSize).toBe("14px");
   });
+  test("pastes a text attachment and sends an attachment-only message", async () => {
+    const fetchMock = agentFetch("Done");
+    await renderPanel(fetchMock);
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    const data = new DataTransfer();
+    data.items.add(
+      new File(["attachment contents"], "notes.md", { type: "text/plain" })
+    );
+    requiredComposer().dispatchEvent(
+      new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      })
+    );
+    await expect
+      .element(page.getByRole("button", { name: "Remove notes.md" }))
+      .toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Submit comment" }));
+    await expect.poll(() => turnRequests(fetchMock).length).toBe(1);
+    const body = JSON.parse(String(turnRequests(fetchMock)[0]?.[1]?.body));
+    expect(body.attachments).toEqual([
+      {
+        name: "notes.md",
+        media_type: "text/plain",
+        data_base64: btoa("attachment contents"),
+      },
+    ]);
+    expect(body.input).toBe("");
+    await expect.element(page.getByText("Done", { exact: true })).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Remove notes.md" }))
+      .not.toBeInTheDocument();
+  });
+
   test("focuses the composer and keeps Shift+Enter as a newline", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);

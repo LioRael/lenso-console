@@ -1,5 +1,6 @@
-import "@fontsource-variable/inter/wght.css";
 import { Button } from "@lenso/ui/button";
+
+import "@fontsource-variable/inter/wght.css";
 import { Dialog } from "@lenso/ui/dialog";
 import { IconButton } from "@lenso/ui/icon-button";
 import * as stylex from "@stylexjs/stylex";
@@ -10,7 +11,6 @@ import {
   Minus,
   MoreHorizontal,
   MoveDiagonal2,
-  Paperclip,
   Search,
   Square,
   UsersRound,
@@ -22,6 +22,13 @@ import { createPortal } from "react-dom";
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
+import {
+  AgentAttachmentProvider,
+  AttachmentButton,
+  AttachmentDropZone,
+  DraftAttachments,
+  MessageAttachments,
+} from "./agent-attachments";
 import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
@@ -77,6 +84,7 @@ export function AgentQuickConversation({
 }) {
   const selectedAgent = { id: agentId };
   const {
+    attachments,
     answerInteraction,
     beginEditing: beginEditingTurn,
     canCancel,
@@ -101,7 +109,8 @@ export function AgentQuickConversation({
 
   const hasConversation = turns.length > 0 || isRunning;
   const isEditing = Boolean(editingTurnId);
-  const showWelcome = !hasConversation && !draft.trim();
+  const showWelcome =
+    !hasConversation && !draft.trim() && !attachments.items.length;
   const title = turns[0]?.user ? chatTitleFor(turns[0].user) : "New chat";
 
   useEffect(() => {
@@ -149,7 +158,7 @@ export function AgentQuickConversation({
     return null;
   }
   return createPortal(
-    <>
+    <AgentAttachmentProvider value={attachments}>
       <header {...stylex.props(styles.header)}>
         <Dialog.Title xstyle={styles.title}>{title}</Dialog.Title>
         {hasConversation ? (
@@ -252,6 +261,7 @@ export function AgentQuickConversation({
             {visibleTurns.map((turn) => (
               <div {...stylex.props(styles.quickTurn)} key={turn.id}>
                 <div {...stylex.props(styles.userTurn)}>
+                  <MessageAttachments items={turn.attachments} />
                   <div {...stylex.props(styles.userMessage)}>{turn.user}</div>
                   <div {...stylex.props(styles.messageActions)}>
                     <AgentMessageActions
@@ -323,93 +333,101 @@ export function AgentQuickConversation({
                   <EditingMessageBar compact onCancel={cancelEditing} />
                 </div>
               </div>
-              <PromptComposer.Root
-                xstyle={styles.composer}
-                maxRows={6}
-                onSubmit={onSubmit}
-                onValueChange={setDraft}
-                submitShortcut="enter"
-                surfaceXstyle={styles.composerSurface}
-                value={draft}
-              >
-                <PromptComposer.Input
-                  aria-label="Send a message to Lenso Agent"
-                  autoFocus
-                  xstyle={styles.textarea}
-                  placeholder={
-                    hasConversation
-                      ? "Reply…"
-                      : "@ to mention any App, Plugin, or workspace"
-                  }
-                  ref={textareaRef}
-                  rows={1}
-                />
-                <PromptComposer.Toolbar xstyle={styles.composerFooter}>
-                  <Button
-                    aria-label="Skills"
-                    size="compact"
-                    variant="ghost"
-                    xstyle={styles.skills}
-                  >
-                    <Box aria-hidden="true" size={14} strokeWidth={1.6} />
-                    Skills
-                    <ChevronDown aria-hidden="true" size={8} strokeWidth={2} />
-                  </Button>
-                  <PromptComposer.Actions xstyle={styles.composerActions}>
-                    <IconButton
-                      aria-label="Attach images, files, or videos"
+              <AttachmentDropZone>
+                <PromptComposer.Root
+                  xstyle={styles.composer}
+                  maxRows={6}
+                  onSubmit={onSubmit}
+                  onValueChange={setDraft}
+                  submitShortcut="enter"
+                  surfaceXstyle={styles.composerSurface}
+                  value={draft}
+                >
+                  <DraftAttachments />
+                  <PromptComposer.Input
+                    aria-label="Send a message to Lenso Agent"
+                    autoFocus
+                    xstyle={styles.textarea}
+                    placeholder={
+                      hasConversation
+                        ? "Reply…"
+                        : "@ to mention any App, Plugin, or workspace"
+                    }
+                    ref={textareaRef}
+                    rows={1}
+                  />
+                  <PromptComposer.Toolbar xstyle={styles.composerFooter}>
+                    <Button
+                      aria-label="Skills"
                       size="compact"
                       variant="ghost"
-                      xstyle={styles.attach}
+                      xstyle={styles.skills}
                     >
-                      <Paperclip
+                      <Box aria-hidden="true" size={14} strokeWidth={1.6} />
+                      Skills
+                      <ChevronDown
                         aria-hidden="true"
-                        size={14}
-                        strokeWidth={1.7}
+                        size={8}
+                        strokeWidth={2}
                       />
-                    </IconButton>
-                    <IconButton
-                      aria-label={
-                        isRunning ? "Stop generating" : "Submit comment"
-                      }
-                      data-active={
-                        (isRunning ? canCancel : Boolean(draft.trim())) ||
-                        undefined
-                      }
-                      disabled={isRunning ? !canCancel : !draft.trim()}
-                      onClick={isRunning ? cancelRunningTurn : undefined}
-                      size="compact"
-                      type={isRunning ? "button" : "submit"}
-                      variant="secondary"
-                      xstyle={[
-                        styles.submit,
-                        (isRunning ? canCancel : Boolean(draft.trim())) &&
-                          styles.submitActive,
-                      ]}
-                    >
-                      {isRunning ? (
-                        <Square
-                          aria-hidden="true"
-                          fill="currentColor"
-                          size={8}
-                          strokeWidth={0}
-                        />
-                      ) : (
-                        <ArrowUp
-                          aria-hidden="true"
-                          size={16}
-                          strokeWidth={1.7}
-                        />
-                      )}
-                    </IconButton>
-                  </PromptComposer.Actions>
-                </PromptComposer.Toolbar>
-              </PromptComposer.Root>
+                    </Button>
+                    <PromptComposer.Actions xstyle={styles.composerActions}>
+                      <AttachmentButton />
+                      <IconButton
+                        aria-label={
+                          isRunning ? "Stop generating" : "Submit comment"
+                        }
+                        data-active={
+                          (isRunning
+                            ? canCancel
+                            : Boolean(
+                                draft.trim() || attachments.items.length
+                              )) || undefined
+                        }
+                        disabled={
+                          attachments.busy ||
+                          attachments.items.some((file) => !file.data_base64) ||
+                          (isRunning
+                            ? !canCancel
+                            : !(draft.trim() || attachments.items.length))
+                        }
+                        onClick={isRunning ? cancelRunningTurn : undefined}
+                        size="compact"
+                        type={isRunning ? "button" : "submit"}
+                        variant="secondary"
+                        xstyle={[
+                          styles.submit,
+                          (isRunning
+                            ? canCancel
+                            : Boolean(
+                                draft.trim() || attachments.items.length
+                              )) && styles.submitActive,
+                        ]}
+                      >
+                        {isRunning ? (
+                          <Square
+                            aria-hidden="true"
+                            fill="currentColor"
+                            size={8}
+                            strokeWidth={0}
+                          />
+                        ) : (
+                          <ArrowUp
+                            aria-hidden="true"
+                            size={16}
+                            strokeWidth={1.7}
+                          />
+                        )}
+                      </IconButton>
+                    </PromptComposer.Actions>
+                  </PromptComposer.Toolbar>
+                </PromptComposer.Root>
+              </AttachmentDropZone>
             </div>
           )}
         </div>
       </div>
-    </>,
+    </AgentAttachmentProvider>,
     host
   );
 }
