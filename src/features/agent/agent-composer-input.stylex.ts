@@ -4,10 +4,10 @@ export const composerInputStyles = stylex.create({
   root: { position: "relative", minWidth: 0 },
   menu: {
     position: "absolute",
-    bottom: "calc(100% + 8px)",
+    bottom: "calc(100% + 20px)",
     insetInline: 0,
     zIndex: 30,
-    maxHeight: "min(360px, 50vh)",
+    maxHeight: "min(224px, 35dvh)",
     overflowY: "auto",
     overscrollBehavior: "contain",
     backgroundColor: "var(--color-surface-panel)",
@@ -25,7 +25,7 @@ export const composerInputStyles = stylex.create({
     color: "var(--color-content-tertiary)",
   },
   group: {
-    padding: "10px 8px 4px",
+    padding: "6px 8px 3px",
     fontSize: "10px",
     fontWeight: 500,
     color: "var(--color-content-tertiary)",
@@ -43,9 +43,10 @@ export const composerInputStyles = stylex.create({
       ':is([data-active="true"])': "var(--color-surface-selected)",
     },
     color: "var(--color-content-primary)",
-    padding: "7px 8px",
+    padding: "5px 8px",
     cursor: "pointer",
     fontSize: "12px",
+    lineHeight: "18px",
   },
   icon: { flexShrink: 0 },
   entryText: {

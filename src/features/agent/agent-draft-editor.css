@@ -2,14 +2,14 @@
   min-width: 0;
   color: var(--color-content-primary);
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 24px;
 }
 .agent-draft-editor .tiptap {
-  min-height: 56px;
+  min-height: 46px;
   max-height: 280px;
   overflow-y: auto;
   outline: 0 !important;
-  padding: 14px 16px 8px;
+  padding: 0 6px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
