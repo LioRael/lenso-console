@@ -385,12 +385,16 @@ function folderName(path: string) {
 
 const styles = stylex.create({
   fullTrigger: {
-    flex: "1 1 auto",
+    flex: "0 1 auto",
+    backgroundColor: {
+      default: "transparent",
+      ":hover": "var(--color-surface-interactive-hover)",
+    },
     justifyContent: "flex-start",
     height: "auto",
     padding: "8px",
     gap: 10,
-    maxWidth: "100%",
+    maxWidth: "min(480px, 100%)",
   },
   section: { display: "grid", gap: 8, minWidth: 0 },
   sectionLabel: {

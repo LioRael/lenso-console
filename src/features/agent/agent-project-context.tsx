@@ -104,5 +104,11 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
     color: "var(--color-content-tertiary)",
   },
-  actions: { alignItems: "center", display: "flex", gap: "8px" },
+  actions: {
+    alignItems: "center",
+    display: "flex",
+    flexShrink: 0,
+    gap: "8px",
+    marginInlineStart: "auto",
+  },
 });
