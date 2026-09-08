@@ -4,7 +4,7 @@ import { SegmentedControl } from "@lenso/ui/segmented-control";
 import { Switch } from "@lenso/ui/switch";
 import { TextArea } from "@lenso/ui/text-area";
 import * as stylex from "@stylexjs/stylex";
-import { RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
@@ -12,6 +12,7 @@ import { PluginAgentAction } from "./plugin-agent-handoff";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
 import { PluginConfigurationFields } from "./plugin-configuration-fields";
 import { pluginDisplayName } from "./plugin-display-name";
+import { pluginPurpose } from "./plugin-purpose";
 import {
   configurationProposalReadyPresentation,
   configurationChangeCanSubmit,
@@ -29,7 +30,6 @@ import { PluginStatus } from "./plugin-status";
 import { RemovePluginDialog } from "./plugin-workbench-dialogs";
 import {
   pluginKey,
-  type PluginConfigurationAuthority,
   type PluginConfigurationRollbackProposal,
   type PluginInventory,
   type PluginManagement,
@@ -96,9 +96,9 @@ const styles = stylex.create({
   },
   detailRoot: {
     minWidth: 0,
-    maxWidth: 808,
+    width: "min(760px, calc(100% - 48px))",
     marginInline: "auto",
-    paddingBlock: "24px 48px",
+    paddingBlock: "40px 64px",
   },
   configurationLayout: {
     display: "grid",
@@ -185,8 +185,8 @@ const styles = stylex.create({
     display: "grid",
     alignContent: "start",
     minWidth: 0,
-    paddingBlock: tokens.space3,
-    paddingInline: tokens.space6,
+    paddingBlock: 20,
+    paddingInline: 0,
     "@media (max-width: 1100px)": {
       borderLeftWidth: 0,
       borderTopColor: tokens.colorBorderTertiary,
@@ -220,14 +220,23 @@ const styles = stylex.create({
     justifyContent: "space-between",
     minHeight: 56,
     paddingBlock: tokens.space2,
-    paddingInline: tokens.space6,
+    paddingInline: 0,
     "@media (max-width: 540px)": {
       alignItems: "start",
       display: "grid",
       gridTemplateColumns: "minmax(0, 1fr)",
     },
   },
-  detailIdentity: { display: "grid", gap: 2, minWidth: 0 },
+  detailIdentity: { display: "grid", gap: 6, minWidth: 0 },
+  detailTabs: {
+    padding: 0,
+    boxShadow: "none",
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    marginBlock: "20px 0",
+    borderBottom: "1px solid var(--color-border-tertiary)",
+    overflowX: "auto",
+  },
   detailActions: {
     alignItems: "center",
     display: "flex",
@@ -236,6 +245,22 @@ const styles = stylex.create({
     "@media (max-width: 540px)": {
       justifyContent: "flex-end",
     },
+  },
+  detailTab: {
+    boxShadow: "none",
+    fontSize: 12,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: { default: 2, ':is([aria-selected="true"])': 2 },
+    borderBottomStyle: "solid",
+    borderBottomColor: {
+      default: "transparent",
+      ':is([aria-selected="true"])': tokens.colorContentPrimary,
+    },
+    backgroundColor: "transparent",
+    minHeight: 36,
+    paddingInline: 0,
+    marginInlineEnd: 24,
   },
   detailTitle: {
     color: tokens.colorContentPrimary,
@@ -261,8 +286,8 @@ const styles = stylex.create({
     gap: tokens.space2,
     gridTemplateColumns: "minmax(0, 1fr)",
     minWidth: 0,
-    paddingBlock: tokens.space3,
-    paddingInline: tokens.space6,
+    paddingBlock: 20,
+    paddingInline: 0,
   },
   sectionTitle: {
     color: tokens.colorContentSecondary,
@@ -368,12 +393,7 @@ export function PluginDetail({
           <h1 {...stylex.props(styles.detailTitle)}>
             {pluginDisplayName(plugin)}
           </h1>
-          <span {...stylex.props(styles.secondary)}>
-            {plugin.packageId}/{plugin.instanceKey}
-          </span>
-          <span {...stylex.props(styles.secondary)}>
-            {pluginOriginLabel(plugin)} · {plugin.packageRevision || "linked"}
-          </span>
+          <p {...stylex.props(styles.feedback)}>{pluginPurpose(plugin)}</p>
         </div>
         <div {...stylex.props(styles.detailActions)}>
           {authoringEnabled && agentAssistanceAvailable ? (
@@ -389,6 +409,17 @@ export function PluginDetail({
           <PluginStatus state={state} />
         </div>
       </header>
+      <PageHeader.TabsList
+        aria-label="Plugin details"
+        xstyle={styles.detailTabs}
+      >
+        <PageHeader.Tab value="configuration" xstyle={styles.detailTab}>
+          Configuration
+        </PageHeader.Tab>
+        <PageHeader.Tab value="technical" xstyle={styles.detailTab}>
+          About
+        </PageHeader.Tab>
+      </PageHeader.TabsList>
 
       <PageHeader.Panel value="configuration" xstyle={styles.tabPanel}>
         {management ? (
@@ -508,10 +539,7 @@ export function PluginDetail({
         ) : null}
       </PageHeader.Panel>
 
-      <PageHeader.Panel
-        value="capabilities"
-        xstyle={[styles.tabPanel, styles.tabPanelFocused]}
-      >
+      <PageHeader.Panel value="technical" xstyle={styles.tabPanel}>
         <DetailSection title="Provided capabilities">
           <div {...stylex.props(styles.capabilities)}>
             {plugin.active?.providedCapabilities.length ? (
@@ -527,11 +555,21 @@ export function PluginDetail({
             )}
           </div>
         </DetailSection>
-      </PageHeader.Panel>
-
-      <PageHeader.Panel value="technical" xstyle={styles.tabPanel}>
         <DetailListSection title="Package and authority">
           <Detail label="Package" value={plugin.packageId} mono />
+          <Detail label="Instance" value={plugin.instanceKey} mono />
+          <Detail label="Source" value={pluginOriginLabel(plugin)} />
+          <Detail
+            label="Configuration source"
+            value={pluginManagement.configurationAuthority.kind.replaceAll(
+              "_",
+              " "
+            )}
+          />
+          <Detail
+            label="Source reference"
+            value={pluginManagement.configurationAuthority.reference}
+          />
           <Detail
             label={plugin.active ? "Active revision" : "Resolved revision"}
             value={plugin.packageRevision || "linked into Host"}
@@ -863,16 +901,6 @@ function PluginConfigurationSection({
                 "This configuration cannot be published."}
             </p>
           ) : null}
-          <p {...stylex.props(styles.feedback)}>
-            Desired {shortRevision(pluginManagement.revision)} · Applied{" "}
-            {shortRevision(inventory.appliedRevision)} ·{" "}
-            {pluginConfigurationStatusLabel(inventory.configurationStatus)} ·
-            Source{" "}
-            {configurationAuthorityLabel(
-              pluginManagement.configurationAuthority
-            )}
-            {` · ${pluginManagement.configurationAuthority.reference}`}
-          </p>
         </DetailSection>
       </div>
       {historyAvailable ? (
@@ -935,113 +963,118 @@ function PluginConfigurationHistorySection({
   rollbackSupported: boolean;
 }) {
   const publications = history.data?.publications;
+  const [expanded, setExpanded] = useState(false);
   return (
     <section
       aria-labelledby="plugin-configuration-history-title"
       {...stylex.props(styles.historySection)}
     >
-      <div {...stylex.props(styles.historyHeader)}>
-        <h3
-          id="plugin-configuration-history-title"
-          {...stylex.props(styles.sectionTitle)}
-        >
-          Publication history
-        </h3>
-        <p {...stylex.props(styles.historyDescription)}>
-          Previously accepted configuration versions.
-        </p>
-      </div>
-      {history.error && publications ? (
-        <div {...stylex.props(styles.editorActions)}>
-          <p role="alert" {...stylex.props(styles.feedback)}>
-            Showing the last verified publication history because the latest
-            refresh failed.
-          </p>
-          <Button
-            disabled={history.isFetching}
-            onClick={() => {
-              void history.refetch();
-            }}
-            size="compact"
-            variant="ghost"
-          >
-            Try again
-          </Button>
+      <Button
+        id="plugin-configuration-history-title"
+        size="compact"
+        variant="ghost"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+        xstyle={styles.historyAction}
+      >
+        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        Version history
+      </Button>
+      {expanded ? (
+        <div>
+          {history.error && publications ? (
+            <div {...stylex.props(styles.editorActions)}>
+              <p role="alert" {...stylex.props(styles.feedback)}>
+                Showing the last verified publication history because the latest
+                refresh failed.
+              </p>
+              <Button
+                disabled={history.isFetching}
+                onClick={() => {
+                  void history.refetch();
+                }}
+                size="compact"
+                variant="ghost"
+              >
+                Try again
+              </Button>
+            </div>
+          ) : null}
+          {publications ? (
+            publications.length === 0 ? (
+              <p {...stylex.props(styles.feedback)}>
+                No configuration has been published yet.
+              </p>
+            ) : (
+              <div {...stylex.props(styles.historyList)}>
+                {publications.map((publication) => {
+                  const isCurrent = configurationPublicationIsCurrent(
+                    publication.configurationToml,
+                    currentToml
+                  );
+                  return (
+                    <div
+                      key={publication.proposalDigest}
+                      {...stylex.props(styles.historyRow)}
+                    >
+                      <div {...stylex.props(styles.historyIdentity)}>
+                        <span {...stylex.props(styles.historyTitle)}>
+                          {formatPublicationTime(publication.publishedAtUnixMs)}
+                          {isCurrent ? " · Current content" : ""}
+                          {publication.rollbackOfProposalDigest
+                            ? " · Rollback"
+                            : ""}
+                        </span>
+                        <span {...stylex.props(styles.historyMeta)}>
+                          {shortRevision(publication.revision)} · proposal{" "}
+                          {shortRevision(publication.proposalDigest)}
+                        </span>
+                      </div>
+                      {rollbackSupported && !isCurrent ? (
+                        <Button
+                          disabled={
+                            !authoringEnabled ||
+                            rollbackPending ||
+                            proposalPending ||
+                            mutationPending
+                          }
+                          onClick={() => onReview(publication.proposalDigest)}
+                          size="compact"
+                          variant="ghost"
+                          {...stylex.props(styles.historyAction)}
+                        >
+                          Review rollback
+                        </Button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : history.isPending ? (
+            <p {...stylex.props(styles.feedback)}>Loading publications…</p>
+          ) : (
+            <div {...stylex.props(styles.editorActions)}>
+              <p
+                role="alert"
+                {...stylex.props(styles.feedback, styles.feedbackError)}
+              >
+                Publication history could not be loaded.
+              </p>
+              <Button
+                disabled={history.isFetching}
+                onClick={() => {
+                  void history.refetch();
+                }}
+                size="compact"
+                variant="ghost"
+              >
+                Try again
+              </Button>
+            </div>
+          )}
         </div>
       ) : null}
-      {publications ? (
-        publications.length === 0 ? (
-          <p {...stylex.props(styles.feedback)}>
-            No configuration has been published yet.
-          </p>
-        ) : (
-          <div {...stylex.props(styles.historyList)}>
-            {publications.map((publication) => {
-              const isCurrent = configurationPublicationIsCurrent(
-                publication.configurationToml,
-                currentToml
-              );
-              return (
-                <div
-                  key={publication.proposalDigest}
-                  {...stylex.props(styles.historyRow)}
-                >
-                  <div {...stylex.props(styles.historyIdentity)}>
-                    <span {...stylex.props(styles.historyTitle)}>
-                      {formatPublicationTime(publication.publishedAtUnixMs)}
-                      {isCurrent ? " · Current content" : ""}
-                      {publication.rollbackOfProposalDigest
-                        ? " · Rollback"
-                        : ""}
-                    </span>
-                    <span {...stylex.props(styles.historyMeta)}>
-                      {shortRevision(publication.revision)} · proposal{" "}
-                      {shortRevision(publication.proposalDigest)}
-                    </span>
-                  </div>
-                  {rollbackSupported && !isCurrent ? (
-                    <Button
-                      disabled={
-                        !authoringEnabled ||
-                        rollbackPending ||
-                        proposalPending ||
-                        mutationPending
-                      }
-                      onClick={() => onReview(publication.proposalDigest)}
-                      size="compact"
-                      variant="ghost"
-                      {...stylex.props(styles.historyAction)}
-                    >
-                      Review rollback
-                    </Button>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        )
-      ) : history.isPending ? (
-        <p {...stylex.props(styles.feedback)}>Loading publications…</p>
-      ) : (
-        <div {...stylex.props(styles.editorActions)}>
-          <p
-            role="alert"
-            {...stylex.props(styles.feedback, styles.feedbackError)}
-          >
-            Publication history could not be loaded.
-          </p>
-          <Button
-            disabled={history.isFetching}
-            onClick={() => {
-              void history.refetch();
-            }}
-            size="compact"
-            variant="ghost"
-          >
-            Try again
-          </Button>
-        </div>
-      )}
     </section>
   );
 }
@@ -1195,20 +1228,6 @@ function Detail({
       <dd {...stylex.props(styles.value, mono && styles.mono)}>{value}</dd>
     </div>
   );
-}
-
-function configurationAuthorityLabel(
-  authority: PluginConfigurationAuthority
-): string {
-  if (authority.kind === "local_plugin_root") {
-    return "Local Plugin Root";
-  }
-  if (authority.kind === "sqlite_configuration_store") {
-    return "Managed configuration";
-  }
-  return authority.kind === "remote_configuration_service"
-    ? "Remote configuration"
-    : authority.kind;
 }
 
 function formatPublicationTime(unixTimeMs: number): string {

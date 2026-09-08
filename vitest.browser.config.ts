@@ -18,6 +18,7 @@ export default defineConfig({
       "@lenso/ui/icon-button",
       "@lenso/ui/menu",
       "@lenso/ui/select",
+      "@lenso/ui/segmented-control",
       "@lenso/ui/sidebar",
       "@lenso/ui/settings-row",
       "@lenso/ui/surface",

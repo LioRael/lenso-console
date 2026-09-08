@@ -9,6 +9,10 @@ import {
 } from "react";
 
 import { httpClient, isApiMode } from "../../lib/http-client";
+import type {
+  PluginCategory,
+  PluginSelectionFilter,
+} from "../plugins/plugin-categories";
 
 export const pluginScopes = [
   { id: "application", label: "App plugins" },
@@ -105,7 +109,30 @@ async function listApps(signal: AbortSignal): Promise<readonly ManagedApp[]> {
 
 const EMPTY_APPS: readonly ManagedApp[] = [];
 
+type PluginListFilters = {
+  category: PluginCategory;
+  query: string;
+  selection: PluginSelectionFilter;
+};
+const emptyFilters: PluginListFilters = {
+  category: "all",
+  query: "",
+  selection: "all",
+};
+
 function useAppManagementState() {
+  const [filtersByApp, setFiltersByApp] = useState<
+    Record<string, PluginListFilters>
+  >({});
+  const updatePluginFilters = useCallback(
+    (appId: string, patch: Partial<PluginListFilters>) => {
+      setFiltersByApp((current) => ({
+        ...current,
+        [appId]: { ...(current[appId] ?? emptyFilters), ...patch },
+      }));
+    },
+    []
+  );
   const catalog = useQuery({
     queryKey: ["app-management-catalog"],
     queryFn: ({ signal }) => listApps(signal),
@@ -127,9 +154,28 @@ function useAppManagementState() {
     },
     [apps]
   );
+  const pluginFilters =
+    (selectedApp && filtersByApp[selectedApp.id]) || emptyFilters;
   return useMemo(
-    () => ({ apps, selectedApp, selectApp, scope, setScope, catalog }),
-    [apps, selectedApp, selectApp, scope, catalog]
+    () => ({
+      apps,
+      selectedApp,
+      selectApp,
+      scope,
+      setScope,
+      catalog,
+      pluginFilters,
+      updatePluginFilters,
+    }),
+    [
+      apps,
+      selectedApp,
+      selectApp,
+      scope,
+      catalog,
+      pluginFilters,
+      updatePluginFilters,
+    ]
   );
 }
 

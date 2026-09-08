@@ -7,7 +7,19 @@ const styles = stylex.create({
     maxHeight: "var(--available-height)",
     overflowY: "auto",
   },
-  trigger: { minWidth: 120, maxWidth: "100%" },
+  trigger: {
+    minWidth: 0,
+    maxWidth: "100%",
+    height: 30,
+    fontSize: 12,
+    backgroundColor: {
+      default: "transparent",
+      ":hover": "var(--color-surface-interactive-hover)",
+    },
+    borderColor: "transparent",
+    boxShadow: "none",
+    paddingInline: 8,
+  },
   value: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
 });
 
