@@ -15,7 +15,7 @@ import type { AgentToolCall, AgentTurn } from "./agent-runtime";
 
 const styles = stylex.create({
   root: {
-    marginBlock: 12,
+    marginBlock: 4,
     minWidth: 0,
     color: "var(--color-content-secondary)",
     fontSize: 12,
@@ -26,9 +26,10 @@ const styles = stylex.create({
     alignItems: "center",
     cursor: "pointer",
     listStyle: "none",
-    paddingBlock: 6,
+    paddingBlock: 4,
+    lineHeight: "18px",
   },
-  body: { display: "grid", gap: 10, paddingBlock: 12 },
+  body: { display: "grid", gap: 4, paddingBlock: 4 },
   label: {
     minWidth: 0,
     overflow: "hidden",
@@ -263,11 +264,6 @@ export function AgentTurnActivity({ turn }: { turn: AgentTurn }) {
         }}
       >
         <span>{label}</span>
-        {tools.length ? (
-          <span {...stylex.props(styles.hint)}>
-            · {tools.length} tool calls
-          </span>
-        ) : null}
         <Arrow size={14} aria-hidden="true" />
       </summary>
       <div {...stylex.props(styles.body)}>
