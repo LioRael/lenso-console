@@ -7,7 +7,7 @@ import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
-import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
@@ -18,7 +18,6 @@ import {
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
 import { useAgentIdentity } from "./agent-identity-context";
-import { AgentProfileEditor } from "./agent-profile-editor";
 import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   readAgentBootstrap,
@@ -79,7 +78,7 @@ function SectionHeading({
   );
 }
 
-function AgentPicker() {
+export function AgentPicker() {
   const { agents, selectedAgent, selectAgent } = useAgentIdentity();
   return (
     <Select.Root
@@ -219,7 +218,7 @@ function AgentSettingsContent({
         description={
           personalization
             ? "Manage this Agent’s instruction sources and integrations."
-            : "Manage this Agent’s Tools, providers and storage."
+            : "Manage authentication and Agent-wide permissions."
         }
       >
         <SettingsSection.Group xstyle={[preferences.group, styles.agentGroup]}>
@@ -238,9 +237,6 @@ function AgentSettingsContent({
           </SettingsRow.Root>
         </SettingsSection.Group>
       </SectionHeading>
-      {!personalization && configurationAvailable ? (
-        <AgentProfileEditor agent={agent} items={items} />
-      ) : null}
       {!personalization &&
       agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
         <AuthConnections agentId={agent.id} />
@@ -298,72 +294,14 @@ function AgentSettingsContent({
               )}
             />
           </>
-        ) : (
-          <AdvancedSection title="Provider configuration">
-            <ProviderSection
-              agentId={agent.id}
-              title="Models & authentication"
-              description="Configure model providers, selection policies and authentication through their Plugins."
-              empty="No model or authentication providers are present in this Agent's Plugin inventory."
-              items={items.filter(
-                (item) =>
-                  provides(item, "lenso.agent.model") ||
-                  provides(item, "lenso.agent.model-selection") ||
-                  provides(item, "lenso.agent.auth.openai-codex") ||
-                  provides(item, "lenso.agent.oauth-access")
-              )}
-            />
-            <ProviderSection
-              agentId={agent.id}
-              title="Sessions & memory"
-              description="Configure storage and retention in the providers that own this Agent's data."
-              empty="No session or memory providers are present in this Agent's Plugin inventory."
-              items={items.filter(
-                (item) =>
-                  provides(item, "lenso.agent.session") ||
-                  provides(item, "lenso.agent.memory")
-              )}
-            />
-          </AdvancedSection>
-        )
+        ) : null
       ) : null}
       {personalization ? (
         <ContextCatalog agent={agent} />
       ) : (
-        <AdvancedSection title="Agent-wide permissions">
-          <ToolAccess agent={agent} />
-        </AdvancedSection>
+        <ToolAccess agent={agent} />
       )}
     </div>
-  );
-}
-
-function AdvancedSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <details
-      {...stylex.props(styles.advanced)}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary {...stylex.props(styles.advancedSummary)}>
-        <span>{title}</span>
-        <ChevronRight
-          size={12}
-          aria-hidden="true"
-          {...stylex.props(
-            styles.advancedChevron,
-            open && styles.advancedChevronOpen
-          )}
-        />
-      </summary>
-      <div {...stylex.props(styles.advancedBody)}>{children}</div>
-    </details>
   );
 }
 
@@ -610,7 +548,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
     ) ?? [];
   return (
     <Section
-      title="Tool access"
+      title="Agent-wide permissions"
       description={
         canManage
           ? "Edit Agent-wide Tool permissions. Save changes to apply them to new turns."

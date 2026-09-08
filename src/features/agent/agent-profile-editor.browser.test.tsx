@@ -19,7 +19,7 @@ afterEach(() => {
   client?.clear();
   vi.unstubAllGlobals();
 });
-test("Profile copies preserve hidden choices, save drafts and apply only explicitly", async () => {
+test("Profile editor preserves hidden choices and saves without activation", async () => {
   const template: EditableProfile = {
     name: "default",
     revision: "r0",
@@ -101,6 +101,8 @@ test("Profile copies preserve hidden choices, save drafts and apply only explici
               capabilities: ["lenso.agent.plugin-configuration@1"],
             }}
             items={[]}
+            initialProfile={template}
+            existingNames={["default"]}
           />
         </ThemeScope>
       </QueryClientProvider>
@@ -139,15 +141,9 @@ test("Profile copies preserve hidden choices, save drafts and apply only explici
   expect(saves[0]?.allowed_tools).toEqual(["edit", "read"]);
   expect(saves[0]?.future_option).toBe("preserve");
   expect(applies).toHaveLength(0);
-  await page.getByRole("button", { name: "Apply Profile" }).click();
-  await expect.poll(() => applies.length).toBe(1);
-  expect(applies[0]).toEqual({
-    profile: "default-custom",
-    expectedRevision: "r1",
-  });
   await expect
     .element(page.getByRole("button", { name: "Apply Profile" }))
-    .toBeDisabled();
+    .not.toBeInTheDocument();
   await page
     .getByRole("textbox", { name: "Profile instructions" })
     .fill("Keep this draft after a conflict.");

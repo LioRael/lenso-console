@@ -2,6 +2,6 @@
 "@lenso/console-web": minor
 ---
 
-Add named Agent Profile drafts with template duplication, instructions, filtered capability bulk editing, and explicit save/apply controls. Keep Agent-wide permissions separate from Profile choices.
+Add dedicated Agent Profile list and edit pages with template duplication, instructions, searchable capability lists, and bulk enable/disable controls. Save drafts in the editor and activate Profiles explicitly from the list, with revision conflict handling and unsaved-navigation protection.
 
-Refine the editor into a unified panel with readable template previews, category-filtered capability lists, compact rows, and a shared save/apply footer.
+Keep Agent-wide permissions in Agent settings and provider configuration in the Plugin workbench.

@@ -2,8 +2,20 @@ import * as stylex from "@stylexjs/stylex";
 
 export const profileStyles = stylex.create({
   root: { display: "grid", gap: 14, marginBlockStart: 28, minWidth: 0 },
-  sectionHeading: { display: "grid", gap: 4, paddingInline: 16 },
-  heading: { fontSize: 15, lineHeight: "22px", fontWeight: 600, margin: 0 },
+  sectionHeading: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  heading: {
+    fontSize: 24,
+    lineHeight: "32px",
+    fontWeight: 500,
+    margin: "0 0 8px",
+    overflowWrap: "anywhere",
+  },
   muted: {
     fontSize: 13,
     lineHeight: "20px",

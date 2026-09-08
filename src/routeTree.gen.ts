@@ -17,10 +17,12 @@ import { Route as AgentChatIdRouteImport } from './routes/agent.$chatId'
 import { Route as SettingsAgentRouteImport } from './routes/settings_.agent'
 import { Route as SettingsAiRouteImport } from './routes/settings_.ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings_.appearance'
+import { Route as SettingsProfilesRouteImport } from './routes/settings_.profiles'
 import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
 import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
 import { Route as PluginsAgentIdPackageIdInstanceKeyRouteImport } from './routes/plugins_.$agentId.$packageId.$instanceKey'
 import { Route as SettingsAgentSkillsNewRouteImport } from './routes/settings_.agent_.skills.new'
+import { Route as SettingsProfilesAgentIdProfileNameRouteImport } from './routes/settings_.profiles_.$agentId.$profileName'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -62,6 +64,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/settings/appearance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsProfilesRoute = SettingsProfilesRouteImport.update({
+  id: '/settings_/profiles',
+  path: '/settings/profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgentAgentIdChatIdRoute = AgentAgentIdChatIdRouteImport.update({
   id: '/agent/$agentId/$chatId',
   path: '/agent/$agentId/$chatId',
@@ -83,6 +90,12 @@ const SettingsAgentSkillsNewRoute = SettingsAgentSkillsNewRouteImport.update({
   path: '/settings/agent/skills/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsProfilesAgentIdProfileNameRoute =
+  SettingsProfilesAgentIdProfileNameRouteImport.update({
+    id: '/settings_/profiles_/$agentId/$profileName',
+    path: '/settings/profiles/$agentId/$profileName',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -93,10 +106,12 @@ export interface FileRoutesByFullPath {
   '/settings/agent': typeof SettingsAgentRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
   '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
+  '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -107,10 +122,12 @@ export interface FileRoutesByTo {
   '/settings/agent': typeof SettingsAgentRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
   '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
+  '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,10 +139,12 @@ export interface FileRoutesById {
   '/settings_/agent': typeof SettingsAgentRoute
   '/settings_/ai': typeof SettingsAiRoute
   '/settings_/appearance': typeof SettingsAppearanceRoute
+  '/settings_/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings_/ai_/agent': typeof SettingsAiAgentRoute
   '/plugins_/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings_/agent_/skills/new': typeof SettingsAgentSkillsNewRoute
+  '/settings_/profiles_/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -138,10 +157,12 @@ export interface FileRouteTypes {
     | '/settings/agent'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
     | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
+    | '/settings/profiles/$agentId/$profileName'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -152,10 +173,12 @@ export interface FileRouteTypes {
     | '/settings/agent'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
     | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
+    | '/settings/profiles/$agentId/$profileName'
   id:
     | '__root__'
     | '/'
@@ -166,10 +189,12 @@ export interface FileRouteTypes {
     | '/settings_/agent'
     | '/settings_/ai'
     | '/settings_/appearance'
+    | '/settings_/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings_/ai_/agent'
     | '/plugins_/$agentId/$packageId/$instanceKey'
     | '/settings_/agent_/skills/new'
+    | '/settings_/profiles_/$agentId/$profileName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -181,10 +206,12 @@ export interface RootRouteChildren {
   SettingsAgentRoute: typeof SettingsAgentRoute
   SettingsAiRoute: typeof SettingsAiRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsProfilesRoute: typeof SettingsProfilesRoute
   AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
   SettingsAiAgentRoute: typeof SettingsAiAgentRoute
   PluginsAgentIdPackageIdInstanceKeyRoute: typeof PluginsAgentIdPackageIdInstanceKeyRoute
   SettingsAgentSkillsNewRoute: typeof SettingsAgentSkillsNewRoute
+  SettingsProfilesAgentIdProfileNameRoute: typeof SettingsProfilesAgentIdProfileNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -245,6 +272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/profiles': {
+      id: '/settings_/profiles'
+      path: '/settings/profiles'
+      fullPath: '/settings/profiles'
+      preLoaderRoute: typeof SettingsProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agent/$agentId/$chatId': {
       id: '/agent/$agentId/$chatId'
       path: '/agent/$agentId/$chatId'
@@ -273,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAgentSkillsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/profiles_/$agentId/$profileName': {
+      id: '/settings_/profiles_/$agentId/$profileName'
+      path: '/settings/profiles/$agentId/$profileName'
+      fullPath: '/settings/profiles/$agentId/$profileName'
+      preLoaderRoute: typeof SettingsProfilesAgentIdProfileNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -285,11 +326,14 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsAgentRoute: SettingsAgentRoute,
   SettingsAiRoute: SettingsAiRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsProfilesRoute: SettingsProfilesRoute,
   AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
   SettingsAiAgentRoute: SettingsAiAgentRoute,
   PluginsAgentIdPackageIdInstanceKeyRoute:
     PluginsAgentIdPackageIdInstanceKeyRoute,
   SettingsAgentSkillsNewRoute: SettingsAgentSkillsNewRoute,
+  SettingsProfilesAgentIdProfileNameRoute:
+    SettingsProfilesAgentIdProfileNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

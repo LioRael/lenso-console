@@ -312,7 +312,12 @@ function SettingsSidebar({
 }: {
   currentPath: string;
   navigate: (
-    to: "/" | "/settings" | "/settings/agent" | "/settings/ai"
+    to:
+      | "/"
+      | "/settings"
+      | "/settings/agent"
+      | "/settings/ai"
+      | "/settings/profiles"
   ) => void;
   onRequestClose: () => void;
 }) {
@@ -324,6 +329,7 @@ function SettingsSidebar({
   const showPreferences = matches("Preferences");
   const showPersonalization = matches("Guidance skills MCP integrations");
   const showAiAgents = matches("AI & Agents");
+  const showProfiles = matches("Profiles");
 
   return (
     <>
@@ -365,7 +371,7 @@ function SettingsSidebar({
             </Sidebar.Menu>
           </ContextNavigationSection>
         ) : null}
-        {showAiAgents || showPersonalization ? (
+        {showAiAgents || showPersonalization || showProfiles ? (
           <ContextNavigationSection label="Agents">
             <Sidebar.Menu>
               {showPersonalization ? (
@@ -376,6 +382,17 @@ function SettingsSidebar({
                     selected={currentPath.startsWith("/settings/agent")}
                   >
                     Guidance &amp; integrations
+                  </ContextNavigationItem>
+                </Sidebar.MenuItem>
+              ) : null}
+              {showProfiles ? (
+                <Sidebar.MenuItem>
+                  <ContextNavigationItem
+                    icon={<SlidersHorizontal size={14} strokeWidth={1.7} />}
+                    onClick={() => navigate("/settings/profiles")}
+                    selected={currentPath.startsWith("/settings/profiles")}
+                  >
+                    Profiles
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
@@ -393,7 +410,10 @@ function SettingsSidebar({
             </Sidebar.Menu>
           </ContextNavigationSection>
         ) : null}
-        {!showPreferences && !showPersonalization && !showAiAgents ? (
+        {!showPreferences &&
+        !showPersonalization &&
+        !showAiAgents &&
+        !showProfiles ? (
           <p {...stylex.props(shellStyles.settingsSearchEmpty)}>
             No settings found
           </p>

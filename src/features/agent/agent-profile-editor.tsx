@@ -4,7 +4,7 @@ import { Switch } from "@lenso/ui/switch";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { PluginWorkbenchItem } from "../plugins/plugin-workbench-model";
 import { profileStyles as ui } from "./agent-profile-editor.stylex";
@@ -25,47 +25,42 @@ import { agentSettingsStyles as styles } from "./agent-settings-page.stylex";
 export function AgentProfileEditor({
   agent,
   items,
+  initialProfile,
+  existingNames,
+  onSaved,
+  onDirtyChange,
 }: {
   agent: AgentIdentity;
   items: readonly PluginWorkbenchItem[];
+  initialProfile: EditableProfile;
+  existingNames: string[];
+  onSaved?: (profile: EditableProfile) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const cache = useQueryClient();
   const key = ["agent-profiles", agent.id];
-  const catalog = useQuery({
-    queryKey: key,
-    queryFn: ({ signal }) =>
-      profileRequest<ProfileCatalog>(
-        agent.id,
-        "control/profiles",
-        undefined,
-        signal
-      ),
-    retry: false,
-  });
   const tools = useQuery({
     queryKey: ["agent-settings", agent.id, "tool-policy"],
     queryFn: ({ signal }) => readAgentToolPolicy(signal, agent.id),
     retry: false,
   });
-  const [selected, setSelected] = useState<string>();
+  const [saved, setSaved] = useState(initialProfile);
   const [draft, setDraft] = useState<EditableProfile>();
-  const [pendingSelection, setPendingSelection] = useState<string>();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Tools");
   const [message, setMessage] = useState("");
-  const profiles = catalog.data?.profiles ?? [];
-  const saved =
-    profiles.find(
-      (profile) =>
-        profile.name === (selected ?? catalog.data?.activeProfile ?? "default")
-    ) ?? profiles[0];
   const profile = draft ?? saved;
-  const dirty = Boolean(
-    draft &&
-    (!saved ||
-      draft.name !== saved.name ||
-      JSON.stringify(draft.document) !== JSON.stringify(saved.document))
-  );
+  const dirty =
+    !profile.revision ||
+    Boolean(
+      draft &&
+      (!saved ||
+        draft.name !== saved.name ||
+        JSON.stringify(draft.document) !== JSON.stringify(saved.document))
+    );
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
   const save = useMutation({
     mutationFn: (value: EditableProfile) =>
       profileRequest<EditableProfile>(agent.id, "control/profiles", {
@@ -88,29 +83,16 @@ export function AgentProfileEditor({
             }
           : previous
       );
-      setSelected(value.name);
+      setSaved(value);
       setDraft(undefined);
-      setMessage("Draft saved. Apply when you are ready.");
-    },
-  });
-  const apply = useMutation({
-    mutationFn: (value: EditableProfile) =>
-      profileRequest(agent.id, "control/profile", {
-        profile: value.name === "default" ? null : value.name,
-        expectedRevision: value.revision,
-      }),
-    onSuccess: async () => {
       setMessage(
-        "Profile applied. Running turns keep their previous configuration."
+        "Saved. Choose this Profile from the Profiles page to use it."
       );
-      await cache.invalidateQueries({ queryKey: key });
-      await cache.invalidateQueries({ queryKey: ["agent-settings", agent.id] });
-      await cache.invalidateQueries({
-        queryKey: ["agent", agent.id, "plugin-workbench"],
-      });
+      onDirtyChange?.(false);
+      onSaved?.(value);
     },
   });
-  const busy = save.isPending || apply.isPending;
+  const busy = save.isPending;
   const readonly = !profile || profile.readOnly || busy;
   const edit = (document: ProfileDocument) => {
     if (profile && !readonly) {
@@ -119,28 +101,13 @@ export function AgentProfileEditor({
       save.reset();
     }
   };
-  const choose = (name: string) => {
-    if (dirty) {
-      setPendingSelection(name);
-    } else {
-      setSelected(name);
-      setDraft(undefined);
-      setMessage("");
-      save.reset();
-      apply.reset();
-    }
-  };
   const copy = () => {
     if (!profile) {
       return;
     }
     const stem = `${profile.name.slice(0, 50)}-custom`;
     let name = stem;
-    for (
-      let index = 2;
-      profiles.some((item) => item.name === name);
-      index += 1
-    ) {
+    for (let index = 2; existingNames.includes(name); index += 1) {
       name = `${stem}-${index}`;
     }
     setDraft({
@@ -152,7 +119,6 @@ export function AgentProfileEditor({
     });
     setMessage("");
     save.reset();
-    apply.reset();
   };
   const matches = (text: string) =>
     text.toLocaleLowerCase().includes(search.toLocaleLowerCase());
@@ -179,11 +145,6 @@ export function AgentProfileEditor({
           id !== profile.document.agent
       )
     : [];
-  const active = profile?.name === (catalog.data?.activeProfile ?? "default");
-  const applied =
-    active &&
-    (profile?.name === "default" ||
-      profile?.revision === catalog.data?.activeRevision);
   const categories = [
     "Tools",
     "Tool providers & MCP",
@@ -219,77 +180,69 @@ export function AgentProfileEditor({
   return (
     <section {...stylex.props(ui.root)} aria-label="Profile editor">
       <header {...stylex.props(ui.sectionHeading)}>
-        <h2 {...stylex.props(ui.heading)}>Profiles</h2>
-        <p {...stylex.props(ui.muted)}>Choose how this Agent works.</p>
-      </header>
-      {catalog.isPending ? (
-        <output {...stylex.props(ui.empty)}>Loading profiles…</output>
-      ) : null}
-      {catalog.error ? (
-        <p role="alert" {...stylex.props(styles.error)}>
-          {catalog.error.message}
-        </p>
-      ) : null}
-      {profile ? (
-        <div {...stylex.props(ui.panel)}>
-          <div {...stylex.props(ui.profileHeader)}>
-            <div {...stylex.props(ui.profileIdentity)}>
-              <ProfileSelect
-                label="Select Profile"
-                value={saved?.name ?? "default"}
-                display={draft?.name || saved?.name || "default"}
-                disabled={busy}
-                options={profiles.map((item) => ({
-                  value: item.name,
-                  label: item.name,
-                  detail: item.readOnly ? "Template" : "Custom",
-                }))}
-                onChange={choose}
-              />
-              <span {...stylex.props(ui.badge)}>
-                {profile.readOnly
-                  ? "Template"
-                  : dirty
-                    ? "Editing"
-                    : applied
-                      ? "Applied"
-                      : "Draft"}
-              </span>
-            </div>
+        <div>
+          <h1 {...stylex.props(ui.heading)}>
+            {profile.revision ? profile.name : "New Profile"}
+          </h1>
+          <output {...stylex.props(ui.status)}>
+            {busy
+              ? "Validating and saving…"
+              : dirty
+                ? "Unsaved changes"
+                : message ||
+                  (profile.readOnly
+                    ? "Built-in template · Duplicate to customize"
+                    : "All changes saved")}
+          </output>
+        </div>
+        <div {...stylex.props(ui.footerActions)}>
+          {profile.readOnly ? (
             <Button
-              variant={profile.readOnly ? "secondary" : "ghost"}
+              variant="secondary"
               size="compact"
-              disabled={busy || dirty}
+              disabled={busy}
               onClick={copy}
             >
               Duplicate Profile
             </Button>
-          </div>
-          {pendingSelection ? (
-            <div {...stylex.props(ui.inlineNotice)} role="alert">
-              <span {...stylex.props(ui.muted)}>
-                Discard unsaved changes and switch Profile?
-              </span>
+          ) : (
+            <>
+              {draft ? (
+                <Button
+                  size="compact"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setDraft(undefined);
+                    setSaved(initialProfile);
+                    save.reset();
+                  }}
+                >
+                  Reset
+                </Button>
+              ) : null}
               <Button
                 size="compact"
-                variant="ghost"
-                onClick={() => setPendingSelection(undefined)}
+                disabled={
+                  !dirty ||
+                  readonly ||
+                  !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(profile.name)
+                }
+                onClick={() => save.mutate(profile)}
               >
-                Keep editing
+                Save draft
               </Button>
-              <Button
-                size="compact"
-                variant="secondary"
-                onClick={() => {
-                  setSelected(pendingSelection);
-                  setDraft(undefined);
-                  setPendingSelection(undefined);
-                }}
-              >
-                Discard and switch
-              </Button>
-            </div>
-          ) : null}
+            </>
+          )}
+        </div>
+      </header>
+      {save.error ? (
+        <p role="alert" {...stylex.props(ui.inlineNotice, styles.error)}>
+          {save.error.message}
+        </p>
+      ) : null}
+      {profile ? (
+        <div {...stylex.props(ui.panel)}>
           <div {...stylex.props(ui.fields)}>
             {profile.readOnly ? (
               <>
@@ -596,68 +549,6 @@ export function AgentProfileEditor({
               {unknown.join(", ")}. Saving validates their availability.
             </p>
           ) : null}
-          {save.error || apply.error ? (
-            <p role="alert" {...stylex.props(ui.inlineNotice, styles.error)}>
-              {(save.error ?? apply.error)?.message}
-            </p>
-          ) : null}
-          <footer {...stylex.props(ui.footer)}>
-            <output {...stylex.props(ui.status)}>
-              {busy
-                ? apply.isPending
-                  ? "Preparing Profile…"
-                  : "Validating and saving…"
-                : dirty
-                  ? "Unsaved changes"
-                  : message ||
-                    (applied
-                      ? "Currently applied"
-                      : profile.readOnly
-                        ? "Template · Ready to apply"
-                        : "Saved · Not yet applied")}
-            </output>
-            <div {...stylex.props(ui.footerActions)}>
-              {profile.readOnly ? null : (
-                <>
-                  {draft ? (
-                    <Button
-                      size="compact"
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() => {
-                        setDraft(undefined);
-                        save.reset();
-                      }}
-                    >
-                      Reset
-                    </Button>
-                  ) : null}
-                  <Button
-                    size="compact"
-                    variant={dirty ? "primary" : "secondary"}
-                    disabled={
-                      !dirty ||
-                      readonly ||
-                      !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(profile.name)
-                    }
-                    onClick={() => save.mutate(profile)}
-                  >
-                    Save draft
-                  </Button>
-                </>
-              )}
-              {profile.readOnly && applied ? null : (
-                <Button
-                  size="compact"
-                  variant={dirty ? "secondary" : "primary"}
-                  disabled={dirty || busy || !profile.revision || applied}
-                  onClick={() => apply.mutate(profile)}
-                >
-                  Apply Profile
-                </Button>
-              )}
-            </div>
-          </footer>
         </div>
       ) : null}
     </section>
