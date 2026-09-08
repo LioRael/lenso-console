@@ -22,6 +22,7 @@ export default defineConfig({
       "@lenso/ui/settings-row",
       "@lenso/ui/surface",
       "@lenso/ui/theme-scope",
+      "@lenso/ui/tooltip",
       "@streamdown/cjk",
       "@stylexjs/stylex",
       "@tanstack/react-query",

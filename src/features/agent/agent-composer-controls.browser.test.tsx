@@ -13,6 +13,7 @@ import {
   RunConfigurationMenu,
   TurnSelect,
 } from "./agent-composer-controls";
+import { AgentContextUsage } from "./agent-context-usage";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 
 let root: Root | undefined;
@@ -20,6 +21,8 @@ let container: HTMLDivElement | undefined;
 
 beforeEach(() => {
   container = document.createElement("div");
+  // Match the mini dialog stacking context so portaled menus must render above it.
+  container.style.cssText = "position:fixed;inset:0;z-index:90";
   document.body.append(container);
 });
 
@@ -31,6 +34,37 @@ afterEach(() => {
 });
 
 describe("Agent composer controls", () => {
+  test("context tooltip escapes the horizontally scrolling toolbar", async () => {
+    await renderControls(
+      <div
+        style={{ marginTop: 200, width: 400, height: 32, overflowX: "auto" }}
+      >
+        <AgentContextUsage model={undefined} trajectory={undefined} draft="" />
+      </div>
+    );
+    await userEvent.hover(page.getByRole("button", { name: "Context usage" }));
+    await expect.element(page.getByRole("tooltip")).toBeVisible();
+    await expect
+      .poll(() => {
+        const popup = document.querySelector('[role="tooltip"]');
+        if (!popup) {
+          return false;
+        }
+        const rect = popup.getBoundingClientRect();
+        return popup.contains(
+          document.elementFromPoint(
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2
+          )
+        );
+      })
+      .toBe(true);
+    const popup = document.querySelector('[role="tooltip"]')!;
+    expect(
+      popup.lastElementChild!.getBoundingClientRect().bottom
+    ).toBeLessThanOrEqual(popup.getBoundingClientRect().bottom);
+  });
+
   test("uses shared pill geometry for composer triggers", async () => {
     await renderControls(
       <>

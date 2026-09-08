@@ -155,7 +155,7 @@ export function AgentQuickPanel({
         if (
           !nextOpen &&
           target instanceof Element &&
-          target.closest("[data-agent-tray]")
+          target.closest("[data-agent-tray], [data-agent-composer-overlay]")
         ) {
           details.cancel();
           return;

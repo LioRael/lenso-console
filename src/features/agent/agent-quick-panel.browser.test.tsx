@@ -74,6 +74,29 @@ describe("Agent quick panel", () => {
     expect(document.querySelector('button[aria-label="Skills"]')).toBeNull();
   });
 
+  test("keeps the mini dialog open while using portaled composer controls", async () => {
+    await renderPanel(agentFetch());
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Run configuration" })
+    );
+    await userEvent.click(page.getByRole("menuitem", { name: /^Model/ }));
+    await expect
+      .element(page.getByRole("combobox", { name: "Search models" }))
+      .toBeVisible();
+    expect(requiredComposer().closest('[role="dialog"]')).not.toBeNull();
+    await userEvent.keyboard("{Escape}{Escape}");
+    await userEvent.click(
+      page.getByRole("combobox", { name: "Approval mode" })
+    );
+    await userEvent.click(
+      page.getByRole("option", { name: "Full access", exact: true })
+    );
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+  });
+
   test("keeps product hover feedback after the Lenso xstyle boundary", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
