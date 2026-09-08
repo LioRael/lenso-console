@@ -200,6 +200,13 @@ function ConnectionRow({
     lock.current = true;
     setBusy(true);
     setMessage("");
+    const loginWindow =
+      kind === "begin" && method === "browser_loopback"
+        ? window.open("about:blank", "_blank")
+        : null;
+    if (loginWindow) {
+      loginWindow.opener = null;
+    }
     try {
       if (kind === "begin") {
         const result = await action<Attempt>(
@@ -208,6 +215,7 @@ function ConnectionRow({
           controller.signal
         );
         if (controller.signal.aborted) {
+          loginWindow?.close();
           return;
         }
         result.authorization_url = loginUrl(result.authorization_url);
@@ -218,6 +226,9 @@ function ConnectionRow({
           throw new Error("Invalid sign-in response.");
         }
         setAttempt(result);
+        if (loginWindow) {
+          loginWindow.location.replace(result.authorization_url);
+        }
       } else {
         await action(
           kind,
@@ -232,9 +243,12 @@ function ConnectionRow({
         refresh();
       }
     } catch {
+      loginWindow?.close();
       if (!controller.signal.aborted) {
         setMessage(
-          "Could not complete this action. Another sign-in may be pending, or settings may have changed. Refresh accounts before retrying."
+          method === "browser_loopback"
+            ? "Browser sign-in could not start. Close another pending sign-in or use Sign in with code."
+            : "Could not complete this action. Another sign-in may be pending, or settings may have changed. Refresh accounts before retrying."
         );
       }
     } finally {
@@ -272,7 +286,11 @@ function ConnectionRow({
               {connection.status.methods
                 .filter(
                   (method) =>
-                    method === "device_code" || method === "browser_loopback"
+                    method === "device_code" ||
+                    (method === "browser_loopback" &&
+                      ["localhost", "127.0.0.1", "[::1]"].includes(
+                        window.location.hostname
+                      ))
                 )
                 .map((method) => (
                   <Button
