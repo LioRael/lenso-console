@@ -12,6 +12,7 @@ import { useState } from "react";
 import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentMarkdown } from "./agent-markdown";
 import type { AgentToolCall, AgentTurn } from "./agent-runtime";
+import { toolErrorDetails } from "./agent-tool-error";
 
 const styles = stylex.create({
   root: {
@@ -37,16 +38,45 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   details: { minWidth: 0 },
+  panel: {
+    display: "grid",
+    gap: 8,
+    marginBlock: 4,
+    marginInlineStart: 6,
+    paddingBlock: 4,
+    paddingInlineStart: 15,
+    borderInlineStartWidth: 1,
+    borderInlineStartStyle: "solid",
+    borderInlineStartColor: "var(--color-border-tertiary)",
+    minWidth: 0,
+  },
+  parameters: {
+    display: "grid",
+    gridTemplateColumns: "max-content minmax(0, 1fr)",
+    columnGap: 12,
+    rowGap: 4,
+    margin: 0,
+    fontSize: 12,
+  },
+  value: { margin: 0, overflowWrap: "anywhere", whiteSpace: "pre-wrap" },
+  error: {
+    margin: 0,
+    fontSize: 12,
+    lineHeight: "18px",
+    overflowWrap: "anywhere",
+  },
   imagePreview: { maxWidth: "100%", maxHeight: 480, objectFit: "contain" },
   images: { display: "flex", gap: 8, flexWrap: "wrap" },
   image: { width: 96, height: 96, objectFit: "cover", borderRadius: 8 },
   output: {
+    boxSizing: "border-box",
+    fontFamily: "var(--font-mono)",
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
     overflowY: "auto",
-    maxHeight: 320,
+    maxHeight: 240,
     margin: 0,
-    padding: 12,
+    padding: 10,
     fontSize: 12,
     lineHeight: "19px",
     borderWidth: 1,
@@ -118,9 +148,26 @@ export function toolDisplay(tool: AgentToolCall) {
   };
 }
 
+function InputParameter({ name, value }: { name: string; value: string }) {
+  return (
+    <>
+      <dt {...stylex.props(styles.hint)}>{name}</dt>
+      <dd {...stylex.props(styles.value)}>{value}</dd>
+    </>
+  );
+}
+
 function ToolDetail({ tool }: { tool: AgentToolCall }) {
   const { icon: Icon, label } = toolDisplay(tool);
   const [open, setOpen] = useState(false);
+  const failure = tool.error ? toolErrorDetails(tool.error) : undefined;
+  const parameters = Object.entries(parsed(tool.argumentsJson));
+  const compactInput =
+    parameters.length <= 8 &&
+    parameters.every(
+      ([, value]) =>
+        value === null || ["string", "number", "boolean"].includes(typeof value)
+    );
   const Arrow = open ? ChevronDown : ChevronRight;
   return (
     <details
@@ -135,13 +182,12 @@ function ToolDetail({ tool }: { tool: AgentToolCall }) {
         </span>
         <Arrow size={12} aria-hidden="true" />
       </summary>
-      <div {...stylex.props(styles.body)}>
-        <p {...stylex.props(styles.hint)}>
-          {tool.status}
-          {typeof tool.durationMs === "number"
-            ? ` · ${(tool.durationMs / 1000).toFixed(1)}s`
-            : ""}
-        </p>
+      <div {...stylex.props(styles.panel)}>
+        {failure ? (
+          <p role="alert" {...stylex.props(styles.error)}>
+            {failure.summary}
+          </p>
+        ) : null}
         {tool.resultImages?.length ? (
           <div {...stylex.props(styles.images)}>
             {tool.resultImages.map((item) => (
@@ -162,13 +208,46 @@ function ToolDetail({ tool }: { tool: AgentToolCall }) {
             ))}
           </div>
         ) : null}
-        {tool.argumentsJson ? (
-          <div>
-            <p {...stylex.props(styles.hint)}>Input</p>
-            <pre {...stylex.props(styles.output)}>
-              {pretty(tool.argumentsJson)}
-            </pre>
-          </div>
+        {tool.argumentsJson && parameters.length > 0 ? (
+          compactInput ? (
+            <dl
+              aria-label="Input parameters"
+              {...stylex.props(styles.parameters)}
+            >
+              {parameters.map(([name, value]) => (
+                <InputParameter key={name} name={name} value={String(value)} />
+              ))}
+            </dl>
+          ) : (
+            <details>
+              <summary {...stylex.props(styles.trigger)}>
+                Input parameters
+              </summary>
+              <pre {...stylex.props(styles.output)}>
+                {pretty(tool.argumentsJson)}
+              </pre>
+            </details>
+          )
+        ) : null}
+        {failure ? (
+          <details>
+            <summary {...stylex.props(styles.trigger)}>
+              Error output
+              {failure.exitCode ? ` · Exit ${failure.exitCode}` : ""}
+            </summary>
+            <pre {...stylex.props(styles.output)}>{failure.output}</pre>
+            {failure.incomplete ? (
+              <p {...stylex.props(styles.hint)}>
+                The recorded error was truncated.
+              </p>
+            ) : null}
+            {failure.output === tool.error ? null : (
+              <details>
+                <summary {...stylex.props(styles.trigger)}>Raw error</summary>
+                <pre {...stylex.props(styles.output)}>{tool.error}</pre>
+              </details>
+            )}
+          </details>
         ) : null}
         {tool.resultContent ? (
           <div>
@@ -193,7 +272,13 @@ function ToolDetail({ tool }: { tool: AgentToolCall }) {
             </pre>
           </details>
         ) : null}
-        {tool.error ? <p role="alert">{tool.error}</p> : null}
+        {typeof tool.durationMs === "number" ? (
+          <p {...stylex.props(styles.hint)}>
+            {tool.durationMs < 1000
+              ? `${tool.durationMs}ms`
+              : `${(tool.durationMs / 1000).toFixed(1)}s`}
+          </p>
+        ) : null}
         {!tool.resultContent && !tool.error ? (
           <p {...stylex.props(styles.hint)}>
             {tool.status === "running"
