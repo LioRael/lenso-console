@@ -22,6 +22,7 @@ import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentPage } from "./agent-page";
 import { AgentProjectContext } from "./agent-project-context";
 import type { AgentTurn } from "./agent-runtime";
+import { useAgentConversation } from "./use-agent-conversation";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -55,6 +56,9 @@ function render(content: ReactNode) {
   const projectRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/agent/$agentId/$chatId",
+    validateSearch: (search: Record<string, unknown>) => ({
+      project: typeof search.project === "string" ? search.project : undefined,
+    }),
     component: () => content,
   });
   const router = createRouter({
@@ -71,7 +75,7 @@ function RoutedAgentPage() {
   return agentId ? <AgentPage agentId={agentId} /> : null;
 }
 
-test("project entry keeps new and resumed tasks scoped to the owning Agent", async () => {
+test("project entry keeps resumed tasks scoped without a redundant new-task action", async () => {
   const urls: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -106,9 +110,9 @@ test("project entry keeps new and resumed tasks scoped to the owning Agent", asy
   await expect
     .element(page.getByText("/projects/customer support", { exact: true }))
     .toBeVisible();
-  await expect
-    .element(page.getByRole("link", { name: "New task" }))
-    .toHaveAttribute("href", "/agent/support/new-task");
+  expect(
+    container?.querySelector('a[href="/agent/support/new-task"]')
+  ).toBeNull();
   await page.getByRole("button", { name: "Resume task" }).click();
   await expect
     .poll(() => urls.some((url) => url.endsWith("/agents/support/sessions")))
@@ -287,6 +291,19 @@ test("a project task exposes its streamed diff in the existing conversation page
     .getByRole("textbox", { name: "Send a message to Lenso Agent" })
     .fill("Review the change");
   await page.getByRole("button", { name: "Submit comment" }).click();
+  await expect
+    .poll(
+      () =>
+        container?.querySelectorAll('[aria-label="Copy message"] svg').length ??
+        0
+    )
+    .toBeGreaterThan(0);
+  for (const icon of container?.querySelectorAll(
+    '[aria-label="Copy message"] svg, [aria-label="Edit message"] svg'
+  ) ?? []) {
+    expect(icon.getBoundingClientRect().width).toBe(12);
+    expect(icon.getBoundingClientRect().height).toBe(12);
+  }
   expect(
     container?.querySelector('[aria-label="Turn permissions"]')
   ).toBeNull();
@@ -355,6 +372,37 @@ test("a project task exposes its streamed diff in the existing conversation page
     .element(page.getByLabelText("Recorded diff: app.ts"))
     .toBeVisible();
   const heading = page.getByRole("heading", { name: "Changes", exact: true });
+  const header = container?.querySelector<HTMLElement>(
+    '[aria-label="Agent chat navigation"]'
+  );
+  const headerRow = header?.querySelector<HTMLElement>(
+    '[data-slot="page-header-row"]'
+  );
+  if (!(header && headerRow)) {
+    throw new Error("Task header is missing");
+  }
+  // The content must follow the visible header row, including when it wraps.
+  for (const width of [1280, 390]) {
+    await page.viewport(width, 844);
+    for (const [tab, region] of [
+      ["Conversation", "Agent conversation"],
+      ["Changes", "Task changes"],
+      ["Trajectory", "Agent trajectory"],
+    ] as const) {
+      await page.getByRole("tab", { name: tab, exact: true }).click();
+      const content = page.getByRole("region", { name: region, exact: true });
+      await expect.element(content).toBeVisible();
+      await expect
+        .poll(() =>
+          Math.abs(
+            content.element().getBoundingClientRect().top -
+              headerRow.getBoundingClientRect().bottom
+          )
+        )
+        .toBeLessThanOrEqual(1);
+    }
+  }
+  await page.getByRole("tab", { name: "Changes", exact: true }).click();
   await page.viewport(390, 844);
   await expect.element(heading).toBeVisible();
   const tabs = page.getByRole("tablist", { name: "Agent view" }).element();
@@ -380,4 +428,253 @@ test("a project task exposes its streamed diff in the existing conversation page
       container?.querySelector('[aria-label="Agent working directory"]')
     )
     .toBeNull();
+});
+
+test("project picker preserves project identity in navigation and resumed history", async () => {
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const urls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.endsWith("/agents")) {
+        return Response.json({
+          agents: [
+            { id: "app", label: "Lenso Agent", role: "app", capabilities: [] },
+          ],
+        });
+      }
+      if (url.endsWith("/projects")) {
+        return Response.json({
+          defaultPath: "/work/default",
+          projects: [{ id: projectId, path: "/work/second" }],
+        });
+      }
+      if (url.includes("/directories?")) {
+        return Response.json({
+          path: "/work/default",
+          parent: "/work",
+          directories: ["/work/default/child"],
+          truncated: false,
+        });
+      }
+      if (url.endsWith(`/projects/${projectId}/sessions`)) {
+        return Response.json({
+          sessions: [
+            {
+              sessionId: "project-task",
+              revision: "1",
+              titleRevision: "1",
+              title: "Second project task",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    })
+  );
+  render(<AgentProjectContext agentId="app" path="/work/default" />);
+  await page
+    .getByRole("button", { name: "Change project: /work/default" })
+    .click();
+  await expect
+    .element(page.getByRole("dialog"))
+    .toHaveTextContent("Tasks in other projects continue running.");
+  await page.getByRole("button", { name: "/work/second", exact: true }).click();
+  await page.getByRole("button", { name: "Resume task" }).click();
+  await expect
+    .element(page.getByRole("menuitem", { name: /Second project task/u }))
+    .toBeVisible();
+  expect(
+    urls.some((url) => url.endsWith(`/projects/${projectId}/sessions`))
+  ).toBe(true);
+  expect(urls.some((url) => url.endsWith("/agents/app/sessions"))).toBe(false);
+});
+
+test.each([
+  { role: "app", ready: false },
+  { role: "app", ready: true },
+  { role: "console", ready: false },
+])(
+  "coding entry follows readiness and Agent role: $role/$ready",
+  async ({ role, ready }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/agents")) {
+          return Response.json({
+            agents: [
+              {
+                id: role,
+                label: role,
+                role,
+                capabilities: ["lenso.agent.plugin-configuration@1"],
+              },
+            ],
+          });
+        }
+        if (url.endsWith("/bootstrap")) {
+          return Response.json({
+            workspace: { path: "/projects/example" },
+            mode: "console",
+            profile: "code",
+            trajectory: "lenso.agent.trajectory@1",
+            capabilities: {
+              profileImport: true,
+              profileSelection: true,
+              cancel: true,
+              edit: true,
+              sessionList: false,
+              sessionRead: false,
+              userInteraction: false,
+            },
+            tools: {
+              allowed: ready ? ["edit"] : [],
+              available: [{ name: "edit", description: "Edit files" }],
+            },
+          });
+        }
+        if (url.endsWith("/projects")) {
+          return Response.json({
+            projects: [],
+            defaultPath: "/projects/example",
+          });
+        }
+        if (url.includes("/directories?")) {
+          return Response.json({
+            path: "/projects/example",
+            parent: "/projects",
+            directories: [],
+            truncated: false,
+          });
+        }
+        return Response.json({});
+      })
+    );
+    render(<AgentPage agentId={role} />);
+    await expect
+      .element(
+        page.getByRole("textbox", { name: "Send a message to Lenso Agent" })
+      )
+      .toBeVisible();
+    expect(
+      container?.querySelector('[aria-label="Agent chat navigation"]')
+        ?.textContent
+    ).not.toContain("Set up coding");
+    const setup = page.getByRole("button", {
+      name: "Configure coding environment",
+      exact: true,
+    });
+    if (role === "app" && !ready) {
+      await expect.element(setup).toBeVisible();
+      await setup.click();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Set up coding", exact: true })
+        )
+        .toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    } else {
+      await expect.element(setup).not.toBeInTheDocument();
+    }
+    if (role === "app") {
+      await page
+        .getByRole("button", { name: "Change project: /projects/example" })
+        .click();
+      await page
+        .getByRole("button", { name: "Coding settings", exact: true })
+        .click();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Set up coding", exact: true })
+        )
+        .toBeVisible();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Choose project", exact: true })
+        )
+        .not.toBeInTheDocument();
+    } else {
+      expect(
+        container?.querySelector('[aria-label="Agent working directory"]')
+      ).toBeNull();
+    }
+  }
+);
+
+function ModeLatencyProbe() {
+  const agent = useAgentConversation({ targetId: "app" });
+  return (
+    <div>
+      <output aria-label="Selected mode">{agent.profile ?? "normal"}</output>
+      <button
+        disabled={!agent.runtime || agent.isConfiguring}
+        onClick={() => agent.changeProfile("code")}
+        type="button"
+      >
+        Choose code
+      </button>
+    </div>
+  );
+}
+
+test("mode feedback is immediate and slow catalogs do not block readiness", async () => {
+  let profile = "default";
+  let finishSelection: (() => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/agents")) {
+        return Response.json({ agents: [] });
+      }
+      if (url.endsWith("/bootstrap")) {
+        return Response.json({
+          mode: "console",
+          trajectory: "lenso.agent.trajectory@1",
+          profile,
+          capabilities: {
+            profileSelection: true,
+            turnModelSelection: true,
+            cancel: false,
+            edit: false,
+            sessionList: false,
+            sessionRead: false,
+            userInteraction: false,
+          },
+          tools: { available: [], allowed: [] },
+        });
+      }
+      if (url.endsWith("/models")) {
+        return new Promise<Response>(() => {});
+      }
+      if (url.endsWith("/control/profile")) {
+        await new Promise<void>((resolve) => {
+          finishSelection = resolve;
+        });
+        profile = "code";
+        return Response.json({ profile });
+      }
+      return Response.json({});
+    })
+  );
+  render(<ModeLatencyProbe />);
+  await expect
+    .element(page.getByRole("button", { name: "Choose code" }))
+    .toBeEnabled();
+  await page.getByRole("button", { name: "Choose code" }).click();
+  await expect
+    .element(page.getByLabelText("Selected mode"))
+    .toHaveTextContent("code");
+  await expect
+    .element(page.getByRole("button", { name: "Choose code" }))
+    .toBeDisabled();
+  finishSelection?.();
+  await expect
+    .element(page.getByRole("button", { name: "Choose code" }))
+    .toBeEnabled();
 });

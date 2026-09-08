@@ -36,7 +36,7 @@ export const settingsPageStyles = stylex.create({
   },
   row: {
     alignItems: {
-      default: null,
+      default: "center",
       "@media (max-width: 520px)": "flex-start",
     },
     backgroundColor: {
@@ -54,10 +54,16 @@ export const settingsPageStyles = stylex.create({
       "@media (max-width: 760px)": "minmax(0, 1fr) auto",
       "@media (max-width: 520px)": "minmax(0, 1fr)",
     },
+    height: "auto",
     minHeight: "65px",
     opacity: 1,
     padding: "10px 16px",
     paddingBlock: { default: "10px", "@media (max-width: 520px)": "12px" },
+  },
+  rowCopy: {
+    alignSelf: "center",
+    justifyContent: "center",
+    paddingBlock: 0,
   },
   rowDisabled: {
     opacity: 0.4,

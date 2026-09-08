@@ -28,12 +28,14 @@ import {
 
 export function AgentHistoryMenu({
   agentId,
+  projectId,
   children,
   currentSessionId,
   placement = "utility",
   showNewChat = true,
 }: {
   agentId?: AgentId;
+  projectId?: string | undefined;
   children: ReactNode;
   currentSessionId?: string | undefined;
   placement?: "header" | "utility";
@@ -87,6 +89,7 @@ export function AgentHistoryMenu({
               />
             </div>
             <AgentHistoryItems
+              projectId={projectId}
               currentSessionId={currentSessionId}
               query={query}
               refreshKey={refreshKey}
@@ -101,6 +104,7 @@ export function AgentHistoryMenu({
 }
 
 export function AgentHistoryItems({
+  projectId,
   currentSessionId,
   query = "",
   refreshKey = 0,
@@ -112,11 +116,16 @@ export function AgentHistoryItems({
   refreshKey?: number;
   showNewChat?: boolean;
   targetId?: AgentId;
+  projectId?: string | undefined;
 }) {
   const navigate = useNavigate();
   const { data: sessions = [], isPending: loading } = useQuery({
-    queryFn: ({ signal }) => listAgentSessions(signal, targetId),
-    queryKey: ["agent-history", targetId, refreshKey],
+    queryFn: ({ signal }) =>
+      listAgentSessions(
+        signal,
+        projectId ? { agentId: targetId, projectId } : targetId
+      ),
+    queryKey: ["agent-history", targetId, projectId, refreshKey],
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);
@@ -135,6 +144,7 @@ export function AgentHistoryItems({
             onClick={() =>
               navigate({
                 params: { agentId: targetId, chatId: "new-task" },
+                search: { project: projectId },
                 to: "/agent/$agentId/$chatId",
               })
             }
@@ -151,6 +161,7 @@ export function AgentHistoryItems({
       {today.length > 0 ? (
         <HistorySection
           agentId={targetId}
+          projectId={projectId}
           currentSessionId={currentSessionId}
           label="Today"
           sessions={today}
@@ -161,6 +172,7 @@ export function AgentHistoryItems({
           {today.length > 0 ? <Menu.Separator /> : null}
           <HistorySection
             agentId={targetId}
+            projectId={projectId}
             currentSessionId={currentSessionId}
             label="Earlier"
             sessions={earlier}
@@ -189,12 +201,14 @@ function focusFirstHistoryItem(event: KeyboardEvent<HTMLInputElement>) {
 }
 
 function HistorySection({
+  projectId,
   agentId,
   currentSessionId,
   label,
   sessions,
 }: {
   agentId: AgentId;
+  projectId?: string | undefined;
   currentSessionId: string | undefined;
   label: string;
   sessions: AgentSessionSummary[];
@@ -212,6 +226,7 @@ function HistorySection({
             onClick={() =>
               navigate({
                 params: { agentId, chatId: session.sessionId },
+                search: { project: projectId },
                 to: "/agent/$agentId/$chatId",
               })
             }

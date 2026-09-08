@@ -23,12 +23,12 @@ import {
 } from "lucide-react";
 import {
   useCallback,
+  useMemo,
   useEffect,
   useId,
   useRef,
   useState,
   type FormEvent,
-  type ReactNode,
   type KeyboardEvent,
 } from "react";
 
@@ -48,6 +48,7 @@ import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
+import { messageGroup } from "./agent-message-controls.stylex";
 import { hasAgentConversation } from "./agent-page-state";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 import { AgentProjectContext } from "./agent-project-context";
@@ -65,10 +66,12 @@ import {
   type AgentTurn,
 } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
+import { speedMenu } from "./agent-speed";
 import { AgentTrajectory } from "./agent-trajectory";
 import { useAgentConversation } from "./use-agent-conversation";
 
 type AgentPageProps = {
+  projectId?: string | undefined;
   agentId?: string;
   conversationId?: string;
 };
@@ -198,11 +201,22 @@ function promptAcceptsEmptyArguments(schemaJson: string) {
   }
 }
 
-export function AgentPage({ agentId, conversationId }: AgentPageProps) {
+export function AgentPage({
+  agentId,
+  conversationId,
+  projectId,
+}: AgentPageProps) {
   const navigate = useNavigate();
   const { agents, selectAgent, selectedAgent } = useAgentIdentity();
   const activeAgentId = agentId ?? selectedAgent.id;
+  const targetId = useMemo(
+    () => (projectId ? { agentId: activeAgentId, projectId } : activeAgentId),
+    [activeAgentId, projectId]
+  );
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
+  const [codingSetupTarget, setCodingSetupTarget] = useState<typeof targetId>();
+  const [requestedCodeTarget, setRequestedCodeTarget] =
+    useState<typeof targetId>();
   const [titleOverride, setTitleOverride] = useState<{
     sessionId: string;
     title: string;
@@ -213,10 +227,11 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
     (resolvedSessionId: string) => {
       navigate({
         params: { agentId: activeAgentId, chatId: resolvedSessionId },
+        search: { project: projectId },
         to: "/agent/$agentId/$chatId",
       });
     },
-    [activeAgentId, navigate]
+    [activeAgentId, navigate, projectId]
   );
   useEffect(() => {
     if (selectedAgent.id !== activeAgentId) {
@@ -268,7 +283,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
         ? conversationId
         : undefined,
     onSessionResolved,
-    targetId: activeAgentId,
+    targetId,
   });
   const conversation = hasAgentConversation(conversationId, turns.length);
   const displayedConversationId = conversation
@@ -290,6 +305,42 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
     requestAnimationFrame(() => textarea.current?.focus());
   };
 
+  const activeAgent = agents.find((agent) => agent.id === activeAgentId);
+  const canSetupCoding = Boolean(
+    activeAgent?.role === "app" &&
+    runtime?.capabilities.profileImport &&
+    activeAgent.capabilities.includes(AGENT_PLUGIN_CONFIGURATION_CAPABILITY)
+  );
+  const openCodingSettings = () => setCodingSetupTarget(targetId);
+  const selectProfile = (nextProfile: string | undefined) => {
+    setRequestedCodeTarget(nextProfile === "code" ? targetId : undefined);
+    changeProfile(nextProfile);
+  };
+  const needsCodingSetup =
+    canSetupCoding &&
+    !isConfiguring &&
+    ((requestedCodeTarget === targetId && profile !== "code") ||
+      (profile === "code" &&
+        !runtime?.tools.available.some(
+          (tool) =>
+            ["edit", "write", "apply_patch", "run_process"].includes(
+              tool.name
+            ) && runtime.tools.allowed.includes(tool.name)
+        )));
+  const codingNotice = needsCodingSetup ? (
+    <div {...stylex.props(styles.codingNotice)}>
+      <span>Code needs configuration before you can edit files.</span>
+      <Button
+        disabled={isRunning || isConfiguring}
+        onClick={openCodingSettings}
+        size="compact"
+        variant="ghost"
+      >
+        Configure coding environment
+      </Button>
+    </div>
+  ) : null;
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     submit();
@@ -308,23 +359,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
     >
       <AgentHeader
         key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
-        codingSetup={
-          runtime?.capabilities.profileImport &&
-          agents
-            .find((agent) => agent.id === activeAgentId)
-            ?.capabilities.includes(AGENT_PLUGIN_CONFIGURATION_CAPABILITY) ? (
-            <AgentCodingSetup
-              agentId={activeAgentId}
-              agentLabel={
-                agents.find((agent) => agent.id === activeAgentId)?.label ??
-                activeAgentId
-              }
-              busy={isRunning || isConfiguring}
-              configure={configureRuntime}
-              key={activeAgentId}
-            />
-          ) : null
-        }
+        onCodingSettings={canSetupCoding ? openCodingSettings : undefined}
         activeAgentId={activeAgentId}
         agents={agents}
         conversationId={displayedConversationId}
@@ -341,6 +376,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
             : undefined
         }
         workspace={
+          conversation &&
           agents.find((agent) => agent.id === activeAgentId)?.role === "app"
             ? runtime?.workspace
             : undefined
@@ -348,6 +384,20 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
         onViewChange={setView}
         view={view}
       />
+      {canSetupCoding ? (
+        <AgentCodingSetup
+          key={`${activeAgentId}:${projectId ?? "default"}`}
+          agentId={targetId}
+          agentLabel={activeAgent?.label ?? activeAgentId}
+          busy={isRunning || isConfiguring}
+          configure={configureRuntime}
+          open={codingSetupTarget === targetId}
+          onOpenChange={(open) =>
+            setCodingSetupTarget(open ? targetId : undefined)
+          }
+          hideTrigger
+        />
+      ) : null}
       {conversation ? (
         view === "trajectory" ? (
           <AgentTrajectory trajectory={trajectory} />
@@ -384,8 +434,12 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
               <AgentProjectContext
                 agentId={activeAgentId}
                 path={runtime.workspace.path}
+                onCodingSettings={
+                  canSetupCoding ? openCodingSettings : undefined
+                }
               />
             ) : null}
+            {codingNotice}
             <AgentComposer
               canCancel={canCancel}
               contextCatalog={contextCatalog}
@@ -396,7 +450,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
               onChange={setDraft}
               onCancel={cancelRunningTurn}
               onModelChange={setSelectedModel}
-              onProfileChange={changeProfile}
+              onProfileChange={selectProfile}
               onReasoningEffortChange={setSelectedReasoningEffort}
               onServiceTierChange={setSelectedServiceTier}
               onSubmit={onSubmit}
@@ -509,6 +563,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
                   prompts={queuedPrompts}
                 />
               ) : null}
+              {codingNotice}
               <AgentComposer
                 canCancel={canCancel}
                 contextCatalog={contextCatalog}
@@ -519,7 +574,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
                 onChange={setDraft}
                 onCancel={cancelRunningTurn}
                 onModelChange={setSelectedModel}
-                onProfileChange={changeProfile}
+                onProfileChange={selectProfile}
                 onReasoningEffortChange={setSelectedReasoningEffort}
                 onServiceTierChange={setSelectedServiceTier}
                 onSubmit={onSubmit}
@@ -541,7 +596,7 @@ export function AgentPage({ agentId, conversationId }: AgentPageProps) {
 }
 
 function AgentHeader({
-  codingSetup,
+  onCodingSettings,
   activeAgentId,
   agents,
   conversationId,
@@ -551,7 +606,7 @@ function AgentHeader({
   workspace,
   view,
 }: {
-  codingSetup?: ReactNode;
+  onCodingSettings?: (() => void) | undefined;
   activeAgentId: string;
   agents: AgentIdentity[];
   conversationId: string | undefined;
@@ -696,13 +751,14 @@ function AgentHeader({
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {workspace || codingSetup || agents.length > 1 ? (
+        {workspace || agents.length > 1 ? (
           <div {...stylex.props(styles.headerActions)}>
             {workspace ? (
               <AgentProjectContext
                 agentId={activeAgentId}
                 compact
                 path={workspace.path}
+                onCodingSettings={onCodingSettings}
               />
             ) : null}
             {agents.length > 1 ? (
@@ -724,7 +780,6 @@ function AgentHeader({
                 value={activeAgentId}
               />
             ) : null}
-            {codingSetup}
           </div>
         ) : null}
       </PageHeader.Row>
@@ -777,11 +832,12 @@ function AgentConversation({
         <time {...stylex.props(styles.conversationTime)}>Today</time>
         {turns.map((turn) => (
           <div {...stylex.props(styles.turn)} key={turn.id}>
-            <div {...stylex.props(styles.userMessageGroup)}>
+            <div {...stylex.props(styles.userMessageGroup, messageGroup)}>
               <div {...stylex.props(styles.userMessage)}>{turn.user}</div>
               <div {...stylex.props(styles.userMessageActions)}>
                 <AgentMessageActions
                   content={turn.user}
+                  timestamp={turn.startedAt}
                   {...(canEdit ? { onEdit: () => onEdit(turn) } : {})}
                 />
               </div>
@@ -816,24 +872,30 @@ function AgentConversation({
                 <PluginAgentReceipts tools={turn.tools} />
               </>
             ) : null}
-            <div {...stylex.props(styles.assistantMessage)}>
-              {turn.answer ? (
-                <AgentMarkdown streaming={turn.status === "running"}>
-                  {turn.answer}
-                </AgentMarkdown>
-              ) : null}
-              {turn.status === "running" && !turn.work ? (
-                <p>
-                  <AgentShimmerText active>Working…</AgentShimmerText>
-                </p>
-              ) : null}
-              {turn.error ? <p>{turn.error}</p> : null}
-            </div>
-            {turn.answer ? (
-              <div {...stylex.props(styles.copyMessage)}>
-                <AgentMessageActions content={turn.answer} />
+            <div {...stylex.props(messageGroup)}>
+              <div {...stylex.props(styles.assistantMessage)}>
+                {turn.answer ? (
+                  <AgentMarkdown streaming={turn.status === "running"}>
+                    {turn.answer}
+                  </AgentMarkdown>
+                ) : null}
+                {turn.status === "running" && !turn.work ? (
+                  <p>
+                    <AgentShimmerText active>Working…</AgentShimmerText>
+                  </p>
+                ) : null}
+                {turn.error ? <p>{turn.error}</p> : null}
               </div>
-            ) : null}
+              {turn.answer ? (
+                <div {...stylex.props(styles.copyMessage)}>
+                  <AgentMessageActions
+                    content={turn.answer}
+                    timePosition="end"
+                    timestamp={turn.answeredAt}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         ))}
         {runtimeError ? (
@@ -1230,6 +1292,7 @@ function AgentComposerToolbar({
   selectedReasoningEffort,
   selectedServiceTier,
 }: AgentComposerToolbarProps) {
+  const speed = speedMenu(activeModel, selectedServiceTier);
   return (
     <PromptComposer.Toolbar xstyle={styles.composerFooter}>
       <div {...stylex.props(styles.composerFooterStart)}>
@@ -1286,14 +1349,8 @@ function AgentComposerToolbar({
               })),
             ]}
             reasoningEffortValue={selectedReasoningEffort ?? ""}
-            serviceTierOptions={[
-              { label: "Standard", value: "" },
-              ...(activeModel?.serviceTiers ?? []).map((tier) => ({
-                label: tier,
-                value: tier,
-              })),
-            ]}
-            serviceTierValue={selectedServiceTier ?? ""}
+            serviceTierOptions={speed.options}
+            serviceTierValue={speed.value}
           />
         ) : null}
         {isRunning && canCancel ? (

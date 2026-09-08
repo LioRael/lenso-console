@@ -1,3 +1,5 @@
+import "@lenso/tokens/styles.css";
+import "@lenso/ui/styles.css";
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -62,11 +64,173 @@ describe("Agent quick panel", () => {
     const restingBackground = getComputedStyle(triggerElement).backgroundColor;
     await userEvent.hover(trigger);
 
-    expect(getComputedStyle(triggerElement).backgroundColor).not.toBe(
-      restingBackground
-    );
+    await expect
+      .poll(() => getComputedStyle(triggerElement).backgroundColor)
+      .not.toBe(restingBackground);
   });
 
+  test("switches retained chats in one anchored window and removes closed tray items", async () => {
+    await renderPanel(agentFetch("## Answer\n\n**Shared markdown**"));
+    // Put the tray where the app footer places it, leaving room for both anchors.
+    if (!container) {
+      throw new Error("Missing container");
+    }
+    container.style.cssText = "position:fixed;bottom:0;right:24px;display:flex";
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(page.elementLocator(requiredComposer()), "First chat");
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(page.getByRole("heading", { name: "Answer" }))
+      .toBeVisible();
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Retained draft"
+    );
+    await userEvent.click(page.getByRole("button", { name: "Minimize chat" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Second chat"
+    );
+    await userEvent.keyboard("{Enter}");
+    const first = page.getByRole("button", { name: "First chat", exact: true });
+    const second = page.getByRole("button", {
+      name: "Second chat",
+      exact: true,
+    });
+    await expect.element(second).toBeVisible();
+    await userEvent.click(first);
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .toHaveValue("Retained draft");
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    if (!dialog) {
+      throw new Error("Missing dialog");
+    }
+    const anchor = document.querySelector<HTMLElement>(
+      'button[aria-label="First chat"]'
+    );
+    if (!anchor) {
+      throw new Error("Missing anchor");
+    }
+    await expect
+      .poll(() =>
+        Math.abs(
+          dialog.getBoundingClientRect().right -
+            anchor.getBoundingClientRect().right
+        )
+      )
+      .toBeLessThan(1);
+    const firstPosition = dialog.style.transform;
+    await userEvent.click(second);
+    await expect.poll(() => dialog.style.transform).not.toBe(firstPosition);
+    expect(getComputedStyle(dialog).transitionProperty).toContain("transform");
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    await userEvent.click(
+      page.getByRole("button", { name: "Close chat", exact: true })
+    );
+    await expect.element(second).not.toBeInTheDocument();
+    await expect.element(first).toBeVisible();
+    await userEvent.hover(first);
+    const close = page.getByRole("button", {
+      name: "Close First chat",
+      exact: true,
+    });
+    await expect.element(close).toBeVisible();
+    await userEvent.click(close);
+    await expect.element(first).not.toBeInTheDocument();
+  });
+
+  test("closing an inactive chip keeps the current window open", async () => {
+    await renderPanel(agentFetch("Done"));
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(page.elementLocator(requiredComposer()), "First chat");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByText("Done", { exact: true })).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Minimize chat" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Active draft"
+    );
+    await userEvent.hover(
+      page.getByRole("button", { name: "First chat", exact: true })
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Close First chat", exact: true })
+    );
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .toHaveValue("Active draft");
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+  });
+
+  test("removes a running chat from the tray without aborting its stream", async () => {
+    const { fetchMock, finishFirstTurn } = queuedAgentFetch();
+    await renderPanel(fetchMock);
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Running chat"
+    );
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => turnRequests(fetchMock).length).toBe(1);
+    const signal = turnRequests(fetchMock)[0]?.[1]?.signal;
+    await userEvent.click(
+      page.getByRole("button", { name: "Close chat", exact: true })
+    );
+    await expect
+      .element(page.getByRole("button", { name: "Running chat", exact: true }))
+      .not.toBeInTheDocument();
+    expect(signal?.aborted).toBe(false);
+    finishFirstTurn();
+  });
+
+  test("uses the explicit dark theme inside the portal and renders full markdown", async () => {
+    await renderPanel(
+      agentFetch("## Answer\n\n**Shared markdown**"),
+      undefined,
+      false,
+      "dark"
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(page.elementLocator(requiredComposer()), "Theme test");
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(page.getByRole("heading", { name: "Answer" }))
+      .toBeVisible();
+    const body = document.querySelector<HTMLElement>("[data-conversation]");
+    if (!body) {
+      throw new Error("Missing conversation");
+    }
+    const probe = document.createElement("div");
+    probe.style.backgroundColor = "var(--color-surface-panel)";
+    body.append(probe);
+    expect(getComputedStyle(body).backgroundColor).toBe(
+      getComputedStyle(probe).backgroundColor
+    );
+    expect(getComputedStyle(body).backgroundColor).not.toBe(
+      "rgb(255, 255, 255)"
+    );
+    expect(getComputedStyle(body).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    probe.remove();
+    const strong = document.querySelector("strong");
+    expect(strong?.textContent).toBe("Shared markdown");
+    expect(strong && getComputedStyle(strong).fontSize).toBe("14px");
+  });
   test("focuses the composer and keeps Shift+Enter as a newline", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
@@ -173,6 +337,7 @@ describe("Agent quick panel", () => {
     const onOpenFullPage = vi.fn();
     await renderPanel(fetchMock, onOpenFullPage);
 
+    await userEvent.click(page.getByRole("button", { name: "Agent" }));
     await expect
       .poll(() =>
         fetchMock.mock.calls.some(([input]) =>
@@ -182,7 +347,6 @@ describe("Agent quick panel", () => {
         )
       )
       .toBe(true);
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
     await userEvent.click(page.getByRole("button", { name: "Open full page" }));
 
     expect(onOpenFullPage).toHaveBeenCalledWith("app", undefined);
@@ -233,7 +397,8 @@ async function renderPanel(
   fetchMock: ReturnType<typeof agentFetch>,
   onOpenFullPage: (agentId: string, sessionId?: string) => void = () =>
     undefined,
-  includePluginAction = false
+  includePluginAction = false,
+  theme: "light" | "dark" = "light"
 ) {
   vi.stubGlobal("fetch", fetchMock);
   if (!container) {
@@ -250,7 +415,7 @@ async function renderPanel(
         <AgentIdentityProvider>
           <PluginAgentWorkbenchProvider>
             <AgentQuickPanelProvider>
-              <ThemeScope>
+              <ThemeScope theme={theme}>
                 <Outlet />
               </ThemeScope>
             </AgentQuickPanelProvider>
@@ -265,7 +430,9 @@ async function renderPanel(
         {includePluginAction ? (
           <PluginAgentAction {...pluginAgentContext} />
         ) : null}
-        <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+        <div style={{ display: "flex", gap: 4 }}>
+          <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+        </div>
       </>
     ),
     getParentRoute: () => rootRoute,

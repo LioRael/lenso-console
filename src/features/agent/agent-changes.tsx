@@ -1,7 +1,8 @@
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
-import { FileDiff } from "lucide-react";
+import { ChevronRight, FileDiff } from "lucide-react";
 
+import { fileDisclosure } from "./agent-changes.stylex";
 import { diffSections } from "./agent-diff";
 import type { AgentTurn } from "./agent-runtime";
 
@@ -36,14 +37,23 @@ export function AgentChanges({
 }) {
   const diffs = recordedDiffs(turns);
   const latest = diffs.at(-1);
+  const files = latest
+    ? diffSections(latest.content).filter((s) => s.file)
+    : [];
   return (
     <section aria-label="Task changes" {...stylex.props(styles.changes)}>
       <div {...stylex.props(styles.changesHeading)}>
         <div {...stylex.props(styles.headingLabel)}>
-          <FileDiff aria-hidden="true" size={16} />
+          <FileDiff aria-hidden="true" size={12} />
           <h2 {...stylex.props(styles.title)}>Changes</h2>
           {latest ? (
-            <span {...stylex.props(styles.snapshotLabel)}>Latest snapshot</span>
+            <span
+              title={`${latest.source} recorded in this task. The working tree may have changed since.`}
+              {...stylex.props(styles.snapshotLabel)}
+            >
+              {files.length} {files.length === 1 ? "file" : "files"} · Latest
+              snapshot
+            </span>
           ) : null}
         </div>
         {onRequestReview ? (
@@ -52,40 +62,41 @@ export function AgentChanges({
           </Button>
         ) : null}
       </div>
-      {latest ? (
-        <>
-          <p {...stylex.props(styles.caption)}>
-            {latest.source} recorded in this task · The working tree may have
-            changed since.
-          </p>
-          <DiffSnapshot content={latest.content} truncated={latest.truncated} />
-        </>
-      ) : (
-        <div {...stylex.props(styles.empty)}>
-          <FileDiff aria-hidden="true" size={28} />
-          <h3 {...stylex.props(styles.title)}>No changes to review yet</h3>
-          <p {...stylex.props(styles.caption)}>
-            Ask the Agent to capture a diff. Changed files will appear here.
-          </p>
-        </div>
-      )}
-      {diffs.length > 1 ? (
-        <details {...stylex.props(styles.previous)}>
-          <summary>Earlier snapshots ({diffs.length - 1})</summary>
-          {diffs
-            .slice(0, -1)
-            .toReversed()
-            .map((diff) => (
-              <details key={diff.id} {...stylex.props(styles.previous)}>
-                <summary>{diff.source}</summary>
-                <DiffSnapshot
-                  content={diff.content}
-                  truncated={diff.truncated}
-                />
-              </details>
-            ))}
-        </details>
-      ) : null}
+      <div {...stylex.props(styles.body)}>
+        {latest ? (
+          <>
+            <DiffSnapshot
+              content={latest.content}
+              truncated={latest.truncated}
+            />
+          </>
+        ) : (
+          <div {...stylex.props(styles.empty)}>
+            <FileDiff aria-hidden="true" size={28} />
+            <h3 {...stylex.props(styles.title)}>No changes to review yet</h3>
+            <p {...stylex.props(styles.caption)}>
+              Ask the Agent to capture a diff. Changed files will appear here.
+            </p>
+          </div>
+        )}
+        {diffs.length > 1 ? (
+          <details {...stylex.props(styles.previous)}>
+            <summary>Earlier snapshots ({diffs.length - 1})</summary>
+            {diffs
+              .slice(0, -1)
+              .toReversed()
+              .map((diff) => (
+                <details key={diff.id} {...stylex.props(styles.previous)}>
+                  <summary>{diff.source}</summary>
+                  <DiffSnapshot
+                    content={diff.content}
+                    truncated={diff.truncated}
+                  />
+                </details>
+              ))}
+          </details>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -110,9 +121,14 @@ function DiffSnapshot({
             <details
               key={`${index}:${section.title}`}
               open
-              {...stylex.props(styles.fileCard)}
+              {...stylex.props(styles.fileCard, fileDisclosure)}
             >
               <summary {...stylex.props(styles.fileHeading)}>
+                <ChevronRight
+                  aria-hidden="true"
+                  size={12}
+                  {...stylex.props(styles.fileChevron)}
+                />
                 <span {...stylex.props(styles.fileName)}>{section.title}</span>
                 {section.file ? (
                   <span
@@ -166,57 +182,84 @@ function DiffSnapshot({
 
 const styles = stylex.create({
   changes: {
+    display: "grid",
+    gridTemplateRows: "34px minmax(0, 1fr)",
+    gridRow: 2,
+    minWidth: 0,
     minHeight: 0,
+    overflow: "hidden",
+    backgroundColor: "var(--color-surface-canvas)",
+    borderTop: "0.5px solid var(--color-border-tertiary)",
+  },
+  body: {
+    minHeight: 0,
+    minWidth: 0,
     overflowY: "auto",
-    padding: {
-      default: "20px 24px 200px",
-      "@media (max-width: 760px)": "16px 12px 200px",
-    },
+    paddingBottom: "200px",
   },
   headingLabel: {
     alignItems: "center",
     display: "flex",
     gap: "8px",
-    flexWrap: "wrap",
+    minWidth: 0,
+    whiteSpace: "nowrap",
   },
-  snapshotLabel: { color: "var(--color-content-tertiary)", fontSize: "11px" },
+  snapshotLabel: {
+    color: "var(--color-content-tertiary)",
+    fontSize: "10px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
   empty: {
     alignItems: "center",
     display: "flex",
     flexDirection: "column",
-    gap: "12px",
+    gap: "8px",
     textAlign: "center",
-    padding: "56px 20px",
-    marginTop: "16px",
+    padding: "40px 20px",
     color: "var(--color-content-tertiary)",
-    border: "1px dashed var(--color-border-secondary)",
-    borderRadius: "8px",
   },
-  fileList: { display: "grid", gap: "12px", minWidth: 0 },
+  fileList: { display: "grid", minWidth: 0 },
   fileCard: {
-    border: "1px solid var(--color-border-secondary)",
-    borderRadius: "8px",
+    borderBottom: "0.5px solid var(--color-border-tertiary)",
     overflow: "hidden",
     minWidth: 0,
   },
   fileHeading: {
-    padding: "10px 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    listStyle: "none",
+    "::-webkit-details-marker": { display: "none" },
+    padding: "6px 12px",
     cursor: "pointer",
-    fontSize: "12px",
-    lineHeight: "20px",
-    backgroundColor: "var(--color-surface-panel)",
+    fontSize: "10px",
+    lineHeight: "18px",
+    backgroundColor: {
+      default:
+        "color-mix(in srgb, var(--color-surface-selected) 58%, var(--color-surface-canvas))",
+      ":hover": "var(--color-surface-interactive-hover)",
+    },
     color: "var(--color-content-secondary)",
     position: "relative",
-    paddingInlineEnd: "112px",
+    paddingInlineEnd: "96px",
   },
   fileName: {
     overflowWrap: "anywhere",
     fontFamily: '"Roboto Mono", monospace',
   },
+  fileChevron: {
+    flexShrink: 0,
+    color: "var(--color-content-tertiary)",
+    transform: {
+      default: "rotate(0deg)",
+      [stylex.when.ancestor("[open]", fileDisclosure)]: "rotate(90deg)",
+    },
+  },
   stats: {
     position: "absolute",
     right: "12px",
-    top: "10px",
+    top: "6px",
     display: "inline-flex",
     gap: "10px",
     fontVariantNumeric: "tabular-nums",
@@ -234,30 +277,31 @@ const styles = stylex.create({
     display: "flex",
     gap: "10px",
     justifyContent: "space-between",
-    flexWrap: "wrap",
+    minWidth: 0,
+    padding: "0 8px 0 14px",
+    borderBottom: "0.5px solid var(--color-border-tertiary)",
   },
   title: {
     color: "var(--color-content-primary)",
-    fontSize: "15px",
+    fontSize: "10px",
     fontWeight: 500,
     margin: 0,
   },
   caption: {
     color: "var(--color-content-secondary)",
-    fontSize: "12px",
-    lineHeight: "18px",
+    fontSize: "11px",
+    lineHeight: "17px",
+    margin: 0,
   },
   diff: {
-    backgroundColor: "var(--color-surface-panel)",
-    borderTop: "1px solid var(--color-border-secondary)",
+    backgroundColor: "var(--color-surface-canvas)",
+    borderTop: "0.5px solid var(--color-border-tertiary)",
     margin: 0,
     fontFamily: '"Roboto Mono", monospace',
-    fontSize: "12px",
-    lineHeight: "20px",
+    fontSize: "11px",
+    lineHeight: "18px",
     overflowX: "auto",
     padding: "8px 0",
-    maxHeight: "560px",
-    overflowY: "auto",
   },
   diffLine: {
     display: "block",
@@ -280,7 +324,8 @@ const styles = stylex.create({
   hunk: { color: "var(--color-content-tertiary)" },
   previous: {
     color: "var(--color-content-secondary)",
-    fontSize: "12px",
-    marginTop: "16px",
+    fontSize: "10px",
+    padding: "10px 12px",
+    borderTop: "0.5px solid var(--color-border-tertiary)",
   },
 });

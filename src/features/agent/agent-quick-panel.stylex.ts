@@ -1,22 +1,56 @@
 import * as stylex from "@stylexjs/stylex";
 
+export const chipGroup = stylex.defineMarker();
+
 const fontFamily =
   '"Inter Variable", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 export const agentQuickPanelStyles = stylex.create({
+  chipGroup: { position: "relative", display: "flex", minWidth: 0 },
+  chipClose: {
+    position: "absolute",
+    right: "4px",
+    top: "4px",
+    width: "20px",
+    height: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    borderWidth: 0,
+    borderRadius: "6px",
+    cursor: "pointer",
+    color: "var(--color-content-secondary)",
+    backgroundColor: {
+      default: "transparent",
+      ":hover": "var(--color-surface-interactive-hover)",
+    },
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover", chipGroup)]: 1,
+      [stylex.when.ancestor(":focus-within", chipGroup)]: 1,
+      "@media (hover: none)": 1,
+    },
+  },
+  panelContent: {
+    display: "grid",
+    gridTemplateRows: "48px minmax(0, 1fr)",
+    height: "100%",
+    minHeight: 0,
+  },
   assistantCopy: { margin: "12px 0 0 8px" },
-  assistantTurn: { marginBottom: "12px" },
+  assistantTurn: { fontSize: "14px", lineHeight: "22px", marginBottom: "12px" },
   attach: {
     borderColor: "transparent",
     borderRadius: "9999px",
     borderStyle: "solid",
     borderWidth: "0.5px",
     boxShadow: "none",
-    color: "lch(40 1 282)",
+    color: "var(--color-content-secondary)",
     padding: "0 2px",
   },
   body: {
-    backgroundColor: "lch(100 0 282)",
+    backgroundColor: "var(--color-surface-panel)",
     borderRadius: "0 0 15.5px 15.5px",
     display: "flex",
     flexDirection: "column",
@@ -25,27 +59,28 @@ export const agentQuickPanelStyles = stylex.create({
     position: "relative",
   },
   bodyEmpty: {
-    backgroundImage: "linear-gradient(lch(96.5 0 282) 0%, lch(100 0 282) 100%)",
+    backgroundImage:
+      "linear-gradient(var(--color-surface-subtle), var(--color-surface-panel))",
     backgroundPosition: "4px 0",
     backgroundRepeat: "no-repeat",
     backgroundSize: "calc(100% - 8px) calc(100% - 84.8px)",
   },
   chatChip: {
     backgroundColor: {
-      default: "color-mix(in srgb, black 5%, transparent)",
-      ":hover": "color-mix(in srgb, black 8%, transparent)",
+      default: "var(--color-surface-subtle)",
+      ":hover": "var(--color-surface-interactive-hover)",
     },
     borderRadius: "8px",
     borderWidth: 0,
     boxShadow: "none",
-    color: "lch(37.776 1.25 282)",
+    color: "var(--color-content-secondary)",
     fontFamily,
     fontSize: "12px",
     fontWeight: 500,
     height: "28px",
     maxWidth: "160px",
     overflow: "hidden",
-    paddingInline: "10px",
+    paddingInline: "10px 28px",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
@@ -55,7 +90,7 @@ export const agentQuickPanelStyles = stylex.create({
     borderStyle: "solid",
     borderWidth: "0.5px",
     boxShadow: "none",
-    color: "lch(40 1 282)",
+    color: "var(--color-content-secondary)",
     marginInlineStart: "8px",
     padding: "0 2px",
   },
@@ -85,8 +120,8 @@ export const agentQuickPanelStyles = stylex.create({
     width: "100%",
   },
   composerSurface: {
-    backgroundColor: "lch(100 0 282)",
-    borderColor: "lch(91.9 0 282)",
+    backgroundColor: "var(--color-surface-panel)",
+    borderColor: "var(--color-border-secondary)",
     borderRadius: "7px",
     borderStyle: "solid",
     borderWidth: "0.5px",
@@ -99,7 +134,7 @@ export const agentQuickPanelStyles = stylex.create({
     width: "100%",
   },
   conversation: {
-    color: "lch(20 1 282)",
+    color: "var(--color-content-primary)",
     flex: "1 1 auto",
     fontSize: "13px",
     fontWeight: 450,
@@ -112,7 +147,7 @@ export const agentQuickPanelStyles = stylex.create({
     zIndex: 1,
   },
   conversationTime: {
-    color: "lch(66 1 282)",
+    color: "var(--color-content-tertiary)",
     display: "block",
     fontSize: "12px",
     fontWeight: 500,
@@ -146,10 +181,7 @@ export const agentQuickPanelStyles = stylex.create({
   },
   header: {
     alignItems: "center",
-    backgroundColor: {
-      default: "lch(100 0 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-surface-panel)",
-    },
+    backgroundColor: "var(--color-surface-panel)",
     borderRadius: "11.5px 11.5px 0 0",
     display: "flex",
     padding: "0 6px 0 18px",
@@ -160,7 +192,7 @@ export const agentQuickPanelStyles = stylex.create({
     borderStyle: "solid",
     borderWidth: "0.5px",
     boxShadow: "none",
-    color: "lch(40 1 282)",
+    color: "var(--color-content-secondary)",
     padding: "0 2px",
   },
   headerActions: {
@@ -177,7 +209,8 @@ export const agentQuickPanelStyles = stylex.create({
     zIndex: 0,
   },
   inputWrapperEditing: {
-    backgroundImage: "linear-gradient(lch(96.5 0 282), lch(100 0 282))",
+    backgroundImage:
+      "linear-gradient(var(--color-surface-subtle), var(--color-surface-panel))",
   },
   messageActions: {
     display: "flex",
@@ -187,14 +220,8 @@ export const agentQuickPanelStyles = stylex.create({
     opacity: 1,
   },
   panel: {
-    backgroundColor: {
-      default: "lch(94.44 0.5 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-surface-sidebar)",
-    },
-    borderColor: {
-      default: "lch(89.84 0 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-border-secondary)",
-    },
+    backgroundColor: "var(--color-surface-panel)",
+    borderColor: "var(--color-border-secondary)",
     borderRadius: "12px 12px 16px 16px",
     borderStyle: "solid",
     borderWidth: "0.5px",
@@ -203,21 +230,23 @@ export const agentQuickPanelStyles = stylex.create({
       "0 6px 18px lch(0 0 0 / 2%), 0 3px 9px lch(0 0 0 / 4%), 0 1px 1px lch(0 0 0 / 4%)",
     display: { default: "grid", "@media (max-width: 760px)": "none" },
     fontFamily,
-    gridTemplateRows: "48px minmax(0, 1fr)",
+
     height: "min(576px, calc(100dvh - 72px))",
     opacity: 1,
     overflow: "visible",
     padding: 0,
     position: "fixed",
-    right: "32px",
+    left: 0,
+    right: "auto",
     transform: "translateY(0) scale(1)",
     transformOrigin: "bottom right",
-    transition: {
-      default:
-        "transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms ease",
-      "@media (prefers-reduced-motion: reduce)": "none",
+    transitionProperty: "transform, opacity",
+    transitionDuration: {
+      default: "160ms, 120ms",
+      "@media (prefers-reduced-motion: reduce)": "0s",
     },
-    width: "400px",
+    transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1), ease",
+    width: "min(400px, calc(100vw - 24px))",
     zIndex: 90,
   },
   portal: { position: "relative", zIndex: 90 },
@@ -228,7 +257,7 @@ export const agentQuickPanelStyles = stylex.create({
     borderStyle: "solid",
     borderWidth: "0.5px",
     boxShadow: "none",
-    color: "lch(40 1 282)",
+    color: "var(--color-content-secondary)",
     fontFamily: "inherit",
     fontSize: "12px",
     fontWeight: 500,
@@ -240,7 +269,7 @@ export const agentQuickPanelStyles = stylex.create({
   },
   submit: {
     backgroundColor: {
-      default: "lch(100 0 282)",
+      default: "var(--color-surface-panel)",
       ":hover": "var(--color-surface-interactive-hover)",
     },
     borderColor: "transparent",
@@ -249,7 +278,7 @@ export const agentQuickPanelStyles = stylex.create({
     borderWidth: "0.5px",
     boxShadow:
       "0 0 0 0.5px lch(0 0 0 / 8.8%), 0 3px 6px -2px lch(0 0 0 / 2%), 0 1px 1px lch(0 0 0 / 4%)",
-    color: "lch(20 1 282)",
+    color: "var(--color-content-primary)",
     outline: { default: null, ":focus-visible": "0" },
     padding: "0 2px",
   },
@@ -259,19 +288,19 @@ export const agentQuickPanelStyles = stylex.create({
       ":hover": "lch(49 52.26 286.91)",
     },
     boxShadow: "0 3px 6px -2px lch(0 0 0 / 2%), 0 1px 1px lch(0 0 0 / 4%)",
-    color: "lch(100 0 282)",
+    color: "white",
   },
   suggestion: {
     backgroundColor: {
-      default: "lch(100 0 282)",
+      default: "var(--color-surface-panel)",
       ":hover": "var(--color-surface-interactive-hover)",
     },
-    borderColor: "lch(0 0 0 / 8.8%)",
+    borderColor: "var(--color-border-secondary)",
     borderRadius: "999px",
     borderStyle: "solid",
     borderWidth: "0.5px",
     boxShadow: "0 3px 6px -2px lch(0 0 0 / 2%), 0 1px 1px lch(0 0 0 / 4%)",
-    color: "lch(10 0 282)",
+    color: "var(--color-content-primary)",
     fontFamily: "inherit",
     fontSize: "13px",
     fontWeight: 450,
@@ -280,14 +309,7 @@ export const agentQuickPanelStyles = stylex.create({
     lineHeight: "15.5px",
     padding: "6px 10px",
   },
-  suggestionLabel: {
-    backgroundClip: "text",
-    backgroundImage:
-      "linear-gradient(to right, lch(20 1 282) 0%, lch(40 1 282) 45%, lch(20 1 282) 55%, lch(40 1 282) 100%)",
-    backgroundPosition: "300% 50%",
-    backgroundSize: "300% 100%",
-    color: "transparent",
-  },
+  suggestionLabel: { color: "var(--color-content-secondary)" },
   suggestions: {
     alignContent: "flex-start",
     display: "flex",
@@ -298,15 +320,15 @@ export const agentQuickPanelStyles = stylex.create({
     justifyContent: "center",
     margin: "0 16px 32px",
     position: "relative",
-    width: "367px",
+    width: "auto",
     zIndex: 1,
   },
   textarea: {
-    "::placeholder": { color: "lch(66 1 282)", opacity: 1 },
+    "::placeholder": { color: "var(--color-content-tertiary)", opacity: 1 },
     backgroundColor: "transparent",
     borderWidth: 0,
     boxSizing: "border-box",
-    color: "lch(20 1 282)",
+    color: "var(--color-content-primary)",
     fontFamily: "inherit",
     fontSize: "13px",
     fontWeight: 450,
@@ -320,10 +342,10 @@ export const agentQuickPanelStyles = stylex.create({
     padding: "2px 6px",
     resize: "none",
     scrollbarWidth: "thin",
-    width: "375px",
+    width: "100%",
   },
   title: {
-    color: "lch(10 0 282)",
+    color: "var(--color-content-primary)",
     fontFamily: "inherit",
     fontSize: "13px",
     fontWeight: 500,
@@ -333,11 +355,11 @@ export const agentQuickPanelStyles = stylex.create({
   trigger: {
     backgroundColor: {
       default: "transparent",
-      ":hover": "color-mix(in srgb, black 4%, transparent)",
+      ":hover": "var(--color-surface-interactive-hover)",
     },
     borderRadius: "8px",
     color: {
-      default: "lch(37.776 1.25 282)",
+      default: "var(--color-content-secondary)",
       ":hover": "var(--color-content-primary)",
     },
     fontFamily,
@@ -349,13 +371,13 @@ export const agentQuickPanelStyles = stylex.create({
   },
   triggerOpen: {
     backgroundColor: {
-      default: "color-mix(in srgb, black 6%, transparent)",
-      ":hover": "color-mix(in srgb, black 6%, transparent)",
+      default: "var(--color-surface-interactive-hover)",
+      ":hover": "var(--color-surface-interactive-hover)",
     },
     color: "var(--color-content-primary)",
   },
   userMessage: {
-    backgroundColor: "lch(96.5 0 282)",
+    backgroundColor: "var(--color-surface-subtle)",
     borderRadius: "8px",
     maxWidth: "281px",
     padding: "8px 12px",
@@ -369,7 +391,7 @@ export const agentQuickPanelStyles = stylex.create({
   },
   welcome: {
     alignItems: "center",
-    color: "lch(10 0 282)",
+    color: "var(--color-content-primary)",
     display: "flex",
     flex: "1 1 auto",
     flexDirection: "column",
@@ -384,7 +406,7 @@ export const agentQuickPanelStyles = stylex.create({
   },
   welcomeIcon: { display: "block", flex: "0 0 auto", marginBottom: "10px" },
   welcomeSubtitle: {
-    color: "lch(40 1 282)",
+    color: "var(--color-content-secondary)",
     fontSize: "13px",
     fontWeight: 450,
     whiteSpace: "nowrap",

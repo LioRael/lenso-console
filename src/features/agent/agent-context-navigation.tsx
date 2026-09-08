@@ -2,7 +2,7 @@ import { IconButton } from "@lenso/ui/icon-button";
 import { Sidebar } from "@lenso/ui/sidebar";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronLeft, MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
 
@@ -40,10 +40,13 @@ export function AgentContextNavigation({
   onRequestClose: () => void;
 }) {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false });
+  const projectId = agentId === "app" ? search.project : undefined;
   const [query, setQuery] = useState("");
   const { data: sessions = [], isPending: loading } = useQuery({
-    queryFn: ({ signal }) => listAgentSessions(signal, agentId),
-    queryKey: ["agent-history", agentId],
+    queryFn: ({ signal }) =>
+      listAgentSessions(signal, projectId ? { agentId, projectId } : agentId),
+    queryKey: ["agent-history", agentId, projectId],
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);
@@ -57,6 +60,7 @@ export function AgentContextNavigation({
     onNavigate();
     navigate({
       params: { agentId, chatId: "new-task" },
+      search: { project: projectId },
       to: "/agent/$agentId/$chatId",
     });
   };
@@ -139,6 +143,8 @@ function SessionSection({
   sessions: AgentSessionSummary[];
 }) {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false });
+  const projectId = agentId === "app" ? search.project : undefined;
   if (sessions.length === 0) {
     return null;
   }
@@ -157,6 +163,7 @@ function SessionSection({
                 onNavigate();
                 navigate({
                   params: { agentId, chatId: session.sessionId },
+                  search: { project: projectId },
                   to: "/agent/$agentId/$chatId",
                 });
               }}

@@ -1,5 +1,8 @@
 mod app_management;
+mod project_activity;
+mod projects;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
+pub use projects::LocalProjects;
 
 use std::{
     collections::BTreeMap,
@@ -176,6 +179,7 @@ pub fn link() {}
 
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
+    local_projects: Option<std::sync::Arc<LocalProjects>>,
     pub address: SocketAddr,
     pub agent_home: PathBuf,
     pub managed_app_root: PathBuf,
@@ -190,6 +194,12 @@ pub struct ConsoleConfig {
 }
 
 impl ConsoleConfig {
+    #[must_use]
+    pub fn with_local_projects(mut self, projects: std::sync::Arc<LocalProjects>) -> Self {
+        self.local_projects = Some(projects);
+        self
+    }
+
     pub fn with_managed_app(mut self, connection: &ManagedAppConnection) -> anyhow::Result<Self> {
         self.managed_apps
             .push(ManagedAppAdapter::connect(connection)?);
@@ -345,6 +355,7 @@ impl ConsoleConfig {
             }
         }
         Ok(Self {
+            local_projects: None,
             address: config.address.parse()?,
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
@@ -420,6 +431,7 @@ impl ConsoleConfig {
         let web_root = std::env::var_os("CONSOLE_WEB_ROOT")
             .map_or_else(|| manifest.join("../dist/client"), PathBuf::from);
         Ok(Self {
+            local_projects: None,
             address,
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
@@ -518,7 +530,15 @@ impl ConsoleServer {
         config.console_agent.require_ready().await?;
         let index = config.web_root.join("index.html");
         let shell = ServeDir::new(config.web_root).fallback(ServeFile::new(index));
-        let agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
+        let mut agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
+        agent_catalog.projects = config.local_projects;
+        if agent_catalog.projects.is_some() {
+            for adapter in &mut agent_catalog.app_agents {
+                if adapter.id == "app" {
+                    adapter.activity = Some(std::sync::Arc::default());
+                }
+            }
+        }
         let app = Router::new()
             .route("/health/live", get(health))
             .route("/health/ready", get(health))
@@ -527,6 +547,7 @@ impl ConsoleServer {
                 agents: agent_catalog.clone(),
                 apps: config.managed_apps,
             }))
+            .merge(projects::routes(agent_catalog.clone()))
             .merge(agent_catalog_routes(agent_catalog))
             .route("/api/{*path}", any(api_not_found))
             .fallback_service(shell);
@@ -550,6 +571,7 @@ impl ConsoleServer {
 
 #[derive(Clone, Debug)]
 pub struct AppAgentAdapter {
+    activity: Option<project_activity::SharedActivity>,
     auth_connections: bool,
     client: reqwest::Client,
     authorization: Option<String>,
@@ -597,6 +619,7 @@ impl AppAgentAdapter {
             .build()
             .map_err(|error| format!("App Agent Adapter client is invalid: {error}"))?;
         Ok(Some(Self {
+            activity: None,
             auth_connections: false,
             client,
             authorization: None,
@@ -623,12 +646,17 @@ impl AppAgentAdapter {
     async fn require_ready(&self) -> anyhow::Result<()> {
         let mut url = self.origin.clone();
         url.set_path("/api/console/v1/agent/bootstrap");
-        let response = self
+        let mut request = self
             .client
             .get(url)
+            .timeout(std::time::Duration::from_secs(2));
+        if let Some(value) = &self.authorization {
+            request = request.header(header::AUTHORIZATION, value);
+        }
+        let response = request
             .send()
             .await
-            .map_err(|error| anyhow::anyhow!("Console Agent is unavailable: {error}"))?;
+            .map_err(|error| anyhow::anyhow!("Agent is unavailable: {error}"))?;
         anyhow::ensure!(
             response.status().is_success(),
             "Console Agent readiness failed with HTTP {}",
@@ -640,6 +668,7 @@ impl AppAgentAdapter {
 
 #[derive(Clone, Debug)]
 struct AgentCatalog {
+    projects: Option<std::sync::Arc<LocalProjects>>,
     console_agent: AppAgentAdapter,
     app_agents: Vec<AppAgentAdapter>,
 }
@@ -647,6 +676,7 @@ struct AgentCatalog {
 impl AgentCatalog {
     fn new(console_agent: AppAgentAdapter, app_agents: Vec<AppAgentAdapter>) -> Self {
         Self {
+            projects: None,
             console_agent,
             app_agents,
         }
@@ -740,6 +770,12 @@ async fn route_app_agent(
     else {
         return problem(StatusCode::NOT_FOUND, "Agent identity was not found");
     };
+    if method == Method::GET
+        && path == "activity"
+        && let Some(activity) = &app_agent.activity
+    {
+        return project_activity::snapshot(activity);
+    }
     if !(allowed_agent_route_with_capabilities(
         &method,
         &path,
@@ -764,6 +800,9 @@ async fn proxy_agent_request(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    if method == Method::POST && path == "turns" && app_agent.activity.is_some() {
+        return project_activity::relay(app_agent, headers, body).await;
+    }
     proxy_request_at(
         app_agent,
         "/api/console/v1/agent",

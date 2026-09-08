@@ -1,6 +1,15 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const agentPageStyles = stylex.create({
+  codingNotice: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "4px 8px",
+    color: "var(--color-content-secondary)",
+    fontSize: "11px",
+    padding: "6px 8px",
+  },
   assistantMessage: { fontSize: "14px", lineHeight: "22px", margin: "0 8px" },
   attachButton: {
     borderRadius: "999px",
@@ -14,7 +23,7 @@ export const agentPageStyles = stylex.create({
       default: "transparent",
       ":hover": "transparent",
     },
-    borderRadius: "6px",
+    borderRadius: "999px",
     boxShadow: "none",
     color: "var(--color-content-primary)",
     fontSize: "12px",
@@ -220,7 +229,8 @@ export const agentPageStyles = stylex.create({
     zIndex: 1,
   },
   emptyPage: { gridTemplateRows: "auto minmax(0, 1fr)" },
-  header: { position: "relative", zIndex: 4 },
+  // This header has one wrapping row, not the default two-row team layout.
+  header: { height: "auto", position: "relative", zIndex: 4 },
   headerRow: {
     flexWrap: "wrap",
     height: "auto",
@@ -306,7 +316,7 @@ export const agentPageStyles = stylex.create({
   renameInput: {
     backgroundColor: "transparent",
     borderColor: "var(--color-border-control-focus)",
-    borderRadius: "6px",
+    borderRadius: "999px",
     borderStyle: "solid",
     borderWidth: "1px",
     boxSizing: "border-box",
