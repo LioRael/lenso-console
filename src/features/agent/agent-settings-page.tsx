@@ -7,7 +7,7 @@ import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
-import { MoreHorizontal } from "lucide-react";
+import { ChevronRight, MoreHorizontal } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
@@ -299,10 +299,7 @@ function AgentSettingsContent({
             />
           </>
         ) : (
-          <details {...stylex.props(styles.advanced)}>
-            <summary {...stylex.props(styles.advancedSummary)}>
-              Provider configuration
-            </summary>
+          <AdvancedSection title="Provider configuration">
             <ProviderSection
               agentId={agent.id}
               title="Models & authentication"
@@ -327,20 +324,46 @@ function AgentSettingsContent({
                   provides(item, "lenso.agent.memory")
               )}
             />
-          </details>
+          </AdvancedSection>
         )
       ) : null}
       {personalization ? (
         <ContextCatalog agent={agent} />
       ) : (
-        <details {...stylex.props(styles.advanced)}>
-          <summary {...stylex.props(styles.advancedSummary)}>
-            Agent-wide permissions
-          </summary>
+        <AdvancedSection title="Agent-wide permissions">
           <ToolAccess agent={agent} />
-        </details>
+        </AdvancedSection>
       )}
     </div>
+  );
+}
+
+function AdvancedSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      {...stylex.props(styles.advanced)}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary {...stylex.props(styles.advancedSummary)}>
+        <span>{title}</span>
+        <ChevronRight
+          size={12}
+          aria-hidden="true"
+          {...stylex.props(
+            styles.advancedChevron,
+            open && styles.advancedChevronOpen
+          )}
+        />
+      </summary>
+      <div {...stylex.props(styles.advancedBody)}>{children}</div>
+    </details>
   );
 }
 
