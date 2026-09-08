@@ -1,7 +1,8 @@
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
-import { FileDiff } from "lucide-react";
+import { ChevronRight, FileDiff } from "lucide-react";
 
+import { fileDisclosure } from "./agent-changes.stylex";
 import { diffSections } from "./agent-diff";
 import type { AgentTurn } from "./agent-runtime";
 
@@ -120,9 +121,14 @@ function DiffSnapshot({
             <details
               key={`${index}:${section.title}`}
               open
-              {...stylex.props(styles.fileCard)}
+              {...stylex.props(styles.fileCard, fileDisclosure)}
             >
               <summary {...stylex.props(styles.fileHeading)}>
+                <ChevronRight
+                  aria-hidden="true"
+                  size={12}
+                  {...stylex.props(styles.fileChevron)}
+                />
                 <span {...stylex.props(styles.fileName)}>{section.title}</span>
                 {section.file ? (
                   <span
@@ -220,6 +226,11 @@ const styles = stylex.create({
     minWidth: 0,
   },
   fileHeading: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    listStyle: "none",
+    "::-webkit-details-marker": { display: "none" },
     padding: "6px 12px",
     cursor: "pointer",
     fontSize: "10px",
@@ -236,6 +247,14 @@ const styles = stylex.create({
   fileName: {
     overflowWrap: "anywhere",
     fontFamily: '"Roboto Mono", monospace',
+  },
+  fileChevron: {
+    flexShrink: 0,
+    color: "var(--color-content-tertiary)",
+    transform: {
+      default: "rotate(0deg)",
+      [stylex.when.ancestor("[open]", fileDisclosure)]: "rotate(90deg)",
+    },
   },
   stats: {
     position: "absolute",
