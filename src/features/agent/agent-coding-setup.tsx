@@ -57,13 +57,21 @@ export function AgentCodingSetup({
   agentLabel,
   busy,
   configure,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   agentId: AgentTarget;
   agentLabel: string;
   busy: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
   configure: (operation: () => Promise<unknown>) => Promise<void>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const [imported, setImported] = useState(false);
   const [policy, setPolicy] = useState<AgentToolPolicy>();
   const [allowed, setAllowed] = useState<string[]>([]);
@@ -103,23 +111,25 @@ export function AgentCodingSetup({
       }}
       open={open}
     >
-      <Button
-        aria-label="Set up coding"
-        disabled={busy}
-        onClick={() => {
-          setPolicy(undefined);
-          setSaved(false);
-          setStatus(undefined);
-          setSetupError(undefined);
-          setOpen(true);
-        }}
-        size="compact"
-        variant="ghost"
-        xstyle={styles.entry}
-      >
-        <Wrench aria-hidden="true" size={13} />
-        <span {...stylex.props(styles.entryLabel)}>Set up coding</span>
-      </Button>
+      {hideTrigger ? null : (
+        <Button
+          aria-label="Set up coding"
+          disabled={busy}
+          onClick={() => {
+            setPolicy(undefined);
+            setSaved(false);
+            setStatus(undefined);
+            setSetupError(undefined);
+            setOpen(true);
+          }}
+          size="compact"
+          variant="ghost"
+          xstyle={styles.entry}
+        >
+          <Wrench aria-hidden="true" size={13} />
+          <span {...stylex.props(styles.entryLabel)}>Set up coding</span>
+        </Button>
+      )}
       <Dialog.Portal {...stylex.props(styles.portal)}>
         <Dialog.Backdrop xstyle={styles.backdrop} />
         <Dialog.Viewport xstyle={styles.viewport}>

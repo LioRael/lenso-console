@@ -10,10 +10,12 @@ export function AgentProjectContext({
   agentId,
   path,
   compact = false,
+  onCodingSettings,
 }: {
   agentId: string;
   path: string;
   compact?: boolean;
+  onCodingSettings?: (() => void) | undefined;
 }) {
   const search = useSearch({ strict: false });
   const projectId = agentId === "app" ? search.project : undefined;
@@ -27,7 +29,12 @@ export function AgentProjectContext({
       aria-label="Agent working directory"
       {...stylex.props(styles.project, compact && styles.projectCompact)}
     >
-      <AgentProjectPicker agentId={agentId} path={path} compact={compact}>
+      <AgentProjectPicker
+        agentId={agentId}
+        path={path}
+        compact={compact}
+        onCodingSettings={onCodingSettings}
+      >
         <span {...stylex.props(!compact && styles.folder)}>
           <FolderOpen aria-hidden="true" size={16} strokeWidth={1.5} />
         </span>

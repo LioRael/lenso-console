@@ -492,3 +492,115 @@ test("project picker preserves project identity in navigation and resumed histor
   ).toBe(true);
   expect(urls.some((url) => url.endsWith("/agents/app/sessions"))).toBe(false);
 });
+
+test.each([
+  { role: "app", ready: false },
+  { role: "app", ready: true },
+  { role: "console", ready: false },
+])(
+  "coding entry follows readiness and Agent role: $role/$ready",
+  async ({ role, ready }) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/agents")) {
+          return Response.json({
+            agents: [
+              {
+                id: role,
+                label: role,
+                role,
+                capabilities: ["lenso.agent.plugin-configuration@1"],
+              },
+            ],
+          });
+        }
+        if (url.endsWith("/bootstrap")) {
+          return Response.json({
+            workspace: { path: "/projects/example" },
+            mode: "console",
+            profile: "code",
+            trajectory: "lenso.agent.trajectory@1",
+            capabilities: {
+              profileImport: true,
+              profileSelection: true,
+              cancel: true,
+              edit: true,
+              sessionList: false,
+              sessionRead: false,
+              userInteraction: false,
+            },
+            tools: {
+              allowed: ready ? ["edit"] : [],
+              available: [{ name: "edit", description: "Edit files" }],
+            },
+          });
+        }
+        if (url.endsWith("/projects")) {
+          return Response.json({
+            projects: [],
+            defaultPath: "/projects/example",
+          });
+        }
+        if (url.includes("/directories?")) {
+          return Response.json({
+            path: "/projects/example",
+            parent: "/projects",
+            directories: [],
+            truncated: false,
+          });
+        }
+        return Response.json({});
+      })
+    );
+    render(<AgentPage agentId={role} />);
+    await expect
+      .element(
+        page.getByRole("textbox", { name: "Send a message to Lenso Agent" })
+      )
+      .toBeVisible();
+    expect(
+      container?.querySelector('[aria-label="Agent chat navigation"]')
+        ?.textContent
+    ).not.toContain("Set up coding");
+    const setup = page.getByRole("button", {
+      name: "Configure coding environment",
+      exact: true,
+    });
+    if (role === "app" && !ready) {
+      await expect.element(setup).toBeVisible();
+      await setup.click();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Set up coding", exact: true })
+        )
+        .toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    } else {
+      await expect.element(setup).not.toBeInTheDocument();
+    }
+    if (role === "app") {
+      await page
+        .getByRole("button", { name: "Change project: /projects/example" })
+        .click();
+      await page
+        .getByRole("button", { name: "Coding settings", exact: true })
+        .click();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Set up coding", exact: true })
+        )
+        .toBeVisible();
+      await expect
+        .element(
+          page.getByRole("heading", { name: "Choose project", exact: true })
+        )
+        .not.toBeInTheDocument();
+    } else {
+      expect(
+        container?.querySelector('[aria-label="Agent working directory"]')
+      ).toBeNull();
+    }
+  }
+);

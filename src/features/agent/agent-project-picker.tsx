@@ -10,6 +10,7 @@ import {
   ChevronRight,
   FolderOpen,
   Search,
+  Wrench,
 } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
@@ -43,11 +44,13 @@ export function AgentProjectPicker({
   path,
   children,
   compact = false,
+  onCodingSettings,
 }: {
   agentId: string;
   path: string;
   children: ReactNode;
   compact?: boolean;
+  onCodingSettings?: (() => void) | undefined;
 }) {
   const directoryInputId = useId();
   const [filter, setFilter] = useState("");
@@ -145,6 +148,21 @@ export function AgentProjectPicker({
               <Dialog.Close disabled={busy} />
             </Dialog.Header>
             <Dialog.Body xstyle={styles.body}>
+              {onCodingSettings ? (
+                <div>
+                  <Button
+                    size="compact"
+                    variant="ghost"
+                    onClick={() => {
+                      setOpen(false);
+                      onCodingSettings();
+                    }}
+                  >
+                    <Wrench aria-hidden="true" size={12} />
+                    Coding settings
+                  </Button>
+                </div>
+              ) : null}
               <section {...stylex.props(styles.section)}>
                 <span {...stylex.props(styles.sectionLabel)}>
                   Opened projects

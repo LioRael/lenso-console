@@ -29,7 +29,6 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type ReactNode,
   type KeyboardEvent,
 } from "react";
 
@@ -215,6 +214,9 @@ export function AgentPage({
     [activeAgentId, projectId]
   );
   const [suggestionsVisible, setSuggestionsVisible] = useState(true);
+  const [codingSetupTarget, setCodingSetupTarget] = useState<typeof targetId>();
+  const [requestedCodeTarget, setRequestedCodeTarget] =
+    useState<typeof targetId>();
   const [titleOverride, setTitleOverride] = useState<{
     sessionId: string;
     title: string;
@@ -303,6 +305,42 @@ export function AgentPage({
     requestAnimationFrame(() => textarea.current?.focus());
   };
 
+  const activeAgent = agents.find((agent) => agent.id === activeAgentId);
+  const canSetupCoding = Boolean(
+    activeAgent?.role === "app" &&
+    runtime?.capabilities.profileImport &&
+    activeAgent.capabilities.includes(AGENT_PLUGIN_CONFIGURATION_CAPABILITY)
+  );
+  const openCodingSettings = () => setCodingSetupTarget(targetId);
+  const selectProfile = (nextProfile: string | undefined) => {
+    setRequestedCodeTarget(nextProfile === "code" ? targetId : undefined);
+    changeProfile(nextProfile);
+  };
+  const needsCodingSetup =
+    canSetupCoding &&
+    !isConfiguring &&
+    ((requestedCodeTarget === targetId && profile !== "code") ||
+      (profile === "code" &&
+        !runtime?.tools.available.some(
+          (tool) =>
+            ["edit", "write", "apply_patch", "run_process"].includes(
+              tool.name
+            ) && runtime.tools.allowed.includes(tool.name)
+        )));
+  const codingNotice = needsCodingSetup ? (
+    <div {...stylex.props(styles.codingNotice)}>
+      <span>Code needs configuration before you can edit files.</span>
+      <Button
+        disabled={isRunning || isConfiguring}
+        onClick={openCodingSettings}
+        size="compact"
+        variant="ghost"
+      >
+        Configure coding environment
+      </Button>
+    </div>
+  ) : null;
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     submit();
@@ -321,23 +359,7 @@ export function AgentPage({
     >
       <AgentHeader
         key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
-        codingSetup={
-          runtime?.capabilities.profileImport &&
-          agents
-            .find((agent) => agent.id === activeAgentId)
-            ?.capabilities.includes(AGENT_PLUGIN_CONFIGURATION_CAPABILITY) ? (
-            <AgentCodingSetup
-              agentId={targetId}
-              agentLabel={
-                agents.find((agent) => agent.id === activeAgentId)?.label ??
-                activeAgentId
-              }
-              busy={isRunning || isConfiguring}
-              configure={configureRuntime}
-              key={activeAgentId}
-            />
-          ) : null
-        }
+        onCodingSettings={canSetupCoding ? openCodingSettings : undefined}
         activeAgentId={activeAgentId}
         agents={agents}
         conversationId={displayedConversationId}
@@ -362,6 +384,20 @@ export function AgentPage({
         onViewChange={setView}
         view={view}
       />
+      {canSetupCoding ? (
+        <AgentCodingSetup
+          key={`${activeAgentId}:${projectId ?? "default"}`}
+          agentId={targetId}
+          agentLabel={activeAgent?.label ?? activeAgentId}
+          busy={isRunning || isConfiguring}
+          configure={configureRuntime}
+          open={codingSetupTarget === targetId}
+          onOpenChange={(open) =>
+            setCodingSetupTarget(open ? targetId : undefined)
+          }
+          hideTrigger
+        />
+      ) : null}
       {conversation ? (
         view === "trajectory" ? (
           <AgentTrajectory trajectory={trajectory} />
@@ -398,8 +434,12 @@ export function AgentPage({
               <AgentProjectContext
                 agentId={activeAgentId}
                 path={runtime.workspace.path}
+                onCodingSettings={
+                  canSetupCoding ? openCodingSettings : undefined
+                }
               />
             ) : null}
+            {codingNotice}
             <AgentComposer
               canCancel={canCancel}
               contextCatalog={contextCatalog}
@@ -410,7 +450,7 @@ export function AgentPage({
               onChange={setDraft}
               onCancel={cancelRunningTurn}
               onModelChange={setSelectedModel}
-              onProfileChange={changeProfile}
+              onProfileChange={selectProfile}
               onReasoningEffortChange={setSelectedReasoningEffort}
               onServiceTierChange={setSelectedServiceTier}
               onSubmit={onSubmit}
@@ -523,6 +563,7 @@ export function AgentPage({
                   prompts={queuedPrompts}
                 />
               ) : null}
+              {codingNotice}
               <AgentComposer
                 canCancel={canCancel}
                 contextCatalog={contextCatalog}
@@ -533,7 +574,7 @@ export function AgentPage({
                 onChange={setDraft}
                 onCancel={cancelRunningTurn}
                 onModelChange={setSelectedModel}
-                onProfileChange={changeProfile}
+                onProfileChange={selectProfile}
                 onReasoningEffortChange={setSelectedReasoningEffort}
                 onServiceTierChange={setSelectedServiceTier}
                 onSubmit={onSubmit}
@@ -555,7 +596,7 @@ export function AgentPage({
 }
 
 function AgentHeader({
-  codingSetup,
+  onCodingSettings,
   activeAgentId,
   agents,
   conversationId,
@@ -565,7 +606,7 @@ function AgentHeader({
   workspace,
   view,
 }: {
-  codingSetup?: ReactNode;
+  onCodingSettings?: (() => void) | undefined;
   activeAgentId: string;
   agents: AgentIdentity[];
   conversationId: string | undefined;
@@ -710,13 +751,14 @@ function AgentHeader({
             </Tabs.List>
           </Tabs.Root>
         ) : null}
-        {workspace || codingSetup || agents.length > 1 ? (
+        {workspace || agents.length > 1 ? (
           <div {...stylex.props(styles.headerActions)}>
             {workspace ? (
               <AgentProjectContext
                 agentId={activeAgentId}
                 compact
                 path={workspace.path}
+                onCodingSettings={onCodingSettings}
               />
             ) : null}
             {agents.length > 1 ? (
@@ -738,7 +780,6 @@ function AgentHeader({
                 value={activeAgentId}
               />
             ) : null}
-            {codingSetup}
           </div>
         ) : null}
       </PageHeader.Row>

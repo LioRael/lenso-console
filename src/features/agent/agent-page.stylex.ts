@@ -1,6 +1,15 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const agentPageStyles = stylex.create({
+  codingNotice: {
+    alignItems: "center",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "4px 8px",
+    color: "var(--color-content-secondary)",
+    fontSize: "11px",
+    padding: "6px 8px",
+  },
   assistantMessage: { fontSize: "14px", lineHeight: "22px", margin: "0 8px" },
   attachButton: {
     borderRadius: "999px",
