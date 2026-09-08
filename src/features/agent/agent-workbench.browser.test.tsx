@@ -9,12 +9,13 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  useParams,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { AgentChanges } from "./agent-changes";
 import { AgentIdentityProvider } from "./agent-identity-context";
@@ -63,6 +64,11 @@ function render(content: ReactNode) {
     routeTree: rootRoute.addChildren([projectRoute]),
   });
   flushSync(() => root?.render(<RouterProvider router={router} />));
+}
+
+function RoutedAgentPage() {
+  const { agentId } = useParams({ strict: false });
+  return agentId ? <AgentPage agentId={agentId} /> : null;
 }
 
 test("project entry keeps new and resumed tasks scoped to the owning Agent", async () => {
@@ -156,11 +162,12 @@ test("review shows successful captured diffs as text and keeps a fresh review ex
     .element(page.getByText("This recorded diff was truncated."))
     .toBeVisible();
   expect(container?.textContent).not.toContain("untrusted failed output");
-  await page.getByRole("button", { name: "Ask for a fresh diff" }).click();
+  await page.getByRole("button", { name: "Review changes" }).click();
   expect(requestReview).toHaveBeenCalledTimes(1);
 });
 
 test("a project task exposes its streamed diff in the existing conversation page", async () => {
+  const savedTitles: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -169,8 +176,32 @@ test("a project task exposes its streamed diff in the existing conversation page
         return Response.json({
           agents: [
             { id: "support", label: "Support", role: "app", capabilities: [] },
+            {
+              id: "console",
+              label: "Console Agent",
+              role: "console",
+              capabilities: [],
+            },
           ],
         });
+      }
+      if (url.endsWith("/sessions")) {
+        return Response.json({
+          sessions: [
+            {
+              sessionId: "project-task",
+              revision: "1",
+              titleRevision: "1",
+              title: "Review the change",
+              updatedAt: "2026-09-08T00:00:00Z",
+            },
+          ],
+        });
+      }
+      if (init?.method === "PATCH") {
+        const { title: nextTitle } = JSON.parse(String(init.body));
+        savedTitles.push(nextTitle);
+        return Response.json({ title: nextTitle, titleRevision: "2" });
       }
       if (url.endsWith("/bootstrap")) {
         return Response.json({
@@ -183,6 +214,9 @@ test("a project task exposes its streamed diff in the existing conversation page
             edit: true,
             sessionList: true,
             sessionRead: true,
+            sessionRename: true,
+            sessionCompact: true,
+            turnToolSelection: true,
             userInteraction: false,
             profileSelection: true,
           },
@@ -243,7 +277,7 @@ test("a project task exposes its streamed diff in the existing conversation page
   );
   render(
     <div style={{ height: "100vh" }}>
-      <AgentPage agentId="support" />
+      <RoutedAgentPage />
     </div>
   );
   await expect
@@ -253,10 +287,73 @@ test("a project task exposes its streamed diff in the existing conversation page
     .getByRole("textbox", { name: "Send a message to Lenso Agent" })
     .fill("Review the change");
   await page.getByRole("button", { name: "Submit comment" }).click();
+  expect(
+    container?.querySelector('[aria-label="Turn permissions"]')
+  ).toBeNull();
+  expect(
+    container?.querySelector('[aria-label="Compact conversation context"]')
+  ).toBeNull();
+  expect(container?.querySelector('select[aria-label="Agent"]')).toBeNull();
+  const title = page.getByRole("button", { name: /^Rename conversation:/ });
+  const before = title.element().getBoundingClientRect();
+  await title.dblClick();
+  await expect
+    .element(page.getByRole("textbox", { name: "Conversation title" }))
+    .toBeVisible();
+  const input = page
+    .getByRole("textbox", { name: "Conversation title" })
+    .element() as HTMLInputElement;
+  expect(input.getBoundingClientRect().width).toBeCloseTo(before.width, 0);
+  expect(input.getBoundingClientRect().x).toBeCloseTo(before.x, 0);
+  expect(input.selectionStart).toBe(0);
+  expect(input.selectionEnd).toBe(input.value.length);
+  expect(
+    page.getByRole("button", { name: "Save", exact: true }).elements()
+  ).toHaveLength(0);
+  await page
+    .getByRole("textbox", { name: "Conversation title" })
+    .fill("Renamed task");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(title).toBeVisible();
+  expect(savedTitles).toEqual([]);
+  await title.dblClick();
+  await page
+    .getByRole("textbox", { name: "Conversation title" })
+    .fill("Saved with Enter");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(title).toHaveTextContent("Saved with Enter");
+  await title.dblClick();
+  await page
+    .getByRole("textbox", { name: "Conversation title" })
+    .fill("Saved on blur");
   await page.getByRole("tab", { name: "Changes", exact: true }).click();
+  await expect.element(title).toHaveTextContent("Saved on blur");
+  expect(savedTitles).toEqual(["Saved with Enter", "Saved on blur"]);
+
+  await page.getByRole("tab", { name: "Changes", exact: true }).click();
+  expect(
+    getComputedStyle(
+      page.getByRole("tab", { name: "Conversation", exact: true }).element()
+    ).fontSize
+  ).toBe("12px");
+  expect(
+    getComputedStyle(
+      page.getByRole("tab", { name: "Conversation", exact: true }).element()
+    ).paddingLeft
+  ).toBe("10px");
   await expect
     .element(page.getByRole("region", { name: "Task changes" }))
     .toHaveTextContent("+export const ready = true;");
+  const fileSummary = page.getByText("app.ts", { exact: true });
+  await expect.element(page.getByLabelText("1 added, 1 removed")).toBeVisible();
+  await fileSummary.click();
+  await expect
+    .element(page.getByLabelText("Recorded diff: app.ts"))
+    .not.toBeVisible();
+  await fileSummary.click();
+  await expect
+    .element(page.getByLabelText("Recorded diff: app.ts"))
+    .toBeVisible();
   const heading = page.getByRole("heading", { name: "Changes", exact: true });
   await page.viewport(390, 844);
   await expect.element(heading).toBeVisible();
@@ -274,4 +371,13 @@ test("a project task exposes its streamed diff in the existing conversation page
     )
     .toBeLessThanOrEqual(window.innerWidth);
   await page.viewport(1280, 800);
+  await page.getByRole("combobox", { name: "Agent", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Console Agent", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      container?.querySelector('[aria-label="Agent working directory"]')
+    )
+    .toBeNull();
 });
