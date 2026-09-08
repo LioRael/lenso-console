@@ -1,21 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const profileStyles = stylex.create({
-  root: { display: "grid", gap: 14, marginBlockStart: 28, minWidth: 0 },
-  sectionHeading: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  heading: {
-    fontSize: 24,
-    lineHeight: "32px",
-    fontWeight: 500,
-    margin: "0 0 8px",
-    overflowWrap: "anywhere",
-  },
+  root: { display: "grid", gap: 32, marginBlockStart: 24, minWidth: 0 },
   muted: {
     fontSize: 13,
     lineHeight: "20px",
@@ -32,7 +18,7 @@ export const profileStyles = stylex.create({
   panel: {
     border: "1px solid var(--color-border-tertiary)",
     backgroundColor: "var(--color-surface-panel)",
-    borderRadius: 16,
+    borderRadius: 10,
     overflow: "hidden",
     minWidth: 0,
   },

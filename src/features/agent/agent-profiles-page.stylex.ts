@@ -1,26 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const profilesPageStyles = stylex.create({
-  page: {
-    width: "min(840px, calc(100% - 40px))",
-    marginInline: "auto",
-    paddingBlock: "40px 64px",
-    minWidth: 0,
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 16,
-    marginBlockEnd: 32,
-  },
-  title: {
-    margin: "0 0 8px",
-    fontSize: 24,
-    lineHeight: "32px",
-    fontWeight: 500,
-  },
   description: {
     margin: 0,
     color: "var(--color-content-tertiary)",
@@ -29,6 +9,7 @@ export const profilesPageStyles = stylex.create({
     overflowWrap: "anywhere",
   },
   toolbar: {
+    marginBlockStart: 32,
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",

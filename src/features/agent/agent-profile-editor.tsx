@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import type { PluginWorkbenchItem } from "../plugins/plugin-workbench-model";
+import { SettingsPageHeader } from "../settings/settings-page-header";
 import { profileStyles as ui } from "./agent-profile-editor.stylex";
 import {
   profileRequest,
@@ -179,11 +180,9 @@ export function AgentProfileEditor({
   };
   return (
     <section {...stylex.props(ui.root)} aria-label="Profile editor">
-      <header {...stylex.props(ui.sectionHeading)}>
-        <div>
-          <h1 {...stylex.props(ui.heading)}>
-            {profile.revision ? profile.name : "New Profile"}
-          </h1>
+      <SettingsPageHeader
+        title={profile.revision ? profile.name : "New Profile"}
+        description={
           <output {...stylex.props(ui.status)}>
             {busy
               ? "Validating and saving…"
@@ -194,48 +193,50 @@ export function AgentProfileEditor({
                     ? "Built-in template · Duplicate to customize"
                     : "All changes saved")}
           </output>
-        </div>
-        <div {...stylex.props(ui.footerActions)}>
-          {profile.readOnly ? (
-            <Button
-              variant="secondary"
-              size="compact"
-              disabled={busy}
-              onClick={copy}
-            >
-              Duplicate Profile
-            </Button>
-          ) : (
-            <>
-              {draft ? (
+        }
+        actions={
+          <div {...stylex.props(ui.footerActions)}>
+            {profile.readOnly ? (
+              <Button
+                variant="secondary"
+                size="compact"
+                disabled={busy}
+                onClick={copy}
+              >
+                Duplicate Profile
+              </Button>
+            ) : (
+              <>
+                {draft ? (
+                  <Button
+                    size="compact"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      setDraft(undefined);
+                      setSaved(initialProfile);
+                      save.reset();
+                    }}
+                  >
+                    Reset
+                  </Button>
+                ) : null}
                 <Button
                   size="compact"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => {
-                    setDraft(undefined);
-                    setSaved(initialProfile);
-                    save.reset();
-                  }}
+                  disabled={
+                    !dirty ||
+                    readonly ||
+                    !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(profile.name)
+                  }
+                  onClick={() => save.mutate(profile)}
                 >
-                  Reset
+                  Save draft
                 </Button>
-              ) : null}
-              <Button
-                size="compact"
-                disabled={
-                  !dirty ||
-                  readonly ||
-                  !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(profile.name)
-                }
-                onClick={() => save.mutate(profile)}
-              >
-                Save draft
-              </Button>
-            </>
-          )}
-        </div>
-      </header>
+              </>
+            )}
+          </div>
+        }
+      />
       {save.error ? (
         <p role="alert" {...stylex.props(ui.inlineNotice, styles.error)}>
           {save.error.message}

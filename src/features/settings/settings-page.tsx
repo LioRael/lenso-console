@@ -10,6 +10,7 @@ import {
 } from "../../app/console-locale";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
+import { SettingsPageHeader } from "./settings-page-header";
 import { settingsPageStyles as styles } from "./settings-page.stylex";
 
 type GeneralSettings = {
@@ -39,9 +40,14 @@ export function SettingsPage() {
   return (
     <main {...stylex.props(styles.page)}>
       <div {...stylex.props(styles.column)}>
-        <h1 {...stylex.props(styles.pageTitle)}>
-          {zh ? "偏好设置" : "Preferences"}
-        </h1>
+        <SettingsPageHeader
+          title={zh ? "偏好设置" : "Preferences"}
+          description={
+            zh
+              ? "管理 Console 的语言、时间和外观。"
+              : "Manage language, time, and appearance in Console."
+          }
+        />
 
         <SettingsSection.Root
           aria-labelledby="general-settings-title"

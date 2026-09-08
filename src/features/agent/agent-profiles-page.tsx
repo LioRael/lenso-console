@@ -5,6 +5,7 @@ import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
+import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as pageStyles } from "../settings/settings-page.stylex";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentProfileEditor } from "./agent-profile-editor";
@@ -24,16 +25,12 @@ export function AgentProfilesPage() {
   const { selectedAgent: agent } = useAgentIdentity();
   return (
     <main {...stylex.props(pageStyles.page)}>
-      <div {...stylex.props(styles.page)}>
-        <header {...stylex.props(styles.header)}>
-          <div>
-            <h1 {...stylex.props(styles.title)}>Profiles</h1>
-            <p {...stylex.props(styles.description)}>
-              Reusable instructions and capabilities for your Agent.
-            </p>
-          </div>
-          <AgentPicker />
-        </header>
+      <div {...stylex.props(pageStyles.column)}>
+        <SettingsPageHeader
+          title="Profiles"
+          description="Reusable instructions and capabilities for your Agent."
+          actions={<AgentPicker />}
+        />
         <ProfileList key={agent.id} agent={agent} />
       </div>
     </main>
@@ -239,7 +236,7 @@ export function AgentProfileDetailPage({
   }
   return (
     <main {...stylex.props(pageStyles.page)}>
-      <div {...stylex.props(styles.page)}>
+      <div {...stylex.props(pageStyles.column)}>
         <div {...stylex.props(styles.breadcrumb)}>
           <Link to="/settings/profiles">Profiles</Link>
           <span>{agent?.label ?? agentId}</span>

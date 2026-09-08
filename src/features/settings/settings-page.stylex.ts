@@ -2,16 +2,34 @@ import * as stylex from "@stylexjs/stylex";
 
 export const settingsPageStyles = stylex.create({
   column: {
-    margin: "0 auto",
-    padding: {
-      default: "64px 0 80px",
-      "@media (max-width: 760px)": "56px 0 80px",
-    },
+    marginInline: "auto",
+    paddingBlock: "40px 64px",
     width: {
-      default: "min(640px, calc(100% - 48px))",
+      default: "min(760px, calc(100% - 48px))",
       "@media (max-width: 760px)": "calc(100% - 32px)",
-      "@media (max-width: 520px)": "calc(100% - 24px)",
     },
+    minWidth: 0,
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  headerCopy: { display: "grid", gap: 8, minWidth: 0, flex: "1 1 240px" },
+  headerActions: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  description: {
+    margin: 0,
+    fontSize: 12,
+    lineHeight: "18px",
+    color: "var(--color-content-tertiary)",
+    overflowWrap: "anywhere",
   },
   group: {
     backgroundColor: "var(--color-surface-panel)",
@@ -32,7 +50,8 @@ export const settingsPageStyles = stylex.create({
     fontWeight: 500,
     letterSpacing: "-0.02em",
     lineHeight: "32px",
-    margin: "0 16px",
+    margin: 0,
+    overflowWrap: "anywhere",
   },
   row: {
     alignItems: {
@@ -84,13 +103,13 @@ export const settingsPageStyles = stylex.create({
     marginTop: "32px",
   },
   sectionFollowing: {
-    marginTop: "48px",
+    marginTop: "32px",
   },
   sectionTitle: {
     fontSize: "15px",
     fontWeight: 520,
     lineHeight: "20px",
-    margin: "0 0 0 16px",
+    margin: 0,
   },
   selectTrigger: {
     backgroundColor: {
