@@ -14,7 +14,6 @@ import {
   ImageIcon,
   List,
   Package,
-  Paperclip,
   Search,
   Square,
   Terminal,
@@ -35,6 +34,14 @@ import {
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
+import {
+  AgentAttachmentProvider,
+  AttachmentButton,
+  AttachmentDropZone,
+  DraftAttachments,
+  MessageAttachments,
+  useAgentAttachments,
+} from "./agent-attachments";
 import { AgentChanges } from "./agent-changes";
 import { AgentCodingSetup } from "./agent-coding-setup";
 import {
@@ -276,6 +283,7 @@ export function AgentPage({
     terminalRuns,
     turns,
     visibleTurns,
+    attachments,
   } = useAgentConversation({
     enableTerminal: true,
     initialSessionId:
@@ -347,220 +355,99 @@ export function AgentPage({
   };
 
   return (
-    <div
-      {...stylex.props(
-        styles.page,
-        conversation ? styles.conversationPage : styles.emptyPage,
-        conversation &&
-          view !== "conversation" &&
-          styles.conversationPageTrajectory
-      )}
-      data-view={conversation ? view : undefined}
-    >
-      <AgentHeader
-        key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
-        onCodingSettings={canSetupCoding ? openCodingSettings : undefined}
-        activeAgentId={activeAgentId}
-        agents={agents}
-        conversationId={displayedConversationId}
-        conversationTitle={conversationTitle}
-        onRename={
-          sessionId && runtime?.capabilities.sessionRename && !isRunning
-            ? async (title) => {
-                const renamed = await renameSession(title);
-                if (renamed) {
-                  setTitleOverride({ sessionId, title: renamed });
-                }
-                return renamed;
-              }
-            : undefined
-        }
-        workspace={
+    <AgentAttachmentProvider value={attachments}>
+      <div
+        {...stylex.props(
+          styles.page,
+          conversation ? styles.conversationPage : styles.emptyPage,
           conversation &&
-          agents.find((agent) => agent.id === activeAgentId)?.role === "app"
-            ? runtime?.workspace
-            : undefined
-        }
-        onViewChange={setView}
-        view={view}
-      />
-      {canSetupCoding ? (
-        <AgentCodingSetup
-          key={`${activeAgentId}:${projectId ?? "default"}`}
-          agentId={targetId}
-          agentLabel={activeAgent?.label ?? activeAgentId}
-          busy={isRunning || isConfiguring}
-          configure={configureRuntime}
-          open={codingSetupTarget === targetId}
-          onOpenChange={(open) =>
-            setCodingSetupTarget(open ? targetId : undefined)
-          }
-          hideTrigger
-        />
-      ) : null}
-      {conversation ? (
-        view === "trajectory" ? (
-          <AgentTrajectory trajectory={trajectory} />
-        ) : view === "changes" ? (
-          <AgentChanges
-            turns={turns}
-            onRequestReview={
-              runtime?.tools.available.some((tool) => tool.name === "git_diff")
-                ? () => {
-                    setDraft(
-                      "Capture and review the current project diff with git_status and git_diff. Do not modify files."
-                    );
-                    setView("conversation");
-                    requestAnimationFrame(() => textarea.current?.focus());
+            view !== "conversation" &&
+            styles.conversationPageTrajectory
+        )}
+        data-view={conversation ? view : undefined}
+      >
+        <AgentHeader
+          key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
+          onCodingSettings={canSetupCoding ? openCodingSettings : undefined}
+          activeAgentId={activeAgentId}
+          agents={agents}
+          conversationId={displayedConversationId}
+          conversationTitle={conversationTitle}
+          onRename={
+            sessionId && runtime?.capabilities.sessionRename && !isRunning
+              ? async (title) => {
+                  const renamed = await renameSession(title);
+                  if (renamed) {
+                    setTitleOverride({ sessionId, title: renamed });
                   }
-                : undefined
-            }
-          />
-        ) : (
-          <AgentConversation
-            canEdit={canEdit}
-            key={displayedConversationId}
-            onEdit={beginEditing}
-            runtimeError={runtimeError}
-            turns={visibleTurns}
-          />
-        )
-      ) : (
-        <div {...stylex.props(styles.emptyCanvas)}>
-          <section {...stylex.props(styles.emptyCenter)}>
-            {runtime?.workspace &&
-            agents.find((agent) => agent.id === activeAgentId)?.role ===
-              "app" ? (
-              <AgentProjectContext
-                agentId={activeAgentId}
-                path={runtime.workspace.path}
-                onCodingSettings={
-                  canSetupCoding ? openCodingSettings : undefined
+                  return renamed;
                 }
-              />
-            ) : null}
-            {codingNotice}
-            <AgentComposer
-              canCancel={canCancel}
-              contextCatalog={contextCatalog}
-              draft={draft}
-              isConfiguring={isConfiguring}
-              isRunning={isRunning}
-              modelCatalog={modelCatalog}
-              onChange={setDraft}
-              onCancel={cancelRunningTurn}
-              onModelChange={setSelectedModel}
-              onProfileChange={selectProfile}
-              onReasoningEffortChange={setSelectedReasoningEffort}
-              onServiceTierChange={setSelectedServiceTier}
-              onSubmit={onSubmit}
-              profile={profile}
-              ref={textarea}
-              runtime={runtime}
-              selectedModel={selectedModel}
-              selectedReasoningEffort={selectedReasoningEffort}
-              selectedServiceTier={selectedServiceTier}
-              terminalCatalog={terminalCatalog}
-            />
-            {terminalRuns.length > 0 ? (
-              <AgentTerminalShelf runs={terminalRuns} />
-            ) : null}
-            {suggestionsVisible ? (
-              <div {...stylex.props(styles.suggestions)}>
-                <div {...stylex.props(styles.suggestionsHeader)}>
-                  <span>Get started with some examples</span>
-                  <IconButton
-                    aria-label="Dismiss examples"
-                    onClick={() => setSuggestionsVisible(false)}
-                    size="compact"
-                    variant="ghost"
-                    xstyle={styles.suggestionsHeaderAction}
-                  >
-                    <X size={13} />
-                  </IconButton>
-                </div>
-                <div {...stylex.props(styles.suggestionGrid)}>
-                  {(runtime?.workspace && runtime.capabilities.profileSelection
-                    ? codingSuggestions
-                    : suggestions
-                  ).map((suggestion) => (
-                    <button
-                      aria-label={suggestion.title}
-                      {...stylex.props(styles.suggestion)}
-                      key={suggestion.title}
-                      onClick={() => {
-                        setDraft(suggestion.prompt);
-                        textarea.current?.focus();
-                      }}
-                      type="button"
-                    >
-                      <suggestion.icon
-                        aria-hidden="true"
-                        size={15}
-                        strokeWidth={1.6}
-                      />
-                      <span {...stylex.props(styles.suggestionCopy)}>
-                        <strong {...stylex.props(styles.suggestionTitle)}>
-                          {suggestion.title}
-                        </strong>
-                        <span {...stylex.props(styles.suggestionDescription)}>
-                          {suggestion.description}
-                        </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </section>
-        </div>
-      )}
-      {conversation && view !== "conversation" ? (
-        <div
-          aria-hidden="true"
-          {...stylex.props(styles.trajectoryComposerBackdrop)}
+              : undefined
+          }
+          workspace={
+            conversation &&
+            agents.find((agent) => agent.id === activeAgentId)?.role === "app"
+              ? runtime?.workspace
+              : undefined
+          }
+          onViewChange={setView}
+          view={view}
         />
-      ) : null}
-      {conversation ? (
-        <div
-          {...stylex.props(
-            styles.composerDock,
-            Boolean(editingTurnId) && styles.composerDockEditing,
-            view !== "conversation" && styles.composerDockTrajectory
-          )}
-          data-editing={Boolean(editingTurnId) || undefined}
-          data-view={view}
-        >
-          <div
-            aria-hidden={!editingTurnId}
-            {...stylex.props(
-              styles.editingMessageReveal,
-              Boolean(editingTurnId) && styles.editingMessageRevealOpen
-            )}
-            data-open={Boolean(editingTurnId) || undefined}
-          >
-            <div {...stylex.props(styles.editingMessageClip)}>
-              <EditingMessageBar onCancel={cancelEditing} />
-            </div>
-          </div>
-          {pendingInteraction ? (
-            <AgentAskUser
-              canCancel={canCancel}
-              interaction={pendingInteraction}
-              isSubmitting={isAnsweringInteraction}
-              onCancel={cancelRunningTurn}
-              onSubmit={answerInteraction}
+        {canSetupCoding ? (
+          <AgentCodingSetup
+            key={`${activeAgentId}:${projectId ?? "default"}`}
+            agentId={targetId}
+            agentLabel={activeAgent?.label ?? activeAgentId}
+            busy={isRunning || isConfiguring}
+            configure={configureRuntime}
+            open={codingSetupTarget === targetId}
+            onOpenChange={(open) =>
+              setCodingSetupTarget(open ? targetId : undefined)
+            }
+            hideTrigger
+          />
+        ) : null}
+        {conversation ? (
+          view === "trajectory" ? (
+            <AgentTrajectory trajectory={trajectory} />
+          ) : view === "changes" ? (
+            <AgentChanges
+              turns={turns}
+              onRequestReview={
+                runtime?.tools.available.some(
+                  (tool) => tool.name === "git_diff"
+                )
+                  ? () => {
+                      setDraft(
+                        "Capture and review the current project diff with git_status and git_diff. Do not modify files."
+                      );
+                      setView("conversation");
+                      requestAnimationFrame(() => textarea.current?.focus());
+                    }
+                  : undefined
+              }
             />
           ) : (
-            <>
-              {tasks.length > 0 ? <AgentTaskShelf tasks={tasks} /> : null}
-              {terminalRuns.length > 0 ? (
-                <AgentTerminalShelf runs={terminalRuns} />
-              ) : null}
-              {queuedPrompts.length > 0 ? (
-                <AgentPromptQueue
-                  onRemove={removeQueuedPrompt}
-                  prompts={queuedPrompts}
+            <AgentConversation
+              canEdit={canEdit}
+              key={displayedConversationId}
+              onEdit={beginEditing}
+              runtimeError={runtimeError}
+              turns={visibleTurns}
+            />
+          )
+        ) : (
+          <div {...stylex.props(styles.emptyCanvas)}>
+            <section {...stylex.props(styles.emptyCenter)}>
+              {runtime?.workspace &&
+              agents.find((agent) => agent.id === activeAgentId)?.role ===
+                "app" ? (
+                <AgentProjectContext
+                  agentId={activeAgentId}
+                  path={runtime.workspace.path}
+                  onCodingSettings={
+                    canSetupCoding ? openCodingSettings : undefined
+                  }
                 />
               ) : null}
               {codingNotice}
@@ -578,7 +465,6 @@ export function AgentPage({
                 onReasoningEffortChange={setSelectedReasoningEffort}
                 onServiceTierChange={setSelectedServiceTier}
                 onSubmit={onSubmit}
-                placeholder="Reply…"
                 profile={profile}
                 ref={textarea}
                 runtime={runtime}
@@ -587,11 +473,138 @@ export function AgentPage({
                 selectedServiceTier={selectedServiceTier}
                 terminalCatalog={terminalCatalog}
               />
-            </>
-          )}
-        </div>
-      ) : null}
-    </div>
+              {terminalRuns.length > 0 ? (
+                <AgentTerminalShelf runs={terminalRuns} />
+              ) : null}
+              {suggestionsVisible ? (
+                <div {...stylex.props(styles.suggestions)}>
+                  <div {...stylex.props(styles.suggestionsHeader)}>
+                    <span>Get started with some examples</span>
+                    <IconButton
+                      aria-label="Dismiss examples"
+                      onClick={() => setSuggestionsVisible(false)}
+                      size="compact"
+                      variant="ghost"
+                      xstyle={styles.suggestionsHeaderAction}
+                    >
+                      <X size={13} />
+                    </IconButton>
+                  </div>
+                  <div {...stylex.props(styles.suggestionGrid)}>
+                    {(runtime?.workspace &&
+                    runtime.capabilities.profileSelection
+                      ? codingSuggestions
+                      : suggestions
+                    ).map((suggestion) => (
+                      <button
+                        aria-label={suggestion.title}
+                        {...stylex.props(styles.suggestion)}
+                        key={suggestion.title}
+                        onClick={() => {
+                          setDraft(suggestion.prompt);
+                          textarea.current?.focus();
+                        }}
+                        type="button"
+                      >
+                        <suggestion.icon
+                          aria-hidden="true"
+                          size={15}
+                          strokeWidth={1.6}
+                        />
+                        <span {...stylex.props(styles.suggestionCopy)}>
+                          <strong {...stylex.props(styles.suggestionTitle)}>
+                            {suggestion.title}
+                          </strong>
+                          <span {...stylex.props(styles.suggestionDescription)}>
+                            {suggestion.description}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          </div>
+        )}
+        {conversation && view !== "conversation" ? (
+          <div
+            aria-hidden="true"
+            {...stylex.props(styles.trajectoryComposerBackdrop)}
+          />
+        ) : null}
+        {conversation ? (
+          <div
+            {...stylex.props(
+              styles.composerDock,
+              Boolean(editingTurnId) && styles.composerDockEditing,
+              view !== "conversation" && styles.composerDockTrajectory
+            )}
+            data-editing={Boolean(editingTurnId) || undefined}
+            data-view={view}
+          >
+            <div
+              aria-hidden={!editingTurnId}
+              {...stylex.props(
+                styles.editingMessageReveal,
+                Boolean(editingTurnId) && styles.editingMessageRevealOpen
+              )}
+              data-open={Boolean(editingTurnId) || undefined}
+            >
+              <div {...stylex.props(styles.editingMessageClip)}>
+                <EditingMessageBar onCancel={cancelEditing} />
+              </div>
+            </div>
+            {pendingInteraction ? (
+              <AgentAskUser
+                canCancel={canCancel}
+                interaction={pendingInteraction}
+                isSubmitting={isAnsweringInteraction}
+                onCancel={cancelRunningTurn}
+                onSubmit={answerInteraction}
+              />
+            ) : (
+              <>
+                {tasks.length > 0 ? <AgentTaskShelf tasks={tasks} /> : null}
+                {terminalRuns.length > 0 ? (
+                  <AgentTerminalShelf runs={terminalRuns} />
+                ) : null}
+                {queuedPrompts.length > 0 ? (
+                  <AgentPromptQueue
+                    onRemove={removeQueuedPrompt}
+                    prompts={queuedPrompts}
+                  />
+                ) : null}
+                {codingNotice}
+                <AgentComposer
+                  canCancel={canCancel}
+                  contextCatalog={contextCatalog}
+                  draft={draft}
+                  isConfiguring={isConfiguring}
+                  isRunning={isRunning}
+                  modelCatalog={modelCatalog}
+                  onChange={setDraft}
+                  onCancel={cancelRunningTurn}
+                  onModelChange={setSelectedModel}
+                  onProfileChange={selectProfile}
+                  onReasoningEffortChange={setSelectedReasoningEffort}
+                  onServiceTierChange={setSelectedServiceTier}
+                  onSubmit={onSubmit}
+                  placeholder="Reply…"
+                  profile={profile}
+                  ref={textarea}
+                  runtime={runtime}
+                  selectedModel={selectedModel}
+                  selectedReasoningEffort={selectedReasoningEffort}
+                  selectedServiceTier={selectedServiceTier}
+                  terminalCatalog={terminalCatalog}
+                />
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </AgentAttachmentProvider>
   );
 }
 
@@ -833,6 +846,7 @@ function AgentConversation({
         {turns.map((turn) => (
           <div {...stylex.props(styles.turn)} key={turn.id}>
             <div {...stylex.props(styles.userMessageGroup, messageGroup)}>
+              <MessageAttachments items={turn.attachments} />
               <div {...stylex.props(styles.userMessage)}>{turn.user}</div>
               <div {...stylex.props(styles.userMessageActions)}>
                 <AgentMessageActions
@@ -1198,58 +1212,61 @@ function AgentComposer({
     }
   };
   return (
-    <PromptComposer.Root
-      xstyle={styles.composer}
-      onSubmit={onSubmit}
-      onValueChange={handleComposerChange}
-      submitShortcut="enter"
-      surfaceXstyle={styles.composerSurface}
-      value={draft}
-    >
-      <PromptComposer.Input
-        aria-activedescendant={
-          visibleContextSuggestions.length
-            ? `${slashMenuId}-item-${effectiveSuggestionIndex}`
-            : undefined
-        }
-        aria-autocomplete="list"
-        aria-controls={
-          visibleContextSuggestions.length ? slashMenuId : undefined
-        }
-        aria-expanded={visibleContextSuggestions.length > 0}
-        aria-label="Send a message to Lenso Agent"
-        xstyle={styles.textarea}
-        onKeyDown={handleComposerKeyDown}
-        placeholder={placeholder}
-        ref={ref}
-        rows={2}
-      />
-      <ComposerSlashMenu
-        activeIndex={effectiveSuggestionIndex}
-        menuId={slashMenuId}
-        onActiveIndexChange={setActiveSuggestionIndex}
-        onSelect={(suggestion) => handleComposerChange(suggestion.insertText)}
-        suggestions={visibleContextSuggestions}
-      />
-      <AgentComposerToolbar
-        activeModel={activeModel}
-        canCancel={canCancel}
-        draft={draft}
-        effectiveModel={effectiveModel}
-        isConfiguring={isConfiguring}
-        isRunning={isRunning}
-        onCancel={onCancel}
-        onModelChange={onModelChange}
-        onProfileChange={onProfileChange}
-        onReasoningEffortChange={onReasoningEffortChange}
-        onServiceTierChange={onServiceTierChange}
-        profile={profile}
-        runtime={runtime}
-        selectableModels={selectableModels}
-        selectedReasoningEffort={selectedReasoningEffort}
-        selectedServiceTier={selectedServiceTier}
-      />
-    </PromptComposer.Root>
+    <AttachmentDropZone>
+      <PromptComposer.Root
+        xstyle={styles.composer}
+        onSubmit={onSubmit}
+        onValueChange={handleComposerChange}
+        submitShortcut="enter"
+        surfaceXstyle={styles.composerSurface}
+        value={draft}
+      >
+        <DraftAttachments />
+        <PromptComposer.Input
+          aria-activedescendant={
+            visibleContextSuggestions.length
+              ? `${slashMenuId}-item-${effectiveSuggestionIndex}`
+              : undefined
+          }
+          aria-autocomplete="list"
+          aria-controls={
+            visibleContextSuggestions.length ? slashMenuId : undefined
+          }
+          aria-expanded={visibleContextSuggestions.length > 0}
+          aria-label="Send a message to Lenso Agent"
+          xstyle={styles.textarea}
+          onKeyDown={handleComposerKeyDown}
+          placeholder={placeholder}
+          ref={ref}
+          rows={2}
+        />
+        <ComposerSlashMenu
+          activeIndex={effectiveSuggestionIndex}
+          menuId={slashMenuId}
+          onActiveIndexChange={setActiveSuggestionIndex}
+          onSelect={(suggestion) => handleComposerChange(suggestion.insertText)}
+          suggestions={visibleContextSuggestions}
+        />
+        <AgentComposerToolbar
+          activeModel={activeModel}
+          canCancel={canCancel}
+          draft={draft}
+          effectiveModel={effectiveModel}
+          isConfiguring={isConfiguring}
+          isRunning={isRunning}
+          onCancel={onCancel}
+          onModelChange={onModelChange}
+          onProfileChange={onProfileChange}
+          onReasoningEffortChange={onReasoningEffortChange}
+          onServiceTierChange={onServiceTierChange}
+          profile={profile}
+          runtime={runtime}
+          selectableModels={selectableModels}
+          selectedReasoningEffort={selectedReasoningEffort}
+          selectedServiceTier={selectedServiceTier}
+        />
+      </PromptComposer.Root>
+    </AttachmentDropZone>
   );
 }
 
@@ -1293,17 +1310,11 @@ function AgentComposerToolbar({
   selectedServiceTier,
 }: AgentComposerToolbarProps) {
   const speed = speedMenu(activeModel, selectedServiceTier);
+  const attachmentState = useAgentAttachments();
   return (
     <PromptComposer.Toolbar xstyle={styles.composerFooter}>
       <div {...stylex.props(styles.composerFooterStart)}>
-        <IconButton
-          aria-label="Attach images, files, or videos"
-          size="compact"
-          variant="ghost"
-          xstyle={styles.attachButton}
-        >
-          <Paperclip size={14} strokeWidth={1.7} />
-        </IconButton>
+        <AttachmentButton />
         {runtime?.capabilities.profileSelection ? (
           <TurnSelect
             aria-label="Agent mode"
@@ -1367,14 +1378,22 @@ function AgentComposerToolbar({
         ) : null}
         <IconButton
           aria-label={isRunning ? "Queue follow-up" : "Submit comment"}
-          data-active={Boolean(draft.trim()) || undefined}
-          disabled={isConfiguring || !draft.trim()}
+          data-active={
+            Boolean(draft.trim() || attachmentState?.items.length) || undefined
+          }
+          disabled={
+            isConfiguring ||
+            attachmentState?.busy ||
+            attachmentState?.items.some((file) => !file.data_base64) ||
+            !(draft.trim() || attachmentState?.items.length)
+          }
           size="compact"
           type="submit"
           variant="secondary"
           xstyle={[
             styles.sendButton,
-            Boolean(draft.trim()) && styles.sendButtonActive,
+            Boolean(draft.trim() || attachmentState?.items.length) &&
+              styles.sendButtonActive,
           ]}
         >
           <ArrowUp size={14} strokeWidth={1.9} />

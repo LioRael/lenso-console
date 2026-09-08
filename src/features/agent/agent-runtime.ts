@@ -1,4 +1,5 @@
 import { consoleApiPrefix } from "../../lib/http-client";
+import type { AgentAttachment } from "./agent-attachments";
 
 export type AgentId = string;
 export type AgentTarget = AgentId | { agentId: AgentId; projectId: string };
@@ -136,6 +137,7 @@ export type AgentTerminalRun = {
 };
 
 export type AgentModel = {
+  inputModalities?: string[];
   providerId?: string;
   displayName: string;
   hidden: boolean;
@@ -268,6 +270,7 @@ export type AgentToolCall = {
 };
 
 export type AgentTurn = {
+  attachments?: AgentAttachment[];
   startedAt?: string;
   answeredAt?: string;
   answer: string;
@@ -344,6 +347,7 @@ export type AgentTrajectory = {
 };
 
 export async function streamAgentTurn({
+  attachments,
   allowedTools,
   editTurnId,
   input,
@@ -359,6 +363,7 @@ export async function streamAgentTurn({
   allowedTools?: string[];
   editTurnId?: string;
   input: string;
+  attachments?: AgentAttachment[];
   model?: string;
   onEvent: (event: AgentStreamEvent) => void;
   requestId: string;
@@ -373,6 +378,17 @@ export async function streamAgentTurn({
       ...(allowedTools ? { allowed_tools: allowedTools } : {}),
       ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
       input,
+      ...(attachments?.length
+        ? {
+            attachments: attachments.map(
+              ({ name, media_type, data_base64 }) => ({
+                name,
+                media_type,
+                data_base64,
+              })
+            ),
+          }
+        : {}),
       ...(model ? { model } : {}),
       request_id: requestId,
       ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
@@ -874,6 +890,9 @@ export function projectAgentSession(session: AgentSession): {
         status: "running",
         thought: "",
         user: input,
+        ...(Array.isArray(payload.attachments)
+          ? { attachments: payload.attachments as AgentAttachment[] }
+          : {}),
       });
     } else if (event.kind === "model_output" && turnId) {
       const turn = turns.get(turnId);
@@ -1159,7 +1178,7 @@ function agentIdentity(value: unknown): AgentIdentity {
   return { capabilities, id, label, role };
 }
 
-function agentHeaders(accept: string, json: boolean) {
+export function agentHeaders(accept: string, json: boolean) {
   const headers = new Headers({ Accept: accept });
   if (json) {
     headers.set("Content-Type", "application/json");
@@ -1458,6 +1477,11 @@ function agentModel(value: unknown): AgentModel {
     reasoningEfforts: selectableValues(capabilities.reasoning, "efforts"),
     selected: object.selected,
     serviceTiers: selectableValues(capabilities.service_tiers, "tiers"),
+    inputModalities: Array.isArray(capabilities.input_modalities)
+      ? capabilities.input_modalities.filter(
+          (modality): modality is string => typeof modality === "string"
+        )
+      : ["text"],
   };
 }
 
