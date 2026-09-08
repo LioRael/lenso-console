@@ -1,5 +1,21 @@
 ## @lenso/console-web@0.1.7
 
+## 1.5.0
+
+### Minor Changes
+
+- b1c52b9: Add named MCP connections from Connections using remote HTTP endpoints or local commands. Validate configuration and publish through the existing revision-checked Plugin workflow, preserving drafts on failure and rejecting duplicate names.
+- 5d4ea75: Support parallel project workspaces, simplify Agent task controls and change review, and share image and text attachments across full-page and mini Agent conversations. Preserve attachment references in history and show explicit errors when an attachment cannot be restored.
+- b1c52b9: Unify rich Markdown composers, slash commands, context references, and Profile Skill selection across Agent surfaces. Show ordered turn activity with compact tool details and readable errors, collapse completed work, and branch completed replies into durable chats with source links.
+- b1c52b9: Add dedicated Agent Profile list and edit pages with template duplication, instructions, searchable capability lists, and bulk enable/disable controls. Save drafts in the editor and activate Profiles explicitly from the list, with revision conflict handling and unsaved-navigation protection.
+
+  Keep Agent-wide permissions in Agent settings and provider configuration in the Plugin workbench.
+
+### Patch Changes
+
+- b1c52b9: Prefer browser ChatGPT sign-in on localhost while retaining device-code sign-in for remote Hosts and callback-port conflicts. Open the authorization window from the user gesture and retain the manual continuation link when popups are blocked.
+- b1c52b9: Simplify Settings into Preferences, Profiles, and Connections. Move global tool restrictions to an advanced entry, show blocked tools accurately in Profile editing, and distinguish instruction sources from custom instructions. Preserve legacy settings URLs through redirects.
+
 ## 1.4.0
 
 ### Minor Changes
