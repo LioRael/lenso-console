@@ -1,0 +1,415 @@
+import "@fontsource-variable/inter/wght.css";
+import { Button } from "@lenso/ui/button";
+import { Dialog } from "@lenso/ui/dialog";
+import { IconButton } from "@lenso/ui/icon-button";
+import * as stylex from "@stylexjs/stylex";
+import {
+  ArrowUp,
+  Box,
+  ChevronDown,
+  Minus,
+  MoreHorizontal,
+  MoveDiagonal2,
+  Paperclip,
+  Search,
+  Square,
+  UsersRound,
+  X,
+} from "lucide-react";
+import { useEffect, useRef, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+
+import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
+import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
+import { AgentAskUser } from "./agent-ask-user";
+import { AgentMarkdown } from "./agent-markdown";
+import {
+  AgentMessageActions,
+  EditingMessageBar,
+} from "./agent-message-controls";
+import agentPointerGradient from "./agent-pointer-gradient.svg";
+import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
+import type { AgentTurn } from "./agent-runtime";
+import { AgentShimmerText } from "./agent-shimmer-text";
+import { useAgentConversation } from "./use-agent-conversation";
+
+const suggestions = [
+  { icon: Box, label: "Create a new App" },
+  { icon: Search, label: "Research a topic" },
+  { icon: UsersRound, label: "Set up new team" },
+] as const;
+
+function chatTitleFor(prompt: string) {
+  const normalizedPrompt = (prompt.split(/[.!?]/u)[0] || prompt).replace(
+    /\bthe word\s+/iu,
+    ""
+  );
+  const words = normalizedPrompt
+    .replace(/[.!?]+$/u, "")
+    .trim()
+    .split(/\s+/u)
+    .slice(0, 4);
+  return words.join(" ") || "New chat";
+}
+
+export function AgentQuickConversation({
+  agentId,
+  active,
+  host,
+  initialDraft,
+  onClose,
+  onMinimize,
+  onMetadata,
+  onOpenFullPage,
+}: {
+  agentId: string;
+  active: boolean;
+  host: HTMLDivElement | null;
+  initialDraft?: string | undefined;
+  onClose: () => void;
+  onMinimize: () => void;
+  onMetadata: (
+    title: string,
+    hasConversation: boolean,
+    running: boolean
+  ) => void;
+  onOpenFullPage: (agentId: string, sessionId?: string) => void;
+}) {
+  const selectedAgent = { id: agentId };
+  const {
+    answerInteraction,
+    beginEditing: beginEditingTurn,
+    canCancel,
+    canEdit,
+    cancelEditing: cancelEditingTurn,
+    cancelRunningTurn,
+    draft,
+    editingTurnId,
+    isRunning,
+    isAnsweringInteraction,
+    pendingInteraction,
+    runtimeError,
+    sessionId,
+    setDraft,
+    submit,
+    turns,
+    visibleTurns,
+  } = useAgentConversation({ targetId: selectedAgent.id });
+  const conversationRef = useRef<HTMLElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const appliedDraftRequest = useRef(false);
+
+  const hasConversation = turns.length > 0 || isRunning;
+  const isEditing = Boolean(editingTurnId);
+  const showWelcome = !hasConversation && !draft.trim();
+  const title = turns[0]?.user ? chatTitleFor(turns[0].user) : "New chat";
+
+  useEffect(() => {
+    const conversation = conversationRef.current;
+    if (conversation) {
+      conversation.scrollTop = conversation.scrollHeight;
+    }
+  }, [active, host, isRunning, visibleTurns]);
+
+  useEffect(() => {
+    onMetadata(title, hasConversation, isRunning);
+  }, [title, hasConversation, isRunning, onMetadata]);
+
+  useEffect(() => {
+    if (!appliedDraftRequest.current && initialDraft) {
+      appliedDraftRequest.current = true;
+      setDraft(initialDraft);
+    }
+  }, [initialDraft, setDraft]);
+
+  useEffect(() => {
+    if (active && host) {
+      const frame = requestAnimationFrame(() => textareaRef.current?.focus());
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [active, host]);
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    submit();
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  };
+
+  const beginEditing = (turn: AgentTurn) => {
+    beginEditingTurn(turn);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  };
+
+  const cancelEditing = () => {
+    cancelEditingTurn();
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  };
+
+  if (!active || !host) {
+    return null;
+  }
+  return createPortal(
+    <>
+      <header {...stylex.props(styles.header)}>
+        <Dialog.Title xstyle={styles.title}>{title}</Dialog.Title>
+        {hasConversation ? (
+          <IconButton
+            aria-label="Chat options"
+            size="default"
+            variant="ghost"
+            xstyle={styles.chatOptions}
+          >
+            <MoreHorizontal aria-hidden="true" size={14} />
+          </IconButton>
+        ) : null}
+        <div {...stylex.props(styles.headerActions)}>
+          <IconButton
+            aria-label="Minimize chat"
+            onClick={onMinimize}
+            size="default"
+            variant="ghost"
+            xstyle={styles.headerAction}
+          >
+            <Minus aria-hidden="true" size={14} strokeWidth={1.7} />
+          </IconButton>
+          <IconButton
+            aria-label="Open full page"
+            onClick={() => {
+              onMinimize();
+              onOpenFullPage(selectedAgent.id, sessionId);
+            }}
+            size="default"
+            variant="ghost"
+            xstyle={styles.headerAction}
+          >
+            <MoveDiagonal2 aria-hidden="true" size={14} strokeWidth={1.7} />
+          </IconButton>
+          <IconButton
+            aria-label="Close chat"
+            onClick={onClose}
+            size="default"
+            variant="ghost"
+            xstyle={styles.headerAction}
+          >
+            <X aria-hidden="true" size={14} strokeWidth={1.7} />
+          </IconButton>
+        </div>
+      </header>
+
+      <div
+        {...stylex.props(styles.body, showWelcome && styles.bodyEmpty)}
+        data-conversation={!showWelcome || undefined}
+      >
+        {showWelcome ? (
+          <>
+            <div {...stylex.props(styles.welcome)}>
+              <img
+                alt=""
+                aria-hidden="true"
+                className={stylex.props(styles.welcomeIcon).className}
+                height={14}
+                src={agentPointerGradient}
+                width={14}
+              />
+              <strong {...stylex.props(styles.welcomeTitle)}>
+                Welcome to Lenso
+              </strong>
+              <span {...stylex.props(styles.welcomeSubtitle)}>
+                Ask anything or tell Lenso what you need
+              </span>
+            </div>
+
+            <div
+              aria-label="Agent suggestions"
+              {...stylex.props(styles.suggestions)}
+            >
+              {suggestions.map((suggestion) => {
+                const Icon = suggestion.icon;
+                return (
+                  <Button
+                    key={suggestion.label}
+                    onClick={() => setDraft(suggestion.label)}
+                    size="compact"
+                    variant="secondary"
+                    xstyle={styles.suggestion}
+                  >
+                    <Icon aria-hidden="true" size={14} strokeWidth={1.6} />
+                    <span {...stylex.props(styles.suggestionLabel)}>
+                      {suggestion.label}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
+          </>
+        ) : isEditing ? null : (
+          <section
+            aria-label="Agent conversation"
+            {...stylex.props(styles.conversation)}
+            ref={conversationRef}
+          >
+            <time {...stylex.props(styles.conversationTime)}>Today</time>
+            {visibleTurns.map((turn) => (
+              <div {...stylex.props(styles.quickTurn)} key={turn.id}>
+                <div {...stylex.props(styles.userTurn)}>
+                  <div {...stylex.props(styles.userMessage)}>{turn.user}</div>
+                  <div {...stylex.props(styles.messageActions)}>
+                    <AgentMessageActions
+                      content={turn.user}
+                      {...(canEdit && turn.status === "completed"
+                        ? { onEdit: () => beginEditing(turn) }
+                        : {})}
+                    />
+                  </div>
+                </div>
+                <div {...stylex.props(styles.assistantTurn)}>
+                  {turn.tools?.length ? (
+                    <PluginAgentReceipts tools={turn.tools} />
+                  ) : null}
+                  {turn.answer ? (
+                    <AgentMarkdown streaming={turn.status === "running"}>
+                      {turn.answer}
+                    </AgentMarkdown>
+                  ) : null}
+                  {turn.status === "running" ? (
+                    <p>
+                      <AgentShimmerText active>Working…</AgentShimmerText>
+                    </p>
+                  ) : null}
+                  {turn.error ? <p>{turn.error}</p> : null}
+                  {turn.answer ? (
+                    <div {...stylex.props(styles.assistantCopy)}>
+                      <AgentMessageActions content={turn.answer} />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {runtimeError ? (
+              <div {...stylex.props(styles.assistantTurn)}>
+                <p>{runtimeError}</p>
+              </div>
+            ) : null}
+          </section>
+        )}
+
+        <div {...stylex.props(styles.composerDock)}>
+          {pendingInteraction ? (
+            <AgentAskUser
+              canCancel={canCancel}
+              compact
+              interaction={pendingInteraction}
+              isSubmitting={isAnsweringInteraction}
+              onCancel={cancelRunningTurn}
+              onSubmit={answerInteraction}
+            />
+          ) : (
+            <div
+              {...stylex.props(
+                styles.inputWrapper,
+                isEditing && styles.inputWrapperEditing
+              )}
+              data-editing={isEditing || undefined}
+            >
+              <div
+                aria-hidden={!isEditing}
+                {...stylex.props(
+                  styles.editingSlot,
+                  isEditing && styles.editingSlotOpen
+                )}
+                data-open={isEditing || undefined}
+              >
+                <div {...stylex.props(styles.editingSlotContent)}>
+                  <EditingMessageBar compact onCancel={cancelEditing} />
+                </div>
+              </div>
+              <PromptComposer.Root
+                xstyle={styles.composer}
+                maxRows={6}
+                onSubmit={onSubmit}
+                onValueChange={setDraft}
+                submitShortcut="enter"
+                surfaceXstyle={styles.composerSurface}
+                value={draft}
+              >
+                <PromptComposer.Input
+                  aria-label="Send a message to Lenso Agent"
+                  autoFocus
+                  xstyle={styles.textarea}
+                  placeholder={
+                    hasConversation
+                      ? "Reply…"
+                      : "@ to mention any App, Plugin, or workspace"
+                  }
+                  ref={textareaRef}
+                  rows={1}
+                />
+                <PromptComposer.Toolbar xstyle={styles.composerFooter}>
+                  <Button
+                    aria-label="Skills"
+                    size="compact"
+                    variant="ghost"
+                    xstyle={styles.skills}
+                  >
+                    <Box aria-hidden="true" size={14} strokeWidth={1.6} />
+                    Skills
+                    <ChevronDown aria-hidden="true" size={8} strokeWidth={2} />
+                  </Button>
+                  <PromptComposer.Actions xstyle={styles.composerActions}>
+                    <IconButton
+                      aria-label="Attach images, files, or videos"
+                      size="compact"
+                      variant="ghost"
+                      xstyle={styles.attach}
+                    >
+                      <Paperclip
+                        aria-hidden="true"
+                        size={14}
+                        strokeWidth={1.7}
+                      />
+                    </IconButton>
+                    <IconButton
+                      aria-label={
+                        isRunning ? "Stop generating" : "Submit comment"
+                      }
+                      data-active={
+                        (isRunning ? canCancel : Boolean(draft.trim())) ||
+                        undefined
+                      }
+                      disabled={isRunning ? !canCancel : !draft.trim()}
+                      onClick={isRunning ? cancelRunningTurn : undefined}
+                      size="compact"
+                      type={isRunning ? "button" : "submit"}
+                      variant="secondary"
+                      xstyle={[
+                        styles.submit,
+                        (isRunning ? canCancel : Boolean(draft.trim())) &&
+                          styles.submitActive,
+                      ]}
+                    >
+                      {isRunning ? (
+                        <Square
+                          aria-hidden="true"
+                          fill="currentColor"
+                          size={8}
+                          strokeWidth={0}
+                        />
+                      ) : (
+                        <ArrowUp
+                          aria-hidden="true"
+                          size={16}
+                          strokeWidth={1.7}
+                        />
+                      )}
+                    </IconButton>
+                  </PromptComposer.Actions>
+                </PromptComposer.Toolbar>
+              </PromptComposer.Root>
+            </div>
+          )}
+        </div>
+      </div>
+    </>,
+    host
+  );
+}
