@@ -79,6 +79,8 @@ describe("Agent runtime projection", () => {
     expect(projected.turns).toEqual([
       {
         answer: "Hi there",
+        startedAt: "2026-08-29T00:00:00Z",
+        answeredAt: "2026-08-29T00:00:00Z",
         id: "turn-1",
         status: "completed",
         thought: "",

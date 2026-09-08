@@ -1,19 +1,41 @@
 import * as stylex from "@stylexjs/stylex";
 
+export const messageGroup = stylex.defineMarker();
+
 export const agentMessageControlStyles = stylex.create({
   action: {
     borderRadius: "var(--radius-rounded)",
-    color: "lch(66 1 282)",
+    color: "var(--color-content-tertiary)",
     height: "24px",
     minWidth: "24px",
     padding: "0 2px",
     width: "24px",
   },
   actions: {
+    alignItems: "center",
     display: "flex",
     gap: "2px",
     height: "24px",
+    opacity: {
+      default: 0,
+      [stylex.when.ancestor(":hover", messageGroup)]: 1,
+      [stylex.when.ancestor(":focus-within", messageGroup)]: 1,
+      "@media (hover: none)": 1,
+    },
+    pointerEvents: {
+      default: "none",
+      [stylex.when.ancestor(":hover", messageGroup)]: "auto",
+      [stylex.when.ancestor(":focus-within", messageGroup)]: "auto",
+      "@media (hover: none)": "auto",
+    },
   },
+  time: {
+    color: "var(--color-content-tertiary)",
+    fontSize: "10px",
+    fontVariantNumeric: "tabular-nums",
+    marginInlineEnd: "6px",
+  },
+  actionIcon: { height: "10px", width: "10px" },
   cancel: {
     borderColor: "transparent",
     borderRadius: "var(--radius-rounded)",

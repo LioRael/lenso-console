@@ -378,6 +378,7 @@ export function useAgentConversation({
         {
           answer: "",
           id: pendingTurnId,
+          startedAt: new Date().toISOString(),
           status: "running",
           thought: "",
           user: prompt,

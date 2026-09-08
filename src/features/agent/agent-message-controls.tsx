@@ -7,16 +7,33 @@ import { agentMessageControlStyles as styles } from "./agent-message-controls.st
 export function AgentMessageActions({
   content,
   onEdit,
+  timestamp,
 }: {
   content: string;
+  timestamp?: string | undefined;
   onEdit?: () => void;
 }) {
+  const date = timestamp ? new Date(timestamp) : undefined;
+  const validDate = date && !Number.isNaN(date.getTime()) ? date : undefined;
   const copyMessage = () => {
     void navigator.clipboard?.writeText(content);
   };
 
   return (
     <div {...stylex.props(styles.actions)}>
+      {validDate ? (
+        <time
+          dateTime={validDate.toISOString()}
+          title={validDate.toLocaleString()}
+          {...stylex.props(styles.time)}
+        >
+          {validDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })}
+        </time>
+      ) : null}
       <IconButton
         aria-label="Copy message"
         onClick={copyMessage}
@@ -26,8 +43,8 @@ export function AgentMessageActions({
       >
         <Copy
           aria-hidden="true"
-          className={stylex.props(styles.icon).className}
-          size={12}
+          className={stylex.props(styles.actionIcon).className}
+          size={10}
           strokeWidth={1.7}
         />
       </IconButton>
@@ -41,8 +58,8 @@ export function AgentMessageActions({
         >
           <Pencil
             aria-hidden="true"
-            className={stylex.props(styles.icon).className}
-            size={12}
+            className={stylex.props(styles.actionIcon).className}
+            size={10}
             strokeWidth={1.7}
           />
         </IconButton>

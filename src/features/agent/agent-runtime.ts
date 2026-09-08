@@ -268,6 +268,8 @@ export type AgentToolCall = {
 };
 
 export type AgentTurn = {
+  startedAt?: string;
+  answeredAt?: string;
   answer: string;
   error?: string;
   id: string;
@@ -868,6 +870,7 @@ export function projectAgentSession(session: AgentSession): {
       turns.set(turnId, {
         answer: "",
         id: turnId,
+        startedAt: event.occurredAt,
         status: "running",
         thought: "",
         user: input,
@@ -876,6 +879,7 @@ export function projectAgentSession(session: AgentSession): {
       const turn = turns.get(turnId);
       if (turn) {
         turn.answer += stringValue(payload.text);
+        turn.answeredAt = event.occurredAt;
       }
     } else if (
       (event.kind === "tool_requested" || event.kind === "tool_result") &&
@@ -891,6 +895,7 @@ export function projectAgentSession(session: AgentSession): {
       if (turn) {
         turn.answer = stringValue(payload.output) || turn.answer;
         turn.status = "completed";
+        turn.answeredAt = event.occurredAt;
         assignWorkDuration(turn, turnStartedAt.get(turnId), event.occurredAt);
       }
     } else if (

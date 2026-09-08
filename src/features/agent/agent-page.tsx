@@ -49,6 +49,7 @@ import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
+import { messageGroup } from "./agent-message-controls.stylex";
 import { hasAgentConversation } from "./agent-page-state";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 import { AgentProjectContext } from "./agent-project-context";
@@ -790,11 +791,12 @@ function AgentConversation({
         <time {...stylex.props(styles.conversationTime)}>Today</time>
         {turns.map((turn) => (
           <div {...stylex.props(styles.turn)} key={turn.id}>
-            <div {...stylex.props(styles.userMessageGroup)}>
+            <div {...stylex.props(styles.userMessageGroup, messageGroup)}>
               <div {...stylex.props(styles.userMessage)}>{turn.user}</div>
               <div {...stylex.props(styles.userMessageActions)}>
                 <AgentMessageActions
                   content={turn.user}
+                  timestamp={turn.startedAt}
                   {...(canEdit ? { onEdit: () => onEdit(turn) } : {})}
                 />
               </div>
@@ -829,24 +831,29 @@ function AgentConversation({
                 <PluginAgentReceipts tools={turn.tools} />
               </>
             ) : null}
-            <div {...stylex.props(styles.assistantMessage)}>
-              {turn.answer ? (
-                <AgentMarkdown streaming={turn.status === "running"}>
-                  {turn.answer}
-                </AgentMarkdown>
-              ) : null}
-              {turn.status === "running" && !turn.work ? (
-                <p>
-                  <AgentShimmerText active>Working…</AgentShimmerText>
-                </p>
-              ) : null}
-              {turn.error ? <p>{turn.error}</p> : null}
-            </div>
-            {turn.answer ? (
-              <div {...stylex.props(styles.copyMessage)}>
-                <AgentMessageActions content={turn.answer} />
+            <div {...stylex.props(messageGroup)}>
+              <div {...stylex.props(styles.assistantMessage)}>
+                {turn.answer ? (
+                  <AgentMarkdown streaming={turn.status === "running"}>
+                    {turn.answer}
+                  </AgentMarkdown>
+                ) : null}
+                {turn.status === "running" && !turn.work ? (
+                  <p>
+                    <AgentShimmerText active>Working…</AgentShimmerText>
+                  </p>
+                ) : null}
+                {turn.error ? <p>{turn.error}</p> : null}
               </div>
-            ) : null}
+              {turn.answer ? (
+                <div {...stylex.props(styles.copyMessage)}>
+                  <AgentMessageActions
+                    content={turn.answer}
+                    timestamp={turn.answeredAt}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         ))}
         {runtimeError ? (

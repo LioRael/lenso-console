@@ -148,7 +148,11 @@ function updateTurn(
 
 function applyImmediateEvent(turn: AgentTurn, event: AgentStreamEvent) {
   if (event.type === "turn_completed") {
-    return { ...turn, status: "completed" as const };
+    return {
+      ...turn,
+      answeredAt: new Date().toISOString(),
+      status: "completed" as const,
+    };
   }
   if (event.type === "turn_cancelled") {
     return { ...turn, status: "cancelled" as const };
