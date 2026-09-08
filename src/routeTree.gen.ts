@@ -17,6 +17,7 @@ import { Route as AgentChatIdRouteImport } from './routes/agent.$chatId'
 import { Route as SettingsAgentRouteImport } from './routes/settings_.agent'
 import { Route as SettingsAiRouteImport } from './routes/settings_.ai'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings_.appearance'
+import { Route as SettingsConnectionsRouteImport } from './routes/settings_.connections'
 import { Route as SettingsProfilesRouteImport } from './routes/settings_.profiles'
 import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
 import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
@@ -64,6 +65,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/settings/appearance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
+  id: '/settings_/connections',
+  path: '/settings/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsProfilesRoute = SettingsProfilesRouteImport.update({
   id: '/settings_/profiles',
   path: '/settings/profiles',
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/settings/agent': typeof SettingsAgentRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/settings/agent': typeof SettingsAgentRoute
   '/settings/ai': typeof SettingsAiRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/settings_/agent': typeof SettingsAgentRoute
   '/settings_/ai': typeof SettingsAiRoute
   '/settings_/appearance': typeof SettingsAppearanceRoute
+  '/settings_/connections': typeof SettingsConnectionsRoute
   '/settings_/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings_/ai_/agent': typeof SettingsAiAgentRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/settings/agent'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/connections'
     | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/settings/agent'
     | '/settings/ai'
     | '/settings/appearance'
+    | '/settings/connections'
     | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/settings_/agent'
     | '/settings_/ai'
     | '/settings_/appearance'
+    | '/settings_/connections'
     | '/settings_/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings_/ai_/agent'
@@ -206,6 +218,7 @@ export interface RootRouteChildren {
   SettingsAgentRoute: typeof SettingsAgentRoute
   SettingsAiRoute: typeof SettingsAiRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SettingsProfilesRoute: typeof SettingsProfilesRoute
   AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
   SettingsAiAgentRoute: typeof SettingsAiAgentRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/connections': {
+      id: '/settings_/connections'
+      path: '/settings/connections'
+      fullPath: '/settings/connections'
+      preLoaderRoute: typeof SettingsConnectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings_/profiles': {
       id: '/settings_/profiles'
       path: '/settings/profiles'
@@ -326,6 +346,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsAgentRoute: SettingsAgentRoute,
   SettingsAiRoute: SettingsAiRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsConnectionsRoute: SettingsConnectionsRoute,
   SettingsProfilesRoute: SettingsProfilesRoute,
   AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
   SettingsAiAgentRoute: SettingsAiAgentRoute,

@@ -80,6 +80,11 @@ export function providerGroup(item: PluginWorkbenchItem): string {
   ) {
     return "Tool providers & MCP";
   }
+  if (
+    capabilities.some((id) => id.startsWith("lenso.agent.prompt-provider@"))
+  ) {
+    return "Instruction sources";
+  }
   return "Other providers";
 }
 export function providerEnabled(

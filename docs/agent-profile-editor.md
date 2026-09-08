@@ -13,3 +13,9 @@ Profile Tool choices intersect Agent-wide permissions and the resolved catalog. 
 The Agent exposes authorized GET/POST `control/profiles` and POST `control/profile` with an optional `expectedRevision`. Console proxies these only with Plugin configuration capability. Hosts using file authority report that editing requires SQLite management.
 
 Validation covers draft isolation, revision conflicts, invalid dependencies, online activation, restart recovery, filtered bulk editing, unknown-field preservation, and retaining input after a failed save. Existing Profile import and session-prompt refresh tests remain in the focused regression suite.
+
+## Settings ownership
+
+Preferences owns appearance and locale. Connections owns account access, model-service configuration, and MCP configuration links to the Plugin workbench. Profiles owns instructions and capability selection. The old Guidance page redirects to Profiles; the old AI & Agents overview redirects to Connections. Runtime prompt/resource catalogs are not presented as editable behavior settings.
+
+Global tool restrictions are available through Connections > Advanced. Profiles show restricted tools as blocked and disabled; bulk enabling skips those tools. Existing saved selections are preserved until explicitly edited, while effective availability respects the global ceiling. Instruction sources have their own capability category, with a link to their owning Plugin and a required-source label when the source cannot be disabled.

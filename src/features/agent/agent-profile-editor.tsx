@@ -131,7 +131,8 @@ export function AgentProfileEditor({
   );
   const providerItems = items.filter(
     (item) =>
-      item.management?.disableable &&
+      (item.management?.disableable ||
+        providerGroup(item) === "Instruction sources") &&
       providerId(item) !== profile?.document.agent
   );
   const unknown = profile
@@ -151,6 +152,7 @@ export function AgentProfileEditor({
     "Tool providers & MCP",
     "Skills & context",
     "Instruments",
+    "Instruction sources",
     "Other providers",
   ];
   const visibleProviders = providerItems.filter(
@@ -159,7 +161,10 @@ export function AgentProfileEditor({
   const isTools = category === "Tools";
   const resultCount = isTools ? visibleTools.length : visibleProviders.length;
   const selectedCount = isTools
-    ? visibleTools.filter((tool) => allowed.has(tool.name)).length
+    ? visibleTools.filter(
+        (tool) =>
+          allowed.has(tool.name) && tools.data?.allowed.includes(tool.name)
+      ).length
     : visibleProviders.filter(
         (item) => profile && providerEnabled(profile.document, item)
       ).length;
@@ -171,11 +176,19 @@ export function AgentProfileEditor({
       isTools
         ? toggleTools(
             profile.document,
-            visibleTools.map((tool) => tool.name),
+            visibleTools
+              .filter(
+                (tool) => !enabled || tools.data?.allowed.includes(tool.name)
+              )
+              .map((tool) => tool.name),
             enabled,
             tools.data?.allowed ?? []
           )
-        : toggleProviders(profile.document, visibleProviders, enabled)
+        : toggleProviders(
+            profile.document,
+            visibleProviders.filter((item) => item.management?.disableable),
+            enabled
+          )
     );
   };
   return (
@@ -318,7 +331,8 @@ export function AgentProfileEditor({
                     placeholder="How should this Agent approach its work?"
                   />
                   <span {...stylex.props(ui.hint)}>
-                    Added to the instructions from enabled providers.
+                    Your instructions are combined with enabled instruction
+                    sources. Select those sources in Capabilities below.
                   </span>
                 </label>
               </>
@@ -429,7 +443,8 @@ export function AgentProfileEditor({
                         </span>
                         {tools.data?.allowed.includes(tool.name) ? null : (
                           <span {...stylex.props(ui.hint)}>
-                            Blocked by Agent-wide permissions
+                            Blocked by global tool restrictions.{" "}
+                            <a href="/settings/ai/agent">Review limits</a>
                           </span>
                         )}
                       </div>
@@ -437,17 +452,28 @@ export function AgentProfileEditor({
                         <span
                           {...stylex.props(
                             ui.readOnlyState,
-                            allowed.has(tool.name) && ui.enabledState
+                            allowed.has(tool.name) &&
+                              tools.data?.allowed.includes(tool.name) &&
+                              ui.enabledState
                           )}
                         >
-                          {allowed.has(tool.name) ? "Enabled" : "Off"}
+                          {tools.data?.allowed.includes(tool.name)
+                            ? allowed.has(tool.name)
+                              ? "Enabled"
+                              : "Off"
+                            : "Blocked"}
                         </span>
                       ) : (
                         <Switch.Root
                           layout="control-only"
                           aria-label={`Profile tool ${tool.name}`}
-                          disabled={busy}
-                          checked={allowed.has(tool.name)}
+                          disabled={
+                            busy || !tools.data?.allowed.includes(tool.name)
+                          }
+                          checked={
+                            allowed.has(tool.name) &&
+                            Boolean(tools.data?.allowed.includes(tool.name))
+                          }
                           onCheckedChange={(checked) =>
                             edit(
                               toggleTools(
@@ -478,6 +504,19 @@ export function AgentProfileEditor({
                         >
                           {providerId(item)}
                         </span>
+                        {providerGroup(item) === "Instruction sources" ? (
+                          <span {...stylex.props(ui.hint)}>
+                            {item.management?.disableable
+                              ? "Plugin-provided instructions"
+                              : "Required instruction source"}{" "}
+                            ·{" "}
+                            <a
+                              href={`/plugins/${encodeURIComponent(agent.id)}/${encodeURIComponent(item.packageId)}/${encodeURIComponent(item.instanceKey)}`}
+                            >
+                              View configuration
+                            </a>
+                          </span>
+                        ) : null}
                       </div>
                       {profile.readOnly ? (
                         <span
@@ -495,7 +534,7 @@ export function AgentProfileEditor({
                         <Switch.Root
                           layout="control-only"
                           aria-label={`Profile provider ${providerId(item)}`}
-                          disabled={busy}
+                          disabled={busy || !item.management?.disableable}
                           checked={providerEnabled(profile.document, item)}
                           onCheckedChange={(checked) =>
                             edit(
