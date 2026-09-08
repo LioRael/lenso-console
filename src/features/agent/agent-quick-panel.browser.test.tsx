@@ -266,9 +266,9 @@ describe("Agent quick panel", () => {
     const probe = document.createElement("div");
     probe.style.backgroundColor = "var(--color-surface-panel)";
     body.append(probe);
-    expect(getComputedStyle(body).backgroundColor).toBe(
-      getComputedStyle(probe).backgroundColor
-    );
+    await expect
+      .poll(() => getComputedStyle(body).backgroundColor)
+      .toBe(getComputedStyle(probe).backgroundColor);
     expect(getComputedStyle(body).backgroundColor).not.toBe(
       "rgb(255, 255, 255)"
     );
