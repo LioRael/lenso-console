@@ -17,3 +17,9 @@ dist/
 # Generated browser test diagnostics
 .vitest-attachments/
 src/**/__screenshots__/
+
+# Rust build artifacts and compiler/coverage scratch files
+target/
+**/*.rs.bk
+*.profraw
+*.profdata
