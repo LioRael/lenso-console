@@ -35,6 +35,9 @@ export default defineConfig({
   },
   plugins: [react(), consoleStylex()],
   test: {
+    // StyleX development styles are shared by the Vite server. Keep browser
+    // files serial so concurrent transforms cannot invalidate another page.
+    fileParallelism: false,
     browser: {
       enabled: true,
       instances: [{ browser: "chromium" }],
