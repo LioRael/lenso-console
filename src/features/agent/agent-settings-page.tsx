@@ -15,6 +15,7 @@ import {
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
 import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
+import { AddMcpConnection } from "./add-mcp-connection";
 import { useAgentIdentity } from "./agent-identity-context";
 import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
@@ -155,6 +156,13 @@ function AgentSettingsContent({
                 items={items.filter((item) =>
                   provides(item, "lenso.agent.model")
                 )}
+              />
+              <AddMcpConnection
+                agentId={agent.id}
+                data={workbench.data}
+                onAdded={() => {
+                  void workbench.refetch();
+                }}
               />
               <ProviderSection
                 agentId={agent.id}

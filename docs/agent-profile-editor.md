@@ -19,3 +19,9 @@ Validation covers draft isolation, revision conflicts, invalid dependencies, onl
 Preferences owns appearance and locale. Connections owns account access, model-service configuration, and MCP configuration links to the Plugin workbench. Profiles owns instructions and capability selection. The old Guidance page redirects to Profiles; the old AI & Agents overview redirects to Connections. Runtime prompt/resource catalogs are not presented as editable behavior settings.
 
 Global tool restrictions are available through Connections > Advanced. Profiles show restricted tools as blocked and disabled; bulk enabling skips those tools. Existing saved selections are preserved until explicitly edited, while effective availability respects the global ceiling. Instruction sources have their own capability category, with a link to their owning Plugin and a required-source label when the source cannot be disabled.
+
+### Adding MCP connections
+
+Connections > Add MCP creates a named `lenso.agent.mcp-client` instance through the existing configuration proposal/publication API. Remote URLs support an optional Host Authorization environment-variable reference. Local commands require absolute executable and working-directory paths, literal arguments (one per line), and optional Host environment-variable names. Secret values are not collected by this form.
+
+The new-instance precondition uses the Host's versioned absent-source digest, preventing accidental replacement; root revisions and Host stream IDs fence publication. Proposal rejection prevents publishing. Configuration validation does not claim network connectivity: the MCP lifecycle checks the connection when enabled. Profiles choose whether to include the resulting provider.
