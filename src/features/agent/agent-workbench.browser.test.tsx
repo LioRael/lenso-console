@@ -167,6 +167,7 @@ test("review shows successful captured diffs as text and keeps a fresh review ex
 });
 
 test("a project task exposes its streamed diff in the existing conversation page", async () => {
+  const savedTitles: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -183,6 +184,24 @@ test("a project task exposes its streamed diff in the existing conversation page
             },
           ],
         });
+      }
+      if (url.endsWith("/sessions")) {
+        return Response.json({
+          sessions: [
+            {
+              sessionId: "project-task",
+              revision: "1",
+              titleRevision: "1",
+              title: "Review the change",
+              updatedAt: "2026-09-08T00:00:00Z",
+            },
+          ],
+        });
+      }
+      if (init?.method === "PATCH") {
+        const { title: nextTitle } = JSON.parse(String(init.body));
+        savedTitles.push(nextTitle);
+        return Response.json({ title: nextTitle, titleRevision: "2" });
       }
       if (url.endsWith("/bootstrap")) {
         return Response.json({
@@ -276,15 +295,41 @@ test("a project task exposes its streamed diff in the existing conversation page
   ).toBeNull();
   expect(container?.querySelector('select[aria-label="Agent"]')).toBeNull();
   const title = page.getByRole("button", { name: /^Rename conversation:/ });
+  const before = title.element().getBoundingClientRect();
   await title.dblClick();
   await expect
     .element(page.getByRole("textbox", { name: "Conversation title" }))
     .toBeVisible();
+  const input = page
+    .getByRole("textbox", { name: "Conversation title" })
+    .element() as HTMLInputElement;
+  expect(input.getBoundingClientRect().width).toBeCloseTo(before.width, 0);
+  expect(input.getBoundingClientRect().x).toBeCloseTo(before.x, 0);
+  expect(input.selectionStart).toBe(0);
+  expect(input.selectionEnd).toBe(input.value.length);
+  expect(
+    page.getByRole("button", { name: "Save", exact: true }).elements()
+  ).toHaveLength(0);
   await page
     .getByRole("textbox", { name: "Conversation title" })
     .fill("Renamed task");
   await userEvent.keyboard("{Escape}");
   await expect.element(title).toBeVisible();
+  expect(savedTitles).toEqual([]);
+  await title.dblClick();
+  await page
+    .getByRole("textbox", { name: "Conversation title" })
+    .fill("Saved with Enter");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(title).toHaveTextContent("Saved with Enter");
+  await title.dblClick();
+  await page
+    .getByRole("textbox", { name: "Conversation title" })
+    .fill("Saved on blur");
+  await page.getByRole("tab", { name: "Changes", exact: true }).click();
+  await expect.element(title).toHaveTextContent("Saved on blur");
+  expect(savedTitles).toEqual(["Saved with Enter", "Saved on blur"]);
+
   await page.getByRole("tab", { name: "Changes", exact: true }).click();
   expect(
     getComputedStyle(

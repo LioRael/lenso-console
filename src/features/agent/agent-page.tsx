@@ -567,20 +567,40 @@ function AgentHeader({
   const [savingTitle, setSavingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const renameInput = useRef<HTMLInputElement>(null);
+  const titleButton = useRef<HTMLButtonElement>(null);
+  const renameActive = useRef(false);
+  const renamePending = useRef(false);
+  const [titleWidth, setTitleWidth] = useState<number>();
 
   const beginRenaming = () => {
+    setTitleWidth(titleButton.current?.getBoundingClientRect().width);
+    renameActive.current = true;
     setTitleDraft(conversationTitle ?? "");
     setRenaming(true);
     requestAnimationFrame(() => renameInput.current?.select());
   };
   const saveRename = async () => {
+    if (!renameActive.current || renamePending.current) {
+      return;
+    }
+    const title = titleDraft.trim();
+    if (!title || title === conversationTitle) {
+      renameActive.current = false;
+      setRenaming(false);
+      return;
+    }
+    renamePending.current = true;
     setSavingTitle(true);
     try {
-      const renamed = await onRename?.(titleDraft);
+      const renamed = await onRename?.(title);
       if (renamed) {
+        renameActive.current = false;
         setRenaming(false);
+      } else {
+        renameInput.current?.focus();
       }
     } finally {
+      renamePending.current = false;
       setSavingTitle(false);
     }
   };
@@ -591,6 +611,7 @@ function AgentHeader({
         {renaming && onRename ? (
           <form
             {...stylex.props(styles.renameForm)}
+            style={{ width: titleWidth }}
             onSubmit={(event) => {
               event.preventDefault();
               void saveRename();
@@ -599,27 +620,33 @@ function AgentHeader({
             <input
               {...stylex.props(styles.renameInput)}
               aria-label="Conversation title"
-              disabled={savingTitle}
+              readOnly={savingTitle}
+              aria-busy={savingTitle}
+              onBlur={() => {
+                void saveRename();
+              }}
               maxLength={200}
               onChange={(event) => setTitleDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Escape") {
+                if (event.nativeEvent.isComposing) {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                  }
+                  return;
+                }
+                if (event.key === "Escape" && !renamePending.current) {
+                  event.preventDefault();
+                  renameActive.current = false;
                   setRenaming(false);
                 }
               }}
               ref={renameInput}
               value={titleDraft}
             />
-            <Button
-              disabled={savingTitle || !titleDraft.trim()}
-              size="compact"
-              type="submit"
-            >
-              Save
-            </Button>
           </form>
         ) : (
           <Button
+            ref={titleButton}
             aria-label={
               onRename
                 ? `Rename conversation: ${conversationTitle ?? "New chat"}`
