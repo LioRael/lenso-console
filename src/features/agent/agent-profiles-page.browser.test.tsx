@@ -33,14 +33,19 @@ afterEach(() => {
 });
 
 test("Profiles routes guard unsaved navigation and activate only from the list", async () => {
-  const profiles: EditableProfile[] = [
-    {
-      name: "default",
+  const profiles: EditableProfile[] = ["default", "plan", "code"].map(
+    (name) => ({
+      name,
       revision: "r0",
       readOnly: true,
       document: {
         agent: "lenso.agent.loop/agent",
-        description: "Default Profile",
+        description:
+          name === "default"
+            ? "General-purpose assistance."
+            : name === "plan"
+              ? "Explore options and plan the next steps."
+              : "Build and verify changes in your workspace.",
         instructions: "",
         model: null,
         include_enabled: true,
@@ -48,8 +53,8 @@ test("Profiles routes guard unsaved navigation and activate only from the list",
         excluded_instances: [],
         allowed_tools: null,
       },
-    },
-  ];
+    })
+  );
   const activations: unknown[] = [];
   let activeProfile: string | null = null;
   let activeRevision: string | null = null;
@@ -151,6 +156,19 @@ test("Profiles routes guard unsaved navigation and activate only from the list",
   document.body.append(container);
   root = createRoot(container);
   flushSync(() => root?.render(<RouterProvider router={router} />));
+  await expect
+    .element(page.getByRole("button", { name: "Actions for default" }))
+    .toBeVisible();
+  await page
+    .getByRole("searchbox", { name: "Search profiles" })
+    .fill("missing");
+  await expect
+    .element(page.getByText("No matching profiles", { exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Actions for default" }))
+    .toBeVisible();
   await page.getByText("New Profile", { exact: true }).click();
   await expect
     .element(page.getByRole("textbox", { name: "Profile instructions" }))
@@ -180,10 +198,16 @@ test("Profiles routes guard unsaved navigation and activate only from the list",
     .element(page.getByRole("button", { name: "Apply Profile" }))
     .not.toBeInTheDocument();
   await page.getByRole("link", { name: "Profiles", exact: true }).click();
-  await page.getByRole("button", { name: "Use review", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Actions for review", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Use review", exact: true }).click();
   await expect.poll(() => activations.length).toBe(1);
   expect(activations[0]).toEqual({ profile: "review", expectedRevision: "r1" });
+  await page
+    .getByRole("button", { name: "Actions for review", exact: true })
+    .click();
   await expect
-    .element(page.getByRole("button", { name: "Use review", exact: true }))
+    .element(page.getByRole("menuitem", { name: "Use review", exact: true }))
     .toBeDisabled();
 });

@@ -17,6 +17,7 @@ import "@lenso/tokens/styles.css";
 import "@lenso/ui/styles.css";
 import { AppManagementProvider } from "../apps/app-management-context";
 import { PluginAgentWorkbenchProvider } from "./plugin-agent-workbench-context";
+import { PluginDetailPage } from "./plugin-detail-page";
 import { PluginWorkbenchPage } from "./plugin-workbench-page";
 
 test("manages non-Agent Apps without an Agent identity provider and keeps all scopes isolated", async () => {
@@ -31,7 +32,14 @@ test("manages non-Agent Apps without an Agent identity provider and keeps all sc
       createRoute({
         getParentRoute: () => rootRoute,
         path: "/plugins/$agentId/$packageId/$instanceKey",
-        component: () => <h1>Plugin configuration</h1>,
+        component: () => {
+          const params = router.state.matches.at(-1)!.params as {
+            agentId: string;
+            packageId: string;
+            instanceKey: string;
+          };
+          return <PluginDetailPage {...params} />;
+        },
       }),
     ]),
     history: createMemoryHistory({ initialEntries: ["/plugins"] }),
@@ -57,40 +65,36 @@ test("manages non-Agent Apps without an Agent identity provider and keeps all sc
         </ThemeScope>
       )
     );
-    await expect
-      .element(page.getByRole("tab", { name: "App plugins", exact: true }))
-      .toHaveAttribute("aria-selected", "true");
     await page.getByRole("combobox", { name: "Manage App" }).click();
     await page
       .getByRole("option", { name: "Support App", exact: true })
       .click();
-    const plugin = page
-      .getByRole("link")
-      .filter({ hasText: "example.support.tickets/default" });
+    const plugin = page.getByTitle("example.support.tickets/default");
     await expect
       .element(plugin)
       .toHaveAttribute(
         "href",
         "/plugins/support/example.support.tickets/default"
       );
+    await page.getByRole("combobox", { name: "Manage App" }).click();
     await page
-      .getByRole("tab", { name: "Management Agent", exact: true })
+      .getByRole("option", { name: "Console management Agent", exact: true })
       .click();
     await expect
-      .element(
-        page.getByRole("link").filter({ hasText: "lenso.agent.loop/agent" })
-      )
+      .element(page.getByTitle("lenso.agent.loop/agent"))
       .toHaveAttribute("href", "/plugins/console/lenso.agent.loop/agent");
-    await page
-      .getByRole("tab", { name: "Console extensions", exact: true })
-      .click();
+    await page.getByRole("combobox", { name: "Manage App" }).click();
+    await page.getByRole("option", { name: "Console", exact: true }).click();
     await expect
       .element(
         page.getByRole("heading", { name: "Plugin management unavailable" })
       )
       .toBeVisible();
     await expect.element(plugin).not.toBeInTheDocument();
-    await page.getByRole("tab", { name: "App plugins", exact: true }).click();
+    await page.getByRole("combobox", { name: "Manage App" }).click();
+    await page
+      .getByRole("option", { name: "Support App", exact: true })
+      .click();
     await expect
       .element(plugin)
       .toHaveAttribute(
@@ -104,10 +108,25 @@ test("manages non-Agent Apps without an Agent identity provider and keeps all sc
       .element(page.getByRole("heading", { name: "No matching Plugins" }))
       .toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).click();
+    await page
+      .getByRole("searchbox", { name: "Search plugins" })
+      .fill("tickets");
     await plugin.click();
     await expect
-      .element(page.getByRole("heading", { name: "Plugin configuration" }))
+      .element(page.getByRole("tab", { name: "Configuration", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: "About", exact: true }).click();
+    await expect
+      .element(page.getByRole("heading", { name: "Provided capabilities" }))
       .toBeVisible();
+
+    await expect
+      .element(page.getByRole("heading", { name: "Package and authority" }))
+      .toBeVisible();
+    await router.navigate({ to: "/plugins" });
+    await expect
+      .element(page.getByRole("searchbox", { name: "Search plugins" }))
+      .toHaveValue("tickets");
   } finally {
     flushSync(() => root.unmount());
     client.clear();

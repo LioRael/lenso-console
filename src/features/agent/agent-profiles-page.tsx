@@ -1,9 +1,10 @@
 import { Button } from "@lenso/ui/button";
+import { Menu } from "@lenso/ui/menu";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
-import { SlidersHorizontal } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
@@ -30,7 +31,7 @@ export function AgentProfilesPage() {
       <div {...stylex.props(pageStyles.column)}>
         <SettingsPageHeader
           title="Profiles"
-          description="Reusable instructions and capabilities for your Agent."
+          description="Saved instructions and capabilities. Edit a Profile, then choose when your Agent uses it."
           actions={<AgentPicker />}
         />
         <ProfileList key={agent.id} agent={agent} />
@@ -41,6 +42,7 @@ export function AgentProfilesPage() {
 
 function ProfileList({ agent }: { agent: AgentIdentity }) {
   const [search, setSearch] = useState("");
+  const navigate = useNavigate();
   const cache = useQueryClient();
   const key = ["agent-profiles", agent.id];
   const canManage = agent.capabilities.includes(
@@ -70,6 +72,16 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
       await cache.invalidateQueries({ queryKey: ["agent-settings", agent.id] });
     },
   });
+  const visibleProfiles =
+    query.data?.profiles
+      .filter((profile) =>
+        `${profile.name} ${profile.document.description}`
+          .toLowerCase()
+          .includes(search.trim().toLowerCase())
+      )
+      .toSorted(
+        (left, right) => Number(right.readOnly) - Number(left.readOnly)
+      ) ?? [];
   if (!canManage) {
     return (
       <p {...stylex.props(styles.description)}>
@@ -91,6 +103,8 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
         </TextField.Root>
         <Button
           size="compact"
+          variant="secondary"
+          xstyle={styles.createButton}
           disabled={!query.data || apply.isPending}
           nativeButton={false}
           render={
@@ -104,46 +118,84 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
           New Profile
         </Button>
       </div>
-      {query.isPending ? <output>Loading profiles…</output> : null}
-      {query.error || apply.error ? (
-        <p role="alert">{(query.error ?? apply.error)?.message}</p>
+      {query.data ? (
+        <p {...stylex.props(styles.activeContext)}>
+          <span>
+            {agent.label} is using{" "}
+            <strong>{query.data.activeProfile ?? "default"}</strong>.
+          </span>
+          <span>Switching applies to new turns.</span>
+        </p>
+      ) : null}
+      {query.isPending ? (
+        <output {...stylex.props(styles.empty)}>Loading profiles…</output>
+      ) : null}
+      {query.error ? (
+        <div role="alert" {...stylex.props(styles.empty)}>
+          <strong>Profiles unavailable</strong>
+          <span>{query.error.message}</span>
+          <Button
+            size="compact"
+            variant="secondary"
+            onClick={() => void query.refetch()}
+          >
+            Try again
+          </Button>
+        </div>
+      ) : null}
+      {apply.error ? (
+        <p role="alert" {...stylex.props(styles.description)}>
+          {apply.error.message}
+        </p>
       ) : null}
       {apply.isSuccess ? (
         <output {...stylex.props(styles.description)}>
           Profile selected. Running turns keep their previous configuration.
         </output>
       ) : null}
-      {query.data &&
-      !query.data.profiles.some((profile) =>
-        `${profile.name} ${profile.document.description}`
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      ) ? (
-        <p {...stylex.props(styles.description)}>
-          No matching profiles. Try a different name.
+      {query.data && search.trim() ? (
+        <p {...stylex.props(styles.resultCount)}>
+          {visibleProfiles.length}{" "}
+          {visibleProfiles.length === 1 ? "profile" : "profiles"}
         </p>
       ) : null}
-      <ul {...stylex.props(styles.list)}>
-        {query.data?.profiles
-          .filter((profile) =>
-            `${profile.name} ${profile.document.description}`
-              .toLowerCase()
-              .includes(search.toLowerCase())
-          )
-          .map((profile) => {
+      {query.data && visibleProfiles.length === 0 ? (
+        <div {...stylex.props(styles.empty)}>
+          <strong>
+            {search.trim() ? "No matching profiles" : "No profiles yet"}
+          </strong>
+          <span>
+            {search.trim()
+              ? "Try a different name or clear your search."
+              : "Create a Profile to save instructions and capabilities."}
+          </span>
+          {search.trim() ? (
+            <Button
+              size="compact"
+              variant="ghost"
+              onClick={() => setSearch("")}
+            >
+              Clear search
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {visibleProfiles.length > 0 ? (
+        <ul {...stylex.props(styles.list)}>
+          {visibleProfiles.map((profile) => {
             const current =
-              profile.name === (query.data.activeProfile ?? "default");
+              profile.name === (query.data?.activeProfile ?? "default");
             const applied =
               current &&
               (profile.name === "default" ||
-                profile.revision === query.data.activeRevision);
+                profile.revision === query.data?.activeRevision);
             return (
               <li key={profile.name} {...stylex.props(styles.row)}>
-                <span {...stylex.props(styles.rowIcon)} aria-hidden="true">
-                  <SlidersHorizontal size={15} />
-                </span>
                 <Link
                   {...stylex.props(styles.profileLink)}
+                  title={
+                    profile.readOnly ? "Built-in Profile" : "Custom Profile"
+                  }
                   to="/settings/profiles/$agentId/$profileName"
                   params={{ agentId: agent.id, profileName: profile.name }}
                   search={{ copy: false }}
@@ -152,56 +204,76 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                     <strong {...stylex.props(styles.name)}>
                       {profile.name}
                     </strong>
-                    <span {...stylex.props(styles.badge)}>
+                    <span {...stylex.props(styles.metadata)}>
                       {profile.readOnly ? "Built-in" : "Custom"}
+                      {profile.document.model
+                        ? ` · ${profile.document.model}`
+                        : ""}
                     </span>
-                    {current ? (
-                      <span {...stylex.props(styles.badge)}>
-                        {applied ? "Current" : "Update available"}
-                      </span>
-                    ) : null}
                   </span>
                   <span {...stylex.props(styles.description)}>
-                    {profile.document.description || "No description"}
+                    {profile.document.description ||
+                      (profile.readOnly
+                        ? "Built-in instructions and capabilities."
+                        : "Custom instructions and capabilities.")}
                   </span>
                 </Link>
                 <div {...stylex.props(styles.actions)}>
-                  <Button
-                    size="compact"
-                    variant="ghost"
-                    aria-label={`Duplicate ${profile.name}`}
-                    nativeButton={false}
-                    render={
-                      <Link
-                        to="/settings/profiles/$agentId/$profileName"
-                        params={{
-                          agentId: agent.id,
-                          profileName: profile.name,
-                        }}
-                        search={{ copy: true }}
-                      />
-                    }
-                  >
-                    Duplicate
-                  </Button>
-                  <Button
-                    size="compact"
-                    variant="secondary"
-                    disabled={applied || apply.isPending}
-                    aria-label={`Use ${profile.name}`}
-                    onClick={() => apply.mutate(profile)}
-                  >
-                    {apply.isPending && apply.variables.name === profile.name
-                      ? "Preparing…"
-                      : applied
-                        ? "In use"
-                        : "Use Profile"}
-                  </Button>
+                  {current ? (
+                    <span {...stylex.props(styles.current)}>
+                      {applied ? "In use" : "Update available"}
+                    </span>
+                  ) : null}
+                  {apply.isPending && apply.variables.name === profile.name ? (
+                    <span {...stylex.props(styles.current)}>Preparing…</span>
+                  ) : null}
+                  <Menu.Root>
+                    <Menu.Trigger
+                      render={
+                        <Button
+                          size="compact"
+                          variant="ghost"
+                          aria-label={`Actions for ${profile.name}`}
+                        >
+                          <Ellipsis size={14} aria-hidden="true" />
+                        </Button>
+                      }
+                    />
+                    <Menu.Portal>
+                      <Menu.Positioner align="end" sideOffset={4}>
+                        <Menu.Popup>
+                          <Menu.Item
+                            aria-label={`Duplicate ${profile.name}`}
+                            onClick={() =>
+                              void navigate({
+                                to: "/settings/profiles/$agentId/$profileName",
+                                params: {
+                                  agentId: agent.id,
+                                  profileName: profile.name,
+                                },
+                                search: { copy: true },
+                              })
+                            }
+                          >
+                            Duplicate
+                          </Menu.Item>
+                          <Menu.Item
+                            disabled={applied || apply.isPending}
+                            aria-label={`Use ${profile.name}`}
+                            onClick={() => apply.mutate(profile)}
+                          >
+                            Use for {agent.label}
+                          </Menu.Item>
+                        </Menu.Popup>
+                      </Menu.Positioner>
+                    </Menu.Portal>
+                  </Menu.Root>
                 </div>
               </li>
             );
           })}
-      </ul>
+        </ul>
+      ) : null}
     </>
   );
 }

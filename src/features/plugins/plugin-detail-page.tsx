@@ -13,6 +13,7 @@ import {
 } from "../apps/app-management-context";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
+import { pluginDisplayName } from "./plugin-display-name";
 import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginDetail } from "./plugin-inspector";
 import { pluginKey } from "./plugin-workbench-model";
@@ -44,7 +45,7 @@ const styles = stylex.create({
   page: {
     boxSizing: "border-box",
     display: "grid",
-    gridTemplateRows: "87.5px minmax(0, 1fr)",
+    gridTemplateRows: "auto minmax(0, 1fr)",
     height: "100%",
     minHeight: 0,
     width: "100%",
@@ -306,7 +307,7 @@ function PluginDetailShell({
       <PageHeader.Root
         aria-label="Plugin navigation"
         {...stylex.props(styles.header)}
-        variant={withTabs ? "team" : "simple"}
+        variant="simple"
       >
         <PageHeader.Row>
           <Breadcrumb.Root aria-label="Plugin breadcrumb">
@@ -331,25 +332,12 @@ function PluginDetailShell({
               <Breadcrumb.Separator />
               <Breadcrumb.Item>
                 <Breadcrumb.Page>
-                  {packageId}/{instanceKey}
+                  {pluginDisplayName({ packageId, instanceKey })}
                 </Breadcrumb.Page>
               </Breadcrumb.Item>
             </Breadcrumb.List>
           </Breadcrumb.Root>
         </PageHeader.Row>
-        {withTabs ? (
-          <PageHeader.TabsRow>
-            <PageHeader.TabsList aria-label="Plugin details">
-              <PageHeader.Tab value="configuration">
-                Configuration
-              </PageHeader.Tab>
-              <PageHeader.Tab value="capabilities">Capabilities</PageHeader.Tab>
-              <PageHeader.Tab value="technical">
-                Technical details
-              </PageHeader.Tab>
-            </PageHeader.TabsList>
-          </PageHeader.TabsRow>
-        ) : null}
       </PageHeader.Root>
       <main {...stylex.props(styles.content)}>{children}</main>
     </>

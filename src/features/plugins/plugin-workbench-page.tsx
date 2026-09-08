@@ -1,7 +1,5 @@
-import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { Button } from "@lenso/ui/button";
 import { PageHeader } from "@lenso/ui/page-header";
-import { Tabs } from "@lenso/ui/tabs";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -10,7 +8,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   useAppManagement,
-  pluginScopes,
   type ManagedApp,
 } from "../apps/app-management-context";
 import { SettingsPageHeader } from "../settings/settings-page-header";
@@ -27,12 +24,10 @@ import {
 import { pluginDisplayName } from "./plugin-display-name";
 import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginFilterSelect } from "./plugin-filter-select";
-import {
-  pluginOriginLabel,
-  pluginSelectionIdentityMatches,
-  pluginStatusPresentation,
-} from "./plugin-runtime-state";
+import { pluginPurpose } from "./plugin-purpose";
+import { pluginStatusPresentation } from "./plugin-runtime-state";
 import { PluginStatus } from "./plugin-status";
+import { PluginTargetSelect } from "./plugin-target-select";
 import { InstallPluginDialog } from "./plugin-workbench-dialogs";
 import { pluginKey, type PluginWorkbenchItem } from "./plugin-workbench-model";
 import {
@@ -44,11 +39,32 @@ import {
 const EMPTY_PLUGIN_ITEMS: readonly PluginWorkbenchItem[] = [];
 
 const styles = stylex.create({
+  targetRow: {
+    paddingBlockEnd: 16,
+    borderBottom: "1px solid var(--color-border-tertiary)",
+  },
+  body: { display: "grid", gap: 4 },
+  filterOptions: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    paddingBlock: "8px 4px",
+  },
+  scopeTabs: {
+    display: "flex",
+    gap: 24,
+    padding: 0,
+    boxShadow: "none",
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    overflowX: "auto",
+    borderBottom: "1px solid var(--color-border-tertiary)",
+  },
   workbench: {
-    maxWidth: 760,
+    maxWidth: 960,
     width: "calc(100% - 48px)",
     display: "grid",
-    gap: 24,
+    gap: 16,
   },
   breadcrumbParent: {
     display: "inline-flex",
@@ -62,22 +78,26 @@ const styles = stylex.create({
     minWidth: 0,
     width: "100%",
     flexWrap: "wrap",
-    paddingBlock: 8,
+    paddingBlock: 0,
   },
   tabs: { minWidth: 0, flex: "1 1 540px", overflowX: "auto", paddingBlock: 2 },
   tab: {
-    borderRadius: 999,
-    minHeight: 30,
-    paddingInline: 12,
+    borderRadius: 0,
+    boxShadow: "none",
+    fontSize: 12,
+    minHeight: 36,
+    paddingInline: 0,
     flexShrink: 0,
-    backgroundColor: tokens.colorSurfaceCanvas,
-    borderWidth: 1,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderBottomWidth: 2,
     borderStyle: "solid",
-    borderColor: tokens.colorBorderTertiary,
+    borderColor: "transparent",
   },
   tabActive: {
-    backgroundColor: tokens.colorSurfaceSelected,
-    borderColor: "transparent",
+    backgroundColor: "transparent",
+    borderBottomWidth: 2,
+    borderBottomColor: tokens.colorContentPrimary,
     color: tokens.colorContentPrimary,
   },
   count: {
@@ -86,20 +106,27 @@ const styles = stylex.create({
     marginInlineStart: 6,
     fontVariantNumeric: "tabular-nums",
   },
-  controls: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
-  search: { width: 200, minWidth: 0, maxWidth: "100%" },
+  controls: {
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
+    flexWrap: "wrap",
+    width: "100%",
+    justifyContent: "flex-start",
+  },
+  search: { width: 240, minWidth: 140, maxWidth: "100%", flex: "0 1 280px" },
   columns: {
     alignItems: "center",
     color: tokens.colorContentTertiary,
     display: "grid",
     fontSize: 11,
     fontWeight: 500,
-    gap: tokens.space4,
-    gridTemplateColumns: "minmax(180px, 1fr) 130px 88px",
+    gap: 16,
+    gridTemplateColumns: "minmax(0, 1fr) 144px",
     minHeight: 34,
-    paddingInline: 14,
+    paddingInline: 0,
     "@media (max-width: 720px)": {
-      gridTemplateColumns: "minmax(0, 1fr) 88px",
+      gridTemplateColumns: "minmax(0, 1fr) 132px",
     },
   },
   header: {
@@ -109,6 +136,7 @@ const styles = stylex.create({
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
   },
+  filterButton: { marginInlineStart: "auto" },
   headerActions: {
     alignItems: "center",
     display: "flex",
@@ -117,8 +145,8 @@ const styles = stylex.create({
   },
   headerSubrow: {
     height: "auto",
-    minHeight: 46,
-    paddingInline: 12,
+    minHeight: 32,
+    paddingInline: 0,
   },
   identity: { display: "grid", gap: 2, minWidth: 0 },
   mono: {
@@ -130,10 +158,10 @@ const styles = stylex.create({
     },
   },
   page: {
+    color: tokens.colorContentPrimary,
     boxSizing: "border-box",
-    display: "grid",
-    gridTemplateRows: "auto minmax(0, 1fr)",
-    gridTemplateColumns: "minmax(0, 1fr)",
+    display: "block",
+    overflowY: "auto",
     minWidth: 0,
     height: "100%",
     minHeight: 0,
@@ -153,7 +181,7 @@ const styles = stylex.create({
       default: "transparent",
       ":hover": tokens.colorSurfaceInteractiveHover,
     },
-    borderRadius: tokens.radiusControl,
+    borderRadius: 0,
     borderStyle: "none",
     color: tokens.colorContentSecondary,
     cursor: "pointer",
@@ -161,21 +189,35 @@ const styles = stylex.create({
     fontFamily: tokens.fontSans,
     fontSize: 12,
     gap: tokens.space4,
-    gridTemplateColumns: "minmax(172px, 1fr) 130px 88px",
-    marginInline: 8,
-    minHeight: 54,
+    gridTemplateColumns: "minmax(0, 1fr) 144px",
+    marginInline: 0,
+    minHeight: 64,
+    paddingBlock: 12,
+    borderBottomWidth: 1,
+    borderBottomStyle: "solid",
+    borderBottomColor: tokens.colorBorderTertiary,
+    ":last-child": { borderBottomWidth: 0 },
     outline: {
       default: "none",
       ":focus-visible": `2px solid ${tokens.colorFocusRing}`,
     },
     outlineOffset: -2,
-    paddingInline: 6,
+    paddingInline: 0,
     textAlign: "left",
     textDecoration: "none",
-    width: "calc(100% - 16px)",
+    width: "100%",
+    boxSizing: "border-box",
     "@media (max-width: 720px)": {
-      gridTemplateColumns: "minmax(0, 1fr) 88px",
+      gridTemplateColumns: "minmax(0, 1fr) 132px",
     },
+  },
+  purpose: {
+    color: tokens.colorContentTertiary,
+    fontSize: 12,
+    lineHeight: "18px",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   secondary: {
     color: tokens.colorContentTertiary,
@@ -210,12 +252,10 @@ const styles = stylex.create({
     overflow: "auto",
   },
   inventoryList: {
-    borderWidth: 1,
-    borderStyle: "solid",
-    borderColor: tokens.colorBorderTertiary,
-    borderRadius: 10,
-    backgroundColor: "var(--color-surface-panel)",
-    paddingBlock: 8,
+    borderWidth: 0,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+    paddingBlock: 0,
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -229,10 +269,8 @@ const styles = stylex.create({
 });
 
 export function PluginWorkbenchPage() {
-  const { apps, selectApp, selectedApp, scope, setScope, catalog } =
-    useAppManagement();
+  const { apps, selectApp, selectedApp, catalog } = useAppManagement();
   const { request } = usePluginAgentWorkbench();
-  const [category, setCategory] = useState<PluginCategory>("all");
   useEffect(() => {
     if (
       request &&
@@ -243,91 +281,62 @@ export function PluginWorkbenchPage() {
     }
   }, [apps, request, selectApp, selectedApp?.id]);
   return (
-    <Tabs.Root
-      value={scope}
-      onValueChange={(value) => setScope(value as typeof scope)}
-      data-page="plugin-workbench"
-      xstyle={styles.page}
-    >
-      <PageHeader.Root
-        aria-label="Plugin navigation"
-        variant="team"
-        xstyle={styles.header}
-      >
-        <PageHeader.Row>
-          <Breadcrumb.Root>
-            <Breadcrumb.List>
-              <Breadcrumb.Item>
-                <Breadcrumb.Page>Plugins</Breadcrumb.Page>
-              </Breadcrumb.Item>
-            </Breadcrumb.List>
-          </Breadcrumb.Root>
-        </PageHeader.Row>
-        <PageHeader.TabsRow xstyle={styles.headerSubrow}>
-          <Tabs.List aria-label="Plugin scope" xstyle={styles.tabs}>
-            {pluginScopes.map((item) => (
-              <Tabs.Tab
-                key={item.id}
-                value={item.id}
-                xstyle={[styles.tab, scope === item.id && styles.tabActive]}
-              >
-                {item.label}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </PageHeader.TabsRow>
-      </PageHeader.Root>
-      <Tabs.Panel value={scope} xstyle={styles.tableRegion}>
-        {catalog.isPending ? (
-          <WorkbenchState
-            title="Loading Apps"
-            description="Reading management targets."
-          />
-        ) : catalog.isError ? (
-          <WorkbenchState
-            title="Apps unavailable"
-            description="The App management catalog could not be loaded."
-            action={
-              <Button
-                onClick={() => {
-                  void catalog.refetch();
-                }}
-              >
-                Try again
-              </Button>
-            }
-          />
-        ) : selectedApp ? (
-          <AppPluginWorkbench
-            key={selectedApp.id}
-            selectedApp={selectedApp}
-            category={category}
-            onCategoryChange={setCategory}
-          />
-        ) : (
-          <WorkbenchState
-            title="No Apps connected"
-            description="Connect a Lenso App to manage its plugins here."
-          />
-        )}
-      </Tabs.Panel>
-    </Tabs.Root>
+    <main data-page="plugin-workbench" {...stylex.props(styles.page)}>
+      <div {...stylex.props(pageStyles.column, styles.workbench)}>
+        <SettingsPageHeader
+          title="Plugins"
+          description="Manage the plugins installed in your Apps."
+        />
+        <div {...stylex.props(styles.targetRow)}>
+          <PluginTargetSelect />
+        </div>
+        <div {...stylex.props(styles.tableRegion)}>
+          {catalog.isPending ? (
+            <WorkbenchState
+              title="Loading Apps"
+              description="Reading management targets."
+            />
+          ) : catalog.isError ? (
+            <WorkbenchState
+              title="Apps unavailable"
+              description="The App management catalog could not be loaded."
+              action={
+                <Button
+                  onClick={() => {
+                    void catalog.refetch();
+                  }}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          ) : selectedApp ? (
+            <AppPluginWorkbench
+              key={selectedApp.id}
+              selectedApp={selectedApp}
+            />
+          ) : (
+            <WorkbenchState
+              title="No Apps connected"
+              description="Connect a Lenso App to manage its plugins here."
+            />
+          )}
+        </div>
+      </div>
+    </main>
   );
 }
 
-function AppPluginWorkbench({
-  category,
-  onCategoryChange,
-  selectedApp,
-}: {
-  selectedApp: ManagedApp;
-  category: PluginCategory;
-  onCategoryChange: (category: PluginCategory) => void;
-}) {
-  const { apps, selectApp, scope } = useAppManagement();
-  const targets = apps.filter((app) => app.scope === scope);
-  const [query, setQuery] = useState("");
-  const [selection, setSelection] = useState<PluginSelectionFilter>("all");
+function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
+  const { pluginFilters, updatePluginFilters } = useAppManagement();
+  const { category, query, selection } = pluginFilters;
+  const onCategoryChange = (nextCategory: PluginCategory) =>
+    updatePluginFilters(selectedApp.id, { category: nextCategory });
+  const setQuery = (nextQuery: string) =>
+    updatePluginFilters(selectedApp.id, { query: nextQuery });
+  const setSelection = (nextSelection: PluginSelectionFilter) =>
+    updatePluginFilters(selectedApp.id, { selection: nextSelection });
+  const [showFilters, setShowFilters] = useState(false);
   const configurationAvailable = selectedApp.pluginConfiguration;
   const workbench = usePluginWorkbench(selectedApp.id, configurationAvailable);
   const plugins = workbench.data?.items ?? EMPTY_PLUGIN_ITEMS;
@@ -390,40 +399,11 @@ function AppPluginWorkbench({
   ]);
   const mutation = usePluginMutation(selectedApp.id, inventory?.streamId);
   return (
-    <div {...stylex.props(pageStyles.column, styles.workbench)}>
-      <SettingsPageHeader
-        title="Plugins"
-        description={`Integrations and capabilities installed for ${selectedApp.label}.`}
-      />
+    <div {...stylex.props(styles.body)}>
       <PluginDraftNavigationGuard store={configurationDraftStore} />
       {configurationAvailable ? (
-        <div
-          aria-label="Plugin filters"
-          {...stylex.props(styles.header, styles.headerSubrow)}
-        >
+        <div aria-label="Plugin filters" {...stylex.props(styles.headerSubrow)}>
           <div {...stylex.props(styles.toolbar)}>
-            {targets.length > 1 ? (
-              <PluginFilterSelect
-                label="Manage App"
-                value={selectedApp.id}
-                onValueChange={selectApp}
-                options={targets.map((app) => ({
-                  value: app.id,
-                  label: app.label,
-                }))}
-              />
-            ) : (
-              <span {...stylex.props(styles.primary)}>{selectedApp.label}</span>
-            )}
-            <PluginFilterSelect
-              label="Plugin category"
-              value={category}
-              onValueChange={onCategoryChange}
-              options={pluginCategories.map((item) => ({
-                value: item.id,
-                label: `${item.label}${workbench.data ? ` (${item.id === "all" ? plugins.length : plugins.filter((plugin) => categoriesForPlugin(plugin).includes(item.id)).length})` : ""}`,
-              }))}
-            />
             <div {...stylex.props(styles.controls)}>
               <TextField.Root size="compact" xstyle={styles.search}>
                 <TextField.Control
@@ -434,6 +414,64 @@ function AppPluginWorkbench({
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </TextField.Root>
+              <Button
+                variant="ghost"
+                size="compact"
+                xstyle={styles.filterButton}
+                aria-expanded={showFilters}
+                onClick={() => setShowFilters((value) => !value)}
+              >
+                Filters
+                {category !== "all" || selection !== "all"
+                  ? ` · ${Number(category !== "all") + Number(selection !== "all")}`
+                  : ""}
+              </Button>
+              {selectedApp.localBundleInstall ? (
+                <PageHeader.Actions>
+                  <div {...stylex.props(styles.headerActions)}>
+                    {selectedApp.localBundleInstall ? (
+                      <InstallPluginDialog
+                        disabled={
+                          !workbench.authoringEnabled ||
+                          !selectedApp.localBundleInstall
+                        }
+                        error={
+                          mutation.variables?.type === "install" &&
+                          mutation.error instanceof Error
+                            ? mutation.error
+                            : null
+                        }
+                        isPending={mutation.isPending}
+                        onInstall={async (bundlePath) => {
+                          if (!inventory) {
+                            throw new TypeError(
+                              "The Console cannot install a Plugin before Host inventory is available"
+                            );
+                          }
+                          await mutation.mutateAsync({
+                            bundlePath,
+                            expectedStreamId: inventory.streamId,
+                            type: "install",
+                          });
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                </PageHeader.Actions>
+              ) : null}
+            </div>
+          </div>
+          {showFilters ? (
+            <div {...stylex.props(styles.filterOptions)}>
+              <PluginFilterSelect
+                label="Plugin category"
+                value={category}
+                onValueChange={onCategoryChange}
+                options={pluginCategories.map((item) => ({
+                  value: item.id,
+                  label: `${item.label}${workbench.data ? ` (${item.id === "all" ? plugins.length : plugins.filter((plugin) => categoriesForPlugin(plugin).includes(item.id)).length})` : ""}`,
+                }))}
+              />
               <PluginFilterSelect<PluginSelectionFilter>
                 label="Plugin selection"
                 value={selection}
@@ -444,39 +482,8 @@ function AppPluginWorkbench({
                   { value: "disabled", label: "Disabled" },
                 ]}
               />
-              <PageHeader.Actions>
-                <div {...stylex.props(styles.headerActions)}>
-                  {selectedApp.localBundleInstall ? (
-                    <InstallPluginDialog
-                      disabled={
-                        !workbench.authoringEnabled ||
-                        !selectedApp.localBundleInstall
-                      }
-                      error={
-                        mutation.variables?.type === "install" &&
-                        mutation.error instanceof Error
-                          ? mutation.error
-                          : null
-                      }
-                      isPending={mutation.isPending}
-                      onInstall={async (bundlePath) => {
-                        if (!inventory) {
-                          throw new TypeError(
-                            "The Console cannot install a Plugin before Host inventory is available"
-                          );
-                        }
-                        await mutation.mutateAsync({
-                          bundlePath,
-                          expectedStreamId: inventory.streamId,
-                          type: "install",
-                        });
-                      }}
-                    />
-                  ) : null}
-                </div>
-              </PageHeader.Actions>
             </div>
-          </div>
+          ) : null}
         </div>
       ) : null}
       <h1 id="plugins-heading" {...stylex.props(styles.visuallyHidden)}>
@@ -561,7 +568,6 @@ function AppPluginWorkbench({
           >
             <div aria-hidden="true" {...stylex.props(styles.columns)}>
               <span>Plugin</span>
-              <span {...stylex.props(styles.packageColumn)}>Source</span>
               <span>Status</span>
             </div>
             {visiblePlugins.map((plugin) => {
@@ -579,32 +585,25 @@ function AppPluginWorkbench({
                     instanceKey: plugin.instanceKey,
                     packageId: plugin.packageId,
                   }}
+                  title={`${plugin.packageId}/${plugin.instanceKey}`}
                   to="/plugins/$agentId/$packageId/$instanceKey"
                   {...stylex.props(styles.row)}
                 >
                   <span {...stylex.props(styles.identity)}>
                     <span {...stylex.props(styles.primary)}>
                       {pluginDisplayName(plugin)}
+                      {plugins.some(
+                        (other) =>
+                          other.packageId === plugin.packageId &&
+                          other.instanceKey !== plugin.instanceKey
+                      ) ? (
+                        <span {...stylex.props(styles.secondary)}>
+                          · {plugin.instanceKey}
+                        </span>
+                      ) : null}
                     </span>
-                    <span {...stylex.props(styles.secondary)}>
-                      {plugin.packageId}/{plugin.instanceKey}
-                    </span>
-                  </span>
-                  <span
-                    {...stylex.props(styles.identity, styles.packageColumn)}
-                  >
-                    <span {...stylex.props(styles.secondary)}>
-                      {pluginOriginLabel(plugin)}
-                    </span>
-                    <span {...stylex.props(styles.secondary)}>
-                      {plugin.active &&
-                      plugin.desired &&
-                      !pluginSelectionIdentityMatches(
-                        plugin.active,
-                        plugin.desired
-                      )
-                        ? `${plugin.active.packageRevision} → ${plugin.desired.packageRevision}`
-                        : plugin.packageRevision || "linked"}
+                    <span {...stylex.props(styles.purpose)}>
+                      {pluginPurpose(plugin)}
                     </span>
                   </span>
                   <PluginStatus state={state} />
