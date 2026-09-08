@@ -307,7 +307,7 @@ export const agentPageStyles = stylex.create({
   renameInput: {
     backgroundColor: "transparent",
     borderColor: "var(--color-border-control-focus)",
-    borderRadius: "6px",
+    borderRadius: "999px",
     borderStyle: "solid",
     borderWidth: "1px",
     boxSizing: "border-box",
