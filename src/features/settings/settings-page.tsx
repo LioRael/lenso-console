@@ -192,7 +192,7 @@ function SettingsRow({
       {...(disabled === undefined ? {} : { disabled })}
       xstyle={[styles.row, disabled && styles.rowDisabled, xstyle]}
     >
-      <LensoSettingsRow.Copy>
+      <LensoSettingsRow.Copy xstyle={styles.rowCopy}>
         <LensoSettingsRow.Title
           onClick={() => getControl()?.click()}
           onPointerEnter={() => setControlHover(true)}
