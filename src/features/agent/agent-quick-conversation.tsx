@@ -1,15 +1,12 @@
 import { Button } from "@lenso/ui/button";
-
-import "@fontsource-variable/inter/wght.css";
 import { Dialog } from "@lenso/ui/dialog";
 import { IconButton } from "@lenso/ui/icon-button";
 import * as stylex from "@stylexjs/stylex";
 import {
   ArrowUp,
   Box,
-  ChevronDown,
+  Shield,
   Minus,
-  MoreHorizontal,
   MoveDiagonal2,
   Search,
   Square,
@@ -19,6 +16,7 @@ import {
 import { useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
+import "@fontsource-variable/inter/wght.css";
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
@@ -29,6 +27,10 @@ import {
   DraftAttachments,
   MessageAttachments,
 } from "./agent-attachments";
+import { RunConfigurationMenu, TurnSelect } from "./agent-composer-controls";
+import { AgentComposerInput } from "./agent-composer-input";
+import { AgentContextUsage } from "./agent-context-usage";
+import type { DraftEditorHandle } from "./agent-draft-editor";
 import { AgentMarkdown } from "./agent-markdown";
 import {
   AgentMessageActions,
@@ -36,8 +38,10 @@ import {
 } from "./agent-message-controls";
 import agentPointerGradient from "./agent-pointer-gradient.svg";
 import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
+import { modelsForSelector } from "./agent-runtime";
 import type { AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
+import { speedMenu } from "./agent-speed";
 import { useAgentConversation } from "./use-agent-conversation";
 
 const suggestions = [
@@ -91,6 +95,22 @@ export function AgentQuickConversation({
     canEdit,
     cancelEditing: cancelEditingTurn,
     cancelRunningTurn,
+    contextCatalog,
+    contextReferences,
+    setContextReferences,
+    compactSession,
+    modelCatalog,
+    selectedModel,
+    setSelectedModel,
+    selectedReasoningEffort,
+    setSelectedReasoningEffort,
+    selectedServiceTier,
+    setSelectedServiceTier,
+    selectedApprovalMode,
+    setSelectedApprovalMode,
+    changeProfile,
+    isConfiguring,
+    trajectory,
     draft,
     editingTurnId,
     isRunning,
@@ -103,8 +123,12 @@ export function AgentQuickConversation({
     turns,
     visibleTurns,
   } = useAgentConversation({ targetId: selectedAgent.id });
+  const models = modelsForSelector(modelCatalog, selectedModel);
+  const modelId = selectedModel ?? modelCatalog?.selectedModel ?? models[0]?.id;
+  const model = models.find((item) => item.id === modelId);
+  const speed = speedMenu(model, selectedServiceTier);
   const conversationRef = useRef<HTMLElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<DraftEditorHandle>(null);
   const appliedDraftRequest = useRef(false);
 
   const hasConversation = turns.length > 0 || isRunning;
@@ -161,16 +185,6 @@ export function AgentQuickConversation({
     <AgentAttachmentProvider value={attachments}>
       <header {...stylex.props(styles.header)}>
         <Dialog.Title xstyle={styles.title}>{title}</Dialog.Title>
-        {hasConversation ? (
-          <IconButton
-            aria-label="Chat options"
-            size="default"
-            variant="ghost"
-            xstyle={styles.chatOptions}
-          >
-            <MoreHorizontal aria-hidden="true" size={14} />
-          </IconButton>
-        ) : null}
         <div {...stylex.props(styles.headerActions)}>
           <IconButton
             aria-label="Minimize chat"
@@ -344,35 +358,117 @@ export function AgentQuickConversation({
                   value={draft}
                 >
                   <DraftAttachments />
-                  <PromptComposer.Input
-                    aria-label="Send a message to Lenso Agent"
-                    autoFocus
-                    xstyle={styles.textarea}
+                  <AgentComposerInput
+                    ref={textareaRef}
+                    compact
+                    draft={draft}
+                    onChange={setDraft}
+                    contextCatalog={contextCatalog}
+                    references={contextReferences}
+                    onReferencesChange={setContextReferences}
                     placeholder={
                       hasConversation
                         ? "Reply…"
-                        : "@ to mention any App, Plugin, or workspace"
+                        : "/ for commands · @ for context"
                     }
-                    ref={textareaRef}
-                    rows={1}
+                    actions={[
+                      {
+                        id: "open",
+                        label: "Open full page",
+                        description: "More room for this conversation",
+                        run: () => {
+                          onMinimize();
+                          onOpenFullPage(agentId, sessionId);
+                        },
+                      },
+                      ...(sessionId
+                        ? [
+                            {
+                              id: "compact",
+                              label: "Compact context",
+                              description: "Summarize this conversation",
+                              run: compactSession,
+                            },
+                          ]
+                        : []),
+                      ...[
+                        { id: "normal", value: undefined },
+                        { id: "plan", value: "plan" },
+                        { id: "code", value: "code" },
+                      ].map((item) => ({
+                        id: item.id,
+                        label: `${item.id} mode`,
+                        description: "Change Profile",
+                        run: () => changeProfile(item.value),
+                      })),
+                      ...models.map((item) => ({
+                        id: `model:${item.id}`,
+                        label: item.displayName,
+                        description: "Select model",
+                        group: "Models",
+                        run: () => setSelectedModel(item.id),
+                      })),
+                    ]}
                   />
                   <PromptComposer.Toolbar xstyle={styles.composerFooter}>
-                    <Button
-                      aria-label="Skills"
-                      size="compact"
-                      variant="ghost"
-                      xstyle={styles.skills}
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 2 }}
                     >
-                      <Box aria-hidden="true" size={14} strokeWidth={1.6} />
-                      Skills
-                      <ChevronDown
-                        aria-hidden="true"
-                        size={8}
-                        strokeWidth={2}
-                      />
-                    </Button>
-                    <PromptComposer.Actions xstyle={styles.composerActions}>
                       <AttachmentButton />
+                      <TurnSelect
+                        compact
+                        aria-label="Approval mode"
+                        icon={<Shield size={12} />}
+                        value={selectedApprovalMode ?? ""}
+                        onValueChange={(v) =>
+                          setSelectedApprovalMode(v || undefined)
+                        }
+                        disabled={isRunning}
+                        options={[
+                          { label: "Profile default", value: "" },
+                          { label: "Request approval", value: "request" },
+                          { label: "Help me approve", value: "assisted" },
+                          { label: "Full access", value: "full" },
+                        ]}
+                      />
+                      <AgentContextUsage
+                        align="start"
+                        model={model}
+                        trajectory={trajectory}
+                        draft={draft}
+                      />
+                    </div>
+                    <PromptComposer.Actions xstyle={styles.composerActions}>
+                      <RunConfigurationMenu
+                        compact
+                        disabled={isRunning || isConfiguring}
+                        modelOptions={models.map((item) => ({
+                          label: item.displayName,
+                          value: item.id,
+                        }))}
+                        modelValue={modelId ?? ""}
+                        onModelChange={(value) => {
+                          setSelectedModel(value);
+                          setSelectedReasoningEffort(undefined);
+                          setSelectedServiceTier(undefined);
+                        }}
+                        reasoningEffortOptions={(
+                          model?.reasoningEfforts ?? []
+                        ).map((value) => ({ label: value, value }))}
+                        reasoningEffortValue={
+                          selectedReasoningEffort ??
+                          modelCatalog?.selectedReasoningEffort ??
+                          ""
+                        }
+                        onReasoningEffortChange={(value) =>
+                          setSelectedReasoningEffort(value || undefined)
+                        }
+                        serviceTierOptions={speed.options}
+                        serviceTierValue={speed.value}
+                        onServiceTierChange={(value) =>
+                          setSelectedServiceTier(value || undefined)
+                        }
+                      />
                       <IconButton
                         aria-label={
                           isRunning ? "Stop generating" : "Submit comment"

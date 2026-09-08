@@ -1,0 +1,106 @@
+.agent-draft-editor {
+  min-width: 0;
+  color: var(--color-content-primary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.agent-draft-editor .tiptap {
+  min-height: 56px;
+  max-height: 280px;
+  overflow-y: auto;
+  outline: 0 !important;
+  padding: 14px 16px 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.agent-draft-editor[data-compact] .tiptap {
+  min-height: 52px;
+  max-height: 160px;
+  padding: 10px 12px 6px;
+  font-size: 13px;
+}
+.agent-draft-editor .tiptap p {
+  margin: 0;
+}
+.agent-draft-editor .tiptap > * + * {
+  margin-top: 8px;
+}
+.agent-draft-editor .tiptap h1,
+.agent-draft-editor .tiptap h2,
+.agent-draft-editor .tiptap h3 {
+  margin: 8px 0 4px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.agent-draft-editor .tiptap h1 {
+  font-size: 1.4em;
+}
+.agent-draft-editor .tiptap h2 {
+  font-size: 1.2em;
+}
+.agent-draft-editor .tiptap h3 {
+  font-size: 1.1em;
+}
+.agent-draft-editor .tiptap ul,
+.agent-draft-editor .tiptap ol {
+  padding-inline-start: 22px;
+  margin-block: 4px;
+}
+.agent-draft-editor .tiptap blockquote {
+  border-inline-start: 2px solid var(--color-content-tertiary);
+  margin: 8px 0;
+  padding-inline-start: 12px;
+  color: var(--color-content-secondary);
+}
+.agent-draft-editor .tiptap pre {
+  background: var(--color-surface-subtle);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+.agent-draft-editor .tiptap code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+}
+.agent-draft-editor .tiptap a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.agent-draft-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-content-tertiary);
+  height: 0;
+  pointer-events: none;
+}
+.agent-draft-editor .tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+.agent-draft-editor .tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.agent-draft-editor .tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.agent-draft-editor .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.agent-draft-editor .tiptap td,
+.agent-draft-editor .tiptap th {
+  border: 1px solid var(--color-border-secondary);
+  padding: 5px 8px;
+  vertical-align: top;
+}
+.agent-draft-editor .tiptap th {
+  text-align: start;
+  font-weight: 600;
+  background: var(--color-surface-subtle);
+}

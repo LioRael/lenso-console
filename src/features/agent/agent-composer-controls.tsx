@@ -23,6 +23,7 @@ export type ComposerSuggestion = {
 };
 
 type ComposerChoiceProps = {
+  compact?: boolean;
   "aria-label": string;
   disabled: boolean;
   icon: ReactNode;
@@ -84,6 +85,7 @@ export function ComposerSlashMenu({
 }
 
 export function TurnSelect({
+  compact,
   "aria-label": ariaLabel,
   disabled,
   icon,
@@ -106,7 +108,7 @@ export function TurnSelect({
       <Select.Trigger aria-label={ariaLabel} xstyle={styles.composerControl}>
         {icon}
         <Select.Value xstyle={styles.composerControlValue}>
-          {selectedOption?.label ?? value}
+          {compact ? null : (selectedOption?.label ?? value)}
         </Select.Value>
         <ChevronDown aria-hidden="true" size={11} />
       </Select.Trigger>
@@ -129,6 +131,7 @@ export function TurnSelect({
 }
 
 type RunConfigurationMenuProps = {
+  compact?: boolean;
   disabled: boolean;
   modelOptions: ReadonlyArray<ComposerOption>;
   modelValue: string;
@@ -142,6 +145,7 @@ type RunConfigurationMenuProps = {
 };
 
 export function RunConfigurationMenu({
+  compact,
   disabled,
   modelOptions,
   modelValue,
@@ -188,9 +192,9 @@ export function RunConfigurationMenu({
           >
             <Bot aria-hidden="true" size={12} />
             <span {...stylex.props(styles.composerControlValue)}>
-              {selectedModel?.label ?? modelValue}
+              {compact ? "Model" : (selectedModel?.label ?? modelValue)}
             </span>
-            {selectedReasoningEffort?.value ? (
+            {!compact && selectedReasoningEffort?.value ? (
               <span {...stylex.props(styles.composerControlSecondaryValue)}>
                 {selectedReasoningEffort.label}
               </span>

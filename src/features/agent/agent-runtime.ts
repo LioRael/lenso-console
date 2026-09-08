@@ -90,6 +90,34 @@ export type AgentContextResource = {
   uri: string;
 };
 
+export type AgentContextReference =
+  | { kind: "prompt"; source: string; name: string }
+  | { kind: "resource"; source: string; uri: string; name: string };
+export type AgentAvailableSkill = {
+  name: string;
+  description: string;
+  directory: string;
+};
+export async function listAvailableSkills(
+  signal: AbortSignal,
+  target: AgentTarget
+) {
+  const response = await fetch(agentApiUrl(target, "skills"), { signal });
+  if (!response.ok) {
+    throw new Error("Could not load Skills");
+  }
+  const value: unknown = await response.json();
+  if (!Array.isArray(value)) {
+    throw new TypeError("Invalid Skill catalog");
+  }
+  return value.filter(
+    (item): item is AgentAvailableSkill =>
+      typeof item?.name === "string" &&
+      typeof item?.description === "string" &&
+      typeof item?.directory === "string"
+  );
+}
+
 export type AgentContextCatalog = {
   prompts: AgentContextPrompt[];
   resources: AgentContextResource[];
@@ -137,6 +165,7 @@ export type AgentTerminalRun = {
 };
 
 export type AgentModel = {
+  contextWindow?: number;
   inputModalities?: string[];
   providerId?: string;
   displayName: string;
@@ -349,6 +378,7 @@ export type AgentTrajectory = {
 export async function streamAgentTurn({
   attachments,
   allowedTools,
+  contextReferences,
   approvalMode,
   editTurnId,
   input,
@@ -362,6 +392,7 @@ export async function streamAgentTurn({
   targetId = "console",
 }: {
   allowedTools?: string[];
+  contextReferences?: AgentContextReference[];
   approvalMode?: string;
   editTurnId?: string;
   input: string;
@@ -378,6 +409,20 @@ export async function streamAgentTurn({
   const response = await fetch(agentApiUrl(targetId, "turns"), {
     body: JSON.stringify({
       ...(allowedTools ? { allowed_tools: allowedTools } : {}),
+      ...(contextReferences?.length
+        ? {
+            context_references: contextReferences.map(
+              ({ kind, source, ...reference }) =>
+                kind === "prompt"
+                  ? { kind, source, name: reference.name }
+                  : {
+                      kind,
+                      source,
+                      uri: "uri" in reference ? reference.uri : "",
+                    }
+            ),
+          }
+        : {}),
       ...(approvalMode ? { approval_mode: approvalMode } : {}),
       ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
       input,
@@ -884,7 +929,10 @@ export function projectAgentSession(session: AgentSession): {
     const payload = jsonObject(event.payloadJson);
     const { turnId } = event;
     if (event.kind === "turn_started" && turnId) {
-      const input = stringValue(payload.input);
+      const input =
+        typeof payload.display_input === "string"
+          ? payload.display_input
+          : stringValue(payload.input);
       turnStartedAt.set(turnId, Date.parse(event.occurredAt));
       turns.set(turnId, {
         answer: "",
@@ -1471,6 +1519,13 @@ function agentModel(value: unknown): AgentModel {
     throw new TypeError("Agent Model is malformed");
   }
   return {
+    ...(isObject(object.limits) &&
+    typeof object.limits.max_input_tokens === "number"
+      ? { contextWindow: object.limits.max_input_tokens }
+      : isObject(object.limits) &&
+          typeof object.limits.context_window_tokens === "number"
+        ? { contextWindow: object.limits.context_window_tokens }
+        : {}),
     displayName:
       typeof object.display_name === "string" && object.display_name
         ? object.display_name

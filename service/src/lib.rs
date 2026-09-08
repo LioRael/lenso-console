@@ -884,7 +884,10 @@ fn allowed_agent_route_with_capabilities(
         }
         (
             &Method::GET,
-            ["bootstrap" | "context-sources" | "models" | "plugins" | "sessions" | "tasks"]
+            [
+                "bootstrap" | "context-sources" | "skills" | "models" | "plugins" | "sessions"
+                | "tasks",
+            ]
             | ["terminal", "commands"],
         )
         | (&Method::POST, ["turns"] | ["terminal", "executions"]) => true,
@@ -1178,6 +1181,7 @@ mod tests {
     fn app_agent_proxy_exposes_only_the_declared_data_plane() {
         for (method, route) in [
             (Method::GET, "bootstrap"),
+            (Method::GET, "skills"),
             (Method::GET, "sessions"),
             (Method::POST, "turns"),
             (Method::GET, "sessions/session-1/trajectory"),

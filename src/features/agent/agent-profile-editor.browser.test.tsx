@@ -45,6 +45,20 @@ test("Profile editor preserves hidden choices and saves without activation", asy
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/skills")) {
+        return Response.json([
+          {
+            name: "review",
+            description: "Review changes",
+            directory: "~/.agents/skills",
+          },
+          {
+            name: "test",
+            description: "Run tests",
+            directory: "~/.codex/skills",
+          },
+        ]);
+      }
       if (String(input).endsWith("tool-policy")) {
         return Response.json({
           schema: "lenso.agent.tool-policy.v1",
@@ -146,10 +160,12 @@ test("Profile editor preserves hidden choices and saves without activation", asy
       exact: true,
     })
     .click();
+  await page.getByRole("switch", { name: "Skill test", exact: true }).click();
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect.poll(() => saves.length).toBe(1);
   expect(saves[0]?.allowed_tools).toEqual(["read"]);
   expect(saves[0]?.future_option).toBe("preserve");
+  expect(saves[0]?.allowed_skills).toEqual(["review"]);
   expect(saves[0]?.approval_mode).toBe("assisted");
   expect(applies).toHaveLength(0);
   await expect

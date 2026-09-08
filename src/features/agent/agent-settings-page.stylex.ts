@@ -68,7 +68,14 @@ export const agentSettingsStyles = stylex.create({
     textDecoration: { default: "none", ":hover": "underline" },
   },
   sectionRoot: { marginBlockStart: 32 },
-  sectionHeader: { gap: 4 },
+  sectionHeader: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    flexWrap: "wrap",
+  },
   list: { display: "grid", listStyle: "none", margin: 0, padding: 0 },
   listItem: {
     borderBottomColor: tokens.colorBorderTertiary,

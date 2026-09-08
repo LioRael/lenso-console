@@ -157,15 +157,17 @@ function AgentSettingsContent({
                   provides(item, "lenso.agent.model")
                 )}
               />
-              <AddMcpConnection
-                agentId={agent.id}
-                data={workbench.data}
-                onAdded={() => {
-                  void workbench.refetch();
-                }}
-              />
               <ProviderSection
                 agentId={agent.id}
+                actions={
+                  <AddMcpConnection
+                    agentId={agent.id}
+                    data={workbench.data}
+                    onAdded={() => {
+                      void workbench.refetch();
+                    }}
+                  />
+                }
                 title="MCP connections"
                 description="Configure external servers here, then enable their capabilities in a Profile."
                 empty="No MCP connections are available for this Agent."
@@ -210,22 +212,27 @@ function Section({
   title,
   description,
   children,
+  actions,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
     <SettingsSection.Root xstyle={[preferences.section, styles.sectionRoot]}>
       <SettingsSection.Header xstyle={styles.sectionHeader}>
-        <SettingsSection.Title xstyle={preferences.sectionTitle}>
-          {title}
-        </SettingsSection.Title>
-        <SettingsSection.Description
-          xstyle={[styles.description, styles.inset]}
-        >
-          {description}
-        </SettingsSection.Description>
+        <div {...stylex.props(styles.rowCopy)}>
+          <SettingsSection.Title xstyle={preferences.sectionTitle}>
+            {title}
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            xstyle={[styles.description, styles.inset]}
+          >
+            {description}
+          </SettingsSection.Description>
+        </div>
+        {actions}
       </SettingsSection.Header>
       <div {...stylex.props(preferences.group, styles.sectionBody)}>
         {children}
@@ -253,15 +260,17 @@ function ProviderSection({
   description,
   empty,
   items,
+  actions,
 }: {
   agentId: string;
   title: string;
   description: string;
   empty: string;
   items: readonly PluginWorkbenchItem[];
+  actions?: ReactNode;
 }) {
   return (
-    <Section title={title} description={description}>
+    <Section title={title} description={description} actions={actions}>
       {items.length ? (
         <ul {...stylex.props(styles.list)}>
           {items.map((item) => (

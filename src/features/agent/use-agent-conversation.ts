@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAttachmentDraft, type AgentAttachment } from "./agent-attachments";
 import {
+  type AgentContextReference,
   activeAgentTools,
   readAgentActivity,
   answerAgentInteraction,
@@ -122,6 +123,9 @@ export function useAgentConversation({
   const [terminalCatalog, setTerminalCatalog] =
     useState<AgentTerminalCatalog>();
   const [terminalRuns, setTerminalRuns] = useState<AgentTerminalRun[]>([]);
+  const [contextReferences, setContextReferences] = useState<
+    AgentContextReference[]
+  >([]);
   const [selectedModel, setSelectedModel] = useState<string>();
   const [selectedReasoningEffort, setSelectedReasoningEffort] =
     useState<string>();
@@ -342,6 +346,7 @@ export function useAgentConversation({
     approvalModeRef.current = approvalMode;
     setSelectedApprovalMode(approvalMode);
     clearAttachments();
+    setContextReferences([]);
     setDraft("");
     setEditingTurnId(undefined);
     setTurns([]);
@@ -459,6 +464,7 @@ export function useAgentConversation({
           : Promise.resolve();
         try {
           await streamAgentTurn({
+            contextReferences,
             ...(selectedApprovalMode
               ? { approvalMode: selectedApprovalMode }
               : {}),
@@ -562,6 +568,7 @@ export function useAgentConversation({
       runtime,
       selectedModel,
       selectedReasoningEffort,
+      contextReferences,
       selectedApprovalMode,
       selectedServiceTier,
       selectedTools,
@@ -1096,6 +1103,8 @@ export function useAgentConversation({
     removeQueuedPrompt,
     renameSession,
     runtime,
+    contextReferences,
+    setContextReferences,
     selectedModel,
     selectedReasoningEffort,
     selectedApprovalMode,

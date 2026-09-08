@@ -25,11 +25,9 @@ import {
   useCallback,
   useMemo,
   useEffect,
-  useId,
   useRef,
   useState,
   type FormEvent,
-  type KeyboardEvent,
 } from "react";
 
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
@@ -45,11 +43,13 @@ import {
 } from "./agent-attachments";
 import { AgentChanges } from "./agent-changes";
 import { AgentCodingSetup } from "./agent-coding-setup";
+import { RunConfigurationMenu, TurnSelect } from "./agent-composer-controls";
 import {
-  ComposerSlashMenu,
-  RunConfigurationMenu,
-  TurnSelect,
-} from "./agent-composer-controls";
+  AgentComposerInput,
+  type ComposerAction,
+} from "./agent-composer-input";
+import { AgentContextUsage } from "./agent-context-usage";
+import type { DraftEditorHandle } from "./agent-draft-editor";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentMarkdown } from "./agent-markdown";
 import {
@@ -61,6 +61,8 @@ import { hasAgentConversation } from "./agent-page-state";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 import { AgentProjectContext } from "./agent-project-context";
 import {
+  type AgentContextReference,
+  type AgentTrajectory as TrajectoryData,
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   modelsForSelector,
   type AgentBootstrap,
@@ -130,85 +132,6 @@ const codingSuggestions = [
   },
 ] as const;
 
-type ContextSuggestion = {
-  description: string;
-  icon: typeof FileText;
-  insertText: string;
-  label: string;
-};
-
-function matchingComposerSuggestions(
-  contextCatalog: AgentContextCatalog | undefined,
-  terminalCatalog: AgentTerminalCatalog | undefined,
-  draft: string
-): ContextSuggestion[] {
-  const query = draft.trim().toLowerCase();
-  if (!(query.startsWith("/") && !query.includes(" "))) {
-    return [];
-  }
-  const matches: ContextSuggestion[] = [];
-  for (const command of terminalCatalog?.commands ?? []) {
-    const label = `/${command.path.join(" ")}`;
-    if (label.toLowerCase().includes(query)) {
-      matches.push({
-        description: command.summary,
-        icon: Terminal,
-        insertText: `${label}${command.parameters.length > 0 ? " " : ""}`,
-        label,
-      });
-    }
-  }
-  for (const prompt of contextCatalog?.prompts ?? []) {
-    if (
-      !promptAcceptsEmptyArguments(prompt.argumentsSchemaJson) ||
-      !safeContextToken(prompt.source) ||
-      !safeContextToken(prompt.name)
-    ) {
-      continue;
-    }
-    const label = `/prompt:${prompt.source}/${prompt.name}`;
-    if (label.toLowerCase().includes(query)) {
-      matches.push({
-        description: prompt.description,
-        icon: Package,
-        insertText: `/mcp-prompt ${prompt.source}/${prompt.name} `,
-        label,
-      });
-    }
-  }
-  for (const resource of contextCatalog?.resources ?? []) {
-    if (!safeContextToken(resource.source) || /\s/u.test(resource.uri)) {
-      continue;
-    }
-    const label = `/resource:${resource.source}/${resource.name}`;
-    if (label.toLowerCase().includes(query)) {
-      matches.push({
-        description: resource.description,
-        icon: FileText,
-        insertText: `/mcp-resource ${resource.source}=${resource.uri} `,
-        label,
-      });
-    }
-  }
-  return matches;
-}
-
-function safeContextToken(value: string) {
-  return /^[\w.-]+$/u.test(value);
-}
-
-function promptAcceptsEmptyArguments(schemaJson: string) {
-  try {
-    const schema: unknown = JSON.parse(schemaJson);
-    if (!(schema && typeof schema === "object" && "required" in schema)) {
-      return true;
-    }
-    return !(Array.isArray(schema.required) && schema.required.length > 0);
-  } catch {
-    return false;
-  }
-}
-
 export function AgentPage({
   agentId,
   conversationId,
@@ -230,7 +153,7 @@ export function AgentPage({
     title: string;
   }>();
   const [view, setView] = useState<AgentView>("conversation");
-  const textarea = useRef<HTMLTextAreaElement>(null);
+  const textarea = useRef<DraftEditorHandle>(null);
   const onSessionResolved = useCallback(
     (resolvedSessionId: string) => {
       navigate({
@@ -257,6 +180,9 @@ export function AgentPage({
     configureRuntime,
     isConfiguring,
     contextCatalog,
+    contextReferences,
+    setContextReferences,
+    compactSession,
     draft,
     editingTurnId,
     isRunning,
@@ -455,6 +381,44 @@ export function AgentPage({
               ) : null}
               {codingNotice}
               <AgentComposer
+                references={contextReferences}
+                onReferencesChange={setContextReferences}
+                trajectory={trajectory}
+                actions={[
+                  ...(sessionId
+                    ? [
+                        {
+                          id: "compact",
+                          label: "Compact context",
+                          description: "Summarize this conversation",
+                          run: compactSession,
+                        },
+                      ]
+                    : []),
+                  {
+                    id: "profiles",
+                    label: "Profiles",
+                    description: "Manage tools, Skills and instructions",
+                    run: () => navigate({ to: "/settings/profiles" }),
+                  },
+                  {
+                    id: "mcp",
+                    label: "MCP & connections",
+                    description: "Manage integrations and providers",
+                    run: () => navigate({ to: "/settings/ai" }),
+                  },
+                  {
+                    id: "new",
+                    label: "New chat",
+                    description: "Start a new conversation",
+                    run: () =>
+                      navigate({
+                        to: "/agent/$agentId/$chatId",
+                        params: { agentId: activeAgentId, chatId: "new-task" },
+                        search: { project: projectId },
+                      }),
+                  },
+                ]}
                 canCancel={canCancel}
                 contextCatalog={contextCatalog}
                 draft={draft}
@@ -582,6 +546,47 @@ export function AgentPage({
                 ) : null}
                 {codingNotice}
                 <AgentComposer
+                  references={contextReferences}
+                  onReferencesChange={setContextReferences}
+                  trajectory={trajectory}
+                  actions={[
+                    ...(sessionId
+                      ? [
+                          {
+                            id: "compact",
+                            label: "Compact context",
+                            description: "Summarize this conversation",
+                            run: compactSession,
+                          },
+                        ]
+                      : []),
+                    {
+                      id: "profiles",
+                      label: "Profiles",
+                      description: "Manage tools, Skills and instructions",
+                      run: () => navigate({ to: "/settings/profiles" }),
+                    },
+                    {
+                      id: "mcp",
+                      label: "MCP & connections",
+                      description: "Manage integrations and providers",
+                      run: () => navigate({ to: "/settings/ai" }),
+                    },
+                    {
+                      id: "new",
+                      label: "New chat",
+                      description: "Start a new conversation",
+                      run: () =>
+                        navigate({
+                          to: "/agent/$agentId/$chatId",
+                          params: {
+                            agentId: activeAgentId,
+                            chatId: "new-task",
+                          },
+                          search: { project: projectId },
+                        }),
+                    },
+                  ]}
                   canCancel={canCancel}
                   contextCatalog={contextCatalog}
                   draft={draft}
@@ -1111,6 +1116,10 @@ function toolPayload(value?: string): Record<string, unknown> {
 }
 
 type AgentComposerProps = {
+  references: AgentContextReference[];
+  onReferencesChange: (refs: AgentContextReference[]) => void;
+  actions: ComposerAction[];
+  trajectory: TrajectoryData | undefined;
   canCancel: boolean;
   contextCatalog: AgentContextCatalog | undefined;
   draft: string;
@@ -1128,7 +1137,7 @@ type AgentComposerProps = {
   onSubmit: (event: FormEvent) => void;
   placeholder?: string;
   profile: string | undefined;
-  ref: React.Ref<HTMLTextAreaElement>;
+  ref: React.Ref<DraftEditorHandle>;
   runtime: AgentBootstrap | undefined;
   selectedModel: string | undefined;
   selectedReasoningEffort: string | undefined;
@@ -1137,6 +1146,10 @@ type AgentComposerProps = {
 };
 
 function AgentComposer({
+  references,
+  onReferencesChange,
+  actions,
+  trajectory,
   canCancel,
   contextCatalog,
   draft,
@@ -1168,97 +1181,56 @@ function AgentComposer({
     (model) => model.id === effectiveModel
   );
 
-  const contextSuggestions = matchingComposerSuggestions(
-    contextCatalog,
-    terminalCatalog,
-    draft
-  );
-  const slashMenuId = useId();
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
-  const [dismissedSlashDraft, setDismissedSlashDraft] = useState<string | null>(
-    null
-  );
-  const visibleContextSuggestions =
-    dismissedSlashDraft === draft ? [] : contextSuggestions;
-  const effectiveSuggestionIndex = Math.min(
-    activeSuggestionIndex,
-    Math.max(visibleContextSuggestions.length - 1, 0)
-  );
-
-  const handleComposerChange = (value: string) => {
-    setDismissedSlashDraft(null);
-    setActiveSuggestionIndex(0);
-    onChange(value);
-  };
-  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (visibleContextSuggestions.length === 0) {
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveSuggestionIndex(
-        (effectiveSuggestionIndex + 1) % visibleContextSuggestions.length
-      );
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveSuggestionIndex(
-        (effectiveSuggestionIndex - 1 + visibleContextSuggestions.length) %
-          visibleContextSuggestions.length
-      );
-      return;
-    }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const suggestion = visibleContextSuggestions[effectiveSuggestionIndex];
-      if (suggestion) {
-        handleComposerChange(suggestion.insertText);
-      }
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setDismissedSlashDraft(draft);
-    }
-  };
   return (
     <AttachmentDropZone>
       <PromptComposer.Root
         xstyle={styles.composer}
         onSubmit={onSubmit}
-        onValueChange={handleComposerChange}
+        onValueChange={onChange}
         submitShortcut="enter"
         surfaceXstyle={styles.composerSurface}
         value={draft}
       >
         <DraftAttachments />
-        <PromptComposer.Input
-          aria-activedescendant={
-            visibleContextSuggestions.length
-              ? `${slashMenuId}-item-${effectiveSuggestionIndex}`
-              : undefined
-          }
-          aria-autocomplete="list"
-          aria-controls={
-            visibleContextSuggestions.length ? slashMenuId : undefined
-          }
-          aria-expanded={visibleContextSuggestions.length > 0}
-          aria-label="Send a message to Lenso Agent"
-          xstyle={styles.textarea}
-          onKeyDown={handleComposerKeyDown}
-          placeholder={placeholder}
+        <AgentComposerInput
           ref={ref}
-          rows={2}
-        />
-        <ComposerSlashMenu
-          activeIndex={effectiveSuggestionIndex}
-          menuId={slashMenuId}
-          onActiveIndexChange={setActiveSuggestionIndex}
-          onSelect={(suggestion) => handleComposerChange(suggestion.insertText)}
-          suggestions={visibleContextSuggestions}
+          draft={draft}
+          onChange={onChange}
+          contextCatalog={contextCatalog}
+          terminalCatalog={terminalCatalog}
+          references={references}
+          onReferencesChange={onReferencesChange}
+          placeholder={placeholder}
+          actions={[
+            ...actions,
+            ...[
+              { id: "normal", label: "Normal mode", value: undefined },
+              { id: "plan", label: "Plan mode", value: "plan" },
+              { id: "code", label: "Code mode", value: "code" },
+            ].map((item) => ({
+              id: item.id,
+              label: item.label,
+              description: "Change the Profile for new turns",
+              run: () => onProfileChange(item.value),
+            })),
+            ...selectableModels.map((model) => ({
+              id: `model:${model.id}`,
+              label: model.displayName,
+              description: "Select model",
+              group: "Models",
+              run: () => onModelChange(model.id),
+            })),
+            ...(activeModel?.reasoningEfforts ?? []).map((value) => ({
+              id: `reasoning:${value}`,
+              label: `Reasoning · ${value}`,
+              description: "Change reasoning effort",
+              group: "Reasoning",
+              run: () => onReasoningEffortChange(value),
+            })),
+          ]}
         />
         <AgentComposerToolbar
+          trajectory={trajectory}
           activeModel={activeModel}
           canCancel={canCancel}
           draft={draft}
@@ -1285,6 +1257,7 @@ function AgentComposer({
 
 type AgentComposerToolbarProps = Pick<
   AgentComposerProps,
+  | "trajectory"
   | "canCancel"
   | "draft"
   | "isRunning"
@@ -1307,6 +1280,7 @@ type AgentComposerToolbarProps = Pick<
 };
 
 function AgentComposerToolbar({
+  trajectory,
   activeModel,
   canCancel,
   draft,
@@ -1361,6 +1335,11 @@ function AgentComposerToolbar({
         />
       </div>
       <PromptComposer.Actions xstyle={styles.composerActions}>
+        <AgentContextUsage
+          model={activeModel}
+          trajectory={trajectory}
+          draft={draft}
+        />
         {selectableModels.length ? (
           <RunConfigurationMenu
             disabled={isRunning || isConfiguring}

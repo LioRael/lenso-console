@@ -20,6 +20,7 @@ import {
   type ProfileCatalog,
   type ProfileDocument,
 } from "./agent-profile-model";
+import { AgentProfileSkills } from "./agent-profile-skills";
 import { readAgentToolPolicy, type AgentIdentity } from "./agent-runtime";
 import { agentSettingsStyles as styles } from "./agent-settings-page.stylex";
 
@@ -380,6 +381,12 @@ export function AgentProfileEditor({
               </p>
             </div>
           </div>
+          <AgentProfileSkills
+            agentId={agent.id}
+            document={profile.document}
+            disabled={readonly}
+            onChange={edit}
+          />
           <section
             {...stylex.props(ui.capabilities)}
             aria-label="Profile capabilities"

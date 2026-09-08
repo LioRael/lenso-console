@@ -1,4 +1,5 @@
 import { Button } from "@lenso/ui/button";
+import { Dialog } from "@lenso/ui/dialog";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
@@ -119,7 +120,14 @@ export function AddMcpConnection({
     return null;
   }
   return (
-    <div {...stylex.props(page.section)}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!pending) {
+          setOpen(next);
+        }
+      }}
+    >
       <Button
         size="compact"
         onClick={() => {
@@ -131,116 +139,135 @@ export function AddMcpConnection({
         Add MCP
       </Button>
       {saved ? <output {...stylex.props(styles.notice)}>{saved}</output> : null}
-      {open ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void add();
-          }}
-          {...stylex.props(page.group, local.form)}
-        >
-          <strong>Add MCP connection</strong>
-          <div {...stylex.props(page.headerActions)}>
-            <Button
-              type="button"
-              size="compact"
-              variant={
-                draft.transport === "streamable_http" ? "primary" : "secondary"
-              }
-              disabled={pending}
-              onClick={() =>
-                setDraft((current) => ({
-                  ...current,
-                  transport: "streamable_http",
-                }))
-              }
+      <Dialog.Portal>
+        <Dialog.Backdrop />
+        <Dialog.Viewport>
+          <Dialog.Popup xstyle={local.popup}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void add();
+              }}
+              {...stylex.props(page.group, local.form)}
             >
-              Remote URL
-            </Button>
-            <Button
-              type="button"
-              size="compact"
-              variant={draft.transport === "stdio" ? "primary" : "secondary"}
-              disabled={pending}
-              onClick={() =>
-                setDraft((current) => ({ ...current, transport: "stdio" }))
-              }
-            >
-              Local command
-            </Button>
-          </div>
-          {field("name", "Connection name", "my_server")}
-          {draft.transport === "streamable_http" ? (
-            <>
-              {field("endpoint", "Server URL", "https://example.com/mcp")}
-              {field(
-                "authorization",
-                "Authorization variable (optional)",
-                "MCP_AUTHORIZATION"
-              )}
-            </>
-          ) : (
-            <>
-              {field("program", "Executable path", "/absolute/path/to/server")}
-              {field(
-                "directory",
-                "Working directory",
-                "/absolute/path/to/project"
-              )}
-              <label {...stylex.props(styles.rowCopy, local.field)}>
-                Arguments (one per line)
-                <textarea
+              <Dialog.Title>Add MCP connection</Dialog.Title>
+              <div {...stylex.props(page.headerActions)}>
+                <Button
+                  type="button"
+                  size="compact"
+                  variant={
+                    draft.transport === "streamable_http"
+                      ? "primary"
+                      : "secondary"
+                  }
                   disabled={pending}
-                  aria-label="Arguments (one per line)"
-                  value={draft.arguments}
-                  onChange={(event) =>
+                  onClick={() =>
                     setDraft((current) => ({
                       ...current,
-                      arguments: event.target.value,
+                      transport: "streamable_http",
                     }))
                   }
-                />
-              </label>
-              {field(
-                "environment",
-                "Environment variables (optional)",
-                "API_KEY"
+                >
+                  Remote URL
+                </Button>
+                <Button
+                  type="button"
+                  size="compact"
+                  variant={
+                    draft.transport === "stdio" ? "primary" : "secondary"
+                  }
+                  disabled={pending}
+                  onClick={() =>
+                    setDraft((current) => ({ ...current, transport: "stdio" }))
+                  }
+                >
+                  Local command
+                </Button>
+              </div>
+              {field("name", "Connection name", "my_server")}
+              {draft.transport === "streamable_http" ? (
+                <>
+                  {field("endpoint", "Server URL", "https://example.com/mcp")}
+                  {field(
+                    "authorization",
+                    "Authorization variable (optional)",
+                    "MCP_AUTHORIZATION"
+                  )}
+                </>
+              ) : (
+                <>
+                  {field(
+                    "program",
+                    "Executable path",
+                    "/absolute/path/to/server"
+                  )}
+                  {field(
+                    "directory",
+                    "Working directory",
+                    "/absolute/path/to/project"
+                  )}
+                  <label {...stylex.props(styles.rowCopy, local.field)}>
+                    Arguments (one per line)
+                    <textarea
+                      disabled={pending}
+                      aria-label="Arguments (one per line)"
+                      value={draft.arguments}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          arguments: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  {field(
+                    "environment",
+                    "Environment variables (optional)",
+                    "API_KEY"
+                  )}
+                </>
               )}
-            </>
-          )}
-          <p {...stylex.props(styles.description)}>
-            Use environment variable names for credentials. Their values must be
-            available to the Agent process.
-          </p>
-          <p {...stylex.props(styles.description)}>
-            Configuration is validated before saving. The Agent checks
-            connectivity when this MCP is enabled.
-          </p>
-          {errorMessage ? (
-            <p role="alert" {...stylex.props(styles.error)}>
-              {errorMessage}
-            </p>
-          ) : null}
-          <div {...stylex.props(page.headerActions)}>
-            <Button type="submit" size="compact" disabled={pending}>
-              {pending ? "Adding…" : "Add connection"}
-            </Button>
-            <Button
-              type="button"
-              size="compact"
-              variant="ghost"
-              disabled={pending}
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
-      ) : null}
-    </div>
+              <p {...stylex.props(styles.description)}>
+                Use environment variable names for credentials. Their values
+                must be available to the Agent process.
+              </p>
+              <p {...stylex.props(styles.description)}>
+                Configuration is validated before saving. The Agent checks
+                connectivity when this MCP is enabled.
+              </p>
+              {errorMessage ? (
+                <p role="alert" {...stylex.props(styles.error)}>
+                  {errorMessage}
+                </p>
+              ) : null}
+              <div {...stylex.props(page.headerActions)}>
+                <Button type="submit" size="compact" disabled={pending}>
+                  {pending ? "Adding…" : "Add connection"}
+                </Button>
+                <Button
+                  type="button"
+                  size="compact"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => setOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Dialog.Popup>
+        </Dialog.Viewport>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 const local = stylex.create({
+  popup: {
+    width: "min(520px, calc(100vw - 32px))",
+    maxHeight: "calc(100dvh - 48px)",
+    overflowY: "auto",
+    padding: 0,
+  },
   field: { fontSize: 13, lineHeight: "20px", gap: 6 },
-  form: { display: "grid", gap: 16, padding: 20, marginBlockStart: 16 },
+  form: { display: "grid", gap: 16, padding: 20, marginBlockStart: 0 },
 });
