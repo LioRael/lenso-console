@@ -23,8 +23,9 @@
   }
 
   ::selection {
-    background: var(--color-surface-selected);
-    color: var(--color-content-primary);
+    /* Text selection needs stronger contrast than a selected surface. */
+    background: #2563eb;
+    color: #fff;
   }
 
   hr {
