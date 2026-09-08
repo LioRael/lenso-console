@@ -70,6 +70,13 @@ export function AgentProjectPicker({
     });
   };
   const openDirectory = async () => {
+    if (
+      directory.replace(/\/+$/u, "") ===
+      projects.data?.defaultPath.replace(/\/+$/u, "")
+    ) {
+      choose();
+      return;
+    }
     setBusy(true);
     setProjectError(undefined);
     try {
