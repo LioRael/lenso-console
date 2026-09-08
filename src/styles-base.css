@@ -24,8 +24,12 @@
 
   ::selection {
     /* Text selection needs stronger contrast than a selected surface. */
-    background: #2563eb;
-    color: #fff;
+    background: color-mix(
+      in srgb,
+      var(--color-content-primary) 32%,
+      var(--color-surface-canvas)
+    );
+    color: var(--color-content-primary);
   }
 
   hr {
