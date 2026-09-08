@@ -37,8 +37,8 @@ export const agentMessageControlStyles = stylex.create({
   },
   timeEnd: {
     order: 1,
-    marginInlineStart: "auto",
-    marginInlineEnd: "8px",
+    marginInlineStart: "6px",
+    marginInlineEnd: 0,
   },
   cancel: {
     borderColor: "transparent",
