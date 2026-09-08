@@ -48,8 +48,8 @@ export function AgentMessageActions({
       >
         <Copy
           aria-hidden="true"
-          style={{ width: 10, height: 10 }}
-          size={10}
+          style={{ width: 12, height: 12 }}
+          size={12}
           strokeWidth={1.7}
         />
       </IconButton>
@@ -63,8 +63,8 @@ export function AgentMessageActions({
         >
           <Pencil
             aria-hidden="true"
-            style={{ width: 10, height: 10 }}
-            size={10}
+            style={{ width: 12, height: 12 }}
+            size={12}
             strokeWidth={1.7}
           />
         </IconButton>

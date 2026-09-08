@@ -300,8 +300,8 @@ test("a project task exposes its streamed diff in the existing conversation page
   for (const icon of container?.querySelectorAll(
     '[aria-label="Copy message"] svg, [aria-label="Edit message"] svg'
   ) ?? []) {
-    expect(icon.getBoundingClientRect().width).toBe(10);
-    expect(icon.getBoundingClientRect().height).toBe(10);
+    expect(icon.getBoundingClientRect().width).toBe(12);
+    expect(icon.getBoundingClientRect().height).toBe(12);
   }
   expect(
     container?.querySelector('[aria-label="Turn permissions"]')
