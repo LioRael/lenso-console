@@ -109,6 +109,9 @@ test("Profile copies preserve hidden choices, save drafts and apply only explici
   await expect
     .element(page.getByRole("button", { name: "Duplicate Profile" }))
     .toBeEnabled();
+  await expect
+    .element(page.getByRole("textbox", { name: "Profile instructions" }))
+    .not.toBeInTheDocument();
   await page.getByRole("button", { name: "Duplicate Profile" }).click();
   await page
     .getByRole("textbox", { name: "Profile instructions" })
@@ -120,6 +123,15 @@ test("Profile copies preserve hidden choices, save drafts and apply only explici
     .getByRole("button", { name: "Enable matching", exact: true })
     .first()
     .click();
+  await page.getByRole("combobox", { name: "Capability category" }).click();
+  await page
+    .getByRole("option", { name: "Skills & context · 0", exact: true })
+    .click();
+  await expect
+    .element(page.getByText("No matching capabilities", { exact: true }))
+    .toBeVisible();
+  await page.getByRole("combobox", { name: "Capability category" }).click();
+  await page.getByRole("option", { name: "Tools · 2", exact: true }).click();
   expect(saves).toHaveLength(0);
   expect(applies).toHaveLength(0);
   await page.getByRole("button", { name: "Save draft" }).click();

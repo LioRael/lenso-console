@@ -3,6 +3,21 @@ import * as stylex from "@stylexjs/stylex";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 
 export const agentSettingsStyles = stylex.create({
+  profileColumn: {
+    width: "min(760px, calc(100% - 40px))",
+    paddingBlockStart: 40,
+  },
+  advanced: {
+    marginBlockStart: 24,
+    borderTop: "1px solid var(--color-border-tertiary)",
+  },
+  advancedSummary: {
+    cursor: "pointer",
+    padding: "18px 16px",
+    fontSize: 13,
+    fontWeight: 500,
+    color: tokens.colorContentSecondary,
+  },
   sectionHeading: { display: "grid", gap: tokens.space2 },
   headingRow: {
     display: "flex",
@@ -13,7 +28,16 @@ export const agentSettingsStyles = stylex.create({
   },
   inset: { marginInline: 16 },
   agentGroup: { marginBlockStart: 16 },
-  agentRow: { height: "auto", alignItems: "center" },
+  agentRow: {
+    height: "auto",
+    alignItems: "center",
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr) auto",
+      "@media (max-width: 520px)": "minmax(0, 1fr)",
+    },
+    gap: 12,
+  },
   agentCopy: {
     alignSelf: "center",
     justifyContent: "center",

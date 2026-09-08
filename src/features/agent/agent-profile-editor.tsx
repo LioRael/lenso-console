@@ -51,6 +51,7 @@ export function AgentProfileEditor({
   const [draft, setDraft] = useState<EditableProfile>();
   const [pendingSelection, setPendingSelection] = useState<string>();
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("Tools");
   const [message, setMessage] = useState("");
   const profiles = catalog.data?.profiles ?? [];
   const saved =
@@ -183,76 +184,90 @@ export function AgentProfileEditor({
     active &&
     (profile?.name === "default" ||
       profile?.revision === catalog.data?.activeRevision);
+  const categories = [
+    "Tools",
+    "Tool providers & MCP",
+    "Skills & context",
+    "Instruments",
+    "Other providers",
+  ];
+  const visibleProviders = providerItems.filter(
+    (item) => providerGroup(item) === category && matches(providerId(item))
+  );
+  const isTools = category === "Tools";
+  const resultCount = isTools ? visibleTools.length : visibleProviders.length;
+  const selectedCount = isTools
+    ? visibleTools.filter((tool) => allowed.has(tool.name)).length
+    : visibleProviders.filter(
+        (item) => profile && providerEnabled(profile.document, item)
+      ).length;
+  const bulkEdit = (enabled: boolean) => {
+    if (!profile) {
+      return;
+    }
+    edit(
+      isTools
+        ? toggleTools(
+            profile.document,
+            visibleTools.map((tool) => tool.name),
+            enabled,
+            tools.data?.allowed ?? []
+          )
+        : toggleProviders(profile.document, visibleProviders, enabled)
+    );
+  };
   return (
     <section {...stylex.props(ui.root)} aria-label="Profile editor">
-      <div>
+      <header {...stylex.props(ui.sectionHeading)}>
         <h2 {...stylex.props(ui.heading)}>Profiles</h2>
-        <p {...stylex.props(styles.description)}>
-          Reusable instructions and capability choices for this Agent. Save a
-          draft, then apply it explicitly.
-        </p>
-      </div>
-      {catalog.isPending ? <output>Loading profiles…</output> : null}
+        <p {...stylex.props(ui.muted)}>Choose how this Agent works.</p>
+      </header>
+      {catalog.isPending ? (
+        <output {...stylex.props(ui.empty)}>Loading profiles…</output>
+      ) : null}
       {catalog.error ? (
         <p role="alert" {...stylex.props(styles.error)}>
           {catalog.error.message}
         </p>
       ) : null}
       {profile ? (
-        <>
-          <div {...stylex.props(ui.toolbar)}>
-            <Select.Root
-              value={saved?.name ?? "default"}
-              onValueChange={(value) => {
-                if (typeof value === "string") {
-                  choose(value);
-                }
-              }}
-              disabled={busy}
-            >
-              <Select.Trigger aria-label="Select Profile" xstyle={ui.selector}>
-                <Select.Value>{saved?.name}</Select.Value>
-                <Select.Icon />
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Positioner align="start" position="popper">
-                  <Select.Popup>
-                    <Select.List>
-                      {profiles.map((item) => (
-                        <Select.Item key={item.name} value={item.name}>
-                          <Select.ItemText>
-                            {item.name}
-                            {item.readOnly ? " · Template" : ""}
-                          </Select.ItemText>
-                          <Select.ItemIndicator />
-                        </Select.Item>
-                      ))}
-                    </Select.List>
-                  </Select.Popup>
-                </Select.Positioner>
-              </Select.Portal>
-            </Select.Root>
+        <div {...stylex.props(ui.panel)}>
+          <div {...stylex.props(ui.profileHeader)}>
+            <div {...stylex.props(ui.profileIdentity)}>
+              <ProfileSelect
+                label="Select Profile"
+                value={saved?.name ?? "default"}
+                display={draft?.name || saved?.name || "default"}
+                disabled={busy}
+                options={profiles.map((item) => ({
+                  value: item.name,
+                  label: item.name,
+                  detail: item.readOnly ? "Template" : "Custom",
+                }))}
+                onChange={choose}
+              />
+              <span {...stylex.props(ui.badge)}>
+                {profile.readOnly
+                  ? "Template"
+                  : dirty
+                    ? "Editing"
+                    : applied
+                      ? "Applied"
+                      : "Draft"}
+              </span>
+            </div>
             <Button
-              variant="secondary"
+              variant={profile.readOnly ? "secondary" : "ghost"}
               size="compact"
               disabled={busy || dirty}
               onClick={copy}
             >
               Duplicate Profile
             </Button>
-            <span {...stylex.props(ui.status)}>
-              {profile.readOnly
-                ? "Read-only template · Duplicate to edit"
-                : profile.revision
-                  ? applied
-                    ? "Applied"
-                    : "Saved draft"
-                  : "New Profile"}
-            </span>
           </div>
           {pendingSelection ? (
-            <div {...stylex.props(ui.toolbar)} role="alert">
-              <span {...stylex.props(styles.description)}>
+            <div {...stylex.props(ui.inlineNotice)} role="alert">
+              <span {...stylex.props(ui.muted)}>
                 Discard unsaved changes and switch Profile?
               </span>
               <Button
@@ -275,288 +290,258 @@ export function AgentProfileEditor({
               </Button>
             </div>
           ) : null}
-          {save.error || apply.error ? (
-            <p role="alert" {...stylex.props(styles.error)}>
-              {(save.error ?? apply.error)?.message}
-            </p>
-          ) : null}
-          <div {...stylex.props(ui.footer)}>
-            <output {...stylex.props(ui.status, ui.statusStart)}>
-              {busy
-                ? apply.isPending
-                  ? "Preparing Profile…"
-                  : "Validating and saving…"
-                : dirty
-                  ? "Unsaved changes"
-                  : message ||
-                    (active && !applied
-                      ? "A different revision is running."
-                      : "")}
-            </output>
-            <Button
-              size="compact"
-              variant="ghost"
-              disabled={!draft || busy}
-              onClick={() => {
-                setDraft(undefined);
-                save.reset();
-              }}
-            >
-              Reset
-            </Button>
-            <Button
-              size="compact"
-              variant="secondary"
-              disabled={
-                !dirty ||
-                readonly ||
-                !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(profile.name)
-              }
-              onClick={() => save.mutate(profile)}
-            >
-              Save draft
-            </Button>
-            <Button
-              size="compact"
-              disabled={dirty || busy || !profile.revision || applied}
-              onClick={() => apply.mutate(profile)}
-            >
-              Apply Profile
-            </Button>
-          </div>
           <div {...stylex.props(ui.fields)}>
-            {profile.revision ? null : (
-              <label htmlFor="profile-name" {...stylex.props(ui.field)}>
-                Profile name
-                <TextField.Root xstyle={ui.input}>
-                  <TextField.Control
-                    id="profile-name"
-                    aria-label="Profile name"
-                    value={profile.name}
+            {profile.readOnly ? (
+              <>
+                <p {...stylex.props(ui.templateDescription)}>
+                  {profile.document.description ||
+                    "A starting point for your Agent."}
+                </p>
+                <div {...stylex.props(ui.instructionPreview)}>
+                  <h3 {...stylex.props(ui.fieldTitle)}>Instructions</h3>
+                  <p {...stylex.props(ui.previewText)}>
+                    {profile.document.instructions ||
+                      "Uses instructions from its enabled providers."}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {profile.revision ? null : (
+                  <label htmlFor="profile-name" {...stylex.props(ui.field)}>
+                    Name
+                    <TextField.Root xstyle={ui.input}>
+                      <TextField.Control
+                        id="profile-name"
+                        aria-label="Profile name"
+                        value={profile.name}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setDraft({ ...profile, name: event.target.value })
+                        }
+                        placeholder="my-profile"
+                      />
+                    </TextField.Root>
+                    <span {...stylex.props(ui.hint)}>
+                      Lowercase letters, numbers, hyphens or underscores.
+                    </span>
+                  </label>
+                )}
+                <label
+                  htmlFor="profile-description"
+                  {...stylex.props(ui.field)}
+                >
+                  Description
+                  <TextField.Root xstyle={ui.input}>
+                    <TextField.Control
+                      id="profile-description"
+                      aria-label="Profile description"
+                      disabled={busy}
+                      value={profile.document.description}
+                      onChange={(event) =>
+                        edit({
+                          ...profile.document,
+                          description: event.target.value,
+                        })
+                      }
+                      placeholder="What is this Profile for?"
+                    />
+                  </TextField.Root>
+                </label>
+                <label {...stylex.props(ui.field)}>
+                  Instructions
+                  <textarea
+                    {...stylex.props(ui.textarea)}
+                    aria-label="Profile instructions"
                     disabled={busy}
+                    value={profile.document.instructions}
                     onChange={(event) =>
-                      setDraft({ ...profile, name: event.target.value })
+                      edit({
+                        ...profile.document,
+                        instructions: event.target.value,
+                      })
                     }
-                    placeholder="my-profile"
+                    placeholder="How should this Agent approach its work?"
                   />
-                </TextField.Root>
-                <span {...stylex.props(styles.description)}>
-                  Lowercase letters, numbers, hyphens or underscores. Up to 64
-                  characters.
-                </span>
-              </label>
+                  <span {...stylex.props(ui.hint)}>
+                    Added to the instructions from enabled providers.
+                  </span>
+                </label>
+              </>
             )}
-            <label htmlFor="profile-description" {...stylex.props(ui.field)}>
-              Description
-              <TextField.Root xstyle={ui.input}>
+          </div>
+          <section
+            {...stylex.props(ui.capabilities)}
+            aria-label="Profile capabilities"
+          >
+            <header {...stylex.props(ui.capabilityHeading)}>
+              <div>
+                <h3 {...stylex.props(ui.fieldTitle)}>Capabilities</h3>
+                <p {...stylex.props(ui.hint)}>
+                  Choose the tools and providers available to this Profile.
+                </p>
+              </div>
+              {isTools && profile.document.allowed_tools === null ? (
+                <span {...stylex.props(ui.badge)}>Inherited</span>
+              ) : null}
+            </header>
+            <div {...stylex.props(ui.filters)}>
+              <ProfileSelect
+                label="Capability category"
+                value={category}
+                display={
+                  category === "Tool providers & MCP"
+                    ? "Providers & MCP"
+                    : category
+                }
+                disabled={false}
+                options={categories.map((value) => ({
+                  value,
+                  label:
+                    value === "Tool providers & MCP"
+                      ? "Providers & MCP"
+                      : value,
+                  detail: String(
+                    value === "Tools"
+                      ? (tools.data?.available.length ?? 0)
+                      : providerItems.filter(
+                          (item) => providerGroup(item) === value
+                        ).length
+                  ),
+                }))}
+                onChange={setCategory}
+              />
+              <TextField.Root xstyle={ui.search}>
                 <TextField.Control
-                  id="profile-description"
-                  aria-label="Profile description"
-                  disabled={readonly}
-                  value={profile.document.description}
-                  onChange={(event) =>
-                    edit({
-                      ...profile.document,
-                      description: event.target.value,
-                    })
-                  }
+                  aria-label="Search Profile capabilities"
+                  type="search"
+                  placeholder="Search capabilities…"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
                 />
               </TextField.Root>
-            </label>
-            <label {...stylex.props(ui.field)}>
-              Instructions
-              <textarea
-                {...stylex.props(ui.textarea)}
-                aria-label="Profile instructions"
-                disabled={readonly}
-                value={profile.document.instructions}
-                onChange={(event) =>
-                  edit({
-                    ...profile.document,
-                    instructions: event.target.value,
-                  })
-                }
-                placeholder="How should this Agent approach its work?"
-              />
-            </label>
-          </div>
-          <TextField.Root xstyle={ui.input}>
-            <TextField.Control
-              aria-label="Search Profile capabilities"
-              type="search"
-              placeholder="Search tools and providers…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </TextField.Root>
-          <details open {...stylex.props(ui.group)}>
-            <summary {...stylex.props(ui.summary)}>
-              Tools
-              <span {...stylex.props(ui.count)}>
-                {allowed.size} selected
-                {profile.document.allowed_tools === null ? " · Inherited" : ""}
-              </span>
-            </summary>
-            <div {...stylex.props(styles.toolToolbar)}>
-              <span {...stylex.props(styles.description)}>
-                Profile choices can only narrow Agent-wide permissions.
-              </span>
-              <Button
-                variant="ghost"
-                size="compact"
-                disabled={readonly || !tools.data}
-                onClick={() =>
-                  edit({ ...profile.document, allowed_tools: null })
-                }
-              >
-                Inherit permissions
-              </Button>
             </div>
-            {tools.error ? (
-              <p role="alert" {...stylex.props(styles.notice)}>
+            <div {...stylex.props(ui.listToolbar)}>
+              <span {...stylex.props(ui.hint)}>
+                {selectedCount} of {resultCount} enabled
+                {search ? " · Matching results" : ""}
+              </span>
+              {profile.readOnly ? (
+                <span {...stylex.props(ui.hint)}>Duplicate to customize</span>
+              ) : (
+                <div {...stylex.props(ui.bulkActions)}>
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    disabled={
+                      readonly || !resultCount || (isTools && !tools.data)
+                    }
+                    onClick={() => bulkEdit(true)}
+                  >
+                    Enable {search ? "matching" : "all"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    disabled={
+                      readonly || !resultCount || (isTools && !tools.data)
+                    }
+                    onClick={() => bulkEdit(false)}
+                  >
+                    Disable {search ? "matching" : "all"}
+                  </Button>
+                </div>
+              )}
+            </div>
+            {isTools && tools.error ? (
+              <p role="alert" {...stylex.props(ui.empty)}>
                 Tool catalog could not be loaded. Existing choices are
                 preserved.
               </p>
             ) : null}
-            <div {...stylex.props(styles.toolToolbar)}>
-              <Button
-                variant="ghost"
-                size="compact"
-                disabled={readonly || !tools.data}
-                onClick={() =>
-                  edit(
-                    toggleTools(
-                      profile.document,
-                      visibleTools.map((tool) => tool.name),
-                      true,
-                      tools.data?.allowed ?? []
-                    )
-                  )
-                }
-              >
-                Enable {search ? "matching" : "all"}
-              </Button>
-              <Button
-                variant="ghost"
-                size="compact"
-                disabled={readonly || !tools.data}
-                onClick={() =>
-                  edit(
-                    toggleTools(
-                      profile.document,
-                      visibleTools.map((tool) => tool.name),
-                      false,
-                      tools.data?.allowed ?? []
-                    )
-                  )
-                }
-              >
-                Disable {search ? "matching" : "all"}
-              </Button>
-            </div>
-            <ul {...stylex.props(styles.toolList)}>
-              {visibleTools.map((tool) => (
-                <li key={tool.name} {...stylex.props(styles.row)}>
-                  <span {...stylex.props(styles.rowCopy)}>
-                    <strong {...stylex.props(styles.rowTitle)}>
-                      {tool.name}
-                    </strong>
-                    <span {...stylex.props(styles.description)}>
-                      {tool.description}
-                      {tools.data?.allowed.includes(tool.name)
-                        ? ""
-                        : " · Blocked by Agent-wide permissions"}
-                    </span>
-                  </span>
-                  <Switch.Root
-                    layout="control-only"
-                    aria-label={`Profile tool ${tool.name}`}
-                    disabled={readonly}
-                    checked={allowed.has(tool.name)}
-                    onCheckedChange={(checked) =>
-                      edit(
-                        toggleTools(
-                          profile.document,
-                          [tool.name],
-                          checked,
-                          tools.data?.allowed ?? []
-                        )
-                      )
-                    }
-                  >
-                    <Switch.Thumb />
-                  </Switch.Root>
-                </li>
-              ))}
-            </ul>
-            {visibleTools.length === 0 ? (
-              <p {...stylex.props(styles.notice)}>
-                No matching tools in the current runtime catalog. Provider
-                changes are reflected after applying.
-              </p>
-            ) : null}
-          </details>
-          {[
-            "Tool providers & MCP",
-            "Skills & context",
-            "Instruments",
-            "Other providers",
-          ].map((group) => {
-            const members = providerItems.filter(
-              (item) => providerGroup(item) === group
-            );
-            const visible = members.filter((item) => matches(providerId(item)));
-            return (
-              <details key={group} {...stylex.props(ui.group)}>
-                <summary {...stylex.props(ui.summary)}>
-                  {group}
-                  <span {...stylex.props(ui.count)}>
-                    {
-                      members.filter((item) =>
-                        providerEnabled(profile.document, item)
-                      ).length
-                    }{" "}
-                    / {members.length} enabled
-                  </span>
-                </summary>
-                <div {...stylex.props(ui.groupBody)}>
-                  <div {...stylex.props(styles.toolToolbar)}>
-                    <Button
-                      size="compact"
-                      variant="ghost"
-                      disabled={readonly || !visible.length}
-                      onClick={() =>
-                        edit(toggleProviders(profile.document, visible, true))
-                      }
-                    >
-                      Enable {search ? "matching" : "all"}
-                    </Button>
-                    <Button
-                      size="compact"
-                      variant="ghost"
-                      disabled={readonly || !visible.length}
-                      onClick={() =>
-                        edit(toggleProviders(profile.document, visible, false))
-                      }
-                    >
-                      Disable {search ? "matching" : "all"}
-                    </Button>
-                  </div>
-                  <ul {...stylex.props(styles.toolList)}>
-                    {visible.map((item) => (
-                      <li key={providerId(item)} {...stylex.props(styles.row)}>
-                        <span {...stylex.props(styles.rowCopy)}>
-                          <strong {...stylex.props(styles.rowTitle)}>
-                            {item.packageId}
-                          </strong>
-                          <span {...stylex.props(styles.description)}>
-                            {item.instanceKey}
-                          </span>
+            <ul {...stylex.props(ui.list)} aria-label={`${category} list`}>
+              {isTools
+                ? visibleTools.map((tool) => (
+                    <li key={tool.name} {...stylex.props(ui.row)}>
+                      <div {...stylex.props(ui.rowCopy)}>
+                        <strong {...stylex.props(ui.rowTitle)}>
+                          {tool.name}
+                        </strong>
+                        <span
+                          title={tool.description}
+                          {...stylex.props(ui.rowDescription)}
+                        >
+                          {tool.description}
                         </span>
+                        {tools.data?.allowed.includes(tool.name) ? null : (
+                          <span {...stylex.props(ui.hint)}>
+                            Blocked by Agent-wide permissions
+                          </span>
+                        )}
+                      </div>
+                      {profile.readOnly ? (
+                        <span
+                          {...stylex.props(
+                            ui.readOnlyState,
+                            allowed.has(tool.name) && ui.enabledState
+                          )}
+                        >
+                          {allowed.has(tool.name) ? "Enabled" : "Off"}
+                        </span>
+                      ) : (
+                        <Switch.Root
+                          layout="control-only"
+                          aria-label={`Profile tool ${tool.name}`}
+                          disabled={busy}
+                          checked={allowed.has(tool.name)}
+                          onCheckedChange={(checked) =>
+                            edit(
+                              toggleTools(
+                                profile.document,
+                                [tool.name],
+                                checked,
+                                tools.data?.allowed ?? []
+                              )
+                            )
+                          }
+                        >
+                          <Switch.Thumb />
+                        </Switch.Root>
+                      )}
+                    </li>
+                  ))
+                : visibleProviders.map((item) => (
+                    <li key={providerId(item)} {...stylex.props(ui.row)}>
+                      <div {...stylex.props(ui.rowCopy)}>
+                        <strong {...stylex.props(ui.providerTitle)}>
+                          {item.packageId
+                            .replace(/^lenso\.agent\./u, "")
+                            .replaceAll(/[._-]/gu, " ")}
+                        </strong>
+                        <span
+                          title={providerId(item)}
+                          {...stylex.props(ui.rowDescription)}
+                        >
+                          {providerId(item)}
+                        </span>
+                      </div>
+                      {profile.readOnly ? (
+                        <span
+                          {...stylex.props(
+                            ui.readOnlyState,
+                            providerEnabled(profile.document, item) &&
+                              ui.enabledState
+                          )}
+                        >
+                          {providerEnabled(profile.document, item)
+                            ? "Enabled"
+                            : "Off"}
+                        </span>
+                      ) : (
                         <Switch.Root
                           layout="control-only"
                           aria-label={`Profile provider ${providerId(item)}`}
-                          disabled={readonly}
+                          disabled={busy}
                           checked={providerEnabled(profile.document, item)}
                           onCheckedChange={(checked) =>
                             edit(
@@ -566,26 +551,164 @@ export function AgentProfileEditor({
                         >
                           <Switch.Thumb />
                         </Switch.Root>
-                      </li>
-                    ))}
-                  </ul>
-                  {visible.length ? null : (
-                    <p {...stylex.props(styles.notice)}>
-                      No matching installed providers.
-                    </p>
-                  )}
-                </div>
-              </details>
-            );
-          })}
+                      )}
+                    </li>
+                  ))}
+            </ul>
+            {resultCount === 0 ? (
+              <div {...stylex.props(ui.empty)}>
+                <strong {...stylex.props(ui.fieldTitle)}>
+                  {search
+                    ? "No matching capabilities"
+                    : "No capabilities in this category"}
+                </strong>
+                <p {...stylex.props(ui.hint)}>
+                  {search
+                    ? "Try another name or choose a different category."
+                    : "Installed providers appear here when available."}
+                </p>
+              </div>
+            ) : null}
+            {isTools ? (
+              <div {...stylex.props(ui.permissionNote)}>
+                <span {...stylex.props(ui.hint)}>
+                  Agent-wide permissions remain the limit.
+                </span>
+                {profile.readOnly ||
+                profile.document.allowed_tools === null ? null : (
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    disabled={busy || !tools.data}
+                    onClick={() =>
+                      edit({ ...profile.document, allowed_tools: null })
+                    }
+                  >
+                    Inherit permissions
+                  </Button>
+                )}
+              </div>
+            ) : null}
+          </section>
           {unknown.length ? (
-            <p {...stylex.props(styles.notice)}>
+            <p {...stylex.props(ui.inlineNotice, ui.hint)}>
               References outside the current inventory are preserved:{" "}
               {unknown.join(", ")}. Saving validates their availability.
             </p>
           ) : null}
-        </>
+          {save.error || apply.error ? (
+            <p role="alert" {...stylex.props(ui.inlineNotice, styles.error)}>
+              {(save.error ?? apply.error)?.message}
+            </p>
+          ) : null}
+          <footer {...stylex.props(ui.footer)}>
+            <output {...stylex.props(ui.status)}>
+              {busy
+                ? apply.isPending
+                  ? "Preparing Profile…"
+                  : "Validating and saving…"
+                : dirty
+                  ? "Unsaved changes"
+                  : message ||
+                    (applied
+                      ? "Currently applied"
+                      : profile.readOnly
+                        ? "Template · Ready to apply"
+                        : "Saved · Not yet applied")}
+            </output>
+            <div {...stylex.props(ui.footerActions)}>
+              {profile.readOnly ? null : (
+                <>
+                  {draft ? (
+                    <Button
+                      size="compact"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => {
+                        setDraft(undefined);
+                        save.reset();
+                      }}
+                    >
+                      Reset
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="compact"
+                    variant={dirty ? "primary" : "secondary"}
+                    disabled={
+                      !dirty ||
+                      readonly ||
+                      !/^[a-z0-9][a-z0-9_-]{0,63}$/u.test(profile.name)
+                    }
+                    onClick={() => save.mutate(profile)}
+                  >
+                    Save draft
+                  </Button>
+                </>
+              )}
+              {profile.readOnly && applied ? null : (
+                <Button
+                  size="compact"
+                  variant={dirty ? "secondary" : "primary"}
+                  disabled={dirty || busy || !profile.revision || applied}
+                  onClick={() => apply.mutate(profile)}
+                >
+                  Apply Profile
+                </Button>
+              )}
+            </div>
+          </footer>
+        </div>
       ) : null}
     </section>
+  );
+}
+
+function ProfileSelect({
+  label,
+  value,
+  display,
+  disabled,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  display: string;
+  disabled: boolean;
+  options: { value: string; label: string; detail: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Select.Root
+      value={value}
+      disabled={disabled}
+      onValueChange={(next) => {
+        if (typeof next === "string") {
+          onChange(next);
+        }
+      }}
+    >
+      <Select.Trigger aria-label={label} xstyle={ui.selector}>
+        <Select.Value>{display}</Select.Value>
+        <Select.Icon />
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Positioner align="start" position="popper">
+          <Select.Popup>
+            <Select.List>
+              {options.map((option) => (
+                <Select.Item key={option.value} value={option.value}>
+                  <Select.ItemText>
+                    {option.label} · {option.detail}
+                  </Select.ItemText>
+                  <Select.ItemIndicator />
+                </Select.Item>
+              ))}
+            </Select.List>
+          </Select.Popup>
+        </Select.Positioner>
+      </Select.Portal>
+    </Select.Root>
   );
 }

@@ -168,7 +168,12 @@ function AgentSettingsContent({
   const items = workbench.data?.items ?? [];
   const personalization = kind === "personalization";
   return (
-    <div {...stylex.props(preferences.column)}>
+    <div
+      {...stylex.props(
+        preferences.column,
+        !personalization && styles.profileColumn
+      )}
+    >
       <Link
         to={personalization ? "/settings/ai/agent" : "/settings/ai"}
         {...stylex.props(styles.backLink)}
@@ -294,7 +299,10 @@ function AgentSettingsContent({
             />
           </>
         ) : (
-          <>
+          <details {...stylex.props(styles.advanced)}>
+            <summary {...stylex.props(styles.advancedSummary)}>
+              Provider configuration
+            </summary>
             <ProviderSection
               agentId={agent.id}
               title="Models & authentication"
@@ -319,14 +327,16 @@ function AgentSettingsContent({
                   provides(item, "lenso.agent.memory")
               )}
             />
-          </>
+          </details>
         )
       ) : null}
       {personalization ? (
         <ContextCatalog agent={agent} />
       ) : (
-        <details>
-          <summary>Agent-wide permissions</summary>
+        <details {...stylex.props(styles.advanced)}>
+          <summary {...stylex.props(styles.advancedSummary)}>
+            Agent-wide permissions
+          </summary>
           <ToolAccess agent={agent} />
         </details>
       )}
