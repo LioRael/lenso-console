@@ -52,7 +52,7 @@ export function AddMcpConnection({
   ) => (
     <label {...stylex.props(styles.rowCopy, local.field)}>
       {label}
-      <TextField.Root>
+      <TextField.Root xstyle={local.input}>
         <TextField.Control
           aria-label={label}
           disabled={pending}
@@ -262,6 +262,7 @@ export function AddMcpConnection({
   );
 }
 const local = stylex.create({
+  input: { width: "100%", maxWidth: "none" },
   popup: {
     width: "min(520px, calc(100vw - 32px))",
     maxHeight: "calc(100dvh - 48px)",
