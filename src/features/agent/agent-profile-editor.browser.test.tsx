@@ -132,6 +132,7 @@ test("Profile editor preserves hidden choices and saves without activation", asy
   await page
     .getByRole("textbox", { name: "Profile instructions" })
     .fill("Review carefully.");
+  await page.getByRole("tab", { name: "Tools & providers" }).click();
   await page
     .getByRole("searchbox", { name: "Search Profile capabilities" })
     .fill("edit");
@@ -153,6 +154,7 @@ test("Profile editor preserves hidden choices and saves without activation", asy
   await expect
     .element(page.getByRole("switch", { name: "Profile tool edit" }))
     .toBeDisabled();
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await page.getByRole("combobox", { name: "Approval mode" }).click();
   await page
     .getByRole("option", {
@@ -160,6 +162,7 @@ test("Profile editor preserves hidden choices and saves without activation", asy
       exact: true,
     })
     .click();
+  await page.getByRole("tab", { name: "Skills", exact: true }).click();
   await page.getByRole("switch", { name: "Skill test", exact: true }).click();
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect.poll(() => saves.length).toBe(1);
@@ -171,6 +174,7 @@ test("Profile editor preserves hidden choices and saves without activation", asy
   await expect
     .element(page.getByRole("button", { name: "Apply Profile" }))
     .not.toBeInTheDocument();
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await page
     .getByRole("textbox", { name: "Profile instructions" })
     .fill("Keep this draft after a conflict.");

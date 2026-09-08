@@ -25,3 +25,23 @@ Global tool restrictions are available through Connections > Advanced. Profiles 
 Connections > Add MCP creates a named `lenso.agent.mcp-client` instance through the existing configuration proposal/publication API. Remote URLs support an optional Host Authorization environment-variable reference. Local commands require absolute executable and working-directory paths, literal arguments (one per line), and optional Host environment-variable names. Secret values are not collected by this form.
 
 The new-instance precondition uses the Host's versioned absent-source digest, preventing accidental replacement; root revisions and Host stream IDs fence publication. Proposal rejection prevents publishing. Configuration validation does not claim network connectivity: the MCP lifecycle checks the connection when enabled. Profiles choose whether to include the resulting provider.
+
+## List and editor layout
+
+The Profile list uses searchable rows with identity, description, template status,
+and explicit duplicate/use actions. The editor keeps one draft while switching
+between General, Skills, and Tools & providers. These are sections of the same
+Profile, not routes or another settings navigation hierarchy. Save remains in the
+header and activation remains a separate list action.
+
+Profiles and the Plugin inventory share a bounded settings content column and
+compact list surfaces. Plugin names are derived display labels; exact package and
+instance identifiers remain visible and continue to own routing and mutations.
+Plugin configuration uses a single readable column, with publication history after
+the form instead of a permanently reserved side column. Schema-owned grouping,
+advanced TOML editing, review, publication and rollback remain intact.
+
+Design references: [Linear issue templates](https://linear.app/docs/issue-templates)
+and [integration directory](https://linear.app/docs/integration-directory). The
+reused patterns are focused settings columns, grouped rows and separate list/detail
+responsibilities; Lenso retains its own components, tokens and Agent ownership.

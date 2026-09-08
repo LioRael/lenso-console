@@ -11,6 +11,7 @@ import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { PluginAgentAction } from "./plugin-agent-handoff";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
 import { PluginConfigurationFields } from "./plugin-configuration-fields";
+import { pluginDisplayName } from "./plugin-display-name";
 import {
   configurationProposalReadyPresentation,
   configurationChangeCanSubmit,
@@ -95,10 +96,13 @@ const styles = stylex.create({
   },
   detailRoot: {
     minWidth: 0,
+    maxWidth: 808,
+    marginInline: "auto",
+    paddingBlock: "24px 48px",
   },
   configurationLayout: {
     display: "grid",
-    gridTemplateColumns: "minmax(0, 760px) minmax(240px, 300px)",
+    gridTemplateColumns: "minmax(0, 1fr)",
     justifyContent: "space-between",
     width: "100%",
     "@media (max-width: 1100px)": {
@@ -177,7 +181,7 @@ const styles = stylex.create({
   historySection: {
     borderLeftColor: tokens.colorBorderTertiary,
     borderLeftStyle: "solid",
-    borderLeftWidth: 1,
+    borderLeftWidth: 0,
     display: "grid",
     alignContent: "start",
     minWidth: 0,
@@ -235,10 +239,10 @@ const styles = stylex.create({
   },
   detailTitle: {
     color: tokens.colorContentPrimary,
-    fontSize: 15,
+    fontSize: 24,
     fontWeight: 500,
     letterSpacing: "-0.005em",
-    lineHeight: "20px",
+    lineHeight: "32px",
     margin: 0,
     overflowWrap: "anywhere",
   },
@@ -362,8 +366,11 @@ export function PluginDetail({
       <header {...stylex.props(styles.detailHeader)}>
         <div {...stylex.props(styles.detailIdentity)}>
           <h1 {...stylex.props(styles.detailTitle)}>
-            {plugin.packageId}/{plugin.instanceKey}
+            {pluginDisplayName(plugin)}
           </h1>
+          <span {...stylex.props(styles.secondary)}>
+            {plugin.packageId}/{plugin.instanceKey}
+          </span>
           <span {...stylex.props(styles.secondary)}>
             {pluginOriginLabel(plugin)} · {plugin.packageRevision || "linked"}
           </span>
@@ -402,14 +409,14 @@ export function PluginDetail({
                 <div {...stylex.props(styles.controlRow)}>
                   <div {...stylex.props(styles.controlCopy)}>
                     <span {...stylex.props(styles.controlTitle)}>
-                      Include in desired Plan
+                      Enable plugin
                     </span>
                     <span {...stylex.props(styles.controlDescription)}>
                       {disableable
                         ? selectionAuthoringEnabled
-                          ? "The active state changes only after the next Generation passes its Ready-Gate."
+                          ? "Changes apply after the Agent finishes preparing. Running turns are not interrupted."
                           : "The selected Plugin authority does not support selection changes."
-                        : "This Host requires the Instance and does not allow removing it from the desired Plan."}
+                        : "Required by the Host and cannot be disabled."}
                     </span>
                   </div>
                   <span {...stylex.props(styles.controlSwitchSlot)}>

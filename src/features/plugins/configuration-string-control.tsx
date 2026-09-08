@@ -15,7 +15,7 @@ const styles = stylex.create({
     minWidth: 0,
   },
   expanded: { gridTemplateColumns: "minmax(0, 1fr)" },
-  control: { width: "100%", minWidth: 0 },
+  control: { width: "100%", maxWidth: "none", minWidth: 0 },
   actions: { display: "flex", justifyContent: "flex-end" },
 });
 

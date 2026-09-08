@@ -63,6 +63,7 @@ export function AgentProfileSkills({
           </p>
         </div>
         <Switch.Root
+          layout="control-only"
           aria-label="Use all common Skills"
           checked={selected === undefined}
           disabled={disabled || !skills.data}
@@ -143,6 +144,7 @@ export function AgentProfileSkills({
                 <small>{item.directory}</small>
               </div>
               <Switch.Root
+                layout="control-only"
                 aria-label={`Skill ${item.name}`}
                 checked={enabled(item.name)}
                 disabled={disabled}
