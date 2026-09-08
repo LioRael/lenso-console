@@ -134,7 +134,7 @@ export const agentTrajectoryStyles = stylex.create({
   inspectorBody: {
     minHeight: 0,
     overflowY: "auto",
-    paddingBottom: "12px",
+    paddingBottom: "176px",
     scrollbarWidth: "thin",
   },
   inspectorHeader: {
@@ -191,7 +191,7 @@ export const agentTrajectoryStyles = stylex.create({
   ledger: {
     minHeight: 0,
     overflowY: "auto",
-    paddingBottom: "12px",
+    paddingBottom: "176px",
     scrollbarWidth: "thin",
   },
   ledgerGrid: {

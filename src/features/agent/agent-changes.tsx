@@ -169,8 +169,8 @@ const styles = stylex.create({
     minHeight: 0,
     overflowY: "auto",
     padding: {
-      default: "20px 24px 16px",
-      "@media (max-width: 760px)": "16px 12px",
+      default: "20px 24px 200px",
+      "@media (max-width: 760px)": "16px 12px 200px",
     },
   },
   headingLabel: {
