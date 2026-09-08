@@ -54,9 +54,13 @@ describe("Agent stream event buffer", () => {
     expect(snapshots[1]?.tools).toEqual([
       { callId: "call-1", name: "read", status: "running" },
     ]);
-    expect(snapshots[2]?.answer).toBe(`${"a".repeat(1000)}done`);
+    expect(snapshots[2]?.answer).toBe("done");
     expect(turns[0]).toMatchObject({
-      answer: `${"a".repeat(1000)}done`,
+      answer: "done",
+      activity: [
+        { kind: "text", text: "a".repeat(1000) },
+        { kind: "tool", callId: "call-1" },
+      ],
       status: "cancelled",
       thought: "r".repeat(500),
     });

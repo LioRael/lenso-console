@@ -18,7 +18,6 @@ import { createPortal } from "react-dom";
 
 import "@fontsource-variable/inter/wght.css";
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
-import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
 import {
   AgentAttachmentProvider,
@@ -42,6 +41,7 @@ import { modelsForSelector } from "./agent-runtime";
 import type { AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
 import { speedMenu } from "./agent-speed";
+import { AgentTurnActivity } from "./agent-turn-activity";
 import { useAgentConversation } from "./use-agent-conversation";
 
 const suggestions = [
@@ -287,9 +287,7 @@ export function AgentQuickConversation({
                   </div>
                 </div>
                 <div {...stylex.props(styles.assistantTurn)}>
-                  {turn.tools?.length ? (
-                    <PluginAgentReceipts tools={turn.tools} />
-                  ) : null}
+                  <AgentTurnActivity turn={turn} />
                   {turn.answer ? (
                     <AgentMarkdown streaming={turn.status === "running"}>
                       {turn.answer}
@@ -303,7 +301,20 @@ export function AgentQuickConversation({
                   {turn.error ? <p>{turn.error}</p> : null}
                   {turn.answer ? (
                     <div {...stylex.props(styles.assistantCopy)}>
-                      <AgentMessageActions content={turn.answer} />
+                      <AgentMessageActions
+                        content={turn.answer}
+                        {...(sessionId && turn.status === "completed"
+                          ? {
+                              fork: {
+                                sessionId,
+                                turnId: turn.id,
+                                targetId: selectedAgent.id,
+                                onFork: (id: string) =>
+                                  onOpenFullPage(selectedAgent.id, id),
+                              },
+                            }
+                          : {})}
+                      />
                     </div>
                   ) : null}
                 </div>

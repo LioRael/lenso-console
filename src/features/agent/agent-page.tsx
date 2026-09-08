@@ -8,11 +8,7 @@ import {
   ArrowUp,
   ArrowDown,
   Bot,
-  ChevronRight,
-  CircleAlert,
   FileText,
-  ImageIcon,
-  List,
   Package,
   Search,
   Shield,
@@ -31,7 +27,6 @@ import {
 } from "react";
 
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
-import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentAskUser } from "./agent-ask-user";
 import {
   AgentAttachmentProvider,
@@ -72,12 +67,13 @@ import {
   type AgentTask,
   type AgentTerminalCatalog,
   type AgentTerminalRun,
-  type AgentToolCall,
+  type AgentTarget,
   type AgentTurn,
 } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
 import { speedMenu } from "./agent-speed";
 import { AgentTrajectory } from "./agent-trajectory";
+import { AgentTurnActivity } from "./agent-turn-activity";
 import { useAgentConversation } from "./use-agent-conversation";
 
 type AgentPageProps = {
@@ -359,6 +355,9 @@ export function AgentPage({
           ) : (
             <AgentConversation
               canEdit={canEdit}
+              sessionId={sessionId}
+              targetId={targetId}
+              onFork={onSessionResolved}
               key={displayedConversationId}
               onEdit={beginEditing}
               runtimeError={runtimeError}
@@ -813,11 +812,17 @@ function AgentHeader({
 }
 
 function AgentConversation({
+  sessionId,
+  targetId,
+  onFork,
   canEdit,
   onEdit,
   runtimeError,
   turns,
 }: {
+  sessionId: string | undefined;
+  targetId: AgentTarget;
+  onFork: (id: string) => void;
   canEdit: boolean;
   onEdit: (turn: AgentTurn) => void;
   runtimeError: string | undefined;
@@ -854,7 +859,18 @@ function AgentConversation({
       ref={conversationRef}
     >
       <div {...stylex.props(styles.conversationContent)}>
-        <time {...stylex.props(styles.conversationTime)}>Today</time>
+        {turns[0]?.forkSource ? (
+          <div {...stylex.props(styles.codingNotice)}>
+            <Button
+              size="compact"
+              variant="ghost"
+              onClick={() => onFork(turns[0]!.forkSource!.sessionId)}
+            >
+              Branched from another chat
+            </Button>
+            <span> · Shared working directory</span>
+          </div>
+        ) : null}
         {turns.map((turn) => (
           <div {...stylex.props(styles.turn)} key={turn.id}>
             <div {...stylex.props(styles.userMessageGroup, messageGroup)}>
@@ -868,36 +884,7 @@ function AgentConversation({
                 />
               </div>
             </div>
-            {turn.work ? (
-              <details {...stylex.props(styles.worked)}>
-                <summary {...stylex.props(styles.workedSummary)}>
-                  <AgentShimmerText
-                    active={
-                      turn.status === "running" && !turnHasRunningTool(turn)
-                    }
-                  >
-                    {turnStatusLabel(turn)}
-                  </AgentShimmerText>
-                  <span
-                    aria-hidden="true"
-                    {...stylex.props(styles.workedChevron)}
-                  >
-                    <ChevronRight size={14} />
-                  </span>
-                </summary>
-                <div {...stylex.props(styles.workedBody)}>
-                  <AgentMarkdown streaming={turn.status === "running"}>
-                    {turn.thought || "Open Trajectory to inspect this work."}
-                  </AgentMarkdown>
-                </div>
-              </details>
-            ) : null}
-            {turn.tools?.length ? (
-              <>
-                <AgentToolCalls tools={turn.tools} />
-                <PluginAgentReceipts tools={turn.tools} />
-              </>
-            ) : null}
+            <AgentTurnActivity turn={turn} />
             <div {...stylex.props(messageGroup)}>
               <div {...stylex.props(styles.assistantMessage)}>
                 {turn.answer ? (
@@ -916,6 +903,16 @@ function AgentConversation({
                 <div {...stylex.props(styles.copyMessage)}>
                   <AgentMessageActions
                     content={turn.answer}
+                    {...(sessionId && turn.status === "completed"
+                      ? {
+                          fork: {
+                            sessionId,
+                            turnId: turn.id,
+                            targetId,
+                            onFork,
+                          },
+                        }
+                      : {})}
                     timePosition="end"
                     timestamp={turn.answeredAt}
                   />
@@ -943,176 +940,6 @@ function AgentConversation({
       )}
     </section>
   );
-}
-
-function AgentToolCalls({ tools }: { tools: AgentToolCall[] }) {
-  return (
-    <div aria-label="Tool activity" {...stylex.props(styles.toolCalls)}>
-      {tools.map((tool) => {
-        const Icon = toolIcon(tool.name);
-        const label = toolActivityLabel(tool);
-        const rows = toolActivityRows(tool);
-        return (
-          <details
-            {...stylex.props(styles.toolCall)}
-            data-status={tool.status}
-            key={tool.callId}
-          >
-            <summary {...stylex.props(styles.toolSummary)}>
-              <Icon aria-hidden="true" size={15} strokeWidth={1.65} />
-              <AgentShimmerText
-                active={tool.status === "running"}
-                className={stylex.props(styles.toolName).className}
-              >
-                {label}
-              </AgentShimmerText>
-              <span aria-hidden="true" {...stylex.props(styles.toolChevron)}>
-                <ChevronRight size={14} />
-              </span>
-            </summary>
-            <div {...stylex.props(styles.toolDetails)}>
-              {rows.map((row) => {
-                const RowIcon = row.icon;
-                return (
-                  <div {...stylex.props(styles.toolDetailRow)} key={row.label}>
-                    <RowIcon aria-hidden="true" size={14} strokeWidth={1.55} />
-                    <span
-                      {...stylex.props(styles.toolDetailLabel)}
-                      title={row.title}
-                    >
-                      {row.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </details>
-        );
-      })}
-    </div>
-  );
-}
-
-type ToolActivityRow = {
-  icon: typeof Wrench;
-  label: string;
-  title?: string;
-};
-
-function toolActivityLabel(tool: AgentToolCall) {
-  const target = toolTarget(tool);
-  if (tool.status === "not_run") {
-    return target ? `Did not run ${target}` : `Did not run ${tool.name}`;
-  }
-  if (tool.status === "failed") {
-    return target ? `Could not run ${target}` : `Could not run ${tool.name}`;
-  }
-  if (tool.name === "skill") {
-    return tool.status === "running" ? "Loading skill" : "Loaded skill";
-  }
-  if (tool.name === "skill_list") {
-    return tool.status === "running" ? "Listing skills" : "Listed skills";
-  }
-  return `${tool.status === "running" ? "Running" : "Ran"} ${tool.name}`;
-}
-
-function turnHasRunningTool(turn: AgentTurn) {
-  return turn.tools?.some((tool) => tool.status === "running") ?? false;
-}
-
-function toolActivityRows(tool: AgentToolCall): ToolActivityRow[] {
-  const input = toolPayload(tool.argumentsJson);
-  const result = toolPayload(tool.metadataJson);
-  const target = toolTarget(tool);
-  const rows: ToolActivityRow[] = [];
-  if (tool.name === "skill" && target) {
-    rows.push({
-      icon: Wrench,
-      label: `${tool.status === "completed" ? "Read" : "Requested"} ${target} skill`,
-    });
-  } else if (tool.name === "skill_list") {
-    rows.push({ icon: List, label: "Read the available skill catalog" });
-  } else if (tool.argumentsJson) {
-    rows.push({
-      icon: toolIcon(tool.name),
-      label: toolInputLabel(tool.name, input),
-      title: tool.argumentsJson,
-    });
-  }
-  const version = stringField(result, "version");
-  if (version) {
-    rows.push({
-      icon: Search,
-      label: `Resolved version ${version.slice(0, 12)}`,
-      title: version,
-    });
-  }
-  if (tool.error) {
-    rows.push({ icon: CircleAlert, label: tool.error, title: tool.error });
-  }
-  if (rows.length === 0) {
-    rows.push({
-      icon: toolIcon(tool.name),
-      label:
-        tool.status === "running" ? "Waiting for result" : "Tool completed",
-    });
-  }
-  return rows;
-}
-
-function toolIcon(name: string) {
-  const normalized = name.toLowerCase();
-  if (normalized.includes("search")) {
-    return Search;
-  }
-  if (normalized.includes("image")) {
-    return ImageIcon;
-  }
-  if (
-    normalized.includes("terminal") ||
-    normalized.includes("shell") ||
-    normalized.includes("exec")
-  ) {
-    return Terminal;
-  }
-  if (normalized.includes("file") || normalized.includes("read")) {
-    return FileText;
-  }
-  if (normalized.includes("list")) {
-    return List;
-  }
-  return Wrench;
-}
-
-function toolInputLabel(name: string, input: Record<string, unknown>) {
-  const value =
-    stringField(input, "path") ||
-    stringField(input, "query") ||
-    stringField(input, "command") ||
-    stringField(input, "name");
-  return value ? `${name} ${value}` : `Called ${name}`;
-}
-
-function toolTarget(tool: AgentToolCall) {
-  return stringField(toolPayload(tool.argumentsJson), "name");
-}
-
-function stringField(value: Record<string, unknown>, field: string) {
-  return typeof value[field] === "string" ? value[field] : undefined;
-}
-
-function toolPayload(value?: string): Record<string, unknown> {
-  if (!value) {
-    return {};
-  }
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
 }
 
 type AgentComposerProps = {
@@ -1510,35 +1337,4 @@ function AgentTaskShelf({ tasks }: { tasks: AgentTask[] }) {
       ))}
     </div>
   );
-}
-
-function turnStatusLabel(turn: AgentTurn) {
-  switch (turn.status) {
-    case "running": {
-      return "Working…";
-    }
-    case "completed": {
-      return turn.work?.durationMs === undefined
-        ? "Completed"
-        : `Worked for ${formatWorkDuration(turn.work.durationMs)}`;
-    }
-    case "failed": {
-      return "Failed";
-    }
-    case "cancelled": {
-      return "Cancelled";
-    }
-    default: {
-      return turn.status;
-    }
-  }
-}
-
-function formatWorkDuration(durationMs: number) {
-  const seconds = Math.max(1, Math.round(durationMs / 1000));
-  if (seconds < 60) {
-    return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
-  }
-  const minutes = Math.round(seconds / 60);
-  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
 }

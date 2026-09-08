@@ -294,11 +294,38 @@ export type AgentToolCall = {
   metadataJson?: string;
   name: string;
   resultContent?: string;
+  resultImages?: { src: string; name: string }[];
+  durationMs?: number;
   resultTruncated?: boolean;
   status: "completed" | "failed" | "not_run" | "running";
 };
 
+export type AgentTurnActivityItem =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; callId: string };
+
+export function beginToolActivity(turn: AgentTurn, callId: string): AgentTurn {
+  if (
+    turn.activity?.some(
+      (item) => item.kind === "tool" && item.callId === callId
+    )
+  ) {
+    return turn;
+  }
+  return {
+    ...turn,
+    answer: "",
+    activity: [
+      ...(turn.activity ?? []),
+      ...(turn.answer ? [{ kind: "text" as const, text: turn.answer }] : []),
+      { kind: "tool", callId },
+    ],
+  };
+}
+
 export type AgentTurn = {
+  activity?: AgentTurnActivityItem[];
+  forkSource?: { sessionId: string; turnId: string };
   attachments?: AgentAttachment[];
   startedAt?: string;
   answeredAt?: string;
@@ -925,6 +952,16 @@ export function projectAgentSession(session: AgentSession): {
 } {
   const turns = new Map<string, AgentTurn>();
   const turnStartedAt = new Map<string, number>();
+  const identity = session.events.find(
+    (event) => event.kind === "session_created"
+  );
+  const origin = identity
+    ? jsonObject(identity.payloadJson).fork_source
+    : undefined;
+  const forkSource =
+    origin && typeof origin === "object"
+      ? (origin as Record<string, unknown>)
+      : undefined;
   for (const event of session.events) {
     const payload = jsonObject(event.payloadJson);
     const { turnId } = event;
@@ -991,7 +1028,18 @@ export function projectAgentSession(session: AgentSession): {
       }
     }
   }
-  return { turns: [...turns.values()] };
+  const projected = [...turns.values()];
+  if (
+    projected[0] &&
+    typeof forkSource?.session_id === "string" &&
+    typeof forkSource.turn_id === "string"
+  ) {
+    projected[0].forkSource = {
+      sessionId: forkSource.session_id,
+      turnId: forkSource.turn_id,
+    };
+  }
+  return { turns: projected };
 }
 
 function projectToolEvent(
@@ -1003,6 +1051,7 @@ function projectToolEvent(
   const tools = (turn.tools ??= []);
   const existing = tools.find((tool) => tool.callId === callId);
   if (event.kind === "tool_requested") {
+    Object.assign(turn, beginToolActivity(turn, callId));
     const requested: AgentToolCall = {
       callId,
       name: stringValue(payload.name) || "Tool",
@@ -1024,7 +1073,38 @@ function projectToolEvent(
     status: "running" as const,
   };
   completed.name = stringValue(payload.name) || completed.name;
-  completed.status = "completed";
+  completed.status =
+    payload.status === "failed" || payload.error ? "failed" : "completed";
+  if (payload.error) {
+    completed.error =
+      typeof payload.error === "string"
+        ? payload.error
+        : JSON.stringify(payload.error);
+  }
+  if (!existing) {
+    Object.assign(turn, beginToolActivity(turn, callId));
+  }
+  if (typeof payload.duration_ms === "number") {
+    completed.durationMs = payload.duration_ms;
+  }
+  if (Array.isArray(payload.content_blocks)) {
+    completed.resultImages = payload.content_blocks.flatMap((block) => {
+      if (
+        block &&
+        block.kind === "image" &&
+        typeof block.data_base64 === "string" &&
+        /^(image\/(png|jpeg|webp|gif))$/u.test(block.mime_type)
+      ) {
+        return [
+          {
+            src: `data:${block.mime_type};base64,${block.data_base64}`,
+            name: typeof block.name === "string" ? block.name : "Tool image",
+          },
+        ];
+      }
+      return [];
+    });
+  }
   const metadataJson = stringValue(payload.metadata_json);
   if (metadataJson) {
     completed.metadataJson = metadataJson;
@@ -1970,4 +2050,28 @@ export async function readAgentActivity(
     throw new Error(await responseError(response));
   }
   return response.json();
+}
+
+export async function forkAgentSession(
+  sessionId: string,
+  turnId: string,
+  operationId: string,
+  targetId: AgentTarget
+): Promise<string> {
+  const response = await fetch(
+    agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/fork`),
+    {
+      method: "POST",
+      headers: agentHeaders("application/json", true),
+      body: JSON.stringify({ turnId, operationId }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error((await response.text()) || "Could not branch this chat");
+  }
+  const result = (await response.json()) as { sessionId?: string };
+  if (!result.sessionId) {
+    throw new Error("The Agent did not return a branch identity");
+  }
+  return result.sessionId;
 }

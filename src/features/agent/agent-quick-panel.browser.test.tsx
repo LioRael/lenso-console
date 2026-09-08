@@ -387,6 +387,7 @@ describe("Agent quick panel", () => {
     await userEvent.fill(composer, "Prepare a Plugin proposal");
     await userEvent.keyboard("{Enter}");
 
+    await page.getByText("Work completed", { exact: true }).click();
     await expect
       .element(page.getByText("Plugin change ready for review"))
       .toBeVisible();
@@ -405,8 +406,11 @@ describe("Agent quick panel", () => {
     await userEvent.fill(composer, "Inspect the Agent loop Plugin");
     await userEvent.keyboard("{Enter}");
 
+    await page.getByText("Work completed", { exact: true }).click();
     await expect.element(page.getByText("Plugin inspected")).toBeVisible();
-    await expect.element(page.getByText("lenso.agent.loop")).toBeVisible();
+    await expect
+      .element(page.getByText("lenso.agent.loop", { exact: true }))
+      .toBeVisible();
     await expect
       .element(page.getByText(/1 Instance, 1 enabled, and 1 Host difference/))
       .toBeVisible();

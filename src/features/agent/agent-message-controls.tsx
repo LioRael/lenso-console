@@ -2,15 +2,18 @@ import { IconButton } from "@lenso/ui/icon-button";
 import * as stylex from "@stylexjs/stylex";
 import { Copy, Pencil, X } from "lucide-react";
 
+import { AgentForkButton, type AgentForkTarget } from "./agent-fork-button";
 import { agentMessageControlStyles as styles } from "./agent-message-controls.stylex";
 
 export function AgentMessageActions({
   content,
+  fork,
   onEdit,
   timestamp,
   timePosition = "start",
 }: {
   content: string;
+  fork?: AgentForkTarget;
   timestamp?: string | undefined;
   timePosition?: "start" | "end";
   onEdit?: () => void;
@@ -53,6 +56,7 @@ export function AgentMessageActions({
           strokeWidth={1.7}
         />
       </IconButton>
+      {fork ? <AgentForkButton target={fork} /> : null}
       {onEdit ? (
         <IconButton
           aria-label="Edit message"

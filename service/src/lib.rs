@@ -899,7 +899,7 @@ fn allowed_agent_route_with_capabilities(
         | (
             &Method::POST,
             ["turns", session_id, "cancel"]
-            | ["sessions", session_id, "compact"]
+            | ["sessions", session_id, "compact" | "fork"]
             | ["terminal", "executions", session_id, "cancel"],
         ) => valid_agent_identity(session_id),
         (
