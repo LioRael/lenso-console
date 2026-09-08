@@ -22,6 +22,7 @@ import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentPage } from "./agent-page";
 import { AgentProjectContext } from "./agent-project-context";
 import type { AgentTurn } from "./agent-runtime";
+import { useAgentConversation } from "./use-agent-conversation";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -604,3 +605,76 @@ test.each([
     }
   }
 );
+
+function ModeLatencyProbe() {
+  const agent = useAgentConversation({ targetId: "app" });
+  return (
+    <div>
+      <output aria-label="Selected mode">{agent.profile ?? "normal"}</output>
+      <button
+        disabled={!agent.runtime || agent.isConfiguring}
+        onClick={() => agent.changeProfile("code")}
+        type="button"
+      >
+        Choose code
+      </button>
+    </div>
+  );
+}
+
+test("mode feedback is immediate and slow catalogs do not block readiness", async () => {
+  let profile = "default";
+  let finishSelection: (() => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/agents")) {
+        return Response.json({ agents: [] });
+      }
+      if (url.endsWith("/bootstrap")) {
+        return Response.json({
+          mode: "console",
+          trajectory: "lenso.agent.trajectory@1",
+          profile,
+          capabilities: {
+            profileSelection: true,
+            turnModelSelection: true,
+            cancel: false,
+            edit: false,
+            sessionList: false,
+            sessionRead: false,
+            userInteraction: false,
+          },
+          tools: { available: [], allowed: [] },
+        });
+      }
+      if (url.endsWith("/models")) {
+        return new Promise<Response>(() => {});
+      }
+      if (url.endsWith("/control/profile")) {
+        await new Promise<void>((resolve) => {
+          finishSelection = resolve;
+        });
+        profile = "code";
+        return Response.json({ profile });
+      }
+      return Response.json({});
+    })
+  );
+  render(<ModeLatencyProbe />);
+  await expect
+    .element(page.getByRole("button", { name: "Choose code" }))
+    .toBeEnabled();
+  await page.getByRole("button", { name: "Choose code" }).click();
+  await expect
+    .element(page.getByLabelText("Selected mode"))
+    .toHaveTextContent("code");
+  await expect
+    .element(page.getByRole("button", { name: "Choose code" }))
+    .toBeDisabled();
+  finishSelection?.();
+  await expect
+    .element(page.getByRole("button", { name: "Choose code" }))
+    .toBeEnabled();
+});

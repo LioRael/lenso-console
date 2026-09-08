@@ -138,6 +138,7 @@ export function useAgentConversation({
   const [isRunning, setIsRunning] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(false);
   const configuration = useRef<AbortController | undefined>(undefined);
+  const catalogRefresh = useRef<AbortController | undefined>(undefined);
   const [isAnsweringInteraction, setIsAnsweringInteraction] = useState(false);
   const [pendingInteraction, setPendingInteraction] =
     useState<AgentPendingInteraction>();
@@ -159,7 +160,9 @@ export function useAgentConversation({
   useEffect(() => {
     const controller = new AbortController();
     configuration.current?.abort();
+    catalogRefresh.current?.abort();
     configuration.current = undefined;
+    catalogRefresh.current = controller;
     setIsConfiguring(false);
     setRuntime(undefined);
     setContextCatalog(undefined);
@@ -253,6 +256,7 @@ export function useAgentConversation({
     return () => {
       controller.abort();
       configuration.current?.abort();
+      catalogRefresh.current?.abort();
     };
   }, [enableTerminal, targetId]);
 
@@ -812,10 +816,13 @@ export function useAgentConversation({
       ) {
         throw new Error("Wait for the current operation to finish.");
       }
+      catalogRefresh.current?.abort();
       const controller = new AbortController();
+      catalogRefresh.current = controller;
       configuration.current = controller;
       setIsConfiguring(true);
       setRuntimeError(undefined);
+      let confirmed = false;
       try {
         try {
           await operation();
@@ -825,24 +832,8 @@ export function useAgentConversation({
               controller.signal,
               targetId
             );
-            const [models, context, terminal] = await Promise.all([
-              bootstrap.capabilities.turnModelSelection
-                ? readAgentModels(controller.signal, targetId).catch(
-                    () => undefined
-                  )
-                : undefined,
-              bootstrap.capabilities.contextSources
-                ? readAgentContextSources(controller.signal, targetId).catch(
-                    () => undefined
-                  )
-                : undefined,
-              enableTerminal && bootstrap.capabilities.terminalCommands
-                ? readAgentTerminalCatalog(controller.signal, targetId).catch(
-                    () => undefined
-                  )
-                : undefined,
-            ]);
             if (!controller.signal.aborted) {
+              confirmed = true;
               setRuntime(bootstrap);
               setProfile(
                 bootstrap.profile === "default" ? undefined : bootstrap.profile
@@ -851,17 +842,50 @@ export function useAgentConversation({
               setCanCancel(bootstrap.capabilities.cancel);
               setCanEdit(bootstrap.capabilities.edit);
               setCanUserInteraction(bootstrap.capabilities.userInteraction);
-              setModelCatalog(models);
-              setSelectedModel(models?.selectedModel);
-              setSelectedReasoningEffort(models?.selectedReasoningEffort);
-              setSelectedServiceTier(models?.selectedServiceTier);
-              setContextCatalog(context);
-              setTerminalCatalog(terminal);
+              setModelCatalog(undefined);
+              setSelectedModel(undefined);
+              setSelectedReasoningEffort(undefined);
+              setSelectedServiceTier(undefined);
+              setContextCatalog(undefined);
+              setTerminalCatalog(undefined);
             }
+            const refreshCatalogs = async () => {
+              const [models, context, terminal] = await Promise.all([
+                bootstrap.capabilities.turnModelSelection
+                  ? readAgentModels(controller.signal, targetId).catch(
+                      () => undefined
+                    )
+                  : undefined,
+                bootstrap.capabilities.contextSources
+                  ? readAgentContextSources(controller.signal, targetId).catch(
+                      () => undefined
+                    )
+                  : undefined,
+                enableTerminal && bootstrap.capabilities.terminalCommands
+                  ? readAgentTerminalCatalog(controller.signal, targetId).catch(
+                      () => undefined
+                    )
+                  : undefined,
+              ]);
+              if (!controller.signal.aborted) {
+                setModelCatalog(models);
+                setSelectedModel(models?.selectedModel);
+                setSelectedReasoningEffort(models?.selectedReasoningEffort);
+                setSelectedServiceTier(models?.selectedServiceTier);
+                setContextCatalog(context);
+                setTerminalCatalog(terminal);
+              }
+            };
+            void refreshCatalogs();
           }
         }
       } catch (error) {
         if (!controller.signal.aborted) {
+          if (!confirmed) {
+            setProfile(
+              runtime?.profile === "default" ? undefined : runtime?.profile
+            );
+          }
           setRuntimeError(errorMessage(error));
         }
         throw error;
@@ -875,14 +899,19 @@ export function useAgentConversation({
         }
       }
     },
-    [enableTerminal, targetId]
+    [enableTerminal, runtime?.profile, targetId]
   );
 
   const changeProfile = useCallback(
     (nextProfile: string | undefined) => {
-      if (!(runtime?.capabilities.profileSelection && !isRunning)) {
+      if (
+        !(runtime?.capabilities.profileSelection && !isRunning) ||
+        configuration.current ||
+        nextProfile === profile
+      ) {
         return;
       }
+      setProfile(nextProfile);
       const select = async () => {
         try {
           await configureRuntime(() =>
@@ -897,6 +926,7 @@ export function useAgentConversation({
     [
       configureRuntime,
       isRunning,
+      profile,
       runtime?.capabilities.profileSelection,
       targetId,
     ]

@@ -90,12 +90,20 @@ export function AgentProjectPicker({
       choose();
       return;
     }
+    const existing = projects.data?.projects.find(
+      (project) =>
+        project.path.replace(/\/+$/u, "") === directory.replace(/\/+$/u, "")
+    );
+    if (existing) {
+      choose(existing.id);
+      return;
+    }
     setBusy(true);
     setProjectError(undefined);
     try {
       const project = await request<Project>("", { path: directory });
-      await projects.refetch();
       choose(project.id);
+      void projects.refetch();
     } catch (error) {
       setProjectError(
         error instanceof Error ? error.message : "Could not open project"
