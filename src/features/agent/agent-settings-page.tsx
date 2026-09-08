@@ -1,4 +1,5 @@
 import { Button } from "@lenso/ui/button";
+import { Menu } from "@lenso/ui/menu";
 import { Select } from "@lenso/ui/select";
 import { SettingsRow } from "@lenso/ui/settings-row";
 import { Switch } from "@lenso/ui/switch";
@@ -6,6 +7,7 @@ import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
+import { MoreHorizontal } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
@@ -176,8 +178,8 @@ function AgentSettingsContent({
         }
       >
         <SettingsSection.Group xstyle={[preferences.group, styles.agentGroup]}>
-          <SettingsRow.Root xstyle={preferences.row}>
-            <SettingsRow.Copy>
+          <SettingsRow.Root xstyle={[preferences.row, styles.agentRow]}>
+            <SettingsRow.Copy xstyle={styles.agentCopy}>
               <SettingsRow.Title xstyle={preferences.rowTitle}>
                 Agent
               </SettingsRow.Title>
@@ -192,24 +194,57 @@ function AgentSettingsContent({
         </SettingsSection.Group>
       </SectionHeading>
       <div {...stylex.props(styles.navigation)}>
-        <Link
-          to={personalization ? "/settings/ai/agent" : "/settings/agent"}
-          {...stylex.props(styles.textLink)}
+        <nav
+          aria-label="Agent settings sections"
+          {...stylex.props(styles.tabs)}
         >
-          {personalization
-            ? "Tools & configuration"
-            : "Guidance & integrations"}
-        </Link>
-        <Link
-          to="/agent/$agentId/$chatId"
-          params={{ agentId: agent.id, chatId: "new-task" }}
-          {...stylex.props(styles.textLink)}
-        >
-          Open Agent
-        </Link>
-        <Link to="/plugins" {...stylex.props(styles.textLink)}>
-          All Plugins
-        </Link>
+          <Link
+            to="/settings/ai/agent"
+            aria-current={personalization ? undefined : "page"}
+            {...stylex.props(styles.tab, !personalization && styles.tabActive)}
+          >
+            General
+          </Link>
+          <Link
+            to="/settings/agent"
+            aria-current={personalization ? "page" : undefined}
+            {...stylex.props(styles.tab, personalization && styles.tabActive)}
+          >
+            Guidance & integrations
+          </Link>
+        </nav>
+        <Menu.Root>
+          <Menu.Trigger
+            render={
+              <Button
+                aria-label="Agent settings actions"
+                size="compact"
+                variant="ghost"
+              >
+                <MoreHorizontal size={16} />
+              </Button>
+            }
+          />
+          <Menu.Portal>
+            <Menu.Positioner align="end">
+              <Menu.Popup>
+                <Menu.Item
+                  render={
+                    <Link
+                      to="/agent/$agentId/$chatId"
+                      params={{ agentId: agent.id, chatId: "new-task" }}
+                    />
+                  }
+                >
+                  Open Agent
+                </Menu.Item>
+                <Menu.Item render={<Link to="/plugins" />}>
+                  All Plugins
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       </div>
       {!personalization &&
       agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
@@ -487,7 +522,7 @@ function ContextCatalog({ agent }: { agent: AgentIdentity }) {
   );
 }
 
-function ToolAccess({ agent }: { agent: AgentIdentity }) {
+export function ToolAccess({ agent }: { agent: AgentIdentity }) {
   const queryClient = useQueryClient();
   const canManage = agent.capabilities.includes(
     AGENT_PLUGIN_CONFIGURATION_CAPABILITY
@@ -505,11 +540,14 @@ function ToolAccess({ agent }: { agent: AgentIdentity }) {
     enabled: canManage,
     retry: false,
   });
+  const [draft, setDraft] = useState<{ allowed: string[]; revision: number }>();
+  const [search, setSearch] = useState("");
   const mutation = useMutation({
     mutationFn: (request: { allowed: string[]; expectedRevision: number }) =>
       updateAgentToolPolicy({ ...request, targetId: agent.id }),
     onSuccess: (updated) => {
       queryClient.setQueryData(policyKey, updated);
+      setDraft(undefined);
       void queryClient.invalidateQueries({ queryKey: bootstrapKey });
     },
     onError: () => {
@@ -517,13 +555,39 @@ function ToolAccess({ agent }: { agent: AgentIdentity }) {
     },
   });
   const tools = policy.data ?? bootstrap.data?.tools;
-  const allowedTools = new Set(tools?.allowed);
+  const allowedTools = new Set(draft?.allowed ?? tools?.allowed);
+  const stale = Boolean(
+    draft && policy.data && draft.revision !== policy.data.revision
+  );
+  const disabled =
+    mutation.isPending || policy.isFetching || policy.isError || stale;
+  const edit = (allowed: string[]) => {
+    if (!policy.data || disabled) {
+      return;
+    }
+    mutation.reset();
+    setDraft({
+      allowed: [...new Set(allowed)].sort(),
+      revision: policy.data.revision,
+    });
+  };
+  const changed = Boolean(
+    draft &&
+    [...allowedTools].sort().join("\n") !==
+      [...(policy.data?.allowed ?? [])].sort().join("\n")
+  );
+  const filteredTools =
+    tools?.available.filter((tool) =>
+      `${tool.name} ${tool.description}`
+        .toLocaleLowerCase()
+        .includes(search.toLocaleLowerCase())
+    ) ?? [];
   return (
     <Section
       title="Tool access"
       description={
         canManage
-          ? "Choose which Tools this Agent may use. Changes apply to new turns."
+          ? "Edit Agent-wide Tool permissions. Save changes to apply them to new turns."
           : "The effective Tool access for this Agent. Its Host has not enabled policy management through Console."
       }
     >
@@ -535,11 +599,53 @@ function ToolAccess({ agent }: { agent: AgentIdentity }) {
       {tools ? (
         <>
           <p {...stylex.props(styles.notice)}>
-            {tools.allowed.length} enabled · {tools.available.length} available
+            {allowedTools.size} enabled · {tools.available.length} available
             {bootstrap.data ? ` · Profile: ${bootstrap.data.profile}` : ""}
           </p>
-          <ul {...stylex.props(styles.list)}>
-            {tools.available.map((tool) => (
+          <div {...stylex.props(styles.toolToolbar)}>
+            <TextField.Root size="compact" xstyle={styles.toolSearch}>
+              <TextField.Control
+                type="search"
+                aria-label="Filter tools"
+                placeholder="Filter tools…"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </TextField.Root>
+            {canManage && policy.data ? (
+              <>
+                <Button
+                  size="compact"
+                  variant="ghost"
+                  disabled={disabled}
+                  onClick={() =>
+                    edit([
+                      ...allowedTools,
+                      ...tools.available.map((tool) => tool.name),
+                    ])
+                  }
+                >
+                  Enable all
+                </Button>
+                <Button
+                  size="compact"
+                  variant="ghost"
+                  disabled={disabled}
+                  onClick={() => edit([])}
+                >
+                  Disable all
+                </Button>
+              </>
+            ) : null}
+          </div>
+          {stale ? (
+            <p role="alert" {...stylex.props(styles.notice)}>
+              Tool access changed elsewhere. Reset your draft to load the latest
+              policy.
+            </p>
+          ) : null}
+          <ul {...stylex.props(styles.toolList)}>
+            {filteredTools.map((tool) => (
               <li key={tool.name} {...stylex.props(styles.row)}>
                 <span {...stylex.props(styles.rowCopy)}>
                   <strong {...stylex.props(styles.rowTitle)}>
@@ -553,25 +659,17 @@ function ToolAccess({ agent }: { agent: AgentIdentity }) {
                   <Switch.Root
                     aria-label={`Allow ${tool.name}`}
                     checked={allowedTools.has(tool.name)}
-                    disabled={
-                      mutation.isPending || policy.isFetching || policy.isError
-                    }
+                    disabled={disabled}
                     layout="control-only"
-                    onCheckedChange={(checked) => {
-                      if (!policy.data || mutation.isPending) {
-                        return;
-                      }
-                      mutation.mutate({
-                        allowed: checked
-                          ? [
-                              ...new Set([...policy.data.allowed, tool.name]),
-                            ].sort()
-                          : policy.data.allowed.filter(
+                    onCheckedChange={(checked) =>
+                      edit(
+                        checked
+                          ? [...allowedTools, tool.name]
+                          : [...allowedTools].filter(
                               (name) => name !== tool.name
-                            ),
-                        expectedRevision: policy.data.revision,
-                      });
-                    }}
+                            )
+                      )
+                    }
                   >
                     <Switch.Thumb />
                   </Switch.Root>
@@ -583,6 +681,41 @@ function ToolAccess({ agent }: { agent: AgentIdentity }) {
               </li>
             ))}
           </ul>
+          {tools.available.length > 0 && filteredTools.length === 0 ? (
+            <p {...stylex.props(styles.notice)}>No matching tools.</p>
+          ) : null}
+          {canManage && policy.data ? (
+            <div {...stylex.props(styles.saveBar)}>
+              <span {...stylex.props(styles.description)}>
+                {changed ? "Unsaved changes" : "Changes are saved explicitly."}
+              </span>
+              <Button
+                size="compact"
+                variant="ghost"
+                disabled={!draft || mutation.isPending}
+                onClick={() => {
+                  setDraft(undefined);
+                  mutation.reset();
+                }}
+              >
+                Reset
+              </Button>
+              <Button
+                size="compact"
+                disabled={!changed || disabled}
+                onClick={() => {
+                  if (draft && !disabled) {
+                    mutation.mutate({
+                      allowed: draft.allowed,
+                      expectedRevision: draft.revision,
+                    });
+                  }
+                }}
+              >
+                {mutation.isPending ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          ) : null}
           {tools.available.length ? null : (
             <p {...stylex.props(styles.notice)}>
               No Tools are exposed by this Agent.
