@@ -359,7 +359,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
       title="Tool restrictions"
       description={
         canManage
-          ? "Allowed tools form the upper limit for every Profile. Changes apply to new turns."
+          ? "Allowed tools form the upper limit for all Profiles of this Agent. Changes apply to new turns."
           : "The effective Tool access for this Agent. Its Host has not enabled policy management through Console."
       }
     >
@@ -371,8 +371,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
       {tools ? (
         <>
           <p {...stylex.props(styles.notice)}>
-            {allowedTools.size} enabled · {tools.available.length} available
-            {bootstrap.data ? ` · Profile: ${bootstrap.data.profile}` : ""}
+            {allowedTools.size} allowed · {tools.available.length} available
           </p>
           <div {...stylex.props(styles.toolToolbar)}>
             <TextField.Root size="compact" xstyle={styles.toolSearch}>
