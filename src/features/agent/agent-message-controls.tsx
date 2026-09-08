@@ -8,9 +8,11 @@ export function AgentMessageActions({
   content,
   onEdit,
   timestamp,
+  timePosition = "start",
 }: {
   content: string;
   timestamp?: string | undefined;
+  timePosition?: "start" | "end";
   onEdit?: () => void;
 }) {
   const date = timestamp ? new Date(timestamp) : undefined;
@@ -25,7 +27,10 @@ export function AgentMessageActions({
         <time
           dateTime={validDate.toISOString()}
           title={validDate.toLocaleString()}
-          {...stylex.props(styles.time)}
+          {...stylex.props(
+            styles.time,
+            timePosition === "end" && styles.timeEnd
+          )}
         >
           {validDate.toLocaleTimeString([], {
             hour: "2-digit",

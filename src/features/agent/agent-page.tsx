@@ -849,6 +849,7 @@ function AgentConversation({
                 <div {...stylex.props(styles.copyMessage)}>
                   <AgentMessageActions
                     content={turn.answer}
+                    timePosition="end"
                     timestamp={turn.answeredAt}
                   />
                 </div>
