@@ -884,7 +884,10 @@ fn allowed_agent_route_with_capabilities(
         }
         (
             &Method::GET,
-            ["bootstrap" | "context-sources" | "models" | "plugins" | "sessions" | "tasks"]
+            [
+                "bootstrap" | "context-sources" | "skills" | "models" | "plugins" | "sessions"
+                | "tasks",
+            ]
             | ["terminal", "commands"],
         )
         | (&Method::POST, ["turns"] | ["terminal", "executions"]) => true,
@@ -896,7 +899,7 @@ fn allowed_agent_route_with_capabilities(
         | (
             &Method::POST,
             ["turns", session_id, "cancel"]
-            | ["sessions", session_id, "compact"]
+            | ["sessions", session_id, "compact" | "fork"]
             | ["terminal", "executions", session_id, "cancel"],
         ) => valid_agent_identity(session_id),
         (
@@ -910,6 +913,7 @@ fn allowed_agent_route_with_capabilities(
             ],
         ) => valid_agent_identity(request_id) && valid_agent_identity(interaction_id),
         (&Method::POST, ["control", "profile"] | ["control", "profiles", "import"])
+        | (&Method::GET | &Method::POST, ["control", "profiles"])
         | (&Method::GET | &Method::PUT, ["control", "tool-policy"]) => plugin_configuration,
         _ if plugin_configuration
             && allowed_plugin_configuration_route(method, parts.as_slice()) =>
@@ -1177,6 +1181,7 @@ mod tests {
     fn app_agent_proxy_exposes_only_the_declared_data_plane() {
         for (method, route) in [
             (Method::GET, "bootstrap"),
+            (Method::GET, "skills"),
             (Method::GET, "sessions"),
             (Method::POST, "turns"),
             (Method::GET, "sessions/session-1/trajectory"),
@@ -1204,6 +1209,8 @@ mod tests {
         ));
         for (method, path) in [
             (Method::POST, "control/profiles/import"),
+            (Method::GET, "control/profiles"),
+            (Method::POST, "control/profiles"),
             (Method::GET, "control/tool-policy"),
             (Method::PUT, "control/tool-policy"),
         ] {

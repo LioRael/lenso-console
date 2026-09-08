@@ -15,10 +15,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import {
-  PluginAgentAction,
-  pluginAgentDraft,
-} from "../plugins/plugin-agent-handoff";
+import { PluginAgentAction } from "../plugins/plugin-agent-handoff";
 import {
   PluginAgentWorkbenchProvider,
   usePluginAgentWorkbench,
@@ -50,6 +47,56 @@ afterEach(() => {
 });
 
 describe("Agent quick panel", () => {
+  test("command menu remains clickable above the compact composer", async () => {
+    await renderPanel(agentFetch());
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.fill(page.elementLocator(requiredComposer()), "/");
+    await expect
+      .element(page.getByRole("listbox", { name: "Commands and Skills" }))
+      .toBeVisible();
+    await expect
+      .poll(() => {
+        const option = document.querySelector('[role="option"]');
+        if (!option) {
+          return false;
+        }
+        const box = option.getBoundingClientRect();
+        return option.contains(
+          document.elementFromPoint(
+            box.x + box.width / 2,
+            box.y + box.height / 2
+          )
+        );
+      })
+      .toBe(true);
+    expect(document.querySelector('button[aria-label="Skills"]')).toBeNull();
+  });
+
+  test("keeps the mini dialog open while using portaled composer controls", async () => {
+    await renderPanel(agentFetch());
+    await userEvent.click(
+      page.getByRole("button", { name: "Agent", exact: true })
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Run configuration" })
+    );
+    await userEvent.hover(page.getByRole("menuitem", { name: /^Model/ }));
+    await expect
+      .element(page.getByRole("combobox", { name: "Search models" }))
+      .toBeVisible();
+    expect(requiredComposer().closest('[role="dialog"]')).not.toBeNull();
+    await userEvent.keyboard("{Escape}{Escape}");
+    await userEvent.click(
+      page.getByRole("combobox", { name: "Approval mode" })
+    );
+    await userEvent.click(
+      page.getByRole("option", { name: "Full access", exact: true })
+    );
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+  });
+
   test("keeps product hover feedback after the Lenso xstyle boundary", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
@@ -106,7 +153,7 @@ describe("Agent quick panel", () => {
     await userEvent.click(first);
     await expect
       .element(page.elementLocator(requiredComposer()))
-      .toHaveValue("Retained draft");
+      .toHaveTextContent("Retained draft");
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
     if (!dialog) {
@@ -170,7 +217,7 @@ describe("Agent quick panel", () => {
     );
     await expect
       .element(page.elementLocator(requiredComposer()))
-      .toHaveValue("Active draft");
+      .toHaveTextContent("Active draft");
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
   });
 
@@ -219,9 +266,9 @@ describe("Agent quick panel", () => {
     const probe = document.createElement("div");
     probe.style.backgroundColor = "var(--color-surface-panel)";
     body.append(probe);
-    expect(getComputedStyle(body).backgroundColor).toBe(
-      getComputedStyle(probe).backgroundColor
-    );
+    await expect
+      .poll(() => getComputedStyle(body).backgroundColor)
+      .toBe(getComputedStyle(probe).backgroundColor);
     expect(getComputedStyle(body).backgroundColor).not.toBe(
       "rgb(255, 255, 255)"
     );
@@ -285,7 +332,8 @@ describe("Agent quick panel", () => {
     await userEvent.keyboard("{Shift>}{Enter}{/Shift}Second line");
     await nextFrame();
 
-    await expect.element(composer).toHaveValue("First line\nSecond line");
+    expect(composerElement.textContent).toBe("First lineSecond line");
+    expect(composerElement.querySelector("br")).not.toBeNull();
     expect(turnRequests(fetchMock)).toHaveLength(0);
   });
 
@@ -309,7 +357,7 @@ describe("Agent quick panel", () => {
     );
     await nextFrame();
 
-    await expect.element(composer).toHaveValue("输入中");
+    await expect.element(composer).toHaveTextContent("输入中");
     expect(turnRequests(fetchMock)).toHaveLength(0);
   });
 
@@ -339,6 +387,7 @@ describe("Agent quick panel", () => {
     await userEvent.fill(composer, "Prepare a Plugin proposal");
     await userEvent.keyboard("{Enter}");
 
+    await page.getByText("Work completed", { exact: true }).click();
     await expect
       .element(page.getByText("Plugin change ready for review"))
       .toBeVisible();
@@ -357,8 +406,11 @@ describe("Agent quick panel", () => {
     await userEvent.fill(composer, "Inspect the Agent loop Plugin");
     await userEvent.keyboard("{Enter}");
 
+    await page.getByText("Work completed", { exact: true }).click();
     await expect.element(page.getByText("Plugin inspected")).toBeVisible();
-    await expect.element(page.getByText("lenso.agent.loop")).toBeVisible();
+    await expect
+      .element(page.getByTitle("lenso.agent.loop@linked"))
+      .toBeVisible();
     await expect
       .element(page.getByText(/1 Instance, 1 enabled, and 1 Host difference/))
       .toBeVisible();
@@ -403,9 +455,7 @@ describe("Agent quick panel", () => {
 
     await expect.element(composer).toBeVisible();
     await expect.element(composer).toHaveFocus();
-    await expect
-      .element(composer)
-      .toHaveValue(pluginAgentDraft(pluginAgentContext));
+    await expect.element(composer).toHaveTextContent("lenso.agent.loop");
     expect(turnRequests(fetchMock)).toHaveLength(0);
   });
 });
@@ -556,8 +606,8 @@ function QueueHarness() {
 }
 
 function requiredComposer() {
-  const composer = document.querySelector<HTMLTextAreaElement>(
-    'textarea[aria-label="Send a message to Lenso Agent"]'
+  const composer = document.querySelector<HTMLDivElement>(
+    '[contenteditable="true"][aria-label="Send a message to Lenso Agent"]'
   );
   if (!composer) {
     throw new Error("Agent composer was not rendered");

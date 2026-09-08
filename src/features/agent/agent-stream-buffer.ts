@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import {
+  beginToolActivity,
   boundedToolResult,
   type AgentStreamEvent,
   type AgentStreamMessage,
@@ -168,7 +169,10 @@ function applyImmediateEvent(turn: AgentTurn, event: AgentStreamEvent) {
     kind === "tool_failed"
   ) {
     return {
-      ...turn,
+      ...beginToolActivity(
+        turn,
+        event.message.toolCallId ?? `stream:${event.message.sequence}`
+      ),
       tools: projectStreamTool(turn.tools, event.message),
       work: turn.work ?? {},
     };

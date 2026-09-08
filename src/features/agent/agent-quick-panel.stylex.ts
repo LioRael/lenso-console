@@ -55,7 +55,7 @@ export const agentQuickPanelStyles = stylex.create({
     display: "flex",
     flexDirection: "column",
     minHeight: 0,
-    overflow: "hidden",
+    overflow: "visible",
     position: "relative",
   },
   bodyEmpty: {
@@ -120,6 +120,7 @@ export const agentQuickPanelStyles = stylex.create({
     width: "100%",
   },
   composerSurface: {
+    overflow: "visible",
     backgroundColor: "var(--color-surface-panel)",
     borderColor: "var(--color-border-secondary)",
     borderRadius: "7px",
@@ -228,7 +229,7 @@ export const agentQuickPanelStyles = stylex.create({
     bottom: "34px",
     boxShadow:
       "0 6px 18px lch(0 0 0 / 2%), 0 3px 9px lch(0 0 0 / 4%), 0 1px 1px lch(0 0 0 / 4%)",
-    display: { default: "grid", "@media (max-width: 760px)": "none" },
+    display: "grid",
     fontFamily,
 
     height: "min(576px, calc(100dvh - 72px))",

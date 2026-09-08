@@ -10,7 +10,7 @@ export const agentPageStyles = stylex.create({
     fontSize: "11px",
     padding: "6px 8px",
   },
-  assistantMessage: { fontSize: "14px", lineHeight: "22px", margin: "0 8px" },
+  assistantMessage: { fontSize: "14px", lineHeight: "22px", margin: 0 },
   attachButton: {
     borderRadius: "999px",
     height: "24px",
@@ -192,7 +192,7 @@ export const agentPageStyles = stylex.create({
     fontSize: "11px",
     marginBottom: "24px",
   },
-  copyMessage: { margin: "2px 0 0 8px" },
+  copyMessage: { margin: "2px 0 0" },
   editingMessageClip: { height: "26.5px", overflow: "hidden", width: "100%" },
   editingMessageReveal: {
     height: 0,

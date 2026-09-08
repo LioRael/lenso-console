@@ -1,13 +1,10 @@
 import { Button } from "@lenso/ui/button";
-import { Menu } from "@lenso/ui/menu";
 import { Select } from "@lenso/ui/select";
-import { SettingsRow } from "@lenso/ui/settings-row";
 import { Switch } from "@lenso/ui/switch";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
-import { MoreHorizontal } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
@@ -16,12 +13,13 @@ import {
   type PluginWorkbenchItem,
 } from "../plugins/plugin-workbench-model";
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
+import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
+import { AddMcpConnection } from "./add-mcp-connection";
 import { useAgentIdentity } from "./agent-identity-context";
 import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   readAgentBootstrap,
-  readAgentContextSources,
   readAgentToolPolicy,
   updateAgentToolPolicy,
   type AgentIdentity,
@@ -37,48 +35,21 @@ export type AgentSettingsKind =
 
 export function AgentSettingsPage({ kind }: { kind: AgentSettingsKind }) {
   const { selectedAgent } = useAgentIdentity();
-  if (kind === "skill-new") {
-    return <Navigate replace to="/settings/agent" />;
+  if (kind === "personalization" || kind === "skill-new") {
+    return <Navigate replace to="/settings/profiles" />;
   }
   return (
     <main {...stylex.props(preferences.page)}>
-      {kind === "ai" ? (
-        <AiAgentsPage />
-      ) : (
-        <AgentSettingsContent
-          agent={selectedAgent}
-          key={selectedAgent.id}
-          kind={kind}
-        />
-      )}
+      <AgentSettingsContent
+        agent={selectedAgent}
+        key={selectedAgent.id}
+        advanced={kind === "agent"}
+      />
     </main>
   );
 }
 
-function SectionHeading({
-  description,
-  title,
-  children,
-  actions,
-}: {
-  actions?: ReactNode;
-  children?: ReactNode;
-  description: string;
-  title: string;
-}) {
-  return (
-    <header {...stylex.props(styles.sectionHeading)}>
-      <div {...stylex.props(styles.headingRow)}>
-        <h1 {...stylex.props(preferences.pageTitle)}>{title}</h1>
-        {actions}
-      </div>
-      <p {...stylex.props(styles.description, styles.inset)}>{description}</p>
-      {children}
-    </header>
-  );
-}
-
-function AgentPicker() {
+export function AgentPicker() {
   const { agents, selectedAgent, selectAgent } = useAgentIdentity();
   return (
     <Select.Root
@@ -114,214 +85,116 @@ function AgentPicker() {
   );
 }
 
-function AiAgentsPage() {
-  const { agents, selectAgent } = useAgentIdentity();
-  return (
-    <div {...stylex.props(preferences.column)}>
-      <SectionHeading
-        title="AI & Agents"
-        description="Configure the Agents available in this Console."
-      />
-      <Section
-        title="Available Agents"
-        description="Choose an Agent to manage its settings."
-      >
-        <ul {...stylex.props(styles.list)}>
-          {agents.map((agent) => (
-            <li key={agent.id} {...stylex.props(styles.listItem)}>
-              <Link
-                to="/settings/ai/agent"
-                onClick={() => selectAgent(agent.id)}
-                {...stylex.props(styles.linkRow)}
-              >
-                <span>
-                  <strong {...stylex.props(styles.rowTitle)}>
-                    {agent.label}
-                  </strong>
-                  <span {...stylex.props(styles.description)}>
-                    {agent.role === "console" ? "Built-in" : "App Agent"} ·{" "}
-                    {agent.id}
-                  </span>
-                </span>
-                <span {...stylex.props(styles.actionLabel)}>Configure</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Section>
-    </div>
-  );
-}
-
 function AgentSettingsContent({
   agent,
-  kind,
+  advanced,
 }: {
   agent: AgentIdentity;
-  kind: "agent" | "personalization";
+  advanced: boolean;
 }) {
   const configurationAvailable = agent.capabilities.includes(
     AGENT_PLUGIN_CONFIGURATION_CAPABILITY
   );
-  const workbench = usePluginWorkbench(agent.id, configurationAvailable);
+  const workbench = usePluginWorkbench(
+    agent.id,
+    configurationAvailable && !advanced
+  );
   const items = workbench.data?.items ?? [];
-  const personalization = kind === "personalization";
   return (
     <div {...stylex.props(preferences.column)}>
-      <Link
-        to={personalization ? "/settings/ai/agent" : "/settings/ai"}
-        {...stylex.props(styles.backLink)}
-      >
-        {personalization ? "Agent settings" : "AI & Agents"}
-      </Link>
-      <SectionHeading
-        actions={
-          <Menu.Root>
-            <Menu.Trigger
-              render={
-                <Button
-                  aria-label="Agent settings actions"
-                  size="compact"
-                  variant="ghost"
-                >
-                  <MoreHorizontal size={16} />
-                </Button>
-              }
-            />
-            <Menu.Portal>
-              <Menu.Positioner align="end">
-                <Menu.Popup>
-                  <Menu.Item
-                    render={
-                      <Link
-                        to="/agent/$agentId/$chatId"
-                        params={{ agentId: agent.id, chatId: "new-task" }}
-                      />
-                    }
-                  >
-                    Open Agent
-                  </Menu.Item>
-                  <Menu.Item render={<Link to="/plugins" />}>
-                    All Plugins
-                  </Menu.Item>
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
-        }
-        title={personalization ? "Guidance & integrations" : "Agent settings"}
+      {advanced ? (
+        <Link to="/settings/connections" {...stylex.props(styles.backLink)}>
+          Connections
+        </Link>
+      ) : null}
+      <SettingsPageHeader
+        title={advanced ? "Global tool restrictions" : "Connections"}
         description={
-          personalization
-            ? "Manage this Agent’s instruction sources and integrations."
-            : "Manage this Agent’s Tools, providers and storage."
+          advanced
+            ? "Advanced limits for every Profile of this Agent. A Profile cannot override these restrictions."
+            : "Connect model services and external tools. Choose what to use in Profiles."
         }
-      >
-        <SettingsSection.Group xstyle={[preferences.group, styles.agentGroup]}>
-          <SettingsRow.Root xstyle={[preferences.row, styles.agentRow]}>
-            <SettingsRow.Copy xstyle={styles.agentCopy}>
-              <SettingsRow.Title xstyle={preferences.rowTitle}>
-                Agent
-              </SettingsRow.Title>
-              <SettingsRow.Description xstyle={preferences.rowDescription}>
-                Choose which Agent to configure.
-              </SettingsRow.Description>
-            </SettingsRow.Copy>
-            <SettingsRow.Control>
-              <AgentPicker />
-            </SettingsRow.Control>
-          </SettingsRow.Root>
-        </SettingsSection.Group>
-      </SectionHeading>
-      {!personalization &&
-      agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
-        <AuthConnections agentId={agent.id} />
-      ) : null}
-      {configurationAvailable ? (
-        workbench.isError ? (
-          <p role="alert" {...stylex.props(styles.error)}>
-            Plugin settings could not be loaded: {errorMessage(workbench.error)}
-          </p>
-        ) : workbench.isPending ? (
-          <output {...stylex.props(styles.notice)}>
-            Loading Plugin settings…
-          </output>
-        ) : null
-      ) : (
-        <p {...stylex.props(styles.notice)}>
-          This Agent does not expose Plugin configuration. Its Host manages
-          these settings.
-        </p>
-      )}
-      {workbench.isDegraded ? (
-        <output {...stylex.props(styles.notice)}>
-          Plugin settings are refreshing. Configuration availability will be
-          checked again when you open a Plugin.
-        </output>
-      ) : null}
-      {configurationAvailable && workbench.data ? (
-        personalization ? (
-          <>
-            <ProviderSection
-              agentId={agent.id}
-              title="Guidance"
-              description="Configure instruction sources and prompt contributions in their owning Plugins."
-              empty="No guidance providers are present in this Agent's Plugin inventory."
-              items={items.filter((item) =>
-                provides(item, "lenso.agent.prompt-provider")
-              )}
-            />
-            <ProviderSection
-              agentId={agent.id}
-              title="Tool providers"
-              description="Configure Plugins that contribute Tools, including skill sources and external integrations."
-              empty="No Tool providers are present in this Agent's Plugin inventory."
-              items={items.filter((item) =>
-                provides(item, "lenso.agent.tool-provider")
-              )}
-            />
-            <ProviderSection
-              agentId={agent.id}
-              title="Context sources"
-              description="Plugins that expose reusable prompts and resources to this Agent."
-              empty="No context-source providers are present in this Agent's Plugin inventory."
-              items={items.filter((item) =>
-                provides(item, "lenso.agent.context-source")
-              )}
-            />
-          </>
-        ) : (
-          <>
-            <ProviderSection
-              agentId={agent.id}
-              title="Models & authentication"
-              description="Configure model providers, selection policies and authentication through their Plugins."
-              empty="No model or authentication providers are present in this Agent's Plugin inventory."
-              items={items.filter(
-                (item) =>
-                  provides(item, "lenso.agent.model") ||
-                  provides(item, "lenso.agent.model-selection") ||
-                  provides(item, "lenso.agent.auth.openai-codex") ||
-                  provides(item, "lenso.agent.oauth-access")
-              )}
-            />
-            <ProviderSection
-              agentId={agent.id}
-              title="Sessions & memory"
-              description="Configure storage and retention in the providers that own this Agent's data."
-              empty="No session or memory providers are present in this Agent's Plugin inventory."
-              items={items.filter(
-                (item) =>
-                  provides(item, "lenso.agent.session") ||
-                  provides(item, "lenso.agent.memory")
-              )}
-            />
-          </>
-        )
-      ) : null}
-      {personalization ? (
-        <ContextCatalog agent={agent} />
-      ) : (
+        actions={<AgentPicker />}
+      />
+      {advanced ? (
         <ToolAccess agent={agent} />
+      ) : (
+        <>
+          {agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
+            <AuthConnections agentId={agent.id} />
+          ) : null}
+          {workbench.isError ? (
+            <p role="alert" {...stylex.props(styles.error)}>
+              Connections could not be loaded: {errorMessage(workbench.error)}
+            </p>
+          ) : null}
+          {configurationAvailable && workbench.isPending ? (
+            <output {...stylex.props(styles.notice)}>
+              Loading connections…
+            </output>
+          ) : null}
+          {workbench.data ? (
+            <>
+              {agent.capabilities.includes(
+                "lenso.agent.auth-connection@1"
+              ) ? null : (
+                <ProviderSection
+                  agentId={agent.id}
+                  title="Accounts"
+                  description="Manage sign-in through the account provider's configuration."
+                  empty="No account providers are available for this Agent."
+                  items={items.filter((item) =>
+                    provides(item, "lenso.agent.auth-connection")
+                  )}
+                />
+              )}
+              <ProviderSection
+                agentId={agent.id}
+                title="Model services"
+                description="Configure service endpoints and credentials in their Plugins."
+                empty="No model services are available for this Agent."
+                items={items.filter((item) =>
+                  provides(item, "lenso.agent.model")
+                )}
+              />
+              <ProviderSection
+                agentId={agent.id}
+                actions={
+                  <AddMcpConnection
+                    agentId={agent.id}
+                    data={workbench.data}
+                    onAdded={() => {
+                      void workbench.refetch();
+                    }}
+                  />
+                }
+                title="MCP connections"
+                description="Configure external servers here, then enable their capabilities in a Profile."
+                empty="No MCP connections are available for this Agent."
+                items={items.filter((item) =>
+                  /(^|[._-])mcp([._-]|$)/u.test(item.packageId)
+                )}
+              />
+            </>
+          ) : null}
+          <Section
+            title="Advanced"
+            description="Limits that apply across all Profiles of the selected Agent."
+          >
+            <Link to="/settings/ai/agent" {...stylex.props(styles.linkRow)}>
+              <span {...stylex.props(styles.rowCopy)}>
+                <strong {...stylex.props(styles.rowTitle)}>
+                  Global tool restrictions
+                </strong>
+                <span {...stylex.props(styles.description)}>
+                  Set the maximum tool access. Configure everyday tool choices
+                  in Profiles.
+                </span>
+              </span>
+              <span {...stylex.props(styles.actionLabel)}>Manage</span>
+            </Link>
+          </Section>
+        </>
       )}
     </div>
   );
@@ -339,27 +212,45 @@ function Section({
   title,
   description,
   children,
+  actions,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  actions?: ReactNode;
 }) {
   return (
     <SettingsSection.Root xstyle={[preferences.section, styles.sectionRoot]}>
       <SettingsSection.Header xstyle={styles.sectionHeader}>
-        <SettingsSection.Title xstyle={preferences.sectionTitle}>
-          {title}
-        </SettingsSection.Title>
-        <SettingsSection.Description
-          xstyle={[styles.description, styles.inset]}
-        >
-          {description}
-        </SettingsSection.Description>
+        <div {...stylex.props(styles.rowCopy)}>
+          <SettingsSection.Title xstyle={preferences.sectionTitle}>
+            {title}
+          </SettingsSection.Title>
+          <SettingsSection.Description
+            xstyle={[styles.description, styles.inset]}
+          >
+            {description}
+          </SettingsSection.Description>
+        </div>
+        {actions}
       </SettingsSection.Header>
       <div {...stylex.props(preferences.group, styles.sectionBody)}>
         {children}
       </div>
     </SettingsSection.Root>
+  );
+}
+
+function connectionLabel(packageId: string) {
+  const labels: Record<string, string> = {
+    "lenso.agent.auth.openai-codex": "OpenAI Codex account",
+    "lenso.agent.model.openai-codex-direct": "OpenAI Codex",
+    "lenso.agent.model.openai-compatible": "OpenAI-compatible service",
+    "lenso.agent.mcp-client": "MCP server",
+  };
+  return (
+    labels[packageId] ??
+    packageId.replace(/^lenso\.agent\./u, "").replaceAll(/[._-]/gu, " ")
   );
 }
 
@@ -369,15 +260,17 @@ function ProviderSection({
   description,
   empty,
   items,
+  actions,
 }: {
   agentId: string;
   title: string;
   description: string;
   empty: string;
   items: readonly PluginWorkbenchItem[];
+  actions?: ReactNode;
 }) {
   return (
-    <Section title={title} description={description}>
+    <Section title={title} description={description} actions={actions}>
       {items.length ? (
         <ul {...stylex.props(styles.list)}>
           {items.map((item) => (
@@ -393,7 +286,7 @@ function ProviderSection({
               >
                 <span {...stylex.props(styles.rowCopy)}>
                   <strong {...stylex.props(styles.rowTitle)}>
-                    {item.packageId}
+                    {connectionLabel(item.packageId)}
                   </strong>
                   <span {...stylex.props(styles.description)}>
                     {item.instanceKey} ·{" "}
@@ -410,98 +303,8 @@ function ProviderSection({
           ))}
         </ul>
       ) : (
-        <p {...stylex.props(styles.notice)}>{empty}</p>
-      )}
-    </Section>
-  );
-}
-
-function ContextCatalog({ agent }: { agent: AgentIdentity }) {
-  const bootstrap = useQuery({
-    queryKey: ["agent-settings", agent.id, "bootstrap"],
-    queryFn: ({ signal }) => readAgentBootstrap(signal, agent.id),
-    retry: false,
-  });
-  const catalog = useQuery({
-    queryKey: ["agent-settings", agent.id, "context"],
-    queryFn: ({ signal }) => readAgentContextSources(signal, agent.id),
-    enabled: Boolean(bootstrap.data?.capabilities.contextSources),
-    retry: false,
-  });
-  const [search, setSearch] = useState("");
-  const entries = [
-    ...(catalog.data?.prompts.map((prompt) => ({
-      ...prompt,
-      key: `prompt:${prompt.source}:${prompt.name}`,
-      kind: "Prompt",
-    })) ?? []),
-    ...(catalog.data?.resources.map((resource) => ({
-      ...resource,
-      key: `resource:${resource.source}:${resource.uri}`,
-      kind: "Resource",
-    })) ?? []),
-  ];
-  const filtered = entries.filter((entry) =>
-    `${entry.name} ${entry.description} ${entry.source}`
-      .toLocaleLowerCase()
-      .includes(search.toLocaleLowerCase())
-  );
-  return (
-    <Section
-      title="Available prompts & resources"
-      description="Prompts and resources currently exposed by the selected Agent."
-    >
-      {bootstrap.error || catalog.error ? (
-        <p role="alert" {...stylex.props(styles.error)}>
-          {errorMessage(bootstrap.error ?? catalog.error)}
-        </p>
-      ) : bootstrap.isPending ||
-        (bootstrap.data?.capabilities.contextSources && catalog.isPending) ? (
-        <output {...stylex.props(styles.notice)}>
-          Loading context catalog…
-        </output>
-      ) : bootstrap.data?.capabilities.contextSources ? (
-        <>
-          {entries.length > 0 ? (
-            <TextField.Root size="compact" xstyle={styles.search}>
-              <TextField.Control
-                type="search"
-                aria-label="Filter prompts and resources"
-                placeholder="Filter prompts and resources…"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </TextField.Root>
-          ) : null}
-          <ul {...stylex.props(styles.list)}>
-            {filtered.map((entry) => (
-              <li key={entry.key} {...stylex.props(styles.row)}>
-                <span {...stylex.props(styles.rowCopy)}>
-                  <strong {...stylex.props(styles.rowTitle)}>
-                    {entry.name}
-                  </strong>
-                  <span {...stylex.props(styles.description)}>
-                    {entry.description}
-                  </span>
-                  <span {...stylex.props(styles.description)}>
-                    {entry.source}
-                  </span>
-                </span>
-                <span {...stylex.props(styles.actionLabel)}>{entry.kind}</span>
-              </li>
-            ))}
-          </ul>
-          {filtered.length === 0 ? (
-            <p {...stylex.props(styles.notice)}>
-              {entries.length
-                ? "No matching prompts or resources."
-                : "No prompts or resources are currently exposed."}
-            </p>
-          ) : null}
-        </>
-      ) : (
         <p {...stylex.props(styles.notice)}>
-          This Agent does not expose a context catalog.
+          {empty} <Link to="/plugins">Manage Plugins</Link>
         </p>
       )}
     </Section>
@@ -570,10 +373,10 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
     ) ?? [];
   return (
     <Section
-      title="Tool access"
+      title="Tool restrictions"
       description={
         canManage
-          ? "Edit Agent-wide Tool permissions. Save changes to apply them to new turns."
+          ? "Allowed tools form the upper limit for all Profiles of this Agent. Changes apply to new turns."
           : "The effective Tool access for this Agent. Its Host has not enabled policy management through Console."
       }
     >
@@ -585,8 +388,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
       {tools ? (
         <>
           <p {...stylex.props(styles.notice)}>
-            {allowedTools.size} enabled · {tools.available.length} available
-            {bootstrap.data ? ` · Profile: ${bootstrap.data.profile}` : ""}
+            {allowedTools.size} allowed · {tools.available.length} available
           </p>
           <div {...stylex.props(styles.toolToolbar)}>
             <TextField.Root size="compact" xstyle={styles.toolSearch}>

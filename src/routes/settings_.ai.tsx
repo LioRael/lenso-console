@@ -1,7 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-
-import { AgentSettingsPage } from "../features/agent/agent-settings-page";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/settings_/ai")({
-  component: () => <AgentSettingsPage kind="ai" />,
+  component: () => <Navigate replace to="/settings/connections" />,
 });

@@ -13,6 +13,8 @@ import {
   pluginScopes,
   type ManagedApp,
 } from "../apps/app-management-context";
+import { SettingsPageHeader } from "../settings/settings-page-header";
+import { settingsPageStyles as pageStyles } from "../settings/settings-page.stylex";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
 import {
@@ -22,6 +24,7 @@ import {
   type PluginCategory,
   type PluginSelectionFilter,
 } from "./plugin-categories";
+import { pluginDisplayName } from "./plugin-display-name";
 import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginFilterSelect } from "./plugin-filter-select";
 import {
@@ -41,6 +44,12 @@ import {
 const EMPTY_PLUGIN_ITEMS: readonly PluginWorkbenchItem[] = [];
 
 const styles = stylex.create({
+  workbench: {
+    maxWidth: 760,
+    width: "calc(100% - 48px)",
+    display: "grid",
+    gap: 24,
+  },
   breadcrumbParent: {
     display: "inline-flex",
     overflow: "hidden",
@@ -86,7 +95,7 @@ const styles = stylex.create({
     fontSize: 11,
     fontWeight: 500,
     gap: tokens.space4,
-    gridTemplateColumns: "minmax(180px, 1.4fr) minmax(180px, 1fr) 88px",
+    gridTemplateColumns: "minmax(180px, 1fr) 130px 88px",
     minHeight: 34,
     paddingInline: 14,
     "@media (max-width: 720px)": {
@@ -152,7 +161,7 @@ const styles = stylex.create({
     fontFamily: tokens.fontSans,
     fontSize: 12,
     gap: tokens.space4,
-    gridTemplateColumns: "minmax(172px, 1.4fr) minmax(172px, 1fr) 88px",
+    gridTemplateColumns: "minmax(172px, 1fr) 130px 88px",
     marginInline: 8,
     minHeight: 54,
     outline: {
@@ -199,6 +208,14 @@ const styles = stylex.create({
   tableRegion: {
     minWidth: 0,
     overflow: "auto",
+  },
+  inventoryList: {
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: tokens.colorBorderTertiary,
+    borderRadius: 10,
+    backgroundColor: "var(--color-surface-panel)",
+    paddingBlock: 8,
   },
   visuallyHidden: {
     clip: "rect(0 0 0 0)",
@@ -373,7 +390,11 @@ function AppPluginWorkbench({
   ]);
   const mutation = usePluginMutation(selectedApp.id, inventory?.streamId);
   return (
-    <div {...stylex.props(styles.page)}>
+    <div {...stylex.props(pageStyles.column, styles.workbench)}>
+      <SettingsPageHeader
+        title="Plugins"
+        description={`Integrations and capabilities installed for ${selectedApp.label}.`}
+      />
       <PluginDraftNavigationGuard store={configurationDraftStore} />
       {configurationAvailable ? (
         <div
@@ -536,11 +557,11 @@ function AppPluginWorkbench({
         ) : (
           <section
             aria-labelledby="plugins-heading"
-            {...stylex.props(styles.tableRegion)}
+            {...stylex.props(styles.tableRegion, styles.inventoryList)}
           >
             <div aria-hidden="true" {...stylex.props(styles.columns)}>
               <span>Plugin</span>
-              <span {...stylex.props(styles.packageColumn)}>Package</span>
+              <span {...stylex.props(styles.packageColumn)}>Source</span>
               <span>Status</span>
             </div>
             {visiblePlugins.map((plugin) => {
@@ -563,17 +584,17 @@ function AppPluginWorkbench({
                 >
                   <span {...stylex.props(styles.identity)}>
                     <span {...stylex.props(styles.primary)}>
-                      {plugin.packageId}/{plugin.instanceKey}
+                      {pluginDisplayName(plugin)}
                     </span>
                     <span {...stylex.props(styles.secondary)}>
-                      {pluginOriginLabel(plugin)}
+                      {plugin.packageId}/{plugin.instanceKey}
                     </span>
                   </span>
                   <span
                     {...stylex.props(styles.identity, styles.packageColumn)}
                   >
-                    <span {...stylex.props(styles.secondary, styles.mono)}>
-                      {plugin.packageId}
+                    <span {...stylex.props(styles.secondary)}>
+                      {pluginOriginLabel(plugin)}
                     </span>
                     <span {...stylex.props(styles.secondary)}>
                       {plugin.active &&

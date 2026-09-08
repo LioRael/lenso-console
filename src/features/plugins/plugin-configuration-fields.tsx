@@ -119,7 +119,7 @@ const styles = stylex.create({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-  controlRoot: { width: "100%" },
+  controlRoot: { width: "100%", maxWidth: "none" },
   description: {
     color: tokens.colorContentTertiary,
     fontSize: 11,
@@ -136,7 +136,7 @@ const styles = stylex.create({
     alignItems: "start",
     display: "grid",
     gap: tokens.space6,
-    gridTemplateColumns: "minmax(150px, 220px) minmax(0, 1fr)",
+    gridTemplateColumns: "minmax(180px, 1fr) minmax(0, 1fr)",
     paddingBlock: tokens.space3,
     "@media (max-width: 640px)": {
       gap: tokens.space2,

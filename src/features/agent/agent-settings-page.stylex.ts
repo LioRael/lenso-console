@@ -3,17 +3,17 @@ import * as stylex from "@stylexjs/stylex";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 
 export const agentSettingsStyles = stylex.create({
-  sectionHeading: { display: "grid", gap: tokens.space2 },
-  headingRow: {
-    display: "flex",
+  inset: { marginInline: 0 },
+  agentRow: {
+    height: "auto",
     alignItems: "center",
-    justifyContent: "space-between",
+    display: "grid",
+    gridTemplateColumns: {
+      default: "minmax(0, 1fr) auto",
+      "@media (max-width: 520px)": "minmax(0, 1fr)",
+    },
     gap: 12,
-    paddingInlineEnd: 16,
   },
-  inset: { marginInline: 16 },
-  agentGroup: { marginBlockStart: 16 },
-  agentRow: { height: "auto", alignItems: "center" },
   agentCopy: {
     alignSelf: "center",
     justifyContent: "center",
@@ -64,11 +64,18 @@ export const agentSettingsStyles = stylex.create({
     display: "inline-block",
     fontSize: 12,
     marginBlockEnd: 16,
-    marginInline: 16,
+    marginInline: 0,
     textDecoration: { default: "none", ":hover": "underline" },
   },
   sectionRoot: { marginBlockStart: 32 },
-  sectionHeader: { gap: 4 },
+  sectionHeader: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    flexWrap: "wrap",
+  },
   list: { display: "grid", listStyle: "none", margin: 0, padding: 0 },
   listItem: {
     borderBottomColor: tokens.colorBorderTertiary,

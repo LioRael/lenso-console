@@ -22,6 +22,8 @@ export default defineConfig({
       "@lenso/ui/settings-row",
       "@lenso/ui/surface",
       "@lenso/ui/theme-scope",
+      "@lenso/ui/tooltip",
+      "@lenso/ui/tabs",
       "@streamdown/cjk",
       "@stylexjs/stylex",
       "@tanstack/react-query",
@@ -33,6 +35,9 @@ export default defineConfig({
   },
   plugins: [react(), consoleStylex()],
   test: {
+    // StyleX development styles are shared by the Vite server. Keep browser
+    // files serial so concurrent transforms cannot invalidate another page.
+    fileParallelism: false,
     browser: {
       enabled: true,
       instances: [{ browser: "chromium" }],

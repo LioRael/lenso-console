@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAttachmentDraft, type AgentAttachment } from "./agent-attachments";
 import {
+  type AgentContextReference,
   activeAgentTools,
   readAgentActivity,
   answerAgentInteraction,
@@ -122,9 +123,32 @@ export function useAgentConversation({
   const [terminalCatalog, setTerminalCatalog] =
     useState<AgentTerminalCatalog>();
   const [terminalRuns, setTerminalRuns] = useState<AgentTerminalRun[]>([]);
+  const [contextReferences, setContextReferences] = useState<
+    AgentContextReference[]
+  >([]);
   const [selectedModel, setSelectedModel] = useState<string>();
   const [selectedReasoningEffort, setSelectedReasoningEffort] =
     useState<string>();
+  const [selectedApprovalMode, setSelectedApprovalMode] = useState<string>();
+  const approvalModeRef = useRef<string>(undefined);
+  const changeApprovalMode = useCallback(
+    (mode: string | undefined) => {
+      approvalModeRef.current = mode;
+      setSelectedApprovalMode(mode);
+      const id = sessionIdRef.current;
+      if (id) {
+        try {
+          sessionStorage.setItem(
+            `agent-approval:${targetId}:${id}`,
+            mode ?? ""
+          );
+        } catch {
+          /* Storage is optional. */
+        }
+      }
+    },
+    [targetId]
+  );
   const [selectedServiceTier, setSelectedServiceTier] = useState<string>();
   const [selectedTools, setSelectedTools] = useState<string[]>();
   const [tasks, setTasks] = useState<AgentTask[]>([]);
@@ -305,7 +329,24 @@ export function useAgentConversation({
     setQueuedPrompts([]);
     sessionIdRef.current = initialSessionId;
     setSessionId(initialSessionId);
+    let approvalMode: string | undefined;
+    try {
+      const stored = initialSessionId
+        ? sessionStorage.getItem(
+            `agent-approval:${targetId}:${initialSessionId}`
+          )
+        : undefined;
+      approvalMode =
+        stored && ["request", "assisted", "full"].includes(stored)
+          ? stored
+          : undefined;
+    } catch {
+      /* Storage is optional. */
+    }
+    approvalModeRef.current = approvalMode;
+    setSelectedApprovalMode(approvalMode);
     clearAttachments();
+    setContextReferences([]);
     setDraft("");
     setEditingTurnId(undefined);
     setTurns([]);
@@ -349,10 +390,21 @@ export function useAgentConversation({
     [targetId]
   );
 
-  const resolveSession = useCallback((resolvedSessionId: string) => {
-    sessionIdRef.current = resolvedSessionId;
-    setSessionId(resolvedSessionId);
-  }, []);
+  const resolveSession = useCallback(
+    (resolvedSessionId: string) => {
+      sessionIdRef.current = resolvedSessionId;
+      setSessionId(resolvedSessionId);
+      try {
+        sessionStorage.setItem(
+          `agent-approval:${targetId}:${resolvedSessionId}`,
+          approvalModeRef.current ?? ""
+        );
+      } catch {
+        /* Storage is optional. */
+      }
+    },
+    [targetId]
+  );
 
   const startTurn = useCallback(
     (prompt: string, editedTurnId?: string, files: AgentAttachment[] = []) => {
@@ -412,6 +464,10 @@ export function useAgentConversation({
           : Promise.resolve();
         try {
           await streamAgentTurn({
+            contextReferences,
+            ...(selectedApprovalMode
+              ? { approvalMode: selectedApprovalMode }
+              : {}),
             ...(runtime?.capabilities.turnToolSelection && selectedTools
               ? { allowedTools: selectedTools }
               : {}),
@@ -512,6 +568,8 @@ export function useAgentConversation({
       runtime,
       selectedModel,
       selectedReasoningEffort,
+      contextReferences,
+      selectedApprovalMode,
       selectedServiceTier,
       selectedTools,
       targetId,
@@ -1045,14 +1103,18 @@ export function useAgentConversation({
     removeQueuedPrompt,
     renameSession,
     runtime,
+    contextReferences,
+    setContextReferences,
     selectedModel,
     selectedReasoningEffort,
+    selectedApprovalMode,
     selectedServiceTier,
     selectedTools,
     sessionId,
     setDraft,
     setSelectedModel,
     setSelectedReasoningEffort,
+    setSelectedApprovalMode: changeApprovalMode,
     setSelectedServiceTier,
     setSelectedTools,
     submit,

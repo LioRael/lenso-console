@@ -90,6 +90,34 @@ export type AgentContextResource = {
   uri: string;
 };
 
+export type AgentContextReference =
+  | { kind: "prompt"; source: string; name: string }
+  | { kind: "resource"; source: string; uri: string; name: string };
+export type AgentAvailableSkill = {
+  name: string;
+  description: string;
+  directory: string;
+};
+export async function listAvailableSkills(
+  signal: AbortSignal,
+  target: AgentTarget
+) {
+  const response = await fetch(agentApiUrl(target, "skills"), { signal });
+  if (!response.ok) {
+    throw new Error("Could not load Skills");
+  }
+  const value: unknown = await response.json();
+  if (!Array.isArray(value)) {
+    throw new TypeError("Invalid Skill catalog");
+  }
+  return value.filter(
+    (item): item is AgentAvailableSkill =>
+      typeof item?.name === "string" &&
+      typeof item?.description === "string" &&
+      typeof item?.directory === "string"
+  );
+}
+
 export type AgentContextCatalog = {
   prompts: AgentContextPrompt[];
   resources: AgentContextResource[];
@@ -137,6 +165,7 @@ export type AgentTerminalRun = {
 };
 
 export type AgentModel = {
+  contextWindow?: number;
   inputModalities?: string[];
   providerId?: string;
   displayName: string;
@@ -265,11 +294,38 @@ export type AgentToolCall = {
   metadataJson?: string;
   name: string;
   resultContent?: string;
+  resultImages?: { src: string; name: string }[];
+  durationMs?: number;
   resultTruncated?: boolean;
   status: "completed" | "failed" | "not_run" | "running";
 };
 
+export type AgentTurnActivityItem =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; callId: string };
+
+export function beginToolActivity(turn: AgentTurn, callId: string): AgentTurn {
+  if (
+    turn.activity?.some(
+      (item) => item.kind === "tool" && item.callId === callId
+    )
+  ) {
+    return turn;
+  }
+  return {
+    ...turn,
+    answer: "",
+    activity: [
+      ...(turn.activity ?? []),
+      ...(turn.answer ? [{ kind: "text" as const, text: turn.answer }] : []),
+      { kind: "tool", callId },
+    ],
+  };
+}
+
 export type AgentTurn = {
+  activity?: AgentTurnActivityItem[];
+  forkSource?: { sessionId: string; turnId: string };
   attachments?: AgentAttachment[];
   startedAt?: string;
   answeredAt?: string;
@@ -349,6 +405,8 @@ export type AgentTrajectory = {
 export async function streamAgentTurn({
   attachments,
   allowedTools,
+  contextReferences,
+  approvalMode,
   editTurnId,
   input,
   model,
@@ -361,6 +419,8 @@ export async function streamAgentTurn({
   targetId = "console",
 }: {
   allowedTools?: string[];
+  contextReferences?: AgentContextReference[];
+  approvalMode?: string;
   editTurnId?: string;
   input: string;
   attachments?: AgentAttachment[];
@@ -376,6 +436,21 @@ export async function streamAgentTurn({
   const response = await fetch(agentApiUrl(targetId, "turns"), {
     body: JSON.stringify({
       ...(allowedTools ? { allowed_tools: allowedTools } : {}),
+      ...(contextReferences?.length
+        ? {
+            context_references: contextReferences.map(
+              ({ kind, source, ...reference }) =>
+                kind === "prompt"
+                  ? { kind, source, name: reference.name }
+                  : {
+                      kind,
+                      source,
+                      uri: "uri" in reference ? reference.uri : "",
+                    }
+            ),
+          }
+        : {}),
+      ...(approvalMode ? { approval_mode: approvalMode } : {}),
       ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
       input,
       ...(attachments?.length
@@ -877,11 +952,24 @@ export function projectAgentSession(session: AgentSession): {
 } {
   const turns = new Map<string, AgentTurn>();
   const turnStartedAt = new Map<string, number>();
+  const identity = session.events.find(
+    (event) => event.kind === "session_created"
+  );
+  const origin = identity
+    ? jsonObject(identity.payloadJson).fork_source
+    : undefined;
+  const forkSource =
+    origin && typeof origin === "object"
+      ? (origin as Record<string, unknown>)
+      : undefined;
   for (const event of session.events) {
     const payload = jsonObject(event.payloadJson);
     const { turnId } = event;
     if (event.kind === "turn_started" && turnId) {
-      const input = stringValue(payload.input);
+      const input =
+        typeof payload.display_input === "string"
+          ? payload.display_input
+          : stringValue(payload.input);
       turnStartedAt.set(turnId, Date.parse(event.occurredAt));
       turns.set(turnId, {
         answer: "",
@@ -940,7 +1028,18 @@ export function projectAgentSession(session: AgentSession): {
       }
     }
   }
-  return { turns: [...turns.values()] };
+  const projected = [...turns.values()];
+  if (
+    projected[0] &&
+    typeof forkSource?.session_id === "string" &&
+    typeof forkSource.turn_id === "string"
+  ) {
+    projected[0].forkSource = {
+      sessionId: forkSource.session_id,
+      turnId: forkSource.turn_id,
+    };
+  }
+  return { turns: projected };
 }
 
 function projectToolEvent(
@@ -952,6 +1051,7 @@ function projectToolEvent(
   const tools = (turn.tools ??= []);
   const existing = tools.find((tool) => tool.callId === callId);
   if (event.kind === "tool_requested") {
+    Object.assign(turn, beginToolActivity(turn, callId));
     const requested: AgentToolCall = {
       callId,
       name: stringValue(payload.name) || "Tool",
@@ -973,7 +1073,38 @@ function projectToolEvent(
     status: "running" as const,
   };
   completed.name = stringValue(payload.name) || completed.name;
-  completed.status = "completed";
+  completed.status =
+    payload.status === "failed" || payload.error ? "failed" : "completed";
+  if (payload.error) {
+    completed.error =
+      typeof payload.error === "string"
+        ? payload.error
+        : JSON.stringify(payload.error);
+  }
+  if (!existing) {
+    Object.assign(turn, beginToolActivity(turn, callId));
+  }
+  if (typeof payload.duration_ms === "number") {
+    completed.durationMs = payload.duration_ms;
+  }
+  if (Array.isArray(payload.content_blocks)) {
+    completed.resultImages = payload.content_blocks.flatMap((block) => {
+      if (
+        block &&
+        block.kind === "image" &&
+        typeof block.data_base64 === "string" &&
+        /^(image\/(png|jpeg|webp|gif))$/u.test(block.mime_type)
+      ) {
+        return [
+          {
+            src: `data:${block.mime_type};base64,${block.data_base64}`,
+            name: typeof block.name === "string" ? block.name : "Tool image",
+          },
+        ];
+      }
+      return [];
+    });
+  }
   const metadataJson = stringValue(payload.metadata_json);
   if (metadataJson) {
     completed.metadataJson = metadataJson;
@@ -1468,6 +1599,13 @@ function agentModel(value: unknown): AgentModel {
     throw new TypeError("Agent Model is malformed");
   }
   return {
+    ...(isObject(object.limits) &&
+    typeof object.limits.max_input_tokens === "number"
+      ? { contextWindow: object.limits.max_input_tokens }
+      : isObject(object.limits) &&
+          typeof object.limits.context_window_tokens === "number"
+        ? { contextWindow: object.limits.context_window_tokens }
+        : {}),
     displayName:
       typeof object.display_name === "string" && object.display_name
         ? object.display_name
@@ -1912,4 +2050,28 @@ export async function readAgentActivity(
     throw new Error(await responseError(response));
   }
   return response.json();
+}
+
+export async function forkAgentSession(
+  sessionId: string,
+  turnId: string,
+  operationId: string,
+  targetId: AgentTarget
+): Promise<string> {
+  const response = await fetch(
+    agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/fork`),
+    {
+      method: "POST",
+      headers: agentHeaders("application/json", true),
+      body: JSON.stringify({ turnId, operationId }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error((await response.text()) || "Could not branch this chat");
+  }
+  const result = (await response.json()) as { sessionId?: string };
+  if (!result.sessionId) {
+    throw new Error("The Agent did not return a branch identity");
+  }
+  return result.sessionId;
 }

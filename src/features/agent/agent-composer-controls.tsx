@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { composerOverlayStyles as overlay } from "./agent-composer-overlay.stylex";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 
 type ComposerOption = { label: string; value: string };
@@ -23,6 +24,7 @@ export type ComposerSuggestion = {
 };
 
 type ComposerChoiceProps = {
+  compact?: boolean;
   "aria-label": string;
   disabled: boolean;
   icon: ReactNode;
@@ -84,6 +86,7 @@ export function ComposerSlashMenu({
 }
 
 export function TurnSelect({
+  compact,
   "aria-label": ariaLabel,
   disabled,
   icon,
@@ -106,12 +109,18 @@ export function TurnSelect({
       <Select.Trigger aria-label={ariaLabel} xstyle={styles.composerControl}>
         {icon}
         <Select.Value xstyle={styles.composerControlValue}>
-          {selectedOption?.label ?? value}
+          {compact ? null : (selectedOption?.label ?? value)}
         </Select.Value>
         <ChevronDown aria-hidden="true" size={11} />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner align="start" position="popper" sideOffset={6}>
+        <Select.Positioner
+          xstyle={overlay.positioner}
+          data-agent-composer-overlay={compact || undefined}
+          align="start"
+          position="popper"
+          sideOffset={6}
+        >
           <Select.Popup xstyle={styles.composerSelectPopup}>
             <Select.List>
               {options.map((option) => (
@@ -129,6 +138,7 @@ export function TurnSelect({
 }
 
 type RunConfigurationMenuProps = {
+  compact?: boolean;
   disabled: boolean;
   modelOptions: ReadonlyArray<ComposerOption>;
   modelValue: string;
@@ -142,6 +152,7 @@ type RunConfigurationMenuProps = {
 };
 
 export function RunConfigurationMenu({
+  compact,
   disabled,
   modelOptions,
   modelValue,
@@ -188,9 +199,9 @@ export function RunConfigurationMenu({
           >
             <Bot aria-hidden="true" size={12} />
             <span {...stylex.props(styles.composerControlValue)}>
-              {selectedModel?.label ?? modelValue}
+              {compact ? "Model" : (selectedModel?.label ?? modelValue)}
             </span>
-            {selectedReasoningEffort?.value ? (
+            {!compact && selectedReasoningEffort?.value ? (
               <span {...stylex.props(styles.composerControlSecondaryValue)}>
                 {selectedReasoningEffort.label}
               </span>
@@ -200,7 +211,13 @@ export function RunConfigurationMenu({
         }
       />
       <Menu.Portal>
-        <Menu.Positioner align="end" side="top" sideOffset={8}>
+        <Menu.Positioner
+          xstyle={overlay.positioner}
+          data-agent-composer-overlay={compact || undefined}
+          align="end"
+          side="top"
+          sideOffset={8}
+        >
           <Menu.Popup
             aria-label="Run configuration"
             xstyle={styles.runConfigurationMenu}
@@ -220,7 +237,12 @@ export function RunConfigurationMenu({
                 </span>
               </Menu.SubmenuTrigger>
               <Menu.Portal>
-                <Menu.Positioner align="end" sideOffset={6}>
+                <Menu.Positioner
+                  xstyle={overlay.positioner}
+                  data-agent-composer-overlay={compact || undefined}
+                  align="end"
+                  sideOffset={6}
+                >
                   <Menu.Popup
                     aria-label="Models"
                     id={menuId}
@@ -280,6 +302,7 @@ export function RunConfigurationMenu({
             </Menu.SubmenuRoot>
             {reasoningEffortOptions.length ? (
               <ConfigurationSubmenu
+                compact={compact}
                 ariaLabel="Reasoning efforts"
                 label="Reasoning"
                 onValueChange={onReasoningEffortChange}
@@ -290,6 +313,7 @@ export function RunConfigurationMenu({
             ) : null}
             {serviceTierOptions.length ? (
               <ConfigurationSubmenu
+                compact={compact}
                 ariaLabel="Service tiers"
                 label="Speed"
                 onValueChange={onServiceTierChange}
@@ -306,6 +330,7 @@ export function RunConfigurationMenu({
 }
 
 function ConfigurationSubmenu({
+  compact,
   ariaLabel,
   label,
   onValueChange,
@@ -313,6 +338,7 @@ function ConfigurationSubmenu({
   value,
   valueLabel,
 }: {
+  compact?: boolean | undefined;
   ariaLabel: string;
   label: string;
   onValueChange: (value: string) => void;
@@ -329,7 +355,12 @@ function ConfigurationSubmenu({
         </span>
       </Menu.SubmenuTrigger>
       <Menu.Portal>
-        <Menu.Positioner align="end" sideOffset={6}>
+        <Menu.Positioner
+          xstyle={overlay.positioner}
+          data-agent-composer-overlay={compact || undefined}
+          align="end"
+          sideOffset={6}
+        >
           <Menu.Popup
             aria-label={ariaLabel}
             submenu

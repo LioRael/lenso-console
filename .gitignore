@@ -13,3 +13,7 @@ dist/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Generated browser test diagnostics
+.vitest-attachments/
+src/**/__screenshots__/

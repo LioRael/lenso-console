@@ -5,7 +5,6 @@ import * as stylex from "@stylexjs/stylex";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Blocks,
-  Bot,
   ChevronLeft,
   CircleHelp,
   MousePointer2,
@@ -312,7 +311,12 @@ function SettingsSidebar({
 }: {
   currentPath: string;
   navigate: (
-    to: "/" | "/settings" | "/settings/agent" | "/settings/ai"
+    to:
+      | "/"
+      | "/settings"
+      | "/settings/connections"
+      | "/settings/ai"
+      | "/settings/profiles"
   ) => void;
   onRequestClose: () => void;
 }) {
@@ -322,8 +326,8 @@ function SettingsSidebar({
     normalizedQuery.length === 0 ||
     label.toLocaleLowerCase().includes(normalizedQuery);
   const showPreferences = matches("Preferences");
-  const showPersonalization = matches("Guidance skills MCP integrations");
-  const showAiAgents = matches("AI & Agents");
+  const showConnections = matches("Connections accounts models MCP");
+  const showProfiles = matches("Profiles instructions tools skills guidance");
 
   return (
     <>
@@ -365,35 +369,38 @@ function SettingsSidebar({
             </Sidebar.Menu>
           </ContextNavigationSection>
         ) : null}
-        {showAiAgents || showPersonalization ? (
+        {showConnections || showProfiles ? (
           <ContextNavigationSection label="Agents">
             <Sidebar.Menu>
-              {showPersonalization ? (
+              {showProfiles ? (
                 <Sidebar.MenuItem>
                   <ContextNavigationItem
-                    icon={<Bot size={14} strokeWidth={1.7} />}
-                    onClick={() => navigate("/settings/agent")}
-                    selected={currentPath.startsWith("/settings/agent")}
+                    icon={<SlidersHorizontal size={14} strokeWidth={1.7} />}
+                    onClick={() => navigate("/settings/profiles")}
+                    selected={currentPath.startsWith("/settings/profiles")}
                   >
-                    Guidance &amp; integrations
+                    Profiles
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
-              {showAiAgents ? (
+              {showConnections ? (
                 <Sidebar.MenuItem>
                   <ContextNavigationItem
                     icon={<Sparkles size={14} strokeWidth={1.7} />}
-                    onClick={() => navigate("/settings/ai")}
-                    selected={currentPath.startsWith("/settings/ai")}
+                    onClick={() => navigate("/settings/connections")}
+                    selected={
+                      currentPath.startsWith("/settings/connections") ||
+                      currentPath.startsWith("/settings/ai")
+                    }
                   >
-                    AI &amp; Agents
+                    Connections
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
             </Sidebar.Menu>
           </ContextNavigationSection>
         ) : null}
-        {!showPreferences && !showPersonalization && !showAiAgents ? (
+        {!showPreferences && !showConnections && !showProfiles ? (
           <p {...stylex.props(shellStyles.settingsSearchEmpty)}>
             No settings found
           </p>

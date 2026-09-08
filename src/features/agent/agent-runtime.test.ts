@@ -65,7 +65,15 @@ describe("Agent runtime projection", () => {
   it("reconstructs complete conversation Turns from durable Session events", () => {
     const session: AgentSession = {
       events: [
-        event("1", "turn_started", { input: "Hello" }, "turn-1"),
+        event(
+          "1",
+          "turn_started",
+          {
+            input: "Selected Skill content\nUser task: Hello",
+            display_input: "Hello",
+          },
+          "turn-1"
+        ),
         event("2", "model_requested", { step: 1 }, "turn-1"),
         event("3", "model_output", { text: "Hi" }, "turn-1"),
         event("4", "turn_completed", { output: "Hi there" }, "turn-1"),
@@ -800,6 +808,16 @@ describe("Agent runtime projection", () => {
     );
 
     await streamAgentTurn({
+      contextReferences: [
+        { kind: "prompt", source: "skills", name: "review" },
+        {
+          kind: "resource",
+          source: "workspace",
+          uri: "file:///readme",
+          name: "Readme",
+        },
+      ],
+      approvalMode: "assisted",
       editTurnId: "turn-1",
       input: "Edited",
       onEvent: () => undefined,
@@ -809,6 +827,11 @@ describe("Agent runtime projection", () => {
     });
 
     expect(JSON.parse(body)).toEqual({
+      context_references: [
+        { kind: "prompt", source: "skills", name: "review" },
+        { kind: "resource", source: "workspace", uri: "file:///readme" },
+      ],
+      approval_mode: "assisted",
       edit_turn_id: "turn-1",
       input: "Edited",
       request_id: "request-edit",
