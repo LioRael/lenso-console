@@ -18,6 +18,7 @@ import {
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
 import { useAgentIdentity } from "./agent-identity-context";
+import { AgentProfileEditor } from "./agent-profile-editor";
 import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   readAgentBootstrap,
@@ -232,6 +233,9 @@ function AgentSettingsContent({
           </SettingsRow.Root>
         </SettingsSection.Group>
       </SectionHeading>
+      {!personalization && configurationAvailable ? (
+        <AgentProfileEditor agent={agent} items={items} />
+      ) : null}
       {!personalization &&
       agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
         <AuthConnections agentId={agent.id} />
@@ -321,7 +325,10 @@ function AgentSettingsContent({
       {personalization ? (
         <ContextCatalog agent={agent} />
       ) : (
-        <ToolAccess agent={agent} />
+        <details>
+          <summary>Agent-wide permissions</summary>
+          <ToolAccess agent={agent} />
+        </details>
       )}
     </div>
   );

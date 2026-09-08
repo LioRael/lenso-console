@@ -910,6 +910,7 @@ fn allowed_agent_route_with_capabilities(
             ],
         ) => valid_agent_identity(request_id) && valid_agent_identity(interaction_id),
         (&Method::POST, ["control", "profile"] | ["control", "profiles", "import"])
+        | (&Method::GET | &Method::POST, ["control", "profiles"])
         | (&Method::GET | &Method::PUT, ["control", "tool-policy"]) => plugin_configuration,
         _ if plugin_configuration
             && allowed_plugin_configuration_route(method, parts.as_slice()) =>
@@ -1204,6 +1205,8 @@ mod tests {
         ));
         for (method, path) in [
             (Method::POST, "control/profiles/import"),
+            (Method::GET, "control/profiles"),
+            (Method::POST, "control/profiles"),
             (Method::GET, "control/tool-policy"),
             (Method::PUT, "control/tool-policy"),
         ] {

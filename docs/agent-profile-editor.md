@@ -1,29 +1,15 @@
 # Agent Profile editor
 
-Status: proposed architecture; named Profile editing is not implemented by the current settings page.
+Status: implemented for the Agent's SQLite configuration authority.
 
-## Product structure
+Agent selection stays above a named Profile editor. Sidebar owns page navigation. Within the editor, collapsible groups organize Tools, Tool providers/MCP, Skills/context, Instrument hooks, and other providers. Groups use capability metadata, with the built-in Skills provider identified by its stable Plugin ID because it exposes shared prompt/tool contracts. Providers without selection metadata remain in the other-provider group rather than being guessed from labels.
 
-Keep Agent selection above the editor. Select a Profile within that Agent, then edit its Tools, MCP servers, Skills, and Instrument providers in separate tabs. Each tab has search, enabled/available counts, Enable all, Disable all, and individual controls. Bulk controls act on the whole tab, independent of filtering. Keep one shared draft, Reset, and Save changes across tabs.
+Templates and existing file Profiles are read-only. Duplicate a Profile to create a named draft. Edit description, additive instructions, Tool choices and provider instances; unknown document fields and model defaults survive round trips. Search narrows bulk actions to matching items. Disabled providers remain installed and credentials stay in their owning stores. The editor does not claim per-Skill file editing or MCP installation.
 
-General Agent settings retain authentication and storage. Profile configuration does not silently modify Agent-wide Tool policy. Plugin configuration remains in the Plugin workbench, linked from each provider row.
+Save draft performs revision-checked validation and SQLite persistence without changing the live Profile file. Apply Profile materializes the saved revision and prepares a Ready-Gated Generation. Running turns retain their existing configuration and session history. A failed preparation retains the prior active Generation and saved draft. Active and saved revisions are separate; another save does not silently activate the change. Conflicts preserve editor input; Reset reloads the latest saved version.
 
-## Ownership and persistence
+Profile Tool choices intersect Agent-wide permissions and the resolved catalog. Inherit permissions removes the Profile-specific ceiling; an empty list disables all Tools. Agent-wide permissions are available separately in a collapsed advanced section. The displayed Tool catalog comes from the current runtime; provider changes may reveal different Tools after applying.
 
-A named Profile stores selected Plugin instances, bindings, and profile-specific Tool grants. MCP servers, Skills, and Instruments are provider instances discovered from descriptors, not inferred from display names. Disabling a provider removes it from the candidate Profile; it does not uninstall its Plugin or delete credentials.
+The Agent exposes authorized GET/POST `control/profiles` and POST `control/profile` with an optional `expectedRevision`. Console proxies these only with Plugin configuration capability. Hosts using file authority report that editing requires SQLite management.
 
-The Agent owns Profile inventory, read, revision-checked update, validation, and activation APIs. Console edits a draft and submits a complete candidate with its expected revision. The SQLite management mode must persist named Profile revisions; a change to the current runtime configuration is not equivalent to saving a Profile file.
-
-Saving an inactive Profile must not activate it. Saving an active Profile produces a new immutable Plan/Generation for subsequent work; existing turns retain their resolved Plan. Failed validation or revision conflicts keep the draft and leave the active configuration unchanged. Credentials stay in their owning secret store.
-
-## First implementation slice
-
-1. Expose Profile inventory and revisioned read/write through the Agent control surface and Console proxy.
-2. Add clone and edit for existing Profiles; preserve unknown fields and custom Profiles.
-3. Support Tools and provider-instance selection for MCP, Skills, and Instruments with one atomic save.
-4. Preview invalid or missing bindings before save, and separate Save from Activate.
-5. Verify round-trip persistence, inactive Profile isolation, concurrent edit conflicts, and old-turn/new-turn boundaries.
-
-## Delivered settings improvements
-
-The present Tool access editor is explicitly Agent-wide. It supports search, bulk enable/disable, a local draft, Reset, revision-checked Save, and conflict detection. The sidebar owns navigation between settings pages; there are no duplicate page-level navigation tabs. Open Agent and All Plugins live in the page heading actions menu. These changes do not claim Profile-specific persistence.
+Validation covers draft isolation, revision conflicts, invalid dependencies, online activation, restart recovery, filtered bulk editing, unknown-field preservation, and retaining input after a failed save. Existing Profile import and session-prompt refresh tests remain in the focused regression suite.
