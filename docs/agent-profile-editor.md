@@ -26,4 +26,4 @@ Saving an inactive Profile must not activate it. Saving an active Profile produc
 
 ## Delivered settings improvements
 
-The present Tool access editor is explicitly Agent-wide. It supports search, bulk enable/disable, a local draft, Reset, revision-checked Save, and conflict detection. General and Guidance & integrations use section navigation; Open Agent and All Plugins live in an actions menu. These changes do not claim Profile-specific persistence.
+The present Tool access editor is explicitly Agent-wide. It supports search, bulk enable/disable, a local draft, Reset, revision-checked Save, and conflict detection. The sidebar owns navigation between settings pages; there are no duplicate page-level navigation tabs. Open Agent and All Plugins live in the page heading actions menu. These changes do not claim Profile-specific persistence.

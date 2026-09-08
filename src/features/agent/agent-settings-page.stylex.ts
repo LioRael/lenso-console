@@ -4,6 +4,13 @@ import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 
 export const agentSettingsStyles = stylex.create({
   sectionHeading: { display: "grid", gap: tokens.space2 },
+  headingRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingInlineEnd: 16,
+  },
   inset: { marginInline: 16 },
   agentGroup: { marginBlockStart: 16 },
   agentRow: { height: "auto", alignItems: "center" },
@@ -12,19 +19,6 @@ export const agentSettingsStyles = stylex.create({
     justifyContent: "center",
     gap: "2px",
     paddingBlock: 0,
-  },
-  tabs: { display: "flex", flexWrap: "wrap", gap: 4 },
-  tab: {
-    fontSize: 12,
-    lineHeight: "20px",
-    padding: "5px 10px",
-    borderRadius: 999,
-    color: tokens.colorContentTertiary,
-    textDecoration: "none",
-  },
-  tabActive: {
-    color: tokens.colorContentPrimary,
-    backgroundColor: "var(--color-surface-selected)",
   },
   toolToolbar: {
     display: "flex",
@@ -65,25 +59,12 @@ export const agentSettingsStyles = stylex.create({
     minWidth: 160,
     maxWidth: "100%",
   },
-  navigation: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: tokens.space4,
-    alignItems: "center",
-    justifyContent: "space-between",
-    margin: "16px 16px 0",
-  },
   backLink: {
     color: tokens.colorContentTertiary,
     display: "inline-block",
     fontSize: 12,
     marginBlockEnd: 16,
     marginInline: 16,
-    textDecoration: { default: "none", ":hover": "underline" },
-  },
-  textLink: {
-    color: tokens.colorContentSecondary,
-    fontSize: 12,
     textDecoration: { default: "none", ":hover": "underline" },
   },
   sectionRoot: { marginBlockStart: 32 },

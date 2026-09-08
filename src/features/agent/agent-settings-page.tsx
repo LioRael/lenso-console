@@ -59,14 +59,19 @@ function SectionHeading({
   description,
   title,
   children,
+  actions,
 }: {
+  actions?: ReactNode;
   children?: ReactNode;
   description: string;
   title: string;
 }) {
   return (
     <header {...stylex.props(styles.sectionHeading)}>
-      <h1 {...stylex.props(preferences.pageTitle)}>{title}</h1>
+      <div {...stylex.props(styles.headingRow)}>
+        <h1 {...stylex.props(preferences.pageTitle)}>{title}</h1>
+        {actions}
+      </div>
       <p {...stylex.props(styles.description, styles.inset)}>{description}</p>
       {children}
     </header>
@@ -170,6 +175,40 @@ function AgentSettingsContent({
         {personalization ? "Agent settings" : "AI & Agents"}
       </Link>
       <SectionHeading
+        actions={
+          <Menu.Root>
+            <Menu.Trigger
+              render={
+                <Button
+                  aria-label="Agent settings actions"
+                  size="compact"
+                  variant="ghost"
+                >
+                  <MoreHorizontal size={16} />
+                </Button>
+              }
+            />
+            <Menu.Portal>
+              <Menu.Positioner align="end">
+                <Menu.Popup>
+                  <Menu.Item
+                    render={
+                      <Link
+                        to="/agent/$agentId/$chatId"
+                        params={{ agentId: agent.id, chatId: "new-task" }}
+                      />
+                    }
+                  >
+                    Open Agent
+                  </Menu.Item>
+                  <Menu.Item render={<Link to="/plugins" />}>
+                    All Plugins
+                  </Menu.Item>
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+        }
         title={personalization ? "Guidance & integrations" : "Agent settings"}
         description={
           personalization
@@ -193,59 +232,6 @@ function AgentSettingsContent({
           </SettingsRow.Root>
         </SettingsSection.Group>
       </SectionHeading>
-      <div {...stylex.props(styles.navigation)}>
-        <nav
-          aria-label="Agent settings sections"
-          {...stylex.props(styles.tabs)}
-        >
-          <Link
-            to="/settings/ai/agent"
-            aria-current={personalization ? undefined : "page"}
-            {...stylex.props(styles.tab, !personalization && styles.tabActive)}
-          >
-            General
-          </Link>
-          <Link
-            to="/settings/agent"
-            aria-current={personalization ? "page" : undefined}
-            {...stylex.props(styles.tab, personalization && styles.tabActive)}
-          >
-            Guidance & integrations
-          </Link>
-        </nav>
-        <Menu.Root>
-          <Menu.Trigger
-            render={
-              <Button
-                aria-label="Agent settings actions"
-                size="compact"
-                variant="ghost"
-              >
-                <MoreHorizontal size={16} />
-              </Button>
-            }
-          />
-          <Menu.Portal>
-            <Menu.Positioner align="end">
-              <Menu.Popup>
-                <Menu.Item
-                  render={
-                    <Link
-                      to="/agent/$agentId/$chatId"
-                      params={{ agentId: agent.id, chatId: "new-task" }}
-                    />
-                  }
-                >
-                  Open Agent
-                </Menu.Item>
-                <Menu.Item render={<Link to="/plugins" />}>
-                  All Plugins
-                </Menu.Item>
-              </Menu.Popup>
-            </Menu.Positioner>
-          </Menu.Portal>
-        </Menu.Root>
-      </div>
       {!personalization &&
       agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
         <AuthConnections agentId={agent.id} />
