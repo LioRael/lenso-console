@@ -5,3 +5,5 @@
 - [0002 — Separate App Plugin management from Agent interaction](0002-separate-app-plugin-management-from-agent-interaction.md)
 
 - [0003 — Bind project tasks to isolated Agent processes](0003-bind-project-tasks-to-isolated-agent-processes.md)
+
+- [0004 — Prefer native Console page contributions](0004-prefer-native-console-page-contributions.md)

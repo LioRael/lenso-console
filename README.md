@@ -8,6 +8,16 @@ The separately released `lenso-agent-web` binary owns Agent execution and its
 reviewed Plugin compositions; Console no longer links Agent's private Rust
 workspace.
 
+## Product direction
+
+The long-term direction is an extensible App administration and development
+workbench, with Plugin-owned business pages, observability, and team tools.
+See the [product direction](docs/console-direction.md), [domain vocabulary](CONTEXT.md),
+and [native page contribution decision](docs/adr/0004-prefer-native-console-page-contributions.md).
+These documents distinguish future direction from the current implementation
+described below; they do not imply that dynamic extensions or a marketplace ship
+today.
+
 ## Run
 
 To start a normal Harness together with its Console Web UI:
