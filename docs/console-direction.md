@@ -91,6 +91,12 @@ The primary mode is a native frontend module integrated with Console's routing,
 theme, and context. An iframe is an optional external-page integration mode, not
 the default Plugin model. See ADR-0004 for the trust trade-off.
 
+For Console-scoped contributions, the product object exposed in the primary
+rail is a **Workspace**. Each Plugin-contributed Workspace is a direct primary
+rail item and owns the contextual navigation shown in the second sidebar. There
+is no generic Tools page between the operator and a Workspace; Tool remains the
+name of an executable capability, not a navigation container.
+
 Standardize the seams, not every internal implementation:
 
 - Identity, compatibility, route ownership, and navigation contributions.

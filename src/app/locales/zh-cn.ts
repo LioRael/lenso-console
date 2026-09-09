@@ -252,7 +252,7 @@ export const chineseMessages: Readonly<Record<string, string>> = {
     "无法加载工具列表，已保留现有选择。",
   "Tool restrictions": "工具限制",
   "Tools & providers": "工具与服务",
-  "Tool navigation": "工具导航",
+  "Workspace navigation": "工作区导航",
   "This page contribution is not installed or enabled.":
     "此页面扩展尚未安装或启用。",
   "Try again": "重试",

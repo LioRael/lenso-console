@@ -6,7 +6,10 @@ export type PageMount = {
   apiMajor: 1;
   id: string;
   module: string;
-  navigation: { label: string };
+  navigation: {
+    items: readonly { label: string; path: readonly string[] }[];
+    label: string;
+  };
   styles: readonly string[];
   subject: "console";
   title: string;
@@ -28,7 +31,13 @@ const demoCatalog: readonly PageMount[] = [
         )
       });
     `)}`,
-    navigation: { label: "Extensions" },
+    navigation: {
+      items: [
+        { label: "Home", path: [] },
+        { label: "Request example", path: ["request", "example"] },
+      ],
+      label: "Extensions",
+    },
     styles: [
       `data:text/css,${encodeURIComponent(
         ".welcome-contribution { padding: 2rem; }"
@@ -80,7 +89,10 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       typeof candidate.navigation !== "object" ||
       !("label" in candidate.navigation) ||
       typeof candidate.navigation.label !== "string" ||
-      !candidate.navigation.label.trim()
+      !candidate.navigation.label.trim() ||
+      !("items" in candidate.navigation) ||
+      !Array.isArray(candidate.navigation.items) ||
+      !validNavigationItems(candidate.navigation.items)
     ) {
       throw new TypeError("Console page mount is malformed");
     }
@@ -89,13 +101,50 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       apiMajor: candidate.apiMajor,
       id: candidate.id,
       module: candidate.module,
-      navigation: { label: candidate.navigation.label },
+      navigation: {
+        items: candidate.navigation.items,
+        label: candidate.navigation.label,
+      },
       styles: candidate.styles,
       subject: candidate.subject,
       title: candidate.title,
     };
     return mount;
   });
+}
+
+function validNavigationItems(values: unknown[]): boolean {
+  const paths = new Set<string>();
+  return values.every((value) => {
+    if (!isNavigationItem(value)) {
+      return false;
+    }
+    const path = value.path.join("/");
+    if (paths.has(path)) {
+      return false;
+    }
+    paths.add(path);
+    return true;
+  });
+}
+
+function isNavigationItem(
+  value: unknown
+): value is { label: string; path: string[] } {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "label" in value &&
+    typeof value.label === "string" &&
+    !!value.label.trim() &&
+    "path" in value &&
+    Array.isArray(value.path) &&
+    value.path.every(
+      (segment: unknown) =>
+        typeof segment === "string" &&
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
+    )
+  );
 }
 
 function isMountAssetUrl(value: string, mountId: string): boolean {

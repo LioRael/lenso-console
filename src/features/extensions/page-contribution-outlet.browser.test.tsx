@@ -65,7 +65,7 @@ test("contains a contribution render failure and allows a retry", async () => {
           Page: () => { throw new Error("Contribution render exploded"); }
         });
       `)}`,
-        navigation: { label: "Broken" },
+        navigation: { items: [], label: "Broken" },
         styles: [],
         subject: "console",
         title: "Broken",
