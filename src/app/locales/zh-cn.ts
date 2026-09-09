@@ -396,6 +396,12 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Adding…": "正在添加…",
   "Add connection": "添加连接",
   "Account saved on this Agent’s Host.": "账号已保存在此智能体的宿主上。",
+  "Connected for this Agent run. Restarting requires a new connection.":
+    "已连接到本次智能体运行，重启后需要重新连接。",
+  "Disconnect this App for new turns? Existing turns keep their identity. Revoke access in the App to stop them.":
+    "断开此应用，停止向新任务提供授权？正在执行的任务保留原有身份。如需立即停止访问，请在业务应用中撤销授权。",
+  "Connect to use this App within your existing permissions.":
+    "连接后，智能体可在你已有的权限范围内使用此应用。",
   "Not connected": "未连接",
   "Cancel sign-in": "取消登录",
   "Disconnect…": "断开连接…",
