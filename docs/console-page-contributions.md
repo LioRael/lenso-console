@@ -1,6 +1,6 @@
 # Native Console page contributions
 
-Status: Console- and App-scoped Workspace routing implemented; target service binding deferred.
+Status: Console- and App-scoped Workspace routing implemented; target service binding designed and pending implementation.
 
 This document now separates the shipped Workspace path from the remaining
 cross-App design. The implementation includes a typed
@@ -539,8 +539,9 @@ operations; this design does not standardize every App's user model.
   without changing the observed App's behavior. Retention belongs to the tool.
 
 Deterministic fake adapters can prove the SDK first, but do not count as the
-completed observability product. OTel ingestion and storage selection remain in
-the dedicated observability design.
+completed observability product. OTLP ingestion, storage, query, and retention
+are specified in the dedicated
+[observability design](console-observability.md).
 
 ### Future project-management workspace
 
@@ -571,6 +572,10 @@ browser adapter and `service/src/page_contributions.rs` for Console HTTP
 projection. These paths do not exist yet. Contracts/build tooling should have
 one owner in this repository initially; creating a public SDK package or changing
 workspace layout is a separate reviewed packaging decision.
+
+The exact owner-service browser seam is specified in
+[Workspace service transport](workspace-service-transport.md). Subject-provided
+services remain dependent on the cross-App Connector.
 
 ## 12. Review and verification gates
 

@@ -14,9 +14,11 @@ The long-term direction is an extensible App administration and development
 workbench, with Plugin-owned business pages, observability, and team tools.
 See the [product direction](docs/console-direction.md), [domain vocabulary](CONTEXT.md),
 and [native page contribution decision](docs/adr/0004-prefer-native-console-page-contributions.md).
-These documents distinguish future direction from the current implementation
-described below; they do not imply that dynamic extensions or a marketplace ship
-today.
+Plan-bound linked Workspaces ship in the reference Host. The narrowed
+[Workspace service transport](docs/workspace-service-transport.md),
+[observability](docs/console-observability.md), and
+[marketplace](docs/plugin-marketplace.md) designs distinguish their pending
+implementation from what ships today.
 
 ## Run
 

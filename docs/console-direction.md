@@ -187,17 +187,22 @@ silently target another App or masquerade as success.
 - Retired Story, dynamic Module composition, and release machinery are not
   restored by this document. New mechanisms require reviewed designs.
 
-## Next design artifacts
+## Implementation specifications
 
-Before implementation tickets, specify:
+The first-release implementation boundaries are:
 
 1. The native contribution contract, loader/lifecycle, dependency compatibility,
    and target-bound backend integration. The
-   [first proposed design](console-page-contributions.md) records the interface,
-   lifecycle, implementation choices, and validation gates.
+   [page contribution design](console-page-contributions.md) records the interface,
+   lifecycle, implementation choices, and validation gates. The
+   [Workspace service transport](workspace-service-transport.md) and ADR-0008
+   specify Plan-bound backend dispatch.
 2. The observability journey, telemetry/runtime correlation, and ingestion/query
-   backend choices.
-3. The marketplace identity, installation-target, artifact, and update contracts.
+   backend choices are specified in
+   [Console observability Plugin](console-observability.md) and ADR-0006.
+3. The marketplace identity, installation-target, artifact, and update contracts
+   are specified in [Console Plugin marketplace](plugin-marketplace.md) and
+   ADR-0007.
 
 Each design must name fact owners, necessary cross-Plugin Capability contracts,
 success and failure behavior, and a real first-slice proof. Do not invent generic
