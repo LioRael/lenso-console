@@ -1,6 +1,42 @@
 import type { ComponentType, createElement } from "react";
 import type * as React from "react";
 
+export interface TraceAttribute {
+  key: string;
+  value: string;
+}
+
+export interface TraceEvent {
+  attributes: TraceAttribute[];
+  name: string;
+  timestamp_unix_nano: string;
+}
+
+export interface TraceLink {
+  attributes: TraceAttribute[];
+  span_id: string;
+  trace_id: string;
+}
+
+export interface TraceSpan {
+  attributes: TraceAttribute[];
+  ended_at_unix_nano: string;
+  events?: TraceEvent[];
+  kind:
+    | "unspecified"
+    | "internal"
+    | "server"
+    | "client"
+    | "producer"
+    | "consumer";
+  links?: TraceLink[];
+  name: string;
+  parent_span_id: string | null;
+  span_id: string;
+  started_at_unix_nano: string;
+  status: "unset" | "ok" | "error";
+}
+
 interface Mount {
   subject: { appId: string; kind: "app" } | { kind: "console" };
   title: string;

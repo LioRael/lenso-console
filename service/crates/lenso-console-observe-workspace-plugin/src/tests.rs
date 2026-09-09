@@ -1,12 +1,18 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, io::Write as _, rc::Rc};
+
+use flate2::{Compression, write::GzEncoder};
 
 use lenso_capability_observability_query::{
     ListRequestsRequest, OptionalValue, ReadIngestionHealthRequest, ReadTraceRequest,
+    ReadTraceResponseCompleteness, RequestCompleteness,
 };
 use lenso_capability_ui_contribution::{DescribeRequest, DescribeResponseSubjectKind};
 use lenso_kernel::{CancellationToken, InvocationContext};
 use opentelemetry_proto::tonic::{
-    collector::{logs::v1::ExportLogsServiceRequest, trace::v1::ExportTraceServiceRequest},
+    collector::{
+        logs::v1::ExportLogsServiceRequest,
+        trace::v1::{ExportTraceServiceRequest, ExportTraceServiceResponse},
+    },
     common::v1::{AnyValue, KeyValue, any_value},
     logs::v1::{LogRecord, ResourceLogs, ScopeLogs},
     resource::v1::Resource,
@@ -85,6 +91,24 @@ fn trace_request() -> ExportTraceServiceRequest {
                             attribute("http.response.status_code", int_value(200)),
                             attribute("http.request.header.authorization", string_value("secret")),
                         ],
+                        events: vec![span::Event {
+                            time_unix_nano: start + 10_000_000,
+                            name: "exception".to_owned(),
+                            attributes: vec![attribute(
+                                "exception.type",
+                                string_value("ExampleError"),
+                            )],
+                            ..Default::default()
+                        }],
+                        links: vec![span::Link {
+                            trace_id: vec![4; 16],
+                            span_id: vec![5; 8],
+                            attributes: vec![attribute(
+                                "code.function.name",
+                                string_value("load_order"),
+                            )],
+                            ..Default::default()
+                        }],
                         status: Some(Status {
                             message: String::new(),
                             code: 1,
@@ -143,6 +167,34 @@ fn now_nanos() -> u64 {
     .unwrap()
 }
 
+fn gzip(bytes: &[u8]) -> Vec<u8> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::fast());
+    encoder.write_all(bytes).unwrap();
+    encoder.finish().unwrap()
+}
+
+fn stored_root(byte: u8, started_at: u64) -> store::StoredSpan {
+    store::StoredSpan {
+        trace_id: hex::encode([byte; 16]),
+        span_id: hex::encode([byte; 8]),
+        parent_span_id: None,
+        name: format!("GET /{byte}"),
+        kind: "server",
+        started_at,
+        ended_at: started_at.saturating_add(1_000),
+        status: "ok",
+        service_name: "pagination-test".to_owned(),
+        attributes: vec![store::Attribute {
+            key: "http.request.method".to_owned(),
+            value: "GET".to_owned(),
+        }],
+        completeness: "complete",
+        is_server_root: true,
+        events: Vec::new(),
+        links: Vec::new(),
+    }
+}
+
 #[test]
 fn descriptor_and_workspace_are_removable_plugin_contributions() {
     let descriptor: serde_json::Value = serde_json::from_str(PLUGIN_DESCRIPTOR_JSON).unwrap();
@@ -184,11 +236,7 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
     let server = tokio::spawn(async move {
         axum::serve(
             listener,
-            otlp::router(
-                store,
-                "sample-app".to_owned(),
-                "test-token-which-is-long-enough".to_owned(),
-            ),
+            otlp::router(store, "test-token-which-is-long-enough".to_owned()),
         )
         .with_graceful_shutdown(async move {
             let _ = stop.await;
@@ -207,21 +255,51 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
         .unwrap();
     assert_eq!(unauthorized.status(), reqwest::StatusCode::UNAUTHORIZED);
 
-    for (path, body) in [
-        ("traces", trace_request().encode_to_vec()),
-        ("logs", logs_request().encode_to_vec()),
-    ] {
-        let response = client
-            .post(format!("http://{address}/v1/{path}"))
-            .header("content-type", "application/x-protobuf")
-            .bearer_auth("test-token-which-is-long-enough")
-            .body(body)
-            .send()
-            .await
-            .unwrap();
-        assert_eq!(response.status(), reqwest::StatusCode::OK);
-        assert_eq!(response.headers()["content-type"], "application/x-protobuf");
-    }
+    let response = client
+        .post(format!("http://{address}/v1/traces"))
+        .header("content-type", "application/x-protobuf")
+        .header("content-encoding", "gzip")
+        .bearer_auth("test-token-which-is-long-enough")
+        .body(gzip(&trace_request().encode_to_vec()))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    assert_eq!(response.headers()["content-type"], "application/x-protobuf");
+
+    let response = client
+        .post(format!("http://{address}/v1/logs"))
+        .header("content-type", "application/x-protobuf")
+        .bearer_auth("test-token-which-is-long-enough")
+        .body(logs_request().encode_to_vec())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+
+    let mut invalid = trace_request();
+    invalid.resource_spans[0].scope_spans[0].spans = vec![Span::default()];
+    let response = client
+        .post(format!("http://{address}/v1/traces"))
+        .header("content-type", "application/x-protobuf")
+        .bearer_auth("test-token-which-is-long-enough")
+        .body(invalid.encode_to_vec())
+        .send()
+        .await
+        .unwrap();
+    let partial = ExportTraceServiceResponse::decode(response.bytes().await.unwrap()).unwrap();
+    assert_eq!(partial.partial_success.unwrap().rejected_spans, 1);
+
+    let response = client
+        .post(format!("http://{address}/v1/traces"))
+        .header("content-type", "application/x-protobuf")
+        .header("content-encoding", "gzip")
+        .bearer_auth("test-token-which-is-long-enough")
+        .body(gzip(&vec![0; otlp_body::MAX_DECODED_BYTES + 1]))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::PAYLOAD_TOO_LARGE);
 
     let page = query_store
         .list_requests(ListRequestsRequest {
@@ -235,6 +313,7 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
     assert_eq!(page.requests.len(), 1);
     assert_eq!(page.requests[0].route, "/orders/:id");
     assert_eq!(page.requests[0].duration_nano, "25000000");
+    assert_eq!(page.requests[0].completeness, RequestCompleteness::Late);
 
     let trace = query_store
         .read_trace(ReadTraceRequest {
@@ -245,6 +324,12 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
         .unwrap()
         .unwrap();
     assert_eq!(trace.spans.len(), 2);
+    assert_eq!(trace.completeness, ReadTraceResponseCompleteness::Late);
+    assert_eq!(trace.spans[0].events.as_ref().unwrap()[0].name, "exception");
+    assert_eq!(
+        trace.spans[0].links.as_ref().unwrap()[0].trace_id,
+        hex::encode([4; 16])
+    );
     assert!(
         trace.spans[0]
             .attributes
@@ -260,6 +345,8 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
         .unwrap();
     assert_eq!(health.accepted_spans, "2");
     assert_eq!(health.accepted_logs, "1");
+    assert_eq!(health.rejected_records, "1");
+    assert_eq!(health.decode_failures, "1");
     assert_eq!(health.redacted_attributes, "2");
 
     let _ = shutdown.send(());
@@ -284,6 +371,20 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
         .unwrap()
         .unwrap();
     assert_eq!(persisted.requests.len(), 1);
+    assert_eq!(
+        persisted.requests[0].completeness,
+        RequestCompleteness::Late
+    );
+    let persisted_trace = reopened
+        .read_trace(ReadTraceRequest {
+            source_id: config.source_id.clone(),
+            trace_id: hex::encode([1; 16]),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(persisted_trace.spans[0].events.as_ref().unwrap().len(), 1);
+    assert_eq!(persisted_trace.spans[0].links.as_ref().unwrap().len(), 1);
     let logs = reopened
         .list_logs(ListTraceLogsRequest {
             cursor: OptionalValue::default(),
@@ -298,6 +399,71 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
     assert_eq!(logs.logs[0].body, "order loaded");
     assert!(logs.logs[0].attributes.is_empty());
     reopened_worker.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn request_pagination_and_time_retention_are_enforced() {
+    let root = tempfile::tempdir().unwrap();
+    let config = config(root.path());
+    let (store, worker) = ObserveWorker::start(StoreConfig {
+        database: config.database.clone(),
+        source_id: config.source_id.clone(),
+        retention_days: config.retention_days,
+        retention_bytes: config.retention_bytes,
+    })
+    .await
+    .unwrap();
+    let now = now_nanos();
+    store
+        .ingest_spans(
+            vec![stored_root(6, now), stored_root(7, now.saturating_sub(1))],
+            store::IngestLoss::default(),
+        )
+        .await
+        .unwrap();
+    let first = store
+        .list_requests(ListRequestsRequest {
+            cursor: OptionalValue::default(),
+            limit: 1,
+            source_id: config.source_id.clone(),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(first.requests.len(), 1);
+    let second = store
+        .list_requests(ListRequestsRequest {
+            cursor: Some(Some(first.next_cursor.unwrap())),
+            limit: 1,
+            source_id: config.source_id.clone(),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(second.requests.len(), 1);
+    assert_ne!(first.requests[0].trace_id, second.requests[0].trace_id);
+
+    store
+        .ingest_spans(vec![stored_root(8, 1)], store::IngestLoss::default())
+        .await
+        .unwrap();
+    let retained = store
+        .read_trace(ReadTraceRequest {
+            source_id: config.source_id.clone(),
+            trace_id: hex::encode([8; 16]),
+        })
+        .await
+        .unwrap();
+    assert!(retained.is_err());
+    let health = store
+        .health(ReadIngestionHealthRequest {
+            source_id: config.source_id,
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(health.retention_deletions.parse::<u64>().unwrap() >= 1);
+    worker.shutdown().await.unwrap();
 }
 
 #[test]

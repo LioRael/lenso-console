@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    body::Bytes,
-    extract::{DefaultBodyLimit, State},
+    extract::{Request, State},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
     routing::post,
@@ -20,11 +19,15 @@ use opentelemetry_proto::tonic::{
 };
 use prost::Message as _;
 
-use crate::store::{Attribute, IngestLoss, ObserveStore, StoredLog, StoredSpan};
+use crate::{
+    otlp_body::{self, BodyError},
+    store::{Attribute, IngestLoss, ObserveStore, StoredEvent, StoredLink, StoredLog, StoredSpan},
+};
 
-const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RECORDS: usize = 10_000;
 const MAX_ATTRIBUTES: usize = 64;
+const MAX_EVENTS: usize = 128;
+const MAX_LINKS: usize = 128;
 const MAX_KEY_BYTES: usize = 256;
 const MAX_VALUE_BYTES: usize = 4096;
 const MAX_NAME_BYTES: usize = 512;
@@ -32,31 +35,30 @@ const MAX_LOG_BODY_BYTES: usize = 16 * 1024;
 
 #[derive(Clone, Debug)]
 struct ReceiverState {
-    source_id: String,
     store: ObserveStore,
     token: Arc<str>,
 }
 
-pub(crate) fn router(store: ObserveStore, source_id: String, token: String) -> Router {
+pub(crate) fn router(store: ObserveStore, token: String) -> Router {
     Router::new()
         .route("/v1/traces", post(export_traces))
         .route("/v1/logs", post(export_logs))
-        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .with_state(ReceiverState {
-            source_id,
             store,
             token: Arc::from(token),
         })
 }
 
-async fn export_traces(
-    State(state): State<ReceiverState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
+async fn export_traces(State(state): State<ReceiverState>, request: Request) -> Response {
+    let (parts, body) = request.into_parts();
+    let headers = parts.headers;
     if let Some(response) = rejection(&state, &headers) {
         return response;
     }
+    let body = match otlp_body::decode(&headers, body).await {
+        Ok(body) => body,
+        Err(error) => return body_problem(&state, error),
+    };
     let Ok(request) = ExportTraceServiceRequest::decode(body) else {
         state.store.record_decode_failure();
         return problem(
@@ -78,14 +80,16 @@ async fn export_traces(
     })
 }
 
-async fn export_logs(
-    State(state): State<ReceiverState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
+async fn export_logs(State(state): State<ReceiverState>, request: Request) -> Response {
+    let (parts, body) = request.into_parts();
+    let headers = parts.headers;
     if let Some(response) = rejection(&state, &headers) {
         return response;
     }
+    let body = match otlp_body::decode(&headers, body).await {
+        Ok(body) => body,
+        Err(error) => return body_problem(&state, error),
+    };
     let Ok(request) = ExportLogsServiceRequest::decode(body) else {
         state.store.record_decode_failure();
         return problem(
@@ -119,14 +123,14 @@ fn rejection(state: &ReceiverState, headers: &HeaderMap) -> Option<Response> {
             "Observe accepts OTLP/HTTP Protobuf",
         ));
     }
-    if headers
+    if !headers
         .get(header::CONTENT_ENCODING)
-        .is_some_and(|value| value != "identity")
+        .is_none_or(|value| value == "identity" || value == "gzip")
     {
         return Some(problem(
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
             "unsupported_content_encoding",
-            "Compressed OTLP is not enabled for this receiver",
+            "Observe accepts identity or gzip content encoding",
         ));
     }
     let expected = format!("Bearer {}", state.token);
@@ -141,8 +145,33 @@ fn rejection(state: &ReceiverState, headers: &HeaderMap) -> Option<Response> {
             "Observe bearer token is missing or invalid",
         ));
     }
-    let _ = &state.source_id;
     None
+}
+
+fn body_problem(state: &ReceiverState, error: BodyError) -> Response {
+    state.store.record_decode_failure();
+    match error {
+        BodyError::EncodedTooLarge => problem(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "encoded_body_too_large",
+            "OTLP request body exceeds its encoded limit",
+        ),
+        BodyError::DecodedTooLarge => problem(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "decoded_body_too_large",
+            "OTLP request body exceeds its decoded limit",
+        ),
+        BodyError::InvalidGzip => problem(
+            StatusCode::BAD_REQUEST,
+            "invalid_gzip",
+            "OTLP gzip request body is invalid",
+        ),
+        BodyError::WorkerUnavailable => problem(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "decode_worker_unavailable",
+            "Observe could not decode the OTLP request body",
+        ),
+    }
 }
 
 fn normalize_spans(request: ExportTraceServiceRequest) -> (Vec<StoredSpan>, IngestLoss) {
@@ -182,7 +211,11 @@ fn normalize_span(span: Span, service_name: &str) -> Option<(StoredSpan, u64)> {
     {
         return None;
     }
-    let (attributes, redacted) = safe_attributes(span.attributes);
+    let (attributes, mut redacted) = safe_attributes(span.attributes);
+    let (events, events_redacted, events_incomplete) = normalize_events(span.events);
+    redacted = redacted.saturating_add(events_redacted);
+    let (links, links_redacted, links_incomplete) = normalize_links(span.links);
+    redacted = redacted.saturating_add(links_redacted);
     let kind = match span::SpanKind::try_from(span.kind).unwrap_or(span::SpanKind::Unspecified) {
         span::SpanKind::Internal => "internal",
         span::SpanKind::Server => "server",
@@ -198,7 +231,9 @@ fn normalize_span(span: Span, service_name: &str) -> Option<(StoredSpan, u64)> {
     });
     let partial = span.dropped_attributes_count > 0
         || span.dropped_events_count > 0
-        || span.dropped_links_count > 0;
+        || span.dropped_links_count > 0
+        || events_incomplete
+        || links_incomplete;
     let is_server_root = kind == "server" && span.parent_span_id.is_empty();
     let parent_span_id =
         (span.parent_span_id.len() == 8).then(|| hex::encode(&span.parent_span_id));
@@ -216,9 +251,53 @@ fn normalize_span(span: Span, service_name: &str) -> Option<(StoredSpan, u64)> {
             attributes,
             completeness: if partial { "partial" } else { "complete" },
             is_server_root,
+            events,
+            links,
         },
         redacted,
     ))
+}
+
+fn normalize_events(events: Vec<span::Event>) -> (Vec<StoredEvent>, u64, bool) {
+    let mut output = Vec::new();
+    let mut redacted = 0u64;
+    let mut incomplete = false;
+    for event in events {
+        if output.len() >= MAX_EVENTS || event.name.is_empty() {
+            incomplete = true;
+            continue;
+        }
+        let (attributes, event_redacted) = safe_attributes(event.attributes);
+        redacted = redacted.saturating_add(event_redacted);
+        incomplete |= event.dropped_attributes_count > 0;
+        output.push(StoredEvent {
+            timestamp: event.time_unix_nano,
+            name: truncate(event.name, MAX_NAME_BYTES),
+            attributes,
+        });
+    }
+    (output, redacted, incomplete)
+}
+
+fn normalize_links(links: Vec<span::Link>) -> (Vec<StoredLink>, u64, bool) {
+    let mut output = Vec::new();
+    let mut redacted = 0u64;
+    let mut incomplete = false;
+    for link in links {
+        if output.len() >= MAX_LINKS || link.trace_id.len() != 16 || link.span_id.len() != 8 {
+            incomplete = true;
+            continue;
+        }
+        let (attributes, link_redacted) = safe_attributes(link.attributes);
+        redacted = redacted.saturating_add(link_redacted);
+        incomplete |= link.dropped_attributes_count > 0;
+        output.push(StoredLink {
+            trace_id: hex::encode(link.trace_id),
+            span_id: hex::encode(link.span_id),
+            attributes,
+        });
+    }
+    (output, redacted, incomplete)
 }
 
 fn normalize_logs(request: ExportLogsServiceRequest) -> (Vec<StoredLog>, IngestLoss) {

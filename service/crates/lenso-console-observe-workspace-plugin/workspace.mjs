@@ -12,6 +12,7 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
     const [requests, setRequests] = useState([]);
     const [trace, setTrace] = useState(null);
     const [logs, setLogs] = useState([]);
+    const [selectedSpanId, setSelectedSpanId] = useState(null);
     const [health, setHealth] = useState(null);
     const [errorMessage, setErrorMessage] = useState(null);
 
@@ -96,6 +97,7 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
       if (!selectedTrace) {
         setTrace(null);
         setLogs([]);
+        setSelectedSpanId(null);
         return;
       }
       let active = true;
@@ -119,6 +121,7 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
           if (active) {
             setTrace(nextTrace);
             setLogs(nextLogs.logs);
+            setSelectedSpanId(nextTrace.spans[0]?.span_id ?? null);
             setErrorMessage(null);
           }
         } catch (error) {
@@ -203,7 +206,14 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
           : h("span", null, "Loading receiver health…")
       ),
       selectedTrace
-        ? h(TraceView, { h, logs, orderedSpans, trace })
+        ? h(TraceView, {
+            h,
+            logs,
+            orderedSpans,
+            selectSpan: setSelectedSpanId,
+            selectedSpanId,
+            trace,
+          })
         : h(RequestList, {
             h,
             open: (traceId) => navigation.go(["traces", traceId]),
@@ -260,7 +270,14 @@ const RequestList = ({ h, requests, open }) => {
   );
 };
 
-const TraceView = ({ h, trace, logs, orderedSpans }) => {
+const TraceView = ({
+  h,
+  trace,
+  logs,
+  orderedSpans,
+  selectedSpanId,
+  selectSpan,
+}) => {
   if (!trace) {
     return h("div", { className: "observe-empty" }, "Loading trace…");
   }
@@ -274,6 +291,8 @@ const TraceView = ({ h, trace, logs, orderedSpans }) => {
   }
   const start = first ? BigInt(first.started_at_unix_nano) : 0n;
   const total = lastEnd > start ? lastEnd - start : 1n;
+  const selectedSpan =
+    orderedSpans.find((span) => span.span_id === selectedSpanId) ?? first;
   return h(
     "div",
     { className: "observe-trace-layout" },
@@ -296,8 +315,18 @@ const TraceView = ({ h, trace, logs, orderedSpans }) => {
           ) / 10
         );
         return h(
-          "div",
-          { className: "observe-span", key: span.span_id },
+          "button",
+          {
+            "aria-pressed": span.span_id === selectedSpan?.span_id,
+            className: `observe-span${
+              span.span_id === selectedSpan?.span_id
+                ? " observe-span-selected"
+                : ""
+            }`,
+            key: span.span_id,
+            onClick: () => selectSpan(span.span_id),
+            type: "button",
+          },
           h(
             "div",
             { className: "observe-span-label" },
@@ -330,6 +359,56 @@ const TraceView = ({ h, trace, logs, orderedSpans }) => {
     h(
       "aside",
       { className: "observe-panel" },
+      h("h2", null, "Selected span"),
+      selectedSpan
+        ? h(
+            "div",
+            { className: "observe-inspector" },
+            h("strong", null, selectedSpan.name),
+            h(
+              "p",
+              { className: "observe-muted" },
+              `${selectedSpan.kind} · ${selectedSpan.status} · ${selectedSpan.span_id}`
+            ),
+            h(AttributeList, {
+              attributes: selectedSpan.attributes,
+              empty: "No safe attributes retained.",
+              h,
+            }),
+            h("h3", null, `Events · ${selectedSpan.events?.length ?? 0}`),
+            ...(selectedSpan.events?.length
+              ? selectedSpan.events.map((event, index) =>
+                  h(
+                    "article",
+                    {
+                      className: "observe-detail",
+                      key: `${event.timestamp_unix_nano}-${index}`,
+                    },
+                    h("strong", null, event.name),
+                    h(AttributeList, { attributes: event.attributes, h })
+                  )
+                )
+              : [h("p", { className: "observe-muted" }, "No span events.")]),
+            h("h3", null, `Links · ${selectedSpan.links?.length ?? 0}`),
+            ...(selectedSpan.links?.length
+              ? selectedSpan.links.map((link, index) =>
+                  h(
+                    "article",
+                    {
+                      className: "observe-detail",
+                      key: `${link.trace_id}-${link.span_id}-${index}`,
+                    },
+                    h(
+                      "strong",
+                      null,
+                      `${link.trace_id.slice(0, 8)} · ${link.span_id}`
+                    ),
+                    h(AttributeList, { attributes: link.attributes, h })
+                  )
+                )
+              : [h("p", { className: "observe-muted" }, "No span links.")])
+          )
+        : h("p", { className: "observe-muted" }, "No span selected."),
       h("h2", null, "Correlated logs"),
       ...(logs.length
         ? logs.map((log, index) =>
@@ -358,6 +437,24 @@ const TraceView = ({ h, trace, logs, orderedSpans }) => {
       )
     )
   );
+};
+
+const AttributeList = ({ h, attributes, empty = null }) => {
+  const items = attributes ?? [];
+  if (items.length) {
+    return h(
+      "dl",
+      { className: "observe-attributes" },
+      ...items.flatMap((attribute) => [
+        h("dt", { key: `${attribute.key}-key` }, attribute.key),
+        h("dd", { key: `${attribute.key}-value` }, attribute.value),
+      ])
+    );
+  }
+  if (empty) {
+    return h("p", { className: "observe-muted" }, empty);
+  }
+  return null;
 };
 
 const formatDuration = (nanoseconds) => {

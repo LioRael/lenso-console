@@ -23,7 +23,7 @@ const mount: PageMount = {
     {
       available: true,
       capability_id: "lenso.observability.query@1",
-      descriptor_version: "1.0.0",
+      descriptor_version: "1.1.0",
       operations: [
         "list_requests",
         "read_trace",
@@ -77,13 +77,41 @@ function services(onStreamAbort: () => void): WorkspaceServices {
           trace_id: "01010101010101010101010101010101",
           spans: [
             {
-              attributes: [],
+              attributes: [{ key: "http.route", value: "/orders/:id" }],
               ended_at_unix_nano: "1025000000",
+              events: [
+                {
+                  attributes: [
+                    { key: "exception.type", value: "ExampleError" },
+                  ],
+                  name: "exception",
+                  timestamp_unix_nano: "1010000000",
+                },
+              ],
               kind: "server",
+              links: [
+                {
+                  attributes: [],
+                  span_id: "0505050505050505",
+                  trace_id: "04040404040404040404040404040404",
+                },
+              ],
               name: "GET /orders/:id",
               parent_span_id: null,
               span_id: "0202020202020202",
               started_at_unix_nano: "1000000000",
+              status: "ok",
+            },
+            {
+              attributes: [{ key: "code.function.name", value: "load_order" }],
+              ended_at_unix_nano: "1020000000",
+              events: [],
+              kind: "client",
+              links: [],
+              name: "SELECT order",
+              parent_span_id: "0202020202020202",
+              span_id: "0303030303030303",
+              started_at_unix_nano: "1002000000",
               status: "ok",
             },
           ],
@@ -187,6 +215,21 @@ test("deep links to a trace waterfall and correlated logs", async () => {
     .element(page.getByRole("heading", { name: "Waterfall" }))
     .toBeVisible();
   await expect.element(page.getByText("order loaded")).toBeVisible();
+  await expect
+    .element(page.getByRole("heading", { name: "Selected span" }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText("exception", { exact: true }))
+    .toBeVisible();
+  await expect.element(page.getByText("ExampleError")).toBeVisible();
+  await expect
+    .element(page.getByText("04040404 · 0505050505050505"))
+    .toBeVisible();
+  const childSpan = page.getByRole("button", { name: /SELECT order/u });
+  await childSpan.click();
+  await expect.element(childSpan).toHaveAttribute("aria-pressed", "true");
+  await expect.element(page.getByText("0303030303030303")).toBeVisible();
+  await expect.element(page.getByText("load_order")).toBeVisible();
   await expect
     .element(page.getByText("Runtime state unavailable").first())
     .toBeVisible();

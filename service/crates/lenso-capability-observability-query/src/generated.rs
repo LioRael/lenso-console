@@ -5,7 +5,7 @@ use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture
 
 use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany};
 pub const CAPABILITY_ID: &str = "lenso.observability.query@1";
-pub const DESCRIPTOR_VERSION: &str = "1.0.0";
+pub const DESCRIPTOR_VERSION: &str = "1.1.0";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const QUERY_CAPABILITY_ID: &str = CAPABILITY_ID;
@@ -13,15 +13,15 @@ pub const QUERY_DESCRIPTOR_VERSION: &str = DESCRIPTOR_VERSION;
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_provided_query { () => { "{\"capability_id\":\"lenso.observability.query@1\",\"descriptor_version\":\"1.0.0\",\"operations\":[\"list_requests\",\"list_trace_logs\",\"read_ingestion_health\",\"read_trace\",\"watch_requests\"],\"operation_kinds\":{\"watch_requests\":\"stream\"},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
+macro_rules! __lenso_provided_query { () => { "{\"capability_id\":\"lenso.observability.query@1\",\"descriptor_version\":\"1.1.0\",\"operations\":[\"list_requests\",\"list_trace_logs\",\"read_ingestion_health\",\"read_trace\",\"watch_requests\"],\"operation_kinds\":{\"watch_requests\":\"stream\"},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_query_client { () => { "{\"capability_id\":\"lenso.observability.query@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}" }; }
+macro_rules! __lenso_required_query_client { () => { "{\"capability_id\":\"lenso.observability.query@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"one\"}" }; }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_many_query_client { () => { "{\"capability_id\":\"lenso.observability.query@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}" }; }
+macro_rules! __lenso_required_many_query_client { () => { "{\"capability_id\":\"lenso.observability.query@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"many\"}" }; }
 
 pub const LIST_REQUESTS_OPERATION: &str = "list_requests";
 pub const LIST_TRACE_LOGS_OPERATION: &str = "list_trace_logs";
@@ -281,9 +281,15 @@ pub struct ReadTraceResponseSpansItem {
     #[serde(rename = "ended_at_unix_nano")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub ended_at_unix_nano: String,
+    #[serde(rename = "events")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub events: Option<Vec<ReadTraceResponseSpansItemEventsItem>>,
     #[serde(rename = "kind")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub kind: ReadTraceResponseSpansItemKind,
+    #[serde(rename = "links")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub links: Option<Vec<ReadTraceResponseSpansItemLinksItem>>,
     #[serde(rename = "name")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub name: String,
@@ -312,6 +318,29 @@ pub struct ReadTraceResponseSpansItemAttributesItem {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReadTraceResponseSpansItemEventsItem {
+    #[serde(rename = "attributes")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub attributes: Vec<ReadTraceResponseSpansItemEventsItemAttributesItem>,
+    #[serde(rename = "name")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub name: String,
+    #[serde(rename = "timestamp_unix_nano")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub timestamp_unix_nano: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReadTraceResponseSpansItemEventsItemAttributesItem {
+    #[serde(rename = "key")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub key: String,
+    #[serde(rename = "value")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub value: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ReadTraceResponseSpansItemKind {
     #[serde(rename = "unspecified")]
     Unspecified,
@@ -325,6 +354,29 @@ pub enum ReadTraceResponseSpansItemKind {
     Producer,
     #[serde(rename = "consumer")]
     Consumer,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReadTraceResponseSpansItemLinksItem {
+    #[serde(rename = "attributes")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub attributes: Vec<ReadTraceResponseSpansItemLinksItemAttributesItem>,
+    #[serde(rename = "span_id")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub span_id: String,
+    #[serde(rename = "trace_id")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub trace_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReadTraceResponseSpansItemLinksItemAttributesItem {
+    #[serde(rename = "key")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub key: String,
+    #[serde(rename = "value")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub value: String,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

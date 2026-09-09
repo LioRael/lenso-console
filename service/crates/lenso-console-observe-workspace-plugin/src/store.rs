@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{
         Arc,
@@ -14,7 +15,9 @@ use lenso_capability_observability_query::{
     ListTraceLogsResponseLogsItemAttributesItem, OptionalValue, ReadIngestionHealthError,
     ReadIngestionHealthRequest, ReadIngestionHealthResponse, ReadTraceError, ReadTraceRequest,
     ReadTraceResponse, ReadTraceResponseCompleteness, ReadTraceResponseSpansItem,
-    ReadTraceResponseSpansItemAttributesItem, ReadTraceResponseSpansItemKind,
+    ReadTraceResponseSpansItemAttributesItem, ReadTraceResponseSpansItemEventsItem,
+    ReadTraceResponseSpansItemEventsItemAttributesItem, ReadTraceResponseSpansItemKind,
+    ReadTraceResponseSpansItemLinksItem, ReadTraceResponseSpansItemLinksItemAttributesItem,
     ReadTraceResponseSpansItemStatus, Request, RequestCompleteness, WatchRequestsResponse,
     WatchRequestsResponseKind,
 };
@@ -42,6 +45,7 @@ CREATE TABLE IF NOT EXISTS spans (
   attributes_json TEXT NOT NULL CHECK (json_valid(attributes_json)),
   completeness TEXT NOT NULL,
   is_server_root INTEGER NOT NULL,
+  received_at INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (source_id, trace_id, span_id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS spans_recent_requests
@@ -56,10 +60,35 @@ CREATE TABLE IF NOT EXISTS logs (
   timestamp INTEGER NOT NULL,
   severity TEXT NOT NULL,
   body TEXT NOT NULL,
-  attributes_json TEXT NOT NULL CHECK (json_valid(attributes_json))
+  attributes_json TEXT NOT NULL CHECK (json_valid(attributes_json)),
+  received_at INTEGER NOT NULL DEFAULT 0
 ) STRICT;
 CREATE INDEX IF NOT EXISTS logs_trace
 ON logs(source_id, trace_id, timestamp, id);
+CREATE TABLE IF NOT EXISTS span_events (
+  source_id TEXT NOT NULL,
+  trace_id TEXT NOT NULL,
+  span_id TEXT NOT NULL,
+  event_index INTEGER NOT NULL,
+  timestamp INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  attributes_json TEXT NOT NULL CHECK (json_valid(attributes_json)),
+  PRIMARY KEY (source_id, trace_id, span_id, event_index),
+  FOREIGN KEY (source_id, trace_id, span_id)
+    REFERENCES spans(source_id, trace_id, span_id) ON DELETE CASCADE
+) STRICT;
+CREATE TABLE IF NOT EXISTS span_links (
+  source_id TEXT NOT NULL,
+  trace_id TEXT NOT NULL,
+  span_id TEXT NOT NULL,
+  link_index INTEGER NOT NULL,
+  linked_trace_id TEXT NOT NULL,
+  linked_span_id TEXT NOT NULL,
+  attributes_json TEXT NOT NULL CHECK (json_valid(attributes_json)),
+  PRIMARY KEY (source_id, trace_id, span_id, link_index),
+  FOREIGN KEY (source_id, trace_id, span_id)
+    REFERENCES spans(source_id, trace_id, span_id) ON DELETE CASCADE
+) STRICT;
 CREATE TABLE IF NOT EXISTS receiver_state (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
   receiver_epoch TEXT NOT NULL,
@@ -94,6 +123,22 @@ pub(crate) struct StoredSpan {
     pub(crate) attributes: Vec<Attribute>,
     pub(crate) completeness: &'static str,
     pub(crate) is_server_root: bool,
+    pub(crate) events: Vec<StoredEvent>,
+    pub(crate) links: Vec<StoredLink>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StoredEvent {
+    pub(crate) timestamp: u64,
+    pub(crate) name: String,
+    pub(crate) attributes: Vec<Attribute>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct StoredLink {
+    pub(crate) trace_id: String,
+    pub(crate) span_id: String,
+    pub(crate) attributes: Vec<Attribute>,
 }
 
 #[derive(Clone, Debug)]
@@ -135,7 +180,7 @@ enum Command {
     IngestLogs {
         records: Vec<StoredLog>,
         ingest_loss: IngestLoss,
-        reply: oneshot::Sender<Result<(), RuntimeFailure>>,
+        reply: oneshot::Sender<Result<Vec<Request>, RuntimeFailure>>,
     },
     RecordDecodeFailure,
     RecordFeedLag,
@@ -302,12 +347,7 @@ impl ObserveStore {
         let requests = receive
             .await
             .map_err(|_| store_failure("Observe database worker stopped"))??;
-        for request in &requests {
-            let item = watch_item(request);
-            if self.feed.send(item).is_err() {
-                // No active subscriber is not loss. Lag is counted by subscribers that observe it.
-            }
-        }
+        publish_requests(&self.feed, &requests);
         Ok(requests.len())
     }
 
@@ -329,9 +369,11 @@ impl ObserveStore {
                     "Observe ingestion queue is full or closed: {error}"
                 ))
             })?;
-        receive
+        let requests = receive
             .await
-            .map_err(|_| store_failure("Observe database worker stopped"))?
+            .map_err(|_| store_failure("Observe database worker stopped"))??;
+        publish_requests(&self.feed, &requests);
+        Ok(())
     }
 
     pub(crate) fn record_decode_failure(&self) {
@@ -407,8 +449,95 @@ fn prepare_connection(config: &StoreConfig) -> Result<Connection, RuntimeFailure
     }
     let connection = Connection::open(&config.database).map_err(store_failure)?;
     connection.execute_batch(SCHEMA).map_err(store_failure)?;
+    ensure_column(&connection, "spans", "received_at")?;
+    ensure_column(&connection, "logs", "received_at")?;
     connection.execute("INSERT INTO receiver_state(singleton, receiver_epoch, accepted_spans, accepted_logs, rejected_records, decode_failures, queue_saturation, redacted_attributes, retention_deletions, feed_lag) VALUES (1, ?1, 0, 0, 0, 0, 0, 0, 0, 0) ON CONFLICT(singleton) DO UPDATE SET receiver_epoch = excluded.receiver_epoch, accepted_spans = 0, accepted_logs = 0, rejected_records = 0, decode_failures = 0, queue_saturation = 0, redacted_attributes = 0, retention_deletions = 0, feed_lag = 0", [uuid::Uuid::new_v4().to_string()]).map_err(store_failure)?;
     Ok(connection)
+}
+
+fn ensure_column(
+    connection: &Connection,
+    table: &'static str,
+    column: &'static str,
+) -> Result<(), RuntimeFailure> {
+    debug_assert!(matches!(table, "spans" | "logs"));
+    debug_assert_eq!(column, "received_at");
+    let mut statement = connection
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(store_failure)?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(store_failure)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(store_failure)?;
+    if !columns.iter().any(|name| name == column) {
+        connection
+            .execute(
+                &format!("ALTER TABLE {table} ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"),
+                [],
+            )
+            .map_err(store_failure)?;
+    }
+    Ok(())
+}
+
+fn current_time_nanos() -> Result<i64, RuntimeFailure> {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(store_failure)?
+        .as_nanos()
+        .min(i64::MAX as u128);
+    i64::try_from(nanos).map_err(store_failure)
+}
+
+fn existing_traces<'a>(
+    connection: &Connection,
+    config: &StoreConfig,
+    trace_ids: impl Iterator<Item = &'a String>,
+) -> Result<HashSet<String>, RuntimeFailure> {
+    let mut existing = HashSet::new();
+    for trace_id in trace_ids {
+        if existing.contains(trace_id) {
+            continue;
+        }
+        let found: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM spans WHERE source_id=?1 AND trace_id=?2)",
+                params![config.source_id, trace_id],
+                |row| row.get(0),
+            )
+            .map_err(store_failure)?;
+        if found {
+            existing.insert(trace_id.clone());
+        }
+    }
+    Ok(existing)
+}
+
+fn replace_span_children(
+    connection: &Connection,
+    config: &StoreConfig,
+    span: &StoredSpan,
+) -> Result<(), RuntimeFailure> {
+    connection
+        .execute(
+            "DELETE FROM span_events WHERE source_id=?1 AND trace_id=?2 AND span_id=?3",
+            params![config.source_id, span.trace_id, span.span_id],
+        )
+        .map_err(store_failure)?;
+    connection
+        .execute(
+            "DELETE FROM span_links WHERE source_id=?1 AND trace_id=?2 AND span_id=?3",
+            params![config.source_id, span.trace_id, span.span_id],
+        )
+        .map_err(store_failure)?;
+    for (index, event) in span.events.iter().enumerate() {
+        connection.execute("INSERT INTO span_events(source_id, trace_id, span_id, event_index, timestamp, name, attributes_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![config.source_id, span.trace_id, span.span_id, i64::try_from(index).map_err(store_failure)?, to_i64(event.timestamp)?, event.name, serde_json::to_string(&event.attributes).map_err(store_failure)?]).map_err(store_failure)?;
+    }
+    for (index, link) in span.links.iter().enumerate() {
+        connection.execute("INSERT INTO span_links(source_id, trace_id, span_id, link_index, linked_trace_id, linked_span_id, attributes_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![config.source_id, span.trace_id, span.span_id, i64::try_from(index).map_err(store_failure)?, link.trace_id, link.span_id, serde_json::to_string(&link.attributes).map_err(store_failure)?]).map_err(store_failure)?;
+    }
+    Ok(())
 }
 
 fn ingest_spans(
@@ -418,16 +547,48 @@ fn ingest_spans(
     loss: IngestLoss,
 ) -> Result<Vec<Request>, RuntimeFailure> {
     let transaction = connection.unchecked_transaction().map_err(store_failure)?;
+    let received_at = current_time_nanos()?;
+    let existing_traces = existing_traces(
+        &transaction,
+        config,
+        spans.iter().map(|span| &span.trace_id),
+    )?;
+    for trace_id in &existing_traces {
+        transaction
+            .execute(
+                "UPDATE spans SET completeness='late' WHERE source_id=?1 AND trace_id=?2 AND completeness='complete'",
+                params![config.source_id, trace_id],
+            )
+            .map_err(store_failure)?;
+    }
     let mut requests = Vec::new();
     for span in spans {
-        transaction.execute("INSERT INTO spans(source_id, trace_id, span_id, parent_span_id, name, kind, started_at, ended_at, status, service_name, attributes_json, completeness, is_server_root) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) ON CONFLICT(source_id, trace_id, span_id) DO UPDATE SET parent_span_id=excluded.parent_span_id, name=excluded.name, kind=excluded.kind, started_at=excluded.started_at, ended_at=excluded.ended_at, status=excluded.status, service_name=excluded.service_name, attributes_json=excluded.attributes_json, completeness=excluded.completeness, is_server_root=excluded.is_server_root", params![config.source_id, span.trace_id, span.span_id, span.parent_span_id, span.name, span.kind, to_i64(span.started_at)?, to_i64(span.ended_at)?, span.status, span.service_name, serde_json::to_string(&span.attributes).map_err(store_failure)?, span.completeness, i64::from(span.is_server_root)]).map_err(store_failure)?;
+        let completeness =
+            if existing_traces.contains(&span.trace_id) && span.completeness == "complete" {
+                "late"
+            } else {
+                span.completeness
+            };
+        transaction.execute("INSERT INTO spans(source_id, trace_id, span_id, parent_span_id, name, kind, started_at, ended_at, status, service_name, attributes_json, completeness, is_server_root, received_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14) ON CONFLICT(source_id, trace_id, span_id) DO UPDATE SET parent_span_id=excluded.parent_span_id, name=excluded.name, kind=excluded.kind, started_at=excluded.started_at, ended_at=excluded.ended_at, status=excluded.status, service_name=excluded.service_name, attributes_json=excluded.attributes_json, completeness=CASE WHEN spans.completeness='partial' OR excluded.completeness='partial' THEN 'partial' ELSE excluded.completeness END, is_server_root=excluded.is_server_root, received_at=excluded.received_at", params![config.source_id, span.trace_id, span.span_id, span.parent_span_id, span.name, span.kind, to_i64(span.started_at)?, to_i64(span.ended_at)?, span.status, span.service_name, serde_json::to_string(&span.attributes).map_err(store_failure)?, completeness, i64::from(span.is_server_root), received_at]).map_err(store_failure)?;
+        replace_span_children(&transaction, config, span)?;
         if span.is_server_root {
-            requests.push(request_from_span(span));
+            requests.push(request_from_span(span, completeness));
         }
     }
     transaction.execute("UPDATE receiver_state SET accepted_spans = accepted_spans + ?1, rejected_records = rejected_records + ?2, redacted_attributes = redacted_attributes + ?3 WHERE singleton = 1", params![to_i64(spans.len() as u64)?, to_i64(loss.rejected)?, to_i64(loss.redacted)?]).map_err(store_failure)?;
     transaction.commit().map_err(store_failure)?;
     enforce_retention(connection, config)?;
+    let mut published = requests
+        .iter()
+        .map(|request| request.trace_id.clone())
+        .collect::<HashSet<_>>();
+    for trace_id in existing_traces {
+        if published.insert(trace_id.clone())
+            && let Some(request) = request_for_trace(connection, config, &trace_id)?
+        {
+            requests.push(request);
+        }
+    }
     Ok(requests)
 }
 
@@ -436,14 +597,35 @@ fn ingest_logs(
     config: &StoreConfig,
     records: &[StoredLog],
     ingest_loss: IngestLoss,
-) -> Result<(), RuntimeFailure> {
+) -> Result<Vec<Request>, RuntimeFailure> {
     let transaction = connection.unchecked_transaction().map_err(store_failure)?;
+    let received_at = current_time_nanos()?;
+    let existing_traces = existing_traces(
+        &transaction,
+        config,
+        records.iter().map(|record| &record.trace_id),
+    )?;
+    for trace_id in &existing_traces {
+        transaction
+            .execute(
+                "UPDATE spans SET completeness='late' WHERE source_id=?1 AND trace_id=?2 AND completeness='complete'",
+                params![config.source_id, trace_id],
+            )
+            .map_err(store_failure)?;
+    }
     for log in records {
-        transaction.execute("INSERT INTO logs(source_id, trace_id, span_id, timestamp, severity, body, attributes_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)", params![config.source_id, log.trace_id, log.span_id, to_i64(log.timestamp)?, log.severity, log.body, serde_json::to_string(&log.attributes).map_err(store_failure)?]).map_err(store_failure)?;
+        transaction.execute("INSERT INTO logs(source_id, trace_id, span_id, timestamp, severity, body, attributes_json, received_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)", params![config.source_id, log.trace_id, log.span_id, to_i64(log.timestamp)?, log.severity, log.body, serde_json::to_string(&log.attributes).map_err(store_failure)?, received_at]).map_err(store_failure)?;
     }
     transaction.execute("UPDATE receiver_state SET accepted_logs = accepted_logs + ?1, rejected_records = rejected_records + ?2, redacted_attributes = redacted_attributes + ?3 WHERE singleton = 1", params![to_i64(records.len() as u64)?, to_i64(ingest_loss.rejected)?, to_i64(ingest_loss.redacted)?]).map_err(store_failure)?;
     transaction.commit().map_err(store_failure)?;
-    enforce_retention(connection, config)
+    enforce_retention(connection, config)?;
+    let mut requests = Vec::new();
+    for trace_id in existing_traces {
+        if let Some(request) = request_for_trace(connection, config, &trace_id)? {
+            requests.push(request);
+        }
+    }
+    Ok(requests)
 }
 
 fn list_requests(
@@ -505,6 +687,60 @@ fn list_requests(
     }))
 }
 
+fn trace_events(
+    connection: &Connection,
+    config: &StoreConfig,
+    trace_id: &str,
+) -> Result<HashMap<String, Vec<ReadTraceResponseSpansItemEventsItem>>, RuntimeFailure> {
+    let mut statement = connection.prepare("SELECT span_id, timestamp, name, attributes_json FROM span_events WHERE source_id=?1 AND trace_id=?2 ORDER BY span_id, event_index").map_err(store_failure)?;
+    let rows = statement
+        .query_map(params![config.source_id, trace_id], |row| {
+            let attributes: String = row.get(3)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                ReadTraceResponseSpansItemEventsItem {
+                    attributes: event_attributes(&attributes),
+                    name: row.get(2)?,
+                    timestamp_unix_nano: from_i64(row.get(1)?),
+                },
+            ))
+        })
+        .map_err(store_failure)?;
+    let mut output = HashMap::<String, Vec<_>>::new();
+    for row in rows {
+        let (span_id, event) = row.map_err(store_failure)?;
+        output.entry(span_id).or_default().push(event);
+    }
+    Ok(output)
+}
+
+fn trace_links(
+    connection: &Connection,
+    config: &StoreConfig,
+    trace_id: &str,
+) -> Result<HashMap<String, Vec<ReadTraceResponseSpansItemLinksItem>>, RuntimeFailure> {
+    let mut statement = connection.prepare("SELECT span_id, linked_trace_id, linked_span_id, attributes_json FROM span_links WHERE source_id=?1 AND trace_id=?2 ORDER BY span_id, link_index").map_err(store_failure)?;
+    let rows = statement
+        .query_map(params![config.source_id, trace_id], |row| {
+            let attributes: String = row.get(3)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                ReadTraceResponseSpansItemLinksItem {
+                    attributes: link_attributes(&attributes),
+                    span_id: row.get(2)?,
+                    trace_id: row.get(1)?,
+                },
+            ))
+        })
+        .map_err(store_failure)?;
+    let mut output = HashMap::<String, Vec<_>>::new();
+    for row in rows {
+        let (span_id, link) = row.map_err(store_failure)?;
+        output.entry(span_id).or_default().push(link);
+    }
+    Ok(output)
+}
+
 fn read_trace(
     connection: &Connection,
     config: &StoreConfig,
@@ -513,18 +749,23 @@ fn read_trace(
     if request.source_id != config.source_id || !valid_hex(&request.trace_id, 32) {
         return Ok(Err(ReadTraceError::InvalidQuery));
     }
+    let mut events = trace_events(connection, config, &request.trace_id)?;
+    let mut links = trace_links(connection, config, &request.trace_id)?;
     let mut statement = connection.prepare("SELECT span_id, parent_span_id, name, kind, started_at, ended_at, status, attributes_json, completeness FROM spans WHERE source_id=?1 AND trace_id=?2 ORDER BY started_at, span_id LIMIT 2001").map_err(store_failure)?;
     let rows = statement
         .query_map(params![config.source_id, request.trace_id], |row| {
             let attrs: String = row.get(7)?;
+            let span_id: String = row.get(0)?;
             Ok((
                 ReadTraceResponseSpansItem {
                     attributes: trace_attributes(&attrs),
                     ended_at_unix_nano: from_i64(row.get(5)?),
+                    events: Some(events.remove(&span_id).unwrap_or_default()),
                     kind: parse_span_kind(&row.get::<_, String>(3)?),
+                    links: Some(links.remove(&span_id).unwrap_or_default()),
                     name: row.get(2)?,
                     parent_span_id: row.get(1)?,
-                    span_id: row.get(0)?,
+                    span_id,
                     started_at_unix_nano: from_i64(row.get(4)?),
                     status: parse_status(&row.get::<_, String>(6)?),
                 },
@@ -639,19 +880,22 @@ fn enforce_retention(connection: &Connection, config: &StoreConfig) -> Result<()
     let cutoff = i64::try_from(cutoff.min(i64::MAX as u128)).map_err(store_failure)?;
     let deleted_spans = connection
         .execute(
-            "DELETE FROM spans WHERE source_id=?1 AND ended_at < ?2",
+            "DELETE FROM spans WHERE rowid IN (SELECT rowid FROM spans WHERE source_id=?1 AND ended_at < ?2 LIMIT 1000)",
             params![config.source_id, cutoff],
         )
         .map_err(store_failure)?;
     let deleted_logs = connection
         .execute(
-            "DELETE FROM logs WHERE source_id=?1 AND timestamp < ?2",
+            "DELETE FROM logs WHERE id IN (SELECT id FROM logs WHERE source_id=?1 AND timestamp < ?2 LIMIT 1000)",
             params![config.source_id, cutoff],
         )
         .map_err(store_failure)?;
-    let mut logical_bytes: i64 = connection.query_row("SELECT COALESCE((SELECT SUM(length(name)+length(attributes_json)+256) FROM spans WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(body)+length(attributes_json)+128) FROM logs WHERE source_id=?1),0)", [&config.source_id], |row| row.get(0)).map_err(store_failure)?;
+    let mut logical_size = logical_bytes(connection, config)?;
     let mut size_deleted = 0usize;
-    while u64::try_from(logical_bytes).unwrap_or(u64::MAX) > config.retention_bytes {
+    for _ in 0..64 {
+        if u64::try_from(logical_size).unwrap_or(u64::MAX) <= config.retention_bytes {
+            break;
+        }
         let trace: Option<String> = connection
             .query_row(
                 "SELECT trace_id FROM spans WHERE source_id=?1 ORDER BY started_at LIMIT 1",
@@ -675,7 +919,7 @@ fn enforce_retention(connection: &Connection, config: &StoreConfig) -> Result<()
                 params![config.source_id, trace],
             )
             .map_err(store_failure)?;
-        logical_bytes = connection.query_row("SELECT COALESCE((SELECT SUM(length(name)+length(attributes_json)+256) FROM spans WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(body)+length(attributes_json)+128) FROM logs WHERE source_id=?1),0)", [&config.source_id], |row| row.get(0)).map_err(store_failure)?;
+        logical_size = logical_bytes(connection, config)?;
     }
     let deleted = deleted_spans
         .saturating_add(deleted_logs)
@@ -684,6 +928,10 @@ fn enforce_retention(connection: &Connection, config: &StoreConfig) -> Result<()
         increment(connection, "retention_deletions", deleted as u64);
     }
     Ok(())
+}
+
+fn logical_bytes(connection: &Connection, config: &StoreConfig) -> Result<i64, RuntimeFailure> {
+    connection.query_row("SELECT COALESCE((SELECT SUM(length(name)+length(attributes_json)+256) FROM spans WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(body)+length(attributes_json)+128) FROM logs WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(name)+length(attributes_json)+96) FROM span_events WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(linked_trace_id)+length(linked_span_id)+length(attributes_json)+96) FROM span_links WHERE source_id=?1),0)", [&config.source_id], |row| row.get(0)).map_err(store_failure)
 }
 
 fn increment(connection: &Connection, column: &str, amount: u64) {
@@ -695,7 +943,7 @@ fn increment(connection: &Connection, column: &str, amount: u64) {
     let _ = connection.execute(&statement, [i64::try_from(amount).unwrap_or(i64::MAX)]);
 }
 
-fn request_from_span(span: &StoredSpan) -> Request {
+fn request_from_span(span: &StoredSpan, completeness: &str) -> Request {
     let method =
         attribute(&span.attributes, &["http.request.method", "http.method"]).unwrap_or("HTTP");
     let route = attribute(&span.attributes, &["http.route", "url.path"]).unwrap_or(&span.name);
@@ -706,7 +954,7 @@ fn request_from_span(span: &StoredSpan) -> Request {
     .and_then(|value| value.parse().ok())
     .unwrap_or(0);
     Request {
-        completeness: parse_request_completeness(span.completeness),
+        completeness: parse_request_completeness(completeness),
         duration_nano: span.ended_at.saturating_sub(span.started_at).to_string(),
         has_error: span.status == "error" || status_code >= 500,
         method: method.to_owned(),
@@ -750,8 +998,45 @@ fn request_from_row(row: RequestRow) -> Request {
             "complete"
         },
         is_server_root: true,
+        events: Vec::new(),
+        links: Vec::new(),
     };
-    request_from_span(&span)
+    let completeness = span.completeness;
+    request_from_span(&span, completeness)
+}
+
+fn request_for_trace(
+    connection: &Connection,
+    config: &StoreConfig,
+    trace_id: &str,
+) -> Result<Option<Request>, RuntimeFailure> {
+    connection
+        .query_row(
+            "SELECT trace_id, name, started_at, ended_at, status, service_name, attributes_json, completeness FROM spans WHERE source_id=?1 AND trace_id=?2 AND is_server_root=1 LIMIT 1",
+            params![config.source_id, trace_id],
+            |row| {
+                Ok(request_from_row(RequestRow {
+                    trace_id: row.get(0)?,
+                    name: row.get(1)?,
+                    started: row.get(2)?,
+                    ended: row.get(3)?,
+                    status: row.get(4)?,
+                    service_name: row.get(5)?,
+                    attributes_json: row.get(6)?,
+                    completeness: row.get(7)?,
+                }))
+            },
+        )
+        .optional()
+        .map_err(store_failure)
+}
+
+fn publish_requests(feed: &broadcast::Sender<WatchRequestsResponse>, requests: &[Request]) {
+    for request in requests {
+        if feed.send(watch_item(request)).is_err() {
+            // No active subscriber is not loss. Lag is counted by subscribers that observe it.
+        }
+    }
 }
 
 fn watch_item(request: &Request) -> WatchRequestsResponse {
@@ -832,6 +1117,26 @@ fn trace_attributes(value: &str) -> Vec<ReadTraceResponseSpansItemAttributesItem
         .unwrap_or_default()
         .into_iter()
         .map(|item| ReadTraceResponseSpansItemAttributesItem {
+            key: item.key,
+            value: item.value,
+        })
+        .collect()
+}
+fn event_attributes(value: &str) -> Vec<ReadTraceResponseSpansItemEventsItemAttributesItem> {
+    serde_json::from_str::<Vec<Attribute>>(value)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|item| ReadTraceResponseSpansItemEventsItemAttributesItem {
+            key: item.key,
+            value: item.value,
+        })
+        .collect()
+}
+fn link_attributes(value: &str) -> Vec<ReadTraceResponseSpansItemLinksItemAttributesItem> {
+    serde_json::from_str::<Vec<Attribute>>(value)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|item| ReadTraceResponseSpansItemLinksItemAttributesItem {
             key: item.key,
             value: item.value,
         })
