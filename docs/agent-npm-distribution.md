@@ -46,8 +46,8 @@ Configure npm Trusted Publishers for `@lenso/agent`,
 `@lenso/agent-darwin-arm64`, and `@lenso/agent-linux-x64`: GitHub repository
 `LioRael/lenso-console`, workflow `agent-npm.yml`, environment `npm`.
 First-time package creation/publisher configuration requires the registry owner;
-do not introduce long-lived npm tokens to bypass it. Configure the GitHub `npm`
-environment's required approval policy before first publication.
+do not introduce long-lived npm tokens to bypass it. Allow direct `npm publish` for these publishers. The workflow uses the
+GitHub environment named `npm`; match that name in the publisher settings.
 
 After the Console version PR is merged, dispatch **Agent npm distribution** on
 `main` with `publish=false`. Review both platform smoke results and artifacts.

@@ -2,7 +2,14 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  writeFile,
+  rm,
+  realpath,
+} from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -79,9 +86,13 @@ const start = (port) => {
       cwd,
       env: {
         ...environment,
+        CODEX_HOME: join(homes, "codex"),
+        HOME: homes,
         LENSO_AGENT_HOME: join(homes, "agent"),
         LENSO_CONSOLE_HOME: join(homes, "console"),
         SSH_CONNECTION: "smoke",
+        XDG_CONFIG_HOME: join(homes, "config"),
+        XDG_DATA_HOME: join(homes, "data"),
       },
       stdio: ["ignore", "pipe", "pipe"],
     }
@@ -165,10 +176,33 @@ try {
     const health = await fetch(`${url}/health/ready`);
     assert.equal(health.status, 200);
     const page = await fetch(url);
-    assert.match(await page.text(), /<html/u);
+    const html = await page.text();
+    assert.match(html, /<html/u);
+    const script = html.match(/src="([^" ]+\.js)"/u)?.[1];
+    assert.ok(script, "Packaged page must reference its built JavaScript");
+    const asset = await fetch(new URL(script, url));
+    assert.equal(asset.status, 200);
+    assert.match(asset.headers.get("content-type"), /javascript/u);
     const listing = await fetch(`${url}/api/console/v1/agents`);
     assert.equal(listing.status, 200);
     assert.ok(JSON.stringify(await listing.json()).includes("app"));
+    const bootstrapResponse = await fetch(
+      `${url}/api/console/v1/agents/app/bootstrap`
+    );
+    assert.equal(bootstrapResponse.status, 200);
+    const bootstrap = await bootstrapResponse.json();
+    assert.equal(bootstrap.workspace.path, await realpath(cwd));
+    const connections = await fetch(
+      `${url}/api/console/v1/agents/app/auth/connections`
+    );
+    assert.equal(connections.status, 200);
+    const accounts = await connections.json();
+    assert.match(JSON.stringify(accounts), /browser_loopback/u);
+    assert.match(JSON.stringify(accounts), /"connected":false/u);
+    const profiles = await fetch(
+      `${url}/api/console/v1/agents/app/control/profiles`
+    );
+    assert.equal(profiles.status, 200);
     child.kill(signal);
     await waitForExit();
     assert.equal(child.exitCode, 0, logs);
@@ -192,7 +226,7 @@ try {
   assert.match(logs, /exited unexpectedly/u);
   await assertStopped(pids);
   console.log(
-    `Passed ${target}: offline npm/npx, real UI and Agents, occupied port, SIGTERM/SIGINT, preserved Homes, child crash cleanup.`
+    `Passed ${target}: offline npm/npx, unauthenticated UI and login controls, profiles, occupied port, SIGTERM/SIGINT, preserved Homes, child crash cleanup.`
   );
 } finally {
   if (child?.exitCode === null && child?.signalCode === null) {

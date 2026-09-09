@@ -110,6 +110,7 @@ const launcher = join(output, "agent");
 await cp(join(root, "packages/agent"), launcher, { recursive: true });
 await cp(join(root, "LICENSE"), join(launcher, "LICENSE"));
 const manifest = JSON.parse(await readFile(join(launcher, "package.json")));
+delete manifest.private;
 manifest.version = version;
 manifest.optionalDependencies = Object.fromEntries(
   Object.keys(targets).map((item) => [`@lenso/agent-${item}`, version])

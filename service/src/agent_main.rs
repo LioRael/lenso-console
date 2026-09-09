@@ -104,7 +104,8 @@ async fn run() -> anyhow::Result<()> {
     let config = initial_config
         .with_local_projects(projects.clone())
         .with_console_agent(&console_origin, Some(control_token.clone()))?
-        .with_app_agent_management_token(&app_origin, "Lenso Agent", &control_token)?;
+        .with_app_agent_management_token(&app_origin, "Lenso Agent", &control_token)?
+        .with_app_agent_auth_connections("app")?;
     let result = tokio::select! {
         result = lenso_console_plugin::serve_listener(config, console_listener, shutdown_signal()) => result,
         status = app_agent.wait() => Err(anyhow::anyhow!("App Agent exited unexpectedly: {status:?}")),

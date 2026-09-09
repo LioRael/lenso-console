@@ -138,6 +138,7 @@ export const launch = async (options, runtime) => {
       }
     }
   };
+  process.on("exit", killGroup);
   let timedOut = false;
   let stopped = false;
   let ready = false;
@@ -197,6 +198,7 @@ export const launch = async (options, runtime) => {
     return code ?? 1;
   } finally {
     killGroup();
+    process.off("exit", killGroup);
     clearTimeout(timeout);
     clearTimeout(forceTimer);
     process.off("SIGINT", stop);
