@@ -35,7 +35,12 @@ async fn run() -> anyhow::Result<()> {
     let console_origin = format!("http://{console_address}");
     let initial_config = ConsoleConfig::load()?;
     // Fail before modifying Agent state if the requested Console port is occupied.
-    let console_listener = tokio::net::TcpListener::bind(initial_config.address).await?;
+    let console_listener = tokio::net::TcpListener::bind(initial_config.address)
+        .await
+        .map_err(|error| anyhow::anyhow!(
+            "Console cannot listen on {}: {error}. Choose another port with --port or HTTP_PORT.",
+            initial_config.address
+        ))?;
     let app_agent_binary =
         std::env::var_os("LENSO_AGENT_WEB_BIN").unwrap_or_else(|| "lenso-agent-web".into());
     let console_agent_binary = std::env::var_os("LENSO_CONSOLE_AGENT_WEB_BIN")
