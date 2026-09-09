@@ -13,15 +13,16 @@ pnpm changeset
 ```
 
 The Changesets workflow opens or updates a version pull request for the private
-`@lenso/console-web` application. There is no Console-owned public npm package
-or npm publication step. Historical package versions and tags remain historical
+`@lenso/console-web` application. The private application itself is not published to npm. The separately staged
+`@lenso/agent` launcher and platform packages use the opt-in
+[Agent npm distribution workflow](agent-npm-distribution.md). Historical package versions and tags remain historical
 records; the application version identifies the source release. The former OCI pipeline
 was retired; versioning does not publish a container image.
 
 ## Distribution boundary
 
 Merge the reviewed Changesets version PR after its quality checks pass. The
-repository currently distributes Console from source using the documented
+source distribution runs Console using the documented
 `pnpm agent:web` launcher and separately released Agent Web binaries.
 
 There is no active OCI build or publication workflow. A Changesets version bump

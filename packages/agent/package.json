@@ -1,0 +1,29 @@
+{
+  "name": "@lenso/agent",
+  "version": "1.5.2",
+  "description": "Run Lenso Agent and Console locally with one command.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
+    "directory": "packages/agent"
+  },
+  "bin": {
+    "lenso-agent": "bin/lenso-agent.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "optionalDependencies": {
+    "@lenso/agent-darwin-arm64": "1.5.2",
+    "@lenso/agent-linux-x64": "1.5.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
