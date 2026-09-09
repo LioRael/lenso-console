@@ -46,7 +46,7 @@ jobs:
           workspaces: service
       - run: pnpm install --frozen-lockfile
       - run: node --test scripts/distribution/launcher.test.mjs
-      - run: pnpm build:local
+      - run: pnpm service:web-build
       - run: cargo build --locked --release --manifest-path service/Cargo.toml --bin lenso-console-with-agent
       - run: node scripts/distribution/package-agent.mjs '${{ matrix.target }}' service/target/release/lenso-console-with-agent .artifacts/npm
       - run: node scripts/distribution/smoke-agent.mjs .artifacts/npm

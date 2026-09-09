@@ -28,7 +28,7 @@ coding capabilities still require their tools, such as Git and ripgrep.
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm build:local
+pnpm service:web-build
 cargo build --locked --release --manifest-path service/Cargo.toml --bin lenso-console-with-agent
 node --test scripts/distribution/launcher.test.mjs
 node scripts/distribution/package-agent.mjs darwin-arm64 service/target/release/lenso-console-with-agent .artifacts/npm
