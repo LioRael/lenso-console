@@ -1,6 +1,7 @@
 //! First-party Observe Workspace Plugin.
 
 mod otlp;
+mod otlp_body;
 mod store;
 
 use std::{
@@ -464,7 +465,6 @@ impl lenso::Lifecycle for ObserveWorkspace {
         )
         .await?;
         let store = self.store()?;
-        let source_id = self.config.source_id.clone();
         let cancellation = self.tasks.cancellation().map_err(|error| {
             plugin_failure(format!("Observe task scope is unavailable: {error:?}"))
         })?;
@@ -477,13 +477,10 @@ impl lenso::Lifecycle for ObserveWorkspace {
             .map_err(|error| plugin_failure(format!("Observe shutdown task failed: {error:?}")))?;
         self.tasks
             .spawn_local(async move {
-                let server = axum::serve(
-                    receiver.listener,
-                    otlp::router(store, source_id, receiver.token),
-                )
-                .with_graceful_shutdown(async move {
-                    let _ = shutdown_signal.await;
-                });
+                let server = axum::serve(receiver.listener, otlp::router(store, receiver.token))
+                    .with_graceful_shutdown(async move {
+                        let _ = shutdown_signal.await;
+                    });
                 if let Err(error) = server.await {
                     eprintln!("Observe OTLP receiver stopped: {error}");
                 }

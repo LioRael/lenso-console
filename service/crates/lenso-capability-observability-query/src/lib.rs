@@ -9,7 +9,7 @@ mod tests {
     #[test]
     fn descriptor_identity_and_stream_are_stable() {
         assert_eq!(CAPABILITY_ID, "lenso.observability.query@1");
-        assert_eq!(DESCRIPTOR_VERSION, "1.0.0");
+        assert_eq!(DESCRIPTOR_VERSION, "1.1.0");
         assert_eq!(WATCH_REQUESTS_OPERATION, "watch_requests");
     }
 

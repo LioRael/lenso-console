@@ -1,7 +1,7 @@
 # Console observability Plugin
 
-Status: local request-investigation tracer implemented; production receiver
-hardening and cross-App runtime inspection remain follow-ups.
+Status: local request-investigation receiver and data-completeness slice
+implemented; cross-App runtime inspection and a sample exporter remain follow-ups.
 
 ## Outcome
 
@@ -59,8 +59,8 @@ counters and the UI while the App request still succeeds.
 
 ### Protocol
 
-The implemented tracer accepts uncompressed OTLP/HTTP binary Protobuf on
-loopback-only endpoints:
+The implemented tracer accepts identity-encoded or gzip-compressed OTLP/HTTP
+binary Protobuf on loopback-only endpoints:
 
 - `POST /v1/traces`
 - `POST /v1/logs`
@@ -83,7 +83,8 @@ deployment/authentication design and is rejected in the first release.
 
 Admission is bounded:
 
-- a 4 MiB uncompressed request/decoded-message limit in the implemented tracer;
+- a 4 MiB encoded limit for gzip requests and a distinct 16 MiB decoded limit;
+- a 16 MiB body limit for identity-encoded requests;
 - at most 10,000 spans or log records per request;
 - a bounded decode/commit queue with explicit rejection when full;
 - no synchronous callback into the observed App;
@@ -93,11 +94,11 @@ Admission is bounded:
 These product limits are intentionally below OTLP's broad protocol ceiling.
 They are configuration with reviewed maxima, not unbounded user input.
 
-## Stored facts for the full first release
+## Stored facts
 
 The Plugin owns a SQLite database in WAL mode for the local first release. The
-full target schema stores normalized resource, scope, span, event, link, and log facts plus
-ingestion counters. Trace and span IDs remain fixed-width bytes; timestamps are
+schema stores normalized span, event, link, and log facts plus ingestion
+counters. Trace and span IDs remain fixed-width values; timestamps are
 nanoseconds since Unix epoch at the storage boundary and strings in browser JSON
 where JavaScript integer precision would be unsafe.
 
@@ -132,11 +133,12 @@ Capability can confirm current runtime state.
 
 ## Retention and loss
 
-Defaults are seven days and 512 MiB, whichever boundary is reached first.
-Cleanup runs in bounded batches and yields between transactions. Operators can
-reduce either limit but cannot configure unlimited retention in the first
-release. Removing the Plugin keeps or purges its database only through an
-explicit removal choice; disablement never purges it.
+Defaults are seven days and 512 MiB, whichever boundary is reached first. Each
+ingestion command removes at most 1,000 expired spans and logs and at most 64
+oldest traces for logical-size pressure, leaving further cleanup to later worker
+commands. Operators can reduce either limit but cannot configure unlimited
+retention in the first release. Removing the Plugin keeps or purges its database
+only through an explicit removal choice; disablement never purges it.
 
 The Plugin exposes counters for accepted/rejected records, decode failures,
 queue saturation, redaction, retention deletion, and feed lag. Counter reset is
@@ -209,20 +211,19 @@ token at `.lenso/console/observe/otlp-token` and stores telemetry in
 Resolved App Plan. With no configured application subject, Observe is available
 to the Host but is not activated or mounted.
 
-The Plugin accepts uncompressed OTLP/HTTP Protobuf traces and logs, normalizes
-HTTP server roots, removes secret-like attributes, persists bounded facts in
-SQLite WAL mode, applies time and logical-size retention, and exposes all five
-`lenso.observability.query@1` Operations. Its App-scoped Workspace shows a live
-request list, trace waterfall, correlated logs, receiver counters, honest
-incompleteness, and an explicit **Runtime state unavailable** panel. Switching
+The Plugin accepts identity-encoded and gzip-compressed OTLP/HTTP Protobuf traces
+and logs with separate encoded and decoded ceilings, normalizes HTTP server
+roots, removes secret-like attributes, persists bounded spans, events, links,
+and logs in SQLite WAL mode, applies time and logical-size retention, and exposes
+all five `lenso.observability.query@1` Operations. Its App-scoped Workspace shows a live
+request list, selectable trace waterfall, safe span attributes, events, links,
+correlated logs, receiver counters, honest partial and late-arrival states, and
+an explicit **Runtime state unavailable** panel. Switching
 or removing the mount cancels the feed without affecting the observed App.
 
-The following receiver-hardening work from the full first-release design is not
-claimed by this tracer: gzip request decoding and a distinct 16 MiB decoded
-ceiling, persistence of span events and links, richer late-arrival completeness,
-and an end-to-end sample Web App exporter fixture. The real receiver integration
-test sends standard OTLP Protobuf over HTTP; deterministic data only supplies
-the emitting side of that test.
+An end-to-end sample Web App exporter fixture remains outside this slice. The
+real receiver integration test sends standard gzip-compressed OTLP Protobuf over
+HTTP; deterministic data only supplies the emitting side of that test.
 
 ### Artifacts
 
@@ -236,12 +237,14 @@ Concrete artifacts:
 - the existing Console contract-aware Workspace service transport;
 - reference Host Plan policy for the first configured App subject.
 
-Current verification proves real OTLP ingestion and authorization, trace/log
-correlation, redaction, restart persistence, exact App/Plan admission, generated
-contract freshness, browser feed cancellation, and a browser trace deep link.
-Pagination, partial-success, queue saturation, stream lag, retention limits, and
-the final sample Web App exporter remain required before calling the whole
-first-release design complete.
+Current verification proves real gzip OTLP ingestion and authorization,
+encoded/decoded limits, exact partial-success counts, trace/log correlation,
+event/link persistence, late-arrival updates, redaction, restart persistence,
+pagination, time retention, exact App/Plan admission, generated contract
+freshness, browser feed cancellation, and a browser trace deep link. Queue
+saturation, stream lag, logical-size retention pressure, and the final sample
+Web App exporter remain required before calling the whole first-release design
+complete.
 
 ## Deferred
 

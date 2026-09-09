@@ -2,7 +2,7 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.observability.query@1";
-export const DESCRIPTOR_VERSION = "1.0.0";
+export const DESCRIPTOR_VERSION = "1.1.0";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -101,7 +101,9 @@ export interface ReadTraceResponse {
 export interface ReadTraceResponseSpansItem {
   attributes: Array<ReadTraceResponseSpansItemAttributesItem>;
   ended_at_unix_nano: string;
+  events?: Array<ReadTraceResponseSpansItemEventsItem>;
   kind: "unspecified" | "internal" | "server" | "client" | "producer" | "consumer";
+  links?: Array<ReadTraceResponseSpansItemLinksItem>;
   name: string;
   parent_span_id: string | null;
   span_id: string;
@@ -110,6 +112,28 @@ export interface ReadTraceResponseSpansItem {
 }
 
 export interface ReadTraceResponseSpansItemAttributesItem {
+  key: string;
+  value: string;
+}
+
+export interface ReadTraceResponseSpansItemEventsItem {
+  attributes: Array<ReadTraceResponseSpansItemEventsItemAttributesItem>;
+  name: string;
+  timestamp_unix_nano: string;
+}
+
+export interface ReadTraceResponseSpansItemEventsItemAttributesItem {
+  key: string;
+  value: string;
+}
+
+export interface ReadTraceResponseSpansItemLinksItem {
+  attributes: Array<ReadTraceResponseSpansItemLinksItemAttributesItem>;
+  span_id: string;
+  trace_id: string;
+}
+
+export interface ReadTraceResponseSpansItemLinksItemAttributesItem {
   key: string;
   value: string;
 }

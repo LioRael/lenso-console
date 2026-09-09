@@ -58,6 +58,61 @@
               },
               "additionalProperties": false
             }
+          },
+          "events": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "required": ["timestamp_unix_nano", "name", "attributes"],
+              "properties": {
+                "timestamp_unix_nano": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "name": { "type": "string", "maxLength": 512 },
+                "attributes": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {
+                    "type": "object",
+                    "required": ["key", "value"],
+                    "properties": {
+                      "key": { "type": "string", "maxLength": 256 },
+                      "value": { "type": "string", "maxLength": 4096 }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "links": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "required": ["trace_id", "span_id", "attributes"],
+              "properties": {
+                "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+                "attributes": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "items": {
+                    "type": "object",
+                    "required": ["key", "value"],
+                    "properties": {
+                      "key": { "type": "string", "maxLength": 256 },
+                      "value": { "type": "string", "maxLength": 4096 }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
           }
         },
         "additionalProperties": false
