@@ -18,6 +18,11 @@ import { setTimeout as delay } from "node:timers/promises";
 const output = resolve(process.argv[2]);
 const target = `${process.platform}-${process.arch}`;
 const root = await mkdtemp(join(tmpdir(), "lenso-npx-smoke-"));
+const npmEnvironment = {
+  ...process.env,
+  npm_config_cache: join(root, "npm-cache"),
+  npm_config_offline: "true",
+};
 const homes = join(root, "state");
 const cwd = join(root, "workspace");
 await mkdir(cwd);
@@ -125,7 +130,7 @@ try {
     const packed = spawnSync(
       "npm",
       ["pack", "--ignore-scripts", "--json", "--pack-destination", root],
-      { cwd: join(output, name), encoding: "utf-8" }
+      { cwd: join(output, name), encoding: "utf-8", env: npmEnvironment }
     );
     assert.equal(packed.status, 0, packed.stderr);
     archives.push(join(root, JSON.parse(packed.stdout)[0].filename));
@@ -140,13 +145,13 @@ try {
       "--no-fund",
       ...archives,
     ],
-    { cwd, encoding: "utf-8" }
+    { cwd, encoding: "utf-8", env: npmEnvironment }
   );
   assert.equal(installed.status, 0, installed.stderr);
   const version = spawnSync(
     "npx",
     ["--offline", "--no", "lenso-agent", "--version"],
-    { cwd, encoding: "utf-8" }
+    { cwd, encoding: "utf-8", env: npmEnvironment }
   );
   assert.equal(version.status, 0, version.stderr);
   assert.match(version.stdout.trim(), /^\d+\.\d+\.\d+$/u);
