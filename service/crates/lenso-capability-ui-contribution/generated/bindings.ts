@@ -2,7 +2,7 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.ui.contribution@1";
-export const DESCRIPTOR_VERSION = "1.1.0";
+export const DESCRIPTOR_VERSION = "1.2.0";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -54,6 +54,9 @@ export interface DescribeResponseRequirementsItem {
   capability_id: string;
   descriptor_version: string;
   operations: Array<string>;
+  required: boolean;
+  service_id: string;
+  source: "owner" | "subject";
 }
 
 export interface DescribeResponseSubject {

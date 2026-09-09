@@ -16,11 +16,16 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use lenso::ManyPort;
 use lenso_capability_ui_contribution::{
     ContributionClient, ContributionInvocationError, DescribeRequest, DescribeResponse,
-    DescribeResponseAssetsItemMediaType, DescribeResponseRequirementsItem,
-    DescribeResponseSubject as ContractSubject, DescribeResponseSubjectKind as ContractSubjectKind,
+    DescribeResponseAssetsItemMediaType, DescribeResponseSubject as ContractSubject,
+    DescribeResponseSubjectKind as ContractSubjectKind,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+use crate::workspace_services::{
+    PublishedRequirement, WorkspaceServiceBuilder, WorkspaceServiceDispatch,
+    WorkspaceServiceRuntime,
+};
 
 const DESCRIPTOR_FILE: &str = "contribution.json";
 const MAX_ASSET_BYTES: usize = 1024 * 1024;
@@ -83,7 +88,7 @@ struct PageMount {
     navigation: ContributionNavigationResponse,
     owner: ContributionOwner,
     revision: String,
-    requirements: Vec<DescribeResponseRequirementsItem>,
+    requirements: Vec<PublishedRequirement>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -105,17 +110,21 @@ struct Asset {
     media_type: &'static str,
 }
 
+type AssetMap = BTreeMap<(String, String, String), Asset>;
+
 #[derive(Clone)]
 pub(super) struct PageCatalog {
     mounts: Arc<Vec<PageMount>>,
-    assets: Arc<BTreeMap<(String, String, String), Asset>>,
+    assets: Arc<AssetMap>,
+    services: WorkspaceServiceDispatch,
 }
 
 impl PageCatalog {
-    pub(super) async fn from_port(
+    pub(super) async fn from_ports(
         port: &ManyPort<ContributionClient>,
+        service_port: &ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
         allowed_app_subjects: &BTreeSet<String>,
-    ) -> Result<Self, lenso_kernel::RuntimeFailure> {
+    ) -> Result<(Self, WorkspaceServiceRuntime), lenso_kernel::RuntimeFailure> {
         let mut contributions = Vec::with_capacity(port.len());
         for provider in port.iter() {
             let owner = provider.provider_instance().to_owned();
@@ -135,16 +144,31 @@ impl PageCatalog {
                     })?;
             contributions.push((owner, response));
         }
-        Self::from_contributions(contributions, allowed_app_subjects).map_err(|error| {
-            lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
-                detail: error.to_string(),
-            }
-        })
+        let mut services = WorkspaceServiceBuilder::prepare(service_port).await?;
+        let mut catalog = Self::from_contributions_with_services(
+            contributions,
+            allowed_app_subjects,
+            Some(&mut services),
+        )
+        .map_err(|error| lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
+            detail: error.to_string(),
+        })?;
+        let (dispatch, runtime) = services.finish(service_port.clone());
+        catalog.services = dispatch;
+        Ok((catalog, runtime))
     }
 
     fn from_contributions(
         contributions: Vec<(String, DescribeResponse)>,
         allowed_app_subjects: &BTreeSet<String>,
+    ) -> anyhow::Result<Self> {
+        Self::from_contributions_with_services(contributions, allowed_app_subjects, None)
+    }
+
+    fn from_contributions_with_services(
+        contributions: Vec<(String, DescribeResponse)>,
+        allowed_app_subjects: &BTreeSet<String>,
+        mut services: Option<&mut WorkspaceServiceBuilder>,
     ) -> anyhow::Result<Self> {
         anyhow::ensure!(
             contributions.len() <= 64,
@@ -154,97 +178,29 @@ impl PageCatalog {
         let mut assets = BTreeMap::new();
         let mut ids = BTreeSet::new();
         for (owner, contribution) in contributions {
-            let subject =
-                contribution_subject(contribution.subject.as_ref(), allowed_app_subjects)?;
             anyhow::ensure!(
                 ids.insert(contribution.workspace_id.clone()),
                 "duplicate Console Workspace id: {}",
                 contribution.workspace_id
             );
-            validate_response(&contribution)?;
-            let mut decoded_assets = Vec::with_capacity(contribution.assets.len());
-            for asset in contribution.assets {
-                let bytes = STANDARD.decode(&asset.content_base64)?;
+            let (mount, contribution_assets) = snapshot_contribution(
+                owner,
+                contribution,
+                allowed_app_subjects,
+                services.as_deref_mut(),
+            )?;
+            for (key, asset) in contribution_assets {
                 anyhow::ensure!(
-                    bytes.len() <= MAX_ASSET_BYTES,
-                    "Console Workspace asset exceeds one MiB: {}",
-                    asset.path
-                );
-                let media_type = match asset.media_type {
-                    DescribeResponseAssetsItemMediaType::TextCssCharsetUtf => {
-                        "text/css; charset=utf-8"
-                    }
-                    DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf => {
-                        "text/javascript; charset=utf-8"
-                    }
-                };
-                decoded_assets.push((
-                    asset.path,
-                    Asset {
-                        bytes: Bytes::from(bytes),
-                        media_type,
-                    },
-                ));
-            }
-            decoded_assets.sort_by(|left, right| left.0.cmp(&right.0));
-            let mut hasher = Sha256::new();
-            hash_part(&mut hasher, contribution.revision.as_bytes());
-            for (path, asset) in &decoded_assets {
-                hash_part(&mut hasher, path.as_bytes());
-                hash_part(&mut hasher, asset.media_type.as_bytes());
-                hash_part(&mut hasher, &asset.bytes);
-            }
-            let digest = hex::encode(hasher.finalize());
-            let asset_base = format!(
-                "/api/console/v1/pages/{}/assets/{digest}",
-                contribution.workspace_id
-            );
-            for (path, asset) in decoded_assets {
-                anyhow::ensure!(
-                    assets
-                        .insert(
-                            (contribution.workspace_id.clone(), digest.clone(), path),
-                            asset,
-                        )
-                        .is_none(),
+                    assets.insert(key, asset).is_none(),
                     "duplicate Console Workspace asset path"
                 );
             }
-            mounts.push(PageMount {
-                id: contribution.workspace_id,
-                title: contribution.title,
-                subject,
-                api_major: 1,
-                module: format!("{asset_base}/{}", contribution.module),
-                styles: contribution
-                    .styles
-                    .into_iter()
-                    .map(|path| format!("{asset_base}/{path}"))
-                    .collect(),
-                navigation: ContributionNavigationResponse {
-                    label: contribution.navigation.label,
-                    items: contribution
-                        .navigation
-                        .items
-                        .into_iter()
-                        .map(|item| ContributionNavigationItem {
-                            label: item.label,
-                            path: item.path,
-                        })
-                        .collect(),
-                },
-                owner: ContributionOwner {
-                    instance: owner,
-                    source: "resolved-plan",
-                    trusted: true,
-                },
-                revision: contribution.revision,
-                requirements: contribution.requirements,
-            });
+            mounts.push(mount);
         }
         Ok(Self {
             mounts: Arc::new(mounts),
             assets: Arc::new(assets),
+            services: WorkspaceServiceDispatch::unavailable(),
         })
     }
 
@@ -257,6 +213,7 @@ impl PageCatalog {
             return Ok(Self {
                 mounts: Arc::new(Vec::new()),
                 assets: Arc::new(BTreeMap::new()),
+                services: WorkspaceServiceDispatch::unavailable(),
             });
         }
         anyhow::ensure!(
@@ -334,6 +291,7 @@ impl PageCatalog {
     }
 
     pub(super) fn routes(self) -> Router {
+        let service_routes = self.services.clone().routes();
         Router::new()
             .route("/api/console/v1/pages", get(list_pages))
             .route(
@@ -341,7 +299,114 @@ impl PageCatalog {
                 get(read_asset),
             )
             .with_state(self)
+            .merge(service_routes)
     }
+}
+
+fn snapshot_contribution(
+    owner: String,
+    contribution: DescribeResponse,
+    allowed_app_subjects: &BTreeSet<String>,
+    services: Option<&mut WorkspaceServiceBuilder>,
+) -> anyhow::Result<(PageMount, AssetMap)> {
+    let subject = contribution_subject(contribution.subject.as_ref(), allowed_app_subjects)?;
+    validate_response(&contribution)?;
+    let requirements = if let Some(services) = services {
+        services.bind_mount(
+            &contribution.workspace_id,
+            &owner,
+            &contribution.requirements,
+        )?
+    } else {
+        contribution
+            .requirements
+            .iter()
+            .map(PublishedRequirement::unavailable)
+            .collect()
+    };
+    let mut decoded_assets = decode_assets(&contribution)?;
+    decoded_assets.sort_by(|left, right| left.0.cmp(&right.0));
+    let mut hasher = Sha256::new();
+    hash_part(&mut hasher, contribution.revision.as_bytes());
+    for (path, asset) in &decoded_assets {
+        hash_part(&mut hasher, path.as_bytes());
+        hash_part(&mut hasher, asset.media_type.as_bytes());
+        hash_part(&mut hasher, &asset.bytes);
+    }
+    let digest = hex::encode(hasher.finalize());
+    let asset_base = format!(
+        "/api/console/v1/pages/{}/assets/{digest}",
+        contribution.workspace_id
+    );
+    let assets = decoded_assets
+        .into_iter()
+        .map(|(path, asset)| {
+            (
+                (contribution.workspace_id.clone(), digest.clone(), path),
+                asset,
+            )
+        })
+        .collect();
+    let mount = PageMount {
+        id: contribution.workspace_id,
+        title: contribution.title,
+        subject,
+        api_major: 1,
+        module: format!("{asset_base}/{}", contribution.module),
+        styles: contribution
+            .styles
+            .into_iter()
+            .map(|path| format!("{asset_base}/{path}"))
+            .collect(),
+        navigation: ContributionNavigationResponse {
+            label: contribution.navigation.label,
+            items: contribution
+                .navigation
+                .items
+                .into_iter()
+                .map(|item| ContributionNavigationItem {
+                    label: item.label,
+                    path: item.path,
+                })
+                .collect(),
+        },
+        owner: ContributionOwner {
+            instance: owner,
+            source: "resolved-plan",
+            trusted: true,
+        },
+        revision: contribution.revision,
+        requirements,
+    };
+    Ok((mount, assets))
+}
+
+fn decode_assets(contribution: &DescribeResponse) -> anyhow::Result<Vec<(String, Asset)>> {
+    contribution
+        .assets
+        .iter()
+        .map(|asset| {
+            let bytes = STANDARD.decode(&asset.content_base64)?;
+            anyhow::ensure!(
+                bytes.len() <= MAX_ASSET_BYTES,
+                "Console Workspace asset exceeds one MiB: {}",
+                asset.path
+            );
+            let media_type = match asset.media_type {
+                DescribeResponseAssetsItemMediaType::TextCssCharsetUtf => "text/css; charset=utf-8",
+                DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf => {
+                    "text/javascript; charset=utf-8"
+                }
+            };
+            Ok((
+                asset.path.clone(),
+                Asset {
+                    bytes: Bytes::from(bytes),
+                    media_type,
+                },
+            ))
+        })
+        .collect()
 }
 
 async fn list_pages(State(catalog): State<PageCatalog>) -> Json<serde_json::Value> {
@@ -434,7 +499,8 @@ fn validate_response(value: &DescribeResponse) -> anyhow::Result<()> {
     }
     for requirement in &value.requirements {
         anyhow::ensure!(
-            !requirement.capability_id.trim().is_empty()
+            valid_slug(&requirement.service_id)
+                && !requirement.capability_id.trim().is_empty()
                 && requirement.capability_id.len() <= 128
                 && !requirement.descriptor_version.trim().is_empty()
                 && requirement.descriptor_version.len() <= 32

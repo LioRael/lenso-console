@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    { "const": "unknown_service" },
+    { "const": "unknown_operation" },
+    { "const": "codec_mismatch" },
+    { "const": "request_too_large" },
+    { "const": "response_too_large" },
+    { "const": "denied" },
+    { "const": "resource_exhausted" }
+  ]
+}

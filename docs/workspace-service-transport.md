@@ -1,6 +1,6 @@
 # Workspace service transport
 
-Status: first-release contract design; implementation not yet shipped.
+Status: owner-service first slice implemented; subject services and Observe remain follow-ups.
 
 ## Outcome
 
@@ -129,22 +129,27 @@ streams.
 The browser receives bounded problem details without Plugin configuration,
 tokens, internal paths, provider topology, or cross-App existence leakage.
 
-## First implementation slice
+## Implemented first slice
 
-1. Extend `lenso.ui.contribution` to descriptor 1.2 with service IDs, source,
-   requiredness, and Operation allowlists.
-2. Author `lenso.ui.workspace-service@1` once and generate Rust plus TypeScript
-   projections.
-3. Add `many` workspace-service Port binding to `lenso.console.web` and pair
-   owner providers by instance identity during activation.
-4. Add mount-scoped unary/SSE routes and generated browser client runtime.
-5. Convert the Welcome fixture into a tiny owner service without importing
-   Console-private code; prove invocation, cancellation, missing service, drift,
-   and Generation revocation.
-6. Use the same seam for Observe. No observability-specific Console route is
-   accepted as substitute proof.
+The repository now includes descriptor 1.2 of `lenso.ui.contribution`, the
+generated Rust and TypeScript projections for `lenso.ui.workspace-service@1`,
+and a `many` service Port on `lenso.console.web`. Activation pairs contribution
+and service providers by exact provider-instance identity, validates exports,
+and freezes mount-scoped routes before the HTTP server starts.
 
-Publication waits for contract snapshots, Rust/TypeScript conformance, exact
-body limits, malformed-frame tests, multiple mounts with identical service IDs,
-App-switch isolation, back/forward/reload, and a real browser cancellation test.
+The Shell supplies a mount-scoped client with unary and SSE support. Its request
+signal is the Workspace mount signal, and dropping an SSE response cancels the
+Kernel Stream. The Welcome Plugin is the reference owner provider; product tests
+start the real resolved graph and invoke both request and stream Operations.
+Focused tests cover missing required services, descriptor drift, unavailable
+optional subject services, undeclared routes, malformed responses, body limits,
+and browser cancellation.
 
+The next consumer is Observe. No observability-specific Console route is
+accepted as substitute proof. `source: subject` remains unavailable until the
+cross-App Connector supplies an exact Plan-bound export.
+
+Publication beyond this repository-local integration contract still waits for
+App-switch isolation, back/forward/reload coverage, and the first real domain
+Capability consumer. The mount-keyed route tests already cover identical
+service IDs across multiple mounts.

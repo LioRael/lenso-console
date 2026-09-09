@@ -1,10 +1,10 @@
 # Native Console page contributions
 
-Status: Console- and App-scoped Workspace routing implemented; target service binding designed and pending implementation.
+Status: Console- and App-scoped Workspace routing plus owner services implemented; target subject binding remains pending.
 
 This document now separates the shipped Workspace path from the remaining
 cross-App design. The implementation includes a typed
-`lenso.ui.contribution@1` request Capability (descriptor 1.1.0), a `many` Port on
+`lenso.ui.contribution@1` request Capability (descriptor 1.2.0), a `many` Port on
 `lenso.console.web`, an immutable activation-time catalog, a reference provider
 Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
 crate and reference Plugin are repository-local and are not published releases.
@@ -36,7 +36,7 @@ to forms, widgets, or an iframe.
 The small public interface has three parts:
 
 1. **Capability response:** Workspace identity, revision, navigation, entry
-   module, immutable assets, and future typed service requirements.
+   module, immutable assets, and typed service requirements.
 2. **Workspace module:** `apiMajor: 1` plus `createWorkspace(runtime)` returning
    a root `Page` and optional shared `Provider`.
 3. **Workspace props:** immutable mount metadata, scoped navigation, reactive
@@ -74,6 +74,12 @@ Implemented now:
 - `service:serve` and `agent:web` both run this composition through the Kernel;
   the bundled Welcome provider proves the real launcher path rather than a
   test-only or custom-embedding path.
+- `lenso.console.web` also requires `lenso.ui.workspace-service@1` with `many`
+  cardinality. Activation pairs owner exports by provider-instance identity and
+  exposes only the declared mount/service/Operation routes to the browser.
+- The Workspace runtime supplies request and SSE clients. The Welcome fixture
+  proves both paths through the real Host, while mount cancellation is passed to
+  fetch and stream disconnect cancels the Kernel invocation.
 
 Not implemented by this baseline:
 
@@ -96,8 +102,8 @@ Not implemented by this baseline:
 
 The current React 19 / Vite 8 stack now has a native Workspace loader, the
 generic `lenso.ui.contribution@1` provider Capability, and App-subject routing.
-Service transports below remain design notation until the cross-App Connector
-is implemented.
+Owner-service transport is implemented. Subject-service examples below remain
+design notation until the cross-App Connector is implemented.
 
 ## 3. Ownership and identity
 
@@ -138,8 +144,8 @@ a Plugin selected in Console's composition. The JSON below remains an
 illustrative projection that includes future service aliases; it is not a
 second Plugin package manager or App-authored provider selection.
 
-Descriptor 1.1.0 adds `subject` compatibly: an omitted field from a 1.0.0
-provider means `{ "kind": "console" }`. App scope must declare both
+Descriptor 1.2.0 adds executable service metadata to the 1.1 subject shape.
+App scope must declare both
 `{ "kind": "app" }` and a clean `app_id`; Console rejects any App identity that
 is not already present in its configured application catalog.
 
@@ -217,6 +223,7 @@ type WorkspaceModule = {
   createWorkspace(runtime: {
     createElement: typeof React.createElement;
     react: typeof React;
+    services: WorkspaceServices;
   }): {
     Page: React.ComponentType<WorkspaceProps>;
     Provider?: React.ComponentType<React.PropsWithChildren>;
@@ -253,8 +260,8 @@ and render failures per Workspace.
 The Shell owns React mounting. The optional `Provider` wraps the page and stays
 mount-local; it is not a way to wrap unrelated pages or register global
 application providers. The second sidebar remains declarative in API major 1.
-Rich Plugin-rendered navigation, navigation guards, caches, and typed service
-transports require additive reviewed contracts before they can be claimed.
+Rich Plugin-rendered navigation, navigation guards, caches, and domain-specific
+generated clients require additive reviewed contracts before they can be claimed.
 
 Context semantics:
 
@@ -567,11 +574,11 @@ instance, and a non-Agent sample App supplying users and runtime inspection.
 Repeat the App instance under a second target identity for isolation tests.
 Removing any required role must produce a declared unavailable state.
 
-Candidate implementation locations are `src/features/extensions/` for the
-browser adapter and `service/src/page_contributions.rs` for Console HTTP
-projection. These paths do not exist yet. Contracts/build tooling should have
-one owner in this repository initially; creating a public SDK package or changing
-workspace layout is a separate reviewed packaging decision.
+The browser adapter lives in `src/features/extensions/`; activation-time catalog
+validation lives in `service/src/page_contributions.rs`; and bounded request/SSE
+dispatch lives in `service/src/workspace_services.rs`. Contracts/build tooling
+have one owner in this repository initially. Creating a public SDK package or
+changing workspace layout is a separate reviewed packaging decision.
 
 The exact owner-service browser seam is specified in
 [Workspace service transport](workspace-service-transport.md). Subject-provided

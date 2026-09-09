@@ -182,8 +182,8 @@ silently target another App or masquerade as success.
   [ADR-0003](adr/0003-bind-project-tasks-to-isolated-agent-processes.md) is a
   directory-bound execution scope, not the future project-management Plugin's
   project object.
-- Current Plugin management is a foundation, not proof that arbitrary native
-  contributions, a marketplace, or an observability backend already ship.
+- Native Workspace contributions and owner-service dispatch now ship as the
+  Console foundation. A marketplace and observability backend do not yet ship.
 - Retired Story, dynamic Module composition, and release machinery are not
   restored by this document. New mechanisms require reviewed designs.
 

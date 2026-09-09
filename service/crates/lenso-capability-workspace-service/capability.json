@@ -1,0 +1,29 @@
+{
+  "id": "lenso.ui.workspace-service@1",
+  "version": "1.0.0",
+  "portable": true,
+  "cross_lane_transfer": false,
+  "operations": [
+    {
+      "name": "describe_exports",
+      "interaction": "request",
+      "request_schema": "schemas/describe-exports-request.schema.json",
+      "response_schema": "schemas/describe-exports-response.schema.json",
+      "domain_error_schema": "schemas/workspace-service-error.schema.json"
+    },
+    {
+      "name": "invoke",
+      "interaction": "request",
+      "request_schema": "schemas/invoke-request.schema.json",
+      "response_schema": "schemas/invoke-response.schema.json",
+      "domain_error_schema": "schemas/workspace-service-error.schema.json"
+    },
+    {
+      "name": "subscribe",
+      "interaction": "stream",
+      "request_schema": "schemas/subscribe-open.schema.json",
+      "response_schema": "schemas/subscribe-message.schema.json",
+      "domain_error_schema": "schemas/workspace-service-error.schema.json"
+    }
+  ]
+}
