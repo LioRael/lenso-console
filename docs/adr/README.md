@@ -9,3 +9,9 @@
 - [0004 — Prefer native Console page contributions](0004-prefer-native-console-page-contributions.md)
 
 - [0005 — Distribute Agent Web through npm](0005-distribute-agent-web-through-npm.md)
+
+- [0006 — Own observability in a Console Plugin](0006-own-observability-in-a-console-plugin.md)
+
+- [0007 — Use an open signed Plugin marketplace](0007-use-an-open-signed-plugin-marketplace.md)
+
+- [0008 — Dispatch Workspace services through Plan bindings](0008-dispatch-workspace-services-through-plan-bindings.md)
