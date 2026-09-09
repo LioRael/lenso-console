@@ -1,0 +1,18 @@
+{
+  "schema": "console.page-contribution/1",
+  "id": "welcome",
+  "title": "Extension workspace",
+  "subject": "console",
+  "runtime": {
+    "apiMajor": 1
+  },
+  "module": "page.mjs",
+  "styles": ["page.css"],
+  "navigation": {
+    "label": "Extensions",
+    "items": [
+      { "label": "Home", "path": [] },
+      { "label": "Request example", "path": ["request", "example"] }
+    ]
+  }
+}

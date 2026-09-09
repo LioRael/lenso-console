@@ -45,6 +45,10 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   Connections: "连接",
   "Connections could not be loaded:": "无法加载连接：",
   "Console context navigation": "控制台页面导航",
+  "Extension catalog unavailable": "扩展目录不可用",
+  "Extension failed to load": "扩展加载失败",
+  "Extension failed to render": "扩展渲染失败",
+  "Extension unavailable": "扩展不可用",
   "Context usage": "上下文用量",
   "Context window": "上下文窗口",
   "Default for new turns. You can override it in a conversation. Disabled capabilities remain unavailable in every mode.":
@@ -248,6 +252,9 @@ export const chineseMessages: Readonly<Record<string, string>> = {
     "无法加载工具列表，已保留现有选择。",
   "Tool restrictions": "工具限制",
   "Tools & providers": "工具与服务",
+  "Workspace navigation": "工作区导航",
+  "This page contribution is not installed or enabled.":
+    "此页面扩展尚未安装或启用。",
   "Try again": "重试",
   "Unsaved changes": "未保存的更改",
   "Use Host value": "使用宿主配置值",

@@ -1,0 +1,35 @@
+.welcome-contribution {
+  box-sizing: border-box;
+  margin: 0 auto;
+  max-width: 56rem;
+  padding: 4rem 2rem;
+}
+
+.welcome-contribution h1 {
+  font-size: 2rem;
+  margin: 0 0 1rem;
+}
+
+.welcome-contribution p {
+  color: var(--lenso-color-text-secondary);
+  line-height: 1.6;
+}
+
+.welcome-contribution__eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.welcome-contribution dl {
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: max-content 1fr;
+  margin-top: 2rem;
+}
+
+.welcome-contribution dd {
+  font-family: var(--lenso-font-family-mono);
+  margin: 0;
+}
