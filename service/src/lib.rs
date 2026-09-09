@@ -1,4 +1,5 @@
 mod app_management;
+mod page_contributions;
 mod project_activity;
 mod projects;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
@@ -528,6 +529,8 @@ impl ConsoleServer {
     async fn start(config: ConsoleConfig) -> anyhow::Result<Self> {
         config.validate()?;
         config.console_agent.require_ready().await?;
+        let (page_catalog, page_assets) =
+            page_contributions::PageCatalog::discover(&config.web_root)?;
         let index = config.web_root.join("index.html");
         let shell = ServeDir::new(config.web_root).fallback(ServeFile::new(index));
         let mut agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
@@ -543,6 +546,8 @@ impl ConsoleServer {
             .route("/health/live", get(health))
             .route("/health/ready", get(health))
             .route("/health/startup", get(health))
+            .merge(page_catalog.routes())
+            .merge(page_assets)
             .merge(app_management::routes(app_management::AppCatalog {
                 agents: agent_catalog.clone(),
                 apps: config.managed_apps,

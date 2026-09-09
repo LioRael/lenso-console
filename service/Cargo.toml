@@ -48,6 +48,7 @@ uuid = { version = "1.26", features = ["v4"] }
 [dev-dependencies]
 lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", default-features = false }
 tempfile = "3.27"
+tower = "0.5"
 
 [lints.rust]
 unsafe_code = "forbid"
