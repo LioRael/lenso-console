@@ -1,0 +1,319 @@
+use std::{cell::RefCell, rc::Rc};
+
+use lenso_capability_observability_query::{
+    ListRequestsRequest, OptionalValue, ReadIngestionHealthRequest, ReadTraceRequest,
+};
+use lenso_capability_ui_contribution::{DescribeRequest, DescribeResponseSubjectKind};
+use lenso_kernel::{CancellationToken, InvocationContext};
+use opentelemetry_proto::tonic::{
+    collector::{logs::v1::ExportLogsServiceRequest, trace::v1::ExportTraceServiceRequest},
+    common::v1::{AnyValue, KeyValue, any_value},
+    logs::v1::{LogRecord, ResourceLogs, ScopeLogs},
+    resource::v1::Resource,
+    trace::v1::{ResourceSpans, ScopeSpans, Span, Status, span},
+};
+use prost::Message as _;
+
+use super::*;
+
+fn config(root: &std::path::Path) -> ObserveConfig {
+    ObserveConfig {
+        source_id: "sample-app".to_owned(),
+        source_label: "Sample App".to_owned(),
+        listen_address: "127.0.0.1:0".to_owned(),
+        database: root.join("observe.sqlite3"),
+        token_file: root.join("otlp-token"),
+        retention_days: 7,
+        retention_bytes: 1024 * 1024,
+    }
+}
+
+fn plugin(config: ObserveConfig) -> ObserveWorkspace {
+    ObserveWorkspace {
+        config,
+        store: Rc::new(RefCell::new(None)),
+        worker: Rc::new(RefCell::new(None)),
+        receiver: Rc::new(RefCell::new(None)),
+        tasks: lenso::ManagedTasks::default(),
+    }
+}
+
+fn context() -> InvocationContext {
+    InvocationContext::new(1, None, CancellationToken::new())
+}
+
+fn string_value(value: &str) -> AnyValue {
+    AnyValue {
+        value: Some(any_value::Value::StringValue(value.to_owned())),
+    }
+}
+
+fn int_value(value: i64) -> AnyValue {
+    AnyValue {
+        value: Some(any_value::Value::IntValue(value)),
+    }
+}
+
+fn attribute(key: &str, value: AnyValue) -> KeyValue {
+    KeyValue {
+        key: key.to_owned(),
+        value: Some(value),
+        key_strindex: 0,
+    }
+}
+
+fn trace_request() -> ExportTraceServiceRequest {
+    let start = now_nanos();
+    ExportTraceServiceRequest {
+        resource_spans: vec![ResourceSpans {
+            resource: Some(Resource {
+                attributes: vec![attribute("service.name", string_value("sample-web"))],
+                ..Default::default()
+            }),
+            scope_spans: vec![ScopeSpans {
+                spans: vec![
+                    Span {
+                        trace_id: vec![1; 16],
+                        span_id: vec![2; 8],
+                        name: "GET /orders/:id".to_owned(),
+                        kind: span::SpanKind::Server.into(),
+                        start_time_unix_nano: start,
+                        end_time_unix_nano: start + 25_000_000,
+                        attributes: vec![
+                            attribute("http.request.method", string_value("GET")),
+                            attribute("http.route", string_value("/orders/:id")),
+                            attribute("http.response.status_code", int_value(200)),
+                            attribute("http.request.header.authorization", string_value("secret")),
+                        ],
+                        status: Some(Status {
+                            message: String::new(),
+                            code: 1,
+                        }),
+                        ..Default::default()
+                    },
+                    Span {
+                        trace_id: vec![1; 16],
+                        span_id: vec![3; 8],
+                        parent_span_id: vec![2; 8],
+                        name: "SELECT order".to_owned(),
+                        kind: span::SpanKind::Client.into(),
+                        start_time_unix_nano: start + 2_000_000,
+                        end_time_unix_nano: start + 20_000_000,
+                        status: Some(Status {
+                            message: String::new(),
+                            code: 1,
+                        }),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+    }
+}
+
+fn logs_request() -> ExportLogsServiceRequest {
+    ExportLogsServiceRequest {
+        resource_logs: vec![ResourceLogs {
+            scope_logs: vec![ScopeLogs {
+                log_records: vec![LogRecord {
+                    time_unix_nano: now_nanos(),
+                    severity_text: "INFO".to_owned(),
+                    body: Some(string_value("order loaded")),
+                    trace_id: vec![1; 16],
+                    span_id: vec![3; 8],
+                    attributes: vec![attribute("request.cookie", string_value("private"))],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+    }
+}
+
+fn now_nanos() -> u64 {
+    u64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn descriptor_and_workspace_are_removable_plugin_contributions() {
+    let descriptor: serde_json::Value = serde_json::from_str(PLUGIN_DESCRIPTOR_JSON).unwrap();
+    assert_eq!(descriptor["plugin_id"], "lenso.console.workspace.observe");
+    assert_eq!(descriptor["root_slot"], "console-workspaces");
+    let root = tempfile::tempdir().unwrap();
+    let plugin = plugin(config(root.path()));
+    let contribution = futures::executor::block_on(plugin.describe(context(), DescribeRequest {}))
+        .unwrap()
+        .unwrap();
+    assert_eq!(contribution.workspace_id, "observe-sample-app");
+    assert_eq!(
+        contribution.subject.unwrap().kind,
+        DescribeResponseSubjectKind::App
+    );
+    assert_eq!(
+        contribution.requirements[0].capability_id,
+        observe::CAPABILITY_ID
+    );
+    assert_eq!(contribution.assets.len(), 2);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
+    let root = tempfile::tempdir().unwrap();
+    let config = config(root.path());
+    let (store, worker) = ObserveWorker::start(StoreConfig {
+        database: config.database.clone(),
+        source_id: config.source_id.clone(),
+        retention_days: config.retention_days,
+        retention_bytes: config.retention_bytes,
+    })
+    .await
+    .unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let query_store = store.clone();
+    let (shutdown, stop) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            otlp::router(
+                store,
+                "sample-app".to_owned(),
+                "test-token-which-is-long-enough".to_owned(),
+            ),
+        )
+        .with_graceful_shutdown(async move {
+            let _ = stop.await;
+        })
+        .await
+        .unwrap();
+    });
+    let client = reqwest::Client::new();
+
+    let unauthorized = client
+        .post(format!("http://{address}/v1/traces"))
+        .header("content-type", "application/x-protobuf")
+        .body(trace_request().encode_to_vec())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unauthorized.status(), reqwest::StatusCode::UNAUTHORIZED);
+
+    for (path, body) in [
+        ("traces", trace_request().encode_to_vec()),
+        ("logs", logs_request().encode_to_vec()),
+    ] {
+        let response = client
+            .post(format!("http://{address}/v1/{path}"))
+            .header("content-type", "application/x-protobuf")
+            .bearer_auth("test-token-which-is-long-enough")
+            .body(body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(response.headers()["content-type"], "application/x-protobuf");
+    }
+
+    let page = query_store
+        .list_requests(ListRequestsRequest {
+            cursor: OptionalValue::default(),
+            limit: 10,
+            source_id: config.source_id.clone(),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(page.requests.len(), 1);
+    assert_eq!(page.requests[0].route, "/orders/:id");
+    assert_eq!(page.requests[0].duration_nano, "25000000");
+
+    let trace = query_store
+        .read_trace(ReadTraceRequest {
+            source_id: config.source_id.clone(),
+            trace_id: hex::encode([1; 16]),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(trace.spans.len(), 2);
+    assert!(
+        trace.spans[0]
+            .attributes
+            .iter()
+            .all(|item| !item.key.contains("authorization"))
+    );
+    let health = query_store
+        .health(ReadIngestionHealthRequest {
+            source_id: config.source_id.clone(),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(health.accepted_spans, "2");
+    assert_eq!(health.accepted_logs, "1");
+    assert_eq!(health.redacted_attributes, "2");
+
+    let _ = shutdown.send(());
+    server.await.unwrap();
+    worker.shutdown().await.unwrap();
+
+    let (reopened, reopened_worker) = ObserveWorker::start(StoreConfig {
+        database: config.database.clone(),
+        source_id: config.source_id.clone(),
+        retention_days: config.retention_days,
+        retention_bytes: config.retention_bytes,
+    })
+    .await
+    .unwrap();
+    let persisted = reopened
+        .list_requests(ListRequestsRequest {
+            cursor: OptionalValue::default(),
+            limit: 10,
+            source_id: config.source_id.clone(),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(persisted.requests.len(), 1);
+    let logs = reopened
+        .list_logs(ListTraceLogsRequest {
+            cursor: OptionalValue::default(),
+            limit: 10,
+            source_id: config.source_id.clone(),
+            span_id: OptionalValue::default(),
+            trace_id: hex::encode([1; 16]),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(logs.logs[0].body, "order loaded");
+    assert!(logs.logs[0].attributes.is_empty());
+    reopened_worker.shutdown().await.unwrap();
+}
+
+#[test]
+fn token_is_created_outside_the_plan_with_private_permissions() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("private/token");
+    let first = read_or_create_token(&path).unwrap();
+    let second = read_or_create_token(&path).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first.len(), 64);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        assert_eq!(
+            std::fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+}

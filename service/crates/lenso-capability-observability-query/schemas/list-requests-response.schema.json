@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["requests", "next_cursor", "receiver_epoch"],
+  "properties": {
+    "requests": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/request" }
+    },
+    "next_cursor": { "type": ["string", "null"], "maxLength": 256 },
+    "receiver_epoch": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  },
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": [
+        "trace_id",
+        "method",
+        "route",
+        "status_code",
+        "started_at_unix_nano",
+        "duration_nano",
+        "service_name",
+        "completeness",
+        "has_error"
+      ],
+      "properties": {
+        "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "method": { "type": "string", "maxLength": 32 },
+        "route": { "type": "string", "maxLength": 512 },
+        "status_code": { "type": "integer", "minimum": 0, "maximum": 999 },
+        "started_at_unix_nano": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "duration_nano": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+        "service_name": { "type": "string", "maxLength": 256 },
+        "completeness": {
+          "type": "string",
+          "enum": ["complete", "partial", "late"]
+        },
+        "has_error": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

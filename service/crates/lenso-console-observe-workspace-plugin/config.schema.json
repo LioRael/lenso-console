@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "source_id",
+    "source_label",
+    "listen_address",
+    "database",
+    "token_file",
+    "retention_days",
+    "retention_bytes"
+  ],
+  "properties": {
+    "source_id": { "type": "string" },
+    "source_label": { "type": "string" },
+    "listen_address": { "type": "string" },
+    "database": { "type": "string" },
+    "token_file": { "type": "string" },
+    "retention_days": { "type": "integer" },
+    "retention_bytes": { "type": "integer" }
+  },
+  "additionalProperties": false
+}

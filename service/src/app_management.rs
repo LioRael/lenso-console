@@ -15,6 +15,7 @@ pub struct ManagedAppConnection {
     #[serde(default)]
     pub console_extensions: bool,
     /// Environment variable name; never a token value in the public catalog.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub control_token_env: Option<String>,
 }
 

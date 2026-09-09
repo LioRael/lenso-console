@@ -8,8 +8,10 @@ rust-version = "1.94"
 [workspace]
 members = [
   ".",
+  "crates/lenso-capability-observability-query",
   "crates/lenso-capability-ui-contribution",
   "crates/lenso-capability-workspace-service",
+  "crates/lenso-console-observe-workspace-plugin",
   "crates/lenso-console-welcome-workspace-plugin",
 ]
 resolver = "2"
@@ -41,6 +43,7 @@ lenso-native-adapter = "=0.3.1"
 lenso-runner = "=0.2.1"
 lenso-capability-ui-contribution = { path = "crates/lenso-capability-ui-contribution" }
 lenso-capability-workspace-service = { path = "crates/lenso-capability-workspace-service" }
+lenso-console-observe-workspace-plugin = { path = "crates/lenso-console-observe-workspace-plugin" }
 lenso-console-welcome-workspace-plugin = { path = "crates/lenso-console-welcome-workspace-plugin" }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",

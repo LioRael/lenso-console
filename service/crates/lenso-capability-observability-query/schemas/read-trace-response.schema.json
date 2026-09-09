@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["trace_id", "spans", "completeness"],
+  "properties": {
+    "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "spans": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "required": [
+          "span_id",
+          "parent_span_id",
+          "name",
+          "kind",
+          "started_at_unix_nano",
+          "ended_at_unix_nano",
+          "status",
+          "attributes"
+        ],
+        "properties": {
+          "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+          "parent_span_id": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-f]{16}$"
+          },
+          "name": { "type": "string", "maxLength": 512 },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "unspecified",
+              "internal",
+              "server",
+              "client",
+              "producer",
+              "consumer"
+            ]
+          },
+          "started_at_unix_nano": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "ended_at_unix_nano": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "status": { "type": "string", "enum": ["unset", "ok", "error"] },
+          "attributes": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "required": ["key", "value"],
+              "properties": {
+                "key": { "type": "string", "maxLength": 256 },
+                "value": { "type": "string", "maxLength": 4096 }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["complete", "partial", "late"]
+    }
+  },
+  "additionalProperties": false
+}
