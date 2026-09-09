@@ -7,7 +7,7 @@ npx @lenso/agent web
 npx @lenso/agent web --port 3035 --no-open
 ```
 
-Requires Node.js 22.12 or newer, macOS 15+ on Apple Silicon or glibc Linux x64.
+Requires Node.js 22.12 or newer, macOS 15+ on Apple Silicon or Ubuntu 24.04+ x64 (glibc 2.39+).
 The command opens the browser when launched locally. SSH launches print the URL;
 use your SSH client's port forwarding. Only the loopback interface is exposed.
 Use Ctrl+C to stop the server and its Agents. Configure model authentication in

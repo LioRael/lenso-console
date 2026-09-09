@@ -58,6 +58,15 @@ export const resolveRuntime = (
       `Unsupported platform: ${target}. Supported: macOS arm64 and Linux x64.`
     );
   }
+  if (platform === "linux") {
+    const libc = process.report.getReport().header.glibcVersionRuntime;
+    const [major, minor] = (libc ?? "0.0").split(".").map(Number);
+    if (major < 2 || (major === 2 && minor < 39)) {
+      throw new Error(
+        "The Linux runtime requires glibc 2.39+ (Ubuntu 24.04+); musl is not supported."
+      );
+    }
+  }
   let manifest;
   try {
     manifest = require.resolve(`@lenso/agent-${target}/package.json`);
