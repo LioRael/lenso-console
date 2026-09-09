@@ -337,9 +337,7 @@ fn value_string(value: &AnyValue) -> String {
         Some(any_value::Value::KvlistValue(value)) => {
             format!("[object of {} values]", value.values.len())
         }
-        Some(
-            any_value::Value::StringValueStrindex(_) | any_value::Value::DoubleValue(_),
-        )
+        Some(any_value::Value::StringValueStrindex(_) | any_value::Value::DoubleValue(_))
         | None => "[unsupported value]".to_owned(),
     }
 }

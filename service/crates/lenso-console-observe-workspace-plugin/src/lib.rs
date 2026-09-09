@@ -453,15 +453,16 @@ impl lenso::Lifecycle for ObserveWorkspace {
         Ok(())
     }
 
-    #[allow(clippy::unused_async_trait_impl)]
     async fn activate(
         &self,
         _context: lenso_kernel::ActivateContext,
     ) -> Result<(), RuntimeFailure> {
-        let receiver = self
-            .receiver
-            .take()
-            .ok_or_else(|| plugin_failure("Observe receiver was not prepared"))?;
+        let receiver = ready(
+            self.receiver
+                .take()
+                .ok_or_else(|| plugin_failure("Observe receiver was not prepared")),
+        )
+        .await?;
         let store = self.store()?;
         let source_id = self.config.source_id.clone();
         let cancellation = self.tasks.cancellation().map_err(|error| {

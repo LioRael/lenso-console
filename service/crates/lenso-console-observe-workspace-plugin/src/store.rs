@@ -730,8 +730,7 @@ struct RequestRow {
 }
 
 fn request_from_row(row: RequestRow) -> Request {
-    let attributes: Vec<Attribute> =
-        serde_json::from_str(&row.attributes_json).unwrap_or_default();
+    let attributes: Vec<Attribute> = serde_json::from_str(&row.attributes_json).unwrap_or_default();
     let span = StoredSpan {
         trace_id: row.trace_id,
         span_id: String::new(),
