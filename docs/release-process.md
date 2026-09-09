@@ -36,7 +36,9 @@ its bundled binary distribution; a version bump alone does not run it.
 The coding setup flow requires Lenso Agent 0.1.4 or newer, including its separate
 App Web and Console Web binaries. Use Lenso Agent 0.1.7 or newer for working-directory context in the task
 workbench. Use Lenso Agent 0.1.8 or newer for first-time startup without an
-existing account login. Install the matching Agent release before running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
+existing account login. Browser-authorized Projects connections require Agent
+0.1.9 or newer and a business App with Auth consent and Projects HTTP ingress.
+Install the matching Agent release before running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
 Cargo `lenso-cli 0.5.2` or npm `@lenso/cli 0.16.2`.
 
 SQLite-managed Agents can import official coding Profiles while running. Select

@@ -155,11 +155,30 @@ try {
   assert.equal(installed.status, 0, installed.stderr);
   const version = spawnSync(
     "npx",
-    ["--offline", "--no", "lenso-agent", "--version"],
+    ["--offline", "--no", "--", "lenso-agent", "--version"],
     { cwd, encoding: "utf-8", env: npmEnvironment }
   );
   assert.equal(version.status, 0, version.stderr);
   assert.match(version.stdout.trim(), /^\d+\.\d+\.\d+$/u);
+
+  const installedRuntime = join(cwd, "node_modules/@lenso", `agent-${target}`);
+  const installedCohort = JSON.parse(
+    await readFile(join(installedRuntime, "cohort.json"), "utf-8")
+  );
+  assert.equal(version.stdout.trim(), installedCohort.consoleVersion);
+  for (const executable of ["lenso-agent-web", "lenso-agent-console-web"]) {
+    const runtimeVersion = spawnSync(
+      join(installedRuntime, "bin", executable),
+      ["--version"],
+      { encoding: "utf-8", env: { ...environment, HOME: homes } }
+    );
+    assert.equal(runtimeVersion.status, 0, runtimeVersion.stderr);
+    assert.equal(
+      runtimeVersion.stdout.trim().split(/\s+/u).at(-1),
+      installedCohort.agent.version,
+      "Installed Agent binaries must match the reviewed release cohort"
+    );
+  }
 
   const occupied = createServer();
   occupied.listen(0, "127.0.0.1");

@@ -61,3 +61,30 @@ Then dispatch with `publish=true` after registry authorization. The workflow
 publishes platform dependencies before the launcher. Existing immutable npm
 versions must never be overwritten; inspect registry state after an ambiguous
 failure before retrying or advancing the version.
+
+## Connect a Projects business App
+
+Agent 0.1.9 adds the optional `lenso.agent.business-connection` Plugin. A running
+business App must expose Auth browser consent and Projects Tool ingress. Model
+login and business login are separate; Agent approval mode does not grant
+business permissions. Follow the [real Projects acceptance guide](https://github.com/LioRael/lenso-agent/tree/main/scripts/projects-acceptance)
+for a disposable local App and its permission checks.
+
+The npm launcher uses SQLite-managed Plugin configuration by default. On the selected
+Agent's Connections page, choose **Add Projects App**, enter its name and origin,
+and save the validated configuration. Use Plugin settings to edit an existing
+connection. The first release supports one Projects App per Agent because its
+Tool names are shared. The
+acceptance guide's file-based Plugin Root is an alternative configuration
+authority: select `LENSO_AGENT_PLUGIN_CONFIGURATION_AUTHORITY=local_plugin_root`
+when running that specific fixture. Do not assume editing Plugin Root files
+changes an existing SQLite-managed Agent.
+
+After the connection is configured, use that Agent's Connections page to open the
+business App's consent page. Approve its exact scope, then enable the intended
+Projects Tools in Agent Tool access. The local fixture delegates
+`projects_get_issue`, `projects_list_issues`, `projects_list_projects`,
+`projects_list_issue_workflow_states` and `projects_update_issue`. Tool access
+cannot widen the business App's grant. Credentials stay inside the Agent process;
+restart requires reconnecting. The App can revoke the parent session and its
+child grant independently of Agent approval mode.
