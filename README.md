@@ -117,7 +117,8 @@ must first provide identity and authorization as reviewed vNext Plugins.
   `lenso.ui.contribution@1` Workspace catalog, same-origin Agent proxy, and thin
   supervisor for released Agent Web processes.
 - `service/crates/lenso-capability-ui-contribution`: generated Rust and
-  TypeScript contract projections for Plugin-owned Console Workspaces.
+  TypeScript contract projections for Plugin-owned Console- and App-scoped
+  Workspaces.
 - `service/crates/lenso-console-welcome-workspace-plugin`: a real reference
   provider with embedded ESM and CSS assets.
 - `src/routes`: Agent, Plugins, and Settings routes.

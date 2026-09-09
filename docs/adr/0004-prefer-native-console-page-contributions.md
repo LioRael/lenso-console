@@ -1,6 +1,6 @@
 # ADR-0004: Prefer native Console page contributions
 
-Status: Accepted; Console-scoped Workspace baseline implemented.
+Status: Accepted; Console- and App-scoped Workspace routing implemented.
 
 The [page contribution design](../console-page-contributions.md) records the
 implemented `lenso.ui.contribution@1` contract, runtime API, routing, loading,
@@ -59,11 +59,11 @@ boundary when that is a requirement.
 - **Static imports into Console source:** insufficient as the extension model
   because adding a Plugin would require changing and rebuilding the Shell.
 
-## Remaining proof before claiming App-scoped support
+## Remaining proof before claiming target-bound business support
 
-The Console-scoped baseline proves a Plan-bound provider, direct primary-rail
-Workspace, deep links, immutable same-origin assets, a shared React runtime,
-environment context, scoped navigation, cancellation, and contained failures.
-App-scoped business administration still requires the separately reviewed
-cross-App Connector and typed service-transport work. A connected App remains
-unable to advertise or inject executable UI into Console.
+The baseline proves a Plan-bound provider, direct primary-rail Workspace, both
+Console- and App-scoped deep links, immutable same-origin assets, a shared React
+runtime, environment context, scoped navigation, cancellation, and contained
+failures. App-scoped business administration still requires the cross-App
+Connector and typed service-transport work. A connected App remains unable to
+advertise or inject executable UI into Console.

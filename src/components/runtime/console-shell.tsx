@@ -21,6 +21,10 @@ import { AgentContextNavigation } from "../../features/agent/agent-context-navig
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
 import {
+  useAppManagement,
+  type ManagedApp,
+} from "../../features/apps/app-management-context";
+import {
   usePageCatalog,
   type PageMount,
 } from "../../features/extensions/page-contribution-catalog";
@@ -41,17 +45,19 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const appearance = useConsoleAppearance();
   const navigate = useNavigate();
   const { agents, selectedAgent } = useAgentIdentity();
+  const { selectedApp } = useAppManagement();
   const pageCatalog = usePageCatalog();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
-  const currentArea = consoleAreaFromPath(currentPath);
-  const currentWorkspaceLocation = workspaceLocationFromPath(currentPath);
-  const currentWorkspaceId = currentWorkspaceLocation?.workspaceId;
-  const currentWorkspace = pageCatalog.data?.find(
-    (mount) => mount.id === currentWorkspaceId
-  );
+  const {
+    currentArea,
+    currentWorkspace,
+    currentWorkspaceId,
+    currentWorkspaceLocation,
+    visibleWorkspaces,
+  } = workspaceShellState(currentPath, pageCatalog.data ?? [], selectedApp);
   const currentAgentLocation = agentLocationFromPath(currentPath);
   const activeAgent =
     agents.find((agent) => agent.id === currentAgentLocation.agentId) ??
@@ -65,21 +71,19 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             contextNavigationOpen={mobileNavigationOpen}
             currentArea={currentArea}
             currentWorkspaceId={currentWorkspaceId}
+            currentWorkspaceSubject={currentWorkspaceLocation?.subject}
             navigate={(to) => {
               setMobileNavigationOpen(false);
               navigate({ to });
             }}
-            navigateWorkspace={(workspaceId) => {
+            navigateWorkspace={(workspace) => {
               setMobileNavigationOpen(false);
-              navigate({
-                params: { _splat: "", workspaceId },
-                to: "/workspaces/$workspaceId/$",
-              });
+              navigateToWorkspace(navigate, workspace, []);
             }}
             onToggleContextNavigation={() =>
               setMobileNavigationOpen((open) => !open)
             }
-            workspaces={pageCatalog.data ?? []}
+            workspaces={visibleWorkspaces}
           />
           <Sidebar.Root
             data-mobile-open={mobileNavigationOpen || undefined}
@@ -118,12 +122,9 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                 <WorkspaceSidebar
                   mount={currentWorkspace}
                   currentSegments={currentWorkspaceLocation?.segments ?? []}
-                  navigate={(workspaceId, segments) => {
+                  navigate={(workspace, segments) => {
                     setMobileNavigationOpen(false);
-                    navigate({
-                      params: { _splat: segments.join("/"), workspaceId },
-                      to: "/workspaces/$workspaceId/$",
-                    });
+                    navigateToWorkspace(navigate, workspace, segments);
                   }}
                   onRequestClose={() => setMobileNavigationOpen(false)}
                 />
@@ -173,6 +174,7 @@ function PrimaryRail({
   contextNavigationOpen,
   currentArea,
   currentWorkspaceId,
+  currentWorkspaceSubject,
   navigate,
   navigateWorkspace,
   onToggleContextNavigation,
@@ -181,8 +183,9 @@ function PrimaryRail({
   contextNavigationOpen: boolean;
   currentArea: ConsoleArea;
   currentWorkspaceId: string | undefined;
+  currentWorkspaceSubject: PageMount["subject"] | undefined;
   navigate: (to: "/" | "/plugins" | "/settings") => void;
-  navigateWorkspace: (workspaceId: string) => void;
+  navigateWorkspace: (workspace: PageMount) => void;
   onToggleContextNavigation: () => void;
   workspaces: readonly PageMount[];
 }) {
@@ -252,13 +255,18 @@ function PrimaryRail({
             <IconButton
               aria-label={workspace.navigation.label}
               key={workspace.id}
-              onClick={() => navigateWorkspace(workspace.id)}
+              onClick={() => navigateWorkspace(workspace)}
               size="default"
               variant="ghost"
               xstyle={[
                 shellStyles.railButton,
                 currentArea === "workspace" &&
                   currentWorkspaceId === workspace.id &&
+                  currentWorkspaceSubject &&
+                  sameWorkspaceSubject(
+                    workspace.subject,
+                    currentWorkspaceSubject
+                  ) &&
                   shellStyles.activeRailButton,
               ]}
             >
@@ -328,19 +336,72 @@ function consoleAreaFromPath(path: string): ConsoleArea {
   if (path.startsWith("/workspaces/")) {
     return "workspace";
   }
+  if (/^\/apps\/[^/]+\/pages\//u.test(path)) {
+    return "workspace";
+  }
   return "agent";
+}
+
+function workspaceShellState(
+  path: string,
+  mounts: readonly PageMount[],
+  selectedApp: ManagedApp | undefined
+) {
+  const currentArea = consoleAreaFromPath(path);
+  const currentWorkspaceLocation = workspaceLocationFromPath(path);
+  const currentWorkspaceId = currentWorkspaceLocation?.workspaceId;
+  const currentWorkspace = mounts.find(
+    (mount) =>
+      mount.id === currentWorkspaceId &&
+      !!currentWorkspaceLocation &&
+      sameWorkspaceSubject(mount.subject, currentWorkspaceLocation.subject)
+  );
+  const visibleAppId =
+    currentWorkspaceLocation?.subject.kind === "app"
+      ? currentWorkspaceLocation.subject.appId
+      : selectedApp?.scope === "application"
+        ? selectedApp.id
+        : undefined;
+  const visibleWorkspaces = mounts.filter(
+    (mount) =>
+      mount.subject.kind === "console" ||
+      (mount.subject.kind === "app" && mount.subject.appId === visibleAppId)
+  );
+  return {
+    currentArea,
+    currentWorkspace,
+    currentWorkspaceId,
+    currentWorkspaceLocation,
+    visibleWorkspaces,
+  };
 }
 
 function workspaceLocationFromPath(path: string) {
   const workspace = /^\/workspaces\/([^/]+)(?:\/(.*))?$/u.exec(path);
-  if (!workspace?.[1]) {
+  if (workspace?.[1]) {
+    return {
+      segments: workspace[2]
+        ? workspace[2].split("/").map((segment) => decodeURIComponent(segment))
+        : [],
+      subject: { kind: "console" } as const,
+      workspaceId: decodeURIComponent(workspace[1]),
+    };
+  }
+  const appWorkspace = /^\/apps\/([^/]+)\/pages\/([^/]+)(?:\/(.*))?$/u.exec(
+    path
+  );
+  if (!(appWorkspace?.[1] && appWorkspace[2])) {
     return undefined;
   }
   return {
-    segments: workspace[2]
-      ? workspace[2].split("/").map((segment) => decodeURIComponent(segment))
+    segments: appWorkspace[3]
+      ? appWorkspace[3].split("/").map((segment) => decodeURIComponent(segment))
       : [],
-    workspaceId: decodeURIComponent(workspace[1]),
+    subject: {
+      appId: decodeURIComponent(appWorkspace[1]),
+      kind: "app",
+    } as const,
+    workspaceId: decodeURIComponent(appWorkspace[2]),
   };
 }
 
@@ -352,7 +413,7 @@ function WorkspaceSidebar({
 }: {
   currentSegments: readonly string[];
   mount: PageMount | undefined;
-  navigate: (workspaceId: string, segments: readonly string[]) => void;
+  navigate: (workspace: PageMount, segments: readonly string[]) => void;
   onRequestClose: () => void;
 }) {
   const t = useConsoleTranslation();
@@ -376,7 +437,7 @@ function WorkspaceSidebar({
             <Sidebar.MenuItem key={item.path.join("/") || "home"}>
               <ContextNavigationItem
                 icon={<PanelsTopLeft size={15} strokeWidth={1.75} />}
-                onClick={() => navigate(mount.id, item.path)}
+                onClick={() => navigate(mount, item.path)}
                 selected={sameSegments(currentSegments, item.path)}
               >
                 {item.label}
@@ -387,6 +448,40 @@ function WorkspaceSidebar({
       </Sidebar.Content>
     </>
   );
+}
+
+function sameWorkspaceSubject(
+  left: PageMount["subject"],
+  right: PageMount["subject"]
+) {
+  return (
+    left.kind === right.kind &&
+    (left.kind === "console" ||
+      (right.kind === "app" && left.appId === right.appId))
+  );
+}
+
+function navigateToWorkspace(
+  navigate: ReturnType<typeof useNavigate>,
+  workspace: PageMount,
+  segments: readonly string[]
+) {
+  const _splat = segments.join("/");
+  if (workspace.subject.kind === "console") {
+    navigate({
+      params: { _splat, workspaceId: workspace.id },
+      to: "/workspaces/$workspaceId/$",
+    });
+    return;
+  }
+  navigate({
+    params: {
+      _splat,
+      appId: workspace.subject.appId,
+      workspaceId: workspace.id,
+    },
+    to: "/apps/$appId/pages/$workspaceId/$",
+  });
 }
 
 function sameSegments(left: readonly string[], right: readonly string[]) {

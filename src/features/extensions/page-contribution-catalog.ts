@@ -22,7 +22,7 @@ export type PageMount = {
   }[];
   revision: string;
   styles: readonly string[];
-  subject: "console";
+  subject: { kind: "console" } | { appId: string; kind: "app" };
   title: string;
 };
 
@@ -61,8 +61,37 @@ const demoCatalog: readonly PageMount[] = [
         ".welcome-contribution { padding: 2rem; }"
       )}`,
     ],
-    subject: "console",
+    subject: { kind: "console" },
     title: "Extension workspace",
+  },
+  {
+    apiMajor: 1,
+    id: "development-overview",
+    module: `data:text/javascript,${encodeURIComponent(`
+      export const apiMajor = 1;
+      export const createWorkspace = ({ createElement }) => ({
+        Page: ({ mount }) => createElement(
+          "section",
+          { className: "welcome-contribution" },
+          createElement("h1", null, "App workspace"),
+          createElement("p", null, "Target: " + mount.subject.appId)
+        )
+      });
+    `)}`,
+    navigation: {
+      items: [{ label: "Overview", path: [] }],
+      label: "Development App",
+    },
+    owner: {
+      instance: "demo.development-overview",
+      source: "development-filesystem",
+      trusted: false,
+    },
+    requirements: [],
+    revision: "demo",
+    styles: [],
+    subject: { appId: "development", kind: "app" },
+    title: "Development App",
   },
 ];
 
@@ -90,7 +119,7 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       typeof candidate.title !== "string" ||
       !candidate.title.trim() ||
       !("subject" in candidate) ||
-      candidate.subject !== "console" ||
+      !validSubject(candidate.subject) ||
       !("apiMajor" in candidate) ||
       candidate.apiMajor !== 1 ||
       !("module" in candidate) ||
@@ -140,6 +169,21 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
     };
     return mount;
   });
+}
+
+function validSubject(value: unknown): value is PageMount["subject"] {
+  if (!value || typeof value !== "object" || !("kind" in value)) {
+    return false;
+  }
+  if (value.kind === "console") {
+    return !("appId" in value);
+  }
+  return (
+    value.kind === "app" &&
+    "appId" in value &&
+    typeof value.appId === "string" &&
+    /^[a-z][a-z0-9._-]{0,63}$/u.test(value.appId)
+  );
 }
 
 function validOwner(value: unknown): value is PageMount["owner"] {
