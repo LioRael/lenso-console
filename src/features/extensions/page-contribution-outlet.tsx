@@ -5,25 +5,45 @@ import {
   createElement,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
 } from "react";
+import * as React from "react";
 
+import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { useConsoleLocale } from "../../app/console-locale";
 import { RoutePending } from "../../app/route-states";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
 
 type ContributionProps = {
+  environment: { locale: "en" | "zh-CN"; theme: "dark" | "light" };
   location: { hash: string; search: string; segments: readonly string[] };
   mount: PageMount;
+  navigation: {
+    go: (segments: readonly string[]) => void;
+    href: (segments: readonly string[]) => string;
+  };
+  signal: AbortSignal;
 };
 
 type ContributionModule = {
   apiMajor: 1;
-  createPage(runtime: { createElement: typeof createElement }): {
+  createWorkspace(runtime: {
+    createElement: typeof createElement;
+    react: typeof React;
+  }): {
     Page: ComponentType<ContributionProps>;
+    Provider?: ComponentType<{ children: ReactNode }>;
   };
+};
+
+type LoadedContribution = {
+  status: "ready";
+  Page: ComponentType<ContributionProps>;
+  Provider: ComponentType<{ children: ReactNode }>;
 };
 
 const styles = stylex.create({
@@ -55,6 +75,8 @@ export function PageContributionOutlet({
   segments: readonly string[];
 }) {
   const t = useConsoleTranslation();
+  const { theme } = useConsoleAppearance();
+  const { locale } = useConsoleLocale();
   const catalog = usePageCatalog();
   const mount = catalog.data?.find((candidate) => candidate.id === mountId);
   const [attempt, setAttempt] = useState(0);
@@ -67,6 +89,7 @@ export function PageContributionOutlet({
     }),
     [segments]
   );
+  const navigation = workspaceNavigation(mountId);
 
   if (catalog.isPending || (mount && loaded.status === "loading")) {
     return <RoutePending />;
@@ -102,12 +125,50 @@ export function PageContributionOutlet({
   }
   return (
     <ContributionRenderBoundary
-      key={`${mount.id}:${attempt}`}
+      key={`${mount.id}:${mount.revision}:${attempt}`}
       onRetry={() => setAttempt((value) => value + 1)}
       title={t("Extension failed to render")}
     >
-      <loaded.Page location={location} mount={mount} />
+      <MountedContribution
+        environment={{ locale, theme }}
+        loaded={loaded}
+        location={location}
+        mount={mount}
+        navigation={navigation}
+      />
     </ContributionRenderBoundary>
+  );
+}
+
+function MountedContribution({
+  environment,
+  loaded,
+  location,
+  mount,
+  navigation,
+}: {
+  environment: ContributionProps["environment"];
+  loaded: LoadedContribution;
+  location: ContributionProps["location"];
+  mount: PageMount;
+  navigation: ContributionProps["navigation"];
+}) {
+  const controllerRef = useRef<AbortController | null>(null);
+  if (!controllerRef.current) {
+    controllerRef.current = new AbortController();
+  }
+  const controller = controllerRef.current;
+  useEffect(() => () => controller.abort(), [controller]);
+  return (
+    <loaded.Provider>
+      <loaded.Page
+        environment={environment}
+        location={location}
+        mount={mount}
+        navigation={navigation}
+        signal={controller.signal}
+      />
+    </loaded.Provider>
   );
 }
 
@@ -148,7 +209,7 @@ class ContributionRenderBoundary extends Component<
 function useContributionModule(mount: PageMount | undefined, attempt: number) {
   const [state, setState] = useState<
     | { status: "idle" | "loading" }
-    | { status: "ready"; Page: ComponentType<ContributionProps> }
+    | LoadedContribution
     | { status: "error"; error: Error }
   >({ status: "idle" });
 
@@ -186,11 +247,15 @@ function useContributionModule(mount: PageMount | undefined, attempt: number) {
         if (!isContributionModule(value)) {
           throw new TypeError("The extension module contract is invalid");
         }
-        const page = value.createPage({ createElement });
+        const page = value.createWorkspace({ createElement, react: React });
         if (!page || typeof page.Page !== "function") {
           throw new TypeError("The extension page export is invalid");
         }
-        setState({ Page: page.Page, status: "ready" });
+        setState({
+          Page: page.Page,
+          Provider: page.Provider ?? PassThroughProvider,
+          status: "ready",
+        });
       } catch (error) {
         if (current) {
           setState({
@@ -217,9 +282,34 @@ function isContributionModule(value: unknown): value is ContributionModule {
     typeof value === "object" &&
     "apiMajor" in value &&
     value.apiMajor === 1 &&
-    "createPage" in value &&
-    typeof value.createPage === "function"
+    "createWorkspace" in value &&
+    typeof value.createWorkspace === "function"
   );
+}
+
+function PassThroughProvider({ children }: { children: ReactNode }) {
+  return children;
+}
+
+function workspaceNavigation(mountId: string) {
+  const href = (segments: readonly string[]) => {
+    if (
+      !segments.every((segment) =>
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
+      )
+    ) {
+      throw new TypeError("Workspace navigation path is invalid");
+    }
+    const suffix = segments.length ? `/${segments.join("/")}` : "";
+    return `/workspaces/${encodeURIComponent(mountId)}${suffix}`;
+  };
+  return {
+    href,
+    go: (segments: readonly string[]) => {
+      window.history.pushState(null, "", href(segments));
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    },
+  };
 }
 
 function ContributionError({

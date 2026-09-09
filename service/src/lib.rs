@@ -141,6 +141,7 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
 pub struct ConsolePlugin {
     #[config]
     config: ConsolePluginConfig,
+    workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
     #[tasks]
     tasks: ManagedTasks,
 }
@@ -148,7 +149,11 @@ pub struct ConsolePlugin {
 impl Lifecycle for ConsolePlugin {
     async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
-        let server = ConsoleServer::start(config).await.map_err(plugin_failure)?;
+        let page_catalog =
+            page_contributions::PageCatalog::from_port(&self.workspace_contributions).await?;
+        let server = ConsoleServer::start(config, page_catalog)
+            .await
+            .map_err(plugin_failure)?;
         let cancellation = self.tasks.cancellation().map_err(|error| {
             plugin_failure(format!("Console task scope is unavailable: {error:?}"))
         })?;
@@ -516,7 +521,11 @@ pub async fn serve(
     config: ConsoleConfig,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
-    ConsoleServer::start(config).await?.run(shutdown).await
+    let page_catalog = page_contributions::PageCatalog::discover(&config.web_root)?;
+    ConsoleServer::start(config, page_catalog)
+        .await?
+        .run(shutdown)
+        .await
 }
 
 /// Serve Console on a listener reserved by its process-owning launcher.
@@ -525,7 +534,8 @@ pub async fn serve_listener(
     listener: tokio::net::TcpListener,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
-    ConsoleServer::with_listener(config, listener)
+    let page_catalog = page_contributions::PageCatalog::discover(&config.web_root)?;
+    ConsoleServer::with_listener(config, listener, page_catalog)
         .await?
         .run(shutdown)
         .await
@@ -538,14 +548,18 @@ struct ConsoleServer {
 }
 
 impl ConsoleServer {
-    async fn start(config: ConsoleConfig) -> anyhow::Result<Self> {
+    async fn start(
+        config: ConsoleConfig,
+        page_catalog: page_contributions::PageCatalog,
+    ) -> anyhow::Result<Self> {
         let listener = tokio::net::TcpListener::bind(config.address).await?;
-        Self::with_listener(config, listener).await
+        Self::with_listener(config, listener, page_catalog).await
     }
 
     async fn with_listener(
         config: ConsoleConfig,
         listener: tokio::net::TcpListener,
+        page_catalog: page_contributions::PageCatalog,
     ) -> anyhow::Result<Self> {
         anyhow::ensure!(
             listener.local_addr()?.ip() == config.address.ip()
@@ -555,8 +569,6 @@ impl ConsoleServer {
         );
         config.validate()?;
         config.console_agent.require_ready().await?;
-        let (page_catalog, page_assets) =
-            page_contributions::PageCatalog::discover(&config.web_root)?;
         let index = config.web_root.join("index.html");
         let shell = ServeDir::new(config.web_root).fallback(ServeFile::new(index));
         let mut agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
@@ -573,7 +585,6 @@ impl ConsoleServer {
             .route("/health/ready", get(health))
             .route("/health/startup", get(health))
             .merge(page_catalog.routes())
-            .merge(page_assets)
             .merge(app_management::routes(app_management::AppCatalog {
                 agents: agent_catalog.clone(),
                 apps: config.managed_apps,
@@ -1142,7 +1153,14 @@ mod tests {
         assert_eq!(descriptor["plugin_id"], "lenso.console.web");
         assert_eq!(descriptor["root_slot"], "console");
         assert_eq!(descriptor["provided_capabilities"], serde_json::json!([]));
-        assert_eq!(descriptor["required_capabilities"], serde_json::json!([]));
+        assert_eq!(
+            descriptor["required_capabilities"],
+            serde_json::json!([{
+                "capability_id": "lenso.ui.contribution@1",
+                "descriptor_version": "1.0.0",
+                "cardinality": "many"
+            }])
+        );
     }
 
     #[test]

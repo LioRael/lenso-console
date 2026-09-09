@@ -5,6 +5,7 @@ import tanstack from "ultracite/oxlint/tanstack";
 
 export default defineConfig({
   extends: [core, react, tanstack],
+  ignorePatterns: ["service/**/generated/**"],
   overrides: [
     {
       files: ["src/**/*.{ts,tsx}", "vite.config.ts"],

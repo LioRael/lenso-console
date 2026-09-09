@@ -113,8 +113,13 @@ must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `service`: the `lenso.console.web` lifecycle Plugin, same-origin Agent proxy,
-  and thin supervisor for released Agent Web processes.
+- `service`: the `lenso.console.web` lifecycle Plugin, its Plan-bound
+  `lenso.ui.contribution@1` Workspace catalog, same-origin Agent proxy, and thin
+  supervisor for released Agent Web processes.
+- `service/crates/lenso-capability-ui-contribution`: generated Rust and
+  TypeScript contract projections for Plugin-owned Console Workspaces.
+- `service/crates/lenso-console-welcome-workspace-plugin`: a real reference
+  provider with embedded ESM and CSS assets.
 - `src/routes`: Agent, Plugins, and Settings routes.
 - `src/features/agent`: Agent conversation, trajectory, history, editing, and
   ask-user UI.

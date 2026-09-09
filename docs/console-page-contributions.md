@@ -1,34 +1,80 @@
 # Native Console page contributions
 
-Status: Proposed design for review. This refines
-[ADR-0004](adr/0004-prefer-native-console-page-contributions.md); it does not
-implement or publish a loader, SDK, Capability, or artifact format.
+Status: Console-scoped baseline implemented; App-scoped service binding deferred.
+
+This document now separates the shipped Workspace path from the remaining
+cross-App design. The implementation includes a typed
+`lenso.ui.contribution@1` request Capability, a `many` Port on
+`lenso.console.web`, an immutable activation-time catalog, a reference provider
+Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
+crate and reference Plugin are repository-local and are not published releases.
+
+The standalone development launcher still admits `public/contributions` through
+an explicitly untrusted `development-filesystem` adapter. Production Plugin
+activation does not scan that directory: it consumes only provider instances
+selected in the immutable Resolved App Plan. Connected Apps cannot push code.
+
+Regenerate and verify the checked-in Rust and TypeScript contract projections:
+
+```sh
+LENSO_UPDATE_CONTRACT_SNAPSHOT=1 \
+  /Users/leosouthey/Projects/framework/.lenso-tools/bin/lenso-cargo \
+  check --manifest-path service/Cargo.toml \
+  -p lenso-capability-ui-contribution
+```
 
 ## 1. Design summary
 
-An author supplies a declarative contribution descriptor, a native React module,
-and compiled assets. Console discovers admitted contributions, derives
-target-bound mounts, and renders the selected module inside its existing Shell.
+An author supplies a typed Capability provider containing Workspace metadata, a
+native React module, and compiled assets. Console snapshots admitted providers
+during activation and renders the selected module inside its existing Shell.
 A contribution may implement a full multi-page workspace; it is not restricted
 to forms, widgets, or an iframe.
 
 The small public interface has three parts:
 
-1. **Descriptor:** what experience exists, where it belongs, its compatibility,
-   and the services it requires.
-2. **Page module:** the root page and optional contextual navigation.
-3. **Page context:** immutable mount identity, scoped navigation, environment,
-   and target-bound service transports.
+1. **Capability response:** Workspace identity, revision, navigation, entry
+   module, immutable assets, and future typed service requirements.
+2. **Workspace module:** `apiMajor: 1` plus `createWorkspace(runtime)` returning
+   a root `Page` and optional shared `Provider`.
+3. **Workspace props:** immutable mount metadata, scoped navigation, reactive
+   theme/locale, location, and an unmount cancellation signal.
 
-The descriptor is an authoring declaration. A mount is a Host-derived projection
-for a particular owner, contribution, and subject. App owners do not hand-author
-provider bindings or resolved plans.
+The Capability response is the provider declaration. A mount is a Host-derived
+projection for a particular owner and contribution. App owners do not
+hand-author provider bindings or resolved plans.
 
 Choose one browser history owner, immutable versioned assets, and explicit
 service requirements. Do not expose Console's source imports, entire router,
 global query client, or Agent state as an extension SDK.
 
 ## 2. Current implementation and gaps
+
+Implemented now:
+
+- `lenso.console.web` requires `lenso.ui.contribution@1` with `many`
+  cardinality and calls every bound provider exactly once during activation.
+- Provider instance identity, revision, declared requirements, and trust source
+  are preserved in the catalog. Duplicate Workspace IDs, navigation paths,
+  unsafe paths, missing entry assets, oversized assets, and invalid base64 fail
+  admission before the server starts.
+- Assets live in an owned in-memory snapshot and are served same-origin with
+  exact media types, `nosniff`, immutable caching, and no SPA fallback.
+- The Shell passes its React singleton, theme, locale, mount-local navigation,
+  and cancellation to the Plugin module. A Plugin `Provider` wraps its page so
+  internal pages can share state.
+- The far-left item is a Workspace. Selecting it reveals only its own declared
+  second-sidebar navigation; there is no top-level Tools aggregator.
+
+Not implemented by this baseline:
+
+- App-scoped Workspaces and target-bound business requests. These require the
+  explicit cross-App Connector entry criteria; a Managed App connection is not
+  code-install authority.
+- Hot graph mutation. Install, enable, disable, and upgrade publish a new Plugin
+  Root/Generation; the active catalog is intentionally immutable.
+- Hard isolation between native Plugin modules. They are trusted application
+  code and share a browser realm.
 
 | Current source | Consequence for this design |
 | --- | --- |
@@ -40,10 +86,9 @@ global query client, or Agent state as an extension SDK.
 | [App connection model](../service/src/app_management.rs#L9) is loopback-only | This slice does not silently enable remote targets, operator federation, or arbitrary credential forwarding |
 | [Catch-all route](../src/routes/$.tsx#L5) handles legacy links then returns not-found | Dedicated extension route prefixes must coexist with legacy routing |
 
-The current React 19 / Vite 8 stack supports a native React first implementation.
-It does not already provide a runtime extension loader or a generic page/provider
-Capability. Proposed identifiers and paths below are design notation, not
-existing framework contracts.
+The current React 19 / Vite 8 stack now has a native Workspace loader and the
+generic `lenso.ui.contribution@1` provider Capability. App subjects and service
+transports below remain design notation until the cross-App boundary is accepted.
 
 ## 3. Ownership and identity
 
@@ -78,9 +123,11 @@ first App. Catalog metadata is not evidence of target readiness.
 
 ## 4. What an author supplies
 
-The proposed descriptor schema is Console-owned, versioned independently from
-Plugin business contracts, and attached to a Plugin's reviewed artifact metadata.
-It is not a second Plugin package manager or an App-authored provider selection.
+The implemented Console Workspace declaration is a generated Capability
+response, versioned independently from Plugin business contracts and emitted by
+a Plugin selected in Console's composition. The JSON below remains an
+illustrative future App-scoped authoring projection, not a second Plugin package
+manager or App-authored provider selection.
 
 Illustrative descriptor for a Plugin-owned users page:
 
@@ -144,90 +191,66 @@ React component registry to this descriptor.
 
 ## 5. Page module and author experience
 
-This is the proposed SDK surface, not a published package:
+The implemented API-major-1 module surface is injected by the Shell, so a
+Workspace uses the Console's React singleton and does not import private Shell
+modules:
 
 ```ts
-import type { ComponentType, PropsWithChildren } from "react";
+import type * as React from "react";
 
-type PageModule = {
+type WorkspaceModule = {
   apiMajor: 1;
-  Provider?: ComponentType<PropsWithChildren<PageProps>>;
-  Page: ComponentType<PageProps>;
-  Navigation?: ComponentType<PageProps>;
+  createWorkspace(runtime: {
+    createElement: typeof React.createElement;
+    react: typeof React;
+  }): {
+    Page: React.ComponentType<WorkspaceProps>;
+    Provider?: React.ComponentType<React.PropsWithChildren>;
+  };
 };
 
-type PageLocation = {
-  segments: readonly string[];
-  search: string;
-  hash: string;
-};
-
-type PageProps = {
-  host: PageContext;
-  location: PageLocation;
-};
-
-type PageContext = {
+type WorkspaceProps = {
   mount: Readonly<{
     id: string;
+    title: string;
     revision: string;
-    cacheScope: readonly string[];
-    subject:
-      | { kind: "app"; appId: string; label: string }
-      | { kind: "console" };
+    owner: { instance: string; source: string; trusted: boolean };
+    requirements: readonly CapabilityRequirement[];
   }>;
-  environment: Readonly<{
-    theme: "light" | "dark";
-    locale: string;
-  }>;
+  environment: Readonly<{ theme: "light" | "dark"; locale: "en" | "zh-CN" }>;
   navigation: {
-    href(location: PageLocation): string;
-    go(location: PageLocation, options?: { replace?: boolean }): void;
-    block(check: () => boolean | Promise<boolean>): () => void;
+    href(segments: readonly string[]): string;
+    go(segments: readonly string[]): void;
   };
-  services: Readonly<Record<string, ServiceTransport>>;
   signal: AbortSignal;
-};
-
-type ServiceTransport = {
-  request(
-    relativePath: string,
-    init?: Pick<RequestInit, "method" | "headers" | "body" | "signal">
-  ): Promise<Response>;
+  location: {
+    segments: readonly string[];
+    search: string;
+    hash: string;
+  };
 };
 ```
 
-The root module's default export satisfies `PageModule`. A Plugin supplies normal
-React components and owns its internal routes, state, and interactions. A
-domain-generated client wraps a named service transport, for example
-`createUsersClient(host.services.users)`. It should not handwrite a second wire
-schema or use `invokeAnyCapability(name, arbitraryJson)`.
+The module exports `apiMajor` and `createWorkspace`. A Plugin supplies normal
+React components and owns its internal routes, state, and interactions. The
+runtime validates the export before mounting it and contains loading, import,
+and render failures per Workspace.
 
-The Shell owns React mounting. Both exported components render below one
-Plugin-instance provider tree so page and navigation can share Plugin state.
-The optional `Provider` wraps both; the Shell uses a React portal to place
-`Navigation` in the contextual sidebar without losing that shared context.
-Without `Provider`, the Shell renders both directly. The provider is mount-local,
-not a way to wrap unrelated pages or register global application providers.
+The Shell owns React mounting. The optional `Provider` wraps the page and stays
+mount-local; it is not a way to wrap unrelated pages or register global
+application providers. The second sidebar remains declarative in API major 1.
+Rich Plugin-rendered navigation, navigation guards, caches, and typed service
+transports require additive reviewed contracts before they can be claimed.
 
 Context semantics:
 
-- Owner, subject, mount revision, service transports, and cancellation scope
+- Owner, mount revision, and cancellation scope
   remain fixed for a mounted experience. A change creates a new context and
-  React subtree; it does not mutate an existing client's destination.
+  React subtree.
 - Location and environment updates are reactive props. Theme changes do not
   create a new mount or reset business state.
-- `block` registers an unsaved-work guard for both internal and cross-workspace
-  navigation; its result means allow/deny. Disposing the context removes guards.
-  Browser unload can only offer the browser's synchronous warning, not promise
-  an asynchronous save.
-- SDK requests combine caller cancellation with the mount signal. Plugin code
-  still owns cleanup of its own subscriptions, timers, workers, and external
-  libraries.
-- `cacheScope` includes the Console session/epoch, owner, subject, mount revision,
-  and any active identity partition. Private query caches must use it; they must
-  be cleared or partitioned on identity changes. The SDK does not expose
-  Console's global QueryClient.
+- Plugin code combines its work with the mount `AbortSignal` and still owns
+  cleanup of its subscriptions, timers, workers, and external libraries.
 
 A Plugin may use its own state library, editor, canvas, charts, or data cache.
 Official UI components are optional. Direct browser APIs are not forbidden or
@@ -324,10 +347,10 @@ bug, not something ESM can isolate or reverse.
 
 ### Assets and styles
 
-The service admits and verifies the complete artifact file set before exposing
-it under an immutable digest path. Entry, lazy chunks, CSS, fonts, and images are
-verified together; checking only the entry file is insufficient. Asset requests
-never fall back to the SPA HTML document.
+The current contract admits JavaScript entry assets and CSS before exposing them
+under an immutable digest path. Every declared entry and stylesheet is verified;
+asset requests never fall back to the SPA HTML document. Lazy chunks, fonts, and
+images require an additive media-type contract before support can be claimed.
 
 Load CSS before rendering; reference-count artifact styles while contributions
 are mounted. Authors can use CSS Modules, compiled StyleX, or their own compiled

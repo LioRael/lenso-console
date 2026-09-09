@@ -61,11 +61,18 @@ test("contains a contribution render failure and allows a retry", async () => {
         id: "broken",
         module: `data:text/javascript,${encodeURIComponent(`
         export const apiMajor = 1;
-        export const createPage = () => ({
+        export const createWorkspace = () => ({
           Page: () => { throw new Error("Contribution render exploded"); }
         });
       `)}`,
         navigation: { items: [], label: "Broken" },
+        owner: {
+          instance: "broken.plugin",
+          source: "resolved-plan",
+          trusted: true,
+        },
+        requirements: [],
+        revision: "1.0.0",
         styles: [],
         subject: "console",
         title: "Broken",

@@ -1,6 +1,6 @@
 export const apiMajor = 1;
 
-export const createPage = ({ createElement }) => {
+export const createWorkspace = ({ createElement }) => {
   const Page = ({ location, mount }) =>
     createElement(
       "section",
