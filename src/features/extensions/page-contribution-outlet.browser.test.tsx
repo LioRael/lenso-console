@@ -20,6 +20,7 @@ test("loads a discovered native contribution without a static component import",
           <PageContributionOutlet
             mountId="welcome"
             segments={["request", "example"]}
+            subject={{ kind: "console" }}
           />
         </QueryClientProvider>
       )
@@ -44,6 +45,36 @@ test("loads a discovered native contribution without a static component import",
   expect(
     document.head.querySelector('link[data-console-contribution="welcome"]')
   ).toBeNull();
+});
+
+test("binds an App Workspace to the canonical URL subject", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  try {
+    flushSync(() =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <PageContributionOutlet
+            mountId="development-overview"
+            segments={[]}
+            subject={{ appId: "development", kind: "app" }}
+          />
+        </QueryClientProvider>
+      )
+    );
+    await expect
+      .element(page.getByRole("heading", { name: "App workspace" }))
+      .toBeVisible();
+    await expect.element(page.getByText("Target: development")).toBeVisible();
+  } finally {
+    root.unmount();
+    client.clear();
+    container.remove();
+  }
 });
 
 test("contains a contribution render failure and allows a retry", async () => {
@@ -74,7 +105,7 @@ test("contains a contribution render failure and allows a retry", async () => {
         requirements: [],
         revision: "1.0.0",
         styles: [],
-        subject: "console",
+        subject: { kind: "console" },
         title: "Broken",
       },
     ]
@@ -84,7 +115,11 @@ test("contains a contribution render failure and allows a retry", async () => {
     flushSync(() =>
       root.render(
         <QueryClientProvider client={client}>
-          <PageContributionOutlet mountId="broken" segments={[]} />
+          <PageContributionOutlet
+            mountId="broken"
+            segments={[]}
+            subject={{ kind: "console" }}
+          />
         </QueryClientProvider>
       )
     );

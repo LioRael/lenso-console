@@ -17,6 +17,7 @@ use lenso::ManyPort;
 use lenso_capability_ui_contribution::{
     ContributionClient, ContributionInvocationError, DescribeRequest, DescribeResponse,
     DescribeResponseAssetsItemMediaType, DescribeResponseRequirementsItem,
+    DescribeResponseSubject as ContractSubject, DescribeResponseSubjectKind as ContractSubjectKind,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -38,10 +39,15 @@ struct ContributionDescriptor {
     navigation: ContributionNavigation,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
 enum ContributionSubject {
     Console,
+    App { app_id: String },
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -108,6 +114,7 @@ pub(super) struct PageCatalog {
 impl PageCatalog {
     pub(super) async fn from_port(
         port: &ManyPort<ContributionClient>,
+        allowed_app_subjects: &BTreeSet<String>,
     ) -> Result<Self, lenso_kernel::RuntimeFailure> {
         let mut contributions = Vec::with_capacity(port.len());
         for provider in port.iter() {
@@ -128,14 +135,17 @@ impl PageCatalog {
                     })?;
             contributions.push((owner, response));
         }
-        Self::from_contributions(contributions).map_err(|error| {
+        Self::from_contributions(contributions, allowed_app_subjects).map_err(|error| {
             lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
                 detail: error.to_string(),
             }
         })
     }
 
-    fn from_contributions(contributions: Vec<(String, DescribeResponse)>) -> anyhow::Result<Self> {
+    fn from_contributions(
+        contributions: Vec<(String, DescribeResponse)>,
+        allowed_app_subjects: &BTreeSet<String>,
+    ) -> anyhow::Result<Self> {
         anyhow::ensure!(
             contributions.len() <= 64,
             "Console supports at most 64 Workspace contributions"
@@ -144,6 +154,8 @@ impl PageCatalog {
         let mut assets = BTreeMap::new();
         let mut ids = BTreeSet::new();
         for (owner, contribution) in contributions {
+            let subject =
+                contribution_subject(contribution.subject.as_ref(), allowed_app_subjects)?;
             anyhow::ensure!(
                 ids.insert(contribution.workspace_id.clone()),
                 "duplicate Console Workspace id: {}",
@@ -201,7 +213,7 @@ impl PageCatalog {
             mounts.push(PageMount {
                 id: contribution.workspace_id,
                 title: contribution.title,
-                subject: ContributionSubject::Console,
+                subject,
                 api_major: 1,
                 module: format!("{asset_base}/{}", contribution.module),
                 styles: contribution
@@ -236,7 +248,10 @@ impl PageCatalog {
         })
     }
 
-    pub(super) fn discover(web_root: &Path) -> anyhow::Result<Self> {
+    pub(super) fn discover(
+        web_root: &Path,
+        allowed_app_subjects: &BTreeSet<String>,
+    ) -> anyhow::Result<Self> {
         let root = web_root.join("contributions");
         if !root.exists() {
             return Ok(Self {
@@ -304,12 +319,13 @@ impl PageCatalog {
                     requirements: Vec::new(),
                     revision: "dev".to_owned(),
                     styles: descriptor.styles,
+                    subject: Some(contract_subject(descriptor.subject)),
                     title: descriptor.title,
                     workspace_id: descriptor.id,
                 },
             ));
         }
-        let mut catalog = Self::from_contributions(contributions)?;
+        let mut catalog = Self::from_contributions(contributions, allowed_app_subjects)?;
         for mount in Arc::make_mut(&mut catalog.mounts) {
             mount.owner.source = "development-filesystem";
             mount.owner.trusted = false;
@@ -434,6 +450,45 @@ fn validate_response(value: &DescribeResponse) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn contribution_subject(
+    value: Option<&ContractSubject>,
+    allowed_app_subjects: &BTreeSet<String>,
+) -> anyhow::Result<ContributionSubject> {
+    let Some(value) = value else {
+        return Ok(ContributionSubject::Console);
+    };
+    match (&value.kind, &value.app_id) {
+        (ContractSubjectKind::Console, None | Some(None)) => Ok(ContributionSubject::Console),
+        (ContractSubjectKind::App, Some(Some(app_id))) if allowed_app_subjects.contains(app_id) => {
+            Ok(ContributionSubject::App {
+                app_id: app_id.clone(),
+            })
+        }
+        (ContractSubjectKind::App, Some(Some(app_id))) => {
+            anyhow::bail!("Console Workspace targets unknown App `{app_id}`")
+        }
+        (ContractSubjectKind::Console, Some(Some(_))) => {
+            anyhow::bail!("Console-scoped Workspace must not declare an App id")
+        }
+        (ContractSubjectKind::App, None | Some(None)) => {
+            anyhow::bail!("App-scoped Workspace must declare an App id")
+        }
+    }
+}
+
+fn contract_subject(value: ContributionSubject) -> ContractSubject {
+    match value {
+        ContributionSubject::Console => ContractSubject {
+            app_id: None,
+            kind: ContractSubjectKind::Console,
+        },
+        ContributionSubject::App { app_id } => ContractSubject {
+            app_id: Some(Some(app_id)),
+            kind: ContractSubjectKind::App,
+        },
+    }
+}
+
 fn validate_artifact_tree(directory: &Path) -> anyhow::Result<()> {
     for entry in std::fs::read_dir(directory)? {
         let entry = entry?;
@@ -457,7 +512,6 @@ fn validate_descriptor(
         descriptor.schema == "console.page-contribution/1",
         "unsupported Console contribution schema"
     );
-    let ContributionSubject::Console = descriptor.subject;
     anyhow::ensure!(
         descriptor.runtime.api_major == 1,
         "unsupported Console page API major"
@@ -495,6 +549,7 @@ fn validate_descriptor(
         requirements: Vec::new(),
         revision: "dev".to_owned(),
         styles: descriptor.styles.clone(),
+        subject: Some(contract_subject(descriptor.subject.clone())),
         title: descriptor.title.clone(),
         workspace_id: descriptor.id.clone(),
     };
@@ -579,6 +634,50 @@ mod tests {
     };
     use tower::ServiceExt;
 
+    #[test]
+    fn app_subjects_are_bound_to_known_managed_apps() {
+        let allowed = BTreeSet::from(["support".to_owned()]);
+        let app = Some(ContractSubject {
+            app_id: Some(Some("support".to_owned())),
+            kind: ContractSubjectKind::App,
+        });
+        assert_eq!(
+            contribution_subject(app.as_ref(), &allowed).unwrap(),
+            ContributionSubject::App {
+                app_id: "support".to_owned()
+            }
+        );
+        assert_eq!(
+            serde_json::to_value(contribution_subject(app.as_ref(), &allowed).unwrap()).unwrap(),
+            serde_json::json!({ "kind": "app", "appId": "support" })
+        );
+        assert!(contribution_subject(app.as_ref(), &BTreeSet::new()).is_err());
+        assert!(
+            contribution_subject(
+                Some(&ContractSubject {
+                    app_id: None,
+                    kind: ContractSubjectKind::App,
+                }),
+                &allowed,
+            )
+            .is_err()
+        );
+        assert!(
+            contribution_subject(
+                Some(&ContractSubject {
+                    app_id: Some(Some("support".to_owned())),
+                    kind: ContractSubjectKind::Console,
+                }),
+                &allowed,
+            )
+            .is_err()
+        );
+        assert_eq!(
+            contribution_subject(None, &allowed).unwrap(),
+            ContributionSubject::Console
+        );
+    }
+
     fn write_contribution(root: &Path, id: &str, module: &str) {
         let directory = root.join("contributions").join(id);
         std::fs::create_dir_all(&directory).unwrap();
@@ -589,7 +688,7 @@ mod tests {
                 "schema": "console.page-contribution/1",
                 "id": id,
                 "title": "Example",
-                "subject": "console",
+                "subject": { "kind": "console" },
                 "runtime": { "apiMajor": 1 },
                 "module": module,
                 "navigation": {
@@ -609,7 +708,7 @@ mod tests {
     fn discovers_valid_contributions_and_rejects_escaping_assets() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let catalog = PageCatalog::discover(root.path()).unwrap();
+        let catalog = PageCatalog::discover(root.path(), &BTreeSet::new()).unwrap();
         assert_eq!(catalog.mounts.len(), 1);
         assert_eq!(catalog.mounts[0].owner.source, "development-filesystem");
 
@@ -618,14 +717,16 @@ mod tests {
             serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
         value["module"] = serde_json::json!("../page.mjs");
         std::fs::write(descriptor, value.to_string()).unwrap();
-        assert!(PageCatalog::discover(root.path()).is_err());
+        assert!(PageCatalog::discover(root.path(), &BTreeSet::new()).is_err());
     }
 
     #[test]
     fn asset_urls_change_with_content() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let first = PageCatalog::discover(root.path()).unwrap().mounts[0]
+        let first = PageCatalog::discover(root.path(), &BTreeSet::new())
+            .unwrap()
+            .mounts[0]
             .module
             .clone();
         std::fs::write(
@@ -633,7 +734,9 @@ mod tests {
             "export const apiMajor = 1; export const changed = true;",
         )
         .unwrap();
-        let second = PageCatalog::discover(root.path()).unwrap().mounts[0]
+        let second = PageCatalog::discover(root.path(), &BTreeSet::new())
+            .unwrap()
+            .mounts[0]
             .module
             .clone();
         assert_ne!(first, second);
@@ -643,7 +746,9 @@ mod tests {
     async fn serves_immutable_catalog_assets_without_spa_fallback() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let app = PageCatalog::discover(root.path()).unwrap().routes();
+        let app = PageCatalog::discover(root.path(), &BTreeSet::new())
+            .unwrap()
+            .routes();
         let response = app
             .clone()
             .oneshot(

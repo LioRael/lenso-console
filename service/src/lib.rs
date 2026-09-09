@@ -6,7 +6,7 @@ pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
 pub use projects::LocalProjects;
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     future::Future,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
@@ -149,8 +149,11 @@ pub struct ConsolePlugin {
 impl Lifecycle for ConsolePlugin {
     async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
-        let page_catalog =
-            page_contributions::PageCatalog::from_port(&self.workspace_contributions).await?;
+        let page_catalog = page_contributions::PageCatalog::from_port(
+            &self.workspace_contributions,
+            &config.application_subject_ids(),
+        )
+        .await?;
         let server = ConsoleServer::start(config, page_catalog)
             .await
             .map_err(plugin_failure)?;
@@ -200,6 +203,19 @@ pub struct ConsoleConfig {
 }
 
 impl ConsoleConfig {
+    fn application_subject_ids(&self) -> BTreeSet<String> {
+        self.app_agents
+            .iter()
+            .map(|app| app.id.clone())
+            .chain(
+                self.managed_apps
+                    .iter()
+                    .filter_map(ManagedAppAdapter::application_subject_id)
+                    .map(str::to_owned),
+            )
+            .collect()
+    }
+
     #[must_use]
     pub fn with_local_projects(mut self, projects: std::sync::Arc<LocalProjects>) -> Self {
         self.local_projects = Some(projects);
@@ -521,7 +537,10 @@ pub async fn serve(
     config: ConsoleConfig,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
-    let page_catalog = page_contributions::PageCatalog::discover(&config.web_root)?;
+    let page_catalog = page_contributions::PageCatalog::discover(
+        &config.web_root,
+        &config.application_subject_ids(),
+    )?;
     ConsoleServer::start(config, page_catalog)
         .await?
         .run(shutdown)
@@ -534,7 +553,10 @@ pub async fn serve_listener(
     listener: tokio::net::TcpListener,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> anyhow::Result<()> {
-    let page_catalog = page_contributions::PageCatalog::discover(&config.web_root)?;
+    let page_catalog = page_contributions::PageCatalog::discover(
+        &config.web_root,
+        &config.application_subject_ids(),
+    )?;
     ConsoleServer::with_listener(config, listener, page_catalog)
         .await?
         .run(shutdown)
@@ -1157,7 +1179,7 @@ mod tests {
             descriptor["required_capabilities"],
             serde_json::json!([{
                 "capability_id": "lenso.ui.contribution@1",
-                "descriptor_version": "1.0.0",
+                "descriptor_version": "1.1.0",
                 "cardinality": "many"
             }])
         );

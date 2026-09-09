@@ -26,7 +26,7 @@ describe("parsePageCatalog", () => {
               label: "Observe",
             },
             styles: [`${observeAssets}/page.css`],
-            subject: "console",
+            subject: { kind: "console" },
             title: "Observe",
           },
         ],
@@ -42,7 +42,7 @@ describe("parsePageCatalog", () => {
       module: "https://example.com/page.mjs",
       navigation: { items: [], label: "Observe" },
       styles: [],
-      subject: "console",
+      subject: { kind: "console" },
       title: "Observe",
     };
     expect(() =>
@@ -78,7 +78,7 @@ describe("parsePageCatalog", () => {
       module: `/api/console/v1/pages/users/assets/${digest}/page.mjs`,
       navigation: { items: [], label: "Observe" },
       styles: [],
-      subject: "console",
+      subject: { kind: "console" },
       title: "Observe",
     };
     expect(() =>
@@ -116,7 +116,7 @@ describe("parsePageCatalog", () => {
               label: "Observe",
             },
             styles: [],
-            subject: "console",
+            subject: { kind: "console" },
             title: "Observe",
           },
         ],
@@ -142,11 +142,42 @@ describe("parsePageCatalog", () => {
               label: "Observe",
             },
             styles: [],
-            subject: "console",
+            subject: { kind: "console" },
             title: "Observe",
           },
         ],
       })
     ).toThrow("malformed");
+  });
+
+  it("accepts an App subject and rejects contradictory subject fields", () => {
+    const appMount = {
+      ...ownership,
+      apiMajor: 1,
+      id: "observe",
+      module: `${observeAssets}/page.mjs`,
+      navigation: { items: [], label: "Observe" },
+      styles: [],
+      subject: { appId: "support", kind: "app" },
+      title: "Observe",
+    };
+    expect(
+      parsePageCatalog({
+        schema: "console.page-catalog/1",
+        mounts: [appMount],
+      })
+    ).toMatchObject([{ subject: { appId: "support", kind: "app" } }]);
+    for (const subject of [
+      { kind: "app" },
+      { appId: "../support", kind: "app" },
+      { appId: "support", kind: "console" },
+    ]) {
+      expect(() =>
+        parsePageCatalog({
+          schema: "console.page-catalog/1",
+          mounts: [{ ...appMount, subject }],
+        })
+      ).toThrow("malformed");
+    }
   });
 });

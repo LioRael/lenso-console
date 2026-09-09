@@ -1,10 +1,10 @@
 # Native Console page contributions
 
-Status: Console-scoped baseline implemented; App-scoped service binding deferred.
+Status: Console- and App-scoped Workspace routing implemented; target service binding deferred.
 
 This document now separates the shipped Workspace path from the remaining
 cross-App design. The implementation includes a typed
-`lenso.ui.contribution@1` request Capability, a `many` Port on
+`lenso.ui.contribution@1` request Capability (descriptor 1.1.0), a `many` Port on
 `lenso.console.web`, an immutable activation-time catalog, a reference provider
 Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
 crate and reference Plugin are repository-local and are not published releases.
@@ -65,12 +65,15 @@ Implemented now:
   internal pages can share state.
 - The far-left item is a Workspace. Selecting it reveals only its own declared
   second-sidebar navigation; there is no top-level Tools aggregator.
+- App-scoped mounts use canonical `/apps/<appId>/pages/<mountId>/...` URLs.
+  Admission rejects unknown App identities and the Shell never substitutes the
+  currently selected App for the URL subject. The primary rail shows Console
+  Workspaces plus Workspaces for the selected or deep-linked App.
 
 Not implemented by this baseline:
 
-- App-scoped Workspaces and target-bound business requests. These require the
-  explicit cross-App Connector entry criteria; a Managed App connection is not
-  code-install authority.
+- Target-bound business requests. These require the explicit cross-App
+  Connector; a Managed App connection is not code-install authority.
 - Hot graph mutation. Install, enable, disable, and upgrade publish a new Plugin
   Root/Generation; the active catalog is intentionally immutable.
 - Hard isolation between native Plugin modules. They are trusted application
@@ -86,9 +89,10 @@ Not implemented by this baseline:
 | [App connection model](../service/src/app_management.rs#L9) is loopback-only | This slice does not silently enable remote targets, operator federation, or arbitrary credential forwarding |
 | [Catch-all route](../src/routes/$.tsx#L5) handles legacy links then returns not-found | Dedicated extension route prefixes must coexist with legacy routing |
 
-The current React 19 / Vite 8 stack now has a native Workspace loader and the
-generic `lenso.ui.contribution@1` provider Capability. App subjects and service
-transports below remain design notation until the cross-App boundary is accepted.
+The current React 19 / Vite 8 stack now has a native Workspace loader, the
+generic `lenso.ui.contribution@1` provider Capability, and App-subject routing.
+Service transports below remain design notation until the cross-App Connector
+is implemented.
 
 ## 3. Ownership and identity
 
@@ -123,11 +127,16 @@ first App. Catalog metadata is not evidence of target readiness.
 
 ## 4. What an author supplies
 
-The implemented Console Workspace declaration is a generated Capability
+The implemented Workspace declaration is a generated Capability
 response, versioned independently from Plugin business contracts and emitted by
 a Plugin selected in Console's composition. The JSON below remains an
-illustrative future App-scoped authoring projection, not a second Plugin package
-manager or App-authored provider selection.
+illustrative projection that includes future service aliases; it is not a
+second Plugin package manager or App-authored provider selection.
+
+Descriptor 1.1.0 adds `subject` compatibly: an omitted field from a 1.0.0
+provider means `{ "kind": "console" }`. App scope must declare both
+`{ "kind": "app" }` and a clean `app_id`; Console rejects any App identity that
+is not already present in its configured application catalog.
 
 Illustrative descriptor for a Plugin-owned users page:
 
@@ -136,7 +145,7 @@ Illustrative descriptor for a Plugin-owned users page:
   "schema": "console.page-contribution/1",
   "id": "users",
   "title": "Users",
-  "subject": "app",
+  "subject": { "kind": "app", "app_id": "support" },
   "runtime": {
     "apiMajor": 1,
     "react": ">=19.2.0 <20"

@@ -70,15 +70,20 @@ const styles = stylex.create({
 export function PageContributionOutlet({
   mountId,
   segments,
+  subject,
 }: {
   mountId: string;
   segments: readonly string[];
+  subject: PageMount["subject"];
 }) {
   const t = useConsoleTranslation();
   const { theme } = useConsoleAppearance();
   const { locale } = useConsoleLocale();
   const catalog = usePageCatalog();
-  const mount = catalog.data?.find((candidate) => candidate.id === mountId);
+  const mount = catalog.data?.find(
+    (candidate) =>
+      candidate.id === mountId && sameSubject(candidate.subject, subject)
+  );
   const [attempt, setAttempt] = useState(0);
   const loaded = useContributionModule(mount, attempt);
   const location = useMemo(
@@ -89,7 +94,7 @@ export function PageContributionOutlet({
     }),
     [segments]
   );
-  const navigation = workspaceNavigation(mountId);
+  const navigation = workspaceNavigation(mountId, subject);
 
   if (catalog.isPending || (mount && loaded.status === "loading")) {
     return <RoutePending />;
@@ -291,7 +296,7 @@ function PassThroughProvider({ children }: { children: ReactNode }) {
   return children;
 }
 
-function workspaceNavigation(mountId: string) {
+function workspaceNavigation(mountId: string, subject: PageMount["subject"]) {
   const href = (segments: readonly string[]) => {
     if (
       !segments.every((segment) =>
@@ -301,7 +306,9 @@ function workspaceNavigation(mountId: string) {
       throw new TypeError("Workspace navigation path is invalid");
     }
     const suffix = segments.length ? `/${segments.join("/")}` : "";
-    return `/workspaces/${encodeURIComponent(mountId)}${suffix}`;
+    return subject.kind === "console"
+      ? `/workspaces/${encodeURIComponent(mountId)}${suffix}`
+      : `/apps/${encodeURIComponent(subject.appId)}/pages/${encodeURIComponent(mountId)}${suffix}`;
   };
   return {
     href,
@@ -310,6 +317,14 @@ function workspaceNavigation(mountId: string) {
       window.dispatchEvent(new PopStateEvent("popstate"));
     },
   };
+}
+
+function sameSubject(left: PageMount["subject"], right: PageMount["subject"]) {
+  return (
+    left.kind === right.kind &&
+    (left.kind === "console" ||
+      (right.kind === "app" && left.appId === right.appId))
+  );
 }
 
 function ContributionError({

@@ -2,7 +2,7 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.ui.contribution@1";
-export const DESCRIPTOR_VERSION = "1.0.0";
+export const DESCRIPTOR_VERSION = "1.1.0";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -29,6 +29,7 @@ export interface DescribeResponse {
   requirements: Array<DescribeResponseRequirementsItem>;
   revision: string;
   styles: Array<string>;
+  subject?: DescribeResponseSubject;
   title: string;
   workspace_id: string;
 }
@@ -53,6 +54,11 @@ export interface DescribeResponseRequirementsItem {
   capability_id: string;
   descriptor_version: string;
   operations: Array<string>;
+}
+
+export interface DescribeResponseSubject {
+  app_id?: string | null;
+  kind: "console" | "app";
 }
 
 export type DescribeError = "contribution_unavailable" | UnknownDomainError;

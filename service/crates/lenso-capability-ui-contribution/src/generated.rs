@@ -5,7 +5,7 @@ use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture
 
 use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany};
 pub const CAPABILITY_ID: &str = "lenso.ui.contribution@1";
-pub const DESCRIPTOR_VERSION: &str = "1.0.0";
+pub const DESCRIPTOR_VERSION: &str = "1.1.0";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const CONTRIBUTION_CAPABILITY_ID: &str = CAPABILITY_ID;
@@ -13,19 +13,19 @@ pub const CONTRIBUTION_DESCRIPTOR_VERSION: &str = DESCRIPTOR_VERSION;
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_provided_contribution { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.0.0\",\"operations\":[\"describe\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
+macro_rules! __lenso_provided_contribution { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.1.0\",\"operations\":[\"describe\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_contribution_client { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}" }; }
+macro_rules! __lenso_required_contribution_client { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"one\"}" }; }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_many_contribution_client { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}" }; }
+macro_rules! __lenso_required_many_contribution_client { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"many\"}" }; }
 
 pub const DESCRIBE_OPERATION: &str = "describe";
 
-pub use lenso_contract_runtime::{UnknownDomainError};
+pub use lenso_contract_runtime::{OptionalValue, UnknownDomainError};
 use lenso_contract_runtime::{decode_portable_json, encode_portable_json};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -53,6 +53,9 @@ pub struct DescribeResponse {
     #[serde(rename = "styles")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub styles: Vec<String>,
+    #[serde(rename = "subject")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject: Option<DescribeResponseSubject>,
     #[serde(rename = "title")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub title: String,
@@ -113,6 +116,26 @@ pub struct DescribeResponseRequirementsItem {
     #[serde(rename = "operations")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub operations: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DescribeResponseSubject {
+    #[serde(rename = "app_id")]
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_optional_value")]
+    pub app_id: OptionalValue<String>,
+    #[serde(rename = "kind")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub kind: DescribeResponseSubjectKind,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum DescribeResponseSubjectKind {
+    #[serde(rename = "console")]
+    Console,
+    #[serde(rename = "app")]
+    App,
 }
 
 #[derive(Clone, Debug, PartialEq)]

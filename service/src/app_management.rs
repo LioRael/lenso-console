@@ -47,6 +47,10 @@ impl ManagedAppAdapter {
             console_extensions: config.console_extensions,
         })
     }
+
+    pub(crate) fn application_subject_id(&self) -> Option<&str> {
+        (!self.console_extensions).then_some(self.transport.id.as_str())
+    }
 }
 
 #[derive(Clone)]

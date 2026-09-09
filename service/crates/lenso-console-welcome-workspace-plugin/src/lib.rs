@@ -5,7 +5,7 @@ use futures::future::ready;
 use lenso_capability_ui_contribution::{
     self as ui, ContributionProvider, DescribeRequest, DescribeResponse,
     DescribeResponseAssetsItem, DescribeResponseAssetsItemMediaType, DescribeResponseNavigation,
-    DescribeResponseNavigationItemsItem,
+    DescribeResponseNavigationItemsItem, DescribeResponseSubject, DescribeResponseSubjectKind,
 };
 use lenso_kernel::InvocationContext;
 
@@ -84,6 +84,10 @@ impl ContributionProvider for WelcomeWorkspace {
             requirements: Vec::new(),
             revision: env!("CARGO_PKG_VERSION").to_owned(),
             styles: vec!["workspace.css".to_owned()],
+            subject: Some(DescribeResponseSubject {
+                app_id: None,
+                kind: DescribeResponseSubjectKind::Console,
+            }),
             title: "Welcome".to_owned(),
             workspace_id: "welcome".to_owned(),
         }))))

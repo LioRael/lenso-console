@@ -13,6 +13,18 @@
   ],
   "properties": {
     "workspace_id": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+    "subject": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["console", "app"] },
+        "app_id": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+        }
+      },
+      "additionalProperties": false
+    },
     "title": { "type": "string", "minLength": 1, "maxLength": 80 },
     "revision": { "type": "string", "minLength": 1, "maxLength": 128 },
     "module": { "type": "string", "minLength": 1, "maxLength": 256 },
