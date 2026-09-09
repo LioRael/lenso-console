@@ -22,6 +22,13 @@ use axum::{
 };
 use directories::BaseDirs;
 use lenso::prelude::*;
+use lenso_app_plan::ResolvedAppPlan;
+use lenso_app_plan::authoring::{
+    HostDefaultPlugin, HostSlot, PluginRootSnapshot, resolve_plugin_root,
+};
+use lenso_kernel::{Kernel, NativeApp, ShutdownOutcome};
+use lenso_native_adapter::NativePluginRegistry;
+use lenso_runner::TokioDriver;
 use serde::{Deserialize, Serialize};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::{ServeDir, ServeFile};
@@ -88,7 +95,7 @@ fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
     })
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConsolePluginConfig {
     address: String,
@@ -96,15 +103,29 @@ pub struct ConsolePluginConfig {
     allowed_tools: Vec<String>,
     agent_configuration_store: String,
     console_agent_url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agent_control_token_file: Option<String>,
     connected_agent_label: String,
     connected_agent_plugin_configuration: bool,
     connected_agent_plugin_lifecycle: bool,
+    #[serde(default)]
+    connected_agent_auth_connections: bool,
     connected_agent_url: String,
     #[serde(default)]
     managed_apps: Vec<ManagedAppConnection>,
     managed_app_root: String,
     trusted_plugin_bundles: BTreeMap<String, String>,
     web_root: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    local_projects: Option<LocalProjectsConfig>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LocalProjectsConfig {
+    binary: String,
+    root: String,
+    template: String,
 }
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
@@ -127,6 +148,17 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
         .map_err(|error| invalid_plan(error.to_string()))?;
     AppAgentAdapter::parse(&config.connected_agent_url, &config.connected_agent_label)
         .map_err(invalid_plan)?;
+    if let Some(projects) = &config.local_projects
+        && [
+            projects.binary.as_str(),
+            projects.root.as_str(),
+            projects.template.as_str(),
+        ]
+        .into_iter()
+        .any(str::is_empty)
+    {
+        return Err(invalid_plan("local project paths must not be empty"));
+    }
     Ok(())
 }
 
@@ -154,6 +186,7 @@ impl Lifecycle for ConsolePlugin {
             &config.application_subject_ids(),
         )
         .await?;
+        let local_projects = config.local_projects.clone();
         let server = ConsoleServer::start(config, page_catalog)
             .await
             .map_err(plugin_failure)?;
@@ -169,12 +202,15 @@ impl Lifecycle for ConsolePlugin {
             .map_err(|error| plugin_failure(format!("Console shutdown task failed: {error:?}")))?;
         self.tasks
             .spawn_local(async move {
-                if let Err(error) = server
+                let result = server
                     .run(async move {
                         let _ = shutdown_signal.await;
                     })
-                    .await
-                {
+                    .await;
+                if let Some(projects) = local_projects {
+                    projects.shutdown().await;
+                }
+                if let Err(error) = result {
                     eprintln!("Lenso Console stopped: {error:#}");
                 }
             })
@@ -189,12 +225,15 @@ pub fn link() {}
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
     local_projects: Option<std::sync::Arc<LocalProjects>>,
+    local_projects_config: Option<LocalProjectsConfig>,
+    agent_control_token_file: Option<PathBuf>,
     pub address: SocketAddr,
     pub agent_home: PathBuf,
     pub managed_app_root: PathBuf,
     pub allowed_tools: Vec<String>,
     pub app_agents: Vec<AppAgentAdapter>,
     pub managed_apps: Vec<ManagedAppAdapter>,
+    managed_app_connections: Vec<ManagedAppConnection>,
     console_agent: AppAgentAdapter,
     pub agent_configuration_store: PathBuf,
     pub tool_policy: PathBuf,
@@ -222,9 +261,31 @@ impl ConsoleConfig {
         self
     }
 
+    pub fn with_local_project_paths(
+        mut self,
+        root: &Path,
+        template: &Path,
+        binary: &Path,
+    ) -> anyhow::Result<Self> {
+        self.local_projects_config = Some(LocalProjectsConfig {
+            binary: utf8_path(binary)?,
+            root: utf8_path(root)?,
+            template: utf8_path(template)?,
+        });
+        self.local_projects = None;
+        Ok(self)
+    }
+
+    #[must_use]
+    pub fn with_agent_control_token_file(mut self, path: PathBuf) -> Self {
+        self.agent_control_token_file = Some(path);
+        self
+    }
+
     pub fn with_managed_app(mut self, connection: &ManagedAppConnection) -> anyhow::Result<Self> {
         self.managed_apps
             .push(ManagedAppAdapter::connect(connection)?);
+        self.managed_app_connections.push(connection.clone());
         app_management::validate_connections(&self.app_agents, &self.managed_apps)?;
         Ok(self)
     }
@@ -376,8 +437,40 @@ impl ConsoleConfig {
                 agent.plugin_lifecycle = true;
             }
         }
+        if config.connected_agent_auth_connections {
+            for agent in &mut app_agents {
+                agent.auth_connections = true;
+            }
+        }
+        let configured_control_token = config
+            .agent_control_token_file
+            .as_ref()
+            .map(|path| read_control_token(&resolve_path(&current, path)))
+            .transpose()?
+            .or_else(console_agent_control_token);
+        if let Some(token) = &configured_control_token {
+            for agent in &mut app_agents {
+                agent.authorization = Some(format!("Bearer {token}"));
+            }
+        }
+        let local_projects = config
+            .local_projects
+            .as_ref()
+            .map(|projects| {
+                LocalProjects::load(
+                    resolve_path(&current, &projects.root),
+                    resolve_path(&current, &projects.template),
+                    resolve_path(&current, &projects.binary),
+                )
+            })
+            .transpose()?;
         Ok(Self {
-            local_projects: None,
+            local_projects,
+            local_projects_config: config.local_projects.clone(),
+            agent_control_token_file: config
+                .agent_control_token_file
+                .as_ref()
+                .map(|path| resolve_path(&current, path)),
             address: config.address.parse()?,
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
@@ -392,7 +485,7 @@ impl ConsoleConfig {
             allowed_tools: config.allowed_tools.clone(),
             console_agent: AppAgentAdapter::parse_console(
                 &config.console_agent_url,
-                console_agent_control_token(),
+                configured_control_token,
             )?,
             app_agents,
             managed_apps: config
@@ -400,6 +493,7 @@ impl ConsoleConfig {
                 .iter()
                 .map(ManagedAppAdapter::connect)
                 .collect::<anyhow::Result<_>>()?,
+            managed_app_connections: config.managed_apps.clone(),
             web_root: resolve_path(&current, &config.web_root),
         })
     }
@@ -452,8 +546,15 @@ impl ConsoleConfig {
         };
         let web_root = std::env::var_os("CONSOLE_WEB_ROOT")
             .map_or_else(|| manifest.join("../dist/client"), PathBuf::from);
+        let managed_app_connections = match std::env::var("LENSO_CONSOLE_MANAGED_APPS") {
+            Ok(value) => serde_json::from_str::<Vec<ManagedAppConnection>>(&value)?,
+            Err(std::env::VarError::NotPresent) => Vec::new(),
+            Err(error) => return Err(error.into()),
+        };
         Ok(Self {
             local_projects: None,
+            local_projects_config: None,
+            agent_control_token_file: None,
             address,
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
@@ -474,15 +575,85 @@ impl ConsoleConfig {
                     agent
                 })
                 .collect(),
-            managed_apps: match std::env::var("LENSO_CONSOLE_MANAGED_APPS") {
-                Ok(value) => serde_json::from_str::<Vec<ManagedAppConnection>>(&value)?
-                    .iter()
-                    .map(ManagedAppAdapter::connect)
-                    .collect::<anyhow::Result<_>>()?,
-                Err(std::env::VarError::NotPresent) => Vec::new(),
-                Err(error) => return Err(error.into()),
-            },
+            managed_apps: managed_app_connections
+                .iter()
+                .map(ManagedAppAdapter::connect)
+                .collect::<anyhow::Result<_>>()?,
+            managed_app_connections,
             web_root,
+        })
+    }
+
+    fn to_plugin_config(&self) -> anyhow::Result<ConsolePluginConfig> {
+        anyhow::ensure!(
+            self.local_projects.is_none() || self.local_projects_config.is_some(),
+            "Plan-bound local projects require their Host-owned path configuration"
+        );
+        anyhow::ensure!(
+            self.app_agents.len() <= 1,
+            "the reference Console Host supports at most one connected App Agent"
+        );
+        let connected = self.app_agents.first();
+        let connected_agent_control_token = connected
+            .and_then(|agent| agent.authorization.as_deref())
+            .map(|token| {
+                token
+                    .strip_prefix("Bearer ")
+                    .ok_or_else(|| anyhow::anyhow!("App Agent authorization must use Bearer"))
+                    .map(str::to_owned)
+            })
+            .transpose()?;
+        let resolved_console_control_token = self
+            .console_agent
+            .authorization
+            .as_deref()
+            .and_then(|token| token.strip_prefix("Bearer "));
+        if let (Some(app), Some(console)) = (
+            connected_agent_control_token.as_deref(),
+            resolved_console_control_token,
+        ) {
+            anyhow::ensure!(
+                app == console,
+                "the reference Console Host requires one shared Agent control token"
+            );
+        }
+        let has_runtime_control_token =
+            connected_agent_control_token.is_some() || resolved_console_control_token.is_some();
+        anyhow::ensure!(
+            !has_runtime_control_token
+                || self.agent_control_token_file.is_some()
+                || console_agent_control_token()
+                    == resolved_console_control_token.map(str::to_owned),
+            "generated Agent control tokens require a Host-private token file"
+        );
+        Ok(ConsolePluginConfig {
+            address: self.address.to_string(),
+            agent_home: utf8_path(&self.agent_home)?,
+            allowed_tools: self.allowed_tools.clone(),
+            agent_configuration_store: utf8_path(&self.agent_configuration_store)?,
+            console_agent_url: self.console_agent.origin.to_string(),
+            agent_control_token_file: self
+                .agent_control_token_file
+                .as_deref()
+                .map(utf8_path)
+                .transpose()?,
+            connected_agent_label: connected
+                .map_or_else(|| "Lenso Agent".to_owned(), |agent| agent.label.clone()),
+            connected_agent_plugin_configuration: connected
+                .is_some_and(|agent| agent.plugin_configuration),
+            connected_agent_plugin_lifecycle: connected.is_some_and(|agent| agent.plugin_lifecycle),
+            connected_agent_auth_connections: connected.is_some_and(|agent| agent.auth_connections),
+            connected_agent_url: connected
+                .map_or_else(String::new, |agent| agent.origin.to_string()),
+            managed_apps: self.managed_app_connections.clone(),
+            managed_app_root: utf8_path(&self.managed_app_root)?,
+            trusted_plugin_bundles: self
+                .trusted_plugin_bundles
+                .iter()
+                .map(|bundle| Ok((bundle.id.clone(), utf8_path(&bundle.path)?)))
+                .collect::<anyhow::Result<_>>()?,
+            web_root: utf8_path(&self.web_root)?,
+            local_projects: self.local_projects_config.clone(),
         })
     }
 
@@ -526,6 +697,101 @@ fn trusted_plugin_bundles(
         .into_iter()
         .map(|(id, path)| TrustedPluginBundle::new(id, path).map_err(anyhow::Error::msg))
         .collect()
+}
+
+fn utf8_path(path: &Path) -> anyhow::Result<String> {
+    path.to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| anyhow::anyhow!("Console path is not UTF-8: {}", path.display()))
+}
+
+fn read_control_token(path: &Path) -> anyhow::Result<String> {
+    let token = std::fs::read_to_string(path)?;
+    let token = token.trim();
+    anyhow::ensure!(!token.is_empty(), "Agent control token file is empty");
+    Ok(token.to_owned())
+}
+
+/// Stores one launcher-owned Agent control token outside the Resolved App Plan.
+pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()> {
+    use std::io::Write as _;
+
+    anyhow::ensure!(!token.trim().is_empty(), "Agent control token is empty");
+    let parent = path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Agent control token path has no parent"))?;
+    std::fs::create_dir_all(parent)?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path)?;
+    file.write_all(token.as_bytes())?;
+    file.sync_all()?;
+    #[cfg(unix)]
+    std::fs::set_permissions(path, {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::Permissions::from_mode(0o600)
+    })?;
+    Ok(())
+}
+
+/// Starts the reference Console Host from one immutable Plugin composition.
+pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
+    link();
+    lenso_console_welcome_workspace_plugin::link();
+    let registry = NativePluginRegistry::new().with_linked_factories();
+    Kernel::start_native(console_host_plan(config)?, TokioDriver::new(), registry)
+        .await
+        .map_err(|error| anyhow::anyhow!("Console Host startup failed: {error:?}"))
+}
+
+fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> {
+    let slots = [
+        HostSlot::one("console"),
+        HostSlot::many("console-workspaces"),
+    ];
+    let linked = NativePluginRegistry::host_catalog(slots.clone(), [])
+        .map_err(|error| anyhow::anyhow!("invalid linked Console Plugin catalog: {error:?}"))?;
+    let mut defaults = Vec::new();
+    for release in linked.plugins() {
+        let descriptor = release.descriptor();
+        match descriptor.root_slot() {
+            "console" if descriptor.plugin_id() == "lenso.console.web" => {
+                defaults.push(
+                    HostDefaultPlugin::new(descriptor.plugin_id(), "default")
+                        .with_configuration(serde_json::to_value(config.to_plugin_config()?)?),
+                );
+            }
+            "console-workspaces" => defaults
+                .push(HostDefaultPlugin::new(descriptor.plugin_id(), "default").disableable()),
+            _ => {}
+        }
+    }
+    let host = NativePluginRegistry::host_catalog(slots, defaults)
+        .map_err(|error| anyhow::anyhow!("invalid Console Host catalog: {error:?}"))?;
+    let resolved = resolve_plugin_root(&host, &PluginRootSnapshot::default())
+        .map_err(|error| anyhow::anyhow!("invalid Console Plugin composition: {error}"))?;
+    Ok(resolved.plan().clone())
+}
+
+/// Runs the reference Console Host until the process owner requests shutdown.
+pub async fn serve_host(
+    config: ConsoleConfig,
+    shutdown: impl Future<Output = ()>,
+) -> anyhow::Result<()> {
+    let app = start_host(&config).await?;
+    shutdown.await;
+    match app.shutdown(std::time::Duration::from_secs(10)).await {
+        ShutdownOutcome::Clean => Ok(()),
+        ShutdownOutcome::RuntimeFailure { error } => {
+            Err(anyhow::anyhow!("Console Host shutdown failed: {error:?}"))
+        }
+        ShutdownOutcome::Timeout => anyhow::bail!("Console Host shutdown timed out"),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -1183,6 +1449,95 @@ mod tests {
                 "cardinality": "many"
             }])
         );
+    }
+
+    #[test]
+    fn reference_host_binds_the_workspace_provider_through_the_plan() {
+        link();
+        lenso_console_welcome_workspace_plugin::link();
+        let plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        let plan = console_host_plan(&config).unwrap();
+
+        assert_eq!(plan.plugin_instances().len(), 2);
+        assert!(
+            plan.plugin_instances()
+                .iter()
+                .any(|instance| { instance.instance_key() == "lenso.console.web/default" })
+        );
+        assert!(plan.capability_bindings().iter().any(|binding| {
+            binding.capability_id() == lenso_capability_ui_contribution::CAPABILITY_ID
+        }));
+    }
+
+    #[test]
+    fn agent_control_token_stays_out_of_the_resolved_plan() {
+        let root = tempfile::tempdir().unwrap();
+        let token_file = root.path().join("agent-control-token");
+        store_agent_control_token(&token_file, "host-secret").unwrap();
+        let mut plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        plugin_config.agent_control_token_file = Some(token_file.to_str().unwrap().to_owned());
+        let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        let serialized = serde_json::to_string(&console_host_plan(&config).unwrap()).unwrap();
+
+        assert!(!serialized.contains("host-secret"));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            assert_eq!(
+                std::fs::metadata(token_file).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reference_host_serves_the_plan_bound_workspace_catalog() {
+        let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let agent_address = agent_listener.local_addr().unwrap();
+        let agent = tokio::spawn(async move {
+            axum::serve(
+                agent_listener,
+                Router::new().route(
+                    "/api/console/v1/agent/bootstrap",
+                    get(|| async { Json(serde_json::json!({})) }),
+                ),
+            )
+            .await
+            .unwrap();
+        });
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        let reservation = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = reservation.local_addr().unwrap();
+        drop(reservation);
+        let mut plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        plugin_config.address = address.to_string();
+        plugin_config.console_agent_url = format!("http://{agent_address}");
+        plugin_config.web_root = root.path().to_str().unwrap().to_owned();
+        let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+
+        let local = tokio::task::LocalSet::new();
+        local
+            .run_until(async move {
+                let host = start_host(&config).await.unwrap();
+                let catalog = reqwest::get(format!("http://{address}/api/console/v1/pages"))
+                    .await
+                    .unwrap()
+                    .text()
+                    .await
+                    .unwrap();
+                assert!(catalog.contains("lenso.console.workspace.welcome/default"));
+                assert!(matches!(
+                    host.shutdown(std::time::Duration::from_secs(2)).await,
+                    ShutdownOutcome::Clean
+                ));
+            })
+            .await;
+        agent.abort();
     }
 
     #[test]

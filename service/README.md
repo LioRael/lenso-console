@@ -33,6 +33,11 @@ separate private Console Agent use dynamically allocated loopback ports. The Age
 discovers both full identities and keeps their Sessions, profiles, memory,
 tasks, trajectory, and Tools independently scoped.
 
+Both reference launchers resolve and start an ordinary Lenso App Plan. The
+Console Shell is the required `console` Plugin and every linked
+`console-workspaces` Plugin contributes a first-class item to the far-left
+Workspace rail. The bundled Welcome Workspace is the reference contribution.
+
 The reference App Agent Host defaults to its durable SQLite authority. Select
 one concrete authority before `pnpm agent:web`:
 
@@ -101,6 +106,12 @@ Open `http://127.0.0.1:3030`.
 lenso_console_plugin::link();
 ```
 
+Workspace packages link in the same way. The reference Host catalogs every
+linked package whose root Slot is `console-workspaces`, selects it as a
+disableable default instance, and binds its `lenso.ui.contribution@1` provider
+to Console through the immutable Plan. The launcher does not scan frontend
+directories to discover production Workspaces.
+
 The target App selects and configures the ordinary Plugin instance at
 `plugins/lenso.console.web/console.toml`:
 
@@ -127,9 +138,10 @@ connected_agent_plugin_configuration = false
 ```
 
 Relative paths resolve from the App Host working directory. Activation binds
-the listener and starts the restricted Console Agent before the Plugin reaches
-Ready; generation cancellation shuts down both. Removing or disabling this
-Plugin removes only the Console surface.
+the listener and verifies the separately owned Console Agent before the Plugin
+reaches Ready; generation cancellation shuts down the Console server and any
+local project processes. Removing or disabling this Plugin removes only the
+Console surface.
 
 `connected_agent_url` is a compatibility configuration key for the optional
 App Agent Adapter. Use an empty string to omit it. The value must be a clean

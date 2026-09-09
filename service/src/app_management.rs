@@ -6,7 +6,7 @@ use super::{
     allowed_plugin_lifecycle_route, any, get, problem, proxy_request_at,
 };
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ManagedAppConnection {
     pub id: String,
