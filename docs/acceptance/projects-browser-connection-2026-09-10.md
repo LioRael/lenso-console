@@ -41,3 +41,12 @@ operation narrowing and parent-session revocation.
 
 This receipt describes local source binaries. Released archive verification,
 platform packaging and npm publication require their separate release receipts.
+
+## Agent release verification
+
+Agent v0.1.9 was published by workflow run `34408339353` from merged commit
+`9480795725fae7a721080e88aa787fb14aac2811`. The four Web/Console Web archives
+for macOS arm64 and Linux x64 were downloaded from that release. Each SHA-256
+matched the released `SHA256SUMS`, and GitHub attestation verification enforced
+the repository, `release.yml`, `refs/heads/main`, and that exact source digest.
+Those verified hashes are pinned in `scripts/distribution/agent-release.json`.
