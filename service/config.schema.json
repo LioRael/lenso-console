@@ -73,12 +73,10 @@
         "required": ["id", "label", "origin"],
         "properties": {
           "id": {
-            "type": "string",
-            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            "type": "string"
           },
           "label": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "origin": {
             "type": "string"

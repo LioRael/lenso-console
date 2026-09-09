@@ -1,6 +1,7 @@
 # Workspace service transport
 
-Status: owner-service first slice implemented; subject services and Observe remain follow-ups.
+Status: owner-service transport and the first Observe consumer implemented;
+subject services remain a follow-up.
 
 ## Outcome
 
@@ -145,9 +146,10 @@ Focused tests cover missing required services, descriptor drift, unavailable
 optional subject services, undeclared routes, malformed responses, body limits,
 and browser cancellation.
 
-The next consumer is Observe. No observability-specific Console route is
-accepted as substitute proof. `source: subject` remains unavailable until the
-cross-App Connector supplies an exact Plan-bound export.
+Observe is now the first domain consumer. Its request, trace, log, health, and
+feed Operations use this generic transport; Console core contains no
+observability-specific browser route. `source: subject` remains unavailable
+until the cross-App Connector supplies an exact Plan-bound export.
 
 Publication beyond this repository-local integration contract still waits for
 App-switch isolation, back/forward/reload coverage, and the first real domain

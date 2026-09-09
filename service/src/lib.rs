@@ -265,6 +265,18 @@ impl ConsoleConfig {
             .collect()
     }
 
+    fn observe_source(&self) -> Option<(String, String)> {
+        self.app_agents
+            .first()
+            .map(|app| (app.id.clone(), app.label.clone()))
+            .or_else(|| {
+                self.managed_app_connections
+                    .iter()
+                    .find(|app| !app.console_extensions)
+                    .map(|app| (app.id.clone(), app.label.clone()))
+            })
+    }
+
     #[must_use]
     pub fn with_local_projects(mut self, projects: std::sync::Arc<LocalProjects>) -> Self {
         self.local_projects = Some(projects);
@@ -752,6 +764,7 @@ pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()>
 /// Starts the reference Console Host from one immutable Plugin composition.
 pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
     link();
+    lenso_console_observe_workspace_plugin::link();
     lenso_console_welcome_workspace_plugin::link();
     let registry = NativePluginRegistry::new().with_linked_factories();
     Kernel::start_native(console_host_plan(config)?, TokioDriver::new(), registry)
@@ -775,6 +788,28 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
                     HostDefaultPlugin::new(descriptor.plugin_id(), "default")
                         .with_configuration(serde_json::to_value(config.to_plugin_config()?)?),
                 );
+            }
+            "console-workspaces" if descriptor.plugin_id() == "lenso.console.workspace.observe" => {
+                if let Some((source_id, source_label)) = config.observe_source() {
+                    let state_root = config
+                        .agent_home
+                        .parent()
+                        .unwrap_or(&config.agent_home)
+                        .join("observe");
+                    defaults.push(
+                        HostDefaultPlugin::new(descriptor.plugin_id(), &source_id)
+                            .with_configuration(serde_json::json!({
+                                "source_id": source_id,
+                                "source_label": source_label,
+                                "listen_address": "127.0.0.1:4318",
+                                "database": state_root.join("telemetry.sqlite3"),
+                                "token_file": state_root.join("otlp-token"),
+                                "retention_days": 7,
+                                "retention_bytes": 536_870_912_u64
+                            }))
+                            .disableable(),
+                    );
+                }
             }
             "console-workspaces" => defaults
                 .push(HostDefaultPlugin::new(descriptor.plugin_id(), "default").disableable()),
@@ -1471,6 +1506,7 @@ mod tests {
     #[test]
     fn reference_host_binds_the_workspace_provider_through_the_plan() {
         link();
+        lenso_console_observe_workspace_plugin::link();
         lenso_console_welcome_workspace_plugin::link();
         let plugin_config: ConsolePluginConfig =
             serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
@@ -1489,6 +1525,46 @@ mod tests {
         assert!(plan.capability_bindings().iter().any(|binding| {
             binding.capability_id() == lenso_capability_workspace_service::CAPABILITY_ID
         }));
+    }
+
+    #[test]
+    fn observe_is_plan_bound_only_when_an_app_subject_exists() {
+        link();
+        lenso_console_observe_workspace_plugin::link();
+        lenso_console_welcome_workspace_plugin::link();
+        let plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        let without_app = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        let plan = console_host_plan(&without_app).unwrap();
+        assert!(plan.plugin_instances().iter().all(|instance| {
+            !instance
+                .instance_key()
+                .starts_with("lenso.console.workspace.observe/")
+        }));
+
+        let with_app = ConsoleConfig::from_plugin(&plugin_config)
+            .unwrap()
+            .with_managed_app(&ManagedAppConnection {
+                id: "sample-app".to_owned(),
+                label: "Sample App".to_owned(),
+                origin: "http://127.0.0.1:9191".to_owned(),
+                console_extensions: false,
+                control_token_env: None,
+            })
+            .unwrap();
+        let plan = console_host_plan(&with_app).unwrap();
+        let observe = plan
+            .plugin_instances()
+            .iter()
+            .find(|instance| {
+                instance.instance_key() == "lenso.console.workspace.observe/sample-app"
+            })
+            .unwrap();
+        let configuration: serde_json::Value =
+            serde_json::from_str(observe.configuration()).unwrap();
+        assert_eq!(configuration["source_id"], "sample-app");
+        assert!(configuration["token_file"].as_str().is_some());
+        assert!(!observe.configuration().contains("otlp-token-contents"));
     }
 
     #[test]

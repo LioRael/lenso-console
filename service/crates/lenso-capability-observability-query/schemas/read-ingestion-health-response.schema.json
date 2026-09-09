@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "receiver_epoch",
+    "accepted_spans",
+    "accepted_logs",
+    "rejected_records",
+    "decode_failures",
+    "queue_saturation",
+    "redacted_attributes",
+    "retention_deletions",
+    "feed_lag",
+    "queue_depth",
+    "retention_days",
+    "retention_bytes"
+  ],
+  "properties": {
+    "receiver_epoch": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "accepted_spans": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "accepted_logs": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "rejected_records": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "decode_failures": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "queue_saturation": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "redacted_attributes": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "retention_deletions": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "feed_lag": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "queue_depth": { "type": "integer", "minimum": 0, "maximum": 1024 },
+    "retention_days": { "type": "integer", "minimum": 1, "maximum": 30 },
+    "retention_bytes": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+  },
+  "additionalProperties": false
+}

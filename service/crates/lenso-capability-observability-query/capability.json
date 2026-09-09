@@ -1,0 +1,43 @@
+{
+  "id": "lenso.observability.query@1",
+  "version": "1.0.0",
+  "portable": true,
+  "cross_lane_transfer": false,
+  "operations": [
+    {
+      "name": "list_requests",
+      "interaction": "request",
+      "request_schema": "schemas/list-requests-request.schema.json",
+      "response_schema": "schemas/list-requests-response.schema.json",
+      "domain_error_schema": "schemas/query-error.schema.json"
+    },
+    {
+      "name": "read_trace",
+      "interaction": "request",
+      "request_schema": "schemas/read-trace-request.schema.json",
+      "response_schema": "schemas/read-trace-response.schema.json",
+      "domain_error_schema": "schemas/query-error.schema.json"
+    },
+    {
+      "name": "list_trace_logs",
+      "interaction": "request",
+      "request_schema": "schemas/list-trace-logs-request.schema.json",
+      "response_schema": "schemas/list-trace-logs-response.schema.json",
+      "domain_error_schema": "schemas/query-error.schema.json"
+    },
+    {
+      "name": "watch_requests",
+      "interaction": "stream",
+      "request_schema": "schemas/watch-requests-open.schema.json",
+      "response_schema": "schemas/watch-requests-message.schema.json",
+      "domain_error_schema": "schemas/query-error.schema.json"
+    },
+    {
+      "name": "read_ingestion_health",
+      "interaction": "request",
+      "request_schema": "schemas/read-ingestion-health-request.schema.json",
+      "response_schema": "schemas/read-ingestion-health-response.schema.json",
+      "domain_error_schema": "schemas/query-error.schema.json"
+    }
+  ]
+}

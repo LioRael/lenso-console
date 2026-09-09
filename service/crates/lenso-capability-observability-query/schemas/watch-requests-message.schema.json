@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "kind",
+    "trace_id",
+    "method",
+    "route",
+    "status_code",
+    "started_at_unix_nano",
+    "duration_nano",
+    "service_name",
+    "completeness",
+    "has_error",
+    "dropped_count"
+  ],
+  "properties": {
+    "kind": { "type": "string", "enum": ["request", "lag"] },
+    "trace_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{32}$" },
+    "method": { "type": ["string", "null"], "maxLength": 32 },
+    "route": { "type": ["string", "null"], "maxLength": 512 },
+    "status_code": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 999
+    },
+    "started_at_unix_nano": {
+      "type": ["string", "null"],
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "duration_nano": {
+      "type": ["string", "null"],
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "service_name": { "type": ["string", "null"], "maxLength": 256 },
+    "completeness": { "type": ["string", "null"], "maxLength": 16 },
+    "has_error": { "type": ["boolean", "null"] },
+    "dropped_count": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" }
+  },
+  "additionalProperties": false
+}

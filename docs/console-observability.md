@@ -1,6 +1,7 @@
 # Console observability Plugin
 
-Status: first-release design; implementation not yet shipped.
+Status: local request-investigation tracer implemented; production receiver
+hardening and cross-App runtime inspection remain follow-ups.
 
 ## Outcome
 
@@ -58,7 +59,8 @@ counters and the UI while the App request still succeeds.
 
 ### Protocol
 
-The first receiver accepts OTLP/HTTP binary Protobuf on loopback-only endpoints:
+The implemented tracer accepts uncompressed OTLP/HTTP binary Protobuf on
+loopback-only endpoints:
 
 - `POST /v1/traces`
 - `POST /v1/logs`
@@ -81,7 +83,7 @@ deployment/authentication design and is rejected in the first release.
 
 Admission is bounded:
 
-- 4 MiB compressed request body and 16 MiB decoded-message limit;
+- a 4 MiB uncompressed request/decoded-message limit in the implemented tracer;
 - at most 10,000 spans or log records per request;
 - a bounded decode/commit queue with explicit rejection when full;
 - no synchronous callback into the observed App;
@@ -91,10 +93,10 @@ Admission is bounded:
 These product limits are intentionally below OTLP's broad protocol ceiling.
 They are configuration with reviewed maxima, not unbounded user input.
 
-## Stored facts
+## Stored facts for the full first release
 
 The Plugin owns a SQLite database in WAL mode for the local first release. The
-schema stores normalized resource, scope, span, event, link, and log facts plus
+full target schema stores normalized resource, scope, span, event, link, and log facts plus
 ingestion counters. Trace and span IDs remain fixed-width bytes; timestamps are
 nanoseconds since Unix epoch at the storage boundary and strings in browser JSON
 where JavaScript integer precision would be unsafe.
@@ -107,10 +109,13 @@ Every record retains:
 - log severity, time, trace/span correlation, and bounded body;
 - completeness flags for partial batches, late arrivals, and known loss.
 
-The receiver does not store HTTP request/response bodies, authorization,
+The receiver does not extract HTTP request/response bodies, authorization,
 cookies, database statements, prompts, Tool arguments, Plugin configuration,
-Actor assertions, or arbitrary binary attributes by default. Configuration may
-add an attribute to an allowlist but cannot disable the hard secret-key denylist.
+Actor assertions, or arbitrary binary attributes. Span and log attributes use a
+fixed semantic-convention allowlist plus a hard secret-key denylist. Accepted log
+body text is retained, so the observed App remains responsible for what it emits;
+a later configuration may extend the attribute allowlist but cannot disable the
+hard denylist.
 Values are length bounded and invalid UTF-8/binary values are represented as
 redacted metadata rather than copied into the browser.
 
@@ -173,9 +178,8 @@ the request list, trace waterfall/tree, related logs, ingestion health, and a
 runtime panel. Its service declaration names the observability query contract;
 it does not contain a URL or bearer token.
 
-The current Console release can mount the module but does not yet expose
-Plugin-owned typed services to that module. Before Observe can ship, Console
-must add a contract-aware browser transport that:
+The Console release exposes Plugin-owned typed services through the implemented
+contract-aware browser transport. It:
 
 1. uses the mount's resolved owner and App subject rather than current UI selection;
 2. admits only declared contract Operations and generated codecs;
@@ -195,24 +199,49 @@ Authoritative runtime correlation additionally requires the deferred cross-App
 inspection Connector. It is not required to ship trace/log investigation: the
 runtime panel remains explicitly unavailable until that Capability is selected.
 
-## First implementation slice
+## Implemented tracer slice
+
+The reference Host now links `lenso.console.workspace.observe` and creates one
+instance for the first configured application subject. With the default Console
+address its receiver listens on `127.0.0.1:4318`; it creates a private bearer
+token at `.lenso/console/observe/otlp-token` and stores telemetry in
+`.lenso/console/observe/telemetry.sqlite3`. The token bytes never enter the
+Resolved App Plan. With no configured application subject, Observe is available
+to the Host but is not activated or mounted.
+
+The Plugin accepts uncompressed OTLP/HTTP Protobuf traces and logs, normalizes
+HTTP server roots, removes secret-like attributes, persists bounded facts in
+SQLite WAL mode, applies time and logical-size retention, and exposes all five
+`lenso.observability.query@1` Operations. Its App-scoped Workspace shows a live
+request list, trace waterfall, correlated logs, receiver counters, honest
+incompleteness, and an explicit **Runtime state unavailable** panel. Switching
+or removing the mount cancels the feed without affecting the observed App.
+
+The following receiver-hardening work from the full first-release design is not
+claimed by this tracer: gzip request decoding and a distinct 16 MiB decoded
+ceiling, persistence of span events and links, richer late-arrival completeness,
+and an end-to-end sample Web App exporter fixture. The real receiver integration
+test sends standard OTLP Protobuf over HTTP; deterministic data only supplies
+the emitting side of that test.
+
+### Artifacts
 
 Concrete artifacts:
 
 - `service/crates/lenso-capability-observability-query`: source schemas,
   generated Rust code, TypeScript projection, and conformance fixtures;
-- `service/crates/lenso-console-observability-plugin`: OTLP receiver, SQLite
+- `service/crates/lenso-console-observe-workspace-plugin`: OTLP receiver, SQLite
   store, retention, query provider, Workspace provider, and lifecycle;
-- an independently built Observe frontend package with no Console-private imports;
-- Console contract-aware Workspace service transport;
-- a sample Lenso Web App configured with the removable OTel exporter;
-- App/Console configuration fixtures with distinct installation targets.
+- a self-contained Observe frontend module with no Console-private imports;
+- the existing Console contract-aware Workspace service transport;
+- reference Host Plan policy for the first configured App subject.
 
-Verification must prove real OTLP ingestion, pagination, late logs, partial
-success, redaction, queue saturation without App failure, stream lag and
-cancellation, App identity isolation, restart persistence, retention, Plugin
-disable/remove behavior, and a browser deep-link reload. Deterministic fixtures
-support these tests but do not replace the real Web request tracer.
+Current verification proves real OTLP ingestion and authorization, trace/log
+correlation, redaction, restart persistence, exact App/Plan admission, generated
+contract freshness, browser feed cancellation, and a browser trace deep link.
+Pagination, partial-success, queue saturation, stream lag, retention limits, and
+the final sample Web App exporter remain required before calling the whole
+first-release design complete.
 
 ## Deferred
 
