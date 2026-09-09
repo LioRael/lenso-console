@@ -1,4 +1,17 @@
 export const chineseMessages: Readonly<Record<string, string>> = {
+  "Add Projects App": "添加 Projects 应用",
+  "Connect a Projects App, then sign in through its browser consent page.":
+    "连接 Projects 应用，然后在浏览器中登录并授权。",
+  "App URL": "应用地址",
+  "Start local Apps before connecting. Adding an App does not grant access to its data.":
+    "连接前请先启动本地应用。添加应用不会授予其数据访问权限。",
+  "App name": "应用名称",
+  "Enter an App name.": "请输入应用名称。",
+  "Use a shorter App name.": "请缩短应用名称。",
+  "Enter a valid App URL.": "请输入有效的应用地址。",
+  "Use an HTTPS origin or a local HTTP origin, without paths or credentials.":
+    "请使用 HTTPS 地址或本地 HTTP 地址，不要包含路径或凭据。",
+
   "Collapse {field} editor": "收起{field}编辑器",
   "Expand {field} editor": "展开{field}编辑器",
   Expand: "展开",

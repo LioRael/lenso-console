@@ -6,7 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
+import type { PluginWorkbenchData } from "../plugins/use-plugin-workbench";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
+import { AddBusinessAppConnection } from "./add-business-app-connection";
 import { agentApiUrl } from "./agent-runtime";
 
 // HTTP management projection; credentials never cross this boundary.
@@ -64,7 +66,15 @@ function loginUrl(value: string, method?: string): string {
   return url.href;
 }
 
-export function AuthConnections({ agentId }: { agentId: string }) {
+export function AuthConnections({
+  agentId,
+  configuration,
+  configurationReady = false,
+}: {
+  agentId: string;
+  configuration?: PluginWorkbenchData | undefined;
+  configurationReady?: boolean;
+}) {
   const t = useConsoleTranslation();
 
   const catalog = useQuery({
@@ -82,9 +92,19 @@ export function AuthConnections({ agentId }: { agentId: string }) {
         <SettingsSection.Title xstyle={preferences.sectionTitle}>
           Connected accounts
         </SettingsSection.Title>
-        <Button disabled={catalog.isFetching} onClick={refresh}>
-          Refresh
-        </Button>
+        <div {...stylex.props(styles.actions)}>
+          {configuration ? (
+            <AddBusinessAppConnection
+              agentId={agentId}
+              data={configuration}
+              disabled={!configurationReady}
+              onAdded={refresh}
+            />
+          ) : null}
+          <Button disabled={catalog.isFetching} onClick={refresh}>
+            Refresh
+          </Button>
+        </div>
       </div>
       {catalog.isPending ? (
         <p {...stylex.props(styles.message)}>{t("Loading accounts…")}</p>

@@ -126,7 +126,11 @@ function AgentSettingsContent({
       ) : (
         <>
           {agent.capabilities.includes("lenso.agent.auth-connection@1") ? (
-            <AuthConnections agentId={agent.id} />
+            <AuthConnections
+              agentId={agent.id}
+              configuration={workbench.data}
+              configurationReady={workbench.authoringEnabled}
+            />
           ) : null}
           {workbench.isError ? (
             <p role="alert" {...stylex.props(styles.error)}>
