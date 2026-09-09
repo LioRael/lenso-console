@@ -155,7 +155,7 @@ try {
   assert.equal(installed.status, 0, installed.stderr);
   const version = spawnSync(
     "npx",
-    ["--offline", "--no", "lenso-agent", "--version"],
+    ["--offline", "--no", "--", "lenso-agent", "--version"],
     { cwd, encoding: "utf-8", env: npmEnvironment }
   );
   assert.equal(version.status, 0, version.stderr);
