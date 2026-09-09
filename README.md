@@ -200,7 +200,14 @@ Home is rejected before writing; stopping its Host does not release ownership.
 
 ## Packaged Agent Web
 
-The staged npm distribution provides `npx @lenso/agent web` on macOS Apple
-Silicon and Ubuntu 24.04+ x64, without a Rust toolchain or source checkout.
-It bundles the Console client and exact native runtime cohort. Public use
-requires the first npm publication; see [distribution status and build steps](docs/agent-npm-distribution.md).
+Run Agent and Console from the current workspace with Node.js 22.12 or newer:
+
+```sh
+npx @lenso/agent web
+```
+
+Available on npm since 1.6.0 for macOS 15+ on Apple Silicon and Ubuntu 24.04+
+x64. No Rust toolchain or source checkout is required. The package includes the
+Console client and exact native runtime cohort. Use `--port` to choose a port,
+`--no-open` to skip opening the browser, or `@1.6.0` to pin the package version.
+See [distribution and release instructions](docs/agent-npm-distribution.md).
