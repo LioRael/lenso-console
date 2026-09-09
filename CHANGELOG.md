@@ -1,5 +1,14 @@
 ## @lenso/console-web@0.1.7
 
+## 1.11.0
+
+### Minor Changes
+
+- 3743673: Add a Projects App directly from Connections, then connect through browser consent. Keep business credentials inside the Agent, explain reconnect and disconnect behavior, and support same-origin loopback consent pages for local Apps.
+- 420c489: Complete Observe telemetry ingestion with bounded gzip decoding, persisted span
+  events and links, late-arrival updates, richer span inspection, and retention and
+  pagination integration coverage.
+
 ## 1.10.0
 
 ### Minor Changes
