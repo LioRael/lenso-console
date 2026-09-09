@@ -2,9 +2,9 @@
 
 ## User entrypoint
 
-The intended released command is `npx @lenso/agent web`. It is available only
-after the three npm packages have been published; building or merging this
-repository alone does not make that command publicly available.
+Run `npx @lenso/agent web` from the workspace to use. The first published npm
+cohort is 1.6.0; `npx @lenso/agent@1.6.0 web` selects that exact release.
+Building or merging this repository does not publish a newer npm version.
 
 The launcher uses the current workspace and preserves existing Agent/Console
 Homes. It accepts `--port` and `--no-open`. The Console listener stays on
@@ -44,7 +44,11 @@ ports, restart, signals and child crashes. It verifies every owned process exits
 
 ## Publication setup
 
-Configure npm Trusted Publishers for `@lenso/agent`,
+The three packages were initialized at 1.6.0 using a registry-owner-authorized
+one-time publication exception. Their Trusted Publishers are now configured;
+subsequent releases use the workflow below without the initial bootstrap step.
+
+The npm Trusted Publishers are configured for `@lenso/agent`,
 `@lenso/agent-darwin-arm64`, and `@lenso/agent-linux-x64`: GitHub repository
 `LioRael/lenso-console`, workflow `agent-npm.yml`, environment `npm`.
 First-time package creation/publisher configuration requires the registry owner;
