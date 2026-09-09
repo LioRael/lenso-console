@@ -5,6 +5,14 @@ edition = "2024"
 publish = false
 rust-version = "1.94"
 
+[workspace]
+members = [
+  ".",
+  "crates/lenso-capability-ui-contribution",
+  "crates/lenso-console-welcome-workspace-plugin",
+]
+resolver = "2"
+
 [package.metadata.lenso]
 plugin-id = "lenso.console.web"
 root-slot = "console"
@@ -20,10 +28,13 @@ path = "src/agent_main.rs"
 [dependencies]
 anyhow = "1.0"
 axum = "0.8"
+base64 = "0.22"
 directories = "6.0"
 dotenvy = "0.15"
+hex = "0.4"
 lenso = "0.5.0"
 lenso-kernel = "0.2.0"
+lenso-capability-ui-contribution = { path = "crates/lenso-capability-ui-contribution" }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "rustls-tls",
@@ -31,6 +42,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sha2 = "0.10"
 tokio = { version = "1.52", features = [
   "macros",
   "net",
@@ -46,6 +58,7 @@ tower-http = { version = "0.7", features = ["fs", "limit", "set-header"] }
 uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
+lenso-console-welcome-workspace-plugin = { path = "crates/lenso-console-welcome-workspace-plugin" }
 lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", default-features = false }
 tempfile = "3.27"
 tower = "0.5"

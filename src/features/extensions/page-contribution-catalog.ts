@@ -10,6 +10,17 @@ export type PageMount = {
     items: readonly { label: string; path: readonly string[] }[];
     label: string;
   };
+  owner: {
+    instance: string;
+    source: "development-filesystem" | "resolved-plan";
+    trusted: boolean;
+  };
+  requirements: readonly {
+    capability_id: string;
+    descriptor_version: string;
+    operations: readonly string[];
+  }[];
+  revision: string;
   styles: readonly string[];
   subject: "console";
   title: string;
@@ -21,7 +32,7 @@ const demoCatalog: readonly PageMount[] = [
     id: "welcome",
     module: `data:text/javascript,${encodeURIComponent(`
       export const apiMajor = 1;
-      export const createPage = ({ createElement }) => ({
+      export const createWorkspace = ({ createElement }) => ({
         Page: ({ location, mount }) => createElement(
           "section",
           { className: "welcome-contribution" },
@@ -38,6 +49,13 @@ const demoCatalog: readonly PageMount[] = [
       ],
       label: "Extensions",
     },
+    owner: {
+      instance: "demo.welcome",
+      source: "development-filesystem",
+      trusted: false,
+    },
+    requirements: [],
+    revision: "demo",
     styles: [
       `data:text/css,${encodeURIComponent(
         ".welcome-contribution { padding: 2rem; }"
@@ -92,7 +110,15 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       !candidate.navigation.label.trim() ||
       !("items" in candidate.navigation) ||
       !Array.isArray(candidate.navigation.items) ||
-      !validNavigationItems(candidate.navigation.items)
+      !validNavigationItems(candidate.navigation.items) ||
+      !("owner" in candidate) ||
+      !validOwner(candidate.owner) ||
+      !("revision" in candidate) ||
+      typeof candidate.revision !== "string" ||
+      !candidate.revision.trim() ||
+      !("requirements" in candidate) ||
+      !Array.isArray(candidate.requirements) ||
+      !candidate.requirements.every(validRequirement)
     ) {
       throw new TypeError("Console page mount is malformed");
     }
@@ -105,12 +131,52 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
         items: candidate.navigation.items,
         label: candidate.navigation.label,
       },
+      owner: candidate.owner,
+      requirements: candidate.requirements,
+      revision: candidate.revision,
       styles: candidate.styles,
       subject: candidate.subject,
       title: candidate.title,
     };
     return mount;
   });
+}
+
+function validOwner(value: unknown): value is PageMount["owner"] {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "instance" in value &&
+    typeof value.instance === "string" &&
+    !!value.instance.trim() &&
+    "source" in value &&
+    (value.source === "resolved-plan" ||
+      value.source === "development-filesystem") &&
+    "trusted" in value &&
+    typeof value.trusted === "boolean" &&
+    value.trusted === (value.source === "resolved-plan")
+  );
+}
+
+function validRequirement(
+  value: unknown
+): value is PageMount["requirements"][number] {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    "capability_id" in value &&
+    typeof value.capability_id === "string" &&
+    !!value.capability_id.trim() &&
+    "descriptor_version" in value &&
+    typeof value.descriptor_version === "string" &&
+    !!value.descriptor_version.trim() &&
+    "operations" in value &&
+    Array.isArray(value.operations) &&
+    value.operations.length > 0 &&
+    value.operations.every(
+      (operation: unknown) => typeof operation === "string" && !!operation
+    )
+  );
 }
 
 function validNavigationItems(values: unknown[]): boolean {
@@ -153,11 +219,11 @@ function isMountAssetUrl(value: string, mountId: string): boolean {
     return false;
   }
   const relative = value.slice(prefix.length);
+  const [digest, ...segments] = relative.split("/");
   return (
-    relative.length > 0 &&
-    relative
-      .split("/")
-      .every((segment) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(segment))
+    /^[a-f0-9]{64}$/u.test(digest ?? "") &&
+    segments.length > 0 &&
+    segments.every((segment) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(segment))
   );
 }
 
@@ -175,6 +241,6 @@ export function usePageCatalog() {
     queryKey: ["console-page-catalog"],
     queryFn: ({ signal }) => readPageCatalog(signal),
     retry: false,
-    staleTime: 15_000,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }

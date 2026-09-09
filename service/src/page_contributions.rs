@@ -1,14 +1,28 @@
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
 
-use axum::{Json, Router};
+use axum::{
+    Json, Router,
+    body::Bytes,
+    extract::{Path as AxumPath, State},
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
+    routing::get,
+};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use lenso::ManyPort;
+use lenso_capability_ui_contribution::{
+    ContributionClient, ContributionInvocationError, DescribeRequest, DescribeResponse,
+    DescribeResponseAssetsItemMediaType, DescribeResponseRequirementsItem,
+};
 use serde::{Deserialize, Serialize};
-use tower_http::services::ServeDir;
+use sha2::{Digest, Sha256};
 
 const DESCRIPTOR_FILE: &str = "contribution.json";
+const MAX_ASSET_BYTES: usize = 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -61,6 +75,9 @@ struct PageMount {
     module: String,
     styles: Vec<String>,
     navigation: ContributionNavigationResponse,
+    owner: ContributionOwner,
+    revision: String,
+    requirements: Vec<DescribeResponseRequirementsItem>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -69,32 +86,171 @@ struct ContributionNavigationResponse {
     items: Vec<ContributionNavigationItem>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct ContributionOwner {
+    instance: String,
+    source: &'static str,
+    trusted: bool,
+}
+
+#[derive(Clone)]
+struct Asset {
+    bytes: Bytes,
+    media_type: &'static str,
+}
+
 #[derive(Clone)]
 pub(super) struct PageCatalog {
     mounts: Arc<Vec<PageMount>>,
+    assets: Arc<BTreeMap<(String, String, String), Asset>>,
 }
 
 impl PageCatalog {
-    pub(super) fn discover(web_root: &Path) -> anyhow::Result<(Self, Router)> {
+    pub(super) async fn from_port(
+        port: &ManyPort<ContributionClient>,
+    ) -> Result<Self, lenso_kernel::RuntimeFailure> {
+        let mut contributions = Vec::with_capacity(port.len());
+        for provider in port.iter() {
+            let owner = provider.provider_instance().to_owned();
+            let response =
+                provider
+                    .describe(DescribeRequest {})
+                    .await
+                    .map_err(|error| match error {
+                        ContributionInvocationError::Domain(error) => {
+                            lenso_kernel::RuntimeFailure::PluginFailure {
+                                detail: format!(
+                                    "UI Contribution `{owner}` rejected describe: {error:?}"
+                                ),
+                            }
+                        }
+                        ContributionInvocationError::Runtime(error) => error,
+                    })?;
+            contributions.push((owner, response));
+        }
+        Self::from_contributions(contributions).map_err(|error| {
+            lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
+                detail: error.to_string(),
+            }
+        })
+    }
+
+    fn from_contributions(contributions: Vec<(String, DescribeResponse)>) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            contributions.len() <= 64,
+            "Console supports at most 64 Workspace contributions"
+        );
+        let mut mounts = Vec::with_capacity(contributions.len());
+        let mut assets = BTreeMap::new();
+        let mut ids = BTreeSet::new();
+        for (owner, contribution) in contributions {
+            anyhow::ensure!(
+                ids.insert(contribution.workspace_id.clone()),
+                "duplicate Console Workspace id: {}",
+                contribution.workspace_id
+            );
+            validate_response(&contribution)?;
+            let mut decoded_assets = Vec::with_capacity(contribution.assets.len());
+            for asset in contribution.assets {
+                let bytes = STANDARD.decode(&asset.content_base64)?;
+                anyhow::ensure!(
+                    bytes.len() <= MAX_ASSET_BYTES,
+                    "Console Workspace asset exceeds one MiB: {}",
+                    asset.path
+                );
+                let media_type = match asset.media_type {
+                    DescribeResponseAssetsItemMediaType::TextCssCharsetUtf => {
+                        "text/css; charset=utf-8"
+                    }
+                    DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf => {
+                        "text/javascript; charset=utf-8"
+                    }
+                };
+                decoded_assets.push((
+                    asset.path,
+                    Asset {
+                        bytes: Bytes::from(bytes),
+                        media_type,
+                    },
+                ));
+            }
+            decoded_assets.sort_by(|left, right| left.0.cmp(&right.0));
+            let mut hasher = Sha256::new();
+            hash_part(&mut hasher, contribution.revision.as_bytes());
+            for (path, asset) in &decoded_assets {
+                hash_part(&mut hasher, path.as_bytes());
+                hash_part(&mut hasher, asset.media_type.as_bytes());
+                hash_part(&mut hasher, &asset.bytes);
+            }
+            let digest = hex::encode(hasher.finalize());
+            let asset_base = format!(
+                "/api/console/v1/pages/{}/assets/{digest}",
+                contribution.workspace_id
+            );
+            for (path, asset) in decoded_assets {
+                anyhow::ensure!(
+                    assets
+                        .insert(
+                            (contribution.workspace_id.clone(), digest.clone(), path),
+                            asset,
+                        )
+                        .is_none(),
+                    "duplicate Console Workspace asset path"
+                );
+            }
+            mounts.push(PageMount {
+                id: contribution.workspace_id,
+                title: contribution.title,
+                subject: ContributionSubject::Console,
+                api_major: 1,
+                module: format!("{asset_base}/{}", contribution.module),
+                styles: contribution
+                    .styles
+                    .into_iter()
+                    .map(|path| format!("{asset_base}/{path}"))
+                    .collect(),
+                navigation: ContributionNavigationResponse {
+                    label: contribution.navigation.label,
+                    items: contribution
+                        .navigation
+                        .items
+                        .into_iter()
+                        .map(|item| ContributionNavigationItem {
+                            label: item.label,
+                            path: item.path,
+                        })
+                        .collect(),
+                },
+                owner: ContributionOwner {
+                    instance: owner,
+                    source: "resolved-plan",
+                    trusted: true,
+                },
+                revision: contribution.revision,
+                requirements: contribution.requirements,
+            });
+        }
+        Ok(Self {
+            mounts: Arc::new(mounts),
+            assets: Arc::new(assets),
+        })
+    }
+
+    pub(super) fn discover(web_root: &Path) -> anyhow::Result<Self> {
         let root = web_root.join("contributions");
         if !root.exists() {
-            return Ok((
-                Self {
-                    mounts: Arc::new(Vec::new()),
-                },
-                Router::new(),
-            ));
+            return Ok(Self {
+                mounts: Arc::new(Vec::new()),
+                assets: Arc::new(BTreeMap::new()),
+            });
         }
         anyhow::ensure!(
             root.is_dir(),
             "Console contribution root must be a directory"
         );
-
         let mut directories = std::fs::read_dir(&root)?.collect::<Result<Vec<_>, _>>()?;
         directories.sort_by_key(std::fs::DirEntry::file_name);
-        let mut ids = BTreeSet::new();
-        let mut mounts = Vec::new();
-        let mut assets = Router::new();
+        let mut contributions = Vec::new();
         for entry in directories {
             if !entry.file_type()?.is_dir() {
                 continue;
@@ -104,54 +260,178 @@ impl PageCatalog {
             let descriptor: ContributionDescriptor =
                 serde_json::from_slice(&std::fs::read(directory.join(DESCRIPTOR_FILE))?)?;
             validate_descriptor(&descriptor, &directory)?;
-            anyhow::ensure!(
-                ids.insert(descriptor.id.clone()),
-                "duplicate Console contribution id: {}",
-                descriptor.id
-            );
-            let asset_base = format!("/api/console/v1/pages/{}/assets", descriptor.id);
-            let module = format!("{asset_base}/{}", descriptor.module);
-            let styles = descriptor
-                .styles
-                .iter()
-                .map(|style| format!("{asset_base}/{style}"))
-                .collect();
-            assets = assets.nest_service(&asset_base, ServeDir::new(directory));
-            mounts.push(PageMount {
-                id: descriptor.id,
-                title: descriptor.title,
-                subject: descriptor.subject,
-                api_major: descriptor.runtime.api_major,
-                module,
-                styles,
-                navigation: ContributionNavigationResponse {
-                    label: descriptor.navigation.label,
-                    items: descriptor.navigation.items,
+            let asset_paths = std::iter::once(&descriptor.module)
+                .chain(&descriptor.styles)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            let assets = asset_paths
+                .into_iter()
+                .map(|path| {
+                    let content = std::fs::read(directory.join(&path))?;
+                    let media_type = if is_css_asset(&path) {
+                        DescribeResponseAssetsItemMediaType::TextCssCharsetUtf
+                    } else {
+                        DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf
+                    };
+                    Ok(
+                        lenso_capability_ui_contribution::DescribeResponseAssetsItem {
+                            content_base64: STANDARD.encode(content),
+                            media_type,
+                            path,
+                        },
+                    )
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+            contributions.push((
+                format!("dev.filesystem.{}", descriptor.id),
+                DescribeResponse {
+                    assets,
+                    module: descriptor.module,
+                    navigation: lenso_capability_ui_contribution::DescribeResponseNavigation {
+                        label: descriptor.navigation.label,
+                        items: descriptor
+                            .navigation
+                            .items
+                            .into_iter()
+                            .map(|item| {
+                                lenso_capability_ui_contribution::DescribeResponseNavigationItemsItem {
+                                    label: item.label,
+                                    path: item.path,
+                                }
+                            })
+                            .collect(),
+                    },
+                    requirements: Vec::new(),
+                    revision: "dev".to_owned(),
+                    styles: descriptor.styles,
+                    title: descriptor.title,
+                    workspace_id: descriptor.id,
                 },
-            });
+            ));
         }
-        Ok((
-            Self {
-                mounts: Arc::new(mounts),
-            },
-            assets,
-        ))
+        let mut catalog = Self::from_contributions(contributions)?;
+        for mount in Arc::make_mut(&mut catalog.mounts) {
+            mount.owner.source = "development-filesystem";
+            mount.owner.trusted = false;
+        }
+        Ok(catalog)
     }
 
     pub(super) fn routes(self) -> Router {
         Router::new()
-            .route("/api/console/v1/pages", axum::routing::get(list_pages))
+            .route("/api/console/v1/pages", get(list_pages))
+            .route(
+                "/api/console/v1/pages/{workspace_id}/assets/{digest}/{*path}",
+                get(read_asset),
+            )
             .with_state(self)
     }
 }
 
-async fn list_pages(
-    axum::extract::State(catalog): axum::extract::State<PageCatalog>,
-) -> Json<serde_json::Value> {
+async fn list_pages(State(catalog): State<PageCatalog>) -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "schema": "console.page-catalog/1",
         "mounts": catalog.mounts.as_ref(),
     }))
+}
+
+async fn read_asset(
+    State(catalog): State<PageCatalog>,
+    AxumPath((workspace_id, digest, path)): AxumPath<(String, String, String)>,
+) -> Response {
+    let Some(asset) = catalog.assets.get(&(workspace_id, digest, path)) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    (
+        [
+            (header::CONTENT_TYPE, asset.media_type),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        asset.bytes.clone(),
+    )
+        .into_response()
+}
+
+fn validate_response(value: &DescribeResponse) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        valid_slug(&value.workspace_id),
+        "invalid Console Workspace id"
+    );
+    anyhow::ensure!(
+        !value.title.trim().is_empty()
+            && value.title.len() <= 80
+            && !value.navigation.label.trim().is_empty()
+            && value.navigation.label.len() <= 40
+            && !value.revision.trim().is_empty(),
+        "Console Workspace labels and revision must not be empty"
+    );
+    anyhow::ensure!(
+        value.revision.len() <= 128
+            && !value.assets.is_empty()
+            && value.assets.len() <= 64
+            && value.styles.len() <= 16
+            && value.navigation.items.len() <= 32
+            && value.requirements.len() <= 32,
+        "Console Workspace contribution exceeds contract bounds"
+    );
+    let paths = value
+        .assets
+        .iter()
+        .map(|asset| asset.path.as_str())
+        .collect::<BTreeSet<_>>();
+    anyhow::ensure!(
+        paths.len() == value.assets.len(),
+        "duplicate Console Workspace asset path"
+    );
+    for path in &paths {
+        safe_relative_path(path)?;
+    }
+    for asset in &value.assets {
+        let expected_css = matches!(
+            asset.media_type,
+            DescribeResponseAssetsItemMediaType::TextCssCharsetUtf
+        );
+        anyhow::ensure!(
+            (expected_css && is_css_asset(&asset.path))
+                || (!expected_css && is_javascript_asset(&asset.path)),
+            "Console Workspace asset media type does not match its path: {}",
+            asset.path
+        );
+    }
+    anyhow::ensure!(
+        paths.contains(value.module.as_str())
+            && value
+                .styles
+                .iter()
+                .all(|path| paths.contains(path.as_str())),
+        "Console Workspace entry assets are missing"
+    );
+    let mut navigation_paths = BTreeSet::new();
+    for item in &value.navigation.items {
+        anyhow::ensure!(
+            !item.label.trim().is_empty()
+                && item.path.iter().all(|segment| valid_path_segment(segment))
+                && navigation_paths.insert(item.path.clone()),
+            "Console Workspace navigation item is invalid"
+        );
+    }
+    for requirement in &value.requirements {
+        anyhow::ensure!(
+            !requirement.capability_id.trim().is_empty()
+                && requirement.capability_id.len() <= 128
+                && !requirement.descriptor_version.trim().is_empty()
+                && requirement.descriptor_version.len() <= 32
+                && !requirement.operations.is_empty()
+                && requirement.operations.len() <= 32
+                && requirement
+                    .operations
+                    .iter()
+                    .all(|operation| !operation.trim().is_empty() && operation.len() <= 64),
+            "Console Workspace Capability requirement is invalid"
+        );
+    }
+    Ok(())
 }
 
 fn validate_artifact_tree(directory: &Path) -> anyhow::Result<()> {
@@ -177,27 +457,48 @@ fn validate_descriptor(
         descriptor.schema == "console.page-contribution/1",
         "unsupported Console contribution schema"
     );
-    anyhow::ensure!(
-        valid_slug(&descriptor.id),
-        "invalid Console contribution id"
-    );
-    anyhow::ensure!(
-        !descriptor.title.trim().is_empty() && !descriptor.navigation.label.trim().is_empty(),
-        "Console contribution labels must not be empty"
-    );
-    let mut navigation_paths = BTreeSet::new();
-    for item in &descriptor.navigation.items {
-        anyhow::ensure!(
-            !item.label.trim().is_empty()
-                && item.path.iter().all(|segment| valid_path_segment(segment))
-                && navigation_paths.insert(item.path.clone()),
-            "Console contribution navigation item is invalid"
-        );
-    }
+    let ContributionSubject::Console = descriptor.subject;
     anyhow::ensure!(
         descriptor.runtime.api_major == 1,
         "unsupported Console page API major"
     );
+    let response = DescribeResponse {
+        assets: std::iter::once(&descriptor.module)
+            .chain(&descriptor.styles)
+            .map(
+                |path| lenso_capability_ui_contribution::DescribeResponseAssetsItem {
+                    content_base64: String::new(),
+                    media_type: if is_css_asset(path) {
+                        DescribeResponseAssetsItemMediaType::TextCssCharsetUtf
+                    } else {
+                        DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf
+                    },
+                    path: path.clone(),
+                },
+            )
+            .collect(),
+        module: descriptor.module.clone(),
+        navigation: lenso_capability_ui_contribution::DescribeResponseNavigation {
+            label: descriptor.navigation.label.clone(),
+            items: descriptor
+                .navigation
+                .items
+                .iter()
+                .map(
+                    |item| lenso_capability_ui_contribution::DescribeResponseNavigationItemsItem {
+                        label: item.label.clone(),
+                        path: item.path.clone(),
+                    },
+                )
+                .collect(),
+        },
+        requirements: Vec::new(),
+        revision: "dev".to_owned(),
+        styles: descriptor.styles.clone(),
+        title: descriptor.title.clone(),
+        workspace_id: descriptor.id.clone(),
+    };
+    validate_response(&response)?;
     let contribution_root = std::fs::canonicalize(directory)?;
     for asset in std::iter::once(&descriptor.module).chain(&descriptor.styles) {
         let relative = safe_relative_path(asset)?;
@@ -232,6 +533,23 @@ fn safe_relative_path(value: &str) -> anyhow::Result<PathBuf> {
     Ok(path.to_path_buf())
 }
 
+fn is_css_asset(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("css"))
+}
+
+fn is_javascript_asset(path: &str) -> bool {
+    Path::new(path).extension().is_some_and(|extension| {
+        extension.eq_ignore_ascii_case("js") || extension.eq_ignore_ascii_case("mjs")
+    })
+}
+
+fn hash_part(hasher: &mut Sha256, value: &[u8]) {
+    hasher.update(u64::try_from(value.len()).unwrap_or(u64::MAX).to_be_bytes());
+    hasher.update(value);
+}
+
 fn valid_slug(value: &str) -> bool {
     let mut characters = value.chars();
     matches!(characters.next(), Some(first) if first.is_ascii_lowercase())
@@ -257,7 +575,7 @@ mod tests {
     use super::*;
     use axum::{
         body::{Body, to_bytes},
-        http::{Request, StatusCode},
+        http::Request,
     };
     use tower::ServiceExt;
 
@@ -291,10 +609,9 @@ mod tests {
     fn discovers_valid_contributions_and_rejects_escaping_assets() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let (catalog, _) = PageCatalog::discover(root.path()).unwrap();
+        let catalog = PageCatalog::discover(root.path()).unwrap();
         assert_eq!(catalog.mounts.len(), 1);
-        assert_eq!(catalog.mounts[0].id, "example");
-        assert_eq!(catalog.mounts[0].navigation.items.len(), 2);
+        assert_eq!(catalog.mounts[0].owner.source, "development-filesystem");
 
         let descriptor = root.path().join("contributions/example/contribution.json");
         let mut value: serde_json::Value =
@@ -304,58 +621,29 @@ mod tests {
         assert!(PageCatalog::discover(root.path()).is_err());
     }
 
-    #[cfg(unix)]
     #[test]
-    fn rejects_assets_that_escape_through_a_symbolic_link() {
-        use std::os::unix::fs::symlink;
-
+    fn asset_urls_change_with_content() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let outside = root.path().join("outside.mjs");
-        std::fs::write(&outside, "export const apiMajor = 1;").unwrap();
-        let module = root.path().join("contributions/example/page.mjs");
-        std::fs::remove_file(&module).unwrap();
-        symlink(outside, module).unwrap();
-
-        assert!(PageCatalog::discover(root.path()).is_err());
-    }
-
-    #[test]
-    fn rejects_duplicate_navigation_destinations() {
-        let root = tempfile::tempdir().unwrap();
-        write_contribution(root.path(), "example", "page.mjs");
-        let descriptor = root.path().join("contributions/example/contribution.json");
-        let mut value: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
-        value["navigation"]["items"] = serde_json::json!([
-            { "label": "Home", "path": [] },
-            { "label": "Also home", "path": [] }
-        ]);
-        std::fs::write(descriptor, value.to_string()).unwrap();
-
-        assert!(PageCatalog::discover(root.path()).is_err());
-    }
-
-    #[test]
-    fn rejects_navigation_path_traversal() {
-        let root = tempfile::tempdir().unwrap();
-        write_contribution(root.path(), "example", "page.mjs");
-        let descriptor = root.path().join("contributions/example/contribution.json");
-        let mut value: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
-        value["navigation"]["items"] = serde_json::json!([{ "label": "Escape", "path": [".."] }]);
-        std::fs::write(descriptor, value.to_string()).unwrap();
-
-        assert!(PageCatalog::discover(root.path()).is_err());
+        let first = PageCatalog::discover(root.path()).unwrap().mounts[0]
+            .module
+            .clone();
+        std::fs::write(
+            root.path().join("contributions/example/page.mjs"),
+            "export const apiMajor = 1; export const changed = true;",
+        )
+        .unwrap();
+        let second = PageCatalog::discover(root.path()).unwrap().mounts[0]
+            .module
+            .clone();
+        assert_ne!(first, second);
     }
 
     #[tokio::test]
-    async fn serves_the_catalog_and_assets_without_spa_fallback() {
+    async fn serves_immutable_catalog_assets_without_spa_fallback() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let (catalog, assets) = PageCatalog::discover(root.path()).unwrap();
-        let app = catalog.routes().merge(assets);
-
+        let app = PageCatalog::discover(root.path()).unwrap().routes();
         let response = app
             .clone()
             .oneshot(
@@ -369,27 +657,24 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
         let body = to_bytes(response.into_body(), 16 * 1024).await.unwrap();
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert_eq!(value["mounts"][0]["id"], "example");
-        assert_eq!(
-            value["mounts"][0]["module"],
-            "/api/console/v1/pages/example/assets/page.mjs"
-        );
+        assert_eq!(value["mounts"][0]["owner"]["trusted"], false);
+        let module = value["mounts"][0]["module"].as_str().unwrap();
 
         let asset = app
             .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/console/v1/pages/example/assets/page.mjs")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri(module).body(Body::empty()).unwrap())
             .await
             .unwrap();
         assert_eq!(asset.status(), StatusCode::OK);
+        assert_eq!(
+            asset.headers()[header::CACHE_CONTROL],
+            "public, max-age=31536000, immutable"
+        );
+
         let missing = app
             .oneshot(
                 Request::builder()
-                    .uri("/api/console/v1/pages/example/assets/missing.mjs")
+                    .uri(module.replace("page.mjs", "missing.mjs"))
                     .body(Body::empty())
                     .unwrap(),
             )

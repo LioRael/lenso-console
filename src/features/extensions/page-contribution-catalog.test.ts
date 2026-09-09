@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { parsePageCatalog } from "./page-contribution-catalog";
 
+const ownership = {
+  owner: { instance: "observe.plugin", source: "resolved-plan", trusted: true },
+  requirements: [],
+  revision: "1.0.0",
+} as const;
+const digest = "a".repeat(64);
+const observeAssets = `/api/console/v1/pages/observe/assets/${digest}`;
+
 describe("parsePageCatalog", () => {
   it("accepts an admitted Console mount", () => {
     expect(
@@ -9,14 +17,15 @@ describe("parsePageCatalog", () => {
         schema: "console.page-catalog/1",
         mounts: [
           {
+            ...ownership,
             apiMajor: 1,
             id: "observe",
-            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            module: `${observeAssets}/page.mjs`,
             navigation: {
               items: [{ label: "Home", path: [] }],
               label: "Observe",
             },
-            styles: ["/api/console/v1/pages/observe/assets/page.css"],
+            styles: [`${observeAssets}/page.css`],
             subject: "console",
             title: "Observe",
           },
@@ -27,6 +36,7 @@ describe("parsePageCatalog", () => {
 
   it("rejects duplicate mounts and arbitrary module origins", () => {
     const mount = {
+      ...ownership,
       apiMajor: 1,
       id: "observe",
       module: "https://example.com/page.mjs",
@@ -46,12 +56,14 @@ describe("parsePageCatalog", () => {
         schema: "console.page-catalog/1",
         mounts: [
           {
+            ...ownership,
             ...mount,
-            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            module: `${observeAssets}/page.mjs`,
           },
           {
+            ...ownership,
             ...mount,
-            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            module: `${observeAssets}/page.mjs`,
           },
         ],
       })
@@ -60,9 +72,10 @@ describe("parsePageCatalog", () => {
 
   it("rejects assets owned by another mount or containing traversal", () => {
     const mount = {
+      ...ownership,
       apiMajor: 1,
       id: "observe",
-      module: "/api/console/v1/pages/users/assets/page.mjs",
+      module: `/api/console/v1/pages/users/assets/${digest}/page.mjs`,
       navigation: { items: [], label: "Observe" },
       styles: [],
       subject: "console",
@@ -79,8 +92,9 @@ describe("parsePageCatalog", () => {
         schema: "console.page-catalog/1",
         mounts: [
           {
+            ...ownership,
             ...mount,
-            module: "/api/console/v1/pages/observe/assets/nested/../page.mjs",
+            module: `${observeAssets}/nested/../page.mjs`,
           },
         ],
       })
@@ -93,9 +107,10 @@ describe("parsePageCatalog", () => {
         schema: "console.page-catalog/1",
         mounts: [
           {
+            ...ownership,
             apiMajor: 1,
             id: "observe",
-            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            module: `${observeAssets}/page.mjs`,
             navigation: {
               items: [{ label: "Escape", path: [".."] }],
               label: "Observe",
@@ -115,9 +130,10 @@ describe("parsePageCatalog", () => {
         schema: "console.page-catalog/1",
         mounts: [
           {
+            ...ownership,
             apiMajor: 1,
             id: "observe",
-            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            module: `${observeAssets}/page.mjs`,
             navigation: {
               items: [
                 { label: "Home", path: [] },
