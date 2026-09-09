@@ -1,5 +1,13 @@
 ## @lenso/console-web@0.1.7
 
+## 1.6.0
+
+### Minor Changes
+
+- e340ae5: Add a packaged npm launcher for Agent Web with exact-version native runtimes, offline startup, loopback port configuration, and supervised Agent processes.
+- 80b36e7: Project Console-scoped Plugin contributions as direct primary-rail Workspaces with Workspace-owned contextual navigation and canonical `/workspaces` routes.
+- e09b509: Introduce the first Console-scoped native page contribution slice with service-hosted discovery, nested routes, and contained loading failures.
+
 ## 1.5.2
 
 ### Patch Changes
