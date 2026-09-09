@@ -7,6 +7,7 @@ import {
   mkdir,
   readFile,
   writeFile,
+  symlink,
   rm,
   realpath,
 } from "node:fs/promises";
@@ -27,6 +28,9 @@ const homes = join(root, "state");
 const cwd = join(root, "workspace");
 await mkdir(cwd);
 await mkdir(homes);
+const runtimePath = join(root, "runtime-bin");
+await mkdir(runtimePath);
+await symlink(process.execPath, join(runtimePath, "node"));
 await writeFile(join(cwd, "package.json"), '{"private":true}');
 await writeFile(join(homes, "preserve.txt"), "persistent state");
 let child;
@@ -95,6 +99,7 @@ const start = (port) => {
         HOME: homes,
         LENSO_AGENT_HOME: join(homes, "agent"),
         LENSO_CONSOLE_HOME: join(homes, "console"),
+        PATH: runtimePath,
         SSH_CONNECTION: "smoke",
         XDG_CONFIG_HOME: join(homes, "config"),
         XDG_DATA_HOME: join(homes, "data"),
