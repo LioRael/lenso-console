@@ -48,7 +48,7 @@ The three packages were initialized at 1.6.0 using a registry-owner-authorized
 one-time publication exception. Their Trusted Publishers are now configured;
 subsequent releases use the workflow below without the initial bootstrap step.
 
-For new platform packages, configure npm Trusted Publishers for `@lenso/agent`,
+The npm Trusted Publishers are configured for `@lenso/agent`,
 `@lenso/agent-darwin-arm64`, and `@lenso/agent-linux-x64`: GitHub repository
 `LioRael/lenso-console`, workflow `agent-npm.yml`, environment `npm`.
 First-time package creation/publisher configuration requires the registry owner;
