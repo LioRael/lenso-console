@@ -40,6 +40,15 @@ struct ContributionRuntime {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct ContributionNavigation {
     label: String,
+    #[serde(default)]
+    items: Vec<ContributionNavigationItem>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct ContributionNavigationItem {
+    label: String,
+    path: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -57,6 +66,7 @@ struct PageMount {
 #[derive(Clone, Debug, Serialize)]
 struct ContributionNavigationResponse {
     label: String,
+    items: Vec<ContributionNavigationItem>,
 }
 
 #[derive(Clone)]
@@ -116,6 +126,7 @@ impl PageCatalog {
                 styles,
                 navigation: ContributionNavigationResponse {
                     label: descriptor.navigation.label,
+                    items: descriptor.navigation.items,
                 },
             });
         }
@@ -174,6 +185,15 @@ fn validate_descriptor(
         !descriptor.title.trim().is_empty() && !descriptor.navigation.label.trim().is_empty(),
         "Console contribution labels must not be empty"
     );
+    let mut navigation_paths = BTreeSet::new();
+    for item in &descriptor.navigation.items {
+        anyhow::ensure!(
+            !item.label.trim().is_empty()
+                && item.path.iter().all(|segment| valid_path_segment(segment))
+                && navigation_paths.insert(item.path.clone()),
+            "Console contribution navigation item is invalid"
+        );
+    }
     anyhow::ensure!(
         descriptor.runtime.api_major == 1,
         "unsupported Console page API major"
@@ -223,6 +243,15 @@ fn valid_slug(value: &str) -> bool {
         })
 }
 
+fn valid_path_segment(value: &str) -> bool {
+    let mut characters = value.chars();
+    matches!(characters.next(), Some(first) if first.is_ascii_alphanumeric())
+        && value.len() <= 64
+        && characters.all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | '-')
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,7 +274,13 @@ mod tests {
                 "subject": "console",
                 "runtime": { "apiMajor": 1 },
                 "module": module,
-                "navigation": { "label": "Example" }
+                "navigation": {
+                    "label": "Example",
+                    "items": [
+                        { "label": "Home", "path": [] },
+                        { "label": "Details", "path": ["details"] }
+                    ]
+                }
             })
             .to_string(),
         )
@@ -259,6 +294,7 @@ mod tests {
         let (catalog, _) = PageCatalog::discover(root.path()).unwrap();
         assert_eq!(catalog.mounts.len(), 1);
         assert_eq!(catalog.mounts[0].id, "example");
+        assert_eq!(catalog.mounts[0].navigation.items.len(), 2);
 
         let descriptor = root.path().join("contributions/example/contribution.json");
         let mut value: serde_json::Value =
@@ -280,6 +316,35 @@ mod tests {
         let module = root.path().join("contributions/example/page.mjs");
         std::fs::remove_file(&module).unwrap();
         symlink(outside, module).unwrap();
+
+        assert!(PageCatalog::discover(root.path()).is_err());
+    }
+
+    #[test]
+    fn rejects_duplicate_navigation_destinations() {
+        let root = tempfile::tempdir().unwrap();
+        write_contribution(root.path(), "example", "page.mjs");
+        let descriptor = root.path().join("contributions/example/contribution.json");
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
+        value["navigation"]["items"] = serde_json::json!([
+            { "label": "Home", "path": [] },
+            { "label": "Also home", "path": [] }
+        ]);
+        std::fs::write(descriptor, value.to_string()).unwrap();
+
+        assert!(PageCatalog::discover(root.path()).is_err());
+    }
+
+    #[test]
+    fn rejects_navigation_path_traversal() {
+        let root = tempfile::tempdir().unwrap();
+        write_contribution(root.path(), "example", "page.mjs");
+        let descriptor = root.path().join("contributions/example/contribution.json");
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&descriptor).unwrap()).unwrap();
+        value["navigation"]["items"] = serde_json::json!([{ "label": "Escape", "path": [".."] }]);
+        std::fs::write(descriptor, value.to_string()).unwrap();
 
         assert!(PageCatalog::discover(root.path()).is_err());
     }

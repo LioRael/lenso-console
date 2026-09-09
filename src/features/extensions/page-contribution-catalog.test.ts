@@ -12,7 +12,10 @@ describe("parsePageCatalog", () => {
             apiMajor: 1,
             id: "observe",
             module: "/api/console/v1/pages/observe/assets/page.mjs",
-            navigation: { label: "Observe" },
+            navigation: {
+              items: [{ label: "Home", path: [] }],
+              label: "Observe",
+            },
             styles: ["/api/console/v1/pages/observe/assets/page.css"],
             subject: "console",
             title: "Observe",
@@ -27,7 +30,7 @@ describe("parsePageCatalog", () => {
       apiMajor: 1,
       id: "observe",
       module: "https://example.com/page.mjs",
-      navigation: { label: "Observe" },
+      navigation: { items: [], label: "Observe" },
       styles: [],
       subject: "console",
       title: "Observe",
@@ -60,7 +63,7 @@ describe("parsePageCatalog", () => {
       apiMajor: 1,
       id: "observe",
       module: "/api/console/v1/pages/users/assets/page.mjs",
-      navigation: { label: "Observe" },
+      navigation: { items: [], label: "Observe" },
       styles: [],
       subject: "console",
       title: "Observe",
@@ -78,6 +81,53 @@ describe("parsePageCatalog", () => {
           {
             ...mount,
             module: "/api/console/v1/pages/observe/assets/nested/../page.mjs",
+          },
+        ],
+      })
+    ).toThrow("malformed");
+  });
+
+  it("rejects navigation paths that can escape the workspace", () => {
+    expect(() =>
+      parsePageCatalog({
+        schema: "console.page-catalog/1",
+        mounts: [
+          {
+            apiMajor: 1,
+            id: "observe",
+            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            navigation: {
+              items: [{ label: "Escape", path: [".."] }],
+              label: "Observe",
+            },
+            styles: [],
+            subject: "console",
+            title: "Observe",
+          },
+        ],
+      })
+    ).toThrow("malformed");
+  });
+
+  it("rejects duplicate navigation destinations", () => {
+    expect(() =>
+      parsePageCatalog({
+        schema: "console.page-catalog/1",
+        mounts: [
+          {
+            apiMajor: 1,
+            id: "observe",
+            module: "/api/console/v1/pages/observe/assets/page.mjs",
+            navigation: {
+              items: [
+                { label: "Home", path: [] },
+                { label: "Also home", path: [] },
+              ],
+              label: "Observe",
+            },
+            styles: [],
+            subject: "console",
+            title: "Observe",
           },
         ],
       })

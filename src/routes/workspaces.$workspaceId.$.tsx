@@ -2,15 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { PageContributionOutlet } from "../features/extensions/page-contribution-outlet";
 
-export const Route = createFileRoute("/tools/$mountId/$")({
-  component: ToolPage,
+export const Route = createFileRoute("/workspaces/$workspaceId/$")({
+  component: WorkspacePage,
 });
 
-function ToolPage() {
-  const { _splat, mountId } = Route.useParams();
+function WorkspacePage() {
+  const { _splat, workspaceId } = Route.useParams();
   return (
     <PageContributionOutlet
-      mountId={mountId}
+      mountId={workspaceId}
       segments={_splat ? _splat.split("/") : []}
     />
   );

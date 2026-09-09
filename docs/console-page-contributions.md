@@ -99,7 +99,10 @@ Illustrative descriptor for a Plugin-owned users page:
   "navigation": {
     "label": "Users",
     "icon": "./console/users.svg",
-    "home": []
+    "items": [
+      { "label": "Overview", "path": [] },
+      { "label": "Invitations", "path": ["invitations"] }
+    ]
   },
   "services": {
     "users": {
@@ -120,6 +123,9 @@ Descriptor rules:
 - Titles and navigation are discoverable without executing JavaScript. The
   Plugin may render richer navigation after loading; it cannot redefine its
   owner or subject.
+- Each declarative navigation item has a non-empty label and a bounded list of
+  clean relative path segments. The Shell resolves those segments beneath the
+  owning Workspace; absolute paths and traversal are rejected.
 - Asset paths are relative to the reviewed artifact. Arbitrary remote module
   URLs are not part of this declaration. Local development uses a separate
   explicit development source, described below.
@@ -242,7 +248,7 @@ Use static Shell route prefixes with an extension-local remainder:
 
 ```text
 /apps/<appId>/pages/<mountId>/<extension-path>
-/tools/<mountId>/<extension-path>
+/workspaces/<mountId>/<extension-path>
 ```
 
 The first is App-scoped; the second is Console-scoped. The canonical URL does
@@ -267,7 +273,10 @@ are conformance cases. Mount revision is not embedded in bookmarks.
 Navigation is projected from the catalog:
 
 - App pages appear under the selected App's administration area.
-- Console tools appear as independent workspaces.
+- Console contributions appear as independent Workspaces directly in the
+  primary rail. There is no intermediate Tools destination. Selecting a
+  Workspace reveals only that Workspace's contextual navigation in the second
+  sidebar.
 - One contribution may supply rich contextual navigation and many internal
   pages; it does not need one top-level item per business route.
 - Disabled contributions leave active navigation, while bookmarked mounts show

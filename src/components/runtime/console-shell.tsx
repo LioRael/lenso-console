@@ -20,7 +20,10 @@ import { useConsoleTranslation } from "../../app/console-i18n";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
-import { usePageCatalog } from "../../features/extensions/page-contribution-catalog";
+import {
+  usePageCatalog,
+  type PageMount,
+} from "../../features/extensions/page-contribution-catalog";
 import { shellStyles } from "./console-shell.stylex";
 import {
   ContextNavigationContent,
@@ -30,7 +33,7 @@ import {
   ContextNavigationSection,
 } from "./context-navigation";
 
-type ConsoleArea = "agent" | "settings" | "system" | "tools";
+type ConsoleArea = "agent" | "settings" | "system" | "workspace";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
   const t = useConsoleTranslation();
@@ -44,6 +47,11 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     select: (state) => state.location.pathname,
   });
   const currentArea = consoleAreaFromPath(currentPath);
+  const currentWorkspaceLocation = workspaceLocationFromPath(currentPath);
+  const currentWorkspaceId = currentWorkspaceLocation?.workspaceId;
+  const currentWorkspace = pageCatalog.data?.find(
+    (mount) => mount.id === currentWorkspaceId
+  );
   const currentAgentLocation = agentLocationFromPath(currentPath);
   const activeAgent =
     agents.find((agent) => agent.id === currentAgentLocation.agentId) ??
@@ -56,21 +64,22 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           <PrimaryRail
             contextNavigationOpen={mobileNavigationOpen}
             currentArea={currentArea}
-            firstToolId={pageCatalog.data?.[0]?.id}
+            currentWorkspaceId={currentWorkspaceId}
             navigate={(to) => {
               setMobileNavigationOpen(false);
               navigate({ to });
             }}
-            navigateTool={(mountId) => {
+            navigateWorkspace={(workspaceId) => {
               setMobileNavigationOpen(false);
               navigate({
-                params: { _splat: "", mountId },
-                to: "/tools/$mountId/$",
+                params: { _splat: "", workspaceId },
+                to: "/workspaces/$workspaceId/$",
               });
             }}
             onToggleContextNavigation={() =>
               setMobileNavigationOpen((open) => !open)
             }
+            workspaces={pageCatalog.data ?? []}
           />
           <Sidebar.Root
             data-mobile-open={mobileNavigationOpen || undefined}
@@ -105,15 +114,15 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                   }}
                   onRequestClose={() => setMobileNavigationOpen(false)}
                 />
-              ) : currentArea === "tools" ? (
-                <ToolsSidebar
-                  currentPath={currentPath}
-                  mounts={pageCatalog.data ?? []}
-                  navigate={(mountId) => {
+              ) : currentArea === "workspace" ? (
+                <WorkspaceSidebar
+                  mount={currentWorkspace}
+                  currentSegments={currentWorkspaceLocation?.segments ?? []}
+                  navigate={(workspaceId, segments) => {
                     setMobileNavigationOpen(false);
                     navigate({
-                      params: { _splat: "", mountId },
-                      to: "/tools/$mountId/$",
+                      params: { _splat: segments.join("/"), workspaceId },
+                      to: "/workspaces/$workspaceId/$",
                     });
                   }}
                   onRequestClose={() => setMobileNavigationOpen(false)}
@@ -163,17 +172,19 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 function PrimaryRail({
   contextNavigationOpen,
   currentArea,
-  firstToolId,
+  currentWorkspaceId,
   navigate,
-  navigateTool,
+  navigateWorkspace,
   onToggleContextNavigation,
+  workspaces,
 }: {
   contextNavigationOpen: boolean;
   currentArea: ConsoleArea;
-  firstToolId: string | undefined;
+  currentWorkspaceId: string | undefined;
   navigate: (to: "/" | "/plugins" | "/settings") => void;
-  navigateTool: (mountId: string) => void;
+  navigateWorkspace: (workspaceId: string) => void;
   onToggleContextNavigation: () => void;
+  workspaces: readonly PageMount[];
 }) {
   const t = useConsoleTranslation();
 
@@ -237,20 +248,23 @@ function PrimaryRail({
           >
             <Blocks aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
-          {firstToolId ? (
+          {workspaces.map((workspace) => (
             <IconButton
-              aria-label={t("Tools")}
-              onClick={() => navigateTool(firstToolId)}
+              aria-label={workspace.navigation.label}
+              key={workspace.id}
+              onClick={() => navigateWorkspace(workspace.id)}
               size="default"
               variant="ghost"
               xstyle={[
                 shellStyles.railButton,
-                currentArea === "tools" && shellStyles.activeRailButton,
+                currentArea === "workspace" &&
+                  currentWorkspaceId === workspace.id &&
+                  shellStyles.activeRailButton,
               ]}
             >
               <PanelsTopLeft aria-hidden="true" size={15} strokeWidth={1.7} />
             </IconButton>
-          ) : null}
+          ))}
         </div>
         <div {...stylex.props(shellStyles.railFooter)}>
           <IconButton
@@ -311,28 +325,41 @@ function consoleAreaFromPath(path: string): ConsoleArea {
   if (path.startsWith("/plugins")) {
     return "system";
   }
-  if (path.startsWith("/tools")) {
-    return "tools";
+  if (path.startsWith("/workspaces/")) {
+    return "workspace";
   }
   return "agent";
 }
 
-function ToolsSidebar({
-  currentPath,
-  mounts,
+function workspaceLocationFromPath(path: string) {
+  const workspace = /^\/workspaces\/([^/]+)(?:\/(.*))?$/u.exec(path);
+  if (!workspace?.[1]) {
+    return undefined;
+  }
+  return {
+    segments: workspace[2]
+      ? workspace[2].split("/").map((segment) => decodeURIComponent(segment))
+      : [],
+    workspaceId: decodeURIComponent(workspace[1]),
+  };
+}
+
+function WorkspaceSidebar({
+  currentSegments,
+  mount,
   navigate,
   onRequestClose,
 }: {
-  currentPath: string;
-  mounts: readonly { id: string; navigation: { label: string } }[];
-  navigate: (mountId: string) => void;
+  currentSegments: readonly string[];
+  mount: PageMount | undefined;
+  navigate: (workspaceId: string, segments: readonly string[]) => void;
   onRequestClose: () => void;
 }) {
   const t = useConsoleTranslation();
 
   return (
     <>
-      <ContextNavigationHeader title={t("Tools")}>
+      <ContextNavigationHeader title={mount?.title ?? t("Workspace")}>
         <IconButton
           aria-label={t("Close workspace navigation")}
           onClick={onRequestClose}
@@ -344,21 +371,28 @@ function ToolsSidebar({
         </IconButton>
       </ContextNavigationHeader>
       <Sidebar.Content>
-        <Sidebar.Menu aria-label={t("Tool navigation")}>
-          {mounts.map((mount) => (
-            <Sidebar.MenuItem key={mount.id}>
+        <Sidebar.Menu aria-label={t("Workspace navigation")}>
+          {mount?.navigation.items.map((item) => (
+            <Sidebar.MenuItem key={item.path.join("/") || "home"}>
               <ContextNavigationItem
                 icon={<PanelsTopLeft size={15} strokeWidth={1.75} />}
-                onClick={() => navigate(mount.id)}
-                selected={currentPath.startsWith(`/tools/${mount.id}`)}
+                onClick={() => navigate(mount.id, item.path)}
+                selected={sameSegments(currentSegments, item.path)}
               >
-                {mount.navigation.label}
+                {item.label}
               </ContextNavigationItem>
             </Sidebar.MenuItem>
           ))}
         </Sidebar.Menu>
       </Sidebar.Content>
     </>
+  );
+}
+
+function sameSegments(left: readonly string[], right: readonly string[]) {
+  return (
+    left.length === right.length &&
+    left.every((segment, index) => segment === right[index])
   );
 }
 
