@@ -1,7 +1,7 @@
 use std::{path::PathBuf, process::ExitCode, time::Duration};
 
 use directories::BaseDirs;
-use lenso_console_plugin::{ConsoleConfig, LocalProjects};
+use lenso_console_plugin::{ConsoleConfig, start_host, store_agent_control_token};
 use tokio::process::{Child, Command};
 
 #[tokio::main(flavor = "current_thread")]
@@ -25,7 +25,6 @@ async fn main() -> ExitCode {
 }
 
 async fn run() -> anyhow::Result<()> {
-    lenso_console_plugin::link();
     // Reserve separate loopback ports before spawning either independent Host.
     let app_port = std::net::TcpListener::bind("127.0.0.1:0")?;
     let console_port = std::net::TcpListener::bind("127.0.0.1:0")?;
@@ -35,8 +34,7 @@ async fn run() -> anyhow::Result<()> {
     let console_origin = format!("http://{console_address}");
     let initial_config = ConsoleConfig::load()?;
     // Fail before modifying Agent state if the requested Console port is occupied.
-    let console_listener = tokio::net::TcpListener::bind(initial_config.address)
-        .await
+    let console_listener = std::net::TcpListener::bind(initial_config.address)
         .map_err(|error| anyhow::anyhow!(
             "Console cannot listen on {}: {error}. Choose another port with --port or HTTP_PORT.",
             initial_config.address
@@ -47,6 +45,8 @@ async fn run() -> anyhow::Result<()> {
         .unwrap_or_else(|| "lenso-agent-console-web".into());
     let console_home = console_home()?;
     let control_token = uuid::Uuid::new_v4().simple().to_string();
+    let control_token_file = console_home.join("agent-control-token");
+    store_agent_control_token(&control_token_file, &control_token)?;
 
     let mut app_command = Command::new(&app_agent_binary);
     app_command
@@ -104,21 +104,32 @@ async fn run() -> anyhow::Result<()> {
     wait_until_ready(&console_origin, "Console Agent", &mut console_agent).await?;
 
     let project_binary = resolve_program(&PathBuf::from(app_agent_binary))?;
-    let projects =
-        LocalProjects::load(console_home.join("projects"), agent_home()?, project_binary)?;
     let config = initial_config
-        .with_local_projects(projects.clone())
+        .with_local_project_paths(
+            &console_home.join("projects"),
+            &agent_home()?,
+            &project_binary,
+        )?
+        .with_agent_control_token_file(control_token_file)
         .with_console_agent(&console_origin, Some(control_token.clone()))?
         .with_app_agent_management_token(&app_origin, "Lenso Agent", &control_token)?
         .with_app_agent_auth_connections("app")?;
+    // The preflight listener protects Agent state from an immediately invalid
+    // Console address. Plugin activation owns the actual listener lifecycle.
+    drop(console_listener);
+    let console = start_host(&config).await?;
     let result = tokio::select! {
-        result = lenso_console_plugin::serve_listener(config, console_listener, shutdown_signal()) => result,
+        () = shutdown_signal() => Ok(()),
         status = app_agent.wait() => Err(anyhow::anyhow!("App Agent exited unexpectedly: {status:?}")),
         status = console_agent.wait() => Err(anyhow::anyhow!("Console Agent exited unexpectedly: {status:?}")),
     };
-    projects.shutdown().await;
+    let shutdown = console.shutdown(Duration::from_secs(10)).await;
     stop(&mut console_agent).await;
     stop(&mut app_agent).await;
+    anyhow::ensure!(
+        matches!(shutdown, lenso_kernel::ShutdownOutcome::Clean),
+        "Console Host shutdown failed: {shutdown:?}"
+    );
     result
 }
 

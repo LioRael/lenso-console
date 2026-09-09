@@ -1,11 +1,10 @@
-use lenso_console_plugin::{ConsoleConfig, serve};
+use lenso_console_plugin::{ConsoleConfig, serve_host};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    lenso_console_plugin::link();
     let local = tokio::task::LocalSet::new();
     local
-        .run_until(serve(ConsoleConfig::load()?, shutdown_signal()))
+        .run_until(serve_host(ConsoleConfig::load()?, shutdown_signal()))
         .await
 }
 

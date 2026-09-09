@@ -33,8 +33,12 @@ directories = "6.0"
 dotenvy = "0.15"
 hex = "0.4"
 lenso = "0.5.0"
+lenso-app-plan = "=0.3.1"
 lenso-kernel = "0.2.0"
+lenso-native-adapter = "=0.3.1"
+lenso-runner = "=0.2.1"
 lenso-capability-ui-contribution = { path = "crates/lenso-capability-ui-contribution" }
+lenso-console-welcome-workspace-plugin = { path = "crates/lenso-console-welcome-workspace-plugin" }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "rustls-tls",
@@ -58,7 +62,6 @@ tower-http = { version = "0.7", features = ["fs", "limit", "set-header"] }
 uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
-lenso-console-welcome-workspace-plugin = { path = "crates/lenso-console-welcome-workspace-plugin" }
 lenso-app-authoring = { package = "lenso-cli", version = "0.4.8", default-features = false }
 tempfile = "3.27"
 tower = "0.5"

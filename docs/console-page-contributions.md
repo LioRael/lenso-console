@@ -9,10 +9,12 @@ cross-App design. The implementation includes a typed
 Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
 crate and reference Plugin are repository-local and are not published releases.
 
-The standalone development launcher still admits `public/contributions` through
-an explicitly untrusted `development-filesystem` adapter. Production Plugin
-activation does not scan that directory: it consumes only provider instances
-selected in the immutable Resolved App Plan. Connected Apps cannot push code.
+Both default launchers now start the Console lifecycle Plugin through an
+immutable Resolved App Plan. Every linked `console-workspaces` package is a
+disableable Host default and contributes through its bound Capability Port.
+The explicitly untrusted `development-filesystem` adapter remains available
+only to direct development/test embedding APIs; default product launch does not
+scan `public/contributions`. Connected Apps cannot push code.
 
 Regenerate and verify the checked-in Rust and TypeScript contract projections:
 
@@ -69,6 +71,9 @@ Implemented now:
   Admission rejects unknown App identities and the Shell never substitutes the
   currently selected App for the URL subject. The primary rail shows Console
   Workspaces plus Workspaces for the selected or deep-linked App.
+- `service:serve` and `agent:web` both run this composition through the Kernel;
+  the bundled Welcome provider proves the real launcher path rather than a
+  test-only or custom-embedding path.
 
 Not implemented by this baseline:
 

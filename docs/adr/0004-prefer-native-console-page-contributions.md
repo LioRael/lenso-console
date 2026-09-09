@@ -1,6 +1,6 @@
 # ADR-0004: Prefer native Console page contributions
 
-Status: Accepted; Console- and App-scoped Workspace routing implemented.
+Status: Accepted; Console- and App-scoped Workspace routing and reference Host composition implemented.
 
 The [page contribution design](../console-page-contributions.md) records the
 implemented `lenso.ui.contribution@1` contract, runtime API, routing, loading,
@@ -30,6 +30,12 @@ be the only way to implement Plugin pages.
 The intended installation workflow does not require editing or recompiling
 Console source. This does not select a module loader, dependency-sharing scheme,
 SDK format, or universal backend hot-reload mechanism.
+
+The reference launchers compose `lenso.console.web` and all linked
+`console-workspaces` providers as ordinary Host defaults, then activate them
+through one immutable Resolved App Plan. The Console lifecycle snapshots the
+bound `many` Port before opening the server. Direct filesystem discovery is a
+development adapter, not the production launcher authority.
 
 ## Trust and consequences
 
@@ -61,7 +67,7 @@ boundary when that is a requirement.
 
 ## Remaining proof before claiming target-bound business support
 
-The baseline proves a Plan-bound provider, direct primary-rail Workspace, both
+The baseline proves a Plan-bound provider in both reference launchers, direct primary-rail Workspace, both
 Console- and App-scoped deep links, immutable same-origin assets, a shared React
 runtime, environment context, scoped navigation, cancellation, and contained
 failures. App-scoped business administration still requires the cross-App

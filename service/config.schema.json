@@ -29,6 +29,14 @@
       "description": "Clean loopback HTTP origin of the separately released Console Agent process.",
       "type": "string"
     },
+    "agent_control_token_file": {
+      "description": "Optional Host-private file containing the shared Agent bearer token. The token itself never enters the Resolved App Plan.",
+      "type": "string"
+    },
+    "connected_agent_auth_connections": {
+      "description": "Explicitly authorizes Console to manage App Agent authentication connections.",
+      "type": "boolean"
+    },
     "connected_agent_plugin_configuration": {
       "description": "Explicitly authorizes Console to consume the App Agent Host's Plugin configuration capability.",
       "type": "boolean"
@@ -85,6 +93,17 @@
         }
       },
       "default": []
+    },
+    "local_projects": {
+      "description": "Optional local project launcher paths owned by the reference Console Host.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binary", "root", "template"],
+      "properties": {
+        "binary": { "type": "string" },
+        "root": { "type": "string" },
+        "template": { "type": "string" }
+      }
     }
   },
   "required": [
