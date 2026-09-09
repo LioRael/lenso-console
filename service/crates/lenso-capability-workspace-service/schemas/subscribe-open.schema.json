@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["service_id", "operation", "media_type", "body_base64"],
+  "properties": {
+    "service_id": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+    "operation": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "media_type": { "type": "string", "enum": ["application/json"] },
+    "body_base64": { "type": "string", "maxLength": 1398104 }
+  },
+  "additionalProperties": false
+}

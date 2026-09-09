@@ -17,6 +17,10 @@ import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { RoutePending } from "../../app/route-states";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
+import {
+  createWorkspaceServices,
+  type WorkspaceServices,
+} from "./workspace-service-client";
 
 type ContributionProps = {
   environment: { locale: "en" | "zh-CN"; theme: "dark" | "light" };
@@ -34,6 +38,7 @@ type ContributionModule = {
   createWorkspace(runtime: {
     createElement: typeof createElement;
     react: typeof React;
+    services: WorkspaceServices;
   }): {
     Page: ComponentType<ContributionProps>;
     Provider?: ComponentType<{ children: ReactNode }>;
@@ -252,7 +257,11 @@ function useContributionModule(mount: PageMount | undefined, attempt: number) {
         if (!isContributionModule(value)) {
           throw new TypeError("The extension module contract is invalid");
         }
-        const page = value.createWorkspace({ createElement, react: React });
+        const page = value.createWorkspace({
+          createElement,
+          react: React,
+          services: createWorkspaceServices(mount),
+        });
         if (!page || typeof page.Page !== "function") {
           throw new TypeError("The extension page export is invalid");
         }

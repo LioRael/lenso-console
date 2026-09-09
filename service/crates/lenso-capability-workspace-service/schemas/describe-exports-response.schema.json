@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["adapter_revision", "services"],
+  "properties": {
+    "adapter_revision": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "services": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": [
+          "service_id",
+          "capability_id",
+          "descriptor_version",
+          "operations"
+        ],
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+          },
+          "capability_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "descriptor_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "type": "object",
+              "required": ["name", "interaction"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+                "interaction": {
+                  "type": "string",
+                  "enum": ["request", "stream"]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

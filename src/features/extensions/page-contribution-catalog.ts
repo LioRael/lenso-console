@@ -16,9 +16,13 @@ export type PageMount = {
     trusted: boolean;
   };
   requirements: readonly {
+    available: boolean;
     capability_id: string;
     descriptor_version: string;
     operations: readonly string[];
+    required: boolean;
+    service_id: string;
+    source: "owner" | "subject";
   }[];
   revision: string;
   styles: readonly string[];
@@ -208,6 +212,11 @@ function validRequirement(
   return (
     !!value &&
     typeof value === "object" &&
+    "available" in value &&
+    typeof value.available === "boolean" &&
+    "service_id" in value &&
+    typeof value.service_id === "string" &&
+    /^[a-z][a-z0-9._-]{0,63}$/u.test(value.service_id) &&
     "capability_id" in value &&
     typeof value.capability_id === "string" &&
     !!value.capability_id.trim() &&
@@ -219,7 +228,11 @@ function validRequirement(
     value.operations.length > 0 &&
     value.operations.every(
       (operation: unknown) => typeof operation === "string" && !!operation
-    )
+    ) &&
+    "required" in value &&
+    typeof value.required === "boolean" &&
+    "source" in value &&
+    (value.source === "owner" || value.source === "subject")
   );
 }
 

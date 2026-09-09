@@ -2,6 +2,7 @@ mod app_management;
 mod page_contributions;
 mod project_activity;
 mod projects;
+mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
 pub use projects::LocalProjects;
 
@@ -174,6 +175,7 @@ pub struct ConsolePlugin {
     #[config]
     config: ConsolePluginConfig,
     workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
+    workspace_services: ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
     #[tasks]
     tasks: ManagedTasks,
 }
@@ -181,8 +183,9 @@ pub struct ConsolePlugin {
 impl Lifecycle for ConsolePlugin {
     async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
-        let page_catalog = page_contributions::PageCatalog::from_port(
+        let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,
+            &self.workspace_services,
             &config.application_subject_ids(),
         )
         .await?;
@@ -194,6 +197,13 @@ impl Lifecycle for ConsolePlugin {
             plugin_failure(format!("Console task scope is unavailable: {error:?}"))
         })?;
         let (shutdown, shutdown_signal) = tokio::sync::oneshot::channel();
+        self.tasks
+            .spawn_local(workspace_services.run())
+            .map_err(|error| {
+                plugin_failure(format!(
+                    "Workspace service dispatcher failed to start: {error:?}"
+                ))
+            })?;
         self.tasks
             .spawn_local(async move {
                 cancellation.cancelled().await;
@@ -1443,11 +1453,18 @@ mod tests {
         assert_eq!(descriptor["provided_capabilities"], serde_json::json!([]));
         assert_eq!(
             descriptor["required_capabilities"],
-            serde_json::json!([{
-                "capability_id": "lenso.ui.contribution@1",
-                "descriptor_version": "1.1.0",
-                "cardinality": "many"
-            }])
+            serde_json::json!([
+                {
+                    "capability_id": "lenso.ui.contribution@1",
+                    "descriptor_version": "1.2.0",
+                    "cardinality": "many"
+                },
+                {
+                    "capability_id": "lenso.ui.workspace-service@1",
+                    "descriptor_version": "1.0.0",
+                    "cardinality": "many"
+                }
+            ])
         );
     }
 
@@ -1468,6 +1485,9 @@ mod tests {
         );
         assert!(plan.capability_bindings().iter().any(|binding| {
             binding.capability_id() == lenso_capability_ui_contribution::CAPABILITY_ID
+        }));
+        assert!(plan.capability_bindings().iter().any(|binding| {
+            binding.capability_id() == lenso_capability_workspace_service::CAPABILITY_ID
         }));
     }
 
@@ -1531,10 +1551,64 @@ mod tests {
                     .await
                     .unwrap();
                 assert!(catalog.contains("lenso.console.workspace.welcome/default"));
+                assert!(catalog.contains("\"service_id\":\"welcome\""));
+                assert!(catalog.contains("\"available\":true"));
+                let client = reqwest::Client::new();
+                let response = client
+                    .post(format!(
+                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
+                    ))
+                    .json(&serde_json::json!({ "name": "Console" }))
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), StatusCode::OK);
+                assert_eq!(
+                    response.json::<serde_json::Value>().await.unwrap()["message"],
+                    "Hello, Console. This came through the Plan-bound service."
+                );
+                let undeclared = client
+                    .post(format!(
+                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/delete"
+                    ))
+                    .json(&serde_json::json!({}))
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(undeclared.status(), StatusCode::NOT_FOUND);
+                let oversized = client
+                    .post(format!(
+                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
+                    ))
+                    .body(vec![b'x'; 1024 * 1024 + 1])
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(oversized.status(), StatusCode::PAYLOAD_TOO_LARGE);
+                let stream = client
+                    .post(format!(
+                        "http://{address}/api/console/v1/pages/welcome/services/welcome/subscribe/ticks"
+                    ))
+                    .json(&serde_json::json!({ "count": 2 }))
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(stream.status(), StatusCode::OK);
+                let stream = stream.text().await.unwrap();
+                assert_eq!(stream.matches("event: item").count(), 2);
+                assert!(stream.contains("event: terminal"));
                 assert!(matches!(
                     host.shutdown(std::time::Duration::from_secs(2)).await,
                     ShutdownOutcome::Clean
                 ));
+                let revoked = client
+                    .post(format!(
+                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
+                    ))
+                    .json(&serde_json::json!({ "name": "late" }))
+                    .send()
+                    .await;
+                assert!(revoked.is_err());
             })
             .await;
         agent.abort();

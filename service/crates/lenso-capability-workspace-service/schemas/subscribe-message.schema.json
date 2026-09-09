@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["sequence", "outcome", "body_base64"],
+  "properties": {
+    "sequence": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "outcome": { "type": "string", "enum": ["item", "domain_error"] },
+    "body_base64": { "type": "string", "maxLength": 1398104 }
+  },
+  "additionalProperties": false
+}

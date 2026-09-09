@@ -9,8 +9,9 @@
     "format": "ultracite fix --unsafe",
     "format:check": "oxfmt --check .",
     "lint": "ultracite check --deny-warnings",
-    "check": "ultracite check --deny-warnings && pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check",
+    "check": "ultracite check --deny-warnings && pnpm test && pnpm test:distribution && pnpm build:local && pnpm contract:typecheck && pnpm service:check",
     "clean:web": "node scripts/clean-console-web.mjs",
+    "contract:typecheck": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler service/crates/lenso-capability-workspace-service/generated/bindings.ts",
     "bundle:local": "pnpm clean:web && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} vite build",
     "service:web-build": "pnpm typecheck:local && VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ pnpm bundle:local && test -s dist/client/index.html",
     "service:serve": "pnpm service:web-build && cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console",
@@ -60,6 +61,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "2.31.1",
+    "@lenso/contract-runtime": "0.3.0",
     "@stylexjs/unplugin": "0.19.0",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",

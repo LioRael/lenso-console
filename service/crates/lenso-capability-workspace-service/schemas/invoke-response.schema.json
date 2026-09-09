@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["outcome", "body_base64"],
+  "properties": {
+    "outcome": { "type": "string", "enum": ["success", "domain_error"] },
+    "body_base64": { "type": "string", "maxLength": 5592408 }
+  },
+  "additionalProperties": false
+}

@@ -96,6 +96,9 @@ importers:
       '@changesets/cli':
         specifier: 2.31.1
         version: 2.31.1(@types/node@26.1.2)
+      '@lenso/contract-runtime':
+        specifier: 0.3.0
+        version: 0.3.0
       '@stylexjs/unplugin':
         specifier: 0.19.0
         version: 0.19.0(unplugin@3.3.0(esbuild@0.28.1)(rolldown@1.2.6)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0)))
@@ -541,6 +544,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lenso/contract-runtime@0.3.0':
+    resolution: {integrity: sha512-3JGwX4fCsHBsP49arxbHKys91f+3AKKN8+Vsn9J4yyXn2oHUDoAlq67yU5ABc1WzchTEYmgki7GmnQx60XkRvQ==}
+    engines: {node: '>=18'}
 
   '@lenso/primitives@0.5.0':
     resolution: {integrity: sha512-WsMOvlylzSE94CrCHR8nDw+Obc5i/BzwTjK3KdtTPikLcfh4qSwAt061NtBwgjKQA8szgciLNXBXSNIcvp2bAw==}
@@ -3711,6 +3718,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lenso/contract-runtime@0.3.0': {}
 
   '@lenso/primitives@0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react@19.2.8)':
     dependencies:

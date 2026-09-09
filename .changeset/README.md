@@ -1,8 +1,7 @@
 # Changesets
 
 Run `pnpm changeset` for every user-facing Console change. The version pull
-request updates the private application changelog and version when an OCI
-release is required.
+request updates the private application changelog and version.
 
-There is no Console-owned npm publication. A merged root-version bump publishes
-the digest-pinned Console image through the repository's OCI workflow.
+There is no Console-owned npm publication or active Console OCI workflow. A
+merged root-version bump records the source application release only.
