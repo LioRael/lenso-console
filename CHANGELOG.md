@@ -1,5 +1,12 @@
 ## @lenso/console-web@0.1.7
 
+## 1.7.0
+
+### Minor Changes
+
+- 104f68d: Add App-scoped Plugin Workspaces with canonical target-qualified routes, subject-bound admission, and primary-rail navigation for the selected or deep-linked App.
+- e064a6f: Load Console Workspaces from Plan-bound `lenso.ui.contribution@1` Plugin providers with immutable assets, provider identity, shared React context, scoped navigation, and lifecycle cancellation.
+
 ## 1.6.0
 
 ### Minor Changes
