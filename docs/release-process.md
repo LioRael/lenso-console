@@ -13,28 +13,30 @@ pnpm changeset
 ```
 
 The Changesets workflow opens or updates a version pull request for the private
-`@lenso/console-web` application. There is no Console-owned public npm package
-or npm publication step. Historical package versions and tags remain historical
+`@lenso/console-web` application. The private application itself is not published to npm. The separately staged
+`@lenso/agent` launcher and platform packages use the opt-in
+[Agent npm distribution workflow](agent-npm-distribution.md). Historical package versions and tags remain historical
 records; the application version identifies the source release. The former OCI pipeline
 was retired; versioning does not publish a container image.
 
 ## Distribution boundary
 
 Merge the reviewed Changesets version PR after its quality checks pass. The
-repository currently distributes Console from source using the documented
+source distribution runs Console using the documented
 `pnpm agent:web` launcher and separately released Agent Web binaries.
 
 There is no active OCI build or publication workflow. A Changesets version bump
 does not create an immutable image, GitHub binary release, or npm publication.
 Do not claim an image digest or restore the retired pipeline as part of routine
-versioning. A future binary or container distribution needs its own reviewed
-packaging and installation workflow.
+versioning. The Agent npm workflow separately builds, verifies, and publishes
+its bundled binary distribution; a version bump alone does not run it.
 
 ## Accepted installation cohort
 
 The coding setup flow requires Lenso Agent 0.1.4 or newer, including its separate
 App Web and Console Web binaries. Use Lenso Agent 0.1.7 or newer for working-directory context in the task
-workbench. Install the matching Agent release before running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
+workbench. Use Lenso Agent 0.1.8 or newer for first-time startup without an
+existing account login. Install the matching Agent release before running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
 Cargo `lenso-cli 0.5.2` or npm `@lenso/cli 0.16.2`.
 
 SQLite-managed Agents can import official coding Profiles while running. Select

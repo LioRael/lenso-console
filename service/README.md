@@ -28,8 +28,8 @@ pnpm install
 pnpm agent:web
 ```
 
-This starts the App Agent on `127.0.0.1:8787` and the Console surface on
-`127.0.0.1:3030`. Console still owns a separate private Agent. The Agent page
+This starts the Console surface on `127.0.0.1:3030`. The App Agent and the
+separate private Console Agent use dynamically allocated loopback ports. The Agent page
 discovers both full identities and keeps their Sessions, profiles, memory,
 tasks, trajectory, and Tools independently scoped.
 

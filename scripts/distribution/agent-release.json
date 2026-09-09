@@ -1,0 +1,10 @@
+{
+  "version": "0.1.8",
+  "repository": "LioRael/lenso-agent",
+  "assets": {
+    "lenso-agent-console-web-v0.1.8-darwin-aarch64.tar.gz": "9b21bcae8180260aac8b34e60ec36d77026b72ef6636afadb89299008f2612b0",
+    "lenso-agent-console-web-v0.1.8-linux-x86_64.tar.gz": "9738355fef79d607146a9ada3fb8af8908cbe8c6a7989879d9e229b363742d29",
+    "lenso-agent-web-v0.1.8-darwin-aarch64.tar.gz": "ed10a72d5706ecdc3e0a2d41e10d08969bf329c34f44874695c99bbba90199c1",
+    "lenso-agent-web-v0.1.8-linux-x86_64.tar.gz": "adf8dd6f371b55df66c9189bcdc0601e3088a2e2f2bafaff5615afc73aaaaefe"
+  }
+}

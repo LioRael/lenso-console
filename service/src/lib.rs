@@ -519,6 +519,18 @@ pub async fn serve(
     ConsoleServer::start(config).await?.run(shutdown).await
 }
 
+/// Serve Console on a listener reserved by its process-owning launcher.
+pub async fn serve_listener(
+    config: ConsoleConfig,
+    listener: tokio::net::TcpListener,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> anyhow::Result<()> {
+    ConsoleServer::with_listener(config, listener)
+        .await?
+        .run(shutdown)
+        .await
+}
+
 struct ConsoleServer {
     address: SocketAddr,
     app: Router,
@@ -527,6 +539,20 @@ struct ConsoleServer {
 
 impl ConsoleServer {
     async fn start(config: ConsoleConfig) -> anyhow::Result<Self> {
+        let listener = tokio::net::TcpListener::bind(config.address).await?;
+        Self::with_listener(config, listener).await
+    }
+
+    async fn with_listener(
+        config: ConsoleConfig,
+        listener: tokio::net::TcpListener,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            listener.local_addr()?.ip() == config.address.ip()
+                && (config.address.port() == 0
+                    || listener.local_addr()?.port() == config.address.port()),
+            "Console listener address does not match configuration"
+        );
         config.validate()?;
         config.console_agent.require_ready().await?;
         let (page_catalog, page_assets) =
@@ -556,7 +582,6 @@ impl ConsoleServer {
             .merge(agent_catalog_routes(agent_catalog))
             .route("/api/{*path}", any(api_not_found))
             .fallback_service(shell);
-        let listener = tokio::net::TcpListener::bind(config.address).await?;
         let address = listener.local_addr()?;
         Ok(Self {
             address,

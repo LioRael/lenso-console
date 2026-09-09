@@ -1,0 +1,88 @@
+name: Agent npm distribution
+
+on:
+  pull_request:
+    paths:
+      - "packages/agent/**"
+      - "scripts/distribution/**"
+      - "service/**"
+      - ".github/workflows/agent-npm.yml"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the validated runtime cohort through npm Trusted Publishing
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: darwin-arm64
+          - os: ubuntu-24.04
+            target: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
+        with:
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+        with:
+          toolchain: "1.94"
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+        with:
+          workspaces: service
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/distribution/launcher.test.mjs
+      - run: pnpm service:web-build
+      - run: cargo build --locked --release --manifest-path service/Cargo.toml --bin lenso-console-with-agent
+      - run: node scripts/distribution/package-agent.mjs '${{ matrix.target }}' service/target/release/lenso-console-with-agent .artifacts/npm
+      - run: node scripts/distribution/smoke-agent.mjs .artifacts/npm
+      - name: Pack npm artifacts
+        run: |
+          mkdir -p .artifacts/tarballs
+          npm pack --ignore-scripts --pack-destination "$PWD/.artifacts/tarballs" ./.artifacts/npm/agent-${{ matrix.target }}
+          npm pack --ignore-scripts --pack-destination "$PWD/.artifacts/tarballs" ./.artifacts/npm/agent
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: npm-${{ matrix.target }}
+          path: .artifacts/tarballs/*.tgz
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    needs: package
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: npm-*
+          path: artifacts
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.5.1 --ignore-scripts
+      - name: Publish platform packages before the launcher
+        run: |
+          cmp artifacts/npm-darwin-arm64/lenso-agent-[0-9]*.tgz artifacts/npm-linux-x64/lenso-agent-[0-9]*.tgz
+          for target in darwin-arm64 linux-x64; do
+            npm publish artifacts/npm-$target/lenso-agent-$target-*.tgz --access public --provenance
+          done
+          npm publish artifacts/npm-linux-x64/lenso-agent-[0-9]*.tgz --access public --provenance

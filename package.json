@@ -9,7 +9,7 @@
     "format": "ultracite fix --unsafe",
     "format:check": "oxfmt --check .",
     "lint": "ultracite check --deny-warnings",
-    "check": "ultracite check --deny-warnings && pnpm test && pnpm build:local && pnpm service:check",
+    "check": "ultracite check --deny-warnings && pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check",
     "clean:web": "node scripts/clean-console-web.mjs",
     "bundle:local": "pnpm clean:web && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} vite build",
     "service:web-build": "pnpm typecheck:local && VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ pnpm bundle:local && test -s dist/client/index.html",
@@ -25,7 +25,8 @@
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "typecheck": "pnpm typecheck:local",
     "typecheck:local": "tsc -b --pretty false",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test:distribution": "node --test scripts/distribution/launcher.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -192,3 +192,10 @@ its Provider authentication through the Auth Plugin. Tool grants are explicit:
 `LENSO_AGENT_TOOLS` is a comma-separated allowlist, not an automatic grant to
 all Tools introduced by a Profile. Profile installation into an already managed
 Home is rejected before writing; stopping its Host does not release ownership.
+
+## Packaged Agent Web
+
+The staged npm distribution provides `npx @lenso/agent web` on macOS Apple
+Silicon and Ubuntu 24.04+ x64, without a Rust toolchain or source checkout.
+It bundles the Console client and exact native runtime cohort. Public use
+requires the first npm publication; see [distribution status and build steps](docs/agent-npm-distribution.md).

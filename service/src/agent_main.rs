@@ -1,18 +1,21 @@
 use std::{path::PathBuf, process::ExitCode, time::Duration};
 
 use directories::BaseDirs;
-use lenso_console_plugin::{ConsoleConfig, LocalProjects, serve};
+use lenso_console_plugin::{ConsoleConfig, LocalProjects};
 use tokio::process::{Child, Command};
-
-const APP_AGENT_ADDRESS: &str = "127.0.0.1:8787";
-const APP_AGENT_ORIGIN: &str = "http://127.0.0.1:8787";
-const CONSOLE_AGENT_ADDRESS: &str = "127.0.0.1:8788";
-const CONSOLE_AGENT_ORIGIN: &str = "http://127.0.0.1:8788";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
     let local = tokio::task::LocalSet::new();
-    match local.run_until(run()).await {
+    match local
+        .run_until(async {
+            tokio::select! {
+                result = run() => result,
+                () = shutdown_signal() => Ok(()),
+            }
+        })
+        .await
+    {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("error: {error:#}");
@@ -23,6 +26,21 @@ async fn main() -> ExitCode {
 
 async fn run() -> anyhow::Result<()> {
     lenso_console_plugin::link();
+    // Reserve separate loopback ports before spawning either independent Host.
+    let app_port = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let console_port = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let app_address = app_port.local_addr()?.to_string();
+    let console_address = console_port.local_addr()?.to_string();
+    let app_origin = format!("http://{app_address}");
+    let console_origin = format!("http://{console_address}");
+    let initial_config = ConsoleConfig::load()?;
+    // Fail before modifying Agent state if the requested Console port is occupied.
+    let console_listener = tokio::net::TcpListener::bind(initial_config.address)
+        .await
+        .map_err(|error| anyhow::anyhow!(
+            "Console cannot listen on {}: {error}. Choose another port with --port or HTTP_PORT.",
+            initial_config.address
+        ))?;
     let app_agent_binary =
         std::env::var_os("LENSO_AGENT_WEB_BIN").unwrap_or_else(|| "lenso-agent-web".into());
     let console_agent_binary = std::env::var_os("LENSO_CONSOLE_AGENT_WEB_BIN")
@@ -33,7 +51,7 @@ async fn run() -> anyhow::Result<()> {
     let mut app_command = Command::new(&app_agent_binary);
     app_command
         .arg("--listen")
-        .arg(APP_AGENT_ADDRESS)
+        .arg(&app_address)
         .arg("--tool-policy")
         .arg(agent_home()?.join("tool-policy.json"))
         .arg("--plugin-control")
@@ -62,14 +80,14 @@ async fn run() -> anyhow::Result<()> {
     let mut console_command = Command::new(&console_agent_binary);
     console_command
         .arg("--listen")
-        .arg(CONSOLE_AGENT_ADDRESS)
+        .arg(&console_address)
         .arg("--plugin-control")
         .arg("--plugin-configuration-store")
         .arg(console_home.join("agent-configuration.sqlite3"))
         .arg("--tool-policy")
         .arg(console_home.join("agent/tool-policy.json"))
         .arg("--managed-agent")
-        .arg(format!("app={APP_AGENT_ORIGIN}"))
+        .arg(format!("app={app_origin}"))
         .env_remove("LENSO_AGENT_DATA_PLANE_TOKEN")
         .env("LENSO_AGENT_HOME", console_home.join("agent"))
         .env("LENSO_AGENT_CONTROL_TOKEN", &control_token);
@@ -78,19 +96,26 @@ async fn run() -> anyhow::Result<()> {
     }
     append_trusted_bundles(&mut console_command, "LENSO_CONSOLE_TRUSTED_PLUGIN_BUNDLES")?;
 
+    drop(app_port);
     let mut app_agent = spawn(&mut app_command, "App Agent")?;
-    wait_until_ready(APP_AGENT_ORIGIN, "App Agent").await?;
+    wait_until_ready(&app_origin, "App Agent", &mut app_agent).await?;
+    drop(console_port);
     let mut console_agent = spawn(&mut console_command, "Console Agent")?;
-    wait_until_ready(CONSOLE_AGENT_ORIGIN, "Console Agent").await?;
+    wait_until_ready(&console_origin, "Console Agent", &mut console_agent).await?;
 
     let project_binary = resolve_program(&PathBuf::from(app_agent_binary))?;
     let projects =
         LocalProjects::load(console_home.join("projects"), agent_home()?, project_binary)?;
-    let config = ConsoleConfig::load()?
+    let config = initial_config
         .with_local_projects(projects.clone())
-        .with_console_agent(CONSOLE_AGENT_ORIGIN, Some(control_token.clone()))?
-        .with_app_agent_management_token(APP_AGENT_ORIGIN, "Lenso Agent", &control_token)?;
-    let result = serve(config, shutdown_signal()).await;
+        .with_console_agent(&console_origin, Some(control_token.clone()))?
+        .with_app_agent_management_token(&app_origin, "Lenso Agent", &control_token)?
+        .with_app_agent_auth_connections("app")?;
+    let result = tokio::select! {
+        result = lenso_console_plugin::serve_listener(config, console_listener, shutdown_signal()) => result,
+        status = app_agent.wait() => Err(anyhow::anyhow!("App Agent exited unexpectedly: {status:?}")),
+        status = console_agent.wait() => Err(anyhow::anyhow!("Console Agent exited unexpectedly: {status:?}")),
+    };
     projects.shutdown().await;
     stop(&mut console_agent).await;
     stop(&mut app_agent).await;
@@ -122,10 +147,16 @@ async fn stop(child: &mut Child) {
     let _ = child.wait().await;
 }
 
-async fn wait_until_ready(origin: &str, label: &str) -> anyhow::Result<()> {
-    let client = reqwest::Client::new();
+async fn wait_until_ready(origin: &str, label: &str, child: &mut Child) -> anyhow::Result<()> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()?;
     let url = format!("{origin}/api/console/v1/agent/bootstrap");
-    for _ in 0..100 {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    while tokio::time::Instant::now() < deadline {
+        if let Some(status) = child.try_wait()? {
+            anyhow::bail!("{label} exited before readiness: {status}");
+        }
         if client
             .get(&url)
             .send()
@@ -257,5 +288,17 @@ fn configured_console_agent_tools() -> anyhow::Result<Vec<String>> {
 }
 
 async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        if let Ok(mut signal) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {},
+                _ = signal.recv() => {},
+            }
+            return;
+        }
+    }
     let _ = tokio::signal::ctrl_c().await;
 }

@@ -7,3 +7,5 @@
 - [0003 — Bind project tasks to isolated Agent processes](0003-bind-project-tasks-to-isolated-agent-processes.md)
 
 - [0004 — Prefer native Console page contributions](0004-prefer-native-console-page-contributions.md)
+
+- [0005 — Distribute Agent Web through npm](0005-distribute-agent-web-through-npm.md)
