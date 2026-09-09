@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.9.0
+
+### Minor Changes
+
+- e5f5678: Add Plan-bound Workspace owner services with mount-scoped request and SSE clients.
+
 ## 1.8.0
 
 ### Minor Changes
