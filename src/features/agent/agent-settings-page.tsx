@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import {
   pluginKey,
@@ -50,6 +51,8 @@ export function AgentSettingsPage({ kind }: { kind: AgentSettingsKind }) {
 }
 
 export function AgentPicker() {
+  const t = useConsoleTranslation();
+
   const { agents, selectedAgent, selectAgent } = useAgentIdentity();
   return (
     <Select.Root
@@ -61,7 +64,7 @@ export function AgentPicker() {
       }}
     >
       <Select.Trigger
-        aria-label="Agent settings target"
+        aria-label={t("Agent settings target")}
         xstyle={[preferences.selectTrigger, styles.agentPicker]}
       >
         <Select.Value>{selectedAgent.label}</Select.Value>
@@ -92,6 +95,8 @@ function AgentSettingsContent({
   agent: AgentIdentity;
   advanced: boolean;
 }) {
+  const t = useConsoleTranslation();
+
   const configurationAvailable = agent.capabilities.includes(
     AGENT_PLUGIN_CONFIGURATION_CAPABILITY
   );
@@ -104,11 +109,11 @@ function AgentSettingsContent({
     <div {...stylex.props(preferences.column)}>
       {advanced ? (
         <Link to="/settings/connections" {...stylex.props(styles.backLink)}>
-          Connections
+          {t("Connections")}
         </Link>
       ) : null}
       <SettingsPageHeader
-        title={advanced ? "Global tool restrictions" : "Connections"}
+        title={advanced ? t("Global tool restrictions") : "Connections"}
         description={
           advanced
             ? "Advanced limits for every Profile of this Agent. A Profile cannot override these restrictions."
@@ -125,12 +130,13 @@ function AgentSettingsContent({
           ) : null}
           {workbench.isError ? (
             <p role="alert" {...stylex.props(styles.error)}>
-              Connections could not be loaded: {errorMessage(workbench.error)}
+              {t("Connections could not be loaded:")}{" "}
+              {errorMessage(workbench.error)}
             </p>
           ) : null}
           {configurationAvailable && workbench.isPending ? (
             <output {...stylex.props(styles.notice)}>
-              Loading connections…
+              {t("Loading connections…")}
             </output>
           ) : null}
           {workbench.data ? (
@@ -140,8 +146,10 @@ function AgentSettingsContent({
               ) ? null : (
                 <ProviderSection
                   agentId={agent.id}
-                  title="Accounts"
-                  description="Manage sign-in through the account provider's configuration."
+                  title={t("Accounts")}
+                  description={t(
+                    "Manage sign-in through the account provider's configuration."
+                  )}
                   empty="No account providers are available for this Agent."
                   items={items.filter((item) =>
                     provides(item, "lenso.agent.auth-connection")
@@ -150,8 +158,10 @@ function AgentSettingsContent({
               )}
               <ProviderSection
                 agentId={agent.id}
-                title="Model services"
-                description="Configure service endpoints and credentials in their Plugins."
+                title={t("Model services")}
+                description={t(
+                  "Configure service endpoints and credentials in their Plugins."
+                )}
                 empty="No model services are available for this Agent."
                 items={items.filter((item) =>
                   provides(item, "lenso.agent.model")
@@ -168,8 +178,10 @@ function AgentSettingsContent({
                     }}
                   />
                 }
-                title="MCP connections"
-                description="Configure external servers here, then enable their capabilities in a Profile."
+                title={t("MCP connections")}
+                description={t(
+                  "Configure external servers here, then enable their capabilities in a Profile."
+                )}
                 empty="No MCP connections are available for this Agent."
                 items={items.filter((item) =>
                   /(^|[._-])mcp([._-]|$)/u.test(item.packageId)
@@ -178,20 +190,23 @@ function AgentSettingsContent({
             </>
           ) : null}
           <Section
-            title="Advanced"
-            description="Limits that apply across all Profiles of the selected Agent."
+            title={t("Advanced")}
+            description={t(
+              "Limits that apply across all Profiles of the selected Agent."
+            )}
           >
             <Link to="/settings/ai/agent" {...stylex.props(styles.linkRow)}>
               <span {...stylex.props(styles.rowCopy)}>
                 <strong {...stylex.props(styles.rowTitle)}>
-                  Global tool restrictions
+                  {t("Global tool restrictions")}
                 </strong>
                 <span {...stylex.props(styles.description)}>
-                  Set the maximum tool access. Configure everyday tool choices
-                  in Profiles.
+                  {t(
+                    "Set the maximum tool access. Configure everyday tool choices in Profiles."
+                  )}
                 </span>
               </span>
-              <span {...stylex.props(styles.actionLabel)}>Manage</span>
+              <span {...stylex.props(styles.actionLabel)}>{t("Manage")}</span>
             </Link>
           </Section>
         </>
@@ -269,6 +284,8 @@ function ProviderSection({
   items: readonly PluginWorkbenchItem[];
   actions?: ReactNode;
 }) {
+  const t = useConsoleTranslation();
+
   return (
     <Section title={title} description={description} actions={actions}>
       {items.length ? (
@@ -294,17 +311,19 @@ function ProviderSection({
                       ? "Active"
                       : item.desired
                         ? "In desired Plan"
-                        : "Not active"}
+                        : t("Not active")}
                   </span>
                 </span>
-                <span {...stylex.props(styles.actionLabel)}>Configure</span>
+                <span {...stylex.props(styles.actionLabel)}>
+                  {t("Configure")}
+                </span>
               </Link>
             </li>
           ))}
         </ul>
       ) : (
         <p {...stylex.props(styles.notice)}>
-          {empty} <Link to="/plugins">Manage Plugins</Link>
+          {empty} <Link to="/plugins">{t("Manage Plugins")}</Link>
         </p>
       )}
     </Section>
@@ -312,6 +331,8 @@ function ProviderSection({
 }
 
 export function ToolAccess({ agent }: { agent: AgentIdentity }) {
+  const t = useConsoleTranslation();
+
   const queryClient = useQueryClient();
   const canManage = agent.capabilities.includes(
     AGENT_PLUGIN_CONFIGURATION_CAPABILITY
@@ -373,7 +394,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
     ) ?? [];
   return (
     <Section
-      title="Tool restrictions"
+      title={t("Tool restrictions")}
       description={
         canManage
           ? "Allowed tools form the upper limit for all Profiles of this Agent. Changes apply to new turns."
@@ -394,8 +415,8 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
             <TextField.Root size="compact" xstyle={styles.toolSearch}>
               <TextField.Control
                 type="search"
-                aria-label="Filter tools"
-                placeholder="Filter tools…"
+                aria-label={t("Filter tools")}
+                placeholder={t("Filter tools…")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
@@ -413,7 +434,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                     ])
                   }
                 >
-                  Enable all
+                  {t("Enable all")}
                 </Button>
                 <Button
                   size="compact"
@@ -421,15 +442,16 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                   disabled={disabled}
                   onClick={() => edit([])}
                 >
-                  Disable all
+                  {t("Disable all")}
                 </Button>
               </>
             ) : null}
           </div>
           {stale ? (
             <p role="alert" {...stylex.props(styles.notice)}>
-              Tool access changed elsewhere. Reset your draft to load the latest
-              policy.
+              {t(
+                "Tool access changed elsewhere. Reset your draft to load the latest policy."
+              )}
             </p>
           ) : null}
           <ul {...stylex.props(styles.toolList)}>
@@ -470,12 +492,14 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
             ))}
           </ul>
           {tools.available.length > 0 && filteredTools.length === 0 ? (
-            <p {...stylex.props(styles.notice)}>No matching tools.</p>
+            <p {...stylex.props(styles.notice)}>{t("No matching tools.")}</p>
           ) : null}
           {canManage && policy.data ? (
             <div {...stylex.props(styles.saveBar)}>
               <span {...stylex.props(styles.description)}>
-                {changed ? "Unsaved changes" : "Changes are saved explicitly."}
+                {changed
+                  ? t("Unsaved changes")
+                  : "Changes are saved explicitly."}
               </span>
               <Button
                 size="compact"
@@ -486,7 +510,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                   mutation.reset();
                 }}
               >
-                Reset
+                {t("Reset")}
               </Button>
               <Button
                 size="compact"
@@ -506,15 +530,19 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
           ) : null}
           {tools.available.length ? null : (
             <p {...stylex.props(styles.notice)}>
-              No Tools are exposed by this Agent.
+              {t("No Tools are exposed by this Agent.")}
             </p>
           )}
         </>
       ) : bootstrap.isPending ? (
-        <output {...stylex.props(styles.notice)}>Loading Tool access…</output>
+        <output {...stylex.props(styles.notice)}>
+          {t("Loading Tool access…")}
+        </output>
       ) : null}
       {mutation.isSuccess ? (
-        <output {...stylex.props(styles.notice)}>Tool access saved.</output>
+        <output {...stylex.props(styles.notice)}>
+          {t("Tool access saved.")}
+        </output>
       ) : null}
       {bootstrap.error || policy.error ? (
         <Button
@@ -528,7 +556,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
             }
           }}
         >
-          Retry
+          {t("Retry")}
         </Button>
       ) : null}
     </Section>

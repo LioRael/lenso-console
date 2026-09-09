@@ -1,6 +1,7 @@
 import { Select } from "@lenso/ui/select";
 import * as stylex from "@stylexjs/stylex";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { pluginScopes, useAppManagement } from "../apps/app-management-context";
 
 const styles = stylex.create({
@@ -17,10 +18,12 @@ const styles = stylex.create({
 });
 
 export function PluginTargetSelect() {
+  const t = useConsoleTranslation();
+
   const { apps, selectedApp, selectApp } = useAppManagement();
   return (
     <div {...stylex.props(styles.context)}>
-      <span {...stylex.props(styles.label)}>Manage</span>
+      <span {...stylex.props(styles.label)}>{t("Manage")}</span>
       <Select.Root
         value={selectedApp?.id ?? ""}
         onValueChange={(value) => {
@@ -29,9 +32,9 @@ export function PluginTargetSelect() {
           }
         }}
       >
-        <Select.Trigger aria-label="Manage App" xstyle={styles.trigger}>
+        <Select.Trigger aria-label={t("Manage App")} xstyle={styles.trigger}>
           <Select.Value xstyle={styles.value}>
-            {selectedApp?.label ?? "Select an App"}
+            {selectedApp?.label ?? t("Select an App")}
           </Select.Value>
           <Select.Icon />
         </Select.Trigger>
@@ -43,7 +46,7 @@ export function PluginTargetSelect() {
                   const targets = apps.filter((app) => app.scope === scope.id);
                   return targets.length ? (
                     <Select.Group key={scope.id}>
-                      <Select.GroupLabel>{scope.label}</Select.GroupLabel>
+                      <Select.GroupLabel>{t(scope.label)}</Select.GroupLabel>
                       {targets.map((app) => (
                         <Select.Item key={app.id} value={app.id}>
                           <Select.ItemText>{app.label}</Select.ItemText>

@@ -5,6 +5,7 @@ import * as stylex from "@stylexjs/stylex";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   useAppManagement,
@@ -269,6 +270,8 @@ const styles = stylex.create({
 });
 
 export function PluginWorkbenchPage() {
+  const t = useConsoleTranslation();
+
   const { apps, selectApp, selectedApp, catalog } = useAppManagement();
   const { request } = usePluginAgentWorkbench();
   useEffect(() => {
@@ -284,8 +287,8 @@ export function PluginWorkbenchPage() {
     <main data-page="plugin-workbench" {...stylex.props(styles.page)}>
       <div {...stylex.props(pageStyles.column, styles.workbench)}>
         <SettingsPageHeader
-          title="Plugins"
-          description="Manage the plugins installed in your Apps."
+          title={t("Plugins")}
+          description={t("Manage the plugins installed in your Apps.")}
         />
         <div {...stylex.props(styles.targetRow)}>
           <PluginTargetSelect />
@@ -293,20 +296,20 @@ export function PluginWorkbenchPage() {
         <div {...stylex.props(styles.tableRegion)}>
           {catalog.isPending ? (
             <WorkbenchState
-              title="Loading Apps"
-              description="Reading management targets."
+              title={t("Loading Apps")}
+              description={t("Reading management targets.")}
             />
           ) : catalog.isError ? (
             <WorkbenchState
-              title="Apps unavailable"
-              description="The App management catalog could not be loaded."
+              title={t("Apps unavailable")}
+              description={t("The App management catalog could not be loaded.")}
               action={
                 <Button
                   onClick={() => {
                     void catalog.refetch();
                   }}
                 >
-                  Try again
+                  {t("Try again")}
                 </Button>
               }
             />
@@ -317,8 +320,8 @@ export function PluginWorkbenchPage() {
             />
           ) : (
             <WorkbenchState
-              title="No Apps connected"
-              description="Connect a Lenso App to manage its plugins here."
+              title={t("No Apps connected")}
+              description={t("Connect a Lenso App to manage its plugins here.")}
             />
           )}
         </div>
@@ -328,6 +331,8 @@ export function PluginWorkbenchPage() {
 }
 
 function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
+  const t = useConsoleTranslation();
+
   const { pluginFilters, updatePluginFilters } = useAppManagement();
   const { category, query, selection } = pluginFilters;
   const onCategoryChange = (nextCategory: PluginCategory) =>
@@ -402,14 +407,17 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
     <div {...stylex.props(styles.body)}>
       <PluginDraftNavigationGuard store={configurationDraftStore} />
       {configurationAvailable ? (
-        <div aria-label="Plugin filters" {...stylex.props(styles.headerSubrow)}>
+        <div
+          aria-label={t("Plugin filters")}
+          {...stylex.props(styles.headerSubrow)}
+        >
           <div {...stylex.props(styles.toolbar)}>
             <div {...stylex.props(styles.controls)}>
               <TextField.Root size="compact" xstyle={styles.search}>
                 <TextField.Control
                   type="search"
-                  aria-label="Search plugins"
-                  placeholder="Search plugins…"
+                  aria-label={t("Search plugins")}
+                  placeholder={t("Search plugins…")}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
@@ -421,7 +429,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                 aria-expanded={showFilters}
                 onClick={() => setShowFilters((value) => !value)}
               >
-                Filters
+                {t("Filters")}
                 {category !== "all" || selection !== "all"
                   ? ` · ${Number(category !== "all") + Number(selection !== "all")}`
                   : ""}
@@ -464,16 +472,16 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
           {showFilters ? (
             <div {...stylex.props(styles.filterOptions)}>
               <PluginFilterSelect
-                label="Plugin category"
+                label={t("Plugin category")}
                 value={category}
                 onValueChange={onCategoryChange}
                 options={pluginCategories.map((item) => ({
                   value: item.id,
-                  label: `${item.label}${workbench.data ? ` (${item.id === "all" ? plugins.length : plugins.filter((plugin) => categoriesForPlugin(plugin).includes(item.id)).length})` : ""}`,
+                  label: `${t(item.label)}${workbench.data ? ` (${item.id === "all" ? plugins.length : plugins.filter((plugin) => categoriesForPlugin(plugin).includes(item.id)).length})` : ""}`,
                 }))}
               />
               <PluginFilterSelect<PluginSelectionFilter>
-                label="Plugin selection"
+                label={t("Plugin selection")}
                 value={selection}
                 onValueChange={setSelection}
                 options={[
@@ -487,12 +495,12 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
         </div>
       ) : null}
       <h1 id="plugins-heading" {...stylex.props(styles.visuallyHidden)}>
-        Plugins
+        {t("Plugins")}
       </h1>
       <div {...stylex.props(styles.tableRegion)}>
         {configurationAvailable === false ? (
           <WorkbenchState
-            title="Plugin management unavailable"
+            title={t("Plugin management unavailable")}
             description={
               selectedApp.scope === "console-extensions"
                 ? "Console has no connected extension management authority. Management Agent plugins are managed separately."
@@ -501,8 +509,8 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
           />
         ) : workbench.isPending && !workbench.isError ? (
           <WorkbenchState
-            description="Reading the active App configuration."
-            title="Loading Plugins"
+            description={t("Reading the active App configuration.")}
+            title={t("Loading Plugins")}
           />
         ) : workbench.configurationAvailable === false ? (
           <WorkbenchState
@@ -511,7 +519,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                 ? "Console has no connected extension management authority. Management Agent plugins are managed separately."
                 : `${selectedApp.label} does not expose Plugin configuration management.`
             }
-            title="Plugin configuration unavailable"
+            title={t("Plugin configuration unavailable")}
           />
         ) : workbench.isError ? (
           <WorkbenchState
@@ -523,7 +531,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                 size="compact"
                 variant="secondary"
               >
-                Try again
+                {t("Try again")}
               </Button>
             }
             description={
@@ -531,21 +539,21 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                 ? workbench.error.message
                 : "The active App configuration could not be loaded."
             }
-            title="Plugins unavailable"
+            title={t("Plugins unavailable")}
           />
         ) : !inventory || !workbench.data ? (
           <WorkbenchState
-            description="Reading the active App configuration."
-            title="Loading Plugins"
+            description={t("Reading the active App configuration.")}
+            title={t("Loading Plugins")}
           />
         ) : plugins.length === 0 ? (
           <WorkbenchState
-            description="This App does not currently include any Plugins."
-            title="No Plugins installed"
+            description={t("This App does not currently include any Plugins.")}
+            title={t("No Plugins installed")}
           />
         ) : visiblePlugins.length === 0 ? (
           <WorkbenchState
-            title="No matching Plugins"
+            title={t("No matching Plugins")}
             description={`No Plugins match these filters for ${selectedApp.label}.`}
             action={
               <Button
@@ -557,7 +565,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                   setSelection("all");
                 }}
               >
-                Clear filters
+                {t("Clear filters")}
               </Button>
             }
           />
@@ -567,8 +575,8 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
             {...stylex.props(styles.tableRegion, styles.inventoryList)}
           >
             <div aria-hidden="true" {...stylex.props(styles.columns)}>
-              <span>Plugin</span>
-              <span>Status</span>
+              <span>{t("Plugin")}</span>
+              <span>{t("Status")}</span>
             </div>
             {visiblePlugins.map((plugin) => {
               const state = pluginStatusPresentation({
@@ -603,7 +611,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                       ) : null}
                     </span>
                     <span {...stylex.props(styles.purpose)}>
-                      {pluginPurpose(plugin)}
+                      {t(pluginPurpose(plugin))}
                     </span>
                   </span>
                   <PluginStatus state={state} />

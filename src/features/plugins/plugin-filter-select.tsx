@@ -1,6 +1,8 @@
 import { Select } from "@lenso/ui/select";
 import * as stylex from "@stylexjs/stylex";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
+
 const styles = stylex.create({
   popup: {
     height: "auto",
@@ -34,6 +36,7 @@ export function PluginFilterSelect<Value extends string>({
   options: readonly { value: Value; label: string }[];
   onValueChange: (value: Value) => void;
 }) {
+  const t = useConsoleTranslation();
   return (
     <Select.Root
       value={value}
@@ -44,9 +47,9 @@ export function PluginFilterSelect<Value extends string>({
         }
       }}
     >
-      <Select.Trigger aria-label={label} xstyle={styles.trigger}>
+      <Select.Trigger aria-label={t(label)} xstyle={styles.trigger}>
         <Select.Value xstyle={styles.value}>
-          {options.find((item) => item.value === value)?.label}
+          {t(options.find((item) => item.value === value)?.label ?? "")}
         </Select.Value>
         <Select.Icon />
       </Select.Trigger>
@@ -56,7 +59,7 @@ export function PluginFilterSelect<Value extends string>({
             <Select.List>
               {options.map((item) => (
                 <Select.Item key={item.value} value={item.value}>
-                  <Select.ItemText>{item.label}</Select.ItemText>
+                  <Select.ItemText>{t(item.label)}</Select.ItemText>
                   <Select.ItemIndicator />
                 </Select.Item>
               ))}

@@ -3,6 +3,7 @@ import { Dialog } from "@lenso/ui/dialog";
 import { useBlocker } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
 
 export function PluginDraftNavigationGuard({
@@ -10,6 +11,8 @@ export function PluginDraftNavigationGuard({
 }: {
   store: PluginConfigurationDraftStore;
 }) {
+  const t = useConsoleTranslation();
+
   const dirty = useSyncExternalStore(
     store.subscribeAll,
     store.hasDrafts,
@@ -36,10 +39,11 @@ export function PluginDraftNavigationGuard({
           <Dialog.Popup>
             <Dialog.Header>
               <div>
-                <Dialog.Title>Leave without saving?</Dialog.Title>
+                <Dialog.Title>{t("Leave without saving?")}</Dialog.Title>
                 <Dialog.Description>
-                  Your configuration changes have not been published. Leaving
-                  this page will discard the local draft.
+                  {t(
+                    "Your configuration changes have not been published. Leaving this page will discard the local draft."
+                  )}
                 </Dialog.Description>
               </div>
               <Dialog.Close />
@@ -54,7 +58,7 @@ export function PluginDraftNavigationGuard({
                   }
                 }}
               >
-                Keep editing
+                {t("Keep editing")}
               </Button>
               <Button
                 size="compact"
@@ -65,7 +69,7 @@ export function PluginDraftNavigationGuard({
                   }
                 }}
               >
-                Leave page
+                {t("Leave page")}
               </Button>
             </Dialog.Footer>
           </Dialog.Popup>

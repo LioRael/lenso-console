@@ -6,6 +6,7 @@ import { Link } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   useAppManagement,
@@ -106,6 +107,8 @@ export function PluginDetailPage({
   instanceKey: string;
   packageId: string;
 }) {
+  const t = useConsoleTranslation();
+
   const { apps, selectApp, selectedApp, catalog } = useAppManagement();
   const routedApp = apps.find((agent) => agent.id === agentId);
   useEffect(() => {
@@ -117,8 +120,8 @@ export function PluginDetailPage({
   if (catalog.isPending) {
     return (
       <DetailState
-        title="Loading App"
-        description="Reading management targets."
+        title={t("Loading App")}
+        description={t("Reading management targets.")}
       />
     );
   }
@@ -127,8 +130,10 @@ export function PluginDetailPage({
       <PluginDetailShell instanceKey={instanceKey} packageId={packageId}>
         <DetailState
           action={<BackToPlugins />}
-          description="This App management target is no longer available in Console."
-          title="App unavailable"
+          description={t(
+            "This App management target is no longer available in Console."
+          )}
+          title={t("App unavailable")}
         />
       </PluginDetailShell>
     );
@@ -153,6 +158,8 @@ function AppPluginDetail({
   packageId: string;
   selectedApp: ManagedApp;
 }) {
+  const t = useConsoleTranslation();
+
   const configurationAvailable = selectedApp.pluginConfiguration;
   const workbench = usePluginWorkbench(selectedApp.id, configurationAvailable);
   const inventory = workbench.data?.inventory;
@@ -216,19 +223,19 @@ function AppPluginDetail({
       {configurationAvailable === false ? (
         <DetailState
           action={<BackToPlugins />}
-          title="Plugin management unavailable"
+          title={t("Plugin management unavailable")}
           description={`${selectedApp.label} does not expose Plugin configuration management.`}
         />
       ) : workbench.isPending ? (
         <DetailState
-          description="Reading the active App configuration."
-          title="Loading Plugin"
+          description={t("Reading the active App configuration.")}
+          title={t("Loading Plugin")}
         />
       ) : workbench.configurationAvailable === false ? (
         <DetailState
           action={<BackToPlugins />}
           description={`${selectedApp.label} does not expose Plugin configuration management.`}
-          title="Plugin configuration unavailable"
+          title={t("Plugin configuration unavailable")}
         />
       ) : workbench.isError ? (
         <DetailState
@@ -240,7 +247,7 @@ function AppPluginDetail({
               size="compact"
               variant="secondary"
             >
-              Try again
+              {t("Try again")}
             </Button>
           }
           description={
@@ -248,7 +255,7 @@ function AppPluginDetail({
               ? workbench.error.message
               : "The active App configuration could not be loaded."
           }
-          title="Plugin unavailable"
+          title={t("Plugin unavailable")}
         />
       ) : inventory && workbench.data ? (
         plugin ? (
@@ -275,14 +282,16 @@ function AppPluginDetail({
         ) : (
           <DetailState
             action={<BackToPlugins />}
-            description="This Plugin instance is no longer present in the current App configuration."
-            title="Plugin not found"
+            description={t(
+              "This Plugin instance is no longer present in the current App configuration."
+            )}
+            title={t("Plugin not found")}
           />
         )
       ) : (
         <DetailState
-          description="Reading the active App configuration."
-          title="Loading Plugin"
+          description={t("Reading the active App configuration.")}
+          title={t("Loading Plugin")}
         />
       )}
     </PluginDetailShell>
@@ -302,15 +311,17 @@ function PluginDetailShell({
   withTabs?: boolean;
   targetLabel?: string;
 }) {
+  const t = useConsoleTranslation();
+
   const shell = (
     <>
       <PageHeader.Root
-        aria-label="Plugin navigation"
+        aria-label={t("Plugin navigation")}
         {...stylex.props(styles.header)}
         variant="simple"
       >
         <PageHeader.Row>
-          <Breadcrumb.Root aria-label="Plugin breadcrumb">
+          <Breadcrumb.Root aria-label={t("Plugin breadcrumb")}>
             <Breadcrumb.List>
               <Breadcrumb.Item xstyle={styles.breadcrumbParent}>
                 <Breadcrumb.Link nativeButton={false} render={<Link to="/" />}>
@@ -326,7 +337,7 @@ function PluginDetailShell({
                   nativeButton={false}
                   render={<Link to="/plugins" />}
                 >
-                  Plugins
+                  {t("Plugins")}
                 </Breadcrumb.Link>
               </Breadcrumb.Item>
               <Breadcrumb.Separator />
@@ -380,6 +391,8 @@ function DetailState({
 }
 
 function BackToPlugins() {
+  const t = useConsoleTranslation();
+
   return (
     <Button
       nativeButton={false}
@@ -387,7 +400,7 @@ function BackToPlugins() {
       size="compact"
       variant="secondary"
     >
-      Back to Plugins
+      {t("Back to Plugins")}
     </Button>
   );
 }

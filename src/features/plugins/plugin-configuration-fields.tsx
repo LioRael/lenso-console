@@ -18,6 +18,7 @@ import {
 } from "react";
 import { parse, stringify } from "smol-toml";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   ConfigurationFieldGroups,
@@ -246,6 +247,8 @@ function ConfigurationFieldsForm({
   schema: JsonObject;
   toml: string;
 }) {
+  const t = useConsoleTranslation();
+
   const parsed = useMemo(() => parseConfiguration(toml), [toml]);
   const values = useMemo(
     () => deepMerge(defaults, parsed ?? {}),
@@ -272,8 +275,9 @@ function ConfigurationFieldsForm({
   if (!parsed) {
     return (
       <p role="alert" {...stylex.props(styles.empty)}>
-        The current configuration is not valid TOML. Fix it in Advanced before
-        using fields.
+        {t(
+          "The current configuration is not valid TOML. Fix it in Advanced before using fields."
+        )}
       </p>
     );
   }
@@ -290,7 +294,7 @@ function ConfigurationFieldsForm({
   ) {
     return (
       <p {...stylex.props(styles.empty)}>
-        This Plugin does not declare editable fields.
+        {t("This Plugin does not declare editable fields.")}
       </p>
     );
   }
@@ -405,6 +409,8 @@ function FieldCopy({
   property: SchemaProperty;
   required: boolean;
 }) {
+  const t = useConsoleTranslation();
+
   const source = useContext(FieldSource);
   const overridden = source && readField(source.overrides, path) !== undefined;
   const inherited = source && readField(source.defaults, path) !== undefined;
@@ -420,27 +426,27 @@ function FieldCopy({
   return (
     <div {...stylex.props(styles.fieldCopy)}>
       <label htmlFor={id} {...stylex.props(styles.fieldName)}>
-        {property.title ?? humanize(name)}
+        {t(property.title ?? humanize(name))}
         {property.readOnly ? (
-          <span {...stylex.props(styles.fieldOptional)}>Read only</span>
+          <span {...stylex.props(styles.fieldOptional)}>{t("Read only")}</span>
         ) : property.deprecated ? (
-          <span {...stylex.props(styles.fieldOptional)}>Deprecated</span>
+          <span {...stylex.props(styles.fieldOptional)}>{t("Deprecated")}</span>
         ) : required ? null : (
-          <span {...stylex.props(styles.fieldOptional)}>Optional</span>
+          <span {...stylex.props(styles.fieldOptional)}>{t("Optional")}</span>
         )}
       </label>
       {property.description ? (
-        <p {...stylex.props(styles.description)}>{property.description}</p>
+        <p {...stylex.props(styles.description)}>{t(property.description)}</p>
       ) : null}
       {source ? (
         <div {...stylex.props(styles.fieldCopy)}>
           <span {...stylex.props(styles.description)}>
             {readOnly
-              ? "Read only"
+              ? t("Read only")
               : overridden
                 ? "Overridden"
                 : inherited
-                  ? "Inherited"
+                  ? t("Inherited")
                   : "Not configured"}
           </span>
           {overridden &&
@@ -451,7 +457,7 @@ function FieldCopy({
               variant="ghost"
               disabled={disabled || source.disabled}
               onClick={() => source.update(path as string[], undefined)}
-              aria-label={`Reset ${property.title ?? humanize(name)}`}
+              aria-label={`Reset ${t(property.title ?? humanize(name))}`}
               {...stylex.props(styles.collectionAction)}
             >
               {inherited ? "Use inherited value" : "Remove override"}
@@ -475,9 +481,11 @@ type ConfigurationControlProps = {
 };
 
 function AdvancedFieldsNotice() {
+  const t = useConsoleTranslation();
+
   return (
     <p {...stylex.props(styles.empty)}>
-      This schema needs Advanced editing. Existing values are preserved.
+      {t("This schema needs Advanced editing. Existing values are preserved.")}
     </p>
   );
 }
@@ -642,13 +650,15 @@ function SensitiveControl({
   required,
   value,
 }: ConfigurationControlProps) {
+  const t = useConsoleTranslation();
+
   const [draft, setDraft] = useState("");
   // Never hydrate a write-only value returned by the provider into an input.
   const displayedDraft = draft === value ? draft : "";
   return (
     <TextField.Root size="compact" xstyle={styles.controlRoot}>
       <TextField.Control
-        aria-label={property.title ?? humanize(name)}
+        aria-label={t(property.title ?? humanize(name))}
         autoComplete="new-password"
         disabled={disabled}
         id={id}
@@ -661,7 +671,7 @@ function SensitiveControl({
         }}
         placeholder={
           value === undefined || value === ""
-            ? "Not set"
+            ? t("Not set")
             : "Configured — enter a replacement"
         }
         required={required && value === undefined}
@@ -683,6 +693,8 @@ function ConfigurationValueControl({
   required,
   value,
 }: ConfigurationControlProps) {
+  const t = useConsoleTranslation();
+
   if (property.const !== undefined) {
     if (property.const !== null && typeof property.const === "object") {
       return <AdvancedFieldsNotice />;
@@ -697,7 +709,7 @@ function ConfigurationValueControl({
     return (
       <div {...stylex.props(styles.switchControl)}>
         <Switch.Root
-          aria-label={property.title ?? humanize(name)}
+          aria-label={t(property.title ?? humanize(name))}
           checked={value === true}
           disabled={disabled}
           id={id}
@@ -723,13 +735,13 @@ function ConfigurationValueControl({
         value={selectedValue}
       >
         <Select.Trigger
-          aria-label={property.title ?? humanize(name)}
+          aria-label={t(property.title ?? humanize(name))}
           id={id}
           xstyle={styles.selectTrigger}
         >
           <Select.Value>
             {selectedValue === unsetSelectValue
-              ? "Not set"
+              ? t("Not set")
               : humanize(selectedValue)}
           </Select.Value>
           <Select.Icon />
@@ -740,7 +752,7 @@ function ConfigurationValueControl({
               <Select.List>
                 {required ? null : (
                   <Select.Item value={unsetSelectValue}>
-                    <Select.ItemText>Not set</Select.ItemText>
+                    <Select.ItemText>{t("Not set")}</Select.ItemText>
                     <Select.ItemIndicator />
                   </Select.Item>
                 )}
@@ -820,7 +832,7 @@ function ConfigurationValueControl({
     <ConfigurationStringControl
       disabled={disabled}
       id={id}
-      label={property.title ?? humanize(name)}
+      label={t(property.title ?? humanize(name))}
       minLength={property.minLength}
       maxLength={property.maxLength}
       pattern={property.pattern}
@@ -841,6 +853,8 @@ function NumberControl({
   required,
   value,
 }: ConfigurationControlProps) {
+  const t = useConsoleTranslation();
+
   const external = typeof value === "number" ? String(value) : "";
   const [draft, setDraft] = useState(external);
   const [error, setError] = useState(false);
@@ -848,7 +862,7 @@ function NumberControl({
     <div>
       <TextField.Root size="compact" xstyle={styles.controlRoot}>
         <TextField.Control
-          aria-label={property.title ?? humanize(name)}
+          aria-label={t(property.title ?? humanize(name))}
           disabled={disabled}
           id={id}
           type="number"
@@ -882,7 +896,9 @@ function NumberControl({
       </TextField.Root>
       {error ? (
         <p role="alert" {...stylex.props(styles.description)}>
-          Enter a valid number within the allowed range. The value is unchanged.
+          {t(
+            "Enter a valid number within the allowed range. The value is unchanged."
+          )}
         </p>
       ) : null}
     </div>
@@ -983,6 +999,8 @@ function ArrayControl({
   path: readonly (number | string)[];
   value: readonly unknown[];
 }) {
+  const t = useConsoleTranslation();
+
   const itemName = singularize(humanize(name));
   const keyPrefix = useId();
   const nextKey = useRef(value.length);
@@ -995,7 +1013,9 @@ function ArrayControl({
   return (
     <div {...stylex.props(styles.collection)}>
       {value.length === 0 ? (
-        <p {...stylex.props(styles.collectionEmpty)}>No {name} configured.</p>
+        <p {...stylex.props(styles.collectionEmpty)}>
+          {t("No")} {name} configured.
+        </p>
       ) : null}
       {value.map((item, index) => {
         const objectValue = isPlainObject(item) ? item : {};
@@ -1031,7 +1051,7 @@ function ArrayControl({
                     onChange(next);
                   }}
                 >
-                  Move up
+                  {t("Move up")}
                 </Button>
                 <IconButton
                   aria-label={`Remove ${itemName} ${index + 1}`}
@@ -1086,7 +1106,7 @@ function ArrayControl({
         {...stylex.props(styles.collectionAction)}
       >
         <Plus size={13} strokeWidth={1.75} />
-        Add {itemName}
+        {t("Add")} {itemName}
       </Button>
     </div>
   );
@@ -1105,13 +1125,15 @@ function TypedMapControl({
   schema: SchemaProperty;
   value: Record<string, unknown>;
 }) {
+  const t = useConsoleTranslation();
+
   const [newKey, setNewKey] = useState("");
   const [error, setError] = useState("");
   const itemSchema = schema.additionalProperties;
   if (!isPlainObject(itemSchema)) {
     return schema.additionalProperties === false ? (
       <p {...stylex.props(styles.collectionEmpty)}>
-        No additional fields allowed.
+        {t("No additional fields allowed.")}
       </p>
     ) : (
       <ObjectMapControl
@@ -1192,7 +1214,7 @@ function TypedMapControl({
           <TextField.Control
             aria-label={`New ${humanize(String(path.at(-1) ?? "configuration"))} key`}
             disabled={locked || full}
-            placeholder="New key"
+            placeholder={t("New key")}
             value={newKey}
             onChange={(event) => {
               setNewKey(event.target.value);
@@ -1220,7 +1242,7 @@ function TypedMapControl({
             setError("");
           }}
         >
-          Add entry
+          {t("Add entry")}
         </Button>
       </div>
       {error ? (
@@ -1241,6 +1263,8 @@ function MapKey({
   disabled: boolean;
   onRename: (name: string) => boolean;
 }) {
+  const t = useConsoleTranslation();
+
   const [draft, setDraft] = useState(name);
   const [invalid, setInvalid] = useState(false);
   return (
@@ -1271,7 +1295,7 @@ function MapKey({
       </TextField.Root>
       {invalid ? (
         <p role="alert" {...stylex.props(styles.description)}>
-          Use a non-empty, unique key. The original key is unchanged.
+          {t("Use a non-empty, unique key. The original key is unchanged.")}
         </p>
       ) : null}
     </div>

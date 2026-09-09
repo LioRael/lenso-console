@@ -4,6 +4,7 @@ import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 
 const styles = stylex.create({
@@ -42,6 +43,7 @@ export function ConfigurationStringControl({
   pattern: string | undefined;
   placeholder: string | undefined;
 }) {
+  const t = useConsoleTranslation();
   const [expanded, setExpanded] = useState(false);
   const text = typeof value === "string" ? value : "";
   const hasLineBreak = /[\r\n]/u.test(text);
@@ -146,14 +148,17 @@ export function ConfigurationStringControl({
           <Button
             size="compact"
             variant="ghost"
-            aria-label={`${multiline ? "Collapse" : "Expand"} ${label} editor`}
+            aria-label={t(
+              multiline ? "Collapse {field} editor" : "Expand {field} editor",
+              { field: label }
+            )}
             aria-expanded={multiline}
             onClick={() => {
               focusRequested.current = true;
               setExpanded(!expanded);
             }}
           >
-            {multiline ? "Collapse" : "Expand"}
+            {t(multiline ? "Collapse" : "Expand")}
           </Button>
         </div>
       )}

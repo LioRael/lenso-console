@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import type { AgentToolCall } from "../agent/agent-runtime";
 import {
   decodeAgentPluginReceipt,
@@ -85,6 +86,8 @@ export function PluginAgentReceipts({
 }: {
   tools: readonly AgentToolCall[];
 }) {
+  const t = useConsoleTranslation();
+
   const receipts = tools.flatMap((tool) => {
     const receipt = decodeAgentPluginReceipt(tool);
     return receipt ? [{ callId: tool.callId, receipt }] : [];
@@ -93,7 +96,10 @@ export function PluginAgentReceipts({
     return null;
   }
   return (
-    <div aria-label="Plugin management receipts" {...stylex.props(styles.list)}>
+    <div
+      aria-label={t("Plugin management receipts")}
+      {...stylex.props(styles.list)}
+    >
       {receipts.map(({ callId, receipt }) => (
         <PluginAgentReceiptCard key={callId} receipt={receipt} />
       ))}

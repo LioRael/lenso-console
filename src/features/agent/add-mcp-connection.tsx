@@ -4,6 +4,7 @@ import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { readPluginConfigurationProposal } from "../plugins/plugin-control-client";
 import {
   usePluginMutation,
@@ -27,6 +28,8 @@ export function AddMcpConnection({
   data: PluginWorkbenchData;
   onAdded: () => void;
 }) {
+  const t = useConsoleTranslation();
+
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -51,10 +54,10 @@ export function AddMcpConnection({
     placeholder = ""
   ) => (
     <label {...stylex.props(styles.rowCopy, local.field)}>
-      {label}
+      {t(label)}
       <TextField.Root xstyle={local.input}>
         <TextField.Control
-          aria-label={label}
+          aria-label={t(label)}
           disabled={pending}
           value={draft[key]}
           placeholder={placeholder}
@@ -150,7 +153,7 @@ export function AddMcpConnection({
               }}
               {...stylex.props(page.group, local.form)}
             >
-              <Dialog.Title>Add MCP connection</Dialog.Title>
+              <Dialog.Title>{t("Add MCP connection")}</Dialog.Title>
               <div {...stylex.props(page.headerActions)}>
                 <Button
                   type="button"
@@ -168,7 +171,7 @@ export function AddMcpConnection({
                     }))
                   }
                 >
-                  Remote URL
+                  {t("Remote URL")}
                 </Button>
                 <Button
                   type="button"
@@ -181,7 +184,7 @@ export function AddMcpConnection({
                     setDraft((current) => ({ ...current, transport: "stdio" }))
                   }
                 >
-                  Local command
+                  {t("Local command")}
                 </Button>
               </div>
               {field("name", "Connection name", "my_server")}
@@ -207,10 +210,10 @@ export function AddMcpConnection({
                     "/absolute/path/to/project"
                   )}
                   <label {...stylex.props(styles.rowCopy, local.field)}>
-                    Arguments (one per line)
+                    {t("Arguments (one per line)")}
                     <textarea
                       disabled={pending}
-                      aria-label="Arguments (one per line)"
+                      aria-label={t("Arguments (one per line)")}
                       value={draft.arguments}
                       onChange={(event) =>
                         setDraft((current) => ({
@@ -228,12 +231,14 @@ export function AddMcpConnection({
                 </>
               )}
               <p {...stylex.props(styles.description)}>
-                Use environment variable names for credentials. Their values
-                must be available to the Agent process.
+                {t(
+                  "Use environment variable names for credentials. Their values must be available to the Agent process."
+                )}
               </p>
               <p {...stylex.props(styles.description)}>
-                Configuration is validated before saving. The Agent checks
-                connectivity when this MCP is enabled.
+                {t(
+                  "Configuration is validated before saving. The Agent checks connectivity when this MCP is enabled."
+                )}
               </p>
               {errorMessage ? (
                 <p role="alert" {...stylex.props(styles.error)}>
@@ -242,7 +247,7 @@ export function AddMcpConnection({
               ) : null}
               <div {...stylex.props(page.headerActions)}>
                 <Button type="submit" size="compact" disabled={pending}>
-                  {pending ? "Adding…" : "Add connection"}
+                  {pending ? t("Adding…") : t("Add connection")}
                 </Button>
                 <Button
                   type="button"

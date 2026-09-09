@@ -4,6 +4,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
 import { agentApiUrl } from "./agent-runtime";
@@ -56,6 +57,8 @@ function loginUrl(value: string): string {
 }
 
 export function AuthConnections({ agentId }: { agentId: string }) {
+  const t = useConsoleTranslation();
+
   const catalog = useQuery({
     queryKey: ["agent-auth-connections", agentId],
     queryFn: ({ signal }) => request<Catalog>(agentId, signal),
@@ -76,11 +79,11 @@ export function AuthConnections({ agentId }: { agentId: string }) {
         </Button>
       </div>
       {catalog.isPending ? (
-        <p {...stylex.props(styles.message)}>Loading accounts…</p>
+        <p {...stylex.props(styles.message)}>{t("Loading accounts…")}</p>
       ) : null}
       {catalog.isError ? (
         <div {...stylex.props(styles.message)}>
-          <p role="alert">Could not load accounts.</p>
+          <p role="alert">{t("Could not load accounts.")}</p>
           <Button onClick={() => catalog.refetch()}>Retry</Button>
         </div>
       ) : null}
@@ -117,6 +120,8 @@ function ConnectionRow({
   generation: string;
   refresh: () => void;
 }) {
+  const t = useConsoleTranslation();
+
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -268,18 +273,18 @@ function ConnectionRow({
           </SettingsRow.Title>
           <SettingsRow.Description xstyle={preferences.rowDescription}>
             {connection.status.connected
-              ? "Account saved on this Agent’s Host."
-              : "Not connected"}
+              ? t("Account saved on this Agent’s Host.")
+              : t("Not connected")}
           </SettingsRow.Description>
         </SettingsRow.Copy>
         <SettingsRow.Control xstyle={styles.control}>
           {attempt ? (
             <Button disabled={busy} onClick={() => perform("cancel")}>
-              Cancel sign-in
+              {t("Cancel sign-in")}
             </Button>
           ) : connection.status.connected ? (
             <Button disabled={busy} onClick={() => setConfirm(!confirm)}>
-              Disconnect…
+              {t("Disconnect…")}
             </Button>
           ) : (
             <div {...stylex.props(styles.actions)}>
@@ -299,10 +304,10 @@ function ConnectionRow({
                     onClick={() => perform("begin", method)}
                   >
                     {busy
-                      ? "Starting…"
+                      ? t("Starting…")
                       : method === "device_code"
-                        ? "Sign in with code"
-                        : "Sign in with browser"}
+                        ? t("Sign in with code")
+                        : t("Sign in with browser")}
                   </Button>
                 ))}
             </div>
@@ -312,15 +317,16 @@ function ConnectionRow({
       {confirm ? (
         <div {...stylex.props(styles.message)}>
           <p>
-            Remove the account saved on this Host? This does not revoke access
-            at the provider.
+            {t(
+              "Remove the account saved on this Host? This does not revoke access at the provider."
+            )}
           </p>
           <div {...stylex.props(styles.actions)}>
             <Button disabled={busy} onClick={() => perform("disconnect")}>
-              Disconnect account
+              {t("Disconnect account")}
             </Button>
             <Button disabled={busy} onClick={() => setConfirm(false)}>
-              Keep connected
+              {t("Keep connected")}
             </Button>
           </div>
         </div>
@@ -328,8 +334,8 @@ function ConnectionRow({
       {attempt ? (
         <div {...stylex.props(styles.message)}>
           <p>
-            Open the provider’s sign-in page
-            {attempt.user_code ? " and enter this code:" : "."}
+            {t("Open the provider’s sign-in page")}
+            {attempt.user_code ? t(" and enter this code:") : "."}
           </p>
           {attempt.user_code ? (
             <code {...stylex.props(styles.code)}>{attempt.user_code}</code>
@@ -339,13 +345,13 @@ function ConnectionRow({
             rel="noopener noreferrer"
             target="_blank"
           >
-            Continue sign-in ↗
+            {t("Continue sign-in ↗")}
           </a>
-          <p>Waiting for sign-in… Keep this page open.</p>
+          <p>{t("Waiting for sign-in… Keep this page open.")}</p>
         </div>
       ) : null}
       {message ? (
-        <output {...stylex.props(styles.message)}>{message}</output>
+        <output {...stylex.props(styles.message)}>{t(message)}</output>
       ) : null}
     </div>
   );
