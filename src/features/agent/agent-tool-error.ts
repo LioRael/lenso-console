@@ -16,6 +16,7 @@ export function toolErrorDetails(raw: string): {
   output: string;
   exitCode?: string;
   incomplete?: boolean;
+  reconnect?: boolean;
 } {
   let details: Record<string, unknown> = {};
   let incomplete = false;
@@ -70,6 +71,9 @@ export function toolErrorDetails(raw: string): {
   }
   return {
     summary: summary.slice(0, 240),
+    ...(/reason_code[:\s"]+connection_required/u.test(raw)
+      ? { reconnect: true }
+      : {}),
     ...(incomplete ? { incomplete: true } : {}),
     output: output || raw,
     ...(details.exit_code === undefined

@@ -14,7 +14,17 @@ import { agentApiUrl } from "./agent-runtime";
 // HTTP management projection; credentials never cross this boundary.
 type Connection = {
   provider: string;
-  status: { label: string; connected: boolean; methods: string[] };
+  status: {
+    label: string;
+    connected: boolean;
+    methods: string[];
+    account?: {
+      origin: string;
+      subject?: string | null;
+      expires_at_millis?: string | null;
+      reconnect_required: boolean;
+    } | null;
+  };
 };
 type Catalog = { generation: string; connections: Connection[] };
 type Attempt = {
@@ -81,6 +91,7 @@ export function AuthConnections({
     queryKey: ["agent-auth-connections", agentId],
     queryFn: ({ signal }) => request<Catalog>(agentId, signal),
     retry: false,
+    refetchInterval: 15_000,
   });
   const { refetch } = catalog;
   const refresh = useCallback(() => {
@@ -142,6 +153,9 @@ function isBusinessConnection(connection: Connection) {
 }
 function connectionDescription(connection: Connection) {
   if (isBusinessConnection(connection)) {
+    if (connection.status.account?.reconnect_required) {
+      return "Authorization expired or was revoked. Reconnect to continue.";
+    }
     return connection.status.connected
       ? "Connected for this Agent run. Restarting requires a new connection."
       : "Connect to use this App within your existing permissions.";
@@ -179,6 +193,10 @@ function ConnectionRow({
   const t = useConsoleTranslation();
 
   const methods = supportedLoginMethods(connection);
+  const { account } = connection.status;
+  const expiry = Number(account?.expires_at_millis);
+  const expiresAt =
+    Number.isFinite(expiry) && expiry > 0 ? new Date(expiry) : null;
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -332,6 +350,24 @@ function ConnectionRow({
           <SettingsRow.Description xstyle={preferences.rowDescription}>
             {t(connectionDescription(connection))}
           </SettingsRow.Description>
+          {account ? (
+            <div {...stylex.props(styles.account)}>
+              <span>{account.origin}</span>
+              {account.subject ? (
+                <span>
+                  {t("Account ID")}: {account.subject}
+                </span>
+              ) : null}
+              {expiresAt ? (
+                <span>
+                  {t("Authorization expires")}:{" "}
+                  <time dateTime={expiresAt.toISOString()}>
+                    {expiresAt.toISOString().slice(0, 16).replace("T", " ")} UTC
+                  </time>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </SettingsRow.Copy>
         <SettingsRow.Control xstyle={styles.control}>
           {attempt ? (
@@ -354,7 +390,9 @@ function ConnectionRow({
                     ? t("Starting…")
                     : method === "device_code"
                       ? t("Sign in with code")
-                      : t("Sign in with browser")}
+                      : account?.reconnect_required
+                        ? t("Reconnect")
+                        : t("Sign in with browser")}
                 </Button>
               ))}
             </div>
@@ -406,6 +444,17 @@ function ConnectionRow({
 
 const styles = stylex.create({
   connection: { width: "100%", minWidth: 0 },
+  account: {
+    display: "flex",
+    flexWrap: "wrap",
+    columnGap: 12,
+    rowGap: 2,
+    color: "var(--color-content-secondary)",
+    fontSize: 12,
+    lineHeight: "18px",
+    overflowWrap: "anywhere",
+    marginTop: 4,
+  },
   control: {
     marginInlineStart: "auto",
     flexShrink: 0,
