@@ -390,7 +390,11 @@ function ConnectionRow({
           >
             {t("Continue sign-in ↗")}
           </a>
-          <p>{t("Waiting for sign-in… Keep this page open.")}</p>
+          <p>
+            {t(
+              "Waiting for sign-in… Complete the steps on the provider’s page."
+            )}
+          </p>
         </div>
       ) : null}
       {message ? (

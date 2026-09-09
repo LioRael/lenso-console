@@ -428,8 +428,8 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Open the provider’s sign-in page": "打开服务商的登录页面",
   " and enter this code:": "，并输入以下验证码：",
   "Continue sign-in ↗": "继续登录 ↗",
-  "Waiting for sign-in… Keep this page open.":
-    "等待登录完成…请保持此页面打开。",
+  "Waiting for sign-in… Complete the steps on the provider’s page.":
+    "等待登录完成…请在服务商页面完成操作。",
   "Signed in.": "已登录。",
   "Sign-in ended. You can try again.": "登录已结束，可以重试。",
   "Could not check sign-in. Cancel to try again, or refresh accounts.":
