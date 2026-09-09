@@ -1,5 +1,13 @@
 ## @lenso/console-web@0.1.7
 
+## 1.10.0
+
+### Minor Changes
+
+- f13d40b: Add the first Plan-bound Observe Workspace with authenticated OTLP/HTTP trace
+  and log ingestion, SQLite retention, generated query contracts, live request
+  updates, trace waterfalls, and correlated logs.
+
 ## 1.9.0
 
 ### Minor Changes
