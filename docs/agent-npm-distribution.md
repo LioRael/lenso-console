@@ -37,8 +37,10 @@ node scripts/distribution/smoke-agent.mjs .artifacts/npm
 
 Use `linux-x64` on Ubuntu 24.04+ (glibc 2.39+). Packaging downloads only pinned Agent archives and
 checks their SHA-256 values. Native CI packages and runs both supported targets.
-The smoke installs actual npm tarballs offline without scripts, uses isolated
-Homes, serves the real UI, checks the Agent catalog, and verifies termination.
+The smoke installs actual npm tarballs offline without scripts into an empty npm
+cache. It runs with isolated, unauthenticated Homes and only Node on PATH, checks
+the UI assets, login controls, Profiles and workspace, then exercises occupied
+ports, restart, signals and child crashes. It verifies every owned process exits.
 
 ## Publication setup
 
