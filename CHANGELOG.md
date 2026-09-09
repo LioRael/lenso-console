@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.8.0
+
+### Minor Changes
+
+- 534a825: Run both reference Console launchers through an immutable Lenso Host Plan so linked Plugin Workspaces contribute directly to the primary rail.
+
 ## 1.7.0
 
 ### Minor Changes
