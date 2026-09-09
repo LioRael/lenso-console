@@ -5,6 +5,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { profileStyles as ui } from "./agent-profile-editor.stylex";
 import type { ProfileDocument } from "./agent-profile-model";
 import { listAvailableSkills } from "./agent-runtime";
@@ -20,6 +21,8 @@ export function AgentProfileSkills({
   disabled: boolean;
   onChange: (document: ProfileDocument) => void;
 }) {
+  const t = useConsoleTranslation();
+
   const skills = useQuery({
     queryKey: ["agent-skills", agentId],
     queryFn: ({ signal }) => listAvailableSkills(signal, agentId),
@@ -44,27 +47,32 @@ export function AgentProfileSkills({
   const update = (names: string[]) =>
     onChange({ ...document, allowed_skills: [...new Set(names)].sort() });
   return (
-    <section {...stylex.props(ui.capabilities)} aria-label="Profile Skills">
+    <section
+      {...stylex.props(ui.capabilities)}
+      aria-label={t("Profile Skills")}
+    >
       <header {...stylex.props(ui.capabilityHeading)}>
         <div>
-          <h3 {...stylex.props(ui.fieldTitle)}>Skills</h3>
+          <h3 {...stylex.props(ui.fieldTitle)}>{t("Skills")}</h3>
           <p {...stylex.props(ui.hint)}>
-            Choose which Skills this Profile can discover and use.
+            {t("Choose which Skills this Profile can discover and use.")}
           </p>
         </div>
       </header>
       <div {...stylex.props(ui.listToolbar)}>
         <div>
           <strong {...stylex.props(ui.fieldTitle)}>
-            Use all common Skills
+            {t("Use all common Skills")}
           </strong>
           <p {...stylex.props(ui.hint)}>
-            Includes Skills added to your common directories in the future.
+            {t(
+              "Includes Skills added to your common directories in the future."
+            )}
           </p>
         </div>
         <Switch.Root
           layout="control-only"
-          aria-label="Use all common Skills"
+          aria-label={t("Use all common Skills")}
           checked={selected === undefined}
           disabled={disabled || !skills.data}
           onCheckedChange={(checked) => {
@@ -84,8 +92,8 @@ export function AgentProfileSkills({
         <TextField.Root xstyle={ui.search}>
           <TextField.Control
             type="search"
-            aria-label="Search Profile Skills"
-            placeholder="Search Skills…"
+            aria-label={t("Search Profile Skills")}
+            placeholder={t("Search Skills…")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -108,7 +116,7 @@ export function AgentProfileSkills({
               ])
             }
           >
-            Enable {query ? "matching" : "all"}
+            {t(query ? "Enable matching" : "Enable all")}
           </Button>
           <Button
             size="compact"
@@ -122,12 +130,12 @@ export function AgentProfileSkills({
               )
             }
           >
-            Disable {query ? "matching" : "all"}
+            {t(query ? "Disable matching" : "Disable all")}
           </Button>
         </div>
       </div>
       {skills.isPending ? (
-        <p {...stylex.props(ui.hint)}>Loading Skills…</p>
+        <p {...stylex.props(ui.hint)}>{t("Loading Skills…")}</p>
       ) : skills.error ? (
         <p role="alert" {...stylex.props(ui.hint)}>
           {skills.error.message}
@@ -139,7 +147,7 @@ export function AgentProfileSkills({
               <div {...stylex.props(s.text)}>
                 <strong>{item.name}</strong>
                 <span {...stylex.props(s.description)} title={item.description}>
-                  {item.description || "No description"}
+                  {item.description || t("No description")}
                 </span>
                 <small>{item.directory}</small>
               </div>
@@ -165,8 +173,8 @@ export function AgentProfileSkills({
       ) : (
         <p {...stylex.props(ui.hint)}>
           {query
-            ? "No matching Skills."
-            : "No Skills found in common directories."}
+            ? t("No matching Skills.")
+            : t("No Skills found in common directories.")}
         </p>
       )}
     </section>

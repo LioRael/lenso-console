@@ -15,6 +15,7 @@ import {
 import { useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
@@ -30,6 +31,8 @@ import {
 type ConsoleArea = "agent" | "settings" | "system";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
+  const t = useConsoleTranslation();
+
   const appearance = useConsoleAppearance();
   const navigate = useNavigate();
   const { agents, selectedAgent } = useAgentIdentity();
@@ -68,7 +71,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
             ]}
           >
             <Sidebar.Panel
-              aria-label="Console context navigation"
+              aria-label={t("Console context navigation")}
               xstyle={[
                 shellStyles.contextSidebarPanel,
                 mobileNavigationOpen && shellStyles.contextSidebarPanelOpen,
@@ -106,7 +109,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 
         {mobileNavigationOpen ? (
           <button
-            aria-label="Close workspace navigation"
+            aria-label={t("Close workspace navigation")}
             {...stylex.props(shellStyles.mobileBackdrop)}
             onClick={() => setMobileNavigationOpen(false)}
             type="button"
@@ -116,7 +119,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
         <main {...stylex.props(shellStyles.main)}>{children}</main>
 
         <footer
-          aria-label="Application utilities"
+          aria-label={t("Application utilities")}
           {...stylex.props(shellStyles.utilities)}
         >
           <AgentQuickPanel
@@ -144,6 +147,8 @@ function PrimaryRail({
   navigate: (to: "/" | "/plugins" | "/settings") => void;
   onToggleContextNavigation: () => void;
 }) {
+  const t = useConsoleTranslation();
+
   return (
     <Sidebar.Root
       defaultOpen
@@ -151,12 +156,12 @@ function PrimaryRail({
       xstyle={shellStyles.primaryRailRoot}
     >
       <Sidebar.Panel
-        aria-label="Global navigation"
+        aria-label={t("Global navigation")}
         render={<nav />}
         xstyle={shellStyles.primaryRail}
       >
         <button
-          aria-label="Open workspace switcher"
+          aria-label={t("Open workspace switcher")}
           {...stylex.props(
             shellStyles.railWorkspace,
             shellStyles.desktopWorkspace
@@ -170,7 +175,7 @@ function PrimaryRail({
           aria-expanded={contextNavigationOpen}
           aria-label={
             contextNavigationOpen
-              ? "Close workspace navigation"
+              ? t("Close workspace navigation")
               : "Open workspace navigation"
           }
           {...stylex.props(shellStyles.railWorkspace, shellStyles.mobileOnly)}
@@ -181,7 +186,7 @@ function PrimaryRail({
         </button>
         <div {...stylex.props(shellStyles.railAreas)}>
           <IconButton
-            aria-label="Agent"
+            aria-label={t("Agent")}
             onClick={() => navigate("/")}
             size="default"
             variant="ghost"
@@ -193,7 +198,7 @@ function PrimaryRail({
             <MousePointer2 aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
           <IconButton
-            aria-label="System"
+            aria-label={t("System")}
             onClick={() => navigate("/plugins")}
             size="default"
             variant="ghost"
@@ -207,7 +212,7 @@ function PrimaryRail({
         </div>
         <div {...stylex.props(shellStyles.railFooter)}>
           <IconButton
-            aria-label="Preferences"
+            aria-label={t("Preferences")}
             onClick={() => navigate("/settings")}
             size="default"
             variant="ghost"
@@ -219,7 +224,7 @@ function PrimaryRail({
             <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
           <IconButton
-            aria-label="Help"
+            aria-label={t("Help")}
             size="default"
             variant="ghost"
             xstyle={shellStyles.railButton}
@@ -227,7 +232,7 @@ function PrimaryRail({
             <CircleHelp aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
           <button
-            aria-label="Local operator profile"
+            aria-label={t("Local operator profile")}
             {...stylex.props(shellStyles.railProfile)}
             type="button"
           >
@@ -274,11 +279,13 @@ function SystemSidebar({
   navigate: () => void;
   onRequestClose: () => void;
 }) {
+  const t = useConsoleTranslation();
+
   return (
     <>
-      <ContextNavigationHeader title="System">
+      <ContextNavigationHeader title={t("System")}>
         <IconButton
-          aria-label="Close workspace navigation"
+          aria-label={t("Close workspace navigation")}
           onClick={onRequestClose}
           size="default"
           variant="ghost"
@@ -288,14 +295,14 @@ function SystemSidebar({
         </IconButton>
       </ContextNavigationHeader>
       <Sidebar.Content>
-        <Sidebar.Menu aria-label="System navigation">
+        <Sidebar.Menu aria-label={t("System navigation")}>
           <Sidebar.MenuItem>
             <ContextNavigationItem
               icon={<Blocks size={15} strokeWidth={1.75} />}
               onClick={navigate}
               selected
             >
-              Plugins
+              {t("Plugins")}
             </ContextNavigationItem>
           </Sidebar.MenuItem>
         </Sidebar.Menu>
@@ -320,20 +327,27 @@ function SettingsSidebar({
   ) => void;
   onRequestClose: () => void;
 }) {
+  const t = useConsoleTranslation();
+
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const matches = (label: string) =>
     normalizedQuery.length === 0 ||
-    label.toLocaleLowerCase().includes(normalizedQuery);
+    `${label} ${label
+      .split(" ")
+      .map((word) => t(word))
+      .join(" ")}`
+      .toLocaleLowerCase()
+      .includes(normalizedQuery);
   const showPreferences = matches("Preferences");
   const showConnections = matches("Connections accounts models MCP");
   const showProfiles = matches("Profiles instructions tools skills guidance");
 
   return (
     <>
-      <ContextNavigationHeader title="Settings">
+      <ContextNavigationHeader title={t("Settings")}>
         <IconButton
-          aria-label="Close workspace navigation"
+          aria-label={t("Close workspace navigation")}
           onClick={onRequestClose}
           size="default"
           variant="ghost"
@@ -344,13 +358,13 @@ function SettingsSidebar({
       </ContextNavigationHeader>
       <ContextNavigationContent>
         <ContextNavigationSearch
-          aria-label="Search settings"
+          aria-label={t("Search settings")}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search…"
+          placeholder={t("Search…")}
           value={query}
         />
         {showPreferences ? (
-          <ContextNavigationSection label="Personal">
+          <ContextNavigationSection label={t("Personal")}>
             <Sidebar.Menu>
               {showPreferences ? (
                 <Sidebar.MenuItem>
@@ -362,7 +376,7 @@ function SettingsSidebar({
                       currentPath === "/settings/appearance"
                     }
                   >
-                    Preferences
+                    {t("Preferences")}
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
@@ -370,7 +384,7 @@ function SettingsSidebar({
           </ContextNavigationSection>
         ) : null}
         {showConnections || showProfiles ? (
-          <ContextNavigationSection label="Agents">
+          <ContextNavigationSection label={t("Agents")}>
             <Sidebar.Menu>
               {showProfiles ? (
                 <Sidebar.MenuItem>
@@ -379,7 +393,7 @@ function SettingsSidebar({
                     onClick={() => navigate("/settings/profiles")}
                     selected={currentPath.startsWith("/settings/profiles")}
                   >
-                    Profiles
+                    {t("Profiles")}
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
@@ -393,7 +407,7 @@ function SettingsSidebar({
                       currentPath.startsWith("/settings/ai")
                     }
                   >
-                    Connections
+                    {t("Connections")}
                   </ContextNavigationItem>
                 </Sidebar.MenuItem>
               ) : null}
@@ -402,7 +416,7 @@ function SettingsSidebar({
         ) : null}
         {!showPreferences && !showConnections && !showProfiles ? (
           <p {...stylex.props(shellStyles.settingsSearchEmpty)}>
-            No settings found
+            {t("No settings found")}
           </p>
         ) : null}
       </ContextNavigationContent>

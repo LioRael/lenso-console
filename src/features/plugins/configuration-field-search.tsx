@@ -3,6 +3,7 @@ import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { createContext, useContext, useState, type ReactNode } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { isSchemaObject } from "./plugin-configuration-schema";
 import type { JsonObject } from "./plugin-control-contract";
@@ -93,6 +94,8 @@ export function ConfigurationFieldSearch({
   groups?: readonly JsonObject[];
   children: ReactNode;
 }) {
+  const t = useConsoleTranslation();
+
   const [text, setText] = useState("");
   const query = text.trim().toLowerCase();
   const hasMatches =
@@ -115,21 +118,21 @@ export function ConfigurationFieldSearch({
         <TextField.Root xstyle={styles.input}>
           <TextField.Control
             type="search"
-            aria-label="Search configuration fields"
-            placeholder="Search fields by name or description…"
+            aria-label={t("Search configuration fields")}
+            placeholder={t("Search fields by name or description…")}
             value={text}
             onChange={(event) => setText(event.target.value)}
           />
         </TextField.Root>
         {text ? (
           <Button size="compact" variant="ghost" onClick={() => setText("")}>
-            Clear search
+            {t("Clear search")}
           </Button>
         ) : null}
       </div>
       {query && !hasMatches ? (
         <output {...stylex.props(styles.empty)}>
-          No matching fields. Try a field name, path or description.
+          {t("No matching fields. Try a field name, path or description.")}
         </output>
       ) : null}
       {children}

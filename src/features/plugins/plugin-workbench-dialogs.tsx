@@ -4,6 +4,7 @@ import * as stylex from "@stylexjs/stylex";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 
 const styles = stylex.create({
@@ -55,6 +56,8 @@ export function InstallPluginDialog({
   isPending: boolean;
   onInstall: (bundlePath: string) => Promise<void>;
 }) {
+  const t = useConsoleTranslation();
+
   const [bundlePath, setBundlePath] = useState("");
   const [open, setOpen] = useState(false);
   return (
@@ -66,7 +69,7 @@ export function InstallPluginDialog({
         variant="secondary"
       >
         <Plus size={13} strokeWidth={1.75} />
-        Install
+        {t("Install")}
       </Button>
       <Dialog.Portal>
         <Dialog.Backdrop />
@@ -74,7 +77,7 @@ export function InstallPluginDialog({
           <Dialog.Popup {...stylex.props(styles.dialogPopup)}>
             <Dialog.Header>
               <div>
-                <Dialog.Title>Install Plugin</Dialog.Title>
+                <Dialog.Title>{t("Install Plugin")}</Dialog.Title>
                 <Dialog.Description>
                   Add a verified Plugin Bundle available on this Host.
                 </Dialog.Description>
@@ -105,7 +108,7 @@ export function InstallPluginDialog({
             </Dialog.Body>
             <Dialog.Footer>
               <Dialog.Close render={<Button size="compact" variant="ghost" />}>
-                Cancel
+                {t("Cancel")}
               </Dialog.Close>
               <Button
                 disabled={disabled || isPending || !bundlePath.trim()}
@@ -121,7 +124,7 @@ export function InstallPluginDialog({
                 size="compact"
                 variant="primary"
               >
-                Install Plugin
+                {t("Install Plugin")}
               </Button>
             </Dialog.Footer>
           </Dialog.Popup>
@@ -144,6 +147,8 @@ export function RemovePluginDialog({
   onRemove: () => Promise<void>;
   packageId: string;
 }) {
+  const t = useConsoleTranslation();
+
   const [open, setOpen] = useState(false);
   return (
     <Dialog.Root onOpenChange={setOpen} open={open}>
@@ -155,7 +160,7 @@ export function RemovePluginDialog({
         {...stylex.props(styles.destructive)}
       >
         <Trash2 size={13} strokeWidth={1.75} />
-        Remove Plugin
+        {t("Remove Plugin")}
       </Button>
       <Dialog.Portal>
         <Dialog.Backdrop />
@@ -163,10 +168,13 @@ export function RemovePluginDialog({
           <Dialog.Popup {...stylex.props(styles.dialogPopup)}>
             <Dialog.Header>
               <div>
-                <Dialog.Title>Remove {packageId}?</Dialog.Title>
+                <Dialog.Title>
+                  {t("Remove")} {packageId}?
+                </Dialog.Title>
                 <Dialog.Description>
-                  The Plugin directory will move to recoverable Lenso trash
-                  after the remaining App validates.
+                  {t(
+                    "The Plugin directory will move to recoverable Lenso trash after the remaining App validates."
+                  )}
                 </Dialog.Description>
               </div>
               <Dialog.Close />
@@ -183,7 +191,7 @@ export function RemovePluginDialog({
             ) : null}
             <Dialog.Footer>
               <Dialog.Close render={<Button size="compact" variant="ghost" />}>
-                Cancel
+                {t("Cancel")}
               </Dialog.Close>
               <Button
                 disabled={disabled || isPending}
@@ -198,7 +206,7 @@ export function RemovePluginDialog({
                 size="compact"
                 variant="primary"
               >
-                Remove Plugin
+                {t("Remove Plugin")}
               </Button>
             </Dialog.Footer>
           </Dialog.Popup>

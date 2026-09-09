@@ -7,6 +7,7 @@ import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
 import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as pageStyles } from "../settings/settings-page.stylex";
@@ -25,13 +26,17 @@ import {
 import { AgentPicker } from "./agent-settings-page";
 
 export function AgentProfilesPage() {
+  const t = useConsoleTranslation();
+
   const { selectedAgent: agent } = useAgentIdentity();
   return (
     <main {...stylex.props(pageStyles.page)}>
       <div {...stylex.props(pageStyles.column)}>
         <SettingsPageHeader
-          title="Profiles"
-          description="Saved instructions and capabilities. Edit a Profile, then choose when your Agent uses it."
+          title={t("Profiles")}
+          description={t(
+            "Saved instructions and capabilities. Edit a Profile, then choose when your Agent uses it."
+          )}
           actions={<AgentPicker />}
         />
         <ProfileList key={agent.id} agent={agent} />
@@ -41,6 +46,8 @@ export function AgentProfilesPage() {
 }
 
 function ProfileList({ agent }: { agent: AgentIdentity }) {
+  const t = useConsoleTranslation();
+
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const cache = useQueryClient();
@@ -85,7 +92,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
   if (!canManage) {
     return (
       <p {...stylex.props(styles.description)}>
-        This Agent does not support Profile management.
+        {t("This Agent does not support Profile management.")}
       </p>
     );
   }
@@ -95,8 +102,8 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
         <TextField.Root size="compact" xstyle={styles.search}>
           <TextField.Control
             type="search"
-            aria-label="Search profiles"
-            placeholder="Search profiles…"
+            aria-label={t("Search profiles")}
+            placeholder={t("Search profiles…")}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -115,31 +122,35 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
             />
           }
         >
-          New Profile
+          {t("New Profile")}
         </Button>
       </div>
       {query.data ? (
         <p {...stylex.props(styles.activeContext)}>
           <span>
-            {agent.label} is using{" "}
-            <strong>{query.data.activeProfile ?? "default"}</strong>.
+            {t("{agent} is using {profile}.", {
+              agent: agent.label,
+              profile: query.data.activeProfile ?? "default",
+            })}
           </span>
-          <span>Switching applies to new turns.</span>
+          <span>{t("Switching applies to new turns.")}</span>
         </p>
       ) : null}
       {query.isPending ? (
-        <output {...stylex.props(styles.empty)}>Loading profiles…</output>
+        <output {...stylex.props(styles.empty)}>
+          {t("Loading profiles…")}
+        </output>
       ) : null}
       {query.error ? (
         <div role="alert" {...stylex.props(styles.empty)}>
-          <strong>Profiles unavailable</strong>
+          <strong>{t("Profiles unavailable")}</strong>
           <span>{query.error.message}</span>
           <Button
             size="compact"
             variant="secondary"
             onClick={() => void query.refetch()}
           >
-            Try again
+            {t("Try again")}
           </Button>
         </div>
       ) : null}
@@ -150,24 +161,30 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
       ) : null}
       {apply.isSuccess ? (
         <output {...stylex.props(styles.description)}>
-          Profile selected. Running turns keep their previous configuration.
+          {t(
+            "Profile selected. Running turns keep their previous configuration."
+          )}
         </output>
       ) : null}
       {query.data && search.trim() ? (
         <p {...stylex.props(styles.resultCount)}>
-          {visibleProfiles.length}{" "}
-          {visibleProfiles.length === 1 ? "profile" : "profiles"}
+          {t(
+            visibleProfiles.length === 1
+              ? "{count} profile"
+              : "{count} profiles",
+            { count: visibleProfiles.length }
+          )}
         </p>
       ) : null}
       {query.data && visibleProfiles.length === 0 ? (
         <div {...stylex.props(styles.empty)}>
           <strong>
-            {search.trim() ? "No matching profiles" : "No profiles yet"}
+            {t(search.trim() ? "No matching profiles" : "No profiles yet")}
           </strong>
           <span>
             {search.trim()
-              ? "Try a different name or clear your search."
-              : "Create a Profile to save instructions and capabilities."}
+              ? t("Try a different name or clear your search.")
+              : t("Create a Profile to save instructions and capabilities.")}
           </span>
           {search.trim() ? (
             <Button
@@ -175,7 +192,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
               variant="ghost"
               onClick={() => setSearch("")}
             >
-              Clear search
+              {t("Clear search")}
             </Button>
           ) : null}
         </div>
@@ -193,9 +210,9 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
               <li key={profile.name} {...stylex.props(styles.row)}>
                 <Link
                   {...stylex.props(styles.profileLink)}
-                  title={
+                  title={t(
                     profile.readOnly ? "Built-in Profile" : "Custom Profile"
-                  }
+                  )}
                   to="/settings/profiles/$agentId/$profileName"
                   params={{ agentId: agent.id, profileName: profile.name }}
                   search={{ copy: false }}
@@ -205,7 +222,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                       {profile.name}
                     </strong>
                     <span {...stylex.props(styles.metadata)}>
-                      {profile.readOnly ? "Built-in" : "Custom"}
+                      {t(profile.readOnly ? "Built-in" : "Custom")}
                       {profile.document.model
                         ? ` · ${profile.document.model}`
                         : ""}
@@ -214,18 +231,20 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                   <span {...stylex.props(styles.description)}>
                     {profile.document.description ||
                       (profile.readOnly
-                        ? "Built-in instructions and capabilities."
-                        : "Custom instructions and capabilities.")}
+                        ? t("Built-in instructions and capabilities.")
+                        : t("Custom instructions and capabilities."))}
                   </span>
                 </Link>
                 <div {...stylex.props(styles.actions)}>
                   {current ? (
                     <span {...stylex.props(styles.current)}>
-                      {applied ? "In use" : "Update available"}
+                      {t(applied ? "In use" : "Update available")}
                     </span>
                   ) : null}
                   {apply.isPending && apply.variables.name === profile.name ? (
-                    <span {...stylex.props(styles.current)}>Preparing…</span>
+                    <span {...stylex.props(styles.current)}>
+                      {t("Preparing…")}
+                    </span>
                   ) : null}
                   <Menu.Root>
                     <Menu.Trigger
@@ -233,7 +252,9 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                         <Button
                           size="compact"
                           variant="ghost"
-                          aria-label={`Actions for ${profile.name}`}
+                          aria-label={t("Actions for {profile}", {
+                            profile: profile.name,
+                          })}
                         >
                           <Ellipsis size={14} aria-hidden="true" />
                         </Button>
@@ -243,7 +264,9 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                       <Menu.Positioner align="end" sideOffset={4}>
                         <Menu.Popup>
                           <Menu.Item
-                            aria-label={`Duplicate ${profile.name}`}
+                            aria-label={t("Duplicate {profile}", {
+                              profile: profile.name,
+                            })}
                             onClick={() =>
                               void navigate({
                                 to: "/settings/profiles/$agentId/$profileName",
@@ -255,14 +278,16 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                               })
                             }
                           >
-                            Duplicate
+                            {t("Duplicate")}
                           </Menu.Item>
                           <Menu.Item
                             disabled={applied || apply.isPending}
-                            aria-label={`Use ${profile.name}`}
+                            aria-label={t("Use {profile}", {
+                              profile: profile.name,
+                            })}
                             onClick={() => apply.mutate(profile)}
                           >
-                            Use for {agent.label}
+                            {t("Use for {agent}", { agent: agent.label })}
                           </Menu.Item>
                         </Menu.Popup>
                       </Menu.Positioner>
@@ -287,6 +312,8 @@ export function AgentProfileDetailPage({
   profileName: string;
   copy: boolean;
 }) {
+  const t = useConsoleTranslation();
+
   const { agents, selectedAgent, selectAgent } = useAgentIdentity();
   const agent = agents.find((item) => item.id === agentId);
   useEffect(() => {
@@ -343,18 +370,18 @@ export function AgentProfileDetailPage({
     <main {...stylex.props(pageStyles.page)}>
       <div {...stylex.props(pageStyles.column)}>
         <div {...stylex.props(styles.breadcrumb)}>
-          <Link to="/settings/profiles">Profiles</Link>
+          <Link to="/settings/profiles">{t("Profiles")}</Link>
           <span>{agent?.label ?? agentId}</span>
         </div>
         {blocker.status === "blocked" ? (
           <div role="alert" {...stylex.props(styles.guard)}>
-            <span>Discard unsaved changes and leave this Profile?</span>
+            <span>{t("Discard unsaved changes and leave this Profile?")}</span>
             <Button
               size="compact"
               variant="ghost"
               onClick={() => blocker.reset()}
             >
-              Keep editing
+              {t("Keep editing")}
             </Button>
             <Button
               size="compact"
@@ -363,27 +390,33 @@ export function AgentProfileDetailPage({
                 blocker.proceed();
               }}
             >
-              Discard and leave
+              {t("Discard and leave")}
             </Button>
           </div>
         ) : null}
         {query.error ? <p role="alert">{query.error.message}</p> : null}
-        {agent && query.isPending ? <output>Loading Profile…</output> : null}
+        {agent && query.isPending ? (
+          <output>{t("Loading Profile…")}</output>
+        ) : null}
         {agent ? null : (
           <p role="alert">
-            This Agent is unavailable. Return to Profiles to choose an Agent.
+            {t(
+              "This Agent is unavailable. Return to Profiles to choose an Agent."
+            )}
           </p>
         )}
         {query.data && !profile ? (
           <p role="alert">
-            This Profile could not be found. Return to Profiles to choose
-            another.
+            {t(
+              "This Profile could not be found. Return to Profiles to choose another."
+            )}
           </p>
         ) : null}
         {workbench.isError ? (
           <p role="alert">
-            Provider inventory could not be loaded. Existing choices are
-            preserved.
+            {t(
+              "Provider inventory could not be loaded. Existing choices are preserved."
+            )}
           </p>
         ) : null}
         {agent && initialProfile ? (

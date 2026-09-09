@@ -2,6 +2,7 @@ import { Select } from "@lenso/ui/select";
 import * as stylex from "@stylexjs/stylex";
 import { useId, useMemo, useState, type ReactNode } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   isSchemaObject,
@@ -147,6 +148,8 @@ export function ConfigurationVariants({
   onSelect: (schema: JsonObject) => void;
   children: (schema: JsonObject) => ReactNode;
 }) {
+  const t = useConsoleTranslation();
+
   const id = useId();
   const [choice, setChoice] = useState<{
     schema: JsonObject;
@@ -164,7 +167,7 @@ export function ConfigurationVariants({
   return (
     <div {...stylex.props(styles.root)}>
       <div {...stylex.props(styles.row)}>
-        <label htmlFor={id}>Configuration variant</label>
+        <label htmlFor={id}>{t("Configuration variant")}</label>
         <Select.Root
           disabled={disabled}
           value={selected ? String(choice!.index) : ""}
@@ -187,7 +190,7 @@ export function ConfigurationVariants({
         >
           <Select.Trigger
             id={id}
-            aria-label="Configuration variant"
+            aria-label={t("Configuration variant")}
             xstyle={styles.select}
           >
             <Select.Value>{selected?.label ?? "Choose a variant"}</Select.Value>
@@ -217,8 +220,9 @@ export function ConfigurationVariants({
         </Select.Root>
       </div>
       <p {...stylex.props(styles.note)}>
-        Existing fields are kept. Choosing a variant updates its required fixed
-        values; other values change only when edited.
+        {t(
+          "Existing fields are kept. Choosing a variant updates its required fixed values; other values change only when edited."
+        )}
       </p>
       {selected?.schema ? children(selected.schema) : null}
     </div>

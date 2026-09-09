@@ -1,16 +1,18 @@
 import { StatusMarker } from "@lenso/ui/status-marker";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import type { PluginStatusPresentation } from "./plugin-runtime-state";
 
 export function PluginStatus({ state }: { state: PluginStatusPresentation }) {
+  const t = useConsoleTranslation();
   return (
     <StatusMarker
-      aria-label={`${state.label}. ${state.description}`}
+      aria-label={`${t(state.label)}. ${t(state.description)}`}
       presentation="label"
       status={state.tone}
-      title={state.description}
+      title={t(state.description)}
     >
-      {state.label}
+      {t(state.label)}
     </StatusMarker>
   );
 }

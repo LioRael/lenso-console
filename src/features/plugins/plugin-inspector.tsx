@@ -7,6 +7,7 @@ import * as stylex from "@stylexjs/stylex";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { PluginAgentAction } from "./plugin-agent-handoff";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
@@ -332,6 +333,8 @@ export function PluginDetail({
   mutation: ReturnType<typeof usePluginMutation>;
   plugin: PluginWorkbenchItem;
 }) {
+  const t = useConsoleTranslation();
+
   const proposal = usePluginConfigurationProposal(agentId, inventory.streamId);
   const rollback = usePluginConfigurationRollbackProposal(
     agentId,
@@ -393,7 +396,7 @@ export function PluginDetail({
           <h1 {...stylex.props(styles.detailTitle)}>
             {pluginDisplayName(plugin)}
           </h1>
-          <p {...stylex.props(styles.feedback)}>{pluginPurpose(plugin)}</p>
+          <p {...stylex.props(styles.feedback)}>{t(pluginPurpose(plugin))}</p>
         </div>
         <div {...stylex.props(styles.detailActions)}>
           {authoringEnabled && agentAssistanceAvailable ? (
@@ -410,14 +413,14 @@ export function PluginDetail({
         </div>
       </header>
       <PageHeader.TabsList
-        aria-label="Plugin details"
+        aria-label={t("Plugin details")}
         xstyle={styles.detailTabs}
       >
         <PageHeader.Tab value="configuration" xstyle={styles.detailTab}>
-          Configuration
+          {t("Configuration")}
         </PageHeader.Tab>
         <PageHeader.Tab value="technical" xstyle={styles.detailTab}>
-          About
+          {t("About")}
         </PageHeader.Tab>
       </PageHeader.TabsList>
 
@@ -440,19 +443,21 @@ export function PluginDetail({
                 <div {...stylex.props(styles.controlRow)}>
                   <div {...stylex.props(styles.controlCopy)}>
                     <span {...stylex.props(styles.controlTitle)}>
-                      Enable plugin
+                      {t("Enable plugin")}
                     </span>
                     <span {...stylex.props(styles.controlDescription)}>
                       {disableable
                         ? selectionAuthoringEnabled
                           ? "Changes apply after the Agent finishes preparing. Running turns are not interrupted."
                           : "The selected Plugin authority does not support selection changes."
-                        : "Required by the Host and cannot be disabled."}
+                        : t("Required by the Host and cannot be disabled.")}
                     </span>
                   </div>
                   <span {...stylex.props(styles.controlSwitchSlot)}>
                     <Switch.Root
-                      aria-label={`Include ${plugin.packageId}/${plugin.instanceKey} in the desired Plan`}
+                      aria-label={t("Include {plugin} in the desired Plan", {
+                        plugin: `${plugin.packageId}/${plugin.instanceKey}`,
+                      })}
                       checked={desiredEnabled}
                       disabled={
                         !authoringEnabled ||
@@ -486,15 +491,15 @@ export function PluginDetail({
         ) : (
           <DetailSection title="Desired authoring state">
             <p {...stylex.props(styles.feedback)}>
-              This Instance is no longer present in the Plugin Root authoring
-              state. Its active Generation remains observable until routing
-              switches.
+              {t(
+                "This Instance is no longer present in the Plugin Root authoring state. Its active Generation remains observable until routing switches."
+              )}
             </p>
           </DetailSection>
         )}
 
         {isMutationTarget && (mutationError || currentOperation) ? (
-          <DetailSection title="Latest change">
+          <DetailSection title={t("Latest change")}>
             <p
               aria-live={mutationError ? undefined : "polite"}
               role={mutationError ? "alert" : undefined}
@@ -512,7 +517,7 @@ export function PluginDetail({
         ) : null}
 
         {plugin.rootSupplied && management ? (
-          <DetailSection title="Plugin Root">
+          <DetailSection title={t("Plugin Root")}>
             <RemovePluginDialog
               disabled={!authoringEnabled || !selectionAuthoringEnabled}
               error={
@@ -540,7 +545,7 @@ export function PluginDetail({
       </PageHeader.Panel>
 
       <PageHeader.Panel value="technical" xstyle={styles.tabPanel}>
-        <DetailSection title="Provided capabilities">
+        <DetailSection title={t("Provided capabilities")}>
           <div {...stylex.props(styles.capabilities)}>
             {plugin.active?.providedCapabilities.length ? (
               plugin.active.providedCapabilities.map((capability) => (
@@ -550,24 +555,24 @@ export function PluginDetail({
               ))
             ) : (
               <span {...stylex.props(styles.value)}>
-                No capabilities provided by the active Instance.
+                {t("No capabilities provided by the active Instance.")}
               </span>
             )}
           </div>
         </DetailSection>
-        <DetailListSection title="Package and authority">
-          <Detail label="Package" value={plugin.packageId} mono />
-          <Detail label="Instance" value={plugin.instanceKey} mono />
-          <Detail label="Source" value={pluginOriginLabel(plugin)} />
+        <DetailListSection title={t("Package and authority")}>
+          <Detail label={t("Package")} value={plugin.packageId} mono />
+          <Detail label={t("Instance")} value={plugin.instanceKey} mono />
+          <Detail label={t("Source")} value={pluginOriginLabel(plugin)} />
           <Detail
-            label="Configuration source"
+            label={t("Configuration source")}
             value={pluginManagement.configurationAuthority.kind.replaceAll(
               "_",
               " "
             )}
           />
           <Detail
-            label="Source reference"
+            label={t("Source reference")}
             value={pluginManagement.configurationAuthority.reference}
           />
           <Detail
@@ -582,11 +587,11 @@ export function PluginDetail({
             />
           ) : null}
           <Detail
-            label="Authority"
+            label={t("Authority")}
             value={
               management
                 ? plugin.rootSupplied
-                  ? "Plugin Root"
+                  ? t("Plugin Root")
                   : "Host Catalog"
                 : "Active Generation only"
             }
@@ -625,6 +630,8 @@ function PluginConfigurationSection({
   restoreVisible: boolean;
   selectionControl: ReactNode;
 }) {
+  const t = useConsoleTranslation();
+
   const hostToml = management.rootConfigurationToml ?? "";
   const draft = usePluginConfigurationDraft({
     draftKey: pluginKey(plugin),
@@ -709,20 +716,20 @@ function PluginConfigurationSection({
         {selectionControl}
         <DetailSection>
           <div {...stylex.props(styles.configurationHeading)}>
-            <h3 {...stylex.props(styles.sectionTitle)}>Configuration</h3>
+            <h3 {...stylex.props(styles.sectionTitle)}>{t("Configuration")}</h3>
             {hasConfigurationSchema ? (
               <SegmentedControl.Root
-                aria-label="Configuration editor"
+                aria-label={t("Configuration editor")}
                 onValueChange={(value) =>
                   setConfigurationView(value as "fields" | "advanced")
                 }
                 value={configurationView}
               >
                 <SegmentedControl.Item value="fields">
-                  Fields
+                  {t("Fields")}
                 </SegmentedControl.Item>
                 <SegmentedControl.Item value="advanced">
-                  Advanced
+                  {t("Advanced")}
                 </SegmentedControl.Item>
               </SegmentedControl.Root>
             ) : null}
@@ -758,7 +765,7 @@ function PluginConfigurationSection({
             {draft.isDirty ? (
               <>
                 <output {...stylex.props(styles.feedback)}>
-                  Unsaved changes
+                  {t("Unsaved changes")}
                 </output>
                 <Button
                   size="compact"
@@ -769,7 +776,7 @@ function PluginConfigurationSection({
                     draft.useHostValue();
                   }}
                 >
-                  Discard changes
+                  {t("Discard changes")}
                 </Button>
               </>
             ) : null}
@@ -797,7 +804,7 @@ function PluginConfigurationSection({
               {...stylex.props(!restoreVisible && styles.hiddenAction)}
             >
               <RotateCcw size={13} strokeWidth={1.75} />
-              Restore Host value
+              {t("Restore Host value")}
             </Button>
             <Button
               disabled={
@@ -857,14 +864,15 @@ function PluginConfigurationSection({
             >
               {readyRollbackPresentation?.actionLabel ??
                 readyProposalPresentation?.actionLabel ??
-                "Preview change"}
+                t("Preview change")}
             </Button>
           </div>
           {draft.hasExternalChange ? (
             <div {...stylex.props(styles.editorActions)}>
               <p role="alert" {...stylex.props(styles.feedback)}>
-                Host configuration changed while this draft was open. The draft
-                is preserved and must be previewed against the latest revision.
+                {t(
+                  "Host configuration changed while this draft was open. The draft is preserved and must be previewed against the latest revision."
+                )}
               </p>
               <Button
                 onClick={() => {
@@ -876,7 +884,7 @@ function PluginConfigurationSection({
                 size="compact"
                 variant="ghost"
               >
-                Use Host value
+                {t("Use Host value")}
               </Button>
             </div>
           ) : null}
@@ -962,6 +970,8 @@ function PluginConfigurationHistorySection({
   rollbackPending: boolean;
   rollbackSupported: boolean;
 }) {
+  const t = useConsoleTranslation();
+
   const publications = history.data?.publications;
   const [expanded, setExpanded] = useState(false);
   return (
@@ -978,15 +988,16 @@ function PluginConfigurationHistorySection({
         xstyle={styles.historyAction}
       >
         {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        Version history
+        {t("Version history")}
       </Button>
       {expanded ? (
         <div>
           {history.error && publications ? (
             <div {...stylex.props(styles.editorActions)}>
               <p role="alert" {...stylex.props(styles.feedback)}>
-                Showing the last verified publication history because the latest
-                refresh failed.
+                {t(
+                  "Showing the last verified publication history because the latest refresh failed."
+                )}
               </p>
               <Button
                 disabled={history.isFetching}
@@ -996,14 +1007,14 @@ function PluginConfigurationHistorySection({
                 size="compact"
                 variant="ghost"
               >
-                Try again
+                {t("Try again")}
               </Button>
             </div>
           ) : null}
           {publications ? (
             publications.length === 0 ? (
               <p {...stylex.props(styles.feedback)}>
-                No configuration has been published yet.
+                {t("No configuration has been published yet.")}
               </p>
             ) : (
               <div {...stylex.props(styles.historyList)}>
@@ -1043,7 +1054,7 @@ function PluginConfigurationHistorySection({
                           variant="ghost"
                           {...stylex.props(styles.historyAction)}
                         >
-                          Review rollback
+                          {t("Review rollback")}
                         </Button>
                       ) : null}
                     </div>
@@ -1052,14 +1063,16 @@ function PluginConfigurationHistorySection({
               </div>
             )
           ) : history.isPending ? (
-            <p {...stylex.props(styles.feedback)}>Loading publications…</p>
+            <p {...stylex.props(styles.feedback)}>
+              {t("Loading publications…")}
+            </p>
           ) : (
             <div {...stylex.props(styles.editorActions)}>
               <p
                 role="alert"
                 {...stylex.props(styles.feedback, styles.feedbackError)}
               >
-                Publication history could not be loaded.
+                {t("Publication history could not be loaded.")}
               </p>
               <Button
                 disabled={history.isFetching}
@@ -1069,7 +1082,7 @@ function PluginConfigurationHistorySection({
                 size="compact"
                 variant="ghost"
               >
-                Try again
+                {t("Try again")}
               </Button>
             </div>
           )}
@@ -1086,11 +1099,13 @@ function PluginTechnicalDetails({
   inventory: PluginInventory;
   plugin: PluginWorkbenchItem;
 }) {
+  const t = useConsoleTranslation();
+
   const technical = pluginTechnicalSelection(plugin);
   return (
-    <DetailListSection title="Runtime and revisions">
+    <DetailListSection title={t("Runtime and revisions")}>
       <Detail
-        label="Instance"
+        label={t("Instance")}
         value={`${plugin.packageId}/${plugin.instanceKey}`}
         mono
       />
@@ -1106,15 +1121,23 @@ function PluginTechnicalDetails({
       />
       <Detail
         label={`${technical.phase} requires`}
-        value={technical.selection?.requiredCapabilities.join(", ") || "None"}
+        value={
+          technical.selection?.requiredCapabilities.join(", ") || t("None")
+        }
         mono
       />
-      <Detail label="Desired" value={plugin.desired ? "Present" : "Absent"} />
       <Detail
-        label="Preparing"
+        label={t("Desired")}
+        value={plugin.desired ? "Present" : "Absent"}
+      />
+      <Detail
+        label={t("Preparing")}
         value={plugin.preparing ? "Present" : "Absent"}
       />
-      <Detail label="Active" value={plugin.active ? "Present" : "Absent"} />
+      <Detail
+        label={t("Active")}
+        value={plugin.active ? "Present" : "Absent"}
+      />
       <Detail
         label="Active package revision"
         value={plugin.active?.packageRevision ?? "Absent"}
@@ -1132,7 +1155,7 @@ function PluginTechnicalDetails({
       />
       <Detail label="Event cursor" value={inventory.cursor} mono />
       <Detail
-        label="Configuration"
+        label={t("Configuration")}
         value={pluginConfigurationStatusLabel(inventory.configurationStatus)}
       />
       <Detail

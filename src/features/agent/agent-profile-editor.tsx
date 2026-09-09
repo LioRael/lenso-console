@@ -7,6 +7,7 @@ import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import type { PluginWorkbenchItem } from "../plugins/plugin-workbench-model";
 import { SettingsPageHeader } from "../settings/settings-page-header";
 import { profileStyles as ui } from "./agent-profile-editor.stylex";
@@ -40,6 +41,8 @@ export function AgentProfileEditor({
   onSaved?: (profile: EditableProfile) => void;
   onDirtyChange?: (dirty: boolean) => void;
 }) {
+  const t = useConsoleTranslation();
+
   const cache = useQueryClient();
   const key = ["agent-profiles", agent.id];
   const tools = useQuery({
@@ -194,18 +197,18 @@ export function AgentProfileEditor({
     );
   };
   return (
-    <section {...stylex.props(ui.root)} aria-label="Profile editor">
+    <section {...stylex.props(ui.root)} aria-label={t("Profile editor")}>
       <SettingsPageHeader
-        title={profile.revision ? profile.name : "New Profile"}
+        title={profile.revision ? profile.name : t("New Profile")}
         description={
           <output {...stylex.props(ui.status)}>
             {busy
               ? "Validating and saving…"
               : dirty
-                ? "Unsaved changes"
+                ? t("Unsaved changes")
                 : message ||
                   (profile.readOnly
-                    ? "Built-in template · Duplicate to customize"
+                    ? t("Built-in template · Duplicate to customize")
                     : "All changes saved")}
           </output>
         }
@@ -218,7 +221,7 @@ export function AgentProfileEditor({
                 disabled={busy}
                 onClick={copy}
               >
-                Duplicate Profile
+                {t("Duplicate Profile")}
               </Button>
             ) : (
               <>
@@ -233,7 +236,7 @@ export function AgentProfileEditor({
                       save.reset();
                     }}
                   >
-                    Reset
+                    {t("Reset")}
                   </Button>
                 ) : null}
                 <Button
@@ -245,7 +248,7 @@ export function AgentProfileEditor({
                   }
                   onClick={() => save.mutate(profile)}
                 >
-                  Save draft
+                  {t("Save draft")}
                 </Button>
               </>
             )}
@@ -259,10 +262,10 @@ export function AgentProfileEditor({
       ) : null}
       {profile ? (
         <Tabs.Root defaultValue="general" xstyle={ui.panel}>
-          <Tabs.List aria-label="Profile sections" xstyle={ui.tabs}>
-            <Tabs.Tab value="general">General</Tabs.Tab>
-            <Tabs.Tab value="skills">Skills</Tabs.Tab>
-            <Tabs.Tab value="capabilities">Tools & providers</Tabs.Tab>
+          <Tabs.List aria-label={t("Profile sections")} xstyle={ui.tabs}>
+            <Tabs.Tab value="general">{t("General")}</Tabs.Tab>
+            <Tabs.Tab value="skills">{t("Skills")}</Tabs.Tab>
+            <Tabs.Tab value="capabilities">{t("Tools & providers")}</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="general">
             <div {...stylex.props(ui.fields)}>
@@ -273,7 +276,9 @@ export function AgentProfileEditor({
                       "A starting point for your Agent."}
                   </p>
                   <div {...stylex.props(ui.instructionPreview)}>
-                    <h3 {...stylex.props(ui.fieldTitle)}>Instructions</h3>
+                    <h3 {...stylex.props(ui.fieldTitle)}>
+                      {t("Instructions")}
+                    </h3>
                     <p {...stylex.props(ui.previewText)}>
                       {profile.document.instructions ||
                         "Uses instructions from its enabled providers."}
@@ -284,11 +289,11 @@ export function AgentProfileEditor({
                 <>
                   {profile.revision ? null : (
                     <label htmlFor="profile-name" {...stylex.props(ui.field)}>
-                      Name
+                      {t("Name")}
                       <TextField.Root xstyle={ui.input}>
                         <TextField.Control
                           id="profile-name"
-                          aria-label="Profile name"
+                          aria-label={t("Profile name")}
                           value={profile.name}
                           disabled={busy}
                           onChange={(event) =>
@@ -298,7 +303,9 @@ export function AgentProfileEditor({
                         />
                       </TextField.Root>
                       <span {...stylex.props(ui.hint)}>
-                        Lowercase letters, numbers, hyphens or underscores.
+                        {t(
+                          "Lowercase letters, numbers, hyphens or underscores."
+                        )}
                       </span>
                     </label>
                   )}
@@ -306,11 +313,11 @@ export function AgentProfileEditor({
                     htmlFor="profile-description"
                     {...stylex.props(ui.field)}
                   >
-                    Description
+                    {t("Description")}
                     <TextField.Root xstyle={ui.input}>
                       <TextField.Control
                         id="profile-description"
-                        aria-label="Profile description"
+                        aria-label={t("Profile description")}
                         disabled={busy}
                         value={profile.document.description}
                         onChange={(event) =>
@@ -319,15 +326,15 @@ export function AgentProfileEditor({
                             description: event.target.value,
                           })
                         }
-                        placeholder="What is this Profile for?"
+                        placeholder={t("What is this Profile for?")}
                       />
                     </TextField.Root>
                   </label>
                   <label {...stylex.props(ui.field)}>
-                    Instructions
+                    {t("Instructions")}
                     <textarea
                       {...stylex.props(ui.textarea)}
-                      aria-label="Profile instructions"
+                      aria-label={t("Profile instructions")}
                       disabled={busy}
                       value={profile.document.instructions}
                       onChange={(event) =>
@@ -336,19 +343,22 @@ export function AgentProfileEditor({
                           instructions: event.target.value,
                         })
                       }
-                      placeholder="How should this Agent approach its work?"
+                      placeholder={t(
+                        "How should this Agent approach its work?"
+                      )}
                     />
                     <span {...stylex.props(ui.hint)}>
-                      Your instructions are combined with enabled instruction
-                      sources. Select those sources in Tools & providers.
+                      {t(
+                        "Your instructions are combined with enabled instruction sources. Select those sources in Tools & providers."
+                      )}
                     </span>
                   </label>
                 </>
               )}
               <div {...stylex.props(ui.approvalField)}>
-                <h3 {...stylex.props(ui.fieldTitle)}>Approval mode</h3>
+                <h3 {...stylex.props(ui.fieldTitle)}>{t("Approval mode")}</h3>
                 <ProfileSelect
-                  label="Approval mode"
+                  label={t("Approval mode")}
                   value={String(profile.document.approval_mode ?? "request")}
                   display={
                     (
@@ -358,7 +368,7 @@ export function AgentProfileEditor({
                         full: "Full access",
                       } as Record<string, string>
                     )[String(profile.document.approval_mode ?? "request")] ??
-                    "Request approval"
+                    t("Request approval")
                   }
                   disabled={readonly}
                   options={[
@@ -383,8 +393,9 @@ export function AgentProfileEditor({
                   }
                 />
                 <p {...stylex.props(ui.hint, ui.approvalHint)}>
-                  Default for new turns. You can override it in a conversation.
-                  Disabled capabilities remain unavailable in every mode.
+                  {t(
+                    "Default for new turns. You can override it in a conversation. Disabled capabilities remain unavailable in every mode."
+                  )}
                 </p>
               </div>
             </div>
@@ -400,22 +411,24 @@ export function AgentProfileEditor({
           <Tabs.Panel value="capabilities">
             <section
               {...stylex.props(ui.capabilities)}
-              aria-label="Profile capabilities"
+              aria-label={t("Profile capabilities")}
             >
               <header {...stylex.props(ui.capabilityHeading)}>
                 <div>
-                  <h3 {...stylex.props(ui.fieldTitle)}>Capabilities</h3>
+                  <h3 {...stylex.props(ui.fieldTitle)}>{t("Capabilities")}</h3>
                   <p {...stylex.props(ui.hint)}>
-                    Choose the tools and providers available to this Profile.
+                    {t(
+                      "Choose the tools and providers available to this Profile."
+                    )}
                   </p>
                 </div>
                 {isTools && profile.document.allowed_tools === null ? (
-                  <span {...stylex.props(ui.badge)}>Inherited</span>
+                  <span {...stylex.props(ui.badge)}>{t("Inherited")}</span>
                 ) : null}
               </header>
               <div {...stylex.props(ui.filters)}>
                 <ProfileSelect
-                  label="Capability category"
+                  label={t("Capability category")}
                   value={category}
                   display={
                     category === "Tool providers & MCP"
@@ -441,9 +454,9 @@ export function AgentProfileEditor({
                 />
                 <TextField.Root xstyle={ui.search}>
                   <TextField.Control
-                    aria-label="Search Profile capabilities"
+                    aria-label={t("Search Profile capabilities")}
                     type="search"
-                    placeholder="Search capabilities…"
+                    placeholder={t("Search capabilities…")}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                   />
@@ -455,7 +468,9 @@ export function AgentProfileEditor({
                   {search ? " · Matching results" : ""}
                 </span>
                 {profile.readOnly ? (
-                  <span {...stylex.props(ui.hint)}>Duplicate to customize</span>
+                  <span {...stylex.props(ui.hint)}>
+                    {t("Duplicate to customize")}
+                  </span>
                 ) : (
                   <div {...stylex.props(ui.bulkActions)}>
                     <Button
@@ -466,7 +481,7 @@ export function AgentProfileEditor({
                       }
                       onClick={() => bulkEdit(true)}
                     >
-                      Enable {search ? "matching" : "all"}
+                      {t("Enable")} {search ? "matching" : "all"}
                     </Button>
                     <Button
                       variant="ghost"
@@ -476,15 +491,16 @@ export function AgentProfileEditor({
                       }
                       onClick={() => bulkEdit(false)}
                     >
-                      Disable {search ? "matching" : "all"}
+                      {t("Disable")} {search ? "matching" : "all"}
                     </Button>
                   </div>
                 )}
               </div>
               {isTools && tools.error ? (
                 <p role="alert" {...stylex.props(ui.empty)}>
-                  Tool catalog could not be loaded. Existing choices are
-                  preserved.
+                  {t(
+                    "Tool catalog could not be loaded. Existing choices are preserved."
+                  )}
                 </p>
               ) : null}
               <ul {...stylex.props(ui.list)} aria-label={`${category} list`}>
@@ -503,8 +519,10 @@ export function AgentProfileEditor({
                           </span>
                           {tools.data?.allowed.includes(tool.name) ? null : (
                             <span {...stylex.props(ui.hint)}>
-                              Blocked by global tool restrictions.{" "}
-                              <a href="/settings/ai/agent">Review limits</a>
+                              {t("Blocked by global tool restrictions.")}{" "}
+                              <a href="/settings/ai/agent">
+                                {t("Review limits")}
+                              </a>
                             </span>
                           )}
                         </div>
@@ -573,7 +591,7 @@ export function AgentProfileEditor({
                               <a
                                 href={`/plugins/${encodeURIComponent(agent.id)}/${encodeURIComponent(item.packageId)}/${encodeURIComponent(item.instanceKey)}`}
                               >
-                                View configuration
+                                {t("View configuration")}
                               </a>
                             </span>
                           ) : null}
@@ -616,7 +634,7 @@ export function AgentProfileEditor({
                 <div {...stylex.props(ui.empty)}>
                   <strong {...stylex.props(ui.fieldTitle)}>
                     {search
-                      ? "No matching capabilities"
+                      ? t("No matching capabilities")
                       : "No capabilities in this category"}
                   </strong>
                   <p {...stylex.props(ui.hint)}>
@@ -629,7 +647,7 @@ export function AgentProfileEditor({
               {isTools ? (
                 <div {...stylex.props(ui.permissionNote)}>
                   <span {...stylex.props(ui.hint)}>
-                    Agent-wide permissions remain the limit.
+                    {t("Agent-wide permissions remain the limit.")}
                   </span>
                   {profile.readOnly ||
                   profile.document.allowed_tools === null ? null : (
@@ -641,7 +659,7 @@ export function AgentProfileEditor({
                         edit({ ...profile.document, allowed_tools: null })
                       }
                     >
-                      Inherit permissions
+                      {t("Inherit permissions")}
                     </Button>
                   )}
                 </div>
@@ -649,7 +667,7 @@ export function AgentProfileEditor({
             </section>
             {unknown.length ? (
               <p {...stylex.props(ui.inlineNotice, ui.hint)}>
-                References outside the current inventory are preserved:{" "}
+                {t("References outside the current inventory are preserved:")}{" "}
                 {unknown.join(", ")}. Saving validates their availability.
               </p>
             ) : null}
@@ -675,6 +693,7 @@ function ProfileSelect({
   options: { value: string; label: string; detail: string }[];
   onChange: (value: string) => void;
 }) {
+  const t = useConsoleTranslation();
   return (
     <Select.Root
       value={value}
@@ -686,7 +705,7 @@ function ProfileSelect({
       }}
     >
       <Select.Trigger aria-label={label} xstyle={ui.selector}>
-        <Select.Value>{display}</Select.Value>
+        <Select.Value>{t(display)}</Select.Value>
         <Select.Icon />
       </Select.Trigger>
       <Select.Portal>
@@ -696,7 +715,7 @@ function ProfileSelect({
               {options.map((option) => (
                 <Select.Item key={option.value} value={option.value}>
                   <Select.ItemText>
-                    {option.label} · {option.detail}
+                    {t(option.label)} · {t(option.detail)}
                   </Select.ItemText>
                   <Select.ItemIndicator />
                 </Select.Item>

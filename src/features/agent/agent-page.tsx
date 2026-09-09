@@ -26,6 +26,7 @@ import {
   type FormEvent,
 } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
 import {
@@ -133,6 +134,8 @@ export function AgentPage({
   conversationId,
   projectId,
 }: AgentPageProps) {
+  const t = useConsoleTranslation();
+
   const navigate = useNavigate();
   const { agents, selectAgent, selectedAgent } = useAgentIdentity();
   const activeAgentId = agentId ?? selectedAgent.id;
@@ -262,7 +265,7 @@ export function AgentPage({
         )));
   const codingNotice = needsCodingSetup ? (
     <div {...stylex.props(styles.codingNotice)}>
-      <span>Code needs configuration before you can edit files.</span>
+      <span>{t("Code needs configuration before you can edit files.")}</span>
       <Button
         disabled={isRunning || isConfiguring}
         onClick={openCodingSettings}
@@ -447,7 +450,7 @@ export function AgentPage({
               {suggestionsVisible ? (
                 <div {...stylex.props(styles.suggestions)}>
                   <div {...stylex.props(styles.suggestionsHeader)}>
-                    <span>Get started with some examples</span>
+                    <span>{t("Get started with some examples")}</span>
                     <IconButton
                       aria-label="Dismiss examples"
                       onClick={() => setSuggestionsVisible(false)}
@@ -828,6 +831,8 @@ function AgentConversation({
   runtimeError: string | undefined;
   turns: AgentTurn[];
 }) {
+  const t = useConsoleTranslation();
+
   const conversationRef = useRef<HTMLElement>(null);
   const [followTail, setFollowTail] = useState(true);
 
@@ -894,7 +899,7 @@ function AgentConversation({
                 ) : null}
                 {turn.status === "running" && !turn.work ? (
                   <p>
-                    <AgentShimmerText active>Working…</AgentShimmerText>
+                    <AgentShimmerText active>{t("Working…")}</AgentShimmerText>
                   </p>
                 ) : null}
                 {turn.error ? <p>{turn.error}</p> : null}
@@ -1127,6 +1132,8 @@ function AgentComposerToolbar({
   selectedReasoningEffort,
   selectedServiceTier,
 }: AgentComposerToolbarProps) {
+  const t = useConsoleTranslation();
+
   const speed = speedMenu(activeModel, selectedServiceTier);
   const attachmentState = useAgentAttachments();
   return (
@@ -1148,7 +1155,7 @@ function AgentComposerToolbar({
           />
         ) : null}
         <TurnSelect
-          aria-label="Approval mode"
+          aria-label={t("Approval mode")}
           disabled={isRunning}
           icon={<Shield aria-hidden="true" size={12} />}
           value={selectedApprovalMode ?? ""}
@@ -1246,9 +1253,11 @@ function AgentPromptQueue({
   onRemove: (id: string) => void;
   prompts: { id: string; prompt: string }[];
 }) {
+  const t = useConsoleTranslation();
+
   return (
     <div aria-label="Queued prompts" {...stylex.props(styles.promptQueue)}>
-      <span {...stylex.props(styles.queueLabel)}>Queued</span>
+      <span {...stylex.props(styles.queueLabel)}>{t("Queued")}</span>
       <div {...stylex.props(styles.queueItems)}>
         {prompts.map((prompt) => (
           <div {...stylex.props(styles.queueItem)} key={prompt.id}>

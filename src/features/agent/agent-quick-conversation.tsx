@@ -16,6 +16,8 @@ import {
 import { useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
+
 import "@fontsource-variable/inter/wght.css";
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
@@ -86,6 +88,8 @@ export function AgentQuickConversation({
   ) => void;
   onOpenFullPage: (agentId: string, sessionId?: string) => void;
 }) {
+  const t = useConsoleTranslation();
+
   const selectedAgent = { id: agentId };
   const {
     attachments,
@@ -295,7 +299,9 @@ export function AgentQuickConversation({
                   ) : null}
                   {turn.status === "running" ? (
                     <p>
-                      <AgentShimmerText active>Working…</AgentShimmerText>
+                      <AgentShimmerText active>
+                        {t("Working…")}
+                      </AgentShimmerText>
                     </p>
                   ) : null}
                   {turn.error ? <p>{turn.error}</p> : null}
@@ -428,7 +434,7 @@ export function AgentQuickConversation({
                       <AttachmentButton />
                       <TurnSelect
                         compact
-                        aria-label="Approval mode"
+                        aria-label={t("Approval mode")}
                         icon={<Shield size={12} />}
                         value={selectedApprovalMode ?? ""}
                         onValueChange={(v) =>

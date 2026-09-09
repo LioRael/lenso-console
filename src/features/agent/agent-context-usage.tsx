@@ -1,6 +1,7 @@
 import { Tooltip } from "@lenso/ui/tooltip";
 import * as stylex from "@stylexjs/stylex";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { composerOverlayStyles as overlay } from "./agent-composer-overlay.stylex";
 import { contextUsage } from "./agent-context-usage-model";
 import type { AgentModel, AgentTrajectory } from "./agent-runtime";
@@ -21,12 +22,14 @@ export function AgentContextUsage({
   draft: string;
   align?: "start" | "end";
 }) {
+  const t = useConsoleTranslation();
+
   const value = contextUsage(model, trajectory, draft);
   return (
     <Tooltip.Provider delay={150}>
       <Tooltip.Root>
         <Tooltip.Trigger
-          aria-label="Context usage"
+          aria-label={t("Context usage")}
           {...stylex.props(s.trigger)}
         >
           <svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true">
@@ -60,7 +63,7 @@ export function AgentContextUsage({
             xstyle={overlay.positioner}
           >
             <Tooltip.Popup xstyle={s.popup}>
-              <strong>Context window</strong>
+              <strong>{t("Context window")}</strong>
               <span>
                 {value.percent === undefined
                   ? "Usage not reported yet"
@@ -71,8 +74,9 @@ export function AgentContextUsage({
                 {value.limit ? number(value.limit) : "Unknown"} tokens
               </span>
               <small>
-                Last model input{value.draftTokens ? " + estimated draft" : ""}.
-                Updated after each model call.
+                {t("Last model input")}
+                {value.draftTokens ? " + estimated draft" : ""}. Updated after
+                each model call.
               </small>
             </Tooltip.Popup>
           </Tooltip.Positioner>

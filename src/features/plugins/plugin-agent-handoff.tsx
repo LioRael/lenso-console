@@ -1,6 +1,7 @@
 import { Button } from "@lenso/ui/button";
 import { Sparkles } from "lucide-react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { useAgentQuickPanel } from "../agent/agent-quick-panel-context";
 import type { AgentId } from "../agent/agent-runtime";
 
@@ -16,11 +17,13 @@ type PluginAgentContext = {
 };
 
 export function PluginAgentAction(context: PluginAgentContext) {
+  const t = useConsoleTranslation();
+
   const { requestAgentDraft } = useAgentQuickPanel();
   const identity = `${context.packageId}/${context.instanceKey}`;
   return (
     <Button
-      aria-label={`Ask Agent about ${identity}`}
+      aria-label={t("Ask Agent about {plugin}", { plugin: identity })}
       onClick={() => {
         requestAgentDraft({
           agentId: "console",
@@ -31,7 +34,7 @@ export function PluginAgentAction(context: PluginAgentContext) {
       variant="ghost"
     >
       <Sparkles aria-hidden="true" size={13} strokeWidth={1.7} />
-      Ask Agent
+      {t("Ask Agent")}
     </Button>
   );
 }

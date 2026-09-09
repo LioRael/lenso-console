@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { composerOverlayStyles as overlay } from "./agent-composer-overlay.stylex";
 import { agentPageStyles as styles } from "./agent-page.stylex";
 
@@ -46,12 +47,14 @@ export function ComposerSlashMenu({
   onSelect: (suggestion: ComposerSuggestion) => void;
   suggestions: ReadonlyArray<ComposerSuggestion>;
 }) {
+  const t = useConsoleTranslation();
+
   if (suggestions.length === 0) {
     return null;
   }
   return (
     <menu
-      aria-label="Slash command suggestions"
+      aria-label={t("Slash command suggestions")}
       id={menuId}
       {...stylex.props(styles.contextSuggestions)}
     >
@@ -94,6 +97,7 @@ export function TurnSelect({
   options,
   value,
 }: ComposerChoiceProps) {
+  const t = useConsoleTranslation();
   const selectedOption =
     options.find((option) => option.value === value) ?? options[0];
   return (
@@ -106,10 +110,10 @@ export function TurnSelect({
       }}
       value={value}
     >
-      <Select.Trigger aria-label={ariaLabel} xstyle={styles.composerControl}>
+      <Select.Trigger aria-label={t(ariaLabel)} xstyle={styles.composerControl}>
         {icon}
         <Select.Value xstyle={styles.composerControlValue}>
-          {compact ? null : (selectedOption?.label ?? value)}
+          {compact ? null : t(selectedOption?.label ?? value)}
         </Select.Value>
         <ChevronDown aria-hidden="true" size={11} />
       </Select.Trigger>
@@ -125,7 +129,7 @@ export function TurnSelect({
             <Select.List>
               {options.map((option) => (
                 <Select.Item key={option.value} value={option.value}>
-                  <Select.ItemText>{option.label}</Select.ItemText>
+                  <Select.ItemText>{t(option.label)}</Select.ItemText>
                   <Select.ItemIndicator />
                 </Select.Item>
               ))}
@@ -164,6 +168,8 @@ export function RunConfigurationMenu({
   serviceTierOptions,
   serviceTierValue,
 }: RunConfigurationMenuProps) {
+  const t = useConsoleTranslation();
+
   const menuId = useId();
   const searchInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -191,7 +197,7 @@ export function RunConfigurationMenu({
       <Menu.Trigger
         render={
           <Button
-            aria-label="Run configuration"
+            aria-label={t("Run configuration")}
             disabled={disabled}
             size="compact"
             variant="ghost"
@@ -203,7 +209,7 @@ export function RunConfigurationMenu({
             </span>
             {!compact && selectedReasoningEffort?.value ? (
               <span {...stylex.props(styles.composerControlSecondaryValue)}>
-                {selectedReasoningEffort.label}
+                {t(selectedReasoningEffort.label)}
               </span>
             ) : null}
             <ChevronDown aria-hidden="true" size={11} />
@@ -219,7 +225,7 @@ export function RunConfigurationMenu({
           sideOffset={8}
         >
           <Menu.Popup
-            aria-label="Run configuration"
+            aria-label={t("Run configuration")}
             xstyle={styles.runConfigurationMenu}
           >
             <Menu.SubmenuRoot
@@ -231,7 +237,7 @@ export function RunConfigurationMenu({
               }}
             >
               <Menu.SubmenuTrigger xstyle={styles.runConfigurationItem}>
-                <Menu.Label>Model</Menu.Label>
+                <Menu.Label>{t("Model")}</Menu.Label>
                 <span {...stylex.props(styles.runConfigurationItemValue)}>
                   {selectedModel?.label ?? modelValue}
                 </span>
@@ -244,7 +250,7 @@ export function RunConfigurationMenu({
                   sideOffset={6}
                 >
                   <Menu.Popup
-                    aria-label="Models"
+                    aria-label={t("Models")}
                     id={menuId}
                     submenu
                     xstyle={styles.runConfigurationSubmenu}
@@ -257,11 +263,11 @@ export function RunConfigurationMenu({
                         aria-controls={menuId}
                         aria-expanded="true"
                         aria-haspopup="menu"
-                        aria-label="Search models"
+                        aria-label={t("Search models")}
                         autoComplete="off"
                         onChange={(event) => setQuery(event.target.value)}
                         onKeyDown={focusFirstModelItem}
-                        placeholder="Search models…"
+                        placeholder={t("Search models…")}
                         ref={searchInput}
                         role="combobox"
                         type="search"
@@ -278,7 +284,7 @@ export function RunConfigurationMenu({
                           onClick={() => onModelChange(option.value)}
                           xstyle={styles.runConfigurationOption}
                         >
-                          <Menu.Label>{option.label}</Menu.Label>
+                          <Menu.Label>{t(option.label)}</Menu.Label>
                           {option.value === modelValue ? (
                             <Menu.Trailing>
                               <Check
@@ -292,7 +298,7 @@ export function RunConfigurationMenu({
                       ))}
                       {visibleOptions.length === 0 ? (
                         <p {...stylex.props(styles.modelMenuEmpty)}>
-                          No models found
+                          {t("No models found")}
                         </p>
                       ) : null}
                     </div>
@@ -304,7 +310,7 @@ export function RunConfigurationMenu({
               <ConfigurationSubmenu
                 compact={compact}
                 ariaLabel="Reasoning efforts"
-                label="Reasoning"
+                label={t("Reasoning")}
                 onValueChange={onReasoningEffortChange}
                 options={reasoningEffortOptions}
                 value={reasoningEffortValue}
@@ -315,7 +321,7 @@ export function RunConfigurationMenu({
               <ConfigurationSubmenu
                 compact={compact}
                 ariaLabel="Service tiers"
-                label="Speed"
+                label={t("Speed")}
                 onValueChange={onServiceTierChange}
                 options={serviceTierOptions}
                 value={serviceTierValue}
@@ -346,12 +352,13 @@ function ConfigurationSubmenu({
   value: string;
   valueLabel: string | undefined;
 }) {
+  const t = useConsoleTranslation();
   return (
     <Menu.SubmenuRoot>
       <Menu.SubmenuTrigger xstyle={styles.runConfigurationItem}>
-        <Menu.Label>{label}</Menu.Label>
+        <Menu.Label>{t(label)}</Menu.Label>
         <span {...stylex.props(styles.runConfigurationItemValue)}>
-          {valueLabel ?? value}
+          {t(valueLabel ?? value)}
         </span>
       </Menu.SubmenuTrigger>
       <Menu.Portal>
@@ -362,7 +369,7 @@ function ConfigurationSubmenu({
           sideOffset={6}
         >
           <Menu.Popup
-            aria-label={ariaLabel}
+            aria-label={t(ariaLabel)}
             submenu
             xstyle={styles.runConfigurationSubmenu}
           >
@@ -373,7 +380,7 @@ function ConfigurationSubmenu({
                   onClick={() => onValueChange(option.value)}
                   xstyle={styles.runConfigurationOption}
                 >
-                  <Menu.Label>{option.label}</Menu.Label>
+                  <Menu.Label>{t(option.label)}</Menu.Label>
                   {option.value === value ? (
                     <Menu.Trailing>
                       <Check aria-hidden="true" size={14} strokeWidth={1.7} />

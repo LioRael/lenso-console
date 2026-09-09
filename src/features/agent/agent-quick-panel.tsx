@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentQuickConversation } from "./agent-quick-conversation";
 import { useAgentQuickPanel } from "./agent-quick-panel-context";
@@ -33,6 +34,7 @@ export function AgentQuickPanel({
 }: {
   onOpenFullPage: (agentId: string, sessionId?: string) => void;
 }) {
+  const t = useConsoleTranslation();
   const { selectedAgent } = useAgentIdentity();
   const { draftRequest } = useAgentQuickPanel();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -203,7 +205,7 @@ export function AgentQuickPanel({
         ))}
       <Button
         ref={mainTrigger}
-        aria-label="Agent"
+        aria-label={t("Agent")}
         data-agent-action="open"
         data-agent-tray=""
         data-open={open || undefined}
@@ -226,7 +228,7 @@ export function AgentQuickPanel({
         xstyle={[styles.trigger, open && styles.triggerOpen]}
       >
         <MousePointer2 aria-hidden="true" size={14} strokeWidth={1.6} />
-        Agent
+        {t("Agent")}
       </Button>
       <Dialog.Portal className={stylex.props(styles.portal).className}>
         <Dialog.Popup
