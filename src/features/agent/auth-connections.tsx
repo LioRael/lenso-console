@@ -48,9 +48,17 @@ async function request<T>(
   return response.json() as Promise<T>;
 }
 
-function loginUrl(value: string): string {
+function loginUrl(value: string, method?: string): string {
   const url = new URL(value);
-  if (url.protocol !== "https:" || url.username || url.password) {
+  const localConsent =
+    method === "browser_consent" &&
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (
+    (url.protocol !== "https:" && !localConsent) ||
+    url.username ||
+    url.password
+  ) {
     throw new Error("The provider returned an unsupported sign-in address.");
   }
   return url.href;
@@ -109,6 +117,34 @@ export function AuthConnections({ agentId }: { agentId: string }) {
   );
 }
 
+function isBusinessConnection(connection: Connection) {
+  return connection.status.methods.includes("browser_consent");
+}
+function connectionDescription(connection: Connection) {
+  if (isBusinessConnection(connection)) {
+    return connection.status.connected
+      ? "Connected for this Agent run. Restarting requires a new connection."
+      : "Connect to use this App within your existing permissions.";
+  }
+  return connection.status.connected
+    ? "Account saved on this Agent’s Host."
+    : "Not connected";
+}
+function disconnectDescription(connection: Connection) {
+  return isBusinessConnection(connection)
+    ? "Disconnect this App for new turns? Existing turns keep their identity. Revoke access in the App to stop them."
+    : "Remove the account saved on this Host? This does not revoke access at the provider.";
+}
+function supportedLoginMethods(connection: Connection) {
+  return connection.status.methods.filter(
+    (method) =>
+      method === "device_code" ||
+      method === "browser_consent" ||
+      (method === "browser_loopback" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname))
+  );
+}
+
 function ConnectionRow({
   agentId,
   connection,
@@ -122,6 +158,7 @@ function ConnectionRow({
 }) {
   const t = useConsoleTranslation();
 
+  const methods = supportedLoginMethods(connection);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -206,7 +243,8 @@ function ConnectionRow({
     setBusy(true);
     setMessage("");
     const loginWindow =
-      kind === "begin" && method === "browser_loopback"
+      kind === "begin" &&
+      (method === "browser_loopback" || method === "browser_consent")
         ? window.open("about:blank", "_blank")
         : null;
     if (loginWindow) {
@@ -223,7 +261,7 @@ function ConnectionRow({
           loginWindow?.close();
           return;
         }
-        result.authorization_url = loginUrl(result.authorization_url);
+        result.authorization_url = loginUrl(result.authorization_url, method);
         if (
           !result.attempt_id ||
           !Number.isFinite(Number(result.expires_at_millis))
@@ -272,9 +310,7 @@ function ConnectionRow({
             {connection.status.label}
           </SettingsRow.Title>
           <SettingsRow.Description xstyle={preferences.rowDescription}>
-            {connection.status.connected
-              ? t("Account saved on this Agent’s Host.")
-              : t("Not connected")}
+            {t(connectionDescription(connection))}
           </SettingsRow.Description>
         </SettingsRow.Copy>
         <SettingsRow.Control xstyle={styles.control}>
@@ -288,39 +324,26 @@ function ConnectionRow({
             </Button>
           ) : (
             <div {...stylex.props(styles.actions)}>
-              {connection.status.methods
-                .filter(
-                  (method) =>
-                    method === "device_code" ||
-                    (method === "browser_loopback" &&
-                      ["localhost", "127.0.0.1", "[::1]"].includes(
-                        window.location.hostname
-                      ))
-                )
-                .map((method) => (
-                  <Button
-                    disabled={busy}
-                    key={method}
-                    onClick={() => perform("begin", method)}
-                  >
-                    {busy
-                      ? t("Starting…")
-                      : method === "device_code"
-                        ? t("Sign in with code")
-                        : t("Sign in with browser")}
-                  </Button>
-                ))}
+              {methods.map((method) => (
+                <Button
+                  disabled={busy}
+                  key={method}
+                  onClick={() => perform("begin", method)}
+                >
+                  {busy
+                    ? t("Starting…")
+                    : method === "device_code"
+                      ? t("Sign in with code")
+                      : t("Sign in with browser")}
+                </Button>
+              ))}
             </div>
           )}
         </SettingsRow.Control>
       </SettingsRow.Root>
       {confirm ? (
         <div {...stylex.props(styles.message)}>
-          <p>
-            {t(
-              "Remove the account saved on this Host? This does not revoke access at the provider."
-            )}
-          </p>
+          <p>{t(disconnectDescription(connection))}</p>
           <div {...stylex.props(styles.actions)}>
             <Button disabled={busy} onClick={() => perform("disconnect")}>
               {t("Disconnect account")}
