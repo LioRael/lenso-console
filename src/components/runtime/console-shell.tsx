@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   CircleHelp,
   MousePointer2,
+  PanelsTopLeft,
   Settings,
   SlidersHorizontal,
   Sparkles,
@@ -19,6 +20,7 @@ import { useConsoleTranslation } from "../../app/console-i18n";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
+import { usePageCatalog } from "../../features/extensions/page-contribution-catalog";
 import { shellStyles } from "./console-shell.stylex";
 import {
   ContextNavigationContent,
@@ -28,7 +30,7 @@ import {
   ContextNavigationSection,
 } from "./context-navigation";
 
-type ConsoleArea = "agent" | "settings" | "system";
+type ConsoleArea = "agent" | "settings" | "system" | "tools";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
   const t = useConsoleTranslation();
@@ -36,6 +38,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
   const appearance = useConsoleAppearance();
   const navigate = useNavigate();
   const { agents, selectedAgent } = useAgentIdentity();
+  const pageCatalog = usePageCatalog();
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
@@ -53,9 +56,17 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           <PrimaryRail
             contextNavigationOpen={mobileNavigationOpen}
             currentArea={currentArea}
+            firstToolId={pageCatalog.data?.[0]?.id}
             navigate={(to) => {
               setMobileNavigationOpen(false);
               navigate({ to });
+            }}
+            navigateTool={(mountId) => {
+              setMobileNavigationOpen(false);
+              navigate({
+                params: { _splat: "", mountId },
+                to: "/tools/$mountId/$",
+              });
             }}
             onToggleContextNavigation={() =>
               setMobileNavigationOpen((open) => !open)
@@ -91,6 +102,19 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                   navigate={() => {
                     setMobileNavigationOpen(false);
                     navigate({ to: "/plugins" });
+                  }}
+                  onRequestClose={() => setMobileNavigationOpen(false)}
+                />
+              ) : currentArea === "tools" ? (
+                <ToolsSidebar
+                  currentPath={currentPath}
+                  mounts={pageCatalog.data ?? []}
+                  navigate={(mountId) => {
+                    setMobileNavigationOpen(false);
+                    navigate({
+                      params: { _splat: "", mountId },
+                      to: "/tools/$mountId/$",
+                    });
                   }}
                   onRequestClose={() => setMobileNavigationOpen(false)}
                 />
@@ -139,12 +163,16 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 function PrimaryRail({
   contextNavigationOpen,
   currentArea,
+  firstToolId,
   navigate,
+  navigateTool,
   onToggleContextNavigation,
 }: {
   contextNavigationOpen: boolean;
   currentArea: ConsoleArea;
+  firstToolId: string | undefined;
   navigate: (to: "/" | "/plugins" | "/settings") => void;
+  navigateTool: (mountId: string) => void;
   onToggleContextNavigation: () => void;
 }) {
   const t = useConsoleTranslation();
@@ -209,6 +237,20 @@ function PrimaryRail({
           >
             <Blocks aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
+          {firstToolId ? (
+            <IconButton
+              aria-label={t("Tools")}
+              onClick={() => navigateTool(firstToolId)}
+              size="default"
+              variant="ghost"
+              xstyle={[
+                shellStyles.railButton,
+                currentArea === "tools" && shellStyles.activeRailButton,
+              ]}
+            >
+              <PanelsTopLeft aria-hidden="true" size={15} strokeWidth={1.7} />
+            </IconButton>
+          ) : null}
         </div>
         <div {...stylex.props(shellStyles.railFooter)}>
           <IconButton
@@ -269,7 +311,55 @@ function consoleAreaFromPath(path: string): ConsoleArea {
   if (path.startsWith("/plugins")) {
     return "system";
   }
+  if (path.startsWith("/tools")) {
+    return "tools";
+  }
   return "agent";
+}
+
+function ToolsSidebar({
+  currentPath,
+  mounts,
+  navigate,
+  onRequestClose,
+}: {
+  currentPath: string;
+  mounts: readonly { id: string; navigation: { label: string } }[];
+  navigate: (mountId: string) => void;
+  onRequestClose: () => void;
+}) {
+  const t = useConsoleTranslation();
+
+  return (
+    <>
+      <ContextNavigationHeader title={t("Tools")}>
+        <IconButton
+          aria-label={t("Close workspace navigation")}
+          onClick={onRequestClose}
+          size="default"
+          variant="ghost"
+          xstyle={shellStyles.mobileOnly}
+        >
+          <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
+        </IconButton>
+      </ContextNavigationHeader>
+      <Sidebar.Content>
+        <Sidebar.Menu aria-label={t("Tool navigation")}>
+          {mounts.map((mount) => (
+            <Sidebar.MenuItem key={mount.id}>
+              <ContextNavigationItem
+                icon={<PanelsTopLeft size={15} strokeWidth={1.75} />}
+                onClick={() => navigate(mount.id)}
+                selected={currentPath.startsWith(`/tools/${mount.id}`)}
+              >
+                {mount.navigation.label}
+              </ContextNavigationItem>
+            </Sidebar.MenuItem>
+          ))}
+        </Sidebar.Menu>
+      </Sidebar.Content>
+    </>
+  );
 }
 
 function SystemSidebar({

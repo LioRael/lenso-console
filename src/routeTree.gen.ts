@@ -21,6 +21,7 @@ import { Route as SettingsConnectionsRouteImport } from './routes/settings_.conn
 import { Route as SettingsProfilesRouteImport } from './routes/settings_.profiles'
 import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
 import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
+import { Route as ToolsMountIdSplatRouteImport } from './routes/tools.$mountId.$'
 import { Route as PluginsAgentIdPackageIdInstanceKeyRouteImport } from './routes/plugins_.$agentId.$packageId.$instanceKey'
 import { Route as SettingsAgentSkillsNewRouteImport } from './routes/settings_.agent_.skills.new'
 import { Route as SettingsProfilesAgentIdProfileNameRouteImport } from './routes/settings_.profiles_.$agentId.$profileName'
@@ -85,6 +86,11 @@ const SettingsAiAgentRoute = SettingsAiAgentRouteImport.update({
   path: '/settings/ai/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsMountIdSplatRoute = ToolsMountIdSplatRouteImport.update({
+  id: '/tools/$mountId/$',
+  path: '/tools/$mountId/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PluginsAgentIdPackageIdInstanceKeyRoute =
   PluginsAgentIdPackageIdInstanceKeyRouteImport.update({
     id: '/plugins_/$agentId/$packageId/$instanceKey',
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
+  '/tools/$mountId/$': typeof ToolsMountIdSplatRoute
   '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
   '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
+  '/tools/$mountId/$': typeof ToolsMountIdSplatRoute
   '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
   '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/settings_/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings_/ai_/agent': typeof SettingsAiAgentRoute
+  '/tools/$mountId/$': typeof ToolsMountIdSplatRoute
   '/plugins_/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings_/agent_/skills/new': typeof SettingsAgentSkillsNewRoute
   '/settings_/profiles_/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
+    | '/tools/$mountId/$'
     | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
     | '/settings/profiles/$agentId/$profileName'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
+    | '/tools/$mountId/$'
     | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
     | '/settings/profiles/$agentId/$profileName'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/settings_/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings_/ai_/agent'
+    | '/tools/$mountId/$'
     | '/plugins_/$agentId/$packageId/$instanceKey'
     | '/settings_/agent_/skills/new'
     | '/settings_/profiles_/$agentId/$profileName'
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   SettingsProfilesRoute: typeof SettingsProfilesRoute
   AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
   SettingsAiAgentRoute: typeof SettingsAiAgentRoute
+  ToolsMountIdSplatRoute: typeof ToolsMountIdSplatRoute
   PluginsAgentIdPackageIdInstanceKeyRoute: typeof PluginsAgentIdPackageIdInstanceKeyRoute
   SettingsAgentSkillsNewRoute: typeof SettingsAgentSkillsNewRoute
   SettingsProfilesAgentIdProfileNameRoute: typeof SettingsProfilesAgentIdProfileNameRoute
@@ -313,6 +326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/$mountId/$': {
+      id: '/tools/$mountId/$'
+      path: '/tools/$mountId/$'
+      fullPath: '/tools/$mountId/$'
+      preLoaderRoute: typeof ToolsMountIdSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/plugins_/$agentId/$packageId/$instanceKey': {
       id: '/plugins_/$agentId/$packageId/$instanceKey'
       path: '/plugins/$agentId/$packageId/$instanceKey'
@@ -350,6 +370,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsProfilesRoute: SettingsProfilesRoute,
   AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
   SettingsAiAgentRoute: SettingsAiAgentRoute,
+  ToolsMountIdSplatRoute: ToolsMountIdSplatRoute,
   PluginsAgentIdPackageIdInstanceKeyRoute:
     PluginsAgentIdPackageIdInstanceKeyRoute,
   SettingsAgentSkillsNewRoute: SettingsAgentSkillsNewRoute,
