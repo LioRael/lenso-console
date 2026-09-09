@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.5.2
+
+### Patch Changes
+
+- 1776f4c: Expand Simplified Chinese localization across navigation, Plugin configuration, Profiles, connections, and Agent controls. Preserve user content and technical identifiers when switching languages.
+
 ## 1.5.1
 
 ### Patch Changes
