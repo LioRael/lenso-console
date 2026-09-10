@@ -1199,3 +1199,33 @@ fn store_failure(error: impl std::fmt::Display) -> RuntimeFailure {
         detail: format!("Observe storage failed: {error}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn saturated_ingestion_queue_is_rejected_and_counted() {
+        let (commands, _receiver) = mpsc::channel(1);
+        commands.try_send(Command::RecordDecodeFailure).unwrap();
+        let (feed, _) = broadcast::channel(1);
+        let queue_saturation = Arc::new(AtomicU64::new(0));
+        let store = ObserveStore {
+            commands,
+            feed,
+            queue_saturation: Arc::clone(&queue_saturation),
+        };
+
+        let error = store
+            .ingest_spans(Vec::new(), IngestLoss::default())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            RuntimeFailure::PluginFailure { detail }
+                if detail.contains("ingestion queue is full")
+        ));
+        assert_eq!(queue_saturation.load(Ordering::Relaxed), 1);
+    }
+}

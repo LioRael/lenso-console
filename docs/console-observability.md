@@ -1,7 +1,8 @@
 # Console observability Plugin
 
-Status: local request-investigation receiver and data-completeness slice
-implemented; cross-App runtime inspection and a sample exporter remain follow-ups.
+Status: local request-investigation receiver, data-completeness behavior, and a
+runnable sample exporter implemented; cross-App runtime inspection remains a
+follow-up.
 
 ## Outcome
 
@@ -221,9 +222,12 @@ correlated logs, receiver counters, honest partial and late-arrival states, and
 an explicit **Runtime state unavailable** panel. Switching
 or removing the mount cancels the feed without affecting the observed App.
 
-An end-to-end sample Web App exporter fixture remains outside this slice. The
-real receiver integration test sends standard gzip-compressed OTLP Protobuf over
-HTTP; deterministic data only supplies the emitting side of that test.
+The `lenso-web` repository now ships the runnable
+`lenso-observe-sample-web-app`. It composes a real Web Ingress Plugin, business
+HTTP Endpoint Plugin, and removable OTel Plugin. One `GET /orders/{order_id}`
+request returns independently of telemetry delivery and emits an authenticated
+OTLP/HTTP Protobuf server span to Observe. Export endpoint, bearer token, and
+service identity remain Host-private inputs outside the Resolved App Plan.
 
 ### Artifacts
 
@@ -235,16 +239,20 @@ Concrete artifacts:
   store, retention, query provider, Workspace provider, and lifecycle;
 - a self-contained Observe frontend module with no Console-private imports;
 - the existing Console contract-aware Workspace service transport;
-- reference Host Plan policy for the first configured App subject.
+- reference Host Plan policy for the first configured App subject;
+- `lenso-web/examples/observe-sample-web-app`, consuming the released
+  `lenso-otel-plugin` OTLP/HTTP exporter.
 
 Current verification proves real gzip OTLP ingestion and authorization,
 encoded/decoded limits, exact partial-success counts, trace/log correlation,
 event/link persistence, late-arrival updates, redaction, restart persistence,
 pagination, time retention, exact App/Plan admission, generated contract
 freshness, browser feed cancellation, and a browser trace deep link. Queue
-saturation, stream lag, logical-size retention pressure, and the final sample
-Web App exporter remain required before calling the whole first-release design
-complete.
+saturation, stream lag, and logical-size retention pressure now have
+deterministic regression coverage. A live acceptance run also proves that the
+sample request succeeds while its authenticated Protobuf span reaches the OTLP
+traces endpoint. These complete the local request-investigation release; the
+separately justified cross-App runtime inspection Connector remains deferred.
 
 ## Deferred
 

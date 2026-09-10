@@ -466,6 +466,111 @@ async fn request_pagination_and_time_retention_are_enforced() {
     worker.shutdown().await.unwrap();
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn logical_size_retention_removes_the_oldest_complete_trace() {
+    let root = tempfile::tempdir().unwrap();
+    let config = config(root.path());
+    let (store, worker) = ObserveWorker::start(StoreConfig {
+        database: config.database.clone(),
+        source_id: config.source_id.clone(),
+        retention_days: config.retention_days,
+        retention_bytes: 700,
+    })
+    .await
+    .unwrap();
+    let now = now_nanos();
+    let mut oldest = stored_root(9, now.saturating_sub(1));
+    oldest.events.push(store::StoredEvent {
+        timestamp: now,
+        name: "old-event".to_owned(),
+        attributes: vec![store::Attribute {
+            key: "exception.type".to_owned(),
+            value: "OldError".to_owned(),
+        }],
+    });
+    oldest.links.push(store::StoredLink {
+        trace_id: hex::encode([19; 16]),
+        span_id: hex::encode([19; 8]),
+        attributes: vec![store::Attribute {
+            key: "code.function.name".to_owned(),
+            value: "old_dependency".to_owned(),
+        }],
+    });
+    let mut newest = stored_root(10, now);
+    newest.events.push(store::StoredEvent {
+        timestamp: now,
+        name: "new-event".to_owned(),
+        attributes: Vec::new(),
+    });
+    newest.links.push(store::StoredLink {
+        trace_id: hex::encode([20; 16]),
+        span_id: hex::encode([20; 8]),
+        attributes: Vec::new(),
+    });
+
+    store
+        .ingest_spans(vec![oldest, newest], store::IngestLoss::default())
+        .await
+        .unwrap();
+
+    let page = store
+        .list_requests(ListRequestsRequest {
+            cursor: OptionalValue::default(),
+            limit: 10,
+            source_id: config.source_id.clone(),
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(page.requests.len(), 1);
+    assert_eq!(page.requests[0].trace_id, hex::encode([10; 16]));
+    let health = store
+        .health(ReadIngestionHealthRequest {
+            source_id: config.source_id,
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(health.retention_deletions.parse::<u64>().unwrap() >= 1);
+    worker.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn request_feed_reports_and_counts_subscriber_lag() {
+    let root = tempfile::tempdir().unwrap();
+    let config = config(root.path());
+    let (store, worker) = ObserveWorker::start(StoreConfig {
+        database: config.database.clone(),
+        source_id: config.source_id.clone(),
+        retention_days: config.retention_days,
+        retention_bytes: config.retention_bytes,
+    })
+    .await
+    .unwrap();
+    let mut feed = store.subscribe();
+    let now = now_nanos();
+    let spans = (0_u8..=64)
+        .map(|byte| stored_root(byte, now.saturating_add(u64::from(byte))))
+        .collect();
+    store
+        .ingest_spans(spans, store::IngestLoss::default())
+        .await
+        .unwrap();
+
+    let item = classify_feed_receive(&store, feed.recv().await).unwrap();
+    assert_eq!(item.kind, observe::WatchRequestsResponseKind::Lag);
+    assert_eq!(item.dropped_count, "1");
+    let health = store
+        .health(ReadIngestionHealthRequest {
+            source_id: config.source_id,
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(health.feed_lag, "1");
+    worker.shutdown().await.unwrap();
+}
+
 #[test]
 fn token_is_created_outside_the_plan_with_private_permissions() {
     let root = tempfile::tempdir().unwrap();
