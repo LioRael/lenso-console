@@ -16,6 +16,10 @@ import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { RoutePending } from "../../app/route-states";
+import {
+  useOptionalAgentQuickPanel,
+  type WorkspaceAgentContext,
+} from "../agent/agent-quick-panel-context";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
 import {
   createWorkspaceServices,
@@ -23,6 +27,9 @@ import {
 } from "./workspace-service-client";
 
 type ContributionProps = {
+  agent?:
+    | { setPageContext: (context: WorkspaceAgentContext | null) => void }
+    | undefined;
   environment: { locale: "en" | "zh-CN"; theme: "dark" | "light" };
   location: { hash: string; search: string; segments: readonly string[] };
   mount: PageMount;
@@ -163,6 +170,19 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
+  const quickPanel = useOptionalAgentQuickPanel();
+  const setPageContext = quickPanel?.setPageContext;
+  const completedTurns = quickPanel?.completedTurns;
+  const agent = useMemo(
+    () =>
+      setPageContext
+        ? {
+            setPageContext,
+            completedTurns: completedTurns ?? 0,
+          }
+        : undefined,
+    [setPageContext, completedTurns]
+  );
   const controllerRef = useRef<AbortController | null>(null);
   if (!controllerRef.current) {
     controllerRef.current = new AbortController();
@@ -172,6 +192,7 @@ function MountedContribution({
   return (
     <loaded.Provider>
       <loaded.Page
+        agent={agent}
         environment={environment}
         location={location}
         mount={mount}

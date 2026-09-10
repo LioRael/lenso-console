@@ -11,11 +11,16 @@ pub const OPERATIONS: &[&str] = &[
     "begin_connection",
     "poll_connection",
     "disconnect",
+    "list_workspaces",
     "list_projects",
     "get_project",
     "create_project",
     "list_issues",
     "get_issue",
+    "update_issue",
+    "get_assignee",
+    "set_assignee",
+    "list_assignees",
     "list_activity",
     "list_teams",
     "list_project_statuses",
@@ -159,7 +164,7 @@ pub async fn invoke(
     let mut request = client
         .request(method.clone(), url)
         .bearer_auth(grant.credential.as_str());
-    if method == reqwest::Method::POST {
+    if method == reqwest::Method::POST || method == reqwest::Method::PATCH {
         request = request.header(reqwest::header::ORIGIN, origin).json(&body);
     }
     let (code, value) = read(
@@ -236,6 +241,7 @@ fn endpoint(
 ) -> Result<(reqwest::Url, reqwest::Method), ()> {
     let (path, id, fields, method): (&str, Option<&str>, &[&str], reqwest::Method) = match operation
     {
+        "list_workspaces" => ("/api/projects/workspaces",None,&["after","limit"],reqwest::Method::GET),
         "list_projects" => (
             "/api/projects",
             None,
@@ -255,6 +261,9 @@ fn endpoint(
             &["organization_id", "include_archived", "limit", "after"],
             reqwest::Method::GET,
         ),
+        "update_issue" => ("/api/issues", Some("issue_id"), &[], reqwest::Method::PATCH),
+        "get_assignee" | "list_assignees" => ("/api/issues", Some("issue_id"), &["organization_id","after","limit"], reqwest::Method::GET),
+        "set_assignee" => ("/api/issues", Some("issue_id"), &[], reqwest::Method::PATCH),
         "get_issue" | "list_activity" => (
             "/api/issues",
             Some("issue_id"),
@@ -304,6 +313,8 @@ fn endpoint(
     if operation == "list_activity" {
         url.path_segments_mut()?.push("activity");
     }
+    if operation == "get_assignee" || operation == "set_assignee" { url.path_segments_mut()?.push("assignee"); }
+    if operation == "list_assignees" { url.path_segments_mut()?.push("assignees"); }
     for field in fields {
         if let Some(value) = obj.get(*field).filter(|v| !v.is_null()) {
             let text = match value {
@@ -320,6 +331,14 @@ fn endpoint(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn issue_updates_are_bound_to_the_selected_app_and_record() {
+        let (url, method) = endpoint("http://127.0.0.1:55440", "update_issue", &json!({"issue_id":"issue-public", "organization_id":"org-1", "expected_revision":"2", "title":"Updated"})).unwrap();
+        assert_eq!(method, reqwest::Method::PATCH);
+        assert_eq!(url.as_str(), "http://127.0.0.1:55440/api/issues/issue-public");
+        assert!(endpoint("http://127.0.0.1:55440", "update_issue", &json!({"issue_id":"issue-public", "actor_subject":"someone-else"})).is_err());
+        assert!(endpoint("http://127.0.0.1:55440", "update_issue", &json!({"issue_id":".."})).is_err());
+    }
     #[tokio::test]
     async fn disconnected_requests_do_not_contact_the_business_app() {
         let state = Arc::new(Mutex::new(Connection::default()));

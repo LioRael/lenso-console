@@ -36,7 +36,8 @@ export function AgentQuickPanel({
 }) {
   const t = useConsoleTranslation();
   const { selectedAgent } = useAgentIdentity();
-  const { draftRequest } = useAgentQuickPanel();
+  const { draftRequest, pageContext, notifyTurnCompleted } =
+    useAgentQuickPanel();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [activeId, setActiveId] = useState<number>();
   const [open, setOpen] = useState(false);
@@ -46,6 +47,7 @@ export function AgentQuickPanel({
   const mainTrigger = useRef<HTMLButtonElement>(null);
   const anchors = useRef(new Map<number, HTMLElement>());
   const appliedRequest = useRef(0);
+  const runningEntries = useRef(new Set<number>());
   const create = useCallback((agentId: string, initialDraft?: string) => {
     nextId.current += 1;
     const id = nextId.current;
@@ -71,6 +73,11 @@ export function AgentQuickPanel({
   }, [create, draftRequest]);
   const update = useCallback(
     (id: number, title: string, hasConversation: boolean, running: boolean) => {
+      if (running) {
+        runningEntries.current.add(id);
+      } else if (runningEntries.current.delete(id)) {
+        notifyTurnCompleted();
+      }
       setEntries((current) => {
         const entry = current.find((item) => item.id === id);
         if (!entry) {
@@ -91,7 +98,7 @@ export function AgentQuickPanel({
         );
       });
     },
-    []
+    [notifyTurnCompleted]
   );
   const close = (id: number) => {
     setEntries((current) =>
@@ -220,7 +227,12 @@ export function AgentQuickPanel({
             setActiveId(draft.id);
             setOpen(true);
           } else {
-            create(selectedAgent.id);
+            create(
+              selectedAgent.id,
+              pageContext
+                ? `Current page: ${pageContext.label}\n${pageContext.text}\n\n`
+                : undefined
+            );
           }
         }}
         size="compact"

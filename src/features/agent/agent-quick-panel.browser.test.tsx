@@ -10,6 +10,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -22,7 +23,10 @@ import {
 } from "../plugins/plugin-agent-workbench-context";
 import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentQuickPanel } from "./agent-quick-panel";
-import { AgentQuickPanelProvider } from "./agent-quick-panel-context";
+import {
+  AgentQuickPanelProvider,
+  useAgentQuickPanel,
+} from "./agent-quick-panel-context";
 import { useAgentConversation } from "./use-agent-conversation";
 
 let root: Root | undefined;
@@ -441,6 +445,16 @@ describe("Agent quick panel", () => {
     expect(onOpenFullPage).toHaveBeenCalledWith("app", undefined);
   });
 
+  test("new mini chats inherit the current workspace reference without submitting", async () => {
+    const fetchMock = agentFetch();
+    await renderPanel(fetchMock, () => undefined, false, "light", true);
+    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .toHaveTextContent("issue-1");
+    expect(turnRequests(fetchMock)).toHaveLength(0);
+  });
+
   test("opens an exact Plugin context as a draft without submitting it", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock, () => undefined, true);
@@ -485,7 +499,8 @@ async function renderPanel(
   onOpenFullPage: (agentId: string, sessionId?: string) => void = () =>
     undefined,
   includePluginAction = false,
-  theme: "light" | "dark" = "light"
+  theme: "light" | "dark" = "light",
+  includeWorkspaceContext = false
 ) {
   vi.stubGlobal("fetch", fetchMock);
   if (!container) {
@@ -514,6 +529,7 @@ async function renderPanel(
   const panelRoute = createRoute({
     component: () => (
       <>
+        {includeWorkspaceContext ? <WorkspaceContextFixture /> : null}
         {includePluginAction ? (
           <PluginAgentAction {...pluginAgentContext} />
         ) : null}
@@ -880,4 +896,16 @@ function turnRequests(fetchMock: ReturnType<typeof agentFetch>) {
       url.endsWith("/api/console/v1/agent/turns") && init?.method === "POST"
     );
   });
+}
+
+function WorkspaceContextFixture() {
+  const { setPageContext } = useAgentQuickPanel();
+  useEffect(() => {
+    setPageContext({
+      label: "PROJ-1",
+      text: "organization_id=org-1, issue_id=issue-1",
+    });
+    return () => setPageContext(null);
+  }, [setPageContext]);
+  return null;
 }
