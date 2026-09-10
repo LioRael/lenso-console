@@ -20,7 +20,7 @@ use lenso_capability_observability_query::{
     self as observe, ListRequestsRequest, ListTraceLogsRequest, QueryListRequestsInvocationError,
     QueryListTraceLogsInvocationError, QueryReadIngestionHealthInvocationError,
     QueryReadTraceInvocationError, QueryWatchRequestsInvocationError, ReadIngestionHealthRequest,
-    ReadTraceRequest, WatchRequestsError, WatchRequestsRequest,
+    ReadTraceRequest, WatchRequestsError, WatchRequestsRequest, WatchRequestsResponse,
 };
 use lenso_capability_ui_contribution::{
     self as ui, DescribeRequest, DescribeResponse, DescribeResponseAssetsItem,
@@ -266,19 +266,15 @@ impl ObserveWorkspace {
                         let cancelled = context.cancellation().cancelled().fuse();
                         futures::pin_mut!(receive, cancelled);
                         let item = match select(receive, cancelled).await {
-                            Either::Left((Ok(item), _)) => item,
-                            Either::Left((
-                                Err(tokio::sync::broadcast::error::RecvError::Lagged(count)),
-                                _,
-                            )) => {
-                                store.record_feed_lag();
-                                store::lag_item(count)
+                            Either::Left((result, _)) => {
+                                if let Some(item) = classify_feed_receive(&store, result) {
+                                    item
+                                } else {
+                                    let _ = channel.complete(Ok(())).await;
+                                    return;
+                                }
                             }
-                            Either::Left((
-                                Err(tokio::sync::broadcast::error::RecvError::Closed),
-                                _,
-                            ))
-                            | Either::Right(((), _)) => {
+                            Either::Right(((), _)) => {
                                 let _ = channel.complete(Ok(())).await;
                                 return;
                             }
@@ -388,19 +384,15 @@ impl ObserveWorkspace {
                         let cancelled = context.cancellation().cancelled().fuse();
                         futures::pin_mut!(receive, cancelled);
                         let item = match select(receive, cancelled).await {
-                            Either::Left((Ok(item), _)) => item,
-                            Either::Left((
-                                Err(tokio::sync::broadcast::error::RecvError::Lagged(count)),
-                                _,
-                            )) => {
-                                store.record_feed_lag();
-                                store::lag_item(count)
+                            Either::Left((result, _)) => {
+                                if let Some(item) = classify_feed_receive(&store, result) {
+                                    item
+                                } else {
+                                    let _ = channel.complete(Ok(())).await;
+                                    return;
+                                }
                             }
-                            Either::Left((
-                                Err(tokio::sync::broadcast::error::RecvError::Closed),
-                                _,
-                            ))
-                            | Either::Right(((), _)) => {
+                            Either::Right(((), _)) => {
                                 let _ = channel.complete(Ok(())).await;
                                 return;
                             }
@@ -417,6 +409,20 @@ impl ObserveWorkspace {
                 })?;
             Ok(stream)
         })
+    }
+}
+
+fn classify_feed_receive(
+    store: &ObserveStore,
+    result: Result<WatchRequestsResponse, tokio::sync::broadcast::error::RecvError>,
+) -> Option<WatchRequestsResponse> {
+    match result {
+        Ok(item) => Some(item),
+        Err(tokio::sync::broadcast::error::RecvError::Lagged(count)) => {
+            store.record_feed_lag();
+            Some(store::lag_item(count))
+        }
+        Err(tokio::sync::broadcast::error::RecvError::Closed) => None,
     }
 }
 
