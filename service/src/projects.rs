@@ -6,7 +6,6 @@ use std::{
     time::Duration,
 };
 
-use axum::extract::Query;
 use serde::{Deserialize, Serialize};
 use tokio::{
     process::{Child, Command},
@@ -14,10 +13,10 @@ use tokio::{
 };
 
 use super::{
-    AgentCatalog, AppAgentAdapter, AxumPath, Bytes, HeaderMap, Json, Method, OriginalUri, Response,
-    Router, State, StatusCode, allowed_agent_route_with_capabilities, any, get, problem,
-    proxy_agent_request,
+    AgentCatalog, AppAgentAdapter, Bytes, HeaderMap, Json, Method, OriginalUri, Response, State,
+    StatusCode, allowed_agent_route_with_capabilities, problem, proxy_agent_request,
 };
+use crate::http::{IntoResponse as _, Path as HttpPath, Query, Request};
 
 const MAX_PROJECTS: usize = 8;
 const MAX_TEMPLATE_BYTES: usize = 32 * 1024 * 1024;
@@ -423,30 +422,72 @@ fn seed_home(template: &Path, home: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(super) fn routes(catalog: AgentCatalog) -> Router {
-    Router::new()
-        .route(
-            "/api/console/v1/agents/{agent_id}/projects",
-            get(list).post(open),
+pub(super) async fn handle(catalog: &AgentCatalog, request: &Request) -> Option<Response> {
+    let tail = request.path.strip_prefix("/api/console/v1/agents/")?;
+    let (agent_id, rest) = tail.split_once('/')?;
+    let agent_id = crate::http::decode_path(agent_id)?;
+    if !rest.starts_with("projects") {
+        return None;
+    }
+    if request.body.len() > super::MAX_AGENT_REQUEST_BYTES {
+        return Some(problem(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "Project request body is too large",
+        ));
+    }
+    if rest == "projects" {
+        return Some(match request.method {
+            Method::GET => list(State(catalog.clone()), HttpPath(agent_id)).await,
+            Method::POST => match serde_json::from_slice(&request.body) {
+                Ok(value) => {
+                    open(
+                        State(catalog.clone()),
+                        HttpPath(agent_id),
+                        &request.headers,
+                        Json(value),
+                    )
+                    .await
+                }
+                Err(_) => problem(StatusCode::BAD_REQUEST, "Invalid project request"),
+            },
+            _ => StatusCode::METHOD_NOT_ALLOWED.into_response(),
+        });
+    }
+    if rest == "projects/directories" {
+        return Some(if request.method == Method::GET {
+            match serde_urlencoded::from_str(request.query.as_deref().unwrap_or_default()) {
+                Ok(value) => directories(
+                    State(catalog.clone()),
+                    HttpPath(agent_id),
+                    &request.headers,
+                    Query(value),
+                ),
+                Err(_) => problem(StatusCode::BAD_REQUEST, "Invalid directory query"),
+            }
+        } else {
+            StatusCode::METHOD_NOT_ALLOWED.into_response()
+        });
+    }
+    let tail = rest.strip_prefix("projects/")?;
+    let (project_id, path) = tail.split_once('/')?;
+    Some(
+        proxy(
+            State(catalog.clone()),
+            HttpPath((
+                agent_id,
+                crate::http::decode_path(project_id)?,
+                crate::http::decode_path(path)?,
+            )),
+            OriginalUri(request.uri()),
+            request.method.clone(),
+            request.headers.clone(),
+            request.body.clone(),
         )
-        .route(
-            "/api/console/v1/agents/{agent_id}/projects/directories",
-            get(directories),
-        )
-        .route(
-            "/api/console/v1/agents/{agent_id}/projects/{project_id}/{*path}",
-            any(proxy),
-        )
-        .layer(axum::extract::DefaultBodyLimit::max(
-            super::MAX_AGENT_REQUEST_BYTES,
-        ))
-        .layer(super::RequestBodyLimitLayer::new(
-            super::MAX_AGENT_REQUEST_BYTES,
-        ))
-        .with_state(catalog)
+        .await,
+    )
 }
 
-#[allow(clippy::result_large_err)] // Axum handlers return complete HTTP errors.
+#[allow(clippy::result_large_err)] // HTTP handlers return complete errors.
 fn manager(catalog: &AgentCatalog, agent_id: &str) -> Result<Arc<LocalProjects>, Response> {
     if agent_id != "app" {
         return Err(problem(
@@ -462,7 +503,7 @@ fn manager(catalog: &AgentCatalog, agent_id: &str) -> Result<Arc<LocalProjects>,
     })
 }
 
-#[allow(clippy::result_large_err)] // Axum handlers return complete HTTP errors.
+#[allow(clippy::result_large_err)] // HTTP handlers return complete errors.
 fn require_intent(headers: &HeaderMap) -> Result<(), Response> {
     if headers
         .get("x-lenso-console-projects")
@@ -479,15 +520,13 @@ fn require_intent(headers: &HeaderMap) -> Result<(), Response> {
 
 async fn list(
     State(catalog): State<AgentCatalog>,
-    AxumPath(agent_id): AxumPath<String>,
+    HttpPath(agent_id): HttpPath<String>,
 ) -> Response {
     match manager(&catalog, &agent_id) {
         Ok(manager) => Json(serde_json::json!({"projects":manager.list().await,"defaultPath":std::env::current_dir().ok()})).into_response(),
         Err(error) => error,
     }
 }
-
-use axum::response::IntoResponse;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -497,11 +536,11 @@ struct OpenProject {
 
 async fn open(
     State(catalog): State<AgentCatalog>,
-    AxumPath(agent_id): AxumPath<String>,
-    headers: HeaderMap,
+    HttpPath(agent_id): HttpPath<String>,
+    headers: &HeaderMap,
     Json(request): Json<OpenProject>,
 ) -> Response {
-    if let Err(error) = require_intent(&headers) {
+    if let Err(error) = require_intent(headers) {
         return error;
     }
     let manager = match manager(&catalog, &agent_id) {
@@ -525,13 +564,13 @@ struct DirectoryQuery {
     path: PathBuf,
 }
 
-async fn directories(
+fn directories(
     State(catalog): State<AgentCatalog>,
-    AxumPath(agent_id): AxumPath<String>,
-    headers: HeaderMap,
+    HttpPath(agent_id): HttpPath<String>,
+    headers: &HeaderMap,
     Query(query): Query<DirectoryQuery>,
 ) -> Response {
-    if let Err(error) = require_intent(&headers) {
+    if let Err(error) = require_intent(headers) {
         return error;
     }
     if let Err(error) = manager(&catalog, &agent_id) {
@@ -572,7 +611,7 @@ async fn directories(
 
 async fn proxy(
     State(catalog): State<AgentCatalog>,
-    AxumPath((agent_id, project_id, path)): AxumPath<(String, String, String)>,
+    HttpPath((agent_id, project_id, path)): HttpPath<(String, String, String)>,
     OriginalUri(incoming): OriginalUri,
     method: Method,
     headers: HeaderMap,
@@ -796,47 +835,38 @@ mod route_tests {
         let console = AppAgentAdapter::parse_console("http://127.0.0.1:1", None).unwrap();
         let mut catalog = AgentCatalog::new(console, Vec::new());
         catalog.projects = Some(manager);
-        let router = routes(catalog.clone()).merge(super::super::agent_catalog_routes(catalog));
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            axum::serve(listener, router).await.unwrap();
-        });
-        let client = reqwest::Client::new();
         for path in ["app/projects/unknown/bootstrap", "console/projects"] {
             assert_eq!(
-                client
-                    .get(format!("http://{address}/api/console/v1/agents/{path}"))
-                    .send()
-                    .await
-                    .unwrap()
-                    .status(),
+                handle(
+                    &catalog,
+                    &Request::new(Method::GET, &format!("/api/console/v1/agents/{path}"),),
+                )
+                .await
+                .unwrap()
+                .status(),
                 StatusCode::NOT_FOUND
             );
         }
         assert_eq!(
-            client
-                .get(format!(
-                    "http://{address}/api/console/v1/agents/app/projects"
-                ))
-                .send()
-                .await
-                .unwrap()
-                .status(),
+            handle(
+                &catalog,
+                &Request::new(Method::GET, "/api/console/v1/agents/app/projects"),
+            )
+            .await
+            .unwrap()
+            .status(),
             StatusCode::OK
         );
         assert_eq!(
-            client
-                .post(format!(
-                    "http://{address}/api/console/v1/agents/app/projects"
-                ))
-                .json(&serde_json::json!({"path":"/tmp"}))
-                .send()
-                .await
-                .unwrap()
-                .status(),
+            handle(
+                &catalog,
+                &Request::new(Method::POST, "/api/console/v1/agents/app/projects")
+                    .with_body(br#"{"path":"/tmp"}"#.as_slice()),
+            )
+            .await
+            .unwrap()
+            .status(),
             StatusCode::FORBIDDEN
         );
-        server.abort();
     }
 }

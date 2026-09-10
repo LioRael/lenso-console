@@ -3,50 +3,65 @@ use std::{fmt, rc::Rc};
 use futures::future::LocalBoxFuture;
 use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture, NativeRequestHandle, PluginDependencies, RequestCapability, RuntimeFailure};
 
-use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany};
+use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany, CapabilityReference};
 pub const CAPABILITY_ID: &str = "lenso.ui.contribution@1";
-pub const DESCRIPTOR_VERSION: &str = "1.2.0";
+pub const DESCRIPTOR_VERSION: &str = "1.3.0";
+pub const DESCRIPTOR_DIGEST: &str = "sha256:819917f08497881aa5db5d86c9e358a45d3f0f88f3b8087142fe5999e50c7c9a";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const CONTRIBUTION_CAPABILITY_ID: &str = CAPABILITY_ID;
 pub const CONTRIBUTION_DESCRIPTOR_VERSION: &str = DESCRIPTOR_VERSION;
+pub const CONTRIBUTION_DESCRIPTOR_DIGEST: &str = DESCRIPTOR_DIGEST;
+pub const CONTRIBUTION_CONTRACT: CapabilityReference<ContributionClient> = CapabilityReference::new(CAPABILITY_ID, DESCRIPTOR_VERSION, DESCRIPTOR_DIGEST);
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_provided_contribution { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.2.0\",\"operations\":[\"describe\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
+macro_rules! __lenso_provided_contribution { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"operations\":[\"describe_contribution\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_contribution_client { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.2.0\",\"cardinality\":\"one\"}" }; }
+macro_rules! __lenso_required_contribution_client {
+    () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"one\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"one\"}") };
+}
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_many_contribution_client { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.2.0\",\"cardinality\":\"many\"}" }; }
+macro_rules! __lenso_required_optional_contribution_client {
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"optional\"}") };
+}
 
-pub const DESCRIBE_OPERATION: &str = "describe";
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __lenso_required_many_contribution_client {
+    () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"many\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"many\"}") };
+}
+
+pub const DESCRIBE_CONTRIBUTION_OPERATION: &str = "describe_contribution";
 
 pub use lenso_contract_runtime::{OptionalValue, UnknownDomainError};
 use lenso_contract_runtime::{decode_portable_json, encode_portable_json};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeRequest {
+pub struct DescribeContributionRequest {
 
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeResponse {
+pub struct DescribeContributionResponse {
     #[serde(rename = "assets")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub assets: Vec<DescribeResponseAssetsItem>,
+    pub assets: Vec<DescribeContributionResponseAssetsItem>,
     #[serde(rename = "module")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub module: String,
     #[serde(rename = "navigation")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub navigation: DescribeResponseNavigation,
+    pub navigation: DescribeContributionResponseNavigation,
     #[serde(rename = "requirements")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub requirements: Vec<DescribeResponseRequirementsItem>,
+    pub requirements: Vec<DescribeContributionResponseRequirementsItem>,
     #[serde(rename = "revision")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub revision: String,
@@ -55,7 +70,7 @@ pub struct DescribeResponse {
     pub styles: Vec<String>,
     #[serde(rename = "subject")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject: Option<DescribeResponseSubject>,
+    pub subject: Option<DescribeContributionResponseSubject>,
     #[serde(rename = "title")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub title: String,
@@ -65,20 +80,20 @@ pub struct DescribeResponse {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeResponseAssetsItem {
+pub struct DescribeContributionResponseAssetsItem {
     #[serde(rename = "content_base64")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub content_base64: String,
     #[serde(rename = "media_type")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub media_type: DescribeResponseAssetsItemMediaType,
+    pub media_type: DescribeContributionResponseAssetsItemMediaType,
     #[serde(rename = "path")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub path: String,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum DescribeResponseAssetsItemMediaType {
+pub enum DescribeContributionResponseAssetsItemMediaType {
     #[serde(rename = "text/css; charset=utf-8")]
     TextCssCharsetUtf,
     #[serde(rename = "text/javascript; charset=utf-8")]
@@ -86,17 +101,17 @@ pub enum DescribeResponseAssetsItemMediaType {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeResponseNavigation {
+pub struct DescribeContributionResponseNavigation {
     #[serde(rename = "items")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub items: Vec<DescribeResponseNavigationItemsItem>,
+    pub items: Vec<DescribeContributionResponseNavigationItemsItem>,
     #[serde(rename = "label")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub label: String,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeResponseNavigationItemsItem {
+pub struct DescribeContributionResponseNavigationItemsItem {
     #[serde(rename = "label")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub label: String,
@@ -106,7 +121,7 @@ pub struct DescribeResponseNavigationItemsItem {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeResponseRequirementsItem {
+pub struct DescribeContributionResponseRequirementsItem {
     #[serde(rename = "capability_id")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub capability_id: String,
@@ -124,11 +139,11 @@ pub struct DescribeResponseRequirementsItem {
     pub service_id: String,
     #[serde(rename = "source")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub source: DescribeResponseRequirementsItemSource,
+    pub source: DescribeContributionResponseRequirementsItemSource,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum DescribeResponseRequirementsItemSource {
+pub enum DescribeContributionResponseRequirementsItemSource {
     #[serde(rename = "owner")]
     Owner,
     #[serde(rename = "subject")]
@@ -136,7 +151,7 @@ pub enum DescribeResponseRequirementsItemSource {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct DescribeResponseSubject {
+pub struct DescribeContributionResponseSubject {
     #[serde(rename = "app_id")]
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,11 +159,11 @@ pub struct DescribeResponseSubject {
     pub app_id: OptionalValue<String>,
     #[serde(rename = "kind")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
-    pub kind: DescribeResponseSubjectKind,
+    pub kind: DescribeContributionResponseSubjectKind,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub enum DescribeResponseSubjectKind {
+pub enum DescribeContributionResponseSubjectKind {
     #[serde(rename = "console")]
     Console,
     #[serde(rename = "app")]
@@ -156,7 +171,7 @@ pub enum DescribeResponseSubjectKind {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum DescribeError {
+pub enum DescribeContributionError {
     ContributionUnavailable,
     Unknown(UnknownDomainError),
 }
@@ -164,14 +179,14 @@ pub enum DescribeError {
 #[derive(Debug)]
 pub struct Contribution;
 impl RequestCapability for Contribution {
-    type Request = DescribeRequest;
-    type Response = DescribeResponse;
-    type DomainError = DescribeError;
+    type Request = DescribeContributionRequest;
+    type Response = DescribeContributionResponse;
+    type DomainError = DescribeContributionError;
     const ID: &'static str = CAPABILITY_ID;
     const DESCRIPTOR_VERSION: &'static str = DESCRIPTOR_VERSION;
 
     fn invoke_native(endpoint: &dyn NativeRequestEndpoint, operation: &str, request: Self::Request, context: InvocationContext) -> NativeRequestFuture<Self> {
-        if operation != DESCRIBE_OPERATION {
+        if operation != DESCRIBE_CONTRIBUTION_OPERATION {
             return lenso_kernel::invoke_typed_or_erased_native_request::<Self>(endpoint, operation, request, context);
         }
         let Some(typed_endpoint) = endpoint
@@ -180,11 +195,11 @@ impl RequestCapability for Contribution {
         else {
             return lenso_kernel::invoke_typed_or_erased_native_request::<Self>(endpoint, operation, request, context);
         };
-        Rc::clone(&typed_endpoint.provider).describe(context, request)
+        Rc::clone(&typed_endpoint.provider).describe_contribution(context, request)
     }
 }
 
-impl serde::Serialize for DescribeError {
+impl serde::Serialize for DescribeContributionError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -207,7 +222,7 @@ impl serde::Serialize for DescribeError {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for DescribeError {
+impl<'de> serde::Deserialize<'de> for DescribeContributionError {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -231,25 +246,25 @@ impl<'de> serde::Deserialize<'de> for DescribeError {
     }
 }
 
-pub fn encode_describe_request(value: &DescribeRequest) -> Result<String, serde_json::Error> { encode_portable_json(value) }
-pub fn decode_describe_request(wire: &str) -> Result<DescribeRequest, serde_json::Error> { decode_portable_json(wire) }
-pub fn encode_describe_response(value: &DescribeResponse) -> Result<String, serde_json::Error> { encode_portable_json(value) }
-pub fn decode_describe_response(wire: &str) -> Result<DescribeResponse, serde_json::Error> { decode_portable_json(wire) }
-pub fn encode_describe_error(value: &DescribeError) -> Result<String, serde_json::Error> { encode_portable_json(value) }
-pub fn decode_describe_error(wire: &str) -> Result<DescribeError, serde_json::Error> { decode_portable_json(wire) }
+pub fn encode_describe_contribution_request(value: &DescribeContributionRequest) -> Result<String, serde_json::Error> { encode_portable_json(value) }
+pub fn decode_describe_contribution_request(wire: &str) -> Result<DescribeContributionRequest, serde_json::Error> { decode_portable_json(wire) }
+pub fn encode_describe_contribution_response(value: &DescribeContributionResponse) -> Result<String, serde_json::Error> { encode_portable_json(value) }
+pub fn decode_describe_contribution_response(wire: &str) -> Result<DescribeContributionResponse, serde_json::Error> { decode_portable_json(wire) }
+pub fn encode_describe_contribution_error(value: &DescribeContributionError) -> Result<String, serde_json::Error> { encode_portable_json(value) }
+pub fn decode_describe_contribution_error(wire: &str) -> Result<DescribeContributionError, serde_json::Error> { decode_portable_json(wire) }
 
 #[doc(hidden)]
-pub trait __LensoIntoContributionDescribeResult {
-    fn __lenso_into_result(self) -> Result<Result<DescribeResponse, DescribeError>, RuntimeFailure>;
+pub trait __LensoIntoContributionDescribeContributionResult {
+    fn __lenso_into_result(self) -> Result<Result<DescribeContributionResponse, DescribeContributionError>, RuntimeFailure>;
 }
-impl __LensoIntoContributionDescribeResult for Result<DescribeResponse, DescribeError> {
-    fn __lenso_into_result(self) -> Result<Result<DescribeResponse, DescribeError>, RuntimeFailure> { Ok(self) }
+impl __LensoIntoContributionDescribeContributionResult for Result<DescribeContributionResponse, DescribeContributionError> {
+    fn __lenso_into_result(self) -> Result<Result<DescribeContributionResponse, DescribeContributionError>, RuntimeFailure> { Ok(self) }
 }
-impl __LensoIntoContributionDescribeResult for Result<Result<DescribeResponse, DescribeError>, RuntimeFailure> {
-    fn __lenso_into_result(self) -> Result<Result<DescribeResponse, DescribeError>, RuntimeFailure> { self }
+impl __LensoIntoContributionDescribeContributionResult for Result<Result<DescribeContributionResponse, DescribeContributionError>, RuntimeFailure> {
+    fn __lenso_into_result(self) -> Result<Result<DescribeContributionResponse, DescribeContributionError>, RuntimeFailure> { self }
 }
-impl __LensoIntoContributionDescribeResult for Result<DescribeResponse, lenso_plugin_authoring::PluginError<DescribeError, RuntimeFailure>> {
-    fn __lenso_into_result(self) -> Result<Result<DescribeResponse, DescribeError>, RuntimeFailure> {
+impl __LensoIntoContributionDescribeContributionResult for Result<DescribeContributionResponse, lenso_plugin_authoring::PluginError<DescribeContributionError, RuntimeFailure>> {
+    fn __lenso_into_result(self) -> Result<Result<DescribeContributionResponse, DescribeContributionError>, RuntimeFailure> {
         match self {
             Ok(value) => Ok(Ok(value)),
             Err(lenso_plugin_authoring::PluginError::Domain(error)) => Ok(Err(error)),
@@ -257,8 +272,8 @@ impl __LensoIntoContributionDescribeResult for Result<DescribeResponse, lenso_pl
         }
     }
 }
-impl __LensoIntoContributionDescribeResult for Result<DescribeResponse, ContributionInvocationError> {
-    fn __lenso_into_result(self) -> Result<Result<DescribeResponse, DescribeError>, RuntimeFailure> {
+impl __LensoIntoContributionDescribeContributionResult for Result<DescribeContributionResponse, ContributionInvocationError> {
+    fn __lenso_into_result(self) -> Result<Result<DescribeContributionResponse, DescribeContributionError>, RuntimeFailure> {
         match self {
             Ok(value) => Ok(Ok(value)),
             Err(ContributionInvocationError::Domain(error)) => Ok(Err(error)),
@@ -268,7 +283,7 @@ impl __LensoIntoContributionDescribeResult for Result<DescribeResponse, Contribu
 }
 
 pub trait ContributionProvider: fmt::Debug + 'static {
-    fn describe(&self, context: InvocationContext, request: DescribeRequest) -> NativeRequestFuture<Contribution>;
+    fn describe_contribution(&self, context: InvocationContext, request: DescribeContributionRequest) -> NativeRequestFuture<Contribution>;
 }
 
 #[doc(hidden)]
@@ -277,11 +292,46 @@ macro_rules! __lenso_native_lower_contribution {
     ($plugin:ty, $support:path) => {
         use $support as __LensoNativeSupportContribution;
         impl $crate::ContributionProvider for $plugin {
-        fn describe(&self, context: __LensoNativeSupportContribution::InvocationContext, request: $crate::DescribeRequest) -> __LensoNativeSupportContribution::NativeRequestFuture<$crate::Contribution> {
+        fn describe_contribution(&self, context: __LensoNativeSupportContribution::InvocationContext, request: $crate::DescribeContributionRequest) -> __LensoNativeSupportContribution::NativeRequestFuture<$crate::Contribution> {
             let plugin = self.clone();
             ::std::boxed::Box::pin(async move {
-                let result = <$plugin>::describe(&plugin, context, request).await;
-                $crate::__LensoIntoContributionDescribeResult::__lenso_into_result(result)
+                let result = <$plugin>::describe_contribution(&plugin, context, request).await;
+                $crate::__LensoIntoContributionDescribeContributionResult::__lenso_into_result(result)
+            })
+        }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __lenso_native_lower_object_contribution {
+    ($object:ty, $plugin:ty, $support:path) => {
+        use $support as __LensoNativeSupportContribution;
+        impl $crate::ContributionProvider for $object {
+        fn describe_contribution(&self, context: __LensoNativeSupportContribution::InvocationContext, request: $crate::DescribeContributionRequest) -> __LensoNativeSupportContribution::NativeRequestFuture<$crate::Contribution> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get()?;
+                let result = <$plugin>::describe_contribution(plugin.as_ref(), context, request).await;
+                $crate::__LensoIntoContributionDescribeContributionResult::__lenso_into_result(result)
+            })
+        }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __lenso_native_lower_trait_object_contribution {
+    ($object:ty, $plugin:ty, $support:path) => {
+        use $support as __LensoNativeSupportContribution;
+        impl $crate::ContributionProvider for $object {
+        fn describe_contribution(&self, context: __LensoNativeSupportContribution::InvocationContext, request: $crate::DescribeContributionRequest) -> __LensoNativeSupportContribution::NativeRequestFuture<$crate::Contribution> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get()?;
+                <$plugin as $crate::ContributionProvider>::describe_contribution(plugin.as_ref(), context, request).await
             })
         }
         }
@@ -305,16 +355,16 @@ impl<P: ContributionProvider> NativeRequestEndpoint for ContributionEndpoint<P> 
     fn capability_id(&self) -> &'static str { CAPABILITY_ID }
     fn descriptor_version(&self) -> &'static str { DESCRIPTOR_VERSION }
     fn operations(&self) -> &'static [&'static str] { &[
-        DESCRIBE_OPERATION,
+        DESCRIBE_CONTRIBUTION_OPERATION,
     ] }
     fn typed_endpoint(&self) -> Option<&dyn std::any::Any> { Some(&self.request_endpoint) }
     fn invoke(&self, operation: &str, request: Box<dyn std::any::Any>, context: InvocationContext) -> LocalBoxFuture<'static, Result<Result<Box<dyn std::any::Any>, Box<dyn std::any::Any>>, RuntimeFailure>> {
         match operation {
-            DESCRIBE_OPERATION => {
-                let Ok(request) = request.downcast::<DescribeRequest>() else {
+            DESCRIBE_CONTRIBUTION_OPERATION => {
+                let Ok(request) = request.downcast::<DescribeContributionRequest>() else {
                     return Box::pin(futures::future::ready(Err(RuntimeFailure::ProtocolViolation { capability: CAPABILITY_ID })));
                 };
-                let invocation = Rc::clone(&self.provider).describe(context, *request);
+                let invocation = Rc::clone(&self.provider).describe_contribution(context, *request);
                 Box::pin(async move {
                     invocation.await.map(|result| {
                         result
@@ -358,27 +408,34 @@ macro_rules! __lenso_native_provide_contribution {
     }};
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ContributionClient {
-    describe: NativeRequestHandle<Contribution>,
+    describe_contribution: NativeRequestHandle<Contribution>,
 }
 impl ContributionClient {
     pub fn new(handle: NativeRequestHandle<Contribution>) -> Self {
-        Self { describe: handle }
+        Self { describe_contribution: handle }
     }
 
     pub fn from_dependencies(dependencies: &PluginDependencies) -> Result<Self, RuntimeFailure> {
         <Self as CapabilityClient>::from_dependencies(dependencies)
     }
 
-    pub async fn describe(&self, request: DescribeRequest) -> Result<DescribeResponse, ContributionInvocationError> {
-        self.describe.invoke(DESCRIBE_OPERATION, request).await
+    pub fn from_requirement(
+        dependencies: &PluginDependencies,
+        requirement_id: &str,
+    ) -> Result<Self, RuntimeFailure> {
+        <Self as CapabilityClient>::from_requirement(dependencies, requirement_id)
+    }
+
+    pub async fn describe_contribution(&self, request: DescribeContributionRequest) -> Result<DescribeContributionResponse, ContributionInvocationError> {
+        self.describe_contribution.invoke(DESCRIBE_CONTRIBUTION_OPERATION, request).await
             .map_err(ContributionInvocationError::Runtime)?
             .map_err(ContributionInvocationError::Domain)
     }
 
-    pub async fn describe_with_context(&self, context: InvocationContext, request: DescribeRequest) -> Result<DescribeResponse, ContributionInvocationError> {
-        self.describe.invoke_with_context(DESCRIBE_OPERATION, context, request).await
+    pub async fn describe_contribution_with_context(&self, context: InvocationContext, request: DescribeContributionRequest) -> Result<DescribeContributionResponse, ContributionInvocationError> {
+        self.describe_contribution.invoke_with_context(DESCRIBE_CONTRIBUTION_OPERATION, context, request).await
             .map_err(ContributionInvocationError::Runtime)?
             .map_err(ContributionInvocationError::Domain)
     }
@@ -393,8 +450,16 @@ impl CapabilityClient for ContributionClient {
 
     fn from_dependencies(dependencies: &PluginDependencies) -> Result<Self, RuntimeFailure> {
         Ok(Self {
-            describe: dependencies.one::<Contribution>()?,
+            describe_contribution: dependencies.one::<Contribution>()?,
         })
+    }
+
+    fn from_requirement(
+        dependencies: &PluginDependencies,
+        requirement_id: &str,
+    ) -> Result<Self, RuntimeFailure> {
+        let dependencies = dependencies.requirement(requirement_id)?;
+        Self::from_dependencies(&dependencies)
     }
 
     fn already_connected() -> RuntimeFailure {
@@ -416,16 +481,24 @@ impl CapabilityClientMany for ContributionClient {
                 Ok(BoundCapabilityClient::new(
                     binding.provider_instance(),
                     Self {
-                    describe: binding.handle().ok_or(RuntimeFailure::Unavailable { capability: CAPABILITY_ID })?.typed::<Contribution>()?,
+                    describe_contribution: binding.handle().ok_or(RuntimeFailure::Unavailable { capability: CAPABILITY_ID })?.typed::<Contribution>()?,
                     },
                 ))
             })
             .collect()
     }
+
+    fn many_from_requirement(
+        dependencies: &PluginDependencies,
+        requirement_id: &str,
+    ) -> Result<Vec<BoundCapabilityClient<Self>>, RuntimeFailure> {
+        let dependencies = dependencies.requirement(requirement_id)?;
+        Self::many_from_dependencies(&dependencies)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContributionInvocationError {
-    Domain(DescribeError),
+    Domain(DescribeContributionError),
     Runtime(RuntimeFailure),
 }

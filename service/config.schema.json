@@ -2,10 +2,6 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
-    "address": {
-      "description": "Loopback address used by the embedded Console Web server.",
-      "type": "string"
-    },
     "agent_home": {
       "description": "Private state root for the restricted Console Agent.",
       "type": "string"
@@ -86,7 +82,7 @@
             "default": false
           },
           "controlTokenEnv": {
-            "type": ["string", "null"]
+            "type": "string"
           }
         }
       },
@@ -105,7 +101,6 @@
     }
   },
   "required": [
-    "address",
     "agent_home",
     "agent_configuration_store",
     "allowed_tools",

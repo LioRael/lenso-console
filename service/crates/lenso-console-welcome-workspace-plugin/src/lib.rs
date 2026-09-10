@@ -81,7 +81,7 @@ impl lenso::Lifecycle for WelcomeWorkspace {}
 
 #[lenso::provides(ui::Contribution, service::WorkspaceService)]
 impl WelcomeWorkspace {
-    fn describe(
+    fn describe_contribution(
         &self,
         _context: InvocationContext,
         _request: DescribeRequest,
@@ -317,7 +317,7 @@ mod tests {
             config: WelcomeWorkspaceConfig {},
             tasks: lenso::ManagedTasks::default(),
         };
-        let response = futures::executor::block_on(plugin.describe(
+        let response = futures::executor::block_on(plugin.describe_contribution(
             InvocationContext::new(1, None, CancellationToken::new()),
             DescribeRequest {},
         ))

@@ -2,7 +2,8 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.ui.contribution@1";
-export const DESCRIPTOR_VERSION = "1.2.0";
+export const DESCRIPTOR_VERSION = "1.3.0";
+export const DESCRIPTOR_DIGEST = "sha256:819917f08497881aa5db5d86c9e358a45d3f0f88f3b8087142fe5999e50c7c9a";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -18,39 +19,54 @@ export type UnknownDomainError = lensoContractRuntime.UnknownDomainError;
 export type StreamEvent<Message, DomainError> = lensoContractRuntime.StreamEvent<Message, DomainError>;
 export type StreamSession<Message, DomainError> = lensoContractRuntime.StreamSession<Message, DomainError>;
 
-export interface DescribeRequest {
+export interface CapabilityContractReference<Client, Provider extends object, Runtime extends DependencyInvoker = DependencyInvoker> extends CapabilityDependencyBinding<Client, Runtime> {
+  readonly kind: "lenso.capability";
+  readonly capability_id: string;
+  readonly descriptor_version: string;
+  readonly descriptor_digest: string;
+  readonly generated_client: string;
+  readonly descriptor: CapabilityProviderDescriptor;
+  bindProvider(provider: Provider): CapabilityProviderBinding;
+  required(id?: string): CapabilityDependencyDeclaration<Client, "one", Runtime>;
+  optional(id?: string): CapabilityDependencyDeclaration<Client, "optional", Runtime>;
+  many(id?: string): CapabilityDependencyDeclaration<Client, "many", Runtime>;
+  readonly __client?: Client;
+  readonly __provider?: Provider;
+}
+
+export interface DescribeContributionRequest {
 
 }
 
-export interface DescribeResponse {
-  assets: Array<DescribeResponseAssetsItem>;
+export interface DescribeContributionResponse {
+  assets: Array<DescribeContributionResponseAssetsItem>;
   module: string;
-  navigation: DescribeResponseNavigation;
-  requirements: Array<DescribeResponseRequirementsItem>;
+  navigation: DescribeContributionResponseNavigation;
+  requirements: Array<DescribeContributionResponseRequirementsItem>;
   revision: string;
   styles: Array<string>;
-  subject?: DescribeResponseSubject;
+  subject?: DescribeContributionResponseSubject;
   title: string;
   workspace_id: string;
 }
 
-export interface DescribeResponseAssetsItem {
+export interface DescribeContributionResponseAssetsItem {
   content_base64: string;
   media_type: "text/css; charset=utf-8" | "text/javascript; charset=utf-8";
   path: string;
 }
 
-export interface DescribeResponseNavigation {
-  items: Array<DescribeResponseNavigationItemsItem>;
+export interface DescribeContributionResponseNavigation {
+  items: Array<DescribeContributionResponseNavigationItemsItem>;
   label: string;
 }
 
-export interface DescribeResponseNavigationItemsItem {
+export interface DescribeContributionResponseNavigationItemsItem {
   label: string;
   path: Array<string>;
 }
 
-export interface DescribeResponseRequirementsItem {
+export interface DescribeContributionResponseRequirementsItem {
   capability_id: string;
   descriptor_version: string;
   operations: Array<string>;
@@ -59,33 +75,59 @@ export interface DescribeResponseRequirementsItem {
   source: "owner" | "subject";
 }
 
-export interface DescribeResponseSubject {
+export interface DescribeContributionResponseSubject {
   app_id?: string | null;
   kind: "console" | "app";
 }
 
-export type DescribeError = "contribution_unavailable" | UnknownDomainError;
-export type DescribeInvocationError = { readonly kind: "domain"; readonly error: DescribeError } | { readonly kind: "runtime"; readonly error: RuntimeFailure };
-export type DescribeResult = { readonly ok: true; readonly value: DescribeResponse } | { readonly ok: false; readonly error: DescribeInvocationError };
-export function encodeDescribeRequest(value: DescribeRequest): string { return lensoContractRuntime.encodePortableJson(value, "request"); }
-export function decodeDescribeRequest(wire: string): DescribeRequest { return lensoContractRuntime.decodePortableJson<DescribeRequest>(wire); }
-export function encodeDescribeResponse(value: DescribeResponse): string { return lensoContractRuntime.encodePortableJson(value, "response"); }
-export function decodeDescribeResponse(wire: string): DescribeResponse { return lensoContractRuntime.decodePortableJson<DescribeResponse>(wire); }
-export function encodeDescribeError(value: DescribeError): string { return lensoContractRuntime.encodePortableJson(value, "Domain Error"); }
-export function decodeDescribeError(wire: string): DescribeError { return lensoContractRuntime.decodeDomainError<DescribeError>(wire, ["contribution_unavailable"]); }
+export type DescribeContributionError = "contribution_unavailable" | UnknownDomainError;
+export type DescribeContributionInvocationError = { readonly kind: "domain"; readonly error: DescribeContributionError } | { readonly kind: "runtime"; readonly error: RuntimeFailure };
+export type DescribeContributionResult = { readonly ok: true; readonly value: DescribeContributionResponse } | { readonly ok: false; readonly error: DescribeContributionInvocationError };
+export function encodeDescribeContributionRequest(value: DescribeContributionRequest): string { return lensoContractRuntime.encodePortableJson(value, "request"); }
+export function decodeDescribeContributionRequest(wire: string): DescribeContributionRequest { return lensoContractRuntime.decodePortableJson<DescribeContributionRequest>(wire); }
+export function encodeDescribeContributionResponse(value: DescribeContributionResponse): string { return lensoContractRuntime.encodePortableJson(value, "response"); }
+export function decodeDescribeContributionResponse(wire: string): DescribeContributionResponse { return lensoContractRuntime.decodePortableJson<DescribeContributionResponse>(wire); }
+export function encodeDescribeContributionError(value: DescribeContributionError): string { return lensoContractRuntime.encodePortableJson(value, "Domain Error"); }
+export function decodeDescribeContributionError(wire: string): DescribeContributionError { return lensoContractRuntime.decodeDomainError<DescribeContributionError>(wire, ["contribution_unavailable"]); }
 
 
 export interface ContributionClient {
-  describe(request: DescribeRequest, context?: InvocationContext): Promise<DescribeResult>;
+  describe_contribution(request: DescribeContributionRequest, context?: InvocationContext): Promise<DescribeContributionResult>;
 }
 
 export interface ContributionProvider {
-  describe(context: InvocationContext, request: DescribeRequest): Promise<DescribeResult>;
+  describe_contribution(context: InvocationContext, request: DescribeContributionRequest): Promise<DescribeContributionResult>;
 }
+
+export const Contribution: CapabilityContractReference<ContributionClient, ContributionProvider, DependencyInvoker> = { kind: "lenso.capability", ...bindContributionDependency(), capability_id: CAPABILITY_ID, descriptor_version: DESCRIPTOR_VERSION, descriptor_digest: DESCRIPTOR_DIGEST, generated_client: "ContributionClient", descriptor: { capability_id: CAPABILITY_ID, descriptor_version: DESCRIPTOR_VERSION, operations: ["describe_contribution"], stream_operations: [], event_operations: [] }, bindProvider: bindContributionProvider, required(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "one" }; }, optional(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "optional" }; }, many(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "many" }; }, };
+export const CONTRIBUTION_CONTRACT = Contribution;
 
 export type ProviderDispatchOutcome =
   | { readonly kind: "success"; readonly value: unknown }
   | { readonly kind: "domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderStreamActionOutcome =
+  | { readonly kind: "accepted" }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderStreamReceiveOutcome =
+  | { readonly kind: "message"; readonly value: unknown }
+  | { readonly kind: "peer_half_closed" }
+  | { readonly kind: "terminal_success" }
+  | { readonly kind: "terminal_domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+/** @internal Runtime lowering seam. */
+export interface ProviderStreamSessionBinding {
+  send(message: unknown): Promise<ProviderStreamActionOutcome>;
+  receive(): Promise<ProviderStreamReceiveOutcome>;
+  closeSend(): Promise<ProviderStreamActionOutcome>;
+  cancel(): void;
+}
+export type ProviderStreamOpenOutcome =
+  | { readonly kind: "opened"; readonly stream: ProviderStreamSessionBinding }
+  | { readonly kind: "domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderEventPublishOutcome =
+  | { readonly kind: "accepted" }
   | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
 
 export interface CapabilityProviderDescriptor {
@@ -96,6 +138,7 @@ export interface CapabilityProviderDescriptor {
   readonly event_operations: ReadonlyArray<string>;
 }
 
+/** @internal Runtime lowering seam. */
 export interface CapabilityProviderBinding {
   readonly descriptor: CapabilityProviderDescriptor;
   invokeRequest(
@@ -103,6 +146,16 @@ export interface CapabilityProviderBinding {
     context: InvocationContext,
     payload: unknown,
   ): Promise<ProviderDispatchOutcome>;
+  openStream(
+    operation: string,
+    context: InvocationContext,
+    payload: unknown,
+  ): Promise<ProviderStreamOpenOutcome>;
+  publishEvent(
+    operation: string,
+    context: InvocationContext,
+    payload: unknown,
+  ): Promise<ProviderEventPublishOutcome>;
 }
 
 function providerErrorMessage(error: unknown): string {
@@ -116,26 +169,26 @@ export function bindContributionProvider(
     descriptor: {
       capability_id: CAPABILITY_ID,
       descriptor_version: DESCRIPTOR_VERSION,
-      operations: ["describe"],
+      operations: ["describe_contribution"],
       stream_operations: [],
       event_operations: [],
     },
     async invokeRequest(operation, context, payload) {
       switch (operation) {
-      case "describe": {
-        let request: DescribeRequest;
+      case "describe_contribution": {
+        let request: DescribeContributionRequest;
         try {
-          request = decodeDescribeRequest(lensoContractRuntime.encodePortableJson(payload, "request"));
+          request = decodeDescribeContributionRequest(lensoContractRuntime.encodePortableJson(payload, "request"));
         } catch (error) {
           return { kind: "runtime", failure: { kind: "protocol_violation", detail: providerErrorMessage(error) } };
         }
         try {
-          const result = await provider.describe(context, request);
+          const result = await provider.describe_contribution(context, request);
           if (result.ok) {
-            return { kind: "success", value: JSON.parse(encodeDescribeResponse(result.value)) as unknown };
+            return { kind: "success", value: JSON.parse(encodeDescribeContributionResponse(result.value)) as unknown };
           }
           if (result.error.kind === "domain") {
-            return { kind: "domain", value: JSON.parse(encodeDescribeError(result.error.error)) as unknown };
+            return { kind: "domain", value: JSON.parse(encodeDescribeContributionError(result.error.error)) as unknown };
           }
           return { kind: "runtime", failure: result.error.error };
         } catch (error) {
@@ -146,10 +199,100 @@ export function bindContributionProvider(
           return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
       }
     },
+    async openStream(operation, context, payload) {
+      switch (operation) {
+
+        default:
+          return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
+      }
+    },
+    async publishEvent(operation, context, payload) {
+      switch (operation) {
+
+        default:
+          return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
+      }
+    },
   };
 }
 
 export type Provider = ContributionProvider;
 export const bindProvider = bindContributionProvider;
+
+export type DependencyInvoker = (
+  operation: string,
+  context: InvocationContext,
+  payload: unknown,
+) => Promise<ProviderDispatchOutcome>;
+
+export type InteractionDependencyInvoker = DependencyInvoker & {
+  readonly providerInstance: string;
+  openStream(operation: string, context: InvocationContext, payload: unknown): Promise<ProviderStreamOpenOutcome>;
+  publishEvent(operation: string, context: InvocationContext, payload: unknown): Promise<ProviderEventPublishOutcome>;
+};
+
+export interface CapabilityDependencyBinding<Client, Runtime extends DependencyInvoker = DependencyInvoker> {
+  readonly descriptor: CapabilityProviderDescriptor;
+  createClient(invoke: Runtime): Client;
+}
+
+export interface CapabilityDependencyDeclaration<Client, Cardinality extends "one" | "optional" | "many", Runtime extends DependencyInvoker = DependencyInvoker> {
+  readonly kind: "lenso.dependency";
+  readonly id?: string;
+  readonly contract: CapabilityDependencyBinding<Client, Runtime>;
+  readonly cardinality: Cardinality;
+}
+
+function dependencyErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function dependencyRuntimeError(failure: RuntimeFailure): Error {
+  return Object.assign(new Error(`Capability dependency failed: ${failure.kind}`), { failure });
+}
+
+function dependencyFailure(error: unknown): RuntimeFailure {
+  if (typeof error === "object" && error !== null && "failure" in error) return (error as { failure: RuntimeFailure }).failure;
+  return { kind: "plugin_failure", detail: dependencyErrorMessage(error) };
+}
+
+export function bindContributionDependency(): CapabilityDependencyBinding<ContributionClient, DependencyInvoker> {
+  return {
+    descriptor: {
+      capability_id: CAPABILITY_ID,
+      descriptor_version: DESCRIPTOR_VERSION,
+      operations: ["describe_contribution"],
+      stream_operations: [],
+      event_operations: [],
+    },
+    createClient(invoke) {
+      return {
+      async describe_contribution(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeDescribeContributionRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("describe_contribution", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeDescribeContributionResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeDescribeContributionError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      };
+    },
+  };
+}
+
+export const bindDependency = bindContributionDependency;
 
 export const portableValueProfile = lensoContractRuntime.portableValueProfile;

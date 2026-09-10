@@ -4,7 +4,6 @@
   "required": [
     "source_id",
     "source_label",
-    "listen_address",
     "database",
     "token_file",
     "retention_days",
@@ -13,7 +12,6 @@
   "properties": {
     "source_id": { "type": "string" },
     "source_label": { "type": "string" },
-    "listen_address": { "type": "string" },
     "database": { "type": "string" },
     "token_file": { "type": "string" },
     "retention_days": { "type": "integer" },

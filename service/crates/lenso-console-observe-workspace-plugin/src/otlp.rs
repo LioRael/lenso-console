@@ -1,11 +1,6 @@
-use std::sync::Arc;
-
-use axum::{
-    Router,
-    extract::{Request, State},
-    http::{HeaderMap, StatusCode, header},
-    response::{IntoResponse, Response},
-    routing::post,
+use http::StatusCode;
+use lenso_capability_http_stream_endpoint::{
+    HandleRequest, HandleRequestHeadersItem, HandleResponseHeadersItem,
 };
 use opentelemetry_proto::tonic::{
     collector::{
@@ -33,34 +28,34 @@ const MAX_VALUE_BYTES: usize = 4096;
 const MAX_NAME_BYTES: usize = 512;
 const MAX_LOG_BODY_BYTES: usize = 16 * 1024;
 
-#[derive(Clone, Debug)]
-struct ReceiverState {
-    store: ObserveStore,
-    token: Arc<str>,
+pub(crate) struct Response {
+    pub body: Vec<u8>,
+    pub headers: Vec<HandleResponseHeadersItem>,
+    pub status: u16,
 }
 
-pub(crate) fn router(store: ObserveStore, token: String) -> Router {
-    Router::new()
-        .route("/v1/traces", post(export_traces))
-        .route("/v1/logs", post(export_logs))
-        .with_state(ReceiverState {
-            store,
-            token: Arc::from(token),
-        })
-}
-
-async fn export_traces(State(state): State<ReceiverState>, request: Request) -> Response {
-    let (parts, body) = request.into_parts();
-    let headers = parts.headers;
-    if let Some(response) = rejection(&state, &headers) {
+pub(crate) async fn handle(store: ObserveStore, token: &str, request: HandleRequest) -> Response {
+    if let Some(response) = rejection(token, &request) {
         return response;
     }
-    let body = match otlp_body::decode(&headers, body).await {
+    let body = match otlp_body::decode(&request.headers, request.body.into_shared()).await {
         Ok(body) => body,
-        Err(error) => return body_problem(&state, error),
+        Err(error) => return body_problem(&store, error),
     };
+    match request.route_id.as_str() {
+        "observe.otlp.traces" => export_traces(store, body).await,
+        "observe.otlp.logs" => export_logs(store, body).await,
+        _ => problem(
+            StatusCode::NOT_FOUND,
+            "route_not_found",
+            "OTLP route was not found",
+        ),
+    }
+}
+
+async fn export_traces(store: ObserveStore, body: bytes::Bytes) -> Response {
     let Ok(request) = ExportTraceServiceRequest::decode(body) else {
-        state.store.record_decode_failure();
+        store.record_decode_failure();
         return problem(
             StatusCode::BAD_REQUEST,
             "invalid_otlp",
@@ -69,7 +64,7 @@ async fn export_traces(State(state): State<ReceiverState>, request: Request) -> 
     };
     let (spans, loss) = normalize_spans(request);
     let rejected = loss.rejected;
-    if let Err(error) = state.store.ingest_spans(spans, loss).await {
+    if let Err(error) = store.ingest_spans(spans, loss).await {
         return overloaded(error);
     }
     protobuf(&ExportTraceServiceResponse {
@@ -80,18 +75,9 @@ async fn export_traces(State(state): State<ReceiverState>, request: Request) -> 
     })
 }
 
-async fn export_logs(State(state): State<ReceiverState>, request: Request) -> Response {
-    let (parts, body) = request.into_parts();
-    let headers = parts.headers;
-    if let Some(response) = rejection(&state, &headers) {
-        return response;
-    }
-    let body = match otlp_body::decode(&headers, body).await {
-        Ok(body) => body,
-        Err(error) => return body_problem(&state, error),
-    };
+async fn export_logs(store: ObserveStore, body: bytes::Bytes) -> Response {
     let Ok(request) = ExportLogsServiceRequest::decode(body) else {
-        state.store.record_decode_failure();
+        store.record_decode_failure();
         return problem(
             StatusCode::BAD_REQUEST,
             "invalid_otlp",
@@ -100,7 +86,7 @@ async fn export_logs(State(state): State<ReceiverState>, request: Request) -> Re
     };
     let (log_records, ingest_loss) = normalize_logs(request);
     let rejected = ingest_loss.rejected;
-    if let Err(error) = state.store.ingest_logs(log_records, ingest_loss).await {
+    if let Err(error) = store.ingest_logs(log_records, ingest_loss).await {
         return overloaded(error);
     }
     protobuf(&ExportLogsServiceResponse {
@@ -111,20 +97,15 @@ async fn export_logs(State(state): State<ReceiverState>, request: Request) -> Re
     })
 }
 
-fn rejection(state: &ReceiverState, headers: &HeaderMap) -> Option<Response> {
-    if headers
-        .get(header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        != Some("application/x-protobuf")
-    {
+fn rejection(token: &str, request: &HandleRequest) -> Option<Response> {
+    if header(&request.headers, "content-type") != Some("application/x-protobuf") {
         return Some(problem(
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
             "unsupported_media_type",
             "Observe accepts OTLP/HTTP Protobuf",
         ));
     }
-    if !headers
-        .get(header::CONTENT_ENCODING)
+    if !header(&request.headers, "content-encoding")
         .is_none_or(|value| value == "identity" || value == "gzip")
     {
         return Some(problem(
@@ -133,12 +114,9 @@ fn rejection(state: &ReceiverState, headers: &HeaderMap) -> Option<Response> {
             "Observe accepts identity or gzip content encoding",
         ));
     }
-    let expected = format!("Bearer {}", state.token);
-    if headers
-        .get(header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        != Some(expected.as_str())
-    {
+    if request.credential.as_ref().is_none_or(|credential| {
+        !credential.scheme.eq_ignore_ascii_case("Bearer") || credential.value != token
+    }) {
         return Some(problem(
             StatusCode::UNAUTHORIZED,
             "unauthorized",
@@ -148,8 +126,15 @@ fn rejection(state: &ReceiverState, headers: &HeaderMap) -> Option<Response> {
     None
 }
 
-fn body_problem(state: &ReceiverState, error: BodyError) -> Response {
-    state.store.record_decode_failure();
+fn header<'a>(headers: &'a [HandleRequestHeadersItem], name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|header| header.name.eq_ignore_ascii_case(name))
+        .map(|header| header.value.as_str())
+}
+
+fn body_problem(store: &ObserveStore, error: BodyError) -> Response {
+    store.record_decode_failure();
     match error {
         BodyError::EncodedTooLarge => problem(
             StatusCode::PAYLOAD_TOO_LARGE,
@@ -442,7 +427,11 @@ fn protobuf(message: &impl prost::Message) -> Response {
             "Observe could not encode the OTLP response",
         );
     }
-    ([(header::CONTENT_TYPE, "application/x-protobuf")], body).into_response()
+    Response {
+        body,
+        headers: vec![response_header("content-type", "application/x-protobuf")],
+        status: StatusCode::OK.as_u16(),
+    }
 }
 
 fn overloaded(error: impl std::fmt::Debug) -> Response {
@@ -451,17 +440,23 @@ fn overloaded(error: impl std::fmt::Debug) -> Response {
         "receiver_overloaded",
         "Observe could not accept this telemetry batch",
     );
-    response
-        .headers_mut()
-        .insert(header::RETRY_AFTER, "1".parse().expect("valid header"));
+    response.headers.push(response_header("retry-after", "1"));
     eprintln!("Observe ingestion rejected a batch: {error:?}");
     response
 }
 
 fn problem(status: StatusCode, code: &'static str, title: &'static str) -> Response {
-    (
-        status,
-        axum::Json(serde_json::json!({ "code": code, "title": title })),
-    )
-        .into_response()
+    Response {
+        body: serde_json::to_vec(&serde_json::json!({ "code": code, "title": title }))
+            .expect("static OTLP problem is serializable"),
+        headers: vec![response_header("content-type", "application/json")],
+        status: status.as_u16(),
+    }
+}
+
+fn response_header(name: &str, value: &str) -> HandleResponseHeadersItem {
+    HandleResponseHeadersItem {
+        name: name.to_owned(),
+        value: value.to_owned(),
+    }
 }

@@ -61,7 +61,7 @@ impl lenso::Lifecycle for ProjectsWorkspace {}
 
 #[lenso::provides(ui::Contribution, service::WorkspaceService)]
 impl ProjectsWorkspace {
-    fn describe(
+    fn describe_contribution(
         &self,
         _context: InvocationContext,
         _request: DescribeRequest,

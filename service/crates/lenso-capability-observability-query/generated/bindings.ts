@@ -3,6 +3,7 @@ import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.observability.query@1";
 export const DESCRIPTOR_VERSION = "1.1.0";
+export const DESCRIPTOR_DIGEST = "sha256:41c36452d7dd29fc88c13f4f62eb9250c267963d1bb49fa0f9b9e31b90fed630";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -17,6 +18,51 @@ export type RuntimeFailure = lensoContractRuntime.RuntimeFailure;
 export type UnknownDomainError = lensoContractRuntime.UnknownDomainError;
 export type StreamEvent<Message, DomainError> = lensoContractRuntime.StreamEvent<Message, DomainError>;
 export type StreamSession<Message, DomainError> = lensoContractRuntime.StreamSession<Message, DomainError>;
+
+export type ProviderStream<Message, DomainError> = StreamSession<Message, DomainError> | AsyncIterable<Message>;
+
+class ServerOutputStreamInputError extends Error {}
+
+function isAsyncIterable<Message>(value: unknown): value is AsyncIterable<Message> {
+  return typeof value === "object" && value !== null && Symbol.asyncIterator in value;
+}
+
+function lowerProviderStream<Message, DomainError>(stream: ProviderStream<Message, DomainError>): StreamSession<Message, DomainError> {
+  if (!isAsyncIterable<Message>(stream)) return stream;
+  const iterator = stream[Symbol.asyncIterator]();
+  let cancelled = false;
+  return {
+    async send() { throw new ServerOutputStreamInputError("server-output stream does not accept inbound messages"); },
+    async receive() {
+      if (cancelled) return { kind: "terminal", outcome: { ok: true } };
+      const next = await iterator.next();
+      return next.done
+        ? { kind: "terminal", outcome: { ok: true } }
+        : { kind: "message", message: next.value };
+    },
+    async closeSend() {},
+    cancel() {
+      cancelled = true;
+      const closing = iterator.return?.();
+      if (closing !== undefined) void Promise.resolve(closing).catch(() => undefined);
+    },
+  };
+}
+
+export interface CapabilityContractReference<Client, Provider extends object, Runtime extends DependencyInvoker = DependencyInvoker> extends CapabilityDependencyBinding<Client, Runtime> {
+  readonly kind: "lenso.capability";
+  readonly capability_id: string;
+  readonly descriptor_version: string;
+  readonly descriptor_digest: string;
+  readonly generated_client: string;
+  readonly descriptor: CapabilityProviderDescriptor;
+  bindProvider(provider: Provider): CapabilityProviderBinding;
+  required(id?: string): CapabilityDependencyDeclaration<Client, "one", Runtime>;
+  optional(id?: string): CapabilityDependencyDeclaration<Client, "optional", Runtime>;
+  many(id?: string): CapabilityDependencyDeclaration<Client, "many", Runtime>;
+  readonly __client?: Client;
+  readonly __provider?: Provider;
+}
 
 export interface ListRequestsRequest {
   cursor?: string | null;
@@ -171,6 +217,8 @@ export type ReadTraceResult = { readonly ok: true; readonly value: ReadTraceResp
 export type WatchRequestsError = "expired_cursor" | "invalid_query" | "not_found" | "resource_exhausted" | "unavailable" | UnknownDomainError;
 export type WatchRequestsInvocationError = { readonly kind: "domain"; readonly error: WatchRequestsError } | { readonly kind: "runtime"; readonly error: RuntimeFailure };
 export type WatchRequestsResult = { readonly ok: true; readonly value: StreamSession<WatchRequestsResponse, WatchRequestsError> } | { readonly ok: false; readonly error: WatchRequestsInvocationError };
+export type WatchRequestsProviderResult = { readonly ok: true; readonly value: ProviderStream<WatchRequestsResponse, WatchRequestsError> } | { readonly ok: false; readonly error: WatchRequestsInvocationError };
+export type WatchRequestsProviderOutput = AsyncIterable<WatchRequestsResponse> | WatchRequestsProviderResult | Promise<WatchRequestsProviderResult>;
 export function encodeListRequestsRequest(value: ListRequestsRequest): string { return lensoContractRuntime.encodePortableJson(value, "request"); }
 export function decodeListRequestsRequest(wire: string): ListRequestsRequest { return lensoContractRuntime.decodePortableJson<ListRequestsRequest>(wire); }
 export function encodeListRequestsResponse(value: ListRequestsResponse): string { return lensoContractRuntime.encodePortableJson(value, "response"); }
@@ -220,12 +268,38 @@ export interface QueryProvider {
   list_trace_logs(context: InvocationContext, request: ListTraceLogsRequest): Promise<ListTraceLogsResult>;
   read_ingestion_health(context: InvocationContext, request: ReadIngestionHealthRequest): Promise<ReadIngestionHealthResult>;
   read_trace(context: InvocationContext, request: ReadTraceRequest): Promise<ReadTraceResult>;
-  watch_requests(context: InvocationContext, request: WatchRequestsRequest): Promise<WatchRequestsResult>;
+  watch_requests(context: InvocationContext, request: WatchRequestsRequest): WatchRequestsProviderOutput;
 }
+
+export const Query: CapabilityContractReference<QueryClient, QueryProvider, InteractionDependencyInvoker> = { kind: "lenso.capability", ...bindQueryDependency(), capability_id: CAPABILITY_ID, descriptor_version: DESCRIPTOR_VERSION, descriptor_digest: DESCRIPTOR_DIGEST, generated_client: "QueryClient", descriptor: { capability_id: CAPABILITY_ID, descriptor_version: DESCRIPTOR_VERSION, operations: ["list_requests", "list_trace_logs", "read_ingestion_health", "read_trace", "watch_requests"], stream_operations: ["watch_requests"], event_operations: [] }, bindProvider: bindQueryProvider, required(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "one" }; }, optional(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "optional" }; }, many(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "many" }; }, };
+export const QUERY_CONTRACT = Query;
 
 export type ProviderDispatchOutcome =
   | { readonly kind: "success"; readonly value: unknown }
   | { readonly kind: "domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderStreamActionOutcome =
+  | { readonly kind: "accepted" }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderStreamReceiveOutcome =
+  | { readonly kind: "message"; readonly value: unknown }
+  | { readonly kind: "peer_half_closed" }
+  | { readonly kind: "terminal_success" }
+  | { readonly kind: "terminal_domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+/** @internal Runtime lowering seam. */
+export interface ProviderStreamSessionBinding {
+  send(message: unknown): Promise<ProviderStreamActionOutcome>;
+  receive(): Promise<ProviderStreamReceiveOutcome>;
+  closeSend(): Promise<ProviderStreamActionOutcome>;
+  cancel(): void;
+}
+export type ProviderStreamOpenOutcome =
+  | { readonly kind: "opened"; readonly stream: ProviderStreamSessionBinding }
+  | { readonly kind: "domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderEventPublishOutcome =
+  | { readonly kind: "accepted" }
   | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
 
 export interface CapabilityProviderDescriptor {
@@ -236,6 +310,7 @@ export interface CapabilityProviderDescriptor {
   readonly event_operations: ReadonlyArray<string>;
 }
 
+/** @internal Runtime lowering seam. */
 export interface CapabilityProviderBinding {
   readonly descriptor: CapabilityProviderDescriptor;
   invokeRequest(
@@ -243,6 +318,16 @@ export interface CapabilityProviderBinding {
     context: InvocationContext,
     payload: unknown,
   ): Promise<ProviderDispatchOutcome>;
+  openStream(
+    operation: string,
+    context: InvocationContext,
+    payload: unknown,
+  ): Promise<ProviderStreamOpenOutcome>;
+  publishEvent(
+    operation: string,
+    context: InvocationContext,
+    payload: unknown,
+  ): Promise<ProviderEventPublishOutcome>;
 }
 
 function providerErrorMessage(error: unknown): string {
@@ -346,10 +431,267 @@ export function bindQueryProvider(
           return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
       }
     },
+    async openStream(operation, context, payload) {
+      switch (operation) {
+      case "watch_requests": {
+        let request: WatchRequestsRequest;
+        try {
+          request = decodeWatchRequestsRequest(lensoContractRuntime.encodePortableJson(payload, "stream open request"));
+        } catch (error) {
+          return { kind: "runtime", failure: { kind: "protocol_violation", detail: providerErrorMessage(error) } };
+        }
+        try {
+          const provided = provider.watch_requests(context, request);
+          const result = isAsyncIterable<WatchRequestsResponse>(provided)
+            ? { ok: true as const, value: provided }
+            : await provided;
+          if (!result.ok) {
+            if (result.error.kind === "domain") {
+              return { kind: "domain", value: JSON.parse(encodeWatchRequestsError(result.error.error)) as unknown };
+            }
+            return { kind: "runtime", failure: result.error.error };
+          }
+          const stream = lowerProviderStream(result.value);
+          const binding: ProviderStreamSessionBinding = {
+            async send(message) {
+              let decoded: WatchRequestsResponse;
+              try {
+                decoded = decodeWatchRequestsResponse(lensoContractRuntime.encodePortableJson(message, "stream message"));
+              } catch (error) {
+                return { kind: "runtime", failure: { kind: "protocol_violation", detail: providerErrorMessage(error) } };
+              }
+              try {
+                await stream.send(decoded);
+                return { kind: "accepted" };
+              } catch (error) {
+                return { kind: "runtime", failure: error instanceof ServerOutputStreamInputError
+                  ? { kind: "protocol_violation", detail: providerErrorMessage(error) }
+                  : { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+              }
+            },
+            async receive() {
+              try {
+                const event = await stream.receive();
+                if (event.kind === "message") {
+                  return { kind: "message", value: JSON.parse(encodeWatchRequestsResponse(event.message)) as unknown };
+                }
+                if (event.kind === "peer_half_closed") return { kind: "peer_half_closed" };
+                if (event.outcome.ok) return { kind: "terminal_success" };
+                return { kind: "terminal_domain", value: JSON.parse(encodeWatchRequestsError(event.outcome.error)) as unknown };
+              } catch (error) {
+                return { kind: "runtime", failure: { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+              }
+            },
+            async closeSend() {
+              try {
+                await stream.closeSend();
+                return { kind: "accepted" };
+              } catch (error) {
+                return { kind: "runtime", failure: { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+              }
+            },
+            cancel() { stream.cancel(); },
+          };
+          return { kind: "opened", stream: binding };
+        } catch (error) {
+          return { kind: "runtime", failure: { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+        }
+      }
+        default:
+          return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
+      }
+    },
+    async publishEvent(operation, context, payload) {
+      switch (operation) {
+
+        default:
+          return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
+      }
+    },
   };
 }
 
 export type Provider = QueryProvider;
 export const bindProvider = bindQueryProvider;
+
+export type DependencyInvoker = (
+  operation: string,
+  context: InvocationContext,
+  payload: unknown,
+) => Promise<ProviderDispatchOutcome>;
+
+export type InteractionDependencyInvoker = DependencyInvoker & {
+  readonly providerInstance: string;
+  openStream(operation: string, context: InvocationContext, payload: unknown): Promise<ProviderStreamOpenOutcome>;
+  publishEvent(operation: string, context: InvocationContext, payload: unknown): Promise<ProviderEventPublishOutcome>;
+};
+
+export interface CapabilityDependencyBinding<Client, Runtime extends DependencyInvoker = DependencyInvoker> {
+  readonly descriptor: CapabilityProviderDescriptor;
+  createClient(invoke: Runtime): Client;
+}
+
+export interface CapabilityDependencyDeclaration<Client, Cardinality extends "one" | "optional" | "many", Runtime extends DependencyInvoker = DependencyInvoker> {
+  readonly kind: "lenso.dependency";
+  readonly id?: string;
+  readonly contract: CapabilityDependencyBinding<Client, Runtime>;
+  readonly cardinality: Cardinality;
+}
+
+function dependencyErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function dependencyRuntimeError(failure: RuntimeFailure): Error {
+  return Object.assign(new Error(`Capability dependency failed: ${failure.kind}`), { failure });
+}
+
+function dependencyFailure(error: unknown): RuntimeFailure {
+  if (typeof error === "object" && error !== null && "failure" in error) return (error as { failure: RuntimeFailure }).failure;
+  return { kind: "plugin_failure", detail: dependencyErrorMessage(error) };
+}
+
+export function bindQueryDependency(): CapabilityDependencyBinding<QueryClient, InteractionDependencyInvoker> {
+  return {
+    descriptor: {
+      capability_id: CAPABILITY_ID,
+      descriptor_version: DESCRIPTOR_VERSION,
+      operations: ["list_requests", "list_trace_logs", "read_ingestion_health", "read_trace", "watch_requests"],
+      stream_operations: ["watch_requests"],
+      event_operations: [],
+    },
+    createClient(invoke) {
+      return {
+      async list_requests(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeListRequestsRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("list_requests", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeListRequestsResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeListRequestsError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      async list_trace_logs(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeListTraceLogsRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("list_trace_logs", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeListTraceLogsResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeListTraceLogsError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      async read_ingestion_health(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeReadIngestionHealthRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("read_ingestion_health", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeReadIngestionHealthResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeReadIngestionHealthError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      async read_trace(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeReadTraceRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("read_trace", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeReadTraceResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeReadTraceError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      async watch_requests(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeWatchRequestsRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke.openStream("watch_requests", call, payload);
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeWatchRequestsError(JSON.stringify(outcome.value)) } };
+          }
+          if (outcome.kind === "runtime") {
+            return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+          }
+          const stream = outcome.stream;
+          return { ok: true, value: {
+            async send(message) {
+              const encoded = JSON.parse(encodeWatchRequestsResponse(message)) as unknown;
+              const result = await stream.send(encoded);
+              if (result.kind === "runtime") throw dependencyRuntimeError(result.failure);
+            },
+            async receive() {
+              const result = await stream.receive();
+              if (result.kind === "message") return { kind: "message", message: decodeWatchRequestsResponse(JSON.stringify(result.value)) };
+              if (result.kind === "peer_half_closed") return { kind: "peer_half_closed" };
+              if (result.kind === "terminal_success") return { kind: "terminal", outcome: { ok: true } };
+              if (result.kind === "terminal_domain") return { kind: "terminal", outcome: { ok: false, error: decodeWatchRequestsError(JSON.stringify(result.value)) } };
+              throw dependencyRuntimeError(result.failure);
+            },
+            async closeSend() {
+              const result = await stream.closeSend();
+              if (result.kind === "runtime") throw dependencyRuntimeError(result.failure);
+            },
+            cancel() { stream.cancel(); },
+          } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: dependencyFailure(error) } };
+        }
+      },
+      };
+    },
+  };
+}
+
+export const bindDependency = bindQueryDependency;
 
 export const portableValueProfile = lensoContractRuntime.portableValueProfile;

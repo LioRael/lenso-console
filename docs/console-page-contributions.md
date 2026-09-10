@@ -4,7 +4,7 @@ Status: Console- and App-scoped Workspace routing plus owner services implemente
 
 This document now separates the shipped Workspace path from the remaining
 cross-App design. The implementation includes a typed
-`lenso.ui.contribution@1` request Capability (descriptor 1.2.0), a `many` Port on
+`lenso.ui.contribution@1` request Capability (descriptor 1.3.0), a `many` Port on
 `lenso.console.web`, an immutable activation-time catalog, a reference provider
 Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
 crate and reference Plugin are repository-local and are not published releases.
@@ -144,7 +144,10 @@ a Plugin selected in Console's composition. The JSON below remains an
 illustrative projection that includes future service aliases; it is not a
 second Plugin package manager or App-authored provider selection.
 
-Descriptor 1.2.0 adds executable service metadata to the 1.1 subject shape.
+Descriptor 1.3.0 retains the executable service metadata introduced in 1.2 and
+names its request Operation `describe_contribution`, allowing one cohesive
+Plugin to provide UI and HTTP endpoint Capabilities without generated Rust
+method collisions.
 App scope must declare both
 `{ "kind": "app" }` and a clean `app_id`; Console rejects any App identity that
 is not already present in its configured application catalog.

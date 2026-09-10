@@ -1,10 +1,8 @@
 use std::io::Read as _;
 
-use axum::{
-    body::{Body, Bytes, to_bytes},
-    http::{HeaderMap, header},
-};
+use bytes::Bytes;
 use flate2::read::GzDecoder;
+use lenso_capability_http_stream_endpoint::HandleRequestHeadersItem;
 
 pub(super) const MAX_ENCODED_BYTES: usize = 4 * 1024 * 1024;
 pub(super) const MAX_DECODED_BYTES: usize = 16 * 1024 * 1024;
@@ -17,18 +15,22 @@ pub(super) enum BodyError {
     WorkerUnavailable,
 }
 
-pub(super) async fn decode(headers: &HeaderMap, body: Body) -> Result<Bytes, BodyError> {
+pub(super) async fn decode(
+    headers: &[HandleRequestHeadersItem],
+    encoded: Bytes,
+) -> Result<Bytes, BodyError> {
     let gzip = headers
-        .get(header::CONTENT_ENCODING)
-        .is_some_and(|value| value == "gzip");
+        .iter()
+        .find(|header| header.name.eq_ignore_ascii_case("content-encoding"))
+        .is_some_and(|header| header.value == "gzip");
     let limit = if gzip {
         MAX_ENCODED_BYTES
     } else {
         MAX_DECODED_BYTES
     };
-    let encoded = to_bytes(body, limit)
-        .await
-        .map_err(|_| BodyError::EncodedTooLarge)?;
+    if encoded.len() > limit {
+        return Err(BodyError::EncodedTooLarge);
+    }
     if !gzip {
         return Ok(encoded);
     }

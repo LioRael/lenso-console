@@ -1,6 +1,6 @@
 //! Keep supervised project turns alive when their browser view is detached.
 use super::{AppAgentAdapter, Bytes, HeaderMap, Json, Response, StatusCode, problem};
-use axum::{body::Body, response::IntoResponse};
+use crate::http::{Body, IntoResponse};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 
@@ -73,7 +73,7 @@ pub(super) async fn relay(adapter: AppAgentAdapter, headers: HeaderMap, body: By
             let status = response.status();
             let content_type = response.headers().get("content-type").cloned();
             let (tx, rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(32);
-            let mut builder = Response::builder()
+            let mut builder = ::http::Response::builder()
                 .status(status)
                 .header("cache-control", "no-store");
             if let Some(value) = content_type {
@@ -149,7 +149,10 @@ fn observe(activity: &SharedActivity, line: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{Router, routing::post};
+    use axum::{
+        Json as AxumJson, Router, body::Body as AxumBody, response::Response as AxumResponse,
+        routing::post,
+    };
 
     #[tokio::test]
     async fn detached_turns_finish_independently_and_reject_duplicate_work() {
@@ -160,29 +163,31 @@ mod tests {
                 listener,
                 Router::new().route(
                     "/api/console/v1/agent/turns",
-                    post(|Json(request): Json<serde_json::Value>| async move {
-                        let (tx, rx) =
-                            tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(4);
-                        tokio::spawn(async move {
-                            let frame = format!(
-                                "data: {{\"message\":{{\"session_id\":\"{}\"}}}}\n\n",
-                                request["session_id"].as_str().unwrap()
-                            );
-                            tx.send(Ok(Bytes::from(frame))).await.unwrap();
-                            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                            tx.send(Ok(Bytes::from_static(
-                                b"data: {\"type\":\"turn_completed\"}\n\n",
-                            )))
-                            .await
-                            .unwrap();
-                        });
-                        Response::builder()
-                            .header("content-type", "text/event-stream")
-                            .body(Body::from_stream(
-                                tokio_stream::wrappers::ReceiverStream::new(rx),
-                            ))
-                            .unwrap()
-                    }),
+                    post(
+                        |AxumJson(request): AxumJson<serde_json::Value>| async move {
+                            let (tx, rx) =
+                                tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(4);
+                            tokio::spawn(async move {
+                                let frame = format!(
+                                    "data: {{\"message\":{{\"session_id\":\"{}\"}}}}\n\n",
+                                    request["session_id"].as_str().unwrap()
+                                );
+                                tx.send(Ok(Bytes::from(frame))).await.unwrap();
+                                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                                tx.send(Ok(Bytes::from_static(
+                                    b"data: {\"type\":\"turn_completed\"}\n\n",
+                                )))
+                                .await
+                                .unwrap();
+                            });
+                            AxumResponse::builder()
+                                .header("content-type", "text/event-stream")
+                                .body(AxumBody::from_stream(
+                                    tokio_stream::wrappers::ReceiverStream::new(rx),
+                                ))
+                                .unwrap()
+                        },
+                    ),
                 ),
             )
             .await

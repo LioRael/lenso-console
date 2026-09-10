@@ -1,4 +1,6 @@
 mod app_management;
+mod http;
+mod lenso_http;
 mod page_contributions;
 mod project_activity;
 mod projects;
@@ -7,34 +9,50 @@ pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
 pub use projects::LocalProjects;
 
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
+    fs::{self, OpenOptions},
     future::Future,
+    io::Write as _,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
 };
 
-use axum::{
-    Json, Router,
-    body::{Body, Bytes},
-    extract::{OriginalUri, Path as AxumPath, State},
-    http::{HeaderMap, Method, StatusCode, header},
-    response::{IntoResponse, Response},
-    routing::{any, get},
+use crate::http::{
+    Body, IntoResponse as _, Json, OriginalUri, Path as HttpPath, Request, Response, State,
 };
+use ::http::{HeaderMap, Method, StatusCode, header};
+use anyhow::Context as _;
+use bytes::Bytes;
 use directories::BaseDirs;
 use lenso::prelude::*;
+#[cfg(test)]
 use lenso_app_plan::ResolvedAppPlan;
 use lenso_app_plan::authoring::{
-    HostDefaultPlugin, HostSlot, PluginRootSnapshot, resolve_plugin_root,
+    HostBinding, HostCatalog, HostDefaultPlugin, HostPluginRelease, HostSlot, PluginInstanceId,
 };
-use lenso_kernel::{Kernel, NativeApp, ShutdownOutcome};
+#[cfg(test)]
+use lenso_app_plan::authoring::{PluginRootSnapshot, resolve_plugin_root};
+use lenso_capability_http_endpoint as http_endpoint;
+use lenso_capability_http_endpoint::{
+    DescribeRequest as HttpDescribeRequest, DescribeResponse as HttpDescribeResponse,
+    DescribeResponseRoutesItem as HttpRoute, EndpointDescribe, EndpointHandle,
+    HandleError as HttpHandleError, HandleRequest as HttpHandleRequest,
+};
+use lenso_capability_http_stream_endpoint as stream_endpoint;
+use lenso_capability_http_stream_endpoint::{
+    DescribeRequest as StreamDescribeRequest, DescribeResponse as StreamDescribeResponse,
+    DescribeResponseRoutesItem as StreamRoute, HandleError as StreamHandleError,
+    HandleRequest as StreamHandleRequest, StreamEndpointDescribe,
+};
+use lenso_kernel::{InvocationContext, Kernel, NativeApp, RuntimeFailure, ShutdownOutcome};
 use lenso_native_adapter::NativePluginRegistry;
 use lenso_runner::TokioDriver;
+use lenso_web_ingress_plugin::{WebIngressConfig, WebIngressFactory};
 use serde::{Deserialize, Serialize};
-use tower_http::limit::RequestBodyLimitLayer;
-use tower_http::services::{ServeDir, ServeFile};
 
 const DEFAULT_PORT: u16 = 3030;
+const DEFAULT_OTLP_PORT: u16 = 4318;
 const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
 const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
@@ -99,7 +117,6 @@ fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConsolePluginConfig {
-    address: String,
     agent_home: String,
     allowed_tools: Vec<String>,
     agent_configuration_store: String,
@@ -130,13 +147,6 @@ struct LocalProjectsConfig {
 }
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
-    let address = config
-        .address
-        .parse::<SocketAddr>()
-        .map_err(|error| invalid_plan(format!("invalid Console address: {error}")))?;
-    if !address.ip().is_loopback() {
-        return Err(invalid_plan("Console address must be loopback"));
-    }
     if config.agent_home.is_empty()
         || config.agent_configuration_store.is_empty()
         || config.connected_agent_label.trim().is_empty()
@@ -164,7 +174,6 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
 }
 
 #[lenso::plugin(
-    consumer,
     lifecycle,
     configuration_schema = "config.schema.json",
     configuration_defaults = "config.defaults.json",
@@ -176,6 +185,7 @@ pub struct ConsolePlugin {
     config: ConsolePluginConfig,
     workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
     workspace_services: ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
+    application: std::rc::Rc<RefCell<Option<ConsoleApplication>>>,
     #[tasks]
     tasks: ManagedTasks,
 }
@@ -189,16 +199,21 @@ impl Lifecycle for ConsolePlugin {
             &config.application_subject_ids(),
         )
         .await?;
-        let local_projects = config.local_projects.clone();
-        let server = ConsoleServer::start(config, page_catalog)
+        config.validate().map_err(plugin_failure)?;
+        config
+            .console_agent
+            .require_ready()
             .await
             .map_err(plugin_failure)?;
+        let local_projects = config.local_projects.clone();
+        self.application
+            .borrow_mut()
+            .replace(console_application(config, page_catalog));
         let cancellation = self.tasks.cancellation().map_err(|error| {
             plugin_failure(format!("Console task scope is unavailable: {error:?}"))
         })?;
-        let (shutdown, shutdown_signal) = tokio::sync::oneshot::channel();
         self.tasks
-            .spawn_local(workspace_services.run())
+            .spawn_local(workspace_services.run(cancellation.clone()))
             .map_err(|error| {
                 plugin_failure(format!(
                     "Workspace service dispatcher failed to start: {error:?}"
@@ -207,25 +222,211 @@ impl Lifecycle for ConsolePlugin {
         self.tasks
             .spawn_local(async move {
                 cancellation.cancelled().await;
-                let _ = shutdown.send(());
-            })
-            .map_err(|error| plugin_failure(format!("Console shutdown task failed: {error:?}")))?;
-        self.tasks
-            .spawn_local(async move {
-                let result = server
-                    .run(async move {
-                        let _ = shutdown_signal.await;
-                    })
-                    .await;
                 if let Some(projects) = local_projects {
                     projects.shutdown().await;
                 }
-                if let Err(error) = result {
-                    eprintln!("Lenso Console stopped: {error:#}");
-                }
             })
-            .map_err(|error| plugin_failure(format!("Console server task failed: {error:?}")))?;
+            .map_err(|error| plugin_failure(format!("Console shutdown task failed: {error:?}")))?;
         Ok(())
+    }
+
+    #[allow(clippy::unused_async_trait_impl)]
+    async fn deactivate(&self, _context: DeactivateContext) -> Result<(), RuntimeFailure> {
+        self.application.borrow_mut().take();
+        Ok(())
+    }
+}
+
+#[provides(http_endpoint::Endpoint, stream_endpoint::StreamEndpoint)]
+impl ConsolePlugin {
+    fn describe(
+        &self,
+        _context: InvocationContext,
+        _request: HttpDescribeRequest,
+    ) -> lenso_kernel::NativeRequestFuture<EndpointDescribe> {
+        let _ = self;
+        let routes = [
+            ("GET", "/health/live", "console.health.live"),
+            ("GET", "/health/ready", "console.health.ready"),
+            ("GET", "/health/startup", "console.health.startup"),
+            ("GET", "/{*path}", "console.shell"),
+        ]
+        .into_iter()
+        .map(|(method, path, route_id)| HttpRoute {
+            method: method.to_owned(),
+            openapi: None,
+            path: path.to_owned(),
+            route_id: route_id.to_owned(),
+        })
+        .collect();
+        Box::pin(futures::future::ready(Ok(Ok(HttpDescribeResponse {
+            routes,
+        }))))
+    }
+
+    fn handle(
+        &self,
+        _context: InvocationContext,
+        request: HttpHandleRequest,
+    ) -> lenso_kernel::NativeRequestFuture<EndpointHandle> {
+        let application = self.application.borrow().clone();
+        Box::pin(async move {
+            let Some(application) = application else {
+                return Err(RuntimeFailure::Internal {
+                    detail: "Console application is unavailable before activation".to_owned(),
+                });
+            };
+            if !request.route_id.starts_with("console.") {
+                return Ok(Err(HttpHandleError::Rejected));
+            }
+            lenso_http::buffered(application, request).await.map(Ok)
+        })
+    }
+    fn describe_stream(
+        &self,
+        _context: InvocationContext,
+        _request: StreamDescribeRequest,
+    ) -> lenso_kernel::NativeRequestFuture<StreamEndpointDescribe> {
+        let _ = self;
+        let routes = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]
+            .into_iter()
+            .map(|method| StreamRoute {
+                method: method.to_owned(),
+                path: "/api/{*path}".to_owned(),
+                route_id: format!("console.api.{}", method.to_ascii_lowercase()),
+            })
+            .collect();
+        Box::pin(futures::future::ready(Ok(Ok(StreamDescribeResponse {
+            routes,
+        }))))
+    }
+
+    fn handle_stream(
+        &self,
+        _context: InvocationContext,
+        request: StreamHandleRequest,
+    ) -> futures::future::LocalBoxFuture<
+        'static,
+        Result<
+            lenso_http::ConsoleResponseStream,
+            stream_endpoint::StreamEndpointHandleInvocationError,
+        >,
+    > {
+        let application = self.application.borrow().clone();
+        Box::pin(async move {
+            let Some(application) = application else {
+                return Err(
+                    stream_endpoint::StreamEndpointHandleInvocationError::Runtime(
+                        RuntimeFailure::Internal {
+                            detail: "Console application is unavailable before activation"
+                                .to_owned(),
+                        },
+                    ),
+                );
+            };
+            if !request.route_id.starts_with("console.api.") {
+                return Err(
+                    stream_endpoint::StreamEndpointHandleInvocationError::Domain(
+                        StreamHandleError::Rejected,
+                    ),
+                );
+            }
+            lenso_http::streaming(application, request)
+                .await
+                .map_err(stream_endpoint::StreamEndpointHandleInvocationError::Runtime)
+        })
+    }
+}
+
+fn console_application(
+    config: ConsoleConfig,
+    page_catalog: page_contributions::PageCatalog,
+) -> ConsoleApplication {
+    let mut agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
+    agent_catalog.projects = config.local_projects;
+    if agent_catalog.projects.is_some() {
+        for adapter in &mut agent_catalog.app_agents {
+            if adapter.id == "app" {
+                adapter.activity = Some(std::sync::Arc::default());
+            }
+        }
+    }
+    ConsoleApplication {
+        apps: app_management::AppCatalog {
+            agents: agent_catalog.clone(),
+            apps: config.managed_apps,
+        },
+        agents: agent_catalog,
+        pages: page_catalog,
+        web_root: config.web_root,
+    }
+}
+
+#[derive(Clone)]
+struct ConsoleApplication {
+    agents: AgentCatalog,
+    apps: app_management::AppCatalog,
+    pages: page_contributions::PageCatalog,
+    web_root: PathBuf,
+}
+
+impl std::fmt::Debug for ConsoleApplication {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ConsoleApplication")
+            .finish_non_exhaustive()
+    }
+}
+
+impl ConsoleApplication {
+    async fn handle(&self, request: Request) -> Response {
+        if request.method == Method::GET
+            && matches!(
+                request.path.as_str(),
+                "/health/live" | "/health/ready" | "/health/startup"
+            )
+        {
+            return health().into_response();
+        }
+        if let Some(response) = self.pages.handle(&request).await {
+            return response;
+        }
+        if let Some(response) = app_management::handle(&self.apps, &request).await {
+            return response;
+        }
+        if let Some(response) = projects::handle(&self.agents, &request).await {
+            return response;
+        }
+        if let Some(response) = handle_agent_request(&self.agents, &request).await {
+            return response;
+        }
+        if request.path.starts_with("/api/") {
+            return StatusCode::NOT_FOUND.into_response();
+        }
+        self.serve_shell(&request).await
+    }
+
+    async fn serve_shell(&self, request: &Request) -> Response {
+        if request.method != Method::GET && request.method != Method::HEAD {
+            return StatusCode::METHOD_NOT_ALLOWED.into_response();
+        }
+        let candidate = http::static_path(&self.web_root, &request.path)
+            .filter(|path| path.is_file())
+            .unwrap_or_else(|| self.web_root.join("index.html"));
+        let Ok(bytes) = tokio::fs::read(&candidate).await else {
+            return StatusCode::NOT_FOUND.into_response();
+        };
+        let body = if request.method == Method::HEAD {
+            Body::empty()
+        } else {
+            Body::from(bytes)
+        };
+        ::http::Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, http::content_type(&candidate))
+            .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+            .body(body)
+            .expect("static Shell response is valid")
     }
 }
 
@@ -234,11 +435,14 @@ pub fn link() {}
 
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
+    /// Visible Lenso App root owned by the reference Console Host.
+    pub app_root: PathBuf,
     pub projects_workspace_origin: Option<String>,
     local_projects: Option<std::sync::Arc<LocalProjects>>,
     local_projects_config: Option<LocalProjectsConfig>,
     agent_control_token_file: Option<PathBuf>,
     pub address: SocketAddr,
+    pub telemetry_address: SocketAddr,
     pub agent_home: PathBuf,
     pub managed_app_root: PathBuf,
     pub allowed_tools: Vec<String>,
@@ -488,6 +692,7 @@ impl ConsoleConfig {
             })
             .transpose()?;
         Ok(Self {
+            app_root: agent_home.parent().unwrap_or(&current).to_path_buf(),
             projects_workspace_origin: None,
             local_projects,
             local_projects_config: config.local_projects.clone(),
@@ -495,7 +700,8 @@ impl ConsoleConfig {
                 .agent_control_token_file
                 .as_ref()
                 .map(|path| resolve_path(&current, path)),
-            address: config.address.parse()?,
+            address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), DEFAULT_PORT),
+            telemetry_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), DEFAULT_OTLP_PORT),
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
             agent_configuration_store: resolve_path(&current, &config.agent_configuration_store),
@@ -576,11 +782,13 @@ impl ConsoleConfig {
             Err(error) => return Err(error.into()),
         };
         Ok(Self {
+            app_root: console_home.clone(),
             projects_workspace_origin: std::env::var("LENSO_CONSOLE_PROJECTS_ORIGIN").ok(),
             local_projects: None,
             local_projects_config: None,
             agent_control_token_file: None,
             address,
+            telemetry_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), DEFAULT_OTLP_PORT),
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
             agent_configuration_store: console_home.join("agent-configuration.sqlite3"),
@@ -652,7 +860,6 @@ impl ConsoleConfig {
             "generated Agent control tokens require a Host-private token file"
         );
         Ok(ConsolePluginConfig {
-            address: self.address.to_string(),
             agent_home: utf8_path(&self.agent_home)?,
             allowed_tools: self.allowed_tools.clone(),
             agent_configuration_store: utf8_path(&self.agent_configuration_store)?,
@@ -685,8 +892,12 @@ impl ConsoleConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
         app_management::validate_connections(&self.app_agents, &self.managed_apps)?;
         anyhow::ensure!(
-            self.address.ip().is_loopback(),
-            "the local Console Agent Host may bind only to a loopback address"
+            self.address.ip().is_loopback() && self.telemetry_address.ip().is_loopback(),
+            "the local Console Host may bind only to loopback addresses"
+        );
+        anyhow::ensure!(
+            self.app_root.is_absolute() && self.app_root.parent().is_some(),
+            "Console App root must be an absolute non-root path"
         );
         anyhow::ensure!(
             self.agent_home.is_absolute(),
@@ -766,27 +977,64 @@ pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()>
 
 /// Starts the reference Console Host from one immutable Plugin composition.
 pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
+    config.validate()?;
     link();
     lenso_console_observe_workspace_plugin::link();
     lenso_console_welcome_workspace_plugin::link();
     lenso_console_projects_workspace_plugin::link();
-    let registry = NativePluginRegistry::new().with_linked_factories();
-    Kernel::start_native(console_host_plan(config)?, TokioDriver::new(), registry)
+    let registry = console_registry();
+    let catalog = console_host_catalog(config)?;
+    publish_console_app_authority(&config.app_root, &catalog)?;
+    let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)
+        .map_err(|error| anyhow::anyhow!("resolve Console App Plugin Root: {error:#}"))?;
+    Kernel::start_native(resolved.plan().clone(), TokioDriver::new(), registry)
         .await
         .map_err(|error| anyhow::anyhow!("Console Host startup failed: {error:?}"))
 }
 
+#[cfg(test)]
 fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> {
+    let host = console_host_catalog(config)?;
+    let resolved = resolve_plugin_root(&host, &PluginRootSnapshot::default())
+        .map_err(|error| anyhow::anyhow!("invalid Console Plugin composition: {error}"))?;
+    Ok(resolved.plan().clone())
+}
+
+fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
     let slots = [
+        HostSlot::many("http-ingress"),
         HostSlot::one("console"),
         HostSlot::many("console-workspaces"),
     ];
     let linked = NativePluginRegistry::host_catalog(slots.clone(), [])
         .map_err(|error| anyhow::anyhow!("invalid linked Console Plugin catalog: {error:?}"))?;
+    let ingress_descriptor = WebIngressFactory::plugin_descriptor();
+    let releases = linked
+        .plugins()
+        .iter()
+        .cloned()
+        .chain(std::iter::once(HostPluginRelease::new(ingress_descriptor)))
+        .collect::<Vec<_>>();
     let mut defaults = Vec::new();
-    for release in linked.plugins() {
+    let observe_source = config.observe_source();
+    for release in &releases {
         let descriptor = release.descriptor();
         match descriptor.root_slot() {
+            "http-ingress" if descriptor.plugin_id() == "lenso.web-ingress" => {
+                let ingress = web_ingress_config(config.address, MAX_AGENT_REQUEST_BYTES, 65_536)?;
+                defaults.push(
+                    HostDefaultPlugin::new(descriptor.plugin_id(), "default")
+                        .with_configuration(serde_json::to_value(ingress)?),
+                );
+                if observe_source.is_some() {
+                    let telemetry =
+                        web_ingress_config(config.telemetry_address, 16 * 1024 * 1024, 4096)?;
+                    defaults.push(
+                        HostDefaultPlugin::new(descriptor.plugin_id(), "telemetry")
+                            .with_configuration(serde_json::to_value(telemetry)?),
+                    );
+                }
+            }
             "console" if descriptor.plugin_id() == "lenso.console.web" => {
                 defaults.push(
                     HostDefaultPlugin::new(descriptor.plugin_id(), "default")
@@ -794,7 +1042,7 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
                 );
             }
             "console-workspaces" if descriptor.plugin_id() == "lenso.console.workspace.observe" => {
-                if let Some((source_id, source_label)) = config.observe_source() {
+                if let Some((source_id, source_label)) = observe_source.clone() {
                     let state_root = config
                         .agent_home
                         .parent()
@@ -805,7 +1053,6 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
                             .with_configuration(serde_json::json!({
                                 "source_id": source_id,
                                 "source_label": source_label,
-                                "listen_address": "127.0.0.1:4318",
                                 "database": state_root.join("telemetry.sqlite3"),
                                 "token_file": state_root.join("otlp-token"),
                                 "retention_days": 7,
@@ -831,11 +1078,99 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
             _ => {}
         }
     }
-    let host = NativePluginRegistry::host_catalog(slots, defaults)
-        .map_err(|error| anyhow::anyhow!("invalid Console Host catalog: {error:?}"))?;
-    let resolved = resolve_plugin_root(&host, &PluginRootSnapshot::default())
-        .map_err(|error| anyhow::anyhow!("invalid Console Plugin composition: {error}"))?;
-    Ok(resolved.plan().clone())
+    let ingress = PluginInstanceId::new("lenso.web-ingress", "default");
+    let mut bindings = vec![
+        HostBinding::new(ingress.clone(), http_endpoint::CAPABILITY_ID, "console"),
+        HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console"),
+    ];
+    if observe_source.is_some() {
+        bindings.push(HostBinding::new(
+            PluginInstanceId::new("lenso.web-ingress", "telemetry"),
+            stream_endpoint::CAPABILITY_ID,
+            "console-workspaces",
+        ));
+    }
+    Ok(HostCatalog::new(slots, releases, defaults).with_bindings(bindings))
+}
+
+fn publish_console_app_authority(root: &Path, catalog: &HostCatalog) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        root.is_absolute() && root.parent().is_some(),
+        "Console App root must be an absolute non-root path"
+    );
+    ensure_real_directory(root, "Console App root")?;
+    let control = root.join(".lenso");
+    let plugins = root.join("plugins");
+    ensure_real_directory(&control, "Console control directory")?;
+    ensure_real_directory(&plugins, "Console Plugin Root")?;
+
+    let mut bytes = serde_json::to_vec_pretty(catalog)?;
+    bytes.push(b'\n');
+    let destination = control.join("host-catalog.json");
+    if fs::read(&destination).is_ok_and(|current| current == bytes) {
+        return Ok(());
+    }
+    if fs::symlink_metadata(&destination).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        anyhow::bail!(
+            "Console Host Catalog must not be a symbolic link: {}",
+            destination.display()
+        );
+    }
+    let temporary = control.join(format!("host-catalog.{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| -> anyhow::Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        file.write_all(&bytes)?;
+        file.sync_all()?;
+        fs::rename(&temporary, &destination)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result.with_context(|| format!("publish Console Host Catalog at {}", destination.display()))
+}
+
+fn ensure_real_directory(path: &Path, label: &str) -> anyhow::Result<()> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => anyhow::ensure!(
+            metadata.file_type().is_dir(),
+            "{label} must be a directory, not a symlink or file: {}",
+            path.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir_all(path)
+                .with_context(|| format!("create {label} at {}", path.display()))?;
+        }
+        Err(error) => {
+            return Err(error).with_context(|| format!("inspect {label} at {}", path.display()));
+        }
+    }
+    Ok(())
+}
+
+fn web_ingress_config(
+    address: SocketAddr,
+    max_body_bytes: usize,
+    max_connections: usize,
+) -> anyhow::Result<WebIngressConfig> {
+    WebIngressConfig::default()
+        .with_bind_address(address)
+        .map_err(anyhow::Error::msg)?
+        .with_request_limits(max_body_bytes, 1024 * 1024)
+        .map_err(anyhow::Error::msg)?
+        .with_connection_limits(max_connections, std::time::Duration::from_secs(15))
+        .map_err(anyhow::Error::msg)?
+        .with_shutdown_grace_timeout(std::time::Duration::from_millis(250))
+        .map_err(anyhow::Error::msg)
+}
+
+fn console_registry() -> NativePluginRegistry {
+    NativePluginRegistry::new()
+        .with_linked_factories()
+        .with_factory(WebIngressFactory::default())
 }
 
 /// Runs the reference Console Host until the process owner requests shutdown.
@@ -857,105 +1192,6 @@ pub async fn serve_host(
 #[derive(Debug, Serialize)]
 struct Health {
     status: &'static str,
-}
-
-pub async fn serve(
-    config: ConsoleConfig,
-    shutdown: impl Future<Output = ()> + Send + 'static,
-) -> anyhow::Result<()> {
-    let page_catalog = page_contributions::PageCatalog::discover(
-        &config.web_root,
-        &config.application_subject_ids(),
-    )?;
-    ConsoleServer::start(config, page_catalog)
-        .await?
-        .run(shutdown)
-        .await
-}
-
-/// Serve Console on a listener reserved by its process-owning launcher.
-pub async fn serve_listener(
-    config: ConsoleConfig,
-    listener: tokio::net::TcpListener,
-    shutdown: impl Future<Output = ()> + Send + 'static,
-) -> anyhow::Result<()> {
-    let page_catalog = page_contributions::PageCatalog::discover(
-        &config.web_root,
-        &config.application_subject_ids(),
-    )?;
-    ConsoleServer::with_listener(config, listener, page_catalog)
-        .await?
-        .run(shutdown)
-        .await
-}
-
-struct ConsoleServer {
-    address: SocketAddr,
-    app: Router,
-    listener: tokio::net::TcpListener,
-}
-
-impl ConsoleServer {
-    async fn start(
-        config: ConsoleConfig,
-        page_catalog: page_contributions::PageCatalog,
-    ) -> anyhow::Result<Self> {
-        let listener = tokio::net::TcpListener::bind(config.address).await?;
-        Self::with_listener(config, listener, page_catalog).await
-    }
-
-    async fn with_listener(
-        config: ConsoleConfig,
-        listener: tokio::net::TcpListener,
-        page_catalog: page_contributions::PageCatalog,
-    ) -> anyhow::Result<Self> {
-        anyhow::ensure!(
-            listener.local_addr()?.ip() == config.address.ip()
-                && (config.address.port() == 0
-                    || listener.local_addr()?.port() == config.address.port()),
-            "Console listener address does not match configuration"
-        );
-        config.validate()?;
-        config.console_agent.require_ready().await?;
-        let index = config.web_root.join("index.html");
-        let shell = ServeDir::new(config.web_root).fallback(ServeFile::new(index));
-        let mut agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
-        agent_catalog.projects = config.local_projects;
-        if agent_catalog.projects.is_some() {
-            for adapter in &mut agent_catalog.app_agents {
-                if adapter.id == "app" {
-                    adapter.activity = Some(std::sync::Arc::default());
-                }
-            }
-        }
-        let app = Router::new()
-            .route("/health/live", get(health))
-            .route("/health/ready", get(health))
-            .route("/health/startup", get(health))
-            .merge(page_catalog.routes())
-            .merge(app_management::routes(app_management::AppCatalog {
-                agents: agent_catalog.clone(),
-                apps: config.managed_apps,
-            }))
-            .merge(projects::routes(agent_catalog.clone()))
-            .merge(agent_catalog_routes(agent_catalog))
-            .route("/api/{*path}", any(api_not_found))
-            .fallback_service(shell);
-        let address = listener.local_addr()?;
-        Ok(Self {
-            address,
-            app,
-            listener,
-        })
-    }
-
-    async fn run(self, shutdown: impl Future<Output = ()> + Send + 'static) -> anyhow::Result<()> {
-        println!("Lenso Console listening on http://{}", self.address);
-        axum::serve(self.listener, self.app)
-            .with_graceful_shutdown(shutdown)
-            .await?;
-        Ok(())
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -1086,24 +1322,50 @@ struct AgentIdentityList {
     agents: Vec<AgentIdentity>,
 }
 
-fn agent_catalog_routes(catalog: AgentCatalog) -> Router {
-    Router::new()
-        .route("/api/console/v1/agents", get(list_agents))
-        .route("/api/console/v1/agent/{*path}", any(route_console_agent))
-        .route(
-            "/api/console/v1/agents/{agent_id}/{*path}",
-            any(route_app_agent),
+async fn handle_agent_request(catalog: &AgentCatalog, request: &Request) -> Option<Response> {
+    if request.path == "/api/console/v1/agents" && request.method == Method::GET {
+        return Some(list_agents(State(catalog.clone())).into_response());
+    }
+    if request.body.len() > MAX_AGENT_REQUEST_BYTES {
+        return Some(problem(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "Agent request body is too large",
+        ));
+    }
+    if let Some(path) = request.path.strip_prefix("/api/console/v1/agent/") {
+        let path = http::decode_path(path)?;
+        return Some(
+            route_console_agent(
+                State(catalog.clone()),
+                HttpPath(path),
+                OriginalUri(request.uri()),
+                request.method.clone(),
+                request.headers.clone(),
+                request.body.clone(),
+            )
+            .await,
+        );
+    }
+    let tail = request.path.strip_prefix("/api/console/v1/agents/")?;
+    let (agent_id, path) = tail.split_once('/')?;
+    let agent_id = http::decode_path(agent_id)?;
+    let path = http::decode_path(path)?;
+    Some(
+        route_app_agent(
+            State(catalog.clone()),
+            HttpPath((agent_id, path)),
+            OriginalUri(request.uri()),
+            request.method.clone(),
+            request.headers.clone(),
+            request.body.clone(),
         )
-        .layer(axum::extract::DefaultBodyLimit::max(
-            MAX_AGENT_REQUEST_BYTES,
-        ))
-        .layer(RequestBodyLimitLayer::new(MAX_AGENT_REQUEST_BYTES))
-        .with_state(catalog)
+        .await,
+    )
 }
 
 async fn route_console_agent(
     State(catalog): State<AgentCatalog>,
-    AxumPath(path): AxumPath<String>,
+    HttpPath(path): HttpPath<String>,
     OriginalUri(incoming): OriginalUri,
     method: Method,
     headers: HeaderMap,
@@ -1112,7 +1374,7 @@ async fn route_console_agent(
     proxy_agent_request(catalog.console_agent, path, incoming, method, headers, body).await
 }
 
-async fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityList> {
+fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityList> {
     let mut agents = vec![AgentIdentity {
         capabilities: vec![
             "lenso.agent.auth-connection@1",
@@ -1149,7 +1411,7 @@ async fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityL
 
 async fn route_app_agent(
     State(catalog): State<AgentCatalog>,
-    AxumPath((agent_id, path)): AxumPath<(String, String)>,
+    HttpPath((agent_id, path)): HttpPath<(String, String)>,
     OriginalUri(incoming): OriginalUri,
     method: Method,
     headers: HeaderMap,
@@ -1187,7 +1449,7 @@ async fn route_app_agent(
 async fn proxy_agent_request(
     app_agent: AppAgentAdapter,
     path: String,
-    incoming: axum::http::Uri,
+    incoming: ::http::Uri,
     method: Method,
     headers: HeaderMap,
     body: Bytes,
@@ -1211,7 +1473,7 @@ async fn proxy_request_at(
     app_agent: AppAgentAdapter,
     base: &str,
     path: String,
-    incoming: axum::http::Uri,
+    incoming: ::http::Uri,
     method: Method,
     headers: HeaderMap,
     body: Bytes,
@@ -1242,7 +1504,7 @@ async fn proxy_request_at(
     };
     let status = response.status();
     let headers = response.headers().clone();
-    let mut proxied = Response::builder()
+    let mut proxied = ::http::Response::builder()
         .status(status)
         .header(header::CACHE_CONTROL, "no-store");
     for name in [header::CONTENT_TYPE, header::ETAG] {
@@ -1418,12 +1680,8 @@ fn problem(status: StatusCode, detail: &str) -> Response {
         .into_response()
 }
 
-async fn health() -> Json<Health> {
+fn health() -> Json<Health> {
     Json(Health { status: "ok" })
-}
-
-async fn api_not_found() -> StatusCode {
-    StatusCode::NOT_FOUND
 }
 
 fn parse_loopback_host(value: &str) -> anyhow::Result<IpAddr> {
@@ -1488,6 +1746,10 @@ fn plugin_failure(detail: impl std::fmt::Display) -> RuntimeFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{
+        Json as AxumJson, Router, body::Body as AxumBody, response::Response as AxumResponse,
+        routing::get,
+    };
 
     fn console_agent() -> AppAgentAdapter {
         AppAgentAdapter::parse_console("http://127.0.0.1:8788", Some("host-secret".to_owned()))
@@ -1495,18 +1757,21 @@ mod tests {
     }
 
     #[test]
-    fn plugin_descriptor_is_an_endpoint_free_lifecycle_root() {
+    fn plugin_descriptor_owns_console_http_endpoints() {
         let descriptor: serde_json::Value = serde_json::from_str(PLUGIN_DESCRIPTOR_JSON).unwrap();
 
         assert_eq!(descriptor["plugin_id"], "lenso.console.web");
         assert_eq!(descriptor["root_slot"], "console");
-        assert_eq!(descriptor["provided_capabilities"], serde_json::json!([]));
+        let provided = descriptor["provided_capabilities"].as_array().unwrap();
+        assert_eq!(provided.len(), 2);
+        assert_eq!(provided[0]["capability_id"], http_endpoint::CAPABILITY_ID);
+        assert_eq!(provided[1]["capability_id"], stream_endpoint::CAPABILITY_ID);
         assert_eq!(
             descriptor["required_capabilities"],
             serde_json::json!([
                 {
                     "capability_id": "lenso.ui.contribution@1",
-                    "descriptor_version": "1.2.0",
+                    "descriptor_version": "1.3.0",
                     "cardinality": "many"
                 },
                 {
@@ -1528,7 +1793,12 @@ mod tests {
         let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
         let plan = console_host_plan(&config).unwrap();
 
-        assert_eq!(plan.plugin_instances().len(), 2);
+        assert_eq!(plan.plugin_instances().len(), 3);
+        assert!(
+            plan.plugin_instances()
+                .iter()
+                .any(|instance| { instance.instance_key() == "lenso.web-ingress/default" })
+        );
         assert!(
             plan.plugin_instances()
                 .iter()
@@ -1540,6 +1810,60 @@ mod tests {
         assert!(plan.capability_bindings().iter().any(|binding| {
             binding.capability_id() == lenso_capability_workspace_service::CAPABILITY_ID
         }));
+        assert!(
+            plan.capability_bindings()
+                .iter()
+                .any(|binding| { binding.capability_id() == http_endpoint::CAPABILITY_ID })
+        );
+        assert!(
+            plan.capability_bindings()
+                .iter()
+                .any(|binding| { binding.capability_id() == stream_endpoint::CAPABILITY_ID })
+        );
+    }
+
+    #[test]
+    fn reference_host_publishes_and_resolves_a_visible_plugin_root() {
+        link();
+        lenso_console_observe_workspace_plugin::link();
+        lenso_console_welcome_workspace_plugin::link();
+        lenso_console_projects_workspace_plugin::link();
+        let root = tempfile::tempdir().unwrap();
+        let mut plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        plugin_config.web_root = root.path().to_str().unwrap().to_owned();
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        let mut config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        config.app_root = root.path().join("console-app");
+        config.agent_home = root.path().join("agent");
+
+        let catalog = console_host_catalog(&config).unwrap();
+        publish_console_app_authority(&config.app_root, &catalog).unwrap();
+        let catalog_path = config.app_root.join(".lenso/host-catalog.json");
+        assert!(catalog_path.is_file());
+        assert!(config.app_root.join("plugins").is_dir());
+
+        let default = lenso_app_authoring::load_resolved_app(&config.app_root).unwrap();
+        assert!(default.plan().plugin_instances().iter().any(|instance| {
+            instance.instance_key() == "lenso.console.workspace.welcome/default"
+        }));
+
+        let welcome_root = config
+            .app_root
+            .join("plugins/lenso.console.workspace.welcome");
+        std::fs::create_dir_all(&welcome_root).unwrap();
+        std::fs::write(welcome_root.join("default.disabled"), []).unwrap();
+        let removed = lenso_app_authoring::load_resolved_app(&config.app_root).unwrap();
+        assert!(removed.plan().plugin_instances().iter().all(|instance| {
+            instance.instance_key() != "lenso.console.workspace.welcome/default"
+        }));
+        assert!(
+            removed
+                .plan()
+                .plugin_instances()
+                .iter()
+                .any(|instance| { instance.instance_key() == "lenso.web-ingress/default" })
+        );
     }
 
     #[test]
@@ -1574,6 +1898,16 @@ mod tests {
                 .instance_key()
                 .starts_with("lenso.console.workspace.observe/")
         }));
+        assert!(
+            plan.plugin_instances()
+                .iter()
+                .all(|instance| { instance.instance_key() != "lenso.web-ingress/telemetry" })
+        );
+        assert!(
+            plan.capability_bindings()
+                .iter()
+                .all(|binding| { binding.consumer_instance() != "lenso.web-ingress/telemetry" })
+        );
 
         let with_app = ConsoleConfig::from_plugin(&plugin_config)
             .unwrap()
@@ -1586,6 +1920,15 @@ mod tests {
             })
             .unwrap();
         let plan = console_host_plan(&with_app).unwrap();
+        assert!(
+            plan.plugin_instances()
+                .iter()
+                .any(|instance| { instance.instance_key() == "lenso.web-ingress/telemetry" })
+        );
+        assert!(plan.capability_bindings().iter().any(|binding| {
+            binding.consumer_instance() == "lenso.web-ingress/telemetry"
+                && binding.capability_id() == stream_endpoint::CAPABILITY_ID
+        }));
         let observe = plan
             .plugin_instances()
             .iter()
@@ -1623,16 +1966,32 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::too_many_lines)] // One end-to-end Host scenario is easier to audit in sequence.
     async fn reference_host_serves_the_plan_bound_workspace_catalog() {
         let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let agent_address = agent_listener.local_addr().unwrap();
         let agent = tokio::spawn(async move {
             axum::serve(
                 agent_listener,
-                Router::new().route(
-                    "/api/console/v1/agent/bootstrap",
-                    get(|| async { Json(serde_json::json!({})) }),
-                ),
+                Router::new()
+                    .route(
+                        "/api/console/v1/agent/bootstrap",
+                        get(|| async { AxumJson(serde_json::json!({})) }),
+                    )
+                    .route(
+                        "/api/console/v1/agent/turns",
+                        axum::routing::post(|| async {
+                            AxumResponse::builder()
+                                .header(header::CONTENT_TYPE, "text/event-stream")
+                                .body(AxumBody::from_stream(futures::stream::iter([
+                                    Ok::<_, std::convert::Infallible>(Bytes::from_static(
+                                        b"event: item\ndata: first\n\n",
+                                    )),
+                                    Ok(Bytes::from_static(b"event: terminal\ndata: second\n\n")),
+                                ])))
+                                .unwrap()
+                        }),
+                    ),
             )
             .await
             .unwrap();
@@ -1644,10 +2003,12 @@ mod tests {
         drop(reservation);
         let mut plugin_config: ConsolePluginConfig =
             serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        plugin_config.address = address.to_string();
         plugin_config.console_agent_url = format!("http://{agent_address}");
         plugin_config.web_root = root.path().to_str().unwrap().to_owned();
-        let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        let mut config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        config.app_root = root.path().join("console-app");
+        config.address = address;
+        config.agent_home = root.path().join("agent");
 
         let local = tokio::task::LocalSet::new();
         local
@@ -1659,7 +2020,10 @@ mod tests {
                     .text()
                     .await
                     .unwrap();
-                assert!(catalog.contains("lenso.console.workspace.welcome/default"));
+                assert!(
+                    catalog.contains("lenso.console.workspace.welcome/default"),
+                    "unexpected workspace catalog: {catalog}"
+                );
                 assert!(catalog.contains("\"service_id\":\"welcome\""));
                 assert!(catalog.contains("\"available\":true"));
                 let client = reqwest::Client::new();
@@ -1706,10 +2070,18 @@ mod tests {
                 let stream = stream.text().await.unwrap();
                 assert_eq!(stream.matches("event: item").count(), 2);
                 assert!(stream.contains("event: terminal"));
-                assert!(matches!(
-                    host.shutdown(std::time::Duration::from_secs(2)).await,
-                    ShutdownOutcome::Clean
-                ));
+                let agent_stream = client
+                    .post(format!("http://{address}/api/console/v1/agent/turns"))
+                    .json(&serde_json::json!({}))
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(agent_stream.status(), StatusCode::OK);
+                let agent_stream = agent_stream.text().await.unwrap();
+                assert!(agent_stream.contains("data: first"));
+                assert!(agent_stream.contains("data: second"));
+                let shutdown = host.shutdown(std::time::Duration::from_secs(2)).await;
+                assert_eq!(shutdown, ShutdownOutcome::Clean, "unexpected shutdown: {shutdown:?}");
                 let revoked = client
                     .post(format!(
                         "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
@@ -1718,6 +2090,85 @@ mod tests {
                     .send()
                     .await;
                 assert!(revoked.is_err());
+            })
+            .await;
+        agent.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
+        let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let agent_address = agent_listener.local_addr().unwrap();
+        let agent = tokio::spawn(async move {
+            axum::serve(
+                agent_listener,
+                Router::new().route(
+                    "/api/console/v1/agent/bootstrap",
+                    get(|| async { AxumJson(serde_json::json!({})) }),
+                ),
+            )
+            .await
+            .unwrap();
+        });
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        let console_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let console_address = console_listener.local_addr().unwrap();
+        drop(console_listener);
+        let telemetry_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let telemetry_address = telemetry_listener.local_addr().unwrap();
+        drop(telemetry_listener);
+        let mut plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        plugin_config.console_agent_url = format!("http://{agent_address}");
+        plugin_config.web_root = root.path().to_str().unwrap().to_owned();
+        let mut config = ConsoleConfig::from_plugin(&plugin_config)
+            .unwrap()
+            .with_managed_app(&ManagedAppConnection {
+                id: "sample-app".to_owned(),
+                label: "Sample App".to_owned(),
+                origin: format!("http://{agent_address}"),
+                console_extensions: false,
+                control_token_env: None,
+            })
+            .unwrap();
+        config.address = console_address;
+        config.app_root = root.path().join("console-app");
+        config.telemetry_address = telemetry_address;
+        config.agent_home = root.path().join("agent");
+
+        tokio::task::LocalSet::new()
+            .run_until(async move {
+                let host = start_host(&config).await.unwrap();
+                let token =
+                    std::fs::read_to_string(root.path().join("observe/otlp-token")).unwrap();
+                let endpoint = format!("http://{telemetry_address}/v1/traces");
+                let client = reqwest::Client::new();
+                let unauthorized = client
+                    .post(&endpoint)
+                    .header("content-type", "application/x-protobuf")
+                    .body(Vec::new())
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+                let accepted = client
+                    .post(endpoint)
+                    .header("content-type", "application/x-protobuf")
+                    .bearer_auth(token.trim())
+                    .body(Vec::new())
+                    .send()
+                    .await
+                    .unwrap();
+                assert_eq!(accepted.status(), StatusCode::OK);
+                assert_eq!(
+                    accepted.headers()[header::CONTENT_TYPE],
+                    "application/x-protobuf"
+                );
+                assert_eq!(
+                    host.shutdown(std::time::Duration::from_secs(2)).await,
+                    ShutdownOutcome::Clean
+                );
             })
             .await;
         agent.abort();
@@ -1763,8 +2214,7 @@ mod tests {
             .unwrap()
             .unwrap();
         app_agent.plugin_configuration = true;
-        let Json(catalog) =
-            list_agents(State(AgentCatalog::new(console_agent(), vec![app_agent]))).await;
+        let Json(catalog) = list_agents(State(AgentCatalog::new(console_agent(), vec![app_agent])));
 
         assert_eq!(catalog.agents.len(), 2);
         assert_eq!(catalog.agents[0].id, "console");
@@ -1857,7 +2307,7 @@ mod tests {
                 Router::new().route(
                     "/api/console/v1/agent/bootstrap",
                     get(|headers: HeaderMap| async move {
-                        Json(serde_json::json!({
+                        AxumJson(serde_json::json!({
                             "authorization": headers
                                 .get(header::AUTHORIZATION)
                                 .and_then(|value| value.to_str().ok())
@@ -1874,22 +2324,19 @@ mod tests {
             Some("host-secret".to_owned()),
         )
         .unwrap();
-        let router = agent_catalog_routes(AgentCatalog::new(console, Vec::new()));
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = tokio::spawn(async move {
-            axum::serve(listener, router).await.unwrap();
-        });
-
-        let body = reqwest::get(format!("http://{address}/api/console/v1/agent/bootstrap"))
-            .await
-            .unwrap()
-            .json::<serde_json::Value>()
-            .await
-            .unwrap();
+        let body = handle_agent_request(
+            &AgentCatalog::new(console, Vec::new()),
+            &Request::new(Method::GET, "/api/console/v1/agent/bootstrap"),
+        )
+        .await
+        .unwrap()
+        .into_body()
+        .collect(1024 * 1024)
+        .await
+        .unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(body["authorization"], "Bearer host-secret");
 
-        server.abort();
         target.abort();
     }
 
