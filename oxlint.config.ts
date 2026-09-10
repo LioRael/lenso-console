@@ -5,7 +5,10 @@ import tanstack from "ultracite/oxlint/tanstack";
 
 export default defineConfig({
   extends: [core, react, tanstack],
-  ignorePatterns: ["service/**/generated/**"],
+  ignorePatterns: [
+    "service/**/generated/**",
+    "service/crates/lenso-console-projects-workspace-plugin/assets/**",
+  ],
   overrides: [
     {
       files: ["src/**/*.{ts,tsx}", "vite.config.ts"],
