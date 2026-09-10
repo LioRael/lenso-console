@@ -3,6 +3,7 @@ import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.ui.workspace-service@1";
 export const DESCRIPTOR_VERSION = "1.0.0";
+export const DESCRIPTOR_DIGEST = "sha256:d6cbcee860d41b45c51741fd0a8b92aaa1b0ea16a1306179941e0dc4a942f9c3";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -17,6 +18,51 @@ export type RuntimeFailure = lensoContractRuntime.RuntimeFailure;
 export type UnknownDomainError = lensoContractRuntime.UnknownDomainError;
 export type StreamEvent<Message, DomainError> = lensoContractRuntime.StreamEvent<Message, DomainError>;
 export type StreamSession<Message, DomainError> = lensoContractRuntime.StreamSession<Message, DomainError>;
+
+export type ProviderStream<Message, DomainError> = StreamSession<Message, DomainError> | AsyncIterable<Message>;
+
+class ServerOutputStreamInputError extends Error {}
+
+function isAsyncIterable<Message>(value: unknown): value is AsyncIterable<Message> {
+  return typeof value === "object" && value !== null && Symbol.asyncIterator in value;
+}
+
+function lowerProviderStream<Message, DomainError>(stream: ProviderStream<Message, DomainError>): StreamSession<Message, DomainError> {
+  if (!isAsyncIterable<Message>(stream)) return stream;
+  const iterator = stream[Symbol.asyncIterator]();
+  let cancelled = false;
+  return {
+    async send() { throw new ServerOutputStreamInputError("server-output stream does not accept inbound messages"); },
+    async receive() {
+      if (cancelled) return { kind: "terminal", outcome: { ok: true } };
+      const next = await iterator.next();
+      return next.done
+        ? { kind: "terminal", outcome: { ok: true } }
+        : { kind: "message", message: next.value };
+    },
+    async closeSend() {},
+    cancel() {
+      cancelled = true;
+      const closing = iterator.return?.();
+      if (closing !== undefined) void Promise.resolve(closing).catch(() => undefined);
+    },
+  };
+}
+
+export interface CapabilityContractReference<Client, Provider extends object, Runtime extends DependencyInvoker = DependencyInvoker> extends CapabilityDependencyBinding<Client, Runtime> {
+  readonly kind: "lenso.capability";
+  readonly capability_id: string;
+  readonly descriptor_version: string;
+  readonly descriptor_digest: string;
+  readonly generated_client: string;
+  readonly descriptor: CapabilityProviderDescriptor;
+  bindProvider(provider: Provider): CapabilityProviderBinding;
+  required(id?: string): CapabilityDependencyDeclaration<Client, "one", Runtime>;
+  optional(id?: string): CapabilityDependencyDeclaration<Client, "optional", Runtime>;
+  many(id?: string): CapabilityDependencyDeclaration<Client, "many", Runtime>;
+  readonly __client?: Client;
+  readonly __provider?: Provider;
+}
 
 export interface DescribeExportsRequest {
 
@@ -73,6 +119,8 @@ export type InvokeResult = { readonly ok: true; readonly value: InvokeResponse }
 export type SubscribeError = "codec_mismatch" | "denied" | "request_too_large" | "resource_exhausted" | "response_too_large" | "unknown_operation" | "unknown_service" | UnknownDomainError;
 export type SubscribeInvocationError = { readonly kind: "domain"; readonly error: SubscribeError } | { readonly kind: "runtime"; readonly error: RuntimeFailure };
 export type SubscribeResult = { readonly ok: true; readonly value: StreamSession<SubscribeResponse, SubscribeError> } | { readonly ok: false; readonly error: SubscribeInvocationError };
+export type SubscribeProviderResult = { readonly ok: true; readonly value: ProviderStream<SubscribeResponse, SubscribeError> } | { readonly ok: false; readonly error: SubscribeInvocationError };
+export type SubscribeProviderOutput = AsyncIterable<SubscribeResponse> | SubscribeProviderResult | Promise<SubscribeProviderResult>;
 export function encodeDescribeExportsRequest(value: DescribeExportsRequest): string { return lensoContractRuntime.encodePortableJson(value, "request"); }
 export function decodeDescribeExportsRequest(wire: string): DescribeExportsRequest { return lensoContractRuntime.decodePortableJson<DescribeExportsRequest>(wire); }
 export function encodeDescribeExportsResponse(value: DescribeExportsResponse): string { return lensoContractRuntime.encodePortableJson(value, "response"); }
@@ -104,12 +152,38 @@ export interface WorkspaceServiceClient {
 export interface WorkspaceServiceProvider {
   describe_exports(context: InvocationContext, request: DescribeExportsRequest): Promise<DescribeExportsResult>;
   invoke(context: InvocationContext, request: InvokeRequest): Promise<InvokeResult>;
-  subscribe(context: InvocationContext, request: SubscribeRequest): Promise<SubscribeResult>;
+  subscribe(context: InvocationContext, request: SubscribeRequest): SubscribeProviderOutput;
 }
+
+export const WorkspaceService: CapabilityContractReference<WorkspaceServiceClient, WorkspaceServiceProvider, InteractionDependencyInvoker> = { kind: "lenso.capability", ...bindWorkspaceServiceDependency(), capability_id: CAPABILITY_ID, descriptor_version: DESCRIPTOR_VERSION, descriptor_digest: DESCRIPTOR_DIGEST, generated_client: "WorkspaceServiceClient", descriptor: { capability_id: CAPABILITY_ID, descriptor_version: DESCRIPTOR_VERSION, operations: ["describe_exports", "invoke", "subscribe"], stream_operations: ["subscribe"], event_operations: [] }, bindProvider: bindWorkspaceServiceProvider, required(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "one" }; }, optional(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "optional" }; }, many(id) { return { kind: "lenso.dependency", ...(id === undefined ? {} : { id }), contract: this, cardinality: "many" }; }, };
+export const WORKSPACE_SERVICE_CONTRACT = WorkspaceService;
 
 export type ProviderDispatchOutcome =
   | { readonly kind: "success"; readonly value: unknown }
   | { readonly kind: "domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderStreamActionOutcome =
+  | { readonly kind: "accepted" }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderStreamReceiveOutcome =
+  | { readonly kind: "message"; readonly value: unknown }
+  | { readonly kind: "peer_half_closed" }
+  | { readonly kind: "terminal_success" }
+  | { readonly kind: "terminal_domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+/** @internal Runtime lowering seam. */
+export interface ProviderStreamSessionBinding {
+  send(message: unknown): Promise<ProviderStreamActionOutcome>;
+  receive(): Promise<ProviderStreamReceiveOutcome>;
+  closeSend(): Promise<ProviderStreamActionOutcome>;
+  cancel(): void;
+}
+export type ProviderStreamOpenOutcome =
+  | { readonly kind: "opened"; readonly stream: ProviderStreamSessionBinding }
+  | { readonly kind: "domain"; readonly value: unknown }
+  | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
+export type ProviderEventPublishOutcome =
+  | { readonly kind: "accepted" }
   | { readonly kind: "runtime"; readonly failure: RuntimeFailure };
 
 export interface CapabilityProviderDescriptor {
@@ -120,6 +194,7 @@ export interface CapabilityProviderDescriptor {
   readonly event_operations: ReadonlyArray<string>;
 }
 
+/** @internal Runtime lowering seam. */
 export interface CapabilityProviderBinding {
   readonly descriptor: CapabilityProviderDescriptor;
   invokeRequest(
@@ -127,6 +202,16 @@ export interface CapabilityProviderBinding {
     context: InvocationContext,
     payload: unknown,
   ): Promise<ProviderDispatchOutcome>;
+  openStream(
+    operation: string,
+    context: InvocationContext,
+    payload: unknown,
+  ): Promise<ProviderStreamOpenOutcome>;
+  publishEvent(
+    operation: string,
+    context: InvocationContext,
+    payload: unknown,
+  ): Promise<ProviderEventPublishOutcome>;
 }
 
 function providerErrorMessage(error: unknown): string {
@@ -190,10 +275,225 @@ export function bindWorkspaceServiceProvider(
           return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
       }
     },
+    async openStream(operation, context, payload) {
+      switch (operation) {
+      case "subscribe": {
+        let request: SubscribeRequest;
+        try {
+          request = decodeSubscribeRequest(lensoContractRuntime.encodePortableJson(payload, "stream open request"));
+        } catch (error) {
+          return { kind: "runtime", failure: { kind: "protocol_violation", detail: providerErrorMessage(error) } };
+        }
+        try {
+          const provided = provider.subscribe(context, request);
+          const result = isAsyncIterable<SubscribeResponse>(provided)
+            ? { ok: true as const, value: provided }
+            : await provided;
+          if (!result.ok) {
+            if (result.error.kind === "domain") {
+              return { kind: "domain", value: JSON.parse(encodeSubscribeError(result.error.error)) as unknown };
+            }
+            return { kind: "runtime", failure: result.error.error };
+          }
+          const stream = lowerProviderStream(result.value);
+          const binding: ProviderStreamSessionBinding = {
+            async send(message) {
+              let decoded: SubscribeResponse;
+              try {
+                decoded = decodeSubscribeResponse(lensoContractRuntime.encodePortableJson(message, "stream message"));
+              } catch (error) {
+                return { kind: "runtime", failure: { kind: "protocol_violation", detail: providerErrorMessage(error) } };
+              }
+              try {
+                await stream.send(decoded);
+                return { kind: "accepted" };
+              } catch (error) {
+                return { kind: "runtime", failure: error instanceof ServerOutputStreamInputError
+                  ? { kind: "protocol_violation", detail: providerErrorMessage(error) }
+                  : { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+              }
+            },
+            async receive() {
+              try {
+                const event = await stream.receive();
+                if (event.kind === "message") {
+                  return { kind: "message", value: JSON.parse(encodeSubscribeResponse(event.message)) as unknown };
+                }
+                if (event.kind === "peer_half_closed") return { kind: "peer_half_closed" };
+                if (event.outcome.ok) return { kind: "terminal_success" };
+                return { kind: "terminal_domain", value: JSON.parse(encodeSubscribeError(event.outcome.error)) as unknown };
+              } catch (error) {
+                return { kind: "runtime", failure: { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+              }
+            },
+            async closeSend() {
+              try {
+                await stream.closeSend();
+                return { kind: "accepted" };
+              } catch (error) {
+                return { kind: "runtime", failure: { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+              }
+            },
+            cancel() { stream.cancel(); },
+          };
+          return { kind: "opened", stream: binding };
+        } catch (error) {
+          return { kind: "runtime", failure: { kind: "plugin_failure", detail: providerErrorMessage(error) } };
+        }
+      }
+        default:
+          return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
+      }
+    },
+    async publishEvent(operation, context, payload) {
+      switch (operation) {
+
+        default:
+          return { kind: "runtime", failure: { kind: "unknown_operation", operation } };
+      }
+    },
   };
 }
 
 export type Provider = WorkspaceServiceProvider;
 export const bindProvider = bindWorkspaceServiceProvider;
+
+export type DependencyInvoker = (
+  operation: string,
+  context: InvocationContext,
+  payload: unknown,
+) => Promise<ProviderDispatchOutcome>;
+
+export type InteractionDependencyInvoker = DependencyInvoker & {
+  readonly providerInstance: string;
+  openStream(operation: string, context: InvocationContext, payload: unknown): Promise<ProviderStreamOpenOutcome>;
+  publishEvent(operation: string, context: InvocationContext, payload: unknown): Promise<ProviderEventPublishOutcome>;
+};
+
+export interface CapabilityDependencyBinding<Client, Runtime extends DependencyInvoker = DependencyInvoker> {
+  readonly descriptor: CapabilityProviderDescriptor;
+  createClient(invoke: Runtime): Client;
+}
+
+export interface CapabilityDependencyDeclaration<Client, Cardinality extends "one" | "optional" | "many", Runtime extends DependencyInvoker = DependencyInvoker> {
+  readonly kind: "lenso.dependency";
+  readonly id?: string;
+  readonly contract: CapabilityDependencyBinding<Client, Runtime>;
+  readonly cardinality: Cardinality;
+}
+
+function dependencyErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function dependencyRuntimeError(failure: RuntimeFailure): Error {
+  return Object.assign(new Error(`Capability dependency failed: ${failure.kind}`), { failure });
+}
+
+function dependencyFailure(error: unknown): RuntimeFailure {
+  if (typeof error === "object" && error !== null && "failure" in error) return (error as { failure: RuntimeFailure }).failure;
+  return { kind: "plugin_failure", detail: dependencyErrorMessage(error) };
+}
+
+export function bindWorkspaceServiceDependency(): CapabilityDependencyBinding<WorkspaceServiceClient, InteractionDependencyInvoker> {
+  return {
+    descriptor: {
+      capability_id: CAPABILITY_ID,
+      descriptor_version: DESCRIPTOR_VERSION,
+      operations: ["describe_exports", "invoke", "subscribe"],
+      stream_operations: ["subscribe"],
+      event_operations: [],
+    },
+    createClient(invoke) {
+      return {
+      async describe_exports(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeDescribeExportsRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("describe_exports", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeDescribeExportsResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeDescribeExportsError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      async invoke(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeInvokeRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke("invoke", call, payload);
+          if (outcome.kind === "success") {
+            return { ok: true, value: decodeInvokeResponse(JSON.stringify(outcome.value)) };
+          }
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeInvokeError(JSON.stringify(outcome.value)) } };
+          }
+          return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "plugin_failure", detail: dependencyErrorMessage(error) } } };
+        }
+      },
+      async subscribe(request, context) {
+        let payload: unknown;
+        try {
+          payload = JSON.parse(encodeSubscribeRequest(request)) as unknown;
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: { kind: "protocol_violation", detail: dependencyErrorMessage(error) } } };
+        }
+        const call = context ?? { requestId: "0" as Uint64, cancelled: false };
+        try {
+          const outcome = await invoke.openStream("subscribe", call, payload);
+          if (outcome.kind === "domain") {
+            return { ok: false, error: { kind: "domain", error: decodeSubscribeError(JSON.stringify(outcome.value)) } };
+          }
+          if (outcome.kind === "runtime") {
+            return { ok: false, error: { kind: "runtime", error: outcome.failure } };
+          }
+          const stream = outcome.stream;
+          return { ok: true, value: {
+            async send(message) {
+              const encoded = JSON.parse(encodeSubscribeResponse(message)) as unknown;
+              const result = await stream.send(encoded);
+              if (result.kind === "runtime") throw dependencyRuntimeError(result.failure);
+            },
+            async receive() {
+              const result = await stream.receive();
+              if (result.kind === "message") return { kind: "message", message: decodeSubscribeResponse(JSON.stringify(result.value)) };
+              if (result.kind === "peer_half_closed") return { kind: "peer_half_closed" };
+              if (result.kind === "terminal_success") return { kind: "terminal", outcome: { ok: true } };
+              if (result.kind === "terminal_domain") return { kind: "terminal", outcome: { ok: false, error: decodeSubscribeError(JSON.stringify(result.value)) } };
+              throw dependencyRuntimeError(result.failure);
+            },
+            async closeSend() {
+              const result = await stream.closeSend();
+              if (result.kind === "runtime") throw dependencyRuntimeError(result.failure);
+            },
+            cancel() { stream.cancel(); },
+          } };
+        } catch (error) {
+          return { ok: false, error: { kind: "runtime", error: dependencyFailure(error) } };
+        }
+      },
+      };
+    },
+  };
+}
+
+export const bindDependency = bindWorkspaceServiceDependency;
 
 export const portableValueProfile = lensoContractRuntime.portableValueProfile;

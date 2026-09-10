@@ -26,7 +26,6 @@ fn config(root: &std::path::Path) -> ObserveConfig {
     ObserveConfig {
         source_id: "sample-app".to_owned(),
         source_label: "Sample App".to_owned(),
-        listen_address: "127.0.0.1:0".to_owned(),
         database: root.join("observe.sqlite3"),
         token_file: root.join("otlp-token"),
         retention_days: 7,
@@ -39,7 +38,7 @@ fn plugin(config: ObserveConfig) -> ObserveWorkspace {
         config,
         store: Rc::new(RefCell::new(None)),
         worker: Rc::new(RefCell::new(None)),
-        receiver: Rc::new(RefCell::new(None)),
+        token: Rc::new(RefCell::new(None)),
         tasks: lenso::ManagedTasks::default(),
     }
 }
@@ -200,11 +199,19 @@ fn descriptor_and_workspace_are_removable_plugin_contributions() {
     let descriptor: serde_json::Value = serde_json::from_str(PLUGIN_DESCRIPTOR_JSON).unwrap();
     assert_eq!(descriptor["plugin_id"], "lenso.console.workspace.observe");
     assert_eq!(descriptor["root_slot"], "console-workspaces");
+    assert!(
+        descriptor["provided_capabilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|capability| capability["capability_id"] == http_stream::CAPABILITY_ID)
+    );
     let root = tempfile::tempdir().unwrap();
     let plugin = plugin(config(root.path()));
-    let contribution = futures::executor::block_on(plugin.describe(context(), DescribeRequest {}))
-        .unwrap()
-        .unwrap();
+    let contribution =
+        futures::executor::block_on(plugin.describe_contribution(context(), DescribeRequest {}))
+            .unwrap()
+            .unwrap();
     assert_eq!(contribution.workspace_id, "observe-sample-app");
     assert_eq!(
         contribution.subject.unwrap().kind,
@@ -229,77 +236,103 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
     })
     .await
     .unwrap();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let address = listener.local_addr().unwrap();
     let query_store = store.clone();
-    let (shutdown, stop) = tokio::sync::oneshot::channel();
-    let server = tokio::spawn(async move {
-        axum::serve(
-            listener,
-            otlp::router(store, "test-token-which-is-long-enough".to_owned()),
+    let call = |store: ObserveStore,
+                route_id: &'static str,
+                body: Vec<u8>,
+                gzip: bool,
+                authorized: bool| async move {
+        let mut headers = vec![http_stream::HandleRequestHeadersItem {
+            name: "content-type".to_owned(),
+            value: "application/x-protobuf".to_owned(),
+        }];
+        if gzip {
+            headers.push(http_stream::HandleRequestHeadersItem {
+                name: "content-encoding".to_owned(),
+                value: "gzip".to_owned(),
+            });
+        }
+        otlp::handle(
+            store,
+            "test-token-which-is-long-enough",
+            http_stream::HandleRequest {
+                body: body.into(),
+                credential: authorized.then(|| http_stream::HandleRequestCredential {
+                    scheme: "Bearer".to_owned(),
+                    value: "test-token-which-is-long-enough".to_owned(),
+                }),
+                headers,
+                method: "POST".to_owned(),
+                path: if route_id.ends_with("traces") {
+                    "/v1/traces"
+                } else {
+                    "/v1/logs"
+                }
+                .to_owned(),
+                path_parameters: Vec::new(),
+                query: None,
+                request_id: "test-request".to_owned(),
+                route_id: route_id.to_owned(),
+            },
         )
-        .with_graceful_shutdown(async move {
-            let _ = stop.await;
-        })
         .await
-        .unwrap();
-    });
-    let client = reqwest::Client::new();
+    };
 
-    let unauthorized = client
-        .post(format!("http://{address}/v1/traces"))
-        .header("content-type", "application/x-protobuf")
-        .body(trace_request().encode_to_vec())
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(unauthorized.status(), reqwest::StatusCode::UNAUTHORIZED);
+    let unauthorized = call(
+        store.clone(),
+        "observe.otlp.traces",
+        trace_request().encode_to_vec(),
+        false,
+        false,
+    )
+    .await;
+    assert_eq!(unauthorized.status, 401);
 
-    let response = client
-        .post(format!("http://{address}/v1/traces"))
-        .header("content-type", "application/x-protobuf")
-        .header("content-encoding", "gzip")
-        .bearer_auth("test-token-which-is-long-enough")
-        .body(gzip(&trace_request().encode_to_vec()))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), reqwest::StatusCode::OK);
-    assert_eq!(response.headers()["content-type"], "application/x-protobuf");
+    let response = call(
+        store.clone(),
+        "observe.otlp.traces",
+        gzip(&trace_request().encode_to_vec()),
+        true,
+        true,
+    )
+    .await;
+    assert_eq!(response.status, 200);
+    assert!(response.headers.iter().any(|header| {
+        header.name == "content-type" && header.value == "application/x-protobuf"
+    }));
 
-    let response = client
-        .post(format!("http://{address}/v1/logs"))
-        .header("content-type", "application/x-protobuf")
-        .bearer_auth("test-token-which-is-long-enough")
-        .body(logs_request().encode_to_vec())
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let response = call(
+        store.clone(),
+        "observe.otlp.logs",
+        logs_request().encode_to_vec(),
+        false,
+        true,
+    )
+    .await;
+    assert_eq!(response.status, 200);
 
     let mut invalid = trace_request();
     invalid.resource_spans[0].scope_spans[0].spans = vec![Span::default()];
-    let response = client
-        .post(format!("http://{address}/v1/traces"))
-        .header("content-type", "application/x-protobuf")
-        .bearer_auth("test-token-which-is-long-enough")
-        .body(invalid.encode_to_vec())
-        .send()
-        .await
-        .unwrap();
-    let partial = ExportTraceServiceResponse::decode(response.bytes().await.unwrap()).unwrap();
+    let response = call(
+        store.clone(),
+        "observe.otlp.traces",
+        invalid.encode_to_vec(),
+        false,
+        true,
+    )
+    .await;
+    let partial = ExportTraceServiceResponse::decode(response.body.as_slice()).unwrap();
     assert_eq!(partial.partial_success.unwrap().rejected_spans, 1);
 
-    let response = client
-        .post(format!("http://{address}/v1/traces"))
-        .header("content-type", "application/x-protobuf")
-        .header("content-encoding", "gzip")
-        .bearer_auth("test-token-which-is-long-enough")
-        .body(gzip(&vec![0; otlp_body::MAX_DECODED_BYTES + 1]))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), reqwest::StatusCode::PAYLOAD_TOO_LARGE);
+    let response = call(
+        store,
+        "observe.otlp.traces",
+        gzip(&vec![0; otlp_body::MAX_DECODED_BYTES + 1]),
+        true,
+        true,
+    )
+    .await;
+    assert_eq!(response.status, 413);
 
     let page = query_store
         .list_requests(ListRequestsRequest {
@@ -349,8 +382,6 @@ async fn real_otlp_http_ingestion_persists_queries_and_redacts_secrets() {
     assert_eq!(health.decode_failures, "1");
     assert_eq!(health.redacted_attributes, "2");
 
-    let _ = shutdown.send(());
-    server.await.unwrap();
     worker.shutdown().await.unwrap();
 
     let (reopened, reopened_worker) = ObserveWorker::start(StoreConfig {

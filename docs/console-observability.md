@@ -19,7 +19,8 @@ Console Shell.
 
 One Observe Plugin instance owns one source App in the first release. Its
 configuration fixes the Workspace subject, OTLP source identity, token resource,
-listener, database, and retention. Supporting many Apps means selecting many
+database, and retention. The Host-owned Web Ingress configuration fixes the
+listener. Supporting many Apps means selecting many
 instances; a request never changes source because a UI selector changed.
 
 ## Owners and boundaries
@@ -79,8 +80,9 @@ the admitted token; an exporter cannot select another `source_id` by supplying
 an attribute. Tokens stay in Host-private resources and are never returned in
 the Workspace catalog or Resolved App Plan.
 
-The receiver defaults to loopback. A non-loopback listener requires a separate
-deployment/authentication design and is rejected in the first release.
+The reference Host binds the OTLP Web Ingress to loopback. A non-loopback
+listener requires a separate deployment/authentication design and is rejected
+in the first release.
 
 Admission is bounded:
 
@@ -205,8 +207,9 @@ runtime panel remains explicitly unavailable until that Capability is selected.
 ## Implemented tracer slice
 
 The reference Host now links `lenso.console.workspace.observe` and creates one
-instance for the first configured application subject. With the default Console
-address its receiver listens on `127.0.0.1:4318`; it creates a private bearer
+instance for the first configured application subject. A second Plan-bound
+`lenso.web-ingress` instance owns the default `127.0.0.1:4318` listener and
+routes only the Observe Plugin's declared OTLP endpoints. Observe creates a private bearer
 token at `.lenso/console/observe/otlp-token` and stores telemetry in
 `.lenso/console/observe/telemetry.sqlite3`. The token bytes never enter the
 Resolved App Plan. With no configured application subject, Observe is available
@@ -235,15 +238,16 @@ Concrete artifacts:
 
 - `service/crates/lenso-capability-observability-query`: source schemas,
   generated Rust code, TypeScript projection, and conformance fixtures;
-- `service/crates/lenso-console-observe-workspace-plugin`: OTLP receiver, SQLite
-  store, retention, query provider, Workspace provider, and lifecycle;
+- `service/crates/lenso-console-observe-workspace-plugin`: OTLP endpoint,
+  SQLite store, retention, query provider, Workspace provider, and lifecycle;
 - a self-contained Observe frontend module with no Console-private imports;
 - the existing Console contract-aware Workspace service transport;
 - reference Host Plan policy for the first configured App subject;
 - `lenso-web/examples/observe-sample-web-app`, consuming the released
   `lenso-otel-plugin` OTLP/HTTP exporter.
 
-Current verification proves real gzip OTLP ingestion and authorization,
+Current verification proves real Plan-bound Web Ingress routing plus gzip OTLP
+ingestion and authorization,
 encoded/decoded limits, exact partial-success counts, trace/log correlation,
 event/link persistence, late-arrival updates, redaction, restart persistence,
 pagination, time retention, exact App/Plan admission, generated contract

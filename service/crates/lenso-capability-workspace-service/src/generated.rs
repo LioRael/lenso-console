@@ -3,13 +3,16 @@ use std::{fmt, rc::Rc};
 use futures::future::LocalBoxFuture;
 use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture, NativeRequestHandle, NativeStream, NativeStreamEndpoint, NativeStreamHandle, NativeStreamSession, PluginDependencies, RequestCapability, RuntimeFailure, StreamCapability, StreamEvent};
 
-use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany};
+use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany, CapabilityReference};
 pub const CAPABILITY_ID: &str = "lenso.ui.workspace-service@1";
 pub const DESCRIPTOR_VERSION: &str = "1.0.0";
+pub const DESCRIPTOR_DIGEST: &str = "sha256:d6cbcee860d41b45c51741fd0a8b92aaa1b0ea16a1306179941e0dc4a942f9c3";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const WORKSPACE_SERVICE_CAPABILITY_ID: &str = CAPABILITY_ID;
 pub const WORKSPACE_SERVICE_DESCRIPTOR_VERSION: &str = DESCRIPTOR_VERSION;
+pub const WORKSPACE_SERVICE_DESCRIPTOR_DIGEST: &str = DESCRIPTOR_DIGEST;
+pub const WORKSPACE_SERVICE_CONTRACT: CapabilityReference<WorkspaceServiceClient> = CapabilityReference::new(CAPABILITY_ID, DESCRIPTOR_VERSION, DESCRIPTOR_DIGEST);
 
 #[doc(hidden)]
 #[macro_export]
@@ -17,11 +20,23 @@ macro_rules! __lenso_provided_workspace_service { () => { "{\"capability_id\":\"
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_workspace_service_client { () => { "{\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}" }; }
+macro_rules! __lenso_required_workspace_service_client {
+    () => { "{\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}") };
+}
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_required_many_workspace_service_client { () => { "{\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}" }; }
+macro_rules! __lenso_required_optional_workspace_service_client {
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"optional\"}") };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __lenso_required_many_workspace_service_client {
+    () => { "{\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.workspace-service@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}") };
+}
 
 pub const DESCRIBE_EXPORTS_OPERATION: &str = "describe_exports";
 pub const INVOKE_OPERATION: &str = "invoke";
@@ -582,6 +597,71 @@ macro_rules! __lenso_native_lower_workspace_service {
     };
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __lenso_native_lower_object_workspace_service {
+    ($object:ty, $plugin:ty, $support:path) => {
+        use $support as __LensoNativeSupportWorkspaceService;
+        impl $crate::WorkspaceServiceProvider for $object {
+        fn describe_exports(&self, context: __LensoNativeSupportWorkspaceService::InvocationContext, request: $crate::DescribeExportsRequest) -> __LensoNativeSupportWorkspaceService::NativeRequestFuture<$crate::WorkspaceServiceDescribeExports> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get()?;
+                let result = <$plugin>::describe_exports(plugin.as_ref(), context, request).await;
+                $crate::__LensoIntoWorkspaceServiceDescribeExportsResult::__lenso_into_result(result)
+            })
+        }
+        fn invoke(&self, context: __LensoNativeSupportWorkspaceService::InvocationContext, request: $crate::InvokeRequest) -> __LensoNativeSupportWorkspaceService::NativeRequestFuture<$crate::WorkspaceServiceInvoke> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get()?;
+                let result = <$plugin>::invoke(plugin.as_ref(), context, request).await;
+                $crate::__LensoIntoWorkspaceServiceInvokeResult::__lenso_into_result(result)
+            })
+        }
+        fn subscribe(&self, context: __LensoNativeSupportWorkspaceService::InvocationContext, request: $crate::SubscribeRequest) -> __LensoNativeSupportWorkspaceService::LocalBoxFuture<'static, Result<Box<dyn __LensoNativeSupportWorkspaceService::NativeStreamSession>, $crate::WorkspaceServiceSubscribeInvocationError>> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get().map_err($crate::WorkspaceServiceSubscribeInvocationError::Runtime)?;
+                let result = <$plugin>::subscribe(plugin.as_ref(), context, request).await;
+                $crate::__LensoIntoWorkspaceServiceSubscribeStreamResult::__lenso_into_result(result)
+            })
+        }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __lenso_native_lower_trait_object_workspace_service {
+    ($object:ty, $plugin:ty, $support:path) => {
+        use $support as __LensoNativeSupportWorkspaceService;
+        impl $crate::WorkspaceServiceProvider for $object {
+        fn describe_exports(&self, context: __LensoNativeSupportWorkspaceService::InvocationContext, request: $crate::DescribeExportsRequest) -> __LensoNativeSupportWorkspaceService::NativeRequestFuture<$crate::WorkspaceServiceDescribeExports> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get()?;
+                <$plugin as $crate::WorkspaceServiceProvider>::describe_exports(plugin.as_ref(), context, request).await
+            })
+        }
+        fn invoke(&self, context: __LensoNativeSupportWorkspaceService::InvocationContext, request: $crate::InvokeRequest) -> __LensoNativeSupportWorkspaceService::NativeRequestFuture<$crate::WorkspaceServiceInvoke> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get()?;
+                <$plugin as $crate::WorkspaceServiceProvider>::invoke(plugin.as_ref(), context, request).await
+            })
+        }
+        fn subscribe(&self, context: __LensoNativeSupportWorkspaceService::InvocationContext, request: $crate::SubscribeRequest) -> __LensoNativeSupportWorkspaceService::LocalBoxFuture<'static, Result<Box<dyn __LensoNativeSupportWorkspaceService::NativeStreamSession>, $crate::WorkspaceServiceSubscribeInvocationError>> {
+            let object = self.clone();
+            ::std::boxed::Box::pin(async move {
+                let plugin = object.get().map_err($crate::WorkspaceServiceSubscribeInvocationError::Runtime)?;
+                <$plugin as $crate::WorkspaceServiceProvider>::subscribe(plugin.as_ref(), context, request).await
+            })
+        }
+        }
+    };
+}
+
 #[derive(Debug)]
 struct WorkspaceServiceRequestEndpoint { provider: Rc<dyn WorkspaceServiceProvider> }
 
@@ -692,7 +772,7 @@ macro_rules! __lenso_native_provide_workspace_service {
     }};
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct WorkspaceServiceClient {
     describe_exports: NativeRequestHandle<WorkspaceServiceDescribeExports>,
     invoke: NativeRequestHandle<WorkspaceServiceInvoke>,
@@ -701,6 +781,13 @@ pub struct WorkspaceServiceClient {
 impl WorkspaceServiceClient {
     pub fn from_dependencies(dependencies: &PluginDependencies) -> Result<Self, RuntimeFailure> {
         <Self as CapabilityClient>::from_dependencies(dependencies)
+    }
+
+    pub fn from_requirement(
+        dependencies: &PluginDependencies,
+        requirement_id: &str,
+    ) -> Result<Self, RuntimeFailure> {
+        <Self as CapabilityClient>::from_requirement(dependencies, requirement_id)
     }
 
     pub async fn describe_exports(&self, request: DescribeExportsRequest) -> Result<DescribeExportsResponse, WorkspaceServiceDescribeExportsInvocationError> {
@@ -755,6 +842,14 @@ impl CapabilityClient for WorkspaceServiceClient {
         })
     }
 
+    fn from_requirement(
+        dependencies: &PluginDependencies,
+        requirement_id: &str,
+    ) -> Result<Self, RuntimeFailure> {
+        let dependencies = dependencies.requirement(requirement_id)?;
+        Self::from_dependencies(&dependencies)
+    }
+
     fn already_connected() -> RuntimeFailure {
         RuntimeFailure::PluginFailure {
             detail: format!("Capability Port {CAPABILITY_ID} was connected more than once"),
@@ -781,6 +876,14 @@ impl CapabilityClientMany for WorkspaceServiceClient {
                 ))
             })
             .collect()
+    }
+
+    fn many_from_requirement(
+        dependencies: &PluginDependencies,
+        requirement_id: &str,
+    ) -> Result<Vec<BoundCapabilityClient<Self>>, RuntimeFailure> {
+        let dependencies = dependencies.requirement(requirement_id)?;
+        Self::many_from_dependencies(&dependencies)
     }
 }
 

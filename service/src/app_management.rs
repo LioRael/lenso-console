@@ -1,10 +1,10 @@
 //! Console-owned HTTP management projection. Agent interaction remains a separate catalog.
 use super::{
-    AgentCatalog, AppAgentAdapter, AxumPath, Bytes, Deserialize, HeaderMap, Json,
-    MAX_AGENT_REQUEST_BYTES, Method, OriginalUri, RequestBodyLimitLayer, Response, Router,
-    Serialize, State, StatusCode, allowed_plugin_configuration_route,
-    allowed_plugin_lifecycle_route, any, get, problem, proxy_request_at,
+    AgentCatalog, AppAgentAdapter, Bytes, Deserialize, HeaderMap, Json, MAX_AGENT_REQUEST_BYTES,
+    Method, OriginalUri, Response, Serialize, State, StatusCode,
+    allowed_plugin_configuration_route, allowed_plugin_lifecycle_route, problem, proxy_request_at,
 };
+use crate::http::{IntoResponse as _, Path as HttpPath, Request};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -82,7 +82,7 @@ fn agent_app(agent: &AppAgentAdapter, scope: &'static str) -> AppIdentity {
     }
 }
 
-async fn list_apps(State(catalog): State<AppCatalog>) -> Json<serde_json::Value> {
+fn list_apps(State(catalog): State<AppCatalog>) -> Json<serde_json::Value> {
     let mut apps = vec![agent_app(&catalog.agents.console_agent, "management-agent")];
     apps.extend(
         catalog
@@ -116,17 +116,41 @@ async fn list_apps(State(catalog): State<AppCatalog>) -> Json<serde_json::Value>
     Json(serde_json::json!({ "apps": apps }))
 }
 
-pub(super) fn routes(catalog: AppCatalog) -> Router {
-    Router::new()
-        .route("/api/console/v1/apps", get(list_apps))
-        .route("/api/console/v1/apps/{app_id}/{*path}", any(route_app))
-        .layer(RequestBodyLimitLayer::new(MAX_AGENT_REQUEST_BYTES))
-        .with_state(catalog)
+pub(super) async fn handle(catalog: &AppCatalog, request: &Request) -> Option<Response> {
+    if request.path == "/api/console/v1/apps" {
+        return Some(if request.method == Method::GET {
+            list_apps(State(catalog.clone())).into_response()
+        } else {
+            StatusCode::METHOD_NOT_ALLOWED.into_response()
+        });
+    }
+    let tail = request.path.strip_prefix("/api/console/v1/apps/")?;
+    let (id, path) = tail.split_once('/')?;
+    if request.body.len() > MAX_AGENT_REQUEST_BYTES {
+        return Some(problem(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "App management request body is too large",
+        ));
+    }
+    Some(
+        route_app(
+            State(catalog.clone()),
+            HttpPath((
+                crate::http::decode_path(id)?,
+                crate::http::decode_path(path)?,
+            )),
+            OriginalUri(request.uri()),
+            request.method.clone(),
+            request.headers.clone(),
+            request.body.clone(),
+        )
+        .await,
+    )
 }
 
 async fn route_app(
     State(catalog): State<AppCatalog>,
-    AxumPath((id, path)): AxumPath<(String, String)>,
+    HttpPath((id, path)): HttpPath<(String, String)>,
     OriginalUri(incoming): OriginalUri,
     method: Method,
     headers: HeaderMap,
@@ -179,8 +203,8 @@ pub(super) fn validate_connections(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent_catalog_routes;
-    use axum::http::header;
+    use crate::{handle_agent_request, http::Request};
+    use ::http::header;
 
     fn connection(id: &str, origin: &str) -> ManagedAppConnection {
         ManagedAppConnection {
@@ -216,8 +240,7 @@ mod tests {
         let Json(catalog) = list_apps(State(AppCatalog {
             agents,
             apps: vec![app],
-        }))
-        .await;
+        }));
         let apps = catalog["apps"].as_array().unwrap();
         assert_eq!(apps.len(), 2);
         assert_eq!(apps[0]["id"], "console");
@@ -227,17 +250,17 @@ mod tests {
         assert_eq!(apps[1]["pluginConfiguration"], true);
     }
 
-    async fn assert_catalog_and_target_routing(client: &reqwest::Client, base: &str) {
-        let catalog: serde_json::Value = client
-            .get(format!("{base}/api/console/v1/apps"))
-            .send()
-            .await
-            .unwrap()
-            .json()
+    async fn response_json(response: Response) -> serde_json::Value {
+        serde_json::from_slice(&response.into_body().collect(1024 * 1024).await.unwrap()).unwrap()
+    }
+
+    async fn assert_catalog_and_target_routing(catalog: &AppCatalog) {
+        let value = handle(catalog, &Request::new(Method::GET, "/api/console/v1/apps"))
             .await
             .unwrap();
-        assert_eq!(catalog["apps"].as_array().unwrap().len(), 4);
-        let support = catalog["apps"]
+        let catalog_json = response_json(value).await;
+        assert_eq!(catalog_json["apps"].as_array().unwrap().len(), 4);
+        let support = catalog_json["apps"]
             .as_array()
             .unwrap()
             .iter()
@@ -245,15 +268,16 @@ mod tests {
             .unwrap();
         assert_eq!(support["agentId"], serde_json::Value::Null);
         assert_eq!(support["pluginConfiguration"], true);
-        assert!(!catalog.to_string().contains("control"));
-        let agent_catalog: serde_json::Value = client
-            .get(format!("{base}/api/console/v1/agents"))
-            .send()
+        assert!(!catalog_json.to_string().contains("control"));
+        let agent_catalog = response_json(
+            handle_agent_request(
+                &catalog.agents,
+                &Request::new(Method::GET, "/api/console/v1/agents"),
+            )
             .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+            .unwrap(),
+        )
+        .await;
         assert_eq!(agent_catalog["agents"].as_array().unwrap().len(), 2);
         for (id, expected_path, expected_auth) in [
             (
@@ -268,15 +292,19 @@ mod tests {
                 Some("Bearer console-control"),
             ),
         ] {
-            let response: serde_json::Value = client
-                .get(format!("{base}/api/console/v1/apps/{id}/plugins?after=3"))
-                .header(header::AUTHORIZATION, "Bearer browser-token")
-                .send()
+            let response = response_json(
+                handle(
+                    catalog,
+                    &Request::new(
+                        Method::GET,
+                        &format!("/api/console/v1/apps/{id}/plugins?after=3"),
+                    )
+                    .with_header(header::AUTHORIZATION, "Bearer browser-token"),
+                )
                 .await
-                .unwrap()
-                .json()
-                .await
-                .unwrap();
+                .unwrap(),
+            )
+            .await;
             assert_eq!(response["path"], expected_path);
             assert_eq!(response["authorization"], serde_json::json!(expected_auth));
             assert_eq!(response["query"], "after=3");
@@ -286,18 +314,18 @@ mod tests {
     #[tokio::test]
     async fn non_agent_app_is_separate_and_proxy_is_plugin_only() {
         async fn upstream(
-            headers: HeaderMap,
-            OriginalUri(uri): OriginalUri,
-            method: Method,
-        ) -> Json<serde_json::Value> {
-            Json(
+            headers: axum::http::HeaderMap,
+            axum::extract::OriginalUri(uri): axum::extract::OriginalUri,
+            method: axum::http::Method,
+        ) -> axum::Json<serde_json::Value> {
+            axum::Json(
                 serde_json::json!({ "path": uri.path(), "query": uri.query(), "method": method.as_str(), "authorization": headers.get(header::AUTHORIZATION).and_then(|value| value.to_str().ok()) }),
             )
         }
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
         let target = tokio::spawn(async move {
-            axum::serve(listener, Router::new().fallback(upstream))
+            axum::serve(listener, axum::Router::new().fallback(upstream))
                 .await
                 .unwrap();
         });
@@ -310,27 +338,23 @@ mod tests {
             .unwrap();
         agent.plugin_configuration = true;
         let agents = AgentCatalog::new(console, vec![agent]);
-        let router = agent_catalog_routes(agents.clone()).merge(routes(AppCatalog {
-            agents,
+        let catalog = AppCatalog {
+            agents: agents.clone(),
             apps: vec![app],
-        }));
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}", listener.local_addr().unwrap());
-        let server = tokio::spawn(async move {
-            axum::serve(listener, router).await.unwrap();
-        });
-        let client = reqwest::Client::new();
-        assert_catalog_and_target_routing(&client, &base).await;
-        let response: serde_json::Value = client
-            .put(format!(
-                "{base}/api/console/v1/apps/support/control/plugins/example/default/enabled"
-            ))
-            .send()
+        };
+        assert_catalog_and_target_routing(&catalog).await;
+        let response = response_json(
+            handle(
+                &catalog,
+                &Request::new(
+                    Method::PUT,
+                    "/api/console/v1/apps/support/control/plugins/example/default/enabled",
+                ),
+            )
             .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+            .unwrap(),
+        )
+        .await;
         assert_eq!(
             response["path"],
             "/api/lenso/v1/control/plugins/example/default/enabled"
@@ -342,45 +366,49 @@ mod tests {
             "control/plugins/install",
         ] {
             assert_eq!(
-                client
-                    .get(format!("{base}/api/console/v1/apps/support/{path}"))
-                    .send()
-                    .await
-                    .unwrap()
-                    .status(),
+                handle(
+                    &catalog,
+                    &Request::new(Method::GET, &format!("/api/console/v1/apps/support/{path}"),),
+                )
+                .await
+                .unwrap()
+                .status(),
                 StatusCode::NOT_FOUND
             );
         }
         assert_eq!(
-            client
-                .post(format!("{base}/api/console/v1/apps/support/turns"))
-                .send()
-                .await
-                .unwrap()
-                .status(),
+            handle(
+                &catalog,
+                &Request::new(Method::POST, "/api/console/v1/apps/support/turns"),
+            )
+            .await
+            .unwrap()
+            .status(),
             StatusCode::NOT_FOUND
         );
         assert_eq!(
-            client
-                .get(format!("{base}/api/console/v1/agents/support/bootstrap"))
-                .send()
-                .await
-                .unwrap()
-                .status(),
+            handle_agent_request(
+                &agents,
+                &Request::new(Method::GET, "/api/console/v1/agents/support/bootstrap"),
+            )
+            .await
+            .unwrap()
+            .status(),
             StatusCode::NOT_FOUND
         );
         assert_eq!(
-            client
-                .get(format!(
-                    "{base}/api/console/v1/apps/console-extensions/plugins"
-                ))
-                .send()
-                .await
-                .unwrap()
-                .status(),
+            handle(
+                &catalog,
+                &Request::new(
+                    Method::GET,
+                    "/api/console/v1/apps/console-extensions/plugins",
+                ),
+            )
+            .await
+            .unwrap()
+            .status(),
             StatusCode::NOT_FOUND
         );
-        server.abort();
         target.abort();
     }
 }

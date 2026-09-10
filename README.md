@@ -4,6 +4,9 @@
 
 Lenso Console is the local management and Agent workspace for one Lenso App.
 The Console service owns the React Shell, Agent catalog, and same-origin proxy.
+It runs as a Lenso App: Plan-bound `lenso.web-ingress` instances own Console
+and OTLP listeners, while removable Plugins own the route behavior and state.
+Axum remains only in test fixtures for simulated upstream services.
 The separately released `lenso-agent-web` binary owns Agent execution and its
 reviewed Plugin compositions; Console no longer links Agent's private Rust
 workspace.
@@ -67,6 +70,23 @@ The Console Agent defaults to `http://127.0.0.1:8788`; override it with
 
 Open `http://127.0.0.1:3030`.
 
+The reference Host is itself a configurable Lenso App. On startup it publishes
+the exact read-only Host Catalog to
+`~/.lenso/console/.lenso/host-catalog.json` and resolves the visible
+`~/.lenso/console/plugins/` Plugin Root before starting the Kernel. Override
+that root with the absolute `LENSO_CONSOLE_HOME` path. App-owned changes use the
+normal Lenso CLI 0.5.2 or later and take effect on the next Console restart:
+
+```sh
+lenso app check --root ~/.lenso/console
+lenso app show --root ~/.lenso/console
+lenso plugins disable lenso.console.workspace.welcome default --root ~/.lenso/console
+```
+
+The App owner never writes a Plan or binding file. The Host Catalog owns the
+WebIngress instances and private Capability bindings; `plugins/` contains only
+typed Instance configuration and enablement differences.
+
 The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
 being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
 the launcher directory. The Console Agent admits the reviewed inspection,
@@ -116,9 +136,11 @@ must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `service`: the `lenso.console.web` lifecycle Plugin, its Plan-bound
-  `lenso.ui.contribution@1` Workspace catalog, same-origin Agent proxy, and thin
-  supervisor for released Agent Web processes.
+- `service`: the `lenso.console.web` lifecycle and HTTP Endpoint Plugin, its
+  Plan-bound `lenso.ui.contribution@1` Workspace catalog, same-origin Agent
+  proxy, and thin supervisor for released Agent Web processes. The reference
+  Host composes `lenso.web-ingress`; listener policy is no longer owned by the
+  Console Plugin.
 - `service/crates/lenso-capability-ui-contribution`: generated Rust and
   TypeScript contract projections for Plugin-owned Console- and App-scoped
   Workspaces.

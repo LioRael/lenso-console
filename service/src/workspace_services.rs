@@ -1,15 +1,9 @@
 use std::{collections::BTreeMap, convert::Infallible, sync::Arc};
 
-use axum::{
-    Router,
-    body::{Body, Bytes},
-    extract::{Path, State},
-    http::{HeaderMap, StatusCode, header},
-    response::{IntoResponse, Response},
-    routing::post,
-};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use bytes::Bytes;
 use futures::{StreamExt as _, future::Either};
+use http::{HeaderMap, Method, StatusCode, header};
 use lenso::ManyPort;
 use lenso_capability_ui_contribution::{
     DescribeResponseRequirementsItem, DescribeResponseRequirementsItemSource,
@@ -21,10 +15,12 @@ use lenso_capability_workspace_service::{
     WorkspaceServiceDescribeExportsInvocationError, WorkspaceServiceInvokeInvocationError,
     WorkspaceServiceSubscribeInvocationError,
 };
-use lenso_kernel::{RuntimeFailure, StreamEvent};
+use lenso_kernel::{CancellationToken, RuntimeFailure, StreamEvent};
 use serde::Serialize;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
+
+use crate::http::{Body, IntoResponse, Json, Path, Request, Response, State};
 
 const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 const MAX_UNARY_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
@@ -273,17 +269,41 @@ impl WorkspaceServiceDispatch {
         }
     }
 
-    pub(super) fn routes(self) -> Router {
-        Router::new()
-            .route(
-                "/api/console/v1/pages/{workspace}/services/{service}/invoke/{operation}",
-                post(invoke),
-            )
-            .route(
-                "/api/console/v1/pages/{workspace}/services/{service}/subscribe/{operation}",
-                post(subscribe),
-            )
-            .with_state(self)
+    pub(super) async fn handle(&self, request: &Request) -> Option<Response> {
+        let tail = request.path.strip_prefix("/api/console/v1/pages/")?;
+        let parts = tail.split('/').collect::<Vec<_>>();
+        let [workspace, "services", service, interaction, operation] = parts.as_slice() else {
+            return None;
+        };
+        if request.method != Method::POST {
+            return Some(StatusCode::METHOD_NOT_ALLOWED.into_response());
+        }
+        let parameters = (
+            crate::http::decode_path(workspace)?,
+            crate::http::decode_path(service)?,
+            crate::http::decode_path(operation)?,
+        );
+        match *interaction {
+            "invoke" => Some(
+                invoke(
+                    State(self.clone()),
+                    Path(parameters),
+                    request.headers.clone(),
+                    request.body.clone(),
+                )
+                .await,
+            ),
+            "subscribe" => Some(
+                subscribe(
+                    State(self.clone()),
+                    Path(parameters),
+                    request.headers.clone(),
+                    request.body.clone(),
+                )
+                .await,
+            ),
+            _ => None,
+        }
     }
 }
 
@@ -293,8 +313,15 @@ pub(super) struct WorkspaceServiceRuntime {
 }
 
 impl WorkspaceServiceRuntime {
-    pub(super) async fn run(mut self) {
-        while let Some(command) = self.receiver.recv().await {
+    pub(super) async fn run(mut self, cancellation: CancellationToken) {
+        loop {
+            let command = tokio::select! {
+                () = cancellation.cancelled() => return,
+                command = self.receiver.recv() => {
+                    let Some(command) = command else { return; };
+                    command
+                }
+            };
             match command {
                 DispatchCommand::Invoke {
                     owner,
@@ -551,7 +578,7 @@ async fn subscribe(
             ),
         }))
     });
-    Response::builder()
+    ::http::Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/event-stream")
         .header(header::CACHE_CONTROL, "no-store")
@@ -608,7 +635,7 @@ impl IntoResponse for TransportFailure {
         (
             self.status,
             [(header::CACHE_CONTROL, "no-store")],
-            axum::Json(serde_json::json!({
+            Json(serde_json::json!({
                 "type": format!("https://lenso.dev/problems/{}", self.code),
                 "title": "Workspace service request failed",
                 "status": self.status.as_u16(),

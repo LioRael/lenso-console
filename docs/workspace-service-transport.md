@@ -136,7 +136,10 @@ The repository now includes descriptor 1.2 of `lenso.ui.contribution`, the
 generated Rust and TypeScript projections for `lenso.ui.workspace-service@1`,
 and a `many` service Port on `lenso.console.web`. Activation pairs contribution
 and service providers by exact provider-instance identity, validates exports,
-and freezes mount-scoped routes before the HTTP server starts.
+and freezes mount-scoped routes before the App Ready Gate opens. Console's HTTP
+projection is Plan-bound through the Lenso Web endpoint contracts;
+subscriptions remain incremental through `lenso.http.stream-endpoint@1` and
+`lenso.web-ingress`.
 
 The Shell supplies a mount-scoped client with unary and SSE support. Its request
 signal is the Workspace mount signal, and dropping an SSE response cancels the

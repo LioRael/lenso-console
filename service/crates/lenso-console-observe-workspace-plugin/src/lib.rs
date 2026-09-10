@@ -5,8 +5,8 @@ mod otlp_body;
 mod store;
 
 use std::{
-    cell::RefCell,
-    net::SocketAddr,
+    any::Any,
+    cell::{Cell, RefCell},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -16,6 +16,7 @@ use futures::{
     FutureExt as _,
     future::{Either, ready, select},
 };
+use lenso_capability_http_stream_endpoint as http_stream;
 use lenso_capability_observability_query::{
     self as observe, ListRequestsRequest, ListTraceLogsRequest, QueryListRequestsInvocationError,
     QueryListTraceLogsInvocationError, QueryReadIngestionHealthInvocationError,
@@ -36,7 +37,10 @@ use lenso_capability_workspace_service::{
     SubscribeResponseOutcome, WorkspaceServiceInvoke, WorkspaceServiceSubscribe,
     WorkspaceServiceSubscribeInvocationError,
 };
-use lenso_kernel::{DeactivateContext, InvocationContext, PrepareContext, RuntimeFailure};
+use lenso_kernel::{
+    DeactivateContext, InvocationContext, NativeStreamItem, NativeStreamSession, PrepareContext,
+    RuntimeFailure,
+};
 use store::{ObserveStore, ObserveWorker, StoreConfig};
 
 const SERVICE_ID: &str = "observe";
@@ -48,7 +52,6 @@ const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 struct ObserveConfig {
     source_id: String,
     source_label: String,
-    listen_address: String,
     database: PathBuf,
     token_file: PathBuf,
     retention_days: u32,
@@ -56,15 +59,6 @@ struct ObserveConfig {
 }
 
 fn validate_config(config: &ObserveConfig) -> Result<(), RuntimeFailure> {
-    let address = config
-        .listen_address
-        .parse::<SocketAddr>()
-        .map_err(invalid_plan)?;
-    if !address.ip().is_loopback() {
-        return Err(invalid_plan(
-            "Observe OTLP receiver must listen on loopback",
-        ));
-    }
     if !valid_slug(&config.source_id)
         || config.source_label.trim().is_empty()
         || config.source_label.len() > 128
@@ -80,12 +74,6 @@ fn validate_config(config: &ObserveConfig) -> Result<(), RuntimeFailure> {
     Ok(())
 }
 
-#[derive(Debug)]
-struct PreparedReceiver {
-    listener: tokio::net::TcpListener,
-    token: String,
-}
-
 #[lenso::plugin(
     lifecycle,
     configuration_schema = "config.schema.json",
@@ -97,14 +85,19 @@ struct ObserveWorkspace {
     config: ObserveConfig,
     store: Rc<RefCell<Option<ObserveStore>>>,
     worker: Rc<RefCell<Option<ObserveWorker>>>,
-    receiver: Rc<RefCell<Option<PreparedReceiver>>>,
+    token: Rc<RefCell<Option<String>>>,
     #[tasks]
     tasks: lenso::ManagedTasks,
 }
 
-#[lenso::provides(ui::Contribution, service::WorkspaceService, observe::Query)]
+#[lenso::provides(
+    ui::Contribution,
+    service::WorkspaceService,
+    observe::Query,
+    http_stream::StreamEndpoint
+)]
 impl ObserveWorkspace {
-    fn describe(
+    fn describe_contribution(
         &self,
         _context: InvocationContext,
         _request: DescribeRequest,
@@ -410,6 +403,130 @@ impl ObserveWorkspace {
             Ok(stream)
         })
     }
+
+    fn describe_stream(
+        &self,
+        _context: InvocationContext,
+        _request: http_stream::DescribeRequest,
+    ) -> lenso_kernel::NativeRequestFuture<http_stream::StreamEndpointDescribe> {
+        let _ = self;
+        Box::pin(ready(Ok(Ok(http_stream::DescribeResponse {
+            routes: [
+                ("/v1/traces", "observe.otlp.traces"),
+                ("/v1/logs", "observe.otlp.logs"),
+            ]
+            .into_iter()
+            .map(|(path, route_id)| http_stream::DescribeResponseRoutesItem {
+                method: "POST".to_owned(),
+                path: path.to_owned(),
+                route_id: route_id.to_owned(),
+            })
+            .collect(),
+        }))))
+    }
+
+    fn handle_stream(
+        &self,
+        _context: InvocationContext,
+        request: http_stream::HandleRequest,
+    ) -> futures::future::LocalBoxFuture<
+        'static,
+        Result<OtlpResponseStream, http_stream::StreamEndpointHandleInvocationError>,
+    > {
+        let store = self.store();
+        let token = self.token.borrow().clone();
+        Box::pin(async move {
+            let store = store.map_err(http_stream::StreamEndpointHandleInvocationError::Runtime)?;
+            let token = token.ok_or_else(|| {
+                http_stream::StreamEndpointHandleInvocationError::Runtime(
+                    RuntimeFailure::Unavailable {
+                        capability: http_stream::CAPABILITY_ID,
+                    },
+                )
+            })?;
+            if !matches!(
+                request.route_id.as_str(),
+                "observe.otlp.traces" | "observe.otlp.logs"
+            ) {
+                return Err(http_stream::StreamEndpointHandleInvocationError::Domain(
+                    http_stream::HandleError::Rejected,
+                ));
+            }
+            Ok(OtlpResponseStream::new(
+                otlp::handle(store, &token, request).await,
+            ))
+        })
+    }
+}
+
+struct OtlpResponseStream {
+    body: Rc<RefCell<Option<Vec<u8>>>>,
+    cancelled: Rc<Cell<bool>>,
+    head: Rc<RefCell<Option<http_stream::HandleResponse>>>,
+}
+
+impl OtlpResponseStream {
+    fn new(response: otlp::Response) -> Self {
+        Self {
+            body: Rc::new(RefCell::new(Some(response.body))),
+            cancelled: Rc::new(Cell::new(false)),
+            head: Rc::new(RefCell::new(Some(http_stream::HandleResponse {
+                body: None,
+                headers: Some(response.headers),
+                kind: http_stream::HandleResponseKind::Head,
+                status: Some(i64::from(response.status)),
+            }))),
+        }
+    }
+}
+
+impl std::fmt::Debug for OtlpResponseStream {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("OtlpResponseStream")
+            .finish_non_exhaustive()
+    }
+}
+
+impl NativeStreamSession for OtlpResponseStream {
+    fn send(
+        &self,
+        _message: Box<dyn Any>,
+    ) -> futures::future::LocalBoxFuture<'static, Result<(), RuntimeFailure>> {
+        Box::pin(ready(Ok(())))
+    }
+
+    fn receive(
+        &self,
+    ) -> futures::future::LocalBoxFuture<'static, Result<NativeStreamItem, RuntimeFailure>> {
+        if let Some(head) = self.head.borrow_mut().take() {
+            return Box::pin(ready(Ok(NativeStreamItem::Message(Box::new(head)))));
+        }
+        if self.cancelled.get() {
+            self.body.take();
+        }
+        let body = self.body.take();
+        Box::pin(ready(Ok(match body {
+            Some(body) if !body.is_empty() => {
+                NativeStreamItem::Message(Box::new(http_stream::HandleResponse {
+                    body: Some(body.into()),
+                    headers: None,
+                    kind: http_stream::HandleResponseKind::Chunk,
+                    status: None,
+                }))
+            }
+            _ => NativeStreamItem::Terminal(Ok(())),
+        })))
+    }
+
+    fn close_send(&self) -> futures::future::LocalBoxFuture<'static, Result<(), RuntimeFailure>> {
+        Box::pin(ready(Ok(())))
+    }
+
+    fn cancel(&self) {
+        self.cancelled.set(true);
+        self.body.take();
+    }
 }
 
 fn classify_feed_receive(
@@ -439,13 +556,10 @@ impl ObserveWorkspace {
 
 impl lenso::Lifecycle for ObserveWorkspace {
     async fn prepare(&self, _context: PrepareContext) -> Result<(), RuntimeFailure> {
-        if self.worker.borrow().is_some() || self.receiver.borrow().is_some() {
+        if self.worker.borrow().is_some() || self.token.borrow().is_some() {
             return Err(plugin_failure("Observe was prepared twice"));
         }
         let token = read_or_create_token(&self.config.token_file).map_err(plugin_failure)?;
-        let listener = tokio::net::TcpListener::bind(&self.config.listen_address)
-            .await
-            .map_err(plugin_failure)?;
         let (store, worker) = ObserveWorker::start(StoreConfig {
             database: self.config.database.clone(),
             source_id: self.config.source_id.clone(),
@@ -455,49 +569,13 @@ impl lenso::Lifecycle for ObserveWorkspace {
         .await?;
         self.store.replace(Some(store));
         self.worker.replace(Some(worker));
-        self.receiver
-            .replace(Some(PreparedReceiver { listener, token }));
-        Ok(())
-    }
-
-    async fn activate(
-        &self,
-        _context: lenso_kernel::ActivateContext,
-    ) -> Result<(), RuntimeFailure> {
-        let receiver = ready(
-            self.receiver
-                .take()
-                .ok_or_else(|| plugin_failure("Observe receiver was not prepared")),
-        )
-        .await?;
-        let store = self.store()?;
-        let cancellation = self.tasks.cancellation().map_err(|error| {
-            plugin_failure(format!("Observe task scope is unavailable: {error:?}"))
-        })?;
-        let (shutdown, shutdown_signal) = tokio::sync::oneshot::channel();
-        self.tasks
-            .spawn_local(async move {
-                cancellation.cancelled().await;
-                let _ = shutdown.send(());
-            })
-            .map_err(|error| plugin_failure(format!("Observe shutdown task failed: {error:?}")))?;
-        self.tasks
-            .spawn_local(async move {
-                let server = axum::serve(receiver.listener, otlp::router(store, receiver.token))
-                    .with_graceful_shutdown(async move {
-                        let _ = shutdown_signal.await;
-                    });
-                if let Err(error) = server.await {
-                    eprintln!("Observe OTLP receiver stopped: {error}");
-                }
-            })
-            .map_err(|error| plugin_failure(format!("Observe receiver task failed: {error:?}")))?;
+        self.token.replace(Some(token));
         Ok(())
     }
 
     async fn deactivate(&self, _context: DeactivateContext) -> Result<(), RuntimeFailure> {
         self.store.take();
-        self.receiver.take();
+        self.token.take();
         match self.worker.take() {
             Some(worker) => worker.shutdown().await,
             None => Ok(()),

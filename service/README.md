@@ -13,11 +13,24 @@ account management. The target Host must also authorize management requests.
 The Console Agent uses the existing server-owned management authorization.
 
 
-The Console Service is one local Lenso Agent Host with one same-origin Web
-Shell. Its default App contains only the Agent Web Surface and the Agent
-Plugins linked by the Harness Host. It does not contain compatibility-era
+The Console Service is one local Lenso Web App with one same-origin Web Shell.
+Its Resolved App Plan binds `lenso.web-ingress` to the Console Plugin's buffered
+and streaming HTTP Endpoint capabilities. The Host owns the loopback listener,
+limits, and protocol lifecycle; Console owns routes and product behavior. The
+production service does not depend on Axum; tests use it only for upstream HTTP
+fixtures. Its default App contains the Console Web Plugin, the Host-owned Web
+Ingress, and the removable Welcome Workspace; Projects and Observe are selected
+only when their Host inputs exist. It does not contain compatibility-era
 System Registry, Story, Surface Gateway, generic managed-Service, deployment,
 or recovery subsystems.
+
+The reference executable atomically publishes its exact Host Catalog beneath
+`LENSO_CONSOLE_HOME/.lenso/`, preserves the App-owned `plugins/` directory, and
+resolves that visible Plugin Root before passing the immutable Plan to the
+Kernel. A missing Plugin Root selects Host defaults; disabling a disableable
+Workspace removes it and its derived bindings on the next Host start.
+Inspect or change this Root with Lenso CLI 0.5.2 or later; older CLI builds use
+an earlier Host Catalog schema and fail closed.
 
 ## Start
 

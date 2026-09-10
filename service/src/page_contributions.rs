@@ -4,15 +4,9 @@ use std::{
     sync::Arc,
 };
 
-use axum::{
-    Json, Router,
-    body::Bytes,
-    extract::{Path as AxumPath, State},
-    http::{StatusCode, header},
-    response::{IntoResponse, Response},
-    routing::get,
-};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use bytes::Bytes;
+use http::{Method, StatusCode, header};
 use lenso::ManyPort;
 use lenso_capability_ui_contribution::{
     ContributionClient, ContributionInvocationError, DescribeRequest, DescribeResponse,
@@ -22,14 +16,17 @@ use lenso_capability_ui_contribution::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::http::{Body, IntoResponse as _, Json, Path as HttpPath, Request, Response, State};
 use crate::workspace_services::{
     PublishedRequirement, WorkspaceServiceBuilder, WorkspaceServiceDispatch,
     WorkspaceServiceRuntime,
 };
 
+#[cfg(test)]
 const DESCRIPTOR_FILE: &str = "contribution.json";
 const MAX_ASSET_BYTES: usize = 1024 * 1024;
 
+#[cfg(test)]
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct ContributionDescriptor {
@@ -55,12 +52,14 @@ enum ContributionSubject {
     App { app_id: String },
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct ContributionRuntime {
     api_major: u32,
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct ContributionNavigation {
@@ -128,20 +127,19 @@ impl PageCatalog {
         let mut contributions = Vec::with_capacity(port.len());
         for provider in port.iter() {
             let owner = provider.provider_instance().to_owned();
-            let response =
-                provider
-                    .describe(DescribeRequest {})
-                    .await
-                    .map_err(|error| match error {
-                        ContributionInvocationError::Domain(error) => {
-                            lenso_kernel::RuntimeFailure::PluginFailure {
-                                detail: format!(
-                                    "UI Contribution `{owner}` rejected describe: {error:?}"
-                                ),
-                            }
+            let response = provider
+                .describe_contribution(DescribeRequest {})
+                .await
+                .map_err(|error| match error {
+                    ContributionInvocationError::Domain(error) => {
+                        lenso_kernel::RuntimeFailure::PluginFailure {
+                            detail: format!(
+                                "UI Contribution `{owner}` rejected describe: {error:?}"
+                            ),
                         }
-                        ContributionInvocationError::Runtime(error) => error,
-                    })?;
+                    }
+                    ContributionInvocationError::Runtime(error) => error,
+                })?;
             contributions.push((owner, response));
         }
         let mut services = WorkspaceServiceBuilder::prepare(service_port).await?;
@@ -158,6 +156,7 @@ impl PageCatalog {
         Ok((catalog, runtime))
     }
 
+    #[cfg(test)]
     fn from_contributions(
         contributions: Vec<(String, DescribeResponse)>,
         allowed_app_subjects: &BTreeSet<String>,
@@ -204,6 +203,7 @@ impl PageCatalog {
         })
     }
 
+    #[cfg(test)]
     pub(super) fn discover(
         web_root: &Path,
         allowed_app_subjects: &BTreeSet<String>,
@@ -290,16 +290,42 @@ impl PageCatalog {
         Ok(catalog)
     }
 
-    pub(super) fn routes(self) -> Router {
-        let service_routes = self.services.clone().routes();
-        Router::new()
-            .route("/api/console/v1/pages", get(list_pages))
-            .route(
-                "/api/console/v1/pages/{workspace_id}/assets/{digest}/{*path}",
-                get(read_asset),
-            )
-            .with_state(self)
-            .merge(service_routes)
+    pub(super) async fn handle(&self, request: &Request) -> Option<Response> {
+        if request.path == "/api/console/v1/pages" {
+            return Some(if request.method == Method::GET {
+                list_pages(State(self.clone())).into_response()
+            } else {
+                StatusCode::METHOD_NOT_ALLOWED.into_response()
+            });
+        }
+        if let Some(tail) = request.path.strip_prefix("/api/console/v1/pages/") {
+            let mut parts = tail.splitn(4, '/');
+            let workspace_id = parts.next()?;
+            let marker = parts.next()?;
+            let digest = parts.next()?;
+            let path = parts.next()?;
+            if marker == "assets" {
+                return Some(
+                    if request.method == Method::GET || request.method == Method::HEAD {
+                        let mut response = read_asset(
+                            State(self.clone()),
+                            HttpPath((
+                                crate::http::decode_path(workspace_id)?,
+                                crate::http::decode_path(digest)?,
+                                crate::http::decode_path(path)?,
+                            )),
+                        );
+                        if request.method == Method::HEAD {
+                            *response.body_mut() = Body::empty();
+                        }
+                        response
+                    } else {
+                        StatusCode::METHOD_NOT_ALLOWED.into_response()
+                    },
+                );
+            }
+        }
+        self.services.handle(request).await
     }
 }
 
@@ -409,16 +435,16 @@ fn decode_assets(contribution: &DescribeResponse) -> anyhow::Result<Vec<(String,
         .collect()
 }
 
-async fn list_pages(State(catalog): State<PageCatalog>) -> Json<serde_json::Value> {
+fn list_pages(State(catalog): State<PageCatalog>) -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "schema": "console.page-catalog/1",
         "mounts": catalog.mounts.as_ref(),
     }))
 }
 
-async fn read_asset(
+fn read_asset(
     State(catalog): State<PageCatalog>,
-    AxumPath((workspace_id, digest, path)): AxumPath<(String, String, String)>,
+    HttpPath((workspace_id, digest, path)): HttpPath<(String, String, String)>,
 ) -> Response {
     let Some(asset) = catalog.assets.get(&(workspace_id, digest, path)) else {
         return StatusCode::NOT_FOUND.into_response();
@@ -542,6 +568,7 @@ fn contribution_subject(
     }
 }
 
+#[cfg(test)]
 fn contract_subject(value: ContributionSubject) -> ContractSubject {
     match value {
         ContributionSubject::Console => ContractSubject {
@@ -555,6 +582,7 @@ fn contract_subject(value: ContributionSubject) -> ContractSubject {
     }
 }
 
+#[cfg(test)]
 fn validate_artifact_tree(directory: &Path) -> anyhow::Result<()> {
     for entry in std::fs::read_dir(directory)? {
         let entry = entry?;
@@ -570,6 +598,7 @@ fn validate_artifact_tree(directory: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
 fn validate_descriptor(
     descriptor: &ContributionDescriptor,
     directory: &Path,
@@ -694,11 +723,7 @@ fn valid_path_segment(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        body::{Body, to_bytes},
-        http::Request,
-    };
-    use tower::ServiceExt;
+    use crate::http::Request;
 
     #[test]
     fn app_subjects_are_bound_to_known_managed_apps() {
@@ -812,28 +837,19 @@ mod tests {
     async fn serves_immutable_catalog_assets_without_spa_fallback() {
         let root = tempfile::tempdir().unwrap();
         write_contribution(root.path(), "example", "page.mjs");
-        let app = PageCatalog::discover(root.path(), &BTreeSet::new())
-            .unwrap()
-            .routes();
+        let app = PageCatalog::discover(root.path(), &BTreeSet::new()).unwrap();
         let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/api/console/v1/pages")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .handle(&Request::new(Method::GET, "/api/console/v1/pages"))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
-        let body = to_bytes(response.into_body(), 16 * 1024).await.unwrap();
+        let body = response.into_body().collect(16 * 1024).await.unwrap();
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(value["mounts"][0]["owner"]["trusted"], false);
         let module = value["mounts"][0]["module"].as_str().unwrap();
 
         let asset = app
-            .clone()
-            .oneshot(Request::builder().uri(module).body(Body::empty()).unwrap())
+            .handle(&Request::new(Method::GET, module))
             .await
             .unwrap();
         assert_eq!(asset.status(), StatusCode::OK);
@@ -843,12 +859,10 @@ mod tests {
         );
 
         let missing = app
-            .oneshot(
-                Request::builder()
-                    .uri(module.replace("page.mjs", "missing.mjs"))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .handle(&Request::new(
+                Method::GET,
+                &module.replace("page.mjs", "missing.mjs"),
+            ))
             .await
             .unwrap();
         assert_eq!(missing.status(), StatusCode::NOT_FOUND);
