@@ -32,3 +32,12 @@ test("recovers stderr from a truncated legacy wrapper", () => {
     exitCode: "129",
   });
 });
+
+test("explicit connection rejection exposes reconnect recovery", () => {
+  expect(
+    toolErrorDetails(
+      'Domain(ExecutionFailed { payload: ExecutionFailedPayload { reason_code: "connection_required", message: "Reconnect", details_json: RawJson("{}") } })'
+    ).reconnect
+  ).toBe(true);
+  expect(toolErrorDetails("PermissionDenied").reconnect).toBeUndefined();
+});

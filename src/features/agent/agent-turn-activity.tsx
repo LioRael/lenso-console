@@ -9,10 +9,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useConsoleTranslation } from "../../app/console-i18n";
 import { PluginAgentReceipts } from "../plugins/plugin-agent-receipts";
 import { AgentMarkdown } from "./agent-markdown";
 import type { AgentToolCall, AgentTurn } from "./agent-runtime";
 import { toolErrorDetails } from "./agent-tool-error";
+import { businessToolChanges } from "./business-tool-changes";
+import { BusinessToolResult } from "./business-tool-result";
 
 const styles = stylex.create({
   root: {
@@ -157,7 +160,14 @@ function InputParameter({ name, value }: { name: string; value: string }) {
   );
 }
 
-function ToolDetail({ tool }: { tool: AgentToolCall }) {
+function ToolDetail({
+  tool,
+  tools,
+}: {
+  tool: AgentToolCall;
+  tools: AgentToolCall[];
+}) {
+  const t = useConsoleTranslation();
   const { icon: Icon, label } = toolDisplay(tool);
   const [open, setOpen] = useState(false);
   const failure = tool.error ? toolErrorDetails(tool.error) : undefined;
@@ -187,6 +197,9 @@ function ToolDetail({ tool }: { tool: AgentToolCall }) {
           <p role="alert" {...stylex.props(styles.error)}>
             {failure.summary}
           </p>
+        ) : null}
+        {failure?.reconnect ? (
+          <a href="/settings/connections">{t("Reconnect business App")}</a>
         ) : null}
         {tool.resultImages?.length ? (
           <div {...stylex.props(styles.images)}>
@@ -248,6 +261,12 @@ function ToolDetail({ tool }: { tool: AgentToolCall }) {
               </details>
             )}
           </details>
+        ) : null}
+        {tool.resultContent ? (
+          <BusinessToolResult
+            content={tool.resultContent}
+            changes={businessToolChanges(tool, tools)}
+          />
         ) : null}
         {tool.resultContent ? (
           <div>
@@ -313,10 +332,7 @@ export function AgentTurnActivity({ turn }: { turn: AgentTurn }) {
         : typeof duration === "number"
           ? `Worked for ${duration >= 60_000 ? `${Math.floor(duration / 60_000)}m ` : ""}${Math.floor(duration / 1000) % 60}s`
           : "Work completed";
-  const groups: (
-    | { kind: "text"; text: string }
-    | { kind: "tools"; tools: AgentToolCall[] }
-  )[] = [];
+  const groups: ActivityGroup[] = [];
   for (const item of activity) {
     if (item.kind === "text") {
       groups.push(item);
@@ -356,7 +372,11 @@ export function AgentTurnActivity({ turn }: { turn: AgentTurn }) {
           group.kind === "text" ? (
             <AgentMarkdown key={`text:${index}`}>{group.text}</AgentMarkdown>
           ) : group.tools.length === 1 ? (
-            <ToolDetail key={group.tools[0]!.callId} tool={group.tools[0]!} />
+            <ToolDetail
+              key={group.tools[0]!.callId}
+              tool={group.tools[0]!}
+              tools={tools}
+            />
           ) : (
             <details key={group.tools[0]!.callId} open={running}>
               <summary {...stylex.props(styles.trigger)}>
@@ -365,7 +385,7 @@ export function AgentTurnActivity({ turn }: { turn: AgentTurn }) {
                 <ChevronRight size={12} aria-hidden="true" />
               </summary>
               {group.tools.map((tool) => (
-                <ToolDetail key={tool.callId} tool={tool} />
+                <ToolDetail key={tool.callId} tool={tool} tools={tools} />
               ))}
             </details>
           )
@@ -380,3 +400,7 @@ export function AgentTurnActivity({ turn }: { turn: AgentTurn }) {
     </details>
   );
 }
+
+type ActivityGroup =
+  | { kind: "text"; text: string }
+  | { kind: "tools"; tools: AgentToolCall[] };

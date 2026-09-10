@@ -234,6 +234,7 @@ pub fn link() {}
 
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
+    pub projects_workspace_origin: Option<String>,
     local_projects: Option<std::sync::Arc<LocalProjects>>,
     local_projects_config: Option<LocalProjectsConfig>,
     agent_control_token_file: Option<PathBuf>,
@@ -487,6 +488,7 @@ impl ConsoleConfig {
             })
             .transpose()?;
         Ok(Self {
+            projects_workspace_origin: None,
             local_projects,
             local_projects_config: config.local_projects.clone(),
             agent_control_token_file: config
@@ -574,6 +576,7 @@ impl ConsoleConfig {
             Err(error) => return Err(error.into()),
         };
         Ok(Self {
+            projects_workspace_origin: std::env::var("LENSO_CONSOLE_PROJECTS_ORIGIN").ok(),
             local_projects: None,
             local_projects_config: None,
             agent_control_token_file: None,
@@ -766,6 +769,7 @@ pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
     link();
     lenso_console_observe_workspace_plugin::link();
     lenso_console_welcome_workspace_plugin::link();
+    lenso_console_projects_workspace_plugin::link();
     let registry = NativePluginRegistry::new().with_linked_factories();
     Kernel::start_native(console_host_plan(config)?, TokioDriver::new(), registry)
         .await
@@ -807,6 +811,17 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
                                 "retention_days": 7,
                                 "retention_bytes": 536_870_912_u64
                             }))
+                            .disableable(),
+                    );
+                }
+            }
+            "console-workspaces"
+                if descriptor.plugin_id() == "lenso.console.workspace.projects" =>
+            {
+                if let Some(origin) = &config.projects_workspace_origin {
+                    defaults.push(
+                        HostDefaultPlugin::new(descriptor.plugin_id(), "default")
+                            .with_configuration(serde_json::json!({"origin": origin}))
                             .disableable(),
                     );
                 }
@@ -1525,6 +1540,24 @@ mod tests {
         assert!(plan.capability_bindings().iter().any(|binding| {
             binding.capability_id() == lenso_capability_workspace_service::CAPABILITY_ID
         }));
+    }
+
+    #[test]
+    fn projects_workspace_requires_explicit_host_origin() {
+        link();
+        lenso_console_welcome_workspace_plugin::link();
+        lenso_console_projects_workspace_plugin::link();
+        let plugin_config: ConsolePluginConfig =
+            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
+        let mut config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
+        let contains_projects = |plan: &ResolvedAppPlan| {
+            plan.plugin_instances().iter().any(|instance| {
+                instance.instance_key() == "lenso.console.workspace.projects/default"
+            })
+        };
+        assert!(!contains_projects(&console_host_plan(&config).unwrap()));
+        config.projects_workspace_origin = Some("http://127.0.0.1:55440".into());
+        assert!(contains_projects(&console_host_plan(&config).unwrap()));
     }
 
     #[test]

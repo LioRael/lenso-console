@@ -119,3 +119,73 @@ test("business consent opens loopback App and polls without receiving credential
     open.mockRestore();
   }
 });
+
+test("expired business account shows identity and reconnects through the existing handoff", async () => {
+  const fetchMock = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (_url, options) => {
+      if (!options?.body) {
+        return Response.json({
+          generation: "generation",
+          connections: [
+            {
+              provider: "business",
+              status: {
+                label: "Projects",
+                connected: false,
+                methods: ["browser_consent"],
+                account: {
+                  origin: "https://projects.example",
+                  subject: "alice",
+                  expires_at_millis: String(Date.now() - 1000),
+                  reconnect_required: true,
+                },
+              },
+            },
+          ],
+        });
+      }
+      return Response.json({
+        attempt_id: "renewal",
+        authorization_url:
+          "https://projects.example/auth/agent/authorize?attempt=renewal",
+        user_code: "",
+        expires_at_millis: String(Date.now() + 60000),
+      });
+    });
+  const replace = vi.fn();
+  const open = vi.spyOn(window, "open").mockReturnValue({
+    opener: null,
+    location: { replace },
+    close: vi.fn(),
+  } as unknown as Window);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const query = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  try {
+    flushSync(() =>
+      root.render(
+        <QueryClientProvider client={query}>
+          <ThemeScope>
+            <AuthConnections agentId="agent" />
+          </ThemeScope>
+        </QueryClientProvider>
+      )
+    );
+    await expect.element(page.getByText("Account ID: alice")).toBeVisible();
+    await expect
+      .element(page.getByText("https://projects.example", { exact: true }))
+      .toBeVisible();
+    await page.getByRole("button", { name: "Reconnect", exact: true }).click();
+    await expect.poll(() => replace.mock.calls.length).toBe(1);
+  } finally {
+    flushSync(() => root.unmount());
+    query.clear();
+    container.remove();
+    fetchMock.mockRestore();
+    open.mockRestore();
+  }
+});

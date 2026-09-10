@@ -409,6 +409,15 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Adding…": "正在添加…",
   "Add connection": "添加连接",
   "Account saved on this Agent’s Host.": "账号已保存在此智能体的宿主上。",
+  "Authorization expired or was revoked. Reconnect to continue.":
+    "授权已过期或被撤销，请重新连接以继续。",
+  "Authorization expires": "授权到期时间",
+  "Account ID": "账号 ID",
+  Revision: "版本",
+  Cycle: "周期",
+  Milestone: "里程碑",
+  "Reconnect business App": "重新连接业务应用",
+  Reconnect: "重新连接",
   "Connected for this Agent run. Restarting requires a new connection.":
     "已连接到本次智能体运行，重启后需要重新连接。",
   "Disconnect this App for new turns? Existing turns keep their identity. Revoke access in the App to stop them.":
