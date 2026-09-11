@@ -76,6 +76,10 @@ export function useAgentIdentity() {
   return value;
 }
 
+export function useAgentIdentityOptional() {
+  return useContext(AgentIdentityContext);
+}
+
 function storedAgentId(): AgentId | null {
   if (typeof window === "undefined") {
     return null;

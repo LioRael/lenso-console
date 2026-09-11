@@ -26,6 +26,7 @@ use anyhow::Context as _;
 use bytes::Bytes;
 use directories::BaseDirs;
 use lenso::prelude::*;
+use lenso_app_plan::RequestAdmissionPlan;
 #[cfg(test)]
 use lenso_app_plan::ResolvedAppPlan;
 use lenso_app_plan::authoring::{
@@ -55,6 +56,7 @@ const DEFAULT_PORT: u16 = 3030;
 const DEFAULT_OTLP_PORT: u16 = 4318;
 const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
 const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
+const CONSOLE_REQUEST_ADMISSION: RequestAdmissionPlan = RequestAdmissionPlan::new(64, 16);
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
@@ -1085,8 +1087,10 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
     }
     let ingress = PluginInstanceId::new("lenso.web-ingress", "default");
     let mut bindings = vec![
-        HostBinding::new(ingress.clone(), http_endpoint::CAPABILITY_ID, "console"),
-        HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console"),
+        HostBinding::new(ingress.clone(), http_endpoint::CAPABILITY_ID, "console")
+            .with_admission(CONSOLE_REQUEST_ADMISSION),
+        HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
+            .with_admission(CONSOLE_REQUEST_ADMISSION),
     ];
     if observe_source.is_some() {
         bindings.push(HostBinding::new(
@@ -1825,6 +1829,22 @@ mod tests {
                 .iter()
                 .any(|binding| { binding.capability_id() == stream_endpoint::CAPABILITY_ID })
         );
+        for binding in plan.capability_bindings().iter().filter(|binding| {
+            matches!(
+                binding.capability_id(),
+                http_endpoint::CAPABILITY_ID | stream_endpoint::CAPABILITY_ID
+            )
+        }) {
+            let operation = if binding.capability_id() == http_endpoint::CAPABILITY_ID {
+                "handle"
+            } else {
+                "handle_stream"
+            };
+            assert_eq!(
+                plan.request_admission_for(binding, operation),
+                CONSOLE_REQUEST_ADMISSION
+            );
+        }
     }
 
     #[test]

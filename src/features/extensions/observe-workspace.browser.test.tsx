@@ -155,7 +155,11 @@ test("renders the Observe request journey and cancels its live feed", async () =
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  const navigation = { go: vi.fn(), href: vi.fn(() => "#") };
+  const navigation = {
+    go: vi.fn(),
+    href: vi.fn(() => "#"),
+    openWorkspace: vi.fn(),
+  };
   const streamAborted = vi.fn();
   const Workspace = observeModule.createWorkspace({
     createElement,
@@ -197,6 +201,7 @@ test("deep links to a trace waterfall and correlated logs", async () => {
     services: services(() => {}),
   }).Page;
   const signal = new AbortController();
+  const openWorkspace = vi.fn();
   flushSync(() =>
     root.render(
       <Workspace
@@ -206,7 +211,11 @@ test("deep links to a trace waterfall and correlated logs", async () => {
           segments: ["traces", "01010101010101010101010101010101"],
         }}
         mount={mount}
-        navigation={{ go: vi.fn(), href: vi.fn(() => "#") }}
+        navigation={{
+          go: vi.fn(),
+          href: vi.fn(() => "#"),
+          openWorkspace,
+        }}
         signal={signal.signal}
       />
     )
@@ -214,6 +223,19 @@ test("deep links to a trace waterfall and correlated logs", async () => {
   await expect
     .element(page.getByRole("heading", { name: "Waterfall" }))
     .toBeVisible();
+  await page.getByRole("button", { name: "Create issue", exact: true }).click();
+  expect(openWorkspace).toHaveBeenCalledWith({
+    handoff: {
+      kind: "lenso.observe.trace@1",
+      payload: expect.objectContaining({
+        kind: "lenso.observe.trace@1",
+        source_id: "sample-app",
+        trace_id: "01010101010101010101010101010101",
+      }),
+    },
+    subject: { kind: "console" },
+    workspaceId: "projects",
+  });
   await expect.element(page.getByText("order loaded")).toBeVisible();
   await expect
     .element(page.getByRole("heading", { name: "Selected span" }))

@@ -48,6 +48,12 @@ interface PageProps {
   navigation: {
     go(segments: readonly string[]): void;
     href(segments: readonly string[]): string;
+    openWorkspace?(request: {
+      handoff?: { kind: string; payload: unknown };
+      segments?: readonly string[];
+      subject: Mount["subject"];
+      workspaceId: string;
+    }): void;
   };
   signal: AbortSignal;
 }

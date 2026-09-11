@@ -33,6 +33,15 @@ during activation and renders the selected module inside its existing Shell.
 A contribution may implement a full multi-page workspace; it is not restricted
 to forms, widgets, or an iframe.
 
+The Shell also supports bounded, user-initiated handoffs between installed
+Workspaces. `navigation.openWorkspace` resolves an exact catalog mount, carries
+at most 16 KiB of JSON data in browser history state, and performs same-document
+navigation. The target receives that data as `location.handoff`; it is context,
+not authority, and is intentionally absent after a reload. A contribution can
+request an unsubmitted draft in the App Agent through `agent.requestDraft`.
+The Shell selects the Agent identity, bounds the draft, and never interprets a
+handoff as approval to mutate business state.
+
 The small public interface has three parts:
 
 1. **Capability response:** Workspace identity, revision, navigation, entry

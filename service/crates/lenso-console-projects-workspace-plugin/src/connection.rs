@@ -15,6 +15,7 @@ pub const OPERATIONS: &[&str] = &[
     "list_projects",
     "get_project",
     "create_project",
+    "create_issue",
     "list_issues",
     "get_issue",
     "update_issue",
@@ -254,6 +255,12 @@ fn endpoint(
             reqwest::Method::GET,
         ),
         "create_project" => ("/api/projects", None, &[], reqwest::Method::POST),
+        "create_issue" => (
+            "/api/projects",
+            Some("project_id"),
+            &[],
+            reqwest::Method::POST,
+        ),
         "get_project" => (
             "/api/projects",
             Some("project_id"),
@@ -312,18 +319,7 @@ fn endpoint(
             .ok_or(())?;
         url.path_segments_mut()?.push(value);
     }
-    if operation == "list_issues" {
-        url.path_segments_mut()?.push("issues");
-    }
-    if operation == "list_activity" {
-        url.path_segments_mut()?.push("activity");
-    }
-    if operation == "get_assignee" || operation == "set_assignee" {
-        url.path_segments_mut()?.push("assignee");
-    }
-    if operation == "list_assignees" {
-        url.path_segments_mut()?.push("assignees");
-    }
+    append_operation_suffix(&mut url, operation)?;
     for field in fields {
         if let Some(value) = obj.get(*field).filter(|v| !v.is_null()) {
             let text = match value {
@@ -336,6 +332,20 @@ fn endpoint(
         }
     }
     Ok((url, method))
+}
+
+fn append_operation_suffix(url: &mut reqwest::Url, operation: &str) -> Result<(), ()> {
+    let suffix = match operation {
+        "list_issues" | "create_issue" => Some("issues"),
+        "list_activity" => Some("activity"),
+        "get_assignee" | "set_assignee" => Some("assignee"),
+        "list_assignees" => Some("assignees"),
+        _ => None,
+    };
+    if let Some(suffix) = suffix {
+        url.path_segments_mut()?.push(suffix);
+    }
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -423,6 +433,17 @@ mod tests {
         assert_eq!(
             url.as_str(),
             "https://example.com/api/issues/a%2Fb?organization_id=org"
+        );
+        let (create, method) = endpoint(
+            "https://example.com",
+            "create_issue",
+            &json!({"project_id":"project-1"}),
+        )
+        .unwrap();
+        assert_eq!(method, reqwest::Method::POST);
+        assert_eq!(
+            create.as_str(),
+            "https://example.com/api/projects/project-1/issues"
         );
     }
 }
