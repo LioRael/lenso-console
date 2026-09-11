@@ -34,3 +34,16 @@ real Console, and configure authentication there. `--port`, `--no-open`, SSH
 launches, occupied ports, child failure, SIGINT, SIGTERM, persisted Homes, and
 installation without lifecycle scripts are covered. The launcher must not
 claim Windows support or silently launch an unrelated local binary.
+
+## Terminal distribution extension
+
+The same launcher and exact platform cohort also include the released TUI,
+management CLI, and ACP binaries. No arguments (or `tui`) start the TUI; `cli`
+and `acp` forward to their respective native entrypoints. `web` retains its
+existing behavior. Root help and version describe the npm launcher; `tui
+--version` reports the native Agent release. Native execution inherits stdio,
+workspace, and environment and uses only the packaged executable path.
+
+Console remains the npm composition owner. Agent owns the native release
+artifacts consumed by both npm and the Homebrew tap. No additional npm package
+identity or registry publisher is introduced.

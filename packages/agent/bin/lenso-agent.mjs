@@ -3,13 +3,21 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { readFileSync, accessSync, realpathSync, constants } from "node:fs";
 import { createRequire } from "node:module";
+import { constants as osConstants } from "node:os";
 import { dirname, join } from "node:path";
 
 const require = createRequire(import.meta.url);
 const own = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url))
 );
-const help = `Usage: lenso-agent web [--port <1-65535>] [--no-open]
+const help = `Usage: lenso-agent [tui] [terminal options]
+       lenso-agent cli <command> [options]
+       lenso-agent acp [options]
+       lenso-agent web [--port <1-65535>] [--no-open]
+
+Running without a subcommand starts the terminal UI. Native options are passed through unchanged.
+Use cli auth login, then cli profiles install coding before tui --profile code.
+Use tui --help, cli --help, or acp --help for native command help.
 
 Start Lenso Agent and Console in the current workspace.
 Default URL: http://127.0.0.1:3030
@@ -21,11 +29,27 @@ export const parseArgs = (args) => {
   if (args.length === 1 && ["--version", "-v"].includes(args[0])) {
     return { version: true };
   }
-  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+  if (args.length === 1 && ["--help", "-h"].includes(args[0])) {
     return { help: true };
   }
+  const nativeCommands = {
+    acp: "lenso-agent-acp",
+    cli: "lenso-agent-cli",
+    tui: "lenso-agent",
+  };
+  if (Object.hasOwn(nativeCommands, args[0])) {
+    return { args: args.slice(1), executable: nativeCommands[args[0]] };
+  }
+  if (args.length === 0 || args[0].startsWith("-")) {
+    return { args, executable: "lenso-agent" };
+  }
   if (args[0] !== "web") {
-    throw new Error(`Unknown command: ${args[0]}. Use web or --help.`);
+    throw new Error(
+      `Unknown command: ${args[0]}. Use tui, cli, acp, web, or --help.`
+    );
+  }
+  if (args.length === 2 && ["--help", "-h"].includes(args[1])) {
+    return { help: true };
   }
   const result = { open: true, port: 3030 };
   for (let i = 1; i < args.length; i += 1) {
@@ -84,6 +108,9 @@ export const resolveRuntime = (
   const root = dirname(manifest);
   for (const name of [
     "lenso-console-with-agent",
+    "lenso-agent",
+    "lenso-agent-cli",
+    "lenso-agent-acp",
     "lenso-agent-web",
     "lenso-agent-console-web",
   ]) {
@@ -206,6 +233,32 @@ export const launch = async (options, runtime) => {
   }
 };
 
+// Inherit all three streams so the native TUI owns the terminal and ACP owns stdio.
+// Resolve only exact packaged paths, even if another lenso-agent is on PATH.
+export const launchNative = async (options, runtime) => {
+  const child = spawn(join(runtime, "bin", options.executable), options.args, {
+    cwd: process.cwd(),
+    env: process.env,
+    stdio: "inherit",
+  });
+  const interrupt = () => {
+    // Foreground terminal groups already receive SIGINT together.
+    if (!process.stdin.isTTY) {
+      child.kill("SIGINT");
+    }
+  };
+  const terminate = () => child.kill("SIGTERM");
+  process.on("SIGINT", interrupt);
+  process.on("SIGTERM", terminate);
+  try {
+    const [code, signal] = await once(child, "exit");
+    return code ?? 128 + (osConstants.signals[signal] ?? 1);
+  } finally {
+    process.off("SIGINT", interrupt);
+    process.off("SIGTERM", terminate);
+  }
+};
+
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   try {
     const options = parseArgs(process.argv.slice(2));
@@ -214,7 +267,9 @@ if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
     } else if (options.version) {
       console.log(own.version);
     } else {
-      process.exitCode = await launch(options, resolveRuntime());
+      process.exitCode = options.executable
+        ? await launchNative(options, resolveRuntime())
+        : await launch(options, resolveRuntime());
     }
   } catch (error) {
     console.error(`error: ${error.message}`);

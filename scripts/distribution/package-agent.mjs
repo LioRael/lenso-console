@@ -44,7 +44,13 @@ await cp(join(root, "dist/client"), join(platform, "web"), { recursive: true });
 await readFile(join(platform, "web/index.html"));
 const temporary = await mkdtemp(join(tmpdir(), "lenso-agent-package-"));
 try {
-  for (const executable of ["lenso-agent-web", "lenso-agent-console-web"]) {
+  for (const executable of [
+    "lenso-agent",
+    "lenso-agent-cli",
+    "lenso-agent-acp",
+    "lenso-agent-web",
+    "lenso-agent-console-web",
+  ]) {
     const name = `${executable}-v${cohort.version}-${targets[target]}.tar.gz`;
     const checksum = cohort.assets[name];
     if (!/^[a-f0-9]{64}$/u.test(checksum ?? "")) {
@@ -82,7 +88,7 @@ try {
 }
 const metadata = {
   cpu: [target.split("-")[1]],
-  description: `Lenso Agent Web runtime for ${target}.`,
+  description: `Lenso Agent terminal and Web runtime for ${target}.`,
   files: ["bin", "web", "cohort.json", "README.md"],
   license: "MIT",
   name: `@lenso/agent-${target}`,
