@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.14.0
+
+### Minor Changes
+
+- 7803a9d: Add native Projects workspace discovery, revision-safe Issue editing and assignment, and current-Issue context in mini Agent chats with automatic refresh after completion.
+
 ## 1.13.0
 
 ### Minor Changes
