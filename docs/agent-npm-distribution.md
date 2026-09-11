@@ -5,19 +5,19 @@
 For the terminal UI, run from your project:
 
 ```sh
-npx @lenso/agent cli auth login
-npx @lenso/agent cli profiles install coding
+npx @lenso/agent auth login
+npx @lenso/agent profiles install coding
 npx @lenso/agent --profile code
 ```
 
-Use `npx @lenso/agent cli doctor`, `npx @lenso/agent cli --profile plan
+Use `npx @lenso/agent doctor`, `npx @lenso/agent run --profile plan
 "Review this project"`, or `npx @lenso/agent acp` for diagnostics, headless
 requests, or editor integration. `npx @lenso/agent tui --help` shows native
 terminal options. The root `--version` is the npm version; `tui --version`
 is the bundled Agent version.
 
 Terminal commands inherit the current workspace, environment, and stdio.
-They use the native Agent Home and configuration rules; `cli profiles install`
+They use the native Agent Home and configuration rules; `profiles install`
 cannot bypass an existing managed Home. Use the browser's coding setup for
 SQLite-managed Homes.
 
