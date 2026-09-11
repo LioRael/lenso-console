@@ -66,11 +66,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "label",
-          "origin"
-        ],
+        "required": ["id", "label", "origin"],
         "properties": {
           "id": {
             "type": "string"
@@ -96,11 +92,7 @@
       "description": "Optional local project launcher paths owned by the reference Console Host.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "binary",
-        "root",
-        "template"
-      ],
+      "required": ["binary", "root", "template"],
       "properties": {
         "binary": {
           "type": "string"
@@ -127,6 +119,15 @@
       "uniqueItems": true,
       "default": [],
       "description": "Auth subjects allowed to administer Console and access shared Host Agent interfaces. Workspace Plugins enforce their own business authorization."
+    },
+    "member_workspace_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Workspace IDs exposed to authenticated members. These Plugins must enforce their own business authorization."
     }
   },
   "required": [

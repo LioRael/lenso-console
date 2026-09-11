@@ -16,6 +16,7 @@ pub const OPERATIONS: &[&str] = &[
     "get_project",
     "create_project",
     "list_issues",
+    "create_issue",
     "get_issue",
     "update_issue",
     "get_assignee",
@@ -234,7 +235,8 @@ async fn begin(
     Ok(result)
 }
 
-fn endpoint(
+#[allow(clippy::too_many_lines)] // One explicit route table shared by native and external adapters.
+pub(super) fn endpoint(
     origin: &str,
     operation: &str,
     body: &Value,
@@ -252,6 +254,12 @@ fn endpoint(
             None,
             &["organization_id", "include_archived", "limit", "after"],
             reqwest::Method::GET,
+        ),
+        "create_issue" => (
+            "/api/projects",
+            Some("project_id"),
+            &[],
+            reqwest::Method::POST,
         ),
         "create_project" => ("/api/projects", None, &[], reqwest::Method::POST),
         "get_project" => (
@@ -312,7 +320,7 @@ fn endpoint(
             .ok_or(())?;
         url.path_segments_mut()?.push(value);
     }
-    if operation == "list_issues" {
+    if operation == "list_issues" || operation == "create_issue" {
         url.path_segments_mut()?.push("issues");
     }
     if operation == "list_activity" {

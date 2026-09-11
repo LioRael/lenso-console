@@ -40,9 +40,9 @@ pub(super) async fn buffered(
     let response = match prepared {
         Err(response) => *response,
         Ok(context) => {
-            application
+            let response = application
                 .handle(application_request(
-                    context,
+                    context.clone(),
                     &request.method,
                     &request.path,
                     request.query,
@@ -53,6 +53,9 @@ pub(super) async fn buffered(
                         .map(|value| (value.scheme.as_str(), value.value.as_str())),
                     request.body.into_shared(),
                 )?)
+                .await;
+            session
+                .filter_catalog(&context, &request.path, response)
                 .await
         }
     };
@@ -85,9 +88,9 @@ pub(super) async fn streaming(
     let response = match prepared {
         Err(response) => *response,
         Ok(context) => {
-            application
+            let response = application
                 .handle(application_request(
-                    context,
+                    context.clone(),
                     &request.method,
                     &request.path,
                     request.query,
@@ -98,6 +101,9 @@ pub(super) async fn streaming(
                         .map(|value| (value.scheme.as_str(), value.value.as_str())),
                     request.body.into_shared(),
                 )?)
+                .await;
+            session
+                .filter_catalog(&context, &request.path, response)
                 .await
         }
     };

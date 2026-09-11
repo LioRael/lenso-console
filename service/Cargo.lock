@@ -1610,6 +1610,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-access-control-postgres-plugin"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-access-control-plugin?rev=ca4c2ac44653b3c248867b0db63f4784de6f1b60#ca4c2ac44653b3c248867b0db63f4784de6f1b60"
+dependencies = [
+ "futures",
+ "lenso",
+ "lenso-auth-sdk",
+ "lenso-capability-access-control",
+ "lenso-capability-access-control-admin",
+ "lenso-capability-access-control-directory",
+ "lenso-capability-secrets",
+ "lenso-kernel",
+ "lenso-native-adapter",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=2d04625955dffa8f55b02499604f5969e3f5f1c3)",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "zeroize",
+]
+
+[[package]]
 name = "lenso-app-plan"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1623,7 +1645,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-account-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "base64 0.22.1",
  "futures",
@@ -1639,7 +1661,7 @@ dependencies = [
  "lenso-capability-secrets",
  "lenso-kernel",
  "lenso-native-adapter",
- "lenso-postgres-kit",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834)",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1651,7 +1673,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-oauth-flow-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",
@@ -1662,7 +1684,7 @@ dependencies = [
  "lenso-capability-secrets",
  "lenso-kernel",
  "lenso-native-adapter",
- "lenso-postgres-kit",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834)",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1674,7 +1696,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-oidc-client-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "hmac 0.12.1",
  "jsonwebtoken",
@@ -1698,7 +1720,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-password-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "argon2",
  "getrandom 0.4.3",
@@ -1709,7 +1731,7 @@ dependencies = [
  "lenso-capability-secrets",
  "lenso-kernel",
  "lenso-native-adapter",
- "lenso-postgres-kit",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834)",
  "serde",
  "serde_json",
  "thiserror",
@@ -1721,7 +1743,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-sdk"
 version = "0.2.3"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek 3.0.0",
@@ -1736,7 +1758,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-web-session-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "base64 0.22.1",
  "getrandom 0.4.3",
@@ -1753,9 +1775,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-capability-access-control"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-access-control-plugin?rev=ca4c2ac44653b3c248867b0db63f4784de6f1b60#ca4c2ac44653b3c248867b0db63f4784de6f1b60"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-access-control-admin"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-access-control-plugin?rev=ca4c2ac44653b3c248867b0db63f4784de6f1b60#ca4c2ac44653b3c248867b0db63f4784de6f1b60"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-access-control-directory"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-access-control-plugin?rev=ca4c2ac44653b3c248867b0db63f4784de6f1b60#ca4c2ac44653b3c248867b0db63f4784de6f1b60"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lenso-capability-account-admin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1771,7 +1832,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-auth"
 version = "0.2.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1787,7 +1848,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-auth-delegation"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1803,7 +1864,24 @@ dependencies = [
 [[package]]
 name = "lenso-capability-credential-issuer"
 version = "0.3.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
+dependencies = [
+ "futures",
+ "lenso-contract-authoring",
+ "lenso-contract-codegen",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-data-export-source"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc7ff8b066416f211016d3dec98479d7baf0b8c9e62c8982b662cae3b40c09af"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1819,7 +1897,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-federated-auth"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1895,7 +1973,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-identity-directory"
 version = "0.3.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1911,7 +1989,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-oauth-flow"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1938,9 +2016,117 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-capability-organization-admin"
+version = "0.4.0"
+source = "git+https://github.com/LioRael/lenso-organization-plugin?rev=139fb47828b9ced5c8621438b166d4d2b52c7bad#139fb47828b9ced5c8621438b166d4d2b52c7bad"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-organization-directory"
+version = "0.3.0"
+source = "git+https://github.com/LioRael/lenso-organization-plugin?rev=139fb47828b9ced5c8621438b166d4d2b52c7bad#139fb47828b9ced5c8621438b166d4d2b52c7bad"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-organization-membership"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-organization-plugin?rev=139fb47828b9ced5c8621438b166d4d2b52c7bad#139fb47828b9ced5c8621438b166d4d2b52c7bad"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-organization-membership-admin"
+version = "0.3.0"
+source = "git+https://github.com/LioRael/lenso-organization-plugin?rev=139fb47828b9ced5c8621438b166d4d2b52c7bad#139fb47828b9ced5c8621438b166d4d2b52c7bad"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lenso-capability-password-auth"
 version = "0.3.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1fb183d098a8d44cec98a91228c83456825a87cb#1fb183d098a8d44cec98a91228c83456825a87cb"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=0d385747d6038ad5a906d80258e1f4222383c038#0d385747d6038ad5a906d80258e1f4222383c038"
+dependencies = [
+ "futures",
+ "lenso-contract-authoring",
+ "lenso-contract-codegen",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-projects"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-projects-plugin?rev=49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0#49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-projects-admin"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso-projects-plugin?rev=49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0#49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-projects-collaboration"
+version = "0.3.0"
+source = "git+https://github.com/LioRael/lenso-projects-plugin?rev=49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0#49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0"
+dependencies = [
+ "futures",
+ "lenso-contract-runtime",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-capability-retention-participant"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3826bf5529e6a604691b7ea451898db626fb76022f74d7d8d4f79f807b6598a4"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -2057,6 +2243,7 @@ dependencies = [
  "hex",
  "http",
  "lenso",
+ "lenso-access-control-postgres-plugin",
  "lenso-app-plan",
  "lenso-auth-account-plugin",
  "lenso-auth-oauth-flow-plugin",
@@ -2077,7 +2264,10 @@ dependencies = [
  "lenso-http-egress-plugin",
  "lenso-kernel",
  "lenso-native-adapter",
- "lenso-postgres-kit",
+ "lenso-organization-postgres-plugin",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834)",
+ "lenso-projects-postgres-plugin",
+ "lenso-projects-web-plugin",
  "lenso-runner",
  "lenso-secrets-env-plugin",
  "lenso-web-ingress-plugin",
@@ -2103,6 +2293,7 @@ dependencies = [
  "base64 0.22.1",
  "futures",
  "lenso",
+ "lenso-capability-http-endpoint",
  "lenso-capability-ui-contribution",
  "lenso-capability-workspace-service",
  "lenso-kernel",
@@ -2236,6 +2427,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-organization-postgres-plugin"
+version = "0.5.1"
+source = "git+https://github.com/LioRael/lenso-organization-plugin?rev=139fb47828b9ced5c8621438b166d4d2b52c7bad#139fb47828b9ced5c8621438b166d4d2b52c7bad"
+dependencies = [
+ "futures",
+ "getrandom 0.4.3",
+ "lenso-app-plan",
+ "lenso-capability-organization-admin",
+ "lenso-capability-organization-directory",
+ "lenso-capability-organization-membership",
+ "lenso-capability-organization-membership-admin",
+ "lenso-capability-secrets",
+ "lenso-kernel",
+ "lenso-native-adapter",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=2d04625955dffa8f55b02499604f5969e3f5f1c3)",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "lenso-plugin-authoring"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2262,6 +2475,18 @@ dependencies = [
 [[package]]
 name = "lenso-postgres-kit"
 version = "0.1.1"
+source = "git+https://github.com/LioRael/lenso-postgres-kit?rev=2d04625955dffa8f55b02499604f5969e3f5f1c3#2d04625955dffa8f55b02499604f5969e3f5f1c3"
+dependencies = [
+ "hex",
+ "sha2 0.11.0",
+ "sqlx-core",
+ "sqlx-postgres",
+ "thiserror",
+]
+
+[[package]]
+name = "lenso-postgres-kit"
+version = "0.1.1"
 source = "git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834#bc12ce2e59ef63e63ffcabb1eb4b524c3022c834"
 dependencies = [
  "hex",
@@ -2269,6 +2494,52 @@ dependencies = [
  "sqlx-core",
  "sqlx-postgres",
  "thiserror",
+]
+
+[[package]]
+name = "lenso-projects-postgres-plugin"
+version = "0.2.1"
+source = "git+https://github.com/LioRael/lenso-projects-plugin?rev=49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0#49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0"
+dependencies = [
+ "lenso",
+ "lenso-auth-sdk",
+ "lenso-capability-access-control",
+ "lenso-capability-data-export-source",
+ "lenso-capability-organization-membership",
+ "lenso-capability-projects",
+ "lenso-capability-projects-admin",
+ "lenso-capability-projects-collaboration",
+ "lenso-capability-retention-participant",
+ "lenso-capability-secrets",
+ "lenso-kernel",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=2d04625955dffa8f55b02499604f5969e3f5f1c3)",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "lenso-projects-web-plugin"
+version = "0.1.2"
+source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=58b4ca0e8f761159f99bda332d621dcf36ee9f9e#58b4ca0e8f761159f99bda332d621dcf36ee9f9e"
+dependencies = [
+ "futures",
+ "lenso",
+ "lenso-auth-sdk",
+ "lenso-capability-auth",
+ "lenso-capability-http-endpoint",
+ "lenso-capability-organization-directory",
+ "lenso-capability-organization-membership-admin",
+ "lenso-capability-projects",
+ "lenso-capability-projects-admin",
+ "lenso-capability-projects-collaboration",
+ "lenso-kernel",
+ "serde",
+ "serde_json",
+ "time",
 ]
 
 [[package]]
@@ -3708,6 +3979,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "url",
+ "uuid",
  "webpki-roots 1.0.9",
 ]
 
@@ -3743,6 +4015,7 @@ dependencies = [
  "thiserror",
  "time",
  "tracing",
+ "uuid",
  "whoami",
 ]
 

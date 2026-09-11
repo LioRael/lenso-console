@@ -125,6 +125,8 @@ pub struct ConsolePluginConfig {
     require_user_session: bool,
     #[serde(default)]
     administrator_subjects: Vec<String>,
+    #[serde(default)]
+    member_workspace_ids: Vec<String>,
     agent_home: String,
     allowed_tools: Vec<String>,
     agent_configuration_store: String,
@@ -201,6 +203,18 @@ pub struct ConsolePlugin {
 
 impl Lifecycle for ConsolePlugin {
     async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
+        if self.config.member_workspace_ids.iter().any(|id| {
+            id.is_empty()
+                || id.len() > 64
+                || !id.as_bytes()[0].is_ascii_lowercase()
+                || !id.bytes().all(|byte| {
+                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+                })
+        }) {
+            return Err(invalid_plan(
+                "Member workspace IDs must be canonical workspace slugs",
+            ));
+        }
         let auth_count = self.auth.iter().count();
         if (self.config.require_user_session && auth_count != 1)
             || (!self.config.require_user_session && auth_count != 0)
@@ -293,6 +307,7 @@ impl ConsolePlugin {
         let session = session::SessionBoundary {
             required: self.config.require_user_session,
             administrator_subjects: self.config.administrator_subjects.clone(),
+            member_workspace_ids: self.config.member_workspace_ids.clone(),
             auth: self.auth.iter().next().map(|bound| bound.client().clone()),
         };
         Box::pin(async move {
@@ -343,6 +358,7 @@ impl ConsolePlugin {
         let session = session::SessionBoundary {
             required: self.config.require_user_session,
             administrator_subjects: self.config.administrator_subjects.clone(),
+            member_workspace_ids: self.config.member_workspace_ids.clone(),
             auth: self.auth.iter().next().map(|bound| bound.client().clone()),
         };
         Box::pin(async move {
@@ -894,6 +910,7 @@ impl ConsoleConfig {
         Ok(ConsolePluginConfig {
             require_user_session: false,
             administrator_subjects: Vec::new(),
+            member_workspace_ids: Vec::new(),
             agent_home: utf8_path(&self.agent_home)?,
             allowed_tools: self.allowed_tools.clone(),
             agent_configuration_store: utf8_path(&self.agent_configuration_store)?,
@@ -1038,6 +1055,7 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
     Ok(resolved.plan().clone())
 }
 
+#[allow(clippy::too_many_lines)] // Keep the available Plugin cohort and its bindings together.
 fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
     let slots = [
         HostSlot::many("http-ingress"),
@@ -1049,6 +1067,10 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
         HostSlot::many("oauth-flows"),
         HostSlot::many("secrets"),
         HostSlot::many("http-clients"),
+        HostSlot::many("web"),
+        HostSlot::many("projects"),
+        HostSlot::many("organization"),
+        HostSlot::many("access-control"),
     ];
     let linked = NativePluginRegistry::host_catalog(slots.clone(), [])
         .map_err(|error| anyhow::anyhow!("invalid linked Console Plugin catalog: {error:?}"))?;
@@ -1058,6 +1080,9 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
         .iter()
         .cloned()
         .chain(std::iter::once(HostPluginRelease::new(ingress_descriptor)))
+        .chain(std::iter::once(HostPluginRelease::new(
+            lenso_organization_postgres_plugin::OrganizationFactory::plugin_descriptor(),
+        )))
         .collect::<Vec<_>>();
     let mut defaults = Vec::new();
     let observe_source = config.observe_source();
@@ -1124,6 +1149,11 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
     }
     let ingress = PluginInstanceId::new("lenso.web-ingress", "default");
     let mut bindings = vec![
+        HostBinding::new(
+            PluginInstanceId::new("lenso.console.workspace.projects", "default"),
+            http_endpoint::CAPABILITY_ID,
+            "web",
+        ),
         HostBinding::new(
             PluginInstanceId::new("lenso.console.web", "default"),
             lenso_capability_auth::CAPABILITY_ID,
@@ -1219,6 +1249,7 @@ fn console_registry() -> NativePluginRegistry {
     NativePluginRegistry::new()
         .with_linked_factories()
         .with_factory(WebIngressFactory::default())
+        .with_factory(lenso_organization_postgres_plugin::OrganizationFactory)
 }
 
 /// Runs the reference Console Host until the process owner requests shutdown.

@@ -12,6 +12,7 @@ plugin-id = "lenso.console.workspace.projects"
 root-slot = "console-workspaces"
 
 [dependencies]
+lenso-capability-http-endpoint = "0.3.1"
 base64 = "0.22"
 futures = "0.3"
 lenso = "0.5.17"

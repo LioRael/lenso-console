@@ -1,10 +1,13 @@
 //! Authentication implementations are available; App Plugin Root chooses activation.
+use lenso_access_control_postgres_plugin as _;
 use lenso_auth_account_plugin as _;
 use lenso_auth_oauth_flow_plugin as _;
 use lenso_auth_oidc_client_plugin as _;
 use lenso_auth_password_plugin as _;
 use lenso_auth_web_session_plugin as _;
 use lenso_http_egress_plugin as _;
+use lenso_projects_postgres_plugin as _;
+use lenso_projects_web_plugin as _;
 
 pub(super) fn link() {
     lenso_secrets_env_plugin::link();
@@ -25,6 +28,16 @@ pub(super) fn validate_browser_session(
     let console = configuration("lenso.console.web/default")?;
     if console["require_user_session"] != true {
         return Ok(());
+    }
+    if console["member_workspace_ids"]
+        .as_array()
+        .is_some_and(|ids| ids.iter().any(|id| id == "projects"))
+    {
+        let workspace = configuration("lenso.console.workspace.projects/default")?;
+        anyhow::ensure!(
+            workspace["origin"].is_null(),
+            "Member Projects access requires the native Workspace, never a shared external grant"
+        );
     }
     let ingress = configuration("lenso.web-ingress/default")?;
     anyhow::ensure!(

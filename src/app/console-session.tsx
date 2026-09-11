@@ -27,7 +27,11 @@ type State =
   | { kind: "loading" | "ready" | "error" | "denied" }
   | { kind: "login"; methods: LoginMethod[] };
 
-const SessionActions = createContext<{ signOut?: () => Promise<void> }>({});
+const SessionActions = createContext<{
+  administrator: boolean;
+  workspaceIds: string[];
+  signOut?: () => Promise<void>;
+}>({ administrator: true, workspaceIds: [] });
 export function useConsoleSession() {
   return useContext(SessionActions);
 }
@@ -40,6 +44,10 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
   const subject = useRef<string | undefined>(undefined);
   const [identity, setIdentity] = useState("local");
   const [authenticated, setAuthenticated] = useState(false);
+  const [access, setAccess] = useState({
+    administrator: true,
+    workspaceIds: [] as string[],
+  });
   const refresh = useCallback(async (signal?: AbortSignal) => {
     generation.current += 1;
     const { current } = generation;
@@ -135,6 +143,17 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
             subject.current = nextSubject;
             setIdentity(nextSubject);
           }
+          setAccess({
+            administrator:
+              value.mode === "local" ||
+              ("administrator" in value && value.administrator === true),
+            workspaceIds:
+              "workspace_ids" in value && Array.isArray(value.workspace_ids)
+                ? value.workspace_ids.filter(
+                    (id): id is string => typeof id === "string"
+                  )
+                : [],
+          });
           setAuthenticated(value.mode === "required");
           setState({ kind: "ready" });
         }
@@ -167,6 +186,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
         value={
           authenticated
             ? {
+                ...access,
                 signOut: async () => {
                   const response = await sessionFetch("/auth/logout", {
                     method: "POST",
@@ -181,7 +201,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
                   }
                 },
               }
-            : {}
+            : { administrator: true, workspaceIds: [] }
         }
       >
         {children}

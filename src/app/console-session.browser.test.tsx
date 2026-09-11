@@ -266,3 +266,41 @@ test("authenticated Console sign-out revokes through Auth and unmounts content",
     .element(page.getByRole("button", { name: "End session" }))
     .not.toBeInTheDocument();
 });
+
+test("member sessions expose only their configured workspace access", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        mode: "required",
+        authenticated: true,
+        subject: "member-alice",
+        administrator: false,
+        workspace_ids: ["projects"],
+      })
+    )
+  );
+
+  flushSync(() =>
+    root.render(
+      <ConsoleSession>
+        <Access />
+      </ConsoleSession>
+    )
+  );
+  await expect.element(page.getByText("Member access: projects")).toBeVisible();
+  await expect
+    .element(page.getByText("Administrator access"))
+    .not.toBeInTheDocument();
+});
+
+function Access() {
+  const { administrator, workspaceIds } = useConsoleSession();
+  return (
+    <p>
+      {administrator
+        ? "Administrator access"
+        : `Member access: ${workspaceIds.join(", ")}`}
+    </p>
+  );
+}

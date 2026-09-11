@@ -128,6 +128,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             let boundary = SessionBoundary {
                 required: true,
                 administrator_subjects: vec!["alice".into(), "bob".into()],
+                member_workspace_ids: vec![],
                 auth: Some(AuthClient::new(app.handle::<auth::Auth>("caller").unwrap())),
             };
             let unauthorized = boundary
@@ -175,6 +176,15 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                     StatusCode::FORBIDDEN
                 );
             }
+            let workspace_member = SessionBoundary { member_workspace_ids: vec!["projects".into()], ..member.clone() };
+            let member_context = workspace_member.prepare(context(), "GET", "/api/console/v1/pages", Some(("session", "alice"))).await.ok().unwrap();
+            let catalog = (StatusCode::OK, Json(serde_json::json!({"schema":"console.page-catalog/1","mounts":[{"id":"projects"},{"id":"observe"}]}))).into_response();
+            let filtered = workspace_member.filter_catalog(&member_context, "/api/console/v1/pages", catalog).await;
+            let bytes = filtered.into_body().collect(4096).await.unwrap();
+            let filtered: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(filtered["mounts"], serde_json::json!([{"id":"projects"}]));
+            assert!(workspace_member.prepare(context(), "POST", "/api/console/v1/pages/projects/services/projects/invoke/list_projects", Some(("session", "alice"))).await.is_ok());
+            assert_eq!(workspace_member.prepare(context(), "GET", "/api/console/v1/pages/observe/services/telemetry/invoke/query", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
             factory.revoked.set(true);
             assert_eq!(
                 boundary
@@ -208,6 +218,7 @@ async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
     let required = SessionBoundary {
         required: true,
         administrator_subjects: vec![],
+        member_workspace_ids: vec![],
         auth: None,
     };
     assert_eq!(
@@ -222,6 +233,7 @@ async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
     let local = SessionBoundary {
         required: false,
         administrator_subjects: vec![],
+        member_workspace_ids: vec![],
         auth: None,
     };
     assert!(

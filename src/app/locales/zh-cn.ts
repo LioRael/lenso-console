@@ -1,4 +1,7 @@
 export const chineseMessages: Readonly<Record<string, string>> = {
+  "Could not load workspaces": "无法加载工作区",
+  "Loading workspace…": "正在加载工作区…",
+  "No workspaces are available for this account": "此账号暂无可用工作区",
   "Add Projects App": "添加 Projects 应用",
   "Connect a Projects App, then sign in through its browser consent page.":
     "连接 Projects 应用，然后在浏览器中登录并授权。",
