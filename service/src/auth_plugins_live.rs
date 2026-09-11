@@ -8,18 +8,18 @@ use serde_json::json;
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "requires LENSO_POSTGRES_TEST_URL and CONSOLE_TEST_SECRET"]
 async fn one_process_password_login_authenticates_console_and_logout_revokes_it() {
-    verify_browser_session(false).await;
+    Box::pin(verify_browser_session(false)).await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "requires LENSO_POSTGRES_TEST_URL and CONSOLE_TEST_SECRET"]
 async fn native_projects_reuses_console_identity_without_an_external_service() {
-    verify_browser_session(true).await;
+    Box::pin(verify_browser_session(true)).await;
 }
 
 #[allow(clippy::too_many_lines)]
 async fn verify_browser_session(native_projects: bool) {
-    tokio::task::LocalSet::new().run_until(async {
+    tokio::task::LocalSet::new().run_until(Box::pin(async {
         link(); crate::link();
         let url = std::env::var("LENSO_POSTGRES_TEST_URL").unwrap();
         let secret = std::env::var("CONSOLE_TEST_SECRET").unwrap();
@@ -140,7 +140,7 @@ async fn verify_browser_session(native_projects: bool) {
         }
         pool.close().await;
         agent.abort();
-    }).await;
+    })).await;
 }
 
 async fn native_configuration(
