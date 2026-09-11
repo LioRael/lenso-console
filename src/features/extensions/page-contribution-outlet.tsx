@@ -17,7 +17,10 @@ import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { RoutePending } from "../../app/route-states";
 import { useAgentIdentityOptional } from "../agent/agent-identity-context";
-import { useAgentQuickPanelOptional } from "../agent/agent-quick-panel-context";
+import {
+  useOptionalAgentQuickPanel,
+  type WorkspaceAgentContext,
+} from "../agent/agent-quick-panel-context";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
 import {
   createWorkspaceServices,
@@ -25,7 +28,13 @@ import {
 } from "./workspace-service-client";
 
 type ContributionProps = {
-  agent?: { requestDraft: (draft: string) => void } | undefined;
+  agent?:
+    | {
+        completedTurns: number;
+        requestDraft?: (draft: string) => void;
+        setPageContext: (context: WorkspaceAgentContext | null) => void;
+      }
+    | undefined;
   environment: { locale: "en" | "zh-CN"; theme: "dark" | "light" };
   location: {
     handoff?: { kind: string; payload: unknown } | undefined;
@@ -100,7 +109,7 @@ export function PageContributionOutlet({
   const { locale } = useConsoleLocale();
   const catalog = usePageCatalog();
   const agentIdentity = useAgentIdentityOptional();
-  const agentPanel = useAgentQuickPanelOptional();
+  const agentPanel = useOptionalAgentQuickPanel();
   const mount = catalog.data?.find(
     (candidate) =>
       candidate.id === mountId && sameSubject(candidate.subject, subject)
@@ -120,18 +129,23 @@ export function PageContributionOutlet({
   );
   const navigation = workspaceNavigation(mountId, subject, catalog.data ?? []);
   const appAgent = agentIdentity?.agents.find((agent) => agent.role === "app");
-  const agent =
-    agentPanel && appAgent
-      ? {
-          requestDraft: (draft: string) => {
-            const bytes = new TextEncoder().encode(draft).byteLength;
-            if (!draft.trim() || bytes > 8192) {
-              throw new TypeError("Agent draft is outside reviewed bounds");
+  const agent = agentPanel
+    ? {
+        completedTurns: agentPanel.completedTurns,
+        setPageContext: agentPanel.setPageContext,
+        ...(appAgent
+          ? {
+              requestDraft: (draft: string) => {
+                const bytes = new TextEncoder().encode(draft).byteLength;
+                if (!draft.trim() || bytes > 8192) {
+                  throw new TypeError("Agent draft is outside reviewed bounds");
+                }
+                agentPanel.requestAgentDraft({ agentId: appAgent.id, draft });
+              },
             }
-            agentPanel.requestAgentDraft({ agentId: appAgent.id, draft });
-          },
-        }
-      : undefined;
+          : {}),
+      }
+    : undefined;
 
   if (catalog.isPending || (mount && loaded.status === "loading")) {
     return <RoutePending />;

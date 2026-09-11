@@ -251,7 +251,10 @@ impl ConsolePlugin {
             ("GET", "/health/live", "console.health.live"),
             ("GET", "/health/ready", "console.health.ready"),
             ("GET", "/health/startup", "console.health.startup"),
+            ("GET", "/", "console.shell.root"),
+            ("HEAD", "/", "console.shell.root.head"),
             ("GET", "/{*path}", "console.shell"),
+            ("HEAD", "/{*path}", "console.shell.head"),
         ]
         .into_iter()
         .map(|(method, path, route_id)| HttpRoute {
@@ -989,9 +992,11 @@ pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
     publish_console_app_authority(&config.app_root, &catalog)?;
     let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)
         .map_err(|error| anyhow::anyhow!("resolve Console App Plugin Root: {error:#}"))?;
-    Kernel::start_native(resolved.plan().clone(), TokioDriver::new(), registry)
+    let app = Kernel::start_native(resolved.plan().clone(), TokioDriver::new(), registry)
         .await
-        .map_err(|error| anyhow::anyhow!("Console Host startup failed: {error:?}"))
+        .map_err(|error| anyhow::anyhow!("Console Host startup failed: {error:?}"))?;
+    println!("Lenso Console listening on http://{}", config.address);
+    Ok(app)
 }
 
 #[cfg(test)]
@@ -2034,6 +2039,16 @@ mod tests {
         local
             .run_until(async move {
                 let host = start_host(&config).await.unwrap();
+                let shell_client = reqwest::Client::new();
+                for path in ["/", "/workspaces/projects"] {
+                    let url = format!("http://{address}{path}");
+                    let shell = shell_client.get(&url).send().await.unwrap();
+                    assert_eq!(shell.status(), StatusCode::OK);
+                    assert!(shell.text().await.unwrap().contains("<!doctype html>"));
+                    let head = shell_client.head(&url).send().await.unwrap();
+                    assert_eq!(head.status(), StatusCode::OK);
+                    assert!(head.bytes().await.unwrap().is_empty());
+                }
                 let catalog = reqwest::get(format!("http://{address}/api/console/v1/pages"))
                     .await
                     .unwrap()

@@ -28,6 +28,14 @@ const homes = join(root, "state");
 const cwd = join(root, "workspace");
 await mkdir(cwd);
 await mkdir(homes);
+// Keep the disposable Console's telemetry listener isolated from running Apps.
+const ingressRoot = join(homes, "console/plugins/lenso.web-ingress");
+await mkdir(ingressRoot, { recursive: true });
+await writeFile(
+  join(ingressRoot, "telemetry.toml"),
+  'bind_address = "127.0.0.1:0"\n'
+);
+
 const runtimePath = join(root, "runtime-bin");
 await mkdir(runtimePath);
 await symlink(process.execPath, join(runtimePath, "node"));
