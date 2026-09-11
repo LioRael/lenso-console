@@ -45,7 +45,7 @@ jobs:
         with:
           workspaces: service
       - run: pnpm install --frozen-lockfile
-      - run: node --test scripts/distribution/launcher.test.mjs
+      - run: node --test scripts/distribution/*.test.mjs
       - run: pnpm service:web-build
       - run: cargo build --locked --release --manifest-path service/Cargo.toml --bin lenso-console-with-agent
       - run: node scripts/distribution/package-agent.mjs '${{ matrix.target }}' service/target/release/lenso-console-with-agent .artifacts/npm
@@ -70,6 +70,9 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: npm-*
@@ -85,4 +88,8 @@ jobs:
           for target in darwin-arm64 linux-x64; do
             npm publish artifacts/npm-$target/lenso-agent-$target-*.tgz --access public --provenance
           done
+          for target in darwin-arm64 linux-x64; do
+            node scripts/distribution/wait-for-npm-package.mjs artifacts/npm-$target/lenso-agent-$target-*.tgz
+          done
           npm publish artifacts/npm-linux-x64/lenso-agent-[0-9]*.tgz --access public --provenance
+          node scripts/distribution/wait-for-npm-package.mjs artifacts/npm-linux-x64/lenso-agent-[0-9]*.tgz
