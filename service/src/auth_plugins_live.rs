@@ -63,7 +63,10 @@ async fn verify_browser_session(native_projects: bool) {
             }
             PluginRootSnapshot::new([], instances, [])
         } else { root };
+        let selected = resolve_plugin_root(&host, &root).unwrap();
+        let host = crate::http_admission_catalog(host, selected.plan()).unwrap();
         let resolved = resolve_plugin_root(&host, &root).unwrap();
+        assert_eq!(selected.plan().capability_bindings().len(), resolved.plan().capability_bindings().len());
         validate_browser_session(resolved.plan()).unwrap();
         let app = lenso_kernel::Kernel::start_native(resolved.plan().clone(), lenso_runner::TokioDriver::new(), console_registry()).await.unwrap();
         let client = reqwest::Client::new();

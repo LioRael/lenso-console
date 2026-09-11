@@ -121,3 +121,9 @@ Login to Console is the only login for this built-in workspace. Changing
 `member_workspace_ids` takes effect through the normal resolved-generation flow.
 An App configured for member Projects access cannot use an external shared-grant
 Projects adapter.
+
+## HTTP request admission
+
+The reference Console Host derives HTTP bindings from the selected Plugin Root, records their exact provider sets and bounded admission in its generated Host Catalog, and resolves the final immutable Plan before starting it. HTTP bindings allow 8 concurrent calls and 64 queued calls; saturation remains bounded rather than spawning unlimited work. Other Capability policies and streaming bindings remain unchanged.
+
+This accommodates browser resource bursts without inheriting the generic single-permit, zero-queue policy. The Host regenerates this authority at startup, so restart after changing the Plugin composition. Authentication and workspace permissions remain enforced by their existing providers. The real Host regression sends 32 simultaneous shell requests without retries, and the authentication acceptance tests resolve the same admission policy.

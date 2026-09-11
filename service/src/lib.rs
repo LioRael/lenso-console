@@ -28,7 +28,6 @@ use anyhow::Context as _;
 use bytes::Bytes;
 use directories::BaseDirs;
 use lenso::prelude::*;
-#[cfg(test)]
 use lenso_app_plan::ResolvedAppPlan;
 use lenso_app_plan::authoring::{
     HostBinding, HostCatalog, HostDefaultPlugin, HostPluginRelease, HostSlot, PluginInstanceId,
@@ -1039,6 +1038,10 @@ pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
     publish_console_app_authority(&config.app_root, &catalog)?;
     let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)
         .map_err(|error| anyhow::anyhow!("resolve Console App Plugin Root: {error:#}"))?;
+    // Derive admission in Host authority, then resolve the final immutable Plan.
+    let catalog = http_admission_catalog(catalog, resolved.plan())?;
+    publish_console_app_authority(&config.app_root, &catalog)?;
+    let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)?;
     auth_plugins::validate_browser_session(resolved.plan())?;
     let app = Kernel::start_native(resolved.plan().clone(), TokioDriver::new(), registry)
         .await
@@ -1169,6 +1172,48 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
         ));
     }
     Ok(HostCatalog::new(slots, releases, defaults).with_bindings(bindings))
+}
+
+/// HTTP fan-out needs bounded waiting instead of the generic zero-queue default.
+/// Preserve the resolver's provider set; never change the running Plan or routes.
+fn http_admission_catalog(
+    catalog: HostCatalog,
+    plan: &ResolvedAppPlan,
+) -> anyhow::Result<HostCatalog> {
+    let mut groups = BTreeMap::<(String, String), Vec<PluginInstanceId>>::new();
+    for binding in plan.capability_bindings() {
+        if binding.capability_id() == http_endpoint::CAPABILITY_ID {
+            groups
+                .entry((
+                    binding.consumer_instance().to_owned(),
+                    binding.requirement_id().to_owned(),
+                ))
+                .or_default()
+                .push(plan_instance_id(binding.provider_instance())?);
+        }
+    }
+    let mut bindings = catalog.bindings().to_vec();
+    for ((consumer, requirement), providers) in groups {
+        let consumer = plan_instance_id(&consumer)?;
+        bindings.retain(|binding| {
+            binding.consumer() != &consumer || binding.requirement_id() != requirement
+        });
+        let binding = HostBinding::to_instances(consumer, http_endpoint::CAPABILITY_ID, providers)
+            .with_admission(lenso_app_plan::RequestAdmissionPlan::new(64, 8));
+        bindings.push(if requirement.starts_with('~') {
+            binding
+        } else {
+            binding.with_requirement_id(requirement)
+        });
+    }
+    Ok(catalog.with_bindings(bindings))
+}
+
+fn plan_instance_id(key: &str) -> anyhow::Result<PluginInstanceId> {
+    let (plugin, instance) = key
+        .split_once('/')
+        .ok_or_else(|| anyhow::anyhow!("invalid resolved Plugin Instance: {key}"))?;
+    Ok(PluginInstanceId::new(plugin, instance))
 }
 
 fn publish_console_app_authority(root: &Path, catalog: &HostCatalog) -> anyhow::Result<()> {
@@ -2095,6 +2140,17 @@ mod tests {
             .run_until(async move {
                 let host = start_host(&config).await.unwrap();
                 let shell_client = reqwest::Client::new();
+                // A browser loads the shell and assets in a concurrent burst.
+                // Exercise the real ingress and immutable Host Plan, without retries.
+                let responses = futures::future::join_all((0..32).map(|_| {
+                    shell_client.get(format!("http://{address}/workspaces/projects")).send()
+                })).await;
+                for response in responses {
+                    let response = response.unwrap();
+                    assert_eq!(response.status(), StatusCode::OK);
+                    assert!(response.text().await.unwrap().contains("<!doctype html>"));
+                }
+
                 for path in ["/", "/workspaces/projects"] {
                     let url = format!("http://{address}{path}");
                     let shell = shell_client.get(&url).send().await.unwrap();
