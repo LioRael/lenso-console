@@ -24,7 +24,6 @@ test("validates CLI options before resolving or starting a runtime", () => {
     ["web", "--port", "0"],
     ["web", "--port", "65536"],
     ["web", "--host", "0.0.0.0"],
-    ["unknown"],
   ]) {
     assert.throws(() => parseArgs(args));
   }
@@ -59,7 +58,7 @@ test("help and version work without downloading a runtime", async () => {
   });
   const [code] = await once(child, "exit");
   assert.equal(code, 0);
-  assert.match(output, /Usage: lenso-agent \[tui\]/u);
+  assert.match(output, /Usage: lenso-agent \[terminal options\]/u);
 });
 
 test("native dispatch preserves arguments and does not intercept subcommand help", () => {
@@ -68,23 +67,23 @@ test("native dispatch preserves arguments and does not intercept subcommand help
     args: ["--profile", "code"],
     executable: "lenso-agent",
   });
-  for (const [command, executable] of [
-    ["tui", "lenso-agent"],
-    ["cli", "lenso-agent-cli"],
-    ["acp", "lenso-agent-acp"],
+  for (const command of [
+    "tui",
+    "cli",
+    "acp",
+    "run",
+    "auth",
+    "sessions",
+    "doctor",
+    "unknown",
   ]) {
     assert.deepEqual(parseArgs([command, "--help"]), {
-      args: ["--help"],
-      executable,
+      args: [command, "--help"],
+      executable: "lenso-agent",
     });
   }
-  assert.deepEqual(
-    parseArgs(["cli", "--profile", "plan", "a quoted request"]),
-    {
-      args: ["--profile", "plan", "a quoted request"],
-      executable: "lenso-agent-cli",
-    }
-  );
+  const args = ["run", "--profile", "plan", "doctor"];
+  assert.deepEqual(parseArgs(args), { args, executable: "lenso-agent" });
 });
 
 test("native launch uses the bundled executable, preserves cwd and args, and propagates failure", async () => {
