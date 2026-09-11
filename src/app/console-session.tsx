@@ -211,10 +211,20 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
   return (
     <main {...stylex.props(styles.root)}>
       <section {...stylex.props(styles.panel)}>
-        <span {...stylex.props(styles.brand)}>Lenso</span>
-        <h1 {...stylex.props(styles.title)}>
-          {zh ? "登录 Console" : "Sign in to Console"}
-        </h1>
+        <header {...stylex.props(styles.header)}>
+          <div {...stylex.props(styles.brand)}>
+            <img
+              src="/favicon.svg"
+              alt=""
+              width={36}
+              height={36}
+              {...stylex.props(styles.logo)}
+            />
+          </div>
+          <h1 {...stylex.props(styles.title)}>
+            {zh ? "登录 Lenso" : "Log in to Lenso"}
+          </h1>
+        </header>
         {state.kind === "loading" && (
           <output {...stylex.props(styles.muted)}>
             {zh ? "正在检查会话…" : "Checking your session…"}
@@ -222,7 +232,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
         )}
         {state.kind === "denied" && (
           <>
-            <p role="alert" {...stylex.props(styles.muted)}>
+            <p role="alert" {...stylex.props(styles.error)}>
               {zh
                 ? "当前账号没有此 Console 的访问权限，请联系管理员。"
                 : "Your account does not have access to this Console. Contact your administrator."}
@@ -246,7 +256,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
         )}
         {state.kind === "error" && (
           <>
-            <p role="alert" {...stylex.props(styles.muted)}>
+            <p role="alert" {...stylex.props(styles.error)}>
               {zh
                 ? "暂时无法连接认证服务。"
                 : "The authentication service is unavailable."}
@@ -285,10 +295,14 @@ function LoginMethods({
   const [error, setError] = useState("");
   return (
     <div {...stylex.props(styles.methods)}>
-      {methods.map((method) =>
+      {[
+        ...methods.filter((method) => method.kind === "redirect"),
+        ...methods.filter((method) => method.kind === "password"),
+      ].map((method) =>
         method.kind === "redirect" ? (
           <Button
             key={method.id}
+            xstyle={styles.action}
             disabled={busy}
             onClick={() => {
               const url = new URL(method.action, window.location.origin);
@@ -349,39 +363,55 @@ function LoginMethods({
               })();
             }}
           >
-            <label
-              {...stylex.props(styles.label)}
-              htmlFor="console-login-email"
+            {methods.some((entry) => entry.kind === "redirect") && (
+              <div {...stylex.props(styles.divider)}>
+                {zh ? "或使用邮箱登录" : "or sign in with email"}
+              </div>
+            )}
+            <div {...stylex.props(styles.field)}>
+              <label
+                {...stylex.props(styles.label)}
+                htmlFor="console-login-email"
+              >
+                {zh ? "邮箱" : "Email"}
+              </label>
+              <TextField.Root xstyle={styles.input}>
+                <TextField.Control
+                  placeholder={zh ? "邮箱地址" : "Email address"}
+                  id="console-login-email"
+                  name="identifier"
+                  type="email"
+                  autoComplete="username"
+                  required
+                  disabled={busy}
+                />
+              </TextField.Root>
+            </div>
+            <div {...stylex.props(styles.field)}>
+              <label
+                {...stylex.props(styles.label)}
+                htmlFor="console-login-password"
+              >
+                {zh ? "密码" : "Password"}
+              </label>
+              <TextField.Root xstyle={styles.input}>
+                <TextField.Control
+                  placeholder={zh ? "密码" : "Password"}
+                  id="console-login-password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  disabled={busy}
+                />
+              </TextField.Root>
+            </div>
+            <Button
+              xstyle={[styles.action, styles.submit]}
+              type="submit"
+              variant="primary"
+              disabled={busy}
             >
-              {zh ? "邮箱" : "Email"}
-            </label>
-            <TextField.Root>
-              <TextField.Control
-                id="console-login-email"
-                name="identifier"
-                type="email"
-                autoComplete="username"
-                required
-                disabled={busy}
-              />
-            </TextField.Root>
-            <label
-              {...stylex.props(styles.label)}
-              htmlFor="console-login-password"
-            >
-              {zh ? "密码" : "Password"}
-            </label>
-            <TextField.Root>
-              <TextField.Control
-                id="console-login-password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                disabled={busy}
-              />
-            </TextField.Root>
-            <Button type="submit" variant="primary" disabled={busy}>
               {busy
                 ? zh
                   ? "正在登录…"
@@ -391,7 +421,7 @@ function LoginMethods({
                   : "Sign in"}
             </Button>
             {error && (
-              <p role="alert" {...stylex.props(styles.muted)}>
+              <p role="alert" {...stylex.props(styles.error)}>
                 {error}
               </p>
             )}
