@@ -10,16 +10,18 @@ const require = createRequire(import.meta.url);
 const own = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url))
 );
-const help = `Usage: lenso-agent [tui] [terminal options]
-       lenso-agent cli <command> [options]
+const help = `Usage: lenso-agent [terminal options]
+       lenso-agent run <prompt> [options]
+       lenso-agent <auth|profiles|sessions|models|contexts|approvals|doctor> ...
        lenso-agent acp [options]
        lenso-agent web [--port <1-65535>] [--no-open]
 
-Running without a subcommand starts the terminal UI. Native options are passed through unchanged.
-Use cli auth login, then cli profiles install coding before tui --profile code.
-Use tui --help, cli --help, or acp --help for native command help.
+Running without a subcommand starts the terminal UI.
+Use auth login, then profiles install coding before --profile code.
+Native commands and options are passed to the bundled Agent unchanged.
+Use tui --help or run --help for native help. cli remains a compatibility entrypoint.
 
-Start Lenso Agent and Console in the current workspace.
+Web starts Lenso Agent and Console in the current workspace.
 Default URL: http://127.0.0.1:3030
 Local launches open a browser; SSH launches only print the URL.
 Agent Home and Console Home are preserved between runs.
@@ -32,21 +34,9 @@ export const parseArgs = (args) => {
   if (args.length === 1 && ["--help", "-h"].includes(args[0])) {
     return { help: true };
   }
-  const nativeCommands = {
-    acp: "lenso-agent-acp",
-    cli: "lenso-agent-cli",
-    tui: "lenso-agent",
-  };
-  if (Object.hasOwn(nativeCommands, args[0])) {
-    return { args: args.slice(1), executable: nativeCommands[args[0]] };
-  }
-  if (args.length === 0 || args[0].startsWith("-")) {
-    return { args, executable: "lenso-agent" };
-  }
+  // Native Agent owns terminal command parsing and surface selection.
   if (args[0] !== "web") {
-    throw new Error(
-      `Unknown command: ${args[0]}. Use tui, cli, acp, web, or --help.`
-    );
+    return { args, executable: "lenso-agent" };
   }
   if (args.length === 2 && ["--help", "-h"].includes(args[1])) {
     return { help: true };

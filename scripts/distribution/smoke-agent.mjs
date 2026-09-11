@@ -218,7 +218,7 @@ try {
   }
   const doctor = spawnSync(
     join(cwd, "node_modules/.bin/lenso-agent"),
-    ["cli", "doctor", "--json"],
+    ["doctor", "--json"],
     {
       cwd,
       encoding: "utf-8",
@@ -233,6 +233,31 @@ try {
   );
   assert.equal(doctor.status, 0, doctor.stderr);
   assert.doesNotThrow(() => JSON.parse(doctor.stdout));
+
+  for (const args of [
+    ["run", "--help"],
+    ["profiles", "install", "coding"],
+  ]) {
+    const result = spawnSync(join(cwd, "node_modules/.bin/lenso-agent"), args, {
+      cwd,
+      encoding: "utf-8",
+      env: {
+        ...environment,
+        HOME: homes,
+        LENSO_AGENT_HOME: join(homes, "terminal"),
+        PATH: runtimePath,
+      },
+      timeout: 30000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    if (args[0] === "run") {
+      assert.match(result.stdout, /usage: lenso-agent run/u);
+    }
+  }
+  assert.match(
+    await readFile(join(homes, "terminal/profiles/code.toml"), "utf-8"),
+    /coding/u
+  );
 
   const occupied = createServer();
   occupied.listen(0, "127.0.0.1");
