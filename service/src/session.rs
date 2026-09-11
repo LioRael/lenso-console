@@ -164,11 +164,23 @@ fn session_response(
 }
 
 fn problem(status: StatusCode, code: &str) -> Box<Response> {
+    let detail = match code {
+        "authentication_required" => "Sign in to continue.",
+        "user_session_required" => "A user session is required.",
+        "console_access_required" => "Your account does not have access to this Console.",
+        "method_not_allowed" => "This endpoint requires GET.",
+        _ => "The Console could not complete the request. Try again later.",
+    };
     Box::new(
         (
             status,
-            [(http::header::CACHE_CONTROL, "no-store")],
-            Json(serde_json::json!({"code":code,"status":status.as_u16()})),
+            [
+                (http::header::CACHE_CONTROL, "no-store"),
+                (http::header::CONTENT_TYPE, "application/problem+json"),
+            ],
+            Json(lenso_capability_http_endpoint::response::Problem::new(
+                status, code, detail,
+            )),
         )
             .into_response(),
     )

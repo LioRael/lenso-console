@@ -252,3 +252,20 @@ async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
     assert_eq!(value["mode"], "local");
     assert_eq!(value["authenticated"], false);
 }
+
+#[tokio::test]
+async fn session_errors_are_problem_details() {
+    let response = problem(StatusCode::UNAUTHORIZED, "authentication_required");
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        response.headers()[http::header::CONTENT_TYPE],
+        "application/problem+json"
+    );
+    let body = response.into_body().collect(4096).await.unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(value["type"], "about:blank");
+    assert_eq!(value["status"], 401);
+    assert_eq!(value["title"], "Unauthorized");
+    assert_eq!(value["detail"], "Sign in to continue.");
+    assert_eq!(value["code"], "authentication_required");
+}
