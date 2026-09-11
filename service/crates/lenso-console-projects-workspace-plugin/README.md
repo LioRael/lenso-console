@@ -25,7 +25,7 @@ so Hosts mapping bearer evidence to the session scheme retain the existing origi
 check. The Console Workspace endpoint requires JSON and does not enable CORS.
 
 The business App must explicitly consent to the exact operations consumed here:
-`lenso.projects@1` list/get/create project, list/get issue and list activity;
+`lenso.projects@1` list/get/create project, list/get/create issue and list activity;
 `lenso.projects-admin@1` list teams, project statuses and workflow states.
 App membership and record authorization remain authoritative. This connection is
 separate from the Agent's business connection; it does not reuse browser cookies or
@@ -47,6 +47,7 @@ Projects or Auth Capabilities. All operations are request/response JSON:
 | `get_issue`, `list_activity` | organization, issue ID, pagination where applicable | `{status, body}` |
 | `list_teams`, `list_project_statuses`, `list_workflow_states` | organization, team filter where applicable, pagination | `{status, body}` |
 | `create_project` | Existing Projects `CreateProjectRequest` | `{status, body}` |
+| `create_issue` | Existing Projects `CreateIssueRequest` | `{status, body}` |
 
 Requests reject destination/credential/actor overrides. Bodies retain existing
 business contract field names. The browser does not send capability IDs, provider

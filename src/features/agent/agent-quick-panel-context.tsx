@@ -57,3 +57,7 @@ export function useAgentQuickPanel() {
   }
   return value;
 }
+
+export function useAgentQuickPanelOptional() {
+  return useContext(AgentQuickPanelContext);
+}

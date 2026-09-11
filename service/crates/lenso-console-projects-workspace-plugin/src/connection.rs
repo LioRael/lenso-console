@@ -14,6 +14,7 @@ pub const OPERATIONS: &[&str] = &[
     "list_projects",
     "get_project",
     "create_project",
+    "create_issue",
     "list_issues",
     "get_issue",
     "list_activity",
@@ -243,6 +244,12 @@ fn endpoint(
             reqwest::Method::GET,
         ),
         "create_project" => ("/api/projects", None, &[], reqwest::Method::POST),
+        "create_issue" => (
+            "/api/projects",
+            Some("project_id"),
+            &[],
+            reqwest::Method::POST,
+        ),
         "get_project" => (
             "/api/projects",
             Some("project_id"),
@@ -298,7 +305,7 @@ fn endpoint(
             .ok_or(())?;
         url.path_segments_mut()?.push(value);
     }
-    if operation == "list_issues" {
+    if matches!(operation, "list_issues" | "create_issue") {
         url.path_segments_mut()?.push("issues");
     }
     if operation == "list_activity" {
@@ -378,6 +385,17 @@ mod tests {
         assert_eq!(
             url.as_str(),
             "https://example.com/api/issues/a%2Fb?organization_id=org"
+        );
+        let (create, method) = endpoint(
+            "https://example.com",
+            "create_issue",
+            &json!({"project_id":"project-1"}),
+        )
+        .unwrap();
+        assert_eq!(method, reqwest::Method::POST);
+        assert_eq!(
+            create.as_str(),
+            "https://example.com/api/projects/project-1/issues"
         );
     }
 }

@@ -17,6 +17,11 @@
 .observe-header button {
   margin-top: 10px;
 }
+.observe-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
 .observe-eyebrow {
   color: var(--lenso-color-text-secondary);
   font-size: 11px;

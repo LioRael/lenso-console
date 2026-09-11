@@ -150,6 +150,36 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
           : [],
       [trace]
     );
+    const selectedRequest = requests.find(
+      (request) => request.trace_id === selectedTrace
+    );
+    const createIssue = () => {
+      if (!(selectedTrace && navigation.openWorkspace)) {
+        return;
+      }
+      const selectedSpan = orderedSpans.find(
+        (span) => span.span_id === selectedSpanId
+      );
+      const payload = {
+        kind: "lenso.observe.trace@1",
+        source_id: sourceId,
+        trace_id: selectedTrace,
+        ...(selectedRequest
+          ? {
+              duration_nano: selectedRequest.duration_nano,
+              method: selectedRequest.method,
+              route: selectedRequest.route,
+              status_code: selectedRequest.status_code,
+            }
+          : {}),
+        ...(selectedSpan ? { selected_span: selectedSpan.name } : {}),
+      };
+      navigation.openWorkspace({
+        handoff: { kind: payload.kind, payload },
+        subject: { kind: "console" },
+        workspaceId: "projects",
+      });
+    };
 
     return h(
       "section",
@@ -178,9 +208,20 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
         ),
         selectedTrace
           ? h(
-              "button",
-              { onClick: () => navigation.go([]), type: "button" },
-              "All requests"
+              "div",
+              { className: "observe-header-actions" },
+              h(
+                "button",
+                { onClick: () => navigation.go([]), type: "button" },
+                "All requests"
+              ),
+              navigation.openWorkspace
+                ? h(
+                    "button",
+                    { onClick: createIssue, type: "button" },
+                    "Create issue"
+                  )
+                : null
             )
           : null
       ),
