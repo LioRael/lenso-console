@@ -240,3 +240,16 @@ x64. No Rust toolchain or source checkout is required. The package includes the
 Console client and exact native runtime cohort. Use `--port` to choose a port,
 `--no-open` to skip opening the browser, or `@1.6.0` to pin the package version.
 See [distribution and release instructions](docs/agent-npm-distribution.md).
+
+### Packaged terminal Agent
+
+The same package includes the native terminal UI, management CLI, and ACP:
+
+```sh
+npx @lenso/agent cli auth login
+npx @lenso/agent cli profiles install coding
+npx @lenso/agent --profile code
+```
+
+Use `npx @lenso/agent acp` for an ACP editor or `npx @lenso/agent cli --help`
+for headless and management commands. See the [distribution guide](docs/agent-npm-distribution.md).

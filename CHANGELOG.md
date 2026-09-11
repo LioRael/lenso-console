@@ -1,5 +1,17 @@
 ## @lenso/console-web@0.1.7
 
+## 1.16.0
+
+### Minor Changes
+
+- 6907f41: Bundle the native terminal, management CLI, and ACP entrypoint in @lenso/agent. Start the TUI with npx @lenso/agent, use cli for setup and headless work, and retain web for Console.
+
+## 1.15.0
+
+### Minor Changes
+
+- c04b4e2: Add a bounded one-time Workspace handoff from Observe traces into Projects issue creation, open the created Issue as an unsubmitted App Agent draft, and admit concurrent browser asset requests through the Console Host.
+
 ## 1.14.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@lenso/console-web",
-  "version": "1.14.0",
+  "version": "1.16.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -27,7 +27,7 @@
     "typecheck": "pnpm typecheck:local",
     "typecheck:local": "tsc -b --pretty false",
     "preview": "vite preview --host 0.0.0.0",
-    "test:distribution": "node --test scripts/distribution/launcher.test.mjs"
+    "test:distribution": "node --test scripts/distribution/*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

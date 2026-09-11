@@ -174,7 +174,13 @@ try {
     await readFile(join(installedRuntime, "cohort.json"), "utf-8")
   );
   assert.equal(version.stdout.trim(), installedCohort.consoleVersion);
-  for (const executable of ["lenso-agent-web", "lenso-agent-console-web"]) {
+  for (const executable of [
+    "lenso-agent",
+    "lenso-agent-cli",
+    "lenso-agent-acp",
+    "lenso-agent-web",
+    "lenso-agent-console-web",
+  ]) {
     const runtimeVersion = spawnSync(
       join(installedRuntime, "bin", executable),
       ["--version"],
@@ -187,6 +193,46 @@ try {
       "Installed Agent binaries must match the reviewed release cohort"
     );
   }
+
+  for (const command of ["tui", "cli", "acp"]) {
+    const result = spawnSync(
+      join(cwd, "node_modules/.bin/lenso-agent"),
+      [command, "--version"],
+      {
+        cwd,
+        encoding: "utf-8",
+        env: {
+          ...environment,
+          HOME: homes,
+          LENSO_AGENT_HOME: join(homes, "terminal"),
+          PATH: runtimePath,
+        },
+        timeout: 30000,
+      }
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      result.stdout.trim().split(/\s+/u).at(-1),
+      installedCohort.agent.version
+    );
+  }
+  const doctor = spawnSync(
+    join(cwd, "node_modules/.bin/lenso-agent"),
+    ["cli", "doctor", "--json"],
+    {
+      cwd,
+      encoding: "utf-8",
+      env: {
+        ...environment,
+        HOME: homes,
+        LENSO_AGENT_HOME: join(homes, "terminal"),
+        PATH: runtimePath,
+      },
+      timeout: 30000,
+    }
+  );
+  assert.equal(doctor.status, 0, doctor.stderr);
+  assert.doesNotThrow(() => JSON.parse(doctor.stdout));
 
   const occupied = createServer();
   occupied.listen(0, "127.0.0.1");

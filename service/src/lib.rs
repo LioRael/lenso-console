@@ -28,6 +28,7 @@ use anyhow::Context as _;
 use bytes::Bytes;
 use directories::BaseDirs;
 use lenso::prelude::*;
+use lenso_app_plan::RequestAdmissionPlan;
 use lenso_app_plan::ResolvedAppPlan;
 use lenso_app_plan::authoring::{
     HostBinding, HostCatalog, HostDefaultPlugin, HostPluginRelease, HostSlot, PluginInstanceId,
@@ -56,6 +57,7 @@ const DEFAULT_PORT: u16 = 3030;
 const DEFAULT_OTLP_PORT: u16 = 4318;
 const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
 const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
+const CONSOLE_REQUEST_ADMISSION: RequestAdmissionPlan = RequestAdmissionPlan::new(64, 16);
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
@@ -1055,7 +1057,10 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
     let host = console_host_catalog(config)?;
     let resolved = resolve_plugin_root(&host, &PluginRootSnapshot::default())
         .map_err(|error| anyhow::anyhow!("invalid Console Plugin composition: {error}"))?;
-    Ok(resolved.plan().clone())
+    let host = http_admission_catalog(host, resolved.plan())?;
+    Ok(resolve_plugin_root(&host, &PluginRootSnapshot::default())?
+        .plan()
+        .clone())
 }
 
 #[allow(clippy::too_many_lines)] // Keep the available Plugin cohort and its bindings together.
@@ -1162,7 +1167,8 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
             lenso_capability_auth::CAPABILITY_ID,
             "identity",
         ),
-        HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console"),
+        HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
+            .with_admission(CONSOLE_REQUEST_ADMISSION),
     ];
     if observe_source.is_some() {
         bindings.push(HostBinding::new(
@@ -1199,7 +1205,7 @@ fn http_admission_catalog(
             binding.consumer() != &consumer || binding.requirement_id() != requirement
         });
         let binding = HostBinding::to_instances(consumer, http_endpoint::CAPABILITY_ID, providers)
-            .with_admission(lenso_app_plan::RequestAdmissionPlan::new(64, 8));
+            .with_admission(CONSOLE_REQUEST_ADMISSION);
         bindings.push(if requirement.starts_with('~') {
             binding
         } else {
@@ -1945,6 +1951,22 @@ mod tests {
                 .iter()
                 .any(|binding| { binding.capability_id() == stream_endpoint::CAPABILITY_ID })
         );
+        for binding in plan.capability_bindings().iter().filter(|binding| {
+            matches!(
+                binding.capability_id(),
+                http_endpoint::CAPABILITY_ID | stream_endpoint::CAPABILITY_ID
+            )
+        }) {
+            let operation = if binding.capability_id() == http_endpoint::CAPABILITY_ID {
+                "handle"
+            } else {
+                "handle_stream"
+            };
+            assert_eq!(
+                plan.request_admission_for(binding, operation),
+                CONSOLE_REQUEST_ADMISSION
+            );
+        }
     }
 
     #[test]

@@ -1,6 +1,25 @@
-# Agent Web npm distribution
+# Agent npm distribution
 
 ## User entrypoint
+
+For the terminal UI, run from your project:
+
+```sh
+npx @lenso/agent cli auth login
+npx @lenso/agent cli profiles install coding
+npx @lenso/agent --profile code
+```
+
+Use `npx @lenso/agent cli doctor`, `npx @lenso/agent cli --profile plan
+"Review this project"`, or `npx @lenso/agent acp` for diagnostics, headless
+requests, or editor integration. `npx @lenso/agent tui --help` shows native
+terminal options. The root `--version` is the npm version; `tui --version`
+is the bundled Agent version.
+
+Terminal commands inherit the current workspace, environment, and stdio.
+They use the native Agent Home and configuration rules; `cli profiles install`
+cannot bypass an existing managed Home. Use the browser's coding setup for
+SQLite-managed Homes.
 
 Run `npx @lenso/agent web` from the workspace to use. The first published npm
 cohort is 1.6.0; `npx @lenso/agent@1.6.0 web` selects that exact release.
@@ -20,7 +39,7 @@ runtime dependency versions together. Update `scripts/distribution/agent-release
 only against exact released Agent artifacts and reviewed SHA-256 checksums.
 
 Each platform package includes the Console service, API-mode client build,
-App Agent Web and Console Agent Web. No Cargo, Git checkout, tar executable,
+App Agent Web, Console Agent Web, the terminal UI, management CLI, and ACP. No Cargo, Git checkout, tar executable,
 postinstall scripts, or network downloads are needed at runtime. Optional
 coding capabilities still require their tools, such as Git and ripgrep.
 
@@ -88,3 +107,14 @@ Projects Tools in Agent Tool access. The local fixture delegates
 cannot widen the business App's grant. Credentials stay inside the Agent process;
 restart requires reconnecting. The App can revoke the parent session and its
 child grant independently of Agent approval mode.
+
+## Public availability after publishing
+
+npm scans packages before making them installable. The publishing workflow waits
+for both platform packages to expose the exact uploaded archive integrity and a
+public tarball before publishing the launcher, then checks the launcher too.
+This can take several minutes after `npm publish` succeeds. A bounded wait
+failure requires inspecting registry scan/publication status, not overwriting
+or immediately republishing the same immutable version.
+
+See [npm publish-time scanning](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/).

@@ -16,6 +16,7 @@ import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { RoutePending } from "../../app/route-states";
+import { useAgentIdentityOptional } from "../agent/agent-identity-context";
 import {
   useOptionalAgentQuickPanel,
   type WorkspaceAgentContext,
@@ -28,14 +29,29 @@ import {
 
 type ContributionProps = {
   agent?:
-    | { setPageContext: (context: WorkspaceAgentContext | null) => void }
+    | {
+        completedTurns: number;
+        requestDraft?: (draft: string) => void;
+        setPageContext: (context: WorkspaceAgentContext | null) => void;
+      }
     | undefined;
   environment: { locale: "en" | "zh-CN"; theme: "dark" | "light" };
-  location: { hash: string; search: string; segments: readonly string[] };
+  location: {
+    handoff?: { kind: string; payload: unknown } | undefined;
+    hash: string;
+    search: string;
+    segments: readonly string[];
+  };
   mount: PageMount;
   navigation: {
     go: (segments: readonly string[]) => void;
     href: (segments: readonly string[]) => string;
+    openWorkspace: (request: {
+      handoff?: { kind: string; payload: unknown };
+      segments?: readonly string[];
+      subject: PageMount["subject"];
+      workspaceId: string;
+    }) => void;
   };
   signal: AbortSignal;
 };
@@ -92,21 +108,44 @@ export function PageContributionOutlet({
   const { theme } = useConsoleAppearance();
   const { locale } = useConsoleLocale();
   const catalog = usePageCatalog();
+  const agentIdentity = useAgentIdentityOptional();
+  const agentPanel = useOptionalAgentQuickPanel();
   const mount = catalog.data?.find(
     (candidate) =>
       candidate.id === mountId && sameSubject(candidate.subject, subject)
   );
   const [attempt, setAttempt] = useState(0);
   const loaded = useContributionModule(mount, attempt);
+  const handoff = useMemo(() => readWorkspaceHandoff(mount), [mount]);
+  useEffect(() => consumeWorkspaceHandoff(mount, handoff), [handoff, mount]);
   const location = useMemo(
     () => ({
+      handoff,
       hash: window.location.hash,
       search: window.location.search,
       segments,
     }),
-    [segments]
+    [handoff, segments]
   );
-  const navigation = workspaceNavigation(mountId, subject);
+  const navigation = workspaceNavigation(mountId, subject, catalog.data ?? []);
+  const appAgent = agentIdentity?.agents.find((agent) => agent.role === "app");
+  const agent = agentPanel
+    ? {
+        completedTurns: agentPanel.completedTurns,
+        setPageContext: agentPanel.setPageContext,
+        ...(appAgent
+          ? {
+              requestDraft: (draft: string) => {
+                const bytes = new TextEncoder().encode(draft).byteLength;
+                if (!draft.trim() || bytes > 8192) {
+                  throw new TypeError("Agent draft is outside reviewed bounds");
+                }
+                agentPanel.requestAgentDraft({ agentId: appAgent.id, draft });
+              },
+            }
+          : {}),
+      }
+    : undefined;
 
   if (catalog.isPending || (mount && loaded.status === "loading")) {
     return <RoutePending />;
@@ -147,6 +186,7 @@ export function PageContributionOutlet({
       title={t("Extension failed to render")}
     >
       <MountedContribution
+        agent={agent}
         environment={{ locale, theme }}
         loaded={loaded}
         location={location}
@@ -158,31 +198,20 @@ export function PageContributionOutlet({
 }
 
 function MountedContribution({
+  agent,
   environment,
   loaded,
   location,
   mount,
   navigation,
 }: {
+  agent: ContributionProps["agent"];
   environment: ContributionProps["environment"];
   loaded: LoadedContribution;
   location: ContributionProps["location"];
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
-  const quickPanel = useOptionalAgentQuickPanel();
-  const setPageContext = quickPanel?.setPageContext;
-  const completedTurns = quickPanel?.completedTurns;
-  const agent = useMemo(
-    () =>
-      setPageContext
-        ? {
-            setPageContext,
-            completedTurns: completedTurns ?? 0,
-          }
-        : undefined,
-    [setPageContext, completedTurns]
-  );
   const controllerRef = useRef<AbortController | null>(null);
   if (!controllerRef.current) {
     controllerRef.current = new AbortController();
@@ -326,27 +355,125 @@ function PassThroughProvider({ children }: { children: ReactNode }) {
   return children;
 }
 
-function workspaceNavigation(mountId: string, subject: PageMount["subject"]) {
-  const href = (segments: readonly string[]) => {
-    if (
-      !segments.every((segment) =>
-        /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
-      )
-    ) {
-      throw new TypeError("Workspace navigation path is invalid");
-    }
-    const suffix = segments.length ? `/${segments.join("/")}` : "";
-    return subject.kind === "console"
-      ? `/workspaces/${encodeURIComponent(mountId)}${suffix}`
-      : `/apps/${encodeURIComponent(subject.appId)}/pages/${encodeURIComponent(mountId)}${suffix}`;
-  };
+const HANDOFF_STATE_KEY = "__lensoWorkspaceHandoff";
+
+function workspaceNavigation(
+  mountId: string,
+  subject: PageMount["subject"],
+  mounts: readonly PageMount[]
+) {
+  const href = (segments: readonly string[]) =>
+    workspaceHref(mountId, subject, segments);
   return {
     href,
     go: (segments: readonly string[]) => {
-      window.history.pushState(null, "", href(segments));
+      window.history.pushState(window.history.state, "", href(segments));
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    },
+    openWorkspace: (request: {
+      handoff?: { kind: string; payload: unknown };
+      segments?: readonly string[];
+      subject: PageMount["subject"];
+      workspaceId: string;
+    }) => {
+      const target = mounts.find(
+        (candidate) =>
+          candidate.id === request.workspaceId &&
+          sameSubject(candidate.subject, request.subject)
+      );
+      if (!target) {
+        throw new TypeError("Target workspace is not available");
+      }
+      const { [HANDOFF_STATE_KEY]: _previousHandoff, ...state } =
+        window.history.state ?? {};
+      const nextState = request.handoff
+        ? {
+            ...state,
+            [HANDOFF_STATE_KEY]: checkedHandoff(target, request.handoff),
+          }
+        : state;
+      window.history.pushState(
+        nextState,
+        "",
+        workspaceHref(target.id, target.subject, request.segments ?? [])
+      );
       window.dispatchEvent(new PopStateEvent("popstate"));
     },
   };
+}
+
+function workspaceHref(
+  mountId: string,
+  subject: PageMount["subject"],
+  segments: readonly string[]
+) {
+  if (
+    !segments.every((segment) =>
+      /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
+    )
+  ) {
+    throw new TypeError("Workspace navigation path is invalid");
+  }
+  const suffix = segments.length ? `/${segments.join("/")}` : "";
+  return subject.kind === "console"
+    ? `/workspaces/${encodeURIComponent(mountId)}${suffix}`
+    : `/apps/${encodeURIComponent(subject.appId)}/pages/${encodeURIComponent(mountId)}${suffix}`;
+}
+
+function checkedHandoff(
+  target: PageMount,
+  handoff: { kind: string; payload: unknown }
+) {
+  if (!/^[a-z][a-z0-9.-]{0,95}@[1-9][0-9]*$/u.test(handoff.kind)) {
+    throw new TypeError("Workspace handoff kind is invalid");
+  }
+  let payload: unknown;
+  try {
+    // oxlint-disable-next-line unicorn/prefer-structured-clone -- The JSON round-trip intentionally rejects non-JSON handoff data.
+    payload = JSON.parse(JSON.stringify(handoff.payload));
+  } catch {
+    throw new TypeError("Workspace handoff payload is not JSON data");
+  }
+  if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > 16_384) {
+    throw new TypeError("Workspace handoff payload exceeds 16 KiB");
+  }
+  return {
+    handoff: { kind: handoff.kind, payload },
+    subject: target.subject,
+    workspaceId: target.id,
+  };
+}
+
+function readWorkspaceHandoff(mount: PageMount | undefined) {
+  const stored = window.history.state?.[HANDOFF_STATE_KEY] as
+    | {
+        handoff?: { kind?: unknown; payload?: unknown };
+        subject?: PageMount["subject"];
+        workspaceId?: unknown;
+      }
+    | undefined;
+  if (
+    !mount ||
+    stored?.workspaceId !== mount.id ||
+    !stored.subject ||
+    !sameSubject(stored.subject, mount.subject) ||
+    typeof stored.handoff?.kind !== "string"
+  ) {
+    return undefined;
+  }
+  return { kind: stored.handoff.kind, payload: stored.handoff.payload };
+}
+
+function consumeWorkspaceHandoff(
+  mount: PageMount | undefined,
+  handoff: ContributionProps["location"]["handoff"]
+) {
+  if (!(mount && handoff && readWorkspaceHandoff(mount))) {
+    return;
+  }
+  const { [HANDOFF_STATE_KEY]: _consumed, ...state } =
+    window.history.state ?? {};
+  window.history.replaceState(state, "", window.location.href);
 }
 
 function sameSubject(left: PageMount["subject"], right: PageMount["subject"]) {
