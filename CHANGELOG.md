@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.15.0
+
+### Minor Changes
+
+- c04b4e2: Add a bounded one-time Workspace handoff from Observe traces into Projects issue creation, open the created Issue as an unsubmitted App Agent draft, and admit concurrent browser asset requests through the Console Host.
+
 ## 1.14.0
 
 ### Minor Changes
