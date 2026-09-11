@@ -2,7 +2,7 @@
   "name": "@lenso/agent",
   "version": "1.5.2",
   "private": true,
-  "description": "Run Lenso Agent and Console locally with one command.",
+  "description": "Run Lenso Agent in your terminal, editor, or browser.",
   "license": "MIT",
   "repository": {
     "type": "git",

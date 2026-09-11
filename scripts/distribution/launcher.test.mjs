@@ -10,6 +10,7 @@ import {
   parseArgs,
   resolveRuntime,
   launch,
+  launchNative,
 } from "../../packages/agent/bin/lenso-agent.mjs";
 
 test("validates CLI options before resolving or starting a runtime", () => {
@@ -23,7 +24,7 @@ test("validates CLI options before resolving or starting a runtime", () => {
     ["web", "--port", "0"],
     ["web", "--port", "65536"],
     ["web", "--host", "0.0.0.0"],
-    ["tui"],
+    ["unknown"],
   ]) {
     assert.throws(() => parseArgs(args));
   }
@@ -58,5 +59,118 @@ test("help and version work without downloading a runtime", async () => {
   });
   const [code] = await once(child, "exit");
   assert.equal(code, 0);
-  assert.match(output, /Usage: lenso-agent web/u);
+  assert.match(output, /Usage: lenso-agent \[tui\]/u);
+});
+
+test("native dispatch preserves arguments and does not intercept subcommand help", () => {
+  assert.deepEqual(parseArgs([]), { args: [], executable: "lenso-agent" });
+  assert.deepEqual(parseArgs(["--profile", "code"]), {
+    args: ["--profile", "code"],
+    executable: "lenso-agent",
+  });
+  for (const [command, executable] of [
+    ["tui", "lenso-agent"],
+    ["cli", "lenso-agent-cli"],
+    ["acp", "lenso-agent-acp"],
+  ]) {
+    assert.deepEqual(parseArgs([command, "--help"]), {
+      args: ["--help"],
+      executable,
+    });
+  }
+  assert.deepEqual(
+    parseArgs(["cli", "--profile", "plan", "a quoted request"]),
+    {
+      args: ["--profile", "plan", "a quoted request"],
+      executable: "lenso-agent-cli",
+    }
+  );
+});
+
+test("native launch uses the bundled executable, preserves cwd and args, and propagates failure", async () => {
+  const root = await mkdtemp(join(tmpdir(), "lenso-native-test-"));
+  try {
+    await mkdir(join(root, "bin"));
+    const exe = join(root, "bin/lenso-agent-cli");
+    await writeFile(
+      exe,
+      `#!${process.execPath}\nif (process.cwd() !== ${JSON.stringify(process.cwd())}) process.exit(2);\nif (JSON.stringify(process.argv.slice(2)) !== '["literal ; request","--help"]') process.exit(3);\nprocess.exit(17);\n`
+    );
+    await chmod(exe, 0o755);
+    assert.equal(
+      await launchNative(
+        {
+          args: ["literal ; request", "--help"],
+          executable: "lenso-agent-cli",
+        },
+        root
+      ),
+      17
+    );
+    await assert.rejects(
+      launchNative({ args: [], executable: "missing" }, root),
+      /ENOENT/u
+    );
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("native stdio is transparent and signals stop the owned child", async () => {
+  const root = await mkdtemp(join(tmpdir(), "lenso-native-stdio-"));
+  const module = new URL(
+    "../../packages/agent/bin/lenso-agent.mjs",
+    import.meta.url
+  ).href;
+  try {
+    await mkdir(join(root, "bin"));
+    const executable = join(root, "bin/lenso-agent-acp");
+    await writeFile(
+      executable,
+      `#!${process.execPath}\nprocess.stdin.pipe(process.stdout);\n`
+    );
+    await chmod(executable, 0o755);
+    const code = `import { launchNative } from ${JSON.stringify(module)}; process.exitCode = await launchNative({executable:'lenso-agent-acp',args:[]},${JSON.stringify(root)});`;
+    const child = spawn(process.execPath, ["--input-type=module", "-e", code], {
+      stdio: "pipe",
+    });
+    const exited = once(child, "exit");
+    let output = "";
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.stdin.end('{"jsonrpc":"2.0","id":1}\n');
+    const [exitCode] = await exited;
+    assert.equal(exitCode, 0);
+    assert.equal(output, '{"jsonrpc":"2.0","id":1}\n');
+    await writeFile(
+      executable,
+      `#!${process.execPath}\nconsole.log(process.pid); setInterval(()=>{},1000);\n`
+    );
+    for (const signal of ["SIGINT", "SIGTERM"]) {
+      const running = spawn(
+        process.execPath,
+        ["--input-type=module", "-e", code],
+        { stdio: "pipe" }
+      );
+      try {
+        const ended = once(running, "exit", {
+          signal: AbortSignal.timeout(5000),
+        });
+        const [pid] = await once(running.stdout, "data", {
+          signal: AbortSignal.timeout(5000),
+        });
+        running.kill(signal);
+        const [signalExitCode] = await ended;
+        assert.equal(signalExitCode, signal === "SIGINT" ? 130 : 143);
+        assert.throws(() => process.kill(Number(pid.toString().trim()), 0), {
+          code: "ESRCH",
+        });
+      } finally {
+        running.kill("SIGKILL");
+      }
+    }
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });

@@ -1,32 +1,26 @@
 # Lenso Agent
 
-Run Agent and Console in the current workspace:
+Run a coding agent in your terminal, editor, or browser. Requires Node.js
+22.12+, macOS 15+ on Apple silicon or Ubuntu 24.04+ x64 (glibc 2.39+).
 
 ```sh
-npx @lenso/agent web
-npx @lenso/agent web --port 3035 --no-open
+npx @lenso/agent cli auth login
+npx @lenso/agent cli profiles install coding
+npx @lenso/agent --profile code
 ```
 
-Requires Node.js 22.12 or newer, macOS 15+ on Apple Silicon or Ubuntu 24.04+ x64 (glibc 2.39+).
-The command opens the browser when launched locally. SSH launches print the URL;
-use your SSH client's port forwarding. Choose device-code sign-in over SSH
-unless you also forward the browser OAuth callback. Only the loopback interface
-is exposed.
-Use Ctrl+C to stop the server and its Agents. Configure model authentication in
-Console after startup.
+Use `npx @lenso/agent web` to open Agent and Console in your browser, or
+`npx @lenso/agent acp` for an ACP editor. Native terminal options are available
+with `npx @lenso/agent tui --help`; management and headless commands use `cli`.
 
-npm installs an exact-version platform runtime with the Console client, Console
-server, and both Agent Web binaries. Keep optional dependencies enabled. There
-are no install scripts, runtime downloads, or Rust build requirements. npm's
-cache supports repeated offline use after installation.
+No source checkout, Rust toolchain, postinstall script, or runtime download is
+required. The current directory is your workspace. Upgrades preserve Agent and
+Console Homes. Optional coding tools such as Git and ripgrep must be installed
+on the host. For an existing SQLite-managed Home, use the browser's coding
+setup instead of the offline Profile installer.
 
-The current directory is the workspace. State remains in `~/.lenso/agent` and
-`~/.lenso/console`; `LENSO_AGENT_HOME` and `LENSO_CONSOLE_HOME` may select other
-absolute locations. Updating or removing the npm package does not delete these
-Homes. Existing tool policy and approval settings remain authoritative. Optional
-coding tools such as Git and ripgrep must be installed separately to use those
-capabilities.
+The npm version identifies the Console distribution; `tui --version` reports
+the bundled native Agent version. Platform packages are exact-version runtime
+dependencies and should not be installed separately.
 
-Pin a version for repeatable installation: `npx @lenso/agent@<version> web`.
-Unsupported architectures and missing platform packages fail with an explicit
-error. There is no fallback to a binary found on PATH.
+[Documentation](https://github.com/LioRael/lenso-console/blob/main/docs/agent-npm-distribution.md)
