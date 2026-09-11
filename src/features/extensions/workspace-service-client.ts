@@ -1,3 +1,4 @@
+import { sessionFetch } from "../../lib/session-fetch";
 import type { PageMount } from "./page-contribution-catalog";
 
 const MAX_REQUEST_BYTES = 1024 * 1024;
@@ -62,12 +63,15 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
       options?: WorkspaceServiceOptions
     ) {
       const body = encodeRequest(request);
-      const response = await fetch(endpoint(service, "invoke", operation), {
-        body,
-        headers: { "content-type": "application/json" },
-        method: "POST",
-        signal: options?.signal ?? null,
-      });
+      const response = await sessionFetch(
+        endpoint(service, "invoke", operation),
+        {
+          body,
+          headers: { "content-type": "application/json" },
+          method: "POST",
+          signal: options?.signal ?? null,
+        }
+      );
       if (!response.ok) {
         if (
           response.status === 422 &&
@@ -92,15 +96,18 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
       options?: WorkspaceServiceOptions
     ) {
       const body = encodeRequest(request);
-      const response = await fetch(endpoint(service, "subscribe", operation), {
-        body,
-        headers: {
-          accept: "text/event-stream",
-          "content-type": "application/json",
-        },
-        method: "POST",
-        signal: options?.signal ?? null,
-      });
+      const response = await sessionFetch(
+        endpoint(service, "subscribe", operation),
+        {
+          body,
+          headers: {
+            accept: "text/event-stream",
+            "content-type": "application/json",
+          },
+          method: "POST",
+          signal: options?.signal ?? null,
+        }
+      );
       if (!response.ok) {
         throw await responseError(response);
       }

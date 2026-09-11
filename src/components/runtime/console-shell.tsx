@@ -1,3 +1,4 @@
+import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
 import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
@@ -7,16 +8,19 @@ import {
   Blocks,
   ChevronLeft,
   CircleHelp,
+  LogOut,
   MousePointer2,
   PanelsTopLeft,
   Settings,
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
-import { useState, type PropsWithChildren } from "react";
+import { useEffect, useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { useConsoleSession } from "../../app/console-session";
+import { sessionStyles } from "../../app/console-session.stylex";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
@@ -40,6 +44,7 @@ import {
 type ConsoleArea = "agent" | "settings" | "system" | "workspace";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
+  const { administrator, signOut } = useConsoleSession();
   const t = useConsoleTranslation();
 
   const appearance = useConsoleAppearance();
@@ -63,6 +68,48 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     agents.find((agent) => agent.id === currentAgentLocation.agentId) ??
     selectedAgent;
 
+  useEffect(() => {
+    if (!administrator && currentArea !== "workspace" && visibleWorkspaces[0]) {
+      navigateToWorkspace(navigate, visibleWorkspaces[0], []);
+    }
+  }, [administrator, currentArea, navigate, visibleWorkspaces]);
+  if (!administrator && currentArea !== "workspace") {
+    return (
+      <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
+        <output {...stylex.props(sessionStyles.root)}>
+          <p {...stylex.props(sessionStyles.muted)}>
+            {t(
+              pageCatalog.isError
+                ? "Could not load workspaces"
+                : pageCatalog.isPending || visibleWorkspaces.length > 0
+                  ? "Loading workspace…"
+                  : "No workspaces are available for this account"
+            )}
+          </p>
+          {pageCatalog.isError && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void pageCatalog.refetch();
+              }}
+            >
+              {t("Retry")}
+            </Button>
+          )}
+          {signOut && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void signOut();
+              }}
+            >
+              {t("Sign out")}
+            </Button>
+          )}
+        </output>
+      </ThemeScope>
+    );
+  }
   return (
     <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
       <Sidebar.Group xstyle={shellStyles.shell}>
@@ -156,14 +203,16 @@ export function ConsoleShell({ children }: PropsWithChildren) {
           aria-label={t("Application utilities")}
           {...stylex.props(shellStyles.utilities)}
         >
-          <AgentQuickPanel
-            onOpenFullPage={(agentId, sessionId) => {
-              navigate({
-                params: { agentId, chatId: sessionId ?? "new-task" },
-                to: "/agent/$agentId/$chatId",
-              });
-            }}
-          />
+          {administrator && (
+            <AgentQuickPanel
+              onOpenFullPage={(agentId, sessionId) => {
+                navigate({
+                  params: { agentId, chatId: sessionId ?? "new-task" },
+                  to: "/agent/$agentId/$chatId",
+                });
+              }}
+            />
+          )}
         </footer>
       </Sidebar.Group>
     </ThemeScope>
@@ -190,6 +239,7 @@ function PrimaryRail({
   workspaces: readonly PageMount[];
 }) {
   const t = useConsoleTranslation();
+  const { signOut, administrator } = useConsoleSession();
 
   return (
     <Sidebar.Root
@@ -227,30 +277,34 @@ function PrimaryRail({
           L
         </button>
         <div {...stylex.props(shellStyles.railAreas)}>
-          <IconButton
-            aria-label={t("Agent")}
-            onClick={() => navigate("/")}
-            size="default"
-            variant="ghost"
-            xstyle={[
-              shellStyles.railButton,
-              currentArea === "agent" && shellStyles.activeRailButton,
-            ]}
-          >
-            <MousePointer2 aria-hidden="true" size={15} strokeWidth={1.7} />
-          </IconButton>
-          <IconButton
-            aria-label={t("System")}
-            onClick={() => navigate("/plugins")}
-            size="default"
-            variant="ghost"
-            xstyle={[
-              shellStyles.railButton,
-              currentArea === "system" && shellStyles.activeRailButton,
-            ]}
-          >
-            <Blocks aria-hidden="true" size={15} strokeWidth={1.7} />
-          </IconButton>
+          {administrator && (
+            <IconButton
+              aria-label={t("Agent")}
+              onClick={() => navigate("/")}
+              size="default"
+              variant="ghost"
+              xstyle={[
+                shellStyles.railButton,
+                currentArea === "agent" && shellStyles.activeRailButton,
+              ]}
+            >
+              <MousePointer2 aria-hidden="true" size={15} strokeWidth={1.7} />
+            </IconButton>
+          )}
+          {administrator && (
+            <IconButton
+              aria-label={t("System")}
+              onClick={() => navigate("/plugins")}
+              size="default"
+              variant="ghost"
+              xstyle={[
+                shellStyles.railButton,
+                currentArea === "system" && shellStyles.activeRailButton,
+              ]}
+            >
+              <Blocks aria-hidden="true" size={15} strokeWidth={1.7} />
+            </IconButton>
+          )}
           {workspaces.map((workspace) => (
             <IconButton
               aria-label={workspace.navigation.label}
@@ -275,18 +329,20 @@ function PrimaryRail({
           ))}
         </div>
         <div {...stylex.props(shellStyles.railFooter)}>
-          <IconButton
-            aria-label={t("Preferences")}
-            onClick={() => navigate("/settings")}
-            size="default"
-            variant="ghost"
-            xstyle={[
-              shellStyles.railButton,
-              currentArea === "settings" && shellStyles.activeRailButton,
-            ]}
-          >
-            <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
-          </IconButton>
+          {administrator && (
+            <IconButton
+              aria-label={t("Preferences")}
+              onClick={() => navigate("/settings")}
+              size="default"
+              variant="ghost"
+              xstyle={[
+                shellStyles.railButton,
+                currentArea === "settings" && shellStyles.activeRailButton,
+              ]}
+            >
+              <Settings aria-hidden="true" size={15} strokeWidth={1.7} />
+            </IconButton>
+          )}
           <IconButton
             aria-label={t("Help")}
             size="default"
@@ -295,13 +351,28 @@ function PrimaryRail({
           >
             <CircleHelp aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
-          <button
-            aria-label={t("Local operator profile")}
-            {...stylex.props(shellStyles.railProfile)}
-            type="button"
-          >
-            LO
-          </button>
+          {signOut && (
+            <IconButton
+              aria-label={t("Sign out")}
+              onClick={() => {
+                void signOut();
+              }}
+              size="default"
+              variant="ghost"
+              xstyle={shellStyles.railButton}
+            >
+              <LogOut aria-hidden="true" size={15} strokeWidth={1.7} />
+            </IconButton>
+          )}
+          {!signOut && (
+            <button
+              aria-label={t("Local operator profile")}
+              {...stylex.props(shellStyles.railProfile)}
+              type="button"
+            >
+              LO
+            </button>
+          )}
         </div>
       </Sidebar.Panel>
     </Sidebar.Root>

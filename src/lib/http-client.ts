@@ -1,5 +1,7 @@
 import ky, { isHTTPError } from "ky";
 
+import { sessionFetch } from "./session-fetch";
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
 const consoleMode = import.meta.env.VITE_CONSOLE_MODE as
   | "api"
@@ -33,6 +35,7 @@ export function lensoApiErrorMessage(body: unknown): string | undefined {
 const consoleApiPrefixValue = consoleApiPrefix();
 
 export const httpClient = ky.create({
+  fetch: sessionFetch,
   ...(consoleApiPrefixValue ? { prefix: consoleApiPrefixValue } : {}),
   hooks: {
     beforeRequest: [

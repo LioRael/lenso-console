@@ -1,9 +1,11 @@
 mod app_management;
+mod auth_plugins;
 mod http;
 mod lenso_http;
 mod page_contributions;
 mod project_activity;
 mod projects;
+mod session;
 mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
 pub use projects::LocalProjects;
@@ -27,7 +29,6 @@ use bytes::Bytes;
 use directories::BaseDirs;
 use lenso::prelude::*;
 use lenso_app_plan::RequestAdmissionPlan;
-#[cfg(test)]
 use lenso_app_plan::ResolvedAppPlan;
 use lenso_app_plan::authoring::{
     HostBinding, HostCatalog, HostDefaultPlugin, HostPluginRelease, HostSlot, PluginInstanceId,
@@ -118,7 +119,15 @@ fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+// These switches configure independent Plugin capabilities, not one state machine.
+#[allow(clippy::struct_excessive_bools)]
 pub struct ConsolePluginConfig {
+    #[serde(default)]
+    require_user_session: bool,
+    #[serde(default)]
+    administrator_subjects: Vec<String>,
+    #[serde(default)]
+    member_workspace_ids: Vec<String>,
     agent_home: String,
     allowed_tools: Vec<String>,
     agent_configuration_store: String,
@@ -185,6 +194,7 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
 pub struct ConsolePlugin {
     #[config]
     config: ConsolePluginConfig,
+    auth: ManyPort<lenso_capability_auth::AuthClient>,
     workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
     workspace_services: ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
     application: std::rc::Rc<RefCell<Option<ConsoleApplication>>>,
@@ -194,6 +204,26 @@ pub struct ConsolePlugin {
 
 impl Lifecycle for ConsolePlugin {
     async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
+        if self.config.member_workspace_ids.iter().any(|id| {
+            id.is_empty()
+                || id.len() > 64
+                || !id.as_bytes()[0].is_ascii_lowercase()
+                || !id.bytes().all(|byte| {
+                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"._-".contains(&byte)
+                })
+        }) {
+            return Err(invalid_plan(
+                "Member workspace IDs must be canonical workspace slugs",
+            ));
+        }
+        let auth_count = self.auth.iter().count();
+        if (self.config.require_user_session && auth_count != 1)
+            || (!self.config.require_user_session && auth_count != 0)
+        {
+            return Err(invalid_plan(
+                "Console requires exactly one Auth binding in session mode and none in local mode",
+            ));
+        }
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
         let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,
@@ -271,10 +301,16 @@ impl ConsolePlugin {
 
     fn handle(
         &self,
-        _context: InvocationContext,
+        context: InvocationContext,
         request: HttpHandleRequest,
     ) -> lenso_kernel::NativeRequestFuture<EndpointHandle> {
         let application = self.application.borrow().clone();
+        let session = session::SessionBoundary {
+            required: self.config.require_user_session,
+            administrator_subjects: self.config.administrator_subjects.clone(),
+            member_workspace_ids: self.config.member_workspace_ids.clone(),
+            auth: self.auth.iter().next().map(|bound| bound.client().clone()),
+        };
         Box::pin(async move {
             let Some(application) = application else {
                 return Err(RuntimeFailure::Internal {
@@ -284,7 +320,9 @@ impl ConsolePlugin {
             if !request.route_id.starts_with("console.") {
                 return Ok(Err(HttpHandleError::Rejected));
             }
-            lenso_http::buffered(application, request).await.map(Ok)
+            lenso_http::buffered(application, session, context, request)
+                .await
+                .map(Ok)
         })
     }
     fn describe_stream(
@@ -308,7 +346,7 @@ impl ConsolePlugin {
 
     fn handle_stream(
         &self,
-        _context: InvocationContext,
+        context: InvocationContext,
         request: StreamHandleRequest,
     ) -> futures::future::LocalBoxFuture<
         'static,
@@ -318,6 +356,12 @@ impl ConsolePlugin {
         >,
     > {
         let application = self.application.borrow().clone();
+        let session = session::SessionBoundary {
+            required: self.config.require_user_session,
+            administrator_subjects: self.config.administrator_subjects.clone(),
+            member_workspace_ids: self.config.member_workspace_ids.clone(),
+            auth: self.auth.iter().next().map(|bound| bound.client().clone()),
+        };
         Box::pin(async move {
             let Some(application) = application else {
                 return Err(
@@ -336,7 +380,7 @@ impl ConsolePlugin {
                     ),
                 );
             }
-            lenso_http::streaming(application, request)
+            lenso_http::streaming(application, session, context, request)
                 .await
                 .map_err(stream_endpoint::StreamEndpointHandleInvocationError::Runtime)
         })
@@ -865,6 +909,9 @@ impl ConsoleConfig {
             "generated Agent control tokens require a Host-private token file"
         );
         Ok(ConsolePluginConfig {
+            require_user_session: false,
+            administrator_subjects: Vec::new(),
+            member_workspace_ids: Vec::new(),
             agent_home: utf8_path(&self.agent_home)?,
             allowed_tools: self.allowed_tools.clone(),
             agent_configuration_store: utf8_path(&self.agent_configuration_store)?,
@@ -984,6 +1031,7 @@ pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()>
 pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
     config.validate()?;
     link();
+    auth_plugins::link();
     lenso_console_observe_workspace_plugin::link();
     lenso_console_welcome_workspace_plugin::link();
     lenso_console_projects_workspace_plugin::link();
@@ -992,6 +1040,11 @@ pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
     publish_console_app_authority(&config.app_root, &catalog)?;
     let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)
         .map_err(|error| anyhow::anyhow!("resolve Console App Plugin Root: {error:#}"))?;
+    // Derive admission in Host authority, then resolve the final immutable Plan.
+    let catalog = http_admission_catalog(catalog, resolved.plan())?;
+    publish_console_app_authority(&config.app_root, &catalog)?;
+    let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)?;
+    auth_plugins::validate_browser_session(resolved.plan())?;
     let app = Kernel::start_native(resolved.plan().clone(), TokioDriver::new(), registry)
         .await
         .map_err(|error| anyhow::anyhow!("Console Host startup failed: {error:?}"))?;
@@ -1004,14 +1057,28 @@ fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> 
     let host = console_host_catalog(config)?;
     let resolved = resolve_plugin_root(&host, &PluginRootSnapshot::default())
         .map_err(|error| anyhow::anyhow!("invalid Console Plugin composition: {error}"))?;
-    Ok(resolved.plan().clone())
+    let host = http_admission_catalog(host, resolved.plan())?;
+    Ok(resolve_plugin_root(&host, &PluginRootSnapshot::default())?
+        .plan()
+        .clone())
 }
 
+#[allow(clippy::too_many_lines)] // Keep the available Plugin cohort and its bindings together.
 fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
     let slots = [
         HostSlot::many("http-ingress"),
         HostSlot::one("console"),
         HostSlot::many("console-workspaces"),
+        HostSlot::many("identity"),
+        HostSlot::many("auth"),
+        HostSlot::many("auth-methods"),
+        HostSlot::many("oauth-flows"),
+        HostSlot::many("secrets"),
+        HostSlot::many("http-clients"),
+        HostSlot::many("web"),
+        HostSlot::many("projects"),
+        HostSlot::many("organization"),
+        HostSlot::many("access-control"),
     ];
     let linked = NativePluginRegistry::host_catalog(slots.clone(), [])
         .map_err(|error| anyhow::anyhow!("invalid linked Console Plugin catalog: {error:?}"))?;
@@ -1021,6 +1088,9 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
         .iter()
         .cloned()
         .chain(std::iter::once(HostPluginRelease::new(ingress_descriptor)))
+        .chain(std::iter::once(HostPluginRelease::new(
+            lenso_organization_postgres_plugin::OrganizationFactory::plugin_descriptor(),
+        )))
         .collect::<Vec<_>>();
     let mut defaults = Vec::new();
     let observe_source = config.observe_source();
@@ -1087,8 +1157,16 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
     }
     let ingress = PluginInstanceId::new("lenso.web-ingress", "default");
     let mut bindings = vec![
-        HostBinding::new(ingress.clone(), http_endpoint::CAPABILITY_ID, "console")
-            .with_admission(CONSOLE_REQUEST_ADMISSION),
+        HostBinding::new(
+            PluginInstanceId::new("lenso.console.workspace.projects", "default"),
+            http_endpoint::CAPABILITY_ID,
+            "web",
+        ),
+        HostBinding::new(
+            PluginInstanceId::new("lenso.console.web", "default"),
+            lenso_capability_auth::CAPABILITY_ID,
+            "identity",
+        ),
         HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
             .with_admission(CONSOLE_REQUEST_ADMISSION),
     ];
@@ -1100,6 +1178,48 @@ fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
         ));
     }
     Ok(HostCatalog::new(slots, releases, defaults).with_bindings(bindings))
+}
+
+/// HTTP fan-out needs bounded waiting instead of the generic zero-queue default.
+/// Preserve the resolver's provider set; never change the running Plan or routes.
+fn http_admission_catalog(
+    catalog: HostCatalog,
+    plan: &ResolvedAppPlan,
+) -> anyhow::Result<HostCatalog> {
+    let mut groups = BTreeMap::<(String, String), Vec<PluginInstanceId>>::new();
+    for binding in plan.capability_bindings() {
+        if binding.capability_id() == http_endpoint::CAPABILITY_ID {
+            groups
+                .entry((
+                    binding.consumer_instance().to_owned(),
+                    binding.requirement_id().to_owned(),
+                ))
+                .or_default()
+                .push(plan_instance_id(binding.provider_instance())?);
+        }
+    }
+    let mut bindings = catalog.bindings().to_vec();
+    for ((consumer, requirement), providers) in groups {
+        let consumer = plan_instance_id(&consumer)?;
+        bindings.retain(|binding| {
+            binding.consumer() != &consumer || binding.requirement_id() != requirement
+        });
+        let binding = HostBinding::to_instances(consumer, http_endpoint::CAPABILITY_ID, providers)
+            .with_admission(CONSOLE_REQUEST_ADMISSION);
+        bindings.push(if requirement.starts_with('~') {
+            binding
+        } else {
+            binding.with_requirement_id(requirement)
+        });
+    }
+    Ok(catalog.with_bindings(bindings))
+}
+
+fn plan_instance_id(key: &str) -> anyhow::Result<PluginInstanceId> {
+    let (plugin, instance) = key
+        .split_once('/')
+        .ok_or_else(|| anyhow::anyhow!("invalid resolved Plugin Instance: {key}"))?;
+    Ok(PluginInstanceId::new(plugin, instance))
 }
 
 fn publish_console_app_authority(root: &Path, catalog: &HostCatalog) -> anyhow::Result<()> {
@@ -1180,6 +1300,7 @@ fn console_registry() -> NativePluginRegistry {
     NativePluginRegistry::new()
         .with_linked_factories()
         .with_factory(WebIngressFactory::default())
+        .with_factory(lenso_organization_postgres_plugin::OrganizationFactory)
 }
 
 /// Runs the reference Console Host until the process owner requests shutdown.
@@ -1778,6 +1899,7 @@ mod tests {
         assert_eq!(
             descriptor["required_capabilities"],
             serde_json::json!([
+                {"capability_id":"lenso.auth@1","descriptor_version":"1.0.0","cardinality":"many"},
                 {
                     "capability_id": "lenso.ui.contribution@1",
                     "descriptor_version": "1.3.0",
@@ -2040,6 +2162,17 @@ mod tests {
             .run_until(async move {
                 let host = start_host(&config).await.unwrap();
                 let shell_client = reqwest::Client::new();
+                // A browser loads the shell and assets in a concurrent burst.
+                // Exercise the real ingress and immutable Host Plan, without retries.
+                let responses = futures::future::join_all((0..32).map(|_| {
+                    shell_client.get(format!("http://{address}/workspaces/projects")).send()
+                })).await;
+                for response in responses {
+                    let response = response.unwrap();
+                    assert_eq!(response.status(), StatusCode::OK);
+                    assert!(response.text().await.unwrap().contains("<!doctype html>"));
+                }
+
                 for path in ["/", "/workspaces/projects"] {
                     let url = format!("http://{address}{path}");
                     let shell = shell_client.get(&url).send().await.unwrap();

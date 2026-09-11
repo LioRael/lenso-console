@@ -235,7 +235,8 @@ async fn begin(
     Ok(result)
 }
 
-fn endpoint(
+#[allow(clippy::too_many_lines)] // One explicit route table shared by native and external adapters.
+pub(super) fn endpoint(
     origin: &str,
     operation: &str,
     body: &Value,

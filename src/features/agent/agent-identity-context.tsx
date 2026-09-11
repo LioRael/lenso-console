@@ -8,6 +8,7 @@ import {
   type PropsWithChildren,
 } from "react";
 
+import { useConsoleSession } from "../../app/console-session";
 import {
   AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
   listAgents,
@@ -38,7 +39,9 @@ export function AgentIdentityProvider({ children }: PropsWithChildren) {
   const [preferredAgentId, setPreferredAgentId] = useState<AgentId | null>(
     storedAgentId
   );
+  const { administrator } = useConsoleSession();
   const { data } = useQuery({
+    enabled: administrator,
     queryFn: ({ signal }) => listAgents(signal),
     queryKey: ["agent-catalog"],
     retry: false,

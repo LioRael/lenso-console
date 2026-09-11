@@ -11,6 +11,7 @@ import {
   type PropsWithChildren,
 } from "react";
 
+import { sessionFetch } from "../../lib/session-fetch";
 import { agentApiUrl, agentHeaders, type AgentTarget } from "./agent-runtime";
 
 export type AgentAttachment = {
@@ -121,7 +122,7 @@ export async function loadAttachment(
   if (!sessionId || !item.digest) {
     throw new Error("Attachment is unavailable.");
   }
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(
       targetId,
       `sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(item.digest.replace(/^sha256:/u, ""))}`

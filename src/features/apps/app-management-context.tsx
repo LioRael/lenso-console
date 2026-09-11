@@ -8,6 +8,7 @@ import {
   type PropsWithChildren,
 } from "react";
 
+import { useConsoleSession } from "../../app/console-session";
 import { httpClient, isApiMode } from "../../lib/http-client";
 import type {
   PluginCategory,
@@ -133,7 +134,9 @@ function useAppManagementState() {
     },
     []
   );
+  const { administrator } = useConsoleSession();
   const catalog = useQuery({
+    enabled: administrator,
     queryKey: ["app-management-catalog"],
     queryFn: ({ signal }) => listApps(signal),
     retry: false,

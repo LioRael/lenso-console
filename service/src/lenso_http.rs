@@ -11,7 +11,7 @@ use futures::future::LocalBoxFuture;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, header};
 use lenso_capability_http_endpoint as endpoint;
 use lenso_capability_http_stream_endpoint as stream_endpoint;
-use lenso_kernel::{NativeStreamItem, NativeStreamSession, RuntimeFailure};
+use lenso_kernel::{InvocationContext, NativeStreamItem, NativeStreamSession, RuntimeFailure};
 
 use crate::{
     ConsoleApplication,
@@ -22,21 +22,43 @@ const MAX_BUFFERED_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
 
 pub(super) async fn buffered(
     application: ConsoleApplication,
+    session: crate::session::SessionBoundary,
+    context: InvocationContext,
     request: endpoint::HandleRequest,
 ) -> Result<endpoint::HandleResponse, RuntimeFailure> {
-    let response = application
-        .handle(application_request(
+    let prepared = session
+        .prepare(
+            context,
             &request.method,
             &request.path,
-            request.query,
-            &request.headers,
             request
                 .credential
                 .as_ref()
                 .map(|value| (value.scheme.as_str(), value.value.as_str())),
-            request.body.into_shared(),
-        )?)
+        )
         .await;
+    let response = match prepared {
+        Err(response) => *response,
+        Ok(context) => {
+            let response = application
+                .handle(application_request(
+                    context.clone(),
+                    &request.method,
+                    &request.path,
+                    request.query,
+                    &request.headers,
+                    request
+                        .credential
+                        .as_ref()
+                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                    request.body.into_shared(),
+                )?)
+                .await;
+            session
+                .filter_catalog(&context, &request.path, response)
+                .await
+        }
+    };
     let (parts, body) = response.into_parts();
     let body = body.collect(MAX_BUFFERED_RESPONSE_BYTES).await?;
     Ok(endpoint::HandleResponse {
@@ -48,21 +70,43 @@ pub(super) async fn buffered(
 
 pub(super) async fn streaming(
     application: ConsoleApplication,
+    session: crate::session::SessionBoundary,
+    context: InvocationContext,
     request: stream_endpoint::HandleRequest,
 ) -> Result<ConsoleResponseStream, RuntimeFailure> {
-    let response = application
-        .handle(application_request(
+    let prepared = session
+        .prepare(
+            context,
             &request.method,
             &request.path,
-            request.query,
-            &request.headers,
             request
                 .credential
                 .as_ref()
                 .map(|value| (value.scheme.as_str(), value.value.as_str())),
-            request.body.into_shared(),
-        )?)
+        )
         .await;
+    let response = match prepared {
+        Err(response) => *response,
+        Ok(context) => {
+            let response = application
+                .handle(application_request(
+                    context.clone(),
+                    &request.method,
+                    &request.path,
+                    request.query,
+                    &request.headers,
+                    request
+                        .credential
+                        .as_ref()
+                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                    request.body.into_shared(),
+                )?)
+                .await;
+            session
+                .filter_catalog(&context, &request.path, response)
+                .await
+        }
+    };
     let (parts, body) = response.into_parts();
     let head = stream_endpoint::HandleResponse {
         body: None,
@@ -74,6 +118,7 @@ pub(super) async fn streaming(
 }
 
 fn application_request<H>(
+    context: InvocationContext,
     method: &str,
     path: &str,
     query: Option<String>,
@@ -101,6 +146,7 @@ where
         result_headers.insert(header::AUTHORIZATION, value);
     }
     Ok(Request {
+        context,
         body,
         headers: result_headers,
         method,
@@ -270,5 +316,61 @@ impl NativeStreamSession for ConsoleResponseStream {
 fn internal(detail: impl Into<String>) -> RuntimeFailure {
     RuntimeFailure::Internal {
         detail: detail.into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lenso_kernel::{CancellationToken, SealedInvocationExtension};
+
+    #[test]
+    fn http_adapter_preserves_sealed_context_without_promoting_headers_to_identity() {
+        let cancellation = CancellationToken::new();
+        let assertion = SealedInvocationExtension::signed(
+            "test.actor",
+            "test.issuer",
+            ["example.query@1:read"],
+            b"alice".to_vec(),
+            "test-proof",
+        );
+        let context = InvocationContext::new(42, None, cancellation.clone())
+            .with_sealed_extension(assertion.clone())
+            .unwrap();
+        let request = application_request(
+            context,
+            "POST",
+            "/api/example",
+            None,
+            &[endpoint::HandleRequestHeadersItem {
+                name: "x-actor-subject".into(),
+                value: "mallory".into(),
+            }],
+            None,
+            Bytes::new(),
+        )
+        .unwrap();
+        assert_eq!(request.context.request_id(), 42);
+        assert_eq!(
+            request.context.sealed_extension("test.actor"),
+            Some(&assertion)
+        );
+        cancellation.cancel();
+        assert!(request.context.cancellation().is_cancelled());
+
+        let anonymous = application_request(
+            InvocationContext::new(43, None, CancellationToken::new()),
+            "POST",
+            "/api/example",
+            None,
+            &[endpoint::HandleRequestHeadersItem {
+                name: "x-actor-subject".into(),
+                value: "alice".into(),
+            }],
+            None,
+            Bytes::new(),
+        )
+        .unwrap();
+        assert_eq!(anonymous.context.sealed_extensions().count(), 0);
     }
 }

@@ -24,12 +24,14 @@ const MAX_REQUEST_BYTES: usize = 1024 * 1024;
 const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 
 mod connection;
+mod native;
 const MODULE: &str = include_str!("../assets/workspace.js");
 const STYLES: &str = include_str!("../assets/workspace.css");
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ProjectsWorkspaceConfig {
-    origin: String,
+    #[serde(default)]
+    origin: Option<String>,
 }
 
 #[lenso::plugin(
@@ -42,13 +44,18 @@ struct ProjectsWorkspaceConfig {
 struct ProjectsWorkspace {
     #[config]
     config: ProjectsWorkspaceConfig,
+    web: lenso::ManyPort<lenso_capability_http_endpoint::EndpointClient>,
     #[tasks]
     tasks: lenso::ManagedTasks,
     connection: std::sync::Arc<tokio::sync::Mutex<connection::Connection>>,
 }
 
 fn validate_config(config: &ProjectsWorkspaceConfig) -> Result<(), lenso_kernel::RuntimeFailure> {
-    if connection::valid_origin(&config.origin) {
+    if config
+        .origin
+        .as_deref()
+        .is_none_or(connection::valid_origin)
+    {
         Ok(())
     } else {
         Err(lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
@@ -57,7 +64,37 @@ fn validate_config(config: &ProjectsWorkspaceConfig) -> Result<(), lenso_kernel:
     }
 }
 
-impl lenso::Lifecycle for ProjectsWorkspace {}
+impl ProjectsWorkspace {
+    fn operations(&self) -> impl Iterator<Item = &'static str> {
+        let external = self.config.origin.is_some();
+        connection::OPERATIONS
+            .iter()
+            .copied()
+            .filter(move |operation| {
+                external
+                    || !matches!(
+                        *operation,
+                        "begin_connection" | "poll_connection" | "disconnect"
+                    )
+            })
+    }
+}
+
+impl lenso::Lifecycle for ProjectsWorkspace {
+    #[allow(clippy::unused_async_trait_impl)] // Lifecycle contract is asynchronous.
+    async fn activate(
+        &self,
+        _: lenso::ActivateContext,
+    ) -> Result<(), lenso_kernel::RuntimeFailure> {
+        let count = self.web.iter().count();
+        if (self.config.origin.is_none() && count != 1)
+            || (self.config.origin.is_some() && count != 0)
+        {
+            return Err(lenso_kernel::RuntimeFailure::InvalidResolvedPlan {detail:"Native Projects requires one bound Projects Web endpoint; an explicit external origin requires none".into()});
+        }
+        Ok(())
+    }
+}
 
 #[lenso::provides(ui::Contribution, service::WorkspaceService)]
 impl ProjectsWorkspace {
@@ -91,10 +128,7 @@ impl ProjectsWorkspace {
             requirements: vec![DescribeResponseRequirementsItem {
                 capability_id: DOMAIN_CAPABILITY_ID.to_owned(),
                 descriptor_version: DOMAIN_DESCRIPTOR_VERSION.to_owned(),
-                operations: connection::OPERATIONS
-                    .iter()
-                    .map(|name| (*name).to_owned())
-                    .collect(),
+                operations: self.operations().map(|name| (*name).to_owned()).collect(),
                 required: true,
                 service_id: SERVICE_ID.to_owned(),
                 source: DescribeResponseRequirementsItemSource::Owner,
@@ -120,8 +154,8 @@ impl ProjectsWorkspace {
             services: vec![DescribeExportsResponseServicesItem {
                 capability_id: DOMAIN_CAPABILITY_ID.to_owned(),
                 descriptor_version: DOMAIN_DESCRIPTOR_VERSION.to_owned(),
-                operations: connection::OPERATIONS
-                    .iter()
+                operations: self
+                    .operations()
                     .map(|name| DescribeExportsResponseServicesItemOperationsItem {
                         interaction:
                             DescribeExportsResponseServicesItemOperationsItemInteraction::Request,
@@ -140,11 +174,15 @@ impl ProjectsWorkspace {
     ) -> lenso_kernel::NativeRequestFuture<WorkspaceServiceInvoke> {
         let origin = self.config.origin.clone();
         let connection = self.connection.clone();
+        let web = self.web.iter().next().map(|bound| bound.client().clone());
+        let known_operation = self
+            .operations()
+            .any(|operation| operation == request.operation);
         Box::pin(async move {
             if request.service_id != SERVICE_ID {
                 return Ok(Err(InvokeError::UnknownService));
             }
-            if !connection::OPERATIONS.contains(&request.operation.as_str()) {
+            if !known_operation {
                 return Ok(Err(InvokeError::UnknownOperation));
             }
             let Ok(bytes) = STANDARD.decode(request.body_base64) else {
@@ -159,7 +197,13 @@ impl ProjectsWorkspace {
             let cancel = context.cancellation();
             let result = tokio::select! {
                 () = cancel.cancelled() => return Ok(Err(InvokeError::Denied)),
-                result = connection::invoke(&origin, &connection, &request.operation, body) => result,
+                result = async {
+                    if let Some(origin) = origin {
+                        connection::invoke(&origin, &connection, &request.operation, body).await
+                    } else if let Some(web) = web {
+                        native::invoke(&web, context.clone(), &request.operation, body).await
+                    } else { Err(()) }
+                } => result,
             };
             let Ok(response) = result else {
                 return Ok(Err(InvokeError::Denied));

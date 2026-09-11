@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
+import { sessionFetch } from "../../lib/session-fetch";
 import type { PluginWorkbenchData } from "../plugins/use-plugin-workbench";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
 import { AddBusinessAppConnection } from "./add-business-app-connection";
@@ -39,7 +40,7 @@ async function request<T>(
   signal: AbortSignal,
   body?: unknown
 ): Promise<T> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(agentId, `auth/connections${body ? "/actions" : ""}`),
     {
       ...(body ? { body: JSON.stringify(body) } : {}),

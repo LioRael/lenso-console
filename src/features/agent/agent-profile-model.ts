@@ -1,3 +1,4 @@
+import { sessionFetch } from "../../lib/session-fetch";
 import type { PluginWorkbenchItem } from "../plugins/plugin-workbench-model";
 import { agentApiUrl, agentHeaders } from "./agent-runtime";
 
@@ -29,7 +30,7 @@ export async function profileRequest<T>(
   body?: unknown,
   signal?: AbortSignal
 ): Promise<T> {
-  const response = await fetch(agentApiUrl(agentId, path), {
+  const response = await sessionFetch(agentApiUrl(agentId, path), {
     method: body === undefined ? "GET" : "POST",
     headers: agentHeaders("application/json", body !== undefined),
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

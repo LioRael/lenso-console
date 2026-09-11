@@ -94,10 +94,40 @@
       "additionalProperties": false,
       "required": ["binary", "root", "template"],
       "properties": {
-        "binary": { "type": "string" },
-        "root": { "type": "string" },
-        "template": { "type": "string" }
+        "binary": {
+          "type": "string"
+        },
+        "root": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        }
       }
+    },
+    "require_user_session": {
+      "type": "boolean",
+      "default": false,
+      "description": "Require the explicitly bound Lenso Auth provider for Console API requests. Local mode has no Auth binding and remains loopback-only."
+    },
+    "administrator_subjects": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Auth subjects allowed to administer Console and access shared Host Agent interfaces. Workspace Plugins enforce their own business authorization."
+    },
+    "member_workspace_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Workspace IDs exposed to authenticated members. These Plugins must enforce their own business authorization."
     }
   },
   "required": [

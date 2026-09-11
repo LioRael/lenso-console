@@ -1,4 +1,7 @@
 export const chineseMessages: Readonly<Record<string, string>> = {
+  "Could not load workspaces": "无法加载工作区",
+  "Loading workspace…": "正在加载工作区…",
+  "No workspaces are available for this account": "此账号暂无可用工作区",
   "Add Projects App": "添加 Projects 应用",
   "Connect a Projects App, then sign in through its browser consent page.":
     "连接 Projects 应用，然后在浏览器中登录并授权。",
@@ -121,6 +124,7 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Loading connections…": "正在加载连接…",
   "Loading profiles…": "正在加载配置方案…",
   "Loading publications…": "正在加载发布记录…",
+  "Sign out": "退出登录",
   "Local operator profile": "本地用户",
   "Lowercase letters, numbers, hyphens or underscores.":
     "可使用小写字母、数字、连字符或下划线。",

@@ -15,7 +15,9 @@ import "@lenso/ui/preflight.css";
 import "@lenso/ui/styles.css";
 import "../styles.css";
 
+import { ConsoleAppearanceProvider } from "../app/console-appearance";
 import { HostConsoleLocaleProvider } from "../app/console-locale";
+import { ConsoleSession } from "../app/console-session";
 import { Providers } from "../app/providers";
 import { RouteError, RouteNotFound, RoutePending } from "../app/route-states";
 import { ConsoleShell } from "../components/runtime/console-shell";
@@ -34,14 +36,18 @@ const RootComponent = () => {
   }
 
   return (
-    <Providers>
-      <HostConsoleLocaleProvider>
-        <ConsoleShell>
-          <Outlet />
-        </ConsoleShell>
-      </HostConsoleLocaleProvider>
-      <ConsoleDevOverlay config={consoleDevConfig} />
-    </Providers>
+    <HostConsoleLocaleProvider>
+      <ConsoleAppearanceProvider>
+        <ConsoleSession>
+          <Providers>
+            <ConsoleShell>
+              <Outlet />
+            </ConsoleShell>
+          </Providers>
+        </ConsoleSession>
+        <ConsoleDevOverlay config={consoleDevConfig} />
+      </ConsoleAppearanceProvider>
+    </HostConsoleLocaleProvider>
   );
 };
 
