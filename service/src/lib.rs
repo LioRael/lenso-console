@@ -249,7 +249,10 @@ impl ConsolePlugin {
             ("GET", "/health/live", "console.health.live"),
             ("GET", "/health/ready", "console.health.ready"),
             ("GET", "/health/startup", "console.health.startup"),
+            ("GET", "/", "console.shell.root"),
+            ("HEAD", "/", "console.shell.root.head"),
             ("GET", "/{*path}", "console.shell"),
+            ("HEAD", "/{*path}", "console.shell.head"),
         ]
         .into_iter()
         .map(|(method, path, route_id)| HttpRoute {
@@ -2016,6 +2019,16 @@ mod tests {
         local
             .run_until(async move {
                 let host = start_host(&config).await.unwrap();
+                let shell_client = reqwest::Client::new();
+                for path in ["/", "/workspaces/projects"] {
+                    let url = format!("http://{address}{path}");
+                    let shell = shell_client.get(&url).send().await.unwrap();
+                    assert_eq!(shell.status(), StatusCode::OK);
+                    assert!(shell.text().await.unwrap().contains("<!doctype html>"));
+                    let head = shell_client.head(&url).send().await.unwrap();
+                    assert_eq!(head.status(), StatusCode::OK);
+                    assert!(head.bytes().await.unwrap().is_empty());
+                }
                 let catalog = reqwest::get(format!("http://{address}/api/console/v1/pages"))
                     .await
                     .unwrap()
