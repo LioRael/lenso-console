@@ -269,7 +269,7 @@ impl ConsolePlugin {
 
     fn handle(
         &self,
-        _context: InvocationContext,
+        context: InvocationContext,
         request: HttpHandleRequest,
     ) -> lenso_kernel::NativeRequestFuture<EndpointHandle> {
         let application = self.application.borrow().clone();
@@ -282,7 +282,9 @@ impl ConsolePlugin {
             if !request.route_id.starts_with("console.") {
                 return Ok(Err(HttpHandleError::Rejected));
             }
-            lenso_http::buffered(application, request).await.map(Ok)
+            lenso_http::buffered(application, context, request)
+                .await
+                .map(Ok)
         })
     }
     fn describe_stream(
@@ -306,7 +308,7 @@ impl ConsolePlugin {
 
     fn handle_stream(
         &self,
-        _context: InvocationContext,
+        context: InvocationContext,
         request: StreamHandleRequest,
     ) -> futures::future::LocalBoxFuture<
         'static,
@@ -334,7 +336,7 @@ impl ConsolePlugin {
                     ),
                 );
             }
-            lenso_http::streaming(application, request)
+            lenso_http::streaming(application, context, request)
                 .await
                 .map_err(stream_endpoint::StreamEndpointHandleInvocationError::Runtime)
         })

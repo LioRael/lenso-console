@@ -9,10 +9,11 @@ use std::{fmt, path::PathBuf};
 use ::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri, header};
 use bytes::Bytes;
 use futures::{Stream, StreamExt as _, stream::BoxStream};
-use lenso_kernel::RuntimeFailure;
+use lenso_kernel::{InvocationContext, RuntimeFailure};
 use serde::Serialize;
 
 pub(super) struct Request {
+    pub context: InvocationContext,
     pub body: Bytes,
     pub headers: HeaderMap,
     pub method: Method,
@@ -29,6 +30,7 @@ impl Request {
                 (path, Some(query.to_owned()))
             });
         Self {
+            context: InvocationContext::new(0, None, lenso_kernel::CancellationToken::new()),
             body: Bytes::new(),
             headers: HeaderMap::new(),
             method,

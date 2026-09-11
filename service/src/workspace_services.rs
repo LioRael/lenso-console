@@ -288,6 +288,7 @@ impl WorkspaceServiceDispatch {
                 invoke(
                     State(self.clone()),
                     Path(parameters),
+                    request.context.clone(),
                     request.headers.clone(),
                     request.body.clone(),
                 )
@@ -297,6 +298,7 @@ impl WorkspaceServiceDispatch {
                 subscribe(
                     State(self.clone()),
                     Path(parameters),
+                    request.context.clone(),
                     request.headers.clone(),
                     request.body.clone(),
                 )
@@ -325,22 +327,30 @@ impl WorkspaceServiceRuntime {
             match command {
                 DispatchCommand::Invoke {
                     owner,
+                    context,
                     request,
                     response,
                 } => {
                     let result = match self.client(&owner) {
-                        Some(client) => client.invoke(request).await.map_err(invoke_failure),
+                        Some(client) => client
+                            .invoke_with_context(context, request)
+                            .await
+                            .map_err(invoke_failure),
                         None => Err(TransportFailure::unavailable()),
                     };
                     let _ = response.send(result);
                 }
                 DispatchCommand::Subscribe {
                     owner,
+                    context,
                     request,
                     response,
                 } => {
                     let result = match self.client(&owner) {
-                        Some(client) => client.subscribe(request).await.map_err(subscribe_failure),
+                        Some(client) => client
+                            .subscribe_with_context(context, request)
+                            .await
+                            .map_err(subscribe_failure),
                         None => Err(TransportFailure::unavailable()),
                     };
                     match result {
@@ -372,11 +382,13 @@ impl WorkspaceServiceRuntime {
 enum DispatchCommand {
     Invoke {
         owner: String,
+        context: lenso_kernel::InvocationContext,
         request: InvokeRequest,
         response: oneshot::Sender<Result<InvokeResponse, TransportFailure>>,
     },
     Subscribe {
         owner: String,
+        context: lenso_kernel::InvocationContext,
         request: SubscribeRequest,
         response: oneshot::Sender<Result<mpsc::Receiver<StreamFrame>, TransportFailure>>,
     },
@@ -441,6 +453,7 @@ async fn pump_stream(
 async fn invoke(
     State(dispatch): State<WorkspaceServiceDispatch>,
     Path((workspace, service, operation)): Path<(String, String, String)>,
+    context: lenso_kernel::InvocationContext,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -463,6 +476,7 @@ async fn invoke(
     let (response, receive) = oneshot::channel();
     let command = DispatchCommand::Invoke {
         owner: route.owner.clone(),
+        context,
         request: InvokeRequest {
             body_base64: STANDARD.encode(body),
             media_type: InvokeRequestMediaType::ApplicationJson,
@@ -515,6 +529,7 @@ fn invoke_response(value: InvokeResponse) -> Response {
 async fn subscribe(
     State(dispatch): State<WorkspaceServiceDispatch>,
     Path((workspace, service, operation)): Path<(String, String, String)>,
+    context: lenso_kernel::InvocationContext,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -537,6 +552,7 @@ async fn subscribe(
     let (response, receive) = oneshot::channel();
     let command = DispatchCommand::Subscribe {
         owner: route.owner.clone(),
+        context,
         request: SubscribeRequest {
             body_base64: STANDARD.encode(body),
             media_type: SubscribeRequestMediaType::ApplicationJson,
@@ -729,6 +745,70 @@ fn valid_slug(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn dispatch_preserves_each_requests_context_for_unary_and_stream_calls() {
+        use lenso_kernel::{InvocationContext, SealedInvocationExtension};
+        for (interaction, operation) in [("invoke", "read"), ("subscribe", "watch")] {
+            let mut builder = builder();
+            builder
+                .bind_mount("alpha", "workspace/default", &[requirement(true)])
+                .unwrap();
+            let dispatch = WorkspaceServiceDispatch {
+                routes: Arc::new(builder.routes),
+                sender: builder.sender,
+            };
+            for subject in ["alice", "bob"] {
+                let cancellation = lenso_kernel::CancellationToken::new();
+                let assertion = SealedInvocationExtension::signed(
+                    "test.actor",
+                    "test.issuer",
+                    ["example.query@1:read"],
+                    subject.as_bytes().to_vec(),
+                    "test-proof",
+                );
+                let mut request = Request::new(
+                    Method::POST,
+                    &format!(
+                        "/api/console/v1/pages/alpha/services/example/{interaction}/{operation}"
+                    ),
+                )
+                .with_header(header::CONTENT_TYPE, "application/json")
+                .with_body("{}");
+                request.context = InvocationContext::new(
+                    42,
+                    Some(std::time::Duration::from_secs(30)),
+                    cancellation.clone(),
+                )
+                .with_sealed_extension(assertion.clone())
+                .unwrap();
+                let receive = async {
+                    let command = builder.receiver.recv().await.unwrap();
+                    let context = match command {
+                        DispatchCommand::Invoke {
+                            context, response, ..
+                        } => {
+                            let _ = response.send(Err(TransportFailure::unavailable()));
+                            context
+                        }
+                        DispatchCommand::Subscribe {
+                            context, response, ..
+                        } => {
+                            let _ = response.send(Err(TransportFailure::unavailable()));
+                            context
+                        }
+                    };
+                    assert_eq!(context.request_id(), 42);
+                    assert_eq!(context.deadline(), request.context.deadline());
+                    assert_eq!(context.sealed_extension("test.actor"), Some(&assertion));
+                    cancellation.cancel();
+                    assert!(context.cancellation().is_cancelled());
+                };
+                let (response, ()) = tokio::join!(dispatch.handle(&request), receive);
+                assert_eq!(response.unwrap().status(), StatusCode::SERVICE_UNAVAILABLE);
+            }
+        }
+    }
 
     fn builder() -> WorkspaceServiceBuilder {
         let (sender, receiver) = mpsc::channel(4);

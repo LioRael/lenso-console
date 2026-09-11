@@ -15,3 +15,5 @@
 - [0007 — Use an open signed Plugin marketplace](0007-use-an-open-signed-plugin-marketplace.md)
 
 - [0008 — Dispatch Workspace services through Plan bindings](0008-dispatch-workspace-services-through-plan-bindings.md)
+
+- [0009 — Compose Projects inside the Console App](0009-compose-projects-inside-the-console-app.md)
