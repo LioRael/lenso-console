@@ -1,4 +1,5 @@
 import { consoleApiPrefix } from "../../lib/http-client";
+import { sessionFetch } from "../../lib/session-fetch";
 import type { AgentAttachment } from "./agent-attachments";
 
 export type AgentId = string;
@@ -102,7 +103,9 @@ export async function listAvailableSkills(
   signal: AbortSignal,
   target: AgentTarget
 ) {
-  const response = await fetch(agentApiUrl(target, "skills"), { signal });
+  const response = await sessionFetch(agentApiUrl(target, "skills"), {
+    signal,
+  });
   if (!response.ok) {
     throw new Error("Could not load Skills");
   }
@@ -433,7 +436,7 @@ export async function streamAgentTurn({
   serviceTier?: string;
   targetId?: AgentTarget;
 }): Promise<void> {
-  const response = await fetch(agentApiUrl(targetId, "turns"), {
+  const response = await sessionFetch(agentApiUrl(targetId, "turns"), {
     body: JSON.stringify({
       ...(allowedTools ? { allowed_tools: allowedTools } : {}),
       ...(contextReferences?.length
@@ -508,7 +511,7 @@ export async function cancelAgentTurn(
   requestId: string,
   targetId: AgentTarget = "console"
 ): Promise<void> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(targetId, `turns/${encodeURIComponent(requestId)}/cancel`),
     {
       headers: agentHeaders("application/json", false),
@@ -525,7 +528,7 @@ export async function readPendingAgentInteractions(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentPendingInteraction[]> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(
       targetId,
       `turns/${encodeURIComponent(requestId)}/interactions`
@@ -562,7 +565,7 @@ export async function answerAgentInteraction({
   requestId: string;
   targetId?: AgentTarget;
 }): Promise<void> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(
       targetId,
       `turns/${encodeURIComponent(requestId)}/interactions/${encodeURIComponent(interactionId)}/answer`
@@ -582,7 +585,7 @@ export async function readAgentBootstrap(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentBootstrap> {
-  const response = await fetch(agentApiUrl(targetId, "bootstrap"), {
+  const response = await sessionFetch(agentApiUrl(targetId, "bootstrap"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -596,7 +599,7 @@ export async function readAgentModels(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentModelCatalog> {
-  const response = await fetch(agentApiUrl(targetId, "models"), {
+  const response = await sessionFetch(agentApiUrl(targetId, "models"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -610,10 +613,13 @@ export async function readAgentContextSources(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentContextCatalog> {
-  const response = await fetch(agentApiUrl(targetId, "context-sources"), {
-    headers: agentHeaders("application/json", false),
-    ...(signal ? { signal } : {}),
-  });
+  const response = await sessionFetch(
+    agentApiUrl(targetId, "context-sources"),
+    {
+      headers: agentHeaders("application/json", false),
+      ...(signal ? { signal } : {}),
+    }
+  );
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -631,10 +637,13 @@ export async function readAgentTerminalCatalog(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentTerminalCatalog> {
-  const response = await fetch(agentApiUrl(targetId, "terminal/commands"), {
-    headers: agentHeaders("application/json", false),
-    ...(signal ? { signal } : {}),
-  });
+  const response = await sessionFetch(
+    agentApiUrl(targetId, "terminal/commands"),
+    {
+      headers: agentHeaders("application/json", false),
+      ...(signal ? { signal } : {}),
+    }
+  );
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -661,12 +670,15 @@ export async function streamAgentTerminal({
   signal: AbortSignal;
   targetId?: AgentTarget;
 }): Promise<void> {
-  const response = await fetch(agentApiUrl(targetId, "terminal/executions"), {
-    body: JSON.stringify({ commandLine, requestId }),
-    headers: agentHeaders("text/event-stream", true),
-    method: "POST",
-    signal,
-  });
+  const response = await sessionFetch(
+    agentApiUrl(targetId, "terminal/executions"),
+    {
+      body: JSON.stringify({ commandLine, requestId }),
+      headers: agentHeaders("text/event-stream", true),
+      method: "POST",
+      signal,
+    }
+  );
   if (!(response.ok && response.body)) {
     throw new Error(await responseError(response));
   }
@@ -702,7 +714,7 @@ export async function cancelAgentTerminal(
   requestId: string,
   targetId: AgentTarget = "console"
 ): Promise<void> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(
       targetId,
       `terminal/executions/${encodeURIComponent(requestId)}/cancel`
@@ -718,7 +730,7 @@ export async function readAgentTasks(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentTask[]> {
-  const response = await fetch(agentApiUrl(targetId, "tasks"), {
+  const response = await sessionFetch(agentApiUrl(targetId, "tasks"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -736,7 +748,7 @@ export async function compactAgentSession(
   sessionId: string,
   targetId: AgentTarget = "console"
 ): Promise<void> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/compact`),
     { headers: agentHeaders("application/json", false), method: "POST" }
   );
@@ -756,7 +768,7 @@ export async function renameAgentSession({
   targetId?: AgentTarget;
   title: string;
 }): Promise<{ title: string; titleRevision: string }> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}`),
     {
       body: JSON.stringify({ expectedTitleRevision, title }),
@@ -781,11 +793,14 @@ export async function selectAgentProfile(
   profile: string | undefined,
   targetId: AgentTarget = "console"
 ): Promise<string | undefined> {
-  const response = await fetch(agentApiUrl(targetId, "control/profile"), {
-    body: JSON.stringify({ profile: profile ?? null }),
-    headers: agentHeaders("application/json", true),
-    method: "POST",
-  });
+  const response = await sessionFetch(
+    agentApiUrl(targetId, "control/profile"),
+    {
+      body: JSON.stringify({ profile: profile ?? null }),
+      headers: agentHeaders("application/json", true),
+      method: "POST",
+    }
+  );
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -804,7 +819,7 @@ export async function importAgentCodingProfiles(
 ): Promise<void> {
   const [configurationResponse, inventoryResponse] = await Promise.all(
     ["control/plugins", "plugins"].map((path) =>
-      fetch(agentApiUrl(targetId, path), {
+      sessionFetch(agentApiUrl(targetId, path), {
         headers: agentHeaders("application/json", false),
       })
     )
@@ -831,7 +846,7 @@ export async function importAgentCodingProfiles(
   ) {
     throw new TypeError("Agent import revisions are malformed");
   }
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(targetId, "control/profiles/import"),
     {
       body: JSON.stringify({
@@ -860,10 +875,13 @@ export async function readAgentToolPolicy(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentToolPolicy> {
-  const response = await fetch(agentApiUrl(targetId, "control/tool-policy"), {
-    headers: agentHeaders("application/json", false),
-    ...(signal ? { signal } : {}),
-  });
+  const response = await sessionFetch(
+    agentApiUrl(targetId, "control/tool-policy"),
+    {
+      headers: agentHeaders("application/json", false),
+      ...(signal ? { signal } : {}),
+    }
+  );
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -879,11 +897,14 @@ export async function updateAgentToolPolicy({
   expectedRevision: number;
   targetId?: AgentTarget;
 }): Promise<AgentToolPolicy> {
-  const response = await fetch(agentApiUrl(targetId, "control/tool-policy"), {
-    body: JSON.stringify({ allowed, expectedRevision }),
-    headers: agentHeaders("application/json", true),
-    method: "PUT",
-  });
+  const response = await sessionFetch(
+    agentApiUrl(targetId, "control/tool-policy"),
+    {
+      body: JSON.stringify({ allowed, expectedRevision }),
+      headers: agentHeaders("application/json", true),
+      method: "PUT",
+    }
+  );
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
@@ -894,7 +915,7 @@ export async function listAgentSessions(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentSessionSummary[]> {
-  const response = await fetch(agentApiUrl(targetId, "sessions"), {
+  const response = await sessionFetch(agentApiUrl(targetId, "sessions"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -913,7 +934,7 @@ export async function readAgentSession(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentSession> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}`),
     {
       headers: agentHeaders("application/json", false),
@@ -931,7 +952,7 @@ export async function readAgentTrajectory(
   signal?: AbortSignal,
   targetId: AgentTarget = "console"
 ): Promise<AgentTrajectory> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(
       targetId,
       `sessions/${encodeURIComponent(sessionId)}/trajectory`
@@ -1252,7 +1273,7 @@ export function decodeAgentStreamEvent(data: string): AgentStreamEvent {
 export async function listAgents(
   signal?: AbortSignal
 ): Promise<AgentIdentity[]> {
-  const response = await fetch(consoleApiUrl("api/console/v1/agents"), {
+  const response = await sessionFetch(consoleApiUrl("api/console/v1/agents"), {
     headers: agentHeaders("application/json", false),
     ...(signal ? { signal } : {}),
   });
@@ -2042,7 +2063,9 @@ export async function readAgentActivity(
   target: AgentTarget,
   signal: AbortSignal
 ): Promise<AgentActivity | undefined> {
-  const response = await fetch(agentApiUrl(target, "activity"), { signal });
+  const response = await sessionFetch(agentApiUrl(target, "activity"), {
+    signal,
+  });
   if (response.status === 404) {
     return undefined;
   }
@@ -2058,7 +2081,7 @@ export async function forkAgentSession(
   operationId: string,
   targetId: AgentTarget
 ): Promise<string> {
-  const response = await fetch(
+  const response = await sessionFetch(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/fork`),
     {
       method: "POST",

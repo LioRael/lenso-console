@@ -41,6 +41,15 @@ http = "1"
 lenso = "0.5.17"
 lenso-app-authoring = { package = "lenso-cli", version = "0.5.2", default-features = false }
 lenso-app-plan = "0.4.1"
+lenso-auth-sdk = "0.2.3"
+lenso-auth-account-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-auth-password-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-auth-web-session-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-auth-oidc-client-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-auth-oauth-flow-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-secrets-env-plugin = "0.1.7"
+lenso-http-egress-plugin = "0.3.1"
+lenso-capability-auth = "0.2.0"
 lenso-capability-http-endpoint = "0.3.1"
 lenso-capability-http-stream-endpoint = "0.1.1"
 lenso-capability-ui-contribution = { path = "crates/lenso-capability-ui-contribution" }
@@ -77,6 +86,9 @@ toml = "0.9"
 uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
+lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-postgres-kit = { git = "https://github.com/LioRael/lenso-postgres-kit", rev = "bc12ce2e59ef63e63ffcabb1eb4b524c3022c834" }
+time = "0.3"
 axum = "0.8"
 tempfile = "3.27"
 tower = "0.5"
@@ -90,3 +102,7 @@ pedantic = { level = "deny", priority = -1 }
 module_name_repetitions = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+
+[patch.crates-io]
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1fb183d098a8d44cec98a91228c83456825a87cb" }

@@ -121,6 +121,7 @@ export const chineseMessages: Readonly<Record<string, string>> = {
   "Loading connections…": "正在加载连接…",
   "Loading profiles…": "正在加载配置方案…",
   "Loading publications…": "正在加载发布记录…",
+  "Sign out": "退出登录",
   "Local operator profile": "本地用户",
   "Lowercase letters, numbers, hyphens or underscores.":
     "可使用小写字母、数字、连字符或下划线。",

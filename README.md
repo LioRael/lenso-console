@@ -87,6 +87,9 @@ The App owner never writes a Plan or binding file. The Host Catalog owns the
 WebIngress instances and private Capability bindings; `plugins/` contains only
 typed Instance configuration and enablement differences.
 
+For Plugin-configured email/password or enterprise SSO login, see
+[Console authentication](docs/console-authentication.md).
+
 The private Console Agent Home defaults to `~/.lenso/console/agent`. The App
 being managed is a separate root selected with `LENSO_APP_ROOT`, defaulting to
 the launcher directory. The Console Agent admits the reviewed inspection,

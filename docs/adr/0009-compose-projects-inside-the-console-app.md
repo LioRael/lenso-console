@@ -46,9 +46,12 @@ service required by Console.
 - Verify a single listener/process without the external fixture, two-user and
   cross-organization isolation, cancellation, restart persistence and removal.
 
-Only the context-preservation foundation has been implemented at this point.
-It transports sealed evidence without validating it or creating a user session;
-it must not be presented as completed authentication or same-process Projects.
+The context transport and Console session boundary are implemented. Browser login
+methods are owned by Auth Plugins and discovered from their bound dependencies.
+Console authenticates each protected request and accepts explicitly configured
+administrator subjects. Ordinary business-user access, the native Projects
+adapter, and user-scoped Agent execution remain migration work; the existing
+external Projects fixture must not be presented as same-process completion.
 
 ## Consequences
 

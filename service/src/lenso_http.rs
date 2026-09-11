@@ -22,23 +22,40 @@ const MAX_BUFFERED_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
 
 pub(super) async fn buffered(
     application: ConsoleApplication,
+    session: crate::session::SessionBoundary,
     context: InvocationContext,
     request: endpoint::HandleRequest,
 ) -> Result<endpoint::HandleResponse, RuntimeFailure> {
-    let response = application
-        .handle(application_request(
+    let prepared = session
+        .prepare(
             context,
             &request.method,
             &request.path,
-            request.query,
-            &request.headers,
             request
                 .credential
                 .as_ref()
                 .map(|value| (value.scheme.as_str(), value.value.as_str())),
-            request.body.into_shared(),
-        )?)
+        )
         .await;
+    let response = match prepared {
+        Err(response) => *response,
+        Ok(context) => {
+            application
+                .handle(application_request(
+                    context,
+                    &request.method,
+                    &request.path,
+                    request.query,
+                    &request.headers,
+                    request
+                        .credential
+                        .as_ref()
+                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                    request.body.into_shared(),
+                )?)
+                .await
+        }
+    };
     let (parts, body) = response.into_parts();
     let body = body.collect(MAX_BUFFERED_RESPONSE_BYTES).await?;
     Ok(endpoint::HandleResponse {
@@ -50,23 +67,40 @@ pub(super) async fn buffered(
 
 pub(super) async fn streaming(
     application: ConsoleApplication,
+    session: crate::session::SessionBoundary,
     context: InvocationContext,
     request: stream_endpoint::HandleRequest,
 ) -> Result<ConsoleResponseStream, RuntimeFailure> {
-    let response = application
-        .handle(application_request(
+    let prepared = session
+        .prepare(
             context,
             &request.method,
             &request.path,
-            request.query,
-            &request.headers,
             request
                 .credential
                 .as_ref()
                 .map(|value| (value.scheme.as_str(), value.value.as_str())),
-            request.body.into_shared(),
-        )?)
+        )
         .await;
+    let response = match prepared {
+        Err(response) => *response,
+        Ok(context) => {
+            application
+                .handle(application_request(
+                    context,
+                    &request.method,
+                    &request.path,
+                    request.query,
+                    &request.headers,
+                    request
+                        .credential
+                        .as_ref()
+                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                    request.body.into_shared(),
+                )?)
+                .await
+        }
+    };
     let (parts, body) = response.into_parts();
     let head = stream_endpoint::HandleResponse {
         body: None,

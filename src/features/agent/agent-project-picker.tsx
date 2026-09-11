@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
+import { sessionFetch } from "../../lib/session-fetch";
 import { agentApiUrl } from "./agent-runtime";
 
 type Project = { id: string; path: string };
@@ -25,7 +26,7 @@ type Directory = {
 };
 
 async function request<T>(path: string, body?: { path: string }): Promise<T> {
-  const response = await fetch(agentApiUrl("app", `projects${path}`), {
+  const response = await sessionFetch(agentApiUrl("app", `projects${path}`), {
     headers: {
       "x-lenso-console-projects": "1",
       ...(body ? { "Content-Type": "application/json" } : {}),

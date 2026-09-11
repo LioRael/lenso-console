@@ -7,6 +7,7 @@ import {
   Blocks,
   ChevronLeft,
   CircleHelp,
+  LogOut,
   MousePointer2,
   PanelsTopLeft,
   Settings,
@@ -17,6 +18,7 @@ import { useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { useConsoleSession } from "../../app/console-session";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
@@ -190,6 +192,7 @@ function PrimaryRail({
   workspaces: readonly PageMount[];
 }) {
   const t = useConsoleTranslation();
+  const { signOut } = useConsoleSession();
 
   return (
     <Sidebar.Root
@@ -295,13 +298,28 @@ function PrimaryRail({
           >
             <CircleHelp aria-hidden="true" size={15} strokeWidth={1.7} />
           </IconButton>
-          <button
-            aria-label={t("Local operator profile")}
-            {...stylex.props(shellStyles.railProfile)}
-            type="button"
-          >
-            LO
-          </button>
+          {signOut && (
+            <IconButton
+              aria-label={t("Sign out")}
+              onClick={() => {
+                void signOut();
+              }}
+              size="default"
+              variant="ghost"
+              xstyle={shellStyles.railButton}
+            >
+              <LogOut aria-hidden="true" size={15} strokeWidth={1.7} />
+            </IconButton>
+          )}
+          {!signOut && (
+            <button
+              aria-label={t("Local operator profile")}
+              {...stylex.props(shellStyles.railProfile)}
+              type="button"
+            >
+              LO
+            </button>
+          )}
         </div>
       </Sidebar.Panel>
     </Sidebar.Root>

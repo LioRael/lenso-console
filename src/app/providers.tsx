@@ -6,7 +6,6 @@ import { AgentQuickPanelProvider } from "../features/agent/agent-quick-panel-con
 import { AppManagementProvider } from "../features/apps/app-management-context";
 import { PluginAgentWorkbenchProvider } from "../features/plugins/plugin-agent-workbench-context";
 import { queryClient } from "../lib/query-client";
-import { ConsoleAppearanceProvider } from "./console-appearance";
 
 export function Providers({ children }: PropsWithChildren) {
   return (
@@ -14,9 +13,7 @@ export function Providers({ children }: PropsWithChildren) {
       <AgentIdentityProvider>
         <AppManagementProvider>
           <PluginAgentWorkbenchProvider>
-            <AgentQuickPanelProvider>
-              <ConsoleAppearanceProvider>{children}</ConsoleAppearanceProvider>
-            </AgentQuickPanelProvider>
+            <AgentQuickPanelProvider>{children}</AgentQuickPanelProvider>
           </PluginAgentWorkbenchProvider>
         </AppManagementProvider>
       </AgentIdentityProvider>
