@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.16.0
+
+### Minor Changes
+
+- 6907f41: Bundle the native terminal, management CLI, and ACP entrypoint in @lenso/agent. Start the TUI with npx @lenso/agent, use cli for setup and headless work, and retain web for Console.
+
 ## 1.15.0
 
 ### Minor Changes
