@@ -107,3 +107,14 @@ Projects Tools in Agent Tool access. The local fixture delegates
 cannot widen the business App's grant. Credentials stay inside the Agent process;
 restart requires reconnecting. The App can revoke the parent session and its
 child grant independently of Agent approval mode.
+
+## Public availability after publishing
+
+npm scans packages before making them installable. The publishing workflow waits
+for both platform packages to expose the exact uploaded archive integrity and a
+public tarball before publishing the launcher, then checks the launcher too.
+This can take several minutes after `npm publish` succeeds. A bounded wait
+failure requires inspecting registry scan/publication status, not overwriting
+or immediately republishing the same immutable version.
+
+See [npm publish-time scanning](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/).
