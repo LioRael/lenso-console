@@ -26,8 +26,10 @@ import {
   createWorkspaceServices,
   type WorkspaceServices,
 } from "./workspace-service-client";
+import { ContributionSidebar } from "./workspace-sidebar-slot";
 
 type ContributionProps = {
+  chrome?: { Sidebar: ComponentType<{ children: ReactNode }> };
   agent?:
     | {
         completedTurns: number;
@@ -221,6 +223,7 @@ function MountedContribution({
   return (
     <loaded.Provider>
       <loaded.Page
+        chrome={{ Sidebar: ContributionSidebar }}
         agent={agent}
         environment={environment}
         location={location}

@@ -2524,7 +2524,7 @@ dependencies = [
 [[package]]
 name = "lenso-projects-web-plugin"
 version = "0.1.2"
-source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=58b4ca0e8f761159f99bda332d621dcf36ee9f9e#58b4ca0e8f761159f99bda332d621dcf36ee9f9e"
+source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=6c5006c15cb993891ea38a59d1eef068f19faf76#6c5006c15cb993891ea38a59d1eef068f19faf76"
 dependencies = [
  "futures",
  "lenso",

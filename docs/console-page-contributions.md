@@ -630,3 +630,18 @@ Before treating the contract as stable:
   interface should not depend on a particular vendor.
 - **Multi-user operation:** identity, workspace membership, and remote operator
   policy are not supplied by native extension loading and remain separate work.
+
+### Optional context sidebar
+
+Page props include `chrome.Sidebar`, a component accepting `children`. A workspace
+may render its own navigation through this component. Console places the content
+in its existing sidebar; React portals preserve the contribution's providers,
+error boundary, and lifecycle. Unmounting the contribution restores the catalog
+navigation. This is optional and does not change the v1 module entry point.
+
+Projects uses the slot for the authenticated workspace menu and team navigation.
+Its business directory and selection state stay in the Projects Web plugin; the
+Console shell does not query Projects or import its domain components. Mobile
+navigation closes after a route change. The same-process service adds
+`list_team_issues`, forwarding the team route and original caller context to
+Projects Web. The endpoint applies the existing membership and permission checks.
