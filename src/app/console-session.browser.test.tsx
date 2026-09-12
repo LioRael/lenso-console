@@ -304,3 +304,61 @@ function Access() {
     </p>
   );
 }
+
+test.each([false, true])(
+  "shows login problem or missing browser session (success=%s)",
+  async (success) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/auth/methods") {
+          return Response.json({
+            methods: [
+              {
+                id: "password",
+                kind: "password",
+                label: "Password",
+                action: "/auth/password/login",
+              },
+            ],
+          });
+        }
+        if (String(input) === "/auth/password/login") {
+          return success
+            ? new Response(null, { status: 204 })
+            : Response.json(
+                {
+                  type: "about:blank",
+                  title: "Too Many Requests",
+                  status: 429,
+                  detail: "Wait before trying again.",
+                },
+                {
+                  status: 429,
+                  headers: { "Content-Type": "application/problem+json" },
+                }
+              );
+        }
+        return new Response(null, { status: 401 });
+      })
+    );
+    mount();
+    await page
+      .getByLabelText("Email", { exact: true })
+      .fill("alice@example.test");
+    await page
+      .getByLabelText("Password", { exact: true })
+      .fill("example-password");
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect
+      .element(page.getByRole("alert"))
+      .toHaveTextContent(
+        success
+          ? "browser did not establish a session"
+          : "Wait before trying again."
+      );
+    await expect
+      .element(page.getByText("Private workspace"))
+      .not.toBeInTheDocument();
+  }
+);

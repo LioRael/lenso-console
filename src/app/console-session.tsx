@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { consoleDevConfig } from "../dev/console-dev-config";
+import { problemMessage } from "../lib/http-problem";
 import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
 import { useConsoleLocale } from "./console-locale";
@@ -342,13 +343,39 @@ function LoginMethods({
                   form.reset();
                   if (!response.ok) {
                     setError(
-                      response.status === 429
-                        ? zh
-                          ? "尝试次数过多，请稍后重试。"
-                          : "Too many attempts. Try again later."
-                        : zh
-                          ? "无法登录，请检查账户信息。"
-                          : "Unable to sign in. Check your credentials."
+                      await problemMessage(
+                        response,
+                        response.status === 429
+                          ? zh
+                            ? "尝试次数过多，请稍后重试。"
+                            : "Too many attempts. Try again later."
+                          : zh
+                            ? "无法登录，请检查账户信息。"
+                            : "Unable to sign in. Check your credentials."
+                      )
+                    );
+                    return;
+                  }
+                  const session = await fetch("/api/console/v1/session", {
+                    credentials: "same-origin",
+                    cache: "no-store",
+                  });
+                  if (session.status === 401) {
+                    setError(
+                      zh
+                        ? "登录成功，但浏览器未建立会话。请确认允许 Cookie；本地 HTTP 预览请改用 HTTPS。"
+                        : "Sign-in succeeded, but the browser did not establish a session. Check that cookies are allowed; use HTTPS for local previews."
+                    );
+                    return;
+                  }
+                  if (!session.ok && session.status !== 403) {
+                    setError(
+                      await problemMessage(
+                        session,
+                        zh
+                          ? "暂时无法确认登录状态，请重试。"
+                          : "Unable to verify your session. Try again."
+                      )
                     );
                     return;
                   }

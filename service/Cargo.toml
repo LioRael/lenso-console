@@ -30,7 +30,7 @@ name = "lenso-console-with-agent"
 path = "src/agent_main.rs"
 
 [dependencies]
-lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "58b4ca0e8f761159f99bda332d621dcf36ee9f9e" }
+lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "9c79b9276916d1cef3444bbce64c8f21bb14f4a2" }
 lenso-projects-postgres-plugin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
 lenso-organization-postgres-plugin = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
 lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "ca4c2ac44653b3c248867b0db63f4784de6f1b60" }

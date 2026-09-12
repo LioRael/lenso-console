@@ -17,6 +17,7 @@ pub(super) async fn invoke(
         "get_project" => ("projects.web.projects.detail", Some("project_id")),
         "create_project" => ("projects.web.projects.create", None),
         "create_issue" => ("projects.web.issues.create", Some("project_id")),
+        "list_team_issues" => ("projects.web.team-issues.list", Some("team_id")),
         "list_issues" => ("projects.web.issues.list", Some("project_id")),
         "get_issue" => ("projects.web.issues.detail", Some("issue_ref")),
         "update_issue" => ("projects.web.issues.update", Some("issue_id")),

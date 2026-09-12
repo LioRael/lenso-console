@@ -32,6 +32,10 @@ import {
   usePageCatalog,
   type PageMount,
 } from "../../features/extensions/page-contribution-catalog";
+import {
+  WorkspaceSidebarProvider,
+  WorkspaceSidebarSlot,
+} from "../../features/extensions/workspace-sidebar-slot";
 import { shellStyles } from "./console-shell.stylex";
 import {
   ContextNavigationContent,
@@ -44,6 +48,14 @@ import {
 type ConsoleArea = "agent" | "settings" | "system" | "workspace";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
+  return (
+    <WorkspaceSidebarProvider>
+      <ConsoleShellContent>{children}</ConsoleShellContent>
+    </WorkspaceSidebarProvider>
+  );
+}
+
+function ConsoleShellContent({ children }: PropsWithChildren) {
   const { administrator, signOut } = useConsoleSession();
   const t = useConsoleTranslation();
 
@@ -63,6 +75,9 @@ export function ConsoleShell({ children }: PropsWithChildren) {
     currentWorkspaceLocation,
     visibleWorkspaces,
   } = workspaceShellState(currentPath, pageCatalog.data ?? [], selectedApp);
+  useEffect(() => {
+    setMobileNavigationOpen(false);
+  }, [currentPath]);
   const currentAgentLocation = agentLocationFromPath(currentPath);
   const activeAgent =
     agents.find((agent) => agent.id === currentAgentLocation.agentId) ??
@@ -166,15 +181,17 @@ export function ConsoleShell({ children }: PropsWithChildren) {
                   onRequestClose={() => setMobileNavigationOpen(false)}
                 />
               ) : currentArea === "workspace" ? (
-                <WorkspaceSidebar
-                  mount={currentWorkspace}
-                  currentSegments={currentWorkspaceLocation?.segments ?? []}
-                  navigate={(workspace, segments) => {
-                    setMobileNavigationOpen(false);
-                    navigateToWorkspace(navigate, workspace, segments);
-                  }}
-                  onRequestClose={() => setMobileNavigationOpen(false)}
-                />
+                <WorkspaceSidebarSlot>
+                  <WorkspaceSidebar
+                    mount={currentWorkspace}
+                    currentSegments={currentWorkspaceLocation?.segments ?? []}
+                    navigate={(workspace, segments) => {
+                      setMobileNavigationOpen(false);
+                      navigateToWorkspace(navigate, workspace, segments);
+                    }}
+                    onRequestClose={() => setMobileNavigationOpen(false)}
+                  />
+                </WorkspaceSidebarSlot>
               ) : (
                 <AgentContextNavigation
                   agentId={activeAgent.id}

@@ -29,3 +29,7 @@ Triage uses the five canonical labels in the central tracker. See `docs/agents/t
 ### Domain docs
 
 Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
+
+## UI design and review
+
+Before creating a page, changing controls/layout, or fixing visual details, read [the Lenso UI implementation standard](docs/design/README.md). Follow its component discovery, alignment, and rendered-state acceptance steps. This also applies to plugin pages inside Console; use one shared component owner and record visual verification before claiming completion.
