@@ -1,8 +1,8 @@
 {
   "build": "npm ci --prefix web && npm run build --prefix web",
   "sha256": {
-    "workspace.js": "6c4237bb9d291002cddab2334d6ede3cb09ca41196ab9e47c6ce9c03df9b01d6",
-    "workspace.css": "bf70c6805ba2309a0e085653a2b2ee2ae74d7d1e2628dca854a8dd2fd71b743e"
+    "workspace.js": "e176f87d0500d3527cda001ffc32f7f4252171d9a1b946f671e7dcb50e3588f2",
+    "workspace.css": "d59fc7610904df44abdbd35829c21d40ff7752caacd340e4ee08f28629e5181d"
   },
   "source": "LioRael/lenso-projects-web-plugin"
 }

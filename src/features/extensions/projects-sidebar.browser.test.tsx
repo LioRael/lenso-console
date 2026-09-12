@@ -1,3 +1,5 @@
+import "@lenso/tokens/styles.css";
+import "@lenso/ui/styles.css";
 import { createElement, useState } from "react";
 import * as React from "react";
 import { flushSync } from "react-dom";
@@ -5,12 +7,20 @@ import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import "../../../service/crates/lenso-console-projects-workspace-plugin/assets/workspace.css";
+
 import * as projectsModule from "../../../service/crates/lenso-console-projects-workspace-plugin/assets/workspace.js";
 import {
   ContributionSidebar,
   WorkspaceSidebarProvider,
   WorkspaceSidebarSlot,
 } from "./workspace-sidebar-slot";
+
+function textLeft(el: Element) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  return range.getBoundingClientRect().left;
+}
 
 test("Projects contributes one sidebar and scopes project and issue requests to the selected team", async () => {
   let active = 0;
@@ -139,6 +149,11 @@ test("Projects contributes one sidebar and scopes project and issue requests to 
     await expect
       .element(page.getByRole("status", { name: "Agent context" }))
       .toHaveTextContent("TEA-1");
+    const workspaceName = node.querySelector(".workspace-switch-name")!;
+    const sectionLabel = node.querySelector(".projects-navigation-label")!;
+    expect(
+      Math.abs(textLeft(workspaceName) - textLeft(sectionLabel))
+    ).toBeLessThanOrEqual(1);
     expect(peak).toBe(1);
     const sidebar = node.querySelector("aside")!;
     expect(

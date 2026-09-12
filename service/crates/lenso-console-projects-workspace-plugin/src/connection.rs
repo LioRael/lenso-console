@@ -251,13 +251,21 @@ pub(super) fn endpoint(
             reqwest::Method::GET,
         ),
         "list_team_issues" => (
-            "/api/teams", Some("team_id"),
-            &["organization_id", "include_archived", "limit", "after"], reqwest::Method::GET,
+            "/api/teams",
+            Some("team_id"),
+            &["organization_id", "include_archived", "limit", "after"],
+            reqwest::Method::GET,
         ),
         "list_projects" => (
             "/api/projects",
             None,
-            &["organization_id", "team_id", "include_archived", "limit", "after"],
+            &[
+                "organization_id",
+                "team_id",
+                "include_archived",
+                "limit",
+                "after",
+            ],
             reqwest::Method::GET,
         ),
         "create_project" => ("/api/projects", None, &[], reqwest::Method::POST),
@@ -358,14 +366,27 @@ mod tests {
     use super::*;
     #[test]
     fn team_navigation_keeps_scope_and_pagination() {
-        let (url, method) = endpoint("http://127.0.0.1:55440", "list_team_issues", &json!({"team_id":"team-1","organization_id":"org-1","after":"cursor-1","limit":50})).unwrap();
+        let (url, method) = endpoint(
+            "http://127.0.0.1:55440",
+            "list_team_issues",
+            &json!({"team_id":"team-1","organization_id":"org-1","after":"cursor-1","limit":50}),
+        )
+        .unwrap();
         assert_eq!(method, reqwest::Method::GET);
         assert_eq!(url.path(), "/api/teams/team-1/issues");
-        let params: std::collections::HashMap<_,_> = url.query_pairs().collect();
+        let params: std::collections::HashMap<_, _> = url.query_pairs().collect();
         assert_eq!(params.get("organization_id").unwrap(), "org-1");
         assert_eq!(params.get("after").unwrap(), "cursor-1");
-        let (url, _) = endpoint("http://127.0.0.1:55440", "list_projects", &json!({"organization_id":"org-1","team_id":"team-1"})).unwrap();
-        assert!(url.query_pairs().any(|(key,value)|key=="team_id"&&value=="team-1"));
+        let (url, _) = endpoint(
+            "http://127.0.0.1:55440",
+            "list_projects",
+            &json!({"organization_id":"org-1","team_id":"team-1"}),
+        )
+        .unwrap();
+        assert!(
+            url.query_pairs()
+                .any(|(key, value)| key == "team_id" && value == "team-1")
+        );
     }
     #[test]
     fn issue_updates_are_bound_to_the_selected_app_and_record() {
