@@ -17,3 +17,5 @@
 - [0008 — Dispatch Workspace services through Plan bindings](0008-dispatch-workspace-services-through-plan-bindings.md)
 
 - [0009 — Compose Projects inside the Console App](0009-compose-projects-inside-the-console-app.md)
+
+- [0010 — Separate Console Shell from App assembly](0010-separate-console-shell-from-app-assembly.md)

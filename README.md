@@ -139,16 +139,22 @@ must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `service`: the `lenso.console.web` lifecycle and HTTP Endpoint Plugin, its
-  Plan-bound `lenso.ui.contribution@1` Workspace catalog, same-origin Agent
-  proxy, and thin supervisor for released Agent Web processes. The reference
-  Host composes `lenso.web-ingress`; listener policy is no longer owned by the
-  Console Plugin.
-- `service/crates/lenso-capability-ui-contribution`: generated Rust and
-  TypeScript contract projections for Plugin-owned Console- and App-scoped
-  Workspaces.
-- `service/crates/lenso-console-welcome-workspace-plugin`: a real reference
-  provider with embedded ESM and CSS assets.
+- `service`: the `lenso.console.web` Shell Plugin, its Plan-bound Workspace
+  catalog, same-origin Agent proxy and HTTP admission.
+- `service/crates/lenso-console-app`: reference binaries, concrete providers,
+  Host Catalog, ingress configuration and Kernel lifecycle.
+- `contracts`: independently built UI Contribution and Workspace Service
+  contracts with generated Rust and TypeScript projections.
+- `plugins/observe`: independently built Observe provider and its query contract.
+- `runtime/agent-turn-relay`: detachable Agent streams, transient activity and
+  bounded browser queues, independent of Shell and Lenso implementation packages.
+- `runtime/local-agent-launcher`: directory registration, portable Home seeding
+  and child-process supervision without Console or HTTP dependencies.
+- `service/tests/fixtures/welcome-workspace-plugin`: an explicitly selected
+  Host integration fixture, absent from production binaries.
+- Projects Workspace implementation and assets belong to the separate
+  `lenso-projects-web-plugin` repository. See [ADR-0010](docs/adr/0010-separate-console-shell-from-app-assembly.md)
+  for reproducible source composition and the enforced dependency boundaries.
 - `src/routes`: Agent, Plugins, and Settings routes.
 - `src/features/agent`: Agent conversation, trajectory, history, editing, and
   ask-user UI.

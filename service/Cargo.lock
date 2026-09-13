@@ -1632,6 +1632,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-agent-turn-relay"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-util",
+ "http",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "lenso-app-plan"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2203,28 +2217,47 @@ dependencies = [
 ]
 
 [[package]]
-name = "lenso-console-observe-workspace-plugin"
+name = "lenso-console-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "axum",
  "bytes",
- "flate2",
+ "directories",
  "futures",
- "hex",
  "http",
- "lenso",
+ "lenso-access-control-postgres-plugin",
+ "lenso-app-plan",
+ "lenso-auth-account-plugin",
+ "lenso-auth-oauth-flow-plugin",
+ "lenso-auth-oidc-client-plugin",
+ "lenso-auth-password-plugin",
+ "lenso-auth-web-session-plugin",
+ "lenso-capability-auth",
+ "lenso-capability-http-endpoint",
  "lenso-capability-http-stream-endpoint",
- "lenso-capability-observability-query",
+ "lenso-capability-password-auth",
  "lenso-capability-ui-contribution",
  "lenso-capability-workspace-service",
+ "lenso-cli",
+ "lenso-console-plugin",
+ "lenso-console-welcome-workspace-plugin",
+ "lenso-http-egress-plugin",
  "lenso-kernel",
- "opentelemetry-proto",
- "prost",
- "rusqlite",
- "serde",
+ "lenso-native-adapter",
+ "lenso-observe-plugin",
+ "lenso-organization-postgres-plugin",
+ "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834)",
+ "lenso-projects-postgres-plugin",
+ "lenso-projects-web-plugin",
+ "lenso-projects-workspace-plugin",
+ "lenso-runner",
+ "lenso-secrets-env-plugin",
+ "lenso-web-ingress-plugin",
+ "reqwest 0.12.28",
  "serde_json",
  "tempfile",
+ "time",
  "tokio",
  "uuid",
 ]
@@ -2243,34 +2276,18 @@ dependencies = [
  "hex",
  "http",
  "lenso",
- "lenso-access-control-postgres-plugin",
+ "lenso-agent-turn-relay",
  "lenso-app-plan",
- "lenso-auth-account-plugin",
- "lenso-auth-oauth-flow-plugin",
- "lenso-auth-oidc-client-plugin",
- "lenso-auth-password-plugin",
  "lenso-auth-sdk",
- "lenso-auth-web-session-plugin",
  "lenso-capability-auth",
  "lenso-capability-http-endpoint",
  "lenso-capability-http-stream-endpoint",
- "lenso-capability-password-auth",
  "lenso-capability-ui-contribution",
  "lenso-capability-workspace-service",
- "lenso-cli",
- "lenso-console-observe-workspace-plugin",
- "lenso-console-projects-workspace-plugin",
- "lenso-console-welcome-workspace-plugin",
- "lenso-http-egress-plugin",
  "lenso-kernel",
+ "lenso-local-agent-launcher",
  "lenso-native-adapter",
- "lenso-organization-postgres-plugin",
- "lenso-postgres-kit 0.1.1 (git+https://github.com/LioRael/lenso-postgres-kit?rev=bc12ce2e59ef63e63ffcabb1eb4b524c3022c834)",
- "lenso-projects-postgres-plugin",
- "lenso-projects-web-plugin",
  "lenso-runner",
- "lenso-secrets-env-plugin",
- "lenso-web-ingress-plugin",
  "percent-encoding",
  "reqwest 0.12.28",
  "serde",
@@ -2284,26 +2301,6 @@ dependencies = [
  "toml",
  "tower",
  "uuid",
-]
-
-[[package]]
-name = "lenso-console-projects-workspace-plugin"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "futures",
- "lenso",
- "lenso-capability-http-endpoint",
- "lenso-capability-ui-contribution",
- "lenso-capability-workspace-service",
- "lenso-kernel",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "time",
- "tokio",
- "uuid",
- "zeroize",
 ]
 
 [[package]]
@@ -2397,6 +2394,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-local-agent-launcher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "uuid",
+]
+
+[[package]]
 name = "lenso-native-adapter"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2424,6 +2433,32 @@ dependencies = [
  "serde_json",
  "syn 2.0.119",
  "toml",
+]
+
+[[package]]
+name = "lenso-observe-plugin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bytes",
+ "flate2",
+ "futures",
+ "hex",
+ "http",
+ "lenso",
+ "lenso-capability-http-stream-endpoint",
+ "lenso-capability-observability-query",
+ "lenso-capability-ui-contribution",
+ "lenso-capability-workspace-service",
+ "lenso-kernel",
+ "opentelemetry-proto",
+ "prost",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -2524,7 +2559,7 @@ dependencies = [
 [[package]]
 name = "lenso-projects-web-plugin"
 version = "0.1.2"
-source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=9c79b9276916d1cef3444bbce64c8f21bb14f4a2#9c79b9276916d1cef3444bbce64c8f21bb14f4a2"
+source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=15fb8d492fb9cb86437cc9dd20101aa07492e5cd#15fb8d492fb9cb86437cc9dd20101aa07492e5cd"
 dependencies = [
  "futures",
  "lenso",
@@ -2540,6 +2575,28 @@ dependencies = [
  "serde",
  "serde_json",
  "time",
+]
+
+[[package]]
+name = "lenso-projects-workspace-plugin"
+version = "0.1.0"
+source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=15fb8d492fb9cb86437cc9dd20101aa07492e5cd#15fb8d492fb9cb86437cc9dd20101aa07492e5cd"
+dependencies = [
+ "base64 0.22.1",
+ "futures",
+ "lenso",
+ "lenso-capability-http-endpoint",
+ "lenso-capability-ui-contribution",
+ "lenso-capability-workspace-service",
+ "lenso-kernel",
+ "lenso-projects-web-plugin",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

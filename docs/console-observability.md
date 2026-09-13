@@ -236,9 +236,9 @@ service identity remain Host-private inputs outside the Resolved App Plan.
 
 Concrete artifacts:
 
-- `service/crates/lenso-capability-observability-query`: source schemas,
+- `plugins/observe/crates/lenso-capability-observability-query`: source schemas,
   generated Rust code, TypeScript projection, and conformance fixtures;
-- `service/crates/lenso-console-observe-workspace-plugin`: OTLP endpoint,
+- `plugins/observe`: OTLP endpoint,
   SQLite store, retention, query provider, Workspace provider, and lifecycle;
 - a self-contained Observe frontend module with no Console-private imports;
 - the existing Console contract-aware Workspace service transport;

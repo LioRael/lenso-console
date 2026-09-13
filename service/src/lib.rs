@@ -1,7 +1,7 @@
 mod app_management;
-mod auth_plugins;
 mod http;
 mod lenso_http;
+mod local_agent_client;
 mod page_contributions;
 mod project_activity;
 mod projects;
@@ -13,10 +13,7 @@ pub use projects::LocalProjects;
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
-    fs::{self, OpenOptions},
-    future::Future,
-    io::Write as _,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::IpAddr,
     path::{Path, PathBuf},
 };
 
@@ -24,17 +21,9 @@ use crate::http::{
     Body, IntoResponse as _, Json, OriginalUri, Path as HttpPath, Request, Response, State,
 };
 use ::http::{HeaderMap, Method, StatusCode, header};
-use anyhow::Context as _;
 use bytes::Bytes;
 use directories::BaseDirs;
 use lenso::prelude::*;
-use lenso_app_plan::RequestAdmissionPlan;
-use lenso_app_plan::ResolvedAppPlan;
-use lenso_app_plan::authoring::{
-    HostBinding, HostCatalog, HostDefaultPlugin, HostPluginRelease, HostSlot, PluginInstanceId,
-};
-#[cfg(test)]
-use lenso_app_plan::authoring::{PluginRootSnapshot, resolve_plugin_root};
 use lenso_capability_http_endpoint as http_endpoint;
 use lenso_capability_http_endpoint::{
     DescribeRequest as HttpDescribeRequest, DescribeResponse as HttpDescribeResponse,
@@ -47,17 +36,11 @@ use lenso_capability_http_stream_endpoint::{
     DescribeResponseRoutesItem as StreamRoute, HandleError as StreamHandleError,
     HandleRequest as StreamHandleRequest, StreamEndpointDescribe,
 };
-use lenso_kernel::{InvocationContext, Kernel, NativeApp, RuntimeFailure, ShutdownOutcome};
-use lenso_native_adapter::NativePluginRegistry;
-use lenso_runner::TokioDriver;
-use lenso_web_ingress_plugin::{WebIngressConfig, WebIngressFactory};
+use lenso_kernel::{InvocationContext, RuntimeFailure};
 use serde::{Deserialize, Serialize};
 
-const DEFAULT_PORT: u16 = 3030;
-const DEFAULT_OTLP_PORT: u16 = 4318;
 const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
 const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
-const CONSOLE_REQUEST_ADMISSION: RequestAdmissionPlan = RequestAdmissionPlan::new(64, 16);
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
@@ -123,38 +106,38 @@ fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
 #[allow(clippy::struct_excessive_bools)]
 pub struct ConsolePluginConfig {
     #[serde(default)]
-    require_user_session: bool,
+    pub require_user_session: bool,
     #[serde(default)]
-    administrator_subjects: Vec<String>,
+    pub administrator_subjects: Vec<String>,
     #[serde(default)]
-    member_workspace_ids: Vec<String>,
-    agent_home: String,
-    allowed_tools: Vec<String>,
-    agent_configuration_store: String,
-    console_agent_url: String,
+    pub member_workspace_ids: Vec<String>,
+    pub agent_home: String,
+    pub allowed_tools: Vec<String>,
+    pub agent_configuration_store: String,
+    pub console_agent_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    agent_control_token_file: Option<String>,
-    connected_agent_label: String,
-    connected_agent_plugin_configuration: bool,
-    connected_agent_plugin_lifecycle: bool,
+    pub agent_control_token_file: Option<String>,
+    pub connected_agent_label: String,
+    pub connected_agent_plugin_configuration: bool,
+    pub connected_agent_plugin_lifecycle: bool,
     #[serde(default)]
-    connected_agent_auth_connections: bool,
-    connected_agent_url: String,
+    pub connected_agent_auth_connections: bool,
+    pub connected_agent_url: String,
     #[serde(default)]
-    managed_apps: Vec<ManagedAppConnection>,
-    managed_app_root: String,
-    trusted_plugin_bundles: BTreeMap<String, String>,
-    web_root: String,
+    pub managed_apps: Vec<ManagedAppConnection>,
+    pub managed_app_root: String,
+    pub trusted_plugin_bundles: BTreeMap<String, String>,
+    pub web_root: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    local_projects: Option<LocalProjectsConfig>,
+    pub local_projects: Option<LocalProjectsConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-struct LocalProjectsConfig {
-    binary: String,
-    root: String,
-    template: String,
+pub struct LocalProjectsConfig {
+    pub binary: String,
+    pub root: String,
+    pub template: String,
 }
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
@@ -396,7 +379,7 @@ fn console_application(
     if agent_catalog.projects.is_some() {
         for adapter in &mut agent_catalog.app_agents {
             if adapter.id == "app" {
-                adapter.activity = Some(std::sync::Arc::default());
+                adapter.activity = Some(lenso_agent_turn_relay::TurnRelay::default());
             }
         }
     }
@@ -484,14 +467,9 @@ pub fn link() {}
 
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
-    /// Visible Lenso App root owned by the reference Console Host.
-    pub app_root: PathBuf,
-    pub projects_workspace_origin: Option<String>,
     local_projects: Option<std::sync::Arc<LocalProjects>>,
     local_projects_config: Option<LocalProjectsConfig>,
     agent_control_token_file: Option<PathBuf>,
-    pub address: SocketAddr,
-    pub telemetry_address: SocketAddr,
     pub agent_home: PathBuf,
     pub managed_app_root: PathBuf,
     pub allowed_tools: Vec<String>,
@@ -517,18 +495,6 @@ impl ConsoleConfig {
                     .map(str::to_owned),
             )
             .collect()
-    }
-
-    fn observe_source(&self) -> Option<(String, String)> {
-        self.app_agents
-            .first()
-            .map(|app| (app.id.clone(), app.label.clone()))
-            .or_else(|| {
-                self.managed_app_connections
-                    .iter()
-                    .find(|app| !app.console_extensions)
-                    .map(|app| (app.id.clone(), app.label.clone()))
-            })
     }
 
     #[must_use]
@@ -741,16 +707,12 @@ impl ConsoleConfig {
             })
             .transpose()?;
         Ok(Self {
-            app_root: agent_home.parent().unwrap_or(&current).to_path_buf(),
-            projects_workspace_origin: None,
             local_projects,
             local_projects_config: config.local_projects.clone(),
             agent_control_token_file: config
                 .agent_control_token_file
                 .as_ref()
                 .map(|path| resolve_path(&current, path)),
-            address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), DEFAULT_PORT),
-            telemetry_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), DEFAULT_OTLP_PORT),
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
             agent_configuration_store: resolve_path(&current, &config.agent_configuration_store),
@@ -780,12 +742,6 @@ impl ConsoleConfig {
     pub fn load() -> anyhow::Result<Self> {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let _ = dotenvy::from_path(manifest.join(".env"));
-        let address = SocketAddr::new(
-            parse_loopback_host(std::env::var("HTTP_HOST").as_deref().unwrap_or("127.0.0.1"))?,
-            std::env::var("HTTP_PORT")
-                .ok()
-                .map_or(Ok(DEFAULT_PORT), |value| value.parse())?,
-        );
         let console_home =
             std::env::var_os("LENSO_CONSOLE_HOME").map_or_else(default_console_home, |value| {
                 let path = PathBuf::from(value);
@@ -831,13 +787,9 @@ impl ConsoleConfig {
             Err(error) => return Err(error.into()),
         };
         Ok(Self {
-            app_root: console_home.clone(),
-            projects_workspace_origin: std::env::var("LENSO_CONSOLE_PROJECTS_ORIGIN").ok(),
             local_projects: None,
             local_projects_config: None,
             agent_control_token_file: None,
-            address,
-            telemetry_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), DEFAULT_OTLP_PORT),
             tool_policy: agent_home.join("tool-policy.json"),
             agent_home,
             agent_configuration_store: console_home.join("agent-configuration.sqlite3"),
@@ -866,7 +818,7 @@ impl ConsoleConfig {
         })
     }
 
-    fn to_plugin_config(&self) -> anyhow::Result<ConsolePluginConfig> {
+    pub fn to_plugin_config(&self) -> anyhow::Result<ConsolePluginConfig> {
         anyhow::ensure!(
             self.local_projects.is_none() || self.local_projects_config.is_some(),
             "Plan-bound local projects require their Host-owned path configuration"
@@ -944,14 +896,6 @@ impl ConsoleConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
         app_management::validate_connections(&self.app_agents, &self.managed_apps)?;
         anyhow::ensure!(
-            self.address.ip().is_loopback() && self.telemetry_address.ip().is_loopback(),
-            "the local Console Host may bind only to loopback addresses"
-        );
-        anyhow::ensure!(
-            self.app_root.is_absolute() && self.app_root.parent().is_some(),
-            "Console App root must be an absolute non-root path"
-        );
-        anyhow::ensure!(
             self.agent_home.is_absolute(),
             "Console Agent Home must be absolute"
         );
@@ -1000,325 +944,6 @@ fn read_control_token(path: &Path) -> anyhow::Result<String> {
     Ok(token.to_owned())
 }
 
-/// Stores one launcher-owned Agent control token outside the Resolved App Plan.
-pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()> {
-    use std::io::Write as _;
-
-    anyhow::ensure!(!token.trim().is_empty(), "Agent control token is empty");
-    let parent = path
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("Agent control token path has no parent"))?;
-    std::fs::create_dir_all(parent)?;
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt as _;
-        options.mode(0o600);
-    }
-    let mut file = options.open(path)?;
-    file.write_all(token.as_bytes())?;
-    file.sync_all()?;
-    #[cfg(unix)]
-    std::fs::set_permissions(path, {
-        use std::os::unix::fs::PermissionsExt as _;
-        std::fs::Permissions::from_mode(0o600)
-    })?;
-    Ok(())
-}
-
-/// Starts the reference Console Host from one immutable Plugin composition.
-pub async fn start_host(config: &ConsoleConfig) -> anyhow::Result<NativeApp> {
-    config.validate()?;
-    link();
-    auth_plugins::link();
-    lenso_console_observe_workspace_plugin::link();
-    lenso_console_welcome_workspace_plugin::link();
-    lenso_console_projects_workspace_plugin::link();
-    let registry = console_registry();
-    let catalog = console_host_catalog(config)?;
-    publish_console_app_authority(&config.app_root, &catalog)?;
-    let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)
-        .map_err(|error| anyhow::anyhow!("resolve Console App Plugin Root: {error:#}"))?;
-    // Derive admission in Host authority, then resolve the final immutable Plan.
-    let catalog = http_admission_catalog(catalog, resolved.plan())?;
-    publish_console_app_authority(&config.app_root, &catalog)?;
-    let resolved = lenso_app_authoring::load_resolved_app(&config.app_root)?;
-    auth_plugins::validate_browser_session(resolved.plan())?;
-    let app = Kernel::start_native(resolved.plan().clone(), TokioDriver::new(), registry)
-        .await
-        .map_err(|error| anyhow::anyhow!("Console Host startup failed: {error:?}"))?;
-    println!("Lenso Console listening on http://{}", config.address);
-    Ok(app)
-}
-
-#[cfg(test)]
-fn console_host_plan(config: &ConsoleConfig) -> anyhow::Result<ResolvedAppPlan> {
-    let host = console_host_catalog(config)?;
-    let resolved = resolve_plugin_root(&host, &PluginRootSnapshot::default())
-        .map_err(|error| anyhow::anyhow!("invalid Console Plugin composition: {error}"))?;
-    let host = http_admission_catalog(host, resolved.plan())?;
-    Ok(resolve_plugin_root(&host, &PluginRootSnapshot::default())?
-        .plan()
-        .clone())
-}
-
-#[allow(clippy::too_many_lines)] // Keep the available Plugin cohort and its bindings together.
-fn console_host_catalog(config: &ConsoleConfig) -> anyhow::Result<HostCatalog> {
-    let slots = [
-        HostSlot::many("http-ingress"),
-        HostSlot::one("console"),
-        HostSlot::many("console-workspaces"),
-        HostSlot::many("identity"),
-        HostSlot::many("auth"),
-        HostSlot::many("auth-methods"),
-        HostSlot::many("oauth-flows"),
-        HostSlot::many("secrets"),
-        HostSlot::many("http-clients"),
-        HostSlot::many("web"),
-        HostSlot::many("projects"),
-        HostSlot::many("organization"),
-        HostSlot::many("access-control"),
-    ];
-    let linked = NativePluginRegistry::host_catalog(slots.clone(), [])
-        .map_err(|error| anyhow::anyhow!("invalid linked Console Plugin catalog: {error:?}"))?;
-    let ingress_descriptor = WebIngressFactory::plugin_descriptor();
-    let releases = linked
-        .plugins()
-        .iter()
-        .cloned()
-        .chain(std::iter::once(HostPluginRelease::new(ingress_descriptor)))
-        .chain(std::iter::once(HostPluginRelease::new(
-            lenso_organization_postgres_plugin::OrganizationFactory::plugin_descriptor(),
-        )))
-        .collect::<Vec<_>>();
-    let mut defaults = Vec::new();
-    let observe_source = config.observe_source();
-    for release in &releases {
-        let descriptor = release.descriptor();
-        match descriptor.root_slot() {
-            "http-ingress" if descriptor.plugin_id() == "lenso.web-ingress" => {
-                let ingress = web_ingress_config(config.address, MAX_AGENT_REQUEST_BYTES, 65_536)?;
-                defaults.push(
-                    HostDefaultPlugin::new(descriptor.plugin_id(), "default")
-                        .with_configuration(serde_json::to_value(ingress)?),
-                );
-                if observe_source.is_some() {
-                    let telemetry =
-                        web_ingress_config(config.telemetry_address, 16 * 1024 * 1024, 4096)?;
-                    defaults.push(
-                        HostDefaultPlugin::new(descriptor.plugin_id(), "telemetry")
-                            .with_configuration(serde_json::to_value(telemetry)?),
-                    );
-                }
-            }
-            "console" if descriptor.plugin_id() == "lenso.console.web" => {
-                defaults.push(
-                    HostDefaultPlugin::new(descriptor.plugin_id(), "default")
-                        .with_configuration(serde_json::to_value(config.to_plugin_config()?)?),
-                );
-            }
-            "console-workspaces" if descriptor.plugin_id() == "lenso.console.workspace.observe" => {
-                if let Some((source_id, source_label)) = observe_source.clone() {
-                    let state_root = config
-                        .agent_home
-                        .parent()
-                        .unwrap_or(&config.agent_home)
-                        .join("observe");
-                    defaults.push(
-                        HostDefaultPlugin::new(descriptor.plugin_id(), &source_id)
-                            .with_configuration(serde_json::json!({
-                                "source_id": source_id,
-                                "source_label": source_label,
-                                "database": state_root.join("telemetry.sqlite3"),
-                                "token_file": state_root.join("otlp-token"),
-                                "retention_days": 7,
-                                "retention_bytes": 536_870_912_u64
-                            }))
-                            .disableable(),
-                    );
-                }
-            }
-            "console-workspaces"
-                if descriptor.plugin_id() == "lenso.console.workspace.projects" =>
-            {
-                if let Some(origin) = &config.projects_workspace_origin {
-                    defaults.push(
-                        HostDefaultPlugin::new(descriptor.plugin_id(), "default")
-                            .with_configuration(serde_json::json!({"origin": origin}))
-                            .disableable(),
-                    );
-                }
-            }
-            "console-workspaces" => defaults
-                .push(HostDefaultPlugin::new(descriptor.plugin_id(), "default").disableable()),
-            _ => {}
-        }
-    }
-    let ingress = PluginInstanceId::new("lenso.web-ingress", "default");
-    let mut bindings = vec![
-        HostBinding::new(
-            PluginInstanceId::new("lenso.console.workspace.projects", "default"),
-            http_endpoint::CAPABILITY_ID,
-            "web",
-        ),
-        HostBinding::new(
-            PluginInstanceId::new("lenso.console.web", "default"),
-            lenso_capability_auth::CAPABILITY_ID,
-            "identity",
-        ),
-        HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
-            .with_admission(CONSOLE_REQUEST_ADMISSION),
-    ];
-    if observe_source.is_some() {
-        bindings.push(HostBinding::new(
-            PluginInstanceId::new("lenso.web-ingress", "telemetry"),
-            stream_endpoint::CAPABILITY_ID,
-            "console-workspaces",
-        ));
-    }
-    Ok(HostCatalog::new(slots, releases, defaults).with_bindings(bindings))
-}
-
-/// HTTP fan-out needs bounded waiting instead of the generic zero-queue default.
-/// Preserve the resolver's provider set; never change the running Plan or routes.
-fn http_admission_catalog(
-    catalog: HostCatalog,
-    plan: &ResolvedAppPlan,
-) -> anyhow::Result<HostCatalog> {
-    let mut groups = BTreeMap::<(String, String), Vec<PluginInstanceId>>::new();
-    for binding in plan.capability_bindings() {
-        if binding.capability_id() == http_endpoint::CAPABILITY_ID {
-            groups
-                .entry((
-                    binding.consumer_instance().to_owned(),
-                    binding.requirement_id().to_owned(),
-                ))
-                .or_default()
-                .push(plan_instance_id(binding.provider_instance())?);
-        }
-    }
-    let mut bindings = catalog.bindings().to_vec();
-    for ((consumer, requirement), providers) in groups {
-        let consumer = plan_instance_id(&consumer)?;
-        bindings.retain(|binding| {
-            binding.consumer() != &consumer || binding.requirement_id() != requirement
-        });
-        let binding = HostBinding::to_instances(consumer, http_endpoint::CAPABILITY_ID, providers)
-            .with_admission(CONSOLE_REQUEST_ADMISSION);
-        bindings.push(if requirement.starts_with('~') {
-            binding
-        } else {
-            binding.with_requirement_id(requirement)
-        });
-    }
-    Ok(catalog.with_bindings(bindings))
-}
-
-fn plan_instance_id(key: &str) -> anyhow::Result<PluginInstanceId> {
-    let (plugin, instance) = key
-        .split_once('/')
-        .ok_or_else(|| anyhow::anyhow!("invalid resolved Plugin Instance: {key}"))?;
-    Ok(PluginInstanceId::new(plugin, instance))
-}
-
-fn publish_console_app_authority(root: &Path, catalog: &HostCatalog) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        root.is_absolute() && root.parent().is_some(),
-        "Console App root must be an absolute non-root path"
-    );
-    ensure_real_directory(root, "Console App root")?;
-    let control = root.join(".lenso");
-    let plugins = root.join("plugins");
-    ensure_real_directory(&control, "Console control directory")?;
-    ensure_real_directory(&plugins, "Console Plugin Root")?;
-
-    let mut bytes = serde_json::to_vec_pretty(catalog)?;
-    bytes.push(b'\n');
-    let destination = control.join("host-catalog.json");
-    if fs::read(&destination).is_ok_and(|current| current == bytes) {
-        return Ok(());
-    }
-    if fs::symlink_metadata(&destination).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
-        anyhow::bail!(
-            "Console Host Catalog must not be a symbolic link: {}",
-            destination.display()
-        );
-    }
-    let temporary = control.join(format!("host-catalog.{}.tmp", uuid::Uuid::new_v4()));
-    let result = (|| -> anyhow::Result<()> {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temporary)?;
-        file.write_all(&bytes)?;
-        file.sync_all()?;
-        fs::rename(&temporary, &destination)?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    result.with_context(|| format!("publish Console Host Catalog at {}", destination.display()))
-}
-
-fn ensure_real_directory(path: &Path, label: &str) -> anyhow::Result<()> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) => anyhow::ensure!(
-            metadata.file_type().is_dir(),
-            "{label} must be a directory, not a symlink or file: {}",
-            path.display()
-        ),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            fs::create_dir_all(path)
-                .with_context(|| format!("create {label} at {}", path.display()))?;
-        }
-        Err(error) => {
-            return Err(error).with_context(|| format!("inspect {label} at {}", path.display()));
-        }
-    }
-    Ok(())
-}
-
-fn web_ingress_config(
-    address: SocketAddr,
-    max_body_bytes: usize,
-    max_connections: usize,
-) -> anyhow::Result<WebIngressConfig> {
-    WebIngressConfig::default()
-        .with_bind_address(address)
-        .map_err(anyhow::Error::msg)?
-        .with_request_limits(max_body_bytes, 1024 * 1024)
-        .map_err(anyhow::Error::msg)?
-        .with_connection_limits(max_connections, std::time::Duration::from_secs(15))
-        .map_err(anyhow::Error::msg)?
-        .with_shutdown_grace_timeout(std::time::Duration::from_millis(250))
-        .map_err(anyhow::Error::msg)
-}
-
-fn console_registry() -> NativePluginRegistry {
-    NativePluginRegistry::new()
-        .with_linked_factories()
-        .with_factory(WebIngressFactory::default())
-        .with_factory(lenso_organization_postgres_plugin::OrganizationFactory)
-}
-
-/// Runs the reference Console Host until the process owner requests shutdown.
-pub async fn serve_host(
-    config: ConsoleConfig,
-    shutdown: impl Future<Output = ()>,
-) -> anyhow::Result<()> {
-    let app = start_host(&config).await?;
-    shutdown.await;
-    match app.shutdown(std::time::Duration::from_secs(10)).await {
-        ShutdownOutcome::Clean => Ok(()),
-        ShutdownOutcome::RuntimeFailure { error } => {
-            Err(anyhow::anyhow!("Console Host shutdown failed: {error:?}"))
-        }
-        ShutdownOutcome::Timeout => anyhow::bail!("Console Host shutdown timed out"),
-    }
-}
-
 #[derive(Debug, Serialize)]
 struct Health {
     status: &'static str,
@@ -1326,7 +951,7 @@ struct Health {
 
 #[derive(Clone, Debug)]
 pub struct AppAgentAdapter {
-    activity: Option<project_activity::SharedActivity>,
+    activity: Option<lenso_agent_turn_relay::TurnRelay>,
     auth_connections: bool,
     client: reqwest::Client,
     authorization: Option<String>,
@@ -1338,6 +963,11 @@ pub struct AppAgentAdapter {
 }
 
 impl AppAgentAdapter {
+    #[must_use]
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
     fn parse(origin: &str, label: &str) -> Result<Option<Self>, String> {
         Self::parse_as("app", origin, label)
     }
@@ -1814,18 +1444,6 @@ fn health() -> Json<Health> {
     Json(Health { status: "ok" })
 }
 
-fn parse_loopback_host(value: &str) -> anyhow::Result<IpAddr> {
-    let address = match value {
-        "localhost" => IpAddr::V4(Ipv4Addr::LOCALHOST),
-        value => value.parse()?,
-    };
-    anyhow::ensure!(
-        address.is_loopback(),
-        "HTTP_HOST must be a loopback address"
-    );
-    Ok(address)
-}
-
 fn parse_boolean_environment(name: &str) -> anyhow::Result<bool> {
     match std::env::var(name) {
         Ok(value) if value.eq_ignore_ascii_case("true") || value == "1" => Ok(true),
@@ -1876,10 +1494,7 @@ fn plugin_failure(detail: impl std::fmt::Display) -> RuntimeFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        Json as AxumJson, Router, body::Body as AxumBody, response::Response as AxumResponse,
-        routing::get,
-    };
+    use axum::{Json as AxumJson, Router, routing::get};
 
     fn console_agent() -> AppAgentAdapter {
         AppAgentAdapter::parse_console("http://127.0.0.1:8788", Some("host-secret".to_owned()))
@@ -1915,434 +1530,6 @@ mod tests {
     }
 
     #[test]
-    fn reference_host_binds_the_workspace_provider_through_the_plan() {
-        link();
-        lenso_console_observe_workspace_plugin::link();
-        lenso_console_welcome_workspace_plugin::link();
-        let plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
-        let plan = console_host_plan(&config).unwrap();
-
-        assert_eq!(plan.plugin_instances().len(), 3);
-        assert!(
-            plan.plugin_instances()
-                .iter()
-                .any(|instance| { instance.instance_key() == "lenso.web-ingress/default" })
-        );
-        assert!(
-            plan.plugin_instances()
-                .iter()
-                .any(|instance| { instance.instance_key() == "lenso.console.web/default" })
-        );
-        assert!(plan.capability_bindings().iter().any(|binding| {
-            binding.capability_id() == lenso_capability_ui_contribution::CAPABILITY_ID
-        }));
-        assert!(plan.capability_bindings().iter().any(|binding| {
-            binding.capability_id() == lenso_capability_workspace_service::CAPABILITY_ID
-        }));
-        assert!(
-            plan.capability_bindings()
-                .iter()
-                .any(|binding| { binding.capability_id() == http_endpoint::CAPABILITY_ID })
-        );
-        assert!(
-            plan.capability_bindings()
-                .iter()
-                .any(|binding| { binding.capability_id() == stream_endpoint::CAPABILITY_ID })
-        );
-        for binding in plan.capability_bindings().iter().filter(|binding| {
-            matches!(
-                binding.capability_id(),
-                http_endpoint::CAPABILITY_ID | stream_endpoint::CAPABILITY_ID
-            )
-        }) {
-            let operation = if binding.capability_id() == http_endpoint::CAPABILITY_ID {
-                "handle"
-            } else {
-                "handle_stream"
-            };
-            assert_eq!(
-                plan.request_admission_for(binding, operation),
-                CONSOLE_REQUEST_ADMISSION
-            );
-        }
-    }
-
-    #[test]
-    fn reference_host_publishes_and_resolves_a_visible_plugin_root() {
-        link();
-        lenso_console_observe_workspace_plugin::link();
-        lenso_console_welcome_workspace_plugin::link();
-        lenso_console_projects_workspace_plugin::link();
-        let root = tempfile::tempdir().unwrap();
-        let mut plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        plugin_config.web_root = root.path().to_str().unwrap().to_owned();
-        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
-        let mut config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
-        config.app_root = root.path().join("console-app");
-        config.agent_home = root.path().join("agent");
-
-        let catalog = console_host_catalog(&config).unwrap();
-        publish_console_app_authority(&config.app_root, &catalog).unwrap();
-        let catalog_path = config.app_root.join(".lenso/host-catalog.json");
-        assert!(catalog_path.is_file());
-        assert!(config.app_root.join("plugins").is_dir());
-
-        let default = lenso_app_authoring::load_resolved_app(&config.app_root).unwrap();
-        assert!(default.plan().plugin_instances().iter().any(|instance| {
-            instance.instance_key() == "lenso.console.workspace.welcome/default"
-        }));
-
-        let welcome_root = config
-            .app_root
-            .join("plugins/lenso.console.workspace.welcome");
-        std::fs::create_dir_all(&welcome_root).unwrap();
-        std::fs::write(welcome_root.join("default.disabled"), []).unwrap();
-        let removed = lenso_app_authoring::load_resolved_app(&config.app_root).unwrap();
-        assert!(removed.plan().plugin_instances().iter().all(|instance| {
-            instance.instance_key() != "lenso.console.workspace.welcome/default"
-        }));
-        assert!(
-            removed
-                .plan()
-                .plugin_instances()
-                .iter()
-                .any(|instance| { instance.instance_key() == "lenso.web-ingress/default" })
-        );
-    }
-
-    #[test]
-    fn projects_workspace_requires_explicit_host_origin() {
-        link();
-        lenso_console_welcome_workspace_plugin::link();
-        lenso_console_projects_workspace_plugin::link();
-        let plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        let mut config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
-        let contains_projects = |plan: &ResolvedAppPlan| {
-            plan.plugin_instances().iter().any(|instance| {
-                instance.instance_key() == "lenso.console.workspace.projects/default"
-            })
-        };
-        assert!(!contains_projects(&console_host_plan(&config).unwrap()));
-        config.projects_workspace_origin = Some("http://127.0.0.1:55440".into());
-        assert!(contains_projects(&console_host_plan(&config).unwrap()));
-    }
-
-    #[test]
-    fn observe_is_plan_bound_only_when_an_app_subject_exists() {
-        link();
-        lenso_console_observe_workspace_plugin::link();
-        lenso_console_welcome_workspace_plugin::link();
-        let plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        let without_app = ConsoleConfig::from_plugin(&plugin_config).unwrap();
-        let plan = console_host_plan(&without_app).unwrap();
-        assert!(plan.plugin_instances().iter().all(|instance| {
-            !instance
-                .instance_key()
-                .starts_with("lenso.console.workspace.observe/")
-        }));
-        assert!(
-            plan.plugin_instances()
-                .iter()
-                .all(|instance| { instance.instance_key() != "lenso.web-ingress/telemetry" })
-        );
-        assert!(
-            plan.capability_bindings()
-                .iter()
-                .all(|binding| { binding.consumer_instance() != "lenso.web-ingress/telemetry" })
-        );
-
-        let with_app = ConsoleConfig::from_plugin(&plugin_config)
-            .unwrap()
-            .with_managed_app(&ManagedAppConnection {
-                id: "sample-app".to_owned(),
-                label: "Sample App".to_owned(),
-                origin: "http://127.0.0.1:9191".to_owned(),
-                console_extensions: false,
-                control_token_env: None,
-            })
-            .unwrap();
-        let plan = console_host_plan(&with_app).unwrap();
-        assert!(
-            plan.plugin_instances()
-                .iter()
-                .any(|instance| { instance.instance_key() == "lenso.web-ingress/telemetry" })
-        );
-        assert!(plan.capability_bindings().iter().any(|binding| {
-            binding.consumer_instance() == "lenso.web-ingress/telemetry"
-                && binding.capability_id() == stream_endpoint::CAPABILITY_ID
-        }));
-        let observe = plan
-            .plugin_instances()
-            .iter()
-            .find(|instance| {
-                instance.instance_key() == "lenso.console.workspace.observe/sample-app"
-            })
-            .unwrap();
-        let configuration: serde_json::Value =
-            serde_json::from_str(observe.configuration()).unwrap();
-        assert_eq!(configuration["source_id"], "sample-app");
-        assert!(configuration["token_file"].as_str().is_some());
-        assert!(!observe.configuration().contains("otlp-token-contents"));
-    }
-
-    #[test]
-    fn agent_control_token_stays_out_of_the_resolved_plan() {
-        let root = tempfile::tempdir().unwrap();
-        let token_file = root.path().join("agent-control-token");
-        store_agent_control_token(&token_file, "host-secret").unwrap();
-        let mut plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        plugin_config.agent_control_token_file = Some(token_file.to_str().unwrap().to_owned());
-        let config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
-        let serialized = serde_json::to_string(&console_host_plan(&config).unwrap()).unwrap();
-
-        assert!(!serialized.contains("host-secret"));
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt as _;
-            assert_eq!(
-                std::fs::metadata(token_file).unwrap().permissions().mode() & 0o777,
-                0o600
-            );
-        }
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    #[allow(clippy::too_many_lines)] // One end-to-end Host scenario is easier to audit in sequence.
-    async fn reference_host_serves_the_plan_bound_workspace_catalog() {
-        let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let agent_address = agent_listener.local_addr().unwrap();
-        let agent = tokio::spawn(async move {
-            axum::serve(
-                agent_listener,
-                Router::new()
-                    .route(
-                        "/api/console/v1/agent/bootstrap",
-                        get(|| async { AxumJson(serde_json::json!({})) }),
-                    )
-                    .route(
-                        "/api/console/v1/agent/turns",
-                        axum::routing::post(|| async {
-                            AxumResponse::builder()
-                                .header(header::CONTENT_TYPE, "text/event-stream")
-                                .body(AxumBody::from_stream(futures::stream::iter([
-                                    Ok::<_, std::convert::Infallible>(Bytes::from_static(
-                                        b"event: item\ndata: first\n\n",
-                                    )),
-                                    Ok(Bytes::from_static(b"event: terminal\ndata: second\n\n")),
-                                ])))
-                                .unwrap()
-                        }),
-                    ),
-            )
-            .await
-            .unwrap();
-        });
-        let root = tempfile::tempdir().unwrap();
-        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
-        let reservation = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = reservation.local_addr().unwrap();
-        drop(reservation);
-        let mut plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        plugin_config.console_agent_url = format!("http://{agent_address}");
-        plugin_config.web_root = root.path().to_str().unwrap().to_owned();
-        let mut config = ConsoleConfig::from_plugin(&plugin_config).unwrap();
-        config.app_root = root.path().join("console-app");
-        config.address = address;
-        config.agent_home = root.path().join("agent");
-
-        let local = tokio::task::LocalSet::new();
-        local
-            .run_until(async move {
-                let host = start_host(&config).await.unwrap();
-                let shell_client = reqwest::Client::new();
-                // A browser loads the shell and assets in a concurrent burst.
-                // Exercise the real ingress and immutable Host Plan, without retries.
-                let responses = futures::future::join_all((0..32).map(|_| {
-                    shell_client.get(format!("http://{address}/workspaces/projects")).send()
-                })).await;
-                for response in responses {
-                    let response = response.unwrap();
-                    assert_eq!(response.status(), StatusCode::OK);
-                    assert!(response.text().await.unwrap().contains("<!doctype html>"));
-                }
-
-                for path in ["/", "/workspaces/projects"] {
-                    let url = format!("http://{address}{path}");
-                    let shell = shell_client.get(&url).send().await.unwrap();
-                    assert_eq!(shell.status(), StatusCode::OK);
-                    assert!(shell.text().await.unwrap().contains("<!doctype html>"));
-                    let head = shell_client.head(&url).send().await.unwrap();
-                    assert_eq!(head.status(), StatusCode::OK);
-                    assert!(head.bytes().await.unwrap().is_empty());
-                }
-                let catalog = reqwest::get(format!("http://{address}/api/console/v1/pages"))
-                    .await
-                    .unwrap()
-                    .text()
-                    .await
-                    .unwrap();
-                assert!(
-                    catalog.contains("lenso.console.workspace.welcome/default"),
-                    "unexpected workspace catalog: {catalog}"
-                );
-                assert!(catalog.contains("\"service_id\":\"welcome\""));
-                assert!(catalog.contains("\"available\":true"));
-                let client = reqwest::Client::new();
-                let response = client
-                    .post(format!(
-                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
-                    ))
-                    .json(&serde_json::json!({ "name": "Console" }))
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(response.status(), StatusCode::OK);
-                assert_eq!(
-                    response.json::<serde_json::Value>().await.unwrap()["message"],
-                    "Hello, Console. This came through the Plan-bound service."
-                );
-                let undeclared = client
-                    .post(format!(
-                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/delete"
-                    ))
-                    .json(&serde_json::json!({}))
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(undeclared.status(), StatusCode::NOT_FOUND);
-                let oversized = client
-                    .post(format!(
-                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
-                    ))
-                    .body(vec![b'x'; 1024 * 1024 + 1])
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(oversized.status(), StatusCode::PAYLOAD_TOO_LARGE);
-                let stream = client
-                    .post(format!(
-                        "http://{address}/api/console/v1/pages/welcome/services/welcome/subscribe/ticks"
-                    ))
-                    .json(&serde_json::json!({ "count": 2 }))
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(stream.status(), StatusCode::OK);
-                let stream = stream.text().await.unwrap();
-                assert_eq!(stream.matches("event: item").count(), 2);
-                assert!(stream.contains("event: terminal"));
-                let agent_stream = client
-                    .post(format!("http://{address}/api/console/v1/agent/turns"))
-                    .json(&serde_json::json!({}))
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(agent_stream.status(), StatusCode::OK);
-                let agent_stream = agent_stream.text().await.unwrap();
-                assert!(agent_stream.contains("data: first"));
-                assert!(agent_stream.contains("data: second"));
-                let shutdown = host.shutdown(std::time::Duration::from_secs(2)).await;
-                assert_eq!(shutdown, ShutdownOutcome::Clean, "unexpected shutdown: {shutdown:?}");
-                let revoked = client
-                    .post(format!(
-                        "http://{address}/api/console/v1/pages/welcome/services/welcome/invoke/greet"
-                    ))
-                    .json(&serde_json::json!({ "name": "late" }))
-                    .send()
-                    .await;
-                assert!(revoked.is_err());
-            })
-            .await;
-        agent.abort();
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
-        let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let agent_address = agent_listener.local_addr().unwrap();
-        let agent = tokio::spawn(async move {
-            axum::serve(
-                agent_listener,
-                Router::new().route(
-                    "/api/console/v1/agent/bootstrap",
-                    get(|| async { AxumJson(serde_json::json!({})) }),
-                ),
-            )
-            .await
-            .unwrap();
-        });
-        let root = tempfile::tempdir().unwrap();
-        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
-        let console_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let console_address = console_listener.local_addr().unwrap();
-        drop(console_listener);
-        let telemetry_listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let telemetry_address = telemetry_listener.local_addr().unwrap();
-        drop(telemetry_listener);
-        let mut plugin_config: ConsolePluginConfig =
-            serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
-        plugin_config.console_agent_url = format!("http://{agent_address}");
-        plugin_config.web_root = root.path().to_str().unwrap().to_owned();
-        let mut config = ConsoleConfig::from_plugin(&plugin_config)
-            .unwrap()
-            .with_managed_app(&ManagedAppConnection {
-                id: "sample-app".to_owned(),
-                label: "Sample App".to_owned(),
-                origin: format!("http://{agent_address}"),
-                console_extensions: false,
-                control_token_env: None,
-            })
-            .unwrap();
-        config.address = console_address;
-        config.app_root = root.path().join("console-app");
-        config.telemetry_address = telemetry_address;
-        config.agent_home = root.path().join("agent");
-
-        tokio::task::LocalSet::new()
-            .run_until(async move {
-                let host = start_host(&config).await.unwrap();
-                let token =
-                    std::fs::read_to_string(root.path().join("observe/otlp-token")).unwrap();
-                let endpoint = format!("http://{telemetry_address}/v1/traces");
-                let client = reqwest::Client::new();
-                let unauthorized = client
-                    .post(&endpoint)
-                    .header("content-type", "application/x-protobuf")
-                    .body(Vec::new())
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
-                let accepted = client
-                    .post(endpoint)
-                    .header("content-type", "application/x-protobuf")
-                    .bearer_auth(token.trim())
-                    .body(Vec::new())
-                    .send()
-                    .await
-                    .unwrap();
-                assert_eq!(accepted.status(), StatusCode::OK);
-                assert_eq!(
-                    accepted.headers()[header::CONTENT_TYPE],
-                    "application/x-protobuf"
-                );
-                assert_eq!(
-                    host.shutdown(std::time::Duration::from_secs(2)).await,
-                    ShutdownOutcome::Clean
-                );
-            })
-            .await;
-        agent.abort();
-    }
-
-    #[test]
     fn console_agent_tool_defaults_are_reviewed_and_removable() {
         let defaults: ConsolePluginConfig =
             serde_json::from_str(include_str!("../config.defaults.json")).unwrap();
@@ -2361,10 +1548,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_non_loopback_hosts_and_agent_origins() {
-        assert!(parse_loopback_host("127.0.0.1").is_ok());
-        assert!(parse_loopback_host("::1").is_ok());
-        assert!(parse_loopback_host("0.0.0.0").is_err());
+    fn rejects_non_loopback_agent_origins() {
         assert!(
             AppAgentAdapter::parse("http://127.0.0.1:8787", "Lenso Agent")
                 .unwrap()
