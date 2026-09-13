@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
-import * as observeModule from "../../../service/crates/lenso-console-observe-workspace-plugin/workspace.mjs";
+import * as observeModule from "../../../plugins/observe/workspace.mjs";
 import type { PageMount } from "./page-contribution-catalog";
 import type { WorkspaceServices } from "./workspace-service-client";
 

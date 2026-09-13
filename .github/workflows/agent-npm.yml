@@ -6,6 +6,9 @@ on:
       - "packages/agent/**"
       - "scripts/distribution/**"
       - "service/**"
+      - "contracts/**"
+      - "plugins/**"
+      - "runtime/**"
       - ".github/workflows/agent-npm.yml"
   workflow_dispatch:
     inputs:

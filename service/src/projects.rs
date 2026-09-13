@@ -1,426 +1,17 @@
-//! Project registry and local process supervision. Agent business state stays in each Home.
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::Duration,
-};
-
-use serde::{Deserialize, Serialize};
-use tokio::{
-    process::{Child, Command},
-    sync::Mutex,
-};
-
+//! Console HTTP routes for the local Agent launcher.
 use super::{
     AgentCatalog, AppAgentAdapter, Bytes, HeaderMap, Json, Method, OriginalUri, Response, State,
     StatusCode, allowed_agent_route_with_capabilities, problem, proxy_agent_request,
 };
 use crate::http::{IntoResponse as _, Path as HttpPath, Query, Request};
+#[cfg(test)]
+use lenso_local_agent_launcher::Project;
+use serde::Deserialize;
+#[cfg(test)]
+use std::time::Duration;
+use std::{path::PathBuf, sync::Arc};
 
-const MAX_PROJECTS: usize = 8;
-const MAX_TEMPLATE_BYTES: usize = 32 * 1024 * 1024;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Project {
-    pub id: String,
-    pub path: PathBuf,
-    pub profile: Option<String>,
-}
-
-#[derive(Debug)]
-struct ProjectRuntime {
-    project: Project,
-    running: Mutex<Option<(Child, AppAgentAdapter)>>,
-}
-
-#[derive(Debug)]
-pub struct LocalProjects {
-    root: PathBuf,
-    template: PathBuf,
-    binary: PathBuf,
-    projects: Mutex<BTreeMap<String, Arc<ProjectRuntime>>>,
-    creation: Mutex<()>,
-}
-
-impl LocalProjects {
-    pub fn load(root: PathBuf, template: PathBuf, binary: PathBuf) -> anyhow::Result<Arc<Self>> {
-        private_directory(&root)?;
-        let stored: Vec<Project> = match std::fs::read(root.join("projects.json")) {
-            Ok(bytes) => serde_json::from_slice(&bytes)?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-            Err(error) => return Err(error.into()),
-        };
-        anyhow::ensure!(
-            stored.len() <= MAX_PROJECTS,
-            "Project registry exceeds its limit"
-        );
-        let mut projects = BTreeMap::new();
-        for project in stored {
-            anyhow::ensure!(
-                uuid::Uuid::parse_str(&project.id).is_ok() && project.path.is_absolute(),
-                "Invalid project registry"
-            );
-            let key = project.id.clone();
-            anyhow::ensure!(
-                projects
-                    .insert(
-                        key,
-                        Arc::new(ProjectRuntime {
-                            project,
-                            running: Mutex::new(None)
-                        })
-                    )
-                    .is_none(),
-                "Duplicate project identity"
-            );
-        }
-        Ok(Arc::new(Self {
-            root,
-            template,
-            binary,
-            projects: Mutex::new(projects),
-            creation: Mutex::new(()),
-        }))
-    }
-
-    async fn list(&self) -> Vec<Project> {
-        self.projects
-            .lock()
-            .await
-            .values()
-            .map(|entry| entry.project.clone())
-            .collect()
-    }
-
-    async fn open(&self, path: PathBuf, source: &AppAgentAdapter) -> anyhow::Result<Project> {
-        let _creation = self.creation.lock().await;
-        anyhow::ensure!(path.is_absolute(), "Choose an absolute directory path");
-        let path = path.canonicalize()?;
-        anyhow::ensure!(
-            path.is_dir() && path.to_str().is_some(),
-            "Choose an existing UTF-8 directory"
-        );
-        if let Some(existing) = self
-            .list()
-            .await
-            .into_iter()
-            .find(|project| project.path == path)
-        {
-            self.adapter(&existing.id).await?;
-            return Ok(existing);
-        }
-        anyhow::ensure!(
-            self.list().await.len() < MAX_PROJECTS,
-            "At most eight projects can be opened by this launcher"
-        );
-        // Readiness verifies the source before copying its visible configuration.
-        source.require_ready().await?;
-        let mut url = source.origin.clone();
-        url.set_path("/api/console/v1/agent/bootstrap");
-        let mut request = source.client.get(url).timeout(Duration::from_secs(2));
-        if let Some(token) = &source.authorization {
-            request = request.header("authorization", token);
-        }
-        let bootstrap: serde_json::Value = request.send().await?.error_for_status()?.json().await?;
-        let profile = bootstrap["profile"].as_str().map(str::to_owned);
-        anyhow::ensure!(
-            profile
-                .as_deref()
-                .is_none_or(|name| matches!(name, "plan" | "code" | "code-sandbox")),
-            "This project launcher supports the standard coding Profiles"
-        );
-        let project = Project {
-            profile,
-            id: uuid::Uuid::new_v4().to_string(),
-            path,
-        };
-        let home = self.root.join(&project.id);
-        seed_home(&self.template, &home)?;
-        let runtime = Arc::new(ProjectRuntime {
-            project: project.clone(),
-            running: Mutex::new(None),
-        });
-        if let Err(error) = self.start(&runtime).await {
-            let _ = std::fs::remove_dir_all(&home);
-            return Err(error);
-        }
-        let mut entries = self.list().await;
-        entries.push(project.clone());
-        if let Err(error) = publish_registry(&self.root, &entries) {
-            stop_runtime(&runtime).await;
-            return Err(error);
-        }
-        self.projects
-            .lock()
-            .await
-            .insert(project.id.clone(), runtime);
-        Ok(project)
-    }
-
-    async fn adapter(&self, id: &str) -> anyhow::Result<AppAgentAdapter> {
-        let runtime = self
-            .projects
-            .lock()
-            .await
-            .get(id)
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("Project was not found"))?;
-        self.start(&runtime).await
-    }
-
-    async fn start(&self, runtime: &ProjectRuntime) -> anyhow::Result<AppAgentAdapter> {
-        let mut running = runtime.running.lock().await;
-        if let Some((child, adapter)) = running.as_mut()
-            && child.try_wait()?.is_none()
-        {
-            return Ok(adapter.clone());
-        }
-        *running = None;
-        let directory = runtime.project.path.canonicalize()?;
-        anyhow::ensure!(
-            directory == runtime.project.path && directory.is_dir(),
-            "Project directory moved or is unavailable"
-        );
-        let home = self.root.join(&runtime.project.id);
-        let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
-        let address = listener.local_addr()?;
-        drop(listener);
-        let token = uuid::Uuid::new_v4().to_string();
-        let mut adapter =
-            AppAgentAdapter::parse_as("app", &format!("http://{address}"), "Lenso Agent")
-                .map_err(anyhow::Error::msg)?
-                .ok_or_else(|| anyhow::anyhow!("Project adapter is unavailable"))?;
-        adapter.activity = Some(Arc::default());
-        adapter.authorization = Some(format!("Bearer {token}"));
-        let mut command = Command::new(&self.binary);
-        command
-            .current_dir(&directory)
-            .args([
-                "--listen",
-                &address.to_string(),
-                "--plugin-control",
-                "--plugin-configuration-store",
-            ])
-            .arg(home.join("plugin-configuration.sqlite3"))
-            .arg("--tool-policy")
-            .arg(home.join("tool-policy.json"))
-            .env("LENSO_AGENT_HOME", &home)
-            .env("LENSO_AGENT_WEB_TOKEN", &token)
-            .env("LENSO_AGENT_CONTROL_TOKEN", &token)
-            .env_remove("LENSO_AGENT_PROFILE")
-            .kill_on_drop(true);
-        let initialized = home.join("project-ready").is_file();
-        if initialized && let Some(profile) = &runtime.project.profile {
-            command.arg("--profile").arg(profile);
-        }
-        let mut child = command.spawn()?;
-        let result = tokio::time::timeout(Duration::from_secs(60), async {
-            loop {
-                anyhow::ensure!(
-                    child.try_wait()?.is_none(),
-                    "Project Agent exited before readiness"
-                );
-                if adapter.require_ready().await.is_ok() {
-                    if !initialized {
-                        initialize_profile(&adapter, runtime.project.profile.as_deref()).await?;
-                        std::fs::write(home.join("project-ready"), b"1")?;
-                    }
-                    return Ok(());
-                }
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-        })
-        .await
-        .unwrap_or_else(|_| Err(anyhow::anyhow!("Project Agent readiness timed out")));
-        if let Err(error) = result {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            return Err(error);
-        }
-        *running = Some((child, adapter.clone()));
-        Ok(adapter)
-    }
-
-    pub async fn shutdown(&self) {
-        let entries: Vec<_> = self.projects.lock().await.values().cloned().collect();
-        for runtime in entries {
-            stop_runtime(&runtime).await;
-        }
-    }
-}
-
-async fn initialize_profile(
-    adapter: &AppAgentAdapter,
-    profile: Option<&str>,
-) -> anyhow::Result<()> {
-    let Some(profile) = profile else {
-        return Ok(());
-    };
-    let token = adapter
-        .authorization
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("Project authorization is unavailable"))?;
-    let base = adapter.origin.join("api/console/v1/agent/")?;
-    let configuration: serde_json::Value = adapter
-        .client
-        .get(base.join("control/plugins")?)
-        .header("authorization", token)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
-    let inventory: serde_json::Value = adapter
-        .client
-        .get(base.join("plugins")?)
-        .header("authorization", token)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
-    adapter.client.post(base.join("control/profiles/import")?).header("authorization", token).json(&serde_json::json!({"expectedRevision":configuration["revision"],"expectedStreamId":inventory["streamId"]})).send().await?.error_for_status()?;
-    adapter
-        .client
-        .post(base.join("control/profile")?)
-        .header("authorization", token)
-        .json(&serde_json::json!({"profile":profile}))
-        .send()
-        .await?
-        .error_for_status()?;
-    Ok(())
-}
-
-async fn stop_runtime(runtime: &ProjectRuntime) {
-    if let Some((mut child, _)) = runtime.running.lock().await.take() {
-        let _ = child.kill().await;
-        let _ = child.wait().await;
-    }
-}
-
-fn private_directory(path: &Path) -> anyhow::Result<()> {
-    std::fs::create_dir_all(path)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
-    }
-    Ok(())
-}
-
-fn publish_registry(root: &Path, projects: &[Project]) -> anyhow::Result<()> {
-    let temporary = root.join(format!("projects-{}.tmp", uuid::Uuid::new_v4()));
-    std::fs::write(&temporary, serde_json::to_vec_pretty(projects)?)?;
-    std::fs::rename(temporary, root.join("projects.json"))?;
-    Ok(())
-}
-
-fn validate_roots(value: &toml::Value) -> anyhow::Result<()> {
-    match value {
-        toml::Value::Table(table) => {
-            for (key, value) in table {
-                if key == "root" {
-                    anyhow::ensure!(
-                        value.as_str() == Some("."),
-                        "Project Tool roots must use root = dot"
-                    );
-                }
-                validate_roots(value)?;
-            }
-        }
-        toml::Value::Array(values) => {
-            for value in values {
-                validate_roots(value)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn snapshot_files(root: &Path) -> anyhow::Result<BTreeMap<PathBuf, Vec<u8>>> {
-    fn visit(
-        base: &Path,
-        path: &Path,
-        files: &mut BTreeMap<PathBuf, Vec<u8>>,
-        total: &mut usize,
-    ) -> anyhow::Result<()> {
-        anyhow::ensure!(
-            path.strip_prefix(base)?.components().count() <= 16,
-            "Project template nesting exceeds its limit"
-        );
-        let metadata = std::fs::symlink_metadata(path)?;
-        anyhow::ensure!(
-            !metadata.file_type().is_symlink(),
-            "Project template cannot contain symlinks"
-        );
-        if metadata.is_dir() {
-            for entry in std::fs::read_dir(path)? {
-                visit(base, &entry?.path(), files, total)?;
-            }
-        } else {
-            anyhow::ensure!(
-                metadata.is_file() && metadata.len() <= 1024 * 1024 && files.len() < 4096,
-                "Project template contains an unsupported file"
-            );
-            let bytes = std::fs::read(path)?;
-            *total += bytes.len();
-            anyhow::ensure!(
-                *total <= MAX_TEMPLATE_BYTES,
-                "Project template is too large"
-            );
-            if let Ok(text) = std::str::from_utf8(&bytes) {
-                if path
-                    .extension()
-                    .is_some_and(|extension| extension == "toml")
-                {
-                    validate_roots(&toml::from_str::<toml::Value>(text)?)?;
-                }
-                anyhow::ensure!(
-                    !text.contains(base.to_string_lossy().as_ref()),
-                    "Project configuration refers to private Agent Home; use portable configuration before opening a project"
-                );
-            }
-            files.insert(path.strip_prefix(base)?.to_path_buf(), bytes);
-        }
-        Ok(())
-    }
-    let mut files = BTreeMap::new();
-    let mut total = 0;
-    for name in [
-        "plugins",
-        "profiles",
-        "tool-policy.json",
-        "runtime/model-catalog/openai-codex-direct.json",
-    ] {
-        let path = root.join(name);
-        if path.exists() {
-            visit(root, &path, &mut files, &mut total)?;
-        }
-    }
-    Ok(files)
-}
-
-fn seed_home(template: &Path, home: &Path) -> anyhow::Result<()> {
-    let files = snapshot_files(template)?;
-    anyhow::ensure!(
-        files == snapshot_files(template)?,
-        "Agent configuration changed; open the project again"
-    );
-    private_directory(home)?;
-    for (path, bytes) in files {
-        let target = home.join(path);
-        private_directory(
-            target
-                .parent()
-                .ok_or_else(|| anyhow::anyhow!("Invalid template path"))?,
-        )?;
-        std::fs::write(target, bytes)?;
-    }
-    Ok(())
-}
+pub type LocalProjects = lenso_local_agent_launcher::LocalProjects<AppAgentAdapter>;
 
 pub(super) async fn handle(catalog: &AgentCatalog, request: &Request) -> Option<Response> {
     let tail = request.path.strip_prefix("/api/console/v1/agents/")?;
@@ -576,30 +167,7 @@ fn directories(
     if let Err(error) = manager(&catalog, &agent_id) {
         return error;
     }
-    let result = (|| -> anyhow::Result<serde_json::Value> {
-        anyhow::ensure!(
-            query.path.is_absolute(),
-            "Choose an absolute directory path"
-        );
-        let path = query.path.canonicalize()?;
-        let mut directories = Vec::new();
-        let mut truncated = false;
-        for (index, entry) in std::fs::read_dir(&path)?.take(1001).enumerate() {
-            if index == 1000 {
-                truncated = true;
-                break;
-            }
-            let entry = entry?;
-            if entry.file_type()?.is_dir() && !entry.file_name().to_string_lossy().starts_with('.')
-            {
-                directories.push(entry.path());
-            }
-        }
-        directories.sort();
-        Ok(
-            serde_json::json!({"path":path,"parent":path.parent(),"directories":directories,"truncated":truncated}),
-        )
-    })();
+    let result = LocalProjects::directories(&query.path);
     match result {
         Ok(value) => Json(value).into_response(),
         Err(error) => problem(
@@ -621,7 +189,7 @@ async fn proxy(
         Ok(manager) => manager,
         Err(error) => return error,
     };
-    if !manager.projects.lock().await.contains_key(&project_id) {
+    if !manager.contains(&project_id).await {
         return problem(StatusCode::NOT_FOUND, "Project was not found");
     }
     if !(method == Method::GET && path == "activity"
@@ -649,27 +217,6 @@ async fn proxy(
 mod tests {
     use super::*;
 
-    #[test]
-    fn project_seed_excludes_history_and_rejects_shared_roots() {
-        let root = tempfile::tempdir().unwrap();
-        let source = root.path().join("source");
-        let home = root.path().join("project");
-        std::fs::create_dir_all(source.join("plugins/tool")).unwrap();
-        std::fs::write(source.join("plugins/tool/default.toml"), "root = \".\"\n").unwrap();
-        std::fs::write(source.join("sessions.json"), "private history").unwrap();
-        std::fs::write(source.join("auth.json"), "private credentials").unwrap();
-        seed_home(&source, &home).unwrap();
-        assert!(home.join("plugins/tool/default.toml").is_file());
-        assert!(!home.join("sessions.json").exists());
-        assert!(!home.join("auth.json").exists());
-        std::fs::write(
-            source.join("plugins/tool/default.toml"),
-            "root = \"/another/project\"\n",
-        )
-        .unwrap();
-        assert!(seed_home(&source, &root.path().join("rejected")).is_err());
-    }
-
     async fn run_real_turn(manager: &LocalProjects, project: &Project) -> String {
         std::fs::write(project.path.join("proof.txt"), "before\n").unwrap();
         let adapter = manager.adapter(&project.id).await.unwrap();
@@ -683,7 +230,7 @@ mod tests {
         drop(response);
         tokio::time::timeout(Duration::from_secs(120), async {
             loop {
-                let state = activity.lock().unwrap().clone();
+                let state = activity.snapshot();
                 if !state.running {
                     assert!(state.detail.is_none(), "{:?}", state.detail);
                     break;
@@ -728,11 +275,11 @@ mod tests {
             project.id
         );
         std::fs::remove_file(project.path.join("proof.txt")).unwrap();
-        activity.lock().unwrap().session_id.clone().unwrap()
+        activity.snapshot().session_id.unwrap()
     }
 
     #[tokio::test]
-    #[ignore = "requires PROJECT_TEST_BINARY, PROJECT_TEST_TEMPLATE and a ready source Agent on 8787"]
+    #[ignore = "requires PROJECT_TEST_BINARY, PROJECT_TEST_TEMPLATE and a ready PROJECT_TEST_SOURCE_ORIGIN (defaults to 8787)"]
     async fn real_project_processes_keep_directories_and_registry() {
         let root = tempfile::tempdir().unwrap();
         let template = PathBuf::from(std::env::var_os("PROJECT_TEST_TEMPLATE").unwrap());
@@ -740,7 +287,9 @@ mod tests {
         let registry = root.path().join("registry");
         let manager =
             LocalProjects::load(registry.clone(), template.clone(), binary.clone()).unwrap();
-        let source = AppAgentAdapter::parse_as("app", "http://127.0.0.1:8787", "Source")
+        let origin = std::env::var("PROJECT_TEST_SOURCE_ORIGIN")
+            .unwrap_or_else(|_| "http://127.0.0.1:8787".to_owned());
+        let source = AppAgentAdapter::parse_as("app", &origin, "Source")
             .unwrap()
             .unwrap();
         let first = root.path().join("first");

@@ -7,7 +7,8 @@ export default defineConfig({
   extends: [core, react, tanstack],
   ignorePatterns: [
     "service/**/generated/**",
-    "service/crates/lenso-console-projects-workspace-plugin/assets/**",
+    "contracts/**/generated/**",
+    "plugins/**/generated/**",
   ],
   overrides: [
     {

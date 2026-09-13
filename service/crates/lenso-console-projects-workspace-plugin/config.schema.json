@@ -1,9 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "origin": {
-      "type": "string"
-    }
-  },
-  "additionalProperties": false
-}

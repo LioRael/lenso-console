@@ -80,9 +80,9 @@ Implemented now:
   Admission rejects unknown App identities and the Shell never substitutes the
   currently selected App for the URL subject. The primary rail shows Console
   Workspaces plus Workspaces for the selected or deep-linked App.
-- `service:serve` and `agent:web` both run this composition through the Kernel;
-  the bundled Welcome provider proves the real launcher path rather than a
-  test-only or custom-embedding path.
+- `service:serve` and `agent:web` both run this composition through the Kernel.
+  Host integration tests explicitly select the Welcome fixture; production
+  binaries do not link it. App defaults or Plugin Root select available providers.
 - `lenso.console.web` also requires `lenso.ui.workspace-service@1` with `many`
   cardinality. Activation pairs owner exports by provider-instance identity and
   exposes only the declared mount/service/Operation routes to the browser.

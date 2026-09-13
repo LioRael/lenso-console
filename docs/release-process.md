@@ -67,3 +67,23 @@ pnpm test
 
 `pnpm build` includes TypeScript validation. `pnpm test` runs both the local
 Vitest suite and the browser suite.
+
+
+## Standalone Rust contract packages
+
+`contracts/` owns the UI Contribution and Workspace Service packages;
+`plugins/observe/crates/lenso-capability-observability-query` owns the Observe
+query package. Each is `publish = true` and passes independent `cargo package`
+verification with registry dependencies. This establishes package readiness,
+not registry availability. No Rust contract publisher is configured by this
+extraction, and the existing npm workflow does not publish these crates.
+
+Before dependent Plugin registry publication, configure the approved crates.io
+Trusted Publisher workflow and release environment, publish the reviewed contract
+versions, and verify their registry availability. Then replace the Projects
+Workspace's pinned Git contract dependencies and Observe's local contract paths
+with the published versions, verify their package builds, and configure their
+own releases. The implementation packages remain unpublished until that work
+is complete. Console's source App pins both Projects packages to one immutable owner Git
+revision and aligns native UI contract sources through repository-relative manifest
+patches. A clean checkout does not require temporary or machine-specific overrides.
