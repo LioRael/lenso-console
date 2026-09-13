@@ -1,12 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": [
-    "catalog_id",
-    "key_id",
-    "public_key_hex",
-    "cache_database"
-  ],
+  "required": ["catalog_id", "key_id", "public_key_hex", "cache_database"],
   "properties": {
     "catalog_id": {
       "type": "string",

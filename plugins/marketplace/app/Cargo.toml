@@ -17,7 +17,7 @@ lenso-native-adapter = "0.3.13"
 lenso-kernel = "0.3.6"
 lenso-runner = "0.2.13"
 lenso-web-ingress-plugin = "0.4.2"
-tokio = { version = "1", features = ["macros","rt","signal"] }
+tokio = { version = "1", features = ["macros", "rt", "signal"] }
 serde_json = "1"
 anyhow = "1"
 tempfile = "3"
