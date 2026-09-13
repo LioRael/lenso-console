@@ -1,0 +1,63 @@
+name: Marketplace foundation
+
+on:
+  pull_request:
+    paths:
+      - '.cargo/config.toml'
+      - 'plugins/marketplace/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/marketplace.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.cargo/config.toml'
+      - 'plugins/marketplace/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/marketplace.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  catalog:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
+        with:
+          run_install: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+        with:
+          toolchain: '1.94'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+        with:
+          workspaces: |
+            plugins/marketplace/catalog
+            plugins/marketplace/directory
+            plugins/marketplace/web
+            plugins/marketplace/app
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm marketplace:build
+      - run: pnpm exec oxlint plugins/marketplace/web/ui/*.tsx plugins/marketplace/web/ui/*.ts plugins/marketplace/web/tests/browser.mjs
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: cargo install lenso-cli --version 0.5.2 --locked
+      - run: CARGO=cargo bash plugins/marketplace/verify-browser.sh
+      - run: cargo fmt --manifest-path plugins/marketplace/catalog/Cargo.toml -- --check
+      - run: cargo clippy --locked --manifest-path plugins/marketplace/catalog/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --locked --manifest-path plugins/marketplace/catalog/Cargo.toml
+      - run: node plugins/marketplace/catalog/tests/cross-language.mjs
+      - run: cargo fmt --manifest-path plugins/marketplace/directory/Cargo.toml --all -- --check
+      - run: cargo clippy --locked --manifest-path plugins/marketplace/directory/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: cargo test --locked --manifest-path plugins/marketplace/directory/Cargo.toml --workspace
+      - run: pnpm exec tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution bundler --skipLibCheck plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/generated/bindings.ts
+      - run: cargo fmt --manifest-path plugins/marketplace/web/Cargo.toml --all -- --check
+      - run: cargo clippy --locked --manifest-path plugins/marketplace/web/Cargo.toml --all-targets -- -D warnings
+      - run: cargo fmt --manifest-path plugins/marketplace/app/Cargo.toml --all -- --check
+      - run: cargo clippy --locked --manifest-path plugins/marketplace/app/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --locked --manifest-path plugins/marketplace/app/Cargo.toml
