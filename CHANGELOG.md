@@ -1,5 +1,26 @@
 ## @lenso/console-web@0.1.7
 
+## 1.18.0
+
+### Minor Changes
+
+- 5e3fae9: Compose Projects, Organization, Access Control and Auth in the Console process. Native workspaces reuse the current Console session, while explicit member workspace access restricts the catalog and API routes and keeps shared Agent administration private.
+- 5e3fae9: Add Plugin-configured Console login, per-request Auth checks, secure session handling, and explicit administrator access. Discover password and enterprise SSO methods from Auth bindings without exposing shared Host authority to every authenticated account.
+
+### Patch Changes
+
+- e261a88: Keep supervised Agent turns progressing when a browser stops reading its response.
+  Slow readers now receive a stream error and can recover from Agent history;
+  upstream failures are no longer presented as a successful end of stream.
+- 5e3fae9: Configure bounded HTTP request admission in Console Host authority so parallel browser resource requests do not fail with ResourceExhausted. Preserve resolved provider selection before starting the immutable App Plan.
+- 5e3fae9: Align the Console login form with Lenso UI controls, visible field labels, and consistent spacing. Group SSO and password sign-in methods and improve authentication error presentation.
+- e261a88: Remove the Welcome demonstration from production Console binaries. Activate optional Workspaces only through explicit App defaults or Plugin Root configuration, while retaining standalone Observe and shared contract packages outside the Shell service workspace.
+- 0a696d9: Return RFC 9457 Problem Details for Console session authorization errors. Show public Problem Details in login failures and explain when successful sign-in does not establish a browser session.
+- 5e3fae9: Preserve each request's invocation context through Console HTTP adapters and Workspace dispatch, including sealed evidence, deadlines and cancellation. Keep user contexts isolated for unary and streaming calls.
+- 0a696d9: Support plugin-owned context navigation in the Console sidebar. Integrate the Projects workspace menu, team project and issue navigation, and compact list and detail layouts while retaining existing session authorization.
+
+  Align workspace labels and overview row text, preserve padded hover surfaces, and add an Agent-facing design standard with component ownership and rendered-state review gates.
+
 ## 1.17.0
 
 ### Minor Changes
