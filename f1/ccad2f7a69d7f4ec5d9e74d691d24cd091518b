@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_3724267b9ee00e::t_a0e69727775c51 3-8
+package.json
+  s_3724267b9ee00e::t_5254ccd8742ddc 3
+scripts/distribution/agent-release.json
+  s_3724267b9ee00e::t_e091af7542f2b5 2,5-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1ccad2f7a69d7f4ec5d9e74d691d24cd091518b",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
