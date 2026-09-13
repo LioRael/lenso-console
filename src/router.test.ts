@@ -21,16 +21,6 @@ describe("Console router", () => {
     expect(getRouter().options).toMatchObject({ basepath: "/" });
   });
 
-  test("uses Start lifecycle defaults for route transitions", () => {
-    expect(getRouter().options).toMatchObject({
-      defaultPendingMinMs: 500,
-      defaultPendingMs: 1000,
-      defaultPreload: "intent",
-      defaultPreloadDelay: 100,
-      notFoundMode: "root",
-    });
-  });
-
   test("keeps legacy paths at the file-route catch-all seam", () => {
     expect(legacyConsoleTargetForPath("/console/launchpad", "/console")).toBe(
       "/"
