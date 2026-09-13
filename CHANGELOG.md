@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.18.1
+
+### Patch Changes
+
+- Update the bundled Agent to keep Web available when model catalog refresh fails with an expired cache. Model selection recovers automatically after acquisition succeeds.
+
 ## 1.18.0
 
 ### Minor Changes
