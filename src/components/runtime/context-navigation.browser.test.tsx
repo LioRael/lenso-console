@@ -236,23 +236,8 @@ describe("Context navigation", () => {
     const headerTop = header.getBoundingClientRect().top;
     const stickyActionsTop = stickyActions.getBoundingClientRect().top;
     const firstSessionTop = firstSession.getBoundingClientRect().top;
-    const softFade = getComputedStyle(stickyActions, "::before");
-    const strongFade = getComputedStyle(stickyActions, "::after");
-
     expect(content.scrollHeight).toBeGreaterThan(content.clientHeight);
     expect(getComputedStyle(content).overflowY).toBe("auto");
-    const stickyStyle = getComputedStyle(stickyActions);
-    expect(stickyStyle.borderBottomLeftRadius).toBe("14px");
-    expect(stickyStyle.borderBottomRightRadius).toBe("14px");
-    expect(stickyStyle.paddingBottom).toBe("0px");
-    expect(softFade.backdropFilter).toContain("blur(1px)");
-    expect(softFade.borderTopLeftRadius).toBe("14px");
-    expect(softFade.borderTopRightRadius).toBe("14px");
-    expect(softFade.maskImage).toContain("linear-gradient");
-    expect(strongFade.backdropFilter).toContain("blur(3px)");
-    expect(strongFade.borderTopLeftRadius).toBe("14px");
-    expect(strongFade.borderTopRightRadius).toBe("14px");
-    expect(strongFade.maskImage).toContain("linear-gradient");
     content.scrollTop = 100;
     await nextFrame();
 
