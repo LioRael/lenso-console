@@ -1,0 +1,27 @@
+plugins/marketplace/app/Cargo.toml
+  s_3724267b9ee00e::t_17f4348e9e2d34 29-34
+plugins/marketplace/catalog/Cargo.toml
+  s_3724267b9ee00e::t_1510c261e74b33 30-35
+plugins/marketplace/directory/Cargo.toml
+  s_3724267b9ee00e::t_0cd2bec736cfed 30-35
+plugins/marketplace/verify-browser.sh
+  s_3724267b9ee00e::t_7ec0d3c3769698 16
+plugins/marketplace/web/Cargo.toml
+  s_3724267b9ee00e::t_857724546e6b04 25-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be2e9c2f8d1bbc2f87cb709b4913b51c85fe0c86",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
