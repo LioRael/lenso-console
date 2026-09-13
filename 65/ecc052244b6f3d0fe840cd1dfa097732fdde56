@@ -1,0 +1,201 @@
+docs/plugin-marketplace-v1.md
+  s_3724267b9ee00e::t_224effacd81992 7-12
+  s_3724267b9ee00e::t_e6bf8d0ed88dd7 1-5,14-260
+  s_3724267b9ee00e::t_b65cf6dc9353ee 6,13
+  s_3724267b9ee00e::t_efc071e167dac7 261-286
+plugins/marketplace/catalog/src/directory.rs
+  s_3724267b9ee00e::t_3ca2d5bf6dcab4 228,295-302,318-324,344,388
+  s_3724267b9ee00e::t_24eb8620622d80 15-41,165-170
+  s_3724267b9ee00e::t_6b83ecf0a9ffd1 3,7,56-66,70-74,77-84,89-111,116-123,131-147,151-157,159-162,173-178,181-188,191-193,196-201,204-224,229-237,239-250,252-259,267-283,287-294,303-317,325-343,345-387,389-399
+  s_3724267b9ee00e::t_0e5ca541cda31a 1-2,4-6,8-14,42-55,67-69,75-76,85-88,112-115,124-130,148-150,158,163-164,171-172,179-180,189-190,194-195,202-203,225-227,238,251,284-286,400-401
+  s_3724267b9ee00e::t_8d5e34d98bab68 260-266
+  s_3724267b9ee00e::t_4f3829c7ea80d6 402-413
+plugins/marketplace/web/src/lib.rs
+  s_3724267b9ee00e::t_a1e77020f5195d 5,40
+  s_3724267b9ee00e::t_d828c7c8faff0c 1-4,6-34,37-39,42-56,59-61,65-70
+  s_3724267b9ee00e::t_ca0f97dfced737 35-36,41,57-58,62-64
+  s_3724267b9ee00e::t_d503971798e710 71-334
+plugins/marketplace/directory/config.schema.json
+  s_3724267b9ee00e::t_58f774d9328fa6 1
+plugins/marketplace/catalog/tests/catalog.rs
+  s_3724267b9ee00e::t_a412de5e5aeccc 4,8-34,44-46,49-58,68-80,91-99,102-110,112-118,125-127,129-130,133-134,136-137,139-140,149-155,158-162,169-175,180-201
+  s_3724267b9ee00e::t_0bf8b990a7b1e7 145-148,156-157,163-168,176-179,202
+  s_3724267b9ee00e::t_484de0874a6eed 1-3,5-7,35-43,47-48,59-67,81-90,100-101,111,119-124,128,131-132,135,138,141-144
+  s_3724267b9ee00e::t_3f1a5be4e3740c 203-366
+plugins/marketplace/catalog/Cargo.toml
+  s_3724267b9ee00e::t_0e5ca541cda31a 23
+  s_3724267b9ee00e::t_57bdb093d27397 18
+  s_3724267b9ee00e::t_c2bb9b6897e9ea 5
+  s_3724267b9ee00e::t_cfdf57fad1bb2a 1-4,6-17,19-22,24-29
+plugins/marketplace/app/src/main.rs
+  s_3724267b9ee00e::t_a1e77020f5195d 1-25
+  s_3724267b9ee00e::t_f9f6a2343f2ef5 26-40
+plugins/marketplace/app/Cargo.toml
+  s_3724267b9ee00e::t_a1e77020f5195d 1-28
+plugins/marketplace/catalog/src/cache.rs
+  s_3724267b9ee00e::t_d828c7c8faff0c 1-29
+  s_3724267b9ee00e::t_dd0d03a2543c7f 30-58
+plugins/marketplace/catalog/examples/conformance.rs
+  s_3724267b9ee00e::t_a412de5e5aeccc 1-14
+  s_3724267b9ee00e::t_86d2525d722225 15-20
+plugins/marketplace/integration/archive_handoff.rs
+  s_3724267b9ee00e::t_6b5de11c85843f 1-27
+  s_3724267b9ee00e::t_72304c9db2bb8c 28-132
+plugins/marketplace/directory/src/lib.rs
+  s_3724267b9ee00e::t_58f774d9328fa6 2-40,44-79,82-96
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1
+  s_3724267b9ee00e::t_bd641b5a0a4b0f 41-43,80-81
+  s_3724267b9ee00e::t_06192cc9eab9bd 97-159
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/schemas/read-request.schema.json
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1
+plugins/marketplace/verify-archive-handoff.sh
+  s_3724267b9ee00e::t_6b5de11c85843f 1-34
+plugins/marketplace/web/config.schema.json
+  s_3724267b9ee00e::t_d828c7c8faff0c 1
+  s_3724267b9ee00e::t_4fbc0fd1471c2d 2-32
+.github/workflows/marketplace.yml
+  s_3724267b9ee00e::t_43b9340630820c 28-30,40-45,55-58
+  s_3724267b9ee00e::t_c2bb9b6897e9ea 1-27,31-39,51-54
+  s_3724267b9ee00e::t_837a020858bbb1 46-50,59-63
+plugins/marketplace/catalog/src/lib.rs
+  s_3724267b9ee00e::t_cfdf57fad1bb2a 1-4
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/schemas/read-error.schema.json
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1
+plugins/marketplace/app/src/lib.rs
+  s_3724267b9ee00e::t_a1e77020f5195d 1-42
+  s_3724267b9ee00e::t_e1673faeaee1c9 43-96
+plugins/marketplace/app/tests/http.rs
+  s_3724267b9ee00e::t_130fd847ab5e72 1-31
+  s_3724267b9ee00e::t_9f6dbc0e2a612a 32-176
+plugins/marketplace/.gitignore
+  s_3724267b9ee00e::t_3ca2d5bf6dcab4 1
+  s_3724267b9ee00e::t_5522d777e86338 2
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/Cargo.toml
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1-18
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/src/lib.rs
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1-2
+plugins/marketplace/directory/Cargo.toml
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1-29
+plugins/marketplace/web/Cargo.toml
+  s_3724267b9ee00e::t_d828c7c8faff0c 1-21
+  s_3724267b9ee00e::t_c96eaef4053018 22-24
+plugins/marketplace/verify-local.sh
+  s_3724267b9ee00e::t_b65cf6dc9353ee 1-27
+docs/plugin-marketplace.md
+  s_3724267b9ee00e::t_8b896fcc9d44ee 5-9
+  s_3724267b9ee00e::t_a0007488f9566b 95-100,179
+plugins/marketplace/catalog/tests/cross-language.mjs
+  s_3724267b9ee00e::t_a412de5e5aeccc 1-18
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/schemas/read-response.schema.json
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1
+plugins/marketplace/README.md
+  s_3724267b9ee00e::t_b65cf6dc9353ee 1-2,5-11,18-77,80-81,86-97
+  s_3724267b9ee00e::t_43b9340630820c 3-4,12-17,78-79,82-85,98-122
+  s_3724267b9ee00e::t_227aa801ad3eab 123-263
+plugins/marketplace/catalog/tests/real_bundle.rs
+  s_3724267b9ee00e::t_3ca2d5bf6dcab4 1-31
+  s_3724267b9ee00e::t_27699e1c36c6ca 32-84
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/build.rs
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1-14
+  s_3724267b9ee00e::t_c04a0cf94286d1 15-25
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/capability.json
+  s_3724267b9ee00e::t_8fa7e15c1af01a 1-13
+.cargo/config.toml
+  s_3724267b9ee00e::t_7595d1c1eccb31 1-5
+.changeset/calm-marketplace-catalog.md
+  s_3724267b9ee00e::t_0448d1f68a9b53 1-5
+design-qa.md
+  s_3724267b9ee00e::t_610c063d2f0f52 1-34
+docs/plugin-marketplace-presentation.md
+  s_3724267b9ee00e::t_c3dfa1599d3b15 1-36
+package.json
+  s_3724267b9ee00e::t_e51dd41b682c9b 8
+plugins/marketplace/app/Cargo.lock
+  s_3724267b9ee00e::t_202a8908636399 1-2956
+plugins/marketplace/catalog/examples/seed_fixture.rs
+  s_3724267b9ee00e::t_732ce1ea0a6ba5 1-66
+plugins/marketplace/catalog/tests/cache.rs
+  s_3724267b9ee00e::t_edf7e68df0d39e 1-48
+plugins/marketplace/catalog/tests/conformance.json
+  s_3724267b9ee00e::t_060c008fd701c9 1-16
+plugins/marketplace/directory/Cargo.lock
+  s_3724267b9ee00e::t_b7af4ef9d04103 1-2316
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/generated/bindings.ts
+  s_3724267b9ee00e::t_6eff9803a07d99 1-260
+plugins/marketplace/directory/crates/lenso-capability-marketplace-directory/src/generated.rs
+  s_3724267b9ee00e::t_c6e0bff1ee69d4 1-389
+plugins/marketplace/fixtures/echo/Cargo.lock
+  s_3724267b9ee00e::t_8e3304369eef75 1-819
+plugins/marketplace/fixtures/echo/Cargo.toml
+  s_3724267b9ee00e::t_6a21732a1abc39 1-23
+plugins/marketplace/fixtures/echo/README.md
+  s_3724267b9ee00e::t_defc66607d7497 1-9
+plugins/marketplace/fixtures/echo/src/lib.rs
+  s_3724267b9ee00e::t_47fefd0edac406 1-34
+plugins/marketplace/fixtures/echo/src/main.rs
+  s_3724267b9ee00e::t_5cb8806d728d79 1-2
+plugins/marketplace/fixtures/proof/Cargo.lock
+  s_3724267b9ee00e::t_ff024bdb291983 1-977
+plugins/marketplace/fixtures/proof/Cargo.toml
+  s_3724267b9ee00e::t_f6c743347defcc 1-23
+plugins/marketplace/fixtures/proof/README.md
+  s_3724267b9ee00e::t_a6ac64fe5fe9d0 1-12
+plugins/marketplace/fixtures/proof/build-variants.py
+  s_3724267b9ee00e::t_895fceb7d2c438 1-31
+plugins/marketplace/fixtures/proof/src/lib.rs
+  s_3724267b9ee00e::t_4da66711d712a1 1-35
+plugins/marketplace/fixtures/proof/src/main.rs
+  s_3724267b9ee00e::t_3f6e6470a84bcf 1-2
+plugins/marketplace/ui-review.md
+  s_3724267b9ee00e::t_c5c32cd588f827 1-86
+plugins/marketplace/verify-browser.sh
+  s_3724267b9ee00e::t_2d4d4f9fac2aee 1-51
+plugins/marketplace/web/build.rs
+  s_3724267b9ee00e::t_755de730834122 1-35
+plugins/marketplace/web/tests/browser.mjs
+  s_3724267b9ee00e::t_d36840140380d3 1-644
+plugins/marketplace/web/ui/app.tsx
+  s_3724267b9ee00e::t_43b58b90efc86e 1-629
+plugins/marketplace/web/ui/catalog-layout.stylex.ts
+  s_3724267b9ee00e::t_9a4b47d7c65028 1-196
+plugins/marketplace/web/ui/catalog.ts
+  s_3724267b9ee00e::t_9e157ed8fb1059 1-65
+plugins/marketplace/web/ui/components.tsx
+  s_3724267b9ee00e::t_7ef3b6cd976426 1-544
+plugins/marketplace/web/ui/controls.ts
+  s_3724267b9ee00e::t_6951d24fa5134b 1-14
+plugins/marketplace/web/ui/index.html
+  s_3724267b9ee00e::t_601bcf98aade56 1-16
+plugins/marketplace/web/ui/main.tsx
+  s_3724267b9ee00e::t_05149f81b55ca7 1-13
+plugins/marketplace/web/ui/marketplace.css
+  s_3724267b9ee00e::t_d6ef748146ff00 1-541
+plugins/marketplace/web/ui/model.ts
+  s_3724267b9ee00e::t_eeb866861f0505 1-29
+plugins/marketplace/web/ui/navigation.ts
+  s_3724267b9ee00e::t_dd1980cf8adb20 1-99
+plugins/marketplace/web/ui/sample.ts
+  s_3724267b9ee00e::t_57a2d0441712b8 1-105
+plugins/marketplace/web/ui/saved.ts
+  s_3724267b9ee00e::t_cf8f2886b9e3a4 1-87
+plugins/marketplace/web/ui/tsconfig.json
+  s_3724267b9ee00e::t_62e2715b4dde32 1-13
+plugins/marketplace/web/ui/vite.config.ts
+  s_3724267b9ee00e::t_afda099606e32e 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65ecc052244b6f3d0fe840cd1dfa097732fdde56",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
