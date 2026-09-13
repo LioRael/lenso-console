@@ -3,7 +3,6 @@ name: Marketplace foundation
 on:
   pull_request:
     paths:
-      - ".cargo/config.toml"
       - "plugins/marketplace/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -11,7 +10,6 @@ on:
   push:
     branches: [main]
     paths:
-      - ".cargo/config.toml"
       - "plugins/marketplace/**"
       - "package.json"
       - "pnpm-lock.yaml"
