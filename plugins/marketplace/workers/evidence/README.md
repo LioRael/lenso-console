@@ -94,3 +94,19 @@ the losing candidate with the stale token remains false, and an independent D1/R
 read confirms the winning state and all 161 historical identities. The
 [forward restoration](restoration.json) then publishes revision 8 conditionally
 and verifies the public read. It never resets the consumer checkpoint.
+
+## Source follow-up validation
+
+The subsequent repository-style cleanup preserves the frozen archive and all raw
+receipts above. It formats JavaScript, extracts the unchanged compare-and-swap
+operation, and makes the proof's cleanup response explicit after `finally`. It
+does not replace the historical deployment identity or claim those bytes were
+redeployed. The six focused storage/lifecycle checks and repository lint pass
+on the follow-up source. Console's 260 unit tests, 83 browser tests, distribution
+checks, production build and contract type checks also pass.
+
+The [paired consumer recovery](../recovery/RESULTS.md) separately deploys the
+frozen public entry and verifies restoration, rollback rejection and corrupted
+checkpoint recovery without changing the original source state.
+
+The current bootstrap additionally pins Auth `f63bad90ac28b71d7aa5152a3ce94031577ffd9f`, whose final G4 deployment fences pending outbound Fetch callbacks. The archived clean-build cohort above remains unchanged historical evidence; Auth is not linked into the anonymous Marketplace public Worker. G4 records 59 remote checks and eight local lifecycle/package tests after independent review.

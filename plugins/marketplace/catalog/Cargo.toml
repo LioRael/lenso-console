@@ -11,7 +11,11 @@ description = "Signed release identity and verification for the Lenso Plugin mar
 
 [features]
 default = ["native"]
-native = ["dep:rusqlite", "dep:lenso-plugin-bundle", "lenso-plugin-catalog/bundle-verification"]
+native = [
+  "dep:rusqlite",
+  "dep:lenso-plugin-bundle",
+  "lenso-plugin-catalog/bundle-verification",
+]
 
 [dependencies]
 anyhow = "1"
