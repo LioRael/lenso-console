@@ -12,7 +12,7 @@ Runtime source commits, dependency versions, lockfile hashes, Rust/Wrangler/
 wasm-bindgen versions, compatibility flags, generated JS and Wasm hashes, and
 production configuration digest. The [cohort bootstrap](cohort-bootstrap.md) can
 recreate the current experimental relative paths from reviewed commits without
-copying working-tree contents. Complete its pending pins and prove remote fetches;
+copying working-tree contents. Use its reviewed exact pins and preserve remote fetch proof;
 it does not turn the experiments into a production dependency package. Rebuild
 from those clean checkouts and preserve the deployable upload artifact.
 Generated linkage and reset support must come from the pinned generator; do not
@@ -233,3 +233,7 @@ object hashes, signatures, catalog ID, monotonic revision, historical identities
 expiry and actual Web responses before returning traffic. If the recovered
 publication has expired, issue a reviewed forward renewal before restoration is
 declared successful. Preserve the incident and reconciliation receipt.
+
+## Executed consumer recovery rehearsal
+
+The [isolated recovery receipt](../recovery/RESULTS.md) records paired D1/R2 restoration using the frozen public artifact. Six live checks and five durable observations passed, including rollback rejection and recovery from a corrupted copied checkpoint. The original source remained unchanged. This closes the experimental consumer-state restore check; private publisher backup, production custody and operational recovery targets remain launch inputs.
