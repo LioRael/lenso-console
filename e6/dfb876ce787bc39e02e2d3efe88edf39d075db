@@ -1,0 +1,45 @@
+plugins/marketplace/workers/proof/smoke.mjs
+  s_3724267b9ee00e::t_c9de0cd80f62ff 16-17
+.github/workflows/marketplace-workers.yml
+  s_3724267b9ee00e::t_204614c1dc58b0 18-19,21-22,24-25
+plugins/marketplace/workers/evidence/README.md
+  s_3724267b9ee00e::t_bad266d6a55ef4 64-96
+plugins/marketplace/workers/evidence/artifact.json
+  s_3724267b9ee00e::t_ee6e6e12516c15 1-34
+plugins/marketplace/workers/evidence/cas.json
+  s_3724267b9ee00e::t_705a6b199fcffe 1-441
+plugins/marketplace/workers/evidence/cohort.json
+  s_3724267b9ee00e::t_6d5344ea0bfb74 1-37
+plugins/marketplace/workers/evidence/isolate-continuity.json
+  s_3724267b9ee00e::t_9f3bfc6f582255 1-16
+plugins/marketplace/workers/evidence/local.json
+  s_3724267b9ee00e::t_3a83a3378ce34a 1-876
+plugins/marketplace/workers/evidence/native-browser.json
+  s_3724267b9ee00e::t_2a3e029f114937 1-12
+plugins/marketplace/workers/evidence/native.json
+  s_3724267b9ee00e::t_a5c0dad27cd526 1-42
+plugins/marketplace/workers/evidence/remote.json
+  s_3724267b9ee00e::t_3a10f35b7a0733 1-876
+plugins/marketplace/workers/evidence/restoration.json
+  s_3724267b9ee00e::t_f7c37999a416fe 1-8
+plugins/marketplace/workers/proof/cohort.json
+  s_3724267b9ee00e::t_903b870d7c2536 26,32
+plugins/marketplace/workers/wrangler.jsonc
+  s_3724267b9ee00e::t_ac3e2e3b0af398 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e6dfb876ce787bc39e02e2d3efe88edf39d075db",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
