@@ -1,0 +1,49 @@
+.github/workflows/marketplace-workers.yml
+  s_3724267b9ee00e::t_ac430d6759ede8 5-6,10-11,27
+oxfmt.config.ts
+  s_3724267b9ee00e::t_e14f1650ee809e 14-22
+plugins/marketplace/catalog/Cargo.toml
+  s_3724267b9ee00e::t_8ded0f69da7195 14-18
+plugins/marketplace/workers/docs/g5-preflight.md
+  s_3724267b9ee00e::t_7c5f690941f596 95
+plugins/marketplace/workers/evidence/README.md
+  s_3724267b9ee00e::t_8fccf3644b79c4 97-112
+plugins/marketplace/workers/package.json
+  s_3724267b9ee00e::t_562ef239e93a6f 5-12
+plugins/marketplace/workers/proof-worker.mjs
+  s_3724267b9ee00e::t_da9f0f1f8d5a60 1-2,4,6-8,12-16,18-21,23-34,36-46,48-51,55-59,67-69,71-73,78-81,85-90,93,95-103,105-107,109-111,115-121,123-124,126,128,130-149,152-160,163-175,181-186,188-189,191-193,195-199,201-204,208-219,223-232,235-237,240-242,244-256,260,262,264-270,274-277,281,284-289,291-292,296-298
+plugins/marketplace/workers/proof/cohort.json
+  s_3724267b9ee00e::t_d2d32063e68b5c 26
+plugins/marketplace/workers/proof/consumers-race.mjs
+  s_3724267b9ee00e::t_ea4a19fbef5816 3-8,11-17,19-39,41-47,49-53,57-71,73-76,78,80-85,88-96,98-103,105-108,112-137,140-150,152-156,159-163,165-174,176-184,189-191,195-204,206-211,213,217-221,228-237
+plugins/marketplace/workers/proof/deployment-config.mjs
+  s_3724267b9ee00e::t_765edf75d829d1 1,4-5,7-25,27-65,67-94,96-101
+plugins/marketplace/workers/proof/smoke.mjs
+  s_3724267b9ee00e::t_88c46f1925bd73 1,3-14,16-20,22-126,128-150,152-203
+plugins/marketplace/workers/storage-scope.mjs
+  s_3724267b9ee00e::t_8d63d2c02c06a1 1-2,4,16-20,24,28-29,31-33,35-38,43-47,50-53,58-71,73
+plugins/marketplace/workers/storage-scope.test.mjs
+  s_3724267b9ee00e::t_ee10d5c30e3364 1-3,5-7,10-16,18-25,27,33,35-42,51-53
+plugins/marketplace/workers/storage.mjs
+  s_3724267b9ee00e::t_d43f555e0849b5 5,7-14,16-23,26-28,34-36,38-40,46-49,52-57,60,62-137,142-145,149-156,158-176,178-187,189-193,195-199,201-203,205,210
+plugins/marketplace/workers/storage.test.mjs
+  s_3724267b9ee00e::t_b2d4086332323f 1-3,5-7,10-44,47,50-79
+plugins/marketplace/workers/worker.mjs
+  s_3724267b9ee00e::t_f15f62248f547c 1-11,14-21,23,25-55,60,64-71,75-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d97cfebb3f0c2be372c5b6b7534750f5cb962b9",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
