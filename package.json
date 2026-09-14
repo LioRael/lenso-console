@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "changeset": "changeset",
+    "marketplace:build": "tsc -p plugins/marketplace/web/ui/tsconfig.json && vite build --config plugins/marketplace/web/ui/vite.config.ts",
     "dev": "VITE_CONSOLE_DEV_MODE=${VITE_CONSOLE_DEV_MODE:-mock} VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-mock} vite",
     "format": "ultracite fix --unsafe",
     "format:check": "oxfmt --check .",

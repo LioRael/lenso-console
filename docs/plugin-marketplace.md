@@ -2,6 +2,11 @@
 
 Status: identity and artifact contract design; marketplace UI and service not yet shipped.
 
+The [marketplace v1 implementation proposal](plugin-marketplace-v1.md) develops
+the public website, publisher submission/review, target installation transaction,
+and delivery gates. It proposes a portable App Plugin as an earlier delivery
+slice while retaining the Observe scenario below for Console extensions.
+
 ## Decision
 
 Lenso should maintain an official directory for discovery and risk context, but
@@ -87,6 +92,12 @@ authority and the same review screen; it is not mislabeled as marketplace-listed
 
 ## Installation targets and review
 
+Installation is requested in Console Agent through its Plugin management tools.
+Marketplace only discovers and presents releases; it does not connect to Agents,
+accept control credentials or proxy installation. The review below belongs to
+the Console Agent workflow.
+
+
 The user selects the target before review:
 
 - **App Plugin** changes one App's Plugin Root and capabilities;
@@ -165,3 +176,4 @@ may be a signed static catalog; its schema and verifier must be production-shape
 - silent updates or global kill switches;
 - multi-user organization billing and publisher self-service portals.
 
+Release artwork and usage instructions are specified in [Marketplace release presentation](plugin-marketplace-presentation.md).
