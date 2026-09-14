@@ -13,7 +13,8 @@ const temporary = mkdtempSync(join(tmpdir(), 'lenso-g3-proof-'));
 const resource = 'lenso-marketplace-g3-proof';
 const records = [];
 function wrangler(...args) { return execFileSync('pnpm',['exec','wrangler',...args], { encoding:'utf8', stdio:['ignore','pipe','pipe'] }); }
-function sql(text) { const file=join(temporary,'query.sql');writeFileSync(file,text);wrangler('d1','execute',resource,location,'--file',file); }
+// Small fixture mutations use the query API, not a bulk database import.
+function sql(text) { wrangler('d1','execute',resource,location,'--command',text); }
 function select(name, revision=1) {
   const file=join(fixtures, name+'.json');
   const digest='sha256:'+createHash('sha256').update(readFileSync(file)).digest('hex');

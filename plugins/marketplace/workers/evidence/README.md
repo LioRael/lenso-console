@@ -61,3 +61,36 @@ recovery requirements are in [G5 preflight](../docs/g5-preflight.md) and the
 by `proof/deployment-config.mjs`; it rejects the known proof trust and legacy
 catalog hostname and performs no deployment. No production catalog or registry
 package has been published by this qualification.
+
+
+The final proof harness uses D1 query calls for small fixture mutations. A prior
+bulk SQL-file import lost its management connection before the first publication
+committed; a read-back showed both proof pointer tables empty. That attempt is not
+a passing receipt and no library write was blindly replayed. The isolated suite
+was explicitly restarted after reconciliation.
+
+
+## Final receipts
+
+The clean source build is deployed as Worker version
+`60c5f58b-77af-41e1-bdea-0bd6837ec8ce`. The [local](local.json) and
+[remote](remote.json) public-read suites each pass 127 checks. The exact signed
+fixtures also pass the [native SQLite replay](native.json), and the existing
+[real Host/browser flow](native-browser.json) remains green. The
+[isolate continuity](isolate-continuity.json) receipt separately proves that a new
+Worker boot reads revision 5 from the retained bindings; its earlier deployment
+identity is preserved in that receipt.
+
+The [source cohort](cohort.json) records clean exact commits. The
+[artifact manifest](artifact.json) records the clean-build file hashes and the
+independently unpacked deployment archive. Its public entry excludes the
+secret-guarded CAS probe and all test signing source. Rebuilds at different absolute
+paths can have different Rust/wasm-bindgen symbol identities; byte-for-byte
+reproducibility across paths is not claimed. Deploy and review the frozen artifact.
+
+
+The [real D1 CAS receipt](cas.json) has one winner and one losing write; repeating
+the losing candidate with the stale token remains false, and an independent D1/R2
+read confirms the winning state and all 161 historical identities. The
+[forward restoration](restoration.json) then publishes revision 8 conditionally
+and verifies the public read. It never resets the consumer checkpoint.

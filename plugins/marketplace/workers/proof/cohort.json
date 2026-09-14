@@ -23,13 +23,13 @@
       "name": "lenso-auth-plugin",
       "url": "https://github.com/LioRael/lenso-auth-plugin.git",
       "path": "lenso-auth-plugin/feat-workers-auth-storage",
-      "commit": "584461765bcf57402d63554d41cf35f22d29b837"
+      "commit": "2ed7199f9a2cba79b5096877dca134dd4fac677d"
     },
     {
       "name": "lenso-console",
       "url": "https://github.com/LioRael/lenso-console.git",
       "path": "lenso-console/feat-workers-marketplace",
-      "commit": null
+      "commit": "0dbcbb0177ebb7a38905878e64a51ce72cf0d807"
     }
   ]
 }
