@@ -245,7 +245,8 @@ impl Lifecycle for ConsolePlugin {
         Ok(())
     }
 
-    #[allow(clippy::unused_async_trait_impl)]
+    // This lint exists on newer Clippy versions; keep the Rust 1.94 toolchain supported.
+    #[allow(unknown_lints, clippy::unused_async_trait_impl)]
     async fn deactivate(&self, _context: DeactivateContext) -> Result<(), RuntimeFailure> {
         self.application.borrow_mut().take();
         Ok(())
