@@ -1,0 +1,35 @@
+.changeset/released-marketplace-workers.md
+  s_3724267b9ee00e::t_4889ed94a85eec 1-5
+.github/workflows/marketplace-workers.yml
+  s_3724267b9ee00e::t_f3aee44532327c 28-29,38-43
+plugins/marketplace/workers/Cargo.lock
+  s_3724267b9ee00e::t_a16dd747ca979a 552,554,578-579,596-597,608-609,636-637,778-780,794-796,831-832,846-848,871-872
+plugins/marketplace/workers/Cargo.toml
+  s_3724267b9ee00e::t_521184600ccc5c 8
+plugins/marketplace/workers/docs/registry-adoption.md
+  s_3724267b9ee00e::t_92bdf72673419e 1-18
+plugins/marketplace/workers/host/Cargo.toml
+  s_3724267b9ee00e::t_9f61a0309623fa 28
+plugins/marketplace/workers/package.json
+  s_3724267b9ee00e::t_0c10bcea1e4636 11
+plugins/marketplace/workers/pnpm-lock.yaml
+  s_3724267b9ee00e::t_8eee20067e6a93 10-13,21-25,508-509
+plugins/marketplace/workers/pnpm-workspace.yaml
+  s_3724267b9ee00e::t_cd53894e844894 6-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3afca51204426aec4edd492ea59f257ac844461c",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
