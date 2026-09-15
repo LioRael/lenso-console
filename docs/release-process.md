@@ -19,6 +19,26 @@ The Changesets workflow opens or updates a version pull request for the private
 records; the application version identifies the source release. The former OCI pipeline
 was retired; versioning does not publish a container image.
 
+## Generated release PR checks
+
+Release PRs use the repository `GITHUB_TOKEN`; no dedicated Release App or
+central coordinator is required. Keep Actions pull-request creation enabled and
+retain the workflow's scoped `contents: write` and `pull-requests: write` permissions.
+The separate opt-in Agent publisher retains its own OIDC workflow.
+
+GitHub places workflows for `github-actions[bot]` pull requests behind an
+[approval gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/).
+During delivery:
+
+1. Review the generated version/lockfile changes and record the PR's current head SHA.
+2. Open the pending CI run for that same head and use **Approve and run**.
+3. Wait for all required checks on the reviewed head before merging. If the bot
+   updates the PR, review the new head and approve its pending runs again.
+
+`action_required` and an expired approval are delivery blockers, not executed
+test failures. Approving CI does not approve a merge or publication. Do not bypass
+required checks or dispatch a publisher to compensate for a pending PR approval.
+
 ## Distribution boundary
 
 Merge the reviewed Changesets version PR after its quality checks pass. The
@@ -59,15 +79,19 @@ remain in the Agent's existing settings.
 ```sh
 pnpm install --frozen-lockfile
 pnpm changeset status --output /tmp/lenso-console-changesets.json
-pnpm format:check
-pnpm lint
+pnpm check:preflight
 pnpm build
 pnpm test
 ```
 
+`pnpm check:preflight` runs lint/format checks, Rust workspace formatting,
+locked service metadata/ownership checks and generated contract typechecking
+before CI downloads Chromium. `pnpm check` runs this preflight followed by
+`pnpm check:full`, preserving browser, distribution, build and Rust checks.
+The checked-in Rust toolchain matches CI.
+
 `pnpm build` includes TypeScript validation. `pnpm test` runs both the local
 Vitest suite and the browser suite.
-
 
 ## Standalone Rust contract packages
 
