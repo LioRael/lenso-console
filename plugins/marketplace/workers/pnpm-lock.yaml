@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@lenso/workers-runtime':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       aws4fetch:
         specifier: 1.0.20
         version: 1.0.20
@@ -393,8 +393,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
 
-  '@lenso/workers-runtime@0.1.1':
-    resolution: {integrity: sha512-Rq6HLVcwLAi1Szh6mt2Mi4ONbghIG0LO6Av+Fh5OBLhqtvNTcOBe3sttBcgRhvy2ON2RGxWH0+/+3KZe55dekg==}
+  '@lenso/workers-runtime@0.1.2':
+    resolution: {integrity: sha512-DIoji7/x4FPpBkygWt4KXHip5gfedofmPiTPyTCpnGWuaM2BiMARzH0N0bSDshyXDLXQkvsHPmlQ/ZoHZ0jBHg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -729,7 +729,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@lenso/workers-runtime@0.1.1': {}
+  '@lenso/workers-runtime@0.1.2': {}
 
   '@poppinss/colors@4.1.6':
     dependencies:

@@ -110,7 +110,7 @@ def backup(frozen, old):
         'source_bucket': SOURCE, 'source_rows': snapshot, 'objects': objects,
         'checkpoint_revision': 8, 'history_size': len(state['checkpoint']['release_identities']),
         'rollback_fixture_sha256': sha(first), 'rollback_fixture_expires_at': payload['expires_at'],
-        'artifact_sha256': ARTIFACT, 'migration_sha256': sha((ROOT / 'migrations/0001_public_reads.sql').read_bytes())})
+        'artifact_sha256': ARTIFACT, 'migration_sha256': sha((ROOT.parent / 'migrations/d1/0001_public_reads.sql').read_bytes())})
     print(json.dumps({'backup': 'complete', 'revision': 8, 'history_size': len(state['checkpoint']['release_identities']), 'objects': objects}))
 
 def restore():

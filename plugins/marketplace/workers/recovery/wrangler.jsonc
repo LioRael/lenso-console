@@ -26,7 +26,7 @@
       "binding": "MARKETPLACE_DB",
       "database_name": "lenso-marketplace-recovery-proof",
       "database_id": "256d0844-cff5-4ead-8770-ab62c7f181d1",
-      "migrations_dir": "migrations"
+      "migrations_dir": "../migrations/d1"
     }
   ],
   "r2_buckets": [
