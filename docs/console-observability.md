@@ -143,6 +143,40 @@ commands. Operators can reduce either limit but cannot configure unlimited
 retention in the first release. Removing the Plugin keeps or purges its database
 only through an explicit removal choice; disablement never purges it.
 
+Logical size is maintained in SQLite's `retention_accounting` table, keyed by
+source. It preserves the original formula (SQLite `length(TEXT)`, including its
+Unicode and embedded-NUL behavior):
+
+| Row | Logical size |
+| --- | --- |
+| Span | `length(name) + length(attributes_json) + 256` |
+| Log | `length(body) + length(attributes_json) + 128` |
+| Span event | `length(name) + length(attributes_json) + 96` |
+| Span link | `length(linked_trace_id) + length(linked_span_id) + length(attributes_json) + 96` |
+
+Insert, update, and delete triggers apply exact row deltas in the same SQLite
+transaction as the data change. This includes span upserts, replacement of
+events/links, and foreign-key cascades. A missing accounting row, negative total,
+or integer overflow aborts the mutation. Retention's age deletions, whole-trace
+deletions, and deletion health counter commit together; a failure rolls them all
+back. Ingestion still commits before retention, so a retention error can leave
+the newly ingested data present, with its full size accounted for.
+
+The existing single database worker calls `reconcile_logical_bytes` on every
+startup, before accepting commands or enforcing retention. Trigger installation
+and reconciliation run under one immediate transaction. Reconciliation scans
+the four tables once for the configured source and replaces its total, covering
+legacy databases, missing/stale totals, and reopening after an interrupted
+transaction. A reconciliation failure prevents worker startup. Recovery is a
+worker restart; there is no periodic scan on the ingestion path.
+
+Normal ingestion and each byte-pressure eviction read one accounting row instead
+of running four full size aggregates. Length evaluation is confined to mutated
+rows. Oldest-trace selection, age thresholds, completeness flags, and per-command
+cleanup budgets retain their existing behavior. The storage regression test
+observes SQLite aggregate preparation: its reference recomputation prepares four
+`SUM`s, while ingestion, replacement, and an 11-trace eviction prepare zero.
+
 The Plugin exposes counters for accepted/rejected records, decode failures,
 queue saturation, redaction, retention deletion, and feed lag. Counter reset is
 represented by a new receiver epoch. Missing sequence continuity is rendered as
