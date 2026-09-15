@@ -34,7 +34,7 @@ jobs:
       - name: Check composed Wasm host
         run: cargo clippy --locked --manifest-path plugins/marketplace/workers/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
       - name: Check request-owned storage boundaries
-        run: node --test plugins/marketplace/workers/storage.test.mjs plugins/marketplace/workers/storage-scope.test.mjs plugins/marketplace/workers/operator/promote.test.mjs
+        run: node --test plugins/marketplace/workers/storage.test.mjs plugins/marketplace/workers/storage-scope.test.mjs plugins/marketplace/workers/operator/promote.test.mjs plugins/marketplace/workers/operator/promote-runtime.test.mjs
       - name: Build deployable Wasm artifact
         run: |
           cargo install wasm-bindgen-cli --version 0.2.127 --locked
