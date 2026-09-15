@@ -40,6 +40,7 @@ import {
   createAgentStreamEventBuffer,
   type AgentStreamEventBuffer,
 } from "./agent-stream-buffer";
+import { createTaskSnapshotPoller } from "./task-snapshot-poller";
 
 type ActiveTurn = {
   controller: AbortController;
@@ -293,22 +294,17 @@ export function useAgentConversation({
       setTasks([]);
       return;
     }
-    const controller = new AbortController();
-    const refresh = async () => {
-      try {
-        const snapshot = await readAgentTasks(controller.signal, targetId);
-        if (!controller.signal.aborted) {
-          setTasks(snapshot);
-        }
-      } catch {
-        // A Task Supervisor may be unavailable in the selected Generation.
-      }
-    };
-    refresh();
-    const timer = window.setInterval(refresh, isRunning ? 800 : 2500);
+    const poller = createTaskSnapshotPoller({
+      deliver: setTasks,
+      read: (signal) => readAgentTasks(signal, targetId),
+      schedule: (poll) => {
+        const timer = window.setTimeout(poll, isRunning ? 800 : 2500);
+        return () => window.clearTimeout(timer);
+      },
+    });
+    poller.start();
     return () => {
-      controller.abort();
-      window.clearInterval(timer);
+      poller.cancel();
     };
   }, [isRunning, runtime?.capabilities.taskSnapshot, targetId]);
 
