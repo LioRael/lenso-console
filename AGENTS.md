@@ -43,3 +43,10 @@ Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
 ## UI design and review
 
 Before creating a page, changing controls/layout, or fixing visual details, read [the Lenso UI implementation standard](docs/design/README.md). Follow its component discovery, alignment, and rendered-state acceptance steps. This also applies to plugin pages inside Console; use one shared component owner and record visual verification before claiming completion.
+
+## Marketplace delivery
+
+For changes under `plugins/marketplace/`, require the `catalog`, `event-host`,
+and `quality` checks when they apply. A passing Workers check does not replace
+the native catalog/browser acceptance check. Inspect every failed check before
+merging; do not narrow the required-check list to bypass a failure.

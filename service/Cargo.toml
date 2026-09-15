@@ -80,6 +80,10 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [patch.crates-io]
+lenso-native-adapter = { git = "https://github.com/LioRael/lenso-runtime-rust", rev = "905a59141ca0e349b734fb7de99d010f2b0dc0df" }
+lenso-native-adapter-macros = { git = "https://github.com/LioRael/lenso-runtime-rust", rev = "905a59141ca0e349b734fb7de99d010f2b0dc0df" }
+lenso-runtime-codec = { git = "https://github.com/LioRael/lenso-runtime-rust", rev = "905a59141ca0e349b734fb7de99d010f2b0dc0df" }
+
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
 lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
 
