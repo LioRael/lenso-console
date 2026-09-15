@@ -74,7 +74,7 @@ const config = {
       binding: "MARKETPLACE_DB",
       database_id: input.database_id,
       database_name: input.database_name,
-      migrations_dir: "migrations",
+      migrations_dir: "migrations/d1",
     },
   ],
   limits: { cpu_ms: input.cpu_ms },

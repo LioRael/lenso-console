@@ -43,7 +43,7 @@ export default { async fetch(request, env) {
     const database = await runtime.getD1Database("DB");
     const bucket = await runtime.getR2Bucket("BUCKET");
     const migration = await readFile(
-      new URL("../migrations/0001_public_reads.sql", import.meta.url),
+      new URL("../migrations/d1/0001_public_reads.sql", import.meta.url),
       "utf-8"
     );
     await database.exec(

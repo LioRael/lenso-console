@@ -5,4 +5,4 @@ allowBuilds:
   workerd: true
 # This owner release was verified against the uploaded archive before adoption.
 minimumReleaseAgeExclude:
-  - "@lenso/workers-runtime@0.1.1"
+  - "@lenso/workers-runtime@0.1.2"

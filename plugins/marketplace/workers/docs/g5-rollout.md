@@ -42,7 +42,7 @@ Use separate staging and production Worker, D1 and private R2 resources. Supply
 explicit resource IDs; never infer the target from the current Wrangler directory
 or reuse `lenso-marketplace-g3-proof`. Public code holds no signing private key.
 
-Apply the reviewed [public-read migration](../migrations/0001_public_reads.sql)
+Apply the reviewed [public-read migration](../migrations/d1/0001_public_reads.sql)
 explicitly before admission. It creates publication and accepted-checkpoint
 pointers. Plugin prepare does not migrate storage. Record migration checksum,
 database ID, applied version and verification query results. Rehearse both the
