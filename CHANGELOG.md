@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.18.2
+
+### Patch Changes
+
+- 8936332: Move Marketplace implementation and publication tooling into the independent Lenso Marketplace repository. Console retains Agent-owned installation and consumer integration.
+
 ## 1.18.1
 
 ### Patch Changes
