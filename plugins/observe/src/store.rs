@@ -101,6 +101,10 @@ CREATE TABLE IF NOT EXISTS receiver_state (
   retention_deletions INTEGER NOT NULL,
   feed_lag INTEGER NOT NULL
 ) STRICT;
+CREATE TABLE IF NOT EXISTS retention_accounting (
+  source_id TEXT PRIMARY KEY,
+  logical_bytes INTEGER NOT NULL CHECK (logical_bytes >= 0)
+) STRICT;
 ";
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -451,8 +455,82 @@ fn prepare_connection(config: &StoreConfig) -> Result<Connection, RuntimeFailure
     connection.execute_batch(SCHEMA).map_err(store_failure)?;
     ensure_column(&connection, "spans", "received_at")?;
     ensure_column(&connection, "logs", "received_at")?;
+    install_accounting(&connection, config)?;
     connection.execute("INSERT INTO receiver_state(singleton, receiver_epoch, accepted_spans, accepted_logs, rejected_records, decode_failures, queue_saturation, redacted_attributes, retention_deletions, feed_lag) VALUES (1, ?1, 0, 0, 0, 0, 0, 0, 0, 0) ON CONFLICT(singleton) DO UPDATE SET receiver_epoch = excluded.receiver_epoch, accepted_spans = 0, accepted_logs = 0, rejected_records = 0, decode_failures = 0, queue_saturation = 0, redacted_attributes = 0, retention_deletions = 0, feed_lag = 0", [uuid::Uuid::new_v4().to_string()]).map_err(store_failure)?;
     Ok(connection)
+}
+
+fn install_accounting(connection: &Connection, config: &StoreConfig) -> Result<(), RuntimeFailure> {
+    let transaction =
+        rusqlite::Transaction::new_unchecked(connection, rusqlite::TransactionBehavior::Immediate)
+            .map_err(store_failure)?;
+    // Keep SQLite's existing length(TEXT) semantics, including Unicode and NULs.
+    // All SQL fragments below are static; no telemetry is interpolated into SQL.
+    for (table, columns, size) in [
+        (
+            "spans",
+            "name, attributes_json",
+            "length(ROW.name)+length(ROW.attributes_json)+256",
+        ),
+        (
+            "logs",
+            "body, attributes_json",
+            "length(ROW.body)+length(ROW.attributes_json)+128",
+        ),
+        (
+            "span_events",
+            "name, attributes_json",
+            "length(ROW.name)+length(ROW.attributes_json)+96",
+        ),
+        (
+            "span_links",
+            "linked_trace_id, linked_span_id, attributes_json",
+            "length(ROW.linked_trace_id)+length(ROW.linked_span_id)+length(ROW.attributes_json)+96",
+        ),
+    ] {
+        let add = accounting_delta("NEW", "+", &size.replace("ROW", "NEW"));
+        let remove = accounting_delta("OLD", "-", &size.replace("ROW", "OLD"));
+        transaction
+            .execute_batch(&format!(
+                "CREATE TRIGGER IF NOT EXISTS {table}_account_insert AFTER INSERT ON {table}
+             BEGIN {add} END;
+             CREATE TRIGGER IF NOT EXISTS {table}_account_delete AFTER DELETE ON {table}
+             BEGIN {remove} END;
+             CREATE TRIGGER IF NOT EXISTS {table}_account_update
+             AFTER UPDATE OF source_id, {columns} ON {table}
+             BEGIN {remove} {add} END;"
+            ))
+            .map_err(store_failure)?;
+    }
+    reconcile_logical_bytes(&transaction, config)?;
+    transaction.commit().map_err(store_failure)
+}
+
+fn accounting_delta(row: &str, operator: &str, size: &str) -> String {
+    // A missing accounting row must abort the data mutation, never start at zero.
+    // STRICT INTEGER and CHECK reject overflow and negative totals atomically.
+    format!(
+        "UPDATE retention_accounting SET logical_bytes=logical_bytes {operator} ({size})
+         WHERE source_id={row}.source_id;
+         SELECT RAISE(ABORT, 'missing retention accounting') WHERE changes() != 1;"
+    )
+}
+
+/// Rebuilds this source's total once at startup, under the installation transaction.
+/// A failed scan or write prevents the worker from accepting commands.
+fn reconcile_logical_bytes(
+    transaction: &rusqlite::Transaction<'_>,
+    config: &StoreConfig,
+) -> Result<(), RuntimeFailure> {
+    let bytes = recompute_logical_bytes(transaction, config)?;
+    transaction
+        .execute(
+            "INSERT INTO retention_accounting(source_id, logical_bytes) VALUES (?1, ?2)
+         ON CONFLICT(source_id) DO UPDATE SET logical_bytes=excluded.logical_bytes",
+            params![config.source_id, bytes],
+        )
+        .map_err(store_failure)?;
+    Ok(())
 }
 
 fn ensure_column(
@@ -872,6 +950,8 @@ fn health(
 }
 
 fn enforce_retention(connection: &Connection, config: &StoreConfig) -> Result<(), RuntimeFailure> {
+    let transaction = connection.unchecked_transaction().map_err(store_failure)?;
+    let connection = &*transaction;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(store_failure)?
@@ -925,12 +1005,31 @@ fn enforce_retention(connection: &Connection, config: &StoreConfig) -> Result<()
         .saturating_add(deleted_logs)
         .saturating_add(size_deleted);
     if deleted > 0 {
-        increment(connection, "retention_deletions", deleted as u64);
+        let updated = connection.execute(
+            "UPDATE receiver_state SET retention_deletions=retention_deletions+?1 WHERE singleton=1",
+            [i64::try_from(deleted).map_err(store_failure)?],
+        ).map_err(store_failure)?;
+        if updated != 1 {
+            return Err(store_failure("missing receiver state during retention"));
+        }
     }
-    Ok(())
+    transaction.commit().map_err(store_failure)
 }
 
 fn logical_bytes(connection: &Connection, config: &StoreConfig) -> Result<i64, RuntimeFailure> {
+    connection
+        .query_row(
+            "SELECT logical_bytes FROM retention_accounting WHERE source_id=?1",
+            [&config.source_id],
+            |row| row.get(0),
+        )
+        .map_err(store_failure)
+}
+
+fn recompute_logical_bytes(
+    connection: &Connection,
+    config: &StoreConfig,
+) -> Result<i64, RuntimeFailure> {
     connection.query_row("SELECT COALESCE((SELECT SUM(length(name)+length(attributes_json)+256) FROM spans WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(body)+length(attributes_json)+128) FROM logs WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(name)+length(attributes_json)+96) FROM span_events WHERE source_id=?1),0)+COALESCE((SELECT SUM(length(linked_trace_id)+length(linked_span_id)+length(attributes_json)+96) FROM span_links WHERE source_id=?1),0)", [&config.source_id], |row| row.get(0)).map_err(store_failure)
 }
 
@@ -1203,6 +1302,395 @@ fn store_failure(error: impl std::fmt::Display) -> RuntimeFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn config(root: &std::path::Path) -> StoreConfig {
+        StoreConfig {
+            database: root.join("observe.sqlite3"),
+            source_id: "accounting-test".to_owned(),
+            retention_days: 7,
+            retention_bytes: 1024 * 1024,
+        }
+    }
+
+    fn span(id: u8) -> StoredSpan {
+        let now = u64::try_from(current_time_nanos().unwrap()).unwrap();
+        StoredSpan {
+            trace_id: hex::encode([id; 16]),
+            span_id: hex::encode([id; 8]),
+            parent_span_id: None,
+            name: "GET /世界\0ignored by SQLite length".to_owned(),
+            kind: "server",
+            started_at: now,
+            ended_at: now + 1000,
+            status: "ok",
+            service_name: "test".to_owned(),
+            attributes: vec![Attribute {
+                key: "unicode".to_owned(),
+                value: "é🦀".to_owned(),
+            }],
+            completeness: "complete",
+            is_server_root: true,
+            events: vec![StoredEvent {
+                timestamp: now,
+                name: "事件".to_owned(),
+                attributes: Vec::new(),
+            }],
+            links: vec![StoredLink {
+                trace_id: hex::encode([42; 16]),
+                span_id: hex::encode([42; 8]),
+                attributes: Vec::new(),
+            }],
+        }
+    }
+
+    fn log(span: &StoredSpan) -> StoredLog {
+        StoredLog {
+            trace_id: span.trace_id.clone(),
+            span_id: Some(span.span_id.clone()),
+            timestamp: span.started_at,
+            severity: "INFO".to_owned(),
+            body: "hello 世界\0tail".to_owned(),
+            attributes: span.attributes.clone(),
+        }
+    }
+
+    fn assert_accounting(connection: &Connection, config: &StoreConfig) -> i64 {
+        let bytes = logical_bytes(connection, config).unwrap();
+        assert_eq!(bytes, recompute_logical_bytes(connection, config).unwrap());
+        bytes
+    }
+
+    fn deletion_count(connection: &Connection) -> i64 {
+        connection
+            .query_row(
+                "SELECT retention_deletions FROM receiver_state WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn accounting_matches_recomputation_after_mixed_mutations() {
+        let root = tempfile::tempdir().unwrap();
+        let mut config = config(root.path());
+        let connection = prepare_connection(&config).unwrap();
+        assert_eq!(assert_accounting(&connection, &config), 0);
+        let mut item = span(1);
+        ingest_spans(
+            &connection,
+            &config,
+            std::slice::from_ref(&item),
+            IngestLoss::default(),
+        )
+        .unwrap();
+        let original = assert_accounting(&connection, &config);
+
+        item.name = "larger span".repeat(30);
+        item.events.push(item.events[0].clone());
+        item.links.push(item.links[0].clone());
+        ingest_spans(
+            &connection,
+            &config,
+            std::slice::from_ref(&item),
+            IngestLoss::default(),
+        )
+        .unwrap();
+        assert!(assert_accounting(&connection, &config) > original);
+        item.name = "x".to_owned();
+        item.attributes.clear();
+        item.events.clear();
+        item.links.clear();
+        ingest_spans(
+            &connection,
+            &config,
+            std::slice::from_ref(&item),
+            IngestLoss::default(),
+        )
+        .unwrap();
+        assert!(assert_accounting(&connection, &config) < original);
+
+        let fresh = span(2);
+        ingest_spans(
+            &connection,
+            &config,
+            std::slice::from_ref(&fresh),
+            IngestLoss::default(),
+        )
+        .unwrap();
+        assert_accounting(&connection, &config);
+        ingest_logs(
+            &connection,
+            &config,
+            &[log(&item), log(&fresh)],
+            IngestLoss::default(),
+        )
+        .unwrap();
+        let before_age = assert_accounting(&connection, &config);
+
+        // Expire one span (including its children) and one log independently.
+        connection
+            .execute(
+                "UPDATE spans SET ended_at=1 WHERE trace_id=?1",
+                [&fresh.trace_id],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE logs SET timestamp=1 WHERE trace_id=?1",
+                [&item.trace_id],
+            )
+            .unwrap();
+        enforce_retention(&connection, &config).unwrap();
+        assert!(assert_accounting(&connection, &config) < before_age);
+        assert_eq!(deletion_count(&connection), 2);
+
+        // Reinsert the expired span so byte pressure removes its surviving log too.
+        ingest_spans(&connection, &config, &[fresh], IngestLoss::default()).unwrap();
+        assert_accounting(&connection, &config);
+        config.retention_bytes = 0;
+        enforce_retention(&connection, &config).unwrap();
+        assert_eq!(assert_accounting(&connection, &config), 0);
+        assert_eq!(deletion_count(&connection), 5);
+    }
+
+    #[test]
+    fn failed_ingest_and_retention_roll_back_data_accounting_and_health() {
+        let root = tempfile::tempdir().unwrap();
+        let mut config = config(root.path());
+        let connection = prepare_connection(&config).unwrap();
+        let item = span(1);
+        ingest_spans(
+            &connection,
+            &config,
+            std::slice::from_ref(&item),
+            IngestLoss::default(),
+        )
+        .unwrap();
+        ingest_logs(
+            &connection,
+            &config,
+            &[log(&item), log(&item)],
+            IngestLoss::default(),
+        )
+        .unwrap();
+        connection
+            .execute(
+                "UPDATE logs SET timestamp=1 WHERE id=(SELECT MIN(id) FROM logs)",
+                [],
+            )
+            .unwrap();
+        let before = assert_accounting(&connection, &config);
+
+        let mut invalid = item.clone();
+        invalid.name = "replacement".repeat(100);
+        invalid.events.push(StoredEvent {
+            timestamp: u64::MAX,
+            ..invalid.events[0].clone()
+        });
+        assert!(ingest_spans(&connection, &config, &[invalid], IngestLoss::default()).is_err());
+        assert_eq!(assert_accounting(&connection, &config), before);
+        let name: String = connection
+            .query_row("SELECT name FROM spans", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(name, item.name);
+
+        let invalid = StoredLog {
+            timestamp: u64::MAX,
+            ..log(&item)
+        };
+        assert!(
+            ingest_logs(
+                &connection,
+                &config,
+                &[log(&item), invalid],
+                IngestLoss::default()
+            )
+            .is_err()
+        );
+        assert_eq!(assert_accounting(&connection, &config), before);
+        let accepted: (i64, i64) = connection
+            .query_row(
+                "SELECT accepted_spans, accepted_logs FROM receiver_state",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(accepted, (1, 2));
+
+        // Fail after retention has already deleted logs, then fail its final health update.
+        config.retention_bytes = 0;
+        for failure in [
+            "CREATE TEMP TRIGGER fail_retention BEFORE DELETE ON spans BEGIN SELECT RAISE(ABORT, 'injected delete failure'); END",
+            "CREATE TEMP TRIGGER fail_retention BEFORE UPDATE OF retention_deletions ON receiver_state BEGIN SELECT RAISE(ABORT, 'injected health failure'); END",
+        ] {
+            connection.execute_batch(failure).unwrap();
+            assert!(enforce_retention(&connection, &config).is_err());
+            assert_eq!(assert_accounting(&connection, &config), before);
+            assert_eq!(deletion_count(&connection), 0);
+            connection
+                .execute_batch("DROP TRIGGER fail_retention")
+                .unwrap();
+        }
+        enforce_retention(&connection, &config).unwrap();
+        assert_eq!(assert_accounting(&connection, &config), 0);
+        assert_eq!(deletion_count(&connection), 3);
+    }
+
+    #[test]
+    fn accounting_fails_closed_when_missing_negative_or_overflowing() {
+        let root = tempfile::tempdir().unwrap();
+        let config = config(root.path());
+        let connection = prepare_connection(&config).unwrap();
+        let item = span(1);
+        ingest_spans(
+            &connection,
+            &config,
+            std::slice::from_ref(&item),
+            IngestLoss::default(),
+        )
+        .unwrap();
+        let before = assert_accounting(&connection, &config);
+        for corrupt in [
+            "DELETE FROM retention_accounting",
+            "UPDATE retention_accounting SET logical_bytes=0",
+            "UPDATE retention_accounting SET logical_bytes=9223372036854775807",
+        ] {
+            connection.execute(corrupt, []).unwrap();
+            let mut replacement = item.clone();
+            replacement.name = "large".repeat(1000);
+            assert!(
+                ingest_spans(&connection, &config, &[replacement], IngestLoss::default()).is_err()
+            );
+            assert_eq!(
+                recompute_logical_bytes(&connection, &config).unwrap(),
+                before
+            );
+            install_accounting(&connection, &config).unwrap();
+            assert_eq!(assert_accounting(&connection, &config), before);
+        }
+    }
+
+    #[test]
+    fn startup_reconciles_legacy_stale_and_missing_totals_before_retention() {
+        let root = tempfile::tempdir().unwrap();
+        let mut config = config(root.path());
+        let item = span(1);
+        let before;
+        {
+            let connection = prepare_connection(&config).unwrap();
+            ingest_spans(
+                &connection,
+                &config,
+                std::slice::from_ref(&item),
+                IngestLoss::default(),
+            )
+            .unwrap();
+            ingest_logs(&connection, &config, &[log(&item)], IngestLoss::default()).unwrap();
+            before = assert_accounting(&connection, &config);
+            // Simulate the schema from before accounting was introduced.
+            for table in ["spans", "logs", "span_events", "span_links"] {
+                for operation in ["insert", "delete", "update"] {
+                    connection
+                        .execute_batch(&format!("DROP TRIGGER {table}_account_{operation}"))
+                        .unwrap();
+                }
+            }
+            connection
+                .execute_batch("DROP TABLE retention_accounting")
+                .unwrap();
+        }
+        for corrupt in [
+            "UPDATE retention_accounting SET logical_bytes=0",
+            "DELETE FROM retention_accounting",
+        ] {
+            let connection = prepare_connection(&config).unwrap();
+            assert_eq!(assert_accounting(&connection, &config), before);
+            connection.execute(corrupt, []).unwrap();
+        }
+        {
+            let connection = prepare_connection(&config).unwrap();
+            assert_eq!(assert_accounting(&connection, &config), before);
+            connection
+                .execute_batch("BEGIN; DELETE FROM spans; DELETE FROM logs;")
+                .unwrap();
+            assert_eq!(assert_accounting(&connection, &config), 0);
+            // Closing without COMMIT must restore both data and accounting on reopen.
+        }
+        let connection = prepare_connection(&config).unwrap();
+        assert_eq!(assert_accounting(&connection, &config), before);
+        // A different source has an independent total even in the same database.
+        let other = StoreConfig {
+            source_id: "other".to_owned(),
+            ..config.clone()
+        };
+        install_accounting(&connection, &other).unwrap();
+        ingest_spans(&connection, &other, &[span(2)], IngestLoss::default()).unwrap();
+        let other_bytes = assert_accounting(&connection, &other);
+        config.retention_bytes = 0;
+        enforce_retention(&connection, &config).unwrap();
+        assert_eq!(assert_accounting(&connection, &config), 0);
+        assert_eq!(assert_accounting(&connection, &other), other_bytes);
+    }
+
+    #[test]
+    fn multi_trace_eviction_and_ingest_prepare_no_full_size_aggregates() {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+
+        let root = tempfile::tempdir().unwrap();
+        let mut config = config(root.path());
+        let connection = prepare_connection(&config).unwrap();
+        let aggregates = Arc::new(AtomicU64::new(0));
+        let observed = Arc::clone(&aggregates);
+        connection.authorizer(Some(move |context: AuthContext<'_>| {
+            if matches!(context.action, AuthAction::Function { function_name } if function_name.eq_ignore_ascii_case("sum")) {
+                observed.fetch_add(1, Ordering::Relaxed);
+            }
+            Authorization::Allow
+        })).unwrap();
+        // Prove that the SQL-level observer detects all four reference scans.
+        recompute_logical_bytes(&connection, &config).unwrap();
+        assert_eq!(aggregates.swap(0, Ordering::Relaxed), 4);
+        let start = u64::try_from(current_time_nanos().unwrap()).unwrap();
+        let mut items = (1..=12).map(span).collect::<Vec<_>>();
+        for (index, item) in items.iter_mut().enumerate() {
+            item.started_at = start + u64::try_from(index).unwrap();
+        }
+        ingest_spans(&connection, &config, &items, IngestLoss::default()).unwrap();
+        let children = items
+            .iter()
+            .map(|item| StoredSpan {
+                span_id: hex::encode([99; 8]),
+                parent_span_id: Some(item.span_id.clone()),
+                started_at: item.started_at + 1000,
+                is_server_root: false,
+                ..item.clone()
+            })
+            .collect::<Vec<_>>();
+        ingest_spans(&connection, &config, &children, IngestLoss::default()).unwrap();
+        let logs = items.iter().map(log).collect::<Vec<_>>();
+        ingest_logs(&connection, &config, &logs, IngestLoss::default()).unwrap();
+        ingest_spans(&connection, &config, &items[..1], IngestLoss::default()).unwrap();
+        let total = logical_bytes(&connection, &config).unwrap();
+        config.retention_bytes = u64::try_from(total / 12).unwrap();
+        enforce_retention(&connection, &config).unwrap();
+        assert_eq!(aggregates.load(Ordering::Relaxed), 0);
+        assert_eq!(deletion_count(&connection), 33);
+        let retained_rows: (i64, i64, i64, i64) = connection
+            .query_row(
+                "SELECT (SELECT COUNT(*) FROM spans), (SELECT COUNT(*) FROM logs),
+                    (SELECT COUNT(*) FROM span_events), (SELECT COUNT(*) FROM span_links)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(retained_rows, (2, 1, 2, 2));
+        let retained: String = connection
+            .query_row("SELECT trace_id FROM spans", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(retained, items[11].trace_id);
+        assert_eq!(assert_accounting(&connection, &config), total / 12);
+    }
 
     #[tokio::test(flavor = "current_thread")]
     async fn saturated_ingestion_queue_is_rejected_and_counted() {
