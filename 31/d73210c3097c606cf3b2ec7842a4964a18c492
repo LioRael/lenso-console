@@ -1,0 +1,29 @@
+.changeset/cloudflare-publication-operator.md
+  s_3724267b9ee00e::t_31db6344db3025 1-5
+.github/workflows/marketplace-workers.yml
+  s_3724267b9ee00e::t_b7625f510037b7 37
+plugins/marketplace/workers/operator/README.md
+  s_3724267b9ee00e::t_359433e4c66bb0 51-101
+plugins/marketplace/workers/operator/cloudflare.mjs
+  s_3724267b9ee00e::t_21b41bfee99b73 1-149
+plugins/marketplace/workers/operator/cloudflare.test.mjs
+  s_3724267b9ee00e::t_7383da2c59bdbf 1-78
+plugins/marketplace/workers/operator/promote-cloudflare.mjs
+  s_3724267b9ee00e::t_1a2c17639ec003 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31d73210c3097c606cf3b2ec7842a4964a18c492",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
