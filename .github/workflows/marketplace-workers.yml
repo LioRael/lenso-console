@@ -25,13 +25,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: "24"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          repository: LioRael/lenso-runtime-rust
-          ref: 905a59141ca0e349b734fb7de99d010f2b0dc0df
-          path: .ci/runtime
-      - name: Install reviewed Runtime package
-        run: npm install --ignore-scripts --no-save --package-lock=false --prefix plugins/marketplace/workers "$GITHUB_WORKSPACE/.ci/runtime/packages/workers-runtime"
+      - name: Install released Runtime package
+        run: pnpm --dir plugins/marketplace/workers install --frozen-lockfile
       - name: Build Marketplace assets
         run: |
           pnpm install --frozen-lockfile
@@ -40,3 +35,9 @@ jobs:
         run: cargo clippy --locked --manifest-path plugins/marketplace/workers/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
       - name: Check request-owned storage boundaries
         run: node --test plugins/marketplace/workers/storage.test.mjs plugins/marketplace/workers/storage-scope.test.mjs
+      - name: Build deployable Wasm artifact
+        run: |
+          cargo install wasm-bindgen-cli --version 0.2.127 --locked
+          bash plugins/marketplace/workers/build.sh
+          test -s plugins/marketplace/workers/pkg/lenso_marketplace_workers_host_bg.wasm
+          pnpm --dir plugins/marketplace/workers exec wrangler deploy --dry-run
