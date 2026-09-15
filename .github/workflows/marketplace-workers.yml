@@ -25,33 +25,18 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: "24"
-      - name: Materialize the current change with pinned dependencies
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json, os, pathlib, subprocess
-          manifest = json.loads(pathlib.Path('plugins/marketplace/workers/proof/cohort.json').read_text())
-          for repository in manifest['repositories']:
-              if repository['name'] == 'lenso-console':
-                  repository['commit'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          pathlib.Path(os.environ['RUNNER_TEMP'], 'workers-cohort.json').write_text(json.dumps(manifest))
-          PY
-          python3 plugins/marketplace/workers/proof/cohort.py --self-test
-          python3 plugins/marketplace/workers/proof/cohort.py \
-            --manifest "$RUNNER_TEMP/workers-cohort.json" \
-            --destination "$RUNNER_TEMP/workers-cohort" \
-            --source "lenso-console=$GITHUB_WORKSPACE"
-      - name: Build the existing Marketplace assets
-        working-directory: ${{ runner.temp }}/workers-cohort/lenso-console/feat-workers-marketplace
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: LioRael/lenso-runtime-rust
+          ref: 905a59141ca0e349b734fb7de99d010f2b0dc0df
+          path: .ci/runtime
+      - name: Install reviewed Runtime package
+        run: npm install --ignore-scripts --no-save --package-lock=false --prefix plugins/marketplace/workers "$GITHUB_WORKSPACE/.ci/runtime/packages/workers-runtime"
+      - name: Build Marketplace assets
         run: |
           pnpm install --frozen-lockfile
           pnpm marketplace:build
-      - name: Check the actual composed Wasm host
-        working-directory: ${{ runner.temp }}/workers-cohort/lenso-console/feat-workers-marketplace
+      - name: Check composed Wasm host
         run: cargo clippy --locked --manifest-path plugins/marketplace/workers/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
       - name: Check request-owned storage boundaries
-        working-directory: ${{ runner.temp }}/workers-cohort/lenso-console/feat-workers-marketplace/plugins/marketplace/workers
-        run: |
-          mkdir -p runtime
-          cp ../../../../../lenso-runtime-rust/design-workers-compatibility/experiments/workers-runtime/http.mjs runtime/http.mjs
-          node --test storage.test.mjs storage-scope.test.mjs
+        run: node --test plugins/marketplace/workers/storage.test.mjs plugins/marketplace/workers/storage-scope.test.mjs
