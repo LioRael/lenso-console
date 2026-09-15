@@ -44,9 +44,8 @@ Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
 
 Before creating a page, changing controls/layout, or fixing visual details, read [the Lenso UI implementation standard](docs/design/README.md). Follow its component discovery, alignment, and rendered-state acceptance steps. This also applies to plugin pages inside Console; use one shared component owner and record visual verification before claiming completion.
 
-## Marketplace delivery
+## Marketplace ownership
 
-For changes under `plugins/marketplace/`, require the `catalog`, `event-host`,
-and `quality` checks when they apply. A passing Workers check does not replace
-the native catalog/browser acceptance check. Inspect every failed check before
-merging; do not narrow the required-check list to bypass a failure.
+Marketplace application source and delivery live in `LioRael/lenso-marketplace`.
+Do not reintroduce its Web, Directory, publisher or Workers code into Console.
+Console Agent remains the installation authority and consumes public contracts.
