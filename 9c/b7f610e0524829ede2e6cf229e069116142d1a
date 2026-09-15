@@ -1,0 +1,33 @@
+.changeset/conditional-marketplace-publication.md
+  s_3724267b9ee00e::t_33921df8456d88 1-5
+.github/workflows/marketplace-workers.yml
+  s_3724267b9ee00e::t_ece0b6653f38ad 37
+plugins/marketplace/catalog/docs/operator.md
+  s_3724267b9ee00e::t_2826be03c00a0e 60-64
+plugins/marketplace/catalog/src/bin/publisher.rs
+  s_3724267b9ee00e::t_747ab93a75b767 32,46-69
+plugins/marketplace/catalog/tests/publisher.rs
+  s_3724267b9ee00e::t_44add906f22407 92-102
+plugins/marketplace/workers/operator/README.md
+  s_3724267b9ee00e::t_8dc6501b2b3a9c 1-43
+plugins/marketplace/workers/operator/promote.mjs
+  s_3724267b9ee00e::t_2df886a0cc4bf2 1-222
+plugins/marketplace/workers/operator/promote.test.mjs
+  s_3724267b9ee00e::t_2e81d4cf48ff4d 1-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9cb7f610e0524829ede2e6cf229e069116142d1a",
+  "prompts": {},
+  "sessions": {
+    "s_3724267b9ee00e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09863-bdc5-7501-9f17-8276e89fcd6d",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
