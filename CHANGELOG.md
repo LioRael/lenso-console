@@ -1,5 +1,14 @@
 ## @lenso/console-web@0.1.7
 
+## 1.19.1
+
+### Patch Changes
+
+- 5fc746c: Bundle the verified Lenso Agent 0.1.13 native artifacts for the Agent npm
+  distribution.
+- b50d100: Isolate Console convention dependency installs so an interrupted build cannot
+  block later precompiled development Host builds through Bun's shared cache.
+
 ## 1.19.0
 
 ### Minor Changes
