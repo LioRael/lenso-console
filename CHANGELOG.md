@@ -1,5 +1,11 @@
 ## @lenso/console-web@0.1.7
 
+## 1.19.0
+
+### Minor Changes
+
+- b6f6125: Add optional App-owned Console page conventions, owner service adapters and a precompiled development Host with a complete no-Rust authoring tool closure.
+
 ## 1.18.2
 
 ### Patch Changes
