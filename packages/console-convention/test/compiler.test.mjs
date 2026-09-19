@@ -14,9 +14,12 @@ test("compiled pages use Shell React and match dynamic routes after static route
   try {
     const entry = path.join(root, "console"),
       output = path.join(root, "out");
+    const temporaryCacheRoot = path.join(root, "tmp");
     fs.mkdirSync(path.join(entry, "orders/[id]"), { recursive: true });
     fs.mkdirSync(path.join(entry, "orders/new"), { recursive: true });
     fs.mkdirSync(output);
+    fs.mkdirSync(temporaryCacheRoot);
+    fs.writeFileSync(path.join(entry, "package.json"), '{"private":true}');
     fs.writeFileSync(
       path.join(entry, "page.tsx"),
       'import {useState,createContext} from "react"; const Context=createContext(null); export default function Page(){const [n]=useState(7); return <h1>{n}</h1>;}'
@@ -46,9 +49,14 @@ test("compiled pages use Shell React and match dynamic routes after static route
       plugin_id: "example.orders.surface-0123456789ab",
       release_version: "1.0.0",
     };
-    const result = Bun.spawnSync(["bun", compiler], {
-      stdin: Buffer.from(JSON.stringify(request)),
-    });
+    const env = { ...process.env, TMPDIR: temporaryCacheRoot };
+    delete env.BUN_INSTALL_CACHE_DIR;
+    const compile = () =>
+      Bun.spawnSync(["bun", compiler], {
+        env,
+        stdin: Buffer.from(JSON.stringify(request)),
+      });
+    const result = compile();
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(result.stdout.toString()).schema).toBe(
       "lenso.convention-compiled.v1"
@@ -77,9 +85,7 @@ test("compiled pages use Shell React and match dynamic routes after static route
       path.join(entry, "page.tsx"),
       'const count: number = "wrong"; export default function Page(){return <p>{count}</p>;}'
     );
-    const invalid = Bun.spawnSync(["bun", compiler], {
-      stdin: Buffer.from(JSON.stringify(request)),
-    });
+    const invalid = compile();
     expect(invalid.exitCode).not.toBe(0);
     expect(invalid.stderr.toString()).toContain("not assignable");
     fs.writeFileSync(
@@ -91,11 +97,12 @@ test("compiled pages use Shell React and match dynamic routes after static route
       path.join(entry, "orders/[other]/page.tsx"),
       "export default function Page(){return null;}"
     );
+    expect(compile().exitCode).not.toBe(0);
     expect(
-      Bun.spawnSync(["bun", compiler], {
-        stdin: Buffer.from(JSON.stringify(request)),
-      }).exitCode
-    ).not.toBe(0);
+      fs
+        .readdirSync(temporaryCacheRoot)
+        .filter((name) => name.startsWith("lenso-console-bun-"))
+    ).toEqual([]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

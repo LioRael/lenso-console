@@ -1,7 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export async function typecheck({ out, authored, imports, checks, sdk }) {
+export async function typecheck({
+  out,
+  authored,
+  imports,
+  checks,
+  sdk,
+  env = process.env,
+}) {
   const directory = path.join(out, "typecheck");
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(
@@ -18,6 +25,7 @@ export async function typecheck({ out, authored, imports, checks, sdk }) {
   );
   const install = Bun.spawnSync(["bun", "install", "--ignore-scripts"], {
     cwd: directory,
+    env,
     stdout: "pipe",
     stderr: "inherit",
   });

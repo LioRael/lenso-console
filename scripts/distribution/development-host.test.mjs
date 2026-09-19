@@ -57,21 +57,26 @@ const verifyServices = async (cli, app, env) => {
 const kit = process.env.LENSO_CONSOLE_DEV_KIT
   ? fs.realpathSync(process.env.LENSO_CONSOLE_DEV_KIT)
   : undefined;
+const DEFAULT_COMMAND_TIMEOUT_MS = 90_000;
+// `lenso.console.pages` has a bounded five-minute compiler setup window. Leave
+// a small assembly margin without weakening the timeout for every CLI command.
+const FIRST_CONVENTION_BUILD_TIMEOUT_MS = 330_000;
+const COMPLETE_CONSUMER_TIMEOUT_MS = 420_000;
 // Guards the complete consumer closure: a cached Cargo build cannot mask a
 // missing precompiled Host, compiler, SDK projection, or bundled Bun executable.
 test(
   "Console creation, build and startup work with only development-kit tools",
-  { skip: !kit, timeout: 120000 },
+  { skip: !kit, timeout: COMPLETE_CONSUMER_TIMEOUT_MS },
   async () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), "console-no-rust-"));
     const app = path.join(temp, "app");
     const cli = path.join(kit, "bin/lenso");
     const env = { ...process.env, PATH: path.join(kit, "bin") };
-    const run = (args) => {
+    const run = (args, timeout = DEFAULT_COMMAND_TIMEOUT_MS) => {
       const result = spawnSync(cli, args, {
         encoding: "utf-8",
         env,
-        timeout: 90000,
+        timeout,
       });
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
       return result.stdout;
@@ -81,7 +86,7 @@ test(
       assert.ok(
         fs.existsSync(path.join(app, "app/orders/console/orders/[id]/page.tsx"))
       );
-      run(["app", "build", "--root", app]);
+      run(["app", "build", "--root", app], FIRST_CONVENTION_BUILD_TIMEOUT_MS);
       run(["app", "start", "--from", path.join(app, "dist"), "--check"]);
       await verifyServices(cli, app, env);
       assert.ok(!fs.existsSync(path.join(app, ".lenso/host-cache")));
