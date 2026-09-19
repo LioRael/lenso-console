@@ -111,3 +111,17 @@ own releases. The implementation packages remain unpublished until that work
 is complete. Console's source App pins both Projects packages to one immutable owner Git
 revision and aligns native UI contract sources through repository-relative manifest
 patches. A clean checkout does not require temporary or machine-specific overrides.
+
+## Console development kit prereleases
+
+The `Console development Host matrix` workflow builds macOS ARM64 and Linux x64
+kits against an exact Engine commit. It archives the executables in tar.gz files,
+extracts each archive, and repeats the no-Rust acceptance test before uploading
+the archives and SHA-256 checksums. GitHub artifact ZIP files are only transport
+containers; install the tar.gz inside them to preserve executable permissions.
+
+After the reviewed source merges, dispatch the workflow on `main` with the Engine
+repository, its full reviewed commit SHA, and `publish=true`. Only a successful
+matrix can create the GitHub development prerelease. The release records both
+source revisions and has a unique run-specific tag. This does not publish the
+Console SDK to npm, or publish Rust contracts or production container images.

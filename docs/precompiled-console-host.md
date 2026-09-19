@@ -50,14 +50,21 @@ the previous generation after invalid TSX, then replaced it after correction.
 The rebuilt page was inspected in the browser. These checks do not claim React
 Fast Refresh, all platform targets, or offline first-time npm installation.
 
-The package and implementation remain local; publication, signing, registry
-aliases and remote delivery have not been performed.
+The SDK is bundled with the development kit. A kit release does not publish an
+npm SDK alias or sign the executables.
 
 ## Native platform acceptance
 
-`.github/workflows/console-development-host.yml` builds and tests macOS and
-Linux on their native runners. Dispatch requires an immutable Engine repository
-revision because Engine is independently owned. The workflow only builds and
-uploads verification artifacts; it does not publish packages. It has not been
-run for these local changes. Linux remains unverified while the local Docker
-daemon is unavailable. No Windows launcher is included in this POSIX package.
+`.github/workflows/console-development-host.yml` builds and tests macOS ARM64 and
+Linux x64 on their native runners. Linux passed the no-Rust gate in run
+`35457714751`; macOS has also passed locally. Dispatch requires an immutable
+Engine repository revision because Engine is independently owned. Each kit is
+archived as tar.gz, extracted and tested again, then uploaded with a SHA-256
+checksum. This preserves executable modes across GitHub artifact transport.
+
+After merging, dispatch on `main` with `publish=true` to publish a development
+prerelease only after both platform gates pass. Download the archive for your
+platform, verify its checksum, and extract it with `tar -xzf`. Add the extracted
+`development-host/bin` directory to PATH and follow the package README. The
+release records the Console and Engine source revisions. No Windows launcher
+is included in this POSIX package.

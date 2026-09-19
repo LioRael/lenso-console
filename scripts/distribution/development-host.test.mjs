@@ -52,7 +52,11 @@ const verifyServices = async (cli, app, env) => {
   }
 };
 
-const kit = process.env.LENSO_CONSOLE_DEV_KIT;
+// The launcher resolves its module path, including macOS /var -> /private/var.
+// Use the same canonical path when replacing the generated Host manifest.
+const kit = process.env.LENSO_CONSOLE_DEV_KIT
+  ? fs.realpathSync(process.env.LENSO_CONSOLE_DEV_KIT)
+  : undefined;
 // Guards the complete consumer closure: a cached Cargo build cannot mask a
 // missing precompiled Host, compiler, SDK projection, or bundled Bun executable.
 test(

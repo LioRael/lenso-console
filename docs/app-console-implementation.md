@@ -83,9 +83,9 @@ or grant tool execution.
   Bun startup RPC must not nest a temporary Tokio runtime inside the caller's
   runtime. The Adapter regression and eight V2 transport conformance tests pass.
 
-Cross-platform status remains explicit: macOS ARM64 passed locally. The manual
-`console-development-host.yml` matrix covers macOS and Linux and requires an
-exact Engine commit. It has not been dispatched. Local Docker is unavailable,
-so Linux execution is unverified. Windows is not a supported target of this
-POSIX development package. Agent currently uses a local Cargo patch for the
-Adapter fix; replace it with a reviewed released version during delivery.
+Cross-platform status remains explicit: macOS ARM64 passed locally. Linux x64
+passed the no-Rust matrix in GitHub Actions run `35457714751`. The
+`console-development-host.yml` workflow requires an exact Engine commit and now
+verifies the extracted download archive before optional prerelease publication.
+Windows is not a supported target of this POSIX development package. Agent has
+replaced the temporary Adapter patch with released `lenso-bun-adapter 0.1.11`.
