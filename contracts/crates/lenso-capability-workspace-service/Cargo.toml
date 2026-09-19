@@ -8,7 +8,14 @@ repository = "https://github.com/LioRael/lenso-console"
 publish = true
 rust-version = "1.94"
 
+[package.metadata.lenso.contract]
+descriptor = "capability.json"
+projection = "rust-runtime"
+output = "src/generated.rs"
+
 [dependencies]
+lenso-guest-sdk = "0.5.0"
+lenso-runtime-codec = "=0.4.1"
 futures = "0.3"
 lenso-contract-runtime = "0.2.0"
 lenso-kernel = "0.3.6"

@@ -1,0 +1,24 @@
+{
+  "name": "@lenso/console-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contribution": "./src/generated/contribution.ts",
+    "./workspace-service": "./src/generated/workspace-service.ts",
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck src/index.ts src/generated/*.ts"
+  },
+  "dependencies": {
+    "@lenso/contract-runtime": "0.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

@@ -27,6 +27,7 @@ const consoleAgent: AgentIdentity = {
 
 type AgentIdentityState = {
   agents: AgentIdentity[];
+  loading: boolean;
   selectAgent: (agentId: AgentId) => void;
   selectedAgent: AgentIdentity;
 };
@@ -40,13 +41,13 @@ export function AgentIdentityProvider({ children }: PropsWithChildren) {
     storedAgentId
   );
   const { administrator } = useConsoleSession();
-  const { data } = useQuery({
+  const { data, isPending } = useQuery({
     enabled: administrator,
     queryFn: ({ signal }) => listAgents(signal),
     queryKey: ["agent-catalog"],
     retry: false,
   });
-  const agents = useMemo(() => (data?.length ? data : [consoleAgent]), [data]);
+  const agents = useMemo(() => data ?? [], [data]);
   const selectedAgent =
     agents.find((agent) => agent.id === preferredAgentId) ??
     agents.find((agent) => agent.role === "app") ??
@@ -59,8 +60,8 @@ export function AgentIdentityProvider({ children }: PropsWithChildren) {
     window.localStorage.removeItem(legacyStorageKey);
   }, []);
   const value = useMemo<AgentIdentityState>(
-    () => ({ agents, selectAgent, selectedAgent }),
-    [agents, selectAgent, selectedAgent]
+    () => ({ agents, loading: isPending, selectAgent, selectedAgent }),
+    [agents, isPending, selectAgent, selectedAgent]
   );
   return (
     <AgentIdentityContext.Provider value={value}>

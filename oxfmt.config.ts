@@ -11,5 +11,6 @@ export default defineConfig({
     "service/**/generated/**",
     "contracts/**/generated/**",
     "plugins/**/generated/**",
+    "packages/**/generated/**",
   ],
 });

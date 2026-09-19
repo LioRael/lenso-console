@@ -22,7 +22,7 @@
       "type": "string"
     },
     "console_agent_url": {
-      "description": "Clean loopback HTTP origin of the separately released Console Agent process.",
+      "description": "Optional clean loopback HTTP origin of a Console Agent. Empty disables Agent integration; an App Console requires no Agent.",
       "type": "string"
     },
     "agent_control_token_file": {

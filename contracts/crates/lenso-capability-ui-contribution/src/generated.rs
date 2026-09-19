@@ -502,3 +502,118 @@ pub enum ContributionInvocationError {
     Domain(DescribeContributionError),
     Runtime(RuntimeFailure),
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct ContributionGuestClient<'a, H: lenso_guest_sdk::HostImports> {
+    capability: lenso_guest_sdk::GuestCapability<'a, H>,
+}
+
+impl<'a, H: lenso_guest_sdk::HostImports> ContributionGuestClient<'a, H> {
+    pub fn from_context(context: &'a lenso_guest_sdk::GuestContext<H>) -> Result<Self, lenso_guest_sdk::GuestError<serde_json::Value>> {
+        context
+            .require(CAPABILITY_ID, DESCRIPTOR_VERSION, &[DESCRIBE_CONTRIBUTION_OPERATION], &[], &[])
+            .map(|capability| Self { capability })
+    }
+
+    pub fn describe_contribution(&self, request: &DescribeContributionRequest) -> Result<DescribeContributionResponse, lenso_guest_sdk::GuestError<DescribeContributionError>> {
+        self.capability.request(DESCRIBE_CONTRIBUTION_OPERATION, request)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct ContributionJsonCodec;
+
+impl lenso_runtime_codec::JsonCapabilityCodec for ContributionJsonCodec {
+    fn capability_id(&self) -> &'static str { CAPABILITY_ID }
+
+    fn descriptor_version(&self) -> &'static str { DESCRIPTOR_VERSION }
+
+    fn descriptor_digest(&self) -> &'static str { DESCRIPTOR_DIGEST }
+
+    fn request_operations(&self) -> &'static [&'static str] { &[DESCRIBE_CONTRIBUTION_OPERATION] }
+    fn stream_operations(&self) -> &'static [&'static str] { &[] }
+    fn event_operations(&self) -> &'static [&'static str] { &[] }
+
+    fn encode_request(&self, operation: &str, request: &dyn std::any::Any) -> Result<serde_json::Value, RuntimeFailure> {
+        match operation {
+            DESCRIBE_CONTRIBUTION_OPERATION => {
+                let value = request.downcast_ref::<DescribeContributionRequest>().ok_or_else(runtime_codec_protocol_failure)?;
+                serde_json::to_value(value).map_err(|_| runtime_codec_protocol_failure())
+            },
+            _ => Err(runtime_codec_unknown_operation(operation)),
+        }
+    }
+
+    fn decode_response(&self, operation: &str, value: serde_json::Value) -> Result<Box<dyn std::any::Any>, RuntimeFailure> {
+        match operation {
+            DESCRIBE_CONTRIBUTION_OPERATION => serde_json::from_value::<DescribeContributionResponse>(value)
+                .map(|value| Box::new(value) as Box<dyn std::any::Any>)
+                .map_err(|_| runtime_codec_protocol_failure()),
+            _ => Err(runtime_codec_unknown_operation(operation)),
+        }
+    }
+
+    fn decode_domain_error(&self, operation: &str, value: serde_json::Value) -> Result<Box<dyn std::any::Any>, RuntimeFailure> {
+        match operation {
+            DESCRIBE_CONTRIBUTION_OPERATION => serde_json::from_value::<DescribeContributionError>(value)
+                .map(|value| Box::new(value) as Box<dyn std::any::Any>)
+                .map_err(|_| runtime_codec_protocol_failure()),
+            _ => Err(runtime_codec_unknown_operation(operation)),
+        }
+    }
+
+    fn encode_stream_open(&self, operation: &str, _request: &dyn std::any::Any) -> Result<serde_json::Value, RuntimeFailure> {
+        Err(runtime_codec_unknown_operation(operation))
+    }
+
+    fn encode_stream_message(&self, operation: &str, _message: &dyn std::any::Any) -> Result<serde_json::Value, RuntimeFailure> {
+        Err(runtime_codec_unknown_operation(operation))
+    }
+
+    fn decode_stream_message(&self, operation: &str, _value: serde_json::Value) -> Result<Box<dyn std::any::Any>, RuntimeFailure> {
+        Err(runtime_codec_unknown_operation(operation))
+    }
+
+    fn decode_stream_domain_error(&self, operation: &str, _value: serde_json::Value) -> Result<Box<dyn std::any::Any>, RuntimeFailure> {
+        Err(runtime_codec_unknown_operation(operation))
+    }
+
+    fn encode_event(&self, operation: &str, _event: &dyn std::any::Any) -> Result<serde_json::Value, RuntimeFailure> {
+        Err(runtime_codec_unknown_operation(operation))
+    }
+
+    fn invoke_host_request(&self, dependency: lenso_kernel::PluginDependencyHandle, operation: String, request: serde_json::Value, context: InvocationContext) -> lenso_runtime_codec::JsonHostRequestFuture {
+        match operation.as_str() {
+            DESCRIBE_CONTRIBUTION_OPERATION => {
+                let request = serde_json::from_value::<DescribeContributionRequest>(request).map_err(|_| runtime_codec_protocol_failure());
+                Box::pin(async move {
+                    let request = request?;
+                    let handle = dependency.typed::<Contribution>()?;
+                    match handle.invoke_with_context(DESCRIBE_CONTRIBUTION_OPERATION, context, request).await? {
+                        Ok(response) => serde_json::to_value(response)
+                            .map(lenso_runtime_codec::JsonInvocationOutcome::Success)
+                            .map_err(|_| runtime_codec_protocol_failure()),
+                        Err(error) => serde_json::to_value(error)
+                            .map(lenso_runtime_codec::JsonInvocationOutcome::DomainError)
+                            .map_err(|_| runtime_codec_protocol_failure()),
+                    }
+                })
+            },
+            _ => Box::pin(std::future::ready(Err(runtime_codec_unknown_operation(&operation)))),
+        }
+    }
+
+    fn open_host_stream(&self, _dependency: lenso_kernel::PluginStreamDependencyHandle, operation: String, _request: serde_json::Value, _context: InvocationContext) -> lenso_runtime_codec::JsonHostStreamOpenFuture {
+        Box::pin(std::future::ready(Err(runtime_codec_unknown_operation(&operation))))
+    }
+
+    fn publish_host_event(&self, _dependency: lenso_kernel::PluginEventDependencyHandle, operation: String, _event: serde_json::Value, _context: InvocationContext) -> futures::future::LocalBoxFuture<'static, Result<(), RuntimeFailure>> {
+        Box::pin(std::future::ready(Err(runtime_codec_unknown_operation(&operation))))
+    }
+}
+
+fn runtime_codec_protocol_failure() -> RuntimeFailure { RuntimeFailure::ProtocolViolation { capability: CAPABILITY_ID } }
+
+fn runtime_codec_unknown_operation(operation: &str) -> RuntimeFailure {
+    RuntimeFailure::UnknownOperation { capability: CAPABILITY_ID, operation: operation.to_owned() }
+}

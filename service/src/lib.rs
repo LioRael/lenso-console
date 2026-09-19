@@ -44,6 +44,8 @@ const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
 
+include!(concat!(env!("OUT_DIR"), "/shell.rs"));
+
 fn default_console_agent_tools() -> Vec<String> {
     [
         "inspect_app",
@@ -149,8 +151,10 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
     {
         return Err(invalid_plan("Console paths must not be empty"));
     }
-    AppAgentAdapter::parse_console(&config.console_agent_url, None)
-        .map_err(|error| invalid_plan(error.to_string()))?;
+    if !config.console_agent_url.is_empty() {
+        AppAgentAdapter::parse_console(&config.console_agent_url, None)
+            .map_err(|error| invalid_plan(error.to_string()))?;
+    }
     AppAgentAdapter::parse(&config.connected_agent_url, &config.connected_agent_label)
         .map_err(invalid_plan)?;
     if let Some(projects) = &config.local_projects
@@ -215,11 +219,9 @@ impl Lifecycle for ConsolePlugin {
         )
         .await?;
         config.validate().map_err(plugin_failure)?;
-        config
-            .console_agent
-            .require_ready()
-            .await
-            .map_err(plugin_failure)?;
+        if let Some(agent) = &config.console_agent {
+            agent.require_ready().await.map_err(plugin_failure)?;
+        }
         let local_projects = config.local_projects.clone();
         self.application
             .borrow_mut()
@@ -443,6 +445,34 @@ impl ConsoleApplication {
         if request.method != Method::GET && request.method != Method::HEAD {
             return StatusCode::METHOD_NOT_ALLOWED.into_response();
         }
+        if self.web_root == Path::new("embedded:") {
+            let name = request.path.trim_start_matches('/');
+            let selected = EMBEDDED_SHELL
+                .iter()
+                .find(|(path, _)| *path == name)
+                .or_else(|| {
+                    (!name.rsplit('/').next().unwrap_or("").contains('.'))
+                        .then(|| {
+                            EMBEDDED_SHELL
+                                .iter()
+                                .find(|(path, _)| *path == "index.html")
+                        })
+                        .flatten()
+                });
+            let Some((name, bytes)) = selected else {
+                return StatusCode::NOT_FOUND.into_response();
+            };
+            return ::http::Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, http::content_type(Path::new(name)))
+                .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+                .body(if request.method == Method::HEAD {
+                    Body::empty()
+                } else {
+                    Body::from(bytes.to_vec())
+                })
+                .expect("embedded Shell response");
+        }
         let candidate = http::static_path(&self.web_root, &request.path)
             .filter(|path| path.is_file())
             .unwrap_or_else(|| self.web_root.join("index.html"));
@@ -477,7 +507,7 @@ pub struct ConsoleConfig {
     pub app_agents: Vec<AppAgentAdapter>,
     pub managed_apps: Vec<ManagedAppAdapter>,
     managed_app_connections: Vec<ManagedAppConnection>,
-    console_agent: AppAgentAdapter,
+    console_agent: Option<AppAgentAdapter>,
     pub agent_configuration_store: PathBuf,
     pub tool_policy: PathBuf,
     pub trusted_plugin_bundles: Vec<TrustedPluginBundle>,
@@ -539,7 +569,7 @@ impl ConsoleConfig {
         origin: &str,
         control_token: Option<String>,
     ) -> anyhow::Result<Self> {
-        self.console_agent = AppAgentAdapter::parse_console(origin, control_token)?;
+        self.console_agent = Some(AppAgentAdapter::parse_console(origin, control_token)?);
         Ok(self)
     }
 
@@ -725,10 +755,14 @@ impl ConsoleConfig {
                     .map(|(id, path)| (id.clone(), resolve_path(&current, path))),
             )?,
             allowed_tools: config.allowed_tools.clone(),
-            console_agent: AppAgentAdapter::parse_console(
-                &config.console_agent_url,
-                configured_control_token,
-            )?,
+            console_agent: if config.console_agent_url.is_empty() {
+                None
+            } else {
+                Some(AppAgentAdapter::parse_console(
+                    &config.console_agent_url,
+                    configured_control_token,
+                )?)
+            },
             app_agents,
             managed_apps: config
                 .managed_apps
@@ -736,7 +770,11 @@ impl ConsoleConfig {
                 .map(ManagedAppAdapter::connect)
                 .collect::<anyhow::Result<_>>()?,
             managed_app_connections: config.managed_apps.clone(),
-            web_root: resolve_path(&current, &config.web_root),
+            web_root: if config.web_root == "embedded:" {
+                PathBuf::from("embedded:")
+            } else {
+                resolve_path(&current, &config.web_root)
+            },
         })
     }
 
@@ -797,10 +835,14 @@ impl ConsoleConfig {
             managed_app_root,
             trusted_plugin_bundles,
             allowed_tools,
-            console_agent: AppAgentAdapter::parse_console(
-                &console_agent_url,
-                console_agent_control_token(),
-            )?,
+            console_agent: if console_agent_url.is_empty() {
+                None
+            } else {
+                Some(AppAgentAdapter::parse_console(
+                    &console_agent_url,
+                    console_agent_control_token(),
+                )?)
+            },
             app_agents: AppAgentAdapter::parse(&connected_agent_url, &connected_agent_label)
                 .map_err(anyhow::Error::msg)?
                 .into_iter()
@@ -840,8 +882,8 @@ impl ConsoleConfig {
             .transpose()?;
         let resolved_console_control_token = self
             .console_agent
-            .authorization
-            .as_deref()
+            .as_ref()
+            .and_then(|agent| agent.authorization.as_deref())
             .and_then(|token| token.strip_prefix("Bearer "));
         if let (Some(app), Some(console)) = (
             connected_agent_control_token.as_deref(),
@@ -868,7 +910,10 @@ impl ConsoleConfig {
             agent_home: utf8_path(&self.agent_home)?,
             allowed_tools: self.allowed_tools.clone(),
             agent_configuration_store: utf8_path(&self.agent_configuration_store)?,
-            console_agent_url: self.console_agent.origin.to_string(),
+            console_agent_url: self
+                .console_agent
+                .as_ref()
+                .map_or_else(String::new, |agent| agent.origin.to_string()),
             agent_control_token_file: self
                 .agent_control_token_file
                 .as_deref()
@@ -909,7 +954,8 @@ impl ConsoleConfig {
             "Console Agent configuration store must be absolute"
         );
         anyhow::ensure!(
-            self.web_root.join("index.html").is_file(),
+            self.web_root.join("index.html").is_file()
+                || (self.web_root == Path::new("embedded:") && !EMBEDDED_SHELL.is_empty()),
             "Console Shell build is missing at {}; run `pnpm service:web-build`",
             self.web_root.display()
         );
@@ -1055,15 +1101,18 @@ impl AppAgentAdapter {
 #[derive(Clone, Debug)]
 struct AgentCatalog {
     projects: Option<std::sync::Arc<LocalProjects>>,
-    console_agent: AppAgentAdapter,
+    console_agent: Option<AppAgentAdapter>,
     app_agents: Vec<AppAgentAdapter>,
 }
 
 impl AgentCatalog {
-    fn new(console_agent: AppAgentAdapter, app_agents: Vec<AppAgentAdapter>) -> Self {
+    fn new(
+        console_agent: impl Into<Option<AppAgentAdapter>>,
+        app_agents: Vec<AppAgentAdapter>,
+    ) -> Self {
         Self {
             projects: None,
-            console_agent,
+            console_agent: console_agent.into(),
             app_agents,
         }
     }
@@ -1132,20 +1181,26 @@ async fn route_console_agent(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    proxy_agent_request(catalog.console_agent, path, incoming, method, headers, body).await
+    let Some(agent) = catalog.console_agent else {
+        return problem(StatusCode::NOT_FOUND, "Console Agent is not enabled");
+    };
+    proxy_agent_request(agent, path, incoming, method, headers, body).await
 }
 
 fn list_agents(State(catalog): State<AgentCatalog>) -> Json<AgentIdentityList> {
-    let mut agents = vec![AgentIdentity {
-        capabilities: vec![
-            "lenso.agent.auth-connection@1",
-            AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
-            AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
-        ],
-        id: "console".to_owned(),
-        role: "console",
-        label: "Console Agent".to_owned(),
-    }];
+    let mut agents = Vec::new();
+    if catalog.console_agent.is_some() {
+        agents.push(AgentIdentity {
+            capabilities: vec![
+                "lenso.agent.auth-connection@1",
+                AGENT_PLUGIN_CONFIGURATION_CAPABILITY,
+                AGENT_PLUGIN_LIFECYCLE_CAPABILITY,
+            ],
+            id: "console".to_owned(),
+            role: "console",
+            label: "Console Agent".to_owned(),
+        });
+    }
     for app_agent in catalog.app_agents {
         agents.push(AgentIdentity {
             capabilities: [
@@ -1545,7 +1600,7 @@ mod tests {
             configured_console_agent_tools(Some(" inspect_app, check_plugin_change ")),
             ["inspect_app", "check_plugin_change"]
         );
-        assert_eq!(defaults.console_agent_url, DEFAULT_CONSOLE_AGENT_URL);
+        assert!(defaults.console_agent_url.is_empty());
     }
 
     #[test]
@@ -1698,5 +1753,23 @@ mod tests {
         let current = std::env::current_dir().unwrap();
         let root = resolve_app_root(Some("fixtures/app".into())).unwrap();
         assert_eq!(root, current.join("fixtures/app"));
+    }
+    // Regression: App Consoles must not invent an Agent identity or contact an
+    // Agent endpoint when none was selected by the application.
+    #[tokio::test]
+    async fn app_console_without_agent_has_no_agent_routes() {
+        let catalog = AgentCatalog::new(None, vec![]);
+        let Json(identities) = list_agents(State(catalog.clone()));
+        assert!(identities.agents.is_empty());
+        let response = route_console_agent(
+            State(catalog),
+            HttpPath("bootstrap".into()),
+            OriginalUri("/api/console/v1/agent/bootstrap".parse().unwrap()),
+            Method::GET,
+            HeaderMap::new(),
+            Bytes::new(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

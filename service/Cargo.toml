@@ -18,6 +18,9 @@ resolver = "2"
 plugin-id = "lenso.console.web"
 root-slot = "console"
 
+[features]
+embedded-shell = []
+
 [dependencies]
 anyhow = "1.0"
 base64 = "0.22"

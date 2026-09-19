@@ -23,3 +23,6 @@ target/
 **/*.rs.bk
 *.profraw
 *.profdata
+
+# Local App example authoring caches
+examples/**/.lenso/

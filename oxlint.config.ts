@@ -9,10 +9,16 @@ export default defineConfig({
     "service/**/generated/**",
     "contracts/**/generated/**",
     "plugins/**/generated/**",
+    "packages/**/generated/**",
   ],
   overrides: [
     {
-      files: ["src/**/*.{ts,tsx}", "vite.config.ts"],
+      files: [
+        "src/**/*.{ts,tsx}",
+        "packages/**/*.{ts,tsx,mjs}",
+        "examples/**/*.{ts,tsx}",
+        "vite.config.ts",
+      ],
       rules: {
         "class-methods-use-this": "off",
         complexity: "off",

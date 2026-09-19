@@ -1,3 +1,4 @@
+import type { WorkspaceServices } from "../../../packages/console-sdk/src/index";
 import { sessionFetch } from "../../lib/session-fetch";
 import type { PageMount } from "./page-contribution-catalog";
 
@@ -5,20 +6,7 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 
 export type WorkspaceServiceOptions = { signal?: AbortSignal };
 
-export type WorkspaceServices = {
-  invoke<Request, Response>(
-    service: string,
-    operation: string,
-    request: Request,
-    options?: WorkspaceServiceOptions
-  ): Promise<Response>;
-  subscribe<Request, Item>(
-    service: string,
-    operation: string,
-    request: Request,
-    options?: WorkspaceServiceOptions
-  ): AsyncIterable<Item>;
-};
+export type { WorkspaceServices } from "../../../packages/console-sdk/src/index";
 
 export class WorkspaceServiceError extends Error {
   readonly code: string;

@@ -11,7 +11,7 @@ fn main() {
     if env::var_os("LENSO_UPDATE_CONTRACT_SNAPSHOT").is_some() {
         write_projection(
             Path::new("capability.json"),
-            ProjectionLanguage::Rust,
+            ProjectionLanguage::RustRuntime,
             Path::new("src/generated.rs"),
         )
         .expect("failed to update generated Rust Workspace service contract");
@@ -25,7 +25,7 @@ fn main() {
     }
     check_projection(
         Path::new("capability.json"),
-        ProjectionLanguage::Rust,
+        ProjectionLanguage::RustRuntime,
         Path::new("src/generated.rs"),
     )
     .expect("generated Rust Workspace service contract is stale");

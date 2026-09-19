@@ -19,7 +19,7 @@ export const RouteNotFound = () => (
     action={
       <Button nativeButton={false} render={<Link to="/" />} variant="primary">
         <House aria-hidden="true" size={14} />
-        Back to Agent
+        Back to Console
       </Button>
     }
     description="The requested Console location does not exist."

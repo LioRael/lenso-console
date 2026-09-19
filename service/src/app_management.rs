@@ -83,7 +83,13 @@ fn agent_app(agent: &AppAgentAdapter, scope: &'static str) -> AppIdentity {
 }
 
 fn list_apps(State(catalog): State<AppCatalog>) -> Json<serde_json::Value> {
-    let mut apps = vec![agent_app(&catalog.agents.console_agent, "management-agent")];
+    let mut apps = catalog
+        .agents
+        .console_agent
+        .as_ref()
+        .map(|agent| agent_app(agent, "management-agent"))
+        .into_iter()
+        .collect::<Vec<_>>();
     apps.extend(
         catalog
             .agents
@@ -159,8 +165,8 @@ async fn route_app(
     let (target, base, local_install) =
         if let Some(app) = catalog.apps.iter().find(|app| app.transport.id == id) {
             (app.transport.clone(), "/api/lenso/v1", false)
-        } else if id == catalog.agents.console_agent.id {
-            (catalog.agents.console_agent, "/api/console/v1/agent", true)
+        } else if let Some(agent) = catalog.agents.console_agent.filter(|agent| id == agent.id) {
+            (agent, "/api/console/v1/agent", true)
         } else if let Some(app) = catalog.agents.app_agents.iter().find(|app| app.id == id) {
             (app.clone(), "/api/console/v1/agent", false)
         } else {
