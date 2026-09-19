@@ -35,7 +35,11 @@ normal Bun Plugin assembly, contracts and immutable App Plan admission.
 The Console page compiler declares a five-minute per-compiler budget for its
 first-time Bun dependency setup. This is an explicit Convention bound, not a
 global Host timeout change: ordinary processors retain Engine's 60-second and
-1-MiB defaults.
+1-MiB defaults. The extracted-kit consumer test grants that first build a
+30-second assembly margin and keeps its complete lifecycle test bounded to seven
+minutes. Unless the caller explicitly configures `BUN_INSTALL_CACHE_DIR`, the
+compiler also uses and removes a private temporary Bun cache for that build, so
+an interrupted install cannot block later Console builds through a shared cache.
 
 Factories present in the binary do not imply active Instances. Console disabled
 through Plugin Root produces no pages or listener. Existing source compilation

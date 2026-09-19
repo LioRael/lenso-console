@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import { typecheck } from "./typecheck.mjs";
@@ -12,6 +13,26 @@ const root = request.entry;
 if (!fs.lstatSync(root).isDirectory()) {
   throw new Error("Console entry must be a directory");
 }
+const out = request.output;
+// Do not let an interrupted build poison Bun's shared user cache. A caller may
+// still opt into an explicit cache, while the normal convention path receives
+// one isolated temporary cache for its two package-manager invocations.
+const configuredInstallCache = process.env.BUN_INSTALL_CACHE_DIR;
+let installCache;
+const installEnvironment = () => {
+  installCache ??=
+    configuredInstallCache ||
+    fs.mkdtempSync(path.join(os.tmpdir(), "lenso-console-bun-"));
+  return {
+    ...process.env,
+    BUN_INSTALL_CACHE_DIR: installCache,
+  };
+};
+const cleanInstallCache = () => {
+  if (!configuredInstallCache && installCache) {
+    fs.rmSync(installCache, { recursive: true, force: true });
+  }
+};
 const pages = [];
 const authored = [];
 let count = 0;
@@ -104,17 +125,6 @@ pages.sort((a, b) => {
   }
   return a.segments.join("/").localeCompare(b.segments.join("/"));
 });
-if (fs.existsSync(path.join(root, "package.json"))) {
-  const installed = Bun.spawnSync(
-    ["bun", "install", "--ignore-scripts", "--no-save"],
-    { cwd: root, stdout: "pipe", stderr: "inherit" }
-  );
-  process.stderr.write(installed.stdout);
-  if (installed.exitCode !== 0) {
-    throw new Error("Console dependency installation failed");
-  }
-}
-const out = request.output;
 const entry = path.join(out, "workspace-entry.ts");
 const imports = [];
 const checks = [];
@@ -153,7 +163,22 @@ fs.writeFileSync(
   `${imports.join("\n")}\nimport {createPageRouter} from ${JSON.stringify(path.join(import.meta.dir, "router.ts"))};\nexport function createWorkspace(runtime) { const Page=createPageRouter([${routes.join(",")}],${notFound}); return {Page(props) { return runtime.createElement(Page,{...props,services:runtime.services}); }}; }`
 );
 const sdk = path.resolve(import.meta.dir, "../console-sdk/src/index.ts");
-await typecheck({ root, out, authored, imports, checks, sdk });
+try {
+  const env = installEnvironment();
+  if (fs.existsSync(path.join(root, "package.json"))) {
+    const installed = Bun.spawnSync(
+      ["bun", "install", "--ignore-scripts", "--no-save"],
+      { cwd: root, env, stdout: "pipe", stderr: "inherit" }
+    );
+    process.stderr.write(installed.stdout);
+    if (installed.exitCode !== 0) {
+      throw new Error("Console dependency installation failed");
+    }
+  }
+  await typecheck({ root, out, authored, imports, checks, sdk, env });
+} finally {
+  cleanInstallCache();
+}
 const result = await Bun.build({
   entrypoints: [entry],
   target: "browser",
