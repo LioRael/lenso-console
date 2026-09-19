@@ -74,7 +74,7 @@ First-time package creation/publisher configuration requires the registry owner;
 do not introduce long-lived npm tokens to bypass it. Allow direct `npm publish` for these publishers. The workflow uses the
 GitHub environment named `npm`; match that name in the publisher settings.
 
-After the Console version PR is merged, dispatch **Agent npm distribution** on
+After an explicitly authorized version change is landed, dispatch **Agent npm distribution** on
 `main` with `publish=false`. Review both platform smoke results and artifacts.
 Then dispatch with `publish=true` after registry authorization. The workflow
 publishes platform dependencies before the launcher. Existing immutable npm

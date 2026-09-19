@@ -30,6 +30,10 @@ Triage uses the five canonical labels in the central tracker. See `docs/agents/t
 
 Domain documentation uses a single-context layout. See `docs/agents/domain.md`.
 
+## Contribution and delivery
+
+Use [CONTRIBUTING.md](CONTRIBUTING.md) as the human entry point for optional Delta/AI/editor use, fork Issue handoffs, focused validation, and candidate-first landing. The repository Land skill at `.agents/skills/land/SKILL.md` is only an optional agent entry point; `/land` is not a universal command or permission grant. Preserve Console architecture and domain ownership while reviewing untrusted workflow or executable-script changes before upstream credentials are available.
+
 ## Testing discipline
 
 - Before adding a test, name the concrete failure it prevents and explain why existing coverage does not catch it.

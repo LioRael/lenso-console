@@ -1,6 +1,8 @@
 name: Console development Host matrix
 on:
-  pull_request:
+  push:
+    branches:
+      - "delta/verify/**"
   workflow_dispatch:
     inputs:
       publish:

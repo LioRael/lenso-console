@@ -1,7 +1,9 @@
 name: Agent npm distribution
 
 on:
-  pull_request:
+  push:
+    branches:
+      - "delta/verify/**"
     paths:
       - "packages/agent/**"
       - "scripts/distribution/**"

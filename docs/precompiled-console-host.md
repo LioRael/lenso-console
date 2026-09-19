@@ -71,7 +71,7 @@ Engine repository revision because Engine is independently owned. Each kit is
 archived as tar.gz, extracted and tested again, then uploaded with a SHA-256
 checksum. This preserves executable modes across GitHub artifact transport.
 
-After merging, dispatch on `main` with `publish=true` to publish a development
+After an explicitly authorized release decision, dispatch on `main` with `publish=true` to publish a development
 prerelease only after both platform gates pass. Download the archive for your
 platform, verify its checksum, and extract it with `tar -xzf`. Add the extracted
 `development-host/bin` directory to PATH and follow the package README. The

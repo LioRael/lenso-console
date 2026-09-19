@@ -30,23 +30,20 @@ Console does not embed or compose that runtime.
 
 ## Branch Protection
 
-Both repositories protect `main` with the same baseline:
+The repositories use candidate-first protection for `main`:
 
-- Changes must enter through pull requests.
-- The required status check is `quality`.
-- Status checks are strict, so branches must be up to date before merge.
-- Linear history is required.
-- Force pushes are disabled.
-- Branch deletion is disabled.
-- Required approval count is `0`.
-- Admin enforcement is disabled so repository admins retain an emergency escape hatch.
+- Changes enter through a reviewed immutable candidate revision; a GitHub Issue
+  handoff is supported for contributors without write access.
+- The required status check is `quality`, reported by candidate CI.
+- The verified candidate is normal-fast-forwarded to `main` at the same SHA.
+- Force pushes are disabled and required protection is read back after landing.
 
-Use squash merges for small maintenance PRs unless there is a reason to preserve
-multiple commits.
+See [Contributing](../CONTRIBUTING.md) for the maintainer checklist and the
+plain Git alternative.
 
 ## Continuous Integration
 
-The Lenso Console `ci` workflow runs on pull requests and pushes to `main`.
+The Lenso Console `ci` workflow runs for candidate pushes under `delta/verify/**`; the verified revision is then fast-forwarded to `main` without a duplicate full run.
 
 The `quality` job runs:
 
@@ -78,16 +75,14 @@ Update GitHub metadata when the repository role changes materially.
 
 The coordinated rename and independent-release cutover keep these invariants:
 
-1. `LioRael/lenso-console` owns its Console OCI image; no central publisher is a
-   normal release dependency.
-2. Update the repository-local Changesets and OCI release configuration before
-   attempting another release.
-3. Repository write access alone is not release authority; GHCR writes use the
-   approved GitHub OIDC workflow.
-4. Application metadata, OCI source labels, CI checkout paths, and the
-   repository-boundary test must change together; never leave old and new live
-   identities mixed.
-5. Verify `main` branch protection and the required `quality` check after the
-   rename.
-6. Use the repository-local Changesets and OCI workflows for a release. Verify
-   the digest-pinned GHCR image and GitHub attestation before production activation.
+1. Console source delivery and release inspection remain separate. The
+   Changesets workflow is read-only until separately authorized version work is
+   reviewed and landed.
+2. Repository write access alone is not release authority. Agent npm and
+   development-kit publication retain their explicit manual gates, environments,
+   package selection, action pins, and OIDC identities.
+3. Console does not currently publish an OCI image or Rust contracts. Do not
+   claim registry availability, image digests, attestations, or deployment as a
+   result of source landing.
+4. Verify `main` protection and the required `quality` check after delivery;
+   preserve Console's framework and repository boundaries.

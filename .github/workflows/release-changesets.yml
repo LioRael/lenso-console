@@ -1,49 +1,60 @@
 name: Changesets
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".changeset/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "src/**"
-      - ".github/workflows/release-changesets.yml"
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact landed source SHA to inspect (40 hexadecimal characters)
+        required: true
+        type: string
+      mode:
+        description: Read-only release inspection mode
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
-  group: changesets-${{ github.ref }}
+  group: changesets-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Version Console
-    if: ${{ github.repository_owner == 'LioRael' }}
+  release-dry-run:
+    name: Inspect Console release changesets
+    if: ${{ inputs.mode == 'dry-run' }}
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
-      - name: Checkout repository
+      - name: Require an immutable source revision
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: '[[ "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]'
+      - name: Checkout the requested source revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Set up pnpm
-        uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
+      - name: Require the landed source revision on current main
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA,,}"
+          git fetch origin main --no-tags
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/main
+      - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0 # v4
         with:
+          package_json_file: package.json
           run_install: false
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24.18.0
           cache: pnpm
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
-      - name: Create or update the version PR
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: pnpm run version
-          createGithubReleases: false
+      - name: Check pending release intent without changing files
+        run: pnpm changeset status

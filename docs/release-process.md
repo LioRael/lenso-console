@@ -12,37 +12,28 @@ Create a changeset for every user-facing Console change:
 pnpm changeset
 ```
 
-The Changesets workflow opens or updates a version pull request for the private
-`@lenso/console-web` application. The private application itself is not published to npm. The separately staged
+The Changesets workflow is a manually dispatched, read-only dry-run that inspects
+pending release intent at an exact landed SHA. It does not open a version pull
+request or modify the repository. The private `@lenso/console-web` application
+itself is not published to npm. The separately staged
 `@lenso/agent` launcher and platform packages use the opt-in
 [Agent npm distribution workflow](agent-npm-distribution.md). Historical package versions and tags remain historical
 records; the application version identifies the source release. The former OCI pipeline
 was retired; versioning does not publish a container image.
 
-## Generated release PR checks
+## Read-only release inspection
 
-Release PRs use the repository `GITHUB_TOKEN`; no dedicated Release App or
-central coordinator is required. Keep Actions pull-request creation enabled and
-retain the workflow's scoped `contents: write` and `pull-requests: write` permissions.
-The separate opt-in Agent publisher retains its own OIDC workflow.
-
-GitHub places workflows for `github-actions[bot]` pull requests behind an
-[approval gate](https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/).
-During delivery:
-
-1. Review the generated version/lockfile changes and record the PR's current head SHA.
-2. Open the pending CI run for that same head and use **Approve and run**.
-3. Wait for all required checks on the reviewed head before merging. If the bot
-   updates the PR, review the new head and approve its pending runs again.
-
-`action_required` and an expired approval are delivery blockers, not executed
-test failures. Approving CI does not approve a merge or publication. Do not bypass
-required checks or dispatch a publisher to compensate for a pending PR approval.
+Run the Changesets workflow manually on `main` with an exact landed `source_sha`
+and `mode=dry-run`. It installs locked dependencies and runs `pnpm changeset
+status`; it does not create commits, pull requests, tags, releases, or registry
+writes. Version changes require a separately authorized maintainer change and
+review. The Agent npm and development-kit workflows retain their independent
+manual gates and publishing environments.
 
 ## Distribution boundary
 
-Merge the reviewed Changesets version PR after its quality checks pass. The
-source distribution runs Console using the documented
+After separately authorized version work passes its review and candidate checks,
+the source distribution runs Console using the documented
 `pnpm agent:web` launcher and separately released Agent Web binaries.
 
 There is no active OCI build or publication workflow. A Changesets version bump

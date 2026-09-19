@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml/badge.svg)](https://github.com/LioRael/lenso-console/actions/workflows/ci.yml)
 
+See [Contributing](CONTRIBUTING.md) for optional Delta/AI/editor workflows, fork and Issue handoffs, focused validation, and candidate-first landing.
+
 Lenso Console is the local management and Agent workspace for one Lenso App.
 The Console service owns the React Shell, Agent catalog, and same-origin proxy.
 It runs as a Lenso App: Plan-bound `lenso.web-ingress` instances own Console
@@ -195,14 +197,20 @@ larger than 1 MiB.
 
 ## Checks
 
+Run the smallest relevant checks for the change. Typical frontend changes use:
+
 ```sh
 pnpm format:check
 pnpm lint
 pnpm typecheck
-pnpm test
-pnpm build
-pnpm service:check
+pnpm test:local
+pnpm build:local
 ```
+
+Browser, distribution, and Rust checks are required when those areas change.
+The upstream candidate `ci` run is the authoritative full native/browser proof;
+see [Contributing](CONTRIBUTING.md) rather than running every gate locally by
+default.
 
 Browser tests use Playwright-managed Chromium. Install it with
 `pnpm exec playwright install chromium`; set `LENSO_BROWSER_EXECUTABLE_PATH`
