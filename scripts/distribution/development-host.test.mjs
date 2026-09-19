@@ -104,6 +104,18 @@ test(
       const manifest = JSON.parse(
         fs.readFileSync(path.join(kit, "host.json"), "utf-8")
       );
+      const supportToml = fs.readFileSync(
+        path.join(kit, "packages/console-support/Cargo.toml"),
+        "utf-8"
+      );
+      const supportVersion = supportToml.match(
+        /^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"\s*$/mu
+      )?.[1];
+      assert.ok(supportVersion, "Console support package version is missing");
+      assert.equal(
+        manifest.sources["lenso.console.web"].release_version,
+        supportVersion
+      );
       manifest.target = "unsupported-target";
       fs.writeFileSync(path.join(temp, "host.json"), JSON.stringify(manifest));
       const config = path.join(app, "lenso.toml");

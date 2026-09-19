@@ -31,12 +31,12 @@ jobs:
           path: console
       - name: Require an immutable Engine revision
         env:
-          ENGINE_REVISION: ${{ inputs.engine_revision || 'c23bdd0bda1345bb4ba80e7318c772baab85c40f' }}
+          ENGINE_REVISION: ${{ inputs.engine_revision || 'a4f4e8cb13786509a5c92b64038a2ddbbdd10197' }}
         run: '[[ "$ENGINE_REVISION" =~ ^[0-9a-fA-F]{40}$ ]]'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: ${{ inputs.engine_repository || 'LioRael/lenso-engine' }}
-          ref: ${{ inputs.engine_revision || 'c23bdd0bda1345bb4ba80e7318c772baab85c40f' }}
+          ref: ${{ inputs.engine_revision || 'a4f4e8cb13786509a5c92b64038a2ddbbdd10197' }}
           path: engine
       - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
         with:

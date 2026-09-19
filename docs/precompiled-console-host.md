@@ -32,6 +32,11 @@ uses the binary's own Host Catalog. It copies the verified executable and record
 its manifest in the App distribution lock. Portable page providers still use
 normal Bun Plugin assembly, contracts and immutable App Plan admission.
 
+The Console page compiler declares a five-minute per-compiler budget for its
+first-time Bun dependency setup. This is an explicit Convention bound, not a
+global Host timeout change: ordinary processors retain Engine's 60-second and
+1-MiB defaults.
+
 Factories present in the binary do not imply active Instances. Console disabled
 through Plugin Root produces no pages or listener. Existing source compilation
 remains available for Apps without `development_host`.
