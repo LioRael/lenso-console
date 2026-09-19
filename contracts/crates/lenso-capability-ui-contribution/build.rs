@@ -11,7 +11,7 @@ fn main() {
     if env::var_os("LENSO_UPDATE_CONTRACT_SNAPSHOT").is_some() {
         write_projection(
             Path::new("capability.json"),
-            ProjectionLanguage::Rust,
+            ProjectionLanguage::RustRuntime,
             Path::new("src/generated.rs"),
         )
         .unwrap_or_else(|error| panic!("failed to update UI Contribution projection: {error}"));
@@ -27,7 +27,7 @@ fn main() {
     }
     check_projection(
         Path::new("capability.json"),
-        ProjectionLanguage::Rust,
+        ProjectionLanguage::RustRuntime,
         Path::new("src/generated.rs"),
     )
     .unwrap_or_else(|error| panic!("UI Contribution projection is stale: {error}"));

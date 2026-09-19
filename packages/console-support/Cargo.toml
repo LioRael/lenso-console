@@ -1,0 +1,17 @@
+[package]
+name = "lenso-app-console-support"
+version = "0.1.0"
+edition = "2024"
+publish = false
+[workspace]
+[package.metadata.lenso]
+plugin-id = "lenso.console.web"
+root-slot = "console"
+[[package.metadata.lenso.conventions]]
+id = "lenso.console.pages"
+entries = ["console"]
+compiler = { program = "bun", args = ["../console-convention/compiler.mjs"] }
+[package.metadata.lenso-cli]
+runtime = "native-linked"
+[dependencies]
+lenso-console-plugin = { path = "../../service", features = ["embedded-shell"] }

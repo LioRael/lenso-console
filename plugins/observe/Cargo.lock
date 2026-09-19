@@ -448,8 +448,10 @@ dependencies = [
  "futures",
  "lenso-contract-codegen",
  "lenso-contract-runtime",
+ "lenso-guest-sdk",
  "lenso-kernel",
  "lenso-plugin-authoring",
+ "lenso-runtime-codec",
  "serde",
  "serde_json",
 ]
@@ -461,8 +463,10 @@ dependencies = [
  "futures",
  "lenso-contract-codegen",
  "lenso-contract-runtime",
+ "lenso-guest-sdk",
  "lenso-kernel",
  "lenso-plugin-authoring",
+ "lenso-runtime-codec",
  "serde",
  "serde_json",
 ]
@@ -510,6 +514,16 @@ checksum = "06ac2408c27d47541e1378dc837f239e20bb5e119445fcd73f8c2fce55700206"
 dependencies = [
  "base64",
  "bytes",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-guest-sdk"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21d60509d1827d3a384473ac8c1493432b8ddd1ad2a74a3b21aa52daa8fb52dd"
+dependencies = [
  "serde",
  "serde_json",
 ]

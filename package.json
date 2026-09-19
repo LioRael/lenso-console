@@ -11,12 +11,12 @@
     "lint": "ultracite check --deny-warnings",
     "check": "pnpm check:preflight && pnpm check:full",
     "clean:web": "node scripts/clean-console-web.mjs",
-    "contract:typecheck": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler contracts/crates/lenso-capability-ui-contribution/generated/bindings.ts contracts/crates/lenso-capability-workspace-service/generated/bindings.ts plugins/observe/crates/lenso-capability-observability-query/generated/bindings.ts",
+    "contract:typecheck": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler contracts/crates/lenso-capability-ui-contribution/generated/bindings.ts contracts/crates/lenso-capability-workspace-service/generated/bindings.ts plugins/observe/crates/lenso-capability-observability-query/generated/bindings.ts packages/console-sdk/src/index.ts packages/console-sdk/src/generated/contribution.ts packages/console-sdk/src/generated/workspace-service.ts packages/console-sdk/src/server.ts",
     "bundle:local": "pnpm clean:web && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} vite build",
     "service:web-build": "pnpm typecheck:local && VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ pnpm bundle:local && test -s dist/client/index.html",
     "service:serve": "pnpm service:web-build && cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console",
     "agent:web": "pnpm service:web-build && cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console-with-agent",
-    "contracts:check": "cargo fmt --manifest-path contracts/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings && cargo test --locked --manifest-path contracts/Cargo.toml --workspace",
+    "contracts:check": "node scripts/check-console-sdk.mjs && cargo fmt --manifest-path contracts/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings && cargo test --locked --manifest-path contracts/Cargo.toml --workspace",
     "observe:check": "cargo fmt --manifest-path plugins/observe/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path plugins/observe/Cargo.toml --workspace --all-targets -- -D warnings && cargo test --locked --manifest-path plugins/observe/Cargo.toml --workspace",
     "contracts:package": "cargo package --locked --allow-dirty --manifest-path contracts/Cargo.toml -p lenso-capability-ui-contribution && cargo package --locked --allow-dirty --manifest-path contracts/Cargo.toml -p lenso-capability-workspace-service && cargo package --locked --allow-dirty --manifest-path plugins/observe/Cargo.toml -p lenso-capability-observability-query",
     "relay:check": "cargo fmt --manifest-path runtime/agent-turn-relay/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path runtime/agent-turn-relay/Cargo.toml --all-targets -- -D warnings && cargo test --locked --manifest-path runtime/agent-turn-relay/Cargo.toml",
@@ -35,7 +35,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:distribution": "node --test scripts/distribution/*.test.mjs",
     "check:preflight": "pnpm lint && node scripts/check-rust-format.mjs && pnpm service:boundary && pnpm contract:typecheck",
-    "check:full": "pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check"
+    "check:full": "pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check",
+    "test:conventions": "bun test packages/console-convention/test"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -192,7 +192,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
                     onRequestClose={() => setMobileNavigationOpen(false)}
                   />
                 </WorkspaceSidebarSlot>
-              ) : (
+              ) : agents.length > 0 ? (
                 <AgentContextNavigation
                   agentId={activeAgent.id}
                   agentLabel={activeAgent.label}
@@ -200,7 +200,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
                   onNavigate={() => setMobileNavigationOpen(false)}
                   onRequestClose={() => setMobileNavigationOpen(false)}
                 />
-              )}
+              ) : null}
             </Sidebar.Panel>
           </Sidebar.Root>
         </div>
@@ -220,7 +220,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
           aria-label={t("Application utilities")}
           {...stylex.props(shellStyles.utilities)}
         >
-          {administrator && (
+          {administrator && agents.length > 0 && (
             <AgentQuickPanel
               onOpenFullPage={(agentId, sessionId) => {
                 navigate({
@@ -257,6 +257,7 @@ function PrimaryRail({
 }) {
   const t = useConsoleTranslation();
   const { signOut, administrator } = useConsoleSession();
+  const { agents } = useAgentIdentity();
 
   return (
     <Sidebar.Root
@@ -294,7 +295,7 @@ function PrimaryRail({
           L
         </button>
         <div {...stylex.props(shellStyles.railAreas)}>
-          {administrator && (
+          {administrator && agents.length > 0 && (
             <IconButton
               aria-label={t("Agent")}
               onClick={() => navigate("/")}
