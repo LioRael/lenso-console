@@ -1,16 +1,16 @@
 {
-  "version": "0.1.12",
+  "version": "0.1.13",
   "repository": "LioRael/lenso-agent",
   "assets": {
-    "lenso-agent-v0.1.12-darwin-aarch64.tar.gz": "8fae98c5b8e016aa07525687126f295e1f27332dae2332b9234e28720b3c6965",
-    "lenso-agent-v0.1.12-linux-x86_64.tar.gz": "5b0bab99993ddea436b4601c1884c2bd6279728986b53cbf06f47f2102635700",
-    "lenso-agent-cli-v0.1.12-darwin-aarch64.tar.gz": "0df9006343c379a4ae69017a36e1825372a53d7fb48dee3e84e1285431710675",
-    "lenso-agent-cli-v0.1.12-linux-x86_64.tar.gz": "e8fc8cff9312d1f345b3b26e7cd18d4b8a857134f3b3ffb6320427933b247b99",
-    "lenso-agent-acp-v0.1.12-darwin-aarch64.tar.gz": "cd11efc9e684cff5e8124a7b04b8e35aa66b19e8da0063746d98f876ab0f8b03",
-    "lenso-agent-acp-v0.1.12-linux-x86_64.tar.gz": "805e394bd7605c0f92d7ab2afa0253a6777492061e72b062a3a44a32470aa3bc",
-    "lenso-agent-web-v0.1.12-darwin-aarch64.tar.gz": "9fb6d4b1969ab29ef3dd8118b3ce71e502abe4e76a96a6832f4b86a88bbab88e",
-    "lenso-agent-web-v0.1.12-linux-x86_64.tar.gz": "444ce6abd0c28a82b076cb88d4f865e12b7ab794655d7e7818eb7090e60619c4",
-    "lenso-agent-console-web-v0.1.12-darwin-aarch64.tar.gz": "cb9f341b8f13c32f6828094e50686b871025a1f3a7858dda238127e3af1e6c73",
-    "lenso-agent-console-web-v0.1.12-linux-x86_64.tar.gz": "9bb32f3844ac4b8c81376e5434e5950b72ed4aa0ad94fba2f562bfed050f0b8e"
+    "lenso-agent-v0.1.13-darwin-aarch64.tar.gz": "b4eb42ae211ada82de459ab4c83b496af00e5f0b1a46c5e300aa1ab45af9e891",
+    "lenso-agent-v0.1.13-linux-x86_64.tar.gz": "68d432d3d9a740fe8ec8cc4be258ce28f2949e2419a9b5b561f49857f83179f0",
+    "lenso-agent-cli-v0.1.13-darwin-aarch64.tar.gz": "dfbea315e8a2cdedd1cfdc9c0304215af2583e2e0e62a541165db02ef2cb6049",
+    "lenso-agent-cli-v0.1.13-linux-x86_64.tar.gz": "da659db5af3b093b4e159b8c075d66257ccf681d0b10108071e518c7bcb5f906",
+    "lenso-agent-acp-v0.1.13-darwin-aarch64.tar.gz": "349c12c1efe3e765ef605cc1ac6ff386e2ea67f4920c5fd8573ec1f890259fe0",
+    "lenso-agent-acp-v0.1.13-linux-x86_64.tar.gz": "86b19e830d13e65bf29ba864bf5b18c9a989933849bb0ce09a8ab21d9cb5365c",
+    "lenso-agent-web-v0.1.13-darwin-aarch64.tar.gz": "447e22040a8c83d04e0ecedd728159f3ab7ac7a4bec61f2021789607e729b03b",
+    "lenso-agent-web-v0.1.13-linux-x86_64.tar.gz": "30ee60c7d08ddf314b3ad3bb81697232300be5b396857e91f43735c2c22fb719",
+    "lenso-agent-console-web-v0.1.13-darwin-aarch64.tar.gz": "de2688cde36f6c342fb7faa7aeb26669dfdb92a1f986bd36188c4898543e82c3",
+    "lenso-agent-console-web-v0.1.13-linux-x86_64.tar.gz": "b4f57f4631f2bdf2ecf742b5cd73312a5ffad1b705405558c4e3de7cf5287ae8"
   }
 }
