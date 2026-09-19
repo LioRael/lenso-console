@@ -46,6 +46,31 @@ const sources = JSON.parse(
   fs.readFileSync(path.join(distribution, "local-sources.json"), "utf-8")
 );
 const support = path.join(repo, "packages/console-support");
+const packageVersion = (project, label) => {
+  const toml = fs.readFileSync(path.join(project, "Cargo.toml"), "utf-8");
+  const packageStart = toml.indexOf("[package]\n");
+  const nextSection = toml.indexOf("\n[", packageStart + 1);
+  const packageSection = toml.slice(
+    packageStart,
+    nextSection === -1 ? undefined : nextSection
+  );
+  const version = packageSection.match(
+    /^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"\s*$/mu
+  )?.[1];
+  if (!version) {
+    throw new Error(`${label} must declare a direct semver package version`);
+  }
+  return version;
+};
+const supportVersion = packageVersion(support, "Console support");
+if (
+  supportVersion !==
+  packageVersion(path.join(repo, "service"), "Console runtime Plugin")
+) {
+  throw new Error(
+    "Console support release must match the linked runtime Plugin"
+  );
+}
 const excluded = new Set([
   ".git",
   ".lenso",
@@ -142,7 +167,7 @@ fs.writeFileSync(
         "lenso.console.web": {
           companions: ["lenso.web-ingress"],
           input_digest: supportDigest,
-          release_version: "0.1.0",
+          release_version: supportVersion,
         },
       },
       target: info.target,
