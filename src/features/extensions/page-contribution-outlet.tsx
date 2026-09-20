@@ -116,8 +116,15 @@ export function PageContributionOutlet({
     (candidate) =>
       candidate.id === mountId && sameSubject(candidate.subject, subject)
   );
+  const unavailableRequirements = useMemo(
+    () => unavailableRequiredRequirements(mount),
+    [mount]
+  );
   const [attempt, setAttempt] = useState(0);
-  const loaded = useContributionModule(mount, attempt);
+  const loaded = useContributionModule(
+    unavailableRequirements.length === 0 ? mount : undefined,
+    attempt
+  );
   const handoff = useMemo(() => readWorkspaceHandoff(mount), [mount]);
   useEffect(() => consumeWorkspaceHandoff(mount, handoff), [handoff, mount]);
   const location = useMemo(
@@ -169,6 +176,16 @@ export function PageContributionOutlet({
       />
     );
   }
+  if (unavailableRequirements.length > 0) {
+    return (
+      <ContributionError
+        message={t(
+          "A required service is unavailable. Refresh the selected App Plan or contact the operator; Console has not loaded this extension."
+        )}
+        title={t("Extension requirement unavailable")}
+      />
+    );
+  }
   if (loaded.status === "error") {
     return (
       <ContributionError
@@ -196,6 +213,14 @@ export function PageContributionOutlet({
         navigation={navigation}
       />
     </ContributionRenderBoundary>
+  );
+}
+
+function unavailableRequiredRequirements(mount: PageMount | undefined) {
+  return (
+    mount?.requirements.filter(
+      (requirement) => requirement.required && !requirement.available
+    ) ?? []
   );
 }
 

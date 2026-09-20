@@ -77,6 +77,88 @@ test("binds an App Workspace to the canonical URL subject", async () => {
   }
 });
 
+test("does not load an extension whose required service is unavailable", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(
+    ["console-page-catalog"],
+    [
+      {
+        apiMajor: 1,
+        id: "blocked-service",
+        module: `data:text/javascript,${encodeURIComponent(`
+          globalThis.__lensoBlockedContributionLoaded = true;
+          export const apiMajor = 1;
+          export const createWorkspace = () => ({
+            Page: () => null
+          });
+        `)}`,
+        navigation: { items: [], label: "Blocked" },
+        owner: {
+          instance: "blocked/default",
+          source: "resolved-plan",
+          trusted: true,
+        },
+        requirements: [
+          {
+            available: false,
+            capability_id: "example.agent.task@1",
+            descriptor_version: "1.0.0",
+            operations: ["observe"],
+            required: true,
+            service_id: "task",
+            source: "owner",
+          },
+        ],
+        revision: "1.0.0",
+        styles: [],
+        subject: { kind: "console" },
+        title: "Blocked service",
+      },
+    ]
+  );
+  try {
+    flushSync(() =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <PageContributionOutlet
+            mountId="blocked-service"
+            segments={[]}
+            subject={{ kind: "console" }}
+          />
+        </QueryClientProvider>
+      )
+    );
+    await expect
+      .element(
+        page.getByRole("heading", {
+          name: "Extension requirement unavailable",
+        })
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        page.getByText(
+          "A required service is unavailable. Refresh the selected App Plan or contact the operator; Console has not loaded this extension."
+        )
+      )
+      .toBeVisible();
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    expect(
+      Reflect.get(window, "__lensoBlockedContributionLoaded")
+    ).toBeUndefined();
+  } finally {
+    Reflect.deleteProperty(window, "__lensoBlockedContributionLoaded");
+    root.unmount();
+    client.clear();
+    container.remove();
+  }
+});
+
 test("hands bounded JSON context to an installed workspace without reloading", async () => {
   const container = document.createElement("div");
   document.body.append(container);

@@ -396,6 +396,16 @@ One broken import or React render should not replace the whole workbench. A
 React error boundary does not promise recovery from infinite loops, global
 mutation, arbitrary event-handler errors, or resource exhaustion.
 
+Before importing a Workspace module, the Shell also checks its catalog-derived
+required services. If one is unavailable, it renders the fixed **Extension
+requirement unavailable** state and does not load the module or its styles.
+The fallback deliberately names no Plugin-supplied error payload, state, or
+recovery action: only the selected Host/App Plan can change service
+availability. A Workspace that presents an Agent task must obtain that task
+through a declared service and retain the domain's terminal, waiting, and
+uncertain-outcome meanings; Console does not reinterpret plugin business state
+as shell truth.
+
 ### Development without rebuilding Console
 
 Provide an explicit local development registration that serves a descriptor and
