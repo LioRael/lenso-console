@@ -41,8 +41,10 @@ const compactNumberFormatter = new Intl.NumberFormat("en", {
 });
 
 export function AgentTrajectory({
+  owner,
   trajectory,
 }: {
+  owner: { id: string; label: string };
   trajectory: AgentTrajectoryData | undefined;
 }) {
   const [query, setQuery] = useState("");
@@ -53,19 +55,22 @@ export function AgentTrajectory({
   const records = useMemo(() => trajectory?.records ?? [], [trajectory]);
   const selected = records.find((record) => record.id === selectedId);
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleRecords = useMemo(
+  const matchingRecords = useMemo(
     () =>
       records.filter(
         (record) =>
-          !collapsedTurns.has(record.turn) &&
-          (!normalizedQuery ||
-            `${record.label} ${record.preview} ${record.kind} ${record.status}`
-              .toLocaleLowerCase()
-              .includes(normalizedQuery))
+          !normalizedQuery ||
+          `${record.label} ${record.preview} ${record.kind} ${record.status}`
+            .toLocaleLowerCase()
+            .includes(normalizedQuery)
       ),
-    [collapsedTurns, normalizedQuery, records]
+    [normalizedQuery, records]
   );
-  const groups = [...new Set(records.map((record) => record.turn))];
+  const groups = [
+    ...new Set(
+      (normalizedQuery ? matchingRecords : records).map((record) => record.turn)
+    ),
+  ];
 
   const toggleTurn = (turn: number) => {
     setCollapsedTurns((current) => {
@@ -101,6 +106,9 @@ export function AgentTrajectory({
               {formatStatus(trajectory?.summary.status)}
             </span>
             <span {...stylex.props(styles.summaryOptional)}>
+              Agent · {owner.label}
+            </span>
+            <span {...stylex.props(styles.summaryOptional)}>
               {trajectory?.summary.turns ?? 0} turns
             </span>
             <span {...stylex.props(styles.summaryOptional)}>
@@ -128,6 +136,17 @@ export function AgentTrajectory({
               type="search"
               value={query}
             />
+            {query ? (
+              <IconButton
+                aria-label="Clear trajectory search"
+                onClick={() => setQuery("")}
+                size="compact"
+                variant="ghost"
+                xstyle={styles.searchClear}
+              >
+                <X size={11} />
+              </IconButton>
+            ) : null}
           </label>
         </div>
         <div {...stylex.props(styles.ledger)}>
@@ -141,10 +160,11 @@ export function AgentTrajectory({
             <span>Duration</span>
           </div>
           {groups.map((turn) => {
-            const groupRecords = visibleRecords.filter(
+            const matchingGroupRecords = matchingRecords.filter(
               (record) => record.turn === turn
             );
             const collapsed = collapsedTurns.has(turn);
+            const groupRecords = collapsed ? [] : matchingGroupRecords;
             return (
               <div {...stylex.props(styles.turnGroup)} key={turn}>
                 <button
@@ -160,7 +180,10 @@ export function AgentTrajectory({
                   )}
                   <span>{turn === 0 ? "Session" : `Turn ${turn}`}</span>
                   <span {...stylex.props(styles.turnMeta)}>
-                    {records.filter((record) => record.turn === turn).length}{" "}
+                    {matchingGroupRecords.length}
+                    {normalizedQuery
+                      ? ` of ${records.filter((record) => record.turn === turn).length}`
+                      : ""}{" "}
                     records
                   </span>
                 </button>
@@ -191,12 +214,22 @@ export function AgentTrajectory({
               Trajectory will appear after the first Turn.
             </div>
           ) : null}
+          {trajectory &&
+          records.length > 0 &&
+          normalizedQuery &&
+          matchingRecords.length === 0 ? (
+            <div aria-live="polite" {...stylex.props(styles.emptyState)}>
+              No trajectory records match this filter.
+            </div>
+          ) : null}
         </div>
       </div>
       {selected ? (
         <TrajectoryInspector
           onClose={() => setSelectedId("")}
+          owner={owner}
           record={selected}
+          trajectory={trajectory}
         />
       ) : null}
     </section>
@@ -284,10 +317,14 @@ function kindStyle(kind: AgentTrajectoryKind) {
 
 function TrajectoryInspector({
   onClose,
+  owner,
   record,
+  trajectory,
 }: {
   onClose: () => void;
+  owner: { id: string; label: string };
   record: AgentTrajectoryRecord;
+  trajectory: AgentTrajectoryData | undefined;
 }) {
   const meta = kindMeta[record.kind];
   return (
@@ -313,6 +350,15 @@ function TrajectoryInspector({
       </header>
       <div {...stylex.props(styles.inspectorBody)}>
         <dl {...stylex.props(styles.facts)}>
+          <Fact label="Evidence owner" value={`${owner.label} · ${owner.id}`} />
+          <Fact
+            label="Session"
+            value={trajectory?.sessionId ?? "Unavailable"}
+          />
+          <Fact
+            label="Trajectory revision"
+            value={trajectory ? String(trajectory.revision) : "Unavailable"}
+          />
           <Fact label="Status" value={record.status} />
           <Fact
             label="Duration"

@@ -13,11 +13,13 @@ import { PluginAgentAction } from "./plugin-agent-handoff";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
 import { PluginConfigurationFields } from "./plugin-configuration-fields";
 import { pluginDisplayName } from "./plugin-display-name";
+import { PluginOperationTimeoutError } from "./plugin-operation";
 import { pluginPurpose } from "./plugin-purpose";
 import {
   configurationProposalReadyPresentation,
   configurationChangeCanSubmit,
   configurationPublicationIsCurrent,
+  candidateFailurePresentation,
   desiredSelectionChecked,
   mutationTargetsPlugin,
   operationMatchesInventory,
@@ -26,11 +28,14 @@ import {
   pluginStatusPresentation,
   pluginTechnicalSelection,
   rollbackProposalReadyPresentation,
+  staleApprovalPresentation,
+  uncertainPluginOperationPresentation,
 } from "./plugin-runtime-state";
 import { PluginStatus } from "./plugin-status";
 import { RemovePluginDialog } from "./plugin-workbench-dialogs";
 import {
   pluginKey,
+  type PluginConfigurationProposal,
   type PluginConfigurationRollbackProposal,
   type PluginInventory,
   type PluginManagement,
@@ -145,6 +150,7 @@ const styles = stylex.create({
     margin: 0,
   },
   feedbackError: { color: "var(--color-status-error-content)" },
+  feedbackWarning: { color: "var(--color-status-warning-content)" },
   field: {
     display: "grid",
     gap: tokens.space3,
@@ -388,6 +394,16 @@ export function PluginDetail({
     mutation: mutation.variables,
     operation: mutation.operation,
   });
+  const candidateFailure = candidateFailurePresentation({
+    inventory,
+    mutation: mutation.variables,
+    operation: currentOperation,
+  });
+  const uncertainOperation =
+    mutation.error instanceof PluginOperationTimeoutError
+      ? uncertainPluginOperationPresentation(mutation.error.operation)
+      : null;
+  const latestChangePresentation = candidateFailure ?? uncertainOperation;
 
   return (
     <div {...stylex.props(styles.detailRoot)}>
@@ -498,17 +514,29 @@ export function PluginDetail({
           </DetailSection>
         )}
 
-        {isMutationTarget && (mutationError || currentOperation) ? (
-          <DetailSection title={t("Latest change")}>
+        {isMutationTarget &&
+        (latestChangePresentation || mutationError || currentOperation) ? (
+          <DetailSection
+            title={t(latestChangePresentation?.label ?? "Latest change")}
+          >
             <p
-              aria-live={mutationError ? undefined : "polite"}
-              role={mutationError ? "alert" : undefined}
+              aria-live={
+                mutationError || latestChangePresentation ? undefined : "polite"
+              }
+              role={
+                mutationError || latestChangePresentation ? "alert" : undefined
+              }
               {...stylex.props(
                 styles.feedback,
-                Boolean(mutationError) && styles.feedbackError
+                Boolean(
+                  mutationError || latestChangePresentation?.tone === "error"
+                ) && styles.feedbackError,
+                latestChangePresentation?.tone === "warning" &&
+                  styles.feedbackWarning
               )}
             >
-              {mutationError ??
+              {latestChangePresentation?.description ??
+                mutationError ??
                 (currentOperation?.status === "switched"
                   ? "The Host switched routing to the prepared Generation."
                   : state.description)}
@@ -682,6 +710,12 @@ function PluginConfigurationSection({
     rollback.data.proposal.pluginId === plugin.packageId
       ? rollback.data
       : undefined;
+  const staleApproval = staleApprovalPresentationForPlugin({
+    currentRevision: pluginManagement.revision,
+    plugin,
+    proposal: proposal.data,
+    rollback: rollback.data,
+  });
   const reviewedProposal = currentRollback?.proposal ?? currentProposal;
   const readyProposalPresentation = configurationProposalReadyPresentation(
     reviewedProposal,
@@ -888,6 +922,15 @@ function PluginConfigurationSection({
               </Button>
             </div>
           ) : null}
+          {staleApproval ? (
+            <p
+              role="alert"
+              {...stylex.props(styles.feedback, styles.feedbackWarning)}
+            >
+              <strong>{t(staleApproval.label)}</strong>{" "}
+              {t(staleApproval.description)}
+            </p>
+          ) : null}
           {reviewError ? (
             <p
               role="alert"
@@ -949,6 +992,32 @@ function PluginConfigurationSection({
       ) : null}
     </div>
   );
+}
+
+function staleApprovalPresentationForPlugin({
+  currentRevision,
+  plugin,
+  proposal,
+  rollback,
+}: {
+  currentRevision: string;
+  plugin: PluginWorkbenchItem;
+  proposal: PluginConfigurationProposal | undefined;
+  rollback: PluginConfigurationRollbackProposal | undefined;
+}) {
+  const approval = [proposal, rollback?.proposal].find(
+    (candidate): candidate is PluginConfigurationProposal =>
+      candidate?.status === "ready" &&
+      candidate.instanceKey === plugin.instanceKey &&
+      candidate.pluginId === plugin.packageId &&
+      candidate.baseRevision !== currentRevision
+  );
+  return approval
+    ? staleApprovalPresentation({
+        approvalRevision: approval.baseRevision,
+        currentRevision,
+      })
+    : null;
 }
 
 function PluginConfigurationHistorySection({

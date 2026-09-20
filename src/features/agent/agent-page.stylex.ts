@@ -229,6 +229,28 @@ export const agentPageStyles = stylex.create({
     zIndex: 1,
   },
   emptyPage: { gridTemplateRows: "auto minmax(0, 1fr)" },
+  executionNotice: {
+    backgroundColor: "var(--color-surface-panel)",
+    borderColor: "var(--color-border-secondary)",
+    borderRadius: "8px",
+    borderStyle: "solid",
+    borderWidth: "0.5px",
+    color: "var(--color-content-secondary)",
+    display: "grid",
+    fontSize: "12px",
+    gap: "3px",
+    lineHeight: "18px",
+    marginBottom: "16px",
+    padding: "9px 10px",
+  },
+  executionNoticeError: {
+    borderColor: "var(--color-status-danger-content)",
+    color: "var(--color-status-danger-content)",
+  },
+  executionNoticeWarning: {
+    borderColor: "var(--color-status-warning-content)",
+    color: "var(--color-status-warning-content)",
+  },
   // This header has one wrapping row, not the default two-row team layout.
   header: { height: "auto", position: "relative", zIndex: 4 },
   headerRow: {

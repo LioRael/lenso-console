@@ -24,6 +24,10 @@ interpret the partial response as completion. Upstream body failures also surfac
 stream errors. Ordinary HTTP rejections retain their status and response body.
 
 Activity observes the Agent's JSON `data:` lines, including split transport chunks.
+When the wire includes a terminal Turn event, the snapshot records its
+`terminalOutcome` separately from free-form `detail`; arbitrary detail text is
+not interpreted as a failure. This remains a transient relay observation, not a
+durable Session result or proof of an App-side effect.
 Incomplete lines are bounded to 1 MiB; oversized lines are discarded through their
 newline so their suffix cannot be mistaken for an independent event. Upstream
 completion or failure clears the running state. Runtime task cancellation also

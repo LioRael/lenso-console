@@ -75,6 +75,23 @@ export function configurationPublicationIsCurrent(
   return currentToml !== null && publicationToml === currentToml;
 }
 
+export function staleApprovalPresentation({
+  approvalRevision,
+  currentRevision,
+}: {
+  approvalRevision: string;
+  currentRevision: string;
+}): PluginStatusPresentation | null {
+  if (approvalRevision === currentRevision) {
+    return null;
+  }
+  return {
+    description: `Approval refers to revision ${approvalRevision}. Current revision is ${currentRevision}. Approval must be refreshed.`,
+    label: "Approval must be refreshed",
+    tone: "warning",
+  };
+}
+
 const PLUGIN_CONFIGURATION_STATUS_LABELS = {
   applied: "Applied",
   pending: "Pending",
@@ -197,6 +214,63 @@ export function generationStatusPresentation({
     description: "The active Generation is serving new work.",
     label: "Generation active",
     tone: "success",
+  };
+}
+
+/**
+ * Gives the configuration publication and active-Generation facts separately
+ * when a reviewed configuration candidate failed. It intentionally returns
+ * null unless the inventory identifies both the saved desired state and the
+ * non-candidate active Generation.
+ */
+export function candidateFailurePresentation({
+  inventory,
+  mutation,
+  operation,
+}: {
+  inventory: PluginInventory;
+  mutation: PluginMutation | undefined;
+  operation: PluginOperation | null;
+}): PluginStatusPresentation | null {
+  if (
+    mutation?.type !== "configure" ||
+    !operation ||
+    !operationMatchesInventory(operation, inventory) ||
+    !["rejected", "rolled_back"].includes(operation.status) ||
+    operation.pluginRootRevision !== inventory.desiredRevision ||
+    operation.desiredStateDigest !== inventory.desired.desiredStateDigest ||
+    operation.planDigest !== inventory.desired.planDigest
+  ) {
+    return null;
+  }
+  const activeIsNotCandidate =
+    inventory.active.pluginRootRevision !== operation.pluginRootRevision ||
+    (operation.generationSpecDigest !== undefined &&
+      inventory.active.generationSpecDigest !== operation.generationSpecDigest);
+  if (!activeIsNotCandidate) {
+    return null;
+  }
+  return {
+    description: [
+      "Configuration saved.",
+      "New Generation failed readiness.",
+      "Current Generation unchanged.",
+      operation.detail,
+    ]
+      .filter((part): part is string => part !== null && part !== undefined)
+      .join(" "),
+    label: "Generation candidate failed",
+    tone: operation.status === "rejected" ? "error" : "warning",
+  };
+}
+
+export function uncertainPluginOperationPresentation(
+  operation: PluginOperation
+): PluginStatusPresentation {
+  return {
+    description: `The Host reported the desired state as ${operation.status}, but Console did not receive a terminal Generation outcome. Result uncertain: do not assume routing switched or that nothing changed. Refresh the Host state before taking another action.`,
+    label: "Result uncertain",
+    tone: "warning",
   };
 }
 

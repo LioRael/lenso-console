@@ -46,6 +46,7 @@ import {
 } from "./agent-composer-input";
 import { AgentContextUsage } from "./agent-context-usage";
 import type { DraftEditorHandle } from "./agent-draft-editor";
+import type { AgentExecutionPresentation } from "./agent-execution-state";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentMarkdown } from "./agent-markdown";
 import {
@@ -184,6 +185,7 @@ export function AgentPage({
     compactSession,
     draft,
     editingTurnId,
+    executionPresentation,
     isRunning,
     isAnsweringInteraction,
     modelCatalog,
@@ -337,7 +339,13 @@ export function AgentPage({
         ) : null}
         {conversation ? (
           view === "trajectory" ? (
-            <AgentTrajectory trajectory={trajectory} />
+            <AgentTrajectory
+              owner={{
+                id: activeAgentId,
+                label: activeAgent?.label ?? activeAgentId,
+              }}
+              trajectory={trajectory}
+            />
           ) : view === "changes" ? (
             <AgentChanges
               turns={turns}
@@ -358,6 +366,7 @@ export function AgentPage({
           ) : (
             <AgentConversation
               canEdit={canEdit}
+              executionPresentation={executionPresentation}
               sessionId={sessionId}
               targetId={targetId}
               onFork={onSessionResolved}
@@ -820,6 +829,7 @@ function AgentConversation({
   onFork,
   canEdit,
   onEdit,
+  executionPresentation,
   runtimeError,
   turns,
 }: {
@@ -828,6 +838,7 @@ function AgentConversation({
   onFork: (id: string) => void;
   canEdit: boolean;
   onEdit: (turn: AgentTurn) => void;
+  executionPresentation: AgentExecutionPresentation | undefined;
   runtimeError: string | undefined;
   turns: AgentTurn[];
 }) {
@@ -864,6 +875,22 @@ function AgentConversation({
       ref={conversationRef}
     >
       <div {...stylex.props(styles.conversationContent)}>
+        {executionPresentation ? (
+          <div
+            aria-live="polite"
+            role={executionPresentation.tone === "error" ? "alert" : "status"}
+            {...stylex.props(
+              styles.executionNotice,
+              executionPresentation.tone === "error" &&
+                styles.executionNoticeError,
+              executionPresentation.tone === "warning" &&
+                styles.executionNoticeWarning
+            )}
+          >
+            <strong>{t(executionPresentation.label)}</strong>
+            <span>{t(executionPresentation.description)}</span>
+          </div>
+        ) : null}
         {turns[0]?.forkSource ? (
           <div {...stylex.props(styles.codingNotice)}>
             <Button

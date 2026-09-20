@@ -5,11 +5,14 @@ import {
   configurationProposalReadyPresentation,
   configurationChangeCanSubmit,
   configurationPublicationIsCurrent,
+  candidateFailurePresentation,
   desiredSelectionChecked,
   generationStatusPresentation,
   pluginStatusPresentation,
   pluginTechnicalSelection,
   rollbackProposalReadyPresentation,
+  staleApprovalPresentation,
+  uncertainPluginOperationPresentation,
 } from "./plugin-runtime-state";
 import {
   demoPluginInventory,
@@ -108,6 +111,99 @@ describe("Plugin runtime presentation", () => {
       false
     );
     expect(configurationPublicationIsCurrent("", null)).toBe(false);
+  });
+
+  it("keeps a stale approval fenced to the revision it reviewed", () => {
+    expect(
+      staleApprovalPresentation({
+        approvalRevision: "sha256:reviewed-x",
+        currentRevision: "sha256:current-y",
+      })
+    ).toEqual({
+      description:
+        "Approval refers to revision sha256:reviewed-x. Current revision is sha256:current-y. Approval must be refreshed.",
+      label: "Approval must be refreshed",
+      tone: "warning",
+    });
+    expect(
+      staleApprovalPresentation({
+        approvalRevision: "sha256:current-y",
+        currentRevision: "sha256:current-y",
+      })
+    ).toBeNull();
+  });
+
+  it("separates a saved configuration from a failed candidate Generation", () => {
+    const inventory: PluginInventory = {
+      ...demoPluginInventory,
+      configurationStatus: "rejected",
+      desired: {
+        ...demoPluginInventory.desired,
+        desiredStateDigest: "sha256:desired-next",
+        planDigest: "sha256:plan-next",
+        pluginRootRevision: "sha256:root-next",
+      },
+      desiredRevision: "sha256:root-next",
+    };
+    const failed = {
+      ...operation,
+      desiredStateDigest: "sha256:desired-next",
+      detail: "Ready-Gate rejected the candidate",
+      planDigest: "sha256:plan-next",
+      pluginRootRevision: "sha256:root-next",
+      status: "rejected" as const,
+    };
+
+    expect(
+      candidateFailurePresentation({
+        inventory,
+        mutation: {
+          expectedRevision: "demo-root",
+          expectedSourceDigest: "sha256:demo-agent-source",
+          expectedStreamId: inventory.streamId,
+          instanceKey: "agent",
+          packageId: "lenso.agent.loop",
+          proposalDigest: "sha256:proposal-next",
+          toml: 'model = "gpt-test"\n',
+          type: "configure",
+        },
+        operation: failed,
+      })
+    ).toEqual({
+      description:
+        "Configuration saved. New Generation failed readiness. Current Generation unchanged. Ready-Gate rejected the candidate",
+      label: "Generation candidate failed",
+      tone: "error",
+    });
+  });
+
+  it("does not claim that a candidate left the Generation unchanged without active-state evidence", () => {
+    expect(
+      candidateFailurePresentation({
+        inventory: demoPluginInventory,
+        mutation: {
+          expectedRevision: "demo-root",
+          expectedSourceDigest: "sha256:demo-agent-source",
+          expectedStreamId: demoPluginInventory.streamId,
+          instanceKey: "agent",
+          packageId: "lenso.agent.loop",
+          proposalDigest: "sha256:proposal",
+          toml: 'model = "gpt-test"\n',
+          type: "configure",
+        },
+        operation: { ...operation, detail: "failed", status: "rejected" },
+      })
+    ).toBeNull();
+  });
+
+  it("does not downgrade an accepted operation timeout into an ordinary failure", () => {
+    expect(
+      uncertainPluginOperationPresentation({ ...operation, status: "accepted" })
+    ).toMatchObject({
+      description: expect.stringContaining("Result uncertain"),
+      label: "Result uncertain",
+      tone: "warning",
+    });
   });
 
   it("labels an Instance Active only with active Generation evidence", () => {

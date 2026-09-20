@@ -159,9 +159,33 @@ async fn active_reader_receives_exact_bytes_and_isolated_activity() {
     let state = completed(&relay).await;
     assert_eq!(state.session_id.as_deref(), Some("owned-session"));
     assert_eq!(state.detail.as_deref(), Some("done"));
+    assert_eq!(state.terminal_outcome, None);
     assert!(other.snapshot().session_id.is_none());
     assert!(relay.start(server.request(), body()).await.is_ok());
     completed(&relay).await;
+}
+
+#[tokio::test]
+async fn activity_records_terminal_agent_events_without_interpreting_details() {
+    let server = Server::start(Router::new().route(
+        "/",
+        post(|| async {
+            "data: {\"type\":\"turn_failed\",\"detail\":\"Agent rejected the request\",\"session_id\":\"failed-session\"}\n\n"
+        }),
+    ))
+    .await;
+    let relay = TurnRelay::default();
+    let response = relay.start(server.request(), body()).await.unwrap();
+    drop(response);
+
+    let state = completed(&relay).await;
+    assert_eq!(state.session_id.as_deref(), Some("failed-session"));
+    assert_eq!(state.detail.as_deref(), Some("Agent rejected the request"));
+    assert_eq!(state.terminal_outcome, Some(TerminalOutcome::Failed));
+    assert_eq!(
+        serde_json::to_value(state).unwrap()["terminalOutcome"],
+        "failed"
+    );
 }
 
 #[tokio::test]

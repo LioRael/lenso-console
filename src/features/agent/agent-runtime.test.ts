@@ -13,6 +13,7 @@ import {
   modelsForSelector,
   projectAgentSession,
   readAgentBootstrap,
+  readAgentActivity,
   readAgentContextSources,
   readAgentModels,
   readAgentSession,
@@ -25,6 +26,7 @@ import {
   streamAgentTurn,
   streamAgentTerminal,
   updateAgentToolPolicy,
+  type AgentExecutionStreamDisconnectedError,
   type AgentSession,
 } from "./agent-runtime";
 
@@ -768,6 +770,149 @@ describe("Agent runtime projection", () => {
     expect(events).toEqual(["terminal_message", "terminal_completed"]);
     expect(urls[0]).toContain("/agent/terminal/executions");
     expect(urls[1]).toContain("/agent/terminal/executions/terminal-1/cancel");
+  });
+
+  it("keeps an explicit terminal Turn outcome when trailing transport fails", async () => {
+    const encoder = new TextEncoder();
+    let releaseTransportFailure: (() => void) | undefined;
+    const transportFailure = new Promise<void>((resolve) => {
+      releaseTransportFailure = resolve;
+    });
+    let sentTerminalEvent = false;
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        if (sentTerminalEvent) {
+          return;
+        }
+        sentTerminalEvent = true;
+        controller.enqueue(
+          encoder.encode(
+            'data: {"type":"turn_completed","session_id":"session-1"}\n\n'
+          )
+        );
+        await transportFailure;
+        controller.error(new Error("connection closed after terminal event"));
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(body, {
+            headers: { "content-type": "text/event-stream" },
+          })
+      )
+    );
+    const events: string[] = [];
+
+    await streamAgentTurn({
+      input: "Inspect only",
+      onEvent: (streamEvent) => {
+        events.push(streamEvent.type);
+        releaseTransportFailure?.();
+      },
+      requestId: "request-completed",
+      signal: new AbortController().signal,
+    });
+
+    expect(events).toEqual(["turn_completed"]);
+  });
+
+  it("keeps incomplete UI streams distinct from Agent terminal evidence", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: URL | RequestInfo) => {
+        const url = String(input);
+        if (url.endsWith("/activity")) {
+          return Response.json({
+            detail: "Agent rejected the request",
+            requestId: "request-1",
+            running: false,
+            sessionId: "session-1",
+            terminalOutcome: "failed",
+          });
+        }
+        if (url.includes("/terminal/executions")) {
+          return new Response(
+            'data: {"type":"terminal_message","message":{"content":"working","content_type":"text","kind":"stdout"}}\n\n',
+            { headers: { "content-type": "text/event-stream" } }
+          );
+        }
+        return new Response(
+          'data: {"type":"turn_message","message":{"kind":"text_delta","sequence":"1","text":"working"}}\n\n',
+          { headers: { "content-type": "text/event-stream" } }
+        );
+      })
+    );
+
+    await expect(
+      streamAgentTurn({
+        input: "Inspect only",
+        onEvent: () => undefined,
+        requestId: "request-1",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toMatchObject({
+      execution: "turn",
+      name: "AgentExecutionStreamDisconnectedError",
+    } satisfies Partial<AgentExecutionStreamDisconnectedError>);
+    await expect(
+      streamAgentTerminal({
+        commandLine: "/sessions list",
+        onEvent: () => undefined,
+        requestId: "terminal-1",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toMatchObject({
+      execution: "terminal",
+      name: "AgentExecutionStreamDisconnectedError",
+    } satisfies Partial<AgentExecutionStreamDisconnectedError>);
+    await expect(
+      readAgentActivity("support", new AbortController().signal)
+    ).resolves.toEqual({
+      detail: "Agent rejected the request",
+      requestId: "request-1",
+      running: false,
+      sessionId: "session-1",
+      terminalOutcome: "failed",
+    });
+  });
+
+  it("treats an unobserved stream submission as uncertain", async () => {
+    let requestCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        requestCount += 1;
+        if (requestCount === 1) {
+          throw new TypeError("network connection lost");
+        }
+        return new Response(null, { status: 502 });
+      })
+    );
+
+    await expect(
+      streamAgentTurn({
+        input: "Inspect only",
+        onEvent: () => undefined,
+        requestId: "request-unknown",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toMatchObject({
+      execution: "turn",
+      name: "AgentExecutionStreamDisconnectedError",
+    } satisfies Partial<AgentExecutionStreamDisconnectedError>);
+    await expect(
+      streamAgentTerminal({
+        commandLine: "/sessions list",
+        onEvent: () => undefined,
+        requestId: "terminal-unknown",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toMatchObject({
+      execution: "terminal",
+      name: "AgentExecutionStreamDisconnectedError",
+    } satisfies Partial<AgentExecutionStreamDisconnectedError>);
   });
 
   it("renames a Session through its title revision fence", async () => {

@@ -44,6 +44,41 @@ export type AgentStreamEvent =
   | { sessionId?: string; type: "turn_completed" }
   | { detail: string; type: "turn_failed" };
 
+/**
+ * The browser stopped receiving a stream before the Agent reported a terminal
+ * outcome. It deliberately says nothing about whether the Agent kept running
+ * or whether a durable effect occurred.
+ */
+export class AgentExecutionStreamDisconnectedError extends Error {
+  readonly execution: "terminal" | "turn";
+
+  constructor(execution: "terminal" | "turn") {
+    super(
+      execution === "turn"
+        ? "The UI stream disconnected before the Agent reported a terminal Turn outcome"
+        : "The UI stream disconnected before the Agent reported a terminal command outcome"
+    );
+    this.name = "AgentExecutionStreamDisconnectedError";
+    this.execution = execution;
+  }
+}
+
+/** A terminal failure explicitly reported by the Agent stream. */
+export class AgentTurnFailedError extends Error {
+  constructor(detail: string) {
+    super(detail);
+    this.name = "AgentTurnFailedError";
+  }
+}
+
+/** A terminal command failure explicitly reported by the Agent stream. */
+export class AgentTerminalFailedError extends Error {
+  constructor(detail: string) {
+    super(detail);
+    this.name = "AgentTerminalFailedError";
+  }
+}
+
 export type AgentBootstrap = {
   workspace?: { path: string };
   capabilities: {
@@ -164,7 +199,7 @@ export type AgentTerminalRun = {
   error?: string;
   id: string;
   messages: AgentTerminalMessage[];
-  status: "cancelled" | "completed" | "failed" | "running";
+  status: "cancelled" | "completed" | "failed" | "running" | "uncertain";
 };
 
 export type AgentModel = {
@@ -436,74 +471,102 @@ export async function streamAgentTurn({
   serviceTier?: string;
   targetId?: AgentTarget;
 }): Promise<void> {
-  const response = await sessionFetch(agentApiUrl(targetId, "turns"), {
-    body: JSON.stringify({
-      ...(allowedTools ? { allowed_tools: allowedTools } : {}),
-      ...(contextReferences?.length
-        ? {
-            context_references: contextReferences.map(
-              ({ kind, source, ...reference }) =>
-                kind === "prompt"
-                  ? { kind, source, name: reference.name }
-                  : {
-                      kind,
-                      source,
-                      uri: "uri" in reference ? reference.uri : "",
-                    }
-            ),
-          }
-        : {}),
-      ...(approvalMode ? { approval_mode: approvalMode } : {}),
-      ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
-      input,
-      ...(attachments?.length
-        ? {
-            attachments: attachments.map(
-              ({ name, media_type, data_base64 }) => ({
-                name,
-                media_type,
-                data_base64,
-              })
-            ),
-          }
-        : {}),
-      ...(model ? { model } : {}),
-      request_id: requestId,
-      ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
-      ...(sessionId ? { session_id: sessionId } : {}),
-      ...(serviceTier ? { service_tier: serviceTier } : {}),
-    }),
-    headers: agentHeaders("text/event-stream", true),
-    method: "POST",
-    signal,
-  });
-  if (!(response.ok && response.body)) {
+  let response: Response;
+  try {
+    response = await sessionFetch(agentApiUrl(targetId, "turns"), {
+      body: JSON.stringify({
+        ...(allowedTools ? { allowed_tools: allowedTools } : {}),
+        ...(contextReferences?.length
+          ? {
+              context_references: contextReferences.map(
+                ({ kind, source, ...reference }) =>
+                  kind === "prompt"
+                    ? { kind, source, name: reference.name }
+                    : {
+                        kind,
+                        source,
+                        uri: "uri" in reference ? reference.uri : "",
+                      }
+              ),
+            }
+          : {}),
+        ...(approvalMode ? { approval_mode: approvalMode } : {}),
+        ...(editTurnId ? { edit_turn_id: editTurnId } : {}),
+        input,
+        ...(attachments?.length
+          ? {
+              attachments: attachments.map(
+                ({ name, media_type, data_base64 }) => ({
+                  name,
+                  media_type,
+                  data_base64,
+                })
+              ),
+            }
+          : {}),
+        ...(model ? { model } : {}),
+        request_id: requestId,
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+        ...(sessionId ? { session_id: sessionId } : {}),
+        ...(serviceTier ? { service_tier: serviceTier } : {}),
+      }),
+      headers: agentHeaders("text/event-stream", true),
+      method: "POST",
+      signal,
+    });
+  } catch (error) {
+    if (signal.aborted) {
+      throw error;
+    }
+    throw new AgentExecutionStreamDisconnectedError("turn");
+  }
+  if (!response.ok) {
+    if (response.status >= 500) {
+      throw new AgentExecutionStreamDisconnectedError("turn");
+    }
     throw new Error(await responseError(response));
+  }
+  if (!response.body) {
+    throw new AgentExecutionStreamDisconnectedError("turn");
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let pending = "";
   let completed = false;
-  while (!signal.aborted) {
-    const { done, value } = await reader.read();
-    pending += decoder.decode(value, { stream: !done });
-    const { frames, pending: nextPending } = decodeAgentSseFrames(pending);
-    pending = nextPending;
-    for (const frame of frames) {
-      const event = decodeAgentStreamEvent(frame.data);
-      onEvent(event);
-      if (event.type === "turn_failed") {
-        throw new Error(event.detail);
+  try {
+    while (!signal.aborted) {
+      const { done, value } = await reader.read();
+      pending += decoder.decode(value, { stream: !done });
+      const { frames, pending: nextPending } = decodeAgentSseFrames(pending);
+      pending = nextPending;
+      for (const frame of frames) {
+        const event = decodeAgentStreamEvent(frame.data);
+        onEvent(event);
+        if (event.type === "turn_failed") {
+          throw new AgentTurnFailedError(event.detail);
+        }
+        completed ||=
+          event.type === "turn_completed" || event.type === "turn_cancelled";
       }
-      completed ||=
-        event.type === "turn_completed" || event.type === "turn_cancelled";
+      if (done) {
+        break;
+      }
     }
-    if (done) {
-      break;
+  } catch (error) {
+    if (
+      signal.aborted ||
+      error instanceof AgentTurnFailedError ||
+      error instanceof AgentExecutionStreamDisconnectedError
+    ) {
+      throw error;
     }
+    if (completed) {
+      return;
+    }
+    throw new AgentExecutionStreamDisconnectedError("turn");
   }
   if (!(signal.aborted || completed)) {
-    throw new Error("Agent stream ended before the Turn completed");
+    throw new AgentExecutionStreamDisconnectedError("turn");
   }
 }
 
@@ -670,43 +733,71 @@ export async function streamAgentTerminal({
   signal: AbortSignal;
   targetId?: AgentTarget;
 }): Promise<void> {
-  const response = await sessionFetch(
-    agentApiUrl(targetId, "terminal/executions"),
-    {
-      body: JSON.stringify({ commandLine, requestId }),
-      headers: agentHeaders("text/event-stream", true),
-      method: "POST",
-      signal,
+  let response: Response;
+  try {
+    response = await sessionFetch(
+      agentApiUrl(targetId, "terminal/executions"),
+      {
+        body: JSON.stringify({ commandLine, requestId }),
+        headers: agentHeaders("text/event-stream", true),
+        method: "POST",
+        signal,
+      }
+    );
+  } catch (error) {
+    if (signal.aborted) {
+      throw error;
     }
-  );
-  if (!(response.ok && response.body)) {
+    throw new AgentExecutionStreamDisconnectedError("terminal");
+  }
+  if (!response.ok) {
+    if (response.status >= 500) {
+      throw new AgentExecutionStreamDisconnectedError("terminal");
+    }
     throw new Error(await responseError(response));
+  }
+  if (!response.body) {
+    throw new AgentExecutionStreamDisconnectedError("terminal");
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let pending = "";
   let completed = false;
-  while (!signal.aborted) {
-    const { done, value } = await reader.read();
-    pending += decoder.decode(value, { stream: !done });
-    const { frames, pending: nextPending } = decodeAgentSseFrames(pending);
-    pending = nextPending;
-    for (const frame of frames) {
-      const event = agentTerminalEvent(JSON.parse(frame.data));
-      onEvent(event);
-      if (event.type === "terminal_failed") {
-        throw new Error(event.detail);
+  try {
+    while (!signal.aborted) {
+      const { done, value } = await reader.read();
+      pending += decoder.decode(value, { stream: !done });
+      const { frames, pending: nextPending } = decodeAgentSseFrames(pending);
+      pending = nextPending;
+      for (const frame of frames) {
+        const event = agentTerminalEvent(JSON.parse(frame.data));
+        onEvent(event);
+        if (event.type === "terminal_failed") {
+          throw new AgentTerminalFailedError(event.detail);
+        }
+        completed ||=
+          event.type === "terminal_completed" ||
+          event.type === "terminal_cancelled";
       }
-      completed ||=
-        event.type === "terminal_completed" ||
-        event.type === "terminal_cancelled";
+      if (done) {
+        break;
+      }
     }
-    if (done) {
-      break;
+  } catch (error) {
+    if (
+      signal.aborted ||
+      error instanceof AgentTerminalFailedError ||
+      error instanceof AgentExecutionStreamDisconnectedError
+    ) {
+      throw error;
     }
+    if (completed) {
+      return;
+    }
+    throw new AgentExecutionStreamDisconnectedError("terminal");
   }
   if (!(signal.aborted || completed)) {
-    throw new Error("Terminal stream ended before the command completed");
+    throw new AgentExecutionStreamDisconnectedError("terminal");
   }
 }
 
@@ -2053,11 +2144,15 @@ function assignOptionalString<
   }
 }
 
+export type AgentActivityTerminalOutcome = "cancelled" | "completed" | "failed";
+
 export type AgentActivity = {
   requestId: string | null;
   sessionId: string | null;
   running: boolean;
   detail: string | null;
+  /** A relay observation of an Agent terminal wire event, never Session truth. */
+  terminalOutcome: AgentActivityTerminalOutcome | null;
 };
 export async function readAgentActivity(
   target: AgentTarget,
@@ -2072,7 +2167,41 @@ export async function readAgentActivity(
   if (!response.ok) {
     throw new Error(await responseError(response));
   }
-  return response.json();
+  return agentActivity(await response.json());
+}
+
+function agentActivity(value: unknown): AgentActivity {
+  const object = requiredObject(value, "Agent activity");
+  if (
+    typeof object.running !== "boolean" ||
+    !nullableString(object.requestId) ||
+    !nullableString(object.sessionId) ||
+    !nullableString(object.detail)
+  ) {
+    throw new TypeError("Agent activity is malformed");
+  }
+  const terminalOutcome =
+    object.terminalOutcome === undefined || object.terminalOutcome === null
+      ? null
+      : object.terminalOutcome === "cancelled" ||
+          object.terminalOutcome === "completed" ||
+          object.terminalOutcome === "failed"
+        ? object.terminalOutcome
+        : undefined;
+  if (terminalOutcome === undefined) {
+    throw new TypeError("Agent activity has an invalid terminal outcome");
+  }
+  return {
+    detail: object.detail,
+    requestId: object.requestId,
+    running: object.running,
+    sessionId: object.sessionId,
+    terminalOutcome,
+  };
+}
+
+function nullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
 export async function forkAgentSession(

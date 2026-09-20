@@ -2,8 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAttachmentDraft, type AgentAttachment } from "./agent-attachments";
 import {
+  disconnectedAgentExecutionPresentation,
+  disconnectedTerminalExecutionPresentation,
+  type AgentExecutionPresentation,
+} from "./agent-execution-state";
+import {
   type AgentContextReference,
   activeAgentTools,
+  AgentExecutionStreamDisconnectedError,
+  AgentTerminalFailedError,
+  AgentTurnFailedError,
   readAgentActivity,
   answerAgentInteraction,
   cancelAgentTurn,
@@ -51,6 +59,11 @@ type ActiveTurn = {
 type ActiveTerminal = {
   controller: AbortController;
   requestId: string;
+};
+
+type DisconnectedTurn = {
+  requestId: string;
+  turnId: string;
 };
 
 type QueuedPrompt = {
@@ -162,6 +175,8 @@ export function useAgentConversation({
   const [turns, setTurns] = useState<AgentTurn[]>([]);
   const [trajectory, setTrajectory] = useState<AgentTrajectory>();
   const [runtimeError, setRuntimeError] = useState<string>();
+  const [executionPresentation, setExecutionPresentation] =
+    useState<AgentExecutionPresentation>();
   const [isRunning, setIsRunning] = useState(false);
   const [isConfiguring, setIsConfiguring] = useState(false);
   const configuration = useRef<AbortController | undefined>(undefined);
@@ -174,6 +189,7 @@ export function useAgentConversation({
   const clearAttachments = attachments.clear;
   const activeTurn = useRef<ActiveTurn | undefined>(undefined);
   const backgroundTurn = useRef<{ requestId: string } | undefined>(undefined);
+  const disconnectedTurn = useRef<DisconnectedTurn | undefined>(undefined);
   const activeTerminal = useRef<ActiveTerminal | undefined>(undefined);
   const queuedPromptsRef = useRef<QueuedPrompt[]>([]);
   const startTurnRef = useRef<
@@ -318,6 +334,8 @@ export function useAgentConversation({
       terminal.controller.abort();
     }
     activeTerminal.current = undefined;
+    backgroundTurn.current = undefined;
+    disconnectedTurn.current = undefined;
     setIsRunning(false);
     setIsAnsweringInteraction(false);
     setPendingInteraction(undefined);
@@ -349,6 +367,7 @@ export function useAgentConversation({
     setTerminalRuns([]);
     setTrajectory(undefined);
     setRuntimeError(undefined);
+    setExecutionPresentation(undefined);
     if (!initialSessionId) {
       return;
     }
@@ -426,8 +445,10 @@ export function useAgentConversation({
         turnId: pendingTurnId,
       });
       activeTurn.current = { controller, requestId, stream };
+      disconnectedTurn.current = undefined;
       setIsRunning(true);
       setRuntimeError(undefined);
+      setExecutionPresentation(undefined);
       setDraft("");
       setEditingTurnId(undefined);
       setTurns((current) => [
@@ -525,6 +546,26 @@ export function useAgentConversation({
             return;
           }
           stream.flush();
+          if (error instanceof AgentTurnFailedError) {
+            // The stream buffer already applied the Agent's explicit terminal
+            // failure to this Turn. Do not turn it into a second UI error.
+            return;
+          }
+          if (error instanceof AgentExecutionStreamDisconnectedError) {
+            const disconnected: DisconnectedTurn = {
+              requestId,
+              turnId: pendingTurnId,
+            };
+            disconnectedTurn.current = disconnected;
+            backgroundTurn.current = { requestId };
+            setExecutionPresentation(
+              disconnectedAgentExecutionPresentation({
+                activity: undefined,
+                durableEffectMayHaveOccurred: true,
+              })
+            );
+            return;
+          }
           const detail = errorMessage(error);
           setRuntimeError(detail);
           setTurns((current) =>
@@ -543,13 +584,15 @@ export function useAgentConversation({
             setIsRunning(false);
             setIsAnsweringInteraction(false);
             setPendingInteraction(undefined);
-            const [next, ...remaining] = queuedPromptsRef.current;
-            if (next) {
-              queuedPromptsRef.current = remaining;
-              setQueuedPrompts(remaining);
-              queueMicrotask(() =>
-                startTurnRef.current(next.prompt, undefined, next.attachments)
-              );
+            if (disconnectedTurn.current?.requestId !== requestId) {
+              const [next, ...remaining] = queuedPromptsRef.current;
+              if (next) {
+                queuedPromptsRef.current = remaining;
+                setQueuedPrompts(remaining);
+                queueMicrotask(() =>
+                  startTurnRef.current(next.prompt, undefined, next.attachments)
+                );
+              }
             }
           } else {
             stream.stop();
@@ -588,8 +631,10 @@ export function useAgentConversation({
       const controller = new AbortController();
       const requestId = crypto.randomUUID();
       activeTerminal.current = { controller, requestId };
+      disconnectedTurn.current = undefined;
       setIsRunning(true);
       setRuntimeError(undefined);
+      setExecutionPresentation(undefined);
       setDraft("");
       setEditingTurnId(undefined);
       setTerminalRuns((current) => [
@@ -641,6 +686,25 @@ export function useAgentConversation({
           });
         } catch (error) {
           if (!controller.signal.aborted) {
+            if (error instanceof AgentTerminalFailedError) {
+              // The streamed terminal event already records the explicit failure.
+              return;
+            }
+            if (error instanceof AgentExecutionStreamDisconnectedError) {
+              const presentation = disconnectedTerminalExecutionPresentation();
+              setTerminalRuns((current) =>
+                current.map((run) =>
+                  run.id === requestId
+                    ? {
+                        ...run,
+                        error: `${presentation.label}: ${presentation.description}`,
+                        status: "uncertain",
+                      }
+                    : run
+                )
+              );
+              return;
+            }
             const detail = errorMessage(error);
             setRuntimeError(detail);
             setTerminalRuns((current) =>
@@ -696,6 +760,12 @@ export function useAgentConversation({
     if (!prompt && !attachments.items.length) {
       return;
     }
+    if (disconnectedTurn.current) {
+      setRuntimeError(
+        "The previous Turn result is uncertain. Refresh its durable Session before starting another Turn."
+      );
+      return;
+    }
     const terminalCommand =
       !attachments.items.length &&
       terminalCommandMatches(terminalCatalog, prompt);
@@ -749,24 +819,96 @@ export function useAgentConversation({
       try {
         if (!activeTurn.current && !activeTerminal.current) {
           const activity = await readAgentActivity(targetId, controller.signal);
-          if (controller.signal.aborted || !activity) {
+          if (controller.signal.aborted) {
             return;
           }
-          if (!activeTurn.current) {
+          const pendingDisconnect = disconnectedTurn.current;
+          if (pendingDisconnect) {
+            const matchingActivity =
+              activity?.requestId === pendingDisconnect.requestId
+                ? activity
+                : undefined;
+            setExecutionPresentation(
+              disconnectedAgentExecutionPresentation({
+                activity: matchingActivity,
+                durableEffectMayHaveOccurred: true,
+              })
+            );
+            if (matchingActivity?.sessionId && !sessionIdRef.current) {
+              resolveSession(matchingActivity.sessionId);
+            }
+            if (
+              matchingActivity?.sessionId &&
+              sessionIdRef.current === matchingActivity.sessionId &&
+              (matchingActivity.running ||
+                matchingActivity.terminalOutcome !== null)
+            ) {
+              await loadSessionData(
+                matchingActivity.sessionId,
+                controller.signal,
+                targetId,
+                (result) => {
+                  if (!(result instanceof Error) && !activeTurn.current) {
+                    setTurns(projectAgentSession(result.session).turns);
+                    setTrajectory(result.trajectory);
+                  }
+                }
+              );
+            }
+            if (matchingActivity?.terminalOutcome) {
+              const status = matchingActivity.terminalOutcome;
+              backgroundTurn.current = undefined;
+              setIsRunning(false);
+              setPendingInteraction(undefined);
+              setTurns((current) =>
+                current.map((turn) =>
+                  turn.id === pendingDisconnect.turnId
+                    ? {
+                        ...turn,
+                        ...(status === "failed" && matchingActivity.detail
+                          ? { error: matchingActivity.detail }
+                          : {}),
+                        status,
+                      }
+                    : turn
+                )
+              );
+              disconnectedTurn.current = undefined;
+            } else if (matchingActivity?.running) {
+              backgroundTurn.current = {
+                requestId: pendingDisconnect.requestId,
+              };
+              setIsRunning(true);
+              const interactions = await readPendingAgentInteractions(
+                pendingDisconnect.requestId,
+                controller.signal,
+                targetId
+              );
+              if (!controller.signal.aborted) {
+                setPendingInteraction(interactions[0]);
+              }
+            } else {
+              backgroundTurn.current = undefined;
+              setIsRunning(false);
+              setPendingInteraction(undefined);
+            }
+          } else if (activity && !activeTurn.current) {
+            const activityStillRunning =
+              activity.running && activity.terminalOutcome === null;
             backgroundTurn.current =
-              activity.running && activity.requestId
+              activityStillRunning && activity.requestId
                 ? { requestId: activity.requestId }
                 : undefined;
-            setIsRunning(activity.running);
+            setIsRunning(activityStillRunning);
             if (
-              activity.running &&
+              activityStillRunning &&
               activity.sessionId &&
               !sessionIdRef.current
             ) {
               onSessionResolvedRef.current?.(activity.sessionId);
             }
             if (
-              (activity.running || wasRunning) &&
+              (activityStillRunning || wasRunning) &&
               sessionIdRef.current === activity.sessionId &&
               activity.sessionId
             ) {
@@ -782,7 +924,7 @@ export function useAgentConversation({
                 }
               );
             }
-            if (activity.running && activity.requestId) {
+            if (activityStillRunning && activity.requestId) {
               const interactions = await readPendingAgentInteractions(
                 activity.requestId,
                 controller.signal,
@@ -793,15 +935,32 @@ export function useAgentConversation({
               }
             } else {
               setPendingInteraction(undefined);
-              if (wasRunning && activity.detail) {
+              if (
+                wasRunning &&
+                activity.terminalOutcome === "failed" &&
+                activity.detail
+              ) {
                 setRuntimeError(activity.detail);
               }
             }
-            wasRunning = activity.running;
+            wasRunning = activityStillRunning;
           }
         }
       } catch {
-        // A transient status failure must not clear a running task or cancel it.
+        const pendingDisconnect = disconnectedTurn.current;
+        if (pendingDisconnect) {
+          setExecutionPresentation(
+            disconnectedAgentExecutionPresentation({
+              activity: undefined,
+              durableEffectMayHaveOccurred: true,
+            })
+          );
+          backgroundTurn.current = undefined;
+          setIsRunning(false);
+          setPendingInteraction(undefined);
+        }
+        // A transient status failure must not clear an ordinary running task or
+        // cancel it. A detached UI stream is separately marked as unknown above.
       }
       if (!controller.signal.aborted) {
         timer = setTimeout(() => void poll(), 1500);
@@ -813,7 +972,7 @@ export function useAgentConversation({
       clearTimeout(timer);
       backgroundTurn.current = undefined;
     };
-  }, [targetId, initialSessionId]);
+  }, [targetId, initialSessionId, resolveSession]);
 
   const answerInteraction = useCallback(
     (answers: AgentInteractionAnswer[]) => {
@@ -1091,6 +1250,7 @@ export function useAgentConversation({
     editingTurnId,
     isRunning,
     isAnsweringInteraction,
+    executionPresentation,
     modelCatalog,
     pendingInteraction,
     runtimeError,

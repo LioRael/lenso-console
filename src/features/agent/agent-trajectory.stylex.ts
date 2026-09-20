@@ -315,6 +315,13 @@ export const agentTrajectoryStyles = stylex.create({
     paddingInline: "7px",
     width: { default: "min(184px, 32%)", "@media (max-width: 620px)": "112px" },
   },
+  searchClear: {
+    flex: "0 0 auto",
+    height: "18px",
+    minWidth: "18px",
+    padding: 0,
+    width: "18px",
+  },
   searchInput: {
     backgroundColor: "transparent",
     borderWidth: 0,

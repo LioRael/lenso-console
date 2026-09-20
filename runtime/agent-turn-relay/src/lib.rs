@@ -16,6 +16,16 @@ const MAX_LINE_BYTES: usize = 1024 * 1024;
 
 type Frame = Result<Bytes, String>;
 
+/// A terminal event observed on the Agent wire. This is a transient relay
+/// observation, not durable Session evidence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalOutcome {
+    Cancelled,
+    Completed,
+    Failed,
+}
+
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Activity {
@@ -23,6 +33,7 @@ pub struct Activity {
     pub session_id: Option<String>,
     pub running: bool,
     pub detail: Option<String>,
+    pub terminal_outcome: Option<TerminalOutcome>,
 }
 
 /// Clones share the same per-Agent admission gate and activity. A new process
@@ -77,6 +88,7 @@ impl TurnRelay {
                 session_id: value["session_id"].as_str().map(str::to_owned),
                 running: true,
                 detail: None,
+                terminal_outcome: None,
             };
         }
         let guard = RunningTurn {
@@ -237,6 +249,18 @@ fn observe(activity: &Arc<Mutex<Activity>>, line: &[u8]) {
     }
     if let Some(detail) = value["detail"].as_str() {
         state.detail = Some(detail.to_owned());
+    }
+    if let Some(outcome) = terminal_outcome(&value) {
+        state.terminal_outcome = Some(outcome);
+    }
+}
+
+fn terminal_outcome(value: &serde_json::Value) -> Option<TerminalOutcome> {
+    match value["type"].as_str() {
+        Some("turn_cancelled") => Some(TerminalOutcome::Cancelled),
+        Some("turn_completed") => Some(TerminalOutcome::Completed),
+        Some("turn_failed") => Some(TerminalOutcome::Failed),
+        _ => None,
     }
 }
 
