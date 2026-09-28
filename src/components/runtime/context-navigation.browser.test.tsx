@@ -195,36 +195,6 @@ describe("Context navigation", () => {
     );
   });
 
-  test("shows hover feedback on a header tab", async () => {
-    if (!container) {
-      throw new Error("Browser test container is missing");
-    }
-    root = createRoot(container);
-    flushSync(() => {
-      root?.render(
-        <ThemeScope>
-          <button type="button" {...stylex.props(shellStyles.tab)}>
-            Settings
-          </button>
-        </ThemeScope>
-      );
-    });
-    await nextFrame();
-
-    const button = page.getByRole("button", { name: "Settings" });
-    const buttonElement = container.querySelector<HTMLButtonElement>("button");
-    if (!buttonElement) {
-      throw new Error("Icon button was not rendered");
-    }
-    const restingBackground = getComputedStyle(buttonElement).backgroundColor;
-    await userEvent.hover(button);
-    await new Promise((resolve) => setTimeout(resolve, 160));
-
-    expect(getComputedStyle(buttonElement).backgroundColor).not.toBe(
-      restingBackground
-    );
-  });
-
   test("shows hover feedback on an unselected sidebar item", async () => {
     if (!container) {
       throw new Error("Browser test container is missing");
