@@ -1,5 +1,4 @@
 import { Button } from "@lenso/ui/button";
-import { PageHeader } from "@lenso/ui/page-header";
 import { TextField } from "@lenso/ui/text-field";
 import * as stylex from "@stylexjs/stylex";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -62,10 +61,11 @@ const styles = stylex.create({
     borderBottom: "1px solid var(--color-border-tertiary)",
   },
   workbench: {
-    maxWidth: 960,
-    width: "calc(100% - 48px)",
+    maxWidth: 800,
+    width: "min(800px, calc(100% - 48px))",
     display: "grid",
     gap: 16,
+    "@media (max-width: 560px)": { width: "calc(100% - 32px)" },
   },
   breadcrumbParent: {
     display: "inline-flex",
@@ -143,6 +143,7 @@ const styles = stylex.create({
     display: "flex",
     flexShrink: 0,
     gap: tokens.space3,
+    marginInlineStart: 8,
   },
   headerSubrow: {
     height: "auto",
@@ -159,6 +160,7 @@ const styles = stylex.create({
     },
   },
   page: {
+    backgroundColor: tokens.colorSurfaceCanvas,
     color: tokens.colorContentPrimary,
     boxSizing: "border-box",
     display: "block",
@@ -435,37 +437,30 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                   : ""}
               </Button>
               {selectedApp.localBundleInstall ? (
-                <PageHeader.Actions>
-                  <div {...stylex.props(styles.headerActions)}>
-                    {selectedApp.localBundleInstall ? (
-                      <InstallPluginDialog
-                        disabled={
-                          !workbench.authoringEnabled ||
-                          !selectedApp.localBundleInstall
-                        }
-                        error={
-                          mutation.variables?.type === "install" &&
-                          mutation.error instanceof Error
-                            ? mutation.error
-                            : null
-                        }
-                        isPending={mutation.isPending}
-                        onInstall={async (bundlePath) => {
-                          if (!inventory) {
-                            throw new TypeError(
-                              "The Console cannot install a Plugin before Host inventory is available"
-                            );
-                          }
-                          await mutation.mutateAsync({
-                            bundlePath,
-                            expectedStreamId: inventory.streamId,
-                            type: "install",
-                          });
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                </PageHeader.Actions>
+                <div {...stylex.props(styles.headerActions)}>
+                  <InstallPluginDialog
+                    disabled={!workbench.authoringEnabled}
+                    error={
+                      mutation.variables?.type === "install" &&
+                      mutation.error instanceof Error
+                        ? mutation.error
+                        : null
+                    }
+                    isPending={mutation.isPending}
+                    onInstall={async (bundlePath) => {
+                      if (!inventory) {
+                        throw new TypeError(
+                          "The Console cannot install a Plugin before Host inventory is available"
+                        );
+                      }
+                      await mutation.mutateAsync({
+                        bundlePath,
+                        expectedStreamId: inventory.streamId,
+                        type: "install",
+                      });
+                    }}
+                  />
+                </div>
               ) : null}
             </div>
           </div>

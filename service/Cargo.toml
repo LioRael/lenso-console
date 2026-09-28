@@ -30,16 +30,18 @@ dotenvy = "0.15"
 futures = "0.3"
 hex = "0.4"
 http = "1"
-lenso = "0.5.17"
+lenso = "0.5.25"
 lenso-auth-sdk = "0.2.3"
 lenso-capability-auth = "0.2.0"
-lenso-capability-http-endpoint = "0.3.1"
+lenso-capability-http-endpoint = "0.3.2"
 lenso-capability-http-stream-endpoint = "0.1.1"
 lenso-capability-ui-contribution = { path = "../contracts/crates/lenso-capability-ui-contribution", version = "0.1.0" }
 lenso-capability-workspace-service = { path = "../contracts/crates/lenso-capability-workspace-service", version = "0.1.0" }
 lenso-agent-turn-relay = { path = "../runtime/agent-turn-relay", version = "0.1.0" }
 lenso-local-agent-launcher = { path = "../runtime/local-agent-launcher", version = "0.1.0" }
-lenso-kernel = "0.3.6"
+lenso-kernel = "0.3.11"
+# 0.2.7 emits lifecycle methods absent from native-adapter 0.3.15.
+lenso-native-adapter-macros = "=0.2.5"
 percent-encoding = "2.3"
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
@@ -64,9 +66,9 @@ toml = "0.9"
 uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
-lenso-app-plan = "0.4.1"
-lenso-native-adapter = "0.3.13"
-lenso-runner = "0.2.13"
+lenso-app-plan = "0.4.5"
+lenso-native-adapter = "0.3.15"
+lenso-runner = "0.2.17"
 time = "0.3"
 axum = "0.8"
 tempfile = "3.27"
@@ -83,10 +85,6 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [patch.crates-io]
-lenso-native-adapter = { git = "https://github.com/LioRael/lenso-runtime-rust", rev = "905a59141ca0e349b734fb7de99d010f2b0dc0df" }
-lenso-native-adapter-macros = { git = "https://github.com/LioRael/lenso-runtime-rust", rev = "905a59141ca0e349b734fb7de99d010f2b0dc0df" }
-lenso-runtime-codec = { git = "https://github.com/LioRael/lenso-runtime-rust", rev = "905a59141ca0e349b734fb7de99d010f2b0dc0df" }
-
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
 lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
 

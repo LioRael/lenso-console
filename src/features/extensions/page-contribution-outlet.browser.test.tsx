@@ -28,7 +28,7 @@ test("loads a discovered native contribution without a static component import",
     await expect
       .element(
         page.getByRole("heading", {
-          name: "Extension workspace",
+          name: "Welcome",
           exact: true,
         })
       )

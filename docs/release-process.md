@@ -50,7 +50,7 @@ workbench. Use Lenso Agent 0.1.8 or newer for first-time startup without an
 existing account login. Browser-authorized Projects connections require Agent
 0.1.9 or newer and a business App with Auth consent and Projects HTTP ingress.
 Install the matching Agent release before running `pnpm agent:web`. Portable Plugin packaging and lifecycle management use
-Cargo `lenso-cli 0.5.2` or npm `@lenso/cli 0.16.2`.
+Cargo `lenso-cli 0.6.0` or npm `@lenso/cli 0.16.2`.
 
 SQLite-managed Agents can import official coding Profiles while running. Select
 an Agent in its chat page, open **Set up coding**, import the Profiles, and

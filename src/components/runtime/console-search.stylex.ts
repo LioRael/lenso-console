@@ -1,0 +1,122 @@
+import * as stylex from "@stylexjs/stylex";
+
+export const searchStyles = stylex.create({
+  trigger: {
+    alignItems: "center",
+    backgroundColor: {
+      default: "var(--console-raised, var(--color-surface-control))",
+      ":hover": "var(--color-surface-interactive-hover)",
+    },
+    borderColor: "var(--console-shell-line, var(--color-border-tertiary))",
+    borderRadius: "9px",
+    borderStyle: "solid",
+    borderWidth: "1px",
+    color: "var(--color-content-secondary)",
+    cursor: "pointer",
+    display: "flex",
+    gap: "9px",
+    height: "32px",
+    insetInlineStart: { default: "50%", "@media (max-width: 1050px)": "auto" },
+    insetInlineEnd: {
+      default: "auto",
+      "@media (max-width: 1050px)": "12px",
+      "@media (max-width: 720px)": "8px",
+    },
+    paddingInline: { default: "11px", "@media (max-width: 1050px)": 0 },
+    position: "absolute",
+    transform: {
+      default: "translateX(-50%)",
+      "@media (max-width: 1050px)": "none",
+    },
+    width: { default: "220px", "@media (max-width: 1050px)": "32px" },
+    "@media (max-width: 1050px)": { justifyContent: "center" },
+    "@media (max-width: 720px)": {
+      backgroundColor: "transparent",
+      borderWidth: 0,
+      insetBlockStart: "7px",
+    },
+  },
+  triggerLabel: {
+    flex: 1,
+    textAlign: "start",
+    whiteSpace: "nowrap",
+    "@media (max-width: 1050px)": { display: "none" },
+  },
+  shortcut: {
+    color: "var(--console-muted, var(--color-content-tertiary))",
+    fontFamily: "inherit",
+    fontSize: "10px",
+    "@media (max-width: 1050px)": { display: "none" },
+  },
+  portal: { position: "relative", zIndex: 100 },
+  backdrop: { backgroundColor: "rgb(0 0 0 / 60%)" },
+  viewport: {
+    alignItems: "flex-start",
+    display: "flex",
+    justifyContent: "center",
+    paddingBlockStart: "70px",
+    paddingInline: "14px",
+  },
+  popup: {
+    backgroundColor: "var(--color-surface-canvas)",
+    borderRadius: "11px",
+    boxShadow:
+      "0 var(--elevation-dialog-key-y) var(--elevation-dialog-key-blur) var(--elevation-dialog-key), 0 var(--elevation-dialog-ambient-y) var(--elevation-dialog-ambient-blur) var(--elevation-dialog-ambient)",
+    maxWidth: "calc(100vw - 28px)",
+    overflow: "hidden",
+    padding: "7px",
+    width: "min(450px, calc(100vw - 28px))",
+  },
+  commandPanel: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    boxShadow: "none",
+    maxHeight: "min(450px, calc(100dvh - 100px))",
+    width: "100%",
+  },
+  visuallyHiddenTitle: {
+    clipPath: "inset(50%)",
+    height: "1px",
+    margin: 0,
+    overflow: "hidden",
+    position: "absolute",
+    whiteSpace: "nowrap",
+    width: "1px",
+  },
+  searchField: {
+    borderBottomColor:
+      "var(--console-shell-line, var(--color-border-tertiary))",
+    borderBottomStyle: "solid",
+    borderBottomWidth: "1px",
+    color: "var(--color-content-tertiary)",
+    gap: "10px",
+    height: "41px",
+    marginInline: 0,
+    padding: "0 9px 6px",
+  },
+  searchInput: {
+    color: "var(--color-content-primary)",
+    fontSize: "13px",
+    height: "34px",
+  },
+  results: {
+    maxHeight: "min(50dvh, 270px)",
+    overflowY: "auto",
+    padding: "5px 0 0",
+  },
+  result: {
+    backgroundColor: {
+      default: "transparent",
+      ":hover": "var(--color-menu-item-hover)",
+      "[data-highlighted]": "var(--color-menu-item-selected)",
+    },
+    borderRadius: "7px",
+    minHeight: "36px",
+    paddingInline: "10px",
+  },
+  group: {
+    color: "var(--color-content-tertiary)",
+    fontSize: "11px",
+    marginInlineStart: "auto",
+  },
+});

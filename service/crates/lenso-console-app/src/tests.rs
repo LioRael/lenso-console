@@ -265,8 +265,8 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
     install_welcome_fixture(&config.app_root);
 
     let local = tokio::task::LocalSet::new();
-    local
-        .run_until(async move {
+    Box::pin(
+        local.run_until(async move {
             let host = start_host(&config).await.unwrap();
             let shell_client = reqwest::Client::new();
             // A browser loads the shell and assets in a concurrent burst.
@@ -419,8 +419,9 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
                 shell_only.shutdown(std::time::Duration::from_secs(2)).await,
                 ShutdownOutcome::Clean
             );
-        })
-        .await;
+        }),
+    )
+    .await;
     agent.abort();
 }
 

@@ -1,14 +1,8 @@
 import { Button } from "@lenso/ui/button";
 import { Dialog } from "@lenso/ui/dialog";
 import * as stylex from "@stylexjs/stylex";
-import { MousePointer2, X } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { Sparkles, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useAgentIdentity } from "./agent-identity-context";
@@ -42,10 +36,7 @@ export function AgentQuickPanel({
   const [activeId, setActiveId] = useState<number>();
   const [open, setOpen] = useState(false);
   const [host, setHost] = useState<HTMLDivElement | null>(null);
-  const [left, setLeft] = useState(0);
   const nextId = useRef(0);
-  const mainTrigger = useRef<HTMLButtonElement>(null);
-  const anchors = useRef(new Map<number, HTMLElement>());
   const appliedRequest = useRef(0);
   const runningEntries = useRef(new Set<number>());
   const create = useCallback((agentId: string, initialDraft?: string) => {
@@ -115,43 +106,9 @@ export function AgentQuickPanel({
       setActiveId(undefined);
     }
   };
-  const active = entries.find((entry) => entry.id === activeId);
-  useLayoutEffect(() => {
-    if (!open) {
-      return;
-    }
-    const anchor =
-      (active?.hasConversation ? anchors.current.get(active.id) : undefined) ??
-      mainTrigger.current;
-    if (!anchor) {
-      return;
-    }
-    const position = () => {
-      const width = Math.min(400, window.innerWidth - 24);
-      setLeft(
-        Math.max(
-          12,
-          Math.min(
-            anchor.getBoundingClientRect().right - width,
-            window.innerWidth - width - 12
-          )
-        )
-      );
-    };
-    position();
-    const observer = new ResizeObserver(position);
-    observer.observe(anchor);
-    if (anchor.parentElement?.parentElement) {
-      observer.observe(anchor.parentElement.parentElement);
-    }
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, true);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, true);
-    };
-  }, [open, active, entries]);
+  const retainedEntries = entries.filter(
+    (entry) => entry.hasConversation && !entry.dismissed
+  );
   return (
     <Dialog.Root
       modal={false}
@@ -172,22 +129,19 @@ export function AgentQuickPanel({
         setOpen(nextOpen);
       }}
     >
-      {entries
-        .filter((entry) => entry.hasConversation && !entry.dismissed)
-        .map((entry) => (
+      <div
+        {...stylex.props(
+          styles.tray,
+          open && retainedEntries.length > 0 && styles.trayOpen
+        )}
+      >
+        {retainedEntries.map((entry) => (
           <div
             key={entry.id}
             data-agent-tray=""
             {...stylex.props(chipGroup, styles.chipGroup)}
           >
             <Button
-              ref={(node) => {
-                if (node) {
-                  anchors.current.set(entry.id, node);
-                } else {
-                  anchors.current.delete(entry.id);
-                }
-              }}
               aria-label={entry.title}
               aria-expanded={open && activeId === entry.id}
               onClick={() => {
@@ -210,9 +164,9 @@ export function AgentQuickPanel({
             </button>
           </div>
         ))}
+      </div>
       <Button
-        ref={mainTrigger}
-        aria-label={t("Agent")}
+        aria-label={t("Assistant")}
         data-agent-action="open"
         data-agent-tray=""
         data-open={open || undefined}
@@ -237,15 +191,22 @@ export function AgentQuickPanel({
         }}
         size="compact"
         variant="ghost"
-        xstyle={[styles.trigger, open && styles.triggerOpen]}
+        xstyle={styles.trigger}
       >
-        <MousePointer2 aria-hidden="true" size={14} strokeWidth={1.6} />
-        {t("Agent")}
+        <Sparkles
+          aria-hidden="true"
+          size={14}
+          strokeWidth={1.6}
+          {...stylex.props(styles.triggerIcon)}
+        />
+        <span {...stylex.props(styles.triggerLabel)}>{t("Assistant")}</span>
       </Button>
       <Dialog.Portal className={stylex.props(styles.portal).className}>
         <Dialog.Popup
-          xstyle={styles.panel}
-          style={{ transform: `translateX(${left}px)` }}
+          xstyle={[
+            styles.panel,
+            retainedEntries.length > 0 && styles.panelWithTray,
+          ]}
         >
           <div ref={setHost} {...stylex.props(styles.panelContent)} />
         </Dialog.Popup>

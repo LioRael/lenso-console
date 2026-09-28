@@ -1,6 +1,6 @@
 import { IconButton } from "@lenso/ui/icon-button";
 import * as stylex from "@stylexjs/stylex";
-import { Paperclip, X, FileText } from "lucide-react";
+import { Plus, X, FileText } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -248,7 +248,7 @@ export function AttachmentButton() {
         disabled={Boolean(state?.busy)}
         onClick={() => input.current?.click()}
       >
-        <Paperclip size={14} />
+        <Plus size={16} />
       </IconButton>
     </>
   );

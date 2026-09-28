@@ -3,12 +3,13 @@ import * as stylex from "@stylexjs/stylex";
 export const settingsPageStyles = stylex.create({
   column: {
     marginInline: "auto",
-    paddingBlock: "40px 64px",
+    paddingBlock: "48px 64px",
     width: {
-      default: "min(760px, calc(100% - 48px))",
+      default: "min(680px, calc(100% - 48px))",
       "@media (max-width: 760px)": "calc(100% - 32px)",
     },
     minWidth: 0,
+    "@media (max-width: 560px)": { paddingBlock: "32px 48px" },
   },
   header: {
     display: "flex",
@@ -17,7 +18,13 @@ export const settingsPageStyles = stylex.create({
     flexWrap: "wrap",
     gap: 16,
   },
-  headerCopy: { display: "grid", gap: 8, minWidth: 0, flex: "1 1 240px" },
+  headerCopy: {
+    display: "grid",
+    gap: 8,
+    minWidth: 0,
+    flex: "1 1 240px",
+    paddingInline: 16,
+  },
   headerActions: {
     display: "flex",
     alignItems: "center",
@@ -26,8 +33,8 @@ export const settingsPageStyles = stylex.create({
   },
   description: {
     margin: 0,
-    fontSize: 12,
-    lineHeight: "18px",
+    fontSize: 13,
+    lineHeight: "20px",
     color: "var(--color-content-tertiary)",
     overflowWrap: "anywhere",
   },
@@ -40,6 +47,7 @@ export const settingsPageStyles = stylex.create({
     boxShadow: "none",
   },
   page: {
+    backgroundColor: "var(--color-surface-canvas)",
     color: "var(--color-content-primary)",
     minHeight: "100%",
     overflowY: "auto",
@@ -47,9 +55,9 @@ export const settingsPageStyles = stylex.create({
   },
   pageTitle: {
     fontSize: "24px",
-    fontWeight: 500,
+    fontWeight: 600,
     letterSpacing: "-0.02em",
-    lineHeight: "32px",
+    lineHeight: "30px",
     margin: 0,
     overflowWrap: "anywhere",
   },
@@ -107,7 +115,7 @@ export const settingsPageStyles = stylex.create({
   },
   sectionTitle: {
     fontSize: "15px",
-    fontWeight: 520,
+    fontWeight: 600,
     lineHeight: "20px",
     margin: 0,
   },

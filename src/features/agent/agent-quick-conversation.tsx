@@ -1,16 +1,12 @@
-import { Button } from "@lenso/ui/button";
 import { Dialog } from "@lenso/ui/dialog";
 import { IconButton } from "@lenso/ui/icon-button";
 import * as stylex from "@stylexjs/stylex";
 import {
   ArrowUp,
-  Box,
-  Shield,
   Minus,
   MoveDiagonal2,
-  Search,
+  Sparkles,
   Square,
-  UsersRound,
   X,
 } from "lucide-react";
 import { useEffect, useRef, type FormEvent } from "react";
@@ -28,8 +24,12 @@ import {
   DraftAttachments,
   MessageAttachments,
 } from "./agent-attachments";
-import { RunConfigurationMenu, TurnSelect } from "./agent-composer-controls";
+import { RunConfigurationMenu } from "./agent-composer-controls";
 import { AgentComposerInput } from "./agent-composer-input";
+import {
+  agentModeOptions,
+  approvalModeOptions,
+} from "./agent-composer-options";
 import { AgentContextUsage } from "./agent-context-usage";
 import type { DraftEditorHandle } from "./agent-draft-editor";
 import { AgentMarkdown } from "./agent-markdown";
@@ -37,7 +37,6 @@ import {
   AgentMessageActions,
   EditingMessageBar,
 } from "./agent-message-controls";
-import agentPointerGradient from "./agent-pointer-gradient.svg";
 import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
 import { modelsForSelector } from "./agent-runtime";
 import type { AgentTurn } from "./agent-runtime";
@@ -45,12 +44,6 @@ import { AgentShimmerText } from "./agent-shimmer-text";
 import { speedMenu } from "./agent-speed";
 import { AgentTurnActivity } from "./agent-turn-activity";
 import { useAgentConversation } from "./use-agent-conversation";
-
-const suggestions = [
-  { icon: Box, label: "Create a new App" },
-  { icon: Search, label: "Research a topic" },
-  { icon: UsersRound, label: "Set up new team" },
-] as const;
 
 function chatTitleFor(prompt: string) {
   const normalizedPrompt = (prompt.split(/[.!?]/u)[0] || prompt).replace(
@@ -103,6 +96,8 @@ export function AgentQuickConversation({
     contextReferences,
     setContextReferences,
     compactSession,
+    profile,
+    runtime,
     modelCatalog,
     selectedModel,
     setSelectedModel,
@@ -188,7 +183,14 @@ export function AgentQuickConversation({
   return createPortal(
     <AgentAttachmentProvider value={attachments}>
       <header {...stylex.props(styles.header)}>
-        <Dialog.Title xstyle={styles.title}>{title}</Dialog.Title>
+        <Dialog.Title xstyle={styles.title}>
+          <Sparkles
+            aria-hidden="true"
+            size={15}
+            {...stylex.props(styles.drawerAccent)}
+          />
+          {t("Assistant")}
+        </Dialog.Title>
         <div {...stylex.props(styles.headerActions)}>
           <IconButton
             aria-label="Minimize chat"
@@ -224,51 +226,13 @@ export function AgentQuickConversation({
       </header>
 
       <div
-        {...stylex.props(styles.body, showWelcome && styles.bodyEmpty)}
+        {...stylex.props(styles.body)}
         data-conversation={!showWelcome || undefined}
       >
         {showWelcome ? (
-          <>
-            <div {...stylex.props(styles.welcome)}>
-              <img
-                alt=""
-                aria-hidden="true"
-                className={stylex.props(styles.welcomeIcon).className}
-                height={14}
-                src={agentPointerGradient}
-                width={14}
-              />
-              <strong {...stylex.props(styles.welcomeTitle)}>
-                Welcome to Lenso
-              </strong>
-              <span {...stylex.props(styles.welcomeSubtitle)}>
-                Ask anything or tell Lenso what you need
-              </span>
-            </div>
-
-            <div
-              aria-label="Agent suggestions"
-              {...stylex.props(styles.suggestions)}
-            >
-              {suggestions.map((suggestion) => {
-                const Icon = suggestion.icon;
-                return (
-                  <Button
-                    key={suggestion.label}
-                    onClick={() => setDraft(suggestion.label)}
-                    size="compact"
-                    variant="secondary"
-                    xstyle={styles.suggestion}
-                  >
-                    <Icon aria-hidden="true" size={14} strokeWidth={1.6} />
-                    <span {...stylex.props(styles.suggestionLabel)}>
-                      {suggestion.label}
-                    </span>
-                  </Button>
-                );
-              })}
-            </div>
-          </>
+          <p {...stylex.props(styles.welcome)}>
+            {t("Ask a question or describe a task.")}
+          </p>
         ) : isEditing ? null : (
           <section
             aria-label="Agent conversation"
@@ -408,15 +372,11 @@ export function AgentQuickConversation({
                             },
                           ]
                         : []),
-                      ...[
-                        { id: "normal", value: undefined },
-                        { id: "plan", value: "plan" },
-                        { id: "code", value: "code" },
-                      ].map((item) => ({
-                        id: item.id,
-                        label: `${item.id} mode`,
+                      ...agentModeOptions.map((item) => ({
+                        id: item.value || "normal",
+                        label: `${item.label} mode`,
                         description: "Change Profile",
-                        run: () => changeProfile(item.value),
+                        run: () => changeProfile(item.value || undefined),
                       })),
                       ...models.map((item) => ({
                         id: `model:${item.id}`,
@@ -428,37 +388,31 @@ export function AgentQuickConversation({
                     ]}
                   />
                   <PromptComposer.Toolbar xstyle={styles.composerFooter}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 2 }}
-                    >
+                    <div {...stylex.props(styles.composerLeading)}>
                       <AttachmentButton />
-                      <TurnSelect
-                        compact
-                        aria-label={t("Approval mode")}
-                        icon={<Shield size={12} />}
-                        value={selectedApprovalMode ?? ""}
-                        onValueChange={(v) =>
-                          setSelectedApprovalMode(v || undefined)
-                        }
-                        disabled={isRunning}
-                        options={[
-                          { label: "Profile default", value: "" },
-                          { label: "Request approval", value: "request" },
-                          { label: "Help me approve", value: "assisted" },
-                          { label: "Full access", value: "full" },
-                        ]}
-                      />
-                      <AgentContextUsage
-                        align="start"
-                        model={model}
-                        trajectory={trajectory}
-                        draft={draft}
-                      />
-                    </div>
-                    <PromptComposer.Actions xstyle={styles.composerActions}>
                       <RunConfigurationMenu
                         compact
                         disabled={isRunning || isConfiguring}
+                        profileSelection={
+                          runtime?.capabilities.profileSelection
+                            ? {
+                                value: profile ?? "",
+                                onValueChange: (value) =>
+                                  changeProfile(value || undefined),
+                                options: agentModeOptions,
+                              }
+                            : undefined
+                        }
+                        approvalSelection={
+                          runtime
+                            ? {
+                                value: selectedApprovalMode ?? "",
+                                onValueChange: (value) =>
+                                  setSelectedApprovalMode(value || undefined),
+                                options: approvalModeOptions,
+                              }
+                            : undefined
+                        }
                         modelOptions={models.map((item) => ({
                           label: item.displayName,
                           value: item.id,
@@ -485,6 +439,13 @@ export function AgentQuickConversation({
                         onServiceTierChange={(value) =>
                           setSelectedServiceTier(value || undefined)
                         }
+                      />
+                    </div>
+                    <PromptComposer.Actions xstyle={styles.composerActions}>
+                      <AgentContextUsage
+                        model={model}
+                        trajectory={trajectory}
+                        draft={draft}
                       />
                       <IconButton
                         aria-label={

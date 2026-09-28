@@ -54,7 +54,7 @@ describe("Agent quick panel", () => {
   test("command menu remains clickable above the compact composer", async () => {
     await renderPanel(agentFetch());
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(page.elementLocator(requiredComposer()), "/");
     await expect
@@ -81,54 +81,51 @@ describe("Agent quick panel", () => {
   test("keeps the mini dialog open while using portaled composer controls", async () => {
     await renderPanel(agentFetch());
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.click(
       page.getByRole("button", { name: "Run configuration" })
     );
-    await userEvent.hover(page.getByRole("menuitem", { name: /^Model/ }));
+    await userEvent.hover(
+      page.getByRole("menuitem", { name: /^Approval mode/ })
+    );
     await expect
-      .element(page.getByRole("combobox", { name: "Search models" }))
+      .element(page.getByRole("menuitem", { name: "Full access" }))
       .toBeVisible();
     expect(requiredComposer().closest('[role="dialog"]')).not.toBeNull();
     await userEvent.keyboard("{Escape}{Escape}");
     await userEvent.click(
-      page.getByRole("combobox", { name: "Approval mode" })
+      page.getByRole("button", { name: "Run configuration" })
+    );
+    await userEvent.hover(
+      page.getByRole("menuitem", { name: /^Approval mode/ })
     );
     await userEvent.click(
-      page.getByRole("option", { name: "Full access", exact: true })
+      page.getByRole("menuitem", { name: "Full access", exact: true })
     );
     await expect.element(page.getByRole("dialog")).toBeVisible();
   });
 
-  test("keeps product hover feedback after the Lenso xstyle boundary", async () => {
+  test("keeps the assistant trigger visible on hover", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
 
-    const trigger = page.getByRole("button", { name: "Agent" });
+    const trigger = page.getByRole("button", { name: "Assistant" });
     const triggerElement = document.querySelector<HTMLButtonElement>(
-      'button[aria-label="Agent"]'
+      'button[aria-label="Assistant"]'
     );
     if (!triggerElement) {
       throw new Error("Agent trigger was not rendered");
     }
-    const restingBackground = getComputedStyle(triggerElement).backgroundColor;
     await userEvent.hover(trigger);
-
-    await expect
-      .poll(() => getComputedStyle(triggerElement).backgroundColor)
-      .not.toBe(restingBackground);
+    await expect.element(trigger).toBeVisible();
+    expect(getComputedStyle(triggerElement).color).not.toBe("rgba(0, 0, 0, 0)");
   });
 
-  test("switches retained chats in one anchored window and removes closed tray items", async () => {
+  test("switches retained chats in one drawer and removes closed tray items", async () => {
     await renderPanel(agentFetch("## Answer\n\n**Shared markdown**"));
-    // Put the tray where the app footer places it, leaving room for both anchors.
-    if (!container) {
-      throw new Error("Missing container");
-    }
-    container.style.cssText = "position:fixed;bottom:0;right:24px;display:flex";
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(page.elementLocator(requiredComposer()), "First chat");
     await userEvent.keyboard("{Enter}");
@@ -141,7 +138,7 @@ describe("Agent quick panel", () => {
     );
     await userEvent.click(page.getByRole("button", { name: "Minimize chat" }));
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(
       page.elementLocator(requiredComposer()),
@@ -159,28 +156,10 @@ describe("Agent quick panel", () => {
       .element(page.elementLocator(requiredComposer()))
       .toHaveTextContent("Retained draft");
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
-    if (!dialog) {
-      throw new Error("Missing dialog");
-    }
-    const anchor = document.querySelector<HTMLElement>(
-      'button[aria-label="First chat"]'
-    );
-    if (!anchor) {
-      throw new Error("Missing anchor");
-    }
-    await expect
-      .poll(() =>
-        Math.abs(
-          dialog.getBoundingClientRect().right -
-            anchor.getBoundingClientRect().right
-        )
-      )
-      .toBeLessThan(1);
-    const firstPosition = dialog.style.transform;
     await userEvent.click(second);
-    await expect.poll(() => dialog.style.transform).not.toBe(firstPosition);
-    expect(getComputedStyle(dialog).transitionProperty).toContain("transform");
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .not.toHaveTextContent("Retained draft");
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
     await userEvent.click(
       page.getByRole("button", { name: "Close chat", exact: true })
@@ -200,14 +179,14 @@ describe("Agent quick panel", () => {
   test("closing an inactive chip keeps the current window open", async () => {
     await renderPanel(agentFetch("Done"));
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(page.elementLocator(requiredComposer()), "First chat");
     await userEvent.keyboard("{Enter}");
     await expect.element(page.getByText("Done", { exact: true })).toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Minimize chat" }));
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(
       page.elementLocator(requiredComposer()),
@@ -229,7 +208,7 @@ describe("Agent quick panel", () => {
     const { fetchMock, finishFirstTurn } = queuedAgentFetch();
     await renderPanel(fetchMock);
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(
       page.elementLocator(requiredComposer()),
@@ -256,7 +235,7 @@ describe("Agent quick panel", () => {
       "dark"
     );
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     await userEvent.fill(page.elementLocator(requiredComposer()), "Theme test");
     await userEvent.keyboard("{Enter}");
@@ -268,7 +247,7 @@ describe("Agent quick panel", () => {
       throw new Error("Missing conversation");
     }
     const probe = document.createElement("div");
-    probe.style.backgroundColor = "var(--color-surface-panel)";
+    probe.style.backgroundColor = "var(--color-surface-canvas)";
     body.append(probe);
     await expect
       .poll(() => getComputedStyle(body).backgroundColor)
@@ -280,13 +259,12 @@ describe("Agent quick panel", () => {
     probe.remove();
     const strong = document.querySelector("strong");
     expect(strong?.textContent).toBe("Shared markdown");
-    expect(strong && getComputedStyle(strong).fontSize).toBe("14px");
   });
   test("pastes a text attachment and sends an attachment-only message", async () => {
     const fetchMock = agentFetch("Done");
     await renderPanel(fetchMock);
     await userEvent.click(
-      page.getByRole("button", { name: "Agent", exact: true })
+      page.getByRole("button", { name: "Assistant", exact: true })
     );
     const data = new DataTransfer();
     data.items.add(
@@ -323,15 +301,13 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     await nextFrame();
     const composerElement = requiredComposer();
     const composer = page.elementLocator(composerElement);
 
     await userEvent.click(composer);
     await expect.element(composer).toHaveFocus();
-    expect(getComputedStyle(composerElement).outlineStyle).toBe("none");
-    expect(getComputedStyle(composerElement).outlineWidth).toBe("0px");
     await userEvent.fill(composer, "First line");
     await userEvent.keyboard("{Shift>}{Enter}{/Shift}Second line");
     await nextFrame();
@@ -345,7 +321,7 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     await nextFrame();
     const composerElement = requiredComposer();
     const composer = page.elementLocator(composerElement);
@@ -370,7 +346,7 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch(answer);
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     await nextFrame();
     const composer = page.elementLocator(requiredComposer());
     await userEvent.fill(composer, "Stream a long answer");
@@ -386,7 +362,7 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch("", false, pluginProposalMessages());
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     const composer = page.elementLocator(requiredComposer());
     await userEvent.fill(composer, "Prepare a Plugin proposal");
     await userEvent.keyboard("{Enter}");
@@ -405,7 +381,7 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch("", false, pluginInspectionMessages());
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     const composer = page.elementLocator(requiredComposer());
     await userEvent.fill(composer, "Inspect the Agent loop Plugin");
     await userEvent.keyboard("{Enter}");
@@ -430,7 +406,7 @@ describe("Agent quick panel", () => {
     const onOpenFullPage = vi.fn();
     await renderPanel(fetchMock, onOpenFullPage);
 
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     await expect
       .poll(() =>
         fetchMock.mock.calls.some(([input]) =>
@@ -448,7 +424,7 @@ describe("Agent quick panel", () => {
   test("new mini chats inherit the current workspace reference without submitting", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock, () => undefined, false, "light", true);
-    await userEvent.click(page.getByRole("button", { name: "Agent" }));
+    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
     await expect
       .element(page.elementLocator(requiredComposer()))
       .toHaveTextContent("issue-1");

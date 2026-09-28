@@ -144,7 +144,7 @@ test("native stdio is transparent and signals stop the owned child", async () =>
     assert.equal(output, '{"jsonrpc":"2.0","id":1}\n');
     await writeFile(
       executable,
-      `#!${process.execPath}\nconsole.log(process.pid); setInterval(()=>{},1000);\n`
+      `#!${process.execPath}\nprocess.stdout.write(String(process.pid) + "\\n"); setInterval(()=>{},1000);\n`
     );
     for (const signal of ["SIGINT", "SIGTERM"]) {
       const running = spawn(

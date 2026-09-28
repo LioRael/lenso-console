@@ -1,22 +1,9 @@
 import { Button } from "@lenso/ui/button";
 import { IconButton } from "@lenso/ui/icon-button";
-import { PageHeader } from "@lenso/ui/page-header";
 import { Tabs } from "@lenso/ui/tabs";
 import * as stylex from "@stylexjs/stylex";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  ArrowUp,
-  ArrowDown,
-  Bot,
-  FileText,
-  Package,
-  Search,
-  Shield,
-  Square,
-  Terminal,
-  Wrench,
-  X,
-} from "lucide-react";
+import { ArrowUp, ArrowDown, Bot, Square, Terminal, X } from "lucide-react";
 import {
   useCallback,
   useMemo,
@@ -44,6 +31,10 @@ import {
   AgentComposerInput,
   type ComposerAction,
 } from "./agent-composer-input";
+import {
+  agentModeOptions,
+  approvalModeOptions,
+} from "./agent-composer-options";
 import { AgentContextUsage } from "./agent-context-usage";
 import type { DraftEditorHandle } from "./agent-draft-editor";
 import type { AgentExecutionPresentation } from "./agent-execution-state";
@@ -86,50 +77,6 @@ type AgentPageProps = {
 
 type AgentView = "conversation" | "trajectory" | "changes";
 
-const suggestions = [
-  {
-    description: "Turn an outcome into a focused App workspace",
-    icon: Package,
-    prompt: "Create a customer support workspace",
-    title: "Create a new App",
-  },
-  {
-    description: "Research the Plugins available in this App",
-    icon: Search,
-    prompt: "Research the Plugins in this App",
-    title: "Research a topic",
-  },
-  {
-    description: "Configure a team around a shared workflow",
-    icon: Wrench,
-    prompt: "Set up a new support team",
-    title: "Set up a new team",
-  },
-] as const;
-
-const codingSuggestions = [
-  {
-    title: "Plan a change",
-    description: "Explore the project before editing",
-    icon: Search,
-    prompt:
-      "Inspect this project and help me plan a focused change. Do not edit files yet.",
-  },
-  {
-    title: "Fix an issue",
-    description: "Describe a bug to investigate",
-    icon: Wrench,
-    prompt: "Help me fix this issue in the current project: ",
-  },
-  {
-    title: "Review changes",
-    description: "Inspect the current diff",
-    icon: FileText,
-    prompt:
-      "Review the current project changes with git_status and git_diff. Explain concrete issues without modifying files.",
-  },
-] as const;
-
 export function AgentPage({
   agentId,
   conversationId,
@@ -144,7 +91,6 @@ export function AgentPage({
     () => (projectId ? { agentId: activeAgentId, projectId } : activeAgentId),
     [activeAgentId, projectId]
   );
-  const [suggestionsVisible, setSuggestionsVisible] = useState(true);
   const [codingSetupTarget, setCodingSetupTarget] = useState<typeof targetId>();
   const [requestedCodeTarget, setRequestedCodeTarget] =
     useState<typeof targetId>();
@@ -296,33 +242,35 @@ export function AgentPage({
         )}
         data-view={conversation ? view : undefined}
       >
-        <AgentHeader
-          key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
-          onCodingSettings={canSetupCoding ? openCodingSettings : undefined}
-          activeAgentId={activeAgentId}
-          agents={agents}
-          conversationId={displayedConversationId}
-          conversationTitle={conversationTitle}
-          onRename={
-            sessionId && runtime?.capabilities.sessionRename && !isRunning
-              ? async (title) => {
-                  const renamed = await renameSession(title);
-                  if (renamed) {
-                    setTitleOverride({ sessionId, title: renamed });
+        {conversation ? (
+          <AgentHeader
+            key={`${activeAgentId}:${displayedConversationId ?? "new-task"}`}
+            onCodingSettings={canSetupCoding ? openCodingSettings : undefined}
+            activeAgentId={activeAgentId}
+            agents={agents}
+            conversationId={displayedConversationId}
+            conversationTitle={conversationTitle}
+            onRename={
+              sessionId && runtime?.capabilities.sessionRename && !isRunning
+                ? async (title) => {
+                    const renamed = await renameSession(title);
+                    if (renamed) {
+                      setTitleOverride({ sessionId, title: renamed });
+                    }
+                    return renamed;
                   }
-                  return renamed;
-                }
-              : undefined
-          }
-          workspace={
-            conversation &&
-            agents.find((agent) => agent.id === activeAgentId)?.role === "app"
-              ? runtime?.workspace
-              : undefined
-          }
-          onViewChange={setView}
-          view={view}
-        />
+                : undefined
+            }
+            workspace={
+              conversation &&
+              agents.find((agent) => agent.id === activeAgentId)?.role === "app"
+                ? runtime?.workspace
+                : undefined
+            }
+            onViewChange={setView}
+            view={view}
+          />
+        ) : null}
         {canSetupCoding ? (
           <AgentCodingSetup
             key={`${activeAgentId}:${projectId ?? "default"}`}
@@ -379,6 +327,14 @@ export function AgentPage({
         ) : (
           <div {...stylex.props(styles.emptyCanvas)}>
             <section {...stylex.props(styles.emptyCenter)}>
+              <div {...stylex.props(styles.profileIntro)}>
+                <h1 {...stylex.props(styles.profileTitle)}>
+                  {t("Start with a question")}
+                </h1>
+                <p {...stylex.props(styles.profileDescription)}>
+                  {t("Ask your Agent to think through a question or task.")}
+                </p>
+              </div>
               {runtime?.workspace &&
               agents.find((agent) => agent.id === activeAgentId)?.role ===
                 "app" ? (
@@ -456,54 +412,6 @@ export function AgentPage({
               {terminalRuns.length > 0 ? (
                 <AgentTerminalShelf runs={terminalRuns} />
               ) : null}
-              {suggestionsVisible ? (
-                <div {...stylex.props(styles.suggestions)}>
-                  <div {...stylex.props(styles.suggestionsHeader)}>
-                    <span>{t("Get started with some examples")}</span>
-                    <IconButton
-                      aria-label="Dismiss examples"
-                      onClick={() => setSuggestionsVisible(false)}
-                      size="compact"
-                      variant="ghost"
-                      xstyle={styles.suggestionsHeaderAction}
-                    >
-                      <X size={13} />
-                    </IconButton>
-                  </div>
-                  <div {...stylex.props(styles.suggestionGrid)}>
-                    {(runtime?.workspace &&
-                    runtime.capabilities.profileSelection
-                      ? codingSuggestions
-                      : suggestions
-                    ).map((suggestion) => (
-                      <button
-                        aria-label={suggestion.title}
-                        {...stylex.props(styles.suggestion)}
-                        key={suggestion.title}
-                        onClick={() => {
-                          setDraft(suggestion.prompt);
-                          textarea.current?.focus();
-                        }}
-                        type="button"
-                      >
-                        <suggestion.icon
-                          aria-hidden="true"
-                          size={15}
-                          strokeWidth={1.6}
-                        />
-                        <span {...stylex.props(styles.suggestionCopy)}>
-                          <strong {...stylex.props(styles.suggestionTitle)}>
-                            {suggestion.title}
-                          </strong>
-                          <span {...stylex.props(styles.suggestionDescription)}>
-                            {suggestion.description}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </section>
           </div>
         )}
@@ -517,7 +425,6 @@ export function AgentPage({
           <div
             {...stylex.props(
               styles.composerDock,
-              Boolean(editingTurnId) && styles.composerDockEditing,
               view !== "conversation" && styles.composerDockTrajectory
             )}
             data-editing={Boolean(editingTurnId) || undefined}
@@ -697,8 +604,8 @@ function AgentHeader({
   };
 
   return (
-    <PageHeader.Root aria-label="Agent chat navigation" xstyle={styles.header}>
-      <PageHeader.Row xstyle={styles.headerRow}>
+    <header aria-label="Agent chat navigation" {...stylex.props(styles.header)}>
+      <div {...stylex.props(styles.headerRow)}>
         {renaming && onRename ? (
           <form
             {...stylex.props(styles.renameForm)}
@@ -818,8 +725,8 @@ function AgentHeader({
             ) : null}
           </div>
         ) : null}
-      </PageHeader.Row>
-    </PageHeader.Root>
+      </div>
+    </header>
   );
 }
 
@@ -1159,51 +1066,35 @@ function AgentComposerToolbar({
   selectedReasoningEffort,
   selectedServiceTier,
 }: AgentComposerToolbarProps) {
-  const t = useConsoleTranslation();
-
   const speed = speedMenu(activeModel, selectedServiceTier);
   const attachmentState = useAgentAttachments();
   return (
     <PromptComposer.Toolbar xstyle={styles.composerFooter}>
       <div {...stylex.props(styles.composerFooterStart)}>
         <AttachmentButton />
-        {runtime?.capabilities.profileSelection ? (
-          <TurnSelect
-            aria-label="Agent mode"
-            disabled={isRunning || isConfiguring}
-            icon={<Terminal aria-hidden="true" size={12} />}
-            onValueChange={(value) => onProfileChange(value || undefined)}
-            options={[
-              { label: "Normal", value: "" },
-              { label: "Plan", value: "plan" },
-              { label: "Code", value: "code" },
-            ]}
-            value={profile ?? ""}
-          />
-        ) : null}
-        <TurnSelect
-          aria-label={t("Approval mode")}
-          disabled={isRunning}
-          icon={<Shield aria-hidden="true" size={12} />}
-          value={selectedApprovalMode ?? ""}
-          onValueChange={(value) => onApprovalModeChange(value || undefined)}
-          options={[
-            { label: "Profile default", value: "" },
-            { label: "Request approval", value: "request" },
-            { label: "Help me approve", value: "assisted" },
-            { label: "Full access", value: "full" },
-          ]}
-        />
-      </div>
-      <PromptComposer.Actions xstyle={styles.composerActions}>
-        <AgentContextUsage
-          model={activeModel}
-          trajectory={trajectory}
-          draft={draft}
-        />
-        {selectableModels.length ? (
+        {runtime || selectableModels.length ? (
           <RunConfigurationMenu
             disabled={isRunning || isConfiguring}
+            profileSelection={
+              runtime?.capabilities.profileSelection
+                ? {
+                    value: profile ?? "",
+                    onValueChange: (value) =>
+                      onProfileChange(value || undefined),
+                    options: agentModeOptions,
+                  }
+                : undefined
+            }
+            approvalSelection={
+              runtime
+                ? {
+                    value: selectedApprovalMode ?? "",
+                    onValueChange: (value) =>
+                      onApprovalModeChange(value || undefined),
+                    options: approvalModeOptions,
+                  }
+                : undefined
+            }
             modelOptions={selectableModels.map((model) => ({
               label: model.hidden
                 ? `${model.displayName} (hidden)`
@@ -1234,6 +1125,13 @@ function AgentComposerToolbar({
             serviceTierValue={speed.value}
           />
         ) : null}
+      </div>
+      <PromptComposer.Actions xstyle={styles.composerActions}>
+        <AgentContextUsage
+          model={activeModel}
+          trajectory={trajectory}
+          draft={draft}
+        />
         {isRunning && canCancel ? (
           <IconButton
             aria-label="Stop generating"

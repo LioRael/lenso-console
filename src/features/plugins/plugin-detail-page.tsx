@@ -1,6 +1,6 @@
 import { Breadcrumb } from "@lenso/ui/breadcrumb";
 import { Button } from "@lenso/ui/button";
-import { PageHeader } from "@lenso/ui/page-header";
+import { Tabs } from "@lenso/ui/tabs";
 import * as stylex from "@stylexjs/stylex";
 import { Link } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
@@ -39,11 +39,20 @@ const styles = stylex.create({
     width: "100%",
   },
   header: {
+    alignItems: "center",
+    backgroundColor: tokens.colorSurfaceCanvas,
     borderBottomColor: tokens.colorBorderTertiary,
     borderBottomStyle: "solid",
     borderBottomWidth: 1,
+    boxSizing: "border-box",
+    display: "flex",
+    height: 32,
+    overflow: "hidden",
+    paddingInline: 16,
+    width: "100%",
   },
   page: {
+    backgroundColor: tokens.colorSurfaceCanvas,
     boxSizing: "border-box",
     display: "grid",
     gridTemplateRows: "auto minmax(0, 1fr)",
@@ -315,53 +324,50 @@ function PluginDetailShell({
 
   const shell = (
     <>
-      <PageHeader.Root
+      <header
         aria-label={t("Plugin navigation")}
         {...stylex.props(styles.header)}
-        variant="simple"
       >
-        <PageHeader.Row>
-          <Breadcrumb.Root aria-label={t("Plugin breadcrumb")}>
-            <Breadcrumb.List>
-              <Breadcrumb.Item xstyle={styles.breadcrumbParent}>
-                <Breadcrumb.Link nativeButton={false} render={<Link to="/" />}>
-                  <Breadcrumb.Icon>
-                    <Boxes size={14} strokeWidth={1.75} />
-                  </Breadcrumb.Icon>
-                  {targetLabel}
-                </Breadcrumb.Link>
-              </Breadcrumb.Item>
-              <Breadcrumb.Separator xstyle={styles.breadcrumbParent} />
-              <Breadcrumb.Item>
-                <Breadcrumb.Link
-                  nativeButton={false}
-                  render={<Link to="/plugins" />}
-                >
-                  {t("Plugins")}
-                </Breadcrumb.Link>
-              </Breadcrumb.Item>
-              <Breadcrumb.Separator />
-              <Breadcrumb.Item>
-                <Breadcrumb.Page>
-                  {pluginDisplayName({ packageId, instanceKey })}
-                </Breadcrumb.Page>
-              </Breadcrumb.Item>
-            </Breadcrumb.List>
-          </Breadcrumb.Root>
-        </PageHeader.Row>
-      </PageHeader.Root>
+        <Breadcrumb.Root aria-label={t("Plugin breadcrumb")}>
+          <Breadcrumb.List>
+            <Breadcrumb.Item xstyle={styles.breadcrumbParent}>
+              <Breadcrumb.Link nativeButton={false} render={<Link to="/" />}>
+                <Breadcrumb.Icon>
+                  <Boxes size={14} strokeWidth={1.75} />
+                </Breadcrumb.Icon>
+                {targetLabel}
+              </Breadcrumb.Link>
+            </Breadcrumb.Item>
+            <Breadcrumb.Separator xstyle={styles.breadcrumbParent} />
+            <Breadcrumb.Item>
+              <Breadcrumb.Link
+                nativeButton={false}
+                render={<Link to="/plugins" />}
+              >
+                {t("Plugins")}
+              </Breadcrumb.Link>
+            </Breadcrumb.Item>
+            <Breadcrumb.Separator />
+            <Breadcrumb.Item>
+              <Breadcrumb.Page>
+                {pluginDisplayName({ packageId, instanceKey })}
+              </Breadcrumb.Page>
+            </Breadcrumb.Item>
+          </Breadcrumb.List>
+        </Breadcrumb.Root>
+      </header>
       <main {...stylex.props(styles.content)}>{children}</main>
     </>
   );
 
   return withTabs ? (
-    <PageHeader.TabsRoot
+    <Tabs.Root
       data-page="plugin-detail"
       defaultValue="configuration"
       xstyle={styles.page}
     >
       {shell}
-    </PageHeader.TabsRoot>
+    </Tabs.Root>
   ) : (
     <div
       data-page="plugin-detail"

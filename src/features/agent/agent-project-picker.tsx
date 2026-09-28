@@ -14,31 +14,18 @@ import {
 } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
-import { sessionFetch } from "../../lib/session-fetch";
-import { agentApiUrl } from "./agent-runtime";
+import {
+  listOpenedProjects,
+  requestProjects,
+  type OpenedProject,
+} from "./agent-projects";
 
-type Project = { id: string; path: string };
 type Directory = {
   path: string;
   parent: string | null;
   directories: string[];
   truncated: boolean;
 };
-
-async function request<T>(path: string, body?: { path: string }): Promise<T> {
-  const response = await sessionFetch(agentApiUrl("app", `projects${path}`), {
-    headers: {
-      "x-lenso-console-projects": "1",
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    ...(body ? { method: "POST", body: JSON.stringify(body) } : {}),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => undefined);
-    throw new Error(error?.detail ?? "Projects are unavailable");
-  }
-  return response.json();
-}
 
 export function AgentProjectPicker({
   agentId,
@@ -64,14 +51,16 @@ export function AgentProjectPicker({
   const search = useSearch({ strict: false });
   const projects = useQuery({
     queryKey: ["local-projects", agentId],
-    queryFn: () => request<{ projects: Project[]; defaultPath: string }>(""),
+    queryFn: listOpenedProjects,
     enabled: agentId === "app",
     retry: false,
   });
   const listing = useQuery({
     queryKey: ["project-directories", browsing],
     queryFn: () =>
-      request<Directory>(`/directories?path=${encodeURIComponent(browsing)}`),
+      requestProjects<Directory>(
+        `/directories?path=${encodeURIComponent(browsing)}`
+      ),
     enabled: open,
     retry: false,
   });
@@ -102,7 +91,9 @@ export function AgentProjectPicker({
     setBusy(true);
     setProjectError(undefined);
     try {
-      const project = await request<Project>("", { path: directory });
+      const project = await requestProjects<OpenedProject>("", {
+        path: directory,
+      });
       choose(project.id);
       void projects.refetch();
     } catch (error) {

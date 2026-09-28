@@ -1,7 +1,7 @@
 import { Button } from "@lenso/ui/button";
-import { PageHeader } from "@lenso/ui/page-header";
 import { SegmentedControl } from "@lenso/ui/segmented-control";
 import { Switch } from "@lenso/ui/switch";
+import { Tabs } from "@lenso/ui/tabs";
 import { TextArea } from "@lenso/ui/text-area";
 import * as stylex from "@stylexjs/stylex";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
@@ -102,9 +102,13 @@ const styles = stylex.create({
   },
   detailRoot: {
     minWidth: 0,
-    width: "min(760px, calc(100% - 48px))",
+    width: "min(680px, calc(100% - 48px))",
     marginInline: "auto",
-    paddingBlock: "40px 64px",
+    paddingBlock: "48px 64px",
+    "@media (max-width: 560px)": {
+      width: "calc(100% - 32px)",
+      paddingBlock: "32px 48px",
+    },
   },
   configurationLayout: {
     display: "grid",
@@ -240,6 +244,7 @@ const styles = stylex.create({
     boxShadow: "none",
     borderRadius: 0,
     backgroundColor: "transparent",
+    gap: 4,
     marginBlock: "20px 0",
     borderBottom: "1px solid var(--color-border-tertiary)",
     overflowX: "auto",
@@ -258,7 +263,7 @@ const styles = stylex.create({
     fontSize: 12,
     borderRadius: 0,
     borderWidth: 0,
-    borderBottomWidth: { default: 2, ':is([aria-selected="true"])': 2 },
+    borderBottomWidth: 2,
     borderBottomStyle: "solid",
     borderBottomColor: {
       default: "transparent",
@@ -272,9 +277,9 @@ const styles = stylex.create({
   detailTitle: {
     color: tokens.colorContentPrimary,
     fontSize: 24,
-    fontWeight: 500,
-    letterSpacing: "-0.005em",
-    lineHeight: "32px",
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+    lineHeight: "30px",
     margin: 0,
     overflowWrap: "anywhere",
   },
@@ -298,9 +303,9 @@ const styles = stylex.create({
   },
   sectionTitle: {
     color: tokens.colorContentSecondary,
-    fontSize: 12,
-    fontWeight: 500,
-    lineHeight: "18px",
+    fontSize: 14,
+    fontWeight: 600,
+    lineHeight: "20px",
     margin: 0,
   },
   term: { color: tokens.colorContentTertiary, fontSize: 11 },
@@ -428,19 +433,16 @@ export function PluginDetail({
           <PluginStatus state={state} />
         </div>
       </header>
-      <PageHeader.TabsList
-        aria-label={t("Plugin details")}
-        xstyle={styles.detailTabs}
-      >
-        <PageHeader.Tab value="configuration" xstyle={styles.detailTab}>
+      <Tabs.List aria-label={t("Plugin details")} xstyle={styles.detailTabs}>
+        <Tabs.Tab value="configuration" xstyle={styles.detailTab}>
           {t("Configuration")}
-        </PageHeader.Tab>
-        <PageHeader.Tab value="technical" xstyle={styles.detailTab}>
+        </Tabs.Tab>
+        <Tabs.Tab value="technical" xstyle={styles.detailTab}>
           {t("About")}
-        </PageHeader.Tab>
-      </PageHeader.TabsList>
+        </Tabs.Tab>
+      </Tabs.List>
 
-      <PageHeader.Panel value="configuration" xstyle={styles.tabPanel}>
+      <Tabs.Panel value="configuration" xstyle={styles.tabPanel}>
         {management ? (
           <PluginConfigurationSection
             agentId={agentId}
@@ -570,9 +572,9 @@ export function PluginDetail({
             />
           </DetailSection>
         ) : null}
-      </PageHeader.Panel>
+      </Tabs.Panel>
 
-      <PageHeader.Panel value="technical" xstyle={styles.tabPanel}>
+      <Tabs.Panel value="technical" xstyle={styles.tabPanel}>
         <DetailSection title={t("Provided capabilities")}>
           <div {...stylex.props(styles.capabilities)}>
             {plugin.active?.providedCapabilities.length ? (
@@ -626,7 +628,7 @@ export function PluginDetail({
           />
         </DetailListSection>
         <PluginTechnicalDetails inventory={inventory} plugin={plugin} />
-      </PageHeader.Panel>
+      </Tabs.Panel>
     </div>
   );
 }

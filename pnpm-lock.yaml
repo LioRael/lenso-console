@@ -24,11 +24,11 @@ importers:
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.8)
       '@lenso/tokens':
-        specifier: 0.5.0
-        version: 0.5.0
+        specifier: 0.7.0
+        version: 0.7.0
       '@lenso/ui':
-        specifier: 0.5.0
-        version: 0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 0.7.0
+        version: 0.7.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@streamdown/cjk':
         specifier: ^1.0.3
         version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.2.8)(unified@11.0.5)
@@ -549,18 +549,18 @@ packages:
     resolution: {integrity: sha512-3JGwX4fCsHBsP49arxbHKys91f+3AKKN8+Vsn9J4yyXn2oHUDoAlq67yU5ABc1WzchTEYmgki7GmnQx60XkRvQ==}
     engines: {node: '>=18'}
 
-  '@lenso/primitives@0.5.0':
-    resolution: {integrity: sha512-WsMOvlylzSE94CrCHR8nDw+Obc5i/BzwTjK3KdtTPikLcfh4qSwAt061NtBwgjKQA8szgciLNXBXSNIcvp2bAw==}
+  '@lenso/primitives@0.7.0':
+    resolution: {integrity: sha512-FhjH9cUKIv7y5yF3DOBlB0GKhiGedy9Wmhx3cLDK58VHVsbAlu+50zXqFnnJiV9JCPlXEqgLutqYXlo77v1Yyw==}
     peerDependencies:
       '@base-ui/react': '>=1.7.0 <2.0.0'
       '@stylexjs/stylex': '>=0.19.0 <1.0.0'
       react: '>=19.2.0 <20.0.0'
 
-  '@lenso/tokens@0.5.0':
-    resolution: {integrity: sha512-Pnprgd3+k2sL/Kfng7eel5Vqh4YAk90NKzGIgnmOTx12seN5W9sIAFEgSEK08Sm7VstD56cE3XOShr5TPEFojA==}
+  '@lenso/tokens@0.7.0':
+    resolution: {integrity: sha512-LD8uKOfT6a5rkaMO7R7D13o03Ksnv25glwSHRcwqOVMzHCRdmpgLl3p4qTCO7yKG3e3kVJOIynwowSc58C3dKw==}
 
-  '@lenso/ui@0.5.0':
-    resolution: {integrity: sha512-tUKbmx64f83oZx/jUDPN/7wVS/awmx0QlxIG41C6btnlnV3qOtfb1G2QgeGAVfPmxnYSY9rZilCGthP7zTtxpA==}
+  '@lenso/ui@0.7.0':
+    resolution: {integrity: sha512-v1uLEgMFQAllQOYhSW1KXuXY9sGKwPXJwH9f44yv20WxOZ3mi/JJIkcPiEo0nMiZMupC3jdZQt+a6OD8U6WAHg==}
     peerDependencies:
       '@base-ui/react': '>=1.7.0 <2.0.0'
       react: '>=19.2.0 <20.0.0'
@@ -1134,11 +1134,23 @@ packages:
       vite:
         optional: true
 
+  '@tanstack/react-store@0.11.1':
+    resolution: {integrity: sha512-HaIGKI3YLmjBYIvy5DFDY23oNaYZIsTZfngey07Uh5iLVJgM3bIGCnZeOFOqzjFld9JHWcaHJnasD/bKoGKwJQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   '@tanstack/react-store@0.9.3':
     resolution: {integrity: sha512-y2iHd/N9OkoQbFJLUX1T9vbc2O9tjH0pQRgTcx1/Nz4IlwLvkgpuglXUx+mXt0g5ZDFrEeDnONPqkbfxXJKwRg==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/react-table@9.2.4':
+    resolution: {integrity: sha512-Rzp1Q4e0/nIgEjmISYR5HeEgLTNtrG+C7NFZf/AbCxPO5hg+zC3yNGwcoECigUk8SFzzvhXbd2rFdtP2ZiGrfA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18'
 
   '@tanstack/router-core@1.171.18':
     resolution: {integrity: sha512-F91BWGqxOhDRubSaoAA3FDkzbr/WPrW6v3NcmTrI2T0AwtAL8qvY9FEDhTYwFoFiicBsRtt1NaNWKNTFNGQrqA==}
@@ -1201,8 +1213,15 @@ packages:
     resolution: {integrity: sha512-rGsNmEMLYhCq1UeZu69TetnvRklIJUwlUDn4u2jXc5IrU5Hdc5m7ABw9EYNyFUz5XFntiZqJVl1l7gVc6iuwuw==}
     engines: {node: '>=22.12.0'}
 
+  '@tanstack/store@0.11.1':
+    resolution: {integrity: sha512-mzTOBhypOuDJAy/D8n2MfUZ1HFkXnmSETviRyhqEC8LUE7/IZQExOTxMANj3KjTofYTkFNpBY67qaVrT41YccA==}
+
   '@tanstack/store@0.9.3':
     resolution: {integrity: sha512-8reSzl/qGWGGVKhBoxXPMWzATSbZLZFWhwBAFO9NAyp0TxzfBP0mIrGb8CP8KrQTmvzXlR/vFPPUrHTLBGyFyw==}
+
+  '@tanstack/table-core@9.2.4':
+    resolution: {integrity: sha512-GwdDyGGr6UXAtubF14yAwcXvdaogqfsQgIk89Suebjxob/Rjq2xvfmXsjDF1rQmKmhHsJm9TOY7myxv3i6geJw==}
+    engines: {node: '>=20'}
 
   '@tanstack/virtual-file-routes@1.162.0':
     resolution: {integrity: sha512-uhOeFyxLcU41HzvrxsGpiWdcMbScY1EDgbZ5K7DVRMYInbLYWAC0EA/kx9wXAoSM8q82bUG2hRl8+EAjE6XAbA==}
@@ -3721,21 +3740,24 @@ snapshots:
 
   '@lenso/contract-runtime@0.3.0': {}
 
-  '@lenso/primitives@0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react@19.2.8)':
+  '@lenso/primitives@0.7.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@base-ui/react': 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@stylexjs/stylex': 0.19.0
+      '@tanstack/react-table': 9.2.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react: 19.2.8
+    transitivePeerDependencies:
+      - react-dom
 
-  '@lenso/tokens@0.5.0':
+  '@lenso/tokens@0.7.0':
     dependencies:
       '@stylexjs/stylex': 0.19.0
 
-  '@lenso/ui@0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@lenso/ui@0.7.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@base-ui/react': 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@lenso/primitives': 0.5.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react@19.2.8)
-      '@lenso/tokens': 0.5.0
+      '@lenso/primitives': 0.7.0(@base-ui/react@1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@lenso/tokens': 0.7.0
       '@stylexjs/stylex': 0.19.0
       lucide-react: 1.31.0(react@19.2.8)
       react: 19.2.8
@@ -4139,12 +4161,27 @@ snapshots:
       - vite-plugin-solid
       - webpack
 
+  '@tanstack/react-store@0.11.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@tanstack/store': 0.11.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      use-sync-external-store: 1.6.0(react@19.2.8)
+
   '@tanstack/react-store@0.9.3(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@tanstack/store': 0.9.3
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       use-sync-external-store: 1.6.0(react@19.2.8)
+
+  '@tanstack/react-table@9.2.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@tanstack/react-store': 0.11.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/table-core': 9.2.4
+      react: 19.2.8
+    transitivePeerDependencies:
+      - react-dom
 
   '@tanstack/router-core@1.171.18':
     dependencies:
@@ -4266,7 +4303,13 @@ snapshots:
     dependencies:
       '@tanstack/router-core': 1.171.18
 
+  '@tanstack/store@0.11.1': {}
+
   '@tanstack/store@0.9.3': {}
+
+  '@tanstack/table-core@9.2.4':
+    dependencies:
+      '@tanstack/store': 0.11.1
 
   '@tanstack/virtual-file-routes@1.162.0': {}
 

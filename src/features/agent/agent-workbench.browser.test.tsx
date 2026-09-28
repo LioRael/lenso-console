@@ -1,5 +1,6 @@
 import "@lenso/tokens/styles.css";
 import "@lenso/ui/styles.css";
+import { Sidebar } from "@lenso/ui/sidebar";
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -10,6 +11,7 @@ import {
   Outlet,
   RouterProvider,
   useParams,
+  useSearch,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
@@ -18,6 +20,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import { AgentChanges } from "./agent-changes";
+import { AgentContextNavigation } from "./agent-context-navigation";
 import { AgentIdentityProvider } from "./agent-identity-context";
 import { AgentPage } from "./agent-page";
 import { AgentProjectContext } from "./agent-project-context";
@@ -34,7 +37,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function render(content: ReactNode) {
+function render(content: ReactNode, initialPath = "/agent/support/new-task") {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -63,7 +66,7 @@ function render(content: ReactNode) {
   });
   const router = createRouter({
     history: createMemoryHistory({
-      initialEntries: ["/agent/support/new-task"],
+      initialEntries: [initialPath],
     }),
     routeTree: rootRoute.addChildren([projectRoute]),
   });
@@ -348,16 +351,6 @@ test("a project task exposes its streamed diff in the existing conversation page
   expect(savedTitles).toEqual(["Saved with Enter", "Saved on blur"]);
 
   await page.getByRole("tab", { name: "Changes", exact: true }).click();
-  expect(
-    getComputedStyle(
-      page.getByRole("tab", { name: "Conversation", exact: true }).element()
-    ).fontSize
-  ).toBe("12px");
-  expect(
-    getComputedStyle(
-      page.getByRole("tab", { name: "Conversation", exact: true }).element()
-    ).paddingLeft
-  ).toBe("10px");
   await expect
     .element(page.getByRole("region", { name: "Task changes" }))
     .toHaveTextContent("+export const ready = true;");
@@ -373,15 +366,12 @@ test("a project task exposes its streamed diff in the existing conversation page
     .toBeVisible();
   const heading = page.getByRole("heading", { name: "Changes", exact: true });
   const header = container?.querySelector<HTMLElement>(
-    '[aria-label="Agent chat navigation"]'
+    'header[aria-label="Agent chat navigation"]'
   );
-  const headerRow = header?.querySelector<HTMLElement>(
-    '[data-slot="page-header-row"]'
-  );
-  if (!(header && headerRow)) {
+  if (!header) {
     throw new Error("Task header is missing");
   }
-  // The content must follow the visible header row, including when it wraps.
+  // The content must follow the visible header, including when it wraps.
   for (const width of [1280, 390]) {
     await page.viewport(width, 844);
     for (const [tab, region] of [
@@ -396,7 +386,7 @@ test("a project task exposes its streamed diff in the existing conversation page
         .poll(() =>
           Math.abs(
             content.element().getBoundingClientRect().top -
-              headerRow.getBoundingClientRect().bottom
+              header.getBoundingClientRect().bottom
           )
         )
         .toBeLessThanOrEqual(1);
@@ -494,6 +484,46 @@ test("project picker preserves project identity in navigation and resumed histor
   expect(urls.some((url) => url.endsWith("/agents/app/sessions"))).toBe(false);
 });
 
+test("sidebar lists opened projects and keeps the chosen project in the route", async () => {
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/projects")) {
+        return Response.json({
+          defaultPath: "/work/default",
+          projects: [{ id: projectId, path: "/work/second" }],
+        });
+      }
+      return Response.json({ sessions: [] });
+    })
+  );
+  render(<RoutedAgentNavigation />, "/agent/app/new-task");
+  await page.getByRole("button", { name: "second" }).click();
+  await expect
+    .element(page.getByTestId("current-project"))
+    .toHaveTextContent(projectId);
+});
+
+function RoutedAgentNavigation() {
+  const search = useSearch({ strict: false });
+  return (
+    <Sidebar.Root defaultOpen>
+      <Sidebar.Panel>
+        <AgentContextNavigation
+          agentId="app"
+          agentLabel="Lenso Agent"
+          onNavigate={() => undefined}
+          onOpenWorkspace={() => undefined}
+          onRequestClose={() => undefined}
+          workspaces={[]}
+        />
+        <output data-testid="current-project">{search.project}</output>
+      </Sidebar.Panel>
+    </Sidebar.Root>
+  );
+}
+
 test.each([
   { role: "app", ready: false },
   { role: "app", ready: true },
@@ -563,7 +593,7 @@ test.each([
       .toBeVisible();
     expect(
       container?.querySelector('[aria-label="Agent chat navigation"]')
-        ?.textContent
+        ?.textContent ?? ""
     ).not.toContain("Set up coding");
     const setup = page.getByRole("button", {
       name: "Configure coding environment",

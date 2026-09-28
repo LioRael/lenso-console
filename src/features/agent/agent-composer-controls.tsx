@@ -2,7 +2,13 @@ import { Button } from "@lenso/ui/button";
 import { Menu } from "@lenso/ui/menu";
 import { Select } from "@lenso/ui/select";
 import * as stylex from "@stylexjs/stylex";
-import { Bot, Check, ChevronDown, Search, type LucideIcon } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Search,
+  SlidersHorizontal,
+  type LucideIcon,
+} from "lucide-react";
 import {
   useId,
   useRef,
@@ -144,25 +150,35 @@ export function TurnSelect({
 type RunConfigurationMenuProps = {
   compact?: boolean;
   disabled: boolean;
+  approvalSelection?: ComposerSelection | undefined;
   modelOptions: ReadonlyArray<ComposerOption>;
   modelValue: string;
   onModelChange: (value: string) => void;
   onReasoningEffortChange: (value: string) => void;
   onServiceTierChange: (value: string) => void;
+  profileSelection?: ComposerSelection | undefined;
   reasoningEffortOptions: ReadonlyArray<ComposerOption>;
   reasoningEffortValue: string;
   serviceTierOptions: ReadonlyArray<ComposerOption>;
   serviceTierValue: string;
 };
 
+type ComposerSelection = {
+  onValueChange: (value: string) => void;
+  options: ReadonlyArray<ComposerOption>;
+  value: string;
+};
+
 export function RunConfigurationMenu({
   compact,
   disabled,
+  approvalSelection,
   modelOptions,
   modelValue,
   onModelChange,
   onReasoningEffortChange,
   onServiceTierChange,
+  profileSelection,
   reasoningEffortOptions,
   reasoningEffortValue,
   serviceTierOptions,
@@ -170,9 +186,6 @@ export function RunConfigurationMenu({
 }: RunConfigurationMenuProps) {
   const t = useConsoleTranslation();
 
-  const menuId = useId();
-  const searchInput = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState("");
   const selectedModel =
     modelOptions.find((option) => option.value === modelValue) ??
     modelOptions[0];
@@ -183,14 +196,17 @@ export function RunConfigurationMenu({
   const selectedServiceTier =
     serviceTierOptions.find((option) => option.value === serviceTierValue) ??
     serviceTierOptions[0];
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleOptions = normalizedQuery
-    ? modelOptions.filter(
-        (option) =>
-          option.label.toLocaleLowerCase().includes(normalizedQuery) ||
-          option.value.toLocaleLowerCase().includes(normalizedQuery)
-      )
-    : modelOptions;
+  const selectedApproval = approvalSelection?.options.find(
+    (option) => option.value === approvalSelection.value
+  );
+  const selectedProfile = profileSelection?.options.find(
+    (option) => option.value === profileSelection.value
+  );
+  const hasOptions =
+    Boolean(profileSelection || approvalSelection) ||
+    modelOptions.length > 0 ||
+    reasoningEffortOptions.length > 0 ||
+    serviceTierOptions.length > 0;
 
   return (
     <Menu.Root>
@@ -203,11 +219,21 @@ export function RunConfigurationMenu({
             variant="ghost"
             xstyle={styles.composerControl}
           >
-            <Bot aria-hidden="true" size={12} />
+            <SlidersHorizontal aria-hidden="true" size={13} />
             <span {...stylex.props(styles.composerControlValue)}>
-              {compact ? "Model" : (selectedModel?.label ?? modelValue)}
+              {compact
+                ? t("Run settings")
+                : (selectedModel?.label ?? t("Run settings"))}
             </span>
-            {!compact && selectedReasoningEffort?.value ? (
+            {selectedApproval?.value ? (
+              <span {...stylex.props(styles.composerControlSecondaryValue)}>
+                {t(selectedApproval.label)}
+              </span>
+            ) : selectedProfile?.value ? (
+              <span {...stylex.props(styles.composerControlSecondaryValue)}>
+                {t(selectedProfile.label)}
+              </span>
+            ) : !compact && selectedReasoningEffort?.value ? (
               <span {...stylex.props(styles.composerControlSecondaryValue)}>
                 {t(selectedReasoningEffort.label)}
               </span>
@@ -228,84 +254,31 @@ export function RunConfigurationMenu({
             aria-label={t("Run configuration")}
             xstyle={styles.runConfigurationMenu}
           >
-            <Menu.SubmenuRoot
-              onOpenChange={(open) => {
-                if (open) {
-                  setQuery("");
-                  requestAnimationFrame(() => searchInput.current?.focus());
-                }
-              }}
-            >
-              <Menu.SubmenuTrigger xstyle={styles.runConfigurationItem}>
-                <Menu.Label>{t("Model")}</Menu.Label>
-                <span {...stylex.props(styles.runConfigurationItemValue)}>
-                  {selectedModel?.label ?? modelValue}
-                </span>
-              </Menu.SubmenuTrigger>
-              <Menu.Portal>
-                <Menu.Positioner
-                  xstyle={overlay.positioner}
-                  data-agent-composer-overlay={compact || undefined}
-                  align="end"
-                  sideOffset={6}
-                >
-                  <Menu.Popup
-                    aria-label={t("Models")}
-                    id={menuId}
-                    submenu
-                    xstyle={styles.runConfigurationSubmenu}
-                  >
-                    <div {...stylex.props(styles.modelMenuSearch)}>
-                      <Search aria-hidden="true" size={13} strokeWidth={1.7} />
-                      <input
-                        {...stylex.props(styles.modelMenuSearchInput)}
-                        aria-autocomplete="list"
-                        aria-controls={menuId}
-                        aria-expanded="true"
-                        aria-haspopup="menu"
-                        aria-label={t("Search models")}
-                        autoComplete="off"
-                        onChange={(event) => setQuery(event.target.value)}
-                        onKeyDown={focusFirstModelItem}
-                        placeholder={t("Search models…")}
-                        ref={searchInput}
-                        role="combobox"
-                        type="search"
-                        value={query}
-                      />
-                    </div>
-                    <div
-                      {...stylex.props(styles.modelMenuOptions)}
-                      data-slot="model-menu-options"
-                    >
-                      {visibleOptions.map((option) => (
-                        <Menu.Item
-                          key={option.value}
-                          onClick={() => onModelChange(option.value)}
-                          xstyle={styles.runConfigurationOption}
-                        >
-                          <Menu.Label>{t(option.label)}</Menu.Label>
-                          {option.value === modelValue ? (
-                            <Menu.Trailing>
-                              <Check
-                                aria-hidden="true"
-                                size={14}
-                                strokeWidth={1.7}
-                              />
-                            </Menu.Trailing>
-                          ) : null}
-                        </Menu.Item>
-                      ))}
-                      {visibleOptions.length === 0 ? (
-                        <p {...stylex.props(styles.modelMenuEmpty)}>
-                          {t("No models found")}
-                        </p>
-                      ) : null}
-                    </div>
-                  </Menu.Popup>
-                </Menu.Positioner>
-              </Menu.Portal>
-            </Menu.SubmenuRoot>
+            {hasOptions ? null : (
+              <p {...stylex.props(styles.runConfigurationEmpty)}>
+                {t("Agent options will appear when it is ready.")}
+              </p>
+            )}
+            {profileSelection ? (
+              <ConfigurationSubmenu
+                compact={compact}
+                ariaLabel="Agent modes"
+                label={t("Agent mode")}
+                onValueChange={(value) => profileSelection.onValueChange(value)}
+                options={profileSelection.options}
+                value={profileSelection.value}
+                valueLabel={selectedProfile?.label}
+              />
+            ) : null}
+            {modelOptions.length > 0 ? (
+              <ModelSubmenu
+                compact={compact}
+                onValueChange={onModelChange}
+                options={modelOptions}
+                value={modelValue}
+                valueLabel={selectedModel?.label}
+              />
+            ) : null}
             {reasoningEffortOptions.length ? (
               <ConfigurationSubmenu
                 compact={compact}
@@ -328,10 +301,127 @@ export function RunConfigurationMenu({
                 valueLabel={selectedServiceTier?.label}
               />
             ) : null}
+            {approvalSelection ? (
+              <ConfigurationSubmenu
+                compact={compact}
+                ariaLabel="Approval modes"
+                label={t("Approval mode")}
+                onValueChange={(value) =>
+                  approvalSelection.onValueChange(value)
+                }
+                options={approvalSelection.options}
+                value={approvalSelection.value}
+                valueLabel={selectedApproval?.label}
+              />
+            ) : null}
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
     </Menu.Root>
+  );
+}
+
+function ModelSubmenu({
+  compact,
+  onValueChange,
+  options,
+  value,
+  valueLabel,
+}: {
+  compact?: boolean | undefined;
+  onValueChange: (value: string) => void;
+  options: ReadonlyArray<ComposerOption>;
+  value: string;
+  valueLabel: string | undefined;
+}) {
+  const t = useConsoleTranslation();
+  const menuId = useId();
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleOptions = normalizedQuery
+    ? options.filter(
+        (option) =>
+          option.label.toLocaleLowerCase().includes(normalizedQuery) ||
+          option.value.toLocaleLowerCase().includes(normalizedQuery)
+      )
+    : options;
+
+  return (
+    <Menu.SubmenuRoot
+      onOpenChange={(open) => {
+        if (open) {
+          setQuery("");
+          requestAnimationFrame(() => searchInput.current?.focus());
+        }
+      }}
+    >
+      <Menu.SubmenuTrigger xstyle={styles.runConfigurationItem}>
+        <Menu.Label>{t("Model")}</Menu.Label>
+        <span {...stylex.props(styles.runConfigurationItemValue)}>
+          {valueLabel ?? value}
+        </span>
+      </Menu.SubmenuTrigger>
+      <Menu.Portal>
+        <Menu.Positioner
+          xstyle={overlay.positioner}
+          data-agent-composer-overlay={compact || undefined}
+          align="end"
+          sideOffset={6}
+        >
+          <Menu.Popup
+            aria-label={t("Models")}
+            id={menuId}
+            submenu
+            xstyle={styles.runConfigurationSubmenu}
+          >
+            <div {...stylex.props(styles.modelMenuSearch)}>
+              <Search aria-hidden="true" size={13} strokeWidth={1.7} />
+              <input
+                {...stylex.props(styles.modelMenuSearchInput)}
+                aria-autocomplete="list"
+                aria-controls={menuId}
+                aria-expanded="true"
+                aria-haspopup="menu"
+                aria-label={t("Search models")}
+                autoComplete="off"
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={focusFirstModelItem}
+                placeholder={t("Search models…")}
+                ref={searchInput}
+                role="combobox"
+                type="search"
+                value={query}
+              />
+            </div>
+            <div
+              {...stylex.props(styles.modelMenuOptions)}
+              data-slot="model-menu-options"
+            >
+              {visibleOptions.map((option) => (
+                <Menu.Item
+                  key={option.value}
+                  onClick={() => onValueChange(option.value)}
+                  xstyle={styles.runConfigurationOption}
+                >
+                  <Menu.Label>{t(option.label)}</Menu.Label>
+                  {option.value === value ? (
+                    <Menu.Trailing>
+                      <Check aria-hidden="true" size={14} strokeWidth={1.7} />
+                    </Menu.Trailing>
+                  ) : null}
+                </Menu.Item>
+              ))}
+              {visibleOptions.length === 0 ? (
+                <p {...stylex.props(styles.modelMenuEmpty)}>
+                  {t("No models found")}
+                </p>
+              ) : null}
+            </div>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.SubmenuRoot>
   );
 }
 

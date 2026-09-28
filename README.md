@@ -77,7 +77,7 @@ the exact read-only Host Catalog to
 `~/.lenso/console/.lenso/host-catalog.json` and resolves the visible
 `~/.lenso/console/plugins/` Plugin Root before starting the Kernel. Override
 that root with the absolute `LENSO_CONSOLE_HOME` path. App-owned changes use the
-normal Lenso CLI 0.5.2 or later and take effect on the next Console restart:
+normal Lenso CLI 0.6.0 or later and take effect on the next Console restart:
 
 ```sh
 lenso app check --root ~/.lenso/console

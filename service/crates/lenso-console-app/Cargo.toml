@@ -19,7 +19,7 @@ lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-w
 lenso-projects-postgres-plugin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
 lenso-organization-postgres-plugin = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
 lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "ca4c2ac44653b3c248867b0db63f4784de6f1b60" }
-lenso-app-authoring = { package = "lenso-cli", version = "0.5.2", default-features = false }
+lenso-app-authoring = { package = "lenso-cli", version = "0.6.0", default-features = false }
 lenso-auth-account-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
 lenso-auth-password-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
 lenso-auth-web-session-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "0d385747d6038ad5a906d80258e1f4222383c038" }
@@ -29,16 +29,16 @@ lenso-secrets-env-plugin = "0.1.7"
 lenso-http-egress-plugin = "0.3.1"
 lenso-observe-plugin = { path = "../../../plugins/observe" }
 lenso-projects-workspace-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "15fb8d492fb9cb86437cc9dd20101aa07492e5cd" }
-lenso-native-adapter = "0.3.13"
-lenso-runner = "0.2.13"
-lenso-web-ingress-plugin = "0.4.2"
+lenso-native-adapter = "0.3.15"
+lenso-runner = "0.2.17"
+lenso-web-ingress-plugin = "0.4.5"
 anyhow = "1.0"
 http = "1"
-lenso-app-plan = "0.4.1"
+lenso-app-plan = "0.4.5"
 lenso-capability-auth = "0.2.0"
-lenso-capability-http-endpoint = "0.3.1"
+lenso-capability-http-endpoint = "0.3.2"
 lenso-capability-http-stream-endpoint = "0.1.1"
-lenso-kernel = "0.3.6"
+lenso-kernel = "0.3.11"
 serde_json = "1.0"
 tokio = { version = "1.52", features = [
   "macros",

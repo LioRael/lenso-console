@@ -30,6 +30,39 @@ export type PageMount = {
   title: string;
 };
 
+function demoConsoleWorkspace(id: string, title: string): PageMount {
+  return {
+    apiMajor: 1,
+    id,
+    module: `data:text/javascript,${encodeURIComponent(`
+      export const apiMajor = 1;
+      export const createWorkspace = ({ createElement }) => ({
+        Page: () => createElement(
+          "section",
+          { className: "welcome-contribution" },
+          createElement("h1", null, ${JSON.stringify(title)}),
+          createElement("p", null, "Development preview: no workspace data is connected.")
+        )
+      });
+    `)}`,
+    navigation: { items: [{ label: title, path: [] }], label: title },
+    owner: {
+      instance: `demo.${id}`,
+      source: "development-filesystem",
+      trusted: false,
+    },
+    requirements: [],
+    revision: "demo",
+    styles: [
+      `data:text/css,${encodeURIComponent(
+        ".welcome-contribution { padding: 2rem; }"
+      )}`,
+    ],
+    subject: { kind: "console" },
+    title,
+  };
+}
+
 const demoCatalog: readonly PageMount[] = [
   {
     apiMajor: 1,
@@ -40,7 +73,7 @@ const demoCatalog: readonly PageMount[] = [
         Page: ({ location, mount }) => createElement(
           "section",
           { className: "welcome-contribution" },
-          createElement("h1", null, "Extension workspace"),
+          createElement("h1", null, "Welcome"),
           createElement("p", null, "Mount: " + mount.id),
           createElement("p", null, location.segments.join("/") || "Home")
         )
@@ -51,7 +84,7 @@ const demoCatalog: readonly PageMount[] = [
         { label: "Home", path: [] },
         { label: "Request example", path: ["request", "example"] },
       ],
-      label: "Extensions",
+      label: "Welcome",
     },
     owner: {
       instance: "demo.welcome",
@@ -66,8 +99,11 @@ const demoCatalog: readonly PageMount[] = [
       )}`,
     ],
     subject: { kind: "console" },
-    title: "Extension workspace",
+    title: "Welcome",
   },
+  demoConsoleWorkspace("projects", "Projects"),
+  demoConsoleWorkspace("artifacts", "Artifacts"),
+  demoConsoleWorkspace("apps", "Apps"),
   {
     apiMajor: 1,
     id: "development-overview",

@@ -106,7 +106,11 @@ export const agentSettingsStyles = stylex.create({
     paddingBlock: 10,
     paddingInline: 16,
     textDecoration: "none",
-    backgroundColor: "transparent",
+    backgroundColor: {
+      default: "transparent",
+      ":hover": tokens.colorSurfaceInteractiveHover,
+      ":focus-visible": tokens.colorSurfaceInteractiveHover,
+    },
   },
   rowCopy: { display: "grid", gap: 2, minWidth: 0 },
   rowTitle: {

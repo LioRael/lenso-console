@@ -1,4 +1,3 @@
-import { Button } from "@lenso/ui/button";
 import { ThemeScope } from "@lenso/ui/theme-scope";
 import { Terminal } from "lucide-react";
 import { useState, type ReactNode } from "react";
@@ -63,55 +62,6 @@ describe("Agent composer controls", () => {
     expect(
       popup.lastElementChild!.getBoundingClientRect().bottom
     ).toBeLessThanOrEqual(popup.getBoundingClientRect().bottom);
-  });
-
-  test("uses shared pill geometry for composer triggers", async () => {
-    await renderControls(
-      <>
-        <Button
-          aria-label="Permissions"
-          size="compact"
-          variant="ghost"
-          xstyle={styles.composerControl}
-        >
-          Permissions
-        </Button>
-        <TurnSelect
-          aria-label="Agent mode"
-          disabled={false}
-          icon={<span aria-hidden="true">A</span>}
-          onValueChange={() => undefined}
-          options={[
-            { label: "Normal", value: "" },
-            { label: "Plan", value: "plan" },
-          ]}
-          value=""
-        />
-      </>
-    );
-
-    const baseline = requiredButton("Permissions");
-    const select = requiredButton("Agent mode");
-    const baselineStyle = getComputedStyle(baseline);
-    const selectStyle = getComputedStyle(select);
-    const selectValue = [...select.querySelectorAll("span")].find(
-      (node) => node.textContent === "Normal"
-    );
-    if (!selectValue) {
-      throw new Error("Select value was not rendered");
-    }
-    const selectValueStyle = getComputedStyle(selectValue);
-
-    expect(selectStyle.height).toBe(baselineStyle.height);
-    expect(selectStyle.borderRadius).toBe(baselineStyle.borderRadius);
-    expect(selectStyle.borderRadius).toBe("999px");
-    expect(selectStyle.paddingInline).toBe(baselineStyle.paddingInline);
-    expect(selectStyle.paddingInline).toBe("6px");
-    expect(selectStyle.height).toBe("24px");
-    expect(selectStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
-    expect(selectStyle.fontSize).toBe(baselineStyle.fontSize);
-    expect(selectValueStyle.fontSize).toBe(baselineStyle.fontSize);
-    expect(selectValueStyle.fontWeight).toBe(baselineStyle.fontWeight);
   });
 
   test("opens slash commands above the composer without clipping", async () => {
@@ -249,23 +199,6 @@ describe("Agent composer controls", () => {
     await expect
       .element(page.getByRole("menuitem", { name: /Speed/ }))
       .toBeVisible();
-    const configurationPopup = document.querySelector<HTMLElement>(
-      '[data-slot="menu-popup"][aria-label="Run configuration"]'
-    );
-    if (!configurationPopup) {
-      throw new Error("Run configuration popup was not rendered");
-    }
-    const popupStyle = getComputedStyle(configurationPopup);
-    expect(popupStyle.paddingLeft).toBe("0px");
-    expect(popupStyle.paddingRight).toBe("0px");
-    expect(popupStyle.paddingTop).toBe("2px");
-    expect(popupStyle.paddingBottom).toBe("2px");
-    expect(
-      document
-        .querySelector<HTMLElement>('[data-slot="menu-submenu-trigger"]')
-        ?.getBoundingClientRect().height
-    ).toBe(28);
-
     await userEvent.hover(page.getByRole("menuitem", { name: /Model/ }));
     await expect
       .element(page.getByRole("combobox", { name: "Search models" }))
@@ -285,11 +218,6 @@ describe("Agent composer controls", () => {
     await userEvent.fill(search, "luna");
 
     await expect.element(page.getByText("GPT 5.6 Luna")).toBeVisible();
-    expect(
-      document
-        .querySelector<HTMLElement>('[data-slot="menu-item"]')
-        ?.getBoundingClientRect().height
-    ).toBe(28);
     expect(document.body.textContent).not.toContain("GPT 5.6 Terra");
     await userEvent.click(page.getByRole("menuitem", { name: "GPT 5.6 Luna" }));
     expect(onModelChange).toHaveBeenCalledWith("gpt-5.6-luna");
