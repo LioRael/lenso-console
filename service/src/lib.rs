@@ -238,8 +238,8 @@ pub struct ConsolePlugin {
     tasks: ManagedTasks,
 }
 
-impl Lifecycle for ConsolePlugin {
-    async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
+impl ConsolePlugin {
+    fn validate_bindings(&self) -> Result<(), RuntimeFailure> {
         if self.config.member_workspace_ids.iter().any(|id| {
             id.is_empty()
                 || id.len() > 64
@@ -296,6 +296,13 @@ impl Lifecycle for ConsolePlugin {
                 "Human interface requires its separately guarded Human API Token capability",
             ));
         }
+        Ok(())
+    }
+}
+
+impl Lifecycle for ConsolePlugin {
+    async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
+        self.validate_bindings()?;
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
         let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,

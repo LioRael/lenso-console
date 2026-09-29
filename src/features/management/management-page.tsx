@@ -93,7 +93,8 @@ function starter(entry: Entry): string {
 }
 
 export function ManagementPage() {
-  const { managementEnabled, humanManagementEnabled } = useConsoleSession();
+  const { managementEnabled, humanManagementEnabled, subject } =
+    useConsoleSession();
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   const copy = (en: string, cn: string) => (zh ? cn : en);
@@ -201,7 +202,10 @@ export function ManagementPage() {
           await sessionFetch("/api/console/v1/management/invoke", {
             method: "POST",
             signal,
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "X-Lenso-Expected-Subject": subject,
+            },
             body: JSON.stringify(request),
           })
         )

@@ -63,7 +63,7 @@ export async function sessionFetch(
   const response = await fetch(input, options);
   if (
     local &&
-    response.status === 401 &&
+    (response.status === 401 || response.status === 412) &&
     url?.pathname.startsWith("/api/") &&
     url.pathname !== "/api/console/v1/session"
   ) {

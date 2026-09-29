@@ -26,17 +26,23 @@ pub(super) async fn buffered(
     context: InvocationContext,
     request: endpoint::HandleRequest,
 ) -> Result<endpoint::HandleResponse, RuntimeFailure> {
-    let prepared = session
-        .prepare(
-            context,
-            &request.method,
-            &request.path,
-            request
-                .credential
-                .as_ref()
-                .map(|value| (value.scheme.as_str(), value.value.as_str())),
-        )
-        .await;
+    let prepared = match expected_subject(&request.headers) {
+        Ok(subject) => {
+            session
+                .prepare_for_subject(
+                    context,
+                    &request.method,
+                    &request.path,
+                    request
+                        .credential
+                        .as_ref()
+                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                    subject,
+                )
+                .await
+        }
+        Err(response) => Err(response),
+    };
     let response = match prepared {
         Err(response) => *response,
         Ok(context) => {
@@ -74,17 +80,23 @@ pub(super) async fn streaming(
     context: InvocationContext,
     request: stream_endpoint::HandleRequest,
 ) -> Result<ConsoleResponseStream, RuntimeFailure> {
-    let prepared = session
-        .prepare(
-            context,
-            &request.method,
-            &request.path,
-            request
-                .credential
-                .as_ref()
-                .map(|value| (value.scheme.as_str(), value.value.as_str())),
-        )
-        .await;
+    let prepared = match expected_subject(&request.headers) {
+        Ok(subject) => {
+            session
+                .prepare_for_subject(
+                    context,
+                    &request.method,
+                    &request.path,
+                    request
+                        .credential
+                        .as_ref()
+                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                    subject,
+                )
+                .await
+        }
+        Err(response) => Err(response),
+    };
     let response = match prepared {
         Err(response) => *response,
         Ok(context) => {
@@ -153,6 +165,28 @@ where
         path: path.to_owned(),
         query,
     })
+}
+
+fn expected_subject<H: RequestHeader>(
+    headers: &[H],
+) -> Result<Option<&str>, Box<crate::http::Response>> {
+    let mut matched = headers.iter().filter(|header| {
+        header
+            .name()
+            .eq_ignore_ascii_case("x-lenso-expected-subject")
+    });
+    let value = matched.next().map(RequestHeader::value);
+    if matched.next().is_some()
+        || value.is_some_and(|value| {
+            value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+        })
+    {
+        return Err(crate::session::problem(
+            http::StatusCode::BAD_REQUEST,
+            "invalid_subject_precondition",
+        ));
+    }
+    Ok(value)
 }
 
 trait RequestHeader {

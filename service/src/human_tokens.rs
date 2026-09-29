@@ -60,84 +60,106 @@ pub(super) async fn handle(
         return Some(problem(StatusCode::BAD_REQUEST, "invalid_input"));
     }
     Some(match path {
-        "issue" => {
-            let Ok(input) = serde_json::from_value::<pat::IssueRequest>(value) else {
-                return Some(problem(StatusCode::BAD_REQUEST, "invalid_input"));
-            };
-            match client
-                .issue_with_context(request.context.clone(), input)
-                .await
-            {
-                Ok(response) => success(response),
-                Err(pat::HumanApiTokenIssueInvocationError::Domain(error)) => match error {
-                    pat::IssueError::PermissionDenied => {
-                        problem(StatusCode::FORBIDDEN, "permission_denied")
-                    }
-                    pat::IssueError::Conflict => problem(StatusCode::CONFLICT, "changed_intent"),
-                    pat::IssueError::InvalidRequest => {
-                        problem(StatusCode::BAD_REQUEST, "invalid_input")
-                    }
-                    _ => problem(StatusCode::SERVICE_UNAVAILABLE, "unsupported_profile"),
-                },
-                Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
-            }
-        }
-        "receipt" => {
-            let Ok(input) = serde_json::from_value::<pat::ReceiptRequest>(value) else {
-                return Some(problem(StatusCode::BAD_REQUEST, "invalid_input"));
-            };
-            match client
-                .receipt_with_context(request.context.clone(), input)
-                .await
-            {
-                Ok(response) => success(response),
-                Err(pat::HumanApiTokenReceiptInvocationError::Domain(
-                    pat::ReceiptError::PermissionDenied,
-                )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
-                Err(pat::HumanApiTokenReceiptInvocationError::Domain(
-                    pat::ReceiptError::InvalidRequest,
-                )) => problem(StatusCode::BAD_REQUEST, "invalid_input"),
-                Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
-            }
-        }
-        "list" => {
-            let Ok(input) = serde_json::from_value::<pat::ListRequest>(value) else {
-                return Some(problem(StatusCode::BAD_REQUEST, "invalid_input"));
-            };
-            match client
-                .list_with_context(request.context.clone(), input)
-                .await
-            {
-                Ok(response) => success(response),
-                Err(pat::HumanApiTokenListInvocationError::Domain(
-                    pat::ListError::PermissionDenied,
-                )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
-                Err(pat::HumanApiTokenListInvocationError::Domain(
-                    pat::ListError::InvalidRequest,
-                )) => problem(StatusCode::BAD_REQUEST, "invalid_input"),
-                Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
-            }
-        }
-        _ => {
-            let Ok(input) = serde_json::from_value::<pat::RevokeRequest>(value) else {
-                return Some(problem(StatusCode::BAD_REQUEST, "invalid_input"));
-            };
-            match client
-                .revoke_with_context(request.context.clone(), input)
-                .await
-            {
-                Ok(response) => success(response),
-                Err(pat::HumanApiTokenRevokeInvocationError::Domain(
-                    pat::RevokeError::PermissionDenied,
-                )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
-                Err(pat::HumanApiTokenRevokeInvocationError::Domain(
-                    pat::RevokeError::InvalidRequest,
-                )) => problem(StatusCode::BAD_REQUEST, "invalid_input"),
-                Err(pat::HumanApiTokenRevokeInvocationError::Domain(
-                    pat::RevokeError::NotFound,
-                )) => problem(StatusCode::NOT_FOUND, "not_found"),
-                Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
-            }
-        }
+        "issue" => issue(client, request, value).await,
+        "receipt" => receipt(client, request, value).await,
+        "list" => list(client, request, value).await,
+        _ => revoke(client, request, value).await,
     })
+}
+
+async fn issue(
+    client: &pat::HumanApiTokenClient,
+    request: &Request,
+    value: serde_json::Value,
+) -> Response {
+    let Ok(input) = serde_json::from_value::<pat::IssueRequest>(value) else {
+        return problem(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match client
+        .issue_with_context(request.context.clone(), input)
+        .await
+    {
+        Ok(response) => success(response),
+        Err(pat::HumanApiTokenIssueInvocationError::Domain(error)) => match error {
+            pat::IssueError::PermissionDenied => {
+                problem(StatusCode::FORBIDDEN, "permission_denied")
+            }
+            pat::IssueError::Conflict => problem(StatusCode::CONFLICT, "changed_intent"),
+            pat::IssueError::InvalidRequest => problem(StatusCode::BAD_REQUEST, "invalid_input"),
+            _ => problem(StatusCode::SERVICE_UNAVAILABLE, "unsupported_profile"),
+        },
+        Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
+    }
+}
+
+async fn receipt(
+    client: &pat::HumanApiTokenClient,
+    request: &Request,
+    value: serde_json::Value,
+) -> Response {
+    let Ok(input) = serde_json::from_value::<pat::ReceiptRequest>(value) else {
+        return problem(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match client
+        .receipt_with_context(request.context.clone(), input)
+        .await
+    {
+        Ok(response) => success(response),
+        Err(pat::HumanApiTokenReceiptInvocationError::Domain(
+            pat::ReceiptError::PermissionDenied,
+        )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
+        Err(pat::HumanApiTokenReceiptInvocationError::Domain(
+            pat::ReceiptError::InvalidRequest,
+        )) => problem(StatusCode::BAD_REQUEST, "invalid_input"),
+        Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
+    }
+}
+
+async fn list(
+    client: &pat::HumanApiTokenClient,
+    request: &Request,
+    value: serde_json::Value,
+) -> Response {
+    let Ok(input) = serde_json::from_value::<pat::ListRequest>(value) else {
+        return problem(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match client
+        .list_with_context(request.context.clone(), input)
+        .await
+    {
+        Ok(response) => success(response),
+        Err(pat::HumanApiTokenListInvocationError::Domain(pat::ListError::PermissionDenied)) => {
+            problem(StatusCode::FORBIDDEN, "permission_denied")
+        }
+        Err(pat::HumanApiTokenListInvocationError::Domain(pat::ListError::InvalidRequest)) => {
+            problem(StatusCode::BAD_REQUEST, "invalid_input")
+        }
+        Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
+    }
+}
+
+async fn revoke(
+    client: &pat::HumanApiTokenClient,
+    request: &Request,
+    value: serde_json::Value,
+) -> Response {
+    let Ok(input) = serde_json::from_value::<pat::RevokeRequest>(value) else {
+        return problem(StatusCode::BAD_REQUEST, "invalid_input");
+    };
+    match client
+        .revoke_with_context(request.context.clone(), input)
+        .await
+    {
+        Ok(response) => success(response),
+        Err(pat::HumanApiTokenRevokeInvocationError::Domain(
+            pat::RevokeError::PermissionDenied,
+        )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
+        Err(pat::HumanApiTokenRevokeInvocationError::Domain(pat::RevokeError::InvalidRequest)) => {
+            problem(StatusCode::BAD_REQUEST, "invalid_input")
+        }
+        Err(pat::HumanApiTokenRevokeInvocationError::Domain(pat::RevokeError::NotFound)) => {
+            problem(StatusCode::NOT_FOUND, "not_found")
+        }
+        Err(_) => problem(StatusCode::SERVICE_UNAVAILABLE, "issuer_unavailable"),
+    }
 }

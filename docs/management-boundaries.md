@@ -20,16 +20,38 @@ provider for current `console.operator` permission in `deployment/<id>`.
 The same subject from the App issuer does not qualify. A missing Auth or Access
 Control binding rejects activation. A required provider failure denies requests.
 
-This first profile admits only the session endpoint and explicitly selected
-native Workspace paths. Shared Agent and Plugin control routes remain closed.
+This profile admits the session endpoint, explicitly selected Workspace paths,
+and the bound Management catalog, invoke and status operations. Human approval
+and token routes require the separately selected human interface and owner
+ports. Shared Agent and Plugin control routes remain closed.
 Existing loopback/local configuration remains explicit and unchanged; selecting
 operators requires a deliberate configuration change and independent login.
 The reference launcher still binds loopback and an HTTPS deployment still uses
 the existing secure cookie, CSRF and origin controls.
 
-C0 is reviewed and a bounded C1/C2 core is implemented. C3 has an explicit realm
-trust/scoped Shell guard. A full C2 production adapter still needs credential
-ceilings and revocation, deployment qualification, Approval/Audit ports and a
-qualified target receipt path. C4-C6 and their UI/installation/real-client gates
-are pending. The new Capability alone does not make the old local tools a
-production management service.
+C0 is reviewed. The optional core now has current credential ceilings and
+revocation, deployment qualification, bound Approval/Audit owner ports, durable
+invocation receipts, and guarded human decisions and PAT lifecycle. Independent
+operators and App issuer keys are exercised in Native owner integration tests.
+The browser retains only receipt references; one-time PAT secrets stay in the
+current authenticated view. Browser mutations carry an expected-subject
+precondition, matched against fresh owner authentication before dispatch. A
+changed account receives `412 session_changed` and revalidates its view while
+preserving the previous subject's receipt reference.
+
+[Migration preview, import, and switch](management-migration.md) deliberately
+imports qualification without granting RBAC or carrying old sessions across
+realms. Shared legacy Agent/control connections remain closed in this profile.
+
+Ordinary source App HTTP/MCP/ToolProvider and browser qualification receipts are
+separate from those owner and UI fixture results. Workers Management has not
+been qualified. The optional-installation matrix and independent Agent delegation
+must be recorded against their actual selected profiles before making a broader
+support claim.
+
+Auth-owned scoped delegation is separately selected. A delegated child uses the
+explicit bearer transport with exact task, Agent session and caller bindings;
+it cannot enter the browser, human approval or PAT surfaces. The neutral
+Management service still checks current credential ceilings, qualification and
+RBAC for each operation. Owner delegation receipts record credential issuance;
+Management operation audit records remain with the selected Audit owner.

@@ -22,7 +22,12 @@ impl OperatorsAuthority {
             .current_user(context, deployment, policy, capability, operation)
             .await?;
         self.check_human_context(context)?;
-        Ok(Principal { subject: user.0 })
+        if user.delegated {
+            return Err(Error::Denied);
+        }
+        Ok(Principal {
+            subject: user.subject,
+        })
     }
     pub(crate) fn check_human_context(&self, context: &InvocationContext) -> Result<(), Error> {
         if context.is_cancelled() {

@@ -12,6 +12,7 @@ use futures::{FutureExt as _, future::LocalBoxFuture};
 use lenso_auth_sdk::{
     ActorAssertion, ActorProjectionError, AssertionValidationError, FixedClock, TypedActor,
     credential::{CredentialBinding, ManagementCredentialCeiling},
+    delegation::SCOPED_DELEGATION_CLAIM,
     realm::RealmAssertionVerifier,
 };
 use lenso_capability_access_control as access;
@@ -117,7 +118,12 @@ pub struct OperatorsAuthority {
     clock: Rc<dyn Clock>,
 }
 
-struct User(String, CredentialBinding, ManagementCredentialCeiling);
+struct User {
+    subject: String,
+    binding: CredentialBinding,
+    ceiling: ManagementCredentialCeiling,
+    delegated: bool,
+}
 impl TypedActor for User {
     fn from_assertion(assertion: &ActorAssertion) -> Result<Self, ActorProjectionError> {
         if assertion.actor_kind() != "user" {
@@ -130,7 +136,16 @@ impl TypedActor for User {
             .map_err(|_| AssertionValidationError::InvalidProof)?;
         let ceiling = ManagementCredentialCeiling::from_assertion(assertion)
             .map_err(|_| AssertionValidationError::InvalidProof)?;
-        Ok(Self(assertion.subject().into(), binding, ceiling))
+        Ok(Self {
+            subject: assertion.subject().into(),
+            binding,
+            ceiling,
+            delegated: assertion
+                .to_wire()
+                .claims
+                .as_ref()
+                .is_some_and(|claims| claims.contains_key(SCOPED_DELEGATION_CLAIM)),
+        })
     }
 }
 impl OperatorsAuthority {
@@ -173,11 +188,11 @@ impl OperatorsAuthority {
             .verifier
             .project_context::<User>(context, capability, operation, &FixedClock::new(now))
             .map_err(|_| Error::Denied)?;
-        if !self.qualification.contains(deployment, &user.0)? {
+        if !self.qualification.contains(deployment, &user.subject)? {
             return Err(Error::Denied);
         }
-        let binding = &user.1;
-        let signed = &user.2;
+        let binding = &user.binding;
+        let signed = &user.ceiling;
         let live = self
             .ports
             .credential_state
@@ -191,7 +206,7 @@ impl OperatorsAuthority {
             .await
             .map_err(|_| Error::Denied)?;
         if !live.active
-            || live.subject != user.0
+            || live.subject != user.subject
             || live.actor_kind != "user"
             || live.credential_id != binding.credential_id
             || live.session_id != binding.session_id
@@ -224,7 +239,7 @@ impl OperatorsAuthority {
             .check_permission_with_context(
                 context.clone(),
                 access::CheckPermissionRequest {
-                    subject: user.0.clone(),
+                    subject: user.subject.clone(),
                     scope: access::CheckPermissionRequestScope {
                         kind: policy.scope_kind.clone(),
                         id: policy.scope_id.clone(),
@@ -280,7 +295,8 @@ impl OperatorsAuthority {
                 admission.1,
             )
             .await?;
-        if human.0 == intent.subject
+        if human.delegated
+            || human.subject == intent.subject
             || self.clock.wall()
                 >= OffsetDateTime::parse(&intent.expires_at, &Rfc3339).map_err(|_| Error::Denied)?
         {
@@ -314,7 +330,7 @@ impl OperatorsAuthority {
                 admission.1,
             )
             .await?;
-        if current.0 != human.0 {
+        if current.delegated || current.subject != human.subject {
             return Err(Error::Denied);
         }
         let approval_user = self
@@ -326,7 +342,7 @@ impl OperatorsAuthority {
                 "decide",
             )
             .await?;
-        if approval_user.0 != human.0 {
+        if approval_user.delegated || approval_user.subject != human.subject {
             return Err(Error::Denied);
         }
         self.check_human_context(&context)?;
@@ -335,7 +351,7 @@ impl OperatorsAuthority {
             .decide_with_context(
                 context,
                 approval::DecideRequest {
-                    decided_by: human.0,
+                    decided_by: human.subject,
                     decision,
                     evidence_ref: format!("management-intent:{}:{}", operation_id, intent.digest),
                     reason: None,
@@ -368,7 +384,9 @@ impl Authority for OperatorsAuthority {
             let user = self
                 .current_user(context, deployment, policy, "lenso.management@1", operation)
                 .await?;
-            Ok(Principal { subject: user.0 })
+            Ok(Principal {
+                subject: user.subject,
+            })
         }
         .boxed_local()
     }

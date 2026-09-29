@@ -10,6 +10,7 @@ import {
   type ReadIntentResponse,
 } from "../../../contracts/crates/lenso-capability-management-human/generated/bindings";
 import { useConsoleLocale } from "../../app/console-locale";
+import { useConsoleSession } from "../../app/console-session";
 import { sessionFetch } from "../../lib/session-fetch";
 import { settingsPageStyles as page } from "../settings/settings-page.stylex";
 
@@ -29,6 +30,7 @@ const styles = stylex.create({
 });
 export function HumanApprovalPanel() {
   const { locale } = useConsoleLocale();
+  const { subject } = useConsoleSession();
   const zh = locale === "zh-CN";
   const copy = (en: string, cn: string) => (zh ? cn : en);
   const [operationId, setOperationId] = useState("");
@@ -50,7 +52,10 @@ export function HumanApprovalPanel() {
           ? await sessionFetch("/api/console/v1/human-management/decide", {
               method: "POST",
               signal: controller.signal,
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "X-Lenso-Expected-Subject": subject,
+              },
               body: JSON.stringify({
                 operation_id: review.operation_id,
                 intent_digest: review.intent_digest,

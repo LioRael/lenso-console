@@ -10,7 +10,10 @@ import { page } from "vitest/browser";
 import { ManagementPage } from "./management-page";
 
 vi.mock("../../app/console-session", () => ({
-  useConsoleSession: () => ({ managementEnabled: true }),
+  useConsoleSession: () => ({
+    managementEnabled: true,
+    subject: "browser-fixture",
+  }),
 }));
 vi.mock("../../app/console-locale", () => ({
   useConsoleLocale: () => ({ locale: "en" }),

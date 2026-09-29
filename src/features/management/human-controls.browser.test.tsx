@@ -16,13 +16,15 @@ vi.mock("../../app/console-session", () => ({
 vi.mock("../../app/console-locale", () => ({
   useConsoleLocale: () => ({ locale: "en" }),
 }));
-const requests: Array<{ path: string; body: unknown }> = [];
+const requests: Array<{ path: string; body: unknown; subject: string | null }> =
+  [];
 let found = false;
 let receiptWait: Promise<void> | undefined;
 vi.mock("../../lib/session-fetch", () => ({
   sessionFetch: async (path: string, init?: RequestInit) => {
     requests.push({
       path,
+      subject: new Headers(init?.headers).get("x-lenso-expected-subject"),
       body: init?.body ? JSON.parse(String(init.body)) : undefined,
     });
     if (path.endsWith("decide") || path.endsWith("issue")) {
@@ -128,6 +130,9 @@ test("locks an uncertain human decision until a fresh owner intent is read", asy
   expect(
     requests.filter((request) => request.path.endsWith("decide"))
   ).toHaveLength(1);
+  expect(
+    requests.find((request) => request.path.endsWith("decide"))?.subject
+  ).toBe("browser-fixture");
 });
 
 test("retains only the receipt reference after a submitted rejection and recovers across remount", async () => {
@@ -148,6 +153,9 @@ test("retains only the receipt reference after a submitted rejection and recover
   await expect
     .element(page.getByRole("button", { name: "Issue personal token" }))
     .toBeDisabled();
+  expect(
+    requests.find((request) => request.path.endsWith("issue"))?.subject
+  ).toBe("browser-fixture");
   const retained = localStorage.getItem(storageKey);
   expect(retained).toBeTruthy();
   expect(retained).not.toContain("read-token");

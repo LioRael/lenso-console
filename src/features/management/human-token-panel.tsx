@@ -147,7 +147,10 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
           method: "POST",
           signal: request.signal,
           cache: "no-store",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Lenso-Expected-Subject": subject,
+          },
           body: JSON.stringify(body),
         }
       );

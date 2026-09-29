@@ -12,8 +12,8 @@ description = "Opt-in MCP Streamable HTTP server over one bound Management Capab
 [dependencies]
 axum = "0.8"
 http = "1"
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
-lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "9783df5fc559b510ad579bde8118cc22fc9a5698" }
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "9783df5fc559b510ad579bde8118cc22fc9a5698" }
 lenso-capability-management = { path = "../../contracts/crates/lenso-capability-management", version = "0.1.0" }
 lenso-kernel = "0.3.11"
 rmcp = { version = "=3.5.0", default-features = false, features = [

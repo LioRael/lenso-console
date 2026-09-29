@@ -999,7 +999,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-sdk"
 version = "0.2.4"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=23bbe1e415fe07978970b52b1b7f5a00486e2ae3#23bbe1e415fe07978970b52b1b7f5a00486e2ae3"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=9783df5fc559b510ad579bde8118cc22fc9a5698#9783df5fc559b510ad579bde8118cc22fc9a5698"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -1014,7 +1014,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-auth"
 version = "0.2.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=23bbe1e415fe07978970b52b1b7f5a00486e2ae3#23bbe1e415fe07978970b52b1b7f5a00486e2ae3"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=9783df5fc559b510ad579bde8118cc22fc9a5698#9783df5fc559b510ad579bde8118cc22fc9a5698"
 dependencies = [
  "futures",
  "lenso-contract-authoring",

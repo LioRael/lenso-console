@@ -20,6 +20,7 @@ struct Factory {
     unavailable: Rc<Cell<bool>>,
     operators: Rc<Cell<bool>>,
     permission: Rc<Cell<bool>>,
+    delegated: Rc<Cell<bool>>,
 }
 impl NativePluginFactory for Factory {
     fn package_id(&self) -> &'static str {
@@ -67,7 +68,9 @@ impl auth::AuthProvider for Factory {
                         format!("{}:handle", lenso_capability_http_endpoint::CAPABILITY_ID),
                     ],
                     Validity::new(now, now + time::Duration::minutes(1)).unwrap(),
-                    BTreeMap::new(),
+                    if self.delegated.get() {
+                        BTreeMap::from([(lenso_auth_sdk::delegation::SCOPED_DELEGATION_CLAIM.into(), serde_json::json!({"task_id":"task","agent_session_id":"agent-session","delegate_caller":"example.agent/default"}))])
+                    } else { BTreeMap::new() },
                 );
                 Ok(Ok(authenticated_response(&assertion)))
             }
@@ -122,6 +125,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                 unavailable: Rc::new(Cell::new(false)),
                 operators: Rc::new(Cell::new(false)),
                 permission: Rc::new(Cell::new(true)),
+                delegated: Rc::new(Cell::new(false)),
             };
             let plan = AppComposition::new(
                 vec![
@@ -212,6 +216,15 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
             factory.operators.set(true);
             assert!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.is_ok());
+            let stale = operators_boundary.prepare_for_subject(context(),"POST","/api/console/v1/management/invoke",Some(("session","bob")),Some("alice")).await.err().unwrap();
+            assert_eq!(stale.status(), StatusCode::PRECONDITION_FAILED);
+            assert_eq!(stale.headers()[http::header::CACHE_CONTROL], "no-store");
+            let problem: serde_json::Value = serde_json::from_slice(&stale.into_body().collect(4096).await.unwrap()).unwrap();
+            assert_eq!(problem["code"], "session_changed");
+            factory.delegated.set(true);
+            assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
+            factory.delegated.set(false);
+
             for bypass in ["/api/console/v1/apps/alpha/invoke","/api/console/v1/agent/turns","/api/console/v1/configuration"] {
                 assert_eq!(operators_boundary.prepare(context(),"POST",bypass,Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
             }

@@ -27,17 +27,35 @@ impl TypedActor for OperatorSubject {
                 actual: assertion.actor_kind().to_owned(),
             });
         }
+        if assertion.to_wire().claims.as_ref().is_some_and(|claims| {
+            claims.contains_key(lenso_auth_sdk::delegation::SCOPED_DELEGATION_CLAIM)
+        }) {
+            return Err(lenso_auth_sdk::AssertionValidationError::InvalidProof.into());
+        }
         Ok(Self(assertion.subject().to_owned()))
     }
 }
 
 impl SessionBoundary {
+    #[cfg(test)]
     pub async fn prepare(
         &self,
         context: InvocationContext,
         method: &str,
         path: &str,
         credential: Option<(&str, &str)>,
+    ) -> Result<InvocationContext, Box<Response>> {
+        self.prepare_for_subject(context, method, path, credential, None)
+            .await
+    }
+
+    pub async fn prepare_for_subject(
+        &self,
+        context: InvocationContext,
+        method: &str,
+        path: &str,
+        credential: Option<(&str, &str)>,
+        expected_subject: Option<&str>,
     ) -> Result<InvocationContext, Box<Response>> {
         let session_request = path == "/api/console/v1/session";
         if session_request && method != "GET" {
@@ -80,105 +98,140 @@ impl SessionBoundary {
         let AuthOutcome::Authenticated(assertion) = outcome else {
             return Err(problem(StatusCode::UNAUTHORIZED, "authentication_required"));
         };
+        if expected_subject.is_some_and(|subject| subject != assertion.subject()) {
+            return Err(problem(StatusCode::PRECONDITION_FAILED, "session_changed"));
+        }
         if assertion.actor_kind() != "user" {
             return Err(problem(StatusCode::FORBIDDEN, "user_session_required"));
         }
         if let Some(profile) = &self.operators_profile {
-            let context = assertion
-                .attach(context)
-                .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
-            let verifier = RealmAssertionVerifier::new(
-                "operators",
-                &profile.issuer,
-                &profile.public_key,
-                profile.max_assertion_ttl_seconds,
-                None,
-            )
-            .map_err(|_| {
-                problem(
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    "authentication_unavailable",
-                )
-            })?;
-            let subject = verifier
-                .project_context::<OperatorSubject>(
-                    &context,
-                    lenso_capability_http_endpoint::CAPABILITY_ID,
-                    "handle",
-                    &FixedClock::new(time::OffsetDateTime::now_utc()),
-                )
-                .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
-            let access = self.access_control.as_ref().ok_or_else(|| {
-                problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable")
-            })?;
-            let permission = access
-                .check_permission_with_context(
-                    context.clone(),
-                    lenso_capability_access_control::CheckPermissionRequest {
-                        subject: subject.0.clone(),
-                        scope: lenso_capability_access_control::CheckPermissionRequestScope {
-                            kind: "deployment".to_owned(),
-                            id: profile.deployment.clone(),
-                        },
-                        permission: "console.operator".to_owned(),
-                    },
-                )
+            self.prepare_operator(context, assertion, method, path, session_request, profile)
                 .await
-                .map_err(|_| {
-                    problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable")
-                })?;
-            if !permission.allowed {
-                return Err(problem(StatusCode::FORBIDDEN, "console_access_required"));
-            }
-            if session_request {
-                return Err(session_response(
-                    "required",
-                    Some(&subject.0),
-                    false,
-                    &self.member_workspace_ids,
-                    true,
-                    profile.human_interface,
-                ));
-            }
-            let workspace_path = method == "GET" && path == "/api/console/v1/pages"
-                || path
-                    .strip_prefix("/api/console/v1/pages/")
-                    .and_then(|tail| tail.split('/').next())
-                    .is_some_and(|id| {
-                        self.member_workspace_ids
-                            .iter()
-                            .any(|allowed| allowed == id)
-                    });
-            let management_path = method == "GET" && path == "/api/console/v1/management/catalog"
-                || method == "POST" && path == "/api/console/v1/management/invoke"
+        } else {
+            self.prepare_legacy(context, &assertion, method, path, session_request)
+        }
+    }
+
+    async fn prepare_operator(
+        &self,
+        context: InvocationContext,
+        assertion: ActorAssertion,
+        method: &str,
+        path: &str,
+        session_request: bool,
+        profile: &crate::OperatorsProfile,
+    ) -> Result<InvocationContext, Box<Response>> {
+        let context = assertion
+            .attach(context)
+            .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
+        let verifier = RealmAssertionVerifier::new(
+            "operators",
+            &profile.issuer,
+            &profile.public_key,
+            profile.max_assertion_ttl_seconds,
+            None,
+        )
+        .map_err(|_| {
+            problem(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "authentication_unavailable",
+            )
+        })?;
+        let subject = verifier
+            .project_context::<OperatorSubject>(
+                &context,
+                lenso_capability_http_endpoint::CAPABILITY_ID,
+                "handle",
+                &FixedClock::new(time::OffsetDateTime::now_utc()),
+            )
+            .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
+        let access = self
+            .access_control
+            .as_ref()
+            .ok_or_else(|| problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable"))?;
+        let permission = access
+            .check_permission_with_context(
+                context.clone(),
+                lenso_capability_access_control::CheckPermissionRequest {
+                    subject: subject.0.clone(),
+                    scope: lenso_capability_access_control::CheckPermissionRequestScope {
+                        kind: "deployment".to_owned(),
+                        id: profile.deployment.clone(),
+                    },
+                    permission: "console.operator".to_owned(),
+                },
+            )
+            .await
+            .map_err(|_| problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable"))?;
+        if !permission.allowed {
+            return Err(problem(StatusCode::FORBIDDEN, "console_access_required"));
+        }
+        if session_request {
+            return Err(session_response(
+                "required",
+                Some(&subject.0),
+                false,
+                &self.member_workspace_ids,
+                true,
+                profile.human_interface,
+            ));
+        }
+        self.require_operator_path(method, path, profile.human_interface)?;
+        Ok(context)
+    }
+
+    fn require_operator_path(
+        &self,
+        method: &str,
+        path: &str,
+        human_interface: bool,
+    ) -> Result<(), Box<Response>> {
+        let workspace_path = method == "GET" && path == "/api/console/v1/pages"
+            || path
+                .strip_prefix("/api/console/v1/pages/")
+                .and_then(|tail| tail.split('/').next())
+                .is_some_and(|id| {
+                    self.member_workspace_ids
+                        .iter()
+                        .any(|allowed| allowed == id)
+                });
+        let management_path = method == "GET" && path == "/api/console/v1/management/catalog"
+            || method == "POST" && path == "/api/console/v1/management/invoke"
+            || method == "GET"
+                && path
+                    .strip_prefix("/api/console/v1/management/operations/")
+                    .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/'));
+        let human_path = human_interface
+            && (method == "POST"
+                && (path == "/api/console/v1/human-management/decide"
+                    || matches!(
+                        path,
+                        "/api/console/v1/human-tokens/issue"
+                            | "/api/console/v1/human-tokens/list"
+                            | "/api/console/v1/human-tokens/receipt"
+                            | "/api/console/v1/human-tokens/revoke"
+                    ))
                 || method == "GET"
                     && path
-                        .strip_prefix("/api/console/v1/management/operations/")
-                        .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/'));
-            let human_path = profile.human_interface
-                && (method == "POST"
-                    && (path == "/api/console/v1/human-management/decide"
-                        || matches!(
-                            path,
-                            "/api/console/v1/human-tokens/issue"
-                                | "/api/console/v1/human-tokens/list"
-                                | "/api/console/v1/human-tokens/receipt"
-                                | "/api/console/v1/human-tokens/revoke"
-                        ))
-                    || method == "GET"
-                        && path
-                            .strip_prefix("/api/console/v1/human-management/intents/")
-                            .is_some_and(|id| {
-                                !id.is_empty() && id.len() <= 128 && !id.contains('/')
-                            }));
-            if !workspace_path && !management_path && !human_path {
-                return Err(problem(
-                    StatusCode::FORBIDDEN,
-                    "controlled_management_required",
-                ));
-            }
-            return Ok(context);
+                        .strip_prefix("/api/console/v1/human-management/intents/")
+                        .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/')));
+        if !workspace_path && !management_path && !human_path {
+            return Err(problem(
+                StatusCode::FORBIDDEN,
+                "controlled_management_required",
+            ));
         }
+        Ok(())
+    }
+
+    fn prepare_legacy(
+        &self,
+        context: InvocationContext,
+        assertion: &ActorAssertion,
+        method: &str,
+        path: &str,
+        session_request: bool,
+    ) -> Result<InvocationContext, Box<Response>> {
         let administrator = self
             .administrator_subjects
             .iter()
@@ -280,12 +333,15 @@ fn session_response(
         .into_response())
 }
 
-fn problem(status: StatusCode, code: &str) -> Box<Response> {
+pub(super) fn problem(status: StatusCode, code: &str) -> Box<Response> {
     let detail = match code {
         "authentication_required" => "Sign in to continue.",
         "user_session_required" => "A user session is required.",
         "console_access_required" => "Your account does not have access to this Console.",
         "method_not_allowed" => "This endpoint requires GET.",
+        "session_changed" => {
+            "The signed-in account changed. Refresh the session before continuing."
+        }
         _ => "The Console could not complete the request. Try again later.",
     };
     Box::new(
