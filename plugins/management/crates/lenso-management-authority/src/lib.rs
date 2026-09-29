@@ -1,5 +1,11 @@
 //! Host-bound operators authority. Business and identity facts remain with their owners.
 
+mod human;
+pub use human::HumanServiceProvider;
+
+mod legacy_import;
+pub use legacy_import::LegacyImportPlan;
+
 use futures::{FutureExt as _, future::LocalBoxFuture};
 use lenso_auth_sdk::{
     ActorAssertion, ActorProjectionError, AssertionValidationError, FixedClock, TypedActor,
@@ -386,7 +392,10 @@ impl Authority for OperatorsAuthority {
                 || existing.subject.id != intent.operation_id
                 || existing.requested_by != intent.subject
                 || existing.approval_kind != "management-operation"
-                || existing.expires_at != intent.expires_at
+                || OffsetDateTime::parse(&existing.expires_at, &Rfc3339)
+                    .map_err(|_| Error::Denied)?
+                    != OffsetDateTime::parse(&intent.expires_at, &Rfc3339)
+                        .map_err(|_| Error::Denied)?
                 || existing.idempotency_key != intent.operation_id
             {
                 return Err(Error::Denied);
@@ -447,7 +456,16 @@ impl Authority for OperatorsAuthority {
                         )),
                         metadata,
                         occurred_at: event.occurred_at.parse().map_err(|_| Error::Unavailable)?,
-                        outcome: audit::AppendEventRequestOutcome::Success,
+                        outcome: if matches!(
+                            event.state,
+                            lenso_management_core::InvocationState::Unknown
+                                | lenso_management_core::InvocationState::Failed
+                                | lenso_management_core::InvocationState::Cancelled
+                        ) {
+                            audit::AppendEventRequestOutcome::Failure
+                        } else {
+                            audit::AppendEventRequestOutcome::Success
+                        },
                         reason: None,
                         request_context: Some(audit::AppendEventRequestRequestContext {
                             causation_id: None,

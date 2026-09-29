@@ -47,7 +47,7 @@ import {
   ContextNavigationSection,
 } from "./context-navigation";
 
-type ConsoleArea = "agent" | "settings" | "system" | "workspace";
+type ConsoleArea = "agent" | "settings" | "system" | "workspace" | "management";
 
 export function ConsoleShell({ children }: PropsWithChildren) {
   return (
@@ -58,7 +58,7 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 }
 
 function ConsoleShellContent({ children }: PropsWithChildren) {
-  const { administrator, signOut } = useConsoleSession();
+  const { administrator, managementEnabled, signOut } = useConsoleSession();
   const t = useConsoleTranslation();
 
   const appearance = useConsoleAppearance();
@@ -147,11 +147,33 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
   }, [mobileNavigationOpen, closeMobileNavigation]);
 
   useEffect(() => {
-    if (!administrator && currentArea !== "workspace" && visibleWorkspaces[0]) {
+    if (
+      !administrator &&
+      currentArea !== "workspace" &&
+      currentArea !== "management" &&
+      managementEnabled
+    ) {
+      void navigate({ to: "/management" });
+    } else if (
+      !administrator &&
+      currentArea !== "workspace" &&
+      currentArea !== "management" &&
+      visibleWorkspaces[0]
+    ) {
       navigateToWorkspace(navigate, visibleWorkspaces[0], []);
     }
-  }, [administrator, currentArea, navigate, visibleWorkspaces]);
-  if (!administrator && currentArea !== "workspace") {
+  }, [
+    administrator,
+    managementEnabled,
+    currentArea,
+    navigate,
+    visibleWorkspaces,
+  ]);
+  if (
+    !administrator &&
+    currentArea !== "workspace" &&
+    !(managementEnabled && currentArea === "management")
+  ) {
     return (
       <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
         <output {...stylex.props(sessionStyles.root)}>
@@ -212,6 +234,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
           }
           onSignOut={signOut}
           showAdmin={administrator}
+          showManagement={managementEnabled}
           workspaceState={{
             currentArea,
             currentWorkspace,
@@ -241,7 +264,23 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
               role={mobileNavigationOpen ? "dialog" : undefined}
               xstyle={shellStyles.contextSidebarPanel}
             >
-              {currentArea === "settings" ? (
+              {currentArea === "management" ? (
+                <>
+                  <ContextNavigationHeader title={t("Management")} />
+                  <ContextNavigationContent>
+                    <ContextNavigationItem
+                      selected
+                      onClick={() =>
+                        navigateFromSidebar(() =>
+                          navigate({ to: "/management" })
+                        )
+                      }
+                    >
+                      {t("Available operations")}
+                    </ContextNavigationItem>
+                  </ContextNavigationContent>
+                </>
+              ) : currentArea === "settings" ? (
                 <SettingsSidebar
                   currentPath={currentPath}
                   navigate={(to) => navigateFromSidebar(() => navigate({ to }))}
@@ -327,6 +366,9 @@ function agentLocationFromPath(path: string) {
 }
 
 function consoleAreaFromPath(path: string): ConsoleArea {
+  if (path.startsWith("/management")) {
+    return "management";
+  }
   if (path.startsWith("/settings")) {
     return "settings";
   }

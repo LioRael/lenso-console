@@ -20,9 +20,8 @@ futures = "0.3"
 flate2 = "1.1"
 hex = "0.4"
 http = "1"
-lenso = "0.5.25"
-# 0.2.7 emits lifecycle methods absent from native-adapter 0.3.15.
-lenso-native-adapter-macros = "=0.2.5"
+lenso = "0.5.27"
+lenso-native-adapter-macros = "=0.2.7"
 lenso-capability-observability-query = { path = "crates/lenso-capability-observability-query", version = "0.1.0" }
 lenso-capability-http-stream-endpoint = "0.1.1"
 lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution", version = "0.1.0" }
@@ -34,14 +33,14 @@ opentelemetry-proto = { version = "0.32.0", default-features = false, features =
   "trace",
 ] }
 prost = "0.14.4"
-rusqlite = { version = "0.40.2", features = ["bundled"] }
+rusqlite = { version = "=0.39.0", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.52", features = ["macros", "rt", "sync"] }
 uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
-rusqlite = { version = "0.40.2", features = ["hooks"] }
+rusqlite = { version = "=0.39.0", features = ["hooks"] }
 tempfile = "3.27"
 
 [lints.rust]

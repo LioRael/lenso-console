@@ -30,9 +30,16 @@ type State =
 
 const SessionActions = createContext<{
   administrator: boolean;
+  managementEnabled: boolean;
+  humanManagementEnabled: boolean;
   workspaceIds: string[];
   signOut?: () => Promise<void>;
-}>({ administrator: true, workspaceIds: [] });
+}>({
+  administrator: true,
+  managementEnabled: false,
+  humanManagementEnabled: false,
+  workspaceIds: [],
+});
 export function useConsoleSession() {
   return useContext(SessionActions);
 }
@@ -47,6 +54,8 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [access, setAccess] = useState({
     administrator: true,
+    managementEnabled: false,
+    humanManagementEnabled: false,
     workspaceIds: [] as string[],
   });
   const refresh = useCallback(async (signal?: AbortSignal) => {
@@ -145,6 +154,12 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
             setIdentity(nextSubject);
           }
           setAccess({
+            humanManagementEnabled:
+              "human_management_enabled" in value &&
+              value.human_management_enabled === true,
+            managementEnabled:
+              "management_enabled" in value &&
+              value.management_enabled === true,
             administrator:
               value.mode === "local" ||
               ("administrator" in value && value.administrator === true),
@@ -202,7 +217,12 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
                   }
                 },
               }
-            : { administrator: true, workspaceIds: [] }
+            : {
+                administrator: true,
+                managementEnabled: false,
+                humanManagementEnabled: false,
+                workspaceIds: [],
+              }
         }
       >
         {children}

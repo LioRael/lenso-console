@@ -2,6 +2,8 @@
 
 use crate::http::{IntoResponse, Json, Response};
 use http::StatusCode;
+use lenso_auth_sdk::realm::RealmAssertionVerifier;
+use lenso_auth_sdk::{ActorAssertion, ActorProjectionError, FixedClock, TypedActor};
 use lenso_auth_sdk::{AuthOutcome, CredentialEvidence, authenticate_request, decode_auth_response};
 use lenso_capability_auth::{AuthClient, AuthInvocationError};
 use lenso_kernel::InvocationContext;
@@ -12,6 +14,21 @@ pub(super) struct SessionBoundary {
     pub administrator_subjects: Vec<String>,
     pub member_workspace_ids: Vec<String>,
     pub auth: Option<AuthClient>,
+    pub operators_profile: Option<crate::OperatorsProfile>,
+    pub access_control: Option<lenso_capability_access_control::AccessControlClient>,
+}
+
+struct OperatorSubject(String);
+impl TypedActor for OperatorSubject {
+    fn from_assertion(assertion: &ActorAssertion) -> Result<Self, ActorProjectionError> {
+        if assertion.actor_kind() != "user" {
+            return Err(ActorProjectionError::UnexpectedActorKind {
+                expected: "user".to_owned(),
+                actual: assertion.actor_kind().to_owned(),
+            });
+        }
+        Ok(Self(assertion.subject().to_owned()))
+    }
 }
 
 impl SessionBoundary {
@@ -31,7 +48,7 @@ impl SessionBoundary {
         }
         if !self.required {
             return if session_request {
-                Err(session_response("local", None, true, &[]))
+                Err(session_response("local", None, true, &[], false, false))
             } else {
                 Ok(context)
             };
@@ -66,6 +83,94 @@ impl SessionBoundary {
         if assertion.actor_kind() != "user" {
             return Err(problem(StatusCode::FORBIDDEN, "user_session_required"));
         }
+        if let Some(profile) = &self.operators_profile {
+            let context = assertion
+                .attach(context)
+                .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
+            let verifier = RealmAssertionVerifier::new(
+                "operators",
+                &profile.issuer,
+                &profile.public_key,
+                profile.max_assertion_ttl_seconds,
+                None,
+            )
+            .map_err(|_| {
+                problem(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "authentication_unavailable",
+                )
+            })?;
+            let subject = verifier
+                .project_context::<OperatorSubject>(
+                    &context,
+                    lenso_capability_http_endpoint::CAPABILITY_ID,
+                    "handle",
+                    &FixedClock::new(time::OffsetDateTime::now_utc()),
+                )
+                .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
+            let access = self.access_control.as_ref().ok_or_else(|| {
+                problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable")
+            })?;
+            let permission = access
+                .check_permission_with_context(
+                    context.clone(),
+                    lenso_capability_access_control::CheckPermissionRequest {
+                        subject: subject.0.clone(),
+                        scope: lenso_capability_access_control::CheckPermissionRequestScope {
+                            kind: "deployment".to_owned(),
+                            id: profile.deployment.clone(),
+                        },
+                        permission: "console.operator".to_owned(),
+                    },
+                )
+                .await
+                .map_err(|_| {
+                    problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable")
+                })?;
+            if !permission.allowed {
+                return Err(problem(StatusCode::FORBIDDEN, "console_access_required"));
+            }
+            if session_request {
+                return Err(session_response(
+                    "required",
+                    Some(&subject.0),
+                    false,
+                    &self.member_workspace_ids,
+                    true,
+                    profile.human_interface,
+                ));
+            }
+            let workspace_path = method == "GET" && path == "/api/console/v1/pages"
+                || path
+                    .strip_prefix("/api/console/v1/pages/")
+                    .and_then(|tail| tail.split('/').next())
+                    .is_some_and(|id| {
+                        self.member_workspace_ids
+                            .iter()
+                            .any(|allowed| allowed == id)
+                    });
+            let management_path = method == "GET" && path == "/api/console/v1/management/catalog"
+                || method == "POST" && path == "/api/console/v1/management/invoke"
+                || method == "GET"
+                    && path
+                        .strip_prefix("/api/console/v1/management/operations/")
+                        .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/'));
+            let human_path = profile.human_interface
+                && (method == "POST" && path == "/api/console/v1/human-management/decide"
+                    || method == "GET"
+                        && path
+                            .strip_prefix("/api/console/v1/human-management/intents/")
+                            .is_some_and(|id| {
+                                !id.is_empty() && id.len() <= 128 && !id.contains('/')
+                            }));
+            if !workspace_path && !management_path && !human_path {
+                return Err(problem(
+                    StatusCode::FORBIDDEN,
+                    "controlled_management_required",
+                ));
+            }
+            return Ok(context);
+        }
         let administrator = self
             .administrator_subjects
             .iter()
@@ -77,6 +182,8 @@ impl SessionBoundary {
                     Some(assertion.subject()),
                     administrator,
                     &self.member_workspace_ids,
+                    false,
+                    false,
                 ))
             } else {
                 Err(problem(StatusCode::FORBIDDEN, "console_access_required"))
@@ -154,11 +261,13 @@ fn session_response(
     subject: Option<&str>,
     administrator: bool,
     workspace_ids: &[String],
+    management_enabled: bool,
+    human_management_enabled: bool,
 ) -> Box<Response> {
     Box::new((
         StatusCode::OK,
         [(http::header::CACHE_CONTROL, "no-store")],
-        Json(serde_json::json!({"mode":mode,"authenticated":subject.is_some(),"subject":subject,"administrator":administrator,"workspace_ids":workspace_ids})),
+        Json(serde_json::json!({"mode":mode,"authenticated":subject.is_some(),"subject":subject,"administrator":administrator,"workspace_ids":workspace_ids,"management_enabled":management_enabled,"human_management_enabled":human_management_enabled})),
     )
         .into_response())
 }

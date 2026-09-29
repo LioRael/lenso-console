@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["operation_id", "status"],
+  "properties": {
+    "operation_id": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/IntentStatus"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "IntentStatus": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "cancelled", "expired"]
+    }
+  },
+  "title": "DecideResponse"
+}

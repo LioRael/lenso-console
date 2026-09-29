@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as ManagementRouteImport } from './routes/management'
 import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as AgentChatIdRouteImport } from './routes/agent.$chatId'
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
   path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManagementRoute = ManagementRouteImport.update({
+  id: '/management',
+  path: '/management',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PluginsRoute = PluginsRouteImport.update({
@@ -120,6 +126,7 @@ const AppsAppIdPagesWorkspaceIdSplatRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/management': typeof ManagementRoute
   '/plugins': typeof PluginsRoute
   '/settings': typeof SettingsRoute
   '/agent/$chatId': typeof AgentChatIdRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/management': typeof ManagementRoute
   '/plugins': typeof PluginsRoute
   '/settings': typeof SettingsRoute
   '/agent/$chatId': typeof AgentChatIdRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/management': typeof ManagementRoute
   '/plugins': typeof PluginsRoute
   '/settings': typeof SettingsRoute
   '/agent/$chatId': typeof AgentChatIdRoute
@@ -180,6 +189,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
+    | '/management'
     | '/plugins'
     | '/settings'
     | '/agent/$chatId'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
+    | '/management'
     | '/plugins'
     | '/settings'
     | '/agent/$chatId'
@@ -218,6 +229,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$'
+    | '/management'
     | '/plugins'
     | '/settings'
     | '/agent/$chatId'
@@ -238,6 +250,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  ManagementRoute: typeof ManagementRoute
   PluginsRoute: typeof PluginsRoute
   SettingsRoute: typeof SettingsRoute
   AgentChatIdRoute: typeof AgentChatIdRoute
@@ -269,6 +282,13 @@ declare module '@tanstack/react-router' {
       path: '/$'
       fullPath: '/$'
       preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/management': {
+      id: '/management'
+      path: '/management'
+      fullPath: '/management'
+      preLoaderRoute: typeof ManagementRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/plugins': {
@@ -382,6 +402,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  ManagementRoute: ManagementRoute,
   PluginsRoute: PluginsRoute,
   SettingsRoute: SettingsRoute,
   AgentChatIdRoute: AgentChatIdRoute,

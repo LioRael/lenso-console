@@ -1,5 +1,7 @@
 mod app_management;
+mod controlled_management;
 mod http;
+mod human_management;
 mod lenso_http;
 mod local_agent_client;
 mod page_contributions;
@@ -113,6 +115,8 @@ pub struct ConsolePluginConfig {
     pub administrator_subjects: Vec<String>,
     #[serde(default)]
     pub member_workspace_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operators_profile: Option<OperatorsProfile>,
     pub agent_home: String,
     pub allowed_tools: Vec<String>,
     pub agent_configuration_store: String,
@@ -136,6 +140,22 @@ pub struct ConsolePluginConfig {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct OperatorsProfile {
+    pub deployment: String,
+    pub issuer: String,
+    pub public_key: String,
+    #[serde(default = "default_operator_assertion_ttl")]
+    pub max_assertion_ttl_seconds: u32,
+    #[serde(default)]
+    pub human_interface: bool,
+}
+
+fn default_operator_assertion_ttl() -> u32 {
+    300
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LocalProjectsConfig {
     pub binary: String,
     pub root: String,
@@ -143,6 +163,30 @@ pub struct LocalProjectsConfig {
 }
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
+    if let Some(profile) = &config.operators_profile {
+        if !config.require_user_session
+            || !config.administrator_subjects.is_empty()
+            || [&profile.deployment, &profile.issuer, &profile.public_key]
+                .iter()
+                .any(|value| value.is_empty())
+            || !config.console_agent_url.is_empty()
+            || !config.connected_agent_url.is_empty()
+            || !config.managed_apps.is_empty()
+            || config.local_projects.is_some()
+        {
+            return Err(invalid_plan(
+                "Operators profile requires independent Auth, scoped authorization, and no legacy shared control connections",
+            ));
+        }
+        lenso_auth_sdk::realm::RealmAssertionVerifier::new(
+            "operators",
+            &profile.issuer,
+            &profile.public_key,
+            profile.max_assertion_ttl_seconds,
+            None,
+        )
+        .map_err(|_| invalid_plan("Operators profile verification key is invalid"))?;
+    }
     if config.agent_home.is_empty()
         || config.agent_configuration_store.is_empty()
         || config.connected_agent_label.trim().is_empty()
@@ -182,6 +226,9 @@ pub struct ConsolePlugin {
     #[config]
     config: ConsolePluginConfig,
     auth: ManyPort<lenso_capability_auth::AuthClient>,
+    operator_access: ManyPort<lenso_capability_access_control::AccessControlClient>,
+    management: ManyPort<lenso_capability_management::ManagementClient>,
+    human_management: ManyPort<lenso_capability_management_human::ManagementHumanClient>,
     workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
     workspace_services: ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
     application: std::rc::Rc<RefCell<Option<ConsoleApplication>>>,
@@ -211,6 +258,30 @@ impl Lifecycle for ConsolePlugin {
                 "Console requires exactly one Auth binding in session mode and none in local mode",
             ));
         }
+        if self.operator_access.iter().count()
+            != usize::from(self.config.operators_profile.is_some())
+        {
+            return Err(invalid_plan(
+                "Operators profile requires exactly one Access Control binding; legacy local mode requires none",
+            ));
+        }
+        if self.management.iter().count() != usize::from(self.config.operators_profile.is_some()) {
+            return Err(invalid_plan(
+                "Operators profile requires exactly one Management binding; legacy local mode requires none",
+            ));
+        }
+        if self.human_management.iter().count()
+            != usize::from(
+                self.config
+                    .operators_profile
+                    .as_ref()
+                    .is_some_and(|profile| profile.human_interface),
+            )
+        {
+            return Err(invalid_plan(
+                "Human interface requires its separately bound Management Human capability",
+            ));
+        }
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
         let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,
@@ -223,9 +294,20 @@ impl Lifecycle for ConsolePlugin {
             agent.require_ready().await.map_err(plugin_failure)?;
         }
         let local_projects = config.local_projects.clone();
-        self.application
-            .borrow_mut()
-            .replace(console_application(config, page_catalog));
+        self.application.borrow_mut().replace({
+            let mut application = console_application(config, page_catalog);
+            application.management = self
+                .management
+                .iter()
+                .next()
+                .map(|bound| bound.client().clone());
+            application.human_management = self
+                .human_management
+                .iter()
+                .next()
+                .map(|bound| bound.client().clone());
+            application
+        });
         let cancellation = self.tasks.cancellation().map_err(|error| {
             plugin_failure(format!("Console task scope is unavailable: {error:?}"))
         })?;
@@ -296,6 +378,12 @@ impl ConsolePlugin {
             administrator_subjects: self.config.administrator_subjects.clone(),
             member_workspace_ids: self.config.member_workspace_ids.clone(),
             auth: self.auth.iter().next().map(|bound| bound.client().clone()),
+            operators_profile: self.config.operators_profile.clone(),
+            access_control: self
+                .operator_access
+                .iter()
+                .next()
+                .map(|bound| bound.client().clone()),
         };
         Box::pin(async move {
             let Some(application) = application else {
@@ -347,6 +435,12 @@ impl ConsolePlugin {
             administrator_subjects: self.config.administrator_subjects.clone(),
             member_workspace_ids: self.config.member_workspace_ids.clone(),
             auth: self.auth.iter().next().map(|bound| bound.client().clone()),
+            operators_profile: self.config.operators_profile.clone(),
+            access_control: self
+                .operator_access
+                .iter()
+                .next()
+                .map(|bound| bound.client().clone()),
         };
         Box::pin(async move {
             let Some(application) = application else {
@@ -394,11 +488,15 @@ fn console_application(
         agents: agent_catalog,
         pages: page_catalog,
         web_root: config.web_root,
+        management: None,
+        human_management: None,
     }
 }
 
 #[derive(Clone)]
 struct ConsoleApplication {
+    management: Option<lenso_capability_management::ManagementClient>,
+    human_management: Option<lenso_capability_management_human::ManagementHumanClient>,
     agents: AgentCatalog,
     apps: app_management::AppCatalog,
     pages: page_contributions::PageCatalog,
@@ -422,6 +520,16 @@ impl ConsoleApplication {
             )
         {
             return health().into_response();
+        }
+        if let Some(client) = &self.human_management
+            && let Some(response) = human_management::handle(client, &request).await
+        {
+            return response;
+        }
+        if let Some(management) = &self.management
+            && let Some(response) = controlled_management::handle(management, &request).await
+        {
+            return response;
         }
         if let Some(response) = self.pages.handle(&request).await {
             return response;
@@ -907,6 +1015,7 @@ impl ConsoleConfig {
             require_user_session: false,
             administrator_subjects: Vec::new(),
             member_workspace_ids: Vec::new(),
+            operators_profile: None,
             agent_home: utf8_path(&self.agent_home)?,
             allowed_tools: self.allowed_tools.clone(),
             agent_configuration_store: utf8_path(&self.agent_configuration_store)?,

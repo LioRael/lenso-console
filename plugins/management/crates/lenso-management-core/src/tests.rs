@@ -636,3 +636,48 @@ fn late_read_and_receipt_do_not_escape_the_original_cancellation_scope() {
         );
     });
 }
+
+#[test]
+fn intent_times_use_owner_storage_precision_before_digesting() {
+    let nanoseconds =
+        time::OffsetDateTime::from_unix_timestamp_nanos(1_800_000_000_123_456_789).unwrap();
+    let normalized = parse_time(&format_time(nanoseconds).unwrap()).unwrap();
+    assert_eq!(normalized.nanosecond(), 123_456_000);
+    assert_eq!(
+        format_time(normalized).unwrap(),
+        format_time(nanoseconds).unwrap()
+    );
+    assert_eq!(normalized.unix_timestamp(), nanoseconds.unix_timestamp());
+}
+
+#[test]
+fn pending_approval_retains_the_reviewed_parameters_across_restart() {
+    block_on(async {
+        let (directory, service, policy, notes) = setup(true);
+        let pending = service
+            .invoke(context(), request("reviewed text"))
+            .await
+            .unwrap();
+        let operation_id = pending.operation_id.unwrap();
+        drop(service);
+        let reopened = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".into(),
+            "catalog-1".into(),
+            vec![Binding {
+                entry: entry(true),
+                target: notes,
+            }],
+            policy,
+        )
+        .unwrap();
+        let parameters = reopened.pending_approval_parameters(&operation_id).unwrap();
+        assert_eq!(
+            parameters.input,
+            serde_json::json!({"text":"reviewed text"})
+        );
+        assert_eq!(parameters.expected_revision.as_deref(), Some("0"));
+        let wrong = native::ProviderSlot::new("other-deployment".into()).unwrap();
+        assert_eq!(wrong.install(Rc::new(reopened)), Err(Error::Conflict));
+    });
+}

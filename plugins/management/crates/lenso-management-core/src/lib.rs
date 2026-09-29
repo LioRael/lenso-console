@@ -1,5 +1,7 @@
 //! Controlled dispatch. Host bindings own the catalog; targets retain business authority.
 
+pub mod native;
+
 use futures::future::LocalBoxFuture;
 use lenso_capability_management as contract;
 use lenso_kernel::InvocationContext;
@@ -197,6 +199,18 @@ impl contract::ManagementProvider for ServiceProvider {
     }
 }
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct IntentParameters {
+    pub input: Value,
+    pub expected_revision: Option<String>,
+}
+
+struct IntentSeal<'a> {
+    digest: &'a str,
+    binding_digest: &'a str,
+    expires_at: &'a str,
+}
+
 #[derive(Debug)]
 struct Record {
     subject: String,
@@ -204,6 +218,7 @@ struct Record {
     digest: String,
     binding_digest: String,
     expires_at: String,
+    parameters: IntentParameters,
     response: InvokeResponse,
 }
 
@@ -224,11 +239,12 @@ impl Management {
                 intent_digest TEXT NOT NULL,
                 binding_digest TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
+                parameters_json TEXT NOT NULL,
                 response_json TEXT NOT NULL,
                 UNIQUE(subject, deployment, entry_id, idempotency_key)
             );
             CREATE TABLE management_audit_outbox(operation_id TEXT NOT NULL, phase TEXT NOT NULL, event_json TEXT NOT NULL, sent INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(operation_id,phase));
-            PRAGMA user_version = 2;
+            PRAGMA user_version = 3;
             COMMIT;",
             )
             .map_err(|_| Error::Unavailable)
@@ -256,7 +272,7 @@ impl Management {
         let version: i64 = journal
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| Error::Unavailable)?;
-        if version != 2 {
+        if version != 3 {
             return Err(Error::Unavailable);
         }
         let mut entries = BTreeMap::new();
@@ -356,6 +372,7 @@ impl Management {
                 Err(error) => return Err(error),
             }
         }
+        self.check_context(context)?;
         Ok(contract::CatalogResponse {
             deployment: self.deployment.clone(),
             revision: self.revision.clone(),
@@ -416,9 +433,15 @@ impl Management {
             &principal.subject,
             &accepted.entry,
             key,
-            &digest,
-            &binding_digest,
-            &expires_at,
+            IntentSeal {
+                digest: &digest,
+                binding_digest: &binding_digest,
+                expires_at: &expires_at,
+            },
+            &IntentParameters {
+                input: canonicalize(input.clone()),
+                expected_revision: request.expected_revision.clone(),
+            },
         )?;
         if record.digest != digest {
             return Err(Error::Conflict);
@@ -436,6 +459,7 @@ impl Management {
         )?;
         self.flush_audit(&context, &id_from_record(&record)?)
             .await?;
+        self.check_context(&context)?;
         record = self.load(&id_from_record(&record)?)?;
         match record.response.state {
             InvocationState::Succeeded
@@ -451,7 +475,9 @@ impl Management {
             .clone()
             .ok_or(Error::Unavailable)?;
         if accepted.entry.requires_approval {
-            match self.authority.approval(&context, &intent).await? {
+            let approval = self.authority.approval(&context, &intent).await?;
+            self.check_context(&context)?;
+            match approval {
                 Approval::Required => return Ok(record.response),
                 Approval::Denied => return Err(Error::Denied),
                 Approval::Approved => {}
@@ -513,6 +539,7 @@ impl Management {
         self.save_with_audit(&id, &result, "completed")?;
         dispatch.finished = true;
         let _ = self.flush_audit(&context, &id).await;
+        self.check_context(&context)?;
         self.load(&id).map(|record| record.response)
     }
 
@@ -535,23 +562,25 @@ impl Management {
             return Err(Error::Conflict);
         }
         let _ = self.flush_audit(&context, operation_id).await;
+        self.check_context(&context)?;
         if record.response.state != InvocationState::Unknown {
             return self.load(operation_id).map(|record| record.response);
         }
-        let Some((result, receipt)) = accepted
+        let receipt = accepted
             .target
             .receipt(context.clone(), operation_id)
-            .await?
-        else {
+            .await?;
+        self.check_context(&context)?;
+        let Some((result, receipt)) = receipt else {
             return Ok(record.response);
         };
-        self.check_context(&context)?;
         let response = response(
             Some(operation_id.to_owned()),
             Outcome::Committed { result, receipt },
         )?;
         self.save_with_audit(operation_id, &response, "reconciled")?;
         let _ = self.flush_audit(&context, operation_id).await;
+        self.check_context(&context)?;
         self.load(operation_id).map(|record| record.response)
     }
 
@@ -569,15 +598,40 @@ impl Management {
         Ok((self.intent(&record)?, accepted.entry.clone()))
     }
 
+    /// The separately authorized human adapter reads the immutable server snapshot.
+    pub fn pending_approval_parameters(
+        &self,
+        operation_id: &str,
+    ) -> Result<IntentParameters, Error> {
+        let (intent, entry) = self.pending_approval_intent(operation_id)?;
+        let parameters = self.load(operation_id)?.parameters;
+        if intent_digest(
+            &intent.deployment,
+            &entry,
+            &intent.subject,
+            &parameters.input,
+            parameters.expected_revision.as_deref(),
+            &intent.expires_at,
+        )? != intent.digest
+        {
+            return Err(Error::Conflict);
+        }
+        Ok(parameters)
+    }
+
     fn reserve(
         &self,
         subject: &str,
         entry: &Entry,
         key: &str,
-        digest: &str,
-        binding_digest: &str,
-        expires_at: &str,
+        seal: IntentSeal<'_>,
+        parameters: &IntentParameters,
     ) -> Result<Record, Error> {
+        let IntentSeal {
+            digest,
+            binding_digest,
+            expires_at,
+        } = seal;
         let entry_id = &entry.id;
         let approval = entry.requires_approval;
         let mut connection = self.journal.borrow_mut();
@@ -604,7 +658,7 @@ impl Management {
         };
         transaction
             .execute(
-                "INSERT INTO management_invocations VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+                "INSERT INTO management_invocations VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
                 params![
                     id,
                     subject,
@@ -614,6 +668,7 @@ impl Management {
                     digest,
                     binding_digest,
                     expires_at,
+                    serde_json::to_string(parameters).map_err(|_| Error::Unavailable)?,
                     serde_json::to_string(&response).map_err(|_| Error::Unavailable)?
                 ],
             )
@@ -625,6 +680,7 @@ impl Management {
             digest: digest.to_owned(),
             binding_digest: binding_digest.to_owned(),
             expires_at: expires_at.to_owned(),
+            parameters: parameters.clone(),
             response,
         })
     }
@@ -640,8 +696,8 @@ impl Management {
     }
 
     fn load(&self, id: &str) -> Result<Record, Error> {
-        let wire: Option<(String, String, String, String, String, String)> = self.journal.borrow().query_row("SELECT subject,entry_id,intent_digest,binding_digest,expires_at,response_json FROM management_invocations WHERE operation_id=?1 AND deployment=?2", params![id, self.deployment], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))).optional().map_err(|_| Error::Unavailable)?;
-        let (subject, entry_id, digest, binding_digest, expires_at, response) =
+        let wire: Option<(String, String, String, String, String, String, String)> = self.journal.borrow().query_row("SELECT subject,entry_id,intent_digest,binding_digest,expires_at,parameters_json,response_json FROM management_invocations WHERE operation_id=?1 AND deployment=?2", params![id, self.deployment], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?))).optional().map_err(|_| Error::Unavailable)?;
+        let (subject, entry_id, digest, binding_digest, expires_at, parameters, response) =
             wire.ok_or(Error::NotFound)?;
         Ok(Record {
             subject,
@@ -649,6 +705,7 @@ impl Management {
             digest,
             binding_digest,
             expires_at,
+            parameters: serde_json::from_str(&parameters).map_err(|_| Error::Unavailable)?,
             response: serde_json::from_str(&response).map_err(|_| Error::Unavailable)?,
         })
     }
@@ -766,6 +823,9 @@ fn id_from_record(record: &Record) -> Result<String, Error> {
         .ok_or(Error::Unavailable)
 }
 fn format_time(time: time::OffsetDateTime) -> Result<String, Error> {
+    let time = time
+        .replace_nanosecond(time.nanosecond() / 1_000 * 1_000)
+        .map_err(|_| Error::Unavailable)?;
     time.format(&time::format_description::well_known::Rfc3339)
         .map_err(|_| Error::Unavailable)
 }

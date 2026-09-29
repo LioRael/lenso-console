@@ -15,9 +15,10 @@ input is validated against each owner's closed JSON Schema before dispatch.
 For explicit local setup, call `Management::initialize_journal(path)` once.
 `Management::open` requires the prepared SQLite journal and never creates a
 missing file, migrates a configured deployment or falls back to memory. The
-journal stores operation metadata, a canonical intent digest and bounded results;
-it does not persist invocation input or any credential. Schema version 2 must be
-prepared explicitly. A lifetime file lease rejects a second active owner; only
+journal stores operation metadata, the bounded canonical input and expected revision,
+a canonical intent digest and bounded results. It never persists credentials.
+Human review reads that sealed input rather than client-supplied replacements.
+Schema version 3 must be prepared explicitly. A lifetime file lease rejects a second active owner; only
 a new exclusive owner may recover unfinished dispatches.
 
 The trusted `Authority` adapter must check current credential validity, operators
@@ -26,9 +27,11 @@ on every call. It must query the Approval owner for an exact `Intent`; a local
 hook cannot return approval authority. Approval is rechecked before dispatch,
 and current authorization is checked again after approval with the same subject.
 The server-created intent includes a fixed expiry in its canonical digest.
-Each admission verifies the exact `catalog`, `invoke` or `status` audience. No production
-authority adapter is supplied by this core. Absence of a qualified adapter is a
-closed implementation gate.
+Each admission verifies the exact `catalog`, `invoke` or `status` audience.
+The separate `lenso-management-authority` package binds generated CredentialState,
+Access Control, Approval and Audit clients. Its local qualification store owns only
+deployment membership. The selected realm issuer/key and every entry permission
+and resource scope come from explicit Host configuration.
 
 The domain `Target` adapter receives the original invocation context. Writable
 targets must use the server-created operation ID as their stable domain
@@ -59,7 +62,8 @@ cargo check --locked --manifest-path contracts/Cargo.toml -p lenso-capability-ma
 The deterministic note target tests prove immutable approval input, revocation,
 unknown receipt recovery, durable manager restart, caller isolation, schema
 rejection, target binding changes, subject switching during approval, scoped
-cancellation, exclusive restart and audit outbox recovery. They use an explicitly injected test
-authority. They do not prove Auth/Access/Approval/Audit integration, Workers
-storage, a remote MCP client, all five installation profiles or production
-qualification. Those gates remain required before exposing a write tool.
+cancellation, exclusive restart and audit outbox recovery. A separate Native
+PostgreSQL integration test exercises the real generated four-owner ports,
+current credentials and grants, a different human approver, and receipt recovery.
+That proof does not establish Workers Management storage or remote Hyperdrive
+support. The ordinary source App and transport compositions retain separate gates.

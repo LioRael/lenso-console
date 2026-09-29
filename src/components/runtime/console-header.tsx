@@ -19,7 +19,7 @@ import { shellStyles } from "./console-shell.stylex";
 
 type Agent = ReturnType<typeof useAgentIdentity>["agents"][number];
 type WorkspaceState = {
-  currentArea: "agent" | "settings" | "system" | "workspace";
+  currentArea: "agent" | "settings" | "system" | "workspace" | "management";
   currentWorkspace: PageMount | undefined;
   currentWorkspaceLocation: { segments: readonly string[] } | undefined;
   visibleWorkspaces: readonly PageMount[];
@@ -35,6 +35,7 @@ export function ConsoleHeader({
   onOpenWorkspace,
   onSignOut,
   showAdmin,
+  showManagement,
   workspaceState,
 }: {
   activeAgent: Agent;
@@ -46,6 +47,7 @@ export function ConsoleHeader({
   onOpenWorkspace: (workspace: PageMount, segments: readonly string[]) => void;
   onSignOut: (() => Promise<void>) | undefined;
   showAdmin: boolean;
+  showManagement: boolean;
   workspaceState: WorkspaceState;
 }) {
   const t = useConsoleTranslation();
@@ -63,7 +65,13 @@ export function ConsoleHeader({
       ? (currentWorkspace?.title ?? t("Workspace"))
       : currentArea === "agent"
         ? activeAgent.label
-        : t(currentArea === "settings" ? "Settings" : "System");
+        : t(
+            currentArea === "management"
+              ? "Management"
+              : currentArea === "settings"
+                ? "Settings"
+                : "System"
+          );
 
   useEffect(() => {
     if (!menuOpen) {
@@ -116,6 +124,16 @@ export function ConsoleHeader({
             group: t("Settings"),
             label: t("Settings"),
             onSelect: () => navigate({ to: "/settings" }),
+          },
+        ]
+      : []),
+    ...(showManagement
+      ? [
+          {
+            id: "management",
+            group: t("Management"),
+            label: t("Available operations"),
+            onSelect: () => navigate({ to: "/management" }),
           },
         ]
       : []),
@@ -203,6 +221,18 @@ export function ConsoleHeader({
                 {currentArea === "system" && (
                   <Check aria-hidden="true" size={14} />
                 )}
+              </button>
+            )}
+            {showManagement && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void navigate({ to: "/management" });
+                }}
+                {...stylex.props(shellStyles.workspaceOption)}
+              >
+                {t("Management")}
               </button>
             )}
             {visibleWorkspaces.map((workspace) => (

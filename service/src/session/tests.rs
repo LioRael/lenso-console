@@ -1,9 +1,11 @@
 use super::*;
+use crate::OperatorsProfile;
 use lenso_app_plan::{
     AppComposition, CapabilityBinding, CapabilityEndpointPlan, CapabilityRequirementPlan,
     PluginInstancePlan,
 };
 use lenso_auth_sdk::{ActorAssertionIssuer, Validity, absent_response, authenticated_response};
+use lenso_capability_access_control as access;
 use lenso_capability_auth as auth;
 use lenso_kernel::{Kernel, NativeRequestFuture, RuntimeFailure};
 use lenso_native_adapter::{
@@ -16,6 +18,8 @@ use std::{cell::Cell, collections::BTreeMap, rc::Rc, time::Duration};
 struct Factory {
     revoked: Rc<Cell<bool>>,
     unavailable: Rc<Cell<bool>>,
+    operators: Rc<Cell<bool>>,
+    permission: Rc<Cell<bool>>,
 }
 impl NativePluginFactory for Factory {
     fn package_id(&self) -> &'static str {
@@ -25,9 +29,10 @@ impl NativePluginFactory for Factory {
         &self,
         _: NativePluginFactoryContext<'_>,
     ) -> Result<NativePluginInstance, RuntimeFailure> {
-        Ok(NativePluginInstance::new(vec![Rc::new(
-            auth::AuthEndpoint::new(self.clone()),
-        )]))
+        Ok(NativePluginInstance::new(vec![
+            Rc::new(auth::AuthEndpoint::new(self.clone())),
+            Rc::new(access::AccessControlEndpoint::new(self.clone())),
+        ]))
     }
 }
 impl auth::AuthProvider for Factory {
@@ -48,21 +53,46 @@ impl auth::AuthProvider for Factory {
                 Ok(Err(auth::AuthenticateError::Invalid))
             } else {
                 let now = time::OffsetDateTime::now_utc();
-                let assertion = ActorAssertionIssuer::from_signing_key("test.issuer", [7; 32])
-                    .issue(
-                        credential.value,
-                        "user",
-                        "password",
-                        ["example.query@1:read".to_owned()],
-                        Validity::new(now, now + time::Duration::minutes(1)).unwrap(),
-                        BTreeMap::new(),
-                    );
+                let issuer = if self.operators.get() {
+                    ActorAssertionIssuer::from_signing_key("operators", [8; 32])
+                } else {
+                    ActorAssertionIssuer::from_signing_key("test.issuer", [7; 32])
+                };
+                let assertion = issuer.issue(
+                    credential.value,
+                    "user",
+                    "password",
+                    [
+                        "example.query@1:read".to_owned(),
+                        format!("{}:handle", lenso_capability_http_endpoint::CAPABILITY_ID),
+                    ],
+                    Validity::new(now, now + time::Duration::minutes(1)).unwrap(),
+                    BTreeMap::new(),
+                );
                 Ok(Ok(authenticated_response(&assertion)))
             }
         } else {
             Ok(Ok(absent_response()))
         };
         Box::pin(std::future::ready(result))
+    }
+}
+impl access::AccessControlProvider for Factory {
+    fn check_permission(
+        &self,
+        _: InvocationContext,
+        request: access::CheckPermissionRequest,
+    ) -> NativeRequestFuture<access::AccessControl> {
+        assert_eq!(request.permission, "console.operator");
+        assert_eq!(request.scope.kind, "deployment");
+        assert_eq!(request.scope.id, "alpha");
+        let allowed = self.permission.get();
+        Box::pin(async move {
+            Ok(Ok(access::CheckPermissionResponse {
+                allowed,
+                policy_revision: "1".into(),
+            }))
+        })
     }
 }
 #[derive(Debug)]
@@ -90,29 +120,21 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             let factory = Factory {
                 revoked: Rc::new(Cell::new(false)),
                 unavailable: Rc::new(Cell::new(false)),
+                operators: Rc::new(Cell::new(false)),
+                permission: Rc::new(Cell::new(true)),
             };
             let plan = AppComposition::new(
                 vec![
-                    PluginInstancePlan::new("caller", "test.session.caller").with_requirement(
-                        CapabilityRequirementPlan::one(
-                            auth::CAPABILITY_ID,
-                            auth::DESCRIPTOR_VERSION,
-                        ),
-                    ),
+                    PluginInstancePlan::new("caller", "test.session.caller").with_requirement(CapabilityRequirementPlan::one(auth::CAPABILITY_ID,auth::DESCRIPTOR_VERSION)).with_requirement(CapabilityRequirementPlan::one(access::CAPABILITY_ID,access::DESCRIPTOR_VERSION)),
                     PluginInstancePlan::new("auth", "test.session.auth").with_capability(
                         CapabilityEndpointPlan::new(
                             auth::CAPABILITY_ID,
                             auth::DESCRIPTOR_VERSION,
                             [auth::AUTHENTICATE_OPERATION],
                         ),
-                    ),
+                    ).with_capability(CapabilityEndpointPlan::new(access::CAPABILITY_ID,access::DESCRIPTOR_VERSION,[access::CHECK_PERMISSION_OPERATION])),
                 ],
-                vec![CapabilityBinding::new(
-                    "caller",
-                    auth::CAPABILITY_ID,
-                    auth::DESCRIPTOR_VERSION,
-                    "auth",
-                )],
+                vec![CapabilityBinding::new("caller",auth::CAPABILITY_ID,auth::DESCRIPTOR_VERSION,"auth"),CapabilityBinding::new("caller",access::CAPABILITY_ID,access::DESCRIPTOR_VERSION,"auth")],
             )
             .resolve()
             .unwrap();
@@ -126,6 +148,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             .await
             .unwrap();
             let boundary = SessionBoundary {
+                operators_profile: None, access_control: None,
                 required: true,
                 administrator_subjects: vec!["alice".into(), "bob".into()],
                 member_workspace_ids: vec![],
@@ -185,6 +208,16 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             assert_eq!(filtered["mounts"], serde_json::json!([{"id":"projects"}]));
             assert!(workspace_member.prepare(context(), "POST", "/api/console/v1/pages/projects/services/projects/invoke/list_projects", Some(("session", "alice"))).await.is_ok());
             assert_eq!(workspace_member.prepare(context(), "GET", "/api/console/v1/pages/observe/services/telemetry/invoke/query", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
+            let operators_boundary=SessionBoundary {operators_profile:Some(OperatorsProfile {deployment:"alpha".into(),issuer:"operators".into(),public_key:ActorAssertionIssuer::from_signing_key("operators",[8;32]).public_key_base64(),max_assertion_ttl_seconds:300,human_interface:false}),access_control:Some(access::AccessControlClient::new(app.handle::<access::AccessControl>("caller").unwrap())),required:true,administrator_subjects:vec![],member_workspace_ids:vec!["projects".into()],auth:boundary.auth.clone()};
+            assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
+            factory.operators.set(true);
+            assert!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.is_ok());
+            for bypass in ["/api/console/v1/apps/alpha/invoke","/api/console/v1/agent/turns","/api/console/v1/configuration"] {
+                assert_eq!(operators_boundary.prepare(context(),"POST",bypass,Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
+            }
+            factory.permission.set(false);
+            assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
+            factory.operators.set(false);
             factory.revoked.set(true);
             assert_eq!(
                 boundary
@@ -216,6 +249,8 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
 #[tokio::test(flavor = "current_thread")]
 async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
     let required = SessionBoundary {
+        operators_profile: None,
+        access_control: None,
         required: true,
         administrator_subjects: vec![],
         member_workspace_ids: vec![],
@@ -231,6 +266,8 @@ async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
         StatusCode::SERVICE_UNAVAILABLE
     );
     let local = SessionBoundary {
+        operators_profile: None,
+        access_control: None,
         required: false,
         administrator_subjects: vec![],
         member_workspace_ids: vec![],
