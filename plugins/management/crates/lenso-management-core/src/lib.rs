@@ -249,8 +249,8 @@ impl Management {
                 UNIQUE(subject, deployment, entry_id, idempotency_key)
             );
             CREATE TABLE management_audit_outbox(operation_id TEXT NOT NULL, phase TEXT NOT NULL, event_json TEXT NOT NULL, sent INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(operation_id,phase));
-            CREATE TABLE management_external_mutations(operation_id TEXT PRIMARY KEY, deployment TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, intent_json TEXT NOT NULL, parameters_digest TEXT NOT NULL, state_json TEXT NOT NULL, receipt_json TEXT, UNIQUE(deployment,subject,kind,idempotency_key));
-            PRAGMA user_version = 4;
+            CREATE TABLE management_external_mutations(operation_id TEXT PRIMARY KEY, deployment TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, intent_json TEXT NOT NULL, parameters_digest TEXT NOT NULL, parameters_json TEXT NOT NULL, state_json TEXT NOT NULL, receipt_json TEXT, UNIQUE(deployment,subject,kind,idempotency_key));
+            PRAGMA user_version = 5;
             COMMIT;",
             )
             .map_err(|_| Error::Unavailable)
@@ -278,7 +278,7 @@ impl Management {
         let version: i64 = journal
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| Error::Unavailable)?;
-        if version != 4 {
+        if version != 5 {
             return Err(Error::Unavailable);
         }
         let mut entries = BTreeMap::new();
@@ -354,7 +354,7 @@ impl Management {
             journal: RefCell::new(journal),
             _lease,
         };
-        service.journal.borrow().execute("UPDATE management_external_mutations SET state_json=?1 WHERE deployment=?2 AND state_json=?3", params![serde_json::to_string(&InvocationState::Unknown).map_err(|_| Error::Unavailable)?, service.deployment, executing]).map_err(|_| Error::Unavailable)?;
+        service.recover_external()?;
         for (id, wire) in recovered {
             let response = serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
             service.save_with_audit(&id, &response, "interrupted")?;

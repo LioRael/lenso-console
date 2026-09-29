@@ -29,12 +29,14 @@ type State =
   | { kind: "login"; methods: LoginMethod[] };
 
 const SessionActions = createContext<{
+  subject: string;
   administrator: boolean;
   managementEnabled: boolean;
   humanManagementEnabled: boolean;
   workspaceIds: string[];
   signOut?: () => Promise<void>;
 }>({
+  subject: "local",
   administrator: true,
   managementEnabled: false,
   humanManagementEnabled: false,
@@ -203,6 +205,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
           authenticated
             ? {
                 ...access,
+                subject: identity,
                 signOut: async () => {
                   const response = await sessionFetch("/auth/logout", {
                     method: "POST",
@@ -218,6 +221,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
                 },
               }
             : {
+                subject: "local",
                 administrator: true,
                 managementEnabled: false,
                 humanManagementEnabled: false,

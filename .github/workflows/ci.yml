@@ -38,6 +38,8 @@ jobs:
         with:
           toolchain: 1.94.0
           components: rustfmt, clippy
+      - name: Install owner contract projection generator
+        run: cargo install --locked lenso-contract-codegen --version 0.10.0
       - name: Run fast preflight
         run: pnpm check:preflight
       - name: Install Chromium

@@ -13,7 +13,7 @@ pub(super) async fn handle(
             .catalog_with_context(request.context.clone(), contract::CatalogRequest {})
             .await
         {
-            Ok(response) => Json(response).into_response(),
+            Ok(response) => crate::http::no_store(Json(response).into_response()),
             Err(contract::ManagementCatalogInvocationError::Domain(
                 contract::CatalogError::PermissionDenied,
             )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
@@ -47,7 +47,7 @@ pub(super) async fn handle(
                 .invoke_with_context(request.context.clone(), input)
                 .await
             {
-                Ok(response) => Json(response).into_response(),
+                Ok(response) => crate::http::no_store(Json(response).into_response()),
                 Err(contract::ManagementInvokeInvocationError::Domain(error)) => {
                     let (status, code) = match error {
                         contract::InvokeError::PermissionDenied => {
@@ -87,7 +87,7 @@ pub(super) async fn handle(
                 )
                 .await
             {
-                Ok(response) => Json(response).into_response(),
+                Ok(response) => crate::http::no_store(Json(response).into_response()),
                 Err(contract::ManagementStatusInvocationError::Domain(
                     contract::StatusError::PermissionDenied,
                 )) => problem(StatusCode::FORBIDDEN, "permission_denied"),
@@ -104,6 +104,9 @@ pub(super) async fn handle(
     })
 }
 fn problem(status: StatusCode, code: &str) -> Response {
+    crate::http::no_store(problem_response(status, code))
+}
+fn problem_response(status: StatusCode, code: &str) -> Response {
     (
         status,
         Json(serde_json::json!({"type":"about:blank","status":status.as_u16(),"code":code})),

@@ -41,6 +41,37 @@ afterEach(async () => {
 });
 
 describe("Console development middleware", () => {
+  test("forwards real browser login cookies and CSRF to the selected Host", async () => {
+    let forwardedHeaders: IncomingMessage["headers"] = {};
+    const upstream = createServer((req, res) => {
+      forwardedHeaders = req.headers;
+      res.setHeader("set-cookie", [
+        "__Host-lenso-session=session; Path=/; Secure; HttpOnly",
+        "__Host-lenso-csrf=csrf; Path=/; Secure",
+      ]);
+      res.setHeader("cache-control", "no-store");
+      res.end("login");
+    });
+    const server = await startConsoleDevServer({
+      hostUrl: await listen(upstream),
+    });
+    const response = await fetch(`${server.origin}/auth/login`, {
+      method: "POST",
+      headers: {
+        origin: server.origin,
+        cookie: "__Host-lenso-session=prior",
+        "x-csrf-token": "csrf",
+        "content-type": "application/json",
+      },
+      body: "{}",
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie()).toHaveLength(2);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(forwardedHeaders.origin).toBe(server.origin);
+    expect(forwardedHeaders.cookie).toBe("__Host-lenso-session=prior");
+    expect(forwardedHeaders["x-csrf-token"]).toBe("csrf");
+  });
   test("rejects a privileged request from a non-loopback peer", async () => {
     const server = await startConsoleDevServer({
       hostUrl: "http://127.0.0.1:9",

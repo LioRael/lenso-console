@@ -156,7 +156,15 @@ impl SessionBoundary {
                         .strip_prefix("/api/console/v1/management/operations/")
                         .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/'));
             let human_path = profile.human_interface
-                && (method == "POST" && path == "/api/console/v1/human-management/decide"
+                && (method == "POST"
+                    && (path == "/api/console/v1/human-management/decide"
+                        || matches!(
+                            path,
+                            "/api/console/v1/human-tokens/issue"
+                                | "/api/console/v1/human-tokens/list"
+                                | "/api/console/v1/human-tokens/receipt"
+                                | "/api/console/v1/human-tokens/revoke"
+                        ))
                     || method == "GET"
                         && path
                             .strip_prefix("/api/console/v1/human-management/intents/")

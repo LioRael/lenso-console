@@ -17,6 +17,8 @@ import { sessionFetch } from "../../lib/session-fetch";
 import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as page } from "../settings/settings-page.stylex";
 import { HumanApprovalPanel } from "./human-approval-panel";
+import { HumanTokenPanel } from "./human-token-panel";
+import { ParameterFields } from "./parameter-fields";
 
 const styles = stylex.create({
   section: { display: "grid", gap: 16, padding: 16, marginTop: 24 },
@@ -286,6 +288,12 @@ export function ManagementPage() {
           }
         />
         {humanManagementEnabled && <HumanApprovalPanel />}
+        {humanManagementEnabled && catalog && (
+          <HumanTokenPanel
+            key={catalog.deployment}
+            deployment={catalog.deployment}
+          />
+        )}
         {managementEnabled ? (
           <>
             {busy && <output>{copy("Loading…", "加载中…")}</output>}
@@ -347,6 +355,12 @@ export function ManagementPage() {
                         )
                       : copy("Write", "写入")}
                 </p>
+                <ParameterFields
+                  schemaJson={selected.input_schema_json}
+                  inputJson={input}
+                  disabled={busy || Boolean(intent)}
+                  onChange={setInput}
+                />
                 <label {...stylex.props(styles.field)}>
                   {copy("Parameters (JSON)", "参数（JSON）")}
                   <textarea

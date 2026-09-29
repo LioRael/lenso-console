@@ -683,6 +683,10 @@ fn pending_approval_retains_the_reviewed_parameters_across_restart() {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "One durable sequence covers pre-dispatch audit, reconciliation, cancellation and exclusive restart"
+)]
 fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
     block_on(async {
         let (directory, service, policy, notes) = setup(false);
@@ -712,9 +716,31 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
             service.external_claim(&context(), &mutation).err(),
             Some(Error::Conflict)
         );
-        drop(guard); // The owner may have committed before a reply was lost.
+        let committed = serde_json::json!({"credential_id":"confirmed-before-cancellation"});
+        service
+            .external_record(
+                &mutation,
+                InvocationState::Succeeded,
+                Some(committed.clone()),
+            )
+            .unwrap();
+        drop(guard); // Receipt reconciliation wins over a later abandoned owner reply.
+        let confirmed = service
+            .external_lookup(&human, "auth.pat.issue", "issue-1")
+            .unwrap();
+        assert_eq!(confirmed.state, InvocationState::Succeeded);
+        assert_eq!(confirmed.receipt, Some(committed));
+        let mutation = service
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-2", &parameters)
+            .unwrap();
+        service
+            .external_attempt(&context(), &mutation)
+            .await
+            .unwrap();
+        let guard = service.external_claim(&context(), &mutation).unwrap();
+        drop(guard); // A different owner request loses its reply before reconciliation.
         let unknown = service
-            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-2", &parameters)
             .unwrap();
         assert_eq!(unknown.state, InvocationState::Unknown);
         assert_eq!(
@@ -727,13 +753,28 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
                     &context(),
                     &human,
                     "auth.pat.issue",
-                    "issue-1",
+                    "issue-2",
                     &serde_json::json!({"name":"changed"})
                 )
                 .err(),
             Some(Error::Conflict)
         );
+        assert_eq!(
+            service
+                .external_reserve(&context(), &human, "auth.pat.issue", "issue-3", &parameters)
+                .err(),
+            Some(Error::Conflict)
+        );
         drop(service);
+        assert_eq!(
+            Management::abandon_undispatched_external(
+                &directory.path().join("operations.sqlite"),
+                "test",
+                "bob",
+                "issue-2"
+            ),
+            Err(Error::Conflict)
+        );
         let reopened = Management::open(
             &directory.path().join("operations.sqlite"),
             "test".into(),
@@ -746,7 +787,7 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
         )
         .unwrap();
         let unknown = reopened
-            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-2", &parameters)
             .unwrap();
         assert_eq!(unknown.state, InvocationState::Unknown);
         reopened
@@ -758,7 +799,7 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
             .unwrap();
         reopened.external_flush(&context(), &unknown).await.unwrap();
         let receipt = reopened
-            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-2", &parameters)
             .unwrap();
         assert_eq!(receipt.state, InvocationState::Succeeded);
         assert_eq!(receipt.receipt.unwrap()["credential_id"], "owner-issued-1");
@@ -773,4 +814,50 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
                 .all(|event| event.actor.as_deref() == Some("bob"))
         );
     });
+}
+
+#[test]
+fn operator_abandons_only_a_never_dispatched_intent_with_exclusive_ownership() {
+    let (directory, service, policy, notes) = setup(false);
+    let path = directory.path().join("operations.sqlite");
+    let human = Principal {
+        subject: "bob".into(),
+    };
+    let mutation = service
+        .external_reserve(
+            &context(),
+            &human,
+            "auth.pat.issue",
+            "denied-1",
+            &serde_json::json!({"name":"rejected"}),
+        )
+        .unwrap();
+    assert_eq!(
+        Management::abandon_undispatched_external(&path, "test", "bob", "denied-1"),
+        Err(Error::Unavailable)
+    );
+    drop(service);
+    Management::abandon_undispatched_external(&path, "test", "bob", "denied-1").unwrap();
+    Management::abandon_undispatched_external(&path, "test", "bob", "never-reserved").unwrap();
+    let reopened = Rc::new(
+        Management::open(
+            &path,
+            "test".into(),
+            "catalog-1".into(),
+            vec![Binding {
+                entry: entry(false),
+                target: notes,
+            }],
+            policy,
+        )
+        .unwrap(),
+    );
+    let cancelled = reopened
+        .external_lookup(&human, "auth.pat.issue", "denied-1")
+        .unwrap();
+    assert_eq!(cancelled.state, InvocationState::Cancelled);
+    assert_eq!(
+        reopened.external_claim(&context(), &mutation).err(),
+        Some(Error::Conflict)
+    );
 }

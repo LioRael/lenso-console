@@ -259,3 +259,11 @@ pub(super) fn content_type(path: &std::path::Path) -> &'static str {
         _ => "application/octet-stream",
     }
 }
+
+/// Account-filtered management responses must not be retained by shared caches.
+pub(super) fn no_store(mut response: Response) -> Response {
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}

@@ -12,6 +12,7 @@ use std::rc::Rc;
 pub struct ExternalMutation {
     pub intent: Intent,
     pub state: InvocationState,
+    pub parameters: Value,
     /// A non-secret owner receipt. Raw credentials must never be passed here.
     pub receipt: Option<Value>,
 }
@@ -28,13 +29,88 @@ impl Management {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| Error::Unavailable)?;
-        if version == 4 {
+        if version == 5 {
             return Ok(());
         }
-        if version != 3 {
+        if !matches!(version, 3 | 4) {
             return Err(Error::Unavailable);
         }
-        connection.execute_batch("BEGIN IMMEDIATE; CREATE TABLE management_external_mutations(operation_id TEXT PRIMARY KEY, deployment TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, intent_json TEXT NOT NULL, parameters_digest TEXT NOT NULL, state_json TEXT NOT NULL, receipt_json TEXT, UNIQUE(deployment,subject,kind,idempotency_key)); PRAGMA user_version = 4; COMMIT;").map_err(|_| Error::Unavailable)
+        let migration = if version == 3 {
+            "BEGIN IMMEDIATE; CREATE TABLE management_external_mutations(operation_id TEXT PRIMARY KEY, deployment TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, intent_json TEXT NOT NULL, parameters_digest TEXT NOT NULL, parameters_json TEXT NOT NULL, state_json TEXT NOT NULL, receipt_json TEXT, UNIQUE(deployment,subject,kind,idempotency_key)); PRAGMA user_version = 5; COMMIT;"
+        } else {
+            "BEGIN IMMEDIATE; ALTER TABLE management_external_mutations ADD COLUMN parameters_json TEXT NOT NULL DEFAULT 'null'; PRAGMA user_version=5; COMMIT;"
+        };
+        connection
+            .execute_batch(migration)
+            .map_err(|_| Error::Unavailable)
+    }
+
+    /// Explicit operator recovery with the runtime stopped. This never erases a possible dispatch.
+    pub fn abandon_undispatched_external(
+        path: &std::path::Path,
+        deployment: &str,
+        subject: &str,
+        key: &str,
+    ) -> Result<(), Error> {
+        let _lease = super::journal_lease(&path.canonicalize().map_err(|_| Error::Unavailable)?)?;
+        let connection = rusqlite::Connection::open_with_flags(
+            path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+        )
+        .map_err(|_| Error::Unavailable)?;
+        let version: i64 = connection
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .map_err(|_| Error::Unavailable)?;
+        if version != 5
+            || [deployment, subject, key]
+                .iter()
+                .any(|value| value.is_empty() || value.len() > 256)
+        {
+            return Err(Error::InvalidInput);
+        }
+        let wire: Option<String> = connection.query_row("SELECT state_json FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind='auth.pat.issue' AND idempotency_key=?3", params![deployment,subject,key], |row| row.get(0)).optional().map_err(|_| Error::Unavailable)?;
+        if let Some(wire) = wire {
+            let state: InvocationState =
+                serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
+            if state != InvocationState::Ready && state != InvocationState::Cancelled {
+                return Err(Error::Conflict);
+            }
+            connection.execute("UPDATE management_external_mutations SET state_json=?4 WHERE deployment=?1 AND subject=?2 AND kind='auth.pat.issue' AND idempotency_key=?3", params![deployment,subject,key,serde_json::to_string(&InvocationState::Cancelled).map_err(|_|Error::Unavailable)?]).map_err(|_|Error::Unavailable)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn recover_external(&self) -> Result<(), Error> {
+        let mutations: Vec<(String, String, String)> = {
+            let journal = self.journal.borrow();
+            let mut statement = journal.prepare("SELECT intent_json,state_json,parameters_json FROM management_external_mutations WHERE deployment=?1 AND state_json=?2").map_err(|_|Error::Unavailable)?;
+            statement
+                .query_map(
+                    params![
+                        self.deployment,
+                        serde_json::to_string(&InvocationState::Executing)
+                            .map_err(|_| Error::Unavailable)?
+                    ],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .map_err(|_| Error::Unavailable)?
+                .collect::<Result<_, _>>()
+                .map_err(|_| Error::Unavailable)?
+        };
+        for (intent, state, parameters) in mutations {
+            self.external_record(
+                &ExternalMutation {
+                    intent: serde_json::from_str(&intent).map_err(|_| Error::Unavailable)?,
+                    state: serde_json::from_str(&state).map_err(|_| Error::Unavailable)?,
+                    parameters: serde_json::from_str(&parameters)
+                        .map_err(|_| Error::Unavailable)?,
+                    receipt: None,
+                },
+                InvocationState::Unknown,
+                None,
+            )?;
+        }
+        Ok(())
     }
 
     /// Host-only reservation; this API is absent from Management tools and external JSON.
@@ -65,19 +141,26 @@ impl Management {
         let transaction = journal
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| Error::Unavailable)?;
-        let prior: Option<(String,String,String,Option<String>)> = transaction.query_row("SELECT intent_json,parameters_digest,state_json,receipt_json FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind=?3 AND idempotency_key=?4", params![self.deployment,human.subject,kind,key], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).optional().map_err(|_| Error::Unavailable)?;
-        if let Some((intent, previous, state, receipt)) = prior {
+        let prior: Option<(String,String,String,Option<String>,String)> = transaction.query_row("SELECT intent_json,parameters_digest,state_json,receipt_json,parameters_json FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind=?3 AND idempotency_key=?4", params![self.deployment,human.subject,kind,key], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))).optional().map_err(|_| Error::Unavailable)?;
+        if let Some((intent, previous, state, receipt, parameters)) = prior {
             if previous != digest {
                 return Err(Error::Conflict);
             }
             return Ok(ExternalMutation {
                 intent: serde_json::from_str(&intent).map_err(|_| Error::Unavailable)?,
                 state: serde_json::from_str(&state).map_err(|_| Error::Unavailable)?,
+                parameters: serde_json::from_str(&parameters).map_err(|_| Error::Unavailable)?,
                 receipt: receipt
                     .map(|wire| serde_json::from_str(&wire))
                     .transpose()
                     .map_err(|_| Error::Unavailable)?,
             });
+        }
+        if kind == "auth.pat.issue" {
+            let unfinished: bool = transaction.query_row("SELECT EXISTS(SELECT 1 FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind=?3 AND json_extract(state_json,'$') IN ('ready','executing','unknown'))", params![self.deployment,human.subject,kind], |row| row.get(0)).map_err(|_| Error::Unavailable)?;
+            if unfinished {
+                return Err(Error::Conflict);
+            }
         }
         let intent = Intent {
             operation_id: uuid::Uuid::new_v4().to_string(),
@@ -89,7 +172,7 @@ impl Management {
         };
         transaction
             .execute(
-                "INSERT INTO management_external_mutations VALUES(?1,?2,?3,?4,?5,?6,?7,?8,NULL)",
+                "INSERT INTO management_external_mutations(operation_id,deployment,subject,kind,idempotency_key,intent_json,parameters_digest,state_json,parameters_json) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
                 params![
                     intent.operation_id,
                     self.deployment,
@@ -99,7 +182,8 @@ impl Management {
                     serde_json::to_string(&intent).map_err(|_| Error::Unavailable)?,
                     intent.digest,
                     serde_json::to_string(&InvocationState::Ready)
-                        .map_err(|_| Error::Unavailable)?
+                        .map_err(|_| Error::Unavailable)?,
+                    serde_json::to_string(parameters).map_err(|_| Error::Unavailable)?
                 ],
             )
             .map_err(|_| Error::Unavailable)?;
@@ -107,7 +191,41 @@ impl Management {
         Ok(ExternalMutation {
             intent,
             state: InvocationState::Ready,
+            parameters: parameters.clone(),
             receipt: None,
+        })
+    }
+
+    /// Receipt lookup is scoped to the currently authorized human and exact original key.
+    pub fn external_lookup(
+        &self,
+        human: &Principal,
+        kind: &str,
+        key: &str,
+    ) -> Result<ExternalMutation, Error> {
+        let wire: Option<(String, String, Option<String>, String)> = self.journal.borrow().query_row("SELECT intent_json,state_json,receipt_json,parameters_json FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind=?3 AND idempotency_key=?4", params![self.deployment,human.subject,kind,key], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).optional().map_err(|_| Error::Unavailable)?;
+        let (intent, state, receipt, parameters) = wire.ok_or(Error::NotFound)?;
+        let intent: Intent = serde_json::from_str(&intent).map_err(|_| Error::Unavailable)?;
+        let parameters: Value =
+            serde_json::from_str(&parameters).map_err(|_| Error::Unavailable)?;
+        let digest = format!(
+            "{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&canonicalize(parameters.clone()))
+                    .map_err(|_| Error::Unavailable)?
+            )
+        );
+        if intent.digest != digest {
+            return Err(Error::Unavailable);
+        }
+        Ok(ExternalMutation {
+            intent,
+            state: serde_json::from_str(&state).map_err(|_| Error::Unavailable)?,
+            parameters,
+            receipt: receipt
+                .map(|wire| serde_json::from_str(&wire))
+                .transpose()
+                .map_err(|_| Error::Unavailable)?,
         })
     }
 
@@ -166,21 +284,44 @@ impl Management {
         state: InvocationState,
         receipt: Option<Value>,
     ) -> Result<(), Error> {
+        self.external_record_guarded(mutation, state, receipt, false)
+    }
+    fn external_record_guarded(
+        &self,
+        mutation: &ExternalMutation,
+        state: InvocationState,
+        receipt: Option<Value>,
+        executing_only: bool,
+    ) -> Result<(), Error> {
         let updated = ExternalMutation {
             intent: mutation.intent.clone(),
+            parameters: mutation.parameters.clone(),
             state,
             receipt,
         };
         let mut journal = self.journal.borrow_mut();
         let transaction = journal.transaction().map_err(|_| Error::Unavailable)?;
-        transaction.execute("UPDATE management_external_mutations SET state_json=?2,receipt_json=?3 WHERE operation_id=?1",params![updated.intent.operation_id,serde_json::to_string(&updated.state).map_err(|_| Error::Unavailable)?,updated.receipt.as_ref().map(serde_json::to_string).transpose().map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
-        let phase = if mutation.state == InvocationState::Unknown
-            && updated.state == InvocationState::Succeeded
+        let prior: String = transaction
+            .query_row(
+                "SELECT state_json FROM management_external_mutations WHERE operation_id=?1",
+                [&updated.intent.operation_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| Error::Unavailable)?;
+        let prior: InvocationState =
+            serde_json::from_str(&prior).map_err(|_| Error::Unavailable)?;
+        if (executing_only && prior != InvocationState::Executing)
+            || (prior == InvocationState::Succeeded && updated.state != InvocationState::Succeeded)
         {
-            "external_reconciled"
-        } else {
-            "external_completed"
-        };
+            return Ok(());
+        }
+        transaction.execute("UPDATE management_external_mutations SET state_json=?2,receipt_json=?3 WHERE operation_id=?1",params![updated.intent.operation_id,serde_json::to_string(&updated.state).map_err(|_| Error::Unavailable)?,updated.receipt.as_ref().map(serde_json::to_string).transpose().map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
+        let phase =
+            if prior == InvocationState::Unknown && updated.state == InvocationState::Succeeded {
+                "external_reconciled"
+            } else {
+                "external_completed"
+            };
         // Persist the outcome and outbox atomically before returning an owner reply.
         let event = AuditEvent {
             intent: updated.intent.clone(),
@@ -218,7 +359,7 @@ pub struct ExternalDispatchGuard {
 impl ExternalDispatchGuard {
     pub fn complete(mut self, state: InvocationState, receipt: Option<Value>) -> Result<(), Error> {
         self.management
-            .external_record(&self.mutation, state, receipt)?;
+            .external_record_guarded(&self.mutation, state, receipt, true)?;
         self.armed = false;
         Ok(())
     }
@@ -226,9 +367,12 @@ impl ExternalDispatchGuard {
 impl Drop for ExternalDispatchGuard {
     fn drop(&mut self) {
         if self.armed {
-            let _ = self
-                .management
-                .external_record(&self.mutation, InvocationState::Unknown, None);
+            let _ = self.management.external_record_guarded(
+                &self.mutation,
+                InvocationState::Unknown,
+                None,
+                true,
+            );
         }
     }
 }

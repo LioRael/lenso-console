@@ -10,6 +10,7 @@ export default defineConfig({
     "contracts/**/generated/**",
     "plugins/**/generated/**",
     "packages/**/generated/**",
+    "src/**/generated/**",
   ],
   overrides: [
     {

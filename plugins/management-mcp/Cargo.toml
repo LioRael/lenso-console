@@ -12,11 +12,14 @@ description = "Opt-in MCP Streamable HTTP server over one bound Management Capab
 [dependencies]
 axum = "0.8"
 http = "1"
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
-lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
 lenso-capability-management = { path = "../../contracts/crates/lenso-capability-management", version = "0.1.0" }
 lenso-kernel = "0.3.11"
-rmcp = { version = "=3.5.0", default-features = false, features = ["server", "transport-streamable-http-server"] }
+rmcp = { version = "=3.5.0", default-features = false, features = [
+  "server",
+  "transport-streamable-http-server",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -28,7 +31,11 @@ url = "2"
 lenso-app-plan = "0.4.6"
 lenso-native-adapter = "0.3.18"
 lenso-runner = "0.2.19"
-rmcp = { version = "=3.5.0", default-features = false, features = ["client", "transport-streamable-http-client-reqwest", "reqwest"] }
+rmcp = { version = "=3.5.0", default-features = false, features = [
+  "client",
+  "transport-streamable-http-client-reqwest",
+  "reqwest",
+] }
 reqwest = { version = "0.13", features = ["json"] }
 tokio = { version = "1", features = ["macros", "net"] }
 

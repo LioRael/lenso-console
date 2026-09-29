@@ -135,7 +135,7 @@ function parseOriginFormRequestTarget(
 }
 
 function shouldProxyToHost(pathname: string) {
-  return pathname.startsWith("/api/console/");
+  return pathname.startsWith("/api/console/") || pathname.startsWith("/auth/");
 }
 
 function isPrivilegedDevPath(pathname: string) {
@@ -308,7 +308,15 @@ async function proxyToHost({
   try {
     const response = await fetch(target, init);
     res.statusCode = response.status;
-    response.headers.forEach((value, key) => res.setHeader(key, value));
+    response.headers.forEach((value, key) => {
+      if (key !== "set-cookie") {
+        res.setHeader(key, value);
+      }
+    });
+    const cookies = response.headers.getSetCookie();
+    if (cookies.length > 0) {
+      res.setHeader("set-cookie", cookies);
+    }
     if (response.body) {
       const reader = response.body.getReader();
       while (!controller.signal.aborted) {
@@ -350,6 +358,19 @@ function proxyHeaders(
     headers.set("authorization", `Bearer ${agentControlToken}`);
   } else if (authorization) {
     headers.set("authorization", authorization);
+  }
+  for (const name of [
+    "cookie",
+    "origin",
+    "x-csrf-token",
+    "sec-fetch-site",
+    "sec-fetch-mode",
+    "sec-fetch-dest",
+  ]) {
+    const value = firstHeader(req.headers[name]);
+    if (value) {
+      headers.set(name, value);
+    }
   }
   if (contentType) {
     headers.set("content-type", contentType);

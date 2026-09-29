@@ -52,6 +52,127 @@ impl HumanPatServiceProvider {
             )
             .await
     }
+    async fn receipt_current(
+        &self,
+        context: &InvocationContext,
+        request: &pat::ReceiptRequest,
+    ) -> Result<pat::ReceiptResponse, lenso_kernel::RuntimeFailure> {
+        let human = self
+            .authorize_receipt(context, &request.deployment)
+            .await
+            .map_err(|_| unavailable())?;
+        let mutation = self
+            .management
+            .external_lookup(&human, "auth.pat.issue", &request.idempotency_key)
+            .map_err(|_| unavailable())?;
+        let result = self
+            .owner
+            .receipt_with_context(context.clone(), request.clone())
+            .await
+            .map_err(|_| unavailable())?;
+        let current = self
+            .authorize_receipt(context, &request.deployment)
+            .await
+            .map_err(|_| unavailable())?;
+        if current != human {
+            return Err(unavailable());
+        }
+        if result.found {
+            let credential = result
+                .credential
+                .as_ref()
+                .and_then(Option::as_ref)
+                .ok_or_else(unavailable)?;
+            let original: pat::IssueRequest =
+                serde_json::from_value(mutation.parameters.clone()).map_err(|_| unavailable())?;
+            let mut requested_permissions = original.permissions.clone();
+            requested_permissions.sort();
+            let mut actual_permissions = credential.permissions.clone();
+            actual_permissions.sort();
+            let mut requested_scopes: Vec<_> = original
+                .resource_scopes
+                .iter()
+                .map(|scope| (&scope.kind, &scope.id))
+                .collect();
+            requested_scopes.sort();
+            let mut actual_scopes: Vec<_> = credential
+                .resource_scopes
+                .iter()
+                .map(|scope| (&scope.kind, &scope.id))
+                .collect();
+            actual_scopes.sort();
+            let original_expiry = time::OffsetDateTime::parse(
+                &original.expires_at,
+                &time::format_description::well_known::Rfc3339,
+            )
+            .map_err(|_| unavailable())?;
+            let original_expiry = original_expiry
+                .replace_nanosecond(original_expiry.nanosecond() / 1_000 * 1_000)
+                .map_err(|_| unavailable())?;
+            if credential.deployment != self.deployment
+                || credential.name != original.name
+                || requested_permissions != actual_permissions
+                || requested_scopes != actual_scopes
+                || time::OffsetDateTime::parse(
+                    &credential.expires_at,
+                    &time::format_description::well_known::Rfc3339,
+                )
+                .map_err(|_| unavailable())?
+                    != original_expiry
+            {
+                return Err(unavailable());
+            }
+            if matches!(
+                mutation.state,
+                InvocationState::Unknown | InvocationState::Executing | InvocationState::Succeeded
+            ) {
+                self.management
+                    .external_record(
+                        &mutation,
+                        InvocationState::Succeeded,
+                        Some(serde_json::to_value(credential).map_err(|_| unavailable())?),
+                    )
+                    .map_err(|_| unavailable())?;
+            } else {
+                return Err(unavailable());
+            }
+        }
+        self.management
+            .external_flush(context, &mutation)
+            .await
+            .map_err(|_| unavailable())?;
+        if self
+            .authorize_receipt(context, &request.deployment)
+            .await
+            .map_err(|_| unavailable())?
+            != human
+        {
+            return Err(unavailable());
+        }
+        Ok(result)
+    }
+    async fn authorize_receipt(
+        &self,
+        context: &InvocationContext,
+        deployment: &str,
+    ) -> Result<Principal, Error> {
+        if deployment != self.deployment {
+            return Err(Error::Denied);
+        }
+        self.authority
+            .authorize_human(
+                context,
+                deployment,
+                &EntryPolicy {
+                    permission: "auth.pat.list".into(),
+                    scope_kind: "management-deployment".into(),
+                    scope_id: deployment.into(),
+                },
+                pat::CAPABILITY_ID,
+                pat::RECEIPT_OPERATION,
+            )
+            .await
+    }
     async fn authorize_issue(
         &self,
         context: &InvocationContext,
@@ -163,14 +284,17 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                 )
                 .map_err(|_| unavailable())?;
             if mutation.state == InvocationState::Succeeded {
-                this.management
-                    .external_flush(&context, &mutation)
-                    .await
-                    .map_err(|_| unavailable())?;
-                let credential = serde_json::from_value(mutation.receipt.ok_or_else(unavailable)?)
-                    .map_err(|_| unavailable())?;
+                let receipt = this
+                    .receipt_current(
+                        &context,
+                        &pat::ReceiptRequest {
+                            deployment: request.deployment.clone(),
+                            idempotency_key: request.idempotency_key.clone(),
+                        },
+                    )
+                    .await?;
                 return Ok(Ok(pat::IssueResponse {
-                    credential,
+                    credential: receipt.credential.flatten().ok_or_else(unavailable)?,
                     token: None,
                     replayed: true,
                 }));
@@ -232,6 +356,23 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                 return Ok(Err(pat::IssueError::PermissionDenied));
             }
             Ok(Ok(result))
+        })
+    }
+    fn receipt(
+        &self,
+        context: InvocationContext,
+        request: pat::ReceiptRequest,
+    ) -> NativeRequestFuture<pat::HumanApiTokenReceipt> {
+        let this = self.clone();
+        Box::pin(async move {
+            if let Err(error) = this.authorize_receipt(&context, &request.deployment).await {
+                return rejection(
+                    error,
+                    pat::ReceiptError::PermissionDenied,
+                    pat::ReceiptError::InvalidRequest,
+                );
+            }
+            this.receipt_current(&context, &request).await.map(Ok)
         })
     }
     fn list(

@@ -2,6 +2,7 @@ mod app_management;
 mod controlled_management;
 mod http;
 mod human_management;
+mod human_tokens;
 mod lenso_http;
 mod local_agent_client;
 mod page_contributions;
@@ -229,6 +230,7 @@ pub struct ConsolePlugin {
     operator_access: ManyPort<lenso_capability_access_control::AccessControlClient>,
     management: ManyPort<lenso_capability_management::ManagementClient>,
     human_management: ManyPort<lenso_capability_management_human::ManagementHumanClient>,
+    human_tokens: ManyPort<lenso_capability_human_api_token::HumanApiTokenClient>,
     workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
     workspace_services: ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
     application: std::rc::Rc<RefCell<Option<ConsoleApplication>>>,
@@ -282,6 +284,18 @@ impl Lifecycle for ConsolePlugin {
                 "Human interface requires its separately bound Management Human capability",
             ));
         }
+        if self.human_tokens.iter().count()
+            != usize::from(
+                self.config
+                    .operators_profile
+                    .as_ref()
+                    .is_some_and(|profile| profile.human_interface),
+            )
+        {
+            return Err(invalid_plan(
+                "Human interface requires its separately guarded Human API Token capability",
+            ));
+        }
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
         let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,
@@ -303,6 +317,11 @@ impl Lifecycle for ConsolePlugin {
                 .map(|bound| bound.client().clone());
             application.human_management = self
                 .human_management
+                .iter()
+                .next()
+                .map(|bound| bound.client().clone());
+            application.human_tokens = self
+                .human_tokens
                 .iter()
                 .next()
                 .map(|bound| bound.client().clone());
@@ -490,6 +509,7 @@ fn console_application(
         web_root: config.web_root,
         management: None,
         human_management: None,
+        human_tokens: None,
     }
 }
 
@@ -497,6 +517,7 @@ fn console_application(
 struct ConsoleApplication {
     management: Option<lenso_capability_management::ManagementClient>,
     human_management: Option<lenso_capability_management_human::ManagementHumanClient>,
+    human_tokens: Option<lenso_capability_human_api_token::HumanApiTokenClient>,
     agents: AgentCatalog,
     apps: app_management::AppCatalog,
     pages: page_contributions::PageCatalog,
@@ -523,6 +544,11 @@ impl ConsoleApplication {
         }
         if let Some(client) = &self.human_management
             && let Some(response) = human_management::handle(client, &request).await
+        {
+            return response;
+        }
+        if let Some(client) = &self.human_tokens
+            && let Some(response) = human_tokens::handle(client, &request).await
         {
             return response;
         }

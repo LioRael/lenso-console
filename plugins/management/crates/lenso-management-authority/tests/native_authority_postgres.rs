@@ -404,6 +404,7 @@ fn plan(
         [
             token_admin::ISSUE_OPERATION,
             token_admin::LIST_OPERATION,
+            token_admin::RECEIPT_OPERATION,
             token_admin::REVOKE_OPERATION,
         ],
     ));

@@ -20,11 +20,11 @@ lenso-projects-postgres-plugin = { git = "https://github.com/LioRael/lenso-proje
 lenso-organization-postgres-plugin = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
 lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "62ed6b9a100242e6932a46cb369b21f1c26ab765" }
 lenso-app-authoring = { package = "lenso-cli", version = "0.6.3", default-features = false }
-lenso-auth-account-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
-lenso-auth-password-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
-lenso-auth-web-session-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
-lenso-auth-oidc-client-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
-lenso-auth-oauth-flow-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
+lenso-auth-account-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
+lenso-auth-password-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
+lenso-auth-web-session-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
+lenso-auth-oidc-client-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
+lenso-auth-oauth-flow-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
 lenso-secrets-env-plugin = "0.1.7"
 lenso-http-egress-plugin = "0.3.5"
 lenso-observe-plugin = { path = "../../../plugins/observe" }
@@ -57,7 +57,7 @@ directories = "6.0"
 
 [dev-dependencies]
 lenso-console-welcome-workspace-plugin = { path = "../../tests/fixtures/welcome-workspace-plugin" }
-lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "88ac65a1dd425ae26c44df3dc3ebb96544306e86" }
+lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "23bbe1e415fe07978970b52b1b7f5a00486e2ae3" }
 lenso-postgres-kit = { git = "https://github.com/LioRael/lenso-postgres-kit", rev = "bc12ce2e59ef63e63ffcabb1eb4b524c3022c834" }
 lenso-capability-ui-contribution = { path = "../../../contracts/crates/lenso-capability-ui-contribution" }
 lenso-capability-workspace-service = { path = "../../../contracts/crates/lenso-capability-workspace-service" }

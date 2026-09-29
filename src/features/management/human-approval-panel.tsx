@@ -33,6 +33,7 @@ export function HumanApprovalPanel() {
   const copy = (en: string, cn: string) => (zh ? cn : en);
   const [operationId, setOperationId] = useState("");
   const [review, setReview] = useState<ReadIntentResponse>();
+  const [needsRefresh, setNeedsRefresh] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const request = useRef<AbortController | null>(null);
@@ -76,7 +77,13 @@ export function HumanApprovalPanel() {
       if (decision) {
         const result = decodeDecideResponse(text);
         setReview((current) =>
-          current ? { ...current, status: result.status } : current
+          current
+            ? {
+                ...current,
+                status: result.status,
+                audit_pending: result.audit_pending,
+              }
+            : current
         );
         setMessage(
           copy(
@@ -86,9 +93,13 @@ export function HumanApprovalPanel() {
         );
       } else {
         setReview(decodeReadIntentResponse(text));
+        setNeedsRefresh(false);
       }
     } catch (error) {
       if (!controller.signal.aborted) {
+        if (decision) {
+          setNeedsRefresh(true);
+        }
         const reason = error instanceof Error ? error.message : "unavailable";
         setMessage(
           reason === "denied"
@@ -176,9 +187,17 @@ export function HumanApprovalPanel() {
             <dd>{review.status}</dd>
           </dl>
           <pre {...stylex.props(styles.data)}>{review.parameters_json}</pre>
+          {review.audit_pending && (
+            <output>
+              {copy(
+                "Audit delivery pending. Query this intent to confirm delivery.",
+                "审计待送达，请查询此意图确认状态。"
+              )}
+            </output>
+          )}
           <div {...stylex.props(styles.actions)}>
             <Button
-              disabled={busy || review.status !== "pending"}
+              disabled={busy || needsRefresh || review.status !== "pending"}
               onClick={() => {
                 void perform("approved");
               }}
@@ -187,7 +206,7 @@ export function HumanApprovalPanel() {
             </Button>
             <Button
               variant="ghost"
-              disabled={busy || review.status !== "pending"}
+              disabled={busy || needsRefresh || review.status !== "pending"}
               onClick={() => {
                 void perform("rejected");
               }}

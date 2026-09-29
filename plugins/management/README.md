@@ -18,7 +18,7 @@ missing file, migrates a configured deployment or falls back to memory. The
 journal stores operation metadata, the bounded canonical input and expected revision,
 a canonical intent digest and bounded results. It never persists credentials.
 Human review reads that sealed input rather than client-supplied replacements.
-Schema version 3 must be prepared explicitly. A lifetime file lease rejects a second active owner; only
+Schema version 5 must be prepared explicitly; `Management::upgrade_journal` upgrades existing versions 3 or 4 only while no runtime owner holds its lease. A lifetime file lease rejects a second active owner; only
 a new exclusive owner may recover unfinished dispatches.
 
 The trusted `Authority` adapter must check current credential validity, operators
@@ -67,3 +67,23 @@ PostgreSQL integration test exercises the real generated four-owner ports,
 current credentials and grants, a different human approver, and receipt recovery.
 That proof does not establish Workers Management storage or remote Hyperdrive
 support. The ordinary source App and transport compositions retain separate gates.
+
+Human PAT issuance and revocation use a separate bound human port, never a catalog
+or Agent tool. Their original non-secret parameters, metadata-only receipts and
+stable audit phases are durable. A cancelled reply cannot overwrite a confirmed
+owner receipt. A different issuance key is blocked while this subject/deployment
+has an unresolved mutation. Receipt reads refresh active metadata without
+recovering a secret or sending a second issue call.
+
+A generic HTTP rejection after submission can follow a committed credential.
+The browser therefore retains only the subject/deployment-scoped receipt key
+across reloads and keeps issuance locked until an owner receipt confirms it.
+It validates known request shape before storing that key. If a request was
+rejected before reservation or remains undispatched, an operator may stop the
+selected Host, call `Management::abandon_undispatched_external(path, deployment,
+subject, key)` under the exclusive journal lease, and clear only that exact
+browser receipt reference. This API accepts absent or `ready` records and
+marks `ready` as `cancelled`; it rejects `executing`, `unknown`, `failed` and
+`succeeded`. It must never be used to clear an owner receipt that is merely not
+visible yet. Preserve the recovery receipt and original reference in the
+operator's qualification record. The API is not exposed through HTTP or tools.

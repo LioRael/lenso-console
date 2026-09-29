@@ -11,7 +11,7 @@
     "lint": "ultracite check --deny-warnings",
     "check": "pnpm check:preflight && pnpm check:full",
     "clean:web": "node scripts/clean-console-web.mjs",
-    "contract:typecheck": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler contracts/crates/lenso-capability-ui-contribution/generated/bindings.ts contracts/crates/lenso-capability-workspace-service/generated/bindings.ts plugins/observe/crates/lenso-capability-observability-query/generated/bindings.ts packages/console-sdk/src/index.ts packages/console-sdk/src/generated/contribution.ts packages/console-sdk/src/generated/workspace-service.ts packages/console-sdk/src/server.ts contracts/crates/lenso-capability-management/generated/bindings.ts contracts/crates/lenso-capability-management-human/generated/bindings.ts",
+    "contract:typecheck": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler contracts/crates/lenso-capability-ui-contribution/generated/bindings.ts contracts/crates/lenso-capability-workspace-service/generated/bindings.ts plugins/observe/crates/lenso-capability-observability-query/generated/bindings.ts packages/console-sdk/src/index.ts packages/console-sdk/src/generated/contribution.ts packages/console-sdk/src/generated/workspace-service.ts packages/console-sdk/src/server.ts contracts/crates/lenso-capability-management/generated/bindings.ts contracts/crates/lenso-capability-management-human/generated/bindings.ts src/features/management/generated/human-api-token.ts",
     "bundle:local": "pnpm clean:web && VITE_CONSOLE_MODE=${VITE_CONSOLE_MODE:-api} VITE_API_BASE_URL=${VITE_API_BASE_URL:-/} vite build",
     "service:web-build": "pnpm typecheck:local && VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ pnpm bundle:local && test -s dist/client/index.html",
     "service:serve": "pnpm service:web-build && cargo run --locked --manifest-path service/Cargo.toml --bin lenso-console",
@@ -34,11 +34,12 @@
     "typecheck:local": "tsc -b --pretty false",
     "preview": "vite preview --host 0.0.0.0",
     "test:distribution": "node --test scripts/distribution/*.test.mjs",
-    "check:preflight": "pnpm lint && node scripts/check-rust-format.mjs && pnpm service:boundary && pnpm contract:typecheck",
+    "check:preflight": "pnpm lint && node scripts/check-rust-format.mjs && pnpm service:boundary && pnpm contract:typecheck && pnpm human-tokens:projection",
     "check:full": "pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check && pnpm management:check && pnpm management:mcp:check",
     "test:conventions": "bun test packages/console-convention/test",
     "management:check": "cargo fmt --manifest-path plugins/management/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path plugins/management/Cargo.toml --all-targets -- -D warnings && cargo test --locked --manifest-path plugins/management/Cargo.toml",
-    "management:mcp:check": "cargo fmt --manifest-path plugins/management-mcp/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path plugins/management-mcp/Cargo.toml --all-targets -- -D warnings && cargo test --locked --manifest-path plugins/management-mcp/Cargo.toml"
+    "management:mcp:check": "cargo fmt --manifest-path plugins/management-mcp/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path plugins/management-mcp/Cargo.toml --all-targets -- -D warnings && cargo test --locked --manifest-path plugins/management-mcp/Cargo.toml",
+    "human-tokens:projection": "node scripts/check-human-token-projection.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
