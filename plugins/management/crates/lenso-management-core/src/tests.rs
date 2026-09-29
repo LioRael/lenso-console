@@ -13,6 +13,7 @@ struct Policy {
     now: Cell<Duration>,
     audit_failure: RefCell<Option<String>>,
     audit_events: RefCell<Vec<AuditEvent>>,
+    revoke_on_dispatch_audit: Cell<bool>,
 }
 
 impl Authority for Policy {
@@ -27,6 +28,9 @@ impl Authority for Policy {
         async move {
             if self.audit_failure.borrow().as_deref() == Some(&event.phase) {
                 return Err(Error::Unavailable);
+            }
+            if self.revoke_on_dispatch_audit.get() && event.phase == "dispatch" {
+                self.allowed.set(false);
             }
             self.audit_events.borrow_mut().push(event.clone());
             Ok(())
@@ -78,6 +82,8 @@ struct Notes {
     calls: Cell<usize>,
     lose_response: Cell<bool>,
     hang_after_commit: Cell<bool>,
+    cancel_after_read: Cell<bool>,
+    cancel_after_receipt: Cell<bool>,
     value: RefCell<Value>,
     receipts: RefCell<BTreeMap<String, (Value, String)>>,
 }
@@ -85,7 +91,7 @@ struct Notes {
 impl Target for Notes {
     fn invoke<'a>(
         &'a self,
-        _: InvocationContext,
+        context: InvocationContext,
         input: Value,
         _: Option<String>,
         id: Option<String>,
@@ -107,6 +113,9 @@ impl Target for Notes {
             if self.lose_response.get() {
                 return Err(Error::Unavailable);
             }
+            if self.cancel_after_read.get() {
+                context.cancellation().cancel();
+            }
             Ok(Outcome::Committed {
                 result: input,
                 receipt,
@@ -116,10 +125,16 @@ impl Target for Notes {
     }
     fn receipt<'a>(
         &'a self,
-        _: InvocationContext,
+        context: InvocationContext,
         id: &'a str,
     ) -> LocalBoxFuture<'a, Result<Option<(Value, String)>, Error>> {
-        async move { Ok(self.receipts.borrow().get(id).cloned()) }.boxed_local()
+        async move {
+            if self.cancel_after_receipt.get() {
+                context.cancellation().cancel();
+            }
+            Ok(self.receipts.borrow().get(id).cloned())
+        }
+        .boxed_local()
     }
 }
 
@@ -161,6 +176,7 @@ fn setup(approval: bool) -> (tempfile::TempDir, Management, Rc<Policy>, Rc<Notes
         now: Cell::new(Duration::ZERO),
         audit_failure: RefCell::new(None),
         audit_events: RefCell::new(Vec::new()),
+        revoke_on_dispatch_audit: Cell::new(false),
     });
     let notes = Rc::new(Notes::default());
     let service = Management::open(
@@ -541,6 +557,82 @@ fn audit_outbox_blocks_before_dispatch_and_recovers_after_commit_without_replay(
             events
                 .iter()
                 .all(|event| !serde_json::to_string(event).unwrap().contains("audited"))
+        );
+    });
+}
+
+#[test]
+fn revocation_during_dispatch_audit_blocks_target() {
+    block_on(async {
+        let (_directory, service, policy, notes) = setup(false);
+        policy.revoke_on_dispatch_audit.set(true);
+        assert_eq!(
+            service
+                .invoke(context(), request("revoked while recording"))
+                .await
+                .unwrap_err(),
+            Error::Denied
+        );
+        assert_eq!(notes.calls.get(), 0);
+    });
+}
+
+#[test]
+fn late_read_and_receipt_do_not_escape_the_original_cancellation_scope() {
+    block_on(async {
+        let (directory, service, policy, notes) = setup(false);
+        drop(service);
+        let mut read = entry(false);
+        read.effect = Effect::Read;
+        let service = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".into(),
+            "catalog-1".into(),
+            vec![Binding {
+                entry: read,
+                target: notes.clone(),
+            }],
+            policy.clone(),
+        )
+        .unwrap();
+        notes.cancel_after_read.set(true);
+        assert_eq!(
+            service
+                .invoke(context(), request("read"))
+                .await
+                .unwrap_err(),
+            Error::Cancelled
+        );
+        drop(service);
+        notes.cancel_after_read.set(false);
+        notes.lose_response.set(true);
+        let service = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".into(),
+            "catalog-1".into(),
+            vec![Binding {
+                entry: entry(false),
+                target: notes.clone(),
+            }],
+            policy,
+        )
+        .unwrap();
+        let result = service.invoke(context(), request("write")).await.unwrap();
+        let id = result.operation_id.unwrap();
+        assert_eq!(result.state, InvocationState::Unknown);
+        notes.cancel_after_receipt.set(true);
+        assert_eq!(
+            service.status(context(), &id).await.unwrap_err(),
+            Error::Cancelled
+        );
+        assert_eq!(
+            service.load(&id).unwrap().response.state,
+            InvocationState::Unknown
+        );
+        notes.cancel_after_receipt.set(false);
+        assert_eq!(
+            service.status(context(), &id).await.unwrap().state,
+            InvocationState::Succeeded
         );
     });
 }

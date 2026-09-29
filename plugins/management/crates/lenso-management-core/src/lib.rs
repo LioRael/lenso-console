@@ -392,8 +392,9 @@ impl Management {
         if accepted.entry.effect == Effect::Read {
             let outcome = accepted
                 .target
-                .invoke(context, input, request.expected_revision, None)
+                .invoke(context.clone(), input, request.expected_revision, None)
                 .await?;
+            self.check_context(&context)?;
             return response(None, outcome);
         }
         let key = request
@@ -470,7 +471,17 @@ impl Management {
         }
         self.queue_audit(&intent, "dispatch", InvocationState::Executing, None)?;
         self.flush_audit(&context, &id).await?;
+        let current = self
+            .authority
+            .authorize(&context, &self.deployment, &accepted.entry, "invoke")
+            .await?;
+        if current.subject != record.subject {
+            return Err(Error::Denied);
+        }
         self.check_context(&context)?;
+        if self.authority.wall_now() >= parse_time(&record.expires_at)? {
+            return Err(Error::Denied);
+        }
         record.response.state = InvocationState::Executing;
         if !self.claim_execution(&id, &record.response)? {
             return self.load(&id).map(|record| record.response);
@@ -534,6 +545,7 @@ impl Management {
         else {
             return Ok(record.response);
         };
+        self.check_context(&context)?;
         let response = response(
             Some(operation_id.to_owned()),
             Outcome::Committed { result, receipt },
@@ -541,6 +553,20 @@ impl Management {
         self.save_with_audit(operation_id, &response, "reconciled")?;
         let _ = self.flush_audit(&context, operation_id).await;
         self.load(operation_id).map(|record| record.response)
+    }
+
+    /// Host-only handoff to the separately guarded human Approval adapter.
+    /// This is not exposed by the catalog/invoke/status Capability or tool projection.
+    pub fn pending_approval_intent(&self, operation_id: &str) -> Result<(Intent, Entry), Error> {
+        let record = self.load(operation_id)?;
+        let accepted = self.entries.get(&record.entry_id).ok_or(Error::NotFound)?;
+        if !accepted.entry.requires_approval
+            || record.response.state != InvocationState::PendingApproval
+            || binding_digest(&accepted.entry)? != record.binding_digest
+        {
+            return Err(Error::Conflict);
+        }
+        Ok((self.intent(&record)?, accepted.entry.clone()))
     }
 
     fn reserve(
