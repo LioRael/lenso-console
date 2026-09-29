@@ -195,6 +195,23 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
         HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
             .with_admission(CONSOLE_REQUEST_ADMISSION),
     ];
+    // This local distribution admits workspace owners, not the Operators profile.
+    // Keep their installation from selecting administration ports implicitly.
+    bindings.extend(
+        [
+            lenso_capability_access_control::CAPABILITY_ID,
+            lenso_capability_management::CAPABILITY_ID,
+            lenso_capability_management_human::CAPABILITY_ID,
+            lenso_capability_human_api_token::CAPABILITY_ID,
+        ]
+        .map(|capability| {
+            HostBinding::new(
+                PluginInstanceId::new("lenso.console.web", "default"),
+                capability,
+                "console",
+            )
+        }),
+    );
     if observe_source.is_some() {
         bindings.push(HostBinding::new(
             PluginInstanceId::new("lenso.web-ingress", "telemetry"),

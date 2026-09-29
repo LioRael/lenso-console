@@ -21,7 +21,7 @@ use lenso_capability_business_approval as approval;
 use lenso_capability_credential_state as credentials;
 use lenso_kernel::InvocationContext;
 use lenso_management_core::{
-    Approval, AuditEvent, Authority, Entry, Error, Intent, Management, Principal,
+    Approval, AuditEvent, Authority, Effect, Entry, Error, Intent, Management, Principal,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc, time::Duration};
@@ -109,12 +109,28 @@ pub struct OwnerPorts {
     pub audit: audit::AuditLogClient,
 }
 
+/// An explicitly selected read-only authority keeps identity, policy and audit owners.
+#[derive(Debug)]
+pub struct ReadOnlyOwnerPorts {
+    pub credential_state: credentials::CredentialStateClient,
+    pub access: access::AccessControlClient,
+    pub audit: audit::AuditLogClient,
+}
+
+#[derive(Debug)]
+struct BoundOwnerPorts {
+    credential_state: credentials::CredentialStateClient,
+    access: access::AccessControlClient,
+    approval: Option<approval::BusinessApprovalClient>,
+    audit: audit::AuditLogClient,
+}
+
 #[derive(Debug)]
 pub struct OperatorsAuthority {
     verifier: RealmAssertionVerifier,
     qualification: Rc<QualificationStore>,
     policies: BTreeMap<String, EntryPolicy>,
-    ports: OwnerPorts,
+    ports: BoundOwnerPorts,
     clock: Rc<dyn Clock>,
 }
 
@@ -124,6 +140,57 @@ struct User {
     ceiling: ManagementCredentialCeiling,
     delegated: bool,
 }
+
+fn credential_state_error(error: &credentials::CredentialStateInvocationError) -> Error {
+    match error {
+        credentials::CredentialStateInvocationError::Domain(
+            credentials::InspectError::PermissionDenied
+            | credentials::InspectError::InvalidReference
+            | credentials::InspectError::NotFound,
+        ) => Error::Denied,
+        credentials::CredentialStateInvocationError::Domain(
+            credentials::InspectError::Unknown(_),
+        )
+        | credentials::CredentialStateInvocationError::Runtime(_) => Error::Unavailable,
+    }
+}
+fn access_error(error: &access::AccessControlInvocationError) -> Error {
+    match error {
+        access::AccessControlInvocationError::Domain(
+            access::CheckPermissionError::InvalidRequest,
+        ) => Error::Denied,
+        access::AccessControlInvocationError::Domain(access::CheckPermissionError::Unknown(_))
+        | access::AccessControlInvocationError::Runtime(_) => Error::Unavailable,
+    }
+}
+
+fn approval_read_error(error: &approval::BusinessApprovalReadInvocationError) -> Error {
+    match error {
+        approval::BusinessApprovalReadInvocationError::Domain(
+            approval::ReadError::Forbidden
+            | approval::ReadError::InvalidRequest
+            | approval::ReadError::RequestNotFound,
+        ) => Error::Denied,
+        approval::BusinessApprovalReadInvocationError::Domain(approval::ReadError::Unknown(_))
+        | approval::BusinessApprovalReadInvocationError::Runtime(_) => Error::Unavailable,
+    }
+}
+
+fn approval_decide_error(error: &approval::BusinessApprovalDecideInvocationError) -> Error {
+    match error {
+        approval::BusinessApprovalDecideInvocationError::Domain(
+            approval::DecideError::AlreadyTerminal
+            | approval::DecideError::Forbidden
+            | approval::DecideError::InvalidRequest
+            | approval::DecideError::RequestNotFound,
+        ) => Error::Denied,
+        approval::BusinessApprovalDecideInvocationError::Domain(
+            approval::DecideError::Unknown(_),
+        )
+        | approval::BusinessApprovalDecideInvocationError::Runtime(_) => Error::Unavailable,
+    }
+}
+
 impl TypedActor for User {
     fn from_assertion(assertion: &ActorAssertion) -> Result<Self, ActorProjectionError> {
         if assertion.actor_kind() != "user" {
@@ -156,6 +223,49 @@ impl OperatorsAuthority {
         ports: OwnerPorts,
         clock: Rc<dyn Clock>,
     ) -> Result<Self, Error> {
+        Self::from_ports(
+            verifier,
+            qualification,
+            policies,
+            BoundOwnerPorts {
+                credential_state: ports.credential_state,
+                access: ports.access,
+                approval: Some(ports.approval),
+                audit: ports.audit,
+            },
+            clock,
+        )
+    }
+
+    /// Selects a read-only authority without an Approval dependency; writes always deny.
+    pub fn new_read_only(
+        verifier: RealmAssertionVerifier,
+        qualification: Rc<QualificationStore>,
+        policies: BTreeMap<String, EntryPolicy>,
+        ports: ReadOnlyOwnerPorts,
+        clock: Rc<dyn Clock>,
+    ) -> Result<Self, Error> {
+        Self::from_ports(
+            verifier,
+            qualification,
+            policies,
+            BoundOwnerPorts {
+                credential_state: ports.credential_state,
+                access: ports.access,
+                approval: None,
+                audit: ports.audit,
+            },
+            clock,
+        )
+    }
+
+    fn from_ports(
+        verifier: RealmAssertionVerifier,
+        qualification: Rc<QualificationStore>,
+        policies: BTreeMap<String, EntryPolicy>,
+        ports: BoundOwnerPorts,
+        clock: Rc<dyn Clock>,
+    ) -> Result<Self, Error> {
         if verifier.realm() != "operators"
             || policies.is_empty()
             || policies.len() > 256
@@ -174,6 +284,10 @@ impl OperatorsAuthority {
             ports,
             clock,
         })
+    }
+
+    fn approval_port(&self) -> Result<&approval::BusinessApprovalClient, Error> {
+        self.ports.approval.as_ref().ok_or(Error::Denied)
     }
     async fn current_user(
         &self,
@@ -204,7 +318,7 @@ impl OperatorsAuthority {
                 },
             )
             .await
-            .map_err(|_| Error::Denied)?;
+            .map_err(|error| credential_state_error(&error))?;
         if !live.active
             || live.subject != user.subject
             || live.actor_kind != "user"
@@ -248,7 +362,7 @@ impl OperatorsAuthority {
                 },
             )
             .await
-            .map_err(|_| Error::Denied)?;
+            .map_err(|error| access_error(&error))?;
         if !permission.allowed {
             return Err(Error::Denied);
         }
@@ -279,6 +393,7 @@ impl OperatorsAuthority {
         decision: approval::DecideRequestDecision,
         admission: (&str, &str),
     ) -> Result<approval::DecideResponse, Error> {
+        let approval_port = self.approval_port()?;
         let (intent, entry) = management.pending_approval_intent(operation_id)?;
         let entry_policy = self.policies.get(&entry.id).ok_or(Error::Denied)?;
         let policy = EntryPolicy {
@@ -302,9 +417,7 @@ impl OperatorsAuthority {
         {
             return Err(Error::Denied);
         }
-        let stored = self
-            .ports
-            .approval
+        let stored = approval_port
             .read_with_context(
                 context.clone(),
                 approval::ReadRequest {
@@ -312,7 +425,7 @@ impl OperatorsAuthority {
                 },
             )
             .await
-            .map_err(|_| Error::Denied)?;
+            .map_err(|error| approval_read_error(&error))?;
         if stored.intent_digest.as_deref() != Some(&intent.digest)
             || stored.requested_by != intent.subject
             || stored.subject.kind != "management-operation"
@@ -346,8 +459,7 @@ impl OperatorsAuthority {
             return Err(Error::Denied);
         }
         self.check_human_context(&context)?;
-        self.ports
-            .approval
+        approval_port
             .decide_with_context(
                 context,
                 approval::DecideRequest {
@@ -359,7 +471,7 @@ impl OperatorsAuthority {
                 },
             )
             .await
-            .map_err(|_| Error::Denied)
+            .map_err(|error| approval_decide_error(&error))
     }
 }
 impl Authority for OperatorsAuthority {
@@ -377,6 +489,11 @@ impl Authority for OperatorsAuthority {
         operation: &'a str,
     ) -> LocalBoxFuture<'a, Result<Principal, Error>> {
         async move {
+            if self.ports.approval.is_none()
+                && (entry.effect != Effect::Read || entry.requires_approval)
+            {
+                return Err(Error::Denied);
+            }
             if !matches!(operation, "catalog" | "invoke" | "status") {
                 return Err(Error::Denied);
             }
@@ -396,9 +513,8 @@ impl Authority for OperatorsAuthority {
         intent: &'a Intent,
     ) -> LocalBoxFuture<'a, Result<Approval, Error>> {
         async move {
-            let existing = match self
-                .ports
-                .approval
+            let approval_port = self.approval_port()?;
+            let existing = match approval_port
                 .read_with_context(
                     context.clone(),
                     approval::ReadRequest {
@@ -411,8 +527,7 @@ impl Authority for OperatorsAuthority {
                 Err(approval::BusinessApprovalReadInvocationError::Domain(
                     approval::ReadError::RequestNotFound,
                 )) => {
-                    self.ports
-                        .approval
+                    approval_port
                         .request_with_context(
                             context.clone(),
                             approval::RequestRequest {
@@ -560,3 +675,198 @@ impl Authority for OperatorsAuthority {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod owner_state_error_tests {
+    use super::*;
+
+    #[test]
+    fn current_credential_state_keeps_unknown_and_runtime_outcomes_unavailable() {
+        let unknown = serde_json::from_value::<credentials::InspectError>(serde_json::json!({
+            "code": "future_state_outcome",
+            "payload": {"active": true}
+        }))
+        .unwrap();
+        assert_eq!(
+            credential_state_error(&credentials::CredentialStateInvocationError::Domain(
+                unknown
+            )),
+            Error::Unavailable
+        );
+        assert_eq!(
+            credential_state_error(&credentials::CredentialStateInvocationError::Runtime(
+                lenso_kernel::RuntimeFailure::Unavailable {
+                    capability: credentials::CAPABILITY_ID,
+                },
+            )),
+            Error::Unavailable
+        );
+        for known in [
+            credentials::InspectError::PermissionDenied,
+            credentials::InspectError::InvalidReference,
+            credentials::InspectError::NotFound,
+        ] {
+            assert_eq!(
+                credential_state_error(&credentials::CredentialStateInvocationError::Domain(known)),
+                Error::Denied
+            );
+        }
+    }
+
+    #[derive(Debug)]
+    struct WireFaultEndpoint<C> {
+        malformed_success: bool,
+        capability: std::marker::PhantomData<C>,
+    }
+
+    impl<C> lenso_kernel::NativeRequestEndpoint for WireFaultEndpoint<C>
+    where
+        C: lenso_kernel::RequestCapability + std::fmt::Debug,
+        C::DomainError: serde::de::DeserializeOwned,
+    {
+        fn capability_id(&self) -> &'static str {
+            C::ID
+        }
+        fn descriptor_version(&self) -> &'static str {
+            C::DESCRIPTOR_VERSION
+        }
+        fn operations(&self) -> &'static [&'static str] {
+            &["check_permission", "read", "decide"]
+        }
+        fn invoke(
+            &self,
+            _operation: &str,
+            _request: Box<dyn std::any::Any>,
+            _context: InvocationContext,
+        ) -> LocalBoxFuture<
+            'static,
+            Result<
+                Result<Box<dyn std::any::Any>, Box<dyn std::any::Any>>,
+                lenso_kernel::RuntimeFailure,
+            >,
+        > {
+            let reply = if self.malformed_success {
+                Ok(Box::new(()) as Box<dyn std::any::Any>)
+            } else {
+                let unknown = serde_json::from_value::<C::DomainError>(serde_json::json!({
+                    "code": "future_owner_outcome", "payload": {"receipt": "uncertain"}
+                }))
+                .unwrap();
+                Err(Box::new(unknown) as Box<dyn std::any::Any>)
+            };
+            Box::pin(async move { Ok(reply) })
+        }
+    }
+
+    fn owner_reply<C>(
+        operation: &str,
+        request: C::Request,
+        malformed_success: bool,
+    ) -> Result<Result<C::Response, C::DomainError>, lenso_kernel::RuntimeFailure>
+    where
+        C: lenso_kernel::RequestCapability + std::fmt::Debug,
+        C::DomainError: serde::de::DeserializeOwned,
+    {
+        let endpoint = WireFaultEndpoint::<C> {
+            malformed_success,
+            capability: std::marker::PhantomData,
+        };
+        futures::executor::block_on(C::invoke_native(
+            &endpoint,
+            operation,
+            request,
+            InvocationContext::new(1, None, lenso_kernel::CancellationToken::new()),
+        ))
+    }
+
+    #[test]
+    fn owner_reply_faults_do_not_become_permission_denials() {
+        for malformed_success in [false, true] {
+            let access = owner_reply::<access::AccessControl>(
+                "check_permission",
+                access::CheckPermissionRequest {
+                    subject: "bob".into(),
+                    scope: access::CheckPermissionRequestScope {
+                        kind: "deployment".into(),
+                        id: "alpha".into(),
+                    },
+                    permission: "management.approval.decide".into(),
+                },
+                malformed_success,
+            )
+            .map_err(access::AccessControlInvocationError::Runtime)
+            .and_then(|reply| reply.map_err(access::AccessControlInvocationError::Domain))
+            .unwrap_err();
+            assert_eq!(access_error(&access), Error::Unavailable);
+
+            let read = owner_reply::<approval::BusinessApprovalRead>(
+                "read",
+                approval::ReadRequest {
+                    request_id: "operation-1".into(),
+                },
+                malformed_success,
+            )
+            .map_err(approval::BusinessApprovalReadInvocationError::Runtime)
+            .and_then(|reply| reply.map_err(approval::BusinessApprovalReadInvocationError::Domain))
+            .unwrap_err();
+            assert_eq!(approval_read_error(&read), Error::Unavailable);
+
+            let decision = owner_reply::<approval::BusinessApprovalDecide>(
+                "decide",
+                approval::DecideRequest {
+                    request_id: "operation-1".into(),
+                    decided_by: "bob".into(),
+                    decision: approval::DecideRequestDecision::Approved,
+                    evidence_ref: "management-intent:operation-1:digest".into(),
+                    reason: None,
+                },
+                malformed_success,
+            )
+            .map_err(approval::BusinessApprovalDecideInvocationError::Runtime)
+            .and_then(|reply| {
+                reply.map_err(approval::BusinessApprovalDecideInvocationError::Domain)
+            })
+            .unwrap_err();
+            if malformed_success {
+                assert!(matches!(
+                    decision,
+                    approval::BusinessApprovalDecideInvocationError::Runtime(
+                        lenso_kernel::RuntimeFailure::ProtocolViolation { .. }
+                    )
+                ));
+            }
+            assert_eq!(approval_decide_error(&decision), Error::Unavailable);
+        }
+        assert_eq!(
+            access_error(&access::AccessControlInvocationError::Domain(
+                access::CheckPermissionError::InvalidRequest
+            )),
+            Error::Denied
+        );
+        for known in [
+            approval::ReadError::Forbidden,
+            approval::ReadError::InvalidRequest,
+            approval::ReadError::RequestNotFound,
+        ] {
+            assert_eq!(
+                approval_read_error(&approval::BusinessApprovalReadInvocationError::Domain(
+                    known
+                )),
+                Error::Denied
+            );
+        }
+        for known in [
+            approval::DecideError::AlreadyTerminal,
+            approval::DecideError::Forbidden,
+            approval::DecideError::InvalidRequest,
+            approval::DecideError::RequestNotFound,
+        ] {
+            assert_eq!(
+                approval_decide_error(&approval::BusinessApprovalDecideInvocationError::Domain(
+                    known
+                )),
+                Error::Denied
+            );
+        }
+    }
+}

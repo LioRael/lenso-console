@@ -1,5 +1,5 @@
 //! A separately bound human capability. Tool providers receive only Management@1.
-use crate::{EntryPolicy, OperatorsAuthority};
+use crate::{EntryPolicy, OperatorsAuthority, approval_read_error};
 use lenso_capability_business_approval as approval;
 use lenso_capability_management_human as human;
 use lenso_kernel::{InvocationContext, NativeRequestFuture};
@@ -47,6 +47,7 @@ impl OperatorsAuthority {
         management: &Management,
         operation_id: &str,
     ) -> Result<human::ReadIntentResponse, Error> {
+        let approval_port = self.approval_port()?;
         let (intent, entry) = management.pending_approval_intent(operation_id)?;
         let fixed = self.policies.get(&entry.id).ok_or(Error::Denied)?;
         let policy = EntryPolicy {
@@ -63,9 +64,7 @@ impl OperatorsAuthority {
                 "read_intent",
             )
             .await?;
-        let stored = self
-            .ports
-            .approval
+        let stored = approval_port
             .read_with_context(
                 context.clone(),
                 approval::ReadRequest {
@@ -73,7 +72,7 @@ impl OperatorsAuthority {
                 },
             )
             .await
-            .map_err(|_| Error::Denied)?;
+            .map_err(|error| approval_read_error(&error))?;
         if stored.intent_digest.as_deref() != Some(&intent.digest)
             || stored.requested_by != intent.subject
             || stored.subject.kind != "management-operation"
@@ -157,6 +156,7 @@ impl human::ManagementHumanProvider for HumanServiceProvider {
         let this = self.clone();
         Box::pin(async move {
             Ok(async {
+                this.authority.approval_port()?;
                 let (intent, entry) = this
                     .management
                     .pending_approval_intent(&request.operation_id)?;

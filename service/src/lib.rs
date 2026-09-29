@@ -1713,6 +1713,10 @@ mod tests {
             descriptor["required_capabilities"],
             serde_json::json!([
                 {"capability_id":"lenso.auth@1","descriptor_version":"1.0.0","cardinality":"many"},
+                {"capability_id":"lenso.access-control@1","descriptor_version":"1.0.0","cardinality":"many"},
+                {"capability_id":"lenso.management@1","descriptor_version":"1.0.0","cardinality":"many"},
+                {"capability_id":"lenso.management-human@1","descriptor_version":"1.1.0","cardinality":"many"},
+                {"capability_id":"lenso.auth.human-api-token@1","descriptor_version":"1.1.0","cardinality":"many"},
                 {
                     "capability_id": "lenso.ui.contribution@1",
                     "descriptor_version": "1.3.0",

@@ -1,0 +1,19 @@
+[package]
+name = "lenso-console-password-session-consumer"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+rust-version = "1.94"
+
+[package.metadata.lenso]
+plugin-id = "lenso.console.test-password-session"
+root-slot = "auth"
+
+[dependencies]
+lenso = "0.5.27"
+lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "7be032c349ec095b87bc953321fe6dd9727c63e6" }
+lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "7be032c349ec095b87bc953321fe6dd9727c63e6" }
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -25,6 +25,11 @@ policy. The ordinary Ops reference App's Management Web Plugin supplies this
 projection for its human profile. It keeps enrollment in a separate private
 bootstrap Plugin rather than exposing public registration.
 
+The local reference distribution keeps the Operators ports unbound. Installing
+Projects or its Access Control owner does not activate Console administration
+bindings. A separate source App explicitly admits the Operators Management,
+human approval and personal-token profile with its own owner bindings.
+
 ## Required configuration
 
 Configure the `lenso.console.web/default` instance with
@@ -83,21 +88,33 @@ It is the existing local operator experience, not a fabricated authenticated use
 
 ## Acceptance coverage
 
-The legacy `auth_plugins::live` acceptance used a password HTTP surface that the
-current OIDC Web Session Plugin no longer provides. Its adapter must use current
-bound Password and Account CredentialIssuer roles before it is an acceptance
-receipt for this source cohort. A compiled ignored test is not a passing receipt.
-The ordinary Ops reference human profile separately qualifies the actual
-password HTTP adapter, Console browser, reviewed operations and personal tokens.
-That qualification records its exact source inputs and owner storage setup.
+The `auth_plugins::live` adapter uses a test-only ordinary consumer with bound
+Password and Account CredentialIssuer roles. It registers a fixture account,
+revokes its registration session, logs in through the real Password owner, then
+supplies that owner-issued credential through the ingress cookie transport.
+It checks current Console authentication, member denial, session persistence
+across restart with an explicit administrator, and owner revocation. It does
+not claim a password HTTP endpoint from the OIDC Web Session Plugin.
+
+The ordinary Ops reference human profile separately qualifies its actual
+password HTTP projection and rendered Console browser, reviewed operations and
+personal tokens. That qualification records its exact source inputs and owner
+storage setup. A compiled ignored test is not a passing qualification receipt.
 
 The Console integration scenario uses disposable PostgreSQL schemas selected by
 `LENSO_POSTGRES_TEST_URL` and a test-only signing input from `CONSOLE_TEST_SECRET`.
-Its native Projects variant checks
-real Projects, Organization and Access Control Plugins, two users without identity crossover, workspace discovery,
+Its native Projects variant checks real Projects, Organization and Access
+Control Plugins, two users without identity crossover, workspace discovery,
 unauthorized organization denial and shared-Agent isolation. No separate Projects
 listener is used. Only the unrelated Agent readiness endpoint is stubbed. Tests do not install
 fixture identities or secrets into a user's Console.
+
+Run the scenarios with the repository toolchain and explicitly selected
+disposable storage:
+
+```sh
+cargo test --locked --manifest-path service/Cargo.toml -p lenso-console-app auth_plugins::live -- --ignored
+```
 
 ## Native Projects workspace
 

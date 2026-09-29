@@ -415,6 +415,11 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                 .await
             {
                 Ok(result) => result,
+                Err(pat::HumanApiTokenIssueInvocationError::Domain(pat::IssueError::Unknown(
+                    _,
+                ))) => {
+                    return Err(unavailable());
+                }
                 Err(pat::HumanApiTokenIssueInvocationError::Domain(error)) => {
                     guard
                         .complete(InvocationState::Failed, None)
@@ -585,6 +590,11 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                 .await
             {
                 Ok(result) => result,
+                Err(pat::HumanApiTokenRevokeInvocationError::Domain(
+                    pat::RevokeError::Unknown(_),
+                )) => {
+                    return Err(unavailable());
+                }
                 Err(pat::HumanApiTokenRevokeInvocationError::Domain(error)) => {
                     guard
                         .complete(InvocationState::Failed, None)

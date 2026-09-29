@@ -23,7 +23,7 @@ a new exclusive owner may recover unfinished dispatches.
 
 The trusted `Authority` adapter must check current credential validity, operators
 realm, deployment qualification, scoped permission and credential/task ceilings
-on every call. It must query the Approval owner for an exact `Intent`; a local
+on every call. A write profile must query the Approval owner for an exact `Intent`; a local
 hook cannot return approval authority. Approval is rechecked before dispatch,
 and current authorization is checked again after approval with the same subject.
 The server-created intent includes a fixed expiry in its canonical digest.
@@ -32,6 +32,13 @@ The separate `lenso-management-authority` package binds generated CredentialStat
 Access Control, Approval and Audit clients. Its local qualification store owns only
 deployment membership. The selected realm issuer/key and every entry permission
 and resource scope come from explicit Host configuration.
+
+`OperatorsAuthority::new` retains the required Approval owner for write profiles.
+An explicitly selected read-only App uses `new_read_only` and `ReadOnlyOwnerPorts`,
+which omit Approval while retaining Credential State, Access Control and Audit.
+That authority rejects every write or approval-requiring entry before admission
+and denies human approval methods. The App must expose only read entries and
+reject a write configuration with an absent Approval binding during startup.
 
 The domain `Target` adapter receives the original invocation context. Writable
 targets must use the server-created operation ID as their stable domain
