@@ -9,14 +9,39 @@ struct Policy {
     subject: RefCell<String>,
     approved: RefCell<Option<Intent>>,
     seen: RefCell<Option<Intent>>,
+    switch_subject_on_approval: Cell<bool>,
+    now: Cell<Duration>,
+    audit_failure: RefCell<Option<String>>,
+    audit_events: RefCell<Vec<AuditEvent>>,
 }
 
 impl Authority for Policy {
+    fn wall_now(&self) -> time::OffsetDateTime {
+        time::OffsetDateTime::from_unix_timestamp(1_800_000_000).unwrap()
+    }
+    fn audit<'a>(
+        &'a self,
+        _: &'a InvocationContext,
+        event: &'a AuditEvent,
+    ) -> LocalBoxFuture<'a, Result<(), Error>> {
+        async move {
+            if self.audit_failure.borrow().as_deref() == Some(&event.phase) {
+                return Err(Error::Unavailable);
+            }
+            self.audit_events.borrow_mut().push(event.clone());
+            Ok(())
+        }
+        .boxed_local()
+    }
+    fn now(&self) -> Duration {
+        self.now.get()
+    }
     fn authorize<'a>(
         &'a self,
         _: &'a InvocationContext,
         _: &'a str,
         _: &'a Entry,
+        _: &'a str,
     ) -> LocalBoxFuture<'a, Result<Principal, Error>> {
         async move {
             if !self.allowed.get() {
@@ -35,6 +60,9 @@ impl Authority for Policy {
     ) -> LocalBoxFuture<'a, Result<Approval, Error>> {
         async move {
             self.seen.replace(Some(intent.clone()));
+            if self.switch_subject_on_approval.get() {
+                self.subject.replace("bob".to_owned());
+            }
             Ok(if self.approved.borrow().as_ref() == Some(intent) {
                 Approval::Approved
             } else {
@@ -49,6 +77,7 @@ impl Authority for Policy {
 struct Notes {
     calls: Cell<usize>,
     lose_response: Cell<bool>,
+    hang_after_commit: Cell<bool>,
     value: RefCell<Value>,
     receipts: RefCell<BTreeMap<String, (Value, String)>>,
 }
@@ -71,6 +100,9 @@ impl Target for Notes {
                 self.receipts
                     .borrow_mut()
                     .insert(id, (input.clone(), receipt.clone()));
+            }
+            if self.hang_after_commit.get() {
+                futures::future::pending::<()>().await;
             }
             if self.lose_response.get() {
                 return Err(Error::Unavailable);
@@ -125,6 +157,10 @@ fn setup(approval: bool) -> (tempfile::TempDir, Management, Rc<Policy>, Rc<Notes
         subject: RefCell::new("alice".to_owned()),
         approved: RefCell::new(None),
         seen: RefCell::new(None),
+        switch_subject_on_approval: Cell::new(false),
+        now: Cell::new(Duration::ZERO),
+        audit_failure: RefCell::new(None),
+        audit_events: RefCell::new(Vec::new()),
     });
     let notes = Rc::new(Notes::default());
     let service = Management::open(
@@ -139,6 +175,110 @@ fn setup(approval: bool) -> (tempfile::TempDir, Management, Rc<Policy>, Rc<Notes
     )
     .unwrap();
     (directory, service, policy, notes)
+}
+
+#[test]
+fn principal_switch_while_approval_waits_cannot_execute_the_original_subjects_intent() {
+    block_on(async {
+        let (_directory, service, policy, notes) = setup(true);
+        service
+            .invoke(context(), request("bound to alice"))
+            .await
+            .unwrap();
+        policy.approved.replace(policy.seen.borrow().clone());
+        policy.switch_subject_on_approval.set(true);
+        assert_eq!(
+            service
+                .invoke(context(), request("bound to alice"))
+                .await
+                .unwrap_err(),
+            Error::Denied
+        );
+        assert_eq!(notes.calls.get(), 0);
+    });
+}
+
+#[test]
+fn cancelled_or_expired_context_does_not_dispatch() {
+    block_on(async {
+        let (_directory, service, _, notes) = setup(false);
+        let cancelled = context();
+        cancelled.cancellation().cancel();
+        assert_eq!(
+            service
+                .invoke(cancelled, request("cancelled"))
+                .await
+                .unwrap_err(),
+            Error::Cancelled
+        );
+        let expired = InvocationContext::new(2, Some(Duration::ZERO), CancellationToken::new());
+        assert_eq!(
+            service
+                .invoke(expired, request("expired"))
+                .await
+                .unwrap_err(),
+            Error::Expired
+        );
+        assert_eq!(notes.calls.get(), 0);
+    });
+}
+
+#[test]
+fn exclusive_journal_owner_prevents_recovery_of_active_dispatch_and_abort_is_scoped() {
+    block_on(async {
+        let (directory, service, policy, notes) = setup(false);
+        notes.hang_after_commit.set(true);
+        let caller = context();
+        let mut pending = Box::pin(service.invoke(caller.clone(), request("a")));
+        assert!(pending.as_mut().now_or_never().is_none());
+        let id = notes.receipts.borrow().keys().next().unwrap().clone();
+        let second = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".to_owned(),
+            "catalog-1".to_owned(),
+            vec![Binding {
+                entry: entry(false),
+                target: notes.clone(),
+            }],
+            policy.clone(),
+        );
+        assert_eq!(second.unwrap_err(), Error::Unavailable);
+        assert_eq!(
+            service.status(context(), &id).await.unwrap().state,
+            InvocationState::Executing
+        );
+        caller.cancellation().cancel();
+        notes.hang_after_commit.set(false);
+        let mut other = request("b");
+        other.idempotency_key = Some("request-b".to_owned());
+        assert_eq!(
+            service.invoke(context(), other).await.unwrap().state,
+            InvocationState::Succeeded
+        );
+        drop(pending);
+        assert_eq!(
+            service.invoke(context(), request("a")).await.unwrap().state,
+            InvocationState::Unknown
+        );
+        assert_eq!(notes.calls.get(), 2);
+        drop(service);
+        let reopened = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".to_owned(),
+            "catalog-1".to_owned(),
+            vec![Binding {
+                entry: entry(false),
+                target: notes.clone(),
+            }],
+            policy,
+        )
+        .unwrap();
+        assert_eq!(
+            reopened.status(context(), &id).await.unwrap().state,
+            InvocationState::Succeeded
+        );
+        assert_eq!(notes.calls.get(), 2);
+    });
 }
 
 #[test]
@@ -313,12 +453,94 @@ fn generated_capability_endpoint_preserves_structured_denial_and_operation_state
     block_on(async {
         let (_directory, service, policy, notes) = setup(false);
         let endpoint = contract::ManagementEndpoint::new(ServiceProvider(Rc::new(service)));
-        let result = contract::ManagementInvoke::invoke_native(&endpoint,contract::INVOKE_OPERATION,request("bound"),context()).await.unwrap().unwrap();
-        assert_eq!(result.state,InvocationState::Succeeded);
+        let result = contract::ManagementInvoke::invoke_native(
+            &endpoint,
+            contract::INVOKE_OPERATION,
+            request("bound"),
+            context(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(result.state, InvocationState::Succeeded);
         let wire = contract::encode_invoke_response(&result).unwrap();
-        assert_eq!(contract::decode_invoke_response(&wire).unwrap(),result);
+        assert_eq!(contract::decode_invoke_response(&wire).unwrap(), result);
         policy.allowed.set(false);
-        assert_eq!(contract::ManagementInvoke::invoke_native(&endpoint,contract::INVOKE_OPERATION,request("bound"),context()).await.unwrap().unwrap_err(),contract::InvokeError::PermissionDenied);
-        assert_eq!(notes.calls.get(),1);
+        assert_eq!(
+            contract::ManagementInvoke::invoke_native(
+                &endpoint,
+                contract::INVOKE_OPERATION,
+                request("bound"),
+                context()
+            )
+            .await
+            .unwrap()
+            .unwrap_err(),
+            contract::InvokeError::PermissionDenied
+        );
+        assert_eq!(notes.calls.get(), 1);
+    });
+}
+
+#[test]
+fn audit_outbox_blocks_before_dispatch_and_recovers_after_commit_without_replay() {
+    block_on(async {
+        let (directory, service, policy, notes) = setup(false);
+        policy.audit_failure.replace(Some("dispatch".into()));
+        assert_eq!(
+            service
+                .invoke(context(), request("audited"))
+                .await
+                .unwrap_err(),
+            Error::Unavailable
+        );
+        assert_eq!(notes.calls.get(), 0);
+        policy.audit_failure.replace(Some("completed".into()));
+        let result = service.invoke(context(), request("audited")).await.unwrap();
+        assert_eq!(result.state, InvocationState::Succeeded);
+        assert!(result.audit_pending);
+        let id = result.operation_id.unwrap();
+        assert_eq!(notes.calls.get(), 1);
+        drop(service);
+        policy.audit_failure.replace(None);
+        let reopened = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".into(),
+            "catalog-1".into(),
+            vec![Binding {
+                entry: entry(false),
+                target: notes.clone(),
+            }],
+            policy.clone(),
+        )
+        .unwrap();
+        let recovered = reopened.status(context(), &id).await.unwrap();
+        assert_eq!(recovered.state, InvocationState::Succeeded);
+        assert!(!recovered.audit_pending);
+        reopened
+            .invoke(context(), request("audited"))
+            .await
+            .unwrap();
+        assert_eq!(notes.calls.get(), 1);
+        let events = policy.audit_events.borrow();
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.phase == "attempt")
+                .count(),
+            1
+        );
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.phase == "completed")
+                .count(),
+            1
+        );
+        assert!(
+            events
+                .iter()
+                .all(|event| !serde_json::to_string(event).unwrap().contains("audited"))
+        );
     });
 }

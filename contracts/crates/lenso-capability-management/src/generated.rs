@@ -6,7 +6,7 @@ use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture
 use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany, CapabilityReference};
 pub const CAPABILITY_ID: &str = "lenso.management@1";
 pub const DESCRIPTOR_VERSION: &str = "1.0.0";
-pub const DESCRIPTOR_DIGEST: &str = "sha256:2a5846adaa2ae2e9a847b5a64b044ec5f489a9b9afda513f52fa0a8c02b8fcac";
+pub const DESCRIPTOR_DIGEST: &str = "sha256:d5394e376705d5588c1eb07320b61fabe5859f5207023f0a5deb0e7f2caf6bf3";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const MANAGEMENT_CAPABILITY_ID: &str = CAPABILITY_ID;
@@ -130,6 +130,9 @@ pub struct InvokeRequest {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct InvokeResponse {
+    #[serde(rename = "audit_pending")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub audit_pending: bool,
     #[serde(rename = "operation_id")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub operation_id: Option<String>,
@@ -164,7 +167,9 @@ pub enum InvocationState {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum InvokeError {
+    Cancelled,
     Conflict,
+    DeadlineExceeded,
     InvalidInput,
     NotFound,
     PermissionDenied,
@@ -313,7 +318,9 @@ impl serde::Serialize for InvokeError {
     {
         use serde::ser::SerializeMap;
         match self {
+            Self::Cancelled => serializer.serialize_str("cancelled"),
             Self::Conflict => serializer.serialize_str("conflict"),
+            Self::DeadlineExceeded => serializer.serialize_str("deadline_exceeded"),
             Self::InvalidInput => serializer.serialize_str("invalid_input"),
             Self::NotFound => serializer.serialize_str("not_found"),
             Self::PermissionDenied => serializer.serialize_str("permission_denied"),
@@ -341,7 +348,9 @@ impl<'de> serde::Deserialize<'de> for InvokeError {
         let value = <serde_json::Value as serde::Deserialize>::deserialize(deserializer)?;
         match value {
             serde_json::Value::String(code) => match code.as_str() {
+                "cancelled" => Ok(Self::Cancelled),
                 "conflict" => Ok(Self::Conflict),
+                "deadline_exceeded" => Ok(Self::DeadlineExceeded),
                 "invalid_input" => Ok(Self::InvalidInput),
                 "not_found" => Ok(Self::NotFound),
                 "permission_denied" => Ok(Self::PermissionDenied),

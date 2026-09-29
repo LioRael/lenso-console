@@ -5,6 +5,8 @@
     { "const": "not_found" },
     { "const": "invalid_input" },
     { "const": "conflict" },
-    { "const": "unavailable" }
+    { "const": "unavailable" },
+    { "const": "cancelled" },
+    { "const": "deadline_exceeded" }
   ]
 }

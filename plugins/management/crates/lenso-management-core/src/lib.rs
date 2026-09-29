@@ -7,6 +7,10 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
 use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
+use std::{
+    fs::{File, OpenOptions},
+    time::Duration,
+};
 
 pub use contract::{Effect, Entry, InvocationState, InvokeRequest, InvokeResponse};
 
@@ -17,6 +21,8 @@ pub enum Error {
     InvalidInput,
     Conflict,
     Unavailable,
+    Cancelled,
+    Expired,
 }
 
 /// Created by a trusted authority after current identity, qualification and ceiling checks.
@@ -32,25 +38,35 @@ pub enum Approval {
     Denied,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Intent {
     pub operation_id: String,
     pub subject: String,
     pub deployment: String,
     pub entry_id: String,
     pub digest: String,
+    pub expires_at: String,
 }
 
 /// A Host-injected security seam, never a credential supplied in invocation JSON.
 /// Implementations must revalidate credential revocation, realm, deployment membership,
 /// permission and resource/operation ceilings for every call, including status reads.
 pub trait Authority: std::fmt::Debug {
+    /// The monotonic clock used by the Host's InvocationContext deadlines.
+    fn now(&self) -> Duration;
+    fn wall_now(&self) -> time::OffsetDateTime;
     fn authorize<'a>(
         &'a self,
         context: &'a InvocationContext,
         deployment: &'a str,
         entry: &'a Entry,
+        admission_operation: &'a str,
     ) -> LocalBoxFuture<'a, Result<Principal, Error>>;
+    fn audit<'a>(
+        &'a self,
+        context: &'a InvocationContext,
+        event: &'a AuditEvent,
+    ) -> LocalBoxFuture<'a, Result<(), Error>>;
     /// Consult the Approval owner for this exact server-created digest and original subject.
     /// Missing approval storage and client/local confirmations must never return Approved.
     fn approval<'a>(
@@ -58,6 +74,15 @@ pub trait Authority: std::fmt::Debug {
         context: &'a InvocationContext,
         intent: &'a Intent,
     ) -> LocalBoxFuture<'a, Result<Approval, Error>>;
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct AuditEvent {
+    pub intent: Intent,
+    pub phase: String,
+    pub state: InvocationState,
+    pub receipt: Option<String>,
+    pub occurred_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -105,6 +130,7 @@ pub struct Management {
     entries: BTreeMap<String, Accepted>,
     authority: Rc<dyn Authority>,
     journal: RefCell<Connection>,
+    _lease: File,
 }
 
 /// Generated native Capability endpoint adapter; a Host explicitly supplies its owned service.
@@ -145,6 +171,8 @@ impl contract::ManagementProvider for ServiceProvider {
                     Error::InvalidInput => contract::InvokeError::InvalidInput,
                     Error::Conflict => contract::InvokeError::Conflict,
                     Error::Unavailable => contract::InvokeError::Unavailable,
+                    Error::Cancelled => contract::InvokeError::Cancelled,
+                    Error::Expired => contract::InvokeError::DeadlineExceeded,
                 }))
         })
     }
@@ -161,9 +189,9 @@ impl contract::ManagementProvider for ServiceProvider {
                 .await
                 .map_err(|error| match error {
                     Error::Denied => contract::StatusError::PermissionDenied,
-                Error::NotFound => contract::StatusError::NotFound,
-                Error::Conflict => contract::StatusError::Conflict,
-                _ => contract::StatusError::Unavailable,
+                    Error::NotFound => contract::StatusError::NotFound,
+                    Error::Conflict => contract::StatusError::Conflict,
+                    _ => contract::StatusError::Unavailable,
                 }))
         })
     }
@@ -175,12 +203,14 @@ struct Record {
     entry_id: String,
     digest: String,
     binding_digest: String,
+    expires_at: String,
     response: InvokeResponse,
 }
 
 impl Management {
     /// Explicit operator setup; opening a configured deployment never silently creates storage.
     pub fn initialize_journal(path: &Path) -> Result<(), Error> {
+        let _lease = journal_lease(path)?;
         let connection = Connection::open(path).map_err(|_| Error::Unavailable)?;
         connection
             .execute_batch(
@@ -193,10 +223,12 @@ impl Management {
                 idempotency_key TEXT NOT NULL,
                 intent_digest TEXT NOT NULL,
                 binding_digest TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
                 response_json TEXT NOT NULL,
                 UNIQUE(subject, deployment, entry_id, idempotency_key)
             );
-            PRAGMA user_version = 1;
+            CREATE TABLE management_audit_outbox(operation_id TEXT NOT NULL, phase TEXT NOT NULL, event_json TEXT NOT NULL, sent INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(operation_id,phase));
+            PRAGMA user_version = 2;
             COMMIT;",
             )
             .map_err(|_| Error::Unavailable)
@@ -217,13 +249,14 @@ impl Management {
         {
             return Err(Error::InvalidInput);
         }
+        let _lease = journal_lease(&path.canonicalize().map_err(|_| Error::Unavailable)?)?;
         let journal =
             Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
                 .map_err(|_| Error::Unavailable)?;
         let version: i64 = journal
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| Error::Unavailable)?;
-        if version != 1 {
+        if version != 2 {
             return Err(Error::Unavailable);
         }
         let mut entries = BTreeMap::new();
@@ -291,32 +324,31 @@ impl Management {
             }
         }
         drop(statement);
-        for (id, wire) in recovered {
-            journal
-                .execute(
-                    "UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1",
-                    params![id, wire],
-                )
-                .map_err(|_| Error::Unavailable)?;
-        }
-        Ok(Self {
+        let service = Self {
             deployment,
             revision,
             entries,
             authority,
             journal: RefCell::new(journal),
-        })
+            _lease,
+        };
+        for (id, wire) in recovered {
+            let response = serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
+            service.save_with_audit(&id, &response, "interrupted")?;
+        }
+        Ok(service)
     }
 
     pub async fn catalog(
         &self,
         context: &InvocationContext,
     ) -> Result<contract::CatalogResponse, Error> {
+        self.check_context(context)?;
         let mut entries = Vec::new();
         for accepted in self.entries.values() {
             match self
                 .authority
-                .authorize(context, &self.deployment, &accepted.entry)
+                .authorize(context, &self.deployment, &accepted.entry, "catalog")
                 .await
             {
                 Ok(_) => entries.push(accepted.entry.clone()),
@@ -336,11 +368,13 @@ impl Management {
         context: InvocationContext,
         request: InvokeRequest,
     ) -> Result<InvokeResponse, Error> {
+        self.check_context(&context)?;
         let accepted = self.entries.get(&request.entry_id).ok_or(Error::NotFound)?;
         let principal = self
             .authority
-            .authorize(&context, &self.deployment, &accepted.entry)
+            .authorize(&context, &self.deployment, &accepted.entry, "invoke")
             .await?;
+        self.check_context(&context)?;
         if principal.subject.is_empty() {
             return Err(Error::Denied);
         }
@@ -367,25 +401,41 @@ impl Management {
             .as_deref()
             .filter(|key| !key.is_empty() && key.len() <= 128)
             .ok_or(Error::InvalidInput)?;
+        let expires_at = self.intent_expiration(&principal.subject, &request.entry_id, key)?;
         let digest = intent_digest(
             &self.deployment,
             &accepted.entry,
             &principal.subject,
             &input,
             request.expected_revision.as_deref(),
+            &expires_at,
         )?;
         let binding_digest = binding_digest(&accepted.entry)?;
         let mut record = self.reserve(
             &principal.subject,
-            &request.entry_id,
+            &accepted.entry,
             key,
             &digest,
             &binding_digest,
-            accepted.entry.requires_approval,
+            &expires_at,
         )?;
         if record.digest != digest {
             return Err(Error::Conflict);
         }
+        let intent = self.intent(&record)?;
+        self.queue_audit(
+            &intent,
+            "attempt",
+            if accepted.entry.requires_approval {
+                InvocationState::PendingApproval
+            } else {
+                InvocationState::Ready
+            },
+            None,
+        )?;
+        self.flush_audit(&context, &id_from_record(&record)?)
+            .await?;
+        record = self.load(&id_from_record(&record)?)?;
         match record.response.state {
             InvocationState::Succeeded
             | InvocationState::Failed
@@ -400,39 +450,59 @@ impl Management {
             .clone()
             .ok_or(Error::Unavailable)?;
         if accepted.entry.requires_approval {
-            let intent = Intent {
-                operation_id: id.clone(),
-                subject: principal.subject,
-                deployment: self.deployment.clone(),
-                entry_id: accepted.entry.id.clone(),
-                digest,
-            };
             match self.authority.approval(&context, &intent).await? {
                 Approval::Required => return Ok(record.response),
                 Approval::Denied => return Err(Error::Denied),
                 Approval::Approved => {}
             }
             // Approval does not preserve authorization; current grants are checked again.
-            self.authority
-                .authorize(&context, &self.deployment, &accepted.entry)
+            let current_principal = self
+                .authority
+                .authorize(&context, &self.deployment, &accepted.entry, "invoke")
                 .await?;
+            if current_principal.subject != record.subject {
+                return Err(Error::Denied);
+            }
         }
+        self.check_context(&context)?;
+        if self.authority.wall_now() >= parse_time(&record.expires_at)? {
+            return Err(Error::Denied);
+        }
+        self.queue_audit(&intent, "dispatch", InvocationState::Executing, None)?;
+        self.flush_audit(&context, &id).await?;
+        self.check_context(&context)?;
         record.response.state = InvocationState::Executing;
         if !self.claim_execution(&id, &record.response)? {
             return self.load(&id).map(|record| record.response);
         }
+        let mut dispatch = DispatchGuard {
+            management: self,
+            operation_id: id.clone(),
+            finished: false,
+        };
         let outcome = accepted
             .target
-            .invoke(context, input, request.expected_revision, Some(id.clone()))
+            .invoke(
+                context.clone(),
+                input,
+                request.expected_revision,
+                Some(id.clone()),
+            )
             .await;
-        let result = match outcome {
+        let result = match if self.check_context(&context).is_err() {
+            Err(Error::Cancelled)
+        } else {
+            outcome
+        } {
             Ok(outcome) => response(Some(id.clone()), outcome)
                 .unwrap_or(response(Some(id.clone()), Outcome::Unknown)?),
             // A target-side error can follow a commit. Treat it as uncertain until a receipt proves it.
             Err(_) => response(Some(id.clone()), Outcome::Unknown)?,
         };
-        self.save(&id, &result)?;
-        Ok(result)
+        self.save_with_audit(&id, &result, "completed")?;
+        dispatch.finished = true;
+        let _ = self.flush_audit(&context, &id).await;
+        self.load(&id).map(|record| record.response)
     }
 
     pub async fn status(
@@ -440,11 +510,12 @@ impl Management {
         context: InvocationContext,
         operation_id: &str,
     ) -> Result<InvokeResponse, Error> {
+        self.check_context(&context)?;
         let record = self.load(operation_id)?;
         let accepted = self.entries.get(&record.entry_id).ok_or(Error::NotFound)?;
         let principal = self
             .authority
-            .authorize(&context, &self.deployment, &accepted.entry)
+            .authorize(&context, &self.deployment, &accepted.entry, "status")
             .await?;
         if principal.subject != record.subject {
             return Err(Error::Denied);
@@ -452,29 +523,37 @@ impl Management {
         if binding_digest(&accepted.entry)? != record.binding_digest {
             return Err(Error::Conflict);
         }
+        let _ = self.flush_audit(&context, operation_id).await;
         if record.response.state != InvocationState::Unknown {
-            return Ok(record.response);
+            return self.load(operation_id).map(|record| record.response);
         }
-        let Some((result, receipt)) = accepted.target.receipt(context, operation_id).await? else {
+        let Some((result, receipt)) = accepted
+            .target
+            .receipt(context.clone(), operation_id)
+            .await?
+        else {
             return Ok(record.response);
         };
         let response = response(
             Some(operation_id.to_owned()),
             Outcome::Committed { result, receipt },
         )?;
-        self.save(operation_id, &response)?;
-        Ok(response)
+        self.save_with_audit(operation_id, &response, "reconciled")?;
+        let _ = self.flush_audit(&context, operation_id).await;
+        self.load(operation_id).map(|record| record.response)
     }
 
     fn reserve(
         &self,
         subject: &str,
-        entry_id: &str,
+        entry: &Entry,
         key: &str,
         digest: &str,
         binding_digest: &str,
-        approval: bool,
+        expires_at: &str,
     ) -> Result<Record, Error> {
+        let entry_id = &entry.id;
+        let approval = entry.requires_approval;
         let mut connection = self.journal.borrow_mut();
         let transaction = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -495,10 +574,11 @@ impl Management {
             },
             result_json: None,
             receipt: None,
+            audit_pending: true,
         };
         transaction
             .execute(
-                "INSERT INTO management_invocations VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+                "INSERT INTO management_invocations VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
                 params![
                     id,
                     subject,
@@ -507,6 +587,7 @@ impl Management {
                     key,
                     digest,
                     binding_digest,
+                    expires_at,
                     serde_json::to_string(&response).map_err(|_| Error::Unavailable)?
                 ],
             )
@@ -514,21 +595,34 @@ impl Management {
         transaction.commit().map_err(|_| Error::Unavailable)?;
         Ok(Record {
             subject: subject.to_owned(),
-            entry_id: entry_id.to_owned(),
+            entry_id: entry_id.clone(),
             digest: digest.to_owned(),
             binding_digest: binding_digest.to_owned(),
+            expires_at: expires_at.to_owned(),
             response,
         })
     }
 
+    fn check_context(&self, context: &InvocationContext) -> Result<(), Error> {
+        if context.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        if context.is_expired(self.authority.now()) {
+            return Err(Error::Expired);
+        }
+        Ok(())
+    }
+
     fn load(&self, id: &str) -> Result<Record, Error> {
-        let wire: Option<(String, String, String, String, String)> = self.journal.borrow().query_row("SELECT subject,entry_id,intent_digest,binding_digest,response_json FROM management_invocations WHERE operation_id=?1 AND deployment=?2", params![id, self.deployment], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))).optional().map_err(|_| Error::Unavailable)?;
-        let (subject, entry_id, digest, binding_digest, response) = wire.ok_or(Error::NotFound)?;
+        let wire: Option<(String, String, String, String, String, String)> = self.journal.borrow().query_row("SELECT subject,entry_id,intent_digest,binding_digest,expires_at,response_json FROM management_invocations WHERE operation_id=?1 AND deployment=?2", params![id, self.deployment], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?))).optional().map_err(|_| Error::Unavailable)?;
+        let (subject, entry_id, digest, binding_digest, expires_at, response) =
+            wire.ok_or(Error::NotFound)?;
         Ok(Record {
             subject,
             entry_id,
             digest,
             binding_digest,
+            expires_at,
             response: serde_json::from_str(&response).map_err(|_| Error::Unavailable)?,
         })
     }
@@ -541,9 +635,117 @@ impl Management {
         self.journal.borrow().execute("UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1 AND json_extract(response_json,'$.state') IN (json_extract(?3,'$'), json_extract(?4,'$'))", params![id, serde_json::to_string(response).map_err(|_| Error::Unavailable)?, ready, pending]).map(|count| count == 1).map_err(|_| Error::Unavailable)
     }
 
+    fn intent_expiration(&self, subject: &str, entry: &str, key: &str) -> Result<String, Error> {
+        let prior: Option<String> = self.journal.borrow().query_row("SELECT expires_at FROM management_invocations WHERE subject=?1 AND deployment=?2 AND entry_id=?3 AND idempotency_key=?4", params![subject,self.deployment,entry,key], |row| row.get(0)).optional().map_err(|_| Error::Unavailable)?;
+        prior.map_or_else(
+            || format_time(self.authority.wall_now() + time::Duration::seconds(300)),
+            Ok,
+        )
+    }
+    fn intent(&self, record: &Record) -> Result<Intent, Error> {
+        Ok(Intent {
+            operation_id: id_from_record(record)?,
+            subject: record.subject.clone(),
+            deployment: self.deployment.clone(),
+            entry_id: record.entry_id.clone(),
+            digest: record.digest.clone(),
+            expires_at: record.expires_at.clone(),
+        })
+    }
+    fn queue_audit(
+        &self,
+        intent: &Intent,
+        phase: &str,
+        state: InvocationState,
+        receipt: Option<String>,
+    ) -> Result<(), Error> {
+        let event = AuditEvent {
+            intent: intent.clone(),
+            phase: phase.into(),
+            state,
+            receipt,
+            occurred_at: format_time(self.authority.wall_now())?,
+        };
+        self.journal.borrow().execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)",params![intent.operation_id,phase,serde_json::to_string(&event).map_err(|_|Error::Unavailable)?]).map_err(|_|Error::Unavailable)?;
+        Ok(())
+    }
+    fn save_with_audit(
+        &self,
+        id: &str,
+        response: &InvokeResponse,
+        phase: &str,
+    ) -> Result<(), Error> {
+        let record = self.load(id)?;
+        let intent = self.intent(&record)?;
+        let event = AuditEvent {
+            intent,
+            phase: phase.into(),
+            state: response.state.clone(),
+            receipt: response.receipt.clone(),
+            occurred_at: format_time(self.authority.wall_now())?,
+        };
+        let mut saved = response.clone();
+        saved.audit_pending = true;
+        let mut journal = self.journal.borrow_mut();
+        let transaction = journal.transaction().map_err(|_| Error::Unavailable)?;
+        transaction
+            .execute(
+                "UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1",
+                params![
+                    id,
+                    serde_json::to_string(&saved).map_err(|_| Error::Unavailable)?
+                ],
+            )
+            .map_err(|_| Error::Unavailable)?;
+        transaction.execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)",params![id,phase,serde_json::to_string(&event).map_err(|_|Error::Unavailable)?]).map_err(|_|Error::Unavailable)?;
+        transaction.commit().map_err(|_| Error::Unavailable)
+    }
+    async fn flush_audit(&self, context: &InvocationContext, id: &str) -> Result<(), Error> {
+        let events: Vec<(String, String)> = {
+            let journal = self.journal.borrow();
+            let mut statement=journal.prepare("SELECT phase,event_json FROM management_audit_outbox WHERE operation_id=?1 AND sent=0 ORDER BY rowid").map_err(|_|Error::Unavailable)?;
+            statement
+                .query_map([id], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(|_| Error::Unavailable)?
+                .collect::<Result<_, _>>()
+                .map_err(|_| Error::Unavailable)?
+        };
+        for (phase, wire) in events {
+            self.check_context(context)?;
+            let event = serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
+            self.authority.audit(context, &event).await?;
+            self.journal
+                .borrow()
+                .execute(
+                    "UPDATE management_audit_outbox SET sent=1 WHERE operation_id=?1 AND phase=?2",
+                    params![id, phase],
+                )
+                .map_err(|_| Error::Unavailable)?;
+        }
+        let mut response = self.load(id)?.response;
+        response.audit_pending = false;
+        self.save(id, &response)
+    }
+
     fn save(&self, id: &str, response: &InvokeResponse) -> Result<(), Error> {
         self.journal.borrow().execute("UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1 AND deployment=?3", params![id, serde_json::to_string(response).map_err(|_| Error::Unavailable)?, self.deployment]).map(|_| ()).map_err(|_| Error::Unavailable)
     }
+}
+
+fn id_from_record(record: &Record) -> Result<String, Error> {
+    record
+        .response
+        .operation_id
+        .clone()
+        .ok_or(Error::Unavailable)
+}
+fn format_time(time: time::OffsetDateTime) -> Result<String, Error> {
+    time.format(&time::format_description::well_known::Rfc3339)
+        .map_err(|_| Error::Unavailable)
+}
+fn parse_time(value: &str) -> Result<time::OffsetDateTime, Error> {
+    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+        .map_err(|_| Error::Unavailable)
 }
 
 fn response(operation_id: Option<String>, outcome: Outcome) -> Result<InvokeResponse, Error> {
@@ -570,7 +772,52 @@ fn response(operation_id: Option<String>, outcome: Outcome) -> Result<InvokeResp
         state,
         result_json,
         receipt,
+        audit_pending: false,
     })
+}
+
+struct DispatchGuard<'a> {
+    management: &'a Management,
+    operation_id: String,
+    finished: bool,
+}
+
+impl Drop for DispatchGuard<'_> {
+    fn drop(&mut self) {
+        if !self.finished
+            && let Ok(response) = response(Some(self.operation_id.clone()), Outcome::Unknown)
+        {
+            // Failed journal persistence leaves Executing for the next exclusive owner.
+            let _ = self
+                .management
+                .save_with_audit(&self.operation_id, &response, "interrupted");
+        }
+    }
+}
+
+fn journal_lease(path: &Path) -> Result<File, Error> {
+    let parent = path
+        .parent()
+        .ok_or(Error::InvalidInput)?
+        .canonicalize()
+        .map_err(|_| Error::Unavailable)?;
+    let mut name = path.file_name().ok_or(Error::InvalidInput)?.to_os_string();
+    name.push(".management-lock");
+    let lock_path = parent.join(name);
+    if let Ok(metadata) = std::fs::symlink_metadata(&lock_path)
+        && !metadata.file_type().is_file()
+    {
+        return Err(Error::Unavailable);
+    }
+    let lock = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(lock_path)
+        .map_err(|_| Error::Unavailable)?;
+    fs2::FileExt::try_lock_exclusive(&lock).map_err(|_| Error::Unavailable)?;
+    Ok(lock)
 }
 
 fn intent_digest(
@@ -579,8 +826,9 @@ fn intent_digest(
     subject: &str,
     input: &Value,
     expected_revision: Option<&str>,
+    expires_at: &str,
 ) -> Result<String, Error> {
-    let canonical = serde_json::json!({"canonicalization":1,"deployment":deployment,"entry":entry,"subject":subject,"input":input,"expected_revision":expected_revision});
+    let canonical = serde_json::json!({"canonicalization":1,"deployment":deployment,"entry":entry,"subject":subject,"input":input,"expected_revision":expected_revision,"expires_at":expires_at});
     let bytes = serde_json::to_vec(&canonicalize(canonical)).map_err(|_| Error::InvalidInput)?;
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }

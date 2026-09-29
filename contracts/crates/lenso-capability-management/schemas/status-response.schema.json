@@ -1,13 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["operation_id", "state", "result_json", "receipt"],
+  "required": ["operation_id", "state", "audit_pending", "result_json", "receipt"],
   "properties": {
     "operation_id": {
       "$ref": "#/$defs/Nullable_string"
     },
     "state": {
       "$ref": "#/$defs/InvocationState"
+    },
+    "audit_pending": {
+      "type": "boolean"
     },
     "result_json": {
       "$ref": "#/$defs/Nullable_string"

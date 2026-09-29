@@ -3,7 +3,7 @@ import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.management@1";
 export const DESCRIPTOR_VERSION = "1.0.0";
-export const DESCRIPTOR_DIGEST = "sha256:2a5846adaa2ae2e9a847b5a64b044ec5f489a9b9afda513f52fa0a8c02b8fcac";
+export const DESCRIPTOR_DIGEST = "sha256:d5394e376705d5588c1eb07320b61fabe5859f5207023f0a5deb0e7f2caf6bf3";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -65,6 +65,7 @@ export interface InvokeRequest {
 }
 
 export interface InvokeResponse {
+  audit_pending: boolean;
   operation_id: string | null;
   receipt: string | null;
   result_json: string | null;
@@ -78,7 +79,7 @@ export interface StatusRequest {
 export type CatalogError = "permission_denied" | "unavailable" | UnknownDomainError;
 export type CatalogInvocationError = { readonly kind: "domain"; readonly error: CatalogError } | { readonly kind: "runtime"; readonly error: RuntimeFailure };
 export type CatalogResult = { readonly ok: true; readonly value: CatalogResponse } | { readonly ok: false; readonly error: CatalogInvocationError };
-export type InvokeError = "conflict" | "invalid_input" | "not_found" | "permission_denied" | "unavailable" | UnknownDomainError;
+export type InvokeError = "cancelled" | "conflict" | "deadline_exceeded" | "invalid_input" | "not_found" | "permission_denied" | "unavailable" | UnknownDomainError;
 export type InvokeInvocationError = { readonly kind: "domain"; readonly error: InvokeError } | { readonly kind: "runtime"; readonly error: RuntimeFailure };
 export type InvokeResult = { readonly ok: true; readonly value: InvokeResponse } | { readonly ok: false; readonly error: InvokeInvocationError };
 export type StatusError = "conflict" | "not_found" | "permission_denied" | "unavailable" | UnknownDomainError;
@@ -96,7 +97,7 @@ export function decodeInvokeRequest(wire: string): InvokeRequest { return lensoC
 export function encodeInvokeResponse(value: InvokeResponse): string { return lensoContractRuntime.encodePortableJson(value, "response"); }
 export function decodeInvokeResponse(wire: string): InvokeResponse { return lensoContractRuntime.decodePortableJson<InvokeResponse>(wire); }
 export function encodeInvokeError(value: InvokeError): string { return lensoContractRuntime.encodePortableJson(value, "Domain Error"); }
-export function decodeInvokeError(wire: string): InvokeError { return lensoContractRuntime.decodeDomainError<InvokeError>(wire, ["conflict", "invalid_input", "not_found", "permission_denied", "unavailable"]); }
+export function decodeInvokeError(wire: string): InvokeError { return lensoContractRuntime.decodeDomainError<InvokeError>(wire, ["cancelled", "conflict", "deadline_exceeded", "invalid_input", "not_found", "permission_denied", "unavailable"]); }
 
 export function encodeStatusRequest(value: StatusRequest): string { return lensoContractRuntime.encodePortableJson(value, "request"); }
 export function decodeStatusRequest(wire: string): StatusRequest { return lensoContractRuntime.decodePortableJson<StatusRequest>(wire); }

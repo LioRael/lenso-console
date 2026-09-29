@@ -97,6 +97,7 @@ pub struct InvokeResponse {
     #[schemars(length(min = 1, max = 128))]
     pub operation_id: Nullable<String>,
     pub state: InvocationState,
+    pub audit_pending: bool,
     #[schemars(length(min = 2, max = 1_048_576))]
     pub result_json: Nullable<String>,
     #[schemars(length(min = 1, max = 256))]
@@ -110,6 +111,8 @@ pub enum InvokeError {
     InvalidInput,
     Conflict,
     Unavailable,
+    Cancelled,
+    DeadlineExceeded,
 }
 
 #[derive(lenso::JsonSchema, serde::Deserialize)]
