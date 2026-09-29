@@ -64,6 +64,10 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
     generation.current += 1;
     const { current } = generation;
     const active = () => current === generation.current && !signal?.aborted;
+    setState((previous) =>
+      previous.kind === "ready" ? { kind: "loading" } : previous
+    );
+    queryClient.clear();
     if (consoleDevConfig.mode === "mock") {
       setState({ kind: "ready" });
       return;
@@ -207,6 +211,8 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
                 ...access,
                 subject: identity,
                 signOut: async () => {
+                  setState({ kind: "loading" });
+                  queryClient.clear();
                   const response = await sessionFetch("/auth/logout", {
                     method: "POST",
                     credentials: "same-origin",

@@ -46,7 +46,7 @@ impl Management {
     }
 
     /// Explicit operator recovery with the runtime stopped. This never erases a possible dispatch.
-    pub fn abandon_undispatched_external(
+    pub fn abandon_rejected_external(
         path: &std::path::Path,
         deployment: &str,
         subject: &str,
@@ -72,7 +72,10 @@ impl Management {
         if let Some(wire) = wire {
             let state: InvocationState =
                 serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
-            if state != InvocationState::Ready && state != InvocationState::Cancelled {
+            if !matches!(
+                state,
+                InvocationState::Ready | InvocationState::Cancelled | InvocationState::Failed
+            ) {
                 return Err(Error::Conflict);
             }
             connection.execute("UPDATE management_external_mutations SET state_json=?4 WHERE deployment=?1 AND subject=?2 AND kind='auth.pat.issue' AND idempotency_key=?3", params![deployment,subject,key,serde_json::to_string(&InvocationState::Cancelled).map_err(|_|Error::Unavailable)?]).map_err(|_|Error::Unavailable)?;

@@ -80,10 +80,18 @@ The browser therefore retains only the subject/deployment-scoped receipt key
 across reloads and keeps issuance locked until an owner receipt confirms it.
 It validates known request shape before storing that key. If a request was
 rejected before reservation or remains undispatched, an operator may stop the
-selected Host, call `Management::abandon_undispatched_external(path, deployment,
+selected Host, call `Management::abandon_rejected_external(path, deployment,
 subject, key)` under the exclusive journal lease, and clear only that exact
-browser receipt reference. This API accepts absent or `ready` records and
-marks `ready` as `cancelled`; it rejects `executing`, `unknown`, `failed` and
-`succeeded`. It must never be used to clear an owner receipt that is merely not
-visible yet. Preserve the recovery receipt and original reference in the
+browser receipt reference. This API accepts absent, `ready`, or terminal `failed`
+records and marks admitted records as `cancelled`; it rejects `executing`, `unknown` and
+`succeeded`. A `failed` external issue records a completed typed owner domain
+rejection; transport/unknown failures never become `failed`. Post-commit
+authorization rejection preserves `succeeded`. It must never be used to clear an
+owner receipt that is merely not visible yet. Preserve the recovery receipt and original reference in the
 operator's qualification record. The API is not exposed through HTTP or tools.
+
+A lost revoke reply is also retained as `unknown` and never replayed. Listing an
+inactive credential is useful current state, but is not a receipt of the original
+revoke (it may have expired). This initial owner contract supplies issue receipts;
+unknown revoke closure remains an explicit operator reconciliation step. Do not
+clear the operation or infer a successful revocation from an inactive list item.

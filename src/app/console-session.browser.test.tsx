@@ -362,3 +362,38 @@ test.each([false, true])(
       .not.toBeInTheDocument();
   }
 );
+
+test("unmounts private content while a focused tab revalidates its shared session", async () => {
+  let hold = false;
+  let complete: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/auth/methods") {
+        return Response.json({ methods: [] });
+      }
+      if (hold) {
+        return new Promise<Response>((resolve) => {
+          complete = resolve;
+        });
+      }
+      return Response.json({
+        mode: "required",
+        authenticated: true,
+        subject: "alice",
+      });
+    })
+  );
+  mount();
+  await expect.element(page.getByText("Private workspace")).toBeVisible();
+  hold = true;
+  window.dispatchEvent(new Event("focus"));
+  await expect.element(page.getByText("Checking your session…")).toBeVisible();
+  await expect
+    .element(page.getByText("Private workspace"))
+    .not.toBeInTheDocument();
+  complete?.(
+    Response.json({ mode: "required", authenticated: true, subject: "bob" })
+  );
+  await expect.element(page.getByText("Private workspace")).toBeVisible();
+});

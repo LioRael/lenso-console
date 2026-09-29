@@ -767,7 +767,7 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
         );
         drop(service);
         assert_eq!(
-            Management::abandon_undispatched_external(
+            Management::abandon_rejected_external(
                 &directory.path().join("operations.sqlite"),
                 "test",
                 "bob",
@@ -817,7 +817,7 @@ fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
 }
 
 #[test]
-fn operator_abandons_only_a_never_dispatched_intent_with_exclusive_ownership() {
+fn operator_abandons_only_uncommitted_rejections_with_exclusive_ownership() {
     let (directory, service, policy, notes) = setup(false);
     let path = directory.path().join("operations.sqlite");
     let human = Principal {
@@ -833,12 +833,12 @@ fn operator_abandons_only_a_never_dispatched_intent_with_exclusive_ownership() {
         )
         .unwrap();
     assert_eq!(
-        Management::abandon_undispatched_external(&path, "test", "bob", "denied-1"),
+        Management::abandon_rejected_external(&path, "test", "bob", "denied-1"),
         Err(Error::Unavailable)
     );
     drop(service);
-    Management::abandon_undispatched_external(&path, "test", "bob", "denied-1").unwrap();
-    Management::abandon_undispatched_external(&path, "test", "bob", "never-reserved").unwrap();
+    Management::abandon_rejected_external(&path, "test", "bob", "denied-1").unwrap();
+    Management::abandon_rejected_external(&path, "test", "bob", "never-reserved").unwrap();
     let reopened = Rc::new(
         Management::open(
             &path,
@@ -860,4 +860,20 @@ fn operator_abandons_only_a_never_dispatched_intent_with_exclusive_ownership() {
         reopened.external_claim(&context(), &mutation).err(),
         Some(Error::Conflict)
     );
+    let rejected = reopened
+        .external_reserve(
+            &context(),
+            &human,
+            "auth.pat.issue",
+            "owner-rejected",
+            &serde_json::json!({"expires_at":"too-far"}),
+        )
+        .unwrap();
+    reopened
+        .external_claim(&context(), &rejected)
+        .unwrap()
+        .complete(InvocationState::Failed, None)
+        .unwrap();
+    drop(reopened);
+    Management::abandon_rejected_external(&path, "test", "bob", "owner-rejected").unwrap();
 }

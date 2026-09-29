@@ -273,16 +273,18 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                 }
             };
             let parameters = serde_json::to_value(&request).map_err(|_| unavailable())?;
-            let mutation = this
-                .management
-                .external_reserve(
-                    &context,
-                    &human,
-                    "auth.pat.issue",
-                    &request.idempotency_key,
-                    &parameters,
-                )
-                .map_err(|_| unavailable())?;
+            let mutation = match this.management.external_reserve(
+                &context,
+                &human,
+                "auth.pat.issue",
+                &request.idempotency_key,
+                &parameters,
+            ) {
+                Ok(mutation) => mutation,
+                Err(Error::Conflict) => return Ok(Err(pat::IssueError::Conflict)),
+                Err(Error::InvalidInput) => return Ok(Err(pat::IssueError::InvalidRequest)),
+                Err(_) => return Err(unavailable()),
+            };
             if mutation.state == InvocationState::Succeeded {
                 let receipt = this
                     .receipt_current(
@@ -448,6 +450,14 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                     .external_flush(&context, &mutation)
                     .await
                     .map_err(|_| unavailable())?;
+                if this
+                    .authorize(&context, &request.deployment, "revoke")
+                    .await
+                    .map_err(|_| unavailable())?
+                    != human
+                {
+                    return Ok(Err(pat::RevokeError::PermissionDenied));
+                }
                 return Ok(Ok(pat::RevokeResponse {
                     revoked: mutation
                         .receipt

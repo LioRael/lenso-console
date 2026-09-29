@@ -55,6 +55,42 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
     }
   }, [storageKey]);
 
+  const clearReceipt = async (expected: string | undefined, held = false) => {
+    const compareAndClear = () => {
+      const retained = localStorage.getItem(storageKey);
+      if (retained && retained !== expected) {
+        setReceiptKey(retained);
+        setUnknown(true);
+        setMessage(
+          copy(
+            "Another request reference must be reconciled before preparing a token.",
+            "须先核对另一个请求引用，才能准备令牌。"
+          )
+        );
+        return false;
+      }
+      if (retained === expected) {
+        localStorage.removeItem(storageKey);
+      }
+      return true;
+    };
+    return held
+      ? compareAndClear()
+      : navigator.locks.request(storageKey, compareAndClear);
+  };
+  const prepareAnother = async () => {
+    setSecret(undefined);
+    try {
+      if (await clearReceipt(receiptKey)) {
+        setIntent(undefined);
+        setReceiptKey(undefined);
+        setUnknown(false);
+        setMessage("");
+      }
+    } catch {
+      setUnknown(true);
+    }
+  };
   const perform = async (
     operation: "issue" | "list" | "receipt" | "revoke",
     credentialId?: string
@@ -66,6 +102,7 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
     setBusy(true);
     setMessage("");
     let submitted = false;
+    let ownKey = receiptKey;
     try {
       let body: unknown;
       if (operation === "issue") {
@@ -89,6 +126,7 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
         };
         validateIssue(input);
         localStorage.setItem(storageKey, input.idempotency_key);
+        ownKey = input.idempotency_key;
         setReceiptKey(input.idempotency_key);
         setIntent(input);
         body = input;
@@ -126,8 +164,10 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
       }
       if (operation === "issue") {
         const result = decodeIssueResponse(text);
+        if (!(await clearReceipt(ownKey, true))) {
+          return;
+        }
         setSecret(result.token ?? undefined);
-        localStorage.removeItem(storageKey);
         setUnknown(false);
         setMessage(
           result.token
@@ -143,7 +183,9 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
       } else if (operation === "receipt") {
         const receipt = decodeReceiptResponse(text);
         if (receipt.found && receipt.credential) {
-          localStorage.removeItem(storageKey);
+          if (!(await clearReceipt(ownKey))) {
+            return;
+          }
           setCredentials((current) => [
             receipt.credential!,
             ...current.filter(
@@ -334,11 +376,7 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
           variant="ghost"
           disabled={busy || unknown}
           onClick={() => {
-            setSecret(undefined);
-            setIntent(undefined);
-            localStorage.removeItem(storageKey);
-            setReceiptKey(undefined);
-            setMessage("");
+            void prepareAnother();
           }}
         >
           {copy("Prepare another token", "准备另一个令牌")}
