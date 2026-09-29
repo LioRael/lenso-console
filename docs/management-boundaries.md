@@ -39,6 +39,15 @@ precondition, matched against fresh owner authentication before dispatch. A
 changed account receives `412 session_changed` and revalidates its view while
 preserving the previous subject's receipt reference.
 
+PAT metadata comes from the Auth owner. “Last authenticated” records an accepted
+authentication, rather than a completed business operation. An authorized list
+can reconcile a lost revoke response only when the exact credential and
+deployment match the retained request and the owner supplies a token-specific
+`revoked_at`. Inactivity or expiry alone leaves the operation unknown. This
+confirms the owner postcondition without attributing its timestamp to the lost
+invocation or dispatching another revoke; the durable audit outbox still needs
+delivery before the response is available.
+
 [Migration preview, import, and switch](management-migration.md) deliberately
 imports qualification without granting RBAC or carrying old sessions across
 realms. Shared legacy Agent/control connections remain closed in this profile.
@@ -55,3 +64,10 @@ it cannot enter the browser, human approval or PAT surfaces. The neutral
 Management service still checks current credential ceilings, qualification and
 RBAC for each operation. Owner delegation receipts record credential issuance;
 Management operation audit records remain with the selected Audit owner.
+
+MCP tool names bind the entry ID, version, Capability, operation, target instance,
+canonical input schema, effect and approval requirement. They use a bounded
+SHA-256 fingerprint and exclude explanatory descriptions. Every call compares
+the cached name against the freshly authorized catalog; an executable definition
+change rejects the old name before dispatch. Formatting or object-key order in
+the same schema does not change its identity.

@@ -106,9 +106,20 @@ mod tests {
                 "schema":"console_passwords", "database_url_secret":"auth.database", "audience":["lenso.console@1:access"], "session_ttl_seconds":3600,"max_failures":5,"failure_window_seconds":60
             })),
             PluginRootInstance::new("lenso.auth.web-session", "default").with_configuration(serde_json::json!({
-                "session_cookie_name":"__Host-lenso-session", "csrf_cookie_name":"__Host-lenso-csrf", "origin":"https://console.example.com"
+                "session_cookie_name":"__Host-lenso-session", "csrf_cookie_name":"__Host-lenso-csrf"
             })),
-            PluginRootInstance::new("lenso.secrets.env", "default").with_configuration(serde_json::json!({"references":{"auth.database":"CONSOLE_DATABASE_URL","auth.signing":"CONSOLE_SIGNING_KEY","auth.pepper":"CONSOLE_TOKEN_PEPPER"}})),
+            PluginRootInstance::new("lenso.auth.oidc-client", "default").with_configuration(serde_json::json!({
+                "provider":"operators","issuer":"https://identity.example.test", "authorization_endpoint":"https://identity.example.test/authorize",
+                "token_endpoint":"https://identity.example.test/token","jwks_uri":"https://identity.example.test/jwks",
+                "client_id":"console","client_secret_ref":"oidc.client","redirect_uri":"https://console.example.test/auth/oidc/callback",
+                "scopes":["openid"],"audience":["lenso.console@1:access"],"flow_ttl_seconds":60,"session_ttl_seconds":3600
+            })),
+            PluginRootInstance::new("lenso.auth.oauth-flow", "default").with_configuration(serde_json::json!({
+                "schema":"console_oauth","database_url_secret":"auth.database","encryption_key_secret":"oauth.encryption"
+            })),
+            PluginRootInstance::new("lenso.http-egress", "default").with_configuration(serde_json::to_value(
+                lenso_http_egress_plugin::HttpEgressConfig::new(["https://identity.example.test"]).unwrap()).unwrap()),
+            PluginRootInstance::new("lenso.secrets.env", "default").with_configuration(serde_json::json!({"references":{"auth.database":"CONSOLE_DATABASE_URL","auth.signing":"CONSOLE_SIGNING_KEY","auth.pepper":"CONSOLE_TOKEN_PEPPER","oidc.client":"CONSOLE_OIDC_CLIENT_SECRET","oauth.encryption":"CONSOLE_OAUTH_ENCRYPTION_KEY"}})),
         ], []);
         let configured = resolve_plugin_root(&host, &root).unwrap();
         let plan = configured.plan();

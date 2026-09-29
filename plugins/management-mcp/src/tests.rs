@@ -6,6 +6,7 @@ use rmcp::{
         StreamableHttpClientTransport, streamable_http_client::StreamableHttpClientTransportConfig,
     },
 };
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 fn entry(id: &str, effect: management::Effect) -> management::Entry {
@@ -20,10 +21,15 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
     let visible = Arc::new(AtomicBool::new(true));
     let unknown = Arc::new(AtomicBool::new(false));
     let calls = Arc::new(AtomicUsize::new(0));
+    let current = Arc::new(Mutex::new(vec![
+        entry("read", management::Effect::Read),
+        entry("update", management::Effect::Write),
+    ]));
     let worker = {
         let visible = visible.clone();
         let unknown = unknown.clone();
         let calls = calls.clone();
+        let current = current.clone();
         tokio::spawn(async move {
             while let Some(message) = receiver.recv().await {
                 let outcome = if message.credential.0 != "operator-token" {
@@ -34,10 +40,7 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
                             deployment: "alpha".into(),
                             revision: "1".into(),
                             entries: if visible.load(Ordering::SeqCst) {
-                                vec![
-                                    entry("read", management::Effect::Read),
-                                    entry("update", management::Effect::Write),
-                                ]
+                                current.lock().unwrap().clone()
                             } else {
                                 vec![]
                             },
@@ -141,6 +144,7 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
     let client = ().serve(StreamableHttpClientTransport::with_client(http, config)).await.unwrap();
     let catalog = client.list_all_tools().await.unwrap();
     assert_eq!(catalog.len(), 3);
+    assert!(catalog.iter().all(|tool| tool.name.len() <= 64));
     assert!(
         catalog
             .iter()
@@ -150,8 +154,20 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
         .as_object()
         .unwrap()
         .clone();
+    let cached_name = catalog
+        .iter()
+        .find(|tool| {
+            tool.input_schema["required"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|value| value == "idempotency_key")
+        })
+        .unwrap()
+        .name
+        .clone();
     let invoke =
-        || CallToolRequestParams::new(tool_name("update")).with_arguments(arguments.clone());
+        || CallToolRequestParams::new(cached_name.clone()).with_arguments(arguments.clone());
     let pending = client.call_tool(invoke()).await.unwrap();
     assert_eq!(
         pending.structured_content.as_ref().unwrap()["state"],
@@ -179,6 +195,66 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
         true
     );
     assert_eq!(calls.load(Ordering::SeqCst), 2);
+    let original = entry("update", management::Effect::Write);
+    let mut changed = original.clone();
+    changed.description = "New explanatory copy".into();
+    changed.input_schema_json = r#"{ "properties": { "value": { "type": "integer" } }, "additionalProperties": false, "type": "object" }"#.parse().unwrap();
+    current.lock().unwrap()[1] = changed;
+    assert!(
+        client
+            .list_all_tools()
+            .await
+            .unwrap()
+            .iter()
+            .any(|tool| tool.name == cached_name)
+    );
+    let mut changed_entries = Vec::new();
+    for field in [
+        "version",
+        "capability",
+        "operation",
+        "target",
+        "schema",
+        "effect",
+        "approval",
+        "id",
+    ] {
+        let mut changed = original.clone();
+        match field {
+            "version" => changed.version = "2.0.0".into(),
+            "capability" => changed.capability = "example.ops@2".into(),
+            "operation" => changed.operation = "replace".into(),
+            "target" => changed.target_instance = "example.ops/beta".into(),
+            "schema" => {
+                changed.input_schema_json =
+                    r#"{"type":"object","properties":{"value":{"type":"string"}}}"#
+                        .parse()
+                        .unwrap()
+            }
+            "effect" => changed.effect = management::Effect::Read,
+            "approval" => changed.requires_approval = false,
+            "id" => changed.id = "replace".into(),
+            _ => unreachable!(),
+        }
+        changed_entries.push(changed);
+    }
+    for changed in changed_entries {
+        current.lock().unwrap()[1] = changed;
+        assert!(
+            !client
+                .list_all_tools()
+                .await
+                .unwrap()
+                .iter()
+                .any(|tool| tool.name == cached_name)
+        );
+        assert_eq!(
+            client.call_tool(invoke()).await.unwrap().is_error,
+            Some(true)
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+    current.lock().unwrap()[1] = original;
     visible.store(false, Ordering::SeqCst);
     let denied = client.call_tool(invoke()).await.unwrap();
     assert_eq!(denied.is_error, Some(true));

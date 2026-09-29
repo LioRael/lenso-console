@@ -41,8 +41,10 @@ vi.mock("../../lib/session-fetch", () => ({
               credential: {
                 active: true,
                 credential_id: "owner-committed",
+                created_at: "2029-01-01T00:00:00Z",
                 deployment: "alpha",
                 expires_at: "2030-01-01T00:00:00Z",
+                last_used_at: "2029-01-02T00:00:00Z",
                 name: "read-token",
                 permissions: ["ops.state.read"],
                 resource_scopes: [{ kind: "ops-state", id: "primary-state" }],
@@ -179,6 +181,18 @@ test("retains only the receipt reference after a submitted rejection and recover
     )
     .toBeVisible();
   expect(localStorage.getItem(storageKey)).toBeNull();
+  await expect
+    .element(
+      page.getByText("Deployment: alpha · Expires: 2030-01-01T00:00:00Z")
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByText(
+        "Created: 2029-01-01T00:00:00Z · Last authenticated: 2029-01-02T00:00:00Z"
+      )
+    )
+    .toBeVisible();
   await page.getByRole("button", { name: "Prepare another token" }).click();
   await expect
     .element(page.getByRole("button", { name: "Issue personal token" }))

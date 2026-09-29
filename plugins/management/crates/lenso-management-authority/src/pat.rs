@@ -173,6 +173,69 @@ impl HumanPatServiceProvider {
             )
             .await
     }
+    async fn reconcile_revocations(
+        &self,
+        context: &InvocationContext,
+        human: &Principal,
+        credentials: &[pat::CredentialMetadata],
+    ) -> Result<(), lenso_kernel::RuntimeFailure> {
+        for credential in credentials {
+            if credential.deployment != self.deployment {
+                return Err(unavailable());
+            }
+            if credential
+                .revoked_at
+                .as_ref()
+                .and_then(Option::as_ref)
+                .is_none()
+            {
+                continue;
+            }
+            let mutation = match self.management.external_lookup(
+                human,
+                "auth.pat.revoke",
+                &credential.credential_id,
+            ) {
+                Ok(mutation) => mutation,
+                Err(Error::NotFound) => continue,
+                Err(_) => return Err(unavailable()),
+            };
+            if !matches!(
+                mutation.state,
+                InvocationState::Unknown | InvocationState::Executing | InvocationState::Succeeded
+            ) {
+                continue;
+            }
+            if self
+                .authorize(context, &self.deployment, "list")
+                .await
+                .map_err(|_| unavailable())?
+                != *human
+            {
+                return Err(unavailable());
+            }
+            let receipt =
+                revocation_receipt(&mutation.parameters, credential)?.ok_or_else(unavailable)?;
+            if mutation.state != InvocationState::Succeeded {
+                self.management
+                    .external_record(&mutation, InvocationState::Succeeded, Some(receipt))
+                    .map_err(|_| unavailable())?;
+            }
+            self.management
+                .external_flush(context, &mutation)
+                .await
+                .map_err(|_| unavailable())?;
+        }
+        if self
+            .authorize(context, &self.deployment, "list")
+            .await
+            .map_err(|_| unavailable())?
+            != *human
+        {
+            return Err(unavailable());
+        }
+        Ok(())
+    }
     async fn authorize_issue(
         &self,
         context: &InvocationContext,
@@ -241,6 +304,32 @@ impl HumanPatServiceProvider {
         Ok(human)
     }
 }
+
+fn revocation_receipt(
+    parameters: &serde_json::Value,
+    credential: &pat::CredentialMetadata,
+) -> Result<Option<serde_json::Value>, lenso_kernel::RuntimeFailure> {
+    let Some(revoked_at) = credential.revoked_at.as_ref().and_then(Option::as_ref) else {
+        return Ok(None);
+    };
+    time::OffsetDateTime::parse(revoked_at, &time::format_description::well_known::Rfc3339)
+        .map_err(|_| unavailable())?;
+    let original: pat::RevokeRequest =
+        serde_json::from_value(parameters.clone()).map_err(|_| unavailable())?;
+    if credential.active
+        || original.deployment != credential.deployment
+        || original.credential_id != credential.credential_id
+    {
+        return Err(unavailable());
+    }
+    Ok(Some(serde_json::json!({
+        "credential_id": credential.credential_id,
+        "revoked": true,
+        "confirmed_revoked_at": revoked_at,
+        "confirmation": "owner_token_revocation_postcondition"
+    })))
+}
+
 fn rejection<T, D>(
     error: Error,
     denied: D,
@@ -404,7 +493,11 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
                 Err(pat::HumanApiTokenListInvocationError::Runtime(error)) => return Err(error),
             };
             match this.authorize(&context, &request.deployment, "list").await {
-                Ok(current) if current == human => Ok(Ok(result)),
+                Ok(current) if current == human => {
+                    this.reconcile_revocations(&context, &human, &result.credentials)
+                        .await?;
+                    Ok(Ok(result))
+                }
                 Ok(_) => Ok(Err(pat::ListError::PermissionDenied)),
                 Err(error) => rejection(
                     error,
@@ -525,5 +618,48 @@ impl pat::HumanApiTokenProvider for HumanPatServiceProvider {
 fn unavailable() -> lenso_kernel::RuntimeFailure {
     lenso_kernel::RuntimeFailure::PluginFailure {
         detail: "Human token operation requires an owner receipt or audit recovery".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn revocation_recovery_requires_the_exact_token_owner_postcondition() {
+        let parameters = serde_json::json!({"deployment":"alpha","credential_id":"pat-1"});
+        let mut credential: pat::CredentialMetadata = serde_json::from_value(serde_json::json!({
+            "credential_id":"pat-1","name":"review","deployment":"alpha",
+            "permissions":["ops.read"],"resource_scopes":[{"kind":"ops","id":"primary"}],
+            "expires_at":"2020-01-01T00:00:00Z","active":false
+        }))
+        .unwrap();
+        // Expiry or a revoked parent session can make a token inactive without revoking the token.
+        assert!(
+            revocation_receipt(&parameters, &credential)
+                .unwrap()
+                .is_none()
+        );
+        credential.revoked_at = Some(Some("2020-01-02T00:00:00Z".into()));
+        let receipt = revocation_receipt(&parameters, &credential)
+            .unwrap()
+            .unwrap();
+        assert_eq!(receipt["credential_id"], "pat-1");
+        assert_eq!(
+            receipt["confirmation"],
+            "owner_token_revocation_postcondition"
+        );
+        assert!(receipt.get("token").is_none());
+        credential.credential_id = "pat-2".into();
+        assert!(revocation_receipt(&parameters, &credential).is_err());
+        credential.credential_id = "pat-1".into();
+        credential.deployment = "beta".into();
+        assert!(revocation_receipt(&parameters, &credential).is_err());
+        credential.deployment = "alpha".into();
+        credential.active = true;
+        assert!(revocation_receipt(&parameters, &credential).is_err());
+        credential.active = false;
+        credential.revoked_at = Some(Some("invalid".into()));
+        assert!(revocation_receipt(&parameters, &credential).is_err());
     }
 }

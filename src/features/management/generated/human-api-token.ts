@@ -2,8 +2,8 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.auth.human-api-token@1";
-export const DESCRIPTOR_VERSION = "1.0.0";
-export const DESCRIPTOR_DIGEST = "sha256:5d78e0843f0d3a7231b332115e3ee70d3d61c118ff55b22094a035c6c31cbb16";
+export const DESCRIPTOR_VERSION = "1.1.0";
+export const DESCRIPTOR_DIGEST = "sha256:d0bb0048d93a476ad2fbb4765abb2646be567409e67fbb37553427c6cb50a611";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -56,12 +56,15 @@ export interface IssueResponse {
 
 export interface CredentialMetadata {
   active: boolean;
+  created_at?: Timestamp | null;
   credential_id: string;
   deployment: string;
   expires_at: Timestamp;
+  last_used_at?: Timestamp | null;
   name: string;
   permissions: Array<string>;
   resource_scopes: Array<ResourceScope>;
+  revoked_at?: Timestamp | null;
 }
 
 export interface ListRequest {

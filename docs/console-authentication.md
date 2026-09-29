@@ -9,7 +9,7 @@ stores no passwords, provider tokens, or browser credentials.
 | Plugin | Responsibility |
 | --- | --- |
 | `lenso.auth.account` | Identity, sessions, signed actor assertions and revocation |
-| `lenso.auth.web-session` | Browser methods, secure cookies, login callbacks and logout |
+| `lenso.auth.web-session` | OIDC browser start, callback, secure cookies and logout |
 | `lenso.auth.password` (optional) | Email/password authentication |
 | `lenso.auth.oidc-client` and `lenso.auth.oauth-flow` (optional) | Enterprise OIDC login and callback state |
 | `lenso.secrets.env` | Resolve explicit secret references from the Host environment |
@@ -17,9 +17,13 @@ stores no passwords, provider tokens, or browser credentials.
 | `lenso.web-ingress` | One Console HTTP listener, credential selection and CSRF enforcement |
 
 These implementations are linked into the Host Catalog but are inactive until
-selected in the Plugin Root. Enabling password, OIDC, or both determines the
-methods returned by `GET /auth/methods`. Public self-registration is not exposed.
-Account provisioning remains an Auth-owned administrative operation.
+selected in the Plugin Root. The current Web Session Plugin requires the OIDC
+Federated and Account CredentialIssuer roles; it does not expose password login
+or `/auth/methods`. Password is a typed owner role. A selected HTTP projection
+must bind that role, advertise its own method, and apply origin, cookie and CSRF
+policy. The ordinary Ops reference App's Management Web Plugin supplies this
+projection for its human profile. It keeps enrollment in a separate private
+bootstrap Plugin rather than exposing public registration.
 
 ## Required configuration
 
@@ -40,8 +44,9 @@ Configure `lenso.web-ingress/default.session_cookie` with:
 ```
 
 Configure the Auth Web Session instance with the matching
-`session_cookie_name` and `csrf_cookie_name`. Password login also requires
-`origin`, the exact browser origin, for example `https://console.example.com`.
+`session_cookie_name` and `csrf_cookie_name`. A password HTTP projection instead
+uses its own explicit browser origin, such as `https://console.example.com`;
+`origin` is not a Web Session configuration field.
 The Host rejects missing or mismatched cookie extraction before startup.
 Use the existing typed Plugin configuration schemas for database schemas,
 secret references, assertion keys, OIDC issuer/client settings and callback URL.
@@ -78,13 +83,18 @@ It is the existing local operator experience, not a fabricated authenticated use
 
 ## Acceptance coverage
 
-The ignored Rust test `auth_plugins::live` uses a disposable PostgreSQL schema
-pair selected by `LENSO_POSTGRES_TEST_URL` and a test-only signing input from
-`CONSOLE_TEST_SECRET`. It runs real Auth, password, secrets and Web Ingress
-Plugins in the Console process, verifies login, denied member access, session
-persistence across restart with an explicit administrator, and logout revocation.
-The native Projects variant also starts real Projects, Organization and Access
-Control Plugins, checks two users without identity crossover, workspace discovery,
+The legacy `auth_plugins::live` acceptance used a password HTTP surface that the
+current OIDC Web Session Plugin no longer provides. Its adapter must use current
+bound Password and Account CredentialIssuer roles before it is an acceptance
+receipt for this source cohort. A compiled ignored test is not a passing receipt.
+The ordinary Ops reference human profile separately qualifies the actual
+password HTTP adapter, Console browser, reviewed operations and personal tokens.
+That qualification records its exact source inputs and owner storage setup.
+
+The Console integration scenario uses disposable PostgreSQL schemas selected by
+`LENSO_POSTGRES_TEST_URL` and a test-only signing input from `CONSOLE_TEST_SECRET`.
+Its native Projects variant checks
+real Projects, Organization and Access Control Plugins, two users without identity crossover, workspace discovery,
 unauthorized organization denial and shared-Agent isolation. No separate Projects
 listener is used. Only the unrelated Agent readiness endpoint is stubbed. Tests do not install
 fixture identities or secrets into a user's Console.

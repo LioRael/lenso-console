@@ -27,7 +27,13 @@ use rmcp::{
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
-use std::{borrow::Cow, collections::BTreeSet, rc::Rc, sync::Arc, time::Duration};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+    sync::Arc,
+    time::Duration,
+};
 use tokio::sync::{Semaphore, mpsc, oneshot};
 
 const MAX_BEARER: usize = 8192;
@@ -172,9 +178,15 @@ async fn dispatch(
             authenticate_request(Some(CredentialEvidence::new("bearer", credential.0))),
         )
         .await
-        .map_err(|_| TransportError::Denied)?;
+        .map_err(|error| match error {
+            lenso_capability_auth::AuthInvocationError::Runtime(_)
+            | lenso_capability_auth::AuthInvocationError::Domain(
+                lenso_capability_auth::AuthenticateError::Unknown(_),
+            ) => TransportError::Unavailable,
+            lenso_capability_auth::AuthInvocationError::Domain(_) => TransportError::Denied,
+        })?;
     let AuthOutcome::Authenticated(assertion) =
-        decode_auth_response(response).map_err(|_| TransportError::Denied)?
+        decode_auth_response(response).map_err(|_| TransportError::Unavailable)?
     else {
         return Err(TransportError::Denied);
     };
@@ -188,7 +200,7 @@ async fn dispatch(
     }
     let context = assertion
         .attach(context)
-        .map_err(|_| TransportError::Denied)?;
+        .map_err(|_| TransportError::Unavailable)?;
     match action {
         Action::Catalog => serde_json::to_value(
             management
@@ -328,8 +340,36 @@ fn header_credential(headers: &http::HeaderMap) -> Result<Credential, TransportE
         .ok_or(TransportError::Denied)?;
     Ok(Credential(value.into()))
 }
-fn tool_name(id: &str) -> String {
-    format!("management__{:x}", Sha256::digest(id.as_bytes()))
+fn canonicalize(value: Value) -> Value {
+    match value {
+        Value::Object(values) => Value::Object(
+            values
+                .into_iter()
+                .map(|(key, value)| (key, canonicalize(value)))
+                .collect::<BTreeMap<_, _>>()
+                .into_iter()
+                .collect(),
+        ),
+        Value::Array(values) => Value::Array(values.into_iter().map(canonicalize).collect()),
+        value => value,
+    }
+}
+fn tool_name(entry: &management::Entry) -> Result<String, TransportError> {
+    let input: Value = serde_json::from_str(entry.input_schema_json.as_str())
+        .map_err(|_| TransportError::Invalid)?;
+    let identity = serde_json::json!([
+        entry.id,
+        entry.version,
+        entry.capability,
+        entry.operation,
+        entry.target_instance,
+        canonicalize(input),
+        entry.effect,
+        entry.requires_approval
+    ]);
+    let bytes = serde_json::to_vec(&identity).map_err(|_| TransportError::Invalid)?;
+    let digest = format!("{:x}", Sha256::digest(bytes));
+    Ok(format!("management__{}", &digest[..48]))
 }
 fn tool(entry: &management::Entry) -> Result<Tool, TransportError> {
     let input: Value = serde_json::from_str(entry.input_schema_json.as_str())
@@ -341,7 +381,7 @@ fn tool(entry: &management::Entry) -> Result<Tool, TransportError> {
     };
     let value = serde_json::json!({"type":"object","additionalProperties":false,"properties":{"input":input,"idempotency_key":{"type":"string","minLength":1,"maxLength":128},"expected_revision":{"type":"string","minLength":1,"maxLength":128}},"required":required});
     Ok(Tool::new(
-        tool_name(&entry.id),
+        tool_name(entry)?,
         entry.description.clone(),
         value.as_object().cloned().ok_or(TransportError::Invalid)?,
     ))
@@ -430,11 +470,18 @@ impl ServerHandler for Handler {
                     .await?,
             )
             .map_err(|_| TransportError::Unavailable)?;
-            let entry = catalog
+            let mut selected = None;
+            for entry in catalog
                 .entries
                 .iter()
-                .find(|entry| tool_name(&entry.id) == request.name && self.profile.visible(entry))
-                .ok_or(TransportError::Denied)?;
+                .filter(|entry| self.profile.visible(entry))
+            {
+                if tool_name(entry)? == request.name {
+                    selected = Some(entry);
+                    break;
+                }
+            }
+            let entry = selected.ok_or(TransportError::Denied)?;
             let arguments: Arguments =
                 serde_json::from_value(arguments).map_err(|_| TransportError::Invalid)?;
             self.bridge

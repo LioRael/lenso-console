@@ -391,15 +391,31 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
           <li key={credential.credential_id} {...stylex.props(styles.row)}>
             <span>
               {credential.name} · {credential.credential_id} ·{" "}
-              {credential.expires_at} ·{" "}
               {credential.active
                 ? copy("active", "有效")
                 : copy("inactive", "失效")}
             </span>
             <span>
+              {copy("Deployment", "目标部署")}: {credential.deployment} ·{" "}
+              {copy("Expires", "有效期")}: {credential.expires_at}
+            </span>
+            <span>
               {credential.permissions.join(", ")} ·{" "}
               {JSON.stringify(credential.resource_scopes)}
             </span>
+            <span>
+              {copy("Created", "创建时间")}:{" "}
+              {credential.created_at ??
+                copy("Not reported by owner", "Owner 未提供")}{" "}
+              · {copy("Last authenticated", "最近通过身份验证")}:{" "}
+              {credential.last_used_at ??
+                copy("Not reported by owner", "Owner 未提供")}
+            </span>
+            {credential.revoked_at && (
+              <span>
+                {copy("Token revoked", "令牌撤销时间")}: {credential.revoked_at}
+              </span>
+            )}
             <Button
               variant="ghost"
               disabled={busy || !credential.active}
