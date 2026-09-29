@@ -5,8 +5,8 @@ use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture
 
 use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany, CapabilityReference};
 pub const CAPABILITY_ID: &str = "lenso.management-human@1";
-pub const DESCRIPTOR_VERSION: &str = "1.0.0";
-pub const DESCRIPTOR_DIGEST: &str = "sha256:5317b1919fe46499435eea4c8213e19a0d87be834a018c30ab9bbfe18b8fc6e9";
+pub const DESCRIPTOR_VERSION: &str = "1.1.0";
+pub const DESCRIPTOR_DIGEST: &str = "sha256:b872e8c0835588494ebdedaa11f2852b561184229c370e37b0974d8c05112b8b";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const MANAGEMENT_HUMAN_CAPABILITY_ID: &str = CAPABILITY_ID;
@@ -16,26 +16,26 @@ pub const MANAGEMENT_HUMAN_CONTRACT: CapabilityReference<ManagementHumanClient> 
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_provided_management_human { () => { "{\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.0.0\",\"operations\":[\"decide\",\"read_intent\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
+macro_rules! __lenso_provided_management_human { () => { "{\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.1.0\",\"operations\":[\"decide\",\"read_intent\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __lenso_required_management_human_client {
-    () => { "{\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}" };
-    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"one\"}") };
+    () => { "{\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"one\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"one\"}") };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __lenso_required_optional_management_human_client {
-    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"optional\"}") };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"optional\"}") };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __lenso_required_many_management_human_client {
-    () => { "{\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}" };
-    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.0.0\",\"cardinality\":\"many\"}") };
+    () => { "{\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"many\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.management-human@1\",\"descriptor_version\":\"1.1.0\",\"cardinality\":\"many\"}") };
 }
 
 pub const DECIDE_OPERATION: &str = "decide";
@@ -67,6 +67,9 @@ pub enum Decision {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DecideResponse {
+    #[serde(rename = "audit_pending")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub audit_pending: bool,
     #[serde(rename = "operation_id")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub operation_id: String,
@@ -107,6 +110,9 @@ pub struct ReadIntentRequest {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReadIntentResponse {
+    #[serde(rename = "audit_pending")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub audit_pending: bool,
     #[serde(rename = "capability")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub capability: String,

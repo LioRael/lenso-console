@@ -1,5 +1,6 @@
 //! Controlled dispatch. Host bindings own the catalog; targets retain business authority.
 
+pub mod external;
 pub mod native;
 
 use futures::future::LocalBoxFuture;
@@ -81,6 +82,10 @@ pub trait Authority: std::fmt::Debug {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AuditEvent {
     pub intent: Intent,
+    #[serde(default)]
+    pub actor: Option<String>,
+    #[serde(default)]
+    pub decision: Option<String>,
     pub phase: String,
     pub state: InvocationState,
     pub receipt: Option<String>,
@@ -244,7 +249,8 @@ impl Management {
                 UNIQUE(subject, deployment, entry_id, idempotency_key)
             );
             CREATE TABLE management_audit_outbox(operation_id TEXT NOT NULL, phase TEXT NOT NULL, event_json TEXT NOT NULL, sent INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(operation_id,phase));
-            PRAGMA user_version = 3;
+            CREATE TABLE management_external_mutations(operation_id TEXT PRIMARY KEY, deployment TEXT NOT NULL, subject TEXT NOT NULL, kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, intent_json TEXT NOT NULL, parameters_digest TEXT NOT NULL, state_json TEXT NOT NULL, receipt_json TEXT, UNIQUE(deployment,subject,kind,idempotency_key));
+            PRAGMA user_version = 4;
             COMMIT;",
             )
             .map_err(|_| Error::Unavailable)
@@ -272,7 +278,7 @@ impl Management {
         let version: i64 = journal
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .map_err(|_| Error::Unavailable)?;
-        if version != 3 {
+        if version != 4 {
             return Err(Error::Unavailable);
         }
         let mut entries = BTreeMap::new();
@@ -348,6 +354,7 @@ impl Management {
             journal: RefCell::new(journal),
             _lease,
         };
+        service.journal.borrow().execute("UPDATE management_external_mutations SET state_json=?1 WHERE deployment=?2 AND state_json=?3", params![serde_json::to_string(&InvocationState::Unknown).map_err(|_| Error::Unavailable)?, service.deployment, executing]).map_err(|_| Error::Unavailable)?;
         for (id, wire) in recovered {
             let response = serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
             service.save_with_audit(&id, &response, "interrupted")?;
@@ -619,6 +626,65 @@ impl Management {
         Ok(parameters)
     }
 
+    pub fn audit_pending(&self, operation_id: &str) -> Result<bool, Error> {
+        Ok(self.load(operation_id)?.response.audit_pending)
+    }
+
+    /// Host-only durable human action trail. Callers cannot populate this through Management@1.
+    pub async fn audit_human(
+        &self,
+        context: &InvocationContext,
+        operation_id: &str,
+        phase: &str,
+        human: &Principal,
+        decision: &str,
+    ) -> Result<(), Error> {
+        if !matches!(phase, "human_attempt" | "human_decided")
+            || !matches!(decision, "approved" | "rejected")
+            || human.subject.is_empty()
+            || human.subject.len() > 256
+        {
+            return Err(Error::InvalidInput);
+        }
+        if phase == "human_attempt" {
+            self.check_context(context)?;
+        }
+        let record = self.load(operation_id)?;
+        let intent = self.intent(&record)?;
+        let identity = format!(
+            "{:x}",
+            Sha256::digest(format!("{}:{decision}", human.subject))
+        );
+        let phase = format!("{phase}:{identity}");
+        let event = AuditEvent {
+            intent,
+            actor: Some(human.subject.clone()),
+            decision: Some(decision.into()),
+            phase: phase.clone(),
+            state: record.response.state.clone(),
+            receipt: None,
+            occurred_at: format_time(self.authority.wall_now())?,
+        };
+        let mut pending = record.response;
+        pending.audit_pending = true;
+        {
+            let mut journal = self.journal.borrow_mut();
+            let transaction = journal.transaction().map_err(|_| Error::Unavailable)?;
+            transaction.execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)", params![operation_id, phase, serde_json::to_string(&event).map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
+            transaction
+                .execute(
+                    "UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1",
+                    params![
+                        operation_id,
+                        serde_json::to_string(&pending).map_err(|_| Error::Unavailable)?
+                    ],
+                )
+                .map_err(|_| Error::Unavailable)?;
+            transaction.commit().map_err(|_| Error::Unavailable)?;
+        }
+        self.flush_audit(context, operation_id).await
+    }
+
     fn reserve(
         &self,
         subject: &str,
@@ -744,6 +810,8 @@ impl Management {
     ) -> Result<(), Error> {
         let event = AuditEvent {
             intent: intent.clone(),
+            actor: None,
+            decision: None,
             phase: phase.into(),
             state,
             receipt,
@@ -762,6 +830,8 @@ impl Management {
         let intent = self.intent(&record)?;
         let event = AuditEvent {
             intent,
+            actor: None,
+            decision: None,
             phase: phase.into(),
             state: response.state.clone(),
             receipt: response.receipt.clone(),
@@ -784,6 +854,12 @@ impl Management {
         transaction.commit().map_err(|_| Error::Unavailable)
     }
     async fn flush_audit(&self, context: &InvocationContext, id: &str) -> Result<(), Error> {
+        self.flush_audit_events(context, id).await?;
+        let mut response = self.load(id)?.response;
+        response.audit_pending = false;
+        self.save(id, &response)
+    }
+    async fn flush_audit_events(&self, context: &InvocationContext, id: &str) -> Result<(), Error> {
         let events: Vec<(String, String)> = {
             let journal = self.journal.borrow();
             let mut statement=journal.prepare("SELECT phase,event_json FROM management_audit_outbox WHERE operation_id=?1 AND sent=0 ORDER BY rowid").map_err(|_|Error::Unavailable)?;
@@ -805,9 +881,7 @@ impl Management {
                 )
                 .map_err(|_| Error::Unavailable)?;
         }
-        let mut response = self.load(id)?.response;
-        response.audit_pending = false;
-        self.save(id, &response)
+        Ok(())
     }
 
     fn save(&self, id: &str, response: &InvokeResponse) -> Result<(), Error> {

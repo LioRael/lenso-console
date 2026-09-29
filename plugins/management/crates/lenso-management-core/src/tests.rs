@@ -681,3 +681,96 @@ fn pending_approval_retains_the_reviewed_parameters_across_restart() {
         assert_eq!(wrong.install(Rc::new(reopened)), Err(Error::Conflict));
     });
 }
+
+#[test]
+fn human_mutation_audit_plan_survives_lost_reply_and_never_claims_twice() {
+    block_on(async {
+        let (directory, service, policy, notes) = setup(false);
+        let service = Rc::new(service);
+        let human = Principal {
+            subject: "bob".into(),
+        };
+        let parameters = serde_json::json!({"name":"read-token","deployment":"test"});
+        let mutation = service
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .unwrap();
+        policy
+            .audit_failure
+            .replace(Some("external_attempt".into()));
+        assert_eq!(
+            service.external_attempt(&context(), &mutation).await,
+            Err(Error::Unavailable)
+        );
+        assert!(policy.audit_events.borrow().is_empty());
+        policy.audit_failure.replace(None);
+        service
+            .external_attempt(&context(), &mutation)
+            .await
+            .unwrap();
+        let guard = service.external_claim(&context(), &mutation).unwrap();
+        assert_eq!(
+            service.external_claim(&context(), &mutation).err(),
+            Some(Error::Conflict)
+        );
+        drop(guard); // The owner may have committed before a reply was lost.
+        let unknown = service
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .unwrap();
+        assert_eq!(unknown.state, InvocationState::Unknown);
+        assert_eq!(
+            service.external_claim(&context(), &unknown).err(),
+            Some(Error::Conflict)
+        );
+        assert_eq!(
+            service
+                .external_reserve(
+                    &context(),
+                    &human,
+                    "auth.pat.issue",
+                    "issue-1",
+                    &serde_json::json!({"name":"changed"})
+                )
+                .err(),
+            Some(Error::Conflict)
+        );
+        drop(service);
+        let reopened = Management::open(
+            &directory.path().join("operations.sqlite"),
+            "test".into(),
+            "catalog-1".into(),
+            vec![Binding {
+                entry: entry(false),
+                target: notes,
+            }],
+            policy.clone(),
+        )
+        .unwrap();
+        let unknown = reopened
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .unwrap();
+        assert_eq!(unknown.state, InvocationState::Unknown);
+        reopened
+            .external_record(
+                &unknown,
+                InvocationState::Succeeded,
+                Some(serde_json::json!({"credential_id":"owner-issued-1"})),
+            )
+            .unwrap();
+        reopened.external_flush(&context(), &unknown).await.unwrap();
+        let receipt = reopened
+            .external_reserve(&context(), &human, "auth.pat.issue", "issue-1", &parameters)
+            .unwrap();
+        assert_eq!(receipt.state, InvocationState::Succeeded);
+        assert_eq!(receipt.receipt.unwrap()["credential_id"], "owner-issued-1");
+        let delivered = policy.audit_events.borrow().len();
+        reopened.external_flush(&context(), &unknown).await.unwrap();
+        assert_eq!(policy.audit_events.borrow().len(), delivered);
+        assert!(
+            policy
+                .audit_events
+                .borrow()
+                .iter()
+                .all(|event| event.actor.as_deref() == Some("bob"))
+        );
+    });
+}

@@ -2,6 +2,8 @@
 
 mod human;
 pub use human::HumanServiceProvider;
+mod pat;
+pub use pat::HumanPatServiceProvider;
 
 mod legacy_import;
 pub use legacy_import::LegacyImportPlan;
@@ -245,6 +247,23 @@ impl OperatorsAuthority {
         operation_id: &str,
         decision: approval::DecideRequestDecision,
     ) -> Result<approval::DecideResponse, Error> {
+        self.decide_with_admission(
+            context,
+            management,
+            operation_id,
+            decision,
+            ("lenso.business-approval@1", "decide"),
+        )
+        .await
+    }
+    async fn decide_with_admission(
+        &self,
+        context: InvocationContext,
+        management: &Management,
+        operation_id: &str,
+        decision: approval::DecideRequestDecision,
+        admission: (&str, &str),
+    ) -> Result<approval::DecideResponse, Error> {
         let (intent, entry) = management.pending_approval_intent(operation_id)?;
         let entry_policy = self.policies.get(&entry.id).ok_or(Error::Denied)?;
         let policy = EntryPolicy {
@@ -257,8 +276,8 @@ impl OperatorsAuthority {
                 &context,
                 &intent.deployment,
                 &policy,
-                "lenso.business-approval@1",
-                "decide",
+                admission.0,
+                admission.1,
             )
             .await?;
         if human.0 == intent.subject
@@ -291,13 +310,26 @@ impl OperatorsAuthority {
                 &context,
                 &intent.deployment,
                 &policy,
-                "lenso.business-approval@1",
-                "decide",
+                admission.0,
+                admission.1,
             )
             .await?;
         if current.0 != human.0 {
             return Err(Error::Denied);
         }
+        let approval_user = self
+            .current_user(
+                &context,
+                &intent.deployment,
+                &policy,
+                "lenso.business-approval@1",
+                "decide",
+            )
+            .await?;
+        if approval_user.0 != human.0 {
+            return Err(Error::Denied);
+        }
+        self.check_human_context(&context)?;
         self.ports
             .approval
             .decide_with_context(
@@ -427,6 +459,7 @@ impl Authority for OperatorsAuthority {
     ) -> LocalBoxFuture<'a, Result<(), Error>> {
         async move {
             let metadata = BTreeMap::from([
+                ("decision".into(), serde_json::json!(event.decision)),
                 (
                     "intent_digest".into(),
                     serde_json::json!(event.intent.digest),
@@ -443,9 +476,17 @@ impl Authority for OperatorsAuthority {
                 .append_event_with_context(
                     context.clone(),
                     audit::AppendEventRequest {
-                        action: format!("management.{}", event.phase),
+                        action: format!(
+                            "management.{}",
+                            event.phase.split(':').next().ok_or(Error::Unavailable)?
+                        ),
                         actor: audit::AppendEventRequestActor {
-                            id: Some(event.intent.subject.clone()),
+                            id: Some(
+                                event
+                                    .actor
+                                    .clone()
+                                    .unwrap_or_else(|| event.intent.subject.clone()),
+                            ),
                             kind: "user".into(),
                             display: None,
                         },
@@ -456,7 +497,11 @@ impl Authority for OperatorsAuthority {
                         )),
                         metadata,
                         occurred_at: event.occurred_at.parse().map_err(|_| Error::Unavailable)?,
-                        outcome: if matches!(
+                        outcome: if event.phase.starts_with("human_decided:")
+                            && event.decision.as_deref() == Some("rejected")
+                        {
+                            audit::AppendEventRequestOutcome::Denied
+                        } else if matches!(
                             event.state,
                             lenso_management_core::InvocationState::Unknown
                                 | lenso_management_core::InvocationState::Failed

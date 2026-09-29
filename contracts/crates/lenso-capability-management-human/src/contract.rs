@@ -9,6 +9,7 @@ pub struct ReadIntentRequest {
 #[derive(lenso::JsonSchema, serde::Deserialize)]
 #[schemars(deny_unknown_fields)]
 pub struct ReadIntentResponse {
+    pub audit_pending: bool,
     pub operation_id: String,
     pub requester: String,
     pub deployment: String,
@@ -52,6 +53,7 @@ pub struct DecideRequest {
 #[derive(lenso::JsonSchema, serde::Deserialize)]
 #[schemars(deny_unknown_fields)]
 pub struct DecideResponse {
+    pub audit_pending: bool,
     pub operation_id: String,
     pub status: IntentStatus,
 }
@@ -72,7 +74,7 @@ pub enum DecideError {
 #[lenso::capability(
     id = "lenso.management-human",
     major = 1,
-    version = "1.0.0",
+    version = "1.1.0",
     portable = true,
     cross_lane_transfer = false
 )]

@@ -1,8 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["operation_id", "status"],
+  "required": ["audit_pending", "operation_id", "status"],
   "properties": {
+    "audit_pending": {
+      "type": "boolean"
+    },
     "operation_id": {
       "type": "string"
     },

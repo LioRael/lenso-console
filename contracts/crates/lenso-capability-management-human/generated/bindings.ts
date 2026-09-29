@@ -2,8 +2,8 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.management-human@1";
-export const DESCRIPTOR_VERSION = "1.0.0";
-export const DESCRIPTOR_DIGEST = "sha256:5317b1919fe46499435eea4c8213e19a0d87be834a018c30ab9bbfe18b8fc6e9";
+export const DESCRIPTOR_VERSION = "1.1.0";
+export const DESCRIPTOR_DIGEST = "sha256:b872e8c0835588494ebdedaa11f2852b561184229c370e37b0974d8c05112b8b";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -41,6 +41,7 @@ export interface DecideRequest {
 }
 
 export interface DecideResponse {
+  audit_pending: boolean;
   operation_id: string;
   status: "pending" | "approved" | "rejected" | "cancelled" | "expired";
 }
@@ -50,6 +51,7 @@ export interface ReadIntentRequest {
 }
 
 export interface ReadIntentResponse {
+  audit_pending: boolean;
   capability: string;
   deployment: string;
   description: string;

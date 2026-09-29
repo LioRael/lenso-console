@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "required": [
+    "audit_pending",
     "operation_id",
     "requester",
     "deployment",
@@ -17,6 +18,9 @@
     "status"
   ],
   "properties": {
+    "audit_pending": {
+      "type": "boolean"
+    },
     "operation_id": {
       "type": "string"
     },

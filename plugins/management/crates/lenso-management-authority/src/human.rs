@@ -24,7 +24,7 @@ impl OperatorsAuthority {
         self.check_human_context(context)?;
         Ok(Principal { subject: user.0 })
     }
-    fn check_human_context(&self, context: &InvocationContext) -> Result<(), Error> {
+    pub(crate) fn check_human_context(&self, context: &InvocationContext) -> Result<(), Error> {
         if context.is_cancelled() {
             return Err(Error::Cancelled);
         }
@@ -99,6 +99,7 @@ impl OperatorsAuthority {
             approval::ReadResponseStatus::Expired => human::IntentStatus::Expired,
         };
         Ok(human::ReadIntentResponse {
+            audit_pending: management.audit_pending(operation_id)?,
             operation_id: intent.operation_id,
             requester: intent.subject,
             deployment: intent.deployment,
@@ -164,7 +165,8 @@ impl human::ManagementHumanProvider for HumanServiceProvider {
                     scope_kind: fixed.scope_kind.clone(),
                     scope_id: fixed.scope_id.clone(),
                 };
-                this.authority
+                let human = this
+                    .authority
                     .authorize_human(
                         &context,
                         &intent.deployment,
@@ -176,19 +178,43 @@ impl human::ManagementHumanProvider for HumanServiceProvider {
                 if intent.digest != request.intent_digest {
                     return Err(Error::Conflict);
                 }
-                let decision = match request.decision {
-                    human::Decision::Approved => approval::DecideRequestDecision::Approved,
-                    human::Decision::Rejected => approval::DecideRequestDecision::Rejected,
+                let (decision, decision_name) = match request.decision {
+                    human::Decision::Approved => {
+                        (approval::DecideRequestDecision::Approved, "approved")
+                    }
+                    human::Decision::Rejected => {
+                        (approval::DecideRequestDecision::Rejected, "rejected")
+                    }
                 };
+                this.management
+                    .audit_human(
+                        &context,
+                        &request.operation_id,
+                        "human_attempt",
+                        &human,
+                        decision_name,
+                    )
+                    .await?;
                 let decided = this
                     .authority
-                    .decide(
+                    .decide_with_admission(
                         context.clone(),
                         &this.management,
                         &request.operation_id,
                         decision,
+                        (human::CAPABILITY_ID, "decide"),
                     )
                     .await?;
+                let _ = this
+                    .management
+                    .audit_human(
+                        &context,
+                        &request.operation_id,
+                        "human_decided",
+                        &human,
+                        decision_name,
+                    )
+                    .await;
                 this.authority.check_human_context(&context)?;
                 let status = match decided.status {
                     approval::DecideResponseStatus::Approved => human::IntentStatus::Approved,
@@ -197,6 +223,7 @@ impl human::ManagementHumanProvider for HumanServiceProvider {
                     approval::DecideResponseStatus::Expired => human::IntentStatus::Expired,
                 };
                 Ok(human::DecideResponse {
+                    audit_pending: this.management.audit_pending(&request.operation_id)?,
                     operation_id: request.operation_id,
                     status,
                 })

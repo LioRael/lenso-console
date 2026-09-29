@@ -22,17 +22,19 @@ use lenso_business_approval_postgres_plugin::{BusinessApprovalConfig, BusinessAp
 use lenso_capability_access_control as access;
 use lenso_capability_access_control_admin as admin;
 use lenso_capability_access_control_directory as access_directory;
+use lenso_capability_api_token_admin as token_admin;
 use lenso_capability_audit_log as audit;
 use lenso_capability_auth as auth;
 use lenso_capability_business_approval as approval;
 use lenso_capability_credential_state as credentials;
+use lenso_capability_management_human::{self as human, ManagementHumanProvider as _};
 use lenso_capability_secrets as secrets;
 use lenso_kernel::{
     CancellationToken, InvocationContext, Kernel, NativeApp, NativeRequestEndpoint,
     NativeRequestFuture, RuntimeDriver, RuntimeFailure, ShutdownOutcome,
 };
 use lenso_management_authority::{
-    Clock, EntryPolicy, OperatorsAuthority, OwnerPorts, QualificationStore,
+    Clock, EntryPolicy, HumanServiceProvider, OperatorsAuthority, OwnerPorts, QualificationStore,
 };
 use lenso_management_core::{
     Binding, Effect, Entry, Error, InvocationState, InvokeRequest, Management, Outcome, Target,
@@ -232,7 +234,11 @@ fn request(key: &str, text: &str, revision: i64) -> InvokeRequest {
 fn ceiling() -> ManagementCredentialCeiling {
     ManagementCredentialCeiling {
         deployment: DEPLOYMENT.into(),
-        permissions: vec!["notes.write".into(), "management.approval.decide".into()],
+        permissions: vec![
+            "notes.write".into(),
+            "management.approval.read".into(),
+            "management.approval.decide".into(),
+        ],
         resource_scopes: vec![ManagementResourceScope {
             kind: SCOPE_KIND.into(),
             id: DEPLOYMENT.into(),
@@ -250,6 +256,8 @@ async fn issue(
         ("lenso.management@1", "invoke"),
         ("lenso.management@1", "status"),
         ("lenso.business-approval@1", "decide"),
+        (human::CAPABILITY_ID, human::READ_INTENT_OPERATION),
+        (human::CAPABILITY_ID, human::DECIDE_OPERATION),
         (admin::CAPABILITY_ID, admin::CREATE_ROLE_OPERATION),
         (admin::CAPABILITY_ID, admin::SET_ROLE_PERMISSIONS_OPERATION),
         (admin::CAPABILITY_ID, admin::ASSIGN_ROLE_OPERATION),
@@ -389,6 +397,15 @@ fn plan(
         credentials::CAPABILITY_ID,
         credentials::DESCRIPTOR_VERSION,
         [credentials::INSPECT_OPERATION],
+    ))
+    .with_capability(CapabilityEndpointPlan::new(
+        token_admin::CAPABILITY_ID,
+        token_admin::DESCRIPTOR_VERSION,
+        [
+            token_admin::ISSUE_OPERATION,
+            token_admin::LIST_OPERATION,
+            token_admin::REVOKE_OPERATION,
+        ],
     ));
     let access = owner(
         "access",
@@ -978,7 +995,7 @@ async fn real_owners_enforce_current_authority_exact_human_approval_and_durable_
             );
             let driver = TokioDriver::new();
             let app = start(&database, &audit_database, &schemas, true, driver.clone()).await;
-            let auth = authority(&app, qualification, driver);
+            let auth = authority(&app, qualification.clone(), driver);
             let service = management(&journal, auth.clone(), notes.clone());
             let pending = service
                 .invoke(
@@ -1011,6 +1028,213 @@ async fn real_owners_enforce_current_authority_exact_human_approval_and_durable_
             );
             assert_eq!(notes.revision(), 3);
             assert_eq!(audit_events(&app, &outbox_id).await.len(), 3);
+
+            let service = Rc::new(service);
+            let human = HumanServiceProvider {
+                management: service.clone(),
+                authority: auth.clone(),
+            };
+            let pending = service
+                .invoke(
+                    context(&app, &carol_assertion),
+                    request("human-review", "reviewed fourth", 3),
+                )
+                .await
+                .unwrap();
+            let human_id = pending.operation_id.unwrap();
+            let review = human
+                .read_intent(
+                    context(&app, &dave_assertion),
+                    human::ReadIntentRequest {
+                        operation_id: human_id.clone(),
+                    },
+                )
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(review.requester, "carol");
+            assert_eq!(review.status, human::IntentStatus::Pending);
+            assert_eq!(review.deployment, DEPLOYMENT);
+            assert_eq!(review.entry_id, "notes.set");
+            assert_eq!(
+                serde_json::from_str::<Value>(review.parameters_json.as_str()).unwrap(),
+                json!({"input":{"text":"reviewed fourth"},"expected_revision":"3"})
+            );
+            assert_eq!(
+                human
+                    .read_intent(
+                        context(&app, &machine_assertion),
+                        human::ReadIntentRequest {
+                            operation_id: human_id.clone(),
+                        },
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap_err(),
+                human::ReadIntentError::PermissionDenied
+            );
+            assert_eq!(
+                human
+                    .decide(
+                        context(&app, &dave_assertion),
+                        human::DecideRequest {
+                            operation_id: human_id.clone(),
+                            intent_digest: "0".repeat(64),
+                            decision: human::Decision::Approved,
+                        },
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap_err(),
+                human::DecideError::Conflict
+            );
+            let human_request = human::DecideRequest {
+                operation_id: human_id.clone(),
+                intent_digest: review.intent_digest.clone(),
+                decision: human::Decision::Approved,
+            };
+            assert_eq!(
+                human
+                    .decide(context(&app, &carol_assertion), human_request.clone())
+                    .await
+                    .unwrap()
+                    .unwrap_err(),
+                human::DecideError::PermissionDenied
+            );
+
+            // Stop at a real, sent predecision audit boundary, then remove the
+            // selected Audit's writer admission before the owner decision.
+            let deciding_context = context(&app, &dave_assertion);
+            let deciding_human = auth
+                .authorize_human(
+                    &deciding_context,
+                    DEPLOYMENT,
+                    &EntryPolicy {
+                        permission: "management.approval.decide".into(),
+                        scope_kind: SCOPE_KIND.into(),
+                        scope_id: DEPLOYMENT.into(),
+                    },
+                    human::CAPABILITY_ID,
+                    human::DECIDE_OPERATION,
+                )
+                .await
+                .unwrap();
+            service
+                .audit_human(
+                    &deciding_context,
+                    &human_id,
+                    "human_attempt",
+                    &deciding_human,
+                    "approved",
+                )
+                .await
+                .unwrap();
+            drop(human);
+            drop(service);
+            drop(auth);
+            assert_eq!(
+                app.shutdown(Duration::from_secs(2)).await,
+                ShutdownOutcome::Clean
+            );
+
+            let driver = TokioDriver::new();
+            let app = start(&database, &audit_database, &schemas, false, driver.clone()).await;
+            let auth = authority(&app, qualification.clone(), driver);
+            let service = Rc::new(management(&journal, auth.clone(), notes.clone()));
+            let human = HumanServiceProvider {
+                management: service.clone(),
+                authority: auth.clone(),
+            };
+            let decided = human
+                .decide(context(&app, &dave_assertion), human_request.clone())
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(decided.status, human::IntentStatus::Approved);
+            assert!(decided.audit_pending);
+            assert_eq!(notes.revision(), 3);
+            let approval_port = approval::BusinessApprovalClient::from_dependencies(
+                &app.dependencies(CALLER).unwrap(),
+            )
+            .unwrap();
+            let committed_decision = approval_port
+                .read(approval::ReadRequest {
+                    request_id: human_id.clone(),
+                })
+                .await
+                .unwrap();
+            assert_eq!(
+                committed_decision.status,
+                approval::ReadResponseStatus::Approved
+            );
+            assert_eq!(committed_decision.requested_by, "carol");
+            assert_eq!(committed_decision.terminal_actor.as_deref(), Some("dave"));
+            assert_eq!(
+                committed_decision.intent_digest.as_deref(),
+                Some(review.intent_digest.as_str())
+            );
+            assert_eq!(
+                human
+                    .decide(context(&app, &dave_assertion), human_request.clone())
+                    .await
+                    .unwrap()
+                    .unwrap_err(),
+                human::DecideError::Unavailable
+            );
+            assert_eq!(
+                approval_port
+                    .read(approval::ReadRequest {
+                        request_id: human_id.clone(),
+                    })
+                    .await
+                    .unwrap(),
+                committed_decision
+            );
+            drop(approval_port);
+            drop(human);
+            drop(service);
+            drop(auth);
+            assert_eq!(
+                app.shutdown(Duration::from_secs(2)).await,
+                ShutdownOutcome::Clean
+            );
+
+            let driver = TokioDriver::new();
+            let app = start(&database, &audit_database, &schemas, true, driver.clone()).await;
+            let auth = authority(&app, qualification, driver);
+            let service = management(&journal, auth.clone(), notes.clone());
+            let recovered = service
+                .status(context(&app, &carol_assertion), &human_id)
+                .await
+                .unwrap();
+            assert!(!recovered.audit_pending);
+            assert_eq!(recovered.state, InvocationState::PendingApproval);
+            let events = audit_events(&app, &human_id).await;
+            let decided_events: Vec<_> = events
+                .iter()
+                .filter(|event| event.action == "management.human_decided")
+                .collect();
+            assert_eq!(decided_events.len(), 1);
+            assert_eq!(decided_events[0].actor_id.as_deref(), Some("dave"));
+            assert_eq!(decided_events[0].metadata["decision"], "approved");
+            assert_eq!(
+                decided_events[0].metadata["intent_digest"],
+                review.intent_digest
+            );
+            assert_eq!(notes.revision(), 3);
+            assert_eq!(
+                service
+                    .status(context(&app, &carol_assertion), &human_id)
+                    .await
+                    .unwrap(),
+                recovered
+            );
+            assert_eq!(audit_events(&app, &human_id).await, events);
+            assert!(
+                !serde_json::to_string(&events)
+                    .unwrap()
+                    .contains(dave.expose_secret())
+            );
             operator.revoke_token(carol.token_id()).await.unwrap();
             assert_eq!(
                 service
