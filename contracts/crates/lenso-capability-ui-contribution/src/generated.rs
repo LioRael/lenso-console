@@ -43,7 +43,7 @@ pub const DESCRIBE_CONTRIBUTION_OPERATION: &str = "describe_contribution";
 pub use lenso_contract_runtime::{OptionalValue, UnknownDomainError};
 use lenso_contract_runtime::{decode_portable_json, encode_portable_json};
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DescribeContributionRequest {
 
 }

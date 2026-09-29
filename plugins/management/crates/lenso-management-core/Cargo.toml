@@ -1,0 +1,25 @@
+[package]
+name = "lenso-management-core"
+version = "0.1.0"
+description = "Controlled application operations with a durable invocation journal."
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/LioRael/lenso-console"
+rust-version = "1.94"
+
+[dependencies]
+futures = "0.3"
+jsonschema = { version = "0.51", default-features = false }
+lenso-capability-management = { path = "../../../../contracts/crates/lenso-capability-management", version = "0.1.0" }
+lenso-kernel = "0.3.11"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+unsafe_code = "forbid"

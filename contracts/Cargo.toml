@@ -3,4 +3,5 @@ resolver = "2"
 members = [
   "crates/lenso-capability-ui-contribution",
   "crates/lenso-capability-workspace-service",
+  "crates/lenso-capability-management",
 ]

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["operation_id", "state", "result_json", "receipt"],
+  "properties": {
+    "operation_id": {
+      "$ref": "#/$defs/Nullable_string"
+    },
+    "state": {
+      "$ref": "#/$defs/InvocationState"
+    },
+    "result_json": {
+      "$ref": "#/$defs/Nullable_string"
+    },
+    "receipt": {
+      "$ref": "#/$defs/Nullable_string"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "InvocationState": {
+      "type": "string",
+      "enum": ["pending_approval", "ready", "executing", "succeeded", "failed", "unknown", "cancelled"]
+    },
+    "Nullable_string": {
+      "type": ["string", "null"]
+    }
+  },
+  "title": "InvokeResponse"
+}
