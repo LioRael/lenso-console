@@ -48,7 +48,9 @@ impl OperatorsAuthority {
         operation_id: &str,
     ) -> Result<human::ReadIntentResponse, Error> {
         let approval_port = self.approval_port()?;
-        let (intent, entry) = management.pending_approval_intent(operation_id)?;
+        let (intent, entry) = management
+            .pending_approval_intent_async(operation_id)
+            .await?;
         let fixed = self.policies.get(&entry.id).ok_or(Error::Denied)?;
         let policy = EntryPolicy {
             permission: "management.approval.read".into(),
@@ -94,7 +96,9 @@ impl OperatorsAuthority {
         if current != principal {
             return Err(Error::Denied);
         }
-        let parameters = management.pending_approval_parameters(operation_id)?;
+        let parameters = management
+            .pending_approval_parameters_async(operation_id)
+            .await?;
         let status = match stored.status {
             approval::ReadResponseStatus::Pending => human::IntentStatus::Pending,
             approval::ReadResponseStatus::Approved => human::IntentStatus::Approved,
@@ -103,7 +107,7 @@ impl OperatorsAuthority {
             approval::ReadResponseStatus::Expired => human::IntentStatus::Expired,
         };
         Ok(human::ReadIntentResponse {
-            audit_pending: management.audit_pending(operation_id)?,
+            audit_pending: management.audit_pending_async(operation_id).await?,
             operation_id: intent.operation_id,
             requester: intent.subject,
             deployment: intent.deployment,
@@ -159,7 +163,8 @@ impl human::ManagementHumanProvider for HumanServiceProvider {
                 this.authority.approval_port()?;
                 let (intent, entry) = this
                     .management
-                    .pending_approval_intent(&request.operation_id)?;
+                    .pending_approval_intent_async(&request.operation_id)
+                    .await?;
                 let fixed = this
                     .authority
                     .policies
@@ -228,7 +233,10 @@ impl human::ManagementHumanProvider for HumanServiceProvider {
                     approval::DecideResponseStatus::Expired => human::IntentStatus::Expired,
                 };
                 Ok(human::DecideResponse {
-                    audit_pending: this.management.audit_pending(&request.operation_id)?,
+                    audit_pending: this
+                        .management
+                        .audit_pending_async(&request.operation_id)
+                        .await?,
                     operation_id: request.operation_id,
                     status,
                 })

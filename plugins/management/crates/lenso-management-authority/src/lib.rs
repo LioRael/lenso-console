@@ -2,10 +2,14 @@
 
 mod human;
 pub use human::HumanServiceProvider;
+#[cfg(not(target_arch = "wasm32"))]
 mod pat;
+#[cfg(not(target_arch = "wasm32"))]
 pub use pat::HumanPatServiceProvider;
 
+#[cfg(not(target_arch = "wasm32"))]
 mod legacy_import;
+#[cfg(not(target_arch = "wasm32"))]
 pub use legacy_import::LegacyImportPlan;
 
 use futures::{FutureExt as _, future::LocalBoxFuture};
@@ -23,8 +27,11 @@ use lenso_kernel::InvocationContext;
 use lenso_management_core::{
     Approval, AuditEvent, Authority, Effect, Entry, Error, Intent, Management, Principal,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use rusqlite::{Connection, OptionalExtension, params};
-use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc, time::Duration};
+#[cfg(not(target_arch = "wasm32"))]
+use std::{cell::RefCell, path::Path};
+use std::{collections::BTreeMap, rc::Rc, time::Duration};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 /// The Host supplies the same wall and monotonic clocks used by its Driver.
@@ -41,8 +48,10 @@ pub struct EntryPolicy {
     pub scope_id: String,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug)]
 pub struct QualificationStore(RefCell<Connection>);
+#[cfg(not(target_arch = "wasm32"))]
 impl QualificationStore {
     pub fn initialize(path: &Path) -> Result<(), Error> {
         Connection::open(path).map_err(|_|Error::Unavailable)?.execute_batch("BEGIN IMMEDIATE; CREATE TABLE qualified_operators(deployment TEXT NOT NULL,subject TEXT NOT NULL,PRIMARY KEY(deployment,subject)); PRAGMA user_version=1; COMMIT;").map_err(|_|Error::Unavailable)
@@ -101,6 +110,25 @@ impl QualificationStore {
     }
 }
 
+/// Durable Management membership is independent of identity and RBAC policy.
+pub trait Qualification: std::fmt::Debug {
+    fn is_qualified<'a>(
+        &'a self,
+        deployment: &'a str,
+        subject: &'a str,
+    ) -> LocalBoxFuture<'a, Result<bool, Error>>;
+}
+#[cfg(not(target_arch = "wasm32"))]
+impl Qualification for QualificationStore {
+    fn is_qualified<'a>(
+        &'a self,
+        deployment: &'a str,
+        subject: &'a str,
+    ) -> LocalBoxFuture<'a, Result<bool, Error>> {
+        Box::pin(async move { self.contains(deployment, subject) })
+    }
+}
+
 #[derive(Debug)]
 pub struct OwnerPorts {
     pub credential_state: credentials::CredentialStateClient,
@@ -128,7 +156,7 @@ struct BoundOwnerPorts {
 #[derive(Debug)]
 pub struct OperatorsAuthority {
     verifier: RealmAssertionVerifier,
-    qualification: Rc<QualificationStore>,
+    qualification: Rc<dyn Qualification>,
     policies: BTreeMap<String, EntryPolicy>,
     ports: BoundOwnerPorts,
     clock: Rc<dyn Clock>,
@@ -139,6 +167,29 @@ struct User {
     binding: CredentialBinding,
     ceiling: ManagementCredentialCeiling,
     delegated: bool,
+}
+
+fn project_live_user(
+    verifier: &RealmAssertionVerifier,
+    clock: &dyn Clock,
+    context: &InvocationContext,
+    capability: &str,
+    operation: &str,
+    live: &credentials::InspectResponse,
+) -> Result<User, Error> {
+    let now = clock.wall();
+    let current = verifier
+        .project_context::<User>(context, capability, operation, &FixedClock::new(now))
+        .map_err(|_| Error::Denied)?;
+    if !live.active
+        || live.subject != current.subject
+        || live.credential_id != current.binding.credential_id
+        || live.session_id != current.binding.session_id
+        || OffsetDateTime::parse(&live.expires_at, &Rfc3339).map_err(|_| Error::Denied)? <= now
+    {
+        return Err(Error::Denied);
+    }
+    Ok(current)
 }
 
 fn credential_state_error(error: &credentials::CredentialStateInvocationError) -> Error {
@@ -218,7 +269,7 @@ impl TypedActor for User {
 impl OperatorsAuthority {
     pub fn new(
         verifier: RealmAssertionVerifier,
-        qualification: Rc<QualificationStore>,
+        qualification: Rc<dyn Qualification>,
         policies: BTreeMap<String, EntryPolicy>,
         ports: OwnerPorts,
         clock: Rc<dyn Clock>,
@@ -240,7 +291,7 @@ impl OperatorsAuthority {
     /// Selects a read-only authority without an Approval dependency; writes always deny.
     pub fn new_read_only(
         verifier: RealmAssertionVerifier,
-        qualification: Rc<QualificationStore>,
+        qualification: Rc<dyn Qualification>,
         policies: BTreeMap<String, EntryPolicy>,
         ports: ReadOnlyOwnerPorts,
         clock: Rc<dyn Clock>,
@@ -261,7 +312,7 @@ impl OperatorsAuthority {
 
     fn from_ports(
         verifier: RealmAssertionVerifier,
-        qualification: Rc<QualificationStore>,
+        qualification: Rc<dyn Qualification>,
         policies: BTreeMap<String, EntryPolicy>,
         ports: BoundOwnerPorts,
         clock: Rc<dyn Clock>,
@@ -302,7 +353,11 @@ impl OperatorsAuthority {
             .verifier
             .project_context::<User>(context, capability, operation, &FixedClock::new(now))
             .map_err(|_| Error::Denied)?;
-        if !self.qualification.contains(deployment, &user.subject)? {
+        if !self
+            .qualification
+            .is_qualified(deployment, &user.subject)
+            .await?
+        {
             return Err(Error::Denied);
         }
         let binding = &user.binding;
@@ -366,7 +421,15 @@ impl OperatorsAuthority {
         if !permission.allowed {
             return Err(Error::Denied);
         }
-        Ok(user)
+        // Owner I/O can consume the assertion or credential's remaining lifetime.
+        project_live_user(
+            &self.verifier,
+            self.clock.as_ref(),
+            context,
+            capability,
+            operation,
+            &live,
+        )
     }
     /// A human route/CLI calls this server guard; Agent tools never expose it.
     pub async fn decide(
@@ -394,7 +457,9 @@ impl OperatorsAuthority {
         admission: (&str, &str),
     ) -> Result<approval::DecideResponse, Error> {
         let approval_port = self.approval_port()?;
-        let (intent, entry) = management.pending_approval_intent(operation_id)?;
+        let (intent, entry) = management
+            .pending_approval_intent_async(operation_id)
+            .await?;
         let entry_policy = self.policies.get(&entry.id).ok_or(Error::Denied)?;
         let policy = EntryPolicy {
             permission: "management.approval.decide".into(),
@@ -714,6 +779,109 @@ mod owner_state_error_tests {
     }
 
     #[derive(Debug)]
+    struct MovingClock(std::cell::Cell<OffsetDateTime>);
+    impl Clock for MovingClock {
+        fn monotonic(&self) -> Duration {
+            Duration::ZERO
+        }
+        fn wall(&self) -> OffsetDateTime {
+            self.0.get()
+        }
+    }
+
+    #[test]
+    fn credential_and_assertion_expiry_are_rechecked_after_owner_wait() {
+        use lenso_auth_sdk::credential::{
+            CREDENTIAL_BINDING_CLAIM, MANAGEMENT_CEILING_CLAIM, ManagementResourceScope,
+        };
+        use lenso_auth_sdk::{ActorAssertionIssuer, Validity};
+        let start = OffsetDateTime::from_unix_timestamp(1_800_000_000).unwrap();
+        let issuer = ActorAssertionIssuer::new("operators", b"expiry-vector");
+        let verifier = RealmAssertionVerifier::new(
+            "operators",
+            "operators",
+            &issuer.public_key_base64(),
+            60,
+            None,
+        )
+        .unwrap();
+        for (assertion_ttl, credential_ttl) in [(3, 20), (20, 3)] {
+            let clock = MovingClock(std::cell::Cell::new(start));
+            let binding = CredentialBinding {
+                credential_id: "credential-1".into(),
+                session_id: "session-1".into(),
+            };
+            let ceiling = ManagementCredentialCeiling {
+                deployment: "test".into(),
+                permissions: vec!["notes.read".into()],
+                resource_scopes: vec![ManagementResourceScope {
+                    kind: "notes".into(),
+                    id: "primary".into(),
+                }],
+            };
+            let claims = BTreeMap::from([
+                (CREDENTIAL_BINDING_CLAIM.into(), serde_json::json!(binding)),
+                (MANAGEMENT_CEILING_CLAIM.into(), serde_json::json!(ceiling)),
+            ]);
+            let context = issuer
+                .issue(
+                    "alice",
+                    "user",
+                    "api-token",
+                    [lenso_auth_sdk::audience("lenso.management@1", "catalog")],
+                    Validity::new(start, start + time::Duration::seconds(assertion_ttl)).unwrap(),
+                    claims.clone(),
+                )
+                .attach(InvocationContext::new(
+                    1,
+                    None,
+                    lenso_kernel::CancellationToken::new(),
+                ))
+                .unwrap();
+            let live = credentials::InspectResponse {
+                active: true,
+                actor_kind: "user".into(),
+                assurance: "api-token".into(),
+                audience: vec![lenso_auth_sdk::audience("lenso.management@1", "catalog")],
+                claims,
+                credential_id: binding.credential_id,
+                session_id: binding.session_id,
+                subject: "alice".into(),
+                expires_at: (start + time::Duration::seconds(credential_ttl))
+                    .format(&Rfc3339)
+                    .unwrap(),
+            };
+            assert!(
+                project_live_user(
+                    &verifier,
+                    &clock,
+                    &context,
+                    "lenso.management@1",
+                    "catalog",
+                    &live
+                )
+                .is_ok()
+            );
+            futures::executor::block_on(async {
+                // The last owner wait finishes after one independent validity interval.
+                std::future::ready(()).await;
+                clock.0.set(start + time::Duration::seconds(4));
+            });
+            assert!(matches!(
+                project_live_user(
+                    &verifier,
+                    &clock,
+                    &context,
+                    "lenso.management@1",
+                    "catalog",
+                    &live
+                ),
+                Err(Error::Denied)
+            ));
+        }
+    }
+
+    #[derive(Debug)]
     struct WireFaultEndpoint<C> {
         malformed_success: bool,
         capability: std::marker::PhantomData<C>,
@@ -868,5 +1036,16 @@ mod owner_state_error_tests {
                 Error::Denied
             );
         }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Qualification for lenso_management_core::workers::WorkersJournal {
+    fn is_qualified<'a>(
+        &'a self,
+        deployment: &'a str,
+        subject: &'a str,
+    ) -> LocalBoxFuture<'a, Result<bool, Error>> {
+        Box::pin(async move { self.is_qualified(deployment, subject).await })
     }
 }

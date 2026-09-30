@@ -39,6 +39,7 @@ jobs:
         with:
           toolchain: 1.94.0
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - name: Install owner contract projection generator
         run: cargo install --locked lenso-contract-codegen --version 0.10.0
       - name: Run fast preflight

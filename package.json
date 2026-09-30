@@ -35,11 +35,12 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:distribution": "node --test scripts/distribution/*.test.mjs",
     "check:preflight": "pnpm lint && node scripts/check-rust-format.mjs && pnpm service:boundary && pnpm contract:typecheck && pnpm human-tokens:projection",
-    "check:full": "pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check && pnpm management:check && pnpm management:mcp:check",
+    "check:full": "pnpm test && pnpm test:distribution && pnpm build:local && pnpm service:check && pnpm management:check && pnpm management:mcp:check && pnpm management:workers:check",
     "test:conventions": "bun test packages/console-convention/test",
     "management:check": "cargo fmt --manifest-path plugins/management/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path plugins/management/Cargo.toml --all-targets -- -D warnings && cargo test --locked --manifest-path plugins/management/Cargo.toml",
     "management:mcp:check": "cargo fmt --manifest-path plugins/management-mcp/Cargo.toml --all -- --check && cargo clippy --locked --manifest-path plugins/management-mcp/Cargo.toml --all-targets -- -D warnings && cargo test --locked --manifest-path plugins/management-mcp/Cargo.toml",
-    "human-tokens:projection": "node scripts/check-human-token-projection.mjs"
+    "human-tokens:projection": "node scripts/check-human-token-projection.mjs",
+    "management:workers:check": "cargo clippy --locked --manifest-path plugins/management/Cargo.toml --workspace --lib --target wasm32-unknown-unknown -- -D warnings && npm ci --prefix plugins/management/workers-mcp && npm test --prefix plugins/management/workers-mcp"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

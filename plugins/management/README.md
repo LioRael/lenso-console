@@ -45,7 +45,7 @@ targets must use the server-created operation ID as their stable domain
 idempotency identity and supply a commit receipt. A failed transport leaves an
 `unknown` invocation; subsequent invoke requests do not replay it. `status`
 queries the target receipt after authorization and can establish success.
-Restart changes unfinished dispatches to `unknown`. Cancellation and expired
+Native exclusive restart changes unfinished dispatches to `unknown`. Cancellation and expired
 deadlines prevent dispatch; abandoning a dispatched future leaves `unknown`. A changed target, schema or
 entry version prevents querying the old invocation through a different binding.
 
@@ -103,3 +103,51 @@ for the exact credential, subject and deployment retained in the request. This
 confirms the owner postcondition without attributing its timestamp to the lost
 invocation. Inactivity or expiry alone leaves the operation unknown; the durable
 audit outbox must be delivered before the reconciled response is available.
+
+
+## Workers owner storage and transport
+
+`storage::Journal` is a finite private owner interface. `Management::from_store`
+uses the same catalog, current admission, intent digest, dispatch state machine,
+target receipt and audit outbox as Native. Runtime construction checks the prepared
+store version; it never creates tables or grants operator membership.
+
+The owner module `lenso-management-core/src/workers/journal.mjs` exports explicit
+operator setup and qualification actions separately from its runtime factory.
+The selected D1 binding uses a `first-primary` session per event. Invocation records,
+qualified subjects and unsent audit phases survive a new Worker instance. Atomic
+batch/CAS receipts must report success and bounded mutation counts; an uncertain
+receipt returns unavailable even when the transaction may have committed.
+
+A claim records an absolute wall-clock expiry of at most 30 seconds. The selected
+Workers Host event budget must also be at most 30 seconds. No startup scans or
+rewrites active executions. An authorized status read may recover an expired
+claim to unknown and query the business owner's stable receipt; it never replays
+its write. Fresh assertion, credential and immutable-intent expiry checks follow
+the last asynchronous authorization wait. Relative Driver time controls only the
+current invocation's deadline, not a durable lease across events.
+
+`lenso-management-http` projects bound Auth, Management and ManagementHuman ports
+to fixed bearer HTTP endpoints. Every request reauthenticates; authorization and
+human eligibility remain server-side. Private responses are no-store. Optional
+MCP uses the official `@modelcontextprotocol/server` SDK through an event-scoped,
+closed owner bundle. Its callback receives an already sealed Rust context, never
+a bearer or actor JSON. Read-only is the default tool surface; approved writes
+require explicit Host selection and retain the same durable approval guard.
+
+The bundle is built from locked owner sources and checked byte-for-byte. The
+ordinary Source App must select its exact reachable owner package/module through
+Host facilities; copying SQL, substituting a handwritten Host or forwarding raw
+Worker env is outside this interface.
+
+```sh
+pnpm management:workers:check
+```
+
+Local real workerd/D1 tests qualify durable CAS, restart, receipt monotonicity,
+mutation-reply uncertainty and the closed official MCP bundle as components.
+They do not qualify the ordinary Worker App's full security graph, deployment or
+remote Hyperdrive. Those source assembly and runtime receipts are recorded by the
+Examples owner separately. Browser sessions and human PAT lifecycle remain the
+explicit Native profile; the initial Worker profile uses owner-issued user API
+credentials and the guarded typed human approval endpoint.

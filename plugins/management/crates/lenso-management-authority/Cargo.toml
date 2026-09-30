@@ -18,7 +18,7 @@ lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-au
 lenso-capability-access-control = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "8aabedfeb21a049481d1d2e1ba2523dcb4c3a442" }
 lenso-capability-business-approval = { git = "https://github.com/LioRael/lenso-business-approval-plugin", rev = "b7acf5926d178c118445a92dbebeb4fcdef4e67a" }
 lenso-capability-audit-log = { git = "https://github.com/LioRael/lenso-audit-log-plugin", rev = "59ecc79e38de72891e6a164d7e74617c618038f8" }
-rusqlite = { version = "=0.39.0", features = ["bundled"] }
+
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
@@ -42,3 +42,6 @@ tokio = { version = "1.52", features = ["macros", "rt"] }
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rusqlite = { version = "=0.39.0", features = ["bundled"] }

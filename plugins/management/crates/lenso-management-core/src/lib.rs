@@ -1,19 +1,27 @@
 //! Controlled dispatch. Host bindings own the catalog; targets retain business authority.
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod external;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod native;
+pub mod storage;
+#[cfg(target_arch = "wasm32")]
+pub mod workers;
 
 use futures::future::LocalBoxFuture;
 use lenso_capability_management as contract;
 use lenso_kernel::InvocationContext;
+#[cfg(not(target_arch = "wasm32"))]
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value;
 use sha2::{Digest as _, Sha256};
-use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
+#[cfg(not(target_arch = "wasm32"))]
 use std::{
+    cell::RefCell,
     fs::{File, OpenOptions},
-    time::Duration,
+    path::Path,
 };
+use std::{collections::BTreeMap, rc::Rc, time::Duration};
 
 pub use contract::{Effect, Entry, InvocationState, InvokeRequest, InvokeResponse};
 
@@ -136,8 +144,11 @@ pub struct Management {
     revision: String,
     entries: BTreeMap<String, Accepted>,
     authority: Rc<dyn Authority>,
-    journal: RefCell<Connection>,
-    _lease: File,
+    #[cfg(not(target_arch = "wasm32"))]
+    journal: Option<RefCell<Connection>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    _lease: Option<File>,
+    owned_journal: Option<Rc<dyn storage::Journal>>,
 }
 
 /// Generated native Capability endpoint adapter; a Host explicitly supplies its owned service.
@@ -216,19 +227,22 @@ struct IntentSeal<'a> {
     expires_at: &'a str,
 }
 
-#[derive(Debug)]
-struct Record {
-    subject: String,
-    entry_id: String,
-    digest: String,
-    binding_digest: String,
-    expires_at: String,
-    parameters: IntentParameters,
-    response: InvokeResponse,
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Record {
+    pub subject: String,
+    pub entry_id: String,
+    pub digest: String,
+    pub binding_digest: String,
+    pub expires_at: String,
+    pub parameters: IntentParameters,
+    pub response: InvokeResponse,
+    #[serde(default)]
+    pub execution_until_ms: Option<i64>,
 }
 
 impl Management {
     /// Explicit operator setup; opening a configured deployment never silently creates storage.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn initialize_journal(path: &Path) -> Result<(), Error> {
         let _lease = journal_lease(path)?;
         let connection = Connection::open(path).map_err(|_| Error::Unavailable)?;
@@ -256,6 +270,7 @@ impl Management {
             .map_err(|_| Error::Unavailable)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn open(
         path: &Path,
         deployment: String,
@@ -281,47 +296,7 @@ impl Management {
         if version != 5 {
             return Err(Error::Unavailable);
         }
-        let mut entries = BTreeMap::new();
-        for binding in bindings {
-            let entry = binding.entry;
-            if [
-                &entry.id,
-                &entry.target_instance,
-                &entry.capability,
-                &entry.version,
-                &entry.operation,
-            ]
-            .iter()
-            .any(|id| id.is_empty() || id.len() > 128)
-                || entry.description.len() > 4096
-                || entry.input_schema_json.as_str().len() > 65536
-            {
-                return Err(Error::InvalidInput);
-            }
-            let schema_value: Value = serde_json::from_str(entry.input_schema_json.as_str())
-                .map_err(|_| Error::InvalidInput)?;
-            if schema_value.get("type").and_then(Value::as_str) != Some("object")
-                || schema_value.get("additionalProperties") != Some(&Value::Bool(false))
-            {
-                return Err(Error::InvalidInput);
-            }
-            let schema =
-                jsonschema::validator_for(&schema_value).map_err(|_| Error::InvalidInput)?;
-            let id = entry.id.clone();
-            if entries
-                .insert(
-                    id,
-                    Accepted {
-                        entry,
-                        schema,
-                        target: binding.target,
-                    },
-                )
-                .is_some()
-            {
-                return Err(Error::Conflict);
-            }
-        }
+        let entries = accept_bindings(bindings)?;
         // A process can have lost its response after dispatch. Recovery must query the target.
         let executing =
             serde_json::to_string(&InvocationState::Executing).map_err(|_| Error::Unavailable)?;
@@ -351,8 +326,9 @@ impl Management {
             revision,
             entries,
             authority,
-            journal: RefCell::new(journal),
-            _lease,
+            journal: Some(RefCell::new(journal)),
+            _lease: Some(_lease),
+            owned_journal: None,
         };
         service.recover_external()?;
         for (id, wire) in recovered {
@@ -426,7 +402,9 @@ impl Management {
             .as_deref()
             .filter(|key| !key.is_empty() && key.len() <= 128)
             .ok_or(Error::InvalidInput)?;
-        let expires_at = self.intent_expiration(&principal.subject, &request.entry_id, key)?;
+        let expires_at = self
+            .intent_expiration_async(&principal.subject, &request.entry_id, key)
+            .await?;
         let digest = intent_digest(
             &self.deployment,
             &accepted.entry,
@@ -436,25 +414,35 @@ impl Management {
             &expires_at,
         )?;
         let binding_digest = binding_digest(&accepted.entry)?;
-        let mut record = self.reserve(
-            &principal.subject,
+        let mut record = self
+            .reserve_async(
+                &principal.subject,
+                &accepted.entry,
+                key,
+                IntentSeal {
+                    digest: &digest,
+                    binding_digest: &binding_digest,
+                    expires_at: &expires_at,
+                },
+                &IntentParameters {
+                    input: canonicalize(input.clone()),
+                    expected_revision: request.expected_revision.clone(),
+                },
+            )
+            .await?;
+        let digest = intent_digest(
+            &self.deployment,
             &accepted.entry,
-            key,
-            IntentSeal {
-                digest: &digest,
-                binding_digest: &binding_digest,
-                expires_at: &expires_at,
-            },
-            &IntentParameters {
-                input: canonicalize(input.clone()),
-                expected_revision: request.expected_revision.clone(),
-            },
+            &principal.subject,
+            &input,
+            request.expected_revision.as_deref(),
+            &record.expires_at,
         )?;
         if record.digest != digest {
             return Err(Error::Conflict);
         }
         let intent = self.intent(&record)?;
-        self.queue_audit(
+        self.queue_audit_async(
             &intent,
             "attempt",
             if accepted.entry.requires_approval {
@@ -463,11 +451,12 @@ impl Management {
                 InvocationState::Ready
             },
             None,
-        )?;
+        )
+        .await?;
         self.flush_audit(&context, &id_from_record(&record)?)
             .await?;
         self.check_context(&context)?;
-        record = self.load(&id_from_record(&record)?)?;
+        record = self.load_async(&id_from_record(&record)?).await?;
         match record.response.state {
             InvocationState::Succeeded
             | InvocationState::Failed
@@ -502,7 +491,8 @@ impl Management {
         if self.authority.wall_now() >= parse_time(&record.expires_at)? {
             return Err(Error::Denied);
         }
-        self.queue_audit(&intent, "dispatch", InvocationState::Executing, None)?;
+        self.queue_audit_async(&intent, "dispatch", InvocationState::Executing, None)
+            .await?;
         self.flush_audit(&context, &id).await?;
         let current = self
             .authority
@@ -516,14 +506,28 @@ impl Management {
             return Err(Error::Denied);
         }
         record.response.state = InvocationState::Executing;
-        if !self.claim_execution(&id, &record.response)? {
-            return self.load(&id).map(|record| record.response);
+        if !self
+            .claim_execution_async(&id, &record.response, &context, &record.expires_at)
+            .await?
+        {
+            return self.load_async(&id).await.map(|record| record.response);
         }
         let mut dispatch = DispatchGuard {
             management: self,
             operation_id: id.clone(),
             finished: false,
         };
+        let current = self
+            .authority
+            .authorize(&context, &self.deployment, &accepted.entry, "invoke")
+            .await?;
+        if current.subject != record.subject {
+            return Err(Error::Denied);
+        }
+        self.check_context(&context)?;
+        if self.authority.wall_now() >= parse_time(&record.expires_at)? {
+            return Err(Error::Denied);
+        }
         let outcome = accepted
             .target
             .invoke(
@@ -543,11 +547,12 @@ impl Management {
             // A target-side error can follow a commit. Treat it as uncertain until a receipt proves it.
             Err(_) => response(Some(id.clone()), Outcome::Unknown)?,
         };
-        self.save_with_audit(&id, &result, "completed")?;
+        self.save_with_audit_async(&id, &result, "completed")
+            .await?;
         dispatch.finished = true;
         let _ = self.flush_audit(&context, &id).await;
         self.check_context(&context)?;
-        self.load(&id).map(|record| record.response)
+        self.load_async(&id).await.map(|record| record.response)
     }
 
     pub async fn status(
@@ -556,7 +561,7 @@ impl Management {
         operation_id: &str,
     ) -> Result<InvokeResponse, Error> {
         self.check_context(&context)?;
-        let record = self.load(operation_id)?;
+        let record = self.peek_async(operation_id).await?;
         let accepted = self.entries.get(&record.entry_id).ok_or(Error::NotFound)?;
         let principal = self
             .authority
@@ -568,10 +573,15 @@ impl Management {
         if binding_digest(&accepted.entry)? != record.binding_digest {
             return Err(Error::Conflict);
         }
+        self.check_context(&context)?;
+        let record = self.load_async(operation_id).await?;
         let _ = self.flush_audit(&context, operation_id).await;
         self.check_context(&context)?;
         if record.response.state != InvocationState::Unknown {
-            return self.load(operation_id).map(|record| record.response);
+            return self
+                .load_async(operation_id)
+                .await
+                .map(|record| record.response);
         }
         let receipt = accepted
             .target
@@ -585,14 +595,18 @@ impl Management {
             Some(operation_id.to_owned()),
             Outcome::Committed { result, receipt },
         )?;
-        self.save_with_audit(operation_id, &response, "reconciled")?;
+        self.save_with_audit_async(operation_id, &response, "reconciled")
+            .await?;
         let _ = self.flush_audit(&context, operation_id).await;
         self.check_context(&context)?;
-        self.load(operation_id).map(|record| record.response)
+        self.load_async(operation_id)
+            .await
+            .map(|record| record.response)
     }
 
     /// Host-only handoff to the separately guarded human Approval adapter.
     /// This is not exposed by the catalog/invoke/status Capability or tool projection.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn pending_approval_intent(&self, operation_id: &str) -> Result<(Intent, Entry), Error> {
         let record = self.load(operation_id)?;
         let accepted = self.entries.get(&record.entry_id).ok_or(Error::NotFound)?;
@@ -606,6 +620,7 @@ impl Management {
     }
 
     /// The separately authorized human adapter reads the immutable server snapshot.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn pending_approval_parameters(
         &self,
         operation_id: &str,
@@ -626,6 +641,7 @@ impl Management {
         Ok(parameters)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn audit_pending(&self, operation_id: &str) -> Result<bool, Error> {
         Ok(self.load(operation_id)?.response.audit_pending)
     }
@@ -649,7 +665,7 @@ impl Management {
         if phase == "human_attempt" {
             self.check_context(context)?;
         }
-        let record = self.load(operation_id)?;
+        let record = self.load_async(operation_id).await?;
         let intent = self.intent(&record)?;
         let identity = format!(
             "{:x}",
@@ -665,26 +681,11 @@ impl Management {
             receipt: None,
             occurred_at: format_time(self.authority.wall_now())?,
         };
-        let mut pending = record.response;
-        pending.audit_pending = true;
-        {
-            let mut journal = self.journal.borrow_mut();
-            let transaction = journal.transaction().map_err(|_| Error::Unavailable)?;
-            transaction.execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)", params![operation_id, phase, serde_json::to_string(&event).map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
-            transaction
-                .execute(
-                    "UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1",
-                    params![
-                        operation_id,
-                        serde_json::to_string(&pending).map_err(|_| Error::Unavailable)?
-                    ],
-                )
-                .map_err(|_| Error::Unavailable)?;
-            transaction.commit().map_err(|_| Error::Unavailable)?;
-        }
+        self.enqueue_async(&event).await?;
         self.flush_audit(context, operation_id).await
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn reserve(
         &self,
         subject: &str,
@@ -700,7 +701,7 @@ impl Management {
         } = seal;
         let entry_id = &entry.id;
         let approval = entry.requires_approval;
-        let mut connection = self.journal.borrow_mut();
+        let mut connection = self.native_connection()?.borrow_mut();
         let transaction = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| Error::Unavailable)?;
@@ -748,6 +749,7 @@ impl Management {
             expires_at: expires_at.to_owned(),
             parameters: parameters.clone(),
             response,
+            execution_until_ms: None,
         })
     }
 
@@ -761,8 +763,9 @@ impl Management {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn load(&self, id: &str) -> Result<Record, Error> {
-        let wire: Option<(String, String, String, String, String, String, String)> = self.journal.borrow().query_row("SELECT subject,entry_id,intent_digest,binding_digest,expires_at,parameters_json,response_json FROM management_invocations WHERE operation_id=?1 AND deployment=?2", params![id, self.deployment], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?))).optional().map_err(|_| Error::Unavailable)?;
+        let wire: Option<(String, String, String, String, String, String, String)> = self.native_connection()?.borrow().query_row("SELECT subject,entry_id,intent_digest,binding_digest,expires_at,parameters_json,response_json FROM management_invocations WHERE operation_id=?1 AND deployment=?2", params![id, self.deployment], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?))).optional().map_err(|_| Error::Unavailable)?;
         let (subject, entry_id, digest, binding_digest, expires_at, parameters, response) =
             wire.ok_or(Error::NotFound)?;
         Ok(Record {
@@ -773,19 +776,22 @@ impl Management {
             expires_at,
             parameters: serde_json::from_str(&parameters).map_err(|_| Error::Unavailable)?,
             response: serde_json::from_str(&response).map_err(|_| Error::Unavailable)?,
+            execution_until_ms: None,
         })
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn claim_execution(&self, id: &str, response: &InvokeResponse) -> Result<bool, Error> {
         let ready =
             serde_json::to_string(&InvocationState::Ready).map_err(|_| Error::Unavailable)?;
         let pending = serde_json::to_string(&InvocationState::PendingApproval)
             .map_err(|_| Error::Unavailable)?;
-        self.journal.borrow().execute("UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1 AND json_extract(response_json,'$.state') IN (json_extract(?3,'$'), json_extract(?4,'$'))", params![id, serde_json::to_string(response).map_err(|_| Error::Unavailable)?, ready, pending]).map(|count| count == 1).map_err(|_| Error::Unavailable)
+        self.native_connection()?.borrow().execute("UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1 AND json_extract(response_json,'$.state') IN (json_extract(?3,'$'), json_extract(?4,'$'))", params![id, serde_json::to_string(response).map_err(|_| Error::Unavailable)?, ready, pending]).map(|count| count == 1).map_err(|_| Error::Unavailable)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn intent_expiration(&self, subject: &str, entry: &str, key: &str) -> Result<String, Error> {
-        let prior: Option<String> = self.journal.borrow().query_row("SELECT expires_at FROM management_invocations WHERE subject=?1 AND deployment=?2 AND entry_id=?3 AND idempotency_key=?4", params![subject,self.deployment,entry,key], |row| row.get(0)).optional().map_err(|_| Error::Unavailable)?;
+        let prior: Option<String> = self.native_connection()?.borrow().query_row("SELECT expires_at FROM management_invocations WHERE subject=?1 AND deployment=?2 AND entry_id=?3 AND idempotency_key=?4", params![subject,self.deployment,entry,key], |row| row.get(0)).optional().map_err(|_| Error::Unavailable)?;
         prior.map_or_else(
             || format_time(self.authority.wall_now() + time::Duration::seconds(300)),
             Ok,
@@ -801,25 +807,7 @@ impl Management {
             expires_at: record.expires_at.clone(),
         })
     }
-    fn queue_audit(
-        &self,
-        intent: &Intent,
-        phase: &str,
-        state: InvocationState,
-        receipt: Option<String>,
-    ) -> Result<(), Error> {
-        let event = AuditEvent {
-            intent: intent.clone(),
-            actor: None,
-            decision: None,
-            phase: phase.into(),
-            state,
-            receipt,
-            occurred_at: format_time(self.authority.wall_now())?,
-        };
-        self.journal.borrow().execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)",params![intent.operation_id,phase,serde_json::to_string(&event).map_err(|_|Error::Unavailable)?]).map_err(|_|Error::Unavailable)?;
-        Ok(())
-    }
+    #[cfg(not(target_arch = "wasm32"))]
     fn save_with_audit(
         &self,
         id: &str,
@@ -839,7 +827,7 @@ impl Management {
         };
         let mut saved = response.clone();
         saved.audit_pending = true;
-        let mut journal = self.journal.borrow_mut();
+        let mut journal = self.native_connection()?.borrow_mut();
         let transaction = journal.transaction().map_err(|_| Error::Unavailable)?;
         transaction
             .execute(
@@ -855,37 +843,16 @@ impl Management {
     }
     async fn flush_audit(&self, context: &InvocationContext, id: &str) -> Result<(), Error> {
         self.flush_audit_events(context, id).await?;
-        let mut response = self.load(id)?.response;
-        response.audit_pending = false;
-        self.save(id, &response)
+        self.refresh_audit_async(id).await
     }
     async fn flush_audit_events(&self, context: &InvocationContext, id: &str) -> Result<(), Error> {
-        let events: Vec<(String, String)> = {
-            let journal = self.journal.borrow();
-            let mut statement=journal.prepare("SELECT phase,event_json FROM management_audit_outbox WHERE operation_id=?1 AND sent=0 ORDER BY rowid").map_err(|_|Error::Unavailable)?;
-            statement
-                .query_map([id], |row| Ok((row.get(0)?, row.get(1)?)))
-                .map_err(|_| Error::Unavailable)?
-                .collect::<Result<_, _>>()
-                .map_err(|_| Error::Unavailable)?
-        };
-        for (phase, wire) in events {
+        let events = self.pending_events_async(id).await?;
+        for event in events {
             self.check_context(context)?;
-            let event = serde_json::from_str(&wire).map_err(|_| Error::Unavailable)?;
             self.authority.audit(context, &event).await?;
-            self.journal
-                .borrow()
-                .execute(
-                    "UPDATE management_audit_outbox SET sent=1 WHERE operation_id=?1 AND phase=?2",
-                    params![id, phase],
-                )
-                .map_err(|_| Error::Unavailable)?;
+            self.acknowledge_async(id, &event.phase).await?;
         }
         Ok(())
-    }
-
-    fn save(&self, id: &str, response: &InvokeResponse) -> Result<(), Error> {
-        self.journal.borrow().execute("UPDATE management_invocations SET response_json=?2 WHERE operation_id=?1 AND deployment=?3", params![id, serde_json::to_string(response).map_err(|_| Error::Unavailable)?, self.deployment]).map(|_| ()).map_err(|_| Error::Unavailable)
     }
 }
 
@@ -944,7 +911,11 @@ struct DispatchGuard<'a> {
 
 impl Drop for DispatchGuard<'_> {
     fn drop(&mut self) {
+        #[cfg(target_arch = "wasm32")]
+        let _ = (&self.management, &self.operation_id);
+        #[cfg(not(target_arch = "wasm32"))]
         if !self.finished
+            && self.management.owned_journal.is_none()
             && let Ok(response) = response(Some(self.operation_id.clone()), Outcome::Unknown)
         {
             // Failed journal persistence leaves Executing for the next exclusive owner.
@@ -955,6 +926,7 @@ impl Drop for DispatchGuard<'_> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn journal_lease(path: &Path) -> Result<File, Error> {
     let parent = path
         .parent()
@@ -1014,6 +986,50 @@ fn canonicalize(value: Value) -> Value {
         Value::Array(values) => Value::Array(values.into_iter().map(canonicalize).collect()),
         value => value,
     }
+}
+
+fn accept_bindings(bindings: Vec<Binding>) -> Result<BTreeMap<String, Accepted>, Error> {
+    let mut entries = BTreeMap::new();
+    for binding in bindings {
+        let entry = binding.entry;
+        if [
+            &entry.id,
+            &entry.target_instance,
+            &entry.capability,
+            &entry.version,
+            &entry.operation,
+        ]
+        .iter()
+        .any(|id| id.is_empty() || id.len() > 128)
+            || entry.description.len() > 4096
+            || entry.input_schema_json.as_str().len() > 65536
+        {
+            return Err(Error::InvalidInput);
+        }
+        let schema_value: Value = serde_json::from_str(entry.input_schema_json.as_str())
+            .map_err(|_| Error::InvalidInput)?;
+        if schema_value.get("type").and_then(Value::as_str) != Some("object")
+            || schema_value.get("additionalProperties") != Some(&Value::Bool(false))
+        {
+            return Err(Error::InvalidInput);
+        }
+        let schema = jsonschema::validator_for(&schema_value).map_err(|_| Error::InvalidInput)?;
+        let id = entry.id.clone();
+        if entries
+            .insert(
+                id,
+                Accepted {
+                    entry,
+                    schema,
+                    target: binding.target,
+                },
+            )
+            .is_some()
+        {
+            return Err(Error::Conflict);
+        }
+    }
+    Ok(entries)
 }
 
 #[cfg(test)]

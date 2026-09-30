@@ -1,6 +1,9 @@
 //! Explicit local qualification setup. This binary never signs credentials or grants RBAC.
+#[cfg(not(target_arch = "wasm32"))]
 use lenso_management_authority::{LegacyImportPlan, QualificationStore};
+#[cfg(not(target_arch = "wasm32"))]
 use std::{env, fs, path::Path};
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
     match args.as_slice() {
@@ -18,4 +21,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _=>return Err("Usage: management-operator initialize DB | preview DB DEPLOYMENT SUBJECTS_JSON PLAN_JSON | apply DB PLAN_JSON EXACT_DIGEST".into()),
     }
     Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    panic!("management-operator is a native local operator; Workers use explicit D1 owner setup");
 }

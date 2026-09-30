@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["crates/lenso-management-core", "crates/lenso-management-authority"]
+members = [
+  "crates/lenso-management-core",
+  "crates/lenso-management-authority",
+  "crates/lenso-management-http",
+]

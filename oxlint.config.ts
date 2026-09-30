@@ -11,12 +11,15 @@ export default defineConfig({
     "plugins/**/generated/**",
     "packages/**/generated/**",
     "src/**/generated/**",
+    "plugins/management/crates/lenso-management-http/src/workers/mcp.mjs",
   ],
   overrides: [
     {
       files: [
         "src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx,mjs}",
+        "plugins/management/workers-mcp/*.mjs",
+        "plugins/management/crates/lenso-management-core/src/workers/*.mjs",
         "examples/**/*.{ts,tsx}",
         "vite.config.ts",
       ],

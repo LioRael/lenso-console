@@ -14,11 +14,14 @@ struct Policy {
     audit_failure: RefCell<Option<String>>,
     audit_events: RefCell<Vec<AuditEvent>>,
     revoke_on_dispatch_audit: Cell<bool>,
+    wall_seconds: Cell<i64>,
+    authorize_calls: Cell<usize>,
+    expire_on_authorize: Cell<Option<usize>>,
 }
 
 impl Authority for Policy {
     fn wall_now(&self) -> time::OffsetDateTime {
-        time::OffsetDateTime::from_unix_timestamp(1_800_000_000).unwrap()
+        time::OffsetDateTime::from_unix_timestamp(1_800_000_000 + self.wall_seconds.get()).unwrap()
     }
     fn audit<'a>(
         &'a self,
@@ -48,6 +51,11 @@ impl Authority for Policy {
         _: &'a str,
     ) -> LocalBoxFuture<'a, Result<Principal, Error>> {
         async move {
+            let call = self.authorize_calls.get() + 1;
+            self.authorize_calls.set(call);
+            if self.expire_on_authorize.get() == Some(call) {
+                self.wall_seconds.set(3600);
+            }
             if !self.allowed.get() {
                 return Err(Error::Denied);
             }
@@ -177,6 +185,9 @@ fn setup(approval: bool) -> (tempfile::TempDir, Management, Rc<Policy>, Rc<Notes
         audit_failure: RefCell::new(None),
         audit_events: RefCell::new(Vec::new()),
         revoke_on_dispatch_audit: Cell::new(false),
+        wall_seconds: Cell::new(0),
+        authorize_calls: Cell::new(0),
+        expire_on_authorize: Cell::new(None),
     });
     let notes = Rc::new(Notes::default());
     let service = Management::open(
@@ -876,4 +887,88 @@ fn operator_abandons_only_uncommitted_rejections_with_exclusive_ownership() {
         .unwrap();
     drop(reopened);
     Management::abandon_rejected_external(&path, "test", "bob", "owner-rejected").unwrap();
+}
+
+#[test]
+fn intent_expiry_during_last_authorization_cannot_dispatch() {
+    block_on(async {
+        let (_directory, service, policy, notes) = setup(true);
+        let pending = service
+            .invoke(context(), request("expires during admission"))
+            .await
+            .unwrap();
+        policy.approved.replace(policy.seen.borrow().clone());
+        policy.authorize_calls.set(0);
+        // Initial admission, approval readback, pre-claim, then final post-claim admission.
+        policy.expire_on_authorize.set(Some(4));
+        assert_eq!(
+            service
+                .invoke(context(), request("expires during admission"))
+                .await
+                .unwrap_err(),
+            Error::Denied
+        );
+        assert_eq!(notes.calls.get(), 0);
+        let record = service
+            .load(pending.operation_id.as_ref().unwrap())
+            .unwrap();
+        assert_eq!(record.response.state, InvocationState::Unknown);
+    });
+}
+
+#[derive(Debug)]
+struct ObservedJournal {
+    record: Record,
+    recoveries: Cell<usize>,
+}
+impl storage::Journal for ObservedJournal {
+    fn execute(
+        &self,
+        request: storage::JournalRequest,
+    ) -> LocalBoxFuture<'_, Result<storage::JournalResponse, Error>> {
+        Box::pin(async move {
+            match request {
+                storage::JournalRequest::Load { .. } => Ok(storage::JournalResponse::Record(
+                    Box::new(self.record.clone()),
+                )),
+                storage::JournalRequest::Recover { .. } => {
+                    self.recoveries.set(self.recoveries.get() + 1);
+                    Ok(storage::JournalResponse::Record(Box::new(
+                        self.record.clone(),
+                    )))
+                }
+                _ => Err(Error::Unavailable),
+            }
+        })
+    }
+}
+
+#[test]
+fn denied_status_cannot_recover_another_callers_expired_execution() {
+    block_on(async {
+        let (_directory, mut service, policy, notes) = setup(true);
+        let pending = service
+            .invoke(context(), request("private operation"))
+            .await
+            .unwrap();
+        let id = pending.operation_id.unwrap();
+        let mut record = service.load(&id).unwrap();
+        record.response.state = InvocationState::Executing;
+        record.execution_until_ms = Some(0);
+        let journal = Rc::new(ObservedJournal {
+            record,
+            recoveries: Cell::new(0),
+        });
+        service.owned_journal = Some(journal.clone());
+        for subject in ["bob", "alice"] {
+            policy.subject.replace(subject.into());
+            policy.allowed.set(subject != "alice");
+            assert_eq!(
+                service.status(context(), &id).await.unwrap_err(),
+                Error::Denied
+            );
+        }
+        assert_eq!(journal.recoveries.get(), 0);
+        assert_eq!(notes.calls.get(), 0);
+    });
 }

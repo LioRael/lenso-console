@@ -9,20 +9,28 @@ rust-version = "1.94"
 
 [dependencies]
 futures = "0.3"
-fs2 = "0.4"
 jsonschema = { version = "0.51", default-features = false }
 lenso-capability-management = { path = "../../../../contracts/crates/lenso-capability-management", version = "0.1.0" }
 lenso-kernel = "0.3.11"
-lenso-native-adapter = "0.3.18"
-rusqlite = { version = "=0.39.0", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 time = { version = "0.3", features = ["formatting", "parsing", "serde"] }
-uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fs2 = "0.4"
+lenso-native-adapter = "0.3.18"
+rusqlite = { version = "=0.39.0", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+serde-wasm-bindgen = "0.6"

@@ -85,7 +85,7 @@ impl Management {
 
     pub(super) fn recover_external(&self) -> Result<(), Error> {
         let mutations: Vec<(String, String, String)> = {
-            let journal = self.journal.borrow();
+            let journal = self.native_connection()?.borrow();
             let mut statement = journal.prepare("SELECT intent_json,state_json,parameters_json FROM management_external_mutations WHERE deployment=?1 AND state_json=?2").map_err(|_|Error::Unavailable)?;
             statement
                 .query_map(
@@ -140,7 +140,7 @@ impl Management {
             return Err(Error::InvalidInput);
         }
         let digest = format!("{:x}", Sha256::digest(bytes));
-        let mut journal = self.journal.borrow_mut();
+        let mut journal = self.native_connection()?.borrow_mut();
         let transaction = journal
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| Error::Unavailable)?;
@@ -206,7 +206,7 @@ impl Management {
         kind: &str,
         key: &str,
     ) -> Result<ExternalMutation, Error> {
-        let wire: Option<(String, String, Option<String>, String)> = self.journal.borrow().query_row("SELECT intent_json,state_json,receipt_json,parameters_json FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind=?3 AND idempotency_key=?4", params![self.deployment,human.subject,kind,key], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).optional().map_err(|_| Error::Unavailable)?;
+        let wire: Option<(String, String, Option<String>, String)> = self.native_connection()?.borrow().query_row("SELECT intent_json,state_json,receipt_json,parameters_json FROM management_external_mutations WHERE deployment=?1 AND subject=?2 AND kind=?3 AND idempotency_key=?4", params![self.deployment,human.subject,kind,key], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).optional().map_err(|_| Error::Unavailable)?;
         let (intent, state, receipt, parameters) = wire.ok_or(Error::NotFound)?;
         let intent: Intent = serde_json::from_str(&intent).map_err(|_| Error::Unavailable)?;
         let parameters: Value =
@@ -251,7 +251,7 @@ impl Management {
         if super::parse_time(&mutation.intent.expires_at)? <= self.authority.wall_now() {
             return Err(Error::Expired);
         }
-        let count = self.journal.borrow().execute("UPDATE management_external_mutations SET state_json=?2 WHERE operation_id=?1 AND state_json=?3", params![mutation.intent.operation_id,serde_json::to_string(&InvocationState::Executing).map_err(|_| Error::Unavailable)?,serde_json::to_string(&InvocationState::Ready).map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
+        let count = self.native_connection()?.borrow().execute("UPDATE management_external_mutations SET state_json=?2 WHERE operation_id=?1 AND state_json=?3", params![mutation.intent.operation_id,serde_json::to_string(&InvocationState::Executing).map_err(|_| Error::Unavailable)?,serde_json::to_string(&InvocationState::Ready).map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
         if count != 1 {
             return Err(Error::Conflict);
         }
@@ -277,7 +277,7 @@ impl Management {
                 .map(str::to_owned),
             occurred_at: format_time(self.authority.wall_now())?,
         };
-        self.journal.borrow().execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)", params![mutation.intent.operation_id,phase,serde_json::to_string(&event).map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
+        self.native_connection()?.borrow().execute("INSERT OR IGNORE INTO management_audit_outbox(operation_id,phase,event_json) VALUES(?1,?2,?3)", params![mutation.intent.operation_id,phase,serde_json::to_string(&event).map_err(|_| Error::Unavailable)?]).map_err(|_| Error::Unavailable)?;
         Ok(())
     }
 
@@ -302,7 +302,7 @@ impl Management {
             state,
             receipt,
         };
-        let mut journal = self.journal.borrow_mut();
+        let mut journal = self.native_connection()?.borrow_mut();
         let transaction = journal.transaction().map_err(|_| Error::Unavailable)?;
         let prior: String = transaction
             .query_row(
