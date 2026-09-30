@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "delta/verify/**"
+      - "codex/verify/**"
   workflow_dispatch:
 
 concurrency:
