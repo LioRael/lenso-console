@@ -134,7 +134,8 @@ impl McpTransport for WorkersMcp {
                             }
                         }
                     };
-                    serde_wasm_bindgen::to_value(&value)
+                    value
+                        .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
                         .map_err(|_| JsValue::from_str("invalid_owner_reply"))
                 })
             }) as Box<dyn FnMut(JsValue) -> Promise>);

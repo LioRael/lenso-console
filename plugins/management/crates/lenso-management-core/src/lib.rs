@@ -1032,5 +1032,5 @@ fn accept_bindings(bindings: Vec<Binding>) -> Result<BTreeMap<String, Accepted>,
     Ok(entries)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
