@@ -363,6 +363,7 @@ function proxyHeaders(
     "cookie",
     "origin",
     "x-csrf-token",
+    "x-lenso-expected-subject",
     "sec-fetch-site",
     "sec-fetch-mode",
     "sec-fetch-dest",

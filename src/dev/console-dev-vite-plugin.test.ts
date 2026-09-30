@@ -72,6 +72,55 @@ describe("Console development middleware", () => {
     expect(forwardedHeaders.cookie).toBe("__Host-lenso-session=prior");
     expect(forwardedHeaders["x-csrf-token"]).toBe("csrf");
   });
+  test("preserves the subject precondition when another login replaces the browser cookie", async () => {
+    let dispatchedWrites = 0;
+    const forwarded: IncomingMessage["headers"][] = [];
+    const upstream = createServer((req, res) => {
+      forwarded.push(req.headers);
+      const currentSubject =
+        req.headers.cookie === "session=bob" ? "bob" : undefined;
+      const expectedSubject = req.headers["x-lenso-expected-subject"];
+      res.setHeader("cache-control", "no-store");
+      if (expectedSubject !== currentSubject) {
+        res.statusCode = 412;
+        res.end("session_changed");
+        return;
+      }
+      dispatchedWrites += 1;
+      res.end("accepted");
+    });
+    const server = await startConsoleDevServer({
+      hostUrl: await listen(upstream),
+    });
+    const submit = (expectedSubject: string) =>
+      fetch(`${server.origin}/api/console/v1/management/tokens/issue`, {
+        method: "POST",
+        headers: {
+          origin: server.origin,
+          cookie: "session=bob",
+          "x-csrf-token": "test-csrf",
+          "x-lenso-expected-subject": expectedSubject,
+          "content-type": "application/json",
+        },
+        body: "{}",
+      });
+
+    const stale = await submit("alice");
+    expect(stale.status).toBe(412);
+    expect(await stale.text()).toBe("session_changed");
+    expect(stale.headers.get("cache-control")).toBe("no-store");
+    expect(dispatchedWrites).toBe(0);
+    const current = await submit("bob");
+    expect(current.status).toBe(200);
+    expect(await current.text()).toBe("accepted");
+    expect(dispatchedWrites).toBe(1);
+    expect(
+      forwarded.map((headers) => headers["x-lenso-expected-subject"])
+    ).toEqual(["alice", "bob"]);
+    expect(forwarded.every((headers) => headers.cookie === "session=bob")).toBe(
+      true
+    );
+  });
   test("rejects a privileged request from a non-loopback peer", async () => {
     const server = await startConsoleDevServer({
       hostUrl: "http://127.0.0.1:9",
