@@ -1143,7 +1143,7 @@ dependencies = [
 [[package]]
 name = "lenso-business-approval-postgres-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-business-approval-plugin?rev=7f5530caa477bc5c7e28ae7c41e01bfd1a59969b#7f5530caa477bc5c7e28ae7c41e01bfd1a59969b"
+source = "git+https://github.com/LioRael/lenso-business-approval-plugin?rev=b7acf5926d178c118445a92dbebeb4fcdef4e67a#b7acf5926d178c118445a92dbebeb4fcdef4e67a"
 dependencies = [
  "lenso",
  "lenso-auth-sdk 0.2.4 (git+https://github.com/LioRael/lenso-auth-plugin?rev=be751f795b254ab228ae4fb2fde7cf79a934d09b)",
@@ -1280,7 +1280,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-business-approval"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-business-approval-plugin?rev=7f5530caa477bc5c7e28ae7c41e01bfd1a59969b#7f5530caa477bc5c7e28ae7c41e01bfd1a59969b"
+source = "git+https://github.com/LioRael/lenso-business-approval-plugin?rev=b7acf5926d178c118445a92dbebeb4fcdef4e67a#b7acf5926d178c118445a92dbebeb4fcdef4e67a"
 dependencies = [
  "futures",
  "lenso-contract-runtime",

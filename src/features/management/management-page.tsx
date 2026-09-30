@@ -104,6 +104,7 @@ export function ManagementPage() {
   const [revision, setRevision] = useState("");
   const [operation, setOperation] = useState<InvokeResponse>();
   const [intent, setIntent] = useState<InvokeRequest>();
+  const [uncertainWrite, setUncertainWrite] = useState(false);
   const [problem, setProblem] = useState<Problem>();
   const [busy, setBusy] = useState(false);
   const controller = useRef<AbortController | null>(null);
@@ -197,21 +198,34 @@ export function ManagementPage() {
       if (selected.effect === "write") {
         setIntent(request);
       }
-      const result = decodeInvokeResponse(
-        await responseText(
-          await sessionFetch("/api/console/v1/management/invoke", {
-            method: "POST",
-            signal,
-            headers: {
-              "Content-Type": "application/json",
-              "X-Lenso-Expected-Subject": subject,
-            },
-            body: JSON.stringify(request),
-          })
-        )
-      );
-      if (!signal.aborted) {
-        setOperation(result);
+      try {
+        const result = decodeInvokeResponse(
+          await responseText(
+            await sessionFetch("/api/console/v1/management/invoke", {
+              method: "POST",
+              signal,
+              headers: {
+                "Content-Type": "application/json",
+                "X-Lenso-Expected-Subject": subject,
+              },
+              body: JSON.stringify(request),
+            })
+          )
+        );
+        if (!signal.aborted) {
+          setOperation(result);
+          setUncertainWrite(false);
+        }
+      } catch (error) {
+        const knownRejection =
+          error instanceof Error &&
+          (error.message === "denied" ||
+            error.message === "stale" ||
+            error.message === "invalid");
+        if (selected.effect === "write" && !signal.aborted && !knownRejection) {
+          setUncertainWrite(true);
+        }
+        throw error;
       }
     });
   const status = () =>
@@ -229,6 +243,7 @@ export function ManagementPage() {
       );
       if (!signal.aborted) {
         setOperation(result);
+        setUncertainWrite(false);
       }
     });
   const states: Record<InvokeResponse["state"], string> = {
@@ -395,6 +410,7 @@ export function ManagementPage() {
                     type="submit"
                     disabled={
                       busy ||
+                      uncertainWrite ||
                       (Boolean(intent) &&
                         operation?.state !== "ready" &&
                         operation?.state !== "pending_approval")
@@ -417,6 +433,7 @@ export function ManagementPage() {
                     </Button>
                   )}
                   {intent &&
+                    !uncertainWrite &&
                     (operation?.state === "succeeded" ||
                       operation?.state === "failed" ||
                       operation?.state === "cancelled") && (
@@ -434,17 +451,22 @@ export function ManagementPage() {
                 </div>
               </form>
             )}
-            {operation && (
+            {(operation || uncertainWrite) && (
               <section {...stylex.props(styles.section)} aria-live="polite">
                 <h2 {...stylex.props(page.sectionTitle)}>
-                  {states[operation.state]}
+                  {states[uncertainWrite ? "unknown" : operation!.state]}
                 </h2>
-                {operation.operation_id && (
+                {operation?.operation_id && (
                   <p {...stylex.props(styles.result)}>
                     {copy("Operation ID", "操作 ID")}: {operation.operation_id}
                   </p>
                 )}
-                {operation.audit_pending && (
+                {intent?.idempotency_key && (
+                  <p {...stylex.props(styles.result)}>
+                    {copy("Request ID", "请求 ID")}: {intent.idempotency_key}
+                  </p>
+                )}
+                {operation?.audit_pending && (
                   <p>
                     {copy(
                       "Audit delivery pending; the operation will not be replayed.",
@@ -452,12 +474,12 @@ export function ManagementPage() {
                     )}
                   </p>
                 )}
-                {operation.receipt && (
+                {!uncertainWrite && operation?.receipt && (
                   <p {...stylex.props(styles.result)}>
                     {copy("Receipt", "回执")}: {operation.receipt}
                   </p>
                 )}
-                {operation.result_json && (
+                {!uncertainWrite && operation?.result_json && (
                   <pre {...stylex.props(styles.result)}>
                     {operation.result_json}
                   </pre>

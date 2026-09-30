@@ -20,6 +20,7 @@ vi.mock("../../app/console-locale", () => ({
 }));
 const requests: unknown[] = [];
 let state = "pending_approval";
+let loseInvokeResponse = false;
 vi.mock("../../lib/session-fetch", () => ({
   sessionFetch: async (path: string, init?: RequestInit) => {
     if (path.endsWith("catalog")) {
@@ -44,6 +45,9 @@ vi.mock("../../lib/session-fetch", () => ({
     }
     if (path.endsWith("invoke")) {
       requests.push(JSON.parse(String(init?.body)));
+      if (loseInvokeResponse) {
+        throw new TypeError("Failed to fetch");
+      }
     }
     return Response.json({
       operation_id: "operation-1",
@@ -63,9 +67,10 @@ afterEach(() => {
   container = undefined;
   requests.length = 0;
   state = "pending_approval";
+  loseInvokeResponse = false;
 });
 
-test("keeps approved parameters immutable and queries an unknown result without replaying", async () => {
+function mount() {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -76,6 +81,10 @@ test("keeps approved parameters immutable and queries an unknown result without 
       </ThemeScope>
     )
   );
+}
+
+test("keeps approved parameters immutable and queries an unknown result without replaying", async () => {
+  mount();
   await page.getByRole("button", { name: "Update reference value" }).click();
   await page.getByRole("spinbutton", { name: "value" }).fill("4");
   await page.getByRole("button", { name: "Submit operation" }).click();
@@ -115,4 +124,66 @@ test("keeps approved parameters immutable and queries an unknown result without 
       )
     )
     .toBeVisible();
+});
+
+test("locks a lost continuation reply until the retained operation is queried", async () => {
+  mount();
+  await page.getByRole("button", { name: "Update reference value" }).click();
+  await page.getByRole("spinbutton", { name: "value" }).fill("61");
+  await page.getByRole("button", { name: "Submit operation" }).click();
+  await expect
+    .element(page.getByText("Operation ID: operation-1"))
+    .toBeVisible();
+  const original = requests[0] as { idempotency_key: string };
+  state = "ready";
+  await page.getByRole("button", { name: "Query status" }).click();
+  const continueButton = page.getByRole("button", {
+    name: "Continue original operation",
+  });
+  await expect.element(continueButton).toBeEnabled();
+  loseInvokeResponse = true;
+  await continueButton.click();
+  await expect
+    .element(
+      page.getByText(
+        "The result is unknown. Query the receipt before taking another action; this page will not replay the write."
+      )
+    )
+    .toBeVisible();
+  await expect.element(continueButton).toBeDisabled();
+  await expect
+    .element(page.getByText("Operation ID: operation-1"))
+    .toBeVisible();
+  await expect
+    .element(page.getByText(`Request ID: ${original.idempotency_key}`))
+    .toBeVisible();
+  expect(requests).toEqual([original, original]);
+  state = "succeeded";
+  await page.getByRole("button", { name: "Query status" }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "Completed", exact: true }))
+    .toBeVisible();
+  expect(requests).toEqual([original, original]);
+});
+
+test("retains the request key and blocks replay when the first reply has no operation ID", async () => {
+  mount();
+  await page.getByRole("button", { name: "Update reference value" }).click();
+  loseInvokeResponse = true;
+  await page.getByRole("button", { name: "Submit operation" }).click();
+  const original = requests[0] as { idempotency_key: string };
+  expect(original.idempotency_key).toBeTruthy();
+  await expect
+    .element(page.getByText(`Request ID: ${original.idempotency_key}`))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Continue original operation" }))
+    .toBeDisabled();
+  await expect
+    .element(page.getByRole("button", { name: "Query status" }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "New operation" }))
+    .not.toBeInTheDocument();
+  expect(requests).toHaveLength(1);
 });
