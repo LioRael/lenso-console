@@ -11,13 +11,13 @@ rust-version = "1.94"
 [dependencies]
 futures = "0.3"
 lenso-contract-runtime = "0.2.0"
-lenso-kernel = "0.3.11"
+lenso-kernel = "0.3.12"
 lenso-plugin-authoring = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 [build-dependencies]
-lenso-contract-codegen = "=0.10.0"
+lenso-contract-codegen = "=0.10.1"
 
 [lints.rust]
 unsafe_code = "forbid"

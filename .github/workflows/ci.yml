@@ -41,7 +41,8 @@ jobs:
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
       - name: Install owner contract projection generator
-        run: cargo install --locked lenso-contract-codegen --version 0.10.0
+        run: >-
+          cargo install --locked --git https://github.com/LioRael/lenso --rev 1b34db24797c58bf756290e35f54f0b73f24af94 --version 0.10.1 lenso-contract-codegen
       - name: Run fast preflight
         run: pnpm check:preflight
       - name: Install Chromium

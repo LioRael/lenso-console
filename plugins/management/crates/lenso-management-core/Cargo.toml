@@ -11,7 +11,7 @@ rust-version = "1.94"
 futures = "0.3"
 jsonschema = { version = "0.51", default-features = false }
 lenso-capability-management = { path = "../../../../contracts/crates/lenso-capability-management", version = "0.1.0" }
-lenso-kernel = "0.3.11"
+lenso-kernel = "0.3.12"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
@@ -25,7 +25,7 @@ unsafe_code = "forbid"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 fs2 = "0.4"
-lenso-native-adapter = "0.3.18"
+lenso-native-adapter = "0.3.19"
 rusqlite = { version = "=0.39.0", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 

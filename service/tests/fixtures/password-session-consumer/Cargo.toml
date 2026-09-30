@@ -11,9 +11,9 @@ plugin-id = "lenso.console.test-password-session"
 root-slot = "auth"
 
 [dependencies]
-lenso = "0.5.27"
-lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
-lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
+lenso = "0.5.28"
+lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
 
 [lints.rust]
 unsafe_code = "forbid"
