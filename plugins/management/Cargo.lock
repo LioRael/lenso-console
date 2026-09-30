@@ -1070,16 +1070,16 @@ dependencies = [
 [[package]]
 name = "lenso-auth-api-token-plugin"
 version = "0.1.2"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6#7be032c349ec095b87bc953321fe6dd9727c63e6"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e#5fb16bbcbff51cce394fd6e29df9079485f7f37e"
 dependencies = [
  "base64",
  "futures",
  "getrandom 0.4.3",
  "hmac 0.12.1",
  "lenso",
- "lenso-auth-sdk 0.2.4 (git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6)",
+ "lenso-auth-sdk 0.2.4 (git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e)",
  "lenso-capability-api-token-admin",
- "lenso-capability-auth 0.2.0 (git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6)",
+ "lenso-capability-auth 0.2.0 (git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e)",
  "lenso-capability-credential-state",
  "lenso-capability-secrets",
  "lenso-kernel",
@@ -1113,11 +1113,11 @@ dependencies = [
 [[package]]
 name = "lenso-auth-sdk"
 version = "0.2.4"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6#7be032c349ec095b87bc953321fe6dd9727c63e6"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e#5fb16bbcbff51cce394fd6e29df9079485f7f37e"
 dependencies = [
  "base64",
  "ed25519-dalek",
- "lenso-capability-auth 0.2.0 (git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6)",
+ "lenso-capability-auth 0.2.0 (git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e)",
  "lenso-kernel",
  "serde",
  "serde_json",
@@ -1202,7 +1202,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-api-token-admin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6#7be032c349ec095b87bc953321fe6dd9727c63e6"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e#5fb16bbcbff51cce394fd6e29df9079485f7f37e"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1248,7 +1248,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-auth"
 version = "0.2.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6#7be032c349ec095b87bc953321fe6dd9727c63e6"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e#5fb16bbcbff51cce394fd6e29df9079485f7f37e"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1293,7 +1293,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-credential-state"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6#7be032c349ec095b87bc953321fe6dd9727c63e6"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e#5fb16bbcbff51cce394fd6e29df9079485f7f37e"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1309,7 +1309,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-human-api-token"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6#7be032c349ec095b87bc953321fe6dd9727c63e6"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e#5fb16bbcbff51cce394fd6e29df9079485f7f37e"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -1459,14 +1459,14 @@ dependencies = [
  "lenso-app-plan",
  "lenso-audit-log-postgres-plugin",
  "lenso-auth-api-token-plugin",
- "lenso-auth-sdk 0.2.4 (git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6)",
+ "lenso-auth-sdk 0.2.4 (git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e)",
  "lenso-business-approval-postgres-plugin",
  "lenso-capability-access-control",
  "lenso-capability-access-control-admin",
  "lenso-capability-access-control-directory",
  "lenso-capability-api-token-admin",
  "lenso-capability-audit-log",
- "lenso-capability-auth 0.2.0 (git+https://github.com/LioRael/lenso-auth-plugin?rev=7be032c349ec095b87bc953321fe6dd9727c63e6)",
+ "lenso-capability-auth 0.2.0 (git+https://github.com/LioRael/lenso-auth-plugin?rev=5fb16bbcbff51cce394fd6e29df9079485f7f37e)",
  "lenso-capability-business-approval",
  "lenso-capability-credential-state",
  "lenso-capability-human-api-token",

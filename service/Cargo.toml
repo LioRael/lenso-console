@@ -23,7 +23,7 @@ root-slot = "console"
 embedded-shell = []
 
 [dependencies]
-lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "7be032c349ec095b87bc953321fe6dd9727c63e6" }
+lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
 anyhow = "1.0"
 base64 = "0.22"
 bytes = "1"
@@ -33,7 +33,7 @@ futures = "0.3"
 hex = "0.4"
 http = "1"
 lenso = "0.5.27"
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "7be032c349ec095b87bc953321fe6dd9727c63e6" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
 lenso-capability-auth = "0.2.0"
 lenso-capability-access-control = "0.2.0"
 lenso-capability-management-human = { path = "../contracts/crates/lenso-capability-management-human", version = "0.1.0" }
@@ -90,7 +90,7 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [patch.crates-io]
-lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "7be032c349ec095b87bc953321fe6dd9727c63e6" }
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
 
 lenso-capability-projects = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
 lenso-capability-projects-admin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
