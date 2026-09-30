@@ -97,8 +97,9 @@ authorization rejection preserves `succeeded`. It must never be used to clear an
 owner receipt that is merely not visible yet. Preserve the recovery receipt and original reference in the
 operator's qualification record. The API is not exposed through HTTP or tools.
 
-A lost revoke reply is also retained as `unknown` and never replayed. Listing an
-inactive credential is useful current state, but is not a receipt of the original
-revoke (it may have expired). This initial owner contract supplies issue receipts;
-unknown revoke closure remains an explicit operator reconciliation step. Do not
-clear the operation or infer a successful revocation from an inactive list item.
+A lost revoke reply is retained as `unknown` and never replayed. An authorized
+list can reconcile it only when the owner reports a token-specific `revoked_at`
+for the exact credential, subject and deployment retained in the request. This
+confirms the owner postcondition without attributing its timestamp to the lost
+invocation. Inactivity or expiry alone leaves the operation unknown; the durable
+audit outbox must be delivered before the reconciled response is available.

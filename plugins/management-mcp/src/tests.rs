@@ -32,7 +32,9 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
         let current = current.clone();
         tokio::spawn(async move {
             while let Some(message) = receiver.recv().await {
-                let outcome = if message.credential.0 != "operator-token" {
+                let outcome = if message.credential.0 == "unavailable-token" {
+                    Err(TransportError::Unavailable)
+                } else if message.credential.0 != "operator-token" {
                     Err(TransportError::Denied)
                 } else {
                     match message.action {
@@ -129,6 +131,27 @@ async fn official_http_client_observes_bound_tools_pending_unknown_and_revocatio
         .await
         .unwrap();
     assert_eq!(metadata["resource"], uri);
+    for (credential, expected) in [
+        ("unavailable-token", StatusCode::SERVICE_UNAVAILABLE),
+        ("revoked-token", StatusCode::UNAUTHORIZED),
+    ] {
+        let rejected = http
+            .post(&uri)
+            .bearer_auth(credential)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(rejected.status(), expected);
+        assert_eq!(rejected.headers()[http::header::CACHE_CONTROL], "no-store");
+        assert_eq!(
+            rejected
+                .headers()
+                .contains_key(http::header::WWW_AUTHENTICATE),
+            expected == StatusCode::UNAUTHORIZED,
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
     let origin = http
         .post(&uri)
         .bearer_auth("operator-token")

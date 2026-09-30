@@ -591,24 +591,31 @@ async fn admit(
                 .map_or(true, |origin| !profile.allowed_origins.contains(origin))
         })
     {
-        return (StatusCode::FORBIDDEN, "Origin denied").into_response();
+        return private_response((StatusCode::FORBIDDEN, "Origin denied").into_response());
     }
     let credential = match header_credential(request.headers()) {
         Ok(credential) => credential,
         Err(_) => return unauthorized(&profile),
     };
-    if bridge
+    match bridge
         .request(
             credential,
             tokio_util::sync::CancellationToken::new(),
             Action::Catalog,
         )
         .await
-        .is_err()
     {
-        return unauthorized(&profile);
+        Ok(_) => private_response(next.run(request).await),
+        Err(TransportError::Denied) => unauthorized(&profile),
+        Err(
+            TransportError::Unavailable
+            | TransportError::Invalid
+            | TransportError::Conflict
+            | TransportError::NotFound,
+        ) => private_response(
+            (StatusCode::SERVICE_UNAVAILABLE, "Management unavailable").into_response(),
+        ),
     }
-    next.run(request).await
 }
 fn unauthorized(profile: &Profile) -> Response {
     let mut response = (StatusCode::UNAUTHORIZED, "Management credential required").into_response();
@@ -622,6 +629,13 @@ fn unauthorized(profile: &Profile) -> Response {
             .headers_mut()
             .insert(http::header::WWW_AUTHENTICATE, value);
     }
+    private_response(response)
+}
+fn private_response(mut response: Response) -> Response {
+    response.headers_mut().insert(
+        http::header::CACHE_CONTROL,
+        http::HeaderValue::from_static("no-store"),
+    );
     response
 }
 
