@@ -24,8 +24,15 @@ pub trait McpTransport: std::fmt::Debug {
 pub struct Profile {
     pub public_origin: String,
     pub mcp_resource: Option<String>,
+    pub mcp_authentication: McpAuthentication,
     pub authorization_servers: Vec<String>,
     pub allowed_origins: Vec<String>,
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum McpAuthentication {
+    #[default]
+    OAuth,
+    PreissuedBearer,
 }
 impl Profile {
     pub fn validate(&self) -> Result<(), &'static str> {
@@ -48,10 +55,17 @@ impl Profile {
             return Err("invalid origin profile");
         }
         if let Some(resource) = &self.mcp_resource {
-            if resource != &(self.public_origin.clone() + "/mcp")
-                || self.authorization_servers.is_empty()
-            {
+            if resource != &(self.public_origin.clone() + "/mcp") {
                 return Err("invalid MCP resource");
+            }
+            match self.mcp_authentication {
+                McpAuthentication::OAuth if self.authorization_servers.is_empty() => {
+                    return Err("OAuth MCP requires an authorization server");
+                }
+                McpAuthentication::PreissuedBearer if !self.authorization_servers.is_empty() => {
+                    return Err("Preissued bearer MCP does not advertise OAuth servers");
+                }
+                _ => {}
             }
             if self.authorization_servers.iter().any(|value| {
                 url::Url::parse(value).is_err()
@@ -117,6 +131,9 @@ impl BearerHttpProvider {
             return problem(403, "origin_rejected");
         }
         if request.route_id == "management.resource" {
+            if self.profile.mcp_authentication != McpAuthentication::OAuth {
+                return problem(404, "not_found");
+            }
             return json_response(
                 200,
                 &serde_json::json!({"resource":self.profile.mcp_resource,
@@ -310,10 +327,13 @@ impl BearerHttpProvider {
         if self.profile.mcp_resource.is_some() {
             response.headers.push(http::HandleResponseHeadersItem {
                 name: "www-authenticate".into(),
-                value: format!(
-                    "Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource\"",
-                    self.profile.public_origin
-                ),
+                value: match self.profile.mcp_authentication {
+                    McpAuthentication::OAuth => format!(
+                        "Bearer resource_metadata=\"{}/.well-known/oauth-protected-resource\"",
+                        self.profile.public_origin
+                    ),
+                    McpAuthentication::PreissuedBearer => "Bearer".into(),
+                },
             });
         }
         response
@@ -345,12 +365,14 @@ impl http::EndpointProvider for BearerHttpProvider {
                 ("management.mcp", "POST", "/mcp"),
                 ("management.mcp", "GET", "/mcp"),
                 ("management.mcp", "DELETE", "/mcp"),
-                (
+            ]);
+            if self.profile.mcp_authentication == McpAuthentication::OAuth {
+                routes.push((
                     "management.resource",
                     "GET",
                     "/.well-known/oauth-protected-resource",
-                ),
-            ]);
+                ));
+            }
         }
         let response = http::DescribeResponse {
             routes: routes
@@ -395,4 +417,40 @@ fn json_response(status: i64, value: &impl Serialize) -> http::HandleResponse {
 }
 fn problem(status: i64, code: &str) -> http::HandleResponse {
     json_response(status, &serde_json::json!({"code":code,"status":status}))
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::{McpAuthentication, Profile};
+
+    fn profile(authentication: McpAuthentication) -> Profile {
+        Profile {
+            public_origin: "https://management.example.test".into(),
+            mcp_resource: Some("https://management.example.test/mcp".into()),
+            mcp_authentication: authentication,
+            authorization_servers: Vec::new(),
+            allowed_origins: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn default_oauth_requires_an_explicit_authorization_server() {
+        let mut selected = profile(McpAuthentication::default());
+        assert!(selected.validate().is_err());
+        selected.authorization_servers = vec!["https://authorization.example.test".into()];
+        assert!(selected.validate().is_ok());
+        selected.authorization_servers = vec!["http://authorization.example.test".into()];
+        assert!(selected.validate().is_err());
+    }
+
+    #[test]
+    fn explicit_preissued_bearer_keeps_resource_binding_and_excludes_oauth() {
+        let mut selected = profile(McpAuthentication::PreissuedBearer);
+        assert!(selected.validate().is_ok());
+        selected.authorization_servers = vec!["https://authorization.example.test".into()];
+        assert!(selected.validate().is_err());
+        selected.authorization_servers.clear();
+        selected.mcp_resource = Some("https://other.example.test/mcp".into());
+        assert!(selected.validate().is_err());
+    }
 }

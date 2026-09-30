@@ -137,6 +137,14 @@ closed owner bundle. Its callback receives an already sealed Rust context, never
 a bearer or actor JSON. Read-only is the default tool surface; approved writes
 require explicit Host selection and retain the same durable approval guard.
 
+MCP authentication defaults to `McpAuthentication::OAuth`, which requires real
+configured authorization servers and exposes protected-resource discovery. An
+explicit `PreissuedBearer` profile accepts owner-issued bearer credentials with
+the same exact resource audience and current per-call guards. It has no OAuth
+discovery route or resource-metadata challenge; it returns a plain Bearer
+challenge and rejects configured OAuth servers. This convenience profile does
+not implement an OAuth client flow.
+
 The bundle is built from locked owner sources and checked byte-for-byte. The
 ordinary Source App must select its exact reachable owner package/module through
 Host facilities; copying SQL, substituting a handwritten Host or forwarding raw
