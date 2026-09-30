@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 
+import { create } from "../crates/lenso-management-core/src/workers/journal.mjs";
+
 const deployment = "ops-test";
 const operation = "operation-1";
 const base = {
@@ -216,6 +218,13 @@ test("real D1 durable claim, restart, monotonic receipt and audit repair", async
       pending.value.map((item) => item.phase),
       ["attempt", "interrupted", "reconciled"]
     );
+    for (const fault of ["read_failed", "read_missing", "read_shape"]) {
+      assert.deepEqual(
+        await call(runtime, action("pending_events", { receipt_fault: fault })),
+        { error: "unavailable" }
+      );
+    }
+    assert.deepEqual(await call(runtime, action("pending_events")), pending);
     await call(runtime, action("acknowledge", { phase: "attempt" }));
     await call(runtime, action("refresh_audit"));
     assert.equal(
@@ -310,4 +319,71 @@ test("real D1 durable claim, restart, monotonic receipt and audit repair", async
     await runtime.dispose();
     await rm(directory, { force: true, recursive: true });
   }
+});
+
+test("finite checks re-read primary after readiness and intervening revocation", async () => {
+  let qualified = true;
+  let revision = 1;
+  const sessions = [];
+  const database = {
+    withSession(constraint) {
+      assert.equal(constraint, "first-primary");
+      const snapshot = { qualified, revision };
+      sessions.push(snapshot);
+      return {
+        prepare(sql) {
+          return {
+            bind() {
+              return this;
+            },
+            async first() {
+              if (sql.includes("management_storage_version")) {
+                return { version: 1 };
+              }
+              if (sql.includes("qualified_operators")) {
+                return snapshot.qualified ? { qualified: 1 } : null;
+              }
+              if (sql.includes("management_journal")) {
+                return {
+                  record_json: JSON.stringify({
+                    ...base,
+                    response: {
+                      ...base.response,
+                      result_json: JSON.stringify({
+                        revision: snapshot.revision,
+                      }),
+                    },
+                  }),
+                  execution_until_ms: null,
+                };
+              }
+              throw new Error("unexpected_statement");
+            },
+          };
+        },
+      };
+    },
+  };
+  const journal = create(
+    database,
+    { run: (work) => work() },
+    { profile: "workers-d1" }
+  );
+  assert.equal(sessions.length, 0);
+  assert.deepEqual(await journal.call({ action: "inspect" }), {
+    kind: "ready",
+  });
+  assert.deepEqual(await journal.qualifies(deployment, "alice"), {
+    qualified: true,
+  });
+  qualified = false;
+  assert.deepEqual(await journal.qualifies(deployment, "alice"), {
+    qualified: false,
+  });
+  const before = await journal.call(action("load"));
+  revision = 2;
+  const after = await journal.call(action("load"));
+  assert.equal(JSON.parse(before.value.response.result_json).revision, 1);
+  assert.equal(JSON.parse(after.value.response.result_json).revision, 2);
+  assert.equal(sessions.length, 5);
 });

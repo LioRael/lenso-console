@@ -21,6 +21,12 @@ const mutations = (results, count) => {
   }
   results.forEach(mutation);
 };
+const readRows = (result) => {
+  if (result?.success !== true || !Array.isArray(result.results)) {
+    throw new Error("uncertain_d1_read_receipt");
+  }
+  return result.results;
+};
 
 const rowRecord = (row) => {
   if (!row) {
@@ -99,37 +105,6 @@ export function create(database, scope, configuration) {
   ) {
     throw new Error("invalid_management_storage_facility");
   }
-  // A new causal session belongs to this one event. No journal fact is held in memory.
-  const session = database.withSession("first-primary");
-  const statement = (sql, ...values) => session.prepare(sql).bind(...values);
-  const select = (deployment, operation) =>
-    statement(
-      "SELECT record_json,execution_until_ms FROM management_journal WHERE deployment=? AND operation_id=?",
-      deployment,
-      operation
-    ).first();
-  const pending = (deployment, operation) =>
-    statement(
-      `UPDATE management_journal SET record_json=
-    json_set(record_json,'$.response.audit_pending',json(CASE WHEN EXISTS(
-      SELECT 1 FROM management_outbox WHERE deployment=? AND operation_id=? AND sent=0)
-      THEN 'true' ELSE 'false' END)) WHERE deployment=? AND operation_id=?`,
-      deployment,
-      operation,
-      deployment,
-      operation
-    );
-  const insertEvent = (deployment, event, token) =>
-    statement(
-      `INSERT OR IGNORE INTO management_outbox(deployment,operation_id,phase,event_json)
-    SELECT deployment,operation_id,?,? FROM management_journal WHERE deployment=? AND operation_id=?
-      ${token === undefined ? "" : "AND transition_token=?"}`,
-      event.phase,
-      json(event),
-      deployment,
-      event.intent.operation_id,
-      ...(token === undefined ? [] : [token])
-    );
   const execute = (work) =>
     scope.run(async () => {
       try {
@@ -141,6 +116,38 @@ export function create(database, scope, configuration) {
   return Object.freeze({
     call(request) {
       return execute(async () => {
+        // Start each finite operation on the primary, including checks after an await.
+        const session = database.withSession("first-primary");
+        const statement = (sql, ...values) =>
+          session.prepare(sql).bind(...values);
+        const select = (deployment, operation) =>
+          statement(
+            "SELECT record_json,execution_until_ms FROM management_journal WHERE deployment=? AND operation_id=?",
+            deployment,
+            operation
+          ).first();
+        const pending = (deployment, operation) =>
+          statement(
+            `UPDATE management_journal SET record_json=
+          json_set(record_json,'$.response.audit_pending',json(CASE WHEN EXISTS(
+            SELECT 1 FROM management_outbox WHERE deployment=? AND operation_id=? AND sent=0)
+            THEN 'true' ELSE 'false' END)) WHERE deployment=? AND operation_id=?`,
+            deployment,
+            operation,
+            deployment,
+            operation
+          );
+        const insertEvent = (deployment, event, token) =>
+          statement(
+            `INSERT OR IGNORE INTO management_outbox(deployment,operation_id,phase,event_json)
+          SELECT deployment,operation_id,?,? FROM management_journal WHERE deployment=? AND operation_id=?
+            ${token === undefined ? "" : "AND transition_token=?"}`,
+            event.phase,
+            json(event),
+            deployment,
+            event.intent.operation_id,
+            ...(token === undefined ? [] : [token])
+          );
         if (request?.action === "inspect") {
           const row = await session
             .prepare(
@@ -314,7 +321,7 @@ export function create(database, scope, configuration) {
             ).all();
             return {
               kind: "events",
-              value: rows.results.map((row) => JSON.parse(row.event_json)),
+              value: readRows(rows).map((row) => JSON.parse(row.event_json)),
             };
           }
           case "acknowledge": {
@@ -347,11 +354,13 @@ export function create(database, scope, configuration) {
         return Promise.resolve(failure("invalid_input"));
       }
       return execute(async () => {
-        const row = await statement(
-          "SELECT 1 AS qualified FROM qualified_operators WHERE deployment=? AND subject=?",
-          deployment,
-          subject
-        ).first();
+        const session = database.withSession("first-primary");
+        const row = await session
+          .prepare(
+            "SELECT 1 AS qualified FROM qualified_operators WHERE deployment=? AND subject=?"
+          )
+          .bind(deployment, subject)
+          .first();
         return { qualified: row?.qualified === 1 };
       });
     },

@@ -114,10 +114,12 @@ store version; it never creates tables or grants operator membership.
 
 The owner module `lenso-management-core/src/workers/journal.mjs` exports explicit
 operator setup and qualification actions separately from its runtime factory.
-The selected D1 binding uses a `first-primary` session per event. Invocation records,
-qualified subjects and unsent audit phases survive a new Worker instance. Atomic
-batch/CAS receipts must report success and bounded mutation counts; an uncertain
-receipt returns unavailable even when the transaction may have committed.
+Each finite journal operation and qualification check starts a new `first-primary`
+D1 session. Atomic batches keep their own session. Invocation records, qualified
+subjects and unsent audit phases survive a new Worker instance. Atomic batch/CAS
+receipts must report success and bounded mutation counts; an uncertain receipt
+returns unavailable even when the transaction may have committed. Outbox reads
+also require a successful receipt with an array of rows before reporting events.
 
 A claim records an absolute wall-clock expiry of at most 30 seconds. The selected
 Workers Host event budget must also be at most 30 seconds. No startup scans or

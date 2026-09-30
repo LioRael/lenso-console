@@ -24,6 +24,21 @@ function receiptFault(database, fault) {
             if (key === "run") {
               return async () => corrupt(await target.run());
             }
+            if (key === "all") {
+              return async () => {
+                const result = await target.all();
+                if (fault === "read_failed") {
+                  return { ...result, success: false };
+                }
+                if (fault === "read_missing") {
+                  return { ...result, success: undefined };
+                }
+                if (fault === "read_shape") {
+                  return { ...result, results: null };
+                }
+                return result;
+              };
+            }
             const value = target[key];
             return typeof value === "function" ? value.bind(target) : value;
           },

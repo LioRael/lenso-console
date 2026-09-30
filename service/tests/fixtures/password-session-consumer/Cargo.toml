@@ -12,8 +12,8 @@ root-slot = "auth"
 
 [dependencies]
 lenso = "0.5.27"
-lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
-lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
+lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
+lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
 
 [lints.rust]
 unsafe_code = "forbid"

@@ -23,7 +23,7 @@ root-slot = "console"
 embedded-shell = []
 
 [dependencies]
-lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
+lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
 anyhow = "1.0"
 base64 = "0.22"
 bytes = "1"
@@ -33,7 +33,7 @@ futures = "0.3"
 hex = "0.4"
 http = "1"
 lenso = "0.5.27"
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
 lenso-capability-auth = "0.2.0"
 lenso-capability-access-control = "0.2.0"
 lenso-capability-management-human = { path = "../contracts/crates/lenso-capability-management-human", version = "0.1.0" }
@@ -90,7 +90,19 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [patch.crates-io]
-lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
+lenso = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-native-adapter = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-native-adapter-macros = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-kernel = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-app-plan = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-plugin-authoring = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-runtime-codec = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-authoring = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-authoring-macros = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-codegen = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-runtime = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
 
 lenso-capability-projects = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
 lenso-capability-projects-admin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
@@ -99,9 +111,9 @@ lenso-capability-organization-admin = { git = "https://github.com/LioRael/lenso-
 lenso-capability-organization-directory = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
 lenso-capability-organization-membership = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
 lenso-capability-organization-membership-admin = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
-lenso-capability-access-control = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "8aabedfeb21a049481d1d2e1ba2523dcb4c3a442" }
-lenso-capability-access-control-admin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "8aabedfeb21a049481d1d2e1ba2523dcb4c3a442" }
-lenso-capability-access-control-directory = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "8aabedfeb21a049481d1d2e1ba2523dcb4c3a442" }
+lenso-capability-access-control = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "c839b4ee9f70d47ff584ba05fa85d7f2b3b41b16" }
+lenso-capability-access-control-admin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "c839b4ee9f70d47ff584ba05fa85d7f2b3b41b16" }
+lenso-capability-access-control-directory = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "c839b4ee9f70d47ff584ba05fa85d7f2b3b41b16" }
 
 # Native ports require one Rust contract type identity in the composed App.
 # Align the owner's immutable Git contracts with this distribution's contract

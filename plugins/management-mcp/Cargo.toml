@@ -12,8 +12,8 @@ description = "Opt-in MCP Streamable HTTP server over one bound Management Capab
 [dependencies]
 axum = "0.8"
 http = "1"
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
-lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "5fb16bbcbff51cce394fd6e29df9079485f7f37e" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "91d7bc677ce792dfc30c87fe688beecf6b4e16b0" }
 lenso-capability-management = { path = "../../contracts/crates/lenso-capability-management", version = "0.1.0" }
 lenso-kernel = "0.3.11"
 rmcp = { version = "=3.5.0", default-features = false, features = [
@@ -41,3 +41,16 @@ tokio = { version = "1", features = ["macros", "net"] }
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[patch.crates-io]
+lenso = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-native-adapter = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-native-adapter-macros = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-kernel = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-app-plan = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-plugin-authoring = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-runtime-codec = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-authoring = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-authoring-macros = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-codegen = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
+lenso-contract-runtime = { git = "https://github.com/LioRael/lenso", rev = "c0464691b6ae1c80b5606065dd4073e8b7d6a59e" }
