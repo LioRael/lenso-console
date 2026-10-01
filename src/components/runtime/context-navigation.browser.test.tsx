@@ -300,6 +300,11 @@ describe("Context navigation", () => {
     if (!itemElement) {
       throw new Error("Sidebar item was not rendered");
     }
+    await userEvent.unhover(item);
+    await nextFrame();
+    await Promise.all(
+      itemElement.getAnimations().map((animation) => animation.finished)
+    );
     const restingBackground = getComputedStyle(itemElement).backgroundColor;
     await userEvent.hover(item);
     await new Promise((resolve) => setTimeout(resolve, 160));
