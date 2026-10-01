@@ -1,8 +1,8 @@
 import { Button } from "@lenso/ui/button";
-import { SegmentedControl } from "@lenso/ui/segmented-control";
 import { Switch } from "@lenso/ui/switch";
 import { Tabs } from "@lenso/ui/tabs";
-import { TextArea } from "@lenso/ui/text-area";
+import { TextArea } from "@lenso/ui/textarea";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -153,8 +153,8 @@ const styles = stylex.create({
     lineHeight: "16px",
     margin: 0,
   },
-  feedbackError: { color: "var(--color-status-error-content)" },
-  feedbackWarning: { color: "var(--color-status-warning-content)" },
+  feedbackError: { color: "var(--danger-soft-foreground)" },
+  feedbackWarning: { color: "var(--warning-soft-foreground)" },
   field: {
     display: "grid",
     gap: tokens.space3,
@@ -246,7 +246,7 @@ const styles = stylex.create({
     backgroundColor: "transparent",
     gap: 4,
     marginBlock: "20px 0",
-    borderBottom: "1px solid var(--color-border-tertiary)",
+    borderBottom: "1px solid var(--separator)",
     overflowX: "auto",
   },
   detailActions: {
@@ -496,10 +496,11 @@ export function PluginDetail({
                           type: "select",
                         });
                       }}
-                      layout="control-only"
-                      size="default"
+                      size="md"
                     >
-                      <Switch.Thumb />
+                      <Switch.Control>
+                        <Switch.Thumb />
+                      </Switch.Control>
                     </Switch.Root>
                   </span>
                 </div>
@@ -754,20 +755,18 @@ function PluginConfigurationSection({
           <div {...stylex.props(styles.configurationHeading)}>
             <h3 {...stylex.props(styles.sectionTitle)}>{t("Configuration")}</h3>
             {hasConfigurationSchema ? (
-              <SegmentedControl.Root
+              <Tabs.Root
                 aria-label={t("Configuration editor")}
                 onValueChange={(value) =>
                   setConfigurationView(value as "fields" | "advanced")
                 }
                 value={configurationView}
               >
-                <SegmentedControl.Item value="fields">
-                  {t("Fields")}
-                </SegmentedControl.Item>
-                <SegmentedControl.Item value="advanced">
-                  {t("Advanced")}
-                </SegmentedControl.Item>
-              </SegmentedControl.Root>
+                <Tabs.List>
+                  <Tabs.Tab value="fields">{t("Fields")}</Tabs.Tab>
+                  <Tabs.Tab value="advanced">{t("Advanced")}</Tabs.Tab>
+                </Tabs.List>
+              </Tabs.Root>
             ) : null}
           </div>
           {configurationView === "fields" && plugin.configurationSchema ? (
@@ -782,8 +781,8 @@ function PluginConfigurationSection({
               toml={draft.value}
             />
           ) : (
-            <TextArea.Root xstyle={styles.editorRoot}>
-              <TextArea.Control
+            <TextField.Root xstyle={styles.editorRoot}>
+              <TextArea
                 aria-label={`TOML configuration for ${plugin.packageId}/${plugin.instanceKey}`}
                 onChange={(event) => {
                   resetReviews();
@@ -795,7 +794,7 @@ function PluginConfigurationSection({
                 value={draft.value}
                 xstyle={styles.editor}
               />
-            </TextArea.Root>
+            </TextField.Root>
           )}
           <div {...stylex.props(styles.editorActions)}>
             {draft.isDirty ? (
@@ -804,7 +803,7 @@ function PluginConfigurationSection({
                   {t("Unsaved changes")}
                 </output>
                 <Button
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                   disabled={mutation.isPending}
                   onClick={() => {
@@ -834,7 +833,7 @@ function PluginConfigurationSection({
                   type: "reset",
                 });
               }}
-              size="compact"
+              size="sm"
               tabIndex={management.hasRootDifference ? 0 : -1}
               variant="ghost"
               {...stylex.props(!restoreVisible && styles.hiddenAction)}
@@ -895,7 +894,7 @@ function PluginConfigurationSection({
                   toml: draft.value,
                 });
               }}
-              size="compact"
+              size="sm"
               variant="primary"
             >
               {readyRollbackPresentation?.actionLabel ??
@@ -917,7 +916,7 @@ function PluginConfigurationSection({
                   mutation.reset();
                   draft.useHostValue();
                 }}
-                size="compact"
+                size="sm"
                 variant="ghost"
               >
                 {t("Use Host value")}
@@ -1052,7 +1051,7 @@ function PluginConfigurationHistorySection({
     >
       <Button
         id="plugin-configuration-history-title"
-        size="compact"
+        size="sm"
         variant="ghost"
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
@@ -1075,7 +1074,7 @@ function PluginConfigurationHistorySection({
                 onClick={() => {
                   void history.refetch();
                 }}
-                size="compact"
+                size="sm"
                 variant="ghost"
               >
                 {t("Try again")}
@@ -1121,7 +1120,7 @@ function PluginConfigurationHistorySection({
                             mutationPending
                           }
                           onClick={() => onReview(publication.proposalDigest)}
-                          size="compact"
+                          size="sm"
                           variant="ghost"
                           {...stylex.props(styles.historyAction)}
                         >
@@ -1150,7 +1149,7 @@ function PluginConfigurationHistorySection({
                 onClick={() => {
                   void history.refetch();
                 }}
-                size="compact"
+                size="sm"
                 variant="ghost"
               >
                 {t("Try again")}

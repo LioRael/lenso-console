@@ -195,7 +195,7 @@ export function AgentAskUser({
           <Button
             aria-label="Previous question"
             onClick={() => setQuestionIndex((current) => current - 1)}
-            size="compact"
+            size="sm"
             type="button"
             variant="ghost"
             xstyle={styles.actionSecondary}
@@ -207,7 +207,7 @@ export function AgentAskUser({
         {canCancel ? (
           <Button
             onClick={onCancel}
-            size="compact"
+            size="sm"
             type="button"
             variant="ghost"
             xstyle={styles.actionSecondary}
@@ -226,7 +226,7 @@ export function AgentAskUser({
             !canContinue || isSubmitting || answeredCount < questionIndex
           }
           onClick={continueOrSubmit}
-          size="compact"
+          size="sm"
           type="button"
           variant="secondary"
           xstyle={styles.continue}

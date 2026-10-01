@@ -1,5 +1,6 @@
 import { Button } from "@lenso/ui/button";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import {
   createContext,
@@ -433,7 +434,7 @@ function LoginMethods({
                 {zh ? "邮箱" : "Email"}
               </label>
               <TextField.Root xstyle={styles.input}>
-                <TextField.Control
+                <Input
                   placeholder={zh ? "邮箱地址" : "Email address"}
                   id="console-login-email"
                   name="identifier"
@@ -452,7 +453,7 @@ function LoginMethods({
                 {zh ? "密码" : "Password"}
               </label>
               <TextField.Root xstyle={styles.input}>
-                <TextField.Control
+                <Input
                   placeholder={zh ? "密码" : "Password"}
                   id="console-login-password"
                   name="password"

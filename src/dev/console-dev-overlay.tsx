@@ -16,17 +16,17 @@ const localStyles = stylex.create({
     zIndex: "50",
   },
   utilityRoundedVarRadiusPanel: {
-    borderRadius: "var(--radius-panel)",
+    borderRadius: "var(--radius-lg)",
   },
   utilityBorder: {
     borderStyle: "solid",
     borderWidth: "1px",
   },
   utilityBorderLine: {
-    borderColor: "var(--color-border-tertiary)",
+    borderColor: "var(--separator)",
   },
   utilityBgBgPanel: {
-    backgroundColor: "var(--color-surface-panel)",
+    backgroundColor: "var(--surface)",
   },
   utilityPx3: {
     paddingInline: "calc(0.25rem * 3)",
@@ -39,16 +39,16 @@ const localStyles = stylex.create({
     lineHeight: "var(--text-xs--line-height, 1rem)",
   },
   utilityTextFgSecondary: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
   },
   utilityShadowElevationPanel: {
-    boxShadow: "var(--elevation-panel)",
+    boxShadow: "var(--shadow-surface)",
   },
   utilityFontSemibold: {
     fontWeight: "600",
   },
   utilityTextFgPrimary: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
   },
 });
 

@@ -3,8 +3,8 @@ import * as stylex from "@stylexjs/stylex";
 export const sessionStyles = stylex.create({
   root: {
     alignItems: "center",
-    backgroundColor: "var(--color-surface-primary)",
-    color: "var(--color-content-primary)",
+    backgroundColor: "var(--surface)",
+    color: "var(--foreground)",
     display: "flex",
     justifyContent: "center",
     minHeight: "100dvh",
@@ -45,7 +45,7 @@ export const sessionStyles = stylex.create({
     margin: 0,
   },
   muted: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: "13px",
     lineHeight: 1.6,
     margin: 0,
@@ -58,7 +58,7 @@ export const sessionStyles = stylex.create({
   },
   field: { display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 },
   label: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: "12px",
     fontWeight: 500,
     lineHeight: "16px",
@@ -70,29 +70,29 @@ export const sessionStyles = stylex.create({
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: "12px",
     marginBlock: "4px",
     "::before": {
       content: '""',
       height: "1px",
-      backgroundColor: "var(--color-border-primary)",
+      backgroundColor: "var(--border)",
       flexGrow: 1,
     },
     "::after": {
       content: '""',
       height: "1px",
-      backgroundColor: "var(--color-border-primary)",
+      backgroundColor: "var(--border)",
       flexGrow: 1,
     },
   },
   error: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     fontSize: "13px",
     lineHeight: 1.5,
     margin: 0,
     padding: "12px",
-    backgroundColor: "var(--color-surface-secondary)",
+    backgroundColor: "var(--surface-secondary)",
     borderRadius: "8px",
   },
 });

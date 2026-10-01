@@ -1,5 +1,10 @@
 # App-owned Console
 
+This fixture targets the separately pinned Engine development-kit protocol.
+The current standalone Lenso CLI does not expose its `app dev --root` command.
+For the current native Lenso Plugin API and removal proof, use
+[the embedding example](../plugin-host/README.md).
+
 From this repository build the shared Shell once with `pnpm service:web-build`.
 Then use the local Engine CLI:
 

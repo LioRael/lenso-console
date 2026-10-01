@@ -42,7 +42,7 @@ export const agentSettingsStyles = stylex.create({
     justifyContent: "flex-end",
     flexWrap: "wrap",
     gap: 8,
-    borderTop: "0.5px solid var(--color-border-tertiary)",
+    borderTop: "0.5px solid var(--separator)",
     padding: "12px 16px",
   },
   sectionBody: { display: "grid", overflow: "hidden" },
@@ -134,7 +134,7 @@ export const agentSettingsStyles = stylex.create({
     padding: 16,
   },
   error: {
-    color: "var(--color-status-error-content)",
+    color: "var(--danger-soft-foreground)",
     fontSize: 12,
     lineHeight: "18px",
     margin: 0,

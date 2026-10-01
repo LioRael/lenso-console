@@ -1,4 +1,4 @@
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -19,7 +19,6 @@ import {
 } from "../../app/console-locale";
 
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
 import { AppManagementProvider } from "../apps/app-management-context";
 import { PluginAgentWorkbenchProvider } from "./plugin-agent-workbench-context";
 import { PluginDetailPage } from "./plugin-detail-page";

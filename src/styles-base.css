@@ -1,6 +1,12 @@
 /* Intentional Host document defaults. This is not a component style catalog;
  * it owns the semantic and native-element baseline for the Console document. */
 @layer console-base {
+  :root {
+    --console-sidebar-width: 248px;
+    --font-sans: "Inter Variable", sans-serif;
+    --font-mono: "Roboto Mono", monospace;
+  }
+
   html {
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
@@ -24,12 +30,8 @@
 
   ::selection {
     /* Text selection needs stronger contrast than a selected surface. */
-    background: color-mix(
-      in srgb,
-      var(--color-content-primary) 32%,
-      var(--color-surface-canvas)
-    );
-    color: var(--color-content-primary);
+    background: color-mix(in srgb, var(--foreground) 32%, var(--background));
+    color: var(--foreground);
   }
 
   hr {
@@ -157,20 +159,20 @@
 @layer console-base {
   button:focus-visible,
   a:focus-visible {
-    outline: 2px solid var(--color-action-primary);
+    outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
 
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid var(--color-focus-ring);
+    outline: 2px solid var(--focus);
     outline-offset: 1px;
   }
 
   input,
   select,
   textarea {
-    caret-color: var(--color-action-primary);
+    caret-color: var(--accent);
   }
 }

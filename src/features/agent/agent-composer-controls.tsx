@@ -128,7 +128,7 @@ export function TurnSelect({
           xstyle={overlay.positioner}
           data-agent-composer-overlay={compact || undefined}
           align="start"
-          position="popper"
+          alignItemWithTrigger={false}
           sideOffset={6}
         >
           <Select.Popup xstyle={styles.composerSelectPopup}>
@@ -215,7 +215,7 @@ export function RunConfigurationMenu({
           <Button
             aria-label={t("Run configuration")}
             disabled={disabled}
-            size="compact"
+            size="sm"
             variant="ghost"
             xstyle={styles.composerControl}
           >
@@ -357,7 +357,7 @@ function ModelSubmenu({
       }}
     >
       <Menu.SubmenuTrigger xstyle={styles.runConfigurationItem}>
-        <Menu.Label>{t("Model")}</Menu.Label>
+        <Menu.Item.Label>{t("Model")}</Menu.Item.Label>
         <span {...stylex.props(styles.runConfigurationItemValue)}>
           {valueLabel ?? value}
         </span>
@@ -372,7 +372,6 @@ function ModelSubmenu({
           <Menu.Popup
             aria-label={t("Models")}
             id={menuId}
-            submenu
             xstyle={styles.runConfigurationSubmenu}
           >
             <div {...stylex.props(styles.modelMenuSearch)}>
@@ -404,11 +403,11 @@ function ModelSubmenu({
                   onClick={() => onValueChange(option.value)}
                   xstyle={styles.runConfigurationOption}
                 >
-                  <Menu.Label>{t(option.label)}</Menu.Label>
+                  <Menu.Item.Label>{t(option.label)}</Menu.Item.Label>
                   {option.value === value ? (
-                    <Menu.Trailing>
+                    <span>
                       <Check aria-hidden="true" size={14} strokeWidth={1.7} />
-                    </Menu.Trailing>
+                    </span>
                   ) : null}
                 </Menu.Item>
               ))}
@@ -446,7 +445,7 @@ function ConfigurationSubmenu({
   return (
     <Menu.SubmenuRoot>
       <Menu.SubmenuTrigger xstyle={styles.runConfigurationItem}>
-        <Menu.Label>{t(label)}</Menu.Label>
+        <Menu.Item.Label>{t(label)}</Menu.Item.Label>
         <span {...stylex.props(styles.runConfigurationItemValue)}>
           {t(valueLabel ?? value)}
         </span>
@@ -460,7 +459,6 @@ function ConfigurationSubmenu({
         >
           <Menu.Popup
             aria-label={t(ariaLabel)}
-            submenu
             xstyle={styles.runConfigurationSubmenu}
           >
             <div {...stylex.props(styles.runConfigurationOptionList)}>
@@ -470,11 +468,11 @@ function ConfigurationSubmenu({
                   onClick={() => onValueChange(option.value)}
                   xstyle={styles.runConfigurationOption}
                 >
-                  <Menu.Label>{t(option.label)}</Menu.Label>
+                  <Menu.Item.Label>{t(option.label)}</Menu.Item.Label>
                   {option.value === value ? (
-                    <Menu.Trailing>
+                    <span>
                       <Check aria-hidden="true" size={14} strokeWidth={1.7} />
-                    </Menu.Trailing>
+                    </span>
                   ) : null}
                 </Menu.Item>
               ))}

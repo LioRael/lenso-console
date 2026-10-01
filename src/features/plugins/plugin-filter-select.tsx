@@ -16,7 +16,7 @@ const styles = stylex.create({
     fontSize: 12,
     backgroundColor: {
       default: "transparent",
-      ":hover": "var(--color-surface-interactive-hover)",
+      ":hover": "var(--default-hover)",
     },
     borderColor: "transparent",
     boxShadow: "none",
@@ -54,7 +54,7 @@ export function PluginFilterSelect<Value extends string>({
         <Select.Icon />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner position="popper" align="start">
+        <Select.Positioner alignItemWithTrigger={false} align="start">
           <Select.Popup xstyle={styles.popup}>
             <Select.List>
               {options.map((item) => (

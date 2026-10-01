@@ -1,5 +1,4 @@
 import { Button } from "@lenso/ui/button";
-import { IconButton } from "@lenso/ui/icon-button";
 import { Tabs } from "@lenso/ui/tabs";
 import * as stylex from "@stylexjs/stylex";
 import { useNavigate } from "@tanstack/react-router";
@@ -217,7 +216,7 @@ export function AgentPage({
       <Button
         disabled={isRunning || isConfiguring}
         onClick={openCodingSettings}
-        size="compact"
+        size="sm"
         variant="ghost"
       >
         Configure coding environment
@@ -658,7 +657,7 @@ function AgentHeader({
               }
             }}
             title={onRename ? "Double-click to rename" : undefined}
-            size="compact"
+            size="sm"
             variant="ghost"
             xstyle={styles.chatSwitcher}
           >
@@ -801,7 +800,7 @@ function AgentConversation({
         {turns[0]?.forkSource ? (
           <div {...stylex.props(styles.codingNotice)}>
             <Button
-              size="compact"
+              size="sm"
               variant="ghost"
               onClick={() => onFork(turns[0]!.forkSource!.sessionId)}
             >
@@ -867,15 +866,16 @@ function AgentConversation({
         ) : null}
       </div>
       {!followTail && (
-        <IconButton
+        <Button
+          isIconOnly
           aria-label="Jump to latest"
           onClick={jumpToLatest}
-          size="compact"
+          size="sm"
           variant="secondary"
           xstyle={styles.jumpToLatest}
         >
           <ArrowDown size={14} />
-        </IconButton>
+        </Button>
       )}
     </section>
   );
@@ -1133,18 +1133,20 @@ function AgentComposerToolbar({
           draft={draft}
         />
         {isRunning && canCancel ? (
-          <IconButton
+          <Button
+            isIconOnly
             aria-label="Stop generating"
             onClick={onCancel}
-            size="compact"
+            size="sm"
             type="button"
             variant="ghost"
             xstyle={styles.stopButton}
           >
             <Square fill="currentColor" size={9} strokeWidth={0} />
-          </IconButton>
+          </Button>
         ) : null}
-        <IconButton
+        <Button
+          isIconOnly
           aria-label={isRunning ? "Queue follow-up" : "Submit comment"}
           data-active={
             Boolean(draft.trim() || attachmentState?.items.length) || undefined
@@ -1155,7 +1157,7 @@ function AgentComposerToolbar({
             attachmentState?.items.some((file) => !file.data_base64) ||
             !(draft.trim() || attachmentState?.items.length)
           }
-          size="compact"
+          size="sm"
           type="submit"
           variant="secondary"
           xstyle={[
@@ -1165,7 +1167,7 @@ function AgentComposerToolbar({
           ]}
         >
           <ArrowUp size={14} strokeWidth={1.9} />
-        </IconButton>
+        </Button>
       </PromptComposer.Actions>
     </PromptComposer.Toolbar>
   );
@@ -1189,14 +1191,15 @@ function AgentPromptQueue({
             <span {...stylex.props(styles.queueItemLabel)}>
               {prompt.prompt}
             </span>
-            <IconButton
+            <Button
+              isIconOnly
               aria-label="Remove queued prompt"
               onClick={() => onRemove(prompt.id)}
-              size="compact"
+              size="sm"
               variant="ghost"
             >
               <X size={11} />
-            </IconButton>
+            </Button>
           </div>
         ))}
       </div>

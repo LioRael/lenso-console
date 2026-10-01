@@ -1,5 +1,5 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -9,7 +9,7 @@ import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 
 const styles = stylex.create({
   destructive: {
-    color: "var(--color-action-danger)",
+    color: "var(--danger)",
   },
   dialogField: { display: "grid", gap: tokens.space2 },
   dialogLabel: {
@@ -24,7 +24,7 @@ const styles = stylex.create({
     lineHeight: "16px",
     margin: 0,
   },
-  feedbackError: { color: "var(--color-status-error-content)" },
+  feedbackError: { color: "var(--danger-soft-foreground)" },
   input: {
     backgroundColor: tokens.colorSurfaceSubtle,
     borderColor: tokens.colorBorderTertiary,
@@ -65,7 +65,7 @@ export function InstallPluginDialog({
       <Button
         disabled={disabled}
         onClick={() => setOpen(true)}
-        size="compact"
+        size="sm"
         variant="secondary"
       >
         <Plus size={13} strokeWidth={1.75} />
@@ -107,7 +107,7 @@ export function InstallPluginDialog({
               ) : null}
             </Dialog.Body>
             <Dialog.Footer>
-              <Dialog.Close render={<Button size="compact" variant="ghost" />}>
+              <Dialog.Close render={<Button size="sm" variant="ghost" />}>
                 {t("Cancel")}
               </Dialog.Close>
               <Button
@@ -121,7 +121,7 @@ export function InstallPluginDialog({
                     // The receipt-aware mutation error remains visible above.
                   }
                 }}
-                size="compact"
+                size="sm"
                 variant="primary"
               >
                 {t("Install Plugin")}
@@ -155,7 +155,7 @@ export function RemovePluginDialog({
       <Button
         disabled={disabled}
         onClick={() => setOpen(true)}
-        size="compact"
+        size="sm"
         variant="ghost"
         {...stylex.props(styles.destructive)}
       >
@@ -190,7 +190,7 @@ export function RemovePluginDialog({
               </Dialog.Body>
             ) : null}
             <Dialog.Footer>
-              <Dialog.Close render={<Button size="compact" variant="ghost" />}>
+              <Dialog.Close render={<Button size="sm" variant="ghost" />}>
                 {t("Cancel")}
               </Dialog.Close>
               <Button
@@ -203,7 +203,7 @@ export function RemovePluginDialog({
                     // The receipt-aware mutation error remains visible above.
                   }
                 }}
-                size="compact"
+                size="sm"
                 variant="primary"
               >
                 {t("Remove Plugin")}

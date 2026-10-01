@@ -1,6 +1,7 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { Modal as Dialog } from "@lenso/ui/modal";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
 
@@ -56,7 +57,7 @@ export function AddMcpConnection({
     <label {...stylex.props(styles.rowCopy, local.field)}>
       {t(label)}
       <TextField.Root xstyle={local.input}>
-        <TextField.Control
+        <Input
           aria-label={t(label)}
           disabled={pending}
           value={draft[key]}
@@ -132,7 +133,7 @@ export function AddMcpConnection({
       }}
     >
       <Button
-        size="compact"
+        size="sm"
         onClick={() => {
           setOpen(true);
           setSaved("");
@@ -157,7 +158,7 @@ export function AddMcpConnection({
               <div {...stylex.props(page.headerActions)}>
                 <Button
                   type="button"
-                  size="compact"
+                  size="sm"
                   variant={
                     draft.transport === "streamable_http"
                       ? "primary"
@@ -175,7 +176,7 @@ export function AddMcpConnection({
                 </Button>
                 <Button
                   type="button"
-                  size="compact"
+                  size="sm"
                   variant={
                     draft.transport === "stdio" ? "primary" : "secondary"
                   }
@@ -246,12 +247,12 @@ export function AddMcpConnection({
                 </p>
               ) : null}
               <div {...stylex.props(page.headerActions)}>
-                <Button type="submit" size="compact" disabled={pending}>
+                <Button type="submit" size="sm" disabled={pending}>
                   {pending ? t("Adding…") : t("Add connection")}
                 </Button>
                 <Button
                   type="button"
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                   disabled={pending}
                   onClick={() => setOpen(false)}

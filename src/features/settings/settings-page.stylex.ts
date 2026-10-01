@@ -1,30 +1,6 @@
 import * as stylex from "@stylexjs/stylex";
 
 export const settingsPageStyles = stylex.create({
-  column: {
-    marginInline: "auto",
-    paddingBlock: "48px 64px",
-    width: {
-      default: "min(680px, calc(100% - 48px))",
-      "@media (max-width: 760px)": "calc(100% - 32px)",
-    },
-    minWidth: 0,
-    "@media (max-width: 560px)": { paddingBlock: "32px 48px" },
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 16,
-  },
-  headerCopy: {
-    display: "grid",
-    gap: 8,
-    minWidth: 0,
-    flex: "1 1 240px",
-    paddingInline: 16,
-  },
   headerActions: {
     display: "flex",
     alignItems: "center",
@@ -35,31 +11,33 @@ export const settingsPageStyles = stylex.create({
     margin: 0,
     fontSize: 13,
     lineHeight: "20px",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     overflowWrap: "anywhere",
   },
+  column: {
+    marginInline: { default: "26px", "@media (max-width: 760px)": "auto" },
+    paddingBlock: "30px 64px",
+    width: {
+      default: "min(680px, calc(100% - 52px))",
+      "@media (max-width: 760px)": "calc(100% - 32px)",
+    },
+    minWidth: 0,
+    "@media (max-width: 560px)": { paddingBlock: "32px 48px" },
+  },
   group: {
-    backgroundColor: "var(--color-surface-panel)",
-    borderColor: "var(--color-border-tertiary)",
+    backgroundColor: "var(--surface)",
+    borderColor: "var(--separator)",
     borderRadius: "10px",
     borderStyle: "solid",
     borderWidth: "0.5px",
     boxShadow: "none",
   },
   page: {
-    backgroundColor: "var(--color-surface-canvas)",
-    color: "var(--color-content-primary)",
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
     minHeight: "100%",
     overflowY: "auto",
     width: "100%",
-  },
-  pageTitle: {
-    fontSize: "24px",
-    fontWeight: 600,
-    letterSpacing: "-0.02em",
-    lineHeight: "30px",
-    margin: 0,
-    overflowWrap: "anywhere",
   },
   row: {
     alignItems: {
@@ -70,7 +48,7 @@ export const settingsPageStyles = stylex.create({
       default: "transparent",
       ":hover": "transparent",
     },
-    borderBottomColor: "var(--color-border-tertiary)",
+    borderBottomColor: "var(--separator)",
     borderBottomStyle: "solid",
     borderBottomWidth: "0.5px",
     borderInlineWidth: 0,
@@ -96,7 +74,7 @@ export const settingsPageStyles = stylex.create({
     opacity: 0.4,
   },
   rowDescription: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontSize: "12px",
     lineHeight: "18px",
   },
@@ -114,6 +92,7 @@ export const settingsPageStyles = stylex.create({
     marginTop: "32px",
   },
   sectionTitle: {
+    paddingInline: 16,
     fontSize: "15px",
     fontWeight: 600,
     lineHeight: "20px",
@@ -121,16 +100,16 @@ export const settingsPageStyles = stylex.create({
   },
   selectTrigger: {
     backgroundColor: {
-      default: "var(--color-surface-control)",
-      ":hover": "var(--color-surface-overlay-hover)",
-      "[data-visual-state=hover]": "var(--color-surface-overlay-hover)",
+      default: "var(--field-background)",
+      ":hover": "var(--default-hover)",
+      "[data-visual-state=hover]": "var(--default-hover)",
     },
     borderColor: {
-      default: "var(--color-border-control)",
-      ":disabled": "var(--color-border-tertiary)",
-      ":focus-visible": "var(--color-border-control-focus)",
+      default: "var(--field-border)",
+      ":disabled": "var(--separator)",
+      ":focus-visible": "var(--field-border-focus)",
       ":hover": "transparent",
-      "[data-popup-open]": "var(--color-border-control-focus)",
+      "[data-popup-open]": "var(--field-border-focus)",
       "[data-visual-state=hover]": "transparent",
     },
     borderRadius: "8px",

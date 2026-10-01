@@ -50,7 +50,7 @@ pnpm install --frozen-lockfile
 pnpm service:web-build
 cargo build --locked --release --manifest-path service/Cargo.toml --bin lenso-console-with-agent
 node --test scripts/distribution/launcher.test.mjs
-node scripts/distribution/package-agent.mjs darwin-arm64 service/target/release/lenso-console-with-agent .artifacts/npm
+node scripts/distribution/package-agent.mjs darwin-arm64 target/release/lenso-console-with-agent .artifacts/npm
 node scripts/distribution/smoke-agent.mjs .artifacts/npm
 ```
 

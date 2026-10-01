@@ -1,6 +1,7 @@
 import { Button } from "@lenso/ui/button";
+import { Input } from "@lenso/ui/input";
 import { Switch } from "@lenso/ui/switch";
-import { TextField } from "@lenso/ui/text-field";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -71,7 +72,6 @@ export function AgentProfileSkills({
           </p>
         </div>
         <Switch.Root
-          layout="control-only"
           aria-label={t("Use all common Skills")}
           checked={selected === undefined}
           disabled={disabled || !skills.data}
@@ -85,12 +85,14 @@ export function AgentProfileSkills({
             }
           }}
         >
-          <Switch.Thumb />
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
         </Switch.Root>
       </div>
       <div {...stylex.props(ui.filters)}>
         <TextField.Root xstyle={ui.search}>
-          <TextField.Control
+          <Input
             type="search"
             aria-label={t("Search Profile Skills")}
             placeholder={t("Search Skills…")}
@@ -106,7 +108,7 @@ export function AgentProfileSkills({
         </span>
         <div {...stylex.props(ui.bulkActions)}>
           <Button
-            size="compact"
+            size="sm"
             variant="ghost"
             disabled={disabled || !skills.data}
             onClick={() =>
@@ -119,7 +121,7 @@ export function AgentProfileSkills({
             {t(query ? "Enable matching" : "Enable all")}
           </Button>
           <Button
-            size="compact"
+            size="sm"
             variant="ghost"
             disabled={disabled || !skills.data}
             onClick={() =>
@@ -152,7 +154,6 @@ export function AgentProfileSkills({
                 <small>{item.directory}</small>
               </div>
               <Switch.Root
-                layout="control-only"
                 aria-label={`Skill ${item.name}`}
                 checked={enabled(item.name)}
                 disabled={disabled}
@@ -165,7 +166,9 @@ export function AgentProfileSkills({
                   );
                 }}
               >
-                <Switch.Thumb />
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
               </Switch.Root>
             </div>
           ))}
@@ -192,7 +195,7 @@ const s = stylex.create({
     justifyContent: "space-between",
     gap: "20px",
     padding: "12px 20px",
-    borderBottom: "1px solid var(--color-border-secondary)",
+    borderBottom: "1px solid var(--border)",
   },
   description: {
     display: "-webkit-box",
@@ -205,7 +208,7 @@ const s = stylex.create({
     gap: "4px",
     minWidth: 0,
     fontSize: "12px",
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     overflowWrap: "anywhere",
   },
 });

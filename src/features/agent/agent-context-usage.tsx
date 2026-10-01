@@ -94,7 +94,7 @@ const s = stylex.create({
     border: 0,
     borderRadius: "999px",
     backgroundColor: "transparent",
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     cursor: "pointer",
   },
   popup: {
@@ -110,10 +110,10 @@ const s = stylex.create({
     gap: "5px",
     padding: "12px",
     borderRadius: "10px",
-    backgroundColor: "var(--color-surface-panel)",
-    border: "1px solid var(--color-border-secondary)",
+    backgroundColor: "var(--surface)",
+    border: "1px solid var(--border)",
     boxShadow: "0 4px 20px rgb(0 0 0 / 12%)",
     fontSize: "12px",
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
   },
 });

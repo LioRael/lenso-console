@@ -1,5 +1,11 @@
 # Lenso Console Service
 
+For a minimal App using the current high-level Lenso Host API, use
+[the optional Plugin example](../examples/plugin-host/README.md) and
+`pnpm plugin:dev`. It needs no Agent and proves removal independently of this
+repository's reference App assembly. Rust dependencies and their immutable
+source patches now have one authority in the root `Cargo.toml` and `Cargo.lock`.
+
 ## Account connections
 
 Agent settings consume `lenso.agent.auth-connection@1` through the Agent Web management routes (`auth/connections` and `auth/connections/actions`). Run this Console with a Harness binary containing those routes; older binaries cannot serve this section. No credentials are sent to the browser.

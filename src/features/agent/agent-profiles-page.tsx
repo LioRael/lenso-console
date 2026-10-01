@@ -1,6 +1,7 @@
 import { Button } from "@lenso/ui/button";
+import { Input } from "@lenso/ui/input";
 import { Menu } from "@lenso/ui/menu";
-import { TextField } from "@lenso/ui/text-field";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
@@ -8,8 +9,8 @@ import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { ConsolePageHeader } from "../../components/runtime/console-page-header";
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
-import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as pageStyles } from "../settings/settings-page.stylex";
 import { useAgentIdentity } from "./agent-identity-context";
 import { AgentProfileEditor } from "./agent-profile-editor";
@@ -32,7 +33,7 @@ export function AgentProfilesPage() {
   return (
     <main {...stylex.props(pageStyles.page)}>
       <div {...stylex.props(pageStyles.column)}>
-        <SettingsPageHeader
+        <ConsolePageHeader
           title={t("Profiles")}
           description={t(
             "Saved instructions and capabilities. Edit a Profile, then choose when your Agent uses it."
@@ -99,8 +100,8 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
   return (
     <>
       <div {...stylex.props(styles.toolbar)}>
-        <TextField.Root size="compact" xstyle={styles.search}>
-          <TextField.Control
+        <TextField.Root xstyle={styles.search}>
+          <Input
             type="search"
             aria-label={t("Search profiles")}
             placeholder={t("Search profiles…")}
@@ -109,7 +110,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
           />
         </TextField.Root>
         <Button
-          size="compact"
+          size="sm"
           variant="secondary"
           xstyle={styles.createButton}
           disabled={!query.data || apply.isPending}
@@ -146,7 +147,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
           <strong>{t("Profiles unavailable")}</strong>
           <span>{query.error.message}</span>
           <Button
-            size="compact"
+            size="sm"
             variant="secondary"
             onClick={() => void query.refetch()}
           >
@@ -187,11 +188,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
               : t("Create a Profile to save instructions and capabilities.")}
           </span>
           {search.trim() ? (
-            <Button
-              size="compact"
-              variant="ghost"
-              onClick={() => setSearch("")}
-            >
+            <Button size="sm" variant="ghost" onClick={() => setSearch("")}>
               {t("Clear search")}
             </Button>
           ) : null}
@@ -250,7 +247,7 @@ function ProfileList({ agent }: { agent: AgentIdentity }) {
                     <Menu.Trigger
                       render={
                         <Button
-                          size="compact"
+                          size="sm"
                           variant="ghost"
                           aria-label={t("Actions for {profile}", {
                             profile: profile.name,
@@ -376,15 +373,11 @@ export function AgentProfileDetailPage({
         {blocker.status === "blocked" ? (
           <div role="alert" {...stylex.props(styles.guard)}>
             <span>{t("Discard unsaved changes and leave this Profile?")}</span>
-            <Button
-              size="compact"
-              variant="ghost"
-              onClick={() => blocker.reset()}
-            >
+            <Button size="sm" variant="ghost" onClick={() => blocker.reset()}>
               {t("Keep editing")}
             </Button>
             <Button
-              size="compact"
+              size="sm"
               onClick={() => {
                 dirty.current = false;
                 blocker.proceed();

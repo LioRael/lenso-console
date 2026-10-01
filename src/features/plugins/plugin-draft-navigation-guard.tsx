@@ -1,5 +1,5 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import { useBlocker } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
 
@@ -50,7 +50,7 @@ export function PluginDraftNavigationGuard({
             </Dialog.Header>
             <Dialog.Footer>
               <Button
-                size="compact"
+                size="sm"
                 variant="secondary"
                 onClick={() => {
                   if (blocker.status === "blocked") {
@@ -61,7 +61,7 @@ export function PluginDraftNavigationGuard({
                 {t("Keep editing")}
               </Button>
               <Button
-                size="compact"
+                size="sm"
                 variant="primary"
                 onClick={() => {
                   if (blocker.status === "blocked") {

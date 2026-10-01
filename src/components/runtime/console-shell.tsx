@@ -1,23 +1,14 @@
+import { ThemeScope } from "@lenso/ui";
 import { Button } from "@lenso/ui/button";
-import { IconButton } from "@lenso/ui/icon-button";
-import { Sidebar } from "@lenso/ui/sidebar";
-import { ThemeScope } from "@lenso/ui/theme-scope";
 import * as stylex from "@stylexjs/stylex";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Blocks,
-  ChevronLeft,
   PanelsTopLeft,
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PropsWithChildren,
-} from "react";
+import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
@@ -25,6 +16,7 @@ import { useConsoleSession } from "../../app/console-session";
 import { sessionStyles } from "../../app/console-session.stylex";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
+import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
 import {
   useAppManagement,
   type ManagedApp,
@@ -37,15 +29,24 @@ import {
   WorkspaceSidebarProvider,
   WorkspaceSidebarSlot,
 } from "../../features/extensions/workspace-sidebar-slot";
+import { Sidebar } from "../lenso/recipes/console-navigation";
+import { ConsoleFrame } from "./console-frame";
 import { ConsoleHeader } from "./console-header";
+import {
+  consoleNavigationModel,
+  workspaceRoute,
+} from "./console-navigation-model";
+import { ConsoleNavigationRail } from "./console-navigation-rail";
+import type { ConsoleSearchHandle } from "./console-search";
 import { shellStyles } from "./console-shell.stylex";
+import { ConsoleWorkspaceHeader } from "./console-workspace-header";
 import {
   ContextNavigationContent,
-  ContextNavigationHeader,
   ContextNavigationItem,
   ContextNavigationSearch,
   ContextNavigationSection,
 } from "./context-navigation";
+import { useConsoleNavigation } from "./use-console-navigation";
 
 type ConsoleArea = "agent" | "settings" | "system" | "workspace" | "management";
 
@@ -63,12 +64,10 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
 
   const appearance = useConsoleAppearance();
   const navigate = useNavigate();
+  const searchRef = useRef<ConsoleSearchHandle>(null);
   const { agents, selectedAgent } = useAgentIdentity();
   const { selectedApp } = useAppManagement();
   const pageCatalog = usePageCatalog();
-  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
-  const mobileNavRef = useRef<HTMLButtonElement>(null);
-  const navigationRegionRef = useRef<HTMLDivElement>(null);
   const currentPath = useRouterState({
     select: (state) => state.location.pathname,
   });
@@ -78,73 +77,19 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     currentWorkspaceLocation,
     visibleWorkspaces,
   } = workspaceShellState(currentPath, pageCatalog.data ?? [], selectedApp);
-  useEffect(() => {
-    setMobileNavigationOpen(false);
-  }, [currentPath]);
+  const navigation = useConsoleNavigation(currentPath);
+  const mobileNavigationOpen = navigation.mobileOpen;
   const currentAgentLocation = agentLocationFromPath(currentPath);
   const activeAgent =
     agents.find((agent) => agent.id === currentAgentLocation.agentId) ??
     selectedAgent;
-  const closeMobileNavigation = useCallback(() => {
-    setMobileNavigationOpen(false);
-    requestAnimationFrame(() => mobileNavRef.current?.focus());
-  }, []);
+  const closeMobileNavigation = navigation.close;
   const navigateFromSidebar = (action: () => void) => {
     if (mobileNavigationOpen) {
       closeMobileNavigation();
     }
     action();
   };
-  useEffect(() => {
-    const mobileViewport = window.matchMedia("(max-width: 720px)");
-    const closeOnDesktop = () => {
-      if (!mobileViewport.matches) {
-        setMobileNavigationOpen(false);
-      }
-    };
-    mobileViewport.addEventListener("change", closeOnDesktop);
-    closeOnDesktop();
-    return () => mobileViewport.removeEventListener("change", closeOnDesktop);
-  }, []);
-  useEffect(() => {
-    if (!mobileNavigationOpen) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      navigationRegionRef.current
-        ?.querySelector<HTMLElement>(
-          "button:not([disabled]), a[href], input:not([disabled])"
-        )
-        ?.focus();
-    });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeMobileNavigation();
-      }
-      if (event.key !== "Tab") {
-        return;
-      }
-      const focusable = Array.from(
-        navigationRegionRef.current?.querySelectorAll<HTMLElement>(
-          "button:not([disabled]), a[href], input:not([disabled])"
-        ) ?? []
-      ).filter((element) => element.getClientRects().length > 0);
-      const [first] = focusable;
-      const last = focusable.at(-1);
-      if (event.shiftKey && document.activeElement === first && last) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last && first) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [mobileNavigationOpen, closeMobileNavigation]);
 
   useEffect(() => {
     if (
@@ -175,7 +120,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     !(managementEnabled && currentArea === "management")
   ) {
     return (
-      <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
+      <ThemeScope theme={appearance.theme} xstyle={shellStyles.theme}>
         <output {...stylex.props(sessionStyles.root)}>
           <p {...stylex.props(sessionStyles.muted)}>
             {t(
@@ -210,139 +155,138 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
       </ThemeScope>
     );
   }
+  const { title, destinations, searchItems } = consoleNavigationModel({
+    area: currentArea,
+    workspace: currentWorkspace,
+    segments: currentWorkspaceLocation?.segments ?? [],
+    workspaces: visibleWorkspaces,
+    agent: activeAgent,
+    agents,
+    sessionId: currentAgentLocation.sessionId,
+    administrator,
+    managementEnabled,
+    navigate,
+    beforeNavigate: () => {
+      if (mobileNavigationOpen) {
+        closeMobileNavigation();
+      }
+    },
+    translate: t,
+  });
   return (
-    <ThemeScope theme={appearance.preference} xstyle={shellStyles.theme}>
-      <Sidebar.Group xstyle={shellStyles.shell}>
-        <ConsoleHeader
-          activeAgent={activeAgent}
-          agents={administrator ? agents : []}
-          mobileNavRef={mobileNavRef}
-          mobileNavigationOpen={mobileNavigationOpen}
-          onSelectAgent={(agentId) => {
-            navigate({
-              params: { agentId, chatId: "new-task" },
-              to: "/agent/$agentId/$chatId",
-            });
-          }}
-          onToggleMobileNavigation={() =>
-            mobileNavigationOpen
-              ? closeMobileNavigation()
-              : setMobileNavigationOpen(true)
-          }
-          onOpenWorkspace={(workspace, segments) =>
-            navigateToWorkspace(navigate, workspace, segments)
-          }
-          onSignOut={signOut}
-          showAdmin={administrator}
-          showManagement={managementEnabled}
-          workspaceState={{
-            currentArea,
-            currentWorkspace,
-            currentWorkspaceLocation,
-            visibleWorkspaces,
-          }}
-        />
-        <div
-          ref={navigationRegionRef}
-          {...stylex.props(
-            shellStyles.navigationRegion,
-            mobileNavigationOpen && shellStyles.navigationRegionOpen
-          )}
-        >
-          <Sidebar.Root
-            data-mobile-open={mobileNavigationOpen || undefined}
-            defaultOpen
-            id="console-sidebar"
-            xstyle={[
-              shellStyles.contextSidebarRoot,
-              mobileNavigationOpen && shellStyles.contextSidebarRootOpen,
-            ]}
-          >
-            <Sidebar.Panel
-              aria-label={t("Console context navigation")}
-              aria-modal={mobileNavigationOpen ? true : undefined}
-              role={mobileNavigationOpen ? "dialog" : undefined}
-              xstyle={shellStyles.contextSidebarPanel}
-            >
-              {currentArea === "management" ? (
-                <>
-                  <ContextNavigationHeader title={t("Management")} />
-                  <ContextNavigationContent>
-                    <ContextNavigationItem
-                      selected
-                      onClick={() =>
-                        navigateFromSidebar(() =>
-                          navigate({ to: "/management" })
-                        )
-                      }
-                    >
-                      {t("Available operations")}
-                    </ContextNavigationItem>
-                  </ContextNavigationContent>
-                </>
-              ) : currentArea === "settings" ? (
-                <SettingsSidebar
-                  currentPath={currentPath}
-                  navigate={(to) => navigateFromSidebar(() => navigate({ to }))}
-                  onRequestClose={closeMobileNavigation}
+    <ThemeScope theme={appearance.theme} xstyle={shellStyles.theme}>
+      <ConsoleFrame
+        navigation={navigation}
+        rail={
+          <ConsoleNavigationRail
+            destinations={destinations}
+            onSignOut={signOut}
+          />
+        }
+        toolbar={
+          <ConsoleHeader
+            title={currentArea === "system" ? t("Plugins") : title}
+            contextLabel={
+              currentArea === "settings"
+                ? t("Console")
+                : (selectedApp?.label ?? t("Console"))
+            }
+            navigation={navigation}
+            searchItems={searchItems}
+            searchRef={searchRef}
+            actions={
+              administrator && agents.length > 0 ? (
+                <AgentQuickPanel
+                  onOpenFullPage={(agentId, sessionId) => {
+                    void navigate({
+                      to: "/agent/$agentId/$chatId",
+                      params: { agentId, chatId: sessionId ?? "new-task" },
+                    });
+                  }}
                 />
-              ) : currentArea === "system" ? (
-                <SystemSidebar
-                  navigate={() =>
-                    navigateFromSidebar(() => navigate({ to: "/plugins" }))
-                  }
-                  onRequestClose={closeMobileNavigation}
-                />
-              ) : currentArea === "workspace" ? (
-                <WorkspaceSidebarSlot>
-                  <WorkspaceSidebar
-                    mount={currentWorkspace}
-                    currentSegments={currentWorkspaceLocation?.segments ?? []}
-                    navigate={(workspace, segments) =>
-                      navigateFromSidebar(() =>
-                        navigateToWorkspace(navigate, workspace, segments)
-                      )
+              ) : null
+            }
+          />
+        }
+        sidebarHeader={
+          <ConsoleWorkspaceHeader
+            title={title}
+            subtitle={
+              currentArea === "settings"
+                ? t("Console")
+                : (selectedApp?.label ?? t("Console"))
+            }
+            destinations={destinations}
+            onClose={closeMobileNavigation}
+            onSearch={() => {
+              if (mobileNavigationOpen) {
+                closeMobileNavigation();
+              }
+              requestAnimationFrame(() => searchRef.current?.open());
+            }}
+          />
+        }
+        sidebar={
+          <>
+            {currentArea === "management" ? (
+              <>
+                <ContextNavigationContent>
+                  <ContextNavigationItem
+                    selected
+                    onClick={() =>
+                      navigateFromSidebar(() => navigate({ to: "/management" }))
                     }
-                    onRequestClose={closeMobileNavigation}
-                  />
-                </WorkspaceSidebarSlot>
-              ) : agents.length > 0 ? (
-                <AgentContextNavigation
-                  agentId={activeAgent.id}
-                  agentLabel={activeAgent.label}
-                  currentSessionId={currentAgentLocation.sessionId}
-                  workspaces={visibleWorkspaces}
-                  onOpenWorkspace={(workspace) =>
+                  >
+                    {t("Available operations")}
+                  </ContextNavigationItem>
+                </ContextNavigationContent>
+              </>
+            ) : currentArea === "settings" ? (
+              <SettingsSidebar
+                currentPath={currentPath}
+                navigate={(to) => navigateFromSidebar(() => navigate({ to }))}
+              />
+            ) : currentArea === "system" ? (
+              <SystemSidebar
+                navigate={() =>
+                  navigateFromSidebar(() => navigate({ to: "/plugins" }))
+                }
+              />
+            ) : currentArea === "workspace" ? (
+              <WorkspaceSidebarSlot>
+                <WorkspaceSidebar
+                  mount={currentWorkspace}
+                  currentSegments={currentWorkspaceLocation?.segments ?? []}
+                  navigate={(workspace, segments) =>
                     navigateFromSidebar(() =>
-                      navigateToWorkspace(navigate, workspace, [])
+                      navigateToWorkspace(navigate, workspace, segments)
                     )
                   }
-                  onNavigate={() => {
-                    if (mobileNavigationOpen) {
-                      closeMobileNavigation();
-                    }
-                  }}
-                  onRequestClose={closeMobileNavigation}
                 />
-              ) : null}
-            </Sidebar.Panel>
-          </Sidebar.Root>
-        </div>
-
-        {mobileNavigationOpen ? (
-          <button
-            aria-label={t("Close workspace navigation")}
-            {...stylex.props(shellStyles.mobileBackdrop)}
-            onClick={closeMobileNavigation}
-            tabIndex={-1}
-            type="button"
-          />
-        ) : null}
-
-        <main inert={mobileNavigationOpen} {...stylex.props(shellStyles.main)}>
-          {children}
-        </main>
-      </Sidebar.Group>
+              </WorkspaceSidebarSlot>
+            ) : agents.length > 0 ? (
+              <AgentContextNavigation
+                agentId={activeAgent.id}
+                agentLabel={activeAgent.label}
+                currentSessionId={currentAgentLocation.sessionId}
+                workspaces={visibleWorkspaces}
+                onOpenWorkspace={(workspace) =>
+                  navigateFromSidebar(() =>
+                    navigateToWorkspace(navigate, workspace, [])
+                  )
+                }
+                onNavigate={() => {
+                  if (mobileNavigationOpen) {
+                    closeMobileNavigation();
+                  }
+                }}
+              />
+            ) : null}
+          </>
+        }
+      >
+        {children}
+      </ConsoleFrame>
     </ThemeScope>
   );
 }
@@ -451,29 +395,16 @@ function WorkspaceSidebar({
   currentSegments,
   mount,
   navigate,
-  onRequestClose,
 }: {
   currentSegments: readonly string[];
   mount: PageMount | undefined;
   navigate: (workspace: PageMount, segments: readonly string[]) => void;
-  onRequestClose: () => void;
 }) {
   const t = useConsoleTranslation();
 
   return (
     <>
-      <ContextNavigationHeader title={mount?.title ?? t("Workspace")}>
-        <IconButton
-          aria-label={t("Close workspace navigation")}
-          onClick={onRequestClose}
-          size="default"
-          variant="ghost"
-          xstyle={shellStyles.mobileOnly}
-        >
-          <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
-        </IconButton>
-      </ContextNavigationHeader>
-      <Sidebar.Content>
+      <ContextNavigationContent>
         <Sidebar.Menu aria-label={t("Workspace navigation")}>
           {mount?.navigation.items.map((item) => (
             <Sidebar.MenuItem key={item.path.join("/") || "home"}>
@@ -487,7 +418,7 @@ function WorkspaceSidebar({
             </Sidebar.MenuItem>
           ))}
         </Sidebar.Menu>
-      </Sidebar.Content>
+      </ContextNavigationContent>
     </>
   );
 }
@@ -508,22 +439,7 @@ function navigateToWorkspace(
   workspace: PageMount,
   segments: readonly string[]
 ) {
-  const _splat = segments.join("/");
-  if (workspace.subject.kind === "console") {
-    navigate({
-      params: { _splat, workspaceId: workspace.id },
-      to: "/workspaces/$workspaceId/$",
-    });
-    return;
-  }
-  navigate({
-    params: {
-      _splat,
-      appId: workspace.subject.appId,
-      workspaceId: workspace.id,
-    },
-    to: "/apps/$appId/pages/$workspaceId/$",
-  });
+  navigate(workspaceRoute(workspace, segments));
 }
 
 function sameSegments(left: readonly string[], right: readonly string[]) {
@@ -533,29 +449,12 @@ function sameSegments(left: readonly string[], right: readonly string[]) {
   );
 }
 
-function SystemSidebar({
-  navigate,
-  onRequestClose,
-}: {
-  navigate: () => void;
-  onRequestClose: () => void;
-}) {
+function SystemSidebar({ navigate }: { navigate: () => void }) {
   const t = useConsoleTranslation();
 
   return (
     <>
-      <ContextNavigationHeader title={t("System")}>
-        <IconButton
-          aria-label={t("Close workspace navigation")}
-          onClick={onRequestClose}
-          size="default"
-          variant="ghost"
-          xstyle={shellStyles.mobileOnly}
-        >
-          <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
-        </IconButton>
-      </ContextNavigationHeader>
-      <Sidebar.Content>
+      <ContextNavigationContent>
         <Sidebar.Menu aria-label={t("System navigation")}>
           <Sidebar.MenuItem>
             <ContextNavigationItem
@@ -567,7 +466,7 @@ function SystemSidebar({
             </ContextNavigationItem>
           </Sidebar.MenuItem>
         </Sidebar.Menu>
-      </Sidebar.Content>
+      </ContextNavigationContent>
     </>
   );
 }
@@ -575,7 +474,6 @@ function SystemSidebar({
 function SettingsSidebar({
   currentPath,
   navigate,
-  onRequestClose,
 }: {
   currentPath: string;
   navigate: (
@@ -586,7 +484,6 @@ function SettingsSidebar({
       | "/settings/ai"
       | "/settings/profiles"
   ) => void;
-  onRequestClose: () => void;
 }) {
   const t = useConsoleTranslation();
 
@@ -606,17 +503,6 @@ function SettingsSidebar({
 
   return (
     <>
-      <ContextNavigationHeader title={t("Settings")}>
-        <IconButton
-          aria-label={t("Close workspace navigation")}
-          onClick={onRequestClose}
-          size="default"
-          variant="ghost"
-          xstyle={shellStyles.mobileOnly}
-        >
-          <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
-        </IconButton>
-      </ContextNavigationHeader>
       <ContextNavigationContent>
         <ContextNavigationSearch
           aria-label={t("Search settings")}

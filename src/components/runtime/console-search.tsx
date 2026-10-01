@@ -1,8 +1,17 @@
-import { CommandMenu } from "@lenso/ui/command-menu";
-import { Dialog } from "@lenso/ui/dialog";
+import { Autocomplete } from "@lenso/ui/autocomplete";
+import { Button } from "@lenso/ui/button";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
-import { Search } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type Ref,
+} from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { searchStyles as styles } from "./console-search.stylex";
@@ -14,12 +23,37 @@ export type ConsoleSearchItem = {
   onSelect: () => void;
 };
 
+export type ConsoleSearchHandle = { open: () => void };
+
+function subscribeToCompactToolbar(onChange: () => void) {
+  const viewport = window.matchMedia("(max-width: 1050px)");
+  viewport.addEventListener("change", onChange);
+  return () => viewport.removeEventListener("change", onChange);
+}
+
+function isToolbarCompact() {
+  return window.matchMedia("(max-width: 1050px)").matches;
+}
+
+function serverToolbarCompact() {
+  return false;
+}
+
 export function ConsoleSearch({
   items,
+  ref,
+  label,
 }: {
   items: readonly ConsoleSearchItem[];
+  ref?: Ref<ConsoleSearchHandle>;
+  label?: string;
 }) {
   const t = useConsoleTranslation();
+  const compact = useSyncExternalStore(
+    subscribeToCompactToolbar,
+    isToolbarCompact,
+    serverToolbarCompact
+  );
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +97,7 @@ export function ConsoleSearch({
       return () => cancelAnimationFrame(frame);
     }
   }, [open]);
+  useImperativeHandle(ref, () => ({ open: openSearch }), [openSearch]);
   const matches = items.filter((item) =>
     `${item.group} ${item.label}`
       .toLocaleLowerCase()
@@ -70,19 +105,31 @@ export function ConsoleSearch({
   );
   return (
     <>
-      <button
+      <Button
+        isIconOnly={compact}
+        size="sm"
+        variant="ghost"
         aria-label={t("Search Console")}
+        title={label}
         onClick={openSearch}
         ref={triggerRef}
         type="button"
-        {...stylex.props(styles.trigger)}
+        xstyle={[styles.trigger, !compact && styles.expandedTrigger]}
       >
-        <Search aria-hidden="true" size={16} />
+        {!label || compact ? <Search aria-hidden="true" size={16} /> : null}
         <span {...stylex.props(styles.triggerLabel)}>
-          {t("Search Console…")}
+          {label ?? t("Search Console…")}
         </span>
-        <kbd {...stylex.props(styles.shortcut)}>⌘ K</kbd>
-      </button>
+        {label ? (
+          <ChevronDown
+            aria-hidden="true"
+            size={12}
+            {...stylex.props(styles.shortcut)}
+          />
+        ) : (
+          <kbd {...stylex.props(styles.shortcut)}>⌘ K</kbd>
+        )}
+      </Button>
       <Dialog.Root
         open={open}
         onOpenChange={(nextOpen) => {
@@ -95,7 +142,9 @@ export function ConsoleSearch({
           <Dialog.Backdrop xstyle={styles.backdrop} />
           <Dialog.Viewport xstyle={styles.viewport}>
             <Dialog.Popup xstyle={styles.popup}>
-              <CommandMenu.Root<ConsoleSearchItem>
+              <Autocomplete.Root<ConsoleSearchItem>
+                inline
+                open
                 autoHighlight
                 filter={() => true}
                 inputValue={query}
@@ -108,40 +157,38 @@ export function ConsoleSearch({
                   }
                 }}
               >
-                <CommandMenu.Panel xstyle={styles.commandPanel}>
+                <div {...stylex.props(styles.commandPanel)}>
                   <Dialog.Title xstyle={styles.visuallyHiddenTitle}>
                     {t("Search Console")}
                   </Dialog.Title>
-                  <CommandMenu.Search xstyle={styles.searchField}>
+                  <Autocomplete.InputGroup xstyle={styles.searchField}>
                     <Search aria-hidden="true" size={17} />
-                    <CommandMenu.Input
+                    <Autocomplete.Input
                       aria-label={t("Search Console")}
                       placeholder={t("Search workspaces and pages…")}
                       ref={inputRef}
                       xstyle={styles.searchInput}
                     />
-                  </CommandMenu.Search>
-                  <CommandMenu.List xstyle={styles.results}>
+                  </Autocomplete.InputGroup>
+                  <Autocomplete.List xstyle={styles.results}>
                     {(item: ConsoleSearchItem) => (
-                      <CommandMenu.Item
+                      <Autocomplete.Item
                         key={item.id}
                         value={item}
                         xstyle={styles.result}
                       >
-                        <CommandMenu.ItemText>
-                          {item.label}
-                        </CommandMenu.ItemText>
+                        <span>{item.label}</span>
                         <span {...stylex.props(styles.group)}>
                           {item.group}
                         </span>
-                      </CommandMenu.Item>
+                      </Autocomplete.Item>
                     )}
-                  </CommandMenu.List>
-                  <CommandMenu.Empty>
+                  </Autocomplete.List>
+                  <Autocomplete.Empty>
                     {t("No matching destinations.")}
-                  </CommandMenu.Empty>
-                </CommandMenu.Panel>
-              </CommandMenu.Root>
+                  </Autocomplete.Empty>
+                </div>
+              </Autocomplete.Root>
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

@@ -25,9 +25,9 @@ No generated file is edited as part of extraction.
 From the repository root:
 
 ```sh
-cargo test --locked --manifest-path contracts/Cargo.toml --workspace
-cargo package --locked --allow-dirty --manifest-path contracts/Cargo.toml -p lenso-capability-ui-contribution
-cargo package --locked --allow-dirty --manifest-path contracts/Cargo.toml -p lenso-capability-workspace-service
+pnpm contracts:check
+cargo package --locked --allow-dirty -p lenso-capability-ui-contribution
+cargo package --locked --allow-dirty -p lenso-capability-workspace-service
 pnpm contract:typecheck
 ```
 

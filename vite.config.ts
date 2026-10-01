@@ -59,6 +59,17 @@ export default defineConfig({
       },
     },
   },
+  environments: {
+    client: {
+      optimizeDeps: {
+        include: [
+          "@lenso/ui/**",
+          "use-sync-external-store/shim",
+          "use-sync-external-store/shim/with-selector",
+        ],
+      },
+    },
+  },
   plugins: [...startPlugin, react(), consoleStylex(), ...devPlugin],
   preview: {
     // TanStack Start prerenders through a build-time Vite preview server.

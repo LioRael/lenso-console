@@ -9,7 +9,7 @@
     "./server": "./src/server.ts"
   },
   "scripts": {
-    "check": "tsc --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck src/index.ts src/generated/*.ts"
+    "check": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck src/index.ts src/generated/*.ts"
   },
   "dependencies": {
     "@lenso/contract-runtime": "0.3.1"

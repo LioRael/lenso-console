@@ -1,4 +1,4 @@
-import { IconButton } from "@lenso/ui/icon-button";
+import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import {
   Archive,
@@ -137,15 +137,16 @@ export function AgentTrajectory({
               value={query}
             />
             {query ? (
-              <IconButton
+              <Button
+                isIconOnly
                 aria-label="Clear trajectory search"
                 onClick={() => setQuery("")}
-                size="compact"
+                size="sm"
                 variant="ghost"
                 xstyle={styles.searchClear}
               >
                 <X size={11} />
-              </IconButton>
+              </Button>
             ) : null}
           </label>
         </div>
@@ -339,14 +340,15 @@ function TrajectoryInspector({
             {record.label}
           </strong>
         </div>
-        <IconButton
+        <Button
+          isIconOnly
           aria-label="Close details"
           onClick={onClose}
-          size="compact"
+          size="sm"
           variant="ghost"
         >
           <X size={13} />
-        </IconButton>
+        </Button>
       </header>
       <div {...stylex.props(styles.inspectorBody)}>
         <dl {...stylex.props(styles.facts)}>

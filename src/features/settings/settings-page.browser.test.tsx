@@ -1,13 +1,12 @@
-import { SettingsRow } from "@lenso/ui/settings-row";
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
+import { flushSync } from "react-dom";
 
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
-import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import { SettingsRow } from "../../components/lenso/recipes/settings-row";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import { settingsPageStyles as styles } from "./settings-page.stylex";
 

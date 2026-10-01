@@ -50,7 +50,7 @@ export function AgentProjectContext({
             agentId={agentId}
             showNewChat={false}
           >
-            <Button size="compact" variant="ghost">
+            <Button size="sm" variant="ghost">
               <History aria-hidden="true" size={14} />
               Resume task
             </Button>
@@ -64,7 +64,7 @@ export function AgentProjectContext({
 const styles = stylex.create({
   project: {
     alignItems: "center",
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     display: "flex",
     flexWrap: "nowrap",
     gap: "12px",
@@ -86,11 +86,11 @@ const styles = stylex.create({
     height: 30,
     flexShrink: 0,
     borderRadius: 8,
-    backgroundColor: "var(--color-surface-selected)",
+    backgroundColor: "var(--accent-soft)",
   },
   projectCopy: { display: "grid", flex: "1 1 auto", gap: "3px", minWidth: 0 },
   projectName: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     fontSize: "12px",
     fontWeight: 500,
     overflow: "hidden",
@@ -102,7 +102,7 @@ const styles = stylex.create({
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
   },
   actions: {
     alignItems: "center",

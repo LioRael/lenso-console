@@ -1,5 +1,4 @@
-import { Sidebar } from "@lenso/ui/sidebar";
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import * as stylex from "@stylexjs/stylex";
 import {
   createMemoryHistory,
@@ -9,10 +8,9 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
+import { flushSync } from "react-dom";
 
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
-import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -20,6 +18,8 @@ import { page, userEvent } from "vitest/browser";
 import { Providers } from "../../app/providers";
 import { agentContextNavigationStyles } from "../../features/agent/agent-context-navigation.stylex";
 import { queryClient } from "../../lib/query-client";
+import { Sidebar } from "../lenso/recipes/console-navigation";
+import { ConsoleFrame } from "./console-frame";
 import { ConsoleSearch } from "./console-search";
 import { ConsoleShell } from "./console-shell";
 import { shellStyles } from "./console-shell.stylex";
@@ -28,9 +28,47 @@ import {
   ContextNavigationItem,
   ContextNavigationSearch,
 } from "./context-navigation";
+import { useConsoleNavigation } from "./use-console-navigation";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
+
+function FrameFixture() {
+  const navigation = useConsoleNavigation("/settings");
+  return (
+    <ThemeScope>
+      <ConsoleFrame
+        navigation={navigation}
+        toolbar={
+          <header
+            aria-label="Workspace header"
+            {...stylex.props(shellStyles.header)}
+          >
+            <button
+              ref={navigation.triggerRef}
+              type="button"
+              onClick={() => navigation.toggle()}
+            >
+              Toggle sidebar
+            </button>
+          </header>
+        }
+        rail={
+          <nav
+            aria-label="Primary navigation"
+            {...stylex.props(shellStyles.rail)}
+          />
+        }
+        sidebarHeader={<Sidebar.Header>Settings</Sidebar.Header>}
+        sidebar={
+          <ContextNavigationContent>Preferences</ContextNavigationContent>
+        }
+      >
+        Page content
+      </ConsoleFrame>
+    </ThemeScope>
+  );
+}
 
 beforeEach(() => {
   container = document.createElement("div");
@@ -47,7 +85,7 @@ afterEach(() => {
 });
 
 describe("Context navigation", () => {
-  test("releases the mobile drawer and page inertness on desktop resize", async () => {
+  test("preserves the active Agent link and releases drawer inertness on desktop resize", async () => {
     if (!container) {
       throw new Error("Browser test container is missing");
     }
@@ -86,7 +124,7 @@ describe("Context navigation", () => {
     });
     const router = createRouter({
       history: createMemoryHistory({
-        initialEntries: ["/agent/console/new-task"],
+        initialEntries: ["/agent/console/saved-conversation?project=retained"],
       }),
       routeTree: rootRoute.addChildren([agentRoute]),
     });
@@ -104,6 +142,28 @@ describe("Context navigation", () => {
       }
       expect(main.inert).toBe(true);
       expect(header.inert).toBe(true);
+      const activeAgentLink = page
+        .getByRole("navigation", { name: "Console areas" })
+        .getByRole("link", { name: "Console Agent", exact: true });
+      await expect
+        .element(activeAgentLink)
+        .toHaveAttribute(
+          "href",
+          "/agent/console/saved-conversation?project=retained"
+        );
+      await page
+        .getByRole("button", { name: "Workspace: Console Agent" })
+        .click();
+      await expect
+        .element(page.getByRole("menu", { name: "Workspace: Console Agent" }))
+        .toBeVisible();
+      await userEvent.keyboard("{Escape}");
+      await expect
+        .poll(() =>
+          document.querySelector('[role="menu"][aria-label="Workspaces"]')
+        )
+        .toBeNull();
+      expect(main.inert).toBe(true);
 
       await page.viewport(1280, 800);
       await expect.poll(() => main.inert).toBe(false);
@@ -111,6 +171,21 @@ describe("Context navigation", () => {
       await expect
         .element(page.getByRole("button", { name: "Search Console" }))
         .toBeVisible();
+      const toolbarSearch = page
+        .getByRole("button", { name: "Search Console" })
+        .element()
+        .getBoundingClientRect();
+      const toolbarBounds = header.getBoundingClientRect();
+      expect(toolbarSearch.width).toBe(272);
+      expect(toolbarSearch.left + toolbarSearch.width / 2).toBe(
+        toolbarBounds.left + toolbarBounds.width / 2 + 32
+      );
+      expect(
+        page
+          .getByRole("button", { name: "Back", exact: true })
+          .element()
+          .getBoundingClientRect().height
+      ).toBe(40);
     } finally {
       await page.viewport(1280, 800);
     }
@@ -150,49 +225,50 @@ describe("Context navigation", () => {
     await expect.element(trigger).toHaveFocus();
   });
 
-  test("keeps the context sidebar beside the content under the header", async () => {
+  test("keeps both navigation levels aligned and expands content when the sidebar collapses", async () => {
     if (!container) {
       throw new Error("Browser test container is missing");
     }
     root = createRoot(container);
     flushSync(() => {
-      root?.render(
-        <ThemeScope>
-          <div {...stylex.props(shellStyles.shell)}>
-            <header
-              aria-label="Workspace header"
-              {...stylex.props(shellStyles.header)}
-            />
-            <div {...stylex.props(shellStyles.navigationRegion)}>
-              <Sidebar.Root defaultOpen xstyle={shellStyles.contextSidebarRoot}>
-                <Sidebar.Panel aria-label="Context navigation" />
-              </Sidebar.Root>
-            </div>
-            <main
-              aria-label="Page content"
-              {...stylex.props(shellStyles.main)}
-            />
-          </div>
-        </ThemeScope>
-      );
+      root?.render(<FrameFixture />);
     });
     await nextFrame();
 
     const header = container.querySelector<HTMLElement>("header");
     const sidebar = container.querySelector<HTMLElement>(
-      '[aria-label="Context navigation"]'
+      '[aria-label="Console context navigation"]'
     );
     const main = container.querySelector<HTMLElement>("main");
     if (!(header && sidebar && main)) {
       throw new Error("Workspace shell was not rendered");
     }
-    expect(sidebar.getBoundingClientRect().width).toBe(218);
+    const rail = page.getByRole("navigation", { name: "Primary navigation" });
+    expect(rail.element().getBoundingClientRect().width).toBe(56);
+    expect(sidebar.getBoundingClientRect().width).toBe(248);
     expect(main.getBoundingClientRect().left).toBe(
       sidebar.getBoundingClientRect().right
     );
     expect(main.getBoundingClientRect().top).toBe(
       header.getBoundingClientRect().bottom
     );
+    expect(header.getBoundingClientRect().height).toBe(48);
+    expect(
+      main.getBoundingClientRect().bottom -
+        sidebar.getBoundingClientRect().bottom
+    ).toBe(16);
+    await page.getByRole("button", { name: "Toggle sidebar" }).click();
+    await expect
+      .poll(() => main.getBoundingClientRect().left)
+      .toBe(rail.element().getBoundingClientRect().right);
+    await expect.element(rail).toBeVisible();
+    await expect
+      .element(page.getByText("Preferences", { exact: true }))
+      .not.toBeVisible();
+    await page.getByRole("button", { name: "Toggle sidebar" }).click();
+    await expect
+      .element(page.getByText("Preferences", { exact: true }))
+      .toBeVisible();
   });
 
   test("shows hover feedback on an unselected sidebar item", async () => {

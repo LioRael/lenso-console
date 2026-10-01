@@ -21,9 +21,9 @@ import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 const styles = stylex.create({
   action: { justifySelf: "start", marginTop: 2 },
   card: {
-    backgroundColor: "var(--color-surface-secondary)",
-    borderColor: "var(--color-border-tertiary)",
-    borderRadius: "var(--radius-control)",
+    backgroundColor: "var(--surface-secondary)",
+    borderColor: "var(--separator)",
+    borderRadius: "var(--field-radius)",
     borderStyle: "solid",
     borderWidth: 1,
     display: "grid",
@@ -31,14 +31,14 @@ const styles = stylex.create({
     padding: "10px 12px",
   },
   description: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: 12,
     lineHeight: "17px",
     margin: 0,
   },
   diagnostic: {
     alignItems: "start",
-    color: "var(--color-status-warning-content)",
+    color: "var(--warning-soft-foreground)",
     display: "grid",
     fontSize: 12,
     gap: 6,
@@ -46,7 +46,7 @@ const styles = stylex.create({
     lineHeight: "17px",
   },
   identity: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
     fontSize: 11,
     overflow: "hidden",
@@ -56,7 +56,7 @@ const styles = stylex.create({
   list: { display: "grid", gap: 6, margin: "1px 8px 14px" },
   title: {
     alignItems: "center",
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     display: "flex",
     fontSize: 12,
     fontWeight: 500,
@@ -186,7 +186,7 @@ function PluginChangeReceiptCard({
       receipt.kind === "selection" ? (
         <Button
           onClick={openWorkbench}
-          size="compact"
+          size="sm"
           variant="secondary"
           xstyle={styles.action}
         >
@@ -259,7 +259,7 @@ function PluginInspectionReceiptCard({
       </p>
       <Button
         onClick={openWorkbench}
-        size="compact"
+        size="sm"
         variant="secondary"
         xstyle={styles.action}
       >

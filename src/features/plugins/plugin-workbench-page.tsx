@@ -1,16 +1,17 @@
 import { Button } from "@lenso/ui/button";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { ConsolePageHeader } from "../../components/runtime/console-page-header";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import {
   useAppManagement,
   type ManagedApp,
 } from "../apps/app-management-context";
-import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as pageStyles } from "../settings/settings-page.stylex";
 import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
@@ -41,7 +42,7 @@ const EMPTY_PLUGIN_ITEMS: readonly PluginWorkbenchItem[] = [];
 const styles = stylex.create({
   targetRow: {
     paddingBlockEnd: 16,
-    borderBottom: "1px solid var(--color-border-tertiary)",
+    borderBottom: "1px solid var(--separator)",
   },
   body: { display: "grid", gap: 4 },
   filterOptions: {
@@ -58,7 +59,7 @@ const styles = stylex.create({
     borderRadius: 0,
     backgroundColor: "transparent",
     overflowX: "auto",
-    borderBottom: "1px solid var(--color-border-tertiary)",
+    borderBottom: "1px solid var(--separator)",
   },
   workbench: {
     maxWidth: 800,
@@ -288,7 +289,7 @@ export function PluginWorkbenchPage() {
   return (
     <main data-page="plugin-workbench" {...stylex.props(styles.page)}>
       <div {...stylex.props(pageStyles.column, styles.workbench)}>
-        <SettingsPageHeader
+        <ConsolePageHeader
           title={t("Plugins")}
           description={t("Manage the plugins installed in your Apps.")}
         />
@@ -415,8 +416,8 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
         >
           <div {...stylex.props(styles.toolbar)}>
             <div {...stylex.props(styles.controls)}>
-              <TextField.Root size="compact" xstyle={styles.search}>
-                <TextField.Control
+              <TextField.Root xstyle={styles.search}>
+                <Input
                   type="search"
                   aria-label={t("Search plugins")}
                   placeholder={t("Search plugins…")}
@@ -426,7 +427,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
               </TextField.Root>
               <Button
                 variant="ghost"
-                size="compact"
+                size="sm"
                 xstyle={styles.filterButton}
                 aria-expanded={showFilters}
                 onClick={() => setShowFilters((value) => !value)}
@@ -523,7 +524,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
                 onClick={() => {
                   void workbench.refetch();
                 }}
-                size="compact"
+                size="sm"
                 variant="secondary"
               >
                 {t("Try again")}
@@ -552,7 +553,7 @@ function AppPluginWorkbench({ selectedApp }: { selectedApp: ManagedApp }) {
             description={`No Plugins match these filters for ${selectedApp.label}.`}
             action={
               <Button
-                size="compact"
+                size="sm"
                 variant="secondary"
                 onClick={() => {
                   onCategoryChange("all");

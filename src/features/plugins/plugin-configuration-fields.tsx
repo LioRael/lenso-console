@@ -1,9 +1,9 @@
 import { Button } from "@lenso/ui/button";
-import { IconButton } from "@lenso/ui/icon-button";
+import { Input } from "@lenso/ui/input";
 import { Select } from "@lenso/ui/select";
 import { Switch } from "@lenso/ui/switch";
-import { TextArea } from "@lenso/ui/text-area";
-import { TextField } from "@lenso/ui/text-field";
+import { TextArea } from "@lenso/ui/textarea";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { Plus, Trash2 } from "lucide-react";
 import {
@@ -453,7 +453,7 @@ function FieldCopy({
           !readOnly &&
           path.every((key) => typeof key === "string") ? (
             <Button
-              size="compact"
+              size="sm"
               variant="ghost"
               disabled={disabled || source.disabled}
               onClick={() => source.update(path as string[], undefined)}
@@ -656,8 +656,8 @@ function SensitiveControl({
   // Never hydrate a write-only value returned by the provider into an input.
   const displayedDraft = draft === value ? draft : "";
   return (
-    <TextField.Root size="compact" xstyle={styles.controlRoot}>
-      <TextField.Control
+    <TextField.Root xstyle={styles.controlRoot}>
+      <Input
         aria-label={t(property.title ?? humanize(name))}
         autoComplete="new-password"
         disabled={disabled}
@@ -714,9 +714,10 @@ function ConfigurationValueControl({
           disabled={disabled}
           id={id}
           onCheckedChange={onChange}
-          layout="control-only"
         >
-          <Switch.Thumb />
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
         </Switch.Root>
       </div>
     );
@@ -747,7 +748,7 @@ function ConfigurationValueControl({
           <Select.Icon />
         </Select.Trigger>
         <Select.Portal>
-          <Select.Positioner align="end" position="item-aligned">
+          <Select.Positioner align="end" alignItemWithTrigger>
             <Select.Popup>
               <Select.List>
                 {required ? null : (
@@ -860,8 +861,8 @@ function NumberControl({
   const [error, setError] = useState(false);
   return (
     <div>
-      <TextField.Root size="compact" xstyle={styles.controlRoot}>
-        <TextField.Control
+      <TextField.Root xstyle={styles.controlRoot}>
+        <Input
           aria-label={t(property.title ?? humanize(name))}
           disabled={disabled}
           id={id}
@@ -1030,7 +1031,7 @@ function ArrayControl({
               </h4>
               <div {...stylex.props(styles.collectionActions)}>
                 <Button
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                   disabled={disabled || index === 0}
                   aria-label={`Move ${itemName} ${index + 1} up`}
@@ -1053,7 +1054,8 @@ function ArrayControl({
                 >
                   {t("Move up")}
                 </Button>
-                <IconButton
+                <Button
+                  isIconOnly
                   aria-label={`Remove ${itemName} ${index + 1}`}
                   disabled={
                     disabled ||
@@ -1067,11 +1069,11 @@ function ArrayControl({
                       value.filter((_, itemIndex) => itemIndex !== index)
                     );
                   }}
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                 >
                   <Trash2 />
-                </IconButton>
+                </Button>
               </div>
             </header>
             <ConfigurationControl
@@ -1101,7 +1103,7 @@ function ArrayControl({
           setItemKeys([...visibleKeys, itemKey]);
           onChange([...value, createSchemaValue(itemSchema)]);
         }}
-        size="compact"
+        size="sm"
         variant="secondary"
         {...stylex.props(styles.collectionAction)}
       >
@@ -1182,9 +1184,10 @@ function TypedMapControl({
                 return true;
               }}
             />
-            <IconButton
+            <Button
+              isIconOnly
               aria-label={`Remove ${key}`}
-              size="compact"
+              size="sm"
               variant="ghost"
               disabled={
                 locked ||
@@ -1195,7 +1198,7 @@ function TypedMapControl({
               onClick={() => onChange(updateObjectValue(value, key, undefined))}
             >
               <Trash2 />
-            </IconButton>
+            </Button>
           </header>
           <ConfigurationControl
             disabled={locked}
@@ -1210,8 +1213,8 @@ function TypedMapControl({
         </section>
       ))}
       <div {...stylex.props(styles.collectionItemHeader)}>
-        <TextField.Root size="compact" xstyle={styles.mapKey}>
-          <TextField.Control
+        <TextField.Root xstyle={styles.mapKey}>
+          <Input
             aria-label={`New ${humanize(String(path.at(-1) ?? "configuration"))} key`}
             disabled={locked || full}
             placeholder={t("New key")}
@@ -1223,7 +1226,7 @@ function TypedMapControl({
           />
         </TextField.Root>
         <Button
-          size="compact"
+          size="sm"
           variant="secondary"
           disabled={locked || full || !newKey}
           onClick={() => {
@@ -1269,8 +1272,8 @@ function MapKey({
   const [invalid, setInvalid] = useState(false);
   return (
     <div {...stylex.props(styles.mapKey)}>
-      <TextField.Root size="compact">
-        <TextField.Control
+      <TextField.Root>
+        <Input
           aria-label={`Key ${name}`}
           aria-invalid={invalid}
           disabled={disabled}
@@ -1317,8 +1320,8 @@ function ObjectMapControl({
   const [draft, setDraft] = useState(externalValue);
   useEffect(() => setDraft(externalValue), [externalValue]);
   return (
-    <TextArea.Root xstyle={styles.controlRoot}>
-      <TextArea.Control
+    <TextField.Root xstyle={styles.controlRoot}>
+      <TextArea
         disabled={disabled}
         id={id}
         onBlur={() => {
@@ -1335,7 +1338,7 @@ function ObjectMapControl({
         value={draft}
         xstyle={styles.textArea}
       />
-    </TextArea.Root>
+    </TextField.Root>
   );
 }
 

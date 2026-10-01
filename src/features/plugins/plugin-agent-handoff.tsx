@@ -30,7 +30,7 @@ export function PluginAgentAction(context: PluginAgentContext) {
           draft: pluginAgentDraft(context),
         });
       }}
-      size="compact"
+      size="sm"
       variant="ghost"
     >
       <Sparkles aria-hidden="true" size={13} strokeWidth={1.7} />

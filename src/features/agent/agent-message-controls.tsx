@@ -1,4 +1,4 @@
-import { IconButton } from "@lenso/ui/icon-button";
+import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { Copy, Pencil, X } from "lucide-react";
 
@@ -42,10 +42,11 @@ export function AgentMessageActions({
           })}
         </time>
       ) : null}
-      <IconButton
+      <Button
+        isIconOnly
         aria-label="Copy message"
         onClick={copyMessage}
-        size="compact"
+        size="sm"
         variant="ghost"
         xstyle={styles.action}
       >
@@ -55,13 +56,14 @@ export function AgentMessageActions({
           size={12}
           strokeWidth={1.7}
         />
-      </IconButton>
+      </Button>
       {fork ? <AgentForkButton target={fork} /> : null}
       {onEdit ? (
-        <IconButton
+        <Button
+          isIconOnly
           aria-label="Edit message"
           onClick={onEdit}
-          size="compact"
+          size="sm"
           variant="ghost"
           xstyle={styles.action}
         >
@@ -71,7 +73,7 @@ export function AgentMessageActions({
             size={12}
             strokeWidth={1.7}
           />
-        </IconButton>
+        </Button>
       ) : null}
     </div>
   );
@@ -95,10 +97,11 @@ export function EditingMessageBar({
         />
         <span>Editing message</span>
       </span>
-      <IconButton
+      <Button
+        isIconOnly
         aria-label="Cancel editing"
         onClick={onCancel}
-        size="compact"
+        size="sm"
         variant="ghost"
         xstyle={[styles.cancel, compact && styles.compactCancel]}
       >
@@ -109,7 +112,7 @@ export function EditingMessageBar({
               .className
           }
         />
-      </IconButton>
+      </Button>
     </div>
   );
 }

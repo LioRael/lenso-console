@@ -92,7 +92,7 @@ export const PromptComposerRoot = React.forwardRef<
 
     return (
       <PromptComposerContext.Provider value={context}>
-        <Surface level="panel" xstyle={[styles.surface, surfaceXstyle]}>
+        <Surface variant="default" xstyle={[styles.surface, surfaceXstyle]}>
           <form
             {...props}
             className={mergeClassName(

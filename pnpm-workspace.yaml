@@ -1,5 +1,6 @@
 packages:
   - .
+  - packages/console-sdk
 
 allowBuilds:
   esbuild: true
@@ -20,6 +21,6 @@ minimumReleaseAgeExclude:
   - "@tanstack/start-server-core@1.169.21"
   - "@tanstack/start-storage-context@1.167.20"
   - "@lenso/primitives@0.5.0"
-  - "@lenso/tokens@0.5.0"
-  - "@lenso/ui@0.5.0"
+  - "@lenso/tokens@0.8.0"
+  - "@lenso/ui@0.8.0"
   - "@lenso/contract-runtime@0.3.1"

@@ -1,5 +1,6 @@
 import { Button } from "@lenso/ui/button";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 
@@ -153,7 +154,7 @@ export function HumanApprovalPanel() {
         <label {...stylex.props(styles.field)}>
           {copy("Operation ID", "操作 ID")}
           <TextField.Root>
-            <TextField.Control
+            <Input
               value={operationId}
               maxLength={128}
               required

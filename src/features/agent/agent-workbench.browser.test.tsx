@@ -1,7 +1,5 @@
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
-import { Sidebar } from "@lenso/ui/sidebar";
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -19,6 +17,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import { Sidebar } from "../../components/lenso/recipes/console-navigation";
 import { AgentChanges } from "./agent-changes";
 import { AgentContextNavigation } from "./agent-context-navigation";
 import { AgentIdentityProvider } from "./agent-identity-context";
@@ -515,7 +514,6 @@ function RoutedAgentNavigation() {
           agentLabel="Lenso Agent"
           onNavigate={() => undefined}
           onOpenWorkspace={() => undefined}
-          onRequestClose={() => undefined}
           workspaces={[]}
         />
         <output data-testid="current-project">{search.project}</output>

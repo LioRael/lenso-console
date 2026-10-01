@@ -6,7 +6,7 @@ import { pluginScopes, useAppManagement } from "../apps/app-management-context";
 
 const styles = stylex.create({
   context: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
-  label: { fontSize: 12, color: "var(--color-content-tertiary)" },
+  label: { fontSize: 12, color: "var(--muted)" },
   trigger: { maxWidth: 280, minWidth: 0, height: 32, fontSize: 12 },
   value: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   popup: {
@@ -39,7 +39,7 @@ export function PluginTargetSelect() {
           <Select.Icon />
         </Select.Trigger>
         <Select.Portal>
-          <Select.Positioner position="popper" align="start">
+          <Select.Positioner alignItemWithTrigger={false} align="start">
             <Select.Popup xstyle={styles.popup}>
               <Select.List>
                 {pluginScopes.map((scope) => {

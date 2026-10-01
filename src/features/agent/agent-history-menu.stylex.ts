@@ -5,7 +5,7 @@ export const agentHistoryMenuStyles = stylex.create({
     alignItems: "center",
     color: {
       default: "lch(58 1 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-content-tertiary)",
+      "@media (prefers-color-scheme: dark)": "var(--muted)",
     },
     display: "flex",
     fontSize: "12px",
@@ -23,7 +23,7 @@ export const agentHistoryMenuStyles = stylex.create({
     borderRadius: "7px",
     color: {
       default: "lch(20 1 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-content-primary)",
+      "@media (prefers-color-scheme: dark)": "var(--foreground)",
     },
     fontSize: "13px",
     height: "32px",
@@ -35,11 +35,11 @@ export const agentHistoryMenuStyles = stylex.create({
   menu: {
     backgroundColor: {
       default: "lch(100 0 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-surface-panel)",
+      "@media (prefers-color-scheme: dark)": "var(--surface)",
     },
     borderColor: {
       default: "lch(91.9 0 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-border-secondary)",
+      "@media (prefers-color-scheme: dark)": "var(--border)",
     },
     borderRadius: "12px",
     borderStyle: "solid",
@@ -54,7 +54,7 @@ export const agentHistoryMenuStyles = stylex.create({
     alignItems: "center",
     color: {
       default: "lch(66 1 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-content-tertiary)",
+      "@media (prefers-color-scheme: dark)": "var(--muted)",
     },
     display: "flex",
     gap: "8px",
@@ -66,11 +66,11 @@ export const agentHistoryMenuStyles = stylex.create({
     alignItems: "center",
     backgroundColor: {
       default: "lch(100 0 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-surface-panel)",
+      "@media (prefers-color-scheme: dark)": "var(--surface)",
     },
     borderBottomColor: {
       default: "lch(91.9 0 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-border-secondary)",
+      "@media (prefers-color-scheme: dark)": "var(--border)",
     },
     borderBottomStyle: "solid",
     borderBottomWidth: "0.5px",
@@ -84,16 +84,16 @@ export const agentHistoryMenuStyles = stylex.create({
     "::placeholder": {
       color: {
         default: "lch(40 1 282)",
-        "@media (prefers-color-scheme: dark)": "var(--color-content-tertiary)",
+        "@media (prefers-color-scheme: dark)": "var(--muted)",
       },
       opacity: 1,
     },
     backgroundColor: "transparent",
     borderWidth: 0,
-    caretColor: "var(--color-action-primary)",
+    caretColor: "var(--accent)",
     color: {
       default: "lch(20 1 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-content-primary)",
+      "@media (prefers-color-scheme: dark)": "var(--foreground)",
     },
     font: "inherit",
     fontSize: "13px",
@@ -107,7 +107,7 @@ export const agentHistoryMenuStyles = stylex.create({
     alignItems: "center",
     color: {
       default: "lch(40 1 282)",
-      "@media (prefers-color-scheme: dark)": "var(--color-content-tertiary)",
+      "@media (prefers-color-scheme: dark)": "var(--muted)",
     },
     display: "flex",
     fontSize: "12px",

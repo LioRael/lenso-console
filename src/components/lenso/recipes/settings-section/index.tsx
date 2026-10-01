@@ -102,29 +102,30 @@ export type SettingsGroupProps = Omit<SurfaceProps, "level" | "xstyle"> & {
  * The visual rows container used inside a SettingsSection. It is also exposed
  * as SettingsSection.Group so both spellings share this one implementation.
  */
-export const SettingsGroup = React.forwardRef<HTMLElement, SettingsGroupProps>(
-  function SettingsGroup({ children, xstyle, ...props }, ref) {
-    const rows = React.Children.toArray(children);
-    return (
-      <Surface
-        {...props}
-        data-recipe="settings-group"
-        level="panel"
-        ref={ref}
-        xstyle={[styles.group, xstyle]}
-      >
-        {rows.map((row, index) =>
-          React.isValidElement<{ xstyle?: stylex.StyleXStyles }>(row) &&
-          index === rows.length - 1
-            ? React.cloneElement(row, {
-                xstyle: [row.props.xstyle, styles.lastRow],
-              })
-            : row
-        )}
-      </Surface>
-    );
-  }
-);
+export const SettingsGroup = React.forwardRef<
+  HTMLDivElement,
+  SettingsGroupProps
+>(function SettingsGroup({ children, xstyle, ...props }, ref) {
+  const rows = React.Children.toArray(children);
+  return (
+    <Surface
+      {...props}
+      data-recipe="settings-group"
+      variant="default"
+      ref={ref}
+      xstyle={[styles.group, xstyle]}
+    >
+      {rows.map((row, index) =>
+        React.isValidElement<{ xstyle?: stylex.StyleXStyles }>(row) &&
+        index === rows.length - 1
+          ? React.cloneElement(row, {
+              xstyle: [row.props.xstyle, styles.lastRow],
+            })
+          : row
+      )}
+    </Surface>
+  );
+});
 
 export const SettingsSection = {
   Description: SettingsSectionDescription,

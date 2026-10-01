@@ -1,4 +1,4 @@
-import { IconButton } from "@lenso/ui/icon-button";
+import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { Plus, X, FileText } from "lucide-react";
 import {
@@ -241,15 +241,16 @@ export function AttachmentButton() {
           event.target.value = "";
         }}
       />
-      <IconButton
+      <Button
+        isIconOnly
         aria-label="Attach images or text files"
-        size="compact"
+        size="sm"
         variant="ghost"
         disabled={Boolean(state?.busy)}
         onClick={() => input.current?.click()}
       >
         <Plus size={16} />
-      </IconButton>
+      </Button>
     </>
   );
 }
@@ -298,14 +299,15 @@ export function DraftAttachments() {
               <FileText size={14} />
             )}
             <span {...stylex.props(styles.name)}>{item.name}</span>
-            <IconButton
+            <Button
+              isIconOnly
               aria-label={`Remove ${item.name}`}
-              size="compact"
+              size="sm"
               variant="ghost"
               onClick={() => state.remove(index)}
             >
               <X size={12} />
-            </IconButton>
+            </Button>
           </span>
         ))}
       </div>
@@ -395,8 +397,8 @@ const styles = stylex.create({
     gap: "6px",
     padding: "4px 8px",
     borderRadius: "10px",
-    backgroundColor: "var(--color-surface-subtle)",
-    color: "var(--color-content-secondary)",
+    backgroundColor: "var(--surface-secondary)",
+    color: "var(--muted)",
     fontSize: "12px",
     maxWidth: "100%",
   },

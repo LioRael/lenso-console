@@ -5,14 +5,10 @@ import {
   createRootRoute,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import "@fontsource-variable/inter";
 
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/roboto-mono/400.css";
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/preflight.css";
-import "@lenso/ui/styles.css";
 import "../styles.css";
 
 import { ConsoleAppearanceProvider } from "../app/console-appearance";

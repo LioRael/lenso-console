@@ -1,10 +1,7 @@
-import { IconButton } from "@lenso/ui/icon-button";
-import { Sidebar } from "@lenso/ui/sidebar";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
-  ChevronLeft,
   Folder,
   LayoutGrid,
   MessageCircle,
@@ -15,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { Sidebar } from "../../components/lenso/recipes/console-navigation";
 import {
   ContextNavigationContent,
   ContextNavigationItem,
@@ -40,7 +38,6 @@ export function AgentContextNavigation({
   currentSessionId,
   onNavigate,
   onOpenWorkspace,
-  onRequestClose,
   workspaces,
 }: {
   agentId: AgentId;
@@ -48,7 +45,6 @@ export function AgentContextNavigation({
   currentSessionId?: string | undefined;
   onNavigate: () => void;
   onOpenWorkspace: (workspace: PageMount) => void;
-  onRequestClose: () => void;
   workspaces: readonly PageMount[];
 }) {
   const navigate = useNavigate();
@@ -103,15 +99,6 @@ export function AgentContextNavigation({
 
   return (
     <>
-      <IconButton
-        aria-label="Close workspace navigation"
-        onClick={onRequestClose}
-        size="default"
-        variant="ghost"
-        xstyle={styles.mobileClose}
-      >
-        <ChevronLeft aria-hidden="true" size={14} strokeWidth={1.7} />
-      </IconButton>
       <ContextNavigationContent>
         <div {...stylex.props(styles.stickyActions)}>
           <Sidebar.Menu aria-label={`${agentLabel} navigation`}>

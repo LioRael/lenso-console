@@ -1,4 +1,4 @@
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import { Terminal } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
@@ -282,7 +282,7 @@ function requiredButton(label: string) {
 
 function requiredSelectPopup() {
   const popup = document.querySelector<HTMLElement>(
-    '[data-slot="select-popup"]'
+    '[data-slot="select-popover"]'
   );
   if (!popup) {
     throw new Error("Select popup was not rendered");

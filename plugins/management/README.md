@@ -62,8 +62,8 @@ successful tool result and is not copied into the operation journal.
 Validation:
 
 ```sh
-cargo test --locked --manifest-path plugins/management/Cargo.toml
-cargo check --locked --manifest-path contracts/Cargo.toml -p lenso-capability-management
+pnpm management:check
+cargo check --locked -p lenso-capability-management
 ```
 
 The deterministic note target tests prove immutable approval input, revocation,

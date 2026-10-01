@@ -1,5 +1,6 @@
 import { Button } from "@lenso/ui/button";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -13,8 +14,8 @@ import {
 } from "../../../contracts/crates/lenso-capability-management/generated/bindings";
 import { useConsoleLocale } from "../../app/console-locale";
 import { useConsoleSession } from "../../app/console-session";
+import { ConsolePageHeader } from "../../components/runtime/console-page-header";
 import { sessionFetch } from "../../lib/session-fetch";
-import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as page } from "../settings/settings-page.stylex";
 import { HumanApprovalPanel } from "./human-approval-panel";
 import { HumanTokenPanel } from "./human-token-panel";
@@ -25,9 +26,9 @@ const styles = stylex.create({
   entries: { display: "flex", flexWrap: "wrap", gap: 8 },
   field: { display: "grid", gap: 8, fontSize: 13 },
   editor: {
-    backgroundColor: "var(--color-surface-control)",
-    color: "var(--color-content-primary)",
-    border: "1px solid var(--color-border-control)",
+    backgroundColor: "var(--field-background)",
+    color: "var(--foreground)",
+    border: "1px solid var(--field-border)",
     borderRadius: 8,
     padding: 12,
     minHeight: 120,
@@ -36,7 +37,7 @@ const styles = stylex.create({
     fontFamily: "monospace",
     fontSize: 13,
     resize: "vertical",
-    outlineColor: "var(--color-border-control-focus)",
+    outlineColor: "var(--field-border-focus)",
   },
   result: {
     whiteSpace: "pre-wrap",
@@ -288,7 +289,7 @@ export function ManagementPage() {
   return (
     <section {...stylex.props(page.page)}>
       <div {...stylex.props(page.column)}>
-        <SettingsPageHeader
+        <ConsolePageHeader
           title={copy("Management", "管理")}
           description={copy(
             "Operations admitted for your current account. Business owners enforce permissions and approval.",
@@ -397,7 +398,7 @@ export function ManagementPage() {
                       "预期版本（如需要）"
                     )}
                     <TextField.Root>
-                      <TextField.Control
+                      <Input
                         value={revision}
                         disabled={busy || Boolean(intent)}
                         onChange={(event) => setRevision(event.target.value)}

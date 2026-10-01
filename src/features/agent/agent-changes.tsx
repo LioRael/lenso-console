@@ -57,7 +57,7 @@ export function AgentChanges({
           ) : null}
         </div>
         {onRequestReview ? (
-          <Button onClick={onRequestReview} size="compact" variant="ghost">
+          <Button onClick={onRequestReview} size="sm" variant="ghost">
             Review changes
           </Button>
         ) : null}
@@ -188,8 +188,8 @@ const styles = stylex.create({
     minWidth: 0,
     minHeight: 0,
     overflow: "hidden",
-    backgroundColor: "var(--color-surface-canvas)",
-    borderTop: "0.5px solid var(--color-border-tertiary)",
+    backgroundColor: "var(--background)",
+    borderTop: "0.5px solid var(--separator)",
   },
   body: {
     minHeight: 0,
@@ -205,7 +205,7 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
   },
   snapshotLabel: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontSize: "10px",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -217,11 +217,11 @@ const styles = stylex.create({
     gap: "8px",
     textAlign: "center",
     padding: "40px 20px",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
   },
   fileList: { display: "grid", minWidth: 0 },
   fileCard: {
-    borderBottom: "0.5px solid var(--color-border-tertiary)",
+    borderBottom: "0.5px solid var(--separator)",
     overflow: "hidden",
     minWidth: 0,
   },
@@ -236,11 +236,10 @@ const styles = stylex.create({
     fontSize: "10px",
     lineHeight: "18px",
     backgroundColor: {
-      default:
-        "color-mix(in srgb, var(--color-surface-selected) 58%, var(--color-surface-canvas))",
-      ":hover": "var(--color-surface-interactive-hover)",
+      default: "color-mix(in srgb, var(--accent-soft) 58%, var(--background))",
+      ":hover": "var(--default-hover)",
     },
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     position: "relative",
     paddingInlineEnd: "96px",
   },
@@ -250,7 +249,7 @@ const styles = stylex.create({
   },
   fileChevron: {
     flexShrink: 0,
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     transform: {
       default: "rotate(0deg)",
       [stylex.when.ancestor("[open]", fileDisclosure)]: "rotate(90deg)",
@@ -266,11 +265,11 @@ const styles = stylex.create({
   },
   addedCount: {
     color:
-      "color-mix(in srgb, var(--color-status-success-content) 65%, var(--color-content-primary))",
+      "color-mix(in srgb, var(--success-soft-foreground) 65%, var(--foreground))",
   },
   removedCount: {
     color:
-      "color-mix(in srgb, var(--color-status-error-content) 65%, var(--color-content-primary))",
+      "color-mix(in srgb, var(--danger-soft-foreground) 65%, var(--foreground))",
   },
   changesHeading: {
     alignItems: "center",
@@ -279,23 +278,23 @@ const styles = stylex.create({
     justifyContent: "space-between",
     minWidth: 0,
     padding: "0 8px 0 14px",
-    borderBottom: "0.5px solid var(--color-border-tertiary)",
+    borderBottom: "0.5px solid var(--separator)",
   },
   title: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     fontSize: "10px",
     fontWeight: 500,
     margin: 0,
   },
   caption: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: "11px",
     lineHeight: "17px",
     margin: 0,
   },
   diff: {
-    backgroundColor: "var(--color-surface-canvas)",
-    borderTop: "0.5px solid var(--color-border-tertiary)",
+    backgroundColor: "var(--background)",
+    borderTop: "0.5px solid var(--separator)",
     margin: 0,
     fontFamily: '"Roboto Mono", monospace',
     fontSize: "11px",
@@ -311,21 +310,21 @@ const styles = stylex.create({
   },
   addition: {
     backgroundColor:
-      "color-mix(in srgb, var(--color-status-success-content) 10%, transparent)",
+      "color-mix(in srgb, var(--success-soft-foreground) 10%, transparent)",
     color:
-      "color-mix(in srgb, var(--color-status-success-content) 65%, var(--color-content-primary))",
+      "color-mix(in srgb, var(--success-soft-foreground) 65%, var(--foreground))",
   },
   deletion: {
     backgroundColor:
-      "color-mix(in srgb, var(--color-status-error-content) 10%, transparent)",
+      "color-mix(in srgb, var(--danger-soft-foreground) 10%, transparent)",
     color:
-      "color-mix(in srgb, var(--color-status-error-content) 65%, var(--color-content-primary))",
+      "color-mix(in srgb, var(--danger-soft-foreground) 65%, var(--foreground))",
   },
-  hunk: { color: "var(--color-content-tertiary)" },
+  hunk: { color: "var(--muted)" },
   previous: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: "10px",
     padding: "10px 12px",
-    borderTop: "0.5px solid var(--color-border-tertiary)",
+    borderTop: "0.5px solid var(--separator)",
   },
 });

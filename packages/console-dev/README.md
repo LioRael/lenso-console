@@ -1,5 +1,10 @@
 # Precompiled Console development Host
 
+The `lenso` command below is the Engine executable bundled in this kit. Its
+development protocol differs from the standalone Lenso CLI. Source contributors
+using the current native Plugin API should start with
+[the embedding example](../../examples/plugin-host/README.md).
+
 This package contains the Engine CLI, a native Host with Console and Web ingress,
 the embedded Console Shell, Bun, the Console directory compiler, and Console SDK.
 Application authors need no Cargo, rustc, Node, pnpm, or local Console checkout.

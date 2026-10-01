@@ -1,5 +1,5 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -123,7 +123,7 @@ export function AgentProjectPicker({
       <Dialog.Trigger
         render={
           <Button
-            size="compact"
+            size="sm"
             variant="ghost"
             aria-label={`Change project: ${path}`}
             xstyle={[styles.trigger, !compact && styles.fullTrigger]}
@@ -151,7 +151,7 @@ export function AgentProjectPicker({
               {onCodingSettings ? (
                 <div>
                   <Button
-                    size="compact"
+                    size="sm"
                     variant="ghost"
                     onClick={() => {
                       setOpen(false);
@@ -388,7 +388,7 @@ const styles = stylex.create({
     flex: "0 1 auto",
     backgroundColor: {
       default: "transparent",
-      ":hover": "var(--color-surface-interactive-hover)",
+      ":hover": "var(--default-hover)",
     },
     justifyContent: "flex-start",
     height: "auto",
@@ -400,11 +400,11 @@ const styles = stylex.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: 500,
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
   },
   projectCopy: { display: "grid", gap: 3, flex: 1, minWidth: 0 },
   projectName: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     fontSize: 12,
     fontWeight: 500,
     overflow: "hidden",
@@ -413,39 +413,39 @@ const styles = stylex.create({
   },
   pathText: {
     fontSize: 11,
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
   badge: {
     fontSize: 10,
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     flexShrink: 0,
   },
-  current: { backgroundColor: "var(--color-surface-selected)" },
+  current: { backgroundColor: "var(--accent-soft)" },
   browser: {
-    border: "1px solid var(--color-border-tertiary)",
+    border: "1px solid var(--separator)",
     borderRadius: 10,
     overflow: "hidden",
   },
   filter: {
     outline: {
       default: "none",
-      ":focus-within": "1px solid var(--color-border-secondary)",
+      ":focus-within": "1px solid var(--border)",
     },
     outlineOffset: -1,
     display: "flex",
     gap: 8,
     alignItems: "center",
     padding: "8px 10px",
-    color: "var(--color-content-tertiary)",
-    borderBottom: "1px solid var(--color-border-tertiary)",
+    color: "var(--muted)",
+    borderBottom: "1px solid var(--separator)",
   },
   filterInput: {
     border: "none",
     backgroundColor: "transparent",
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     minWidth: 0,
     width: "100%",
     fontSize: 12,
@@ -460,14 +460,14 @@ const styles = stylex.create({
   empty: {
     padding: "28px 12px",
     textAlign: "center",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontSize: 12,
   },
   footer: { justifyContent: "space-between", gap: 16 },
   selection: { display: "grid", gap: 4, minWidth: 0, flex: 1 },
   selectedPath: {
     fontSize: 11,
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     whiteSpace: "nowrap",
     textOverflow: "ellipsis",
     overflow: "hidden",
@@ -491,7 +491,7 @@ const styles = stylex.create({
   projects: { display: "grid", gap: 2, maxHeight: 138, overflowY: "auto" },
   row: {
     borderRadius: 8,
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     justifyContent: "flex-start",
     textAlign: "left",
     fontSize: 12,
@@ -510,10 +510,10 @@ const styles = stylex.create({
     minWidth: 0,
     flex: 1,
     fontSize: 12,
-    border: "1px solid var(--color-border-tertiary)",
-    borderRadius: "var(--radius-control)",
-    backgroundColor: "var(--color-surface-canvas)",
-    color: "var(--color-content-primary)",
+    border: "1px solid var(--separator)",
+    borderRadius: "var(--field-radius)",
+    backgroundColor: "var(--background)",
+    color: "var(--foreground)",
     padding: "6px 8px",
   },
   directories: {

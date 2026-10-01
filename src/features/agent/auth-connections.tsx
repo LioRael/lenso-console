@@ -1,10 +1,10 @@
 import { Button } from "@lenso/ui/button";
-import { SettingsRow } from "@lenso/ui/settings-row";
 import * as stylex from "@stylexjs/stylex";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { SettingsRow } from "../../components/lenso/recipes/settings-row";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
 import { sessionFetch } from "../../lib/session-fetch";
 import type { PluginWorkbenchData } from "../plugins/use-plugin-workbench";
@@ -450,7 +450,7 @@ const styles = stylex.create({
     flexWrap: "wrap",
     columnGap: 12,
     rowGap: 2,
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: 12,
     lineHeight: "18px",
     overflowWrap: "anywhere",
@@ -477,7 +477,7 @@ const styles = stylex.create({
     userSelect: "all",
   },
   message: {
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: "13px",
     lineHeight: "20px",
     margin: "12px 16px",

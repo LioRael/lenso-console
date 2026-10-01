@@ -13,10 +13,10 @@ RBAC permission, or trust in the old App login issuer.
    once with the owner operator. Preview and review the exact plan before applying:
 
    ```sh
-   cargo run --locked --manifest-path plugins/management/Cargo.toml \
+   cargo run --locked \
      -p lenso-management-authority --bin management-operator -- \
      initialize /private/operator/qualification.sqlite
-   cargo run --locked --manifest-path plugins/management/Cargo.toml \
+   cargo run --locked \
      -p lenso-management-authority --bin management-operator -- \
      preview /private/operator/qualification.sqlite production \
      /private/operator/reviewed-subjects.json /private/operator/import-plan.json
@@ -28,7 +28,7 @@ RBAC permission, or trust in the old App login issuer.
    digest as a literal argument:
 
    ```sh
-   cargo run --locked --manifest-path plugins/management/Cargo.toml \
+   cargo run --locked \
      -p lenso-management-authority --bin management-operator -- \
      apply /private/operator/qualification.sqlite \
      /private/operator/import-plan.json REVIEWED_DIGEST

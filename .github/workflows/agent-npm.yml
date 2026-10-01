@@ -7,6 +7,8 @@ on:
     paths:
       - "packages/agent/**"
       - "scripts/distribution/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "service/**"
       - "contracts/**"
       - "plugins/**"
@@ -53,7 +55,7 @@ jobs:
       - run: node --test scripts/distribution/*.test.mjs
       - run: pnpm service:web-build
       - run: cargo build --locked --release --manifest-path service/Cargo.toml --bin lenso-console-with-agent
-      - run: node scripts/distribution/package-agent.mjs '${{ matrix.target }}' service/target/release/lenso-console-with-agent .artifacts/npm
+      - run: node scripts/distribution/package-agent.mjs '${{ matrix.target }}' target/release/lenso-console-with-agent .artifacts/npm
       - run: node scripts/distribution/smoke-agent.mjs .artifacts/npm
       - name: Pack npm artifacts
         run: |

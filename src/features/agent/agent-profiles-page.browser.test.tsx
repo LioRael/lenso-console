@@ -1,6 +1,5 @@
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,

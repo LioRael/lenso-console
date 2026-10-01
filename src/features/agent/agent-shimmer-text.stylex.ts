@@ -7,7 +7,7 @@ const shimmer = stylex.keyframes({
 
 export const agentShimmerTextStyles = stylex.create({
   active: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     display: "inline-block",
     position: "relative",
   },
@@ -18,7 +18,7 @@ export const agentShimmerTextStyles = stylex.create({
     animationTimingFunction: "linear",
     backgroundClip: "text",
     backgroundImage:
-      "linear-gradient(90deg, transparent 0%, transparent 40%, var(--color-content-primary) 50%, transparent 60%, transparent 100%)",
+      "linear-gradient(90deg, transparent 0%, transparent 40%, var(--foreground) 50%, transparent 60%, transparent 100%)",
     backgroundPosition: "100% 0",
     backgroundRepeat: "no-repeat",
     backgroundSize: "400% 100%",

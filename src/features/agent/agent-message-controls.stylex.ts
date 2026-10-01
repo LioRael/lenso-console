@@ -4,8 +4,7 @@ export const messageGroup = stylex.defineMarker();
 
 export const agentMessageControlStyles = stylex.create({
   action: {
-    borderRadius: "var(--radius-rounded)",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     height: "24px",
     minWidth: "24px",
     padding: "0 2px",
@@ -30,7 +29,7 @@ export const agentMessageControlStyles = stylex.create({
     },
   },
   time: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontSize: "10px",
     fontVariantNumeric: "tabular-nums",
     marginInlineEnd: "6px",
@@ -42,7 +41,6 @@ export const agentMessageControlStyles = stylex.create({
   },
   cancel: {
     borderColor: "transparent",
-    borderRadius: "var(--radius-rounded)",
     borderStyle: "solid",
     borderWidth: "0.5px",
     color: "lch(40 1 282)",

@@ -1,5 +1,10 @@
 # Precompiled Console development Host
 
+This kit uses the separately pinned Engine producer and its `app create/dev/build`
+protocol. The current standalone Lenso CLI has a different App authoring API;
+do not substitute it for that Engine executable. For the current Lenso native
+Plugin workflow, use [the embedding example](../examples/plugin-host/README.md).
+
 The consumer workflow is documented in
 [the package README](../packages/console-dev/README.md). Consumers use prebuilt
 binaries; only producers need the Rust and frontend build toolchains.

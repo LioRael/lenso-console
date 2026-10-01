@@ -1,6 +1,5 @@
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";

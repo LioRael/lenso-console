@@ -28,6 +28,25 @@ implementation.
 
 ## Run
 
+For an App that embeds Console as an optional Plugin, start with:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm plugin:dev
+```
+
+Open `http://127.0.0.1:3031`. This example uses the current
+`NativeWebHost::plugin::<ConsolePlugin>()` API, embeds the Shell and needs no
+Agent. `pnpm plugin:without-console` starts the same App with only its `/health`
+endpoint. See [the embedding example](examples/plugin-host/README.md) for the
+composition and removal check.
+
+The repository has one root Cargo workspace and lockfile. Console's independent
+Plugin stays in `service/`; the reference App assembly stays in
+`service/crates/lenso-console-app/`. Contracts, optional Plugins and runtime
+support keep their own packages and ownership. The page SDK is a pnpm workspace
+package; check it with `pnpm sdk:check`.
+
 To start a normal Harness together with its Console Web UI:
 
 ```sh

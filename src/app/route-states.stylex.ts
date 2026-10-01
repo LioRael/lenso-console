@@ -10,7 +10,7 @@ export const routeStateStyles = stylex.create({
   },
   root: {
     alignContent: "center",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     display: "grid",
     gap: "10px",
     justifyItems: "start",
@@ -18,7 +18,7 @@ export const routeStateStyles = stylex.create({
     padding: "32px",
   },
   title: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     fontSize: "15px",
     fontWeight: 500,
     margin: 0,

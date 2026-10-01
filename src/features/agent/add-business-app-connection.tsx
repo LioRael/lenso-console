@@ -1,6 +1,7 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { Modal as Dialog } from "@lenso/ui/modal";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useRef, useState } from "react";
 
@@ -98,7 +99,7 @@ export function AddBusinessAppConnection({
       }}
     >
       <Button
-        size="compact"
+        size="sm"
         disabled={open || disabled}
         onClick={() => {
           instance.current = `business_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
@@ -128,7 +129,7 @@ export function AddBusinessAppConnection({
               <label {...stylex.props(styles.rowCopy, local.field)}>
                 {t("App name")}
                 <TextField.Root xstyle={local.input}>
-                  <TextField.Control
+                  <Input
                     aria-label={t("App name")}
                     required
                     maxLength={100}
@@ -141,7 +142,7 @@ export function AddBusinessAppConnection({
               <label {...stylex.props(styles.rowCopy, local.field)}>
                 {t("App URL")}
                 <TextField.Root xstyle={local.input}>
-                  <TextField.Control
+                  <Input
                     aria-label={t("App URL")}
                     required
                     type="url"
@@ -163,16 +164,12 @@ export function AddBusinessAppConnection({
                 </p>
               ) : null}
               <div {...stylex.props(page.headerActions)}>
-                <Button
-                  type="submit"
-                  size="compact"
-                  disabled={pending || disabled}
-                >
+                <Button type="submit" size="sm" disabled={pending || disabled}>
                   {pending ? t("Adding…") : t("Add connection")}
                 </Button>
                 <Button
                   type="button"
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                   disabled={pending}
                   onClick={() => setOpen(false)}

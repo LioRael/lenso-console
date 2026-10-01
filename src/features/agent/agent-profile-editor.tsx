@@ -1,15 +1,16 @@
 import { Button } from "@lenso/ui/button";
+import { Input } from "@lenso/ui/input";
 import { Select } from "@lenso/ui/select";
 import { Switch } from "@lenso/ui/switch";
 import { Tabs } from "@lenso/ui/tabs";
-import { TextField } from "@lenso/ui/text-field";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { ConsolePageHeader } from "../../components/runtime/console-page-header";
 import type { PluginWorkbenchItem } from "../plugins/plugin-workbench-model";
-import { SettingsPageHeader } from "../settings/settings-page-header";
 import { profileStyles as ui } from "./agent-profile-editor.stylex";
 import {
   profileRequest,
@@ -198,7 +199,7 @@ export function AgentProfileEditor({
   };
   return (
     <section {...stylex.props(ui.root)} aria-label={t("Profile editor")}>
-      <SettingsPageHeader
+      <ConsolePageHeader
         title={profile.revision ? profile.name : t("New Profile")}
         description={
           <output {...stylex.props(ui.status)}>
@@ -217,7 +218,7 @@ export function AgentProfileEditor({
             {profile.readOnly ? (
               <Button
                 variant="secondary"
-                size="compact"
+                size="sm"
                 disabled={busy}
                 onClick={copy}
               >
@@ -227,7 +228,7 @@ export function AgentProfileEditor({
               <>
                 {draft ? (
                   <Button
-                    size="compact"
+                    size="sm"
                     variant="ghost"
                     disabled={busy}
                     onClick={() => {
@@ -240,7 +241,7 @@ export function AgentProfileEditor({
                   </Button>
                 ) : null}
                 <Button
-                  size="compact"
+                  size="sm"
                   disabled={
                     !dirty ||
                     readonly ||
@@ -291,7 +292,7 @@ export function AgentProfileEditor({
                     <label htmlFor="profile-name" {...stylex.props(ui.field)}>
                       {t("Name")}
                       <TextField.Root xstyle={ui.input}>
-                        <TextField.Control
+                        <Input
                           id="profile-name"
                           aria-label={t("Profile name")}
                           value={profile.name}
@@ -315,7 +316,7 @@ export function AgentProfileEditor({
                   >
                     {t("Description")}
                     <TextField.Root xstyle={ui.input}>
-                      <TextField.Control
+                      <Input
                         id="profile-description"
                         aria-label={t("Profile description")}
                         disabled={busy}
@@ -453,7 +454,7 @@ export function AgentProfileEditor({
                   onChange={setCategory}
                 />
                 <TextField.Root xstyle={ui.search}>
-                  <TextField.Control
+                  <Input
                     aria-label={t("Search Profile capabilities")}
                     type="search"
                     placeholder={t("Search capabilities…")}
@@ -475,7 +476,7 @@ export function AgentProfileEditor({
                   <div {...stylex.props(ui.bulkActions)}>
                     <Button
                       variant="ghost"
-                      size="compact"
+                      size="sm"
                       disabled={
                         readonly || !resultCount || (isTools && !tools.data)
                       }
@@ -485,7 +486,7 @@ export function AgentProfileEditor({
                     </Button>
                     <Button
                       variant="ghost"
-                      size="compact"
+                      size="sm"
                       disabled={
                         readonly || !resultCount || (isTools && !tools.data)
                       }
@@ -543,7 +544,6 @@ export function AgentProfileEditor({
                           </span>
                         ) : (
                           <Switch.Root
-                            layout="control-only"
                             aria-label={`Profile tool ${tool.name}`}
                             disabled={
                               busy || !tools.data?.allowed.includes(tool.name)
@@ -563,7 +563,9 @@ export function AgentProfileEditor({
                               )
                             }
                           >
-                            <Switch.Thumb />
+                            <Switch.Control>
+                              <Switch.Thumb />
+                            </Switch.Control>
                           </Switch.Root>
                         )}
                       </li>
@@ -610,7 +612,6 @@ export function AgentProfileEditor({
                           </span>
                         ) : (
                           <Switch.Root
-                            layout="control-only"
                             aria-label={`Profile provider ${providerId(item)}`}
                             disabled={busy || !item.management?.disableable}
                             checked={providerEnabled(profile.document, item)}
@@ -624,7 +625,9 @@ export function AgentProfileEditor({
                               )
                             }
                           >
-                            <Switch.Thumb />
+                            <Switch.Control>
+                              <Switch.Thumb />
+                            </Switch.Control>
                           </Switch.Root>
                         )}
                       </li>
@@ -653,7 +656,7 @@ export function AgentProfileEditor({
                   profile.document.allowed_tools === null ? null : (
                     <Button
                       variant="ghost"
-                      size="compact"
+                      size="sm"
                       disabled={busy || !tools.data}
                       onClick={() =>
                         edit({ ...profile.document, allowed_tools: null })
@@ -709,7 +712,7 @@ function ProfileSelect({
         <Select.Icon />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner align="start" position="popper">
+        <Select.Positioner align="start" alignItemWithTrigger={false}>
           <Select.Popup>
             <Select.List>
               {options.map((option) => (

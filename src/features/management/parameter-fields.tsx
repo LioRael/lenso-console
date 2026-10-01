@@ -1,4 +1,5 @@
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 
 type Primitive = {
   type: "string" | "number" | "integer" | "boolean";
@@ -74,7 +75,7 @@ export function ParameterFields({
           </select>
         ) : (
           <TextField.Root>
-            <TextField.Control
+            <Input
               type={field.type === "string" ? "text" : "number"}
               step={field.type === "integer" ? 1 : "any"}
               min={field.minimum}

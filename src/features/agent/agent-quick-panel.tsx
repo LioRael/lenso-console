@@ -1,5 +1,5 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
 import { Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -148,20 +148,23 @@ export function AgentQuickPanel({
                 setActiveId(entry.id);
                 setOpen(true);
               }}
-              size="compact"
+              size="sm"
               variant="secondary"
               xstyle={styles.chatChip}
             >
               {entry.title}
             </Button>
-            <button
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
               type="button"
               aria-label={`Close ${entry.title}`}
               onClick={() => close(entry.id)}
-              {...stylex.props(styles.chipClose)}
+              xstyle={styles.chipClose}
             >
               <X aria-hidden="true" size={12} />
-            </button>
+            </Button>
           </div>
         ))}
       </div>
@@ -189,7 +192,7 @@ export function AgentQuickPanel({
             );
           }
         }}
-        size="compact"
+        size="sm"
         variant="ghost"
         xstyle={styles.trigger}
       >

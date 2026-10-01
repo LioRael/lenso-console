@@ -10,6 +10,8 @@ export const consoleStylex = (options: ConsoleStylexOptions = {}) =>
     // requirement.
     dev: false,
     devMode: "full",
-    useCSSLayers: true,
+    // Product overrides must outrank the package's base reset even when a
+    // browser fixture loads extracted styles before the package stylesheet.
+    useCSSLayers: false,
     ...options,
   });

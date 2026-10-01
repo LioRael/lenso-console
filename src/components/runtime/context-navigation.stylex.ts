@@ -2,35 +2,25 @@ import * as stylex from "@stylexjs/stylex";
 
 export const contextNavigationStyles = stylex.create({
   content: {
-    gap: "2px",
-    padding: "0 12px 18px",
-  },
-  header: {
-    display: { default: "none", "@media (max-width: 720px)": "flex" },
-    paddingInline: "12px 8px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    padding: "8px 12px 18px",
   },
   item: {
-    backgroundColor: {
-      default: "transparent",
-      ":hover": "var(--color-sidebar-item-hover)",
-    },
-    borderRadius: "var(--radius-navigation)",
-    boxShadow: "none",
-    color: "var(--color-content-secondary)",
+    height: "36px",
+    minHeight: "36px",
+    paddingInline: "12px",
+    color: "var(--muted)",
     fontSize: "13px",
     fontWeight: 400,
   },
   itemSelected: {
-    backgroundColor: {
-      default: "var(--color-sidebar-item-active)",
-      ":hover": "var(--color-sidebar-item-active)",
-    },
-    boxShadow: "none",
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
   },
   section: {
     gap: "2px",
-    marginBlockStart: "25px",
+    marginBlockStart: "16px",
     width: "100%",
   },
   sectionHeader: {
@@ -40,24 +30,24 @@ export const contextNavigationStyles = stylex.create({
     width: "100%",
   },
   sectionLabel: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontSize: "11px",
     fontWeight: 400,
     lineHeight: "16px",
   },
   search: {
     alignItems: "center",
-    backgroundColor: "var(--color-surface-control)",
+    backgroundColor: "var(--field-background)",
     borderColor: {
-      default: "var(--color-border-control)",
-      ":focus-within": "var(--color-border-control-focus)",
-      ":hover": "var(--color-border-control)",
+      default: "var(--field-border)",
+      ":focus-within": "var(--field-border-focus)",
+      ":hover": "var(--field-border)",
     },
-    borderRadius: "var(--radius-navigation)",
+    borderRadius: "var(--radius)",
     borderStyle: "solid",
     borderWidth: "1px",
     boxShadow: "none",
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     display: "flex",
     flex: "0 0 32px",
     gap: "8px",
@@ -67,8 +57,8 @@ export const contextNavigationStyles = stylex.create({
     backgroundColor: "transparent",
     borderWidth: 0,
     color: {
-      default: "var(--color-content-primary)",
-      "::placeholder": "var(--color-content-tertiary)",
+      default: "var(--foreground)",
+      "::placeholder": "var(--muted)",
     },
     font: "inherit",
     fontSize: "13px",
@@ -77,11 +67,5 @@ export const contextNavigationStyles = stylex.create({
     outline: 0,
     padding: 0,
     width: "100%",
-  },
-  title: {
-    color: "var(--color-content-primary)",
-    fontSize: "13px",
-    fontWeight: 600,
-    lineHeight: "20px",
   },
 });

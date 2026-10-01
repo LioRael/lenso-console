@@ -1,5 +1,5 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
 import { Wrench } from "lucide-react";
 import { useState } from "react";
@@ -46,7 +46,7 @@ const styles = stylex.create({
   toolCopy: { display: "grid", gap: tokens.space2 },
   actions: { display: "flex", flexWrap: "wrap", gap: tokens.space2 },
   error: {
-    color: "var(--color-status-error-content)",
+    color: "var(--danger-soft-foreground)",
     margin: 0,
     fontSize: 13,
   },
@@ -122,7 +122,7 @@ export function AgentCodingSetup({
             setSetupError(undefined);
             setOpen(true);
           }}
-          size="compact"
+          size="sm"
           variant="ghost"
           xstyle={styles.entry}
         >
@@ -162,7 +162,7 @@ export function AgentCodingSetup({
                       );
                     })
                   }
-                  size="compact"
+                  size="sm"
                   variant="secondary"
                 >
                   {imported ? "Import again" : "Import coding Profiles"}
@@ -192,7 +192,7 @@ export function AgentCodingSetup({
                       );
                     })
                   }
-                  size="compact"
+                  size="sm"
                   variant="secondary"
                 >
                   Activate Code and check environment
@@ -247,7 +247,7 @@ export function AgentCodingSetup({
                         );
                       })
                     }
-                    size="compact"
+                    size="sm"
                     variant="primary"
                   >
                     Save Tool access
@@ -264,7 +264,7 @@ export function AgentCodingSetup({
                             );
                           })
                         }
-                        size="compact"
+                        size="sm"
                         variant="secondary"
                       >
                         Use Plan
@@ -279,7 +279,7 @@ export function AgentCodingSetup({
                             );
                           })
                         }
-                        size="compact"
+                        size="sm"
                         variant="secondary"
                       >
                         Use Code
@@ -305,7 +305,7 @@ export function AgentCodingSetup({
             <Dialog.Footer>
               <Dialog.Close
                 disabled={busy}
-                render={<Button size="compact" variant="ghost" />}
+                render={<Button size="sm" variant="ghost" />}
               >
                 Close
               </Dialog.Close>

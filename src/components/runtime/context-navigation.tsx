@@ -1,8 +1,11 @@
-import { Sidebar, type SidebarItemProps } from "@lenso/ui/sidebar";
 import * as stylex from "@stylexjs/stylex";
 import { Search } from "lucide-react";
 import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
 
+import {
+  Sidebar,
+  type SidebarItemProps,
+} from "../lenso/recipes/console-navigation";
 import { contextNavigationStyles as styles } from "./context-navigation.stylex";
 
 export function ContextNavigationContent({
@@ -20,22 +23,10 @@ export function ContextNavigationItem({
   return (
     <Sidebar.Item
       {...props}
+      variant={selected ? "secondary" : "ghost"}
       {...(selected === undefined ? {} : { selected })}
       xstyle={[styles.item, selected && styles.itemSelected, xstyle]}
     />
-  );
-}
-
-export function ContextNavigationHeader({
-  children,
-  title,
-}: PropsWithChildren<{ title: ReactNode }>) {
-  return (
-    <Sidebar.Header xstyle={styles.header}>
-      <strong {...stylex.props(styles.title)}>{title}</strong>
-      <Sidebar.HeaderSpacer />
-      {children}
-    </Sidebar.Header>
   );
 }
 

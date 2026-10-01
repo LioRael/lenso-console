@@ -1,5 +1,5 @@
-import { Dialog } from "@lenso/ui/dialog";
-import { IconButton } from "@lenso/ui/icon-button";
+import { Button } from "@lenso/ui/button";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import * as stylex from "@stylexjs/stylex";
 import {
   ArrowUp,
@@ -192,36 +192,39 @@ export function AgentQuickConversation({
           {t("Assistant")}
         </Dialog.Title>
         <div {...stylex.props(styles.headerActions)}>
-          <IconButton
+          <Button
+            isIconOnly
             aria-label="Minimize chat"
             onClick={onMinimize}
-            size="default"
+            size="md"
             variant="ghost"
             xstyle={styles.headerAction}
           >
             <Minus aria-hidden="true" size={14} strokeWidth={1.7} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button
+            isIconOnly
             aria-label="Open full page"
             onClick={() => {
               onMinimize();
               onOpenFullPage(selectedAgent.id, sessionId);
             }}
-            size="default"
+            size="md"
             variant="ghost"
             xstyle={styles.headerAction}
           >
             <MoveDiagonal2 aria-hidden="true" size={14} strokeWidth={1.7} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button
+            isIconOnly
             aria-label="Close chat"
             onClick={onClose}
-            size="default"
+            size="md"
             variant="ghost"
             xstyle={styles.headerAction}
           >
             <X aria-hidden="true" size={14} strokeWidth={1.7} />
-          </IconButton>
+          </Button>
         </div>
       </header>
 
@@ -447,7 +450,8 @@ export function AgentQuickConversation({
                         trajectory={trajectory}
                         draft={draft}
                       />
-                      <IconButton
+                      <Button
+                        isIconOnly
                         aria-label={
                           isRunning ? "Stop generating" : "Submit comment"
                         }
@@ -466,7 +470,7 @@ export function AgentQuickConversation({
                             : !(draft.trim() || attachments.items.length))
                         }
                         onClick={isRunning ? cancelRunningTurn : undefined}
-                        size="compact"
+                        size="sm"
                         type={isRunning ? "button" : "submit"}
                         variant="secondary"
                         xstyle={[
@@ -492,7 +496,7 @@ export function AgentQuickConversation({
                             strokeWidth={1.7}
                           />
                         )}
-                      </IconButton>
+                      </Button>
                     </PromptComposer.Actions>
                   </PromptComposer.Toolbar>
                 </PromptComposer.Root>

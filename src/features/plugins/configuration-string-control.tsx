@@ -1,6 +1,7 @@
 import { Button } from "@lenso/ui/button";
-import { TextArea } from "@lenso/ui/text-area";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextArea } from "@lenso/ui/textarea";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 
@@ -86,8 +87,8 @@ export function ConfigurationStringControl({
   return (
     <div {...stylex.props(styles.root, multiline && styles.expanded)}>
       {multiline ? (
-        <TextArea.Root xstyle={styles.control}>
-          <TextArea.Control
+        <TextField.Root xstyle={styles.control}>
+          <TextArea
             ref={areaRef}
             id={id}
             aria-label={label}
@@ -102,10 +103,10 @@ export function ConfigurationStringControl({
               update(event.currentTarget.value);
             }}
           />
-        </TextArea.Root>
+        </TextField.Root>
       ) : (
-        <TextField.Root size="compact" xstyle={styles.control}>
-          <TextField.Control
+        <TextField.Root xstyle={styles.control}>
+          <Input
             ref={inputRef}
             id={id}
             aria-label={label}
@@ -146,7 +147,7 @@ export function ConfigurationStringControl({
       {hasLineBreak ? null : (
         <div {...stylex.props(styles.actions)}>
           <Button
-            size="compact"
+            size="sm"
             variant="ghost"
             aria-label={t(
               multiline ? "Collapse {field} editor" : "Expand {field} editor",

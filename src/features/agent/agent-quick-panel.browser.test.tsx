@@ -1,6 +1,5 @@
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -247,7 +246,7 @@ describe("Agent quick panel", () => {
       throw new Error("Missing conversation");
     }
     const probe = document.createElement("div");
-    probe.style.backgroundColor = "var(--color-surface-canvas)";
+    probe.style.backgroundColor = "var(--background)";
     body.append(probe);
     await expect
       .poll(() => getComputedStyle(body).backgroundColor)

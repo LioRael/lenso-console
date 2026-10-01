@@ -150,10 +150,10 @@ export function AgentHistoryItems({
             }
             xstyle={[styles.item, styles.newChat]}
           >
-            <Menu.Leading>
+            <span>
               <Plus aria-hidden="true" size={14} strokeWidth={1.7} />
-            </Menu.Leading>
-            <Menu.Label>New chat</Menu.Label>
+            </span>
+            <Menu.Item.Label>New chat</Menu.Item.Label>
           </Menu.Item>
           <Menu.Separator />
         </>
@@ -232,15 +232,15 @@ function HistorySection({
             }
             xstyle={styles.item}
           >
-            <Menu.Label>{session.title}</Menu.Label>
-            <Menu.Trailing>
+            <Menu.Item.Label>{session.title}</Menu.Item.Label>
+            <span>
               <span {...stylex.props(styles.meta)}>
                 {current ? (
                   <span {...stylex.props(styles.metaCurrent)}>Current</span>
                 ) : null}
                 <span>{relativeAgentSessionAge(session.updatedAt)}</span>
               </span>
-            </Menu.Trailing>
+            </span>
           </Menu.Item>
         );
       })}

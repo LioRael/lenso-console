@@ -1,5 +1,5 @@
 import { Button } from "@lenso/ui/button";
-import { Dialog } from "@lenso/ui/dialog";
+import { Modal as Dialog } from "@lenso/ui/modal";
 import { cjk } from "@streamdown/cjk";
 import * as stylex from "@stylexjs/stylex";
 import { ExternalLink } from "lucide-react";
@@ -114,10 +114,10 @@ function AgentLinkSafetyModal({
             <code {...stylex.props(styles.linkDestination)}>{url}</code>
           </div>
           <div {...stylex.props(styles.linkDialogActions)}>
-            <Button onClick={onClose} size="compact" variant="ghost">
+            <Button onClick={onClose} size="sm" variant="ghost">
               Cancel
             </Button>
-            <Button onClick={onConfirm} size="compact" variant="primary">
+            <Button onClick={onConfirm} size="sm" variant="primary">
               Open link
             </Button>
           </div>

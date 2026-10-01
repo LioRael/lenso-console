@@ -1,7 +1,8 @@
 import { Button } from "@lenso/ui/button";
+import { Input } from "@lenso/ui/input";
 import { Select } from "@lenso/ui/select";
 import { Switch } from "@lenso/ui/switch";
-import { TextField } from "@lenso/ui/text-field";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate } from "@tanstack/react-router";
@@ -9,12 +10,12 @@ import { useState, type ReactNode } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
+import { ConsolePageHeader } from "../../components/runtime/console-page-header";
 import {
   pluginKey,
   type PluginWorkbenchItem,
 } from "../plugins/plugin-workbench-model";
 import { usePluginWorkbench } from "../plugins/use-plugin-workbench";
-import { SettingsPageHeader } from "../settings/settings-page-header";
 import { settingsPageStyles as preferences } from "../settings/settings-page.stylex";
 import { AddMcpConnection } from "./add-mcp-connection";
 import { useAgentIdentity } from "./agent-identity-context";
@@ -71,7 +72,7 @@ export function AgentPicker() {
         <Select.Icon />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner align="start" position="popper">
+        <Select.Positioner align="start" alignItemWithTrigger={false}>
           <Select.Popup>
             <Select.List>
               {agents.map((agent) => (
@@ -112,7 +113,7 @@ function AgentSettingsContent({
           {t("Connections")}
         </Link>
       ) : null}
-      <SettingsPageHeader
+      <ConsolePageHeader
         title={advanced ? t("Global tool restrictions") : "Connections"}
         description={
           advanced
@@ -416,8 +417,8 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
             {allowedTools.size} allowed · {tools.available.length} available
           </p>
           <div {...stylex.props(styles.toolToolbar)}>
-            <TextField.Root size="compact" xstyle={styles.toolSearch}>
-              <TextField.Control
+            <TextField.Root xstyle={styles.toolSearch}>
+              <Input
                 type="search"
                 aria-label={t("Filter tools")}
                 placeholder={t("Filter tools…")}
@@ -428,7 +429,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
             {canManage && policy.data ? (
               <>
                 <Button
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                   disabled={disabled}
                   onClick={() =>
@@ -441,7 +442,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                   {t("Enable all")}
                 </Button>
                 <Button
-                  size="compact"
+                  size="sm"
                   variant="ghost"
                   disabled={disabled}
                   onClick={() => edit([])}
@@ -474,7 +475,6 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                     aria-label={`Allow ${tool.name}`}
                     checked={allowedTools.has(tool.name)}
                     disabled={disabled}
-                    layout="control-only"
                     onCheckedChange={(checked) =>
                       edit(
                         checked
@@ -485,7 +485,9 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                       )
                     }
                   >
-                    <Switch.Thumb />
+                    <Switch.Control>
+                      <Switch.Thumb />
+                    </Switch.Control>
                   </Switch.Root>
                 ) : (
                   <span {...stylex.props(styles.actionLabel)}>
@@ -506,7 +508,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                   : "Changes are saved explicitly."}
               </span>
               <Button
-                size="compact"
+                size="sm"
                 variant="ghost"
                 disabled={!draft || mutation.isPending}
                 onClick={() => {
@@ -517,7 +519,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
                 {t("Reset")}
               </Button>
               <Button
-                size="compact"
+                size="sm"
                 disabled={!changed || disabled}
                 onClick={() => {
                   if (draft && !disabled) {
@@ -550,7 +552,7 @@ export function ToolAccess({ agent }: { agent: AgentIdentity }) {
       ) : null}
       {bootstrap.error || policy.error ? (
         <Button
-          size="compact"
+          size="sm"
           variant="secondary"
           xstyle={styles.retry}
           onClick={() => {

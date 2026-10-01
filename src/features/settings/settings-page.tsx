@@ -1,5 +1,4 @@
 import { Select } from "@lenso/ui/select";
-import { SettingsRow as LensoSettingsRow } from "@lenso/ui/settings-row";
 import * as stylex from "@stylexjs/stylex";
 import { useRef, type ComponentProps, type PropsWithChildren } from "react";
 
@@ -8,9 +7,10 @@ import {
   useConsoleLocale,
   type ConsoleLanguagePreference,
 } from "../../app/console-locale";
+import { SettingsRow as LensoSettingsRow } from "../../components/lenso/recipes/settings-row";
 import { SettingsSection } from "../../components/lenso/recipes/settings-section";
+import { ConsolePageHeader } from "../../components/runtime/console-page-header";
 import { usePersistedLayout } from "../../hooks/use-persisted-layout";
-import { SettingsPageHeader } from "./settings-page-header";
 import { settingsPageStyles as styles } from "./settings-page.stylex";
 
 type GeneralSettings = {
@@ -40,7 +40,7 @@ export function SettingsPage() {
   return (
     <main {...stylex.props(styles.page)}>
       <div {...stylex.props(styles.column)}>
-        <SettingsPageHeader
+        <ConsolePageHeader
           title={zh ? "偏好设置" : "Preferences"}
           description={
             zh
@@ -246,7 +246,7 @@ function PreferenceSelect({
         <Select.Icon />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner align="end" position="item-aligned">
+        <Select.Positioner align="end" alignItemWithTrigger>
           <Select.Popup>
             <Select.List>
               {options.map((option) => (

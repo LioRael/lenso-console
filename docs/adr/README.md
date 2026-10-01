@@ -19,3 +19,5 @@
 - [0009 — Compose Projects inside the Console App](0009-compose-projects-inside-the-console-app.md)
 
 - [0010 — Separate Console Shell from App assembly](0010-separate-console-shell-from-app-assembly.md)
+
+- [0011 — Unify Console development workspace](0011-unify-console-development-workspace.md)

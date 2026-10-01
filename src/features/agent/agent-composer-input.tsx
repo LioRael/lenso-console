@@ -1,5 +1,6 @@
 /* Rich autocomplete rows require icons and descriptions that native option elements cannot render. */
 /* eslint-disable jsx-a11y/prefer-tag-over-role */
+import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import {
   BookOpen,
@@ -302,16 +303,19 @@ export function AgentComposerInput({
             <span {...stylex.props(s.reference)} key={item.source + item.name}>
               <BookOpen size={12} />
               <span>{item.name}</span>
-              <button
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
                 type="button"
-                {...stylex.props(s.close)}
+                xstyle={s.close}
                 aria-label={`Remove ${item.name}`}
                 onClick={() =>
                   onReferencesChange(references.filter((_, j) => j !== i))
                 }
               >
                 <X size={12} />
-              </button>
+              </Button>
             </span>
           ))}
         </div>
@@ -413,14 +417,17 @@ export function AgentComposerInput({
       {attachmentError ? (
         <p role="status" {...stylex.props(s.notice)}>
           {attachmentError}
-          <button
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
             type="button"
-            {...stylex.props(s.close)}
+            xstyle={s.close}
             aria-label="Dismiss attachment notice"
             onClick={() => setAttachmentError("")}
           >
             <X size={12} />
-          </button>
+          </Button>
         </p>
       ) : null}
       <input

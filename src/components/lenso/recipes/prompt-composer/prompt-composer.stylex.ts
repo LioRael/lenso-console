@@ -11,8 +11,8 @@ export const promptComposerStyles = stylex.create({
     borderWidth: 0,
     boxSizing: "border-box",
     color: {
-      default: "var(--color-content-primary)",
-      "::placeholder": "var(--color-content-tertiary)",
+      default: "var(--foreground)",
+      "::placeholder": "var(--muted)",
     },
     font: "inherit",
     fontFamily: "var(--font-sans)",

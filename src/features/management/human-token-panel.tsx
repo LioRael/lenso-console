@@ -1,5 +1,6 @@
 import { Button } from "@lenso/ui/button";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 
@@ -317,7 +318,7 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
           <label key={en} {...stylex.props(styles.field)}>
             {copy(en, cn)}
             <TextField.Root>
-              <TextField.Control
+              <Input
                 value={value}
                 maxLength={8192}
                 disabled={busy || !storageReady || Boolean(receiptKey)}
@@ -342,7 +343,7 @@ export function HumanTokenPanel({ deployment }: { deployment: string }) {
         <label {...stylex.props(styles.field)}>
           {copy("One-time token", "一次性令牌")}
           <TextField.Root>
-            <TextField.Control value={secret} readOnly autoComplete="off" />
+            <Input value={secret} readOnly autoComplete="off" />
           </TextField.Root>
           <Button
             onClick={() => {

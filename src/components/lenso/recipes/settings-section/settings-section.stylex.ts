@@ -2,7 +2,7 @@ import * as stylex from "@stylexjs/stylex";
 
 export const settingsSectionStyles = stylex.create({
   description: {
-    color: "var(--color-content-tertiary)",
+    color: "var(--muted)",
     fontFamily: "var(--font-sans)",
     fontSize: "13px",
     lineHeight: 1.5,
@@ -27,7 +27,7 @@ export const settingsSectionStyles = stylex.create({
     gap: "var(--space-3, 12px)",
   },
   title: {
-    color: "var(--color-content-primary)",
+    color: "var(--foreground)",
     fontFamily: "var(--font-sans)",
     fontSize: "15px",
     fontWeight: 600,

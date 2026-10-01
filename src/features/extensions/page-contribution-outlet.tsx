@@ -91,7 +91,7 @@ const styles = stylex.create({
     margin: 0,
   },
   message: {
-    color: "var(--lenso-color-text-secondary)",
+    color: "var(--muted)",
     lineHeight: 1.5,
     margin: 0,
   },

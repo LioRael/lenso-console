@@ -1,7 +1,6 @@
-import { ThemeScope } from "@lenso/ui/theme-scope";
+import { ThemeScope } from "@lenso/ui";
 
 import "@lenso/tokens/styles.css";
-import "@lenso/ui/styles.css";
 import {
   createMemoryHistory,
   createRootRoute,

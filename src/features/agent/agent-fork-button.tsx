@@ -1,4 +1,4 @@
-import { IconButton } from "@lenso/ui/icon-button";
+import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { GitBranch } from "lucide-react";
 import { useRef, useState } from "react";
@@ -44,14 +44,15 @@ export function AgentForkButton({ target }: { target: AgentForkTarget }) {
   };
   return (
     <>
-      <IconButton
+      <Button
+        isIconOnly
         aria-label="Branch to new chat"
         title="Branch to new chat · Shared working directory"
         disabled={busy}
         onClick={() => {
           void fork();
         }}
-        size="compact"
+        size="sm"
         variant="ghost"
         xstyle={styles.action}
       >
@@ -61,7 +62,7 @@ export function AgentForkButton({ target }: { target: AgentForkTarget }) {
           aria-hidden="true"
           style={{ width: 12, height: 12 }}
         />
-      </IconButton>
+      </Button>
       {failure ? (
         <span role="alert" {...stylex.props(styles.time)}>
           {failure}

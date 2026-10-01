@@ -1,5 +1,6 @@
 import { Button } from "@lenso/ui/button";
-import { TextField } from "@lenso/ui/text-field";
+import { Input } from "@lenso/ui/input";
+import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { createContext, useContext, useState, type ReactNode } from "react";
 
@@ -116,7 +117,7 @@ export function ConfigurationFieldSearch({
     <SearchQuery value={query}>
       <div {...stylex.props(styles.search)}>
         <TextField.Root xstyle={styles.input}>
-          <TextField.Control
+          <Input
             type="search"
             aria-label={t("Search configuration fields")}
             placeholder={t("Search fields by name or description…")}
@@ -125,7 +126,7 @@ export function ConfigurationFieldSearch({
           />
         </TextField.Root>
         {text ? (
-          <Button size="compact" variant="ghost" onClick={() => setText("")}>
+          <Button size="sm" variant="ghost" onClick={() => setText("")}>
             {t("Clear search")}
           </Button>
         ) : null}

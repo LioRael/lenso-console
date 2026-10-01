@@ -21,7 +21,7 @@ const styles = stylex.create({
   root: {
     marginBlock: 4,
     minWidth: 0,
-    color: "var(--color-content-secondary)",
+    color: "var(--muted)",
     fontSize: 12,
   },
   trigger: {
@@ -50,7 +50,7 @@ const styles = stylex.create({
     paddingInlineStart: 15,
     borderInlineStartWidth: 1,
     borderInlineStartStyle: "solid",
-    borderInlineStartColor: "var(--color-border-tertiary)",
+    borderInlineStartColor: "var(--separator)",
     minWidth: 0,
   },
   parameters: {
@@ -84,11 +84,11 @@ const styles = stylex.create({
     lineHeight: "19px",
     borderWidth: 1,
     borderStyle: "solid",
-    borderColor: "var(--color-border-tertiary)",
+    borderColor: "var(--separator)",
     borderRadius: 8,
-    backgroundColor: "var(--color-surface-panel)",
+    backgroundColor: "var(--surface)",
   },
-  hint: { margin: 0, fontSize: 11, color: "var(--color-content-tertiary)" },
+  hint: { margin: 0, fontSize: 11, color: "var(--muted)" },
 });
 
 function parsed(value?: string): Record<string, unknown> {

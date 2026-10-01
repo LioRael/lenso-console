@@ -15,7 +15,9 @@ describe("PluginStatus", () => {
       />
     );
 
-    expect(output).toContain('data-status="info"');
+    expect(output).toContain(
+      'aria-label="Preparing. Desired state is not active yet."'
+    );
     expect(output).toContain("Preparing");
     expect(output).toContain("Desired state is not active yet.");
     expect(output).not.toContain("Enabled");

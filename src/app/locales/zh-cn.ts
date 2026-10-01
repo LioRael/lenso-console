@@ -1,4 +1,9 @@
 export const chineseMessages: Readonly<Record<string, string>> = {
+  Back: "后退",
+  Forward: "前进",
+  "Console toolbar": "Console 工具栏",
+  "Console areas": "Console 区域",
+  "Console navigation": "Console 导航",
   "Could not load workspaces": "无法加载工作区",
   "Loading workspace…": "正在加载工作区…",
   "No workspaces are available for this account": "此账号暂无可用工作区",
