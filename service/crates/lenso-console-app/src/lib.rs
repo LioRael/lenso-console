@@ -57,6 +57,10 @@ pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()>
 pub async fn start_host(config: &ConsoleAppConfig) -> anyhow::Result<NativeApp> {
     config.validate()?;
     link();
+    #[cfg(feature = "assistant")]
+    lenso_console_assistant_plugin::link();
+    #[cfg(feature = "management-mcp")]
+    lenso_management_mcp::link();
     auth_plugins::link();
     lenso_observe_plugin::link();
     lenso_projects_workspace_plugin::link();
@@ -94,6 +98,8 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
         HostSlot::many("http-ingress"),
         HostSlot::one("console"),
         HostSlot::many("console-workspaces"),
+        HostSlot::many("console-global-extensions"),
+        HostSlot::many("management-mcp"),
         HostSlot::many("identity"),
         HostSlot::many("auth"),
         HostSlot::many("auth-methods"),
@@ -177,6 +183,35 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
                     );
                 }
             }
+            "console-global-extensions" if descriptor.plugin_id() == "lenso.console.assistant" => {
+                if let Some(assets) = &config.assistant_assets {
+                    let shell = config.shell.to_plugin_config()?;
+                    let origin = if shell.connected_agent_url.is_empty() {
+                        shell.console_agent_url
+                    } else {
+                        shell.connected_agent_url
+                    };
+                    let mut assistant =
+                        serde_json::json!({"asset_root":assets,"agent_origin":origin});
+                    if let Some(path) = shell.agent_control_token_file {
+                        assistant["control_token_file"] = serde_json::json!(path);
+                    }
+                    defaults.push(
+                        HostDefaultPlugin::new(descriptor.plugin_id(), "default")
+                            .with_configuration(assistant)
+                            .disableable(),
+                    );
+                }
+            }
+            "management-mcp" if descriptor.plugin_id() == "lenso.console.management-mcp" => {
+                if let Some(profile) = &config.management_mcp {
+                    defaults.push(
+                        HostDefaultPlugin::new(descriptor.plugin_id(), "default")
+                            .with_configuration(profile.clone())
+                            .disableable(),
+                    );
+                }
+            }
             _ => {}
         }
     }
@@ -195,6 +230,27 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
         HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
             .with_admission(CONSOLE_REQUEST_ADMISSION),
     ];
+    if config.management_mcp.is_some() {
+        let mcp = PluginInstanceId::new("lenso.console.management-mcp", "default");
+        bindings.push(HostBinding::new(
+            mcp.clone(),
+            lenso_capability_auth::CAPABILITY_ID,
+            "identity",
+        ));
+        bindings.push(HostBinding::new(
+            mcp,
+            lenso_capability_management::CAPABILITY_ID,
+            "console",
+        ));
+        bindings.push(
+            HostBinding::new(
+                PluginInstanceId::new("lenso.web-ingress", "default"),
+                stream_endpoint::CAPABILITY_ID,
+                "management-mcp",
+            )
+            .with_admission(CONSOLE_REQUEST_ADMISSION),
+        );
+    }
     // This local distribution admits workspace owners, not the Operators profile.
     // Keep their installation from selecting administration ports implicitly.
     bindings.extend(

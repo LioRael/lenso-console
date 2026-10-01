@@ -14,7 +14,6 @@ import { createPortal } from "react-dom";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 
-import "@fontsource-variable/inter/wght.css";
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
 import {

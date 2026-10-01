@@ -6,6 +6,66 @@ use axum::{
 use bytes::Bytes;
 use http::{StatusCode, header};
 use lenso_console_plugin::{ConsolePluginConfig, ManagedAppConnection};
+
+// Prevent a removable extension from leaving executable UI assets/capabilities
+// behind after disable. Existing workspace tests do not cover global mounts.
+#[cfg(feature = "assistant")]
+#[tokio::test(flavor = "current_thread")]
+async fn optional_assistant_disable_removes_global_mount_and_assets() {
+    tokio::task::LocalSet::new().run_until(async {
+        let root = tempfile::tempdir().unwrap();
+        let assets = root.path().join("assistant-ui");
+        std::fs::create_dir(&assets).unwrap();
+        std::fs::write(assets.join("assistant.mjs"), "export const apiMajor=1; export const createWorkspace=({createElement})=>({Page:()=>createElement('button',null,'Optional assistant')});").unwrap();
+        std::fs::write(assets.join("assistant.css"), "button{color:inherit}").unwrap();
+        std::fs::write(assets.join("assets.json"), r#"["assistant.mjs","assistant.css"]"#).unwrap();
+        let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let agent_address = agent_listener.local_addr().unwrap();
+        let agent = tokio::task::spawn_local(async move {
+            axum::serve(agent_listener, Router::new().route("/api/console/v1/agent/bootstrap", get(|| async { AxumJson(serde_json::json!({})) }))).await.unwrap();
+        });
+        let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = port.local_addr().unwrap();
+        drop(port);
+        let mut plugin: ConsolePluginConfig = serde_json::from_str(include_str!("../../../config.defaults.json")).unwrap();
+        plugin.web_root = root.path().to_str().unwrap().into();
+        plugin.agent_home = root.path().join("agent").to_str().unwrap().into();
+        plugin.agent_configuration_store = root.path().join("agent.sqlite3").to_str().unwrap().into();
+        plugin.connected_agent_url = format!("http://{agent_address}");
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        let mut config = ConsoleAppConfig::from_plugin(&plugin).unwrap();
+        config.app_root = root.path().join("app");
+        config.address = address;
+        config.telemetry_address = "127.0.0.1:0".parse().unwrap();
+        config.assistant_assets = Some(assets);
+        let client = reqwest::Client::new();
+        let catalog_url = format!("http://{address}/api/console/v1/surfaces");
+        let host = start_host(&config).await.unwrap();
+        let catalog: serde_json::Value = client.get(&catalog_url).send().await.unwrap().json().await.unwrap();
+        assert_eq!(catalog["mounts"][0]["id"], "assistant");
+        let asset_url = format!("http://{address}{}", catalog["mounts"][0]["module"].as_str().unwrap());
+        assert_eq!(client.get(&asset_url).send().await.unwrap().status(), StatusCode::OK);
+        assert_eq!(host.shutdown(std::time::Duration::from_secs(2)).await, ShutdownOutcome::Clean);
+
+        let installed = config.app_root.join("plugins/lenso.console.assistant");
+        std::fs::create_dir_all(&installed).unwrap();
+        std::fs::write(installed.join("default.disabled"), []).unwrap();
+        let host = start_host(&config).await.unwrap();
+        let catalog: serde_json::Value = client.get(&catalog_url).send().await.unwrap().json().await.unwrap();
+        assert_eq!(catalog["mounts"], serde_json::json!([]));
+        assert_eq!(client.get(&asset_url).send().await.unwrap().status(), StatusCode::NOT_FOUND);
+        let resolved = lenso_app_authoring::load_resolved_app(&config.app_root).unwrap();
+        assert!(resolved.plan().capability_bindings().iter().all(|binding| binding.capability_id() != "lenso.ui.global-contribution@1"));
+        assert_eq!(host.shutdown(std::time::Duration::from_secs(2)).await, ShutdownOutcome::Clean);
+
+        std::fs::remove_file(installed.join("default.disabled")).unwrap();
+        let host = start_host(&config).await.unwrap();
+        let catalog: serde_json::Value = client.get(&catalog_url).send().await.unwrap().json().await.unwrap();
+        assert_eq!(catalog["mounts"][0]["id"], "assistant");
+        assert_eq!(host.shutdown(std::time::Duration::from_secs(2)).await, ShutdownOutcome::Clean);
+        agent.abort();
+    }).await;
+}
 #[test]
 fn reference_host_does_not_activate_available_workspaces_by_default() {
     link();

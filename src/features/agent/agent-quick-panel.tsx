@@ -43,8 +43,9 @@ export function AgentQuickPanel({
   const { selectedAgent } = useAgentIdentity();
   const search = useSearch({ strict: false });
   const projectId = selectedAgent.id === "app" ? search.project : undefined;
-  const { draftRequest, pageContext, notifyTurnCompleted } =
+  const { draftRequest, pageContext, notifyTurnCompleted, registerPanel } =
     useAgentQuickPanel();
+  useEffect(registerPanel, [registerPanel]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [activeId, setActiveId] = useState<number>();
   const [open, setOpen] = useState(false);
@@ -307,6 +308,7 @@ export function AgentQuickPanel({
           data-agent-action="open"
           data-agent-tray=""
           data-open={open || undefined}
+          tabIndex={open ? -1 : 0}
           aria-keyshortcuts="Control+j Meta+j"
           onClick={openAssistant}
           size="sm"
@@ -330,6 +332,8 @@ export function AgentQuickPanel({
           <Button
             isIconOnly
             aria-label="Assistant history"
+            data-open={open || undefined}
+            tabIndex={open ? -1 : 0}
             size="sm"
             variant="secondary"
             xstyle={styles.historyTrigger}

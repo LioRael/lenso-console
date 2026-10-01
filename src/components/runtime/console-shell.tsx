@@ -16,11 +16,11 @@ import { useConsoleSession } from "../../app/console-session";
 import { sessionStyles } from "../../app/console-session.stylex";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
-import { AgentQuickPanel } from "../../features/agent/agent-quick-panel";
 import {
   useAppManagement,
   type ManagedApp,
 } from "../../features/apps/app-management-context";
+import { GlobalContributionOutlet } from "../../features/extensions/global-contribution-outlet";
 import {
   usePageCatalog,
   type PageMount,
@@ -275,17 +275,8 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
       >
         {children}
       </ConsoleFrame>
-      {administrator && agents.length > 0 ? (
-        <AgentQuickPanel
-          suspended={mobileNavigationOpen}
-          onOpenFullPage={(agentId, sessionId, projectId) => {
-            void navigate({
-              to: "/agent/$agentId/$chatId",
-              params: { agentId, chatId: sessionId ?? "new-task" },
-              search: { project: projectId },
-            });
-          }}
-        />
+      {administrator ? (
+        <GlobalContributionOutlet suspended={mobileNavigationOpen} />
       ) : null}
     </ThemeScope>
   );

@@ -230,6 +230,8 @@ pub struct ConsolePlugin {
     management: ManyPort<lenso_capability_management::ManagementClient>,
     human_management: ManyPort<lenso_capability_management_human::ManagementHumanClient>,
     human_tokens: ManyPort<lenso_capability_human_api_token::HumanApiTokenClient>,
+    global_contributions:
+        ManyPort<lenso_capability_ui_global_contribution::GlobalContributionClient>,
     workspace_contributions: ManyPort<lenso_capability_ui_contribution::ContributionClient>,
     workspace_services: ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
     application: std::rc::Rc<RefCell<Option<ConsoleApplication>>>,
@@ -305,6 +307,7 @@ impl Lifecycle for ConsolePlugin {
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
         let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,
+            &self.global_contributions,
             &self.workspace_services,
             &config.application_subject_ids(),
         )

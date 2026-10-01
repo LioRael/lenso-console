@@ -10,6 +10,8 @@ pub struct ConsoleAppConfig {
     pub address: SocketAddr,
     pub telemetry_address: SocketAddr,
     pub projects_workspace_origin: Option<String>,
+    pub assistant_assets: Option<PathBuf>,
+    pub management_mcp: Option<serde_json::Value>,
 }
 
 impl ConsoleAppConfig {
@@ -26,6 +28,8 @@ impl ConsoleAppConfig {
             address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 3030),
             telemetry_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 4318),
             projects_workspace_origin: None,
+            assistant_assets: None,
+            management_mcp: None,
         }
     }
 
@@ -43,12 +47,32 @@ impl ConsoleAppConfig {
                 .ok()
                 .map_or(Ok(3030), |value| value.parse())?,
         );
+        config.management_mcp = std::env::var_os("LENSO_CONSOLE_MCP_CONFIG")
+            .map(|path| -> anyhow::Result<_> { Ok(serde_json::from_slice(&std::fs::read(path)?)?) })
+            .transpose()?;
+        config.assistant_assets =
+            std::env::var_os("LENSO_CONSOLE_ASSISTANT_ASSETS").map(PathBuf::from);
         config.projects_workspace_origin = std::env::var("LENSO_CONSOLE_PROJECTS_ORIGIN").ok();
         Ok(config)
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
         self.shell.validate()?;
+        anyhow::ensure!(
+            self.management_mcp.is_none() || cfg!(feature = "management-mcp"),
+            "Management MCP is not installed in this Host build"
+        );
+        if self.assistant_assets.is_some() {
+            anyhow::ensure!(
+                cfg!(feature = "assistant"),
+                "Assistant is not installed in this Host build"
+            );
+            let shell = self.shell.to_plugin_config()?;
+            anyhow::ensure!(
+                !shell.connected_agent_url.is_empty() || !shell.console_agent_url.is_empty(),
+                "Assistant requires an explicitly connected Agent"
+            );
+        }
         anyhow::ensure!(
             self.address.ip().is_loopback() && self.telemetry_address.ip().is_loopback(),
             "the local Console Host may bind only to loopback addresses"

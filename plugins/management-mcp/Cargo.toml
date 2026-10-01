@@ -7,7 +7,16 @@ license = "MIT"
 repository = "https://github.com/LioRael/lenso-console"
 description = "Opt-in MCP Streamable HTTP server over one bound Management Capability."
 
+[package.metadata.lenso]
+plugin-id = "lenso.console.management-mcp"
+root-slot = "management-mcp"
+
 [dependencies]
+lenso = "0.5.28"
+lenso-native-adapter-macros = "=0.2.8"
+lenso-capability-http-stream-endpoint = "0.1.3"
+futures = "0.3"
+tower = { version = "0.5", features = ["util"] }
 axum = "0.8"
 http = "1"
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
@@ -26,9 +35,9 @@ tokio-util = "0.7"
 url = "2"
 
 [dev-dependencies]
+lenso-runner = "0.2.20"
 lenso-app-plan = "0.4.6"
 lenso-native-adapter = "0.3.19"
-lenso-runner = "0.2.20"
 rmcp = { version = "=3.5.0", default-features = false, features = [
   "client",
   "transport-streamable-http-client-reqwest",

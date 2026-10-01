@@ -1,4 +1,6 @@
 //! Native MCP transport. A bound Management service retains every authorization decision.
+mod plugin;
+pub use plugin::link;
 
 use axum::{
     Json, Router,
@@ -89,6 +91,15 @@ impl NativeBridge {
         now: Rc<dyn Fn() -> Duration>,
         timeout: Duration,
     ) -> Result<Self, std::io::Error> {
+        Self::spawn_scoped(auth, management, resource_uri, Some(now), timeout)
+    }
+    pub(crate) fn spawn_scoped(
+        auth: AuthClient,
+        management: management::ManagementClient,
+        resource_uri: String,
+        now: Option<Rc<dyn Fn() -> Duration>>,
+        timeout: Duration,
+    ) -> Result<Self, std::io::Error> {
         if timeout.is_zero() || timeout > Duration::from_secs(60) {
             return Err(std::io::Error::other("invalid management request timeout"));
         }
@@ -105,7 +116,7 @@ impl NativeBridge {
                 let resource_uri = resource_uri.clone();
                 let now = now.clone();
                 requests.spawn_local(async move {
-                    let cancellation=CancellationToken::new();let context=InvocationContext::new(id,Some(now()+timeout),cancellation.clone());
+                    let cancellation=CancellationToken::new();let context=InvocationContext::new(id,now.as_ref().map(|now| now()+timeout),cancellation.clone());
                     let result=tokio::select! {
                         ()=message.cancellation.cancelled()=>{cancellation.cancel();Err(TransportError::Unavailable)},
                         result=tokio::time::timeout(timeout,dispatch(&auth,&management,&resource_uri,context,message.credential,message.action))=>match result{Ok(result)=>result,Err(_)=>{cancellation.cancel();Err(TransportError::Unavailable)}},

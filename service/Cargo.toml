@@ -13,6 +13,7 @@ root-slot = "console"
 embedded-shell = []
 
 [dependencies]
+lenso-capability-ui-global-contribution = { path = "../contracts/crates/lenso-capability-ui-global-contribution", version = "0.1.0" }
 lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
 anyhow = "1.0"
 base64 = "0.22"

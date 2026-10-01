@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "asset_root",
+    "agent_origin"
+  ],
+  "properties": {
+    "asset_root": {
+      "type": "string"
+    },
+    "agent_origin": {
+      "type": "string"
+    },
+    "control_token_file": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

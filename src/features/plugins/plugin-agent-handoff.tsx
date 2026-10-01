@@ -19,10 +19,11 @@ type PluginAgentContext = {
 export function PluginAgentAction(context: PluginAgentContext) {
   const t = useConsoleTranslation();
 
-  const { requestAgentDraft } = useAgentQuickPanel();
+  const { available, requestAgentDraft } = useAgentQuickPanel();
   const identity = `${context.packageId}/${context.instanceKey}`;
   return (
     <Button
+      disabled={!available}
       aria-label={t("Ask Agent about {plugin}", { plugin: identity })}
       onClick={() => {
         requestAgentDraft({

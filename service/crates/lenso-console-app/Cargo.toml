@@ -13,7 +13,14 @@ path = "src/main.rs"
 name = "lenso-console-with-agent"
 path = "src/agent_main.rs"
 
+[features]
+default = []
+assistant = ["dep:lenso-console-assistant-plugin"]
+management-mcp = ["dep:lenso-management-mcp"]
+
 [dependencies]
+lenso-console-assistant-plugin = { path = "../../../plugins/assistant", optional = true }
+lenso-management-mcp = { path = "../../../plugins/management-mcp", optional = true }
 lenso-console-plugin = { path = "../.." }
 lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "15fb8d492fb9cb86437cc9dd20101aa07492e5cd" }
 lenso-projects-postgres-plugin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }

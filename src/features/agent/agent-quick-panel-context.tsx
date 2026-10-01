@@ -19,6 +19,8 @@ export type AgentDraftRequest = {
 export type WorkspaceAgentContext = { label: string; text: string };
 
 type AgentQuickPanelState = {
+  available: boolean;
+  registerPanel: () => () => void;
   completedTurns: number;
   notifyTurnCompleted: () => void;
   pageContext: WorkspaceAgentContext | null;
@@ -32,6 +34,11 @@ const AgentQuickPanelContext = createContext<AgentQuickPanelState | undefined>(
 );
 
 export function AgentQuickPanelProvider({ children }: PropsWithChildren) {
+  const [panelCount, setPanelCount] = useState(0);
+  const registerPanel = useCallback(() => {
+    setPanelCount((count) => count + 1);
+    return () => setPanelCount((count) => count - 1);
+  }, []);
   const nextRequestId = useRef(0);
   const [completedTurns, setCompletedTurns] = useState(0);
   const notifyTurnCompleted = useCallback(
@@ -53,6 +60,8 @@ export function AgentQuickPanelProvider({ children }: PropsWithChildren) {
   );
   const value = useMemo(
     () => ({
+      available: panelCount > 0,
+      registerPanel,
       completedTurns,
       notifyTurnCompleted,
       draftRequest,
@@ -66,6 +75,8 @@ export function AgentQuickPanelProvider({ children }: PropsWithChildren) {
       pageContext,
       completedTurns,
       notifyTurnCompleted,
+      registerPanel,
+      panelCount,
     ]
   );
   return (
@@ -86,5 +97,6 @@ export function useAgentQuickPanel() {
 }
 
 export function useOptionalAgentQuickPanel() {
-  return useContext(AgentQuickPanelContext);
+  const context = useContext(AgentQuickPanelContext);
+  return context?.available ? context : undefined;
 }

@@ -64,15 +64,16 @@ type ContributionModule = {
     createElement: typeof createElement;
     react: typeof React;
     services: WorkspaceServices;
+    modules?: Readonly<Record<string, unknown>> | undefined;
   }): {
     Page: ComponentType<ContributionProps>;
     Provider?: ComponentType<{ children: ReactNode }>;
   };
 };
 
-type LoadedContribution = {
+type LoadedContribution<Props = ContributionProps> = {
   status: "ready";
-  Page: ComponentType<ContributionProps>;
+  Page: ComponentType<Props>;
   Provider: ComponentType<{ children: ReactNode }>;
 };
 
@@ -266,7 +267,7 @@ type ContributionRenderBoundaryProps = {
   title: string;
 };
 
-class ContributionRenderBoundary extends Component<
+export class ContributionRenderBoundary extends Component<
   ContributionRenderBoundaryProps,
   { error?: Error }
 > {
@@ -294,10 +295,14 @@ class ContributionRenderBoundary extends Component<
   }
 }
 
-function useContributionModule(mount: PageMount | undefined, attempt: number) {
+export function useContributionModule<Props = ContributionProps>(
+  mount: PageMount | undefined,
+  attempt: number,
+  modules?: Readonly<Record<string, unknown>>
+) {
   const [state, setState] = useState<
     | { status: "idle" | "loading" }
-    | LoadedContribution
+    | LoadedContribution<Props>
     | { status: "error"; error: Error }
   >({ status: "idle" });
 
@@ -339,12 +344,13 @@ function useContributionModule(mount: PageMount | undefined, attempt: number) {
           createElement,
           react: React,
           services: createWorkspaceServices(mount),
+          modules,
         });
         if (!page || typeof page.Page !== "function") {
           throw new TypeError("The extension page export is invalid");
         }
         setState({
-          Page: page.Page,
+          Page: page.Page as ComponentType<Props>,
           Provider: page.Provider ?? PassThroughProvider,
           status: "ready",
         });
@@ -364,7 +370,7 @@ function useContributionModule(mount: PageMount | undefined, attempt: number) {
         link.remove();
       }
     };
-  }, [attempt, mount]);
+  }, [attempt, mount, modules]);
   return state;
 }
 
@@ -512,7 +518,7 @@ function sameSubject(left: PageMount["subject"], right: PageMount["subject"]) {
   );
 }
 
-function ContributionError({
+export function ContributionError({
   message,
   onRetry,
   title,

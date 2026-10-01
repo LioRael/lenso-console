@@ -78,6 +78,7 @@ struct ContributionNavigationItem {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PageMount {
+    global: bool,
     id: String,
     title: String,
     subject: ContributionSubject,
@@ -121,6 +122,7 @@ pub(super) struct PageCatalog {
 impl PageCatalog {
     pub(super) async fn from_ports(
         port: &ManyPort<ContributionClient>,
+        global_port: &ManyPort<lenso_capability_ui_global_contribution::GlobalContributionClient>,
         service_port: &ManyPort<lenso_capability_workspace_service::WorkspaceServiceClient>,
         allowed_app_subjects: &BTreeSet<String>,
     ) -> Result<(Self, WorkspaceServiceRuntime), lenso_kernel::RuntimeFailure> {
@@ -142,6 +144,26 @@ impl PageCatalog {
                 })?;
             contributions.push((owner, response));
         }
+        let mut global_ids = BTreeSet::new();
+        for provider in global_port.iter() {
+            let response = provider
+                .describe_contribution(lenso_capability_ui_global_contribution::DescribeRequest {})
+                .await
+                .map_err(|error| lenso_kernel::RuntimeFailure::PluginFailure {
+                    detail: format!("Global UI contribution describe failed: {error:?}"),
+                })?;
+            global_ids.insert(response.workspace_id.clone());
+            let response =
+                serde_json::from_value(serde_json::to_value(response).map_err(|error| {
+                    lenso_kernel::RuntimeFailure::Internal {
+                        detail: error.to_string(),
+                    }
+                })?)
+                .map_err(|error| lenso_kernel::RuntimeFailure::Internal {
+                    detail: error.to_string(),
+                })?;
+            contributions.push((provider.provider_instance().to_owned(), response));
+        }
         let mut services = WorkspaceServiceBuilder::prepare(service_port).await?;
         let mut catalog = Self::from_contributions_with_services(
             contributions,
@@ -151,6 +173,16 @@ impl PageCatalog {
         .map_err(|error| lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
             detail: error.to_string(),
         })?;
+        let mut mounts = catalog.mounts.as_ref().clone();
+        for mount in &mut mounts {
+            mount.global = global_ids.contains(&mount.id);
+            if mount.global && !matches!(mount.subject, ContributionSubject::Console) {
+                return Err(lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
+                    detail: "Global UI contributions require Console subject".to_owned(),
+                });
+            }
+        }
+        catalog.mounts = Arc::new(mounts);
         let (dispatch, runtime) = services.finish(service_port.clone());
         catalog.services = dispatch;
         Ok((catalog, runtime))
@@ -291,6 +323,17 @@ impl PageCatalog {
     }
 
     pub(super) async fn handle(&self, request: &Request) -> Option<Response> {
+        if request.path == "/api/console/v1/surfaces" {
+            return Some(if request.method == Method::GET {
+                Json(serde_json::json!({
+                    "schema": "console.page-catalog/1",
+                    "mounts": self.mounts.iter().filter(|mount| mount.global).collect::<Vec<_>>(),
+                }))
+                .into_response()
+            } else {
+                StatusCode::METHOD_NOT_ALLOWED.into_response()
+            });
+        }
         if request.path == "/api/console/v1/pages" {
             return Some(if request.method == Method::GET {
                 list_pages(State(self.clone())).into_response()
@@ -374,6 +417,7 @@ fn snapshot_contribution(
         })
         .collect();
     let mount = PageMount {
+        global: false,
         id: contribution.workspace_id,
         title: contribution.title,
         subject,
@@ -438,7 +482,7 @@ fn decode_assets(contribution: &DescribeResponse) -> anyhow::Result<Vec<(String,
 fn list_pages(State(catalog): State<PageCatalog>) -> Json<serde_json::Value> {
     Json(serde_json::json!({
         "schema": "console.page-catalog/1",
-        "mounts": catalog.mounts.as_ref(),
+        "mounts": catalog.mounts.iter().filter(|mount| !mount.global).collect::<Vec<_>>(),
     }))
 }
 

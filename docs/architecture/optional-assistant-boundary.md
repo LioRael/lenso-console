@@ -1,126 +1,159 @@
-# Optional Console assistant: implementation boundary
+# Optional Console assistant: implementation and coordination checkpoint
 
-Base: Console `cf4f7ff1801274914059357f5f827f103297847b`.
-Read-only Agent reference: `cceb80f2fb4f36d07abe36d6d0c3a8435e4109e4`.
-This candidate is local implementation for review. It is not landed or published.
+Console base: `cf4f7ff1801274914059357f5f827f103297847b`.
+First local commit: `f11a7d9d0686577a2879c3f9ef01130884233e22`.
+Task checkout: `/Users/leosouthey/Projects/framework/.worktrees/lenso-console/feat-optional-assistant`.
+Read-only Agent checkout: `/Users/leosouthey/Projects/framework/lenso-agent-harness`,
+remote `LioRael/lenso-agent`, inspected SHA `cceb80f2fb4f36d07abe36d6d0c3a8435e4109e4`.
+Reference Console checkout `/Users/leosouthey/.codex/worktrees/a3b0/lenso-console`
+was read only. No framework or ai-relay files were changed.
 
-## Implemented in this candidate
+This is local implementation for review, without remote CI, landing or publication.
 
-- `@lenso/console` and platform staging contain only the Console Host and Web
-  files. No Agent release is resolved, downloaded or started by this packager.
-- Console defaults to no Agent connection. Explicit connections and the existing
-  combined `lenso-console-with-agent` composition remain supported.
-- `package-agent.mjs --native-only` stages `@lenso/agent-native` and a platform
-  package containing only the pinned, checksum-verified `lenso-agent` executable.
-  Native dispatch checks that executable, not Console or Web assets.
-- The existing assistant entry moves from the toolbar to the bottom right.
-  Control/Meta+J opens or minimizes it, preserving the retained draft.
-  Mobile navigation suspends its surface and shortcut without unmounting drafts.
-- History reuses `AgentHistoryMenu` and durable session reads. Closing a panel
-  does not delete its backend Session. Resolved-session inputs are shared between
-  panel and full-page views, scoped by user, Agent, project and Session. This UI
-  draft cache is in memory and bounded to 128 entries; page reload does not restore
-  unsent drafts. History is restored from the existing backend.
-- Project requests retain their project target and visibly show the project.
-  Approval preference storage uses the same structured scope rather than string
-  coercion of project objects. This is UI isolation, not backend authorization.
-- A blank conversation no longer adopts another request's background activity.
-  Reconnection still observes its own pending request or its resolved Session.
+## Implemented
 
-## Existing contracts to reuse
+- `@lenso/console` staging contains only the Console Host and core Web files.
+  Console has no default Agent connection and does not resolve/download/start Agent.
+- `package-agent.mjs --native-only` stages the checksum-pinned independent
+  `@lenso/agent-native` executable without Console/Web files. Existing combined
+  distribution remains available.
+- **Assistant is now an optional native Plugin and independently built UI package.**
+  `plugins/assistant` provides `lenso.ui.global-contribution@1`. Console Shell
+  imports the generic global outlet, never the assistant component. The default
+  reference Host build excludes the assistant Cargo dependency. Build its optional
+  provider with `--features assistant`; an explicit installed asset directory and
+  Agent origin are required before activation. Activation checks Agent readiness,
+  and never downloads or starts it.
+- `build-assistant.mjs` builds independent JS/CSS and rendering chunks.
+  `package-assistant.mjs` stages only those reviewed assets and an exact-version
+  dependency on `@lenso/agent-native`; no Console binary or core Web is copied.
+  These npm packages are local, unpublished candidates.
+- Native Plugin Root disable markers remove the global capability binding, mount
+  and asset URLs. Re-enable restores them. The reference Host uses an immutable
+  App Plan, so changing Root enable state takes effect after Host restart; this
+  candidate does not claim in-process hot installation/reconciliation.
+- The global UI catalog is separate from workspace navigation and lazily imports
+  only trusted, enabled contributions with satisfied requirements. It reuses the
+  workspace asset validation/digests, React singleton, owner services and render
+  error boundary. New global role leaves existing workspace contract unchanged.
+- Assistant UI remains bottom-right, without a duplicate header entry. Ctrl/Meta+J,
+  history and full-page navigation reuse the existing Agent session APIs. Resolved
+  session drafts share one bounded in-memory cache by user/Agent/project/session;
+  unsent drafts are not persisted across page reload. Project context is visible.
+  Mobile navigation suspends the UI without unmounting drafts. Blank conversations
+  do not adopt unrelated background activity. Plugin draft handoff becomes disabled
+  when no assistant panel is registered.
+- **Management MCP is now a registered optional native lifecycle Plugin.**
+  `lenso.console.management-mcp` provides the existing HTTP stream endpoint role
+  and requires exactly Auth and Management ports. Its optional build feature is
+  `management-mcp`, independent of assistant/Agent. It mounts the existing MCP
+  transport through ingress, forwards caller credentials, preserves realm/audience
+  checks and read-only defaults, and shuts down its bridge on deactivation.
+  The reference Host accepts an explicit MCP profile file and fails closed if its
+  required Auth/Management providers are missing. It does not create credentials
+  or install the Operators/Management authority stack automatically.
 
-Agent owns `lenso.agent.model@4` (`catalog`, streaming `complete`),
-`lenso.agent@3` (streaming `run_turn`), `lenso.agent.session@1`,
-`lenso.agent.model-selection@1`, and the Host-issued turn-binding scope.
-`turn-processing` is a projection pipeline, not an Agent invocation API.
+## Exact local boundary
 
-Console owns `lenso.ui.contribution@1` 1.3.0, owner Workspace Services, and the
-MCP Management contract/transport. The MCP transport package has no Agent
-dependency. Its official-client test
-uses a deterministic Management/auth fixture to exercise visible tool binding,
-pending/unknown outcomes and revocation. It is a transport library with an
-explicit Host bridge, not a registered installable Plugin in the reference
-Console App; that activation/lifecycle integration remains to be implemented.
+| Owner | Files/paths | Contract / reuse |
+| --- | --- | --- |
+| Console | `contracts/crates/lenso-capability-ui-global-contribution/{capability.json,schemas/,src/generated.rs,generated/bindings.ts}` | New `lenso.ui.global-contribution@1` 1.0.0, reuse contribution payload/asset/requirement vocabulary; existing `lenso.ui.contribution@1` 1.3.0 unchanged |
+| Console | `service/src/{lib.rs,page_contributions.rs}`; `src/features/extensions/{global-contribution-outlet.tsx,global-ui-runtime.ts,page-contribution-outlet.tsx}` | Generic mount/catalog, existing owner Workspace Service dispatch and renderer |
+| Console | `plugins/assistant/{Cargo.toml,config.schema.json,src/lib.rs,web/entry.tsx}`; `scripts/distribution/{build-assistant.mjs,package-assistant.mjs}` | Optional native provider plus separate browser package; public singleton adapter names in `global-ui-runtime.ts`; no runtime import of Shell-private files |
+| Console | `plugins/management-mcp/{Cargo.toml,config.schema.json,src/lib.rs,src/plugin.rs}` | Existing `lenso.auth@1`, `lenso.management@1`, `lenso.http.stream-endpoint@1`; no Agent role or new MCP contract |
+| Console | `service/crates/lenso-console-app/{Cargo.toml,src/config.rs,src/lib.rs,src/tests.rs}` | Optional installation features and explicit enable configuration; existing Plugin Root lifecycle |
 
-## Coordination required before the remaining implementation
+Build-time assistant source reuse is intentional. The independently delivered
+browser package resolves shared UI state/HTTP through the named singleton adapter
+map, preserving the actual authenticated subject, CSRF transport, router, Query
+Client and draft cache. This is a browser ABI, not an AI authorization capability.
 
-The user requires cross-repository contract changes to be reported first.
-No Agent/framework/ai-relay contracts are changed by this candidate.
+## Remaining cross-repository boundary: approval/coordination required
 
-1. **Global UI contribution, Console owner.** The current contribution descriptor
-   admits only workspace page assets and navigation. It has no independent global
-   surface mount. Add a separately owned global contribution role and loader,
-   retaining the existing React singleton, asset checks, owner services and
-   lifecycle/removal proof. The installable assistant package supplies the global
-   entry, panel and assistant page; the Shell supplies the generic mount. Existing
-   convention compilers must explicitly adopt this role if convention-generated
-   packages are to expose it. Do not add a magic Plugin ID or runtime import of
-   Shell-private files.
-2. **AI admission facade, Agent owner.** Reuse model and Agent operations behind
-   a Plugin-bound, Host-authorized entry. Separate a single model request from a
-   multi-step Agent run. Host-issued caller scope identifies consumer Plugin,
-   authenticated user and project; untrusted request fields cannot establish
-   authority. Purpose profiles narrow an administrator allowlist, token/cost
-   budgets and concurrency limits. Reserve admission before invoking the provider.
-   Keys stay with Host/provider Plugins. Bind exact model/profile and pricing
-   revision to run evidence, and fail visibly instead of silently downgrading.
-3. **Session/write authority, Agent owner.** Current session open/read/append
-   contracts carry Session IDs but no consumer/user/project namespace or assistant
-   write grant. Keep session ownership in the Session provider. The facade derives
-   isolation from trusted Host scope and validates an explicit session-write grant
-   before appending to an existing assistant session. Background runs retain run,
-   status and usage evidence without creating assistant history. The actual
-   enforcement may use Host-issued extensions where compatible; do not add client
-   supplied authorization booleans or create a second history store in Console.
+No Agent changes or new Agent capability IDs are proposed yet. Reuse:
 
-The assistant is still statically built into Console in this candidate. It is
-**not yet an independently installable/disableable Plugin**. Native/runtime
-installation separation is implemented, but hiding a surface is not removal
-proof. The remaining facade, budget admission, pricing evidence and backend
-session isolation are not implemented or claimed. Lenso Agent remains the
-independent Agent workspace; a future assistant global surface does not become
-another peer Agent identity.
+- `lenso.agent.model@4` 4.3.0: `catalog`, streaming `complete`.
+- `lenso.agent@3` 3.2.0: streaming `run_turn`.
+- Existing `lenso.agent.model-selection@1`, `lenso.agent.session@1` and
+  Host-issued `lenso.agent.turn-binding@1` scope. `turn-processing` is a projection,
+  not an invocation API.
 
-## Reproduce local evidence
+The current Agent Web surface has `/models` and interactive `/turns`, but no
+independent lightweight completion transport. It cannot safely simulate a model
+request by creating an assistant session. Minimum Agent-owner implementation to
+coordinate, in a new dedicated Agent worktree:
+
+1. **`crates/lenso-agent-host/src/generation/plugin_ai.rs` (new), plus one module
+   declaration in `crates/lenso-agent-host/src/generation.rs`.** Capture the exact
+   provider/model selection and active Generation for `complete`; invoke the
+   existing typed Model port with cancellation. Add a noninteractive Agent-run
+   adapter that uses the existing `run_turn` and Host turn binding, without using
+   the web interactive-history handler. Reject unsupported sessionless execution
+   rather than secretly creating assistant history.
+2. **`apps/lenso-agent-web/src/plugin_ai.rs` (new), plus minimal module/router
+   wiring in `apps/lenso-agent-web/src/lib.rs`.** An explicitly Host-bound bridge
+   exposes completion and run streams to Console's server adapter. Authenticate
+   with existing configured Host authority, validate the exact admitted scope,
+   and preserve realm/audience boundaries. Do not edit `run_turn`,
+   `run_turn_on_lease`, history leases or history handlers. Avoid adding a second
+   runtime loop or implicitly changing the active profile.
+3. **`crates/lenso-agent-web-plugin/src/lib.rs` only if the captured Model port is
+   unavailable to the existing surface binding.** Extend the native consumer ports
+   with existing Model/Model Selection roles, not a new invocation capability.
+   First inspect `selected_model_catalog`/Generation routing: reuse that binding
+   if it already gives an exact permitted Model handle.
+
+Console-owner adapter/policy follow-up would live in a separately optional
+`plugins/agent-ai-adapter`, not the Shell or browser. It must derive consumer from
+Host capability binding, user/project from verified authority, then admit before
+provider invocation. Administrator purpose profiles narrow exact model allowlists,
+token/cost reservations and concurrency. Record admitted and actual model plus
+pricing revision; fail visibly on mismatch without fallback. Background execution
+stores run/status/usage only. Session ownership is consumer/user/project scoped;
+writing an existing assistant session requires an explicit scoped write grant.
+Installation/assistant activation must not populate another Plugin's AI/tool grants.
+
+No model allowlist, budget enforcement, pricing ledger, cross-Plugin backend session
+namespace or session-write grant is implemented by the present UI/MCP change. The
+existing model/Agent contracts lack a pricing revision field; retain pricing as
+Host run evidence first, and request a precise schema change only if observed
+provider identity/price cannot be tracked at the adapter boundary.
+
+The independently reviewed Agent history fix `74f9970` belongs in the coordinated
+Agent baseline before this follow-up. Its worktree was not modified; no Console
+integration requires changing or cherry-picking its history code.
+
+## Local validation and reproduction
 
 ```sh
-pnpm typecheck:local
 pnpm build:local
-node --test scripts/distribution/launcher.test.mjs scripts/distribution/optional-runtimes.test.mjs
-cargo build --offline --locked --manifest-path service/Cargo.toml -p lenso-console-app --bin lenso-console
+node scripts/distribution/build-assistant.mjs
+node scripts/distribution/package-assistant.mjs plugins/assistant/web/dist /tmp/assistant-package
+cargo build --offline --locked -p lenso-console-app --bin lenso-console
 node scripts/distribution/smoke-console.mjs target/debug/lenso-console dist/client
-cargo test --offline --locked --manifest-path plugins/management-mcp/Cargo.toml
-pnpm exec vitest run --config vitest.browser.config.ts src/features/agent/agent-quick-panel.browser.test.tsx src/features/agent/agent-execution-state.browser.test.tsx
+cargo test --offline --locked -p lenso-console-app --features assistant,management-mcp optional_assistant_disable_removes_global_mount_and_assets
+cargo test --offline --locked -p lenso-management-mcp
+pnpm exec vitest run --config vitest.browser.config.ts src/features/agent/agent-quick-panel.browser.test.tsx src/features/extensions/page-contribution-outlet.browser.test.tsx
 ```
 
-The native smoke stages the actual built Console, removes Agent connection
-configuration and puts an empty directory on PATH. It proves HTTP shell startup
-and an empty Agent catalog. The browser tests use deterministic API fixtures;
-they do not prove live model calls, backend cross-Plugin authority, or publication.
-Auth realm/audience code, descriptors and dependency pins are unchanged.
+Focused browser suite: 28 passed. Native assistant disable/re-enable test passed
+and asserts mount, asset and capability removal. Actual separately built module
+was rendered through the native Console Host in Chromium: single entry, shared
+React/providers, keyboard and unsent draft, desktop 1280x800, narrow 390x844 dark,
+no horizontal overflow, disable removes UI/styles, re-enable restores, no page
+errors. Screenshots: `/tmp/lenso-optional-plugin-desktop.png` and
+`/tmp/lenso-optional-plugin-narrow-dark.png`. All Agent responses were fixtures;
+no paid model calls occurred. Four focused MCP tests passed, including actual
+native Plugin activation, metadata response and shutdown without Agent, required
+Auth/Management ports, cancellation, and existing client transport behavior.
+The assistant package closure test passed. Default native Console build and
+no-Agent startup, MCP-only feature check, optional assistant native build, Core
+web build/type check, focused lint, formatting, Clippy with warnings denied and
+repository boundary checks all passed.
+Vitest reports its existing teardown timeout after successful tests, with exit 0.
 
-## Local review evidence
-
-- Final Web typecheck/build and standalone native Console build passed.
-- Actual staged Console startup passed with empty PATH, no Agent connection,
-  HTTP shell success and an empty Agent catalog.
-- Distribution tests: 13 passed; the pre-existing development-kit integration
-  test is opt-in and was skipped. Native-only packaging uses an offline,
-  checksum-verified executable fixture; no release assets were downloaded.
-- Chromium assistant/execution browser suite: 24 passed, including navigation
-  suspension, close/reopen history, shared input, project switching and rejection
-  of unrelated background activity. Vitest reports its existing process teardown
-  timeout after successful tests and exits successfully.
-- Focused history/execution/runtime unit tests: 48 passed.
-- MCP official-client transport fixture: 1 passed with no Agent loaded. Existing
-  session/auth focused tests: 3 passed. This is not proof of a newly installable
-  MCP Plugin, assistant Plugin lifecycle or backend AI admission policy.
-- Console dependency boundary, Rust format and changed-source lint passed.
-- Playwright rendered review covered 1280x800 and 390x844, light/dark, hover,
-  focus, shortcut, open/minimized panel, no horizontal overflow and no duplicate
-  toolbar entry. Agent responses were fixtures; no models were called.
-
-No remote CI, landing, push, publication or deployment was performed. The last
-successful quota read showed 8% remaining; subsequent supported quota calls
-returned `Transport closed`, so fresh quota could not be established. Remaining
-cross-repository contracts await the requested boundary coordination.
+Auth realm/audience code, existing contract versions and upstream dependency pins
+are unchanged. No remote checks/push/main advancement/publishing/deployment or new
+credential configuration. Latest parent-reported supported quota reading: **5%**;
+this environment currently exposes no quota tool. Preserve the below-3% stop line
+and continue from this checkpoint only within that budget.

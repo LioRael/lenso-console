@@ -23,6 +23,47 @@ import {
 } from "../../packages/console/bin/lenso-console.mjs";
 import { packageConsole } from "./package-console.mjs";
 
+// Prevent a supposedly optional assistant package from copying core Console
+// files or dropping its real Agent installation dependency.
+test("assistant assets stage independently with an exact native Agent dependency", async () => {
+  const temp = await mkdtemp(join(tmpdir(), "assistant-assets-package-"));
+  try {
+    const assets = join(temp, "assets");
+    const output = join(temp, "assistant");
+    await mkdir(assets);
+    await writeFile(join(assets, "assistant.mjs"), "export const apiMajor=1;");
+    await writeFile(join(assets, "assistant.css"), ":root{color:inherit}");
+    await writeFile(
+      join(assets, "assets.json"),
+      JSON.stringify(["assistant.mjs", "assistant.css"])
+    );
+    const staged = spawnSync(
+      process.execPath,
+      ["scripts/distribution/package-assistant.mjs", assets, output],
+      { encoding: "utf-8" }
+    );
+    assert.equal(staged.status, 0, staged.stderr);
+    const manifest = JSON.parse(await readFile(join(output, "package.json")));
+    const { version } = JSON.parse(await readFile("package.json"));
+    assert.equal(manifest.name, "@lenso/console-assistant");
+    assert.deepEqual(manifest.dependencies, { "@lenso/agent-native": version });
+    const packageFiles = await readdir(output);
+    assert.deepEqual(packageFiles.toSorted(), [
+      "LICENSE",
+      "package.json",
+      "ui",
+    ]);
+    const uiFiles = await readdir(join(output, "ui"));
+    assert.deepEqual(uiFiles.toSorted(), [
+      "assets.json",
+      "assistant.css",
+      "assistant.mjs",
+    ]);
+  } finally {
+    await rm(temp, { force: true, recursive: true });
+  }
+});
+
 // Prevent accidental Agent installation and Console requirements in independent
 // runtimes; existing launcher tests only exercised the combined distribution.
 test("Console stages and starts with no Agent installation", async () => {
