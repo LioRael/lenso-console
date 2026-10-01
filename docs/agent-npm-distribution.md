@@ -117,4 +117,16 @@ This can take several minutes after `npm publish` succeeds. A bounded wait
 failure requires inspecting registry scan/publication status, not overwriting
 or immediately republishing the same immutable version.
 
+If platform uploads were accepted but public availability timed out before the
+launcher was published, inspect npm status first. Once both exact platform
+versions are publicly available, dispatch `agent-npm.yml` on `main` with
+`publish=true` and `resume_run_id` set to the original publishing run ID. This
+reuses its archives without rebuilding or uploading the platform packages again.
+The workflow requires a completed main dispatch with successful smoke checks
+for both platforms and a source revision already integrated into current main.
+It compares both launcher archives and verifies the public platform metadata,
+archive integrity and tarball availability before publishing the launcher.
+Leave `resume_run_id` empty for a new release. Do not resume if the launcher
+was already accepted by npm; inspect its processing state instead.
+
 See [npm publish-time scanning](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/).

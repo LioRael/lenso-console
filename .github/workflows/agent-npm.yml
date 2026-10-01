@@ -22,11 +22,18 @@ on:
         default: false
         required: true
 
+      resume_run_id:
+        description: Reuse validated main-run artifacts and publish only the launcher
+        type: string
+        default: ""
+        required: false
+
 permissions:
   contents: read
 
 jobs:
   package:
+    if: inputs.resume_run_id == ''
     strategy:
       fail-fast: false
       matrix:
@@ -69,32 +76,53 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    if: >-
+      always() && github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' && (needs.package.result == 'success' || (inputs.resume_run_id != '' && needs.package.result == 'skipped'))
     needs: package
     runs-on: ubuntu-24.04
     environment: npm
     permissions:
       contents: read
+      actions: read
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Verify original release run
+        if: inputs.resume_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+        run: |
+          [[ "$RESUME_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID" > /tmp/release-run.json
+          jq -e '.path == ".github/workflows/agent-npm.yml" and .event == "workflow_dispatch" and .head_branch == "main" and .status == "completed"' /tmp/release-run.json
+          git merge-base --is-ancestor "$(jq -r .head_sha /tmp/release-run.json)" HEAD
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$RESUME_RUN_ID/jobs?filter=latest&per_page=100" --jq '.jobs[] | {name, conclusion}' > /tmp/release-jobs.json
+          jq -se '([.[] | select(.name == "package (macos-15, darwin-arm64)" or .name == "package (ubuntu-24.04, linux-x64)")] | length == 2) and all(.[] | select(.name == "package (macos-15, darwin-arm64)" or .name == "package (ubuntu-24.04, linux-x64)"); .conclusion == "success")' /tmp/release-jobs.json
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: npm-*
           path: artifacts
+          run-id: ${{ inputs.resume_run_id || github.run_id }}
+          github-token: ${{ github.token }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install --global npm@11.5.1 --ignore-scripts
       - name: Publish platform packages before the launcher
+        env:
+          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
         run: |
           cmp artifacts/npm-darwin-arm64/lenso-agent-[0-9]*.tgz artifacts/npm-linux-x64/lenso-agent-[0-9]*.tgz
-          for target in darwin-arm64 linux-x64; do
-            npm publish artifacts/npm-$target/lenso-agent-$target-*.tgz --access public --provenance
-          done
+          if [[ -z "$RESUME_RUN_ID" ]]; then
+            for target in darwin-arm64 linux-x64; do
+              npm publish artifacts/npm-$target/lenso-agent-$target-*.tgz --access public --provenance
+            done
+          fi
           for target in darwin-arm64 linux-x64; do
             node scripts/distribution/wait-for-npm-package.mjs artifacts/npm-$target/lenso-agent-$target-*.tgz
           done
