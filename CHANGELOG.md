@@ -1,5 +1,30 @@
 ## @lenso/console-web@0.1.7
 
+## 1.20.0
+
+### Minor Changes
+
+- a2dee93: Align the Console shell, Agent sidebar, composer, Plugin pages and Settings with
+  the current Lenso UI Console Workspace template. Upgrade the published Lenso UI
+  and framework cohorts while preserving the authenticated App and Plugin runtime.
+
+### Patch Changes
+
+- 5ad12cf: Adopt the HeroUI-based UI and tokens 0.8.0, migrate Console controls and theme
+  references, and align the backend with Lenso revision
+  119b9af70b82816588c00c8bf812f7c62d1a18b5. Unify Cargo dependency resolution and
+  provide a high-level native Host example with real Console removal verification.
+
+  Refactor the Console chrome around the approved Pencil design with shared
+  two-level navigation, context header, history/address toolbar and page headings.
+  Use Lenso Button variants for sidebar items and pill icon actions, remove Plugin
+  detail breadcrumbs, and preserve responsive navigation, focus and route context.
+
+- ed1cfec: Upgrade the Console Plugin workspaces and contract generation to the Lenso SDK
+  cohort with Kernel 0.3.12 and contract codegen 0.10.1. Preserve the existing
+  Capability schemas and use the matching Auth, Access Control, Approval and Audit
+  Owner sources for Native and Workers profiles.
+
 ## 1.19.1
 
 ### Patch Changes
