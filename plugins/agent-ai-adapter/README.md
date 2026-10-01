@@ -190,3 +190,17 @@ The existing completion and scoped Session regressions also passed. Evidence:
 `/tmp/lenso-p1-console-clippy.log`, `/tmp/lenso-p1-agent-clippy.log`.
 The isolated Agent fixture executable is under `/tmp/lenso-p1-agent-target` after
 external removal of the prior worktree build cache.
+
+## Cancellation trust boundary
+
+The Agent bridge accepts a fresh valid Model-complete assertion with the same
+verified **subject** and existing Host control token to cancel that subject's
+active run, even if the assertion differs from the original snapshot. It does
+not independently enforce Console caller/project isolation for cancellation.
+An expired snapshot matches only active records admitted with those exact bytes;
+if the same assertion admitted several runs, each matching record can be stopped.
+All cancellation still requires the private Host control seam. Console never
+exposes that token to browser callers or consumer arguments: Kernel caller binding,
+immutable profile and ledger ownership enforce consumer/user/project boundaries.
+Native Hosts and Plugins remain trusted. The task Kernel is composition and
+bounded state/forwarding, not a hostile native-code or filesystem sandbox.

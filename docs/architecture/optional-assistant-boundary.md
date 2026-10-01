@@ -255,3 +255,49 @@ of `a716f7ae2a3ee3df8b20faeb17f977ff5ce111f6` on `feat/optional-assistant`.
 The final six-test cross-process run passed in 6.65 seconds. Console six-unit,
 Agent pending-open cancellation, strict Clippy, formatting and diff checks passed.
 Original commits and independent-review evidence remain unchanged.
+
+## Candidate gate preparation and fixture investigation
+
+Independent P1 review found no findings for Console `e811e58` / Agent `067c907`;
+13 independently executed tests and expiry/ledger probes passed. Review evidence
+is `/tmp/lenso-independent-p1-review/validation.json`. This remains review evidence,
+not remote CI, landing, publication or deployment.
+
+The reported parallel scoped-fixture exit failure lacked child stderr. A subsequent
+bounded investigation reproduced another concrete isolation defect: directly
+executed tests inherited the Console repo cwd and loaded its incompatible `land`
+Skill. The fixture now sets child cwd to its own TempDir and includes exit status
+and child log on shutdown failures. Home, workspace, SQLite files, fault markers
+and dynamically allocated ports are per fixture; no test changes global environment
+or process cwd. Three parallel six-test runs then passed (18 checks), with logs at
+`/tmp/lenso-gate-race-investigation/isolated-cwd-results.json`. The historical
+shutdown failure cannot be assigned the same cause without its lost child log;
+no production Session race was reproduced and no blanket retry, serialization or
+sleep was added. Future failures retain the actual exception instead of a generic
+history-assertion message.
+
+Agent cancellation recognizes signed subject, not Console caller/project. With
+private Host control, a fresh valid same-subject assertion can cancel that subject's
+run. An expired assertion snapshot matches active records admitted with its exact
+bytes; reusing one assertion across runs can match several records. Console Kernel,
+Host profile and private control-token custody enforce consumer/user/project scope.
+Trusted native code is not sandboxed by the task Kernel.
+
+Read-only remote preparation confirmed Console base
+`cf4f7ff1801274914059357f5f827f103297847b` and Agent base
+`74f9970d1aed8b04155c5aa93c2f4233ae4f1892` remain ancestors of these branches.
+Both candidate workflows are active; main requires linear history and preserved
+quality checks, without PR review requirements. Repository CONTRIBUTING/Land
+instructions require a push-triggered exact candidate SHA check; manual dispatch
+or independent local review cannot substitute. The planned refs are
+`codex/verify/lenso-console/optional-assistant-gate-1` and
+`codex/verify/lenso-agent/optional-assistant-gate-1`. Their push and Delta delivery
+coordination are pending authorization under the original local-only delegation.
+Main promotion and publication remain outside authorization.
+
+Local candidate preparation also passed Console `pnpm check:preflight`, optional
+native App/adapter strict Clippy, Agent Host/Web strict Clippy and the CI-pinned
+0.10.0 contract generator check. Host library testing passed 132 tests (one
+ignored); its filesystem watcher timed out in the macOS sandbox and then passed
+when rerun outside it. SQLite Session library tests passed all 14. These local
+results do not substitute for the final SHA remote candidate gate.

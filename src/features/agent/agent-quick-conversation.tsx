@@ -13,7 +13,6 @@ import { useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
-
 import { PromptComposer } from "../../components/lenso/recipes/prompt-composer";
 import { AgentAskUser } from "./agent-ask-user";
 import {

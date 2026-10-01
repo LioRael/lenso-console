@@ -150,7 +150,9 @@ async fn run_binding_integration(scoped: bool, safety: Option<&str>) {
         let issuer = lenso_auth_sdk::ActorAssertionIssuer::from_signing_key("operators.fixture", [7; 32]);
         let binary = PathBuf::from(std::env::var("LENSO_AI_AGENT_TEST_BINARY").unwrap());
         let log = std::fs::File::create(root.path().join("agent-fixture.log")).unwrap();
-        let mut child = Fixture(Command::new(binary).args(["--ignored", "--exact", "plugin_ai::tests::plugin_ai_fixture_process", "--nocapture"])
+        // Keep filesystem Skills, instructions and workspace discovery inside
+        // this fixture. A test executable must not inherit the caller's repo.
+        let mut child = Fixture(Command::new(binary).current_dir(root.path()).args(["--ignored", "--exact", "plugin_ai::tests::plugin_ai_fixture_process", "--nocapture"])
             .env("LENSO_AI_FIXTURE_ROOT",root.path()).env("LENSO_AI_FIXTURE_ISSUER","operators.fixture")
             .env("LENSO_AI_FIXTURE_SCOPED",if scoped{"1"}else{"0"}).env("LENSO_AI_FIXTURE_PUBLIC_KEY",issuer.public_key_base64()).stdout(Stdio::from(log.try_clone().unwrap())).stderr(Stdio::from(log)).spawn().unwrap());
         let origin_path = root.path().join("fixture-origin");
@@ -374,7 +376,7 @@ async fn run_binding_integration(scoped: bool, safety: Option<&str>) {
         assert_eq!(app.shutdown(Duration::from_secs(2)).await,ShutdownOutcome::Clean);
         std::fs::write(root.path().join("fixture-stop"),"").unwrap();
         for _ in 0..100 {
-            if let Some(status) = child.0.try_wait().unwrap() { assert!(status.success(),"fixture history assertions failed"); return; }
+            if let Some(status) = child.0.try_wait().unwrap() { assert!(status.success(),"fixture shutdown failed ({status}): {}",std::fs::read_to_string(root.path().join("agent-fixture.log")).unwrap()); return; }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
         panic!("Agent fixture shutdown timed out");
