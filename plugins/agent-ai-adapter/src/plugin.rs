@@ -21,6 +21,8 @@ struct Config {
     public_key: String,
     provider_instance: String,
     profile: PurposeProfile,
+    #[serde(default)]
+    run: Option<crate::scope::RunPolicy>,
 }
 
 fn failure(error: impl std::fmt::Display) -> RuntimeFailure {
@@ -68,6 +70,7 @@ struct Running {
     verifier: RealmAssertionVerifier,
     client: reqwest::Client,
     control: Rc<HostControl>,
+    scopes: Option<crate::scope::ScopeStore>,
 }
 
 struct HostControl(String);
@@ -77,7 +80,7 @@ impl std::fmt::Debug for HostControl {
     }
 }
 
-#[lenso::plugin(lifecycle, configuration_schema = "config.schema.json", validate = validate)]
+#[lenso::plugin(lifecycle, configuration_schema = "config.schema.json", validate = validate, request_queue_capacity = 32, request_max_concurrency = 32)]
 #[derive(Clone, Debug)]
 struct AiAdapter {
     #[config]
@@ -139,7 +142,7 @@ impl AiAdapter {
         Box::pin(async {
             Ok(Ok(serde_json::from_value(serde_json::json!({
             "adapter_revision":"completion/1", "services":[{"service_id":"ai", "capability_id":service::CAPABILITY_ID,
-            "descriptor_version":service::DESCRIPTOR_VERSION,"operations":[{"name":"complete","interaction":"request"},{"name":"recover","interaction":"request"}]}]
+            "descriptor_version":service::DESCRIPTOR_VERSION,"operations":[{"name":"complete","interaction":"request"},{"name":"recover","interaction":"request"},{"name":"run","interaction":"request"},{"name":"open_session","interaction":"request"},{"name":"register_session","interaction":"request"},{"name":"grant_session","interaction":"request"},{"name":"revoke_grant","interaction":"request"}]}]
         })).map_err(failure)?))
         })
     }
@@ -156,7 +159,16 @@ impl AiAdapter {
             if request.service_id != "ai" {
                 return Ok(Err(service::InvokeError::UnknownService));
             }
-            if !matches!(request.operation.as_str(), "complete" | "recover") {
+            if !matches!(
+                request.operation.as_str(),
+                "complete"
+                    | "recover"
+                    | "run"
+                    | "open_session"
+                    | "register_session"
+                    | "grant_session"
+                    | "revoke_grant"
+            ) {
                 return Ok(Err(service::InvokeError::UnknownOperation));
             }
             let Some(running) = running else {
@@ -230,6 +242,13 @@ async fn complete(
     if bytes.len() > 65536 {
         return Err(Rejection::Limit);
     }
+    if matches!(
+        request.operation.as_str(),
+        "open_session" | "register_session" | "grant_session" | "revoke_grant"
+    ) {
+        return session_operation(running, config, &caller, &actor, &request.operation, &bytes)
+            .await;
+    }
     if request.operation == "recover" {
         #[derive(serde::Deserialize)]
         #[serde(deny_unknown_fields)]
@@ -275,8 +294,41 @@ async fn complete(
         }
         return Err(Rejection::Provider);
     }
-    let request: CompletionRequest =
-        serde_json::from_slice(&bytes).map_err(|_| Rejection::Limit)?;
+    let run = if request.operation == "run" {
+        let input: RunRequest = serde_json::from_slice(&bytes).map_err(|_| Rejection::Limit)?;
+        let policy = config.run.as_ref().ok_or(Rejection::Unauthorized)?;
+        if input.max_calls == 0 || input.max_calls > policy.max_calls {
+            return Err(Rejection::Limit);
+        }
+        Some(input)
+    } else {
+        None
+    };
+    let namespace = if let Some(input) = &run {
+        if let Some(id) = &input.session_id {
+            running
+                .scopes
+                .as_ref()
+                .ok_or(Rejection::Unauthorized)?
+                .authorize(id, &caller, input.grant_id.as_deref())?
+        } else {
+            if input.grant_id.is_some() {
+                return Err(Rejection::Unauthorized);
+            }
+            serde_json::Value::Null
+        }
+    } else {
+        serde_json::Value::Null
+    };
+    let request: CompletionRequest = if let Some(input) = &run {
+        CompletionRequest {
+            model: input.model.clone(),
+            prompt: input.prompt.clone(),
+            max_output: input.max_output,
+        }
+    } else {
+        serde_json::from_slice(&bytes).map_err(|_| Rejection::Limit)?
+    };
     running.admission.authorize(&caller, &request)?;
     let assertion = actor;
     let actor = STANDARD
@@ -310,9 +362,29 @@ async fn complete(
     body["generation"] = generation.into();
     body["input_ceiling"] = ceiling.into();
     ensure_current(credential_state, context, &assertion).await?;
-    let reservation = running
-        .admission
-        .reserve(id.clone(), &caller, &request, ceiling, &quote)?;
+    if let Some(input) = &run {
+        ensure_run_audiences(
+            credential_state,
+            context,
+            &assertion,
+            input.session_id.is_some(),
+        )
+        .await?;
+    }
+    let reservation = if let Some(input) = &run {
+        running.admission.reserve_run(
+            id.clone(),
+            &caller,
+            &request,
+            ceiling,
+            input.max_calls,
+            &quote,
+        )?
+    } else {
+        running
+            .admission
+            .reserve(id.clone(), &caller, &request, ceiling, &quote)?
+    };
     let mut remote = RemoteRunGuard {
         client: running.client.clone(),
         url: format!("{base}/completions/{id}/cancel"),
@@ -321,7 +393,14 @@ async fn complete(
         control: running.control.0.clone(),
     };
     let cancellation = context.cancellation();
-    let completion_url = format!("{base}/completions");
+    let completion_url = format!(
+        "{base}/{}",
+        if run.is_some() { "runs" } else { "completions" }
+    );
+    if let Some(input) = &run {
+        let policy = config.run.as_ref().ok_or(Rejection::Unauthorized)?;
+        body = serde_json::json!({"completion":body,"policy":{"max_calls":input.max_calls,"allowed_tools":policy.tools,"workspace":policy.workspace,"session_id":input.session_id,"session_namespace":namespace}});
+    }
     let reply = tokio::select! {
         biased;
         () = cancellation.cancelled() => {
@@ -330,9 +409,32 @@ async fn complete(
             return Err(Rejection::Provider);
         }
         _ = watch_revocation(credential_state, context, &assertion) => return Err(Rejection::Unauthorized),
+        _ = watch_session_permission(running.scopes.as_ref(),&caller,run.as_ref(),credential_state,context,&assertion) => return Err(Rejection::Unauthorized),
         reply = bounded_post(&running.client, &completion_url, &actor, &running.control.0, &body) => reply?,
     };
     ensure_current(credential_state, context, &assertion).await?;
+    if let Some(input) = &run {
+        ensure_run_audiences(
+            credential_state,
+            context,
+            &assertion,
+            input.session_id.is_some(),
+        )
+        .await?;
+        if let Some(id) = &input.session_id {
+            running
+                .scopes
+                .as_ref()
+                .ok_or(Rejection::Unauthorized)?
+                .authorize(id, &caller, input.grant_id.as_deref())?;
+        }
+        if reply["calls"]
+            .as_u64()
+            .is_none_or(|calls| calls == 0 || calls > u64::from(input.max_calls))
+        {
+            return Err(Rejection::Evidence);
+        }
+    }
     if reply["binding"] != quote {
         return Err(Rejection::Evidence);
     }
@@ -345,7 +447,7 @@ async fn complete(
     )?;
     remote.completed = true;
     serde_json::to_vec(
-        &serde_json::json!({"text":text,"run_id":id,"evidence":evidence,"binding":quote}),
+        &serde_json::json!({"text":text,"run_id":id,"evidence":evidence,"binding":quote,"calls":reply["calls"],"session_id":reply["session_id"]}),
     )
     .map_err(|_| Rejection::Evidence)
 }
@@ -470,6 +572,13 @@ impl lenso::Lifecycle for AiAdapter {
             verifier,
             client,
             control: Rc::new(HostControl(control.trim().to_owned())),
+            scopes: self
+                .config
+                .run
+                .as_ref()
+                .map(|policy| crate::scope::ScopeStore::open(policy, &self.config.profile))
+                .transpose()
+                .map_err(|e| failure(format!("run authority: {e:?}")))?,
         });
         Ok(())
     }
@@ -480,3 +589,153 @@ impl lenso::Lifecycle for AiAdapter {
 }
 
 pub fn link() {}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RunRequest {
+    model: String,
+    prompt: String,
+    max_output: u64,
+    max_calls: u32,
+    session_id: Option<String>,
+    grant_id: Option<String>,
+}
+async fn session_operation(
+    running: &Running,
+    config: &Config,
+    caller: &HostCaller,
+    actor: &ActorAssertion,
+    operation: &str,
+    bytes: &[u8],
+) -> Result<Vec<u8>, Rejection> {
+    let policy = config.run.as_ref().ok_or(Rejection::Unauthorized)?;
+    let store = running.scopes.as_ref().ok_or(Rejection::Unauthorized)?;
+    let reply = match operation {
+        "grant_session" => {
+            if !policy.existing_session_owners.contains(&caller.consumer) {
+                return Err(Rejection::Unauthorized);
+            }
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Grant {
+                session_id: String,
+                consumer: String,
+                seconds: i64,
+            }
+            let grant: Grant = serde_json::from_slice(bytes).map_err(|_| Rejection::Limit)?;
+            serde_json::json!({"grant_id":store.grant(&grant.session_id,caller,&grant.consumer,grant.seconds)?})
+        }
+        "revoke_grant" => {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Revoke {
+                grant_id: String,
+            }
+            let grant: Revoke = serde_json::from_slice(bytes).map_err(|_| Rejection::Limit)?;
+            store.revoke(&grant.grant_id, caller)?;
+            serde_json::json!({"revoked":true})
+        }
+        "open_session" | "register_session" => {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Session {
+                session_id: Option<String>,
+            }
+            let input: Session = serde_json::from_slice(bytes).map_err(|_| Rejection::Limit)?;
+            if (operation == "open_session" && input.session_id.is_some())
+                || (operation == "register_session"
+                    && (input.session_id.is_none()
+                        || !policy.existing_session_owners.contains(&caller.consumer)))
+            {
+                return Err(Rejection::Unauthorized);
+            }
+            let namespace = if operation == "register_session" {
+                serde_json::Value::Null
+            } else {
+                serde_json::to_value(caller).map_err(|_| Rejection::Ledger)?
+            };
+            let header = STANDARD
+                .encode(serde_json::to_vec(&actor.to_wire()).map_err(|_| Rejection::Unauthorized)?);
+            let reply = bounded_post(
+                &running.client,
+                &format!(
+                    "{}/api/console/v1/agent/plugin-ai/session",
+                    config.agent_origin.trim_end_matches('/')
+                ),
+                &header,
+                &running.control.0,
+                &serde_json::json!({"session_id":input.session_id,"namespace":namespace}),
+            )
+            .await?;
+            let id = reply["session_id"].as_str().ok_or(Rejection::Evidence)?;
+            store.register(id, caller, &namespace)?;
+            serde_json::json!({"session_id":id})
+        }
+        _ => return Err(Rejection::Unauthorized),
+    };
+    serde_json::to_vec(&reply).map_err(|_| Rejection::Evidence)
+}
+async fn ensure_run_audiences(
+    state: &credentials::CredentialStateClient,
+    context: &InvocationContext,
+    actor: &ActorAssertion,
+    persistent: bool,
+) -> Result<(), Rejection> {
+    let binding = lenso_auth_sdk::credential::CredentialBinding::from_assertion(actor)
+        .map_err(|_| Rejection::Unauthorized)?;
+    let live = tokio::time::timeout(
+        Duration::from_secs(2),
+        state.inspect_with_context(
+            context.clone(),
+            credentials::InspectRequest {
+                credential_id: binding.credential_id,
+                session_id: binding.session_id,
+            },
+        ),
+    )
+    .await
+    .map_err(|_| Rejection::Unauthorized)?
+    .map_err(|_| Rejection::Unauthorized)?;
+    let mut required = vec![lenso_auth_sdk::audience("lenso.agent@3", "run_turn")];
+    if persistent {
+        required.extend(
+            ["open", "read", "append"]
+                .map(|op| lenso_auth_sdk::audience("lenso.agent.session@1", op)),
+        );
+    }
+    if !live.active
+        || required.iter().any(|audience| {
+            !live.audience.contains(audience) || !actor.to_wire().audience.contains(audience)
+        })
+    {
+        return Err(Rejection::Unauthorized);
+    }
+    Ok(())
+}
+async fn watch_session_permission(
+    store: Option<&crate::scope::ScopeStore>,
+    caller: &HostCaller,
+    run: Option<&RunRequest>,
+    state: &credentials::CredentialStateClient,
+    context: &InvocationContext,
+    actor: &ActorAssertion,
+) {
+    let Some(run) = run else {
+        futures::future::pending::<()>().await;
+        return;
+    };
+    loop {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        if ensure_run_audiences(state, context, actor, run.session_id.is_some())
+            .await
+            .is_err()
+        {
+            return;
+        }
+        if let Some(id) = &run.session_id
+            && store.is_none_or(|s| s.authorize(id, caller, run.grant_id.as_deref()).is_err())
+        {
+            return;
+        }
+    }
+}

@@ -6,6 +6,7 @@ pub mod durable;
 #[cfg(test)]
 mod integration_tests;
 mod plugin;
+mod scope;
 pub use plugin::link;
 
 use std::{

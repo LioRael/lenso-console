@@ -1,11 +1,11 @@
-# Optional background completion adapter
+# Optional AI adapter
 
 `lenso.console.agent-ai-adapter` provides the existing
-`lenso.ui.workspace-service@1` role with service `ai`, unary operations `complete` and explicit `recover`.
+`lenso.ui.workspace-service@1` role with service `ai`, unary operations `complete`, `run` and explicit `recover`, plus Session authority operations.
 The body is `{ "model": "exact-model", "prompt": "text", "max_output": 64 }`.
 Caller, user, project, credential, price and budget fields are forbidden. The
 result contains text, a run reference, usage and exact Model binding evidence.
-This path never opens a Session, Turn or Tool, and stores no prompt/answer history.
+The `complete` path never opens a Session, Turn or Tool, and stores no prompt/answer history.
 
 Installation and enablement are separate. Build the Console reference Host with
 `--features agent-ai`, then explicitly select a Host-owned configuration file
@@ -74,8 +74,74 @@ and process-local: unknown IDs, failed/cancelled opens, lost receipts and Agent
 restarts fail closed and still need operator reconciliation. A disappearing HTTP
 worker cannot prove Kernel dispatch ended. This is conservative crash recovery
 for Console interruption after provider success, not arbitrary crash recovery.
-Automatic policy migration, multi-round Agent runs and explicit assistant
-Session-write grants remain outside this slice.
+Automatic policy migration remains unsupported. The optional `run` path below reuses the existing Agent Loop with bounded calls and scoped Session authority.
+
+## Bounded Agent tasks and explicit history
+
+Omit `run` from configuration to keep completion-only operation. To opt in, add:
+
+```json
+{
+  "run": {
+    "authority": "/absolute/plugin-owned/run-authority.sqlite",
+    "workspace": "/absolute/host-selected/project",
+    "max_calls": 2,
+    "tools": ["uppercase"],
+    "existing_session_owners": ["trusted-assistant-consumer/default"]
+  }
+}
+```
+
+The separate authority file stores immutable policy, Session scope references and
+revocable grants, never text. It must differ from the usage ledger. Multiple
+configured callers/projects share the same immutable purpose profile; per-request
+caller/user/project always comes from Kernel, operators Actor and Host policy.
+
+`run` accepts `{ "model":"exact-model", "prompt":"text", "max_output":64,
+"max_calls":2, "session_id":null, "grant_id":null }`. Calls must fit the admin
+ceiling (1–16). The full quoted input ceiling and output limit for **all** possible
+calls are durably reserved before dispatch. Each actual native Model open, including
+Loop retries, consumes the bound; successful terminal usage settles aggregate cost.
+Missing/excessive usage or cancellation retains the entire reservation. No hidden
+retry, model substitution or price fallback is introduced. Result evidence includes
+exact binding, actual calls and optional Session ID.
+
+With no Session ID, the existing Loop uses bounded transient task history, discarded
+after task Kernel shutdown. No assistant history is created. Memory persistence,
+Artifacts, compaction, attachments and nested Agent/code execution Tools are denied
+in this bounded composition. Existing Tool Hooks and provider checks still apply;
+only explicitly allowed Tools appear. Full/Assisted approval is not inherited and
+absence of interactive approval fails closed. Custom trusted Tools must not perform
+unmetered secondary Model calls. The Host workspace is explicit; there is no sandbox
+or additional Tool authority implied by this native task boundary.
+
+Persistent history requires an explicit operation:
+
+- `open_session` with `{}` creates a plugin/user/project-scoped Session.
+- `register_session` with `{ "session_id":"existing-id" }` verifies an existing
+  assistant Session's signed owner before binding it. Only admin-designated
+  `existing_session_owners` may register it.
+- `grant_session` with `{ "session_id":"id", "consumer":"recipient/instance",
+  "seconds":300 }` is an explicit privileged owner action. It grants just this
+  Session to a configured consumer with the same verified user and project, for
+  at most one hour. The grant does not enable Tools or change model policy.
+- `revoke_grant` with `{ "grant_id":"id" }` revokes only the owner's grant.
+
+Runs can resume owned scoped Sessions directly; another consumer must include the
+exact explicit grant. They cannot create history implicitly or supply a namespace,
+project, user, credential, workspace or Tool list. Authenticated SQLite namespaces
+keep plugin history outside root assistant listings; existing assistant ownership
+remains unchanged. Agent runs additionally require signed and current `Agent
+run_turn` audience; persistent runs require Session `open/read/append`. Grant
+revocation/expiry and these audiences are rechecked every 250 ms and at settlement.
+Revocation cancels pending native work; already accepted side effects are not undone.
+
+The optional bridge is Host-trusted ingress requiring both existing control token
+and operators assertion. Arbitrary native Hosts holding that token are responsible
+for equivalent admission. No credential is created and no permission is granted by
+installation. Coordinated Agent implementation: ADR 0119 on branch
+`feat/plugin-ai-completion`; SDK namespace is native baggage, not a wire contract
+version change. Authenticated file Session writes are unsupported.
 
 Validation:
 
@@ -90,6 +156,6 @@ LENSO_AI_AGENT_TEST_BINARY=/absolute/path/to/agent-test-executable \
 The integration test uses actual Console Kernel binding and a separate Agent
 fixture process, known synthetic pricing and no paid call. It rejects caller,
 issuer/audience and project spoofing, verifies live revocation, cancel/failure reservations and evidence-backed crash recovery without refunds, and
-asserts empty Agent Session lists before and after. Child process/listeners are
+asserts empty Agent Session lists before and after background work. The scoped-run test uses the original Loop, explicit Session grants and cancellation on revocation; only two explicitly requested Sessions persist. Child process/listeners are
 cleaned up. The Agent branch is `feat/plugin-ai-completion`, based on `74f9970`;
 its existing history handlers and interactive run implementation are preserved.

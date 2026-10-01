@@ -167,23 +167,57 @@ Vitest reports its existing teardown timeout after successful tests, with exit 0
 
 Auth realm/audience code, existing contract versions and upstream dependency pins
 are unchanged. No remote checks/push/main advancement/publishing/deployment or new
-credential configuration. Latest user-reported quota reading: **4%**;
-this environment currently exposes no quota tool. Preserve the newly authorized below-1% stop line
-and continue from this checkpoint only within that budget.
+credential configuration. The user removed the quota stop requirement during continuation.
 
-The completion adapter now requires the existing Credential State binding and
-rechecks parent credential revocation throughout pending work. Explicit recovery
-can release reserved concurrency only with a successful provider terminal receipt,
-without refund or replay. Unknown execution/lost receipts remain blocked; scoped
-multi-round runs and explicit assistant Session-write grants remain unfinished.
+## Completed scoped run continuation
 
-The next implementation must reuse Agent Loop without exposing its raw
-`run_turn(session_id=None)` path: that path automatically opens a Session and
-writes interactive history. Existing history ownership is issuer/subject, not
-consumer/project. Use an isolated task Session composition for background runs
-and an explicit, scoped, revocable grant for writes to an existing assistant
-Session. Enforce exact Model binding and per-round reservations before every
-Model call; a request-wide maximum alone cannot bound multi-round costs. Verify
-no implicit history, cross-plugin/project denial, cancellation/revocation and
-known-price budget/concurrency at each round. Keep interactive history fixes and
-Framework/Relay branches untouched. This boundary is pending implementation.
+`ai.run` now reuses the existing Agent Loop inside a task Kernel with exact
+retained parent bindings. The new native run boundary counts and meters every
+Model open, narrows Tools and preserves final Tool Hook/provider checks. Console
+reserves all permitted calls before dispatch. Background Session history is
+bounded memory discarded at shutdown; no assistant Session is opened.
+
+Explicit `open_session`, `register_session`, `grant_session` and `revoke_grant`
+operations separate plugin/user/project history and owner-authorized writes to
+an existing assistant Session. A separate WAL/FULL authority database preserves
+the old completion ledger schema. Grant expiry/revocation and current signed
+Agent/Session audiences are checked before, during and after execution. Native
+Session namespace baggage leaves existing wire contracts and root ownership
+unchanged. Agent ADR 0119 records the cross-repository boundary.
+
+The real cross-process scoped test passed: two Model calls plus the synthetic
+uppercase Tool; zero persistent background history; owner verification; explicit
+recipient grant; cross-project denial; cancellation after revocation; isolated
+plugin Session; exactly two explicitly requested Sessions. Fixture Tools require
+explicit existing Hook allow policy. No Full/Assisted approval, nested Agent or
+unmetered code-mode execution is inherited. The task lifecycle guard is retained
+until Kernel shutdown and successful terminal receipts support conservative
+recovery. Known-price reservations and previous completion/revocation behavior
+remain covered.
+
+Focused Console and Agent Host/Web Clippy passed with warnings denied. Evidence:
+`/tmp/lenso-console-run-e2e.log`, `/tmp/lenso-plugin-run-host-test.log`,
+`/tmp/lenso-console-run-clippy.log`, `/tmp/lenso-plugin-run-clippy.log`.
+These are local implementation candidates for coordinated review; no landing,
+remote gate, publication, deployment or paid call has occurred. Operational
+limitations are explicit: native trust boundary, authenticated SQLite for scoped
+history, no attachments/artifacts/compaction/secondary unmetered Model calls,
+and fail-closed recovery when successful terminal receipts are lost.
+
+Final continuation validation: 6 Console unit tests, 2 actual cross-process tests,
+14 SQLite Session regressions, real Loop two-call/scoped task test, and pending
+Model-open cancellation regression passed. Default Console and MCP-only checks,
+Console Host/adapter and Agent Host/Web strict Clippy, formatting and diff checks
+passed. Default graph excludes Agent Host/Web/default Plugins and all three
+optional Console providers. Authenticated SQLite is explicitly required before
+any persistent plugin Session admission; a plain or file provider is rejected.
+Native macOS test linking reports the existing large `__eh_frame` warning; tests
+still pass. Intent skill discovery was attempted but npm access was unavailable;
+repository Lenso Plugin Authoring instructions were used.
+
+Review pair: Agent `44b1120` on `feat/plugin-ai-completion` (parent `1c7800d`),
+Console continuation on `feat/optional-assistant` (parent `baaccbd`). Existing
+review references `09e827` / `6b13c9e` remain unchanged ancestors. These branches
+retain their isolated original bases; current destination branches may have
+advanced independently and must be reconciled in Delta before a new candidate
+CI gate and exact-SHA landing. No remote branch was pushed.

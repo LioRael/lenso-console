@@ -156,15 +156,59 @@ impl DurableAdmission {
         input_ceiling: u64,
         binding: &serde_json::Value,
     ) -> Result<DurableReservation, Rejection> {
+        self.reserve_limits(
+            id,
+            caller,
+            request,
+            input_ceiling,
+            request.max_output,
+            binding,
+        )
+    }
+    pub fn reserve_run(
+        &self,
+        id: String,
+        caller: &HostCaller,
+        request: &CompletionRequest,
+        input_ceiling: u64,
+        max_calls: u32,
+        binding: &serde_json::Value,
+    ) -> Result<DurableReservation, Rejection> {
+        if !(1..=16).contains(&max_calls) {
+            return Err(Rejection::Limit);
+        }
+        self.reserve_limits(
+            id,
+            caller,
+            request,
+            input_ceiling
+                .checked_mul(u64::from(max_calls))
+                .ok_or(Rejection::Budget)?,
+            request
+                .max_output
+                .checked_mul(u64::from(max_calls))
+                .ok_or(Rejection::Budget)?,
+            binding,
+        )
+    }
+    fn reserve_limits(
+        &self,
+        id: String,
+        caller: &HostCaller,
+        request: &CompletionRequest,
+        input_ceiling: u64,
+        output_ceiling: u64,
+        binding: &serde_json::Value,
+    ) -> Result<DurableReservation, Rejection> {
         self.authorize(caller, request)?;
         if input_ceiling == 0 {
             return Err(Rejection::UnmeteredInput);
         }
         let price = self.profile.price.clone().ok_or(Rejection::UnknownPrice)?;
-        let amount = cost(&price, input_ceiling, request.max_output)?;
+        let amount = cost(&price, input_ceiling, output_ceiling)?;
         let charge = i64::try_from(amount).map_err(|_| Rejection::Budget)?;
         let admission = serde_json::to_string(&serde_json::json!({"caller":caller,"model":request.model,
-            "price_version":price.version,"input_ceiling":input_ceiling,"output_ceiling":request.max_output,"binding":binding}))
+            "price_version":price.version,"input_ceiling":input_ceiling,"output_ceiling":output_ceiling,"binding":binding}))
             .map_err(|_| Rejection::Ledger)?;
         let mut connection = self.connection.lock().map_err(|_| Rejection::Ledger)?;
         let tx = connection
@@ -202,7 +246,7 @@ impl DurableAdmission {
             id,
             amount,
             input_ceiling,
-            output_ceiling: request.max_output,
+            output_ceiling,
             price,
             caller: caller.clone(),
             model: request.model.clone(),

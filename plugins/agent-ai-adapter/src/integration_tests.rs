@@ -50,7 +50,7 @@ impl lenso_kernel::NativeRequestEndpoint for CredentialEndpoint {
             let response: credentials::InspectResponse = serde_json::from_value(serde_json::json!({
                 "credential_id":request.credential_id,"session_id":request.session_id,"subject":"alice","actor_kind":"user",
                 "assurance":"fixture","claims":{},"active":active,
-                "audience":[lenso_auth_sdk::audience(service::CAPABILITY_ID,service::INVOKE_OPERATION),lenso_auth_sdk::audience("lenso.agent.model@4","complete")],
+                "audience":[lenso_auth_sdk::audience(service::CAPABILITY_ID,service::INVOKE_OPERATION),lenso_auth_sdk::audience("lenso.agent.model@4","complete"),lenso_auth_sdk::audience("lenso.agent@3","run_turn"),lenso_auth_sdk::audience("lenso.agent.session@1","open"),lenso_auth_sdk::audience("lenso.agent.session@1","read"),lenso_auth_sdk::audience("lenso.agent.session@1","append")],
                 "expires_at":(time::OffsetDateTime::now_utc()+time::Duration::minutes(5)).format(&time::format_description::well_known::Rfc3339).unwrap()
             })).unwrap();
             Ok(Ok(Box::new(response) as Box<dyn Any>))
@@ -80,10 +80,10 @@ impl NativePluginFactory for CredentialFactory {
 }
 
 #[derive(Debug)]
-struct Probe;
+struct Probe(&'static str);
 impl NativePluginFactory for Probe {
     fn package_id(&self) -> &'static str {
-        "test.ai-probe"
+        self.0
     }
     fn package_version(&self) -> &'static str {
         "1.0.0"
@@ -114,6 +114,16 @@ fn input(prompt: &str) -> service::InvokeRequest {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "requires the locally built Agent Web fixture test executable"]
 async fn native_binding_cross_process_completion_preserves_budget_and_zero_history() {
+    run_binding_integration(false).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires coordinated Agent Web fixture executable"]
+async fn native_binding_cross_process_runs_require_explicit_scoped_session_grants() {
+    run_binding_integration(true).await;
+}
+
+async fn run_binding_integration(scoped: bool) {
     tokio::task::LocalSet::new().run_until(Box::pin(async {
         let root = tempfile::tempdir().unwrap();
         let issuer = lenso_auth_sdk::ActorAssertionIssuer::from_signing_key("operators.fixture", [7; 32]);
@@ -121,7 +131,7 @@ async fn native_binding_cross_process_completion_preserves_budget_and_zero_histo
         let log = std::fs::File::create(root.path().join("agent-fixture.log")).unwrap();
         let mut child = Fixture(Command::new(binary).args(["--ignored", "--exact", "plugin_ai::tests::plugin_ai_fixture_process", "--nocapture"])
             .env("LENSO_AI_FIXTURE_ROOT",root.path()).env("LENSO_AI_FIXTURE_ISSUER","operators.fixture")
-            .env("LENSO_AI_FIXTURE_PUBLIC_KEY",issuer.public_key_base64()).stdout(Stdio::from(log.try_clone().unwrap())).stderr(Stdio::from(log)).spawn().unwrap());
+            .env("LENSO_AI_FIXTURE_SCOPED",if scoped{"1"}else{"0"}).env("LENSO_AI_FIXTURE_PUBLIC_KEY",issuer.public_key_base64()).stdout(Stdio::from(log.try_clone().unwrap())).stderr(Stdio::from(log)).spawn().unwrap());
         let origin_path = root.path().join("fixture-origin");
         for _ in 0..100 {
             if origin_path.exists() { break; }
@@ -135,7 +145,7 @@ async fn native_binding_cross_process_completion_preserves_budget_and_zero_histo
                 lenso_auth_sdk::Validity::new(now - time::Duration::seconds(1), now + time::Duration::minutes(5)).unwrap(),
                 [(lenso_auth_sdk::credential::CREDENTIAL_BINDING_CLAIM.into(),serde_json::json!({"credential_id":"synthetic-credential","session_id":"synthetic-parent-session"}))].into())
         };
-        let audiences = vec![lenso_auth_sdk::audience(service::CAPABILITY_ID,service::INVOKE_OPERATION), lenso_auth_sdk::audience("lenso.agent.model@4","complete")];
+        let audiences = vec![lenso_auth_sdk::audience(service::CAPABILITY_ID,service::INVOKE_OPERATION),lenso_auth_sdk::audience("lenso.agent.model@4","complete"),lenso_auth_sdk::audience("lenso.agent@3","run_turn"),lenso_auth_sdk::audience("lenso.agent.session@1","open"),lenso_auth_sdk::audience("lenso.agent.session@1","read"),lenso_auth_sdk::audience("lenso.agent.session@1","append")];
         let actor = assertion(&issuer,audiences.clone());
         let actor_header = STANDARD.encode(serde_json::to_vec(&actor.to_wire()).unwrap());
         let control = "synthetic-existing-host-control";
@@ -154,16 +164,19 @@ async fn native_binding_cross_process_completion_preserves_budget_and_zero_histo
             .with_requirement(CapabilityRequirementPlan::one(service::CAPABILITY_ID,service::DESCRIPTOR_VERSION));
         let credential = PluginDescriptor::new("test.credential-state","1.0.0","credential-state")
             .with_capability(lenso_app_plan::CapabilityEndpointPlan::new(credentials::CAPABILITY_ID,credentials::DESCRIPTOR_VERSION,[credentials::INSPECT_OPERATION]));
-        let releases = linked.plugins().iter().cloned().chain([HostPluginRelease::new(probe),HostPluginRelease::new(credential)]).collect::<Vec<_>>();
+        let releases = linked.plugins().iter().cloned().chain([HostPluginRelease::new(probe),HostPluginRelease::new(credential),HostPluginRelease::new(PluginDescriptor::new("test.ai-worker","1.0.0","probe").with_requirement(CapabilityRequirementPlan::one(service::CAPABILITY_ID,service::DESCRIPTOR_VERSION)))]).collect::<Vec<_>>();
         let caller = HostCaller { consumer:"test.ai-probe/default".into(),user:"alice".into(),project:"project-one".into() };
-        let profile = PurposeProfile { callers:[caller.clone()].into(), model:"fixture/readme-summary-v1".into(),price:Some(Price { version:"fixture-known-price/1".into(),input:1,output:2 }),budget:200000,max_output:64,concurrency:1 };
-        let config = serde_json::json!({"agent_origin":origin,"ledger":ledger,"issuer":"operators.fixture","public_key":issuer.public_key_base64(),
+        let worker=HostCaller{consumer:"test.ai-worker/default".into(),..caller.clone()};
+        let other_project=HostCaller{consumer:"test.ai-worker/project-two".into(),project:"project-two".into(),..worker.clone()};
+        let profile = PurposeProfile { callers:if scoped{[caller.clone(),worker.clone(),other_project].into()}else{[caller.clone()].into()}, model:"fixture/readme-summary-v1".into(),price:Some(Price { version:"fixture-known-price/1".into(),input:1,output:2 }),budget:if scoped{1000000}else{200000},max_output:64,concurrency:1 };
+        let mut config = serde_json::json!({"agent_origin":origin,"ledger":ledger,"issuer":"operators.fixture","public_key":issuer.public_key_base64(),
             "provider_instance":quote["provider_instance"],"profile":profile,"control_token_file":control_file});
-        let defaults = [HostDefaultPlugin::new("test.credential-state","default"),HostDefaultPlugin::new("test.ai-probe","default"),HostDefaultPlugin::new("test.ai-probe","intruder"),
+        if scoped {config["run"]=serde_json::json!({"authority":root.path().join("run-authority.sqlite"),"workspace":root.path(),"max_calls":2,"tools":["uppercase"],"existing_session_owners":[caller.consumer]});}
+        let defaults = [HostDefaultPlugin::new("test.ai-worker","default"),HostDefaultPlugin::new("test.ai-worker","project-two"),HostDefaultPlugin::new("test.credential-state","default"),HostDefaultPlugin::new("test.ai-probe","default"),HostDefaultPlugin::new("test.ai-probe","intruder"),
             HostDefaultPlugin::new("lenso.console.agent-ai-adapter","default").with_configuration(config)];
         let resolved = resolve_plugin_root(&HostCatalog::new(slots,releases,defaults),&PluginRootSnapshot::default()).unwrap();
         let active = Rc::new(Cell::new(true));
-        let registry = NativePluginRegistry::new().with_linked_factories().with_factory(Probe).with_factory(CredentialFactory(active.clone()));
+        let registry = NativePluginRegistry::new().with_linked_factories().with_factory(Probe("test.ai-probe")).with_factory(Probe("test.ai-worker")).with_factory(CredentialFactory(active.clone()));
         let app = Kernel::start_native(resolved.plan().clone(),lenso_runner::TokioDriver::new(),registry).await.unwrap();
         let context = |actor: &lenso_auth_sdk::ActorAssertion, cancellation| actor.clone().attach(InvocationContext::new(1,None,cancellation)).unwrap();
         let handle = app.handle::<service::WorkspaceServiceInvoke>("test.ai-probe/default").unwrap();
@@ -248,6 +261,37 @@ async fn native_binding_cross_process_completion_preserves_budget_and_zero_histo
         let after_recovery: i64 = db.query_row("SELECT SUM(charge) FROM runs",[],|r|r.get(0)).unwrap();
         assert_eq!(before_recovery,after_recovery);
         assert!(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),input("What did you summarize?")).await.unwrap().is_ok());
+        if scoped {
+            let operation=|name:&str,body:serde_json::Value|service::InvokeRequest{service_id:"ai".into(),operation:name.into(),media_type:service::InvokeRequestMediaType::ApplicationJson,body_base64:STANDARD.encode(serde_json::to_vec(&body).unwrap())};
+            let decode=|reply:service::InvokeResponse|serde_json::from_slice::<serde_json::Value>(&STANDARD.decode(reply.body_base64).unwrap()).unwrap();
+            let worker_handle=app.handle::<service::WorkspaceServiceInvoke>("test.ai-worker/default").unwrap();
+            let project_handle=app.handle::<service::WorkspaceServiceInvoke>("test.ai-worker/project-two").unwrap();
+            let run=|prompt:&str,session:Option<&str>,grant:Option<&str>|operation("run",serde_json::json!({"model":profile.model,"prompt":prompt,"max_output":64,"max_calls":2,"session_id":session,"grant_id":grant}));
+            let background=decode(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("Use the text Plugin to uppercase Lenso plugin.",None,None)).await.unwrap().unwrap_or_else(|e|panic!("{e:?}: {}",std::fs::read_to_string(root.path().join("agent-fixture.log")).unwrap())));
+            assert_eq!(background["calls"],2);assert!(background["text"].as_str().unwrap().contains("LENSO PLUGIN"));assert!(background["session_id"].is_null());
+            let history=rusqlite::Connection::open(root.path().join("scoped-history.sqlite")).unwrap();
+            assert_eq!(history.query_row::<i64,_,_>("SELECT COUNT(*) FROM sessions",[],|r|r.get(0)).unwrap(),0);
+            let existing:serde_json::Value=http.post(format!("{origin}/api/console/v1/agent/plugin-ai/session")).bearer_auth(control).header("x-lenso-actor",&actor_header).json(&serde_json::json!({"session_id":null,"namespace":null})).send().await.unwrap().error_for_status().unwrap().json().await.unwrap();
+            let id=existing["session_id"].as_str().unwrap();
+            assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("register_session",serde_json::json!({"session_id":id}))).await.unwrap().is_err());
+            handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("register_session",serde_json::json!({"session_id":id}))).await.unwrap().unwrap();
+            assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),None)).await.unwrap().is_err());
+            let grant=decode(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("grant_session",serde_json::json!({"session_id":id,"consumer":"test.ai-worker/default","seconds":300}))).await.unwrap().unwrap());
+            let grant=grant["grant_id"].as_str().unwrap();
+            assert!(project_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),Some(grant))).await.unwrap().is_err());
+            worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),Some(grant))).await.unwrap().unwrap();
+            let pending=worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("Remain pending until cancelled.",Some(id),Some(grant)));
+            let revoke=async {
+                loop {let count:i64=db.query_row("SELECT COUNT(*) FROM runs WHERE state='reserved'",[],|r|r.get(0)).unwrap();if count>0{break;}tokio::time::sleep(Duration::from_millis(10)).await;}
+                handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("revoke_grant",serde_json::json!({"grant_id":grant}))).await.unwrap().unwrap();
+            };
+            let (result,())=tokio::time::timeout(Duration::from_secs(8),async{tokio::join!(pending,revoke)}).await.unwrap();assert!(!matches!(result,Ok(Ok(_))));
+            assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),Some(grant))).await.unwrap().is_err());
+            let own=decode(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("open_session",serde_json::json!({}))).await.unwrap().unwrap());
+            let own=own["session_id"].as_str().unwrap();handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(own),None)).await.unwrap().unwrap();
+            assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(own),None)).await.unwrap().is_err());
+            assert_eq!(history.query_row::<i64,_,_>("SELECT COUNT(*) FROM sessions",[],|r|r.get(0)).unwrap(),2);
+        }
         assert_eq!(app.shutdown(Duration::from_secs(2)).await,ShutdownOutcome::Clean);
         std::fs::write(root.path().join("fixture-stop"),"").unwrap();
         for _ in 0..100 {
