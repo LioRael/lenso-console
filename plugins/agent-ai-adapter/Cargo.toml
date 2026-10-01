@@ -1,0 +1,10 @@
+[package]
+name = "lenso-console-agent-ai-adapter"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+publish = false
+description = "Host-side lightweight completion admission core; no public ingress yet"
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -113,9 +113,20 @@ stores run/status/usage only. Session ownership is consumer/user/project scoped;
 writing an existing assistant session requires an explicit scoped write grant.
 Installation/assistant activation must not populate another Plugin's AI/tool grants.
 
-No model allowlist, budget enforcement, pricing ledger, cross-Plugin backend session
-namespace or session-write grant is implemented by the present UI/MCP change. The
-existing model/Agent contracts lack a pricing revision field; retain pricing as
+The UI/MCP change itself implements no AI admission policy. A subsequent bounded
+checkpoint adds the standalone `plugins/agent-ai-adapter` admission core: exact
+caller/model profiles, known pricing revision, trusted input bound, integer budget
+reservation, concurrency and actual model/usage evidence. Four synthetic tests
+and focused Clippy pass. It is not exposed or linked into the Host: its ledger is
+memory only and there is no real provider implementation, authenticated bridge,
+durable run record, cross-Plugin session namespace or session-write grant yet.
+The matching Agent worktree `feat/plugin-ai-completion` starts at `74f9970` and
+adds only a typed, actor-carrying Model lease with no Session or turn acquisition.
+Two focused Agent tests pass, including a real fixture completion stream and
+Session-list assertions before and after (both empty). This test uses synthetic
+identity and does not prove production ingress authorization.
+See `plugins/agent-ai-adapter/README.md` for exact unfinished integration.
+The existing model/Agent contracts lack a pricing revision field; retain pricing as
 Host run evidence first, and request a precise schema change only if observed
 provider identity/price cannot be tracked at the adapter boundary.
 

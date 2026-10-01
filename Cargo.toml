@@ -13,6 +13,7 @@ members = [
   "contracts/crates/lenso-capability-management-human",
   "plugins/observe",
   "plugins/assistant",
+  "plugins/agent-ai-adapter",
   "plugins/observe/crates/lenso-capability-observability-query",
   "plugins/management/crates/lenso-management-core",
   "plugins/management/crates/lenso-management-authority",

@@ -2814,6 +2814,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-console-agent-ai-adapter"
+version = "0.1.0"
+
+[[package]]
 name = "lenso-console-app"
 version = "0.1.0"
 dependencies = [
