@@ -63,13 +63,17 @@ provider's internal model substitution; Host never falls back to another model.
 SQLite schema version 1 uses WAL and FULL synchronization. Reservations and
 run status/usage commit before completion; success settles actual usage.
 Cancellation, transport failure and bad evidence retain the full reservation.
-Restart preserves budget. Crashed `reserved` rows conservatively hold concurrency
-until explicit evidence-backed recovery. Policy changes or foreign/incomplete databases
+Restart preserves both budget and pending execution slots. `reserved` and
+`unknown` rows conservatively hold concurrency until explicit evidence-backed
+recovery; Drop, cancel HTTP success, timeout and disconnect cannot release it. Policy changes or foreign/incomplete databases
 fail closed; there is no silent budget reset, migration or automatic refund.
 `recover` accepts only `{ "run_id": "existing-uuid" }` under the same bound
 consumer/user/project and live credential. It cancels active work and releases
 concurrency only when the Agent retains a successful provider terminal receipt.
-The row becomes `unknown` without any refund or replay. Receipt storage is bounded
+The row becomes `settled_unknown`: execution is settled but unknown usage retains
+the full charge, without refund or replay. The API reports cost `state: unknown`
+and `execution: settled`. Old unknown rows also hold concurrency; no implicit
+migration clears them. Receipt storage is bounded
 and process-local: unknown IDs, failed/cancelled opens, lost receipts and Agent
 restarts fail closed and still need operator reconciliation. A disappearing HTTP
 worker cannot prove Kernel dispatch ended. This is conservative crash recovery
@@ -159,3 +163,30 @@ issuer/audience and project spoofing, verifies live revocation, cancel/failure r
 asserts empty Agent Session lists before and after background work. The scoped-run test uses the original Loop, explicit Session grants and cancellation on revocation; only two explicitly requested Sessions persist. Child process/listeners are
 cleaned up. The Agent branch is `feat/plugin-ai-completion`, based on `74f9970`;
 its existing history handlers and interactive run implementation are preserved.
+
+## Independent-review P1 corrections
+
+The Agent retains a bounded digest of the exact assertion verified for each active
+run. With the existing Host control token, that original snapshot may stop only
+that run after expiry or revocation. It cannot start/quote/recover another run or
+stop one admitted under another assertion. A fresh valid assertion of the same
+owner still supports normal stopping. Active records disappear after worker
+settlement. No new key, credential or broad expired-actor access is introduced.
+
+Concurrency admission now counts every row without an explicitly settled execution
+state, independently of its retained charge. A failed remote cancellation, HTTP
+timeout or process disconnection leaves the slot occupied across adapter restarts.
+Successful provider terminal evidence permits `settled_unknown` recovery with the
+full charge retained. Lost/failed/cancelled receipts still require operator
+reconciliation; no automatic cleanup or retry is introduced.
+
+Six actual cross-process tests passed, including a two-second admitted assertion,
+403 denial of expired start/quote/recovery/other-run cancellation, successful
+original-run stop, automatic Console guard expiry, injected cancellation 503 and
+timeout, Agent process disconnection, and native adapter restart with concurrency
+one. Failed/uncertain runs preserve charge and create no second reservation.
+The existing completion and scoped Session regressions also passed. Evidence:
+`/tmp/lenso-p1-cross-process.log`, `/tmp/lenso-p1-console-unit.log`,
+`/tmp/lenso-p1-console-clippy.log`, `/tmp/lenso-p1-agent-clippy.log`.
+The isolated Agent fixture executable is under `/tmp/lenso-p1-agent-target` after
+external removal of the prior worktree build cache.

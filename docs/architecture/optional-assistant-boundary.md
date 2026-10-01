@@ -221,3 +221,37 @@ review references `09e827` / `6b13c9e` remain unchanged ancestors. These branche
 retain their isolated original bases; current destination branches may have
 advanced independently and must be reconciled in Delta before a new candidate
 CI gate and exact-SHA landing. No remote branch was pushed.
+
+## Independent-review follow-up
+
+Review of Console `a716f7a` and Agent `44b1120` reproduced two P1 defects:
+expiry blocked original-task cancellation, and dropping a durable reservation
+incorrectly freed concurrency while remote termination was unknown. Both are
+corrected in new descendant commits; the reviewed commits remain unchanged.
+
+Active Agent records now retain only a SHA-256 digest of the exact admitted Actor
+header, owner and cancellation signal. Existing Host control plus that exact
+snapshot provides stop-only authority for the one active run, including after
+expiry/revocation. Expired assertions remain forbidden for admission, quote,
+recovery and other runs. No new Auth credential or public capability is added.
+
+Ledger charge and execution confirmation are separate facts. `reserved`/`unknown`
+and any unrecognized state occupy concurrency. Only `completed` or receipt-backed
+`settled_unknown` release it; the latter keeps the full unknown charge. Original
+schema version 1 and policy remain unchanged. Historic unknown rows fail closed.
+Remote cancel responses and request disappearance are not terminal receipts.
+
+Six actual cross-process tests passed (four new): expiry scope/Console guard,
+cancel rejection, cancel timeout, process disconnection, native adapter restart
+with concurrency one, plus existing completion and scoped Session tests. Each
+uncertain case preserves charge and prevents a second reservation. Strict Console
+adapter and Agent Web Clippy passed. Logs are `/tmp/lenso-p1-cross-process.log`,
+`/tmp/lenso-p1-console-unit.log`, `/tmp/lenso-p1-console-clippy.log`, and
+`/tmp/lenso-p1-agent-clippy.log`. No main/push/publish/deploy/paid action occurred.
+
+Follow-up review pair: Agent `067c9079259939ceb9776971f5ee6e4e7edcc3a8`
+(parent `44b1120d6d9d5a331fc96af81be76ef44e52b929`) and the Console descendant
+of `a716f7ae2a3ee3df8b20faeb17f977ff5ce111f6` on `feat/optional-assistant`.
+The final six-test cross-process run passed in 6.65 seconds. Console six-unit,
+Agent pending-open cancellation, strict Clippy, formatting and diff checks passed.
+Original commits and independent-review evidence remain unchanged.

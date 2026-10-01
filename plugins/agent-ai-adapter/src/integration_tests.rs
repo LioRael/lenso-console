@@ -114,16 +114,37 @@ fn input(prompt: &str) -> service::InvokeRequest {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "requires the locally built Agent Web fixture test executable"]
 async fn native_binding_cross_process_completion_preserves_budget_and_zero_history() {
-    run_binding_integration(false).await;
+    run_binding_integration(false, None).await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "requires coordinated Agent Web fixture executable"]
 async fn native_binding_cross_process_runs_require_explicit_scoped_session_grants() {
-    run_binding_integration(true).await;
+    run_binding_integration(true, None).await;
 }
 
-async fn run_binding_integration(scoped: bool) {
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires coordinated Agent Web fixture executable"]
+async fn native_binding_cross_process_expired_admission_can_only_stop_its_run() {
+    run_binding_integration(false, Some("expiry")).await;
+}
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires coordinated Agent Web fixture executable"]
+async fn native_binding_cross_process_cancel_failure_holds_concurrency_after_restart() {
+    run_binding_integration(false, Some("reject")).await;
+}
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires coordinated Agent Web fixture executable"]
+async fn native_binding_cross_process_cancel_timeout_holds_concurrency_after_restart() {
+    run_binding_integration(false, Some("timeout")).await;
+}
+#[tokio::test(flavor = "current_thread")]
+#[ignore = "requires coordinated Agent Web fixture executable"]
+async fn native_binding_cross_process_disconnect_holds_concurrency_after_restart() {
+    run_binding_integration(false, Some("disconnect")).await;
+}
+
+async fn run_binding_integration(scoped: bool, safety: Option<&str>) {
     tokio::task::LocalSet::new().run_until(Box::pin(async {
         let root = tempfile::tempdir().unwrap();
         let issuer = lenso_auth_sdk::ActorAssertionIssuer::from_signing_key("operators.fixture", [7; 32]);
@@ -168,7 +189,10 @@ async fn run_binding_integration(scoped: bool) {
         let caller = HostCaller { consumer:"test.ai-probe/default".into(),user:"alice".into(),project:"project-one".into() };
         let worker=HostCaller{consumer:"test.ai-worker/default".into(),..caller.clone()};
         let other_project=HostCaller{consumer:"test.ai-worker/project-two".into(),project:"project-two".into(),..worker.clone()};
-        let profile = PurposeProfile { callers:if scoped{[caller.clone(),worker.clone(),other_project].into()}else{[caller.clone()].into()}, model:"fixture/readme-summary-v1".into(),price:Some(Price { version:"fixture-known-price/1".into(),input:1,output:2 }),budget:if scoped{1000000}else{200000},max_output:64,concurrency:1 };
+        // Baseline cases deliberately retain three unresolved failures. The
+        // fourth slot exercises receipt-backed recovery. P1 fault cases use
+        // concurrency one and prove no second reservation survives a restart.
+        let profile = PurposeProfile { callers:if scoped{[caller.clone(),worker.clone(),other_project].into()}else{[caller.clone()].into()}, model:"fixture/readme-summary-v1".into(),price:Some(Price { version:"fixture-known-price/1".into(),input:1,output:2 }),budget:if scoped{1000000}else{200000},max_output:64,concurrency:if safety.is_some(){1}else{4} };
         let mut config = serde_json::json!({"agent_origin":origin,"ledger":ledger,"issuer":"operators.fixture","public_key":issuer.public_key_base64(),
             "provider_instance":quote["provider_instance"],"profile":profile,"control_token_file":control_file});
         if scoped {config["run"]=serde_json::json!({"authority":root.path().join("run-authority.sqlite"),"workspace":root.path(),"max_calls":2,"tools":["uppercase"],"existing_session_owners":[caller.consumer]});}
@@ -176,10 +200,65 @@ async fn run_binding_integration(scoped: bool) {
             HostDefaultPlugin::new("lenso.console.agent-ai-adapter","default").with_configuration(config)];
         let resolved = resolve_plugin_root(&HostCatalog::new(slots,releases,defaults),&PluginRootSnapshot::default()).unwrap();
         let active = Rc::new(Cell::new(true));
-        let registry = NativePluginRegistry::new().with_linked_factories().with_factory(Probe("test.ai-probe")).with_factory(Probe("test.ai-worker")).with_factory(CredentialFactory(active.clone()));
-        let app = Kernel::start_native(resolved.plan().clone(),lenso_runner::TokioDriver::new(),registry).await.unwrap();
+        let registry = || NativePluginRegistry::new().with_linked_factories().with_factory(Probe("test.ai-probe")).with_factory(Probe("test.ai-worker")).with_factory(CredentialFactory(active.clone()));
+        let app = Kernel::start_native(resolved.plan().clone(),lenso_runner::TokioDriver::new(),registry()).await.unwrap();
         let context = |actor: &lenso_auth_sdk::ActorAssertion, cancellation| actor.clone().attach(InvocationContext::new(1,None,cancellation)).unwrap();
         let handle = app.handle::<service::WorkspaceServiceInvoke>("test.ai-probe/default").unwrap();
+        if let Some(case) = safety {
+            if case == "expiry" {
+                expiry_stop_regression(&http,&origin,&issuer,&actor_header,&quote,&audiences).await;
+            }
+            if matches!(case,"reject"|"timeout") {
+                std::fs::write(root.path().join("fixture-cancel-fault"),case).unwrap();
+            }
+            let test_actor = if case == "expiry" {short_assertion(&issuer,&audiences)}else{actor.clone()};
+            let cancellation=CancellationToken::new();
+            let pending=handle.invoke_with_context(service::INVOKE_OPERATION,context(&test_actor,cancellation.clone()),input("Remain pending until cancelled."));
+            let fault=async {
+                let deadline=tokio::time::Instant::now()+Duration::from_secs(5);
+                loop {
+                    let reserved:i64=rusqlite::Connection::open(&ledger).unwrap().query_row("SELECT COUNT(*) FROM runs WHERE state='reserved'",[],|r|r.get(0)).unwrap();
+                    if reserved>0{break;}
+                    assert!(tokio::time::Instant::now()<deadline,"native request never reserved");
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                // Give the actual provider request time to reach the Agent.
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                if case=="disconnect" {child.0.kill().unwrap();child.0.wait().unwrap();}
+                else if case!="expiry" {cancellation.cancel();}
+            };
+            let (result,())=tokio::time::timeout(Duration::from_secs(8),async{tokio::join!(pending,fault)}).await.unwrap();
+            assert!(!matches!(result,Ok(Ok(_))));
+            let deadline=tokio::time::Instant::now()+Duration::from_secs(5);
+            loop {
+                let held:i64=rusqlite::Connection::open(&ledger).unwrap().query_row("SELECT COUNT(*) FROM runs WHERE state='unknown' AND charge>0",[],|r|r.get(0)).unwrap();
+                if held==1{break;}
+                assert!(tokio::time::Instant::now()<deadline,"abandoned request did not persist unknown execution");
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            if matches!(case,"reject"|"timeout") {
+                let trace=root.path().join("fixture-cancel-fault").with_extension("entered");
+                while !trace.exists(){assert!(tokio::time::Instant::now()<deadline);tokio::time::sleep(Duration::from_millis(10)).await;}
+                assert_eq!(std::fs::read_to_string(trace).unwrap(),case);
+            }
+            let db=rusqlite::Connection::open(&ledger).unwrap();
+            let charge:i64=db.query_row("SELECT SUM(charge) FROM runs",[],|r|r.get(0)).unwrap();
+            let admission=crate::durable::DurableAdmission::open(&ledger,profile.clone()).unwrap();
+            assert!(matches!(admission.reserve("must-not-dispatch".into(),&caller,&CompletionRequest{model:profile.model.clone(),prompt:"What did you summarize?".into(),max_output:64},quote["input_ceiling"].as_u64().unwrap(),&quote),Err(Rejection::Concurrency)));
+            if case!="disconnect" {
+                assert!(matches!(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),input("What did you summarize?")).await.unwrap(),Err(service::InvokeError::ResourceExhausted)));
+            }
+            assert_eq!(app.shutdown(Duration::from_secs(2)).await,ShutdownOutcome::Clean);
+            // A fresh native adapter instance must honor the same unknown slot.
+            let restarted=Kernel::start_native(resolved.plan().clone(),lenso_runner::TokioDriver::new(),registry()).await.unwrap();
+            let after=restarted.handle::<service::WorkspaceServiceInvoke>("test.ai-probe/default").unwrap();
+            let result=after.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),input("What did you summarize?")).await.unwrap();
+            if case=="disconnect" {assert!(result.is_err());}else{assert!(matches!(result,Err(service::InvokeError::ResourceExhausted)));}
+            assert_eq!(db.query_row::<i64,_,_>("SELECT SUM(charge) FROM runs",[],|r|r.get(0)).unwrap(),charge);
+            assert_eq!(db.query_row::<i64,_,_>("SELECT COUNT(*) FROM runs",[],|r|r.get(0)).unwrap(),1);
+            assert_eq!(restarted.shutdown(Duration::from_secs(2)).await,ShutdownOutcome::Clean);
+            return;
+        }
         let response = handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),input("What did you summarize?")).await.unwrap().unwrap();
         let response: serde_json::Value = serde_json::from_slice(&STANDARD.decode(response.body_base64).unwrap()).unwrap();
         assert!(response["text"].as_str().unwrap().contains("Nothing yet"));
@@ -280,6 +359,10 @@ async fn run_binding_integration(scoped: bool) {
             let grant=grant["grant_id"].as_str().unwrap();
             assert!(project_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),Some(grant))).await.unwrap().is_err());
             worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),Some(grant))).await.unwrap().unwrap();
+            let own=decode(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("open_session",serde_json::json!({}))).await.unwrap().unwrap());
+            let own=own["session_id"].as_str().unwrap();handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(own),None)).await.unwrap().unwrap();
+            assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(own),None)).await.unwrap().is_err());
+            assert_eq!(history.query_row::<i64,_,_>("SELECT COUNT(*) FROM sessions",[],|r|r.get(0)).unwrap(),2);
             let pending=worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("Remain pending until cancelled.",Some(id),Some(grant)));
             let revoke=async {
                 loop {let count:i64=db.query_row("SELECT COUNT(*) FROM runs WHERE state='reserved'",[],|r|r.get(0)).unwrap();if count>0{break;}tokio::time::sleep(Duration::from_millis(10)).await;}
@@ -287,10 +370,6 @@ async fn run_binding_integration(scoped: bool) {
             };
             let (result,())=tokio::time::timeout(Duration::from_secs(8),async{tokio::join!(pending,revoke)}).await.unwrap();assert!(!matches!(result,Ok(Ok(_))));
             assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(id),Some(grant))).await.unwrap().is_err());
-            let own=decode(handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),operation("open_session",serde_json::json!({}))).await.unwrap().unwrap());
-            let own=own["session_id"].as_str().unwrap();handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(own),None)).await.unwrap().unwrap();
-            assert!(worker_handle.invoke_with_context(service::INVOKE_OPERATION,context(&actor,CancellationToken::new()),run("What did you summarize?",Some(own),None)).await.unwrap().is_err());
-            assert_eq!(history.query_row::<i64,_,_>("SELECT COUNT(*) FROM sessions",[],|r|r.get(0)).unwrap(),2);
         }
         assert_eq!(app.shutdown(Duration::from_secs(2)).await,ShutdownOutcome::Clean);
         std::fs::write(root.path().join("fixture-stop"),"").unwrap();
@@ -300,4 +379,142 @@ async fn run_binding_integration(scoped: bool) {
         }
         panic!("Agent fixture shutdown timed out");
     })).await;
+}
+
+fn short_assertion(
+    issuer: &lenso_auth_sdk::ActorAssertionIssuer,
+    audiences: &[String],
+) -> lenso_auth_sdk::ActorAssertion {
+    let now = time::OffsetDateTime::now_utc();
+    issuer.issue("alice","user","fixture",audiences.to_vec(),lenso_auth_sdk::Validity::new(now-time::Duration::seconds(1),now+time::Duration::seconds(2)).unwrap(),
+        [(lenso_auth_sdk::credential::CREDENTIAL_BINDING_CLAIM.into(),serde_json::json!({"credential_id":"synthetic-credential","session_id":"synthetic-parent-session"}))].into())
+}
+async fn expiry_stop_regression(
+    http: &reqwest::Client,
+    origin: &str,
+    issuer: &lenso_auth_sdk::ActorAssertionIssuer,
+    fresh_header: &str,
+    quote: &serde_json::Value,
+    audiences: &[String],
+) {
+    let short = short_assertion(issuer, audiences);
+    let expired_header = STANDARD.encode(serde_json::to_vec(&short.to_wire()).unwrap());
+    let control = "synthetic-existing-host-control";
+    let base = format!("{origin}/api/console/v1/agent/plugin-ai");
+    let id = uuid::Uuid::new_v4().to_string();
+    let body = serde_json::json!({"run_id":id,"model":"fixture/readme-summary-v1","prompt":"Remain pending until cancelled.","max_output":64,"generation":quote["generation"],"input_ceiling":quote["input_ceiling"]});
+    let client = http.clone();
+    let endpoint = format!("{base}/completions");
+    let header = expired_header.clone();
+    let input = body.clone();
+    let pending = tokio::spawn(async move {
+        client
+            .post(endpoint)
+            .bearer_auth(control)
+            .header("x-lenso-actor", header)
+            .json(&input)
+            .send()
+            .await
+            .unwrap()
+    });
+    tokio::time::sleep(Duration::from_millis(3100)).await;
+    assert!(
+        !pending.is_finished(),
+        "real Agent task must still be active before stop"
+    );
+    // Expired admission cannot start, quote, recover, or stop a different task.
+    for route in ["quote".to_string(), "completions".to_string()] {
+        assert_eq!(
+            http.post(format!("{base}/{route}"))
+                .bearer_auth(control)
+                .header("x-lenso-actor", &expired_header)
+                .json(&body)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            403
+        );
+    }
+    assert_eq!(
+        http.post(format!("{base}/completions/{id}/recover"))
+            .bearer_auth(control)
+            .header("x-lenso-actor", &expired_header)
+            .json(&serde_json::Value::Null)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        403
+    );
+    assert_eq!(
+        http.post(format!("{base}/completions/{id}/cancel"))
+            .header("x-lenso-actor", &expired_header)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        403
+    );
+    let reply = http
+        .post(format!("{base}/completions/{id}/cancel"))
+        .bearer_auth(control)
+        .header("x-lenso-actor", &expired_header)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(reply.status(), 200);
+    assert!(reply.json::<bool>().await.unwrap());
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(3), pending)
+            .await
+            .unwrap()
+            .unwrap()
+            .status(),
+        409
+    );
+    let mut other = body;
+    let other_id = uuid::Uuid::new_v4().to_string();
+    other["run_id"] = other_id.clone().into();
+    let client = http.clone();
+    let endpoint = format!("{base}/completions");
+    let header = fresh_header.to_owned();
+    let pending = tokio::spawn(async move {
+        client
+            .post(endpoint)
+            .bearer_auth(control)
+            .header("x-lenso-actor", header)
+            .json(&other)
+            .send()
+            .await
+            .unwrap()
+    });
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert_eq!(
+        http.post(format!("{base}/completions/{other_id}/cancel"))
+            .bearer_auth(control)
+            .header("x-lenso-actor", &expired_header)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        403
+    );
+    let stopped = http
+        .post(format!("{base}/completions/{other_id}/cancel"))
+        .bearer_auth(control)
+        .header("x-lenso-actor", fresh_header)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(stopped.status(), 200);
+    assert!(stopped.json::<bool>().await.unwrap());
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(3), pending)
+            .await
+            .unwrap()
+            .unwrap()
+            .status(),
+        409
+    );
 }

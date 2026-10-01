@@ -1,5 +1,7 @@
 //! SQLite reservations commit before any paid invocation. Unknown results retain
-//! the full reservation. Crashed reserved rows block concurrency until reviewed.
+//! the full reservation. Charge and execution settlement are independent:
+//! reserved/unknown rows occupy concurrency; completed/settled_unknown rows have
+//! terminal evidence. Drop, cancel acknowledgement and disconnect never settle.
 use crate::{CompletionRequest, HostCaller, Price, PurposeProfile, Rejection, RunEvidence, cost};
 use rusqlite::{Connection, TransactionBehavior, params};
 use std::{
@@ -38,7 +40,7 @@ impl DurableAdmission {
         let connection = self.connection.lock().map_err(|_| Rejection::Ledger)?;
         let admission: String = connection
             .query_row(
-                "SELECT admission FROM runs WHERE id=?1 AND state='reserved'",
+                "SELECT admission FROM runs WHERE id=?1 AND state IN ('reserved','unknown')",
                 [id],
                 |r| r.get(0),
             )
@@ -64,9 +66,9 @@ impl DurableAdmission {
             .lock()
             .map_err(|_| Rejection::Ledger)?
             .execute(
-                "UPDATE runs SET state='unknown',evidence=?1 WHERE id=?2 AND state='reserved'",
+                "UPDATE runs SET state='settled_unknown',evidence=?1 WHERE id=?2 AND state IN ('reserved','unknown')",
                 params![
-                    "{\"recovery\":\"authenticated-provider-terminal\",\"refund\":false}",
+                    "{\"recovery\":\"authenticated-provider-terminal\",\"execution\":\"settled\",\"refund\":false}",
                     id
                 ],
             )
@@ -216,7 +218,7 @@ impl DurableAdmission {
             .map_err(|_| Rejection::Ledger)?;
         let active: i64 = tx
             .query_row(
-                "SELECT COUNT(*) FROM runs WHERE state='reserved'",
+                "SELECT COUNT(*) FROM runs WHERE state NOT IN ('completed','settled_unknown')",
                 [],
                 |r| r.get(0),
             )
@@ -298,7 +300,9 @@ impl Drop for DurableReservation {
         if !self.finished
             && let Ok(connection) = self.connection.lock()
         {
-            // No refund on cancellation, missing usage, failed provider or bad evidence.
+            // Unknown cost retains the full charge. Unknown execution retains
+            // its concurrency slot as well: Drop/cancel/HTTP closure is never
+            // proof that Driver-owned provider work has terminated.
             let _ = connection.execute(
                 "UPDATE runs SET state='unknown' WHERE id=?1 AND state='reserved'",
                 [&self.id],
@@ -341,6 +345,21 @@ mod tests {
         drop(adapter);
         drop(second);
         let adapter = DurableAdmission::open(&path, profile.clone()).unwrap();
+        assert!(matches!(
+            adapter.reserve(
+                "blocked-after-restart".into(),
+                &caller,
+                &crate::tests::request(),
+                4,
+                &serde_json::json!({})
+            ),
+            Err(Rejection::Concurrency)
+        ));
+        // Only an authenticated successful terminal receipt (the caller of this
+        // low-level method owns that proof) settles execution, without refund.
+        adapter
+            .recover_with_terminal_receipt("one", &caller)
+            .unwrap();
         let run = adapter
             .reserve(
                 "two".into(),

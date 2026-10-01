@@ -111,6 +111,8 @@ impl Drop for RemoteRunGuard {
             runtime.spawn(async move {
                 let _ = client
                     .post(url)
+                    // The exact admitted snapshot has stop-only authority,
+                    // even after expiry. It cannot admit another remote run.
                     .header("x-lenso-actor", actor)
                     .bearer_auth(control)
                     .timeout(Duration::from_secs(2))
@@ -288,7 +290,7 @@ async fn complete(
                 running
                     .admission
                     .recover_with_terminal_receipt(&recover.run_id, &caller)?;
-                return serde_json::to_vec(&serde_json::json!({"run_id":recover.run_id,"state":"unknown","refunded":false})).map_err(|_| Rejection::Ledger);
+                return serde_json::to_vec(&serde_json::json!({"run_id":recover.run_id,"state":"unknown","execution":"settled","refunded":false})).map_err(|_| Rejection::Ledger);
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
