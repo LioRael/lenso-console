@@ -263,6 +263,13 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
             .with_admission(CONSOLE_REQUEST_ADMISSION),
         );
     }
+    if config.agent_ai.is_some() {
+        bindings.push(HostBinding::new(
+            PluginInstanceId::new("lenso.console.agent-ai-adapter", "default"),
+            "lenso.auth.credential-state@1",
+            "identity",
+        ));
+    }
     // This local distribution admits workspace owners, not the Operators profile.
     // Keep their installation from selecting administration ports implicitly.
     bindings.extend(

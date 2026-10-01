@@ -2822,6 +2822,7 @@ dependencies = [
  "lenso",
  "lenso-app-plan",
  "lenso-auth-sdk 0.2.4",
+ "lenso-capability-credential-state",
  "lenso-capability-workspace-service",
  "lenso-kernel",
  "lenso-native-adapter",

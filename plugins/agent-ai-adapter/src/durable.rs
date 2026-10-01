@@ -27,6 +27,56 @@ pub struct DurableReservation {
 }
 
 impl DurableAdmission {
+    pub fn recovery_binding(
+        &self,
+        id: &str,
+        caller: &HostCaller,
+    ) -> Result<serde_json::Value, Rejection> {
+        if !self.profile.callers.contains(caller) {
+            return Err(Rejection::Unauthorized);
+        }
+        let connection = self.connection.lock().map_err(|_| Rejection::Ledger)?;
+        let admission: String = connection
+            .query_row(
+                "SELECT admission FROM runs WHERE id=?1 AND state='reserved'",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(|_| Rejection::Unauthorized)?;
+        let admission: serde_json::Value =
+            serde_json::from_str(&admission).map_err(|_| Rejection::Ledger)?;
+        if admission["caller"] != serde_json::to_value(caller).map_err(|_| Rejection::Ledger)? {
+            return Err(Rejection::Unauthorized);
+        }
+        Ok(admission["binding"].clone())
+    }
+
+    /// Call only after the authenticated Agent proves a successful provider terminal.
+    /// Keep the entire charge; no replay and no unknown-cost refund.
+    pub fn recover_with_terminal_receipt(
+        &self,
+        id: &str,
+        caller: &HostCaller,
+    ) -> Result<(), Rejection> {
+        self.recovery_binding(id, caller)?;
+        let changed = self
+            .connection
+            .lock()
+            .map_err(|_| Rejection::Ledger)?
+            .execute(
+                "UPDATE runs SET state='unknown',evidence=?1 WHERE id=?2 AND state='reserved'",
+                params![
+                    "{\"recovery\":\"authenticated-provider-terminal\",\"refund\":false}",
+                    id
+                ],
+            )
+            .map_err(|_| Rejection::Ledger)?;
+        if changed != 1 {
+            return Err(Rejection::Ledger);
+        }
+        Ok(())
+    }
+
     pub fn open(path: &Path, profile: PurposeProfile) -> Result<Self, Rejection> {
         if !path.is_absolute() {
             return Err(Rejection::Ledger);

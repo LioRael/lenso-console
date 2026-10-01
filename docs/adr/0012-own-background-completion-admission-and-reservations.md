@@ -21,13 +21,23 @@ invocation. Immediate transactions serialize budget/concurrency across processes
 WAL/FULL synchronization precedes dispatch. Success settles measured usage and
 records binding/Generation plus configured price revision. Unknown results retain
 the complete reservation; crashes keep reserved rows blocking concurrency until
-reviewed. Foreign/incomplete databases and changed policy fail closed. No implicit
+reconciled with evidence. Foreign/incomplete databases and changed policy fail closed. No implicit
 migration, refund, budget reset, prompt history or assistant Session exists.
 
 This first version uses the selected provider catalog's full hard input ceiling
 for conservative reservation. It records Host pricing revision rather than
 claiming a provider billing receipt. The existing Model response cannot reveal
 provider-internal substitution, so exact-model execution depends on the trusted
-provider honoring its contract. Live parent credential revocation, multi-round
-run/session-write authority and administrative ledger reconciliation are separate
-follow-ups. Neither native code nor SQLite files are a hostile-code sandbox.
+provider honoring its contract.
+
+The required existing Credential State capability checks signed credential/session
+references, current user identity, expiry and both operation audiences before
+payment, during pending work and before settlement. Revocation cancels remote work
+and retains the full unknown charge. An explicit owner-scoped `recover` operation
+can release reserved concurrency with the Agent's successful provider terminal
+receipt, retaining every charged unit. It never replays work. Disappearance of a
+worker, cancellation acknowledgement, an unknown run ID or a lost process-local
+receipt cannot establish termination, so those reservations remain blocked.
+
+Multi-round run/session-write authority and reconciliation of unknown execution
+remain follow-ups. Neither native code nor SQLite files are a hostile-code sandbox.

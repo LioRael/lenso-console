@@ -119,9 +119,8 @@ Agent ADR 0118 records its transport/security boundary.
 
 Still unimplemented: multi-round `lenso.agent@3` run admission, consumer/user/project
 interactive session namespace and explicit existing-assistant Session-write grant;
-live parent-credential revocation; policy/ledger migration and operator crash-run
-reconciliation. This is a usable background completion slice, not delivery of all
-cross-Plugin AI goals. No Model Selection/Session/Turn Binding contracts are changed.
+policy/ledger migration and reconciliation of unknown crash-run execution. This
+is a usable background completion slice, not delivery of all cross-Plugin AI goals. No Model Selection/Session/Turn Binding contracts are changed.
 
 ## Local validation and reproduction
 
@@ -171,3 +170,20 @@ are unchanged. No remote checks/push/main advancement/publishing/deployment or n
 credential configuration. Latest user-reported quota reading: **4%**;
 this environment currently exposes no quota tool. Preserve the newly authorized below-1% stop line
 and continue from this checkpoint only within that budget.
+
+The completion adapter now requires the existing Credential State binding and
+rechecks parent credential revocation throughout pending work. Explicit recovery
+can release reserved concurrency only with a successful provider terminal receipt,
+without refund or replay. Unknown execution/lost receipts remain blocked; scoped
+multi-round runs and explicit assistant Session-write grants remain unfinished.
+
+The next implementation must reuse Agent Loop without exposing its raw
+`run_turn(session_id=None)` path: that path automatically opens a Session and
+writes interactive history. Existing history ownership is issuer/subject, not
+consumer/project. Use an isolated task Session composition for background runs
+and an explicit, scoped, revocable grant for writes to an existing assistant
+Session. Enforce exact Model binding and per-round reservations before every
+Model call; a request-wide maximum alone cannot bound multi-round costs. Verify
+no implicit history, cross-plugin/project denial, cancellation/revocation and
+known-price budget/concurrency at each round. Keep interactive history fixes and
+Framework/Relay branches untouched. This boundary is pending implementation.

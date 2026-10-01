@@ -20,6 +20,7 @@ lenso-kernel = "0.3.12"
 lenso-native-adapter-macros = "=0.2.8"
 lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 futures = "0.3"
 tokio = { version = "1.52", features = ["time", "macros"] }
