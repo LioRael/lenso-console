@@ -68,73 +68,76 @@ browser package resolves shared UI state/HTTP through the named singleton adapte
 map, preserving the actual authenticated subject, CSRF transport, router, Query
 Client and draft cache. This is a browser ABI, not an AI authorization capability.
 
-## Remaining cross-repository boundary: approval/coordination required
+## Coordinated background completion boundary
 
-No Agent changes or new Agent capability IDs are proposed yet. Reuse:
+Console now owns the optional `plugins/agent-ai-adapter` native provider and
+SQLite schema-v1 reservation/run ledger. It reuses `lenso.ui.workspace-service@1`
+with service `ai` and unary `complete`; no new AI capability ID or Framework/Relay
+change. The reference Host selects it only with feature `agent-ai` and explicit
+Host configuration. Installing the assistant does not issue consumer/actor grants.
 
-- `lenso.agent.model@4` 4.3.0: `catalog`, streaming `complete`.
-- `lenso.agent@3` 3.2.0: streaming `run_turn`.
-- Existing `lenso.agent.model-selection@1`, `lenso.agent.session@1` and
-  Host-issued `lenso.agent.turn-binding@1` scope. `turn-processing` is a projection,
-  not an invocation API.
+Kernel supplies caller Instance. An immutable operators verifier supplies user;
+Host policy selects exactly one project for that caller/user. Bodies cannot select
+project, profile, credentials, price or budget. Model allowlist is one exact model
+per bound profile; use explicitly bound instances for other purposes/projects.
+Known pricing revision, catalog hard input ceiling, checked integer reservation
+and concurrency are required before completion. Binding/Generation and actual
+usage are recorded. Unknown results/cancellation keep the full reservation.
+Policy changes, incompatible databases and lost storage fail closed. Crash-left
+reservations require explicit reconciliation rather than automatic refund.
 
-The current Agent Web surface has `/models` and interactive `/turns`, but no
-independent lightweight completion transport. It cannot safely simulate a model
-request by creating an assistant session. Minimum Agent-owner implementation to
-coordinate, in a new dedicated Agent worktree:
+The Agent branch `feat/plugin-ai-completion` starts at the already reviewed
+`74f9970`. Changes are confined to `generation/plugin_ai.rs`, Web
+`plugin_ai.rs`, module/command/router/Host configuration wiring and dependencies.
+`standalone.rs` adds an explicit existing-authority file option. Existing history
+handlers and interactive `run_turn`/`run_turn_on_lease` are preserved.
+Coordinated local Agent commit: `09e827997e0a22c7179d465f3e31787c8241b848`
+(includes lease checkpoint `10b988c`). Both await delivery review; no remote landing.
 
-1. **`crates/lenso-agent-host/src/generation/plugin_ai.rs` (new), plus one module
-   declaration in `crates/lenso-agent-host/src/generation.rs`.** Capture the exact
-   provider/model selection and active Generation for `complete`; invoke the
-   existing typed Model port with cancellation. Add a noninteractive Agent-run
-   adapter that uses the existing `run_turn` and Host turn binding, without using
-   the web interactive-history handler. Reject unsupported sessionless execution
-   rather than secretly creating assistant history.
-2. **`apps/lenso-agent-web/src/plugin_ai.rs` (new), plus minimal module/router
-   wiring in `apps/lenso-agent-web/src/lib.rs`.** An explicitly Host-bound bridge
-   exposes completion and run streams to Console's server adapter. Authenticate
-   with existing configured Host authority, validate the exact admitted scope,
-   and preserve realm/audience boundaries. Do not edit `run_turn`,
-   `run_turn_on_lease`, history leases or history handlers. Avoid adding a second
-   runtime loop or implicitly changing the active profile.
-3. **`crates/lenso-agent-web-plugin/src/lib.rs` only if the captured Model port is
-   unavailable to the existing surface binding.** Extend the native consumer ports
-   with existing Model/Model Selection roles, not a new invocation capability.
-   First inspect `selected_model_catalog`/Generation routing: reuse that binding
-   if it already gives an exact permitted Model handle.
+Agent captures the existing `lenso.agent.model@4` 4.3.0 binding without a Session,
+Turn or Tool lease. The optional Web bridge requires BOTH the existing private
+Host control seam and a signed user assertion with exact Model complete audience.
+Loopback/local access or an assertion alone does not authorize it. Console also
+verifies its own Workspace Service invoke audience. The standalone bridge is
+closed by default; no credential is generated. Cancel is owner scoped; output,
+request sizes and deadlines are bounded. Quoted Generation and input ceiling are
+rechecked before paid invocation. No retry or alternate model is selected.
 
-Console-owner adapter/policy follow-up would live in a separately optional
-`plugins/agent-ai-adapter`, not the Shell or browser. It must derive consumer from
-Host capability binding, user/project from verified authority, then admit before
-provider invocation. Administrator purpose profiles narrow exact model allowlists,
-token/cost reservations and concurrency. Record admitted and actual model plus
-pricing revision; fail visibly on mismatch without fallback. Background execution
-stores run/status/usage only. Session ownership is consumer/user/project scoped;
-writing an existing assistant session requires an explicit scoped write grant.
-Installation/assistant activation must not populate another Plugin's AI/tool grants.
+The Model contract does not carry actual vendor model identity or price revision.
+Evidence records the exact requested model, bound provider Instance/Generation
+and Host-configured pricing revision; it cannot detect internal substitution by
+an otherwise trusted provider or claim a vendor billing receipt. Missing pricing,
+model ceilings or final usage fails closed. Reservations use the full provider
+input ceiling, not a consumer token estimate.
 
-The UI/MCP change itself implements no AI admission policy. A subsequent bounded
-checkpoint adds the standalone `plugins/agent-ai-adapter` admission core: exact
-caller/model profiles, known pricing revision, trusted input bound, integer budget
-reservation, concurrency and actual model/usage evidence. Four synthetic tests
-and focused Clippy pass. It is not exposed or linked into the Host: its ledger is
-memory only and there is no real provider implementation, authenticated bridge,
-durable run record, cross-Plugin session namespace or session-write grant yet.
-The matching Agent worktree `feat/plugin-ai-completion` starts at `74f9970` and
-adds only a typed, actor-carrying Model lease with no Session or turn acquisition.
-Two focused Agent tests pass, including a real fixture completion stream and
-Session-list assertions before and after (both empty). This test uses synthetic
-identity and does not prove production ingress authorization.
-See `plugins/agent-ai-adapter/README.md` for exact unfinished integration.
-The existing model/Agent contracts lack a pricing revision field; retain pricing as
-Host run evidence first, and request a precise schema change only if observed
-provider identity/price cannot be tracked at the adapter boundary.
+Actual Console Kernel binding was exercised against a separate Agent fixture
+process. Missing Host control, foreign issuer, wrong audience, caller impersonation
+and unsigned project selection are rejected. Cancel/provider failure leaves
+charged unknown runs. Session lists before and after remain empty. No paid call.
+See `plugins/agent-ai-adapter/README.md` and ADR 0012 for configuration/evidence;
+Agent ADR 0118 records its transport/security boundary.
 
-The independently reviewed Agent history fix `74f9970` belongs in the coordinated
-Agent baseline before this follow-up. Its worktree was not modified; no Console
-integration requires changing or cherry-picking its history code.
+Still unimplemented: multi-round `lenso.agent@3` run admission, consumer/user/project
+interactive session namespace and explicit existing-assistant Session-write grant;
+live parent-credential revocation; policy/ledger migration and operator crash-run
+reconciliation. This is a usable background completion slice, not delivery of all
+cross-Plugin AI goals. No Model Selection/Session/Turn Binding contracts are changed.
 
 ## Local validation and reproduction
+
+Final background-completion checks: five policy/durable tests, one explicitly
+enabled cross-process Kernel/HTTP fixture test, two Agent completion lease tests
+and the assistant disable/re-enable regression with all optional features passed.
+Console adapter/reference Host and Agent Host/Web (including standalone binaries
+and tests) passed focused Clippy with warnings denied. Default Console check
+passed and its dependency graph excludes all three optional providers. Logs:
+`/tmp/lenso-ai-bridge-cross-process.log`, `/tmp/lenso-ai-bridge-console-unit.log`,
+`/tmp/lenso-ai-bridge-agent-host-test.log`,
+`/tmp/lenso-ai-bridge-assistant-regression.log`,
+`/tmp/lenso-ai-bridge-console-final-clippy.log`,
+`/tmp/lenso-ai-bridge-agent-final-clippy.log`.
+The loopback fixture tests required sandbox escalation because socket binding
+was initially denied; the authorized local tests then passed. No external network.
 
 ```sh
 pnpm build:local
@@ -165,6 +168,6 @@ Vitest reports its existing teardown timeout after successful tests, with exit 0
 
 Auth realm/audience code, existing contract versions and upstream dependency pins
 are unchanged. No remote checks/push/main advancement/publishing/deployment or new
-credential configuration. Latest parent-reported supported quota reading: **5%**;
-this environment currently exposes no quota tool. Preserve the below-3% stop line
+credential configuration. Latest user-reported quota reading: **4%**;
+this environment currently exposes no quota tool. Preserve the newly authorized below-1% stop line
 and continue from this checkpoint only within that budget.

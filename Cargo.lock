@@ -2816,6 +2816,26 @@ dependencies = [
 [[package]]
 name = "lenso-console-agent-ai-adapter"
 version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "futures",
+ "lenso",
+ "lenso-app-plan",
+ "lenso-auth-sdk 0.2.4",
+ "lenso-capability-workspace-service",
+ "lenso-kernel",
+ "lenso-native-adapter",
+ "lenso-native-adapter-macros",
+ "lenso-runner",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "time",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "lenso-console-app"
@@ -2846,6 +2866,7 @@ dependencies = [
  "lenso-capability-ui-contribution",
  "lenso-capability-workspace-service",
  "lenso-cli",
+ "lenso-console-agent-ai-adapter",
  "lenso-console-assistant-plugin",
  "lenso-console-password-session-consumer",
  "lenso-console-plugin",

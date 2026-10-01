@@ -4,7 +4,33 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
 publish = false
-description = "Host-side lightweight completion admission core; no public ingress yet"
+description = "Optional Host-authorized background completion with durable reservations"
+
+[package.metadata.lenso]
+plugin-id = "lenso.console.agent-ai-adapter"
+root-slot = "console-ai-adapters"
+
+[dependencies]
+rusqlite = { version = "0.39", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+lenso = "0.5.28"
+lenso-kernel = "0.3.12"
+lenso-native-adapter-macros = "=0.2.8"
+lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+futures = "0.3"
+tokio = { version = "1.52", features = ["time", "macros"] }
+time = "0.3"
+uuid = { version = "1.26", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.27"
+lenso-native-adapter = "0.3.19"
+lenso-app-plan = "0.4.6"
+lenso-runner = "0.2.20"
 
 [lints.rust]
 unsafe_code = "forbid"

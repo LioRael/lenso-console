@@ -1,22 +1,26 @@
-//! Bounded admission core for the optional AI adapter.
-//! No ingress, credentials, Session writer or automatic grants are installed.
-//! Production wiring must supply verified Host caller identity, a trusted token
-//! upper bound and a durable budget ledger; this in-memory ledger is a testable
-//! single-process slice, not restart-safe account billing.
+//! Optional Host-bound completion adapter with durable reservation/usage evidence.
+//! No Session writer or automatic grants are installed. The native Plugin uses
+//! `durable`; `CompletionAdmission` remains the synthetic in-memory policy core.
+
+pub mod durable;
+#[cfg(test)]
+mod integration_tests;
+mod plugin;
+pub use plugin::link;
 
 use std::{
     collections::BTreeSet,
     sync::{Arc, Mutex},
 };
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct HostCaller {
     pub consumer: String,
     pub user: String,
     pub project: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Price {
     pub version: String,
     /// Integer budget units per token; zero is allowed only when explicitly known.
@@ -24,7 +28,7 @@ pub struct Price {
     pub output: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct PurposeProfile {
     pub callers: BTreeSet<HostCaller>,
     pub model: String,
@@ -48,6 +52,8 @@ pub enum Rejection {
     Ledger,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CompletionRequest {
     pub model: String,
     pub prompt: String,
@@ -68,6 +74,7 @@ pub trait CompletionProvider {
     fn complete(&self, request: &CompletionRequest) -> Result<ProviderReply, Rejection>;
 }
 
+#[derive(serde::Serialize)]
 pub struct RunEvidence {
     pub caller: HostCaller,
     pub admitted_model: String,
@@ -223,14 +230,14 @@ mod tests {
             })
         }
     }
-    fn caller() -> HostCaller {
+    pub(super) fn caller() -> HostCaller {
         HostCaller {
             consumer: "plugin-a".into(),
             user: "alice".into(),
             project: "one".into(),
         }
     }
-    fn profile() -> PurposeProfile {
+    pub(super) fn profile() -> PurposeProfile {
         PurposeProfile {
             callers: [caller()].into(),
             model: "synthetic".into(),
@@ -244,7 +251,7 @@ mod tests {
             concurrency: 1,
         }
     }
-    fn request() -> CompletionRequest {
+    pub(super) fn request() -> CompletionRequest {
         CompletionRequest {
             model: "synthetic".into(),
             prompt: "hello".into(),

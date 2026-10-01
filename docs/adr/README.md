@@ -21,3 +21,5 @@
 - [0010 — Separate Console Shell from App assembly](0010-separate-console-shell-from-app-assembly.md)
 
 - [0011 — Unify Console development workspace](0011-unify-console-development-workspace.md)
+
+- [0012 — Own background completion admission and reservations](0012-own-background-completion-admission-and-reservations.md)

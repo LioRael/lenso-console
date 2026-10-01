@@ -57,6 +57,8 @@ pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()>
 pub async fn start_host(config: &ConsoleAppConfig) -> anyhow::Result<NativeApp> {
     config.validate()?;
     link();
+    #[cfg(feature = "agent-ai")]
+    lenso_console_agent_ai_adapter::link();
     #[cfg(feature = "assistant")]
     lenso_console_assistant_plugin::link();
     #[cfg(feature = "management-mcp")]
@@ -100,6 +102,7 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
         HostSlot::many("console-workspaces"),
         HostSlot::many("console-global-extensions"),
         HostSlot::many("management-mcp"),
+        HostSlot::many("console-ai-adapters"),
         HostSlot::many("identity"),
         HostSlot::many("auth"),
         HostSlot::many("auth-methods"),
@@ -199,6 +202,15 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
                     defaults.push(
                         HostDefaultPlugin::new(descriptor.plugin_id(), "default")
                             .with_configuration(assistant)
+                            .disableable(),
+                    );
+                }
+            }
+            "console-ai-adapters" if descriptor.plugin_id() == "lenso.console.agent-ai-adapter" => {
+                if let Some(profile) = &config.agent_ai {
+                    defaults.push(
+                        HostDefaultPlugin::new(descriptor.plugin_id(), "default")
+                            .with_configuration(profile.clone())
                             .disableable(),
                     );
                 }

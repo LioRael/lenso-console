@@ -12,6 +12,7 @@ pub struct ConsoleAppConfig {
     pub projects_workspace_origin: Option<String>,
     pub assistant_assets: Option<PathBuf>,
     pub management_mcp: Option<serde_json::Value>,
+    pub agent_ai: Option<serde_json::Value>,
 }
 
 impl ConsoleAppConfig {
@@ -30,6 +31,7 @@ impl ConsoleAppConfig {
             projects_workspace_origin: None,
             assistant_assets: None,
             management_mcp: None,
+            agent_ai: None,
         }
     }
 
@@ -50,6 +52,9 @@ impl ConsoleAppConfig {
         config.management_mcp = std::env::var_os("LENSO_CONSOLE_MCP_CONFIG")
             .map(|path| -> anyhow::Result<_> { Ok(serde_json::from_slice(&std::fs::read(path)?)?) })
             .transpose()?;
+        config.agent_ai = std::env::var_os("LENSO_CONSOLE_AGENT_AI_CONFIG")
+            .map(|path| -> anyhow::Result<_> { Ok(serde_json::from_slice(&std::fs::read(path)?)?) })
+            .transpose()?;
         config.assistant_assets =
             std::env::var_os("LENSO_CONSOLE_ASSISTANT_ASSETS").map(PathBuf::from);
         config.projects_workspace_origin = std::env::var("LENSO_CONSOLE_PROJECTS_ORIGIN").ok();
@@ -58,6 +63,10 @@ impl ConsoleAppConfig {
 
     pub fn validate(&self) -> anyhow::Result<()> {
         self.shell.validate()?;
+        anyhow::ensure!(
+            self.agent_ai.is_none() || cfg!(feature = "agent-ai"),
+            "Agent AI adapter is not installed in this Host build"
+        );
         anyhow::ensure!(
             self.management_mcp.is_none() || cfg!(feature = "management-mcp"),
             "Management MCP is not installed in this Host build"

@@ -17,8 +17,10 @@ path = "src/agent_main.rs"
 default = []
 assistant = ["dep:lenso-console-assistant-plugin"]
 management-mcp = ["dep:lenso-management-mcp"]
+agent-ai = ["dep:lenso-console-agent-ai-adapter"]
 
 [dependencies]
+lenso-console-agent-ai-adapter = { path = "../../../plugins/agent-ai-adapter", optional = true }
 lenso-console-assistant-plugin = { path = "../../../plugins/assistant", optional = true }
 lenso-management-mcp = { path = "../../../plugins/management-mcp", optional = true }
 lenso-console-plugin = { path = "../.." }
