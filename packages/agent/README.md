@@ -26,3 +26,19 @@ the bundled native Agent version. Platform packages are exact-version runtime
 dependencies and should not be installed separately.
 
 [Documentation](https://github.com/LioRael/lenso-console/blob/main/docs/agent-npm-distribution.md)
+
+## Native-only distribution candidate
+
+`@lenso/agent-native` is staged separately by the local packager. Its platform
+package contains only the pinned `lenso-agent` executable: Console and Agent Web
+executables/assets are absent. It preserves terminal, run and ACP native command
+forwarding and explicitly rejects `web`. This candidate is not published by the
+existing combined-distribution workflow.
+
+```sh
+node scripts/distribution/package-agent.mjs darwin-arm64 - /tmp/agent-native --native-only
+```
+
+Native packaging verifies the existing pinned release checksum. The `-` argument
+marks the unused Console binary position. Installation does not grant additional
+model, Tool, Plugin or MCP permissions.

@@ -33,6 +33,7 @@ export function AgentHistoryMenu({
   currentSessionId,
   placement = "utility",
   showNewChat = true,
+  onSelect,
 }: {
   agentId?: AgentId;
   projectId?: string | undefined;
@@ -40,6 +41,7 @@ export function AgentHistoryMenu({
   currentSessionId?: string | undefined;
   placement?: "header" | "utility";
   showNewChat?: boolean;
+  onSelect?: ((sessionId?: string) => void) | undefined;
 }) {
   const { selectedAgent } = useAgentIdentity();
   const headerPlacement = placement === "header";
@@ -94,6 +96,7 @@ export function AgentHistoryMenu({
               query={query}
               refreshKey={refreshKey}
               showNewChat={showNewChat}
+              onSelect={onSelect}
               targetId={agentId ?? selectedAgent.id}
             />
           </Menu.Popup>
@@ -109,12 +112,14 @@ export function AgentHistoryItems({
   query = "",
   refreshKey = 0,
   showNewChat = true,
+  onSelect,
   targetId = "console",
 }: {
   currentSessionId?: string | undefined;
   query?: string;
   refreshKey?: number;
   showNewChat?: boolean;
+  onSelect?: ((sessionId?: string) => void) | undefined;
   targetId?: AgentId;
   projectId?: string | undefined;
 }) {
@@ -142,11 +147,13 @@ export function AgentHistoryItems({
         <>
           <Menu.Item
             onClick={() =>
-              navigate({
-                params: { agentId: targetId, chatId: "new-task" },
-                search: { project: projectId },
-                to: "/agent/$agentId/$chatId",
-              })
+              onSelect
+                ? onSelect()
+                : navigate({
+                    params: { agentId: targetId, chatId: "new-task" },
+                    search: { project: projectId },
+                    to: "/agent/$agentId/$chatId",
+                  })
             }
             xstyle={[styles.item, styles.newChat]}
           >
@@ -165,6 +172,7 @@ export function AgentHistoryItems({
           currentSessionId={currentSessionId}
           label="Today"
           sessions={today}
+          onSelect={onSelect}
         />
       ) : null}
       {earlier.length > 0 ? (
@@ -176,6 +184,7 @@ export function AgentHistoryItems({
             currentSessionId={currentSessionId}
             label="Earlier"
             sessions={earlier}
+            onSelect={onSelect}
           />
         </>
       ) : null}
@@ -206,12 +215,14 @@ function HistorySection({
   currentSessionId,
   label,
   sessions,
+  onSelect,
 }: {
   agentId: AgentId;
   projectId?: string | undefined;
   currentSessionId: string | undefined;
   label: string;
   sessions: AgentSessionSummary[];
+  onSelect?: ((sessionId?: string) => void) | undefined;
 }) {
   const navigate = useNavigate();
   return (
@@ -224,11 +235,13 @@ function HistorySection({
             data-current={current || undefined}
             key={session.sessionId}
             onClick={() =>
-              navigate({
-                params: { agentId, chatId: session.sessionId },
-                search: { project: projectId },
-                to: "/agent/$agentId/$chatId",
-              })
+              onSelect
+                ? onSelect(session.sessionId)
+                : navigate({
+                    params: { agentId, chatId: session.sessionId },
+                    search: { project: projectId },
+                    to: "/agent/$agentId/$chatId",
+                  })
             }
             xstyle={styles.item}
           >

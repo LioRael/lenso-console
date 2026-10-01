@@ -194,18 +194,6 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
             navigation={navigation}
             searchItems={searchItems}
             searchRef={searchRef}
-            actions={
-              administrator && agents.length > 0 ? (
-                <AgentQuickPanel
-                  onOpenFullPage={(agentId, sessionId) => {
-                    void navigate({
-                      to: "/agent/$agentId/$chatId",
-                      params: { agentId, chatId: sessionId ?? "new-task" },
-                    });
-                  }}
-                />
-              ) : null
-            }
           />
         }
         sidebarHeader={
@@ -287,6 +275,18 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
       >
         {children}
       </ConsoleFrame>
+      {administrator && agents.length > 0 ? (
+        <AgentQuickPanel
+          suspended={mobileNavigationOpen}
+          onOpenFullPage={(agentId, sessionId, projectId) => {
+            void navigate({
+              to: "/agent/$agentId/$chatId",
+              params: { agentId, chatId: sessionId ?? "new-task" },
+              search: { project: projectId },
+            });
+          }}
+        />
+      ) : null}
     </ThemeScope>
   );
 }

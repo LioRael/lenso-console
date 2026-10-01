@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useConsoleSession } from "../../app/console-session";
 import { useAttachmentDraft, type AgentAttachment } from "./agent-attachments";
 import {
   disconnectedAgentExecutionPresentation,
@@ -49,6 +50,7 @@ import {
   type AgentStreamEventBuffer,
 } from "./agent-stream-buffer";
 import { createTaskSnapshotPoller } from "./task-snapshot-poller";
+import { agentDraftKey, useAgentDraft } from "./use-agent-draft";
 
 type ActiveTurn = {
   controller: AbortController;
@@ -130,7 +132,9 @@ export function useAgentConversation({
   onSessionResolved?: ((sessionId: string) => void) | undefined;
   targetId?: AgentTarget;
 } = {}) {
-  const [draft, setDraft] = useState("");
+  const { subject } = useConsoleSession();
+  const [sessionId, setSessionId] = useState(initialSessionId);
+  const [draft, setDraft] = useAgentDraft(targetId, sessionId);
   const [runtime, setRuntime] = useState<AgentBootstrap>();
   const [contextCatalog, setContextCatalog] = useState<AgentContextCatalog>();
   const [modelCatalog, setModelCatalog] = useState<AgentModelCatalog>();
@@ -153,7 +157,7 @@ export function useAgentConversation({
       if (id) {
         try {
           sessionStorage.setItem(
-            `agent-approval:${targetId}:${id}`,
+            `agent-approval:${agentDraftKey(subject, targetId, id)}`,
             mode ?? ""
           );
         } catch {
@@ -161,7 +165,7 @@ export function useAgentConversation({
         }
       }
     },
-    [targetId]
+    [subject, targetId]
   );
   const [selectedServiceTier, setSelectedServiceTier] = useState<string>();
   const [selectedTools, setSelectedTools] = useState<string[]>();
@@ -184,7 +188,6 @@ export function useAgentConversation({
   const [isAnsweringInteraction, setIsAnsweringInteraction] = useState(false);
   const [pendingInteraction, setPendingInteraction] =
     useState<AgentPendingInteraction>();
-  const [sessionId, setSessionId] = useState(initialSessionId);
   const attachments = useAttachmentDraft(targetId, sessionId);
   const clearAttachments = attachments.clear;
   const activeTurn = useRef<ActiveTurn | undefined>(undefined);
@@ -347,7 +350,7 @@ export function useAgentConversation({
     try {
       const stored = initialSessionId
         ? sessionStorage.getItem(
-            `agent-approval:${targetId}:${initialSessionId}`
+            `agent-approval:${agentDraftKey(subject, targetId, initialSessionId)}`
           )
         : undefined;
       approvalMode =
@@ -361,7 +364,9 @@ export function useAgentConversation({
     setSelectedApprovalMode(approvalMode);
     clearAttachments();
     setContextReferences([]);
-    setDraft("");
+    if (!initialSessionId) {
+      setDraft("");
+    }
     setEditingTurnId(undefined);
     setTurns([]);
     setTerminalRuns([]);
@@ -387,7 +392,7 @@ export function useAgentConversation({
       }
     );
     return () => controller.abort();
-  }, [initialSessionId, targetId, clearAttachments]);
+  }, [initialSessionId, targetId, clearAttachments, subject, setDraft]);
 
   useEffect(
     () => () => {
@@ -613,6 +618,7 @@ export function useAgentConversation({
       selectedTools,
       targetId,
       turns,
+      setDraft,
     ]
   );
   useEffect(() => {
@@ -732,7 +738,7 @@ export function useAgentConversation({
       };
       void execute();
     },
-    [targetId, terminalCatalog]
+    [targetId, terminalCatalog, setDraft]
   );
 
   const submit = useCallback(() => {
@@ -802,6 +808,7 @@ export function useAgentConversation({
     attachments,
     modelCatalog,
     selectedModel,
+    setDraft,
   ]);
 
   const removeQueuedPrompt = useCallback((id: string) => {
@@ -892,7 +899,12 @@ export function useAgentConversation({
               setIsRunning(false);
               setPendingInteraction(undefined);
             }
-          } else if (activity && !activeTurn.current) {
+          } else if (
+            activity &&
+            !activeTurn.current &&
+            activity.sessionId &&
+            activity.sessionId === sessionIdRef.current
+          ) {
             const activityStillRunning =
               activity.running && activity.terminalOutcome === null;
             backgroundTurn.current =
@@ -900,13 +912,6 @@ export function useAgentConversation({
                 ? { requestId: activity.requestId }
                 : undefined;
             setIsRunning(activityStillRunning);
-            if (
-              activityStillRunning &&
-              activity.sessionId &&
-              !sessionIdRef.current
-            ) {
-              onSessionResolvedRef.current?.(activity.sessionId);
-            }
             if (
               (activityStillRunning || wasRunning) &&
               sessionIdRef.current === activity.sessionId &&
@@ -1040,14 +1045,14 @@ export function useAgentConversation({
       setDraft(turn.user);
       void attachments.restore(turn.attachments ?? []);
     },
-    [canEdit, attachments]
+    [canEdit, attachments, setDraft]
   );
 
   const cancelEditing = useCallback(() => {
     clearAttachments();
     setEditingTurnId(undefined);
     setDraft("");
-  }, [clearAttachments]);
+  }, [clearAttachments, setDraft]);
 
   const compactSession = useCallback(() => {
     const currentSessionId = sessionIdRef.current;

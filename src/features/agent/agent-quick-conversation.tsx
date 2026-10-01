@@ -39,7 +39,7 @@ import {
 } from "./agent-message-controls";
 import { agentQuickPanelStyles as styles } from "./agent-quick-panel.stylex";
 import { modelsForSelector } from "./agent-runtime";
-import type { AgentTurn } from "./agent-runtime";
+import type { AgentTarget, AgentTurn } from "./agent-runtime";
 import { AgentShimmerText } from "./agent-shimmer-text";
 import { speedMenu } from "./agent-speed";
 import { AgentTurnActivity } from "./agent-turn-activity";
@@ -60,26 +60,35 @@ function chatTitleFor(prompt: string) {
 
 export function AgentQuickConversation({
   agentId,
+  targetId = agentId,
   active,
   host,
   initialDraft,
+  initialSessionId,
   onClose,
   onMinimize,
   onMetadata,
   onOpenFullPage,
 }: {
   agentId: string;
+  targetId?: AgentTarget;
   active: boolean;
   host: HTMLDivElement | null;
   initialDraft?: string | undefined;
+  initialSessionId?: string | undefined;
   onClose: () => void;
   onMinimize: () => void;
   onMetadata: (
     title: string,
     hasConversation: boolean,
-    running: boolean
+    running: boolean,
+    sessionId?: string
   ) => void;
-  onOpenFullPage: (agentId: string, sessionId?: string) => void;
+  onOpenFullPage: (
+    agentId: string,
+    sessionId?: string,
+    projectId?: string
+  ) => void;
 }) {
   const t = useConsoleTranslation();
 
@@ -121,7 +130,7 @@ export function AgentQuickConversation({
     submit,
     turns,
     visibleTurns,
-  } = useAgentConversation({ targetId: selectedAgent.id });
+  } = useAgentConversation({ targetId, initialSessionId });
   const models = modelsForSelector(modelCatalog, selectedModel);
   const modelId = selectedModel ?? modelCatalog?.selectedModel ?? models[0]?.id;
   const model = models.find((item) => item.id === modelId);
@@ -144,8 +153,8 @@ export function AgentQuickConversation({
   }, [active, host, isRunning, visibleTurns]);
 
   useEffect(() => {
-    onMetadata(title, hasConversation, isRunning);
-  }, [title, hasConversation, isRunning, onMetadata]);
+    onMetadata(title, hasConversation, isRunning, sessionId);
+  }, [title, hasConversation, isRunning, sessionId, onMetadata]);
 
   useEffect(() => {
     if (!appliedDraftRequest.current && initialDraft) {
@@ -232,6 +241,11 @@ export function AgentQuickConversation({
         {...stylex.props(styles.body)}
         data-conversation={!showWelcome || undefined}
       >
+        {typeof targetId === "object" ? (
+          <p {...stylex.props(styles.assistantCopy)}>
+            Project: {runtime?.workspace?.path ?? targetId.projectId}
+          </p>
+        ) : null}
         {showWelcome ? (
           <p {...stylex.props(styles.welcome)}>
             {t("Ask a question or describe a task.")}

@@ -317,14 +317,23 @@ export const agentQuickPanelStyles = stylex.create({
     lineHeight: "normal",
     margin: 0,
   },
+  historyTrigger: {
+    position: "fixed",
+    right: { default: "128px", "@media (max-width: 720px)": "56px" },
+    bottom: "16px",
+    zIndex: 80,
+  },
   trigger: {
+    bottom: "16px",
+    right: "16px",
+    position: "fixed",
+    zIndex: 80,
     backgroundColor: {
       default:
         "var(--console-navigation-selected, var(--transparent-selected))",
       ":hover":
         "var(--console-navigation-selected, var(--transparent-selected))",
     },
-    borderRadius: "9px",
     boxShadow: "none",
     color: "var(--foreground)",
     fontFamily: "inherit",
@@ -341,10 +350,10 @@ export const agentQuickPanelStyles = stylex.create({
       width: "32px",
     },
   },
-  triggerIcon: { color: "var(--console-assistant-accent, #b9b5ff)" },
+  triggerIcon: { color: "var(--foreground)" },
   triggerLabel: { "@media (max-width: 720px)": { display: "none" } },
   tray: {
-    bottom: "12px",
+    bottom: "60px",
     display: "flex",
     gap: "4px",
     maxWidth: "calc(100vw - 24px)",

@@ -42,7 +42,6 @@ use lenso_capability_http_stream_endpoint::{
 use lenso_kernel::{InvocationContext, RuntimeFailure};
 use serde::{Deserialize, Serialize};
 
-const DEFAULT_CONSOLE_AGENT_URL: &str = "http://127.0.0.1:8788";
 const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
 pub const AGENT_PLUGIN_CONFIGURATION_CAPABILITY: &str = "lenso.agent.plugin-configuration@1";
 pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-management@1";
@@ -940,8 +939,7 @@ impl ConsoleConfig {
         };
         let connected_agent_url =
             std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_URL").unwrap_or_default();
-        let console_agent_url = std::env::var("LENSO_CONSOLE_AGENT_URL")
-            .unwrap_or_else(|_| DEFAULT_CONSOLE_AGENT_URL.to_owned());
+        let console_agent_url = std::env::var("LENSO_CONSOLE_AGENT_URL").unwrap_or_default();
         let connected_agent_label = std::env::var("LENSO_CONSOLE_CONNECTED_AGENT_LABEL")
             .unwrap_or_else(|_| "Lenso Agent".to_owned());
         let connected_agent_plugin_configuration =

@@ -9,7 +9,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -27,6 +27,7 @@ import {
   useAgentQuickPanel,
 } from "./agent-quick-panel-context";
 import { useAgentConversation } from "./use-agent-conversation";
+import { useAgentDraft } from "./use-agent-draft";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -50,6 +51,44 @@ afterEach(() => {
 });
 
 describe("Agent quick panel", () => {
+  test("mobile navigation suspends the panel without losing its unsent draft", async () => {
+    await renderPanel(agentFetch());
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Retain navigation draft"
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Toggle navigation fixture" })
+    );
+    await expect
+      .poll(
+        () =>
+          document
+            .querySelector('[data-agent-action="open"]')
+            ?.closest("[hidden]") !== null
+      )
+      .toBe(true);
+    await userEvent.keyboard("{Control>}j{/Control}");
+    await expect
+      .poll(
+        () =>
+          document.querySelector('[role="dialog"]')?.getBoundingClientRect()
+            .width ?? 0
+      )
+      .toBe(0);
+    await userEvent.click(
+      page.getByRole("button", { name: "Toggle navigation fixture" })
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
+    await expect
+      .poll(() => requiredComposer().textContent)
+      .toBe("Retain navigation draft");
+  });
   test("command menu remains clickable above the compact composer", async () => {
     await renderPanel(agentFetch());
     await userEvent.click(
@@ -109,7 +148,10 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
 
-    const trigger = page.getByRole("button", { name: "Assistant" });
+    const trigger = page.getByRole("button", {
+      name: "Assistant",
+      exact: true,
+    });
     const triggerElement = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Assistant"]'
     );
@@ -119,6 +161,165 @@ describe("Agent quick panel", () => {
     await userEvent.hover(trigger);
     await expect.element(trigger).toBeVisible();
     expect(getComputedStyle(triggerElement).color).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
+  test("floating entry and shortcut preserve an unsent draft without submitting", async () => {
+    const fetchMock = agentFetch();
+    await renderPanel(fetchMock);
+    const trigger = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Assistant"]'
+    )!;
+    const box = trigger.getBoundingClientRect();
+    expect(window.innerWidth - box.right).toBe(16);
+    expect(window.innerHeight - box.bottom).toBe(16);
+    trigger.focus();
+    await expect.element(page.elementLocator(trigger)).toHaveFocus();
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "j", ctrlKey: true, bubbles: true })
+    );
+    await nextFrame();
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Keep this draft"
+    );
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "j", ctrlKey: true, bubbles: true })
+    );
+    await nextFrame();
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "j", ctrlKey: true, bubbles: true })
+    );
+    await nextFrame();
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .toHaveTextContent("Keep this draft");
+    expect(turnRequests(fetchMock)).toHaveLength(0);
+  });
+
+  test("unrelated background activity cannot adopt a blank assistant session", async () => {
+    const fetchMock = agentFetch();
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) =>
+      String(input).endsWith("/activity")
+        ? Response.json({
+            requestId: "plugin-background",
+            sessionId: "unrelated-session",
+            running: true,
+            detail: null,
+            terminalOutcome: null,
+          })
+        : original(input, init)
+    );
+    const onOpenFullPage = vi.fn();
+    await renderPanel(fetchMock, onOpenFullPage);
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
+    await expect
+      .poll(() =>
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).endsWith("/activity")
+        )
+      )
+      .toBe(true);
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "My own draft"
+    );
+    await userEvent.click(page.getByRole("button", { name: "Open full page" }));
+    expect(onOpenFullPage).toHaveBeenCalledWith("console", undefined);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes("/sessions/unrelated-session")
+      )
+    ).toBe(false);
+    expect(turnRequests(fetchMock)).toHaveLength(0);
+  });
+
+  test("history reopens the durable session and retains its input after closing", async () => {
+    const fetchMock = agentFetch();
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/sessions")) {
+        return Response.json({
+          sessions: [
+            {
+              sessionId: "history-slice",
+              title: "Saved conversation",
+              revision: "1",
+              updatedAt: new Date().toISOString(),
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/sessions/history-slice")) {
+        return Response.json({
+          session_id: "history-slice",
+          revision: "1",
+          events: [
+            {
+              event_id: "event-1",
+              kind: "turn_started",
+              occurred_at: new Date().toISOString(),
+              payload_json: JSON.stringify({ input: "Saved prompt" }),
+              revision: "1",
+              turn_id: "turn-history",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/sessions/history-slice/trajectory")) {
+        return Response.json({
+          schema: "lenso.agent.trajectory@1",
+          sessionId: "history-slice",
+          revision: 1,
+          records: [],
+          summary: {
+            status: "completed",
+            turns: 1,
+            modelCalls: 0,
+            toolCalls: 0,
+            failedOperations: 0,
+            inputTokens: 0,
+            outputTokens: 0,
+          },
+        });
+      }
+      return original(input, init);
+    });
+    await renderPanel(fetchMock);
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant history" })
+    );
+    await userEvent.click(
+      page.getByRole("menuitem", { name: /Saved conversation/ })
+    );
+    await expect
+      .element(
+        page
+          .getByLabelText("Agent conversation")
+          .getByText("Saved prompt", { exact: true })
+      )
+      .toBeVisible();
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Saved session draft"
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Close chat", exact: true })
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant history" })
+    );
+    await userEvent.click(
+      page.getByRole("menuitem", { name: /Saved conversation/ })
+    );
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .toHaveTextContent("Saved session draft");
+    expect(turnRequests(fetchMock)).toHaveLength(0);
   });
 
   test("switches retained chats in one drawer and removes closed tray items", async () => {
@@ -300,7 +501,9 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     await nextFrame();
     const composerElement = requiredComposer();
     const composer = page.elementLocator(composerElement);
@@ -320,7 +523,9 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     await nextFrame();
     const composerElement = requiredComposer();
     const composer = page.elementLocator(composerElement);
@@ -345,7 +550,9 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch(answer);
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     await nextFrame();
     const composer = page.elementLocator(requiredComposer());
     await userEvent.fill(composer, "Stream a long answer");
@@ -361,7 +568,9 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch("", false, pluginProposalMessages());
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     const composer = page.elementLocator(requiredComposer());
     await userEvent.fill(composer, "Prepare a Plugin proposal");
     await userEvent.keyboard("{Enter}");
@@ -380,7 +589,9 @@ describe("Agent quick panel", () => {
     const fetchMock = agentFetch("", false, pluginInspectionMessages());
     await renderPanel(fetchMock);
 
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     const composer = page.elementLocator(requiredComposer());
     await userEvent.fill(composer, "Inspect the Agent loop Plugin");
     await userEvent.keyboard("{Enter}");
@@ -405,7 +616,9 @@ describe("Agent quick panel", () => {
     const onOpenFullPage = vi.fn();
     await renderPanel(fetchMock, onOpenFullPage);
 
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     await expect
       .poll(() =>
         fetchMock.mock.calls.some(([input]) =>
@@ -420,10 +633,61 @@ describe("Agent quick panel", () => {
     expect(onOpenFullPage).toHaveBeenCalledWith("app", undefined);
   });
 
+  test("project switches keep separate drawer targets and full-page destinations", async () => {
+    const projectA = "00000000-0000-4000-8000-000000000001";
+    const projectB = "00000000-0000-4000-8000-000000000002";
+    const fetchMock = agentFetch("Done", true);
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes("/projects/") && url.endsWith("/bootstrap")) {
+        return original("/api/console/v1/agents/app/bootstrap", init);
+      }
+      return original(input, init);
+    });
+    const onOpenFullPage = vi.fn();
+    const router = await renderPanel(
+      fetchMock,
+      onOpenFullPage,
+      false,
+      "light",
+      false,
+      `/?project=${projectA}`
+    );
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
+    await expect.element(page.getByText(`Project: ${projectA}`)).toBeVisible();
+    await userEvent.fill(
+      page.elementLocator(requiredComposer()),
+      "Project A draft"
+    );
+    await userEvent.click(page.getByRole("button", { name: "Open full page" }));
+    expect(onOpenFullPage).toHaveBeenLastCalledWith("app", undefined, projectA);
+    router.history.push(`/?project=${projectB}`);
+    await nextFrame();
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
+    await expect.element(page.getByText(`Project: ${projectB}`)).toBeVisible();
+    await expect
+      .element(page.elementLocator(requiredComposer()))
+      .not.toHaveTextContent("Project A draft");
+    await userEvent.click(page.getByRole("button", { name: "Open full page" }));
+    expect(onOpenFullPage).toHaveBeenLastCalledWith("app", undefined, projectB);
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes(`/projects/${projectB}/bootstrap`)
+      )
+    ).toBe(true);
+  });
+
   test("new mini chats inherit the current workspace reference without submitting", async () => {
     const fetchMock = agentFetch();
     await renderPanel(fetchMock, () => undefined, false, "light", true);
-    await userEvent.click(page.getByRole("button", { name: "Assistant" }));
+    await userEvent.click(
+      page.getByRole("button", { name: "Assistant", exact: true })
+    );
     await expect
       .element(page.elementLocator(requiredComposer()))
       .toHaveTextContent("issue-1");
@@ -447,6 +711,39 @@ describe("Agent quick panel", () => {
     await expect.element(composer).toHaveTextContent("lenso.agent.loop");
     expect(turnRequests(fetchMock)).toHaveLength(0);
   });
+});
+
+test("resolved session input is shared across surfaces and isolated between projects", async () => {
+  if (!container) {
+    throw new Error("Missing browser container");
+  }
+  root = createRoot(container);
+  flushSync(() =>
+    root?.render(
+      <>
+        <DraftInput label="Drawer input" projectId="project-a" />
+        <DraftInput label="Full page input" projectId="project-a" />
+        <DraftInput label="Other project input" projectId="project-b" />
+      </>
+    )
+  );
+  await userEvent.fill(
+    page.getByRole("textbox", { name: "Drawer input" }),
+    "Shared session input"
+  );
+  await expect
+    .element(page.getByRole("textbox", { name: "Full page input" }))
+    .toHaveValue("Shared session input");
+  await expect
+    .element(page.getByRole("textbox", { name: "Other project input" }))
+    .toHaveValue("");
+  await userEvent.fill(
+    page.getByRole("textbox", { name: "Full page input" }),
+    "Updated from full page"
+  );
+  await expect
+    .element(page.getByRole("textbox", { name: "Drawer input" }))
+    .toHaveValue("Updated from full page");
 });
 
 describe("Agent prompt queue", () => {
@@ -475,7 +772,8 @@ async function renderPanel(
     undefined,
   includePluginAction = false,
   theme: "light" | "dark" = "light",
-  includeWorkspaceContext = false
+  includeWorkspaceContext = false,
+  initialLocation = "/"
 ) {
   vi.stubGlobal("fetch", fetchMock);
   if (!container) {
@@ -509,7 +807,7 @@ async function renderPanel(
           <PluginAgentAction {...pluginAgentContext} />
         ) : null}
         <div style={{ display: "flex", gap: 4 }}>
-          <AgentQuickPanel onOpenFullPage={onOpenFullPage} />
+          <SuspendablePanel onOpenFullPage={onOpenFullPage} />
         </div>
       </>
     ),
@@ -527,7 +825,7 @@ async function renderPanel(
     path: "/plugins/$agentId/$packageId/$instanceKey",
   });
   const router = createRouter({
-    history: createMemoryHistory({ initialEntries: ["/"] }),
+    history: createMemoryHistory({ initialEntries: [initialLocation] }),
     routeTree: rootRoute.addChildren([
       panelRoute,
       pluginsRoute,
@@ -538,6 +836,21 @@ async function renderPanel(
     root?.render(<RouterProvider router={router} />);
   });
   await nextFrame();
+  return router;
+}
+
+function SuspendablePanel({
+  onOpenFullPage,
+}: Parameters<typeof AgentQuickPanel>[0]) {
+  const [suspended, setSuspended] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setSuspended((value) => !value)}>
+        Toggle navigation fixture
+      </button>
+      <AgentQuickPanel onOpenFullPage={onOpenFullPage} suspended={suspended} />
+    </>
+  );
 }
 
 function PluginWorkbenchRequestProbe() {
@@ -615,6 +928,8 @@ function agentFetch(
   includeAppAgent = false,
   toolMessages: readonly Record<string, unknown>[] = []
 ) {
+  const sessionPrefix = crypto.randomUUID();
+  let sessionSequence = 0;
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url.endsWith("/api/console/v1/agents")) {
@@ -661,9 +976,19 @@ function agentFetch(
       url.endsWith("/api/console/v1/agent/turns") &&
       init?.method === "POST"
     ) {
-      return new Response(streamBody(answer, toolMessages), {
-        headers: { "content-type": "text/event-stream" },
-      });
+      sessionSequence += 1;
+      const request = JSON.parse(String(init.body));
+      const sessionId =
+        request.session_id ?? `${sessionPrefix}-${sessionSequence}`;
+      return new Response(
+        streamBody(answer, toolMessages).replaceAll(
+          "session-browser",
+          sessionId
+        ),
+        {
+          headers: { "content-type": "text/event-stream" },
+        }
+      );
     }
     return Response.json(
       { detail: "canonical refresh unavailable in test" },
@@ -883,4 +1208,24 @@ function WorkspaceContextFixture() {
     return () => setPageContext(null);
   }, [setPageContext]);
   return null;
+}
+
+function DraftInput({
+  label,
+  projectId,
+}: {
+  label: string;
+  projectId: string;
+}) {
+  const [draft, setDraft] = useAgentDraft(
+    { agentId: "app", projectId },
+    "shared-draft-test"
+  );
+  return (
+    <textarea
+      aria-label={label}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+    />
+  );
 }

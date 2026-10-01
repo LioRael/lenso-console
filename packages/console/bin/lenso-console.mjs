@@ -3,28 +3,17 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { readFileSync, accessSync, realpathSync, constants } from "node:fs";
 import { createRequire } from "node:module";
-import { constants as osConstants } from "node:os";
 import { dirname, join } from "node:path";
 
 const require = createRequire(import.meta.url);
 const own = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url))
 );
-const help = `Usage: lenso-agent [terminal options]
-       lenso-agent run <prompt> [options]
-       lenso-agent <auth|profiles|sessions|models|contexts|approvals|doctor> ...
-       lenso-agent acp [options]
-       lenso-agent web [--port <1-65535>] [--no-open]
+const help = `Usage: lenso-console [--port <1-65535>] [--no-open]
 
-Running without a subcommand starts the terminal UI.
-Use auth login, then profiles install coding before --profile code.
-Native commands and options are passed to the bundled Agent unchanged.
-Use tui --help or run --help for native help. cli remains a compatibility entrypoint.
-
-Web starts Lenso Agent and Console in the current workspace.
+Starts Console without downloading or starting Agent.
+Agent connections and MCP management are configured independently by the Host.
 Default URL: http://127.0.0.1:3030
-Local launches open a browser; SSH launches only print the URL.
-Agent Home and Console Home are preserved between runs.
 `;
 
 export const parseArgs = (args) => {
@@ -34,20 +23,8 @@ export const parseArgs = (args) => {
   if (args.length === 1 && ["--help", "-h"].includes(args[0])) {
     return { help: true };
   }
-  if (own.nativeOnly && args[0] === "web") {
-    throw new Error(
-      "This native Agent package does not include Console. Install Console separately."
-    );
-  }
-  // Native Agent owns terminal command parsing and surface selection.
-  if (args[0] !== "web") {
-    return { args, executable: "lenso-agent" };
-  }
-  if (args.length === 2 && ["--help", "-h"].includes(args[1])) {
-    return { help: true };
-  }
   const result = { open: true, port: 3030 };
-  for (let i = 1; i < args.length; i += 1) {
+  for (let i = 0; i < args.length; i += 1) {
     if (args[i] === "--no-open") {
       result.open = false;
     } else if (args[i] === "--port") {
@@ -70,7 +47,6 @@ export const parseArgs = (args) => {
 export const resolveRuntime = (
   platform = process.platform,
   arch = process.arch,
-  executable = undefined,
   resolvePackage = (name) => require.resolve(name)
 ) => {
   const target = `${platform}-${arch}`;
@@ -88,15 +64,12 @@ export const resolveRuntime = (
       );
     }
   }
-  const runtimePackage = own.nativeOnly ? "agent-native" : "agent";
   let manifest;
   try {
-    manifest = resolvePackage(
-      `@lenso/${runtimePackage}-${target}/package.json`
-    );
+    manifest = resolvePackage(`@lenso/console-${target}/package.json`);
   } catch {
     throw new Error(
-      `Missing @lenso/${runtimePackage}-${target}@${own.version}. Reinstall with npm optional dependencies enabled.`
+      `Missing @lenso/console-${target}@${own.version}. Reinstall with npm optional dependencies enabled.`
     );
   }
   const metadata = JSON.parse(readFileSync(manifest));
@@ -106,22 +79,8 @@ export const resolveRuntime = (
     );
   }
   const root = dirname(manifest);
-  const executables = executable
-    ? [executable]
-    : [
-        "lenso-console-with-agent",
-        "lenso-agent",
-        "lenso-agent-cli",
-        "lenso-agent-acp",
-        "lenso-agent-web",
-        "lenso-agent-console-web",
-      ];
-  for (const name of executables) {
-    accessSync(join(root, "bin", name), constants.X_OK);
-  }
-  if (!executable) {
-    accessSync(join(root, "web", "index.html"), constants.R_OK);
-  }
+  accessSync(join(root, "bin/lenso-console"), constants.X_OK);
+  accessSync(join(root, "web/index.html"), constants.R_OK);
   return root;
 };
 
@@ -141,7 +100,7 @@ const openBrowser = (url) => {
 };
 
 export const launch = async (options, runtime) => {
-  const child = spawn(join(runtime, "bin", "lenso-console-with-agent"), [], {
+  const child = spawn(join(runtime, "bin", "lenso-console"), [], {
     cwd: process.cwd(),
     detached: true,
     env: {
@@ -149,12 +108,6 @@ export const launch = async (options, runtime) => {
       CONSOLE_WEB_ROOT: join(runtime, "web"),
       HTTP_HOST: "127.0.0.1",
       HTTP_PORT: String(options.port),
-      LENSO_AGENT_WEB_BIN: join(runtime, "bin", "lenso-agent-web"),
-      LENSO_CONSOLE_AGENT_WEB_BIN: join(
-        runtime,
-        "bin",
-        "lenso-agent-console-web"
-      ),
     },
     stdio: ["inherit", "pipe", "inherit"],
   });
@@ -190,7 +143,7 @@ export const launch = async (options, runtime) => {
   const timeout = setTimeout(() => {
     timedOut = true;
     console.error(
-      "Console startup timed out. Check the Agent diagnostics above."
+      "Console startup timed out. Check the Host diagnostics above."
     );
     stop();
   }, 120000);
@@ -238,55 +191,15 @@ export const launch = async (options, runtime) => {
   }
 };
 
-// Inherit all three streams so the native TUI owns the terminal and ACP owns stdio.
-// Resolve only exact packaged paths, even if another lenso-agent is on PATH.
-export const launchNative = async (options, runtime) => {
-  const child = spawn(join(runtime, "bin", options.executable), options.args, {
-    cwd: process.cwd(),
-    env: process.env,
-    stdio: "inherit",
-  });
-  const interrupt = () => {
-    // Foreground terminal groups already receive SIGINT together.
-    if (!process.stdin.isTTY) {
-      child.kill("SIGINT");
-    }
-  };
-  const terminate = () => child.kill("SIGTERM");
-  process.on("SIGINT", interrupt);
-  process.on("SIGTERM", terminate);
-  try {
-    const [code, signal] = await once(child, "exit");
-    return code ?? 128 + (osConstants.signals[signal] ?? 1);
-  } finally {
-    process.off("SIGINT", interrupt);
-    process.off("SIGTERM", terminate);
-  }
-};
-
 if (process.argv[1] && import.meta.filename === realpathSync(process.argv[1])) {
   try {
     const options = parseArgs(process.argv.slice(2));
     if (options.help) {
-      console.log(
-        own.nativeOnly
-          ? help
-              .slice(0, help.indexOf("Web starts"))
-              .replace(
-                "       lenso-agent web [--port <1-65535>] [--no-open]\n",
-                ""
-              )
-          : help
-      );
+      console.log(help);
     } else if (options.version) {
       console.log(own.version);
     } else {
-      process.exitCode = options.executable
-        ? await launchNative(
-            options,
-            resolveRuntime(process.platform, process.arch, options.executable)
-          )
-        : await launch(options, resolveRuntime());
+      process.exitCode = await launch(options, resolveRuntime());
     }
   } catch (error) {
     console.error(`error: ${error.message}`);

@@ -13,14 +13,19 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "../..");
-const [target, binary, destination] = process.argv.slice(2);
+const [target, binary, destination, mode] = process.argv.slice(2);
+if (mode && mode !== "--native-only") {
+  throw new Error(`Unknown packaging mode: ${mode}`);
+}
+const nativeOnly = mode === "--native-only";
+const packageName = nativeOnly ? "agent-native" : "agent";
 const targets = {
   "darwin-arm64": "darwin-aarch64",
   "linux-x64": "linux-x86_64",
 };
 if (!targets[target] || !binary || !destination) {
   throw new Error(
-    "Usage: package-agent.mjs <darwin-arm64|linux-x64> <console-binary> <output-directory>"
+    "Usage: package-agent.mjs <darwin-arm64|linux-x64> <console-binary> <output-directory> [--native-only]"
   );
 }
 const { version } = JSON.parse(await readFile(join(root, "package.json")));
@@ -33,24 +38,31 @@ if (target !== `${process.platform}-${process.arch}`) {
   );
 }
 const output = resolve(destination);
-const platform = join(output, `agent-${target}`);
+const platform = join(output, `${packageName}-${target}`);
 await mkdir(output, { recursive: true });
 await mkdir(platform);
 await mkdir(join(platform, "bin"));
 await cp(join(root, "LICENSE"), join(platform, "LICENSE"));
-await cp(resolve(binary), join(platform, "bin/lenso-console-with-agent"));
-await chmod(join(platform, "bin/lenso-console-with-agent"), 0o755);
-await cp(join(root, "dist/client"), join(platform, "web"), { recursive: true });
-await readFile(join(platform, "web/index.html"));
+if (!nativeOnly) {
+  await cp(resolve(binary), join(platform, "bin/lenso-console-with-agent"));
+  await chmod(join(platform, "bin/lenso-console-with-agent"), 0o755);
+  await cp(join(root, "dist/client"), join(platform, "web"), {
+    recursive: true,
+  });
+  await readFile(join(platform, "web/index.html"));
+}
 const temporary = await mkdtemp(join(tmpdir(), "lenso-agent-package-"));
 try {
-  for (const executable of [
-    "lenso-agent",
-    "lenso-agent-cli",
-    "lenso-agent-acp",
-    "lenso-agent-web",
-    "lenso-agent-console-web",
-  ]) {
+  const executables = nativeOnly
+    ? ["lenso-agent"]
+    : [
+        "lenso-agent",
+        "lenso-agent-cli",
+        "lenso-agent-acp",
+        "lenso-agent-web",
+        "lenso-agent-console-web",
+      ];
+  for (const executable of executables) {
     const name = `${executable}-v${cohort.version}-${targets[target]}.tar.gz`;
     const checksum = cohort.assets[name];
     if (!/^[a-f0-9]{64}$/u.test(checksum ?? "")) {
@@ -88,10 +100,14 @@ try {
 }
 const metadata = {
   cpu: [target.split("-")[1]],
-  description: `Lenso Agent terminal and Web runtime for ${target}.`,
-  files: ["bin", "web", "cohort.json", "README.md"],
+  description: nativeOnly
+    ? `Lenso Agent native runtime for ${target}.`
+    : `Lenso Agent terminal and Web runtime for ${target}.`,
+  files: nativeOnly
+    ? ["bin", "cohort.json", "README.md"]
+    : ["bin", "web", "cohort.json", "README.md"],
   license: "MIT",
-  name: `@lenso/agent-${target}`,
+  name: `@lenso/${packageName}-${target}`,
   os: [target.split("-")[0]],
   publishConfig: { access: "public" },
   repository: {
@@ -110,16 +126,22 @@ await writeFile(
 );
 await writeFile(
   join(platform, "README.md"),
-  `# Lenso Agent ${target}\n\nExact-version runtime dependency of @lenso/agent. Install the launcher rather than this package directly.\n`
+  `# Lenso Agent ${target}\n\nExact-version runtime dependency of @lenso/${packageName}. Install the launcher rather than this package directly.\n`
 );
-const launcher = join(output, "agent");
+const launcher = join(output, packageName);
 await cp(join(root, "packages/agent"), launcher, { recursive: true });
 await cp(join(root, "LICENSE"), join(launcher, "LICENSE"));
 const manifest = JSON.parse(await readFile(join(launcher, "package.json")));
 delete manifest.private;
 manifest.version = version;
+manifest.name = `@lenso/${packageName}`;
+if (nativeOnly) {
+  manifest.nativeOnly = true;
+  manifest.description =
+    "Lenso Agent native runtime without Console or assistant UI.";
+}
 manifest.optionalDependencies = Object.fromEntries(
-  Object.keys(targets).map((item) => [`@lenso/agent-${item}`, version])
+  Object.keys(targets).map((item) => [`@lenso/${packageName}-${item}`, version])
 );
 await writeFile(
   join(launcher, "package.json"),
@@ -127,5 +149,5 @@ await writeFile(
 );
 await chmod(join(launcher, "bin/lenso-agent.mjs"), 0o755);
 console.log(
-  `Prepared ${metadata.name}@${version} and @lenso/agent@${version} in ${output}`
+  `Prepared ${metadata.name}@${version} and @lenso/${packageName}@${version} in ${output}`
 );
