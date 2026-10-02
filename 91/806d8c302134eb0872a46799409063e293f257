@@ -1,0 +1,16 @@
+packages/console-authoring/README.md
+  h_9d56aba080c170 105,112-118
+packages/console/README.md
+  h_9d56aba080c170 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "91806d8c302134eb0872a46799409063e293f257",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
