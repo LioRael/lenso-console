@@ -230,7 +230,28 @@ fn observe_is_plan_bound_only_when_an_app_subject_exists() {
             control_token_env: None,
         })
         .unwrap();
-    let plan = console_host_plan(&ConsoleAppConfig::new(with_app)).unwrap();
+    // Keep Projects and Observe selected together: an admission override must
+    // not narrow a many-provider requirement to just the Observe instance.
+    lenso_projects_workspace_plugin::link();
+    let mut config = ConsoleAppConfig::new(with_app);
+    config.projects_workspace_origin = Some("http://127.0.0.1:55440".into());
+    let plan = console_host_plan(&config).unwrap();
+    let providers = plan
+        .capability_bindings()
+        .iter()
+        .filter(|binding| {
+            binding.consumer_instance() == "lenso.console.web/default"
+                && binding.capability_id() == lenso_capability_workspace_service::CAPABILITY_ID
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(providers.len(), 2);
+    for binding in providers {
+        assert!(binding.has_explicit_admission());
+        assert_eq!(
+            plan.request_admission_for(binding, "subscribe"),
+            CONSOLE_REQUEST_ADMISSION
+        );
+    }
     assert!(
         plan.plugin_instances()
             .iter()
@@ -480,6 +501,10 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+// Regression: reconnecting before transport cleanup must neither reject the new
+// watch nor retain permits indefinitely. The existing OTLP test only opened
+// short requests and could not detect replacement-stream admission failures.
+#[allow(clippy::too_many_lines)]
 async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
     let agent_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let agent_address = agent_listener.local_addr().unwrap();
@@ -521,10 +546,13 @@ async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
     config.telemetry_address = telemetry_address;
     config.shell.agent_home = root.path().join("agent");
 
-    tokio::task::LocalSet::new()
+    Box::pin(tokio::task::LocalSet::new()
         .run_until(async move {
+            // Existing public Observe fixture input, never a generated or real key.
+            let token = "test-token-which-is-long-enough:test-token-which-is-long-enough";
+            std::fs::create_dir_all(root.path().join("observe")).unwrap();
+            std::fs::write(root.path().join("observe/otlp-token"), token).unwrap();
             let host = start_host(&config).await.unwrap();
-            let token = std::fs::read_to_string(root.path().join("observe/otlp-token")).unwrap();
             let endpoint = format!("http://{telemetry_address}/v1/traces");
             let client = reqwest::Client::new();
             let unauthorized = client
@@ -548,6 +576,45 @@ async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
                 accepted.headers()[header::CONTENT_TYPE],
                 "application/x-protobuf"
             );
+            // Replace a live HTTP watch before dropping its predecessor, as
+            // Refresh does. More than 16 replacements expose retained permits.
+            let watch_url = format!("http://{console_address}/api/console/v1/pages/observe-sample-app/services/observe/subscribe/watch_requests");
+            let mut previous = None;
+            for _ in 0..32 {
+                let response = tokio::time::timeout(
+                    std::time::Duration::from_secs(2),
+                    client.post(&watch_url).json(&serde_json::json!({"source_id":"sample-app"})).send(),
+                ).await.expect("replacement watch retained capacity").unwrap();
+                assert_eq!(response.status(), StatusCode::OK);
+                assert_eq!(response.headers()[header::CONTENT_TYPE], "text/event-stream");
+                previous = Some(response);
+            }
+            drop(previous);
+
+            // Exercise this exact real provider binding independently of ingress
+            // admission. All 16 permits must be reusable after the HTTP cycles;
+            // the 17th waits and proceeds only after a held stream is released.
+            let watch = host.stream_handle::<lenso_capability_workspace_service::WorkspaceServiceSubscribe>("lenso.console.web/default").unwrap();
+            let request = || lenso_capability_workspace_service::SubscribeRequest {
+                body_base64: "eyJzb3VyY2VfaWQiOiJzYW1wbGUtYXBwIn0=".into(),
+                media_type: lenso_capability_workspace_service::SubscribeRequestMediaType::ApplicationJson,
+                operation: "watch_requests".into(),
+                service_id: "observe".into(),
+            };
+            let mut held = Vec::new();
+            for _ in 0..16 {
+                held.push(tokio::time::timeout(std::time::Duration::from_secs(2), watch.open("subscribe", request())).await.expect("released watch permit was not reusable").unwrap().unwrap());
+            }
+            let replacement = watch.open("subscribe", request());
+            tokio::pin!(replacement);
+            assert!(tokio::time::timeout(std::time::Duration::from_millis(25), &mut replacement).await.is_err(), "a 17th live stream bypassed the configured bound");
+            let released = held.pop().unwrap();
+            released.cancel();
+            drop(released);
+            held.push(tokio::time::timeout(std::time::Duration::from_secs(2), replacement).await.expect("queued watch did not resume after release").unwrap().unwrap());
+            for stream in held {
+                stream.cancel();
+            }
             assert_eq!(
                 host.shutdown(std::time::Duration::from_secs(2)).await,
                 ShutdownOutcome::Clean
@@ -568,7 +635,7 @@ async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
             assert_eq!(without_observe.shutdown(std::time::Duration::from_secs(2)).await, ShutdownOutcome::Clean);
             assert_eq!(std::fs::read(database).unwrap(), retained);
 
-        })
+        }))
         .await;
     agent.abort();
 }

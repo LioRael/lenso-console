@@ -297,31 +297,37 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
     Ok(HostCatalog::new(slots, releases, defaults).with_bindings(bindings))
 }
 
-/// HTTP fan-out needs bounded waiting instead of the generic zero-queue default.
-/// Preserve the resolver's provider set; never change the running Plan or routes.
+/// Browser requests and replacement watch streams need bounded admission.
+/// A stream holds its permit until transport cleanup, so refresh can overlap the
+/// prior session. Use the existing 64-queued/16-active browser policy; preserve
+/// every resolved provider and never change the running Plan or Kernel defaults.
 fn http_admission_catalog(
     catalog: HostCatalog,
     plan: &ResolvedAppPlan,
 ) -> anyhow::Result<HostCatalog> {
-    let mut groups = BTreeMap::<(String, String), Vec<PluginInstanceId>>::new();
+    let mut groups = BTreeMap::<(String, String, String), Vec<PluginInstanceId>>::new();
     for binding in plan.capability_bindings() {
-        if binding.capability_id() == http_endpoint::CAPABILITY_ID {
+        if binding.capability_id() == http_endpoint::CAPABILITY_ID
+            || (binding.consumer_instance() == "lenso.console.web/default"
+                && binding.capability_id() == "lenso.ui.workspace-service@1")
+        {
             groups
                 .entry((
                     binding.consumer_instance().to_owned(),
                     binding.requirement_id().to_owned(),
+                    binding.capability_id().to_owned(),
                 ))
                 .or_default()
                 .push(plan_instance_id(binding.provider_instance())?);
         }
     }
     let mut bindings = catalog.bindings().to_vec();
-    for ((consumer, requirement), providers) in groups {
+    for ((consumer, requirement, capability), providers) in groups {
         let consumer = plan_instance_id(&consumer)?;
         bindings.retain(|binding| {
             binding.consumer() != &consumer || binding.requirement_id() != requirement
         });
-        let binding = HostBinding::to_instances(consumer, http_endpoint::CAPABILITY_ID, providers)
+        let binding = HostBinding::to_instances(consumer, capability, providers)
             .with_admission(CONSOLE_REQUEST_ADMISSION);
         bindings.push(if requirement.starts_with('~') {
             binding
