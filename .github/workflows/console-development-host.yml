@@ -85,6 +85,34 @@ jobs:
           CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
         run: |
           node tooling/package-development-host.mjs --engine-host "$CORE_PRODUCER" --host-distribution .artifacts/seed --out .artifacts/development-host
+          git diff --exit-code
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import crypto from "node:crypto";
+          import fs from "node:fs";
+          import { execFileSync } from "node:child_process";
+          const command = (program, args) => execFileSync(program, args, { encoding: "utf8" }).trim();
+          const hash = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+          const core = command("git", ["-C", "../core", "rev-parse", "HEAD"]);
+          assert.equal(core, process.env.CORE_REVISION.toLowerCase());
+          const manifest = JSON.parse(fs.readFileSync(".artifacts/development-host/host.json", "utf8"));
+          fs.writeFileSync(".artifacts/development-host/build-provenance.json", JSON.stringify({
+            schema: "lenso.console-development-host-build.v1",
+            console_sha: command("git", ["rev-parse", "HEAD"]),
+            engine_repository: process.env.CORE_REPOSITORY,
+            engine_sha: core,
+            producer_sha256: hash(process.env.CORE_PRODUCER),
+            native_host_sha256: hash(".artifacts/development-host/console-host"),
+            bun_sha256: hash(".artifacts/development-host/bin/bun"),
+            root_lock_sha256: hash("Cargo.lock"),
+            support_lock_sha256: hash("packages/console-support/Cargo.lock"),
+            seed_lock_sha256: hash(".artifacts/seed/.lenso/distribution.lock.json"),
+            target: manifest.target,
+            node: process.version,
+            bun: command("bun", ["--version"]),
+            rust: command("rustc", ["--version"])
+          }, null, 2));
+          NODE
           LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/development-host" node --test tooling/distribution/development-host.test.mjs
       - name: Archive executable kit and verify the extracted download
         working-directory: console
