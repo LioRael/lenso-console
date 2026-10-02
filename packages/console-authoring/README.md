@@ -62,7 +62,7 @@ const client = bindServices(props.services);
 const order = await client.orders.read({ id: "42" }, { signal: props.signal });
 ```
 
-Wrong plugins/console/operation names, input types and inferred output properties fail
+Wrong service/operation names, input types and inferred output properties fail
 source checking. The Promise-like member `then` is reserved for both aliases and
 operations and rejected when defining services. Type information is not runtime validation: `parse` validates
 untrusted input and the domain owner performs final authorization on every call.
@@ -145,7 +145,7 @@ unsupported assets. A failed App dev rebuild retains its previous generation.
 `defineServices` reports alias/operation context and validates bounded metadata
 when the server declaration is activated, without evaluating it during compilation.
 Invalid requests remain `codec_mismatch`; denied calls remain `denied`. Neither
-runs domain handlers. Browser errors name their public plugins/console/operation; missing
+runs domain handlers. Browser errors name their public service/operation; missing
 requirements list public contract/version/source, without credentials or policy
 internals. Author-created parsing exception text is not reflected to the browser.
 
