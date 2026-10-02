@@ -50,9 +50,12 @@ The package also includes strict page-source type checking, nested
 exact APIs and authorization boundaries. The default starter is page-only.
 The optional `service-example` implements `orders/read`, permitting order 42 and
 rejecting other IDs, but needs a Host admitting the complete WorkspaceService role,
-including Stream. The current Engine App Host advertises only Request for Bun and
-rejects this provider. Source compilation and helper authorization tests are not
-proof of service runtime admission. Do not remove contract operations to bypass it.
+including Request and Stream. Verify the exact kit's admission and compiled
+framework sources: pinning the Engine producer alone does not pin the independently
+built native Host. The installed Console support facility declares the framework
+source that Engine uses to unify that Host. Source compilation and helper
+authorization tests do not prove runtime admission or production identity policy.
+Do not remove contract operations to bypass admission.
 
 The default no-Rust gate verifies the page-only kit. Set
 `LENSO_CONSOLE_DEV_KIT_SERVICES=1` for the distinct full service gate against a

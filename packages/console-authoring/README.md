@@ -32,11 +32,13 @@ Page compilation alone does not prove compatibility with a released Engine Host.
 
 The default scaffold has pages and navigation only. `init console --services`
 adds the typed service example for source compilation and a qualified Host.
-The current Engine App Host advertises Request only for Bun, while the existing
-WorkspaceService role also contains Stream. Consequently, that Host rejects the
-service provider even when the example implements only unary business operations.
-Use a Host that explicitly qualifies the complete role; this compiler does not
-remove contract operations or raise Host admission flags to bypass the restriction.
+Services require a Host that qualifies the complete WorkspaceService role,
+including Request and Stream, even for unary business operations. Qualification
+belongs to an exact kit and its compiled framework sources: the Engine producer
+and the generated native Host are separate builds. Console's native support
+facility declares its framework source for Engine to unify during Host generation.
+Keep the default page-only starter when the selected Host is not qualified; this
+compiler does not remove operations or raise admission flags to bypass that boundary.
 
 ## What you write
 

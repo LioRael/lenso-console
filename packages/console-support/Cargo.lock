@@ -697,9 +697,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c11d88ba8786bc03f50961cf3740e9f63507e223701f91225ee5a8405d4874d3"
 dependencies = [
  "futures",
- "lenso-kernel",
- "lenso-native-adapter",
- "lenso-plugin-authoring",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-native-adapter 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso"
+version = "0.5.29"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
+dependencies = [
+ "futures",
+ "lenso-kernel 0.3.12 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-native-adapter 0.3.20 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-plugin-authoring 0.2.0 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
  "serde",
  "serde_json",
 ]
@@ -722,6 +735,7 @@ dependencies = [
 name = "lenso-app-console-support"
 version = "0.1.0"
 dependencies = [
+ "lenso 0.5.29 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
  "lenso-console-plugin",
 ]
 
@@ -737,6 +751,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-app-plan"
+version = "0.4.6"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "lenso-auth-sdk"
 version = "0.2.4"
 source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167#699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167"
@@ -744,7 +768,7 @@ dependencies = [
  "base64",
  "ed25519-dalek",
  "lenso-capability-auth",
- "lenso-kernel",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -758,8 +782,8 @@ source = "git+https://github.com/LioRael/lenso-access-control-plugin?rev=94b6d06
 dependencies = [
  "futures",
  "lenso-contract-runtime",
- "lenso-kernel",
- "lenso-plugin-authoring",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -773,8 +797,8 @@ dependencies = [
  "lenso-contract-authoring",
  "lenso-contract-codegen 0.9.0",
  "lenso-contract-runtime",
- "lenso-kernel",
- "lenso-plugin-authoring",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -793,9 +817,9 @@ dependencies = [
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
- "lenso-kernel",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -823,8 +847,8 @@ dependencies = [
  "futures",
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
- "lenso-kernel",
- "lenso-plugin-authoring",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -838,8 +862,8 @@ dependencies = [
  "lenso-contract-authoring",
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
- "lenso-kernel",
- "lenso-plugin-authoring",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -854,9 +878,9 @@ dependencies = [
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
- "lenso-kernel",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -871,9 +895,9 @@ dependencies = [
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
- "lenso-kernel",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "schemars",
  "serde",
  "serde_json",
@@ -887,9 +911,9 @@ dependencies = [
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
- "lenso-kernel",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -902,9 +926,9 @@ dependencies = [
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
- "lenso-kernel",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -917,9 +941,9 @@ dependencies = [
  "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
- "lenso-kernel",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -936,7 +960,7 @@ dependencies = [
  "futures",
  "hex",
  "http",
- "lenso",
+ "lenso 0.5.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "lenso-agent-turn-relay",
  "lenso-auth-sdk",
  "lenso-capability-access-control",
@@ -949,9 +973,9 @@ dependencies = [
  "lenso-capability-ui-contribution",
  "lenso-capability-ui-global-contribution",
  "lenso-capability-workspace-service",
- "lenso-kernel",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "lenso-local-agent-launcher",
- "lenso-native-adapter-macros",
+ "lenso-native-adapter-macros 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "percent-encoding",
  "reqwest",
  "serde",
@@ -1044,7 +1068,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c1b891749134263ae5c9ac78ad89124626f384ca8bbfc441a72ab277339e629"
 dependencies = [
  "futures",
- "lenso-app-plan",
+ "lenso-app-plan 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "lenso-kernel"
+version = "0.3.12"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
+dependencies = [
+ "futures",
+ "lenso-app-plan 0.4.6 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
 ]
 
 [[package]]
@@ -1067,11 +1100,26 @@ checksum = "468788ecbf3e43189f4ce641cbdedc27f466b364eedd6d2a28f60a0a2a8d6ff2"
 dependencies = [
  "futures",
  "inventory",
- "lenso-app-plan",
- "lenso-kernel",
- "lenso-native-adapter-macros",
- "lenso-plugin-authoring",
- "lenso-runtime-codec",
+ "lenso-app-plan 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-native-adapter-macros 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json",
+]
+
+[[package]]
+name = "lenso-native-adapter"
+version = "0.3.20"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
+dependencies = [
+ "futures",
+ "inventory",
+ "lenso-app-plan 0.4.6 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-kernel 0.3.12 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-native-adapter-macros 0.2.9 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-plugin-authoring 0.2.0 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-runtime-codec 0.4.4 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
  "serde_json",
 ]
 
@@ -1090,10 +1138,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-native-adapter-macros"
+version = "0.2.9"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn 2.0.119",
+ "toml",
+]
+
+[[package]]
 name = "lenso-plugin-authoring"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f24f444677f5b9857d4aa6f2ca90002243eb756a7f153bb721206f88abe6b07"
+
+[[package]]
+name = "lenso-plugin-authoring"
+version = "0.2.0"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
 
 [[package]]
 name = "lenso-runtime-codec"
@@ -1103,8 +1169,23 @@ checksum = "dca3456d7b188ab48d11dbd7620d47336f2e07ee9fb0b7789b1c81d0cd6f2617"
 dependencies = [
  "futures",
  "hex",
- "lenso-app-plan",
- "lenso-kernel",
+ "lenso-app-plan 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+]
+
+[[package]]
+name = "lenso-runtime-codec"
+version = "0.4.4"
+source = "git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551#eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551"
+dependencies = [
+ "futures",
+ "hex",
+ "lenso-app-plan 0.4.6 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
+ "lenso-kernel 0.3.12 (git+https://github.com/LioRael/lenso?rev=eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551)",
  "serde",
  "serde_json",
  "sha2 0.10.9",

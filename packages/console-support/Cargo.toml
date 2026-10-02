@@ -16,6 +16,10 @@ compiler = { program = "bun", args = [
 [package.metadata.lenso-cli]
 runtime = "native-linked"
 [dependencies]
+# The native facility declares the qualified framework source. Engine derives
+# one generated Host cohort from this facade; the producer pin alone does not
+# select the independently compiled Host runtime.
+lenso = { version = "=0.5.29", git = "https://github.com/LioRael/lenso", rev = "eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551" }
 lenso-console-plugin = { path = "../../plugins/console", features = [
   "embedded-shell",
 ] }
