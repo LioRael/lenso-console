@@ -62,21 +62,29 @@ Four categories are documented at the authoring entry:
 3. `.lenso/console/` owns generated declarations/client/provider metadata and assets;
    canonical core contracts own their generated projections. `sdk:generate` copies
    their checked SDK projection, never asks authors to maintain parallel definitions.
-4. `src`, `service`, `runtime`, `contracts`, `config`, scripts, tests and docs are
-   Console maintenance facilities, not a consumer project scaffold. This bounded
-   change does not falsely claim every root folder was removed or merge independent
-   security/runtime packages merely to reduce directory count.
+4. Repository maintenance has explicit owners: `apps/shell` for the browser app,
+   `apps/reference-host` for executable composition, `plugins` for providers,
+   `contracts` for canonical roles, `packages` for authoring/runtime support, and
+   `tooling` for validation/distribution. Root commands forward to the Shell package.
 
-The exact top-level directory set is unchanged: `.agents`, `.changeset`, `.github`,
-`config`, `contracts`, `docs`, `examples`, `packages`, `plugins`, `public`,
-`runtime`, `scripts`, `service`, `src`. Under `packages`, the before set is
-`agent`, `console`, `console-support`, `console-sdk`, `console-convention`,
-`console-dev`; the after set is `agent`, `console`, `console-support`,
-`console-authoring`. Thus this is real consolidation of the page authoring tool
-owner and declaration authority, not completed consolidation of the entire
-Console repository. Internal service/runtime/configuration and release workflows
-remain maintenance work. Capability schemas/descriptors, macro-generated native
-Plugin descriptors and Host admission keep distinct, necessary owners.
+The top-level tracked directory set is now `.agents`, `.changeset`, `.github`,
+`apps`, `contracts`, `docs`, `examples`, `packages`, `plugins`, `tooling`, replacing
+the previous fourteen directories. `src`, `public`, Vite/TS/Vitest configuration
+and frontend dependencies/version belong to `apps/shell`. The Console provider
+moved from `service` to `plugins/console`; the reference binaries moved out of
+that provider to `apps/reference-host`. The two private process/stream crates
+moved from `runtime` to `packages/console-runtime`. Cargo package identities and
+public npm identities remain intact. Root no longer declares an application
+version or frontend production dependencies; native package staging reads the
+Shell version. Changesets still targets `@lenso/console-web` in its actual owner.
+
+`plugins/console/config.defaults.json` is the single reviewed default source for
+the macro descriptor and `ConsolePluginConfig::defaults()`. The environment
+loader derives the tool allowlist and connected Agent label from that source.
+Tests compare descriptor defaults with typed projections and keep explicit empty
+allowlists and revocable grants. Home-relative paths and explicit Host auth
+selection remain deployment/authority decisions. Capability schemas/descriptors,
+macro-generated native Plugin descriptors and Host admission keep necessary owners.
 
 ## Type and authorization behavior
 
@@ -298,3 +306,35 @@ Console-owned top-level layout, exact dependency boundaries and minimal Core
 Stream qualification scope are recorded separately in the local
 `/tmp/console-authoring-integration-20261002/next-scope-brief.md`. These are
 proposals for scope choice, not implemented migrations or upstream fixes.
+
+## Repository ownership follow-up validation
+
+The layout/defaults follow-up starts at frozen local candidate
+`945d63a479cd8ac2cc038a4271ac5fd3b29c5c39`; resolve the final local SHA before review.
+It changes paths and package ownership, not product UI behavior or authorization.
+The pnpm package/snapshot cohort is unchanged. Authoring tests now declare their
+existing React DOM renderer as a package-local dev dependency instead of inheriting
+it accidentally from the former root application.
+
+Local evidence is under `/tmp/console-authoring-integration-20261002/layout-*`:
+frozen installation, Shell type checks, canonical SDK/contract projection checks,
+boundary check, 275 unit tests, 14 distribution tests (kit check requires an explicit
+fresh kit), production Shell prerender, independent Assistant bundle, Plugin
+Clippy with `-D warnings`, Plugin library (28 passed, one existing ignored), and
+Reference Host all features (10 passed, two private Postgres/secret tests ignored).
+The full browser confirmation passes 101/101. An earlier full run passed 100/101:
+the project-task test's Conversation click was intercepted by the Trajectory area
+at mobile width. The unmodified focused file passes 9/9; the failure is retained
+and its root cause is not established. No timeout or assertion was weakened.
+
+A local disk-space interruption stopped a Host compile and test startups. Only the
+inactive task-owned temporary Engine target was cleaned; logs, archive evidence
+and the verified CLI were retained. This is an environment interruption, not a
+passing result. Host checks were rerun after space recovery.
+
+The previous v4 development-kit archive describes the earlier candidate and does
+not certify the ownership migration or current Engine service consumption. A fresh
+native seed, source digest and archive must be produced after the independently
+owned Core/Auth cohort and typed Stream Host qualification deliver fixed SHAs.
+Console owns its dependency/projection updates; no Core/Auth source is edited here.
+There is no push, landing, publication, deployment or paid model execution.

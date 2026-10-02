@@ -35,7 +35,7 @@ SSH sessions print the URL. Runtime processes exit with the launcher.
 See [ADR-0005](adr/0005-distribute-agent-web-through-npm.md). The root Console
 application version determines all three npm package versions. The source
 launcher manifest is a template; packaging replaces its version and optional
-runtime dependency versions together. Update `scripts/distribution/agent-release.json`
+runtime dependency versions together. Update `tooling/distribution/agent-release.json`
 only against exact released Agent artifacts and reviewed SHA-256 checksums.
 
 Each platform package includes the Console service, API-mode client build,
@@ -49,9 +49,9 @@ coding capabilities still require their tools, such as Git and ripgrep.
 pnpm install --frozen-lockfile
 pnpm service:web-build
 cargo build --locked --release -p lenso-console-app --bin lenso-console-with-agent
-node --test scripts/distribution/launcher.test.mjs
-node scripts/distribution/package-agent.mjs darwin-arm64 target/release/lenso-console-with-agent .artifacts/npm
-node scripts/distribution/smoke-agent.mjs .artifacts/npm
+node --test tooling/distribution/launcher.test.mjs
+node tooling/distribution/package-agent.mjs darwin-arm64 target/release/lenso-console-with-agent .artifacts/npm
+node tooling/distribution/smoke-agent.mjs .artifacts/npm
 ```
 
 Use `linux-x64` on Ubuntu 24.04+ (glibc 2.39+). Packaging downloads only pinned Agent archives and

@@ -113,7 +113,7 @@ Run the scenarios with the repository toolchain and explicitly selected
 disposable storage:
 
 ```sh
-cargo test --locked --manifest-path service/Cargo.toml -p lenso-console-app auth_plugins::live -- --ignored
+cargo test --locked --manifest-path plugins/console/Cargo.toml -p lenso-console-app auth_plugins::live -- --ignored
 ```
 
 ## Native Projects workspace

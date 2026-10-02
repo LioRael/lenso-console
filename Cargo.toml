@@ -2,10 +2,10 @@
 [workspace]
 resolver = "2"
 members = [
-  "service",
-  "service/crates/lenso-console-app",
-  "service/tests/fixtures/welcome-workspace-plugin",
-  "service/tests/fixtures/password-session-consumer",
+  "plugins/console",
+  "apps/reference-host",
+  "plugins/console/tests/fixtures/welcome-workspace-plugin",
+  "plugins/console/tests/fixtures/password-session-consumer",
   "contracts/crates/lenso-capability-ui-contribution",
   "contracts/crates/lenso-capability-ui-global-contribution",
   "contracts/crates/lenso-capability-workspace-service",
@@ -19,11 +19,11 @@ members = [
   "plugins/management/crates/lenso-management-authority",
   "plugins/management/crates/lenso-management-http",
   "plugins/management-mcp",
-  "runtime/agent-turn-relay",
-  "runtime/local-agent-launcher",
+  "packages/console-runtime/agent-turn-relay",
+  "packages/console-runtime/local-agent-launcher",
   "examples/plugin-host",
 ]
-default-members = ["service", "service/crates/lenso-console-app"]
+default-members = ["plugins/console", "apps/reference-host"]
 exclude = ["packages/console-support"]
 
 [patch.crates-io]

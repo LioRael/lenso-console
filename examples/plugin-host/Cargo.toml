@@ -17,7 +17,7 @@ console = ["dep:lenso-console-plugin"]
 anyhow = "1"
 lenso = "0.5.28"
 lenso-capability-http-endpoint = "0.3.6"
-lenso-console-plugin = { path = "../../service", features = [
+lenso-console-plugin = { path = "../../plugins/console", features = [
   "embedded-shell",
 ], optional = true }
 lenso-web-host = "0.2.5"

@@ -16,4 +16,6 @@ compiler = { program = "bun", args = [
 [package.metadata.lenso-cli]
 runtime = "native-linked"
 [dependencies]
-lenso-console-plugin = { path = "../../service", features = ["embedded-shell"] }
+lenso-console-plugin = { path = "../../plugins/console", features = [
+  "embedded-shell",
+] }

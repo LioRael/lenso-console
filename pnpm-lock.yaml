@@ -7,6 +7,60 @@ settings:
 importers:
 
   .:
+    devDependencies:
+      '@changesets/cli':
+        specifier: 2.31.1
+        version: 2.31.1(@types/node@26.1.2)
+      '@lenso/contract-runtime':
+        specifier: 0.3.1
+        version: 0.3.1
+      '@stylexjs/unplugin':
+        specifier: 0.19.0
+        version: 0.19.0(unplugin@3.3.0(esbuild@0.28.1)(rolldown@1.2.6)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0)))
+      '@types/node':
+        specifier: ^26.1.2
+        version: 26.1.2
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@vitest/browser-playwright':
+        specifier: 4.1.10
+        version: 4.1.10(playwright@1.62.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0))(vitest@4.1.10)
+      oxfmt:
+        specifier: ^0.62.0
+        version: 0.62.0
+      oxlint:
+        specifier: ^1.77.0
+        version: 1.77.0
+      playwright:
+        specifier: 1.62.1
+        version: 1.62.1
+      tsdown:
+        specifier: 0.22.14
+        version: 0.22.14(tsx@4.23.10)(typescript@7.0.2)
+      tsx:
+        specifier: 4.23.10
+        version: 4.23.10
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      ultracite:
+        specifier: ^7.10.1
+        version: 7.10.1(oxfmt@0.62.0)(oxlint@1.77.0)
+      use-sync-external-store:
+        specifier: 1.6.0
+        version: 1.6.0(react@19.2.8)
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(@vitest/browser-playwright@4.1.10)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0))
+
+  apps/shell:
     dependencies:
       '@base-ui/react':
         specifier: ^1.7.0
@@ -93,9 +147,6 @@ importers:
         specifier: ^8.2.0
         version: 8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0)
     devDependencies:
-      '@changesets/cli':
-        specifier: 2.31.1
-        version: 2.31.1(@types/node@26.1.2)
       '@lenso/contract-runtime':
         specifier: 0.3.1
         version: 0.3.1
@@ -114,12 +165,6 @@ importers:
       '@vitest/browser-playwright':
         specifier: 4.1.10
         version: 4.1.10(playwright@1.62.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.10)(yaml@2.9.0))(vitest@4.1.10)
-      oxfmt:
-        specifier: ^0.62.0
-        version: 0.62.0
-      oxlint:
-        specifier: ^1.77.0
-        version: 1.77.0
       playwright:
         specifier: 1.62.1
         version: 1.62.1
@@ -132,9 +177,6 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
-      ultracite:
-        specifier: ^7.10.1
-        version: 7.10.1(oxfmt@0.62.0)(oxlint@1.77.0)
       use-sync-external-store:
         specifier: 1.6.0
         version: 1.6.0(react@19.2.8)
@@ -159,6 +201,11 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+
+    devDependencies:
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
 
 packages:
 

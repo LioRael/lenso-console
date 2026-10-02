@@ -12,10 +12,10 @@ Agent connections are configured separately. Installing this package does not
 activate management MCP or grant tools to another Plugin.
 
 This is an unpublished local package candidate. Build `lenso-console` from
-`service/crates/lenso-console-app`, build the Web assets, then stage with:
+`apps/reference-host`, build the Web assets, then stage with:
 
 ```sh
-node scripts/distribution/package-console.mjs darwin-arm64 \
+node tooling/distribution/package-console.mjs darwin-arm64 \
   target/release/lenso-console dist/client /tmp/console-package
 ```
 

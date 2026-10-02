@@ -20,12 +20,12 @@ Record both revisions when they differ. From Console:
 ```sh
 pnpm service:web-build
 /path/to/compatible-engine-host app build --root /path/to/page-only-app --out /tmp/console-host-seed
-node scripts/package-development-host.mjs \
+node tooling/package-development-host.mjs \
   --engine-host /path/to/current-engine-host \
   --host-distribution /tmp/console-host-seed \
   --out /tmp/console-development-host
 LENSO_CONSOLE_DEV_KIT=/tmp/console-development-host \
-  node --test scripts/distribution/development-host.test.mjs
+  node --test tooling/distribution/development-host.test.mjs
 ```
 
 Outputs must not already exist. The seed is built using the normal App assembly

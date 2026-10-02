@@ -44,8 +44,8 @@ endpoint. See [the embedding example](examples/plugin-host/README.md) for the
 composition and removal check.
 
 The repository has one root Cargo workspace and lockfile. Console's independent
-Plugin stays in `service/`; the reference App assembly stays in
-`service/crates/lenso-console-app/`. Contracts, optional Plugins and runtime
+Plugin stays in `plugins/console/`; the reference App assembly stays in
+`apps/reference-host/`. Contracts, optional Plugins and runtime
 support keep their own packages and ownership. The page SDK is a pnpm workspace
 package; check it with `pnpm sdk:check`.
 
@@ -83,7 +83,7 @@ To run Console against an already-running Console Agent:
 
 ```sh
 pnpm install
-test -f service/.env || cp service/.env.example service/.env
+test -f plugins/console/.env || cp plugins/console/.env.example plugins/console/.env
 pnpm service:serve
 ```
 
@@ -162,27 +162,37 @@ must first provide identity and authorization as reviewed vNext Plugins.
 
 ## Architecture
 
-- `service`: the `lenso.console.web` Shell Plugin, its Plan-bound Workspace
+The repository root owns workspace commands and dependency coordination.
+`apps/shell` owns the browser application and its package version; `apps/reference-host`
+owns executable composition. `plugins` owns providers, `contracts` owns public
+contracts, `packages` owns authoring and private runtime support, and `tooling`
+owns checks and distribution assembly. Root commands forward to these owners.
+
+Console Plugin defaults are declared once in `plugins/console/config.defaults.json`.
+The descriptor and `ConsolePluginConfig::defaults()` project that same source.
+Hosts still supply deployment paths and explicitly select authority and providers.
+
+- `plugins/console`: the `lenso.console.web` Shell Plugin, its Plan-bound Workspace
   catalog, same-origin Agent proxy and HTTP admission.
-- `service/crates/lenso-console-app`: reference binaries, concrete providers,
+- `apps/reference-host`: reference binaries, concrete providers,
   Host Catalog, ingress configuration and Kernel lifecycle.
 - `contracts`: independently built UI Contribution and Workspace Service
   contracts with generated Rust and TypeScript projections.
 - `plugins/observe`: independently built Observe provider and its query contract.
-- `runtime/agent-turn-relay`: detachable Agent streams, transient activity and
+- `packages/console-runtime/agent-turn-relay`: detachable Agent streams, transient activity and
   bounded browser queues, independent of Shell and Lenso implementation packages.
-- `runtime/local-agent-launcher`: directory registration, portable Home seeding
+- `packages/console-runtime/local-agent-launcher`: directory registration, portable Home seeding
   and child-process supervision without Console or HTTP dependencies.
-- `service/tests/fixtures/welcome-workspace-plugin`: an explicitly selected
+- `plugins/console/tests/fixtures/welcome-workspace-plugin`: an explicitly selected
   Host integration fixture, absent from production binaries.
 - Projects Workspace implementation and assets belong to the separate
   `lenso-projects-web-plugin` repository. See [ADR-0010](docs/adr/0010-separate-console-shell-from-app-assembly.md)
   for reproducible source composition and the enforced dependency boundaries.
-- `src/routes`: Agent, Plugins, and Settings routes.
-- `src/features/agent`: Agent conversation, trajectory, history, editing, and
+- `apps/shell/src/routes`: Agent, Plugins, and Settings routes.
+- `apps/shell/src/features/agent`: Agent conversation, trajectory, history, editing, and
   ask-user UI.
-- `src/features/plugins`: installed Plugin inventory for the current App.
-- `src/features/settings`: local Console and Agent policy settings.
+- `apps/shell/src/features/plugins`: installed Plugin inventory for the current App.
+- `apps/shell/src/features/settings`: local Console and Agent policy settings.
 
 System Registry, Runtime Story, Surface Gateway, generic managed-Service,
 PostgreSQL migration, worker, deployment-recovery, and dynamic Console Module

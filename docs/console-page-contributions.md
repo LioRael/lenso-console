@@ -14,7 +14,7 @@ immutable Resolved App Plan. Every linked `console-workspaces` package is a
 disableable Host default and contributes through its bound Capability Port.
 The explicitly untrusted `development-filesystem` adapter remains available
 only to direct development/test embedding APIs; default product launch does not
-scan `public/contributions`. Connected Apps cannot push code.
+scan `apps/shell/public/contributions`. Connected Apps cannot push code.
 
 Regenerate and verify the checked-in Rust and TypeScript contract projections:
 
@@ -101,13 +101,13 @@ Not implemented by this baseline:
 
 | Current source | Consequence for this design |
 | --- | --- |
-| [Console Shell](../src/components/runtime/console-shell.tsx#L31) has a fixed area union and sidebar selection | Add a contribution outlet and catalog-derived navigation, not another business-specific area branch |
-| [Root](../src/routes/__root.tsx#L27) mounts the application after hydration; [Vite](../vite.config.ts#L21) uses SPA mode | First-generation contributions are client-rendered; arbitrary Plugin SSR is not needed |
-| [App context](../src/features/apps/app-management-context.tsx#L108) chooses a preferred or first target | This convenience selection cannot be the identity source for a deep-linked page or in-flight mutation |
-| [Providers](../src/app/providers.tsx#L11) include Agent and shared Query contexts | Those private providers are not public extension contracts |
-| [App proxy](../service/src/app_management.rs#L122) allowlists Plugin control routes | Business APIs and page discovery need a new explicit projection, not an arbitrary suffix added to that proxy |
-| [App connection model](../service/src/app_management.rs#L9) is loopback-only | This slice does not silently enable remote targets, operator federation, or arbitrary credential forwarding |
-| [Catch-all route](../src/routes/$.tsx#L5) handles legacy links then returns not-found | Dedicated extension route prefixes must coexist with legacy routing |
+| [Console Shell](../apps/shell/src/components/runtime/console-shell.tsx#L31) has a fixed area union and sidebar selection | Add a contribution outlet and catalog-derived navigation, not another business-specific area branch |
+| [Root](../apps/shell/src/routes/__root.tsx#L27) mounts the application after hydration; [Vite](../vite.config.ts#L21) uses SPA mode | First-generation contributions are client-rendered; arbitrary Plugin SSR is not needed |
+| [App context](../apps/shell/src/features/apps/app-management-context.tsx#L108) chooses a preferred or first target | This convenience selection cannot be the identity source for a deep-linked page or in-flight mutation |
+| [Providers](../apps/shell/src/app/providers.tsx#L11) include Agent and shared Query contexts | Those private providers are not public extension contracts |
+| [App proxy](../plugins/console/src/app_management.rs#L122) allowlists Plugin control routes | Business APIs and page discovery need a new explicit projection, not an arbitrary suffix added to that proxy |
+| [App connection model](../plugins/console/src/app_management.rs#L9) is loopback-only | This slice does not silently enable remote targets, operator federation, or arbitrary credential forwarding |
+| [Catch-all route](../apps/shell/src/routes/$.tsx#L5) handles legacy links then returns not-found | Dedicated extension route prefixes must coexist with legacy routing |
 
 The current React 19 / Vite 8 stack now has a native Workspace loader, the
 generic `lenso.ui.contribution@1` provider Capability, and App-subject routing.
@@ -596,9 +596,9 @@ instance, and a non-Agent sample App supplying users and runtime inspection.
 Repeat the App instance under a second target identity for isolation tests.
 Removing any required role must produce a declared unavailable state.
 
-The browser adapter lives in `src/features/extensions/`; activation-time catalog
-validation lives in `service/src/page_contributions.rs`; and bounded request/SSE
-dispatch lives in `service/src/workspace_services.rs`. Contracts/build tooling
+The browser adapter lives in `apps/shell/src/features/extensions/`; activation-time catalog
+validation lives in `plugins/console/src/page_contributions.rs`; and bounded request/SSE
+dispatch lives in `plugins/console/src/workspace_services.rs`. Contracts/build tooling
 have one owner in this repository initially. Creating a public SDK package or
 changing workspace layout is a separate reviewed packaging decision.
 
