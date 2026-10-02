@@ -102,16 +102,20 @@ cancellation signal; handoffs remain context, never authorization.
 | Authoring package | `packages/console-authoring` | consume one package/command |
 | Independently installable products | Console Host, `plugins/assistant`, `plugins/management-mcp`, Agent | Host explicitly selects compatible packages and authorities |
 | Generated projections | `.lenso/console`, SDK `src/generated`, contract crate projections | regenerate/check; never maintain parallel declarations |
-| Console maintenance | `src`, `service`, `runtime`, `contracts`, `config`, `scripts`, `docs`, `examples` | maintainers only; these are not App author scaffolding |
+| Console maintenance | `apps`, `plugins`, `contracts`, `packages`, `tooling`, `docs`, `examples` | maintainers only; these are not App author scaffolding |
 
 The three previous SDK/compiler/scaffold directories have one owner and package
 closure. Rust `console-support` remains a separate native Host build boundary,
 not a second page authoring SDK. Shell UI, optional assistant/MCP and domain
 contracts keep their independent lifecycle/security boundaries.
 
-The repository's top-level directories are unchanged: `src`, `service`, `runtime`,
-`contracts`, `config`, `plugins`, `packages`, `public`, `examples`, `scripts`,
-`docs`, `.agents`, `.changeset` and `.github`. The concrete package change is:
+The repository now separates application and provider ownership: `apps/shell`
+owns the browser application, `apps/reference-host` owns executable composition,
+`plugins/console` owns the Console provider, and `packages/console-runtime` owns
+private process/stream support. `tooling` owns validation and distribution. Root
+commands forward to the Shell owner. The tracked root directory set is `apps`,
+`contracts`, `plugins`, `packages`, `examples`, `tooling`, `docs`, `.agents`,
+`.changeset` and `.github`. The authoring package consolidation is:
 
 ```text
 before packages/                 after packages/

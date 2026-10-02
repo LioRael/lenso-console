@@ -16,7 +16,7 @@ This is an unpublished local package candidate. Build `lenso-console` from
 
 ```sh
 node tooling/distribution/package-console.mjs darwin-arm64 \
-  target/release/lenso-console dist/client /tmp/console-package
+  target/release/lenso-console apps/shell/dist/client /tmp/console-package
 ```
 
 The existing `@lenso/agent web` combined distribution remains available.
