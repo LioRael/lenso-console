@@ -68,9 +68,13 @@ def main():
                     "lenso-plugin-authoring", "lenso-runner"]
         runtime = []
         for name in required:
-            matches = [p for p in packages if p["name"] == name and p["version"] == core_version(name)]
+            # This Console Host uses Core's current runtime profile. Generator
+            # versions may coexist, but none of these runtime identities may.
+            matches = [p for p in packages if p["name"] == name]
             if len(matches) != 1:
                 raise ValueError(f"generated Host must resolve one selected {name}")
+            if matches[0]["version"] != core_version(name):
+                raise ValueError(f"generated Host {name} version differs from qualified Core")
             try:
                 require_source(matches[0].get("source"), repository, revision, True)
             except ValueError as error:

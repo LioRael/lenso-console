@@ -35,8 +35,6 @@ class SourceGuard(unittest.TestCase):
         self.generated = self.root / "seed/.lenso/generated-host"
         self.generated.mkdir(parents=True)
         self.lock = "".join(self.package(n, v, SOURCE) for n, v in VERSIONS.items())
-        # Auth's legacy build codec may coexist; it is not the selected runtime codec.
-        self.lock += self.package("lenso-runtime-codec", "0.3.4", "registry+https://github.com/rust-lang/crates.io-index")
         for name, content in {"Cargo.lock": self.lock, "Cargo.toml": "[package]\nname = 'fixture'\n",
                               "src/main.rs": "fn main() {}\n", "build.rs": "fn main() {}\n",
                               "local-inputs.json": "{}\n"}.items():
@@ -66,11 +64,42 @@ class SourceGuard(unittest.TestCase):
         self.assertEqual(json.loads(record.read_text())["verified"], passed)
         return result
 
-    def test_selected_source_and_legacy_codec_pass_and_inputs_are_retained(self):
+    def test_selected_source_passes_and_inputs_are_retained(self):
         self.run_guard("facility", True)
         self.run_guard(passed=True)
         self.assertEqual((self.root / "kit/build-inputs/generated-host/Cargo.lock").read_bytes(),
                          (self.generated / "Cargo.lock").read_bytes())
+
+    def test_auth_legacy_build_codegen_and_normal_codegen_can_coexist(self):
+        # Exact Auth699 build-codegen identity/edge from the real fa6e908 kit.
+        # This is a source-guard fixture, not a complete Cargo build graph.
+        registry = "registry+https://github.com/rust-lang/crates.io-index"
+        auth_revision = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167"
+        auth_source = f"git+https://github.com/LioRael/lenso-auth-plugin?rev={auth_revision}#{auth_revision}"
+        auth = self.package("lenso-capability-auth", "0.2.0", auth_source)
+        auth += 'dependencies = ["lenso-contract-codegen 0.9.0", "lenso-kernel", "lenso-plugin-authoring"]\n'
+        lock = self.lock + auth
+        for version in ["0.9.0", "0.10.2"]:
+            lock += self.package("lenso-contract-codegen", version, registry)
+        (self.generated / "Cargo.lock").write_text(lock)
+        self.seal()
+        self.run_guard(passed=True)
+
+    def test_different_runtime_version_at_same_git_revision_fails(self):
+        (self.generated / "Cargo.lock").write_text(self.lock + self.package("lenso-kernel", "0.3.11", SOURCE))
+        self.seal()
+        self.run_guard()
+
+    def test_legacy_registry_runtime_codec_is_not_a_build_codegen_exception(self):
+        legacy = self.package("lenso-runtime-codec", "0.3.4", "registry+https://github.com/rust-lang/crates.io-index")
+        (self.generated / "Cargo.lock").write_text(self.lock + legacy)
+        self.seal()
+        self.run_guard()
+
+    def test_only_wrong_runtime_version_fails(self):
+        (self.generated / "Cargo.lock").write_text(self.lock.replace('version = "0.1.17"', 'version = "0.1.16"'))
+        self.seal()
+        self.run_guard()
 
     def test_missing_normal_anchor_fails_before_compile(self):
         self.facility.joinpath("Cargo.toml").write_text("[dependencies]\n")
