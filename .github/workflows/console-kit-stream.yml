@@ -1,0 +1,115 @@
+name: Console existing Linux kit Stream
+
+on:
+  push:
+    branches:
+      - "codex/kit-stream/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  consume:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - name: Verify and download the existing qualified kit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p .artifacts/stream-proof/downloads
+          gh api repos/LioRael/lenso-console/actions/runs/36981051284 > .artifacts/stream-proof/kit-run.json
+          gh api repos/LioRael/lenso-console/actions/artifacts/11216475726 > .artifacts/stream-proof/kit-artifact.json
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          const freeze = JSON.parse(fs.readFileSync(".github/fixtures/console-kit-stream/freeze.json"));
+          const run = JSON.parse(fs.readFileSync(".artifacts/stream-proof/kit-run.json"));
+          const artifact = JSON.parse(fs.readFileSync(".artifacts/stream-proof/kit-artifact.json"));
+          assert.equal(run.id, freeze.kit_run);
+          assert.equal(run.head_sha, freeze.kit_candidate);
+          assert.equal(run.conclusion, "success");
+          assert.equal(run.run_attempt, 1);
+          assert.equal(artifact.id, freeze.artifact_id);
+          assert.equal(artifact.name, freeze.artifact_name);
+          assert.equal(artifact.workflow_run.id, freeze.kit_run);
+          assert.equal(artifact.workflow_run.head_sha, freeze.kit_candidate);
+          assert.equal(artifact.expired, false);
+          assert.equal(artifact.digest, `sha256:${freeze.artifact_api_zip_sha256}`);
+          NODE
+          gh api repos/LioRael/lenso-console/actions/artifacts/11216475726/zip > .artifacts/stream-proof/kit.zip
+          printf '%s  %s\n' ac73f67f5333cef5b1d6e3973ddad79f8a381c41cc1808e473ed498528d067e1 .artifacts/stream-proof/kit.zip | sha256sum --check -
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          with zipfile.ZipFile(".artifacts/stream-proof/kit.zip") as archive:
+              assert all(".." not in Path(name).parts and not name.startswith("/") for name in archive.namelist())
+              archive.extractall(".artifacts/stream-proof/downloads")
+          PY
+      - name: Consume Stream with kit-only tools
+        env:
+          HOME: ${{ runner.temp }}/console-stream-home
+          TMPDIR: ${{ runner.temp }}/console-stream-tmp
+          npm_config_cache: ${{ runner.temp }}/console-stream-npm-cache
+          BUN_INSTALL_CACHE_DIR: ${{ runner.temp }}/console-stream-bun-cache
+        run: |
+          mkdir -p "$HOME" "$TMPDIR" "$npm_config_cache" "$BUN_INSTALL_CACHE_DIR"
+          bash .github/fixtures/console-kit-stream/run-linux-stream.sh "$PWD/.artifacts/stream-proof/downloads" 2>&1 | tee .artifacts/stream-proof/consumer.log
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import crypto from "node:crypto";
+          import fs from "node:fs";
+          const root = ".github/fixtures/console-kit-stream";
+          const freeze = JSON.parse(fs.readFileSync(`${root}/freeze.json`));
+          const provenance = JSON.parse(fs.readFileSync(`${root}/extracted/development-host/build-provenance.json`));
+          const receipt = JSON.parse(fs.readFileSync(`${root}/fixture/actual-kit-stream-receipt.json`));
+          assert.equal(provenance.console_sha, freeze.kit_candidate);
+          assert.equal(provenance.engine_sha, freeze.Core);
+          assert.equal(provenance.native_host_sha256, freeze.native_host_sha256);
+          assert.equal(provenance.generated_host_lock_sha256, freeze.generated_host_lock_sha256);
+          assert.equal(receipt.passed, true);
+          const fixtureHashes = Object.fromEntries(Object.keys(freeze.fixture_file_sha256).map(name => [name, crypto.createHash("sha256").update(fs.readFileSync(`${root}/${name}`)).digest("hex")]));
+          assert.deepEqual(fixtureHashes, freeze.fixture_file_sha256);
+          fs.writeFileSync(".artifacts/stream-proof/acceptance.json", JSON.stringify({
+            schema: "lenso.console-kit-stream-acceptance.v1",
+            workflow_candidate: process.env.GITHUB_SHA,
+            workflow_run: process.env.GITHUB_RUN_ID,
+            kit_candidate: freeze.kit_candidate,
+            core: freeze.Core,
+            artifact_id: freeze.artifact_id,
+            fixture_sha256: fixtureHashes,
+            native_host_sha256: freeze.native_host_sha256,
+            generated_host_lock_sha256: freeze.generated_host_lock_sha256,
+            statistics: receipt.statistics,
+            scope: "Linux actual existing-kit Stream; route and business policy, not production identity authorization",
+          }, null, 2));
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: console-linux-kit-stream-evidence
+          path: |
+            .artifacts/stream-proof/*.json
+            .artifacts/stream-proof/consumer.log
+            .github/fixtures/console-kit-stream/freeze.json
+            .github/fixtures/console-kit-stream/fixture-files.sha256
+            .github/fixtures/console-kit-stream/dependency-install.log
+            .github/fixtures/console-kit-stream/actual-kit-driver.log
+            .github/fixtures/console-kit-stream/driver-exit.json
+            .github/fixtures/console-kit-stream/fixture/actual-kit-build.log
+            .github/fixtures/console-kit-stream/fixture/actual-kit-stream-receipt.json
+          include-hidden-files: true
