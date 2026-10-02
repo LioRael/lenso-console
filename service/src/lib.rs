@@ -1719,6 +1719,11 @@ mod tests {
                 {"capability_id":"lenso.management-human@1","descriptor_version":"1.1.0","cardinality":"many"},
                 {"capability_id":"lenso.auth.human-api-token@1","descriptor_version":"1.1.0","cardinality":"many"},
                 {
+                    "capability_id": "lenso.ui.global-contribution@1",
+                    "descriptor_version": "1.0.0",
+                    "cardinality": "many"
+                },
+                {
                     "capability_id": "lenso.ui.contribution@1",
                     "descriptor_version": "1.3.0",
                     "cardinality": "many"
