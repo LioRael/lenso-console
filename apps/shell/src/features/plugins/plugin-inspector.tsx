@@ -5,7 +5,13 @@ import { TextArea } from "@lenso/ui/textarea";
 import { TextField } from "@lenso/ui/textfield";
 import * as stylex from "@stylexjs/stylex";
 import { ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
@@ -14,6 +20,11 @@ import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft
 import { PluginConfigurationFields } from "./plugin-configuration-fields";
 import { pluginDisplayName } from "./plugin-display-name";
 import { PluginOperationTimeoutError } from "./plugin-operation";
+import {
+  PluginDependencies,
+  PluginOverview,
+  type PluginDetailTab,
+} from "./plugin-overview";
 import { pluginPurpose } from "./plugin-purpose";
 import {
   configurationProposalReadyPresentation,
@@ -56,25 +67,6 @@ const publicationTimeFormatter = new Intl.DateTimeFormat("en", {
 });
 
 const styles = stylex.create({
-  capabilities: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: tokens.space2,
-  },
-  capability: {
-    backgroundColor: tokens.colorSurfaceSubtle,
-    borderColor: tokens.colorBorderTertiary,
-    borderRadius: tokens.radiusControl,
-    borderStyle: "solid",
-    borderWidth: 1,
-    color: tokens.colorContentSecondary,
-    display: "inline-flex",
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-    fontSize: 11,
-    lineHeight: "16px",
-    paddingBlock: 5,
-    paddingInline: tokens.space3,
-  },
   controlCopy: { display: "grid", gap: 2, minWidth: 0 },
   controlDescription: {
     color: tokens.colorContentTertiary,
@@ -102,12 +94,18 @@ const styles = stylex.create({
   },
   detailRoot: {
     minWidth: 0,
-    width: "min(680px, calc(100% - 48px))",
+    width: {
+      default: "min(920px, calc(100% - 48px))",
+      "@media (max-width: 560px)": "calc(100% - 32px)",
+    },
     marginInline: "auto",
-    paddingBlock: "48px 64px",
-    "@media (max-width: 560px)": {
-      width: "calc(100% - 32px)",
-      paddingBlock: "32px 48px",
+    paddingBlockStart: {
+      default: 48,
+      "@media (max-width: 560px)": 32,
+    },
+    paddingBlockEnd: {
+      default: 64,
+      "@media (max-width: 560px)": 48,
     },
   },
   configurationLayout: {
@@ -115,9 +113,6 @@ const styles = stylex.create({
     gridTemplateColumns: "minmax(0, 1fr)",
     justifyContent: "space-between",
     width: "100%",
-    "@media (max-width: 1100px)": {
-      gridTemplateColumns: "minmax(0, 1fr)",
-    },
   },
   configurationMain: {
     minWidth: 0,
@@ -131,19 +126,16 @@ const styles = stylex.create({
   },
   editor: {
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-    fontSize: 11,
-    lineHeight: "17px",
+    fontSize: { default: 11, "@media (max-width: 720px)": 16 },
+    lineHeight: { default: "17px", "@media (max-width: 720px)": "22px" },
     minHeight: 200,
     resize: "vertical",
-    "@media (max-width: 720px)": {
-      fontSize: 16,
-      lineHeight: "22px",
-    },
   },
   editorRoot: { width: "100%" },
   editorActions: {
     alignItems: "center",
     display: "flex",
+    flexWrap: "wrap",
     gap: tokens.space2,
     justifyContent: "flex-end",
   },
@@ -152,20 +144,19 @@ const styles = stylex.create({
     fontSize: 11,
     lineHeight: "16px",
     margin: 0,
+    overflowWrap: "anywhere",
   },
   feedbackError: { color: "var(--danger-soft-foreground)" },
   feedbackWarning: { color: "var(--warning-soft-foreground)" },
   field: {
     display: "grid",
-    gap: tokens.space3,
-    gridTemplateColumns: "112px minmax(0, 1fr)",
-    "@media (max-width: 420px)": {
-      gap: 2,
-      gridTemplateColumns: "minmax(0, 1fr)",
+    gap: { default: tokens.space3, "@media (max-width: 420px)": 2 },
+    gridTemplateColumns: {
+      default: "112px minmax(0, 1fr)",
+      "@media (max-width: 420px)": "minmax(0, 1fr)",
     },
   },
   fields: { display: "grid", gap: tokens.space2, margin: 0 },
-  hiddenAction: { visibility: "hidden" },
   historyAction: { justifySelf: "start" },
   historyIdentity: { display: "grid", gap: 2, minWidth: 0 },
   historyDescription: {
@@ -227,18 +218,20 @@ const styles = stylex.create({
   detailHeader: {
     alignItems: "center",
     display: "flex",
+    flexWrap: "wrap",
     gap: tokens.space4,
     justifyContent: "space-between",
     minHeight: 56,
     paddingBlock: tokens.space2,
     paddingInline: 0,
-    "@media (max-width: 540px)": {
-      alignItems: "start",
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr)",
-    },
   },
-  detailIdentity: { display: "grid", gap: 6, minWidth: 0 },
+  detailIdentity: {
+    display: "grid",
+    flexBasis: 420,
+    flexGrow: 1,
+    gap: 6,
+    minWidth: 0,
+  },
   detailTabs: {
     padding: 0,
     boxShadow: "none",
@@ -252,11 +245,10 @@ const styles = stylex.create({
   detailActions: {
     alignItems: "center",
     display: "flex",
+    flexWrap: "wrap",
     flexShrink: 0,
     gap: tokens.space2,
-    "@media (max-width: 540px)": {
-      justifyContent: "flex-end",
-    },
+    justifyContent: "flex-start",
   },
   detailTab: {
     boxShadow: "none",
@@ -323,9 +315,19 @@ const styles = stylex.create({
     margin: 0,
     overflowWrap: "anywhere",
   },
+  statusSummary: {
+    backgroundColor: tokens.colorSurfaceSubtle,
+    borderRadius: tokens.radiusControl,
+    color: tokens.colorContentSecondary,
+    fontSize: 12,
+    lineHeight: "18px",
+    marginBlockStart: tokens.space4,
+    padding: tokens.space4,
+  },
 });
 
 export function PluginDetail({
+  activeTab,
   agentAssistanceAvailable = true,
   agentId,
   authoringEnabled,
@@ -333,8 +335,10 @@ export function PluginDetail({
   inventory,
   management: pluginManagement,
   mutation,
+  onTabChange,
   plugin,
 }: {
+  activeTab: PluginDetailTab;
   agentAssistanceAvailable?: boolean;
   agentId: string;
   authoringEnabled: boolean;
@@ -342,9 +346,30 @@ export function PluginDetail({
   inventory: PluginInventory;
   management: PluginManagement;
   mutation: ReturnType<typeof usePluginMutation>;
+  onTabChange: (tab: PluginDetailTab) => void;
   plugin: PluginWorkbenchItem;
 }) {
   const t = useConsoleTranslation();
+  const tabList = useRef<HTMLDivElement>(null);
+  const requestedTab = useRef<PluginDetailTab | null>(null);
+  const openTab = (tab: PluginDetailTab) => {
+    if (tab === activeTab) {
+      tabList.current
+        ?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')
+        ?.focus();
+      return;
+    }
+    requestedTab.current = tab;
+    onTabChange(tab);
+  };
+  useLayoutEffect(() => {
+    if (requestedTab.current === activeTab) {
+      tabList.current
+        ?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')
+        ?.focus();
+      requestedTab.current = null;
+    }
+  }, [activeTab]);
 
   const proposal = usePluginConfigurationProposal(agentId, inventory.streamId);
   const rollback = usePluginConfigurationRollbackProposal(
@@ -409,6 +434,7 @@ export function PluginDetail({
       ? uncertainPluginOperationPresentation(mutation.error.operation)
       : null;
   const latestChangePresentation = candidateFailure ?? uncertainOperation;
+  const purpose = pluginPurpose(plugin);
 
   return (
     <div {...stylex.props(styles.detailRoot)}>
@@ -417,9 +443,27 @@ export function PluginDetail({
           <h1 {...stylex.props(styles.detailTitle)}>
             {pluginDisplayName(plugin)}
           </h1>
-          <p {...stylex.props(styles.feedback)}>{t(pluginPurpose(plugin))}</p>
+          {purpose === plugin.packageId ? null : (
+            <p {...stylex.props(styles.feedback)}>{t(purpose)}</p>
+          )}
+          <p {...stylex.props(styles.feedback, styles.mono)}>
+            {plugin.packageId}/{plugin.instanceKey}
+            {" · "}
+            {t("Revision")}: {plugin.packageRevision || t("Unavailable")}
+          </p>
         </div>
         <div {...stylex.props(styles.detailActions)}>
+          {management ? (
+            <Button
+              onClick={() => openTab("configuration")}
+              size="sm"
+              variant="secondary"
+            >
+              {t(
+                authoringEnabled ? "Edit configuration" : "View configuration"
+              )}
+            </Button>
+          ) : null}
           {authoringEnabled && agentAssistanceAvailable ? (
             <PluginAgentAction
               instanceKey={plugin.instanceKey}
@@ -433,14 +477,26 @@ export function PluginDetail({
           <PluginStatus state={state} />
         </div>
       </header>
-      <Tabs.List aria-label={t("Plugin details")} xstyle={styles.detailTabs}>
+      <p {...stylex.props(styles.statusSummary)}>{t(state.description)}</p>
+      <Tabs.List
+        aria-label={t("Plugin details")}
+        ref={tabList}
+        xstyle={styles.detailTabs}
+      >
+        <Tabs.Tab value="overview" xstyle={styles.detailTab}>
+          {t("Overview")}
+        </Tabs.Tab>
         <Tabs.Tab value="configuration" xstyle={styles.detailTab}>
           {t("Configuration")}
         </Tabs.Tab>
-        <Tabs.Tab value="technical" xstyle={styles.detailTab}>
-          {t("About")}
+        <Tabs.Tab value="dependencies" xstyle={styles.detailTab}>
+          {t("Dependencies")}
         </Tabs.Tab>
       </Tabs.List>
+
+      <Tabs.Panel value="overview" xstyle={styles.tabPanel}>
+        <PluginOverview onTabChange={openTab} plugin={plugin} />
+      </Tabs.Panel>
 
       <Tabs.Panel value="configuration" xstyle={styles.tabPanel}>
         {management ? (
@@ -575,22 +631,8 @@ export function PluginDetail({
         ) : null}
       </Tabs.Panel>
 
-      <Tabs.Panel value="technical" xstyle={styles.tabPanel}>
-        <DetailSection title={t("Provided capabilities")}>
-          <div {...stylex.props(styles.capabilities)}>
-            {plugin.active?.providedCapabilities.length ? (
-              plugin.active.providedCapabilities.map((capability) => (
-                <code key={capability} {...stylex.props(styles.capability)}>
-                  {capability}
-                </code>
-              ))
-            ) : (
-              <span {...stylex.props(styles.value)}>
-                {t("No capabilities provided by the active Instance.")}
-              </span>
-            )}
-          </div>
-        </DetailSection>
+      <Tabs.Panel value="dependencies" xstyle={styles.tabPanel}>
+        <PluginDependencies plugin={plugin} />
         <DetailListSection title={t("Package and authority")}>
           <Detail label={t("Package")} value={plugin.packageId} mono />
           <Detail label={t("Instance")} value={plugin.instanceKey} mono />
@@ -815,32 +857,32 @@ function PluginConfigurationSection({
                 </Button>
               </>
             ) : null}
-            <Button
-              aria-hidden={!restoreVisible}
-              disabled={
-                !authoringEnabled ||
-                mutation.isPending ||
-                !management.hasRootDifference
-              }
-              onClick={() => {
-                proposal.reset();
-                rollback.reset();
-                mutation.reset();
-                mutation.mutate({
-                  expectedStreamId: inventory.streamId,
-                  instanceKey: plugin.instanceKey,
-                  packageId: plugin.packageId,
-                  type: "reset",
-                });
-              }}
-              size="sm"
-              tabIndex={management.hasRootDifference ? 0 : -1}
-              variant="ghost"
-              {...stylex.props(!restoreVisible && styles.hiddenAction)}
-            >
-              <RotateCcw size={13} strokeWidth={1.75} />
-              {t("Restore Host value")}
-            </Button>
+            {restoreVisible ? (
+              <Button
+                disabled={
+                  !authoringEnabled ||
+                  mutation.isPending ||
+                  !management.hasRootDifference
+                }
+                onClick={() => {
+                  proposal.reset();
+                  rollback.reset();
+                  mutation.reset();
+                  mutation.mutate({
+                    expectedStreamId: inventory.streamId,
+                    instanceKey: plugin.instanceKey,
+                    packageId: plugin.packageId,
+                    type: "reset",
+                  });
+                }}
+                size="sm"
+                tabIndex={management.hasRootDifference ? 0 : -1}
+                variant="ghost"
+              >
+                <RotateCcw size={13} strokeWidth={1.75} />
+                {t("Restore Host value")}
+              </Button>
+            ) : null}
             <Button
               disabled={
                 !authoringEnabled ||

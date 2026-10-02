@@ -134,13 +134,22 @@ test("manages non-Agent Apps without an Agent identity provider and keeps all sc
       .fill("tickets");
     await plugin.click();
     await expect
-      .element(page.getByRole("tab", { name: "Configuration", exact: true }))
+      .element(page.getByRole("tab", { name: "Overview", exact: true }))
       .toHaveAttribute("aria-selected", "true");
-    await page.getByRole("tab", { name: "About", exact: true }).click();
+    await page.getByRole("button", { name: "Edit configuration" }).click();
     await expect
-      .element(page.getByRole("heading", { name: "Provided capabilities" }))
+      .element(page.getByRole("tab", { name: "Configuration", exact: true }))
+      .toHaveFocus();
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    await expect
+      .element(
+        page.getByRole("heading", { name: "Capabilities & contributions" })
+      )
       .toBeVisible();
-
+    await page.getByRole("button", { name: "View dependencies" }).click();
+    await expect
+      .element(page.getByRole("tab", { name: "Dependencies", exact: true }))
+      .toHaveFocus();
     await expect
       .element(page.getByRole("heading", { name: "Package and authority" }))
       .toBeVisible();

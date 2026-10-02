@@ -14,6 +14,7 @@ import { usePluginAgentWorkbench } from "./plugin-agent-workbench-context";
 import { applyPluginWorkbenchRequest } from "./plugin-agent-workbench-request";
 import { PluginDraftNavigationGuard } from "./plugin-draft-navigation-guard";
 import { PluginDetail } from "./plugin-inspector";
+import type { PluginDetailTab } from "./plugin-overview";
 import { pluginKey } from "./plugin-workbench-model";
 import {
   usePluginConfigurationDraftStore,
@@ -155,6 +156,7 @@ function AppPluginDetail({
   const { completeRequest, request } = usePluginAgentWorkbench();
   const appliedRequestId = useRef(0);
   const [workbenchNotice, setWorkbenchNotice] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<PluginDetailTab>("overview");
 
   useEffect(() => {
     if (!workbench.data) {
@@ -185,6 +187,9 @@ function AppPluginDetail({
     }
     appliedRequestId.current = request.id;
     setWorkbenchNotice(result.notice);
+    if (request.draftReview) {
+      setDetailTab("configuration");
+    }
     completeRequest(request.id);
   }, [
     completeRequest,
@@ -197,7 +202,7 @@ function AppPluginDetail({
   ]);
 
   return (
-    <PluginDetailShell withTabs>
+    <PluginDetailShell onTabChange={setDetailTab} tab={detailTab}>
       <PluginDraftNavigationGuard store={configurationDraftStore} />
       {configurationAvailable === false ? (
         <DetailState
@@ -205,7 +210,7 @@ function AppPluginDetail({
           title={t("Plugin management unavailable")}
           description={`${selectedApp.label} does not expose Plugin configuration management.`}
         />
-      ) : workbench.isPending ? (
+      ) : workbench.isPending && !workbench.isError ? (
         <DetailState
           description={t("Reading the active App configuration.")}
           title={t("Loading Plugin")}
@@ -248,6 +253,7 @@ function AppPluginDetail({
               </output>
             ) : null}
             <PluginDetail
+              activeTab={detailTab}
               agentId={selectedApp.id}
               agentAssistanceAvailable={selectedApp.agentId !== null}
               authoringEnabled={workbench.authoringEnabled}
@@ -255,6 +261,7 @@ function AppPluginDetail({
               inventory={inventory}
               management={workbench.data.management}
               mutation={mutation}
+              onTabChange={setDetailTab}
               plugin={plugin}
             />
           </div>
@@ -279,17 +286,20 @@ function AppPluginDetail({
 
 function PluginDetailShell({
   children,
-  withTabs = false,
+  onTabChange,
+  tab,
 }: {
   children: ReactNode;
-  withTabs?: boolean;
+  onTabChange?: (tab: PluginDetailTab) => void;
+  tab?: PluginDetailTab;
 }) {
   const shell = <div {...stylex.props(styles.content)}>{children}</div>;
 
-  return withTabs ? (
+  return tab ? (
     <Tabs.Root
       data-page="plugin-detail"
-      defaultValue="configuration"
+      onValueChange={(value) => onTabChange?.(value as PluginDetailTab)}
+      value={tab}
       xstyle={styles.page}
     >
       {shell}
