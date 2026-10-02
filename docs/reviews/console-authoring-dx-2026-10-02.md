@@ -9,7 +9,9 @@ Base dependency: Console optional-assistant candidate
 The Agent companion `c51c71669822639fa7df0237485a8eab220fabf3` is context only;
 this branch has no Agent source change. Resolve the branch's final SHA with
 `git rev-parse HEAD` before reviewing. Review the delta `bcb8f3f3..HEAD`, not the
-inherited assistant implementation. No independent review verdict is claimed.
+inherited assistant implementation. Independent review found two P2 issues in
+`86604042`: an overwritten editor config and stale service artifacts after
+removal. Both are corrected in the follow-up; its fixed SHA needs focused review.
 
 The first local authoring commit is
 `b5adb2539e3e11c1eff9ff667f1866d2959f7683` against `28e522c`.
@@ -85,7 +87,10 @@ service/domain types. The compiler generates the owner-local
 It does not evaluate/import authored services during generation. Browser code
 contains only the client helper and transport calls; server SDK/source imports
 remain rejected. Removing a service clears its generated client before checking,
-so a reused output cannot retain obsolete callable types.
+so a reused output cannot retain obsolete callable types. A successful page-only
+rebuild removes `services.js`, `server.ts` and `workspace-service.ts`. Authors use
+`tsconfig.authoring.json`; the provider build retains its separate `tsconfig.json`,
+so compiler output cannot overwrite editor aliases and authored file coverage.
 
 There is one handwritten operation declaration, not a page-side DTO/name list.
 `defineServices` and `createWorkspaceServices` derive contribution requirements and
@@ -111,14 +116,16 @@ version and source. Long public identifiers wrap within the existing error view.
 - Intent inventory: no intent-enabled packages found. Lenso authoring/workflow and
   React best-practices guidance read. Existing UI implementation standard followed.
 - `pnpm lint`: pass; `pnpm sdk:check`: pass; canonical SDK projection check: pass.
-- `bun test packages/console-authoring/compiler/test`: 6 passed / 45 assertions.
+- `bun test packages/console-authoring/compiler/test`: 6 passed / 55 assertions.
   The clean-consumer test packs the actual public archive, installs it in a fresh
   `/tmp` project, and runs its own scaffold/compiler without repository imports or
   Cargo/Git patches. Domain interface types imported from another file survive
   projection. Wrong service/operation/input/output usage fails strict checking.
   Top-level service evaluation is forbidden during compilation. Server implementation
   markers are absent from browser assets. Emitted services allow 42, deny 99, and
-  reject numeric input. Removal clears the client and rejects stale calls.
+  reject numeric input. Removal clears the client and rejects stale calls. The generated editor
+  project independently reports all four typed mistakes; a successful page-only
+  rebuild also removes old service implementation/provider files.
 - Focused Workspace client/catalog unit tests: 11 passed across 2 files.
 - Chromium outlet/router tests: 6 passed across 2 files. Long public diagnostic
   identifiers are visible without document overflow at 1280x800 and 390x844 in
@@ -207,10 +214,10 @@ resolution. Bootstrap tools are retained in source-local ignored
 `.lenso/console-authoring-tools`, outside the symlink-free Plugin output; temporary
 typecheck files are removed, and the editor projection retains valid tool paths.
 
-Local archive: `/tmp/console-authoring-integration-20261002/development-host-v3.tar.gz`.
+Local archive: `/tmp/console-authoring-integration-20261002/development-host-v4.tar.gz`.
 Its digest and exact test output are recorded alongside it in the integration
 directory. No registry, signature, Linux result or download release is implied.
-SHA-256: `0f89084bc1adcffaa07d071e74f509d112cd4c48e1a5791356dced51080f955a`.
+SHA-256: `2d3d419be93a0f9b528a07592c9bf59c1d37bda7cd216c09b311175aa024c437`.
 
 The explicit service consumer gate remains separate. The full WorkspaceService
 Role contains `subscribe` Stream, while Engine's Bun App Host declares Request

@@ -90,6 +90,18 @@ test("packed authoring package compiles a clean consumer and preserves authoriza
     const good = run(["build", "--entry", entry]);
     expect(good.exitCode, good.stderr.toString()).toBe(0);
     const output = path.join(entry, ".lenso/console");
+    const editorCheck = () =>
+      Bun.spawnSync(
+        [
+          process.execPath,
+          path.join(project, "node_modules/typescript/bin/tsc"),
+          "--project",
+          path.join(output, "tsconfig.authoring.json"),
+        ],
+        { cwd: project, env, stdout: "pipe", stderr: "pipe" }
+      );
+    const editorGood = editorCheck();
+    expect(editorGood.exitCode, editorGood.stdout.toString()).toBe(0);
     const descriptor = JSON.parse(
       fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
     );
@@ -135,6 +147,11 @@ export default function Page(props:PageProps){const client=bindServices(props.se
     for (const token of ["ordres", "reed", "number", "total"]) {
       expect(diagnostic).toContain(token);
     }
+    const editorWrong = editorCheck();
+    expect(editorWrong.exitCode).not.toBe(0);
+    for (const token of ["ordres", "reed", "number", "total"]) {
+      expect(editorWrong.stdout.toString()).toContain(token);
+    }
     fs.writeFileSync(
       path.join(entry, "page.tsx"),
       'import services from "./services"; export default function Page(){return <p>{Object.keys(services).join(",")}</p>;}'
@@ -150,6 +167,12 @@ export default function Page(props:PageProps){const client=bindServices(props.se
     const removed = run(["check", "--entry", entry]);
     expect(removed.exitCode).not.toBe(0);
     expect(fs.existsSync(path.join(output, "client.ts"))).toBe(false);
+    fs.cpSync(path.join(installed, "template"), entry, { recursive: true });
+    const rebuilt = run(["build", "--entry", entry]);
+    expect(rebuilt.exitCode, rebuilt.stderr.toString()).toBe(0);
+    for (const file of ["services.js", "server.ts", "workspace-service.ts"]) {
+      expect(fs.existsSync(path.join(output, file))).toBe(false);
+    }
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

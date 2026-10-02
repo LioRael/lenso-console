@@ -307,6 +307,10 @@ if (hasServices) {
     .readFileSync(path.join(out, "server.ts"), "utf-8")
     .replace('"./generated/workspace-service"', '"./workspace-service"');
   fs.writeFileSync(path.join(out, "server.ts"), server);
+} else {
+  for (const file of ["services.js", "server.ts", "workspace-service.ts"]) {
+    fs.rmSync(path.join(out, file), { force: true });
+  }
 }
 fs.writeFileSync(
   path.join(out, "plugin.ts"),

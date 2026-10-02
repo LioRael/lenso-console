@@ -116,7 +116,7 @@ export async function typecheck({
   const editor = JSON.parse(fs.readFileSync(config, "utf-8"));
   editor.files = authored;
   fs.writeFileSync(
-    path.join(out, "tsconfig.json"),
+    path.join(out, "tsconfig.authoring.json"),
     JSON.stringify(editor, null, 2)
   );
   // The editor config references the installed closure; no tools enter the artifact.

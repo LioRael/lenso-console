@@ -24,7 +24,7 @@ bun run lenso-console-author build --entry console --plugin-id example.orders
 `check` deliberately exercises the same type/projection/bundle path as `build`.
 It never evaluates authored services, starts a Host, selects a model or grants
 permissions. Generated files default to `console/.lenso/console/`; configure your
-editor with that directory's generated `tsconfig.json`. `@lenso/console-sdk/services`
+editor with that directory's generated `tsconfig.authoring.json`. `@lenso/console-sdk/services`
 is a compiler-provided, owner-local alias, not a globally shared service registry.
 Use the precompiled [development Host](development-host.md) for an executable
 App, or the [native embedding example](https://github.com/LioRael/lenso-console/tree/main/examples/plugin-host).
