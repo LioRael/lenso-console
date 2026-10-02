@@ -127,6 +127,7 @@ jobs:
           tar -xzf ".artifacts/downloads/$archive" -C .artifacts/extracted
           kit="$PWD/.artifacts/extracted/development-host"
           consumer_test="$PWD/tooling/distribution/development-host.test.mjs"
+          consumer_trace="$PWD/.github/scripts/trace-development-host.mjs"
           consumer="$(mktemp -d "${RUNNER_TEMP}/console-dev-consumer.XXXXXX")"
           consumer="$(cd -- "$consumer" && pwd -P)"
           trap 'rm -rf -- "$consumer"' EXIT
@@ -137,7 +138,7 @@ jobs:
               env HOME="$consumer/home" npm_config_cache="$consumer/npm-cache" \
                 BUN_INSTALL_CACHE_DIR="$consumer/bun-cache" \
                 LENSO_CONSOLE_DEV_KIT="$kit" LENSO_CONSOLE_DEV_KIT_SERVICES="$services" \
-                node --test "$consumer_test"
+                node --import "$consumer_trace" --test "$consumer_test"
             done
           )
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
