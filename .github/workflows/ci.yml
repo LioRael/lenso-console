@@ -42,6 +42,6 @@ jobs:
           targets: wasm32-unknown-unknown
       - name: Install owner contract projection generator
         run: >-
-          cargo install --locked --git https://github.com/LioRael/lenso --rev 119b9af70b82816588c00c8bf812f7c62d1a18b5 --version 0.10.1 lenso-contract-codegen
+          cargo install --locked --version 0.10.2 lenso-contract-codegen
       - name: Run quality gates
         run: pnpm check
