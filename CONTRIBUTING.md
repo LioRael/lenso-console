@@ -54,6 +54,31 @@ Do not claim that local checks cover platform CI; record skipped checks and
 limitations in the Issue. Workflow, executable script, and dependency changes
 receive focused syntax/configuration checks and the upstream candidate gate.
 
+### Shared local and CI gate
+
+Install Node from `.node-version`, pnpm from `packageManager`, and the checked-in
+Rust toolchain, then run `pnpm install --frozen-lockfile` and `pnpm check`.
+Remove conflicting Rust overrides or use `RUSTUP_TOOLCHAIN=1.94.0 pnpm check`.
+The gate logs the SHA and tool versions, then runs app typechecking and the
+independent Console Descriptor/default-tool assertions before installing
+Chromium. Playwright's exact version pins the browser revision. CI calls this
+same entrypoint; its Linux browser dependency installation still follows
+preflight. A focused command or `check:preflight` alone is not the full gate.
+
+The full gate includes `pnpm check:distribution:real`: the existing packager
+downloads checksum-pinned Agent release binaries and the native smoke consumes
+real npm archives in an empty workspace with its own Home, npm cache/config and
+runtime PATH. This is read-only and never publishes. For focused distribution
+work, run that command with an optional evidence-file argument. Existing
+`test:distribution` synthetic fixtures remain useful but do not replace it.
+
+Browser fixtures retain real StyleX CSS loading, content-type and geometry
+assertions, plus the existing file-level isolation. Run
+`pnpm test:browser src/components/runtime/context-navigation.browser.test.tsx`
+for that focused regression. An alternate browser executable is diagnostic
+evidence and is rejected by the complete pinned gate. macOS proof does not
+replace the required Linux candidate result.
+
 ## Candidate-first landing
 
 Only an authorized maintainer lands changes. The maintainer records the current

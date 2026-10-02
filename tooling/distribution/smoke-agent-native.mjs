@@ -27,10 +27,15 @@ try {
   }
   await symlink(process.execPath, join(runtimePath, "node"));
   await writeFile(join(workspace, "package.json"), '{"private":true}');
+  await writeFile(join(root, "npmrc"), "");
+  await writeFile(join(root, "global-npmrc"), "");
   const npmEnvironment = {
     ...process.env,
+    HOME: home,
     npm_config_cache: join(root, "npm-cache"),
+    npm_config_globalconfig: join(root, "global-npmrc"),
     npm_config_offline: "true",
+    npm_config_userconfig: join(root, "npmrc"),
   };
   const archives = [];
   for (const name of [`agent-native-${target}`, "agent-native"]) {
