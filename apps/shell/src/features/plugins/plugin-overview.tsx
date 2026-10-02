@@ -15,7 +15,6 @@ const styles = stylex.create({
   cards: {
     display: "grid",
     gap: tokens.space4,
-    alignItems: "start",
     gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))",
   },
   card: {

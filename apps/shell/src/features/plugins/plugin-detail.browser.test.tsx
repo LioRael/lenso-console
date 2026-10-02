@@ -393,6 +393,12 @@ test("renders the generic Auth detail inside the existing Console Shell", async 
       '[data-page="plugin-detail"] [data-slot="surface"]'
     );
     expect(cards.length).toBe(4);
+    const firstCardBounds = cards.item(0).getBoundingClientRect();
+    const secondCardBounds = cards.item(1).getBoundingClientRect();
+    expect(firstCardBounds.top).toBe(secondCardBounds.top);
+    expect(firstCardBounds.height).toBe(secondCardBounds.height);
+    const mainBounds = page.getByRole("main").element().getBoundingClientRect();
+    expect(firstCardBounds.left - mainBounds.left).toBeLessThan(40);
     for (const card of cards) {
       expect(getComputedStyle(card).boxShadow).not.toBe("none");
       expect(

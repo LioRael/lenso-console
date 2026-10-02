@@ -105,7 +105,7 @@ const styles = stylex.create({
   detailRoot: {
     minWidth: 0,
     width: {
-      default: "min(920px, calc(100% - 48px))",
+      default: "calc(100% - 48px)",
       "@media (max-width: 560px)": "calc(100% - 32px)",
     },
     marginInline: "auto",

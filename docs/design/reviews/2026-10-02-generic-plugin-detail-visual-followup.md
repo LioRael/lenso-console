@@ -36,3 +36,5 @@ Browser log start `19:54:25` CST is `11:54:25` UTC on 2026-10-02. Screenshot mti
 | Bundle receipt | `8d3f16d0c41e10f0ccc688711090fc6e762d869e57abaededc0a222cecc7d9e1` |
 
 The parent pixel review, real Native fixtures/Observe OTLP qualification, external Delta review, exact-candidate remote gate, landing and publication remain separate unresolved facts. See [remaining acceptance](2026-10-02-console-slice-remaining-acceptance.md) for the owner-coordinated fa6 kit plan. This commit does not touch main, push, keys, payment or deployment.
+
+The parent subsequently viewed Library version 1 against TcZvX and accepted the Shell/tabs/panels/primary-action direction for real integration, requesting only same-row equal card heights and wider content. The later [layout and Native attempt](2026-10-02-console-slice-native-attempt.md) supersedes the own-height card geometry and records the resulting actual Native limits.
