@@ -14,7 +14,7 @@ root-slot = "console-workspaces"
 [dependencies]
 base64 = "0.22"
 futures = "0.3"
-lenso = "0.5.28"
+lenso = "0.5.29"
 lenso-capability-ui-contribution = { path = "../../../../../contracts/crates/lenso-capability-ui-contribution" }
 lenso-capability-workspace-service = { path = "../../../../../contracts/crates/lenso-capability-workspace-service" }
 lenso-kernel = "0.3.12"

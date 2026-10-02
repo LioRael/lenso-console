@@ -15,8 +15,8 @@ console = ["dep:lenso-console-plugin"]
 
 [dependencies]
 anyhow = "1"
-lenso = "0.5.28"
-lenso-capability-http-endpoint = "0.3.6"
+lenso = "0.5.29"
+lenso-capability-http-endpoint = "=0.3.7"
 lenso-console-plugin = { path = "../../plugins/console", features = [
   "embedded-shell",
 ], optional = true }

@@ -340,3 +340,39 @@ native seed, source digest and archive must be produced after the independently
 owned Core/Auth cohort and typed Stream Host qualification deliver fixed SHAs.
 Console owns its dependency/projection updates; no Core/Auth source is edited here.
 There is no push, landing, publication, deployment or paid model execution.
+
+## Current public dependency cohort integration — pending Native qualification
+
+The dependency-only successor is based on actual landed Console main
+`7e2ed879c67c4267c595d7e06a0de3c465a37228`; its source tree equals the earlier
+`e0ca0b16` CI/DX candidate. SDK/native/codegen are ordinary public
+0.5.29/0.3.20/0.10.2, macros 0.2.9, HTTP 0.3.7, Stream 0.1.4 and ingress 0.4.11.
+The obsolete permanent Core Git patches are removed. All six generator crates
+were checked with their declared projection languages; twelve outputs and schemas
+remain unchanged. Auth699bd962, Access94b6d06, Audit83b4e52 and Approval5480acb
+Role/provider source identities are explicit. Audit and Approval exact remote
+candidate refs and successful gates36966149485/36966158756 were independently read.
+
+Normal root metadata resolves and Rust1.94 offline locked metadata passes;
+root and standalone support locks are recorded under
+`/tmp/console-authoring-integration-20261002`. All Capability Roles have one
+source identity, including Access ordinary/Admin/Directory. Access retains exact
+registry Auth SDK0.2.3; Projects also consumes that SDK, while current Console and
+Auth use Git SDK0.2.4. Inspected context transport carries signed JSON wire bytes
+and verifies issuer/audience/proof, not SDK wrapper Any values. This source evidence
+is not a completed Native interoperability result. No new Auth/Core patch hides it.
+
+Core candidate `eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551` has a passing focused
+local_start regression, but required exact CI36967049756 remains in progress.
+Failed predecessor a322 evidence stays preserved. Workers/perf resource windows
+are respected: no new Console Native compilation or fresh kit acceptance yet.
+The 51fa Shell/SDK is source-identical to current main; Relay actual synthetic
+Native browser fixture passed using that Shell and the existing cf4 Rust provider
+graph. It does not qualify the latest Native cohort.
+
+Prepared source/lock inventory, provenance template, service policy matrix,
+extraction/gate script and actual unified Core producer interface are separate
+receipts. The new kit/archive/Stream/platform matrix and final independent review
+are still required. Workflow pins remain unchanged and exclusively owned by the
+CI successor owner. This local dependency commit is a reviewable candidate,
+not a passing final gate, main landing, publication or deployment.

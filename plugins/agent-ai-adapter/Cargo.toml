@@ -15,12 +15,12 @@ rusqlite = { version = "0.39", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
-lenso = "0.5.28"
+lenso = "0.5.29"
 lenso-kernel = "0.3.12"
-lenso-native-adapter-macros = "=0.2.8"
+lenso-native-adapter-macros = "=0.2.9"
 lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
+lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 reqwest = { version = "0.12", default-features = false, features = [
   "rustls-tls",
   "json",
@@ -33,7 +33,7 @@ uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3.27"
-lenso-native-adapter = "0.3.19"
+lenso-native-adapter = "0.3.20"
 lenso-app-plan = "0.4.6"
 lenso-runner = "0.2.20"
 

@@ -26,7 +26,7 @@ serde_json = "1.0"
 
 [build-dependencies]
 lenso-contract-authoring = "0.1.2"
-lenso-contract-codegen = "=0.10.1"
+lenso-contract-codegen = "=0.10.2"
 schemars = "1.2"
 serde = { version = "1.0", features = ["derive"] }
 

@@ -692,9 +692,9 @@ dependencies = [
 
 [[package]]
 name = "lenso"
-version = "0.5.28"
+version = "0.5.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d8d0b3b9b891a14b20a3cda4c43cb4cc51304eff047e906a91801b07ab4ae27"
+checksum = "c11d88ba8786bc03f50961cf3740e9f63507e223701f91225ee5a8405d4874d3"
 dependencies = [
  "futures",
  "lenso-kernel",
@@ -739,7 +739,7 @@ dependencies = [
 [[package]]
 name = "lenso-auth-sdk"
 version = "0.2.4"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1d101fbc9ba1efc12aaa2cf459628e6383100264#1d101fbc9ba1efc12aaa2cf459628e6383100264"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167#699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -754,8 +754,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-access-control"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f0b295e5ff855ee3d09b34c748cc8c7f391bba689d389cc991ed9a08dc92127"
+source = "git+https://github.com/LioRael/lenso-access-control-plugin?rev=94b6d06cff1e6f17a06e771df232f662cae28ad5#94b6d06cff1e6f17a06e771df232f662cae28ad5"
 dependencies = [
  "futures",
  "lenso-contract-runtime",
@@ -768,7 +767,7 @@ dependencies = [
 [[package]]
 name = "lenso-capability-auth"
 version = "0.2.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1d101fbc9ba1efc12aaa2cf459628e6383100264#1d101fbc9ba1efc12aaa2cf459628e6383100264"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167#699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
@@ -783,15 +782,15 @@ dependencies = [
 
 [[package]]
 name = "lenso-capability-http-endpoint"
-version = "0.3.6"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be16fa982de399cde9abdb6dfb75ecbfb07071b1b3eb9cf44add05e63cde7d32"
+checksum = "e48e26c50278c81278a92aacee5713a5c6475c9eb1d8054e1733356cf2878321"
 dependencies = [
  "futures",
  "http",
  "lenso-capability-http-endpoint-macros",
  "lenso-contract-authoring",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
  "lenso-kernel",
@@ -817,12 +816,12 @@ dependencies = [
 
 [[package]]
 name = "lenso-capability-http-stream-endpoint"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca0466b6ddc5627f8d0322cbc417d3da77f700fa94ba0036b35e4d7a94d172e2"
+checksum = "e9e164864f6bb5a95dd34252cb2b81d88636ecbf4b38d912646fb4efc2a82aeb"
 dependencies = [
  "futures",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-kernel",
  "lenso-plugin-authoring",
@@ -833,11 +832,11 @@ dependencies = [
 [[package]]
 name = "lenso-capability-human-api-token"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=1d101fbc9ba1efc12aaa2cf459628e6383100264#1d101fbc9ba1efc12aaa2cf459628e6383100264"
+source = "git+https://github.com/LioRael/lenso-auth-plugin?rev=699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167#699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-kernel",
  "lenso-plugin-authoring",
@@ -852,7 +851,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
  "lenso-kernel",
@@ -869,7 +868,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "lenso-contract-authoring",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
  "lenso-kernel",
@@ -885,7 +884,7 @@ name = "lenso-capability-ui-contribution"
 version = "0.1.0"
 dependencies = [
  "futures",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
  "lenso-kernel",
@@ -900,7 +899,7 @@ name = "lenso-capability-ui-global-contribution"
 version = "0.1.0"
 dependencies = [
  "futures",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
  "lenso-kernel",
@@ -915,7 +914,7 @@ name = "lenso-capability-workspace-service"
 version = "0.1.0"
 dependencies = [
  "futures",
- "lenso-contract-codegen 0.10.1",
+ "lenso-contract-codegen 0.10.2",
  "lenso-contract-runtime",
  "lenso-guest-sdk",
  "lenso-kernel",
@@ -1003,15 +1002,17 @@ dependencies = [
 
 [[package]]
 name = "lenso-contract-codegen"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eede9b6dc9a4823a5164003bc99b0524e18e7a07a5da431b8833a5d97c539e35"
+checksum = "fd58ca3eae065999329e12599125fd4fb042bceaa72254143ee9d591e7021c2d"
 dependencies = [
  "lenso-contract-authoring",
+ "proc-macro2",
  "regex",
  "semver",
  "serde_json",
  "sha2 0.10.9",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1060,9 +1061,9 @@ dependencies = [
 
 [[package]]
 name = "lenso-native-adapter"
-version = "0.3.19"
+version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce9bceadfdd94c6b7e2b84fc04734b3df45c2bd374b33010e7f3e05b9cdb53f1"
+checksum = "468788ecbf3e43189f4ce641cbdedc27f466b364eedd6d2a28f60a0a2a8d6ff2"
 dependencies = [
  "futures",
  "inventory",
@@ -1076,9 +1077,9 @@ dependencies = [
 
 [[package]]
 name = "lenso-native-adapter-macros"
-version = "0.2.8"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15f1dd95db4a82041671063027e3158073a34947e433226767628e987e69c038"
+checksum = "866b29b427098760e0af5d5c222958271585be6207c2354def7d36614b12aa4d"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

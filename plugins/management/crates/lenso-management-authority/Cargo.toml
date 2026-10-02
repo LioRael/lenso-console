@@ -8,16 +8,16 @@ repository = "https://github.com/LioRael/lenso-console"
 description = "Native operators realm, current credential, qualification and security owner adapter."
 
 [dependencies]
-lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 futures = "0.3"
 lenso-management-core = { path = "../lenso-management-core", version = "0.1.0" }
 lenso-kernel = "0.3.12"
 lenso-capability-management-human = { path = "../../../../contracts/crates/lenso-capability-management-human", version = "0.1.0" }
-lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-capability-access-control = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "5485066ae3e99191862701f753b3ae186755ee80" }
-lenso-capability-business-approval = { git = "https://github.com/LioRael/lenso-business-approval-plugin", rev = "a6e73aa756c45db8260b5a7544328d97624ea896" }
-lenso-capability-audit-log = { git = "https://github.com/LioRael/lenso-audit-log-plugin", rev = "8fb929d066a5ce4bc145db47a6aae0527b62f230" }
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
+lenso-capability-credential-state = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
+lenso-capability-access-control = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
+lenso-capability-business-approval = { git = "https://github.com/LioRael/lenso-business-approval-plugin", rev = "5480acbba8d2341640066dec4a6d4b8da19bc44c" }
+lenso-capability-audit-log = { git = "https://github.com/LioRael/lenso-audit-log-plugin", rev = "83b4e52e8c6eaf2bbe5356dccd1e3a59b872c8e9" }
 
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
@@ -27,17 +27,17 @@ time = { version = "0.3", features = ["formatting", "parsing"] }
 [dev-dependencies]
 tempfile = "3"
 lenso-app-plan = "0.4.6"
-lenso-native-adapter = "0.3.19"
+lenso-native-adapter = "0.3.20"
 lenso-runner = "0.2.20"
 lenso-capability-secrets = "0.1.4"
-lenso-auth-api-token-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-capability-api-token-admin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "5485066ae3e99191862701f753b3ae186755ee80" }
-lenso-capability-access-control-admin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "5485066ae3e99191862701f753b3ae186755ee80" }
-lenso-capability-access-control-directory = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "5485066ae3e99191862701f753b3ae186755ee80" }
-lenso-business-approval-postgres-plugin = { git = "https://github.com/LioRael/lenso-business-approval-plugin", rev = "a6e73aa756c45db8260b5a7544328d97624ea896" }
-lenso-audit-log-postgres-plugin = { git = "https://github.com/LioRael/lenso-audit-log-plugin", rev = "8fb929d066a5ce4bc145db47a6aae0527b62f230" }
+lenso-auth-api-token-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
+lenso-capability-api-token-admin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
+lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
+lenso-capability-access-control-admin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
+lenso-capability-access-control-directory = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
+lenso-business-approval-postgres-plugin = { git = "https://github.com/LioRael/lenso-business-approval-plugin", rev = "5480acbba8d2341640066dec4a6d4b8da19bc44c" }
+lenso-audit-log-postgres-plugin = { git = "https://github.com/LioRael/lenso-audit-log-plugin", rev = "83b4e52e8c6eaf2bbe5356dccd1e3a59b872c8e9" }
 tokio = { version = "1.52", features = ["macros", "rt"] }
 
 [lints.rust]

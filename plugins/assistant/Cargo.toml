@@ -12,9 +12,9 @@ plugin-id = "lenso.console.assistant"
 root-slot = "console-global-extensions"
 
 [dependencies]
-lenso = "0.5.28"
+lenso = "0.5.29"
 lenso-kernel = "0.3.12"
-lenso-native-adapter-macros = "=0.2.8"
+lenso-native-adapter-macros = "=0.2.9"
 lenso-capability-ui-global-contribution = { path = "../../contracts/crates/lenso-capability-ui-global-contribution" }
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
@@ -24,7 +24,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-lenso-native-adapter = "0.3.19"
+lenso-native-adapter = "0.3.20"
 lenso-app-plan = "0.4.6"
 tempfile = "3.27"
 
