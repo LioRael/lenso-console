@@ -7,12 +7,22 @@ const value = (flag) => {
   const i = args.indexOf(flag);
   return i === -1 ? undefined : args[i + 1];
 };
-if (command === "init" && args.length === 1 && !args[0].startsWith("-")) {
+if (
+  command === "init" &&
+  [1, 2].includes(args.length) &&
+  !args[0].startsWith("-") &&
+  (args.length === 1 || args[1] === "--services")
+) {
   const root = path.resolve(args[0]);
   if (fs.existsSync(root)) {
     throw new Error(`Directory already exists: ${root}`);
   }
   fs.cpSync(path.join(import.meta.dir, "template"), root, { recursive: true });
+  if (args[1] === "--services") {
+    fs.cpSync(path.join(import.meta.dir, "service-example"), root, {
+      recursive: true,
+    });
+  }
   fs.writeFileSync(path.join(root, ".gitignore"), ".lenso/\nnode_modules/\n");
   console.log(
     `Created ${root}\nRun: lenso-console-author check --entry ${JSON.stringify(root)}`
@@ -64,7 +74,7 @@ if (command === "init" && args.length === 1 && !args[0].startsWith("-")) {
   );
 } else {
   console.error(
-    "Usage: lenso-console-author init <console-directory> | check/build --entry <console-directory> [--out <directory>] [--plugin-id <id>] [--version <semver>]"
+    "Usage: lenso-console-author init <console-directory> [--services] | check/build --entry <console-directory> [--out <directory>] [--plugin-id <id>] [--version <semver>]"
   );
   process.exit(1);
 }

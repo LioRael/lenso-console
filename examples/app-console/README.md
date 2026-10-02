@@ -26,3 +26,9 @@ For application development without Cargo or this source checkout, use the
 
 For page-only development and generated service clients, use the single
 [Console authoring entry](../../packages/console-authoring/README.md).
+
+This fixture contains the optional typed service example. Its full WorkspaceService
+role includes Stream, while the current Engine App Host only admits Request for
+Bun. The generic Host therefore rejects this fixture at implementation admission.
+Use the kit's page-only starter for a working default, or a qualified Host for the
+service example. Do not treat a passing source compile as a running App.

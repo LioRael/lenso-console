@@ -74,6 +74,11 @@ export function defineServices<const Definitions extends ServiceDefinitions>(
     throw new Error("Too many workspace services");
   }
   for (const [id, service] of Object.entries(services)) {
+    if (id === "then" || Object.hasOwn(service.operations, "then")) {
+      throw new Error(
+        `Workspace service "${id}" cannot use reserved client member "then"`
+      );
+    }
     if (
       !/^[a-z][a-z0-9._-]{0,63}$/.test(id) ||
       !service.capabilityId.trim() ||

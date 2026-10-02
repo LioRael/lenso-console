@@ -47,5 +47,13 @@ or downloadable multi-platform release implied by its existence.
 The package also includes strict page-source type checking, nested
 `layout.tsx` / `loading.tsx` / `error.tsx`, catch-all routes and optional
 `console/services.ts`. See `packages/console-authoring/README.md` in this package for
-exact APIs and authorization boundaries. The generated example includes an
-owner service: `orders/read` permits order 42 and rejects other IDs.
+exact APIs and authorization boundaries. The default starter is page-only.
+The optional `service-example` implements `orders/read`, permitting order 42 and
+rejecting other IDs, but needs a Host admitting the complete WorkspaceService role,
+including Stream. The current Engine App Host advertises only Request for Bun and
+rejects this provider. Source compilation and helper authorization tests are not
+proof of service runtime admission. Do not remove contract operations to bypass it.
+
+The default no-Rust gate verifies the page-only kit. Set
+`LENSO_CONSOLE_DEV_KIT_SERVICES=1` for the distinct full service gate against a
+qualified Host; failure of that gate must remain visible in the review evidence.

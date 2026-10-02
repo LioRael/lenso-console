@@ -11,13 +11,17 @@ binaries; only producers need the Rust and frontend build toolchains.
 
 ## Produce a package locally
 
-Build the Engine Host from the sibling Engine workspace, then from Console:
+Build a producer from a cohort matching Console's pinned SDK dependencies.
+For this local candidate that producer is core `119b9af7` (SDK 0.5.28).
+Current core `29b01e47` supplies Engine 0.2.5 as the precompiled consumer;
+its automatic native producer currently conflicts with the Auth/codegen pins.
+Record both revisions when they differ. From Console:
 
 ```sh
 pnpm service:web-build
-/path/to/lenso-engine-host app build --root examples/app-console --out /tmp/console-host-seed
+/path/to/compatible-engine-host app build --root /path/to/page-only-app --out /tmp/console-host-seed
 node scripts/package-development-host.mjs \
-  --engine-host /path/to/lenso-engine-host \
+  --engine-host /path/to/current-engine-host \
   --host-distribution /tmp/console-host-seed \
   --out /tmp/console-development-host
 LENSO_CONSOLE_DEV_KIT=/tmp/console-development-host \
@@ -28,6 +32,14 @@ Outputs must not already exist. The seed is built using the normal App assembly
 path; the packager verifies its native Host and Bun against the distribution
 lock, checks target compatibility and native support source identity, then copies
 the complete consumer tool closure. It does not ship an Agent application.
+
+The producer App must explicitly select `packages/console-support`. The existing
+`examples/app-console` has services and is not a page-only seed: its complete
+WorkspaceService role includes Stream, which the generic Engine Bun App Host
+does not currently admit. The kit starter therefore defaults to pages/navigation.
+Run the distinct service gate with `LENSO_CONSOLE_DEV_KIT_SERVICES=1` only against
+a Host qualifying that role; retain its failure as evidence rather than claiming
+page-only acceptance proves service startup.
 
 The generic Engine `development_host` field selects a local
 `lenso.precompiled-host.v1` manifest. The manifest pins an executable, target,
@@ -51,6 +63,12 @@ through Plugin Root produces no pages or listener. Existing source compilation
 remains available for Apps without `development_host`.
 
 ## Verified locally
+
+The authoring candidate's current-Engine consumer, matching native producer and
+extracted page-only acceptance are recorded in
+[the implementation review](reviews/console-authoring-dx-2026-10-02.md).
+That record also includes the failing service admission gate. Historical checks
+below do not establish this candidate's service or multi-platform acceptance.
 
 The opt-in integration test creates a fresh App with PATH containing only the
 package's bin directory, builds it, runs the readiness/shutdown check, disables

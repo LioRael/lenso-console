@@ -62,6 +62,12 @@ test("packed authoring package compiles a clean consumer and preserves authoriza
         stderr: "pipe",
       });
     expect(run(["init", entry]).exitCode).toBe(0);
+    const pageOnly = run(["build", "--entry", entry]);
+    expect(pageOnly.exitCode, pageOnly.stderr.toString()).toBe(0);
+    expect(fs.existsSync(path.join(entry, "services.ts"))).toBe(false);
+    fs.cpSync(path.join(installed, "service-example"), entry, {
+      recursive: true,
+    });
     const serviceSource = path.join(entry, "services.ts");
     fs.writeFileSync(
       path.join(project, "domain.ts"),

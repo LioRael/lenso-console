@@ -25,7 +25,7 @@ hex = "0.4"
 http = "1"
 lenso = "0.5.28"
 lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
-lenso-capability-auth = "0.2.0"
+lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
 lenso-capability-access-control = "0.2.0"
 lenso-capability-management-human = { path = "../contracts/crates/lenso-capability-management-human", version = "0.1.0" }
 lenso-capability-management = { path = "../contracts/crates/lenso-capability-management", version = "0.1.0" }

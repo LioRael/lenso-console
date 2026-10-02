@@ -73,3 +73,27 @@ test("declarations reject oversized operations with the owning alias", () => {
     })
   ).toThrow('Workspace service "orders"');
 });
+
+// A Promise-like member would be advertised by inference but suppressed by the client.
+// oxlint-disable unicorn/no-thenable -- Intentionally invalid declarations prove SDK rejection.
+test("declarations reject thenable aliases before client use", () => {
+  const read = operation({
+    parse: (value: unknown) => value,
+    authorize: () => true,
+    handle: (value: unknown) => value,
+  });
+  const service = {
+    capabilityId: "example.orders.query@1",
+    version: "1.0.0",
+    operations: { read },
+  };
+  expect(() => defineServices(Object.fromEntries([["then", service]]))).toThrow(
+    'reserved client member "then"'
+  );
+  expect(() =>
+    defineServices({
+      orders: { ...service, operations: Object.fromEntries([["then", read]]) },
+    })
+  ).toThrow('reserved client member "then"');
+});
+// oxlint-enable unicorn/no-thenable

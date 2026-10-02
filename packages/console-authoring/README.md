@@ -30,6 +30,14 @@ Use the precompiled [development Host](development-host.md) for an executable
 App, or the [native embedding example](https://github.com/LioRael/lenso-console/tree/main/examples/plugin-host).
 Page compilation alone does not prove compatibility with a released Engine Host.
 
+The default scaffold has pages and navigation only. `init console --services`
+adds the typed service example for source compilation and a qualified Host.
+The current Engine App Host advertises Request only for Bun, while the existing
+WorkspaceService role also contains Stream. Consequently, that Host rejects the
+service provider even when the example implements only unary business operations.
+Use a Host that explicitly qualifies the complete role; this compiler does not
+remove contract operations or raise Host admission flags to bypass the restriction.
+
 ## What you write
 
 ```text
@@ -55,7 +63,8 @@ const order = await client.orders.read({ id: "42" }, { signal: props.signal });
 ```
 
 Wrong service/operation names, input types and inferred output properties fail
-source checking. Type information is not runtime validation: `parse` validates
+source checking. The Promise-like member `then` is reserved for both aliases and
+operations and rejected when defining services. Type information is not runtime validation: `parse` validates
 untrusted input and the domain owner performs final authorization on every call.
 Owner service aliases, immutable Plan admission, authentication and cancellation
 continue to apply. Existing cross-Plugin domain contracts keep using their normal
@@ -99,6 +108,30 @@ The three previous SDK/compiler/scaffold directories have one owner and package
 closure. Rust `console-support` remains a separate native Host build boundary,
 not a second page authoring SDK. Shell UI, optional assistant/MCP and domain
 contracts keep their independent lifecycle/security boundaries.
+
+The repository's top-level directories are unchanged: `src`, `service`, `runtime`,
+`contracts`, `config`, `plugins`, `packages`, `public`, `examples`, `scripts`,
+`docs`, `.agents`, `.changeset` and `.github`. The concrete package change is:
+
+```text
+before packages/                 after packages/
+  console-sdk/                     console-authoring/
+  console-convention/                src/       # SDK, server declarations, client
+  console-dev/                       compiler/  # one compiler/type projection
+                                    template/  # one author scaffold
+  console-support/                 console-support/
+  console/                         console/
+  agent/                           agent/
+```
+
+This unifies page authoring, not every internal Console authority. Core Capability
+descriptors/schemas still own their Rust/TypeScript projections; native Plugin
+macros own their runtime descriptors; the Host explicitly admits instances and
+bindings. The source checkout still has separate Shell assets, service runtime,
+runtime support, configuration and contract maintenance. Further maintenance
+layout/configuration/release simplification is outside this change. Generated
+page metadata is no longer an author-maintained declaration, but it still exists
+because Engine needs a verifiable Plugin and the Host needs explicit admission.
 
 ## Diagnostics and verification
 

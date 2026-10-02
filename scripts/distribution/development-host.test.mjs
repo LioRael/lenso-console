@@ -7,7 +7,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import test from "node:test";
 
-const verifyServices = async (cli, app, env) => {
+const verifyApp = async (cli, app, env, services) => {
   const child = spawn(cli, ["app", "start", "--from", path.join(app, "dist")], {
     env,
     stdio: ["ignore", "ignore", "pipe"],
@@ -26,6 +26,16 @@ const verifyServices = async (cli, app, env) => {
     const catalogResponse = await fetch(`${base}/api/console/v1/pages`);
     const catalog = await catalogResponse.json();
     const [mount] = catalog.mounts;
+    assert.ok(mount, "Console did not expose the generated page mount");
+    if (!services) {
+      assert.equal(mount.requirements.length, 0);
+      const shell = await fetch(`${base}/`);
+      assert.equal(shell.status, 200);
+      const module = await fetch(`${base}${mount.module}`);
+      assert.equal(module.status, 200);
+      assert.match(await module.text(), /createWorkspace/u);
+      return;
+    }
     assert.equal(mount.requirements[0].available, true);
     const invoke = (id) =>
       fetch(
@@ -43,6 +53,12 @@ const verifyServices = async (cli, app, env) => {
     assert.equal(body.id, "42");
     const denied = await invoke("99");
     assert.equal(denied.status, 422);
+    const deniedProblem = await denied.json();
+    assert.equal(deniedProblem.code, "workspace_service_denied");
+    const invalid = await invoke(42);
+    assert.equal(invalid.status, 422);
+    const invalidProblem = await invalid.json();
+    assert.equal(invalidProblem.code, "workspace_service_codec_mismatch");
   } finally {
     clearTimeout(timeout);
     child.kill("SIGTERM");
@@ -57,6 +73,7 @@ const verifyServices = async (cli, app, env) => {
 const kit = process.env.LENSO_CONSOLE_DEV_KIT
   ? fs.realpathSync(process.env.LENSO_CONSOLE_DEV_KIT)
   : undefined;
+const services = process.env.LENSO_CONSOLE_DEV_KIT_SERVICES === "1";
 const DEFAULT_COMMAND_TIMEOUT_MS = 90_000;
 // `lenso.console.pages` has a bounded five-minute compiler setup window. Leave
 // a small assembly margin without weakening the timeout for every CLI command.
@@ -65,7 +82,7 @@ const COMPLETE_CONSUMER_TIMEOUT_MS = 420_000;
 // Guards the complete consumer closure: a cached Cargo build cannot mask a
 // missing precompiled Host, compiler, SDK projection, or bundled Bun executable.
 test(
-  "Console creation, build and startup work with only development-kit tools",
+  `Console ${services ? "service" : "page-only"} creation, build and startup work with only development-kit tools`,
   { skip: !kit, timeout: COMPLETE_CONSUMER_TIMEOUT_MS },
   async () => {
     const temp = fs.mkdtempSync(path.join(os.tmpdir(), "console-no-rust-"));
@@ -83,12 +100,19 @@ test(
     };
     try {
       run(["app", "create", app, "--console"]);
+      if (services) {
+        fs.cpSync(
+          path.join(kit, "packages/console-authoring/service-example"),
+          path.join(app, "app/orders/console"),
+          { recursive: true }
+        );
+      }
       assert.ok(
         fs.existsSync(path.join(app, "app/orders/console/orders/[id]/page.tsx"))
       );
       run(["app", "build", "--root", app], FIRST_CONVENTION_BUILD_TIMEOUT_MS);
       run(["app", "start", "--from", path.join(app, "dist"), "--check"]);
-      await verifyServices(cli, app, env);
+      await verifyApp(cli, app, env, services);
       assert.ok(!fs.existsSync(path.join(app, ".lenso/host-cache")));
       fs.writeFileSync(
         path.join(app, "plugins/lenso.console.web/default.disabled"),

@@ -22,16 +22,28 @@ export async function typecheck({
     modules = fs.existsSync(path.join(local, "typescript/package.json"))
       ? local
       : path.dirname(path.dirname(require.resolve("typescript/package.json")));
+    if (
+      ![
+        "typescript/bin/tsc",
+        "@types/react/index.d.ts",
+        "@types/bun/index.d.ts",
+      ].every((file) => fs.existsSync(path.join(modules, file)))
+    ) {
+      throw new Error("No complete installed authoring tool closure");
+    }
   } catch {
-    // Precompiled kits bootstrap their one authoring dependency closure here.
+    // Tool installation is source-local scratch, never a Plugin artifact:
+    // Engine correctly rejects node_modules' executable symlinks in output.
+    const tools = path.join(root, ".lenso", "console-authoring-tools");
+    fs.mkdirSync(tools, { recursive: true });
     fs.copyFileSync(
       path.resolve(import.meta.dir, "../package.json"),
-      path.join(directory, "package.json")
+      path.join(tools, "package.json")
     );
     const install = Bun.spawnSync(
       [process.execPath, "install", "--ignore-scripts"],
       {
-        cwd: directory,
+        cwd: tools,
         env,
         stdout: "pipe",
         stderr: "inherit",
@@ -41,7 +53,7 @@ export async function typecheck({
     if (install.exitCode !== 0) {
       throw new Error("Console authoring tools installation failed");
     }
-    modules = path.join(directory, "node_modules");
+    modules = path.join(tools, "node_modules");
   }
   const bindings = path.join(directory, "entries.ts");
   fs.writeFileSync(
@@ -107,8 +119,6 @@ export async function typecheck({
     path.join(out, "tsconfig.json"),
     JSON.stringify(editor, null, 2)
   );
-  // Retain bootstrapped tools if this is a kit; installed SDK consumers need no copy.
-  if (modules !== path.join(directory, "node_modules")) {
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
+  // The editor config references the installed closure; no tools enter the artifact.
+  fs.rmSync(directory, { recursive: true, force: true });
 }

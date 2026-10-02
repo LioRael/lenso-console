@@ -10,6 +10,7 @@
     "compiler/*.mjs",
     "compiler/router.ts",
     "template",
+    "service-example",
     "author.mjs",
     "README.md",
     "development-host.md",
