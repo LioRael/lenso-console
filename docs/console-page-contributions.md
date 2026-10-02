@@ -102,7 +102,7 @@ Not implemented by this baseline:
 | Current source | Consequence for this design |
 | --- | --- |
 | [Console Shell](../apps/shell/src/components/runtime/console-shell.tsx#L31) has a fixed area union and sidebar selection | Add a contribution outlet and catalog-derived navigation, not another business-specific area branch |
-| [Root](../apps/shell/src/routes/__root.tsx#L27) mounts the application after hydration; [Vite](../vite.config.ts#L21) uses SPA mode | First-generation contributions are client-rendered; arbitrary Plugin SSR is not needed |
+| [Root](../apps/shell/src/routes/__root.tsx#L27) mounts the application after hydration; [Vite](../apps/shell/vite.config.ts#L21) uses SPA mode | First-generation contributions are client-rendered; arbitrary Plugin SSR is not needed |
 | [App context](../apps/shell/src/features/apps/app-management-context.tsx#L108) chooses a preferred or first target | This convenience selection cannot be the identity source for a deep-linked page or in-flight mutation |
 | [Providers](../apps/shell/src/app/providers.tsx#L11) include Agent and shared Query contexts | Those private providers are not public extension contracts |
 | [App proxy](../plugins/console/src/app_management.rs#L122) allowlists Plugin control routes | Business APIs and page discovery need a new explicit projection, not an arbitrary suffix added to that proxy |

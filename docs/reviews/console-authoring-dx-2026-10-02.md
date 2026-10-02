@@ -321,7 +321,9 @@ frozen installation, Shell type checks, canonical SDK/contract projection checks
 boundary check, 275 unit tests, 14 distribution tests (kit check requires an explicit
 fresh kit), production Shell prerender, independent Assistant bundle, Plugin
 Clippy with `-D warnings`, Plugin library (28 passed, one existing ignored), and
-Reference Host all features (10 passed, two private Postgres/secret tests ignored).
+Reference Host all features (10 passed, two private Postgres/secret tests ignored),
+and Reference Host without optional features (9 passed, the same two ignored).
+The packed authoring consumer/compiler suite passes six tests and 55 assertions.
 The full browser confirmation passes 101/101. An earlier full run passed 100/101:
 the project-task test's Conversation click was intercepted by the Trajectory area
 at mobile width. The unmodified focused file passes 9/9; the failure is retained
