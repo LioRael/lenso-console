@@ -34,6 +34,17 @@ import type {
 import { PluginDetailPage } from "./plugin-detail-page";
 import { pluginWorkbenchQueryKey } from "./use-plugin-workbench";
 
+// This file exercises public HTTP contract fixtures. Configure only this
+// file's API boundary; the rest of the browser suite keeps its demo mode.
+vi.mock(import("../../lib/http-client"), async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    httpClient: original.httpClient.extend({ prefix: "/" }),
+    isApiMode: () => true,
+  };
+});
+
 // Descriptor-derived identities and roles, returned as isolated public HTTP
 // contract fixtures. No native Host, health probe, resource or binding fixture.
 const auth: PluginSelectionItem = {
