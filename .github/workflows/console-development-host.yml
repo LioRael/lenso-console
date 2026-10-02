@@ -28,6 +28,7 @@ jobs:
       CORE_REPOSITORY: ${{ inputs.engine_repository || 'LioRael/lenso' }}
       # Inject the final owner-qualified SHA before any candidate push.
       CORE_REVISION: ${{ inputs.engine_revision || 'QUALIFIED_CORE_SHA_PENDING' }}
+      CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
     strategy:
       fail-fast: false
       matrix:
@@ -59,20 +60,28 @@ jobs:
         with:
           toolchain: 1.94.0
       - name: Install Bun producer tool
-        run: npm install --global bun@1.4.2
+        run: |
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = 1.4.2
       - name: Build Core producer
         working-directory: core
-        run: cargo build --locked --release -p lenso-engine-host
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/console-core-producer
+        run: |
+          cargo build --locked --release -p lenso-engine-host
+          "$CORE_PRODUCER" --engine-host-info
       - name: Build Console seed
         working-directory: console
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/console-native-seed
         run: |
           pnpm install --frozen-lockfile
           pnpm service:web-build
-          ../core/target/release/lenso-engine-host app build --root examples/app-console --out .artifacts/seed
+          "$CORE_PRODUCER" app build --root examples/app-console --out .artifacts/seed
       - name: Package and verify with no Rust tools on PATH
         working-directory: console
         run: |
-          node tooling/package-development-host.mjs --engine-host ../core/target/release/lenso-engine-host --host-distribution .artifacts/seed --out .artifacts/development-host
+          node tooling/package-development-host.mjs --engine-host "$CORE_PRODUCER" --host-distribution .artifacts/seed --out .artifacts/development-host
           LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/development-host" node --test tooling/distribution/development-host.test.mjs
       - name: Archive executable kit and verify the extracted download
         working-directory: console
