@@ -26,8 +26,8 @@ jobs:
   verify:
     env:
       CORE_REPOSITORY: ${{ inputs.engine_repository || 'LioRael/lenso' }}
-      # Inject the final owner-qualified SHA before any candidate push.
-      CORE_REVISION: ${{ inputs.engine_revision || 'QUALIFIED_CORE_SHA_PENDING' }}
+      # Core CI36967049756: quality and bun-conformance passed this exact SHA.
+      CORE_REVISION: ${{ inputs.engine_revision || 'eaa5bc489e8f8d245fd30821b4a4fbe1a9e35551' }}
     strategy:
       fail-fast: false
       matrix:
