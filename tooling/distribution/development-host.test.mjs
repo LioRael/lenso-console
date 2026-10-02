@@ -16,14 +16,15 @@ const verifyApp = async (cli, app, env, services) => {
   let stderr = "";
   let stage = "Host readiness";
   const lines = createInterface({ input: child.stderr });
-  const endpoint = new Promise((resolve) => {
-    lines.on("line", (line) => {
-      stderr = `${stderr}${line}\n`.slice(-32768);
-      const match = line.match(/http:\/\/127\.0\.0\.1:[0-9]+/u);
-      if (match) resolve(match[0]);
-    });
-    lines.once("close", () => resolve(undefined));
+  const { promise: endpoint, resolve } = Promise.withResolvers();
+  lines.on("line", (line) => {
+    stderr = `${stderr}${line}\n`.slice(-32768);
+    const match = line.match(/http:\/\/127\.0\.0\.1:[0-9]+/u);
+    if (match) {
+      resolve(match[0]);
+    }
   });
+  lines.once("close", () => resolve());
   try {
     const base = await endpoint;
     assert.ok(base, "Host did not expose an HTTP endpoint");
@@ -73,10 +74,10 @@ const verifyApp = async (cli, app, env, services) => {
     stage = `service invalid42 response JSON (HTTP ${invalid.status})`;
     const invalidProblem = await invalid.json();
     assert.equal(invalidProblem.code, "workspace_service_codec_mismatch");
-  } catch (cause) {
+  } catch (error) {
     throw new Error(
       `${stage} failed (Host exit=${child.exitCode}, signal=${child.signalCode})\nHost stderr:\n${stderr}`,
-      { cause }
+      { cause: error }
     );
   } finally {
     clearTimeout(timeout);
