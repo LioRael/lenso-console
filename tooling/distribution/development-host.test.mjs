@@ -13,24 +13,32 @@ const verifyApp = async (cli, app, env, services) => {
     stdio: ["ignore", "ignore", "pipe"],
   });
   const timeout = setTimeout(() => child.kill("SIGTERM"), 20000);
-  try {
-    let base;
-    for await (const line of createInterface({ input: child.stderr })) {
+  let stderr = "";
+  let stage = "Host readiness";
+  const lines = createInterface({ input: child.stderr });
+  const endpoint = new Promise((resolve) => {
+    lines.on("line", (line) => {
+      stderr = `${stderr}${line}\n`.slice(-32768);
       const match = line.match(/http:\/\/127\.0\.0\.1:[0-9]+/u);
-      if (match) {
-        [base] = match;
-        break;
-      }
-    }
+      if (match) resolve(match[0]);
+    });
+    lines.once("close", () => resolve(undefined));
+  });
+  try {
+    const base = await endpoint;
     assert.ok(base, "Host did not expose an HTTP endpoint");
+    stage = "catalog";
     const catalogResponse = await fetch(`${base}/api/console/v1/pages`);
+    stage = `catalog response JSON (HTTP ${catalogResponse.status})`;
     const catalog = await catalogResponse.json();
     const [mount] = catalog.mounts;
     assert.ok(mount, "Console did not expose the generated page mount");
     if (!services) {
       assert.equal(mount.requirements.length, 0);
+      stage = "page Shell";
       const shell = await fetch(`${base}/`);
       assert.equal(shell.status, 200);
+      stage = "page module";
       const module = await fetch(`${base}${mount.module}`);
       assert.equal(module.status, 200);
       assert.match(await module.text(), /createWorkspace/u);
@@ -47,24 +55,36 @@ const verifyApp = async (cli, app, env, services) => {
           signal: AbortSignal.timeout(10000),
         }
       );
+    stage = "service allow42";
     const allowed = await invoke("42");
     assert.equal(allowed.status, 200);
+    stage = `service allow42 response JSON (HTTP ${allowed.status})`;
     const body = await allowed.json();
     assert.equal(body.id, "42");
+    stage = "service deny99";
     const denied = await invoke("99");
     assert.equal(denied.status, 422);
+    stage = `service deny99 response JSON (HTTP ${denied.status})`;
     const deniedProblem = await denied.json();
     assert.equal(deniedProblem.code, "workspace_service_denied");
+    stage = "service invalid42";
     const invalid = await invoke(42);
     assert.equal(invalid.status, 422);
+    stage = `service invalid42 response JSON (HTTP ${invalid.status})`;
     const invalidProblem = await invalid.json();
     assert.equal(invalidProblem.code, "workspace_service_codec_mismatch");
+  } catch (cause) {
+    throw new Error(
+      `${stage} failed (Host exit=${child.exitCode}, signal=${child.signalCode})\nHost stderr:\n${stderr}`,
+      { cause }
+    );
   } finally {
     clearTimeout(timeout);
     child.kill("SIGTERM");
-    if (child.exitCode === null) {
+    if (child.exitCode === null && child.signalCode === null) {
       await once(child, "exit");
     }
+    lines.close();
   }
 };
 
