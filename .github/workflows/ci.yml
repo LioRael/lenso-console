@@ -31,7 +31,7 @@ jobs:
         with:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-          node-version: 24
+          node-version-file: .node-version
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install Rust toolchain
@@ -43,9 +43,5 @@ jobs:
       - name: Install owner contract projection generator
         run: >-
           cargo install --locked --git https://github.com/LioRael/lenso --rev 119b9af70b82816588c00c8bf812f7c62d1a18b5 --version 0.10.1 lenso-contract-codegen
-      - name: Run fast preflight
-        run: pnpm check:preflight
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
       - name: Run quality gates
-        run: pnpm check:full
+        run: pnpm check

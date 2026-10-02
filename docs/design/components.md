@@ -18,16 +18,16 @@ Search in that order. A raw button or anchor is appropriate for native document 
 
 | UI role | Starting point | What to preserve |
 | --- | --- | --- |
-| Two-level shell and navigation | `src/components/runtime/console-frame.tsx`, `console-navigation-rail.tsx`, `context-navigation.tsx` | Shared 48px toolbar, 56px rail, 248px context sidebar, desktop collapse, mobile focus and close behavior |
-| Plugin sidebar | `src/features/extensions/workspace-sidebar-slot.tsx`; `docs/console-page-contributions.md` | Plugin provider context through the shared slot; one context sidebar |
-| Toolbar, context identity, page heading | `console-header.tsx`, `console-workspace-header.tsx`, `console-page-header.tsx` in `src/components/runtime/` | Separate global history/search, current context selection, and feature title/actions; shared anchors and wrapping |
+| Two-level shell and navigation | `apps/shell/src/components/runtime/console-frame.tsx`, `console-navigation-rail.tsx`, `context-navigation.tsx` | Shared 48px toolbar, 56px rail, 248px context sidebar, desktop collapse, mobile focus and close behavior |
+| Plugin sidebar | `apps/shell/src/features/extensions/workspace-sidebar-slot.tsx`; `docs/console-page-contributions.md` | Plugin provider context through the shared slot; one context sidebar |
+| Toolbar, context identity, page heading | `console-header.tsx`, `console-workspace-header.tsx`, `console-page-header.tsx` in `apps/shell/src/components/runtime/` | Separate global history/search, current context selection, and feature title/actions; shared anchors and wrapping |
 | Action / icon-only action | `@lenso/ui/button`, `isIconOnly` | Variant, loading/disabled states, focus, accessible name; all icon-only actions use the primitive's pill radius without local corner overrides |
 | Workspace or action menu | `@lenso/ui/menu`; existing product switchers | Trigger anchor, selected state, keyboard movement, Escape, portal |
 | Selecting a value | `@lenso/ui/select` or `combobox` according to search need | Current value, labels, keyboard behavior; use a menu for actions |
 | Small contextual help | `@lenso/ui/tooltip`, `popover` | Portal, collision handling, clipping, focus access |
 | Task requiring a modal | `@lenso/ui/modal` | Focus return, Escape policy, meaningful title; workspace selection uses a menu |
-| Settings fields | Console `src/components/lenso/recipes/settings-row.tsx`, `@lenso/ui/label`, existing Settings compositions | Label/control alignment, help placement, shared control sizes |
-| Loading / empty / error | `src/app/route-states.tsx` and the owning feature's existing state composition | Useful explanation and recovery action, correct permission behavior |
+| Settings fields | Console `apps/shell/src/components/lenso/recipes/settings-row.tsx`, `@lenso/ui/label`, existing Settings compositions | Label/control alignment, help placement, shared control sizes |
+| Loading / empty / error | `apps/shell/src/app/route-states.tsx` and the owning feature's existing state composition | Useful explanation and recovery action, correct permission behavior |
 
 Discover other controls from package exports instead of assuming they are absent. Use the repository's existing router link via the primitive's supported composition API (for example `render`), preserving native anchor behavior. Never nest interactive elements.
 

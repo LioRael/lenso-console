@@ -22,4 +22,13 @@ Host. Running the resulting distribution needs no source, Cargo, or Node. The
 Bun runtime is included by the App packager for portable contribution providers.
 
 For application development without Cargo or this source checkout, use the
-[precompiled Console development package](../../packages/console-dev/README.md).
+[precompiled Console development package](../../packages/console-authoring/development-host.md).
+
+For page-only development and generated service clients, use the single
+[Console authoring entry](../../packages/console-authoring/README.md).
+
+This fixture contains the optional typed service example. Its full WorkspaceService
+role includes Stream, while the current Engine App Host only admits Request for
+Bun. The generic Host therefore rejects this fixture at implementation admission.
+Use the kit's page-only starter for a working default, or a qualified Host for the
+service example. Do not treat a passing source compile as a running App.

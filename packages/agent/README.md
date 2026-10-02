@@ -36,7 +36,7 @@ forwarding and explicitly rejects `web`. This candidate is not published by the
 existing combined-distribution workflow.
 
 ```sh
-node scripts/distribution/package-agent.mjs darwin-arm64 - /tmp/agent-native --native-only
+node tooling/distribution/package-agent.mjs darwin-arm64 - /tmp/agent-native --native-only
 ```
 
 Native packaging verifies the existing pinned release checksum. The `-` argument

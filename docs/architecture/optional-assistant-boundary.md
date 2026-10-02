@@ -57,11 +57,11 @@ This is local implementation for review, without remote CI, landing or publicati
 
 | Owner | Files/paths | Contract / reuse |
 | --- | --- | --- |
-| Console | `contracts/crates/lenso-capability-ui-global-contribution/{capability.json,schemas/,src/generated.rs,generated/bindings.ts}` | New `lenso.ui.global-contribution@1` 1.0.0, reuse contribution payload/asset/requirement vocabulary; existing `lenso.ui.contribution@1` 1.3.0 unchanged |
-| Console | `service/src/{lib.rs,page_contributions.rs}`; `src/features/extensions/{global-contribution-outlet.tsx,global-ui-runtime.ts,page-contribution-outlet.tsx}` | Generic mount/catalog, existing owner Workspace Service dispatch and renderer |
-| Console | `plugins/assistant/{Cargo.toml,config.schema.json,src/lib.rs,web/entry.tsx}`; `scripts/distribution/{build-assistant.mjs,package-assistant.mjs}` | Optional native provider plus separate browser package; public singleton adapter names in `global-ui-runtime.ts`; no runtime import of Shell-private files |
-| Console | `plugins/management-mcp/{Cargo.toml,config.schema.json,src/lib.rs,src/plugin.rs}` | Existing `lenso.auth@1`, `lenso.management@1`, `lenso.http.stream-endpoint@1`; no Agent role or new MCP contract |
-| Console | `service/crates/lenso-console-app/{Cargo.toml,src/config.rs,src/lib.rs,src/tests.rs}` | Optional installation features and explicit enable configuration; existing Plugin Root lifecycle |
+| Console | `contracts/crates/lenso-capability-ui-global-contribution/{capability.json,schemas/,apps/shell/src/generated.rs,generated/bindings.ts}` | New `lenso.ui.global-contribution@1` 1.0.0, reuse contribution payload/asset/requirement vocabulary; existing `lenso.ui.contribution@1` 1.3.0 unchanged |
+| Console | `plugins/console/src/{lib.rs,page_contributions.rs}`; `apps/shell/src/features/extensions/{global-contribution-outlet.tsx,global-ui-runtime.ts,page-contribution-outlet.tsx}` | Generic mount/catalog, existing owner Workspace Service dispatch and renderer |
+| Console | `plugins/assistant/{Cargo.toml,config.schema.json,apps/shell/src/lib.rs,web/entry.tsx}`; `tooling/distribution/{build-assistant.mjs,package-assistant.mjs}` | Optional native provider plus separate browser package; public singleton adapter names in `global-ui-runtime.ts`; no runtime import of Shell-private files |
+| Console | `plugins/management-mcp/{Cargo.toml,config.schema.json,apps/shell/src/lib.rs,apps/shell/src/plugin.rs}` | Existing `lenso.auth@1`, `lenso.management@1`, `lenso.http.stream-endpoint@1`; no Agent role or new MCP contract |
+| Console | `apps/reference-host/{Cargo.toml,apps/shell/src/config.rs,apps/shell/src/lib.rs,apps/shell/src/tests.rs}` | Optional installation features and explicit enable configuration; existing Plugin Root lifecycle |
 
 Build-time assistant source reuse is intentional. The independently delivered
 browser package resolves shared UI state/HTTP through the named singleton adapter
@@ -140,13 +140,13 @@ was initially denied; the authorized local tests then passed. No external networ
 
 ```sh
 pnpm build:local
-node scripts/distribution/build-assistant.mjs
-node scripts/distribution/package-assistant.mjs plugins/assistant/web/dist /tmp/assistant-package
+node tooling/distribution/build-assistant.mjs
+node tooling/distribution/package-assistant.mjs plugins/assistant/web/dist /tmp/assistant-package
 cargo build --offline --locked -p lenso-console-app --bin lenso-console
-node scripts/distribution/smoke-console.mjs target/debug/lenso-console dist/client
+node tooling/distribution/smoke-console.mjs target/debug/lenso-console apps/shell/dist/client
 cargo test --offline --locked -p lenso-console-app --features assistant,management-mcp optional_assistant_disable_removes_global_mount_and_assets
 cargo test --offline --locked -p lenso-management-mcp
-pnpm exec vitest run --config vitest.browser.config.ts src/features/agent/agent-quick-panel.browser.test.tsx src/features/extensions/page-contribution-outlet.browser.test.tsx
+pnpm exec vitest run --config vitest.browser.config.ts apps/shell/src/features/agent/agent-quick-panel.browser.test.tsx apps/shell/src/features/extensions/page-contribution-outlet.browser.test.tsx
 ```
 
 Focused browser suite: 28 passed. Native assistant disable/re-enable test passed
@@ -307,7 +307,7 @@ results do not substitute for the final SHA remote candidate gate.
 Independent Codex AI review of Console `28e522c` / Agent `c51c716` identified
 missing CLI/ACP companion binaries in the native-only distribution. Native staging
 now verifies and installs all three matching release assets in the same bin
-directory. `node scripts/distribution/smoke-agent-native.mjs <prepared-output>
+directory. `node tooling/distribution/smoke-agent-native.mjs <prepared-output>
 [evidence.json]` packs and installs actual npm archives offline into an empty
 workspace and verifies all three real release versions plus dispatcher `doctor
 --json`, `run --help` and `acp --version`, with only Node on PATH and an isolated

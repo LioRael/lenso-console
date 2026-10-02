@@ -29,7 +29,7 @@ It did not deploy or mutate a production App.
 
 The final title was `SQLite browser authorization verified`, revision `2`.
 Independent PostgreSQL inspection confirmed description remained null, priority
-`medium`, workflow `started-public`, Project `project-public`, and Team `public`.
+`medium`, workflow `started-public`, Project `project-public`, and Team `apps/shell/public`.
 The activity ledger recorded `create_issue` at revision 1 and `update_issue` at
 revision 2 for the same Alice subject, `usr_Po-XP63mEC3yqjx-mn5E4_cC`.
 
@@ -49,4 +49,4 @@ Agent v0.1.9 was published by workflow run `34408339353` from merged commit
 for macOS arm64 and Linux x64 were downloaded from that release. Each SHA-256
 matched the released `SHA256SUMS`, and GitHub attestation verification enforced
 the repository, `release.yml`, `refs/heads/main`, and that exact source digest.
-Those verified hashes are pinned in `scripts/distribution/agent-release.json`.
+Those verified hashes are pinned in `tooling/distribution/agent-release.json`.

@@ -6,22 +6,22 @@ import tanstack from "ultracite/oxlint/tanstack";
 export default defineConfig({
   extends: [core, react, tanstack],
   ignorePatterns: [
-    "service/**/generated/**",
+    "plugins/console/**/generated/**",
     "contracts/**/generated/**",
     "plugins/**/generated/**",
     "packages/**/generated/**",
-    "src/**/generated/**",
+    "apps/shell/src/**/generated/**",
     "plugins/management/crates/lenso-management-http/src/workers/mcp.mjs",
   ],
   overrides: [
     {
       files: [
-        "src/**/*.{ts,tsx}",
+        "apps/shell/src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx,mjs}",
         "plugins/management/workers-mcp/*.mjs",
         "plugins/management/crates/lenso-management-core/src/workers/*.mjs",
         "examples/**/*.{ts,tsx}",
-        "vite.config.ts",
+        "apps/shell/vite.config.ts",
       ],
       rules: {
         "class-methods-use-this": "off",

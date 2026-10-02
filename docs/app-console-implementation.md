@@ -21,7 +21,7 @@ No commits, registry publication or remote delivery are authorized for this task
   pages and private manifests are handled only by the selected compiler.
 - `packages/console-support` selects the embedded Console Shell and the
   `console/` convention. No Agent process or Agent URL is required.
-- `packages/console-sdk` exposes page props, scoped navigation, shared React,
+- `packages/console-authoring` exposes page props, scoped navigation, shared React,
   Workspace Services types, and generated Contribution / Service contracts.
 - `console/page.tsx` and nested static / `[parameter]/page.tsx` routes compile
   into one ordinary portable Contribution Plugin per directory. React comes

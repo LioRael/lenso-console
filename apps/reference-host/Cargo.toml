@@ -1,0 +1,93 @@
+[package]
+name = "lenso-console-app"
+version = "0.1.0"
+edition = "2024"
+publish = false
+rust-version = "1.94"
+
+[[bin]]
+name = "lenso-console"
+path = "src/main.rs"
+
+[[bin]]
+name = "lenso-console-with-agent"
+path = "src/agent_main.rs"
+
+[features]
+default = []
+assistant = ["dep:lenso-console-assistant-plugin"]
+management-mcp = ["dep:lenso-management-mcp"]
+agent-ai = ["dep:lenso-console-agent-ai-adapter"]
+
+[dependencies]
+lenso-console-agent-ai-adapter = { path = "../../plugins/agent-ai-adapter", optional = true }
+lenso-console-assistant-plugin = { path = "../../plugins/assistant", optional = true }
+lenso-management-mcp = { path = "../../plugins/management-mcp", optional = true }
+lenso-console-plugin = { path = "../../plugins/console" }
+lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "15fb8d492fb9cb86437cc9dd20101aa07492e5cd" }
+lenso-projects-postgres-plugin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
+lenso-organization-postgres-plugin = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
+lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "5485066ae3e99191862701f753b3ae186755ee80" }
+lenso-app-authoring = { package = "lenso-cli", version = "0.6.5", default-features = false }
+lenso-auth-account-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-auth-password-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-auth-web-session-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-auth-oidc-client-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-auth-oauth-flow-plugin = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-secrets-env-plugin = "0.1.7"
+lenso-http-egress-plugin = "0.3.6"
+lenso-observe-plugin = { path = "../../plugins/observe" }
+lenso-projects-workspace-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "15fb8d492fb9cb86437cc9dd20101aa07492e5cd" }
+lenso-native-adapter = "0.3.19"
+lenso-runner = "0.2.20"
+lenso-web-ingress-plugin = "0.4.10"
+anyhow = "1.0"
+http = "1"
+lenso-app-plan = "0.4.6"
+lenso-capability-auth = "0.2.0"
+lenso-capability-access-control = "0.2.0"
+lenso-capability-management = { path = "../../contracts/crates/lenso-capability-management" }
+lenso-capability-management-human = { path = "../../contracts/crates/lenso-capability-management-human" }
+lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-capability-http-endpoint = "0.3.6"
+lenso-capability-http-stream-endpoint = "0.1.3"
+lenso-kernel = "0.3.12"
+serde_json = "1.0"
+tokio = { version = "1.52", features = [
+  "macros",
+  "rt",
+  "signal",
+  "process",
+  "time",
+] }
+uuid = { version = "1.26", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "rustls-tls",
+  "stream",
+] }
+directories = "6.0"
+
+[dev-dependencies]
+lenso-console-password-session-consumer = { path = "../../plugins/console/tests/fixtures/password-session-consumer" }
+lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-console-welcome-workspace-plugin = { path = "../../plugins/console/tests/fixtures/welcome-workspace-plugin" }
+lenso-capability-password-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "1d101fbc9ba1efc12aaa2cf459628e6383100264" }
+lenso-postgres-kit = { git = "https://github.com/LioRael/lenso-postgres-kit", rev = "bc12ce2e59ef63e63ffcabb1eb4b524c3022c834" }
+lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution" }
+lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service" }
+axum = "0.8"
+bytes = "1"
+futures = "0.3"
+tempfile = "3.27"
+time = "0.3"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 
-import { useAgentIdentity } from "../../../src/features/agent/agent-identity-context";
-import { AgentQuickPanel } from "../../../src/features/agent/agent-quick-panel";
+import { useAgentIdentity } from "../../../apps/shell/src/features/agent/agent-identity-context";
+import { AgentQuickPanel } from "../../../apps/shell/src/features/agent/agent-quick-panel";
 
 const AssistantSurface = ({ suspended }: { suspended: boolean }) => {
   const navigate = useNavigate();

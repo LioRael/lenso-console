@@ -1,0 +1,42 @@
+{
+  "name": "@lenso/console-sdk",
+  "version": "0.1.0",
+  "description": "Console page authoring: SDK, service client generation, compiler and scaffold",
+  "bin": {
+    "lenso-console-author": "./author.mjs"
+  },
+  "files": [
+    "src",
+    "compiler/*.mjs",
+    "compiler/router.ts",
+    "template",
+    "service-example",
+    "author.mjs",
+    "README.md",
+    "development-host.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contribution": "./src/generated/contribution.ts",
+    "./workspace-service": "./src/generated/workspace-service.ts",
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "check": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck src/*.ts src/generated/*.ts"
+  },
+  "dependencies": {
+    "@lenso/contract-runtime": "0.3.1",
+    "@types/bun": "1.4.0",
+    "@types/react": "19.2.18",
+    "typescript": "7.0.2"
+  },
+  "devDependencies": {
+    "react-dom": "^19.2.8"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

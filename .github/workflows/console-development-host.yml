@@ -64,8 +64,8 @@ jobs:
       - name: Package and verify with no Rust tools on PATH
         working-directory: console
         run: |
-          node scripts/package-development-host.mjs --engine-host ../engine/target/release/lenso-engine-host --host-distribution .artifacts/seed --out .artifacts/development-host
-          LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/development-host" node --test scripts/distribution/development-host.test.mjs
+          node tooling/package-development-host.mjs --engine-host ../engine/target/release/lenso-engine-host --host-distribution .artifacts/seed --out .artifacts/development-host
+          LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/development-host" node --test tooling/distribution/development-host.test.mjs
       - name: Archive executable kit and verify the extracted download
         working-directory: console
         run: |
@@ -75,7 +75,7 @@ jobs:
           tar -czf ".artifacts/downloads/$archive" -C .artifacts development-host
           (cd .artifacts/downloads && shasum -a 256 "$archive" > "$archive.sha256")
           tar -xzf ".artifacts/downloads/$archive" -C .artifacts/extracted
-          LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/extracted/development-host" node --test scripts/distribution/development-host.test.mjs
+          LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/extracted/development-host" node --test tooling/distribution/development-host.test.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: console-development-host-${{ matrix.os }}
