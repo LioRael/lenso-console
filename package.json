@@ -33,7 +33,7 @@
     "typecheck:local": "pnpm --dir apps/shell typecheck:local",
     "preview": "pnpm --dir apps/shell preview",
     "test:distribution": "node --test tooling/distribution/*.test.mjs",
-    "check:preflight": "node tooling/check-environment.mjs && pnpm typecheck:local && pnpm lint && pnpm rust:format && pnpm service:boundary && pnpm contract:typecheck && pnpm human-tokens:projection && pnpm sdk:check && pnpm test:descriptors",
+    "check:preflight": "node tooling/check-environment.mjs && node tooling/check-frozen-stream-fixture.mjs && pnpm typecheck:local && pnpm lint && pnpm rust:format && pnpm service:boundary && pnpm contract:typecheck && pnpm human-tokens:projection && pnpm sdk:check && pnpm test:descriptors",
     "test:descriptors": "cargo test --locked -p lenso-console-plugin --lib plugin_descriptor_owns_console_http_endpoints && cargo test --locked -p lenso-console-plugin --lib console_agent_tool_defaults_are_reviewed_and_removable",
     "check:distribution:real": "node tooling/distribution/check-native.mjs",
     "check:full": "pnpm test && pnpm test:distribution && pnpm check:distribution:real && pnpm build:local && pnpm service:check && pnpm management:workers:check",

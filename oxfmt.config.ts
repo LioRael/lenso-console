@@ -7,6 +7,8 @@ export default defineConfig({
   // formatter upgrade rewrite the full documentation history in this PR.
   ignorePatterns: [
     ...(ultracite.ignorePatterns ?? []),
+    // Keep the qualified proof snapshot byte-identical. Preflight checks it.
+    ".github/fixtures/console-kit-stream/fixture/**",
     "**/*.md",
     "plugins/console/**/generated/**",
     "contracts/**/generated/**",
