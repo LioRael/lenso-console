@@ -8,7 +8,7 @@ Base dependency: Console optional-assistant candidate
 `cf4f7ff1801274914059357f5f827f103297847b`.
 The Agent companion `c51c71669822639fa7df0237485a8eab220fabf3` is context only;
 this branch has no Agent source change. Resolve the branch's final SHA with
-`git rev-parse HEAD` before reviewing. Review the delta `918d72c..HEAD`, not the
+`git rev-parse HEAD` before reviewing. Review the delta `bcb8f3f3..HEAD`, not the
 inherited assistant implementation. No independent review verdict is claimed.
 
 The first local authoring commit is
@@ -17,8 +17,19 @@ After the coordinator confirmed fixed writer candidates, this branch integrated
 Console `918d72c8834f1a9929bad11d1f2e6ee4d08f886f` through local merge
 `6b910d22ee3c847ef5ad1f4259f8776f8784aa78`. Agent
 `9fece8e96316b32899f9fa0e242d8a94bbfc35cf` remains context only. No uncommitted
-writer content was copied. Review the final authoring delta against `918d72c`,
+writer content was copied. Review the final authoring delta against `bcb8f3f3`,
 while the original `28e522c..b5adb253` remains available for provenance.
+
+After the coordinator confirmed landing, this branch also integrated exact
+Console main `bcb8f3f393763c08cbe248d8045526c6f489307e`. Relative to `918d72c`,
+that commit adds only the optional global contribution assertion in the native
+descriptor test; it changes no kit/runtime implementation. Agent main remains
+`9fece8e96316b32899f9fa0e242d8a94bbfc35cf`. The old assistant TypeScript errors
+and candidate landing are resolved dependencies, not remaining blockers.
+After that exact integration, Console Plugin library tests passed: 28 passed,
+one pre-existing ignored test. The first sandboxed run's four mock-listener
+permission failures were resolved by local socket permission. Plugin lib/tests
+Clippy with `-D warnings` also passed.
 
 This implements the approved type/client, clean page-consumer and diagnostics
 slice, with directory/ownership simplification. Local commit only; no main
@@ -229,7 +240,7 @@ installation or published npm alias is claimed by this local branch.
 
 ## Suggested independent review
 
-Review the fixed authoring delta against `918d72c`, especially:
+Review the fixed authoring delta against `bcb8f3f3`, especially:
 
 - compiler declaration/output paths and no-evaluation behavior;
 - literal type retention, transitive domain declarations and stale-client removal;
