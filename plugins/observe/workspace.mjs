@@ -1,56 +1,200 @@
 export const apiMajor = 1;
 
 const service = "observe";
+const requestLimit = 50;
+
+// Console's admitted service errors carry status/code; domain errors carry the
+// public query enum in payload. Never render arbitrary transport error bodies.
+const queryFailure = (error) => {
+  if (error?.status === 401 || error?.status === 403) {
+    return {
+      kind: "denied",
+      message:
+        "Access to this Observe source is unavailable. Sign in with an authorized account, then retry.",
+    };
+  }
+  if (error?.payload === "expired_cursor") {
+    return {
+      kind: "expired",
+      message:
+        "This request position has expired. Return to the latest requests.",
+    };
+  }
+  if (error?.payload === "not_found") {
+    return {
+      kind: "missing",
+      message:
+        "This trace is no longer available. It may have been removed by retention.",
+    };
+  }
+  return {
+    kind: "unavailable",
+    message:
+      "Observe could not load this data. Retry when the receiver is available.",
+  };
+};
 
 export const createWorkspace = ({ createElement: h, react, services }) => {
-  const { useEffect, useMemo, useState } = react;
+  const { useCallback, useEffect, useMemo, useRef, useState } = react;
 
-  const Page = ({ location, mount, navigation, signal }) => {
-    const sourceId = mount.subject.kind === "app" ? mount.subject.appId : "";
-    const selectedTrace =
-      location.segments[0] === "traces" ? location.segments[1] : null;
-    const [requests, setRequests] = useState([]);
-    const [trace, setTrace] = useState(null);
-    const [logs, setLogs] = useState([]);
-    const [selectedSpanId, setSelectedSpanId] = useState(null);
-    const [health, setHealth] = useState(null);
-    const [errorMessage, setErrorMessage] = useState(null);
-
+  const useRead = ({
+    operation,
+    request,
+    enabled,
+    attempt,
+    signal,
+    access,
+    deny,
+  }) => {
+    const key = `${operation}:${JSON.stringify(request)}`;
+    const [state, setState] = useState({
+      data: null,
+      error: null,
+      key: null,
+      pending: false,
+    });
     useEffect(() => {
+      if (!access.current) {
+        setState({ data: null, error: null, key, pending: false });
+      }
+      if (!enabled || signal.aborted) {
+        return;
+      }
       let active = true;
       const controller = new AbortController();
       const abort = () => controller.abort();
       signal.addEventListener("abort", abort, { once: true });
-      const load = async () => {
+      setState((current) => ({
+        data: current.key === key ? current.data : null,
+        error: null,
+        key,
+        pending: true,
+      }));
+      const read = async () => {
         try {
-          const [requestPage, ingestion] = await Promise.all([
-            services.invoke(
-              service,
-              "list_requests",
-              { limit: 50, source_id: sourceId },
-              { signal: controller.signal }
-            ),
-            services.invoke(
-              service,
-              "read_ingestion_health",
-              { source_id: sourceId },
-              { signal: controller.signal }
-            ),
-          ]);
-          if (active) {
-            setRequests(requestPage.requests);
-            setHealth(ingestion);
-            setErrorMessage(null);
+          const data = await services.invoke(
+            service,
+            operation,
+            JSON.parse(key.slice(operation.length + 1)),
+            { signal: controller.signal }
+          );
+          if (active && !controller.signal.aborted && access.current) {
+            setState({ data, error: null, key, pending: false });
           }
         } catch (error) {
-          if (active && !controller.signal.aborted) {
-            setErrorMessage(
-              error instanceof Error ? error.message : "Observe is unavailable"
-            );
+          if (active && !controller.signal.aborted && access.current) {
+            const failure = queryFailure(error);
+            if (failure.kind === "denied") {
+              deny();
+            } else {
+              setState((current) => ({
+                ...current,
+                error: failure,
+                key,
+                pending: false,
+              }));
+            }
           }
         }
       };
-      void load();
+      void read();
+      return () => {
+        active = false;
+        signal.removeEventListener("abort", abort);
+        controller.abort();
+      };
+    }, [key, operation, enabled, attempt, signal, access, deny]);
+    return state.key === key
+      ? state
+      : { data: null, error: null, key, pending: enabled };
+  };
+
+  const Page = ({ location, mount, navigation, signal }) => {
+    const sourceId = mount.subject.kind === "app" ? mount.subject.appId : "";
+    const { selectedTrace, cursor } = requestPosition(location.segments);
+    const [attempt, setAttempt] = useState(0);
+    const [denied, setDenied] = useState(false);
+    const [feed, setFeed] = useState({ kind: "connecting", sourceId });
+    const [selectedSpanId, setSelectedSpanId] = useState(null);
+    const access = useRef(true);
+    const [positions, setPositions] = useState({ cursors: [null], sourceId });
+    const previousCursors =
+      positions.sourceId === sourceId ? positions.cursors.slice(0, -1) : [];
+    const returnTrace = useRef(null);
+    const listElement = useRef(null);
+    const deny = useCallback(() => {
+      access.current = false;
+      setDenied(true);
+    }, []);
+    const enabled = !denied;
+    const common = { access, attempt, deny, signal };
+    const requestPage = useRead({
+      ...common,
+      enabled: enabled && !selectedTrace,
+      operation: "list_requests",
+      request: {
+        limit: requestLimit,
+        source_id: sourceId,
+        ...(cursor ? { cursor } : {}),
+      },
+    });
+    const ingestion = useRead({
+      ...common,
+      enabled,
+      operation: "read_ingestion_health",
+      request: { source_id: sourceId },
+    });
+    const traceRead = useRead({
+      ...common,
+      enabled: enabled && Boolean(selectedTrace),
+      operation: "read_trace",
+      request: { source_id: sourceId, trace_id: selectedTrace },
+    });
+    const logsRead = useRead({
+      ...common,
+      enabled: enabled && Boolean(selectedTrace),
+      operation: "list_trace_logs",
+      request: { limit: 200, source_id: sourceId, trace_id: selectedTrace },
+    });
+    const requests = denied ? [] : (requestPage.data?.requests ?? []);
+    const trace = denied ? null : traceRead.data;
+    const logs = denied ? [] : (logsRead.data?.logs ?? []);
+    const health = denied ? null : ingestion.data;
+
+    useEffect(() => {
+      access.current = true;
+      setDenied(false);
+      setPositions({ cursors: [null], sourceId });
+      returnTrace.current = null;
+    }, [sourceId]);
+
+    useEffect(() => {
+      if (selectedTrace) {
+        return;
+      }
+      setPositions((current) => {
+        const cursors =
+          current.sourceId === sourceId ? current.cursors : [null];
+        const index = cursors.indexOf(cursor);
+        return {
+          cursors:
+            index === -1
+              ? [...cursors, cursor].slice(-64)
+              : cursors.slice(0, index + 1),
+          sourceId,
+        };
+      });
+    }, [sourceId, cursor, selectedTrace]);
+
+    useEffect(() => {
+      if (!enabled || selectedTrace || signal.aborted) {
+        return;
+      }
+      let active = true;
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      signal.addEventListener("abort", abort, { once: true });
+      setFeed({ kind: "connecting", sourceId });
       const watch = async () => {
         try {
           for await (const item of services.subscribe(
@@ -59,29 +203,29 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
             { source_id: sourceId },
             { signal: controller.signal }
           )) {
-            if (!active) {
+            if (!active || controller.signal.aborted || !access.current) {
               return;
             }
-            if (item.kind === "request" && item.trace_id) {
-              setRequests((current) =>
-                [
-                  item,
-                  ...current.filter(
-                    (entry) => entry.trace_id !== item.trace_id
-                  ),
-                ].slice(0, 50)
-              );
-            } else if (item.kind === "lag") {
-              setErrorMessage(
-                "Telemetry may be incomplete. Refreshing from storage is recommended."
-              );
-            }
+            // Keep the server cursor's snapshot stable: inserting then trimming
+            // live rows would skip the displaced rows on the next page.
+            setFeed((current) => ({
+              kind:
+                item.kind === "lag" || current.kind === "lag"
+                  ? "lag"
+                  : "changed",
+              sourceId,
+            }));
+          }
+          if (active && !controller.signal.aborted && access.current) {
+            setFeed({ kind: "stopped", sourceId });
           }
         } catch (error) {
-          if (active && !controller.signal.aborted) {
-            setErrorMessage(
-              error instanceof Error ? error.message : "Live updates stopped"
-            );
+          if (active && !controller.signal.aborted && access.current) {
+            if (queryFailure(error).kind === "denied") {
+              deny();
+            } else {
+              setFeed({ kind: "stopped", sourceId });
+            }
           }
         }
       };
@@ -91,53 +235,21 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
         signal.removeEventListener("abort", abort);
         controller.abort();
       };
-    }, [sourceId, signal]);
+    }, [sourceId, selectedTrace, enabled, attempt, signal, access, deny]);
 
     useEffect(() => {
-      if (!selectedTrace) {
-        setTrace(null);
-        setLogs([]);
-        setSelectedSpanId(null);
+      if (selectedTrace || requestPage.pending || !returnTrace.current) {
         return;
       }
-      let active = true;
-      const controller = new AbortController();
-      const loadTrace = async () => {
-        try {
-          const [nextTrace, nextLogs] = await Promise.all([
-            services.invoke(
-              service,
-              "read_trace",
-              { source_id: sourceId, trace_id: selectedTrace },
-              { signal: controller.signal }
-            ),
-            services.invoke(
-              service,
-              "list_trace_logs",
-              { limit: 200, source_id: sourceId, trace_id: selectedTrace },
-              { signal: controller.signal }
-            ),
-          ]);
-          if (active) {
-            setTrace(nextTrace);
-            setLogs(nextLogs.logs);
-            setSelectedSpanId(nextTrace.spans[0]?.span_id ?? null);
-            setErrorMessage(null);
-          }
-        } catch (error) {
-          if (active && !controller.signal.aborted) {
-            setErrorMessage(
-              error instanceof Error ? error.message : "Trace is unavailable"
-            );
-          }
-        }
-      };
-      void loadTrace();
-      return () => {
-        active = false;
-        controller.abort();
-      };
-    }, [selectedTrace, sourceId]);
+      const row = listElement.current?.querySelector(
+        `[data-trace-id="${returnTrace.current}"]`
+      );
+      if (row) {
+        row.focus({ preventScroll: true });
+        row.scrollIntoView({ block: "nearest" });
+        returnTrace.current = null;
+      }
+    }, [selectedTrace, requestPage.pending, requestPage.data]);
 
     const orderedSpans = useMemo(
       () =>
@@ -153,8 +265,26 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
     const selectedRequest = requests.find(
       (request) => request.trace_id === selectedTrace
     );
+    const retry = () => {
+      access.current = true;
+      setDenied(false);
+      setAttempt((current) => current + 1);
+    };
+    const listSegments = cursor ? ["requests", cursor] : [];
+    const openTrace = (traceId) => {
+      returnTrace.current = traceId;
+      setSelectedSpanId(null);
+      navigation.go(["traces", traceId, ...listSegments]);
+    };
+    const older = () => {
+      navigation.go(["requests", requestPage.data.next_cursor]);
+    };
+    const newer = () => {
+      const previous = previousCursors.at(-1) ?? null;
+      navigation.go(previous ? ["requests", previous] : []);
+    };
     const createIssue = () => {
-      if (!(selectedTrace && navigation.openWorkspace)) {
+      if (!(trace && navigation.openWorkspace)) {
         return;
       }
       const selectedSpan = orderedSpans.find(
@@ -180,89 +310,275 @@ export const createWorkspace = ({ createElement: h, react, services }) => {
         workspaceId: "projects",
       });
     };
+    const error = selectedTrace ? traceRead.error : requestPage.error;
+    const pending = selectedTrace ? traceRead.pending : requestPage.pending;
 
-    return h(
-      "section",
-      { className: "observe-workspace" },
-      h(
-        "header",
-        { className: "observe-header" },
-        h(
-          "div",
-          null,
-          h("p", { className: "observe-eyebrow" }, `OBSERVE · ${sourceId}`),
-          h(
-            "h1",
-            null,
-            selectedTrace
-              ? `Trace ${selectedTrace.slice(0, 8)}`
-              : "Recent requests"
-          ),
-          h(
-            "p",
-            { className: "observe-subtitle" },
-            selectedTrace
-              ? "Trace waterfall and correlated logs"
-              : `Live HTTP server requests for ${sourceId}`
-          )
-        ),
-        selectedTrace
-          ? h(
-              "div",
-              { className: "observe-header-actions" },
-              h(
-                "button",
-                { onClick: () => navigation.go([]), type: "button" },
-                "All requests"
-              ),
-              navigation.openWorkspace
-                ? h(
-                    "button",
-                    { onClick: createIssue, type: "button" },
-                    "Create issue"
-                  )
-                : null
-            )
-          : null
-      ),
-      errorMessage
-        ? h(
-            "div",
-            { className: "observe-banner", role: "status" },
-            errorMessage
-          )
-        : null,
-      h(
-        "div",
-        { className: "observe-health" },
-        h("span", null, "Runtime state unavailable"),
-        health
-          ? h(
-              "span",
-              null,
-              `${health.accepted_spans} spans · ${
-                health.accepted_logs
-              } logs · ${health.rejected_records} rejected`
-            )
-          : h("span", null, "Loading receiver health…")
-      ),
-      selectedTrace
-        ? h(TraceView, {
-            h,
-            logs,
-            orderedSpans,
-            selectSpan: setSelectedSpanId,
-            selectedSpanId,
-            trace,
-          })
-        : h(RequestList, {
-            h,
-            open: (traceId) => navigation.go(["traces", traceId]),
-            requests,
-          })
-    );
+    return h(ObservePage, {
+      createIssue,
+      cursor,
+      denied,
+      error,
+      feed,
+      h,
+      health,
+      ingestion,
+      listElement,
+      listSegments,
+      logs,
+      logsRead,
+      navigation,
+      newer,
+      older,
+      openTrace,
+      orderedSpans,
+      pending,
+      previousCursors,
+      requestPage,
+      requests,
+      retry,
+      selectSpan: setSelectedSpanId,
+      selectedSpanId,
+      selectedTrace,
+      sourceId,
+      trace,
+    });
   };
   return { Page };
+};
+
+const requestPosition = (segments) => {
+  if (segments[0] === "traces") {
+    return {
+      cursor: segments[2] === "requests" ? (segments[3] ?? null) : null,
+      selectedTrace: segments[1],
+    };
+  }
+  return {
+    cursor: segments[0] === "requests" ? (segments[1] ?? null) : null,
+    selectedTrace: null,
+  };
+};
+
+const ObservePage = (props) => {
+  const {
+    h,
+    denied,
+    sourceId,
+    selectedTrace,
+    listSegments,
+    navigation,
+    retry,
+    pending,
+    createIssue,
+    trace,
+  } = props;
+  let refreshLabel = "Refresh";
+  if (pending) {
+    refreshLabel = "Refreshing…";
+  }
+  if (denied) {
+    refreshLabel = "Retry access";
+  }
+  return h(
+    "section",
+    { className: "observe-workspace" },
+    h(
+      "header",
+      { className: "observe-header" },
+      h(
+        "div",
+        null,
+        h("p", { className: "observe-eyebrow" }, `OBSERVE · ${sourceId}`),
+        h(
+          "h1",
+          null,
+          selectedTrace
+            ? `Trace ${selectedTrace.slice(0, 8)}`
+            : "Recent requests"
+        ),
+        h(
+          "p",
+          { className: "observe-subtitle" },
+          selectedTrace
+            ? "Trace waterfall and correlated logs"
+            : `HTTP server requests for ${sourceId}`
+        )
+      ),
+      h(
+        "div",
+        { className: "observe-header-actions" },
+        selectedTrace
+          ? h(
+              "button",
+              { onClick: () => navigation.go(listSegments), type: "button" },
+              "All requests"
+            )
+          : null,
+        h(
+          "button",
+          { disabled: pending && !denied, onClick: retry, type: "button" },
+          refreshLabel
+        ),
+        trace && navigation.openWorkspace
+          ? h(
+              "button",
+              { onClick: createIssue, type: "button" },
+              "Create issue"
+            )
+          : null
+      )
+    ),
+    denied
+      ? h(
+          "div",
+          { className: "observe-banner", role: "alert" },
+          queryFailure({ status: 403 }).message
+        )
+      : h(ObserveContent, props)
+  );
+};
+
+const ObserveContent = (props) => {
+  const {
+    h,
+    error,
+    health,
+    ingestion,
+    selectedTrace,
+    trace,
+    logs,
+    logsRead,
+    orderedSpans,
+    selectSpan,
+    selectedSpanId,
+    navigation,
+  } = props;
+  let healthLabel = "Loading receiver health…";
+  if (ingestion.error) {
+    healthLabel = "Receiver health unavailable";
+  }
+  if (health) {
+    healthLabel = `${health.accepted_spans} spans · ${health.accepted_logs} logs · ${health.rejected_records} rejected`;
+  }
+  let content = h(RequestPage, props);
+  if (selectedTrace) {
+    content = null;
+    if (trace || !error) {
+      content = h(TraceView, {
+        h,
+        logs,
+        logsError: logsRead.error,
+        logsPending: logsRead.pending,
+        logsTruncated: Boolean(logsRead.data?.next_cursor),
+        orderedSpans,
+        selectSpan,
+        selectedSpanId,
+        trace,
+      });
+    }
+  }
+  return h(
+    "div",
+    null,
+    error
+      ? h(
+          "div",
+          { className: "observe-banner", role: "alert" },
+          error.message,
+          error.kind === "expired"
+            ? h(
+                "button",
+                { onClick: () => navigation.go([]), type: "button" },
+                "Show latest requests"
+              )
+            : null
+        )
+      : null,
+    h(
+      "div",
+      { className: "observe-health" },
+      h("span", null, "Runtime state unavailable"),
+      h("span", null, healthLabel)
+    ),
+    content
+  );
+};
+
+const feedMessage = (kind) => {
+  if (kind === "lag") {
+    return "Telemetry may be incomplete. Refresh to read retained requests.";
+  }
+  if (kind === "changed") {
+    return "New telemetry is available. Refresh to update this request page.";
+  }
+  return "Live updates stopped. Refresh to reconnect; retained requests are still available.";
+};
+
+const RequestPage = ({
+  h,
+  cursor,
+  feed,
+  sourceId,
+  listElement,
+  requestPage,
+  openTrace,
+  requests,
+  previousCursors,
+  newer,
+  older,
+}) => {
+  let content = null;
+  if (requestPage.pending && !requestPage.data) {
+    content = h(
+      "p",
+      { className: "observe-empty", role: "status" },
+      "Loading requests…"
+    );
+  } else if (!requestPage.error || requestPage.data) {
+    content = h(RequestList, { h, open: openTrace, requests });
+  }
+  return h(
+    "div",
+    null,
+    feed.sourceId === sourceId && feed.kind !== "connecting"
+      ? h(
+          "div",
+          { className: "observe-feed", role: "status" },
+          feedMessage(feed.kind)
+        )
+      : null,
+    h("div", { "aria-busy": requestPage.pending, ref: listElement }, content),
+    h(
+      "nav",
+      { "aria-label": "Request pagination", className: "observe-pagination" },
+      h("span", null, `${requests.length} requests on this page`),
+      h(
+        "div",
+        { className: "observe-header-actions" },
+        h(
+          "button",
+          {
+            disabled: !cursor || requestPage.pending,
+            onClick: newer,
+            type: "button",
+          },
+          previousCursors.length ? "Newer requests" : "Latest requests"
+        ),
+        h(
+          "button",
+          {
+            disabled:
+              !requestPage.data?.next_cursor ||
+              requestPage.pending ||
+              Boolean(requestPage.error),
+            onClick: older,
+            type: "button",
+          },
+          "Older requests"
+        )
+      )
+    )
+  );
 };
 
 const RequestList = ({ h, requests, open }) => {
@@ -294,6 +610,7 @@ const RequestList = ({ h, requests, open }) => {
         "button",
         {
           className: "observe-row observe-request",
+          "data-trace-id": request.trace_id,
           key: request.trace_id,
           onClick: () => open(request.trace_id),
           type: "button",
@@ -318,6 +635,9 @@ const TraceView = ({
   orderedSpans,
   selectedSpanId,
   selectSpan,
+  logsError,
+  logsPending,
+  logsTruncated,
 }) => {
   if (!trace) {
     return h("div", { className: "observe-empty" }, "Loading trace…");
@@ -450,26 +770,7 @@ const TraceView = ({
               : [h("p", { className: "observe-muted" }, "No span links.")])
           )
         : h("p", { className: "observe-muted" }, "No span selected."),
-      h("h2", null, "Correlated logs"),
-      ...(logs.length
-        ? logs.map((log, index) =>
-            h(
-              "article",
-              {
-                className: "observe-log",
-                key: log.timestamp_unix_nano + index,
-              },
-              h("small", null, log.severity || "LOG"),
-              h("p", null, log.body)
-            )
-          )
-        : [
-            h(
-              "p",
-              { className: "observe-muted" },
-              "No correlated logs for this trace."
-            ),
-          ]),
+      h(CorrelatedLogs, { h, logs, logsError, logsPending, logsTruncated }),
       h("h2", null, "Runtime"),
       h(
         "p",
@@ -477,6 +778,44 @@ const TraceView = ({
         "Runtime state unavailable. Telemetry hints are not authoritative runtime state."
       )
     )
+  );
+};
+
+const CorrelatedLogs = ({ h, logs, logsError, logsPending, logsTruncated }) => {
+  let emptyLabel = "No correlated logs for this trace.";
+  if (logsPending) {
+    emptyLabel = "Loading correlated logs…";
+  } else if (logsError) {
+    emptyLabel = "Log completeness is unknown.";
+  }
+  return h(
+    "section",
+    null,
+    h("h2", null, "Correlated logs"),
+    logsError
+      ? h(
+          "p",
+          { className: "observe-muted", role: "status" },
+          "Correlated logs are unavailable. Refresh to retry."
+        )
+      : null,
+    logsTruncated
+      ? h(
+          "p",
+          { className: "observe-muted" },
+          "Showing the first 200 retained logs."
+        )
+      : null,
+    ...(logs.length
+      ? logs.map((log, index) =>
+          h(
+            "article",
+            { className: "observe-log", key: log.timestamp_unix_nano + index },
+            h("small", null, log.severity || "LOG"),
+            h("p", null, log.body)
+          )
+        )
+      : [h("p", { className: "observe-muted" }, emptyLabel)])
   );
 };
 

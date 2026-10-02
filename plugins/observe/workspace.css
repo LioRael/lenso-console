@@ -20,6 +20,7 @@
 .observe-header-actions {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .observe-eyebrow {
@@ -202,6 +203,48 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+.observe-pagination {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+.observe-header-actions button,
+.observe-banner button {
+  background: var(--default);
+  border: 1px solid var(--separator);
+  border-radius: 24px;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  min-height: 36px;
+  padding: 8px 14px;
+}
+.observe-header-actions button:hover:not(:disabled),
+.observe-banner button:hover {
+  background: var(--surface-secondary);
+}
+.observe-header-actions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.observe-workspace button:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+.observe-banner button {
+  margin-left: 12px;
+}
+.observe-feed {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 12px;
+}
 @media (max-width: 800px) {
   .observe-workspace {
     padding: 24px 16px 64px;
@@ -214,5 +257,25 @@
   }
   .observe-trace-layout {
     grid-template-columns: 1fr;
+  }
+
+  .observe-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .observe-header h1 {
+    font-size: 24px;
+  }
+  .observe-header > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .observe-health {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .observe-banner button {
+    margin: 8px 0 0;
   }
 }
