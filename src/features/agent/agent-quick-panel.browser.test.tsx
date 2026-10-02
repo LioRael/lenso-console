@@ -26,6 +26,7 @@ import {
   AgentQuickPanelProvider,
   useAgentQuickPanel,
 } from "./agent-quick-panel-context";
+import { hoverSubmenu } from "./menu-hover.browser";
 import { useAgentConversation } from "./use-agent-conversation";
 import { useAgentDraft } from "./use-agent-draft";
 
@@ -124,8 +125,8 @@ describe("Agent quick panel", () => {
     await userEvent.click(
       page.getByRole("button", { name: "Run configuration" })
     );
-    await userEvent.hover(
-      page.getByRole("menuitem", { name: /^Approval mode/ })
+    await hoverSubmenu(
+      page.getByRole("menuitem", { name: /^Approval mode/ }).element()
     );
     await expect
       .element(page.getByRole("menuitem", { name: "Full access" }))
@@ -135,8 +136,8 @@ describe("Agent quick panel", () => {
     await userEvent.click(
       page.getByRole("button", { name: "Run configuration" })
     );
-    await userEvent.hover(
-      page.getByRole("menuitem", { name: /^Approval mode/ })
+    await hoverSubmenu(
+      page.getByRole("menuitem", { name: /^Approval mode/ }).element()
     );
     await userEvent.click(
       page.getByRole("menuitem", { name: "Full access", exact: true })

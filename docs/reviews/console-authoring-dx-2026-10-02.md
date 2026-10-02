@@ -261,3 +261,40 @@ Review the fixed authoring delta against `bcb8f3f3`, especially:
 Independent reviewer should run the focused package/consumer/Rust/browser gates
 using their own temporary outputs/target. Do not mutate either frozen candidate
 worktree. No landing or publication action is authorized by this handoff.
+
+## Bounded hover follow-up
+
+Exact `913ddc4f1774e2726d5fec49b81eef6bb4d6b11c` passed independent focused
+re-review of both P2 fixes: the editor project and retired service outputs.
+No additional blocking code findings were reported; that scope verdict did not
+claim full runtime readiness.
+
+The historical browser failures above are preserved. Temporary event capture
+did not reproduce them: the instrumented full run passed 101 tests, and 24
+consecutive open/hover/close cycles passed. Therefore the exact historical
+failure sequence is still unconfirmed; a passing rerun is not a root-cause proof.
+
+The follow-up corrects a concrete interaction precondition gap in those tests.
+The installed Base UI delayed submenu uses native mouse-enter to unblock hover
+and parent mouse-move to activate it. Visibility alone does not establish those
+conditions. `menu-hover.browser.ts` waits for actual parent popup animations,
+moves from menu padding into the row, and asserts trusted native enter, `:hover`
+and `aria-expanded`. The original visible submenu, search focus, selection and
+dialog containment checks remain. No timeout/retry/sleep was added; animation
+and real hover remain enabled. No production menu or permission behavior changed.
+
+After that change, affected browser suites passed 27/27 and the full Chromium
+suite passed 101/101; lint and TypeScript passed. Logs are retained under
+`/tmp/console-authoring-integration-20261002/hover-fix-*.log`. Browser plugin was
+unavailable, so the repository's Playwright-backed Vitest fixtures were used;
+this is fixture verification, not a live authenticated App review. The existing
+post-success close-timeout warning remains. The new protocol will distinguish
+missing native entry, missing expansion and missing submenu content if failure
+recurs. It does not prove every timing issue eliminated.
+
+The v4 authoring/native-kit source is unchanged by this test-only follow-up;
+its producer/consumer split and Stream/cohort blockers remain. The proposed
+Console-owned top-level layout, exact dependency boundaries and minimal Core
+Stream qualification scope are recorded separately in the local
+`/tmp/console-authoring-integration-20261002/next-scope-brief.md`. These are
+proposals for scope choice, not implemented migrations or upstream fixes.

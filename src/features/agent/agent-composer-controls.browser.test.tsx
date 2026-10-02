@@ -14,6 +14,7 @@ import {
 } from "./agent-composer-controls";
 import { AgentContextUsage } from "./agent-context-usage";
 import { agentPageStyles as styles } from "./agent-page.stylex";
+import { hoverSubmenu } from "./menu-hover.browser";
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
@@ -199,7 +200,7 @@ describe("Agent composer controls", () => {
     await expect
       .element(page.getByRole("menuitem", { name: /Speed/ }))
       .toBeVisible();
-    await userEvent.hover(page.getByRole("menuitem", { name: /Model/ }));
+    await hoverSubmenu(page.getByRole("menuitem", { name: /Model/ }).element());
     await expect
       .element(page.getByRole("combobox", { name: "Search models" }))
       .toBeVisible();
