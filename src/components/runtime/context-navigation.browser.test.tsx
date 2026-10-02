@@ -89,10 +89,15 @@ describe("Context navigation", () => {
     if (!container) {
       throw new Error("Browser test container is missing");
     }
+    const nativeFetch = globalThis.fetch.bind(globalThis);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: RequestInfo | URL) =>
-        Response.json(
+      vi.fn(async (input: RequestInfo | URL) => {
+        // API fixtures must not replace the dev stylesheet with JSON.
+        if (String(input).startsWith("/virtual:stylex.css")) {
+          return nativeFetch(input);
+        }
+        return Response.json(
           String(input).endsWith("/agents")
             ? {
                 agents: [
@@ -105,9 +110,11 @@ describe("Context navigation", () => {
                 ],
               }
             : { sessions: [], apps: [] }
-        )
-      )
+        );
+      })
     );
+    const stylesheet = await fetch("/virtual:stylex.css?fixture-preserve=1");
+    expect(stylesheet.headers.get("content-type")).toContain("text/css");
     const rootRoute = createRootRoute({
       component: () => (
         <Providers>
