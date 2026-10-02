@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type CSSProperties,
 } from "react";
 
 import { useConsoleTranslation } from "../../app/console-i18n";
@@ -65,6 +66,15 @@ const publicationTimeFormatter = new Intl.DateTimeFormat("en", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+// Scope the installed primary Button's public accent tokens to this neutral
+// primary action; its pill, hover, focus and disabled behavior stay UI-owned.
+const detailPrimaryActionTheme = {
+  "--accent": "var(--foreground)",
+  "--accent-foreground": "var(--background)",
+  "--accent-hover":
+    "color-mix(in oklab, var(--accent) 90%, var(--accent-foreground) 10%)",
+} as CSSProperties;
 
 const styles = stylex.create({
   controlCopy: { display: "grid", gap: 2, minWidth: 0 },
@@ -233,14 +243,12 @@ const styles = stylex.create({
     minWidth: 0,
   },
   detailTabs: {
-    padding: 0,
-    boxShadow: "none",
-    borderRadius: 0,
-    backgroundColor: "transparent",
-    gap: 4,
-    marginBlock: "20px 0",
-    borderBottom: "1px solid var(--separator)",
-    overflowX: "auto",
+    minWidth: 0,
+  },
+  detailTabsContainer: {
+    marginBlockStart: tokens.space4,
+    maxWidth: "100%",
+    width: "fit-content",
   },
   detailActions: {
     alignItems: "center",
@@ -251,20 +259,8 @@ const styles = stylex.create({
     justifyContent: "flex-start",
   },
   detailTab: {
-    boxShadow: "none",
-    fontSize: 12,
-    borderRadius: 0,
-    borderWidth: 0,
-    borderBottomWidth: 2,
-    borderBottomStyle: "solid",
-    borderBottomColor: {
-      default: "transparent",
-      ':is([aria-selected="true"])': tokens.colorContentPrimary,
-    },
-    backgroundColor: "transparent",
-    minHeight: 36,
-    paddingInline: 0,
-    marginInlineEnd: 24,
+    flexShrink: 0,
+    width: "auto",
   },
   detailTitle: {
     color: tokens.colorContentPrimary,
@@ -316,13 +312,11 @@ const styles = stylex.create({
     overflowWrap: "anywhere",
   },
   statusSummary: {
-    backgroundColor: tokens.colorSurfaceSubtle,
-    borderRadius: tokens.radiusControl,
     color: tokens.colorContentSecondary,
     fontSize: 12,
     lineHeight: "18px",
-    marginBlockStart: tokens.space4,
-    padding: tokens.space4,
+    marginBlockEnd: 0,
+    marginBlockStart: tokens.space2,
   },
 });
 
@@ -466,7 +460,8 @@ export function PluginDetail({
             <Button
               onClick={() => openTab("configuration")}
               size="sm"
-              variant="secondary"
+              style={authoringEnabled ? detailPrimaryActionTheme : undefined}
+              variant={authoringEnabled ? "primary" : "secondary"}
             >
               {t(
                 authoringEnabled ? "Edit configuration" : "View configuration"
@@ -487,21 +482,24 @@ export function PluginDetail({
         </div>
       </header>
       <p {...stylex.props(styles.statusSummary)}>{t(state.description)}</p>
-      <Tabs.List
-        aria-label={t("Plugin details")}
-        ref={tabList}
-        xstyle={styles.detailTabs}
-      >
-        <Tabs.Tab value="overview" xstyle={styles.detailTab}>
-          {t("Overview")}
-        </Tabs.Tab>
-        <Tabs.Tab value="configuration" xstyle={styles.detailTab}>
-          {t("Configuration")}
-        </Tabs.Tab>
-        <Tabs.Tab value="dependencies" xstyle={styles.detailTab}>
-          {t("Dependencies")}
-        </Tabs.Tab>
-      </Tabs.List>
+      <Tabs.ListContainer xstyle={styles.detailTabsContainer}>
+        <Tabs.List
+          aria-label={t("Plugin details")}
+          ref={tabList}
+          xstyle={styles.detailTabs}
+        >
+          <Tabs.Tab value="overview" xstyle={styles.detailTab}>
+            {t("Overview")}
+          </Tabs.Tab>
+          <Tabs.Tab value="configuration" xstyle={styles.detailTab}>
+            {t("Configuration")}
+          </Tabs.Tab>
+          <Tabs.Tab value="dependencies" xstyle={styles.detailTab}>
+            {t("Dependencies")}
+          </Tabs.Tab>
+          <Tabs.Indicator />
+        </Tabs.List>
+      </Tabs.ListContainer>
 
       <Tabs.Panel value="overview" xstyle={styles.tabPanel}>
         <PluginOverview onTabChange={openTab} plugin={plugin} />

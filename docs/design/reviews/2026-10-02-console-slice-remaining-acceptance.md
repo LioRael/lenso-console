@@ -22,7 +22,7 @@ failed to connect to running Pencil app: desktop after 3 retries: transport not 
 
 Saved response: `/tmp/console-inventory-pencil-get_app_state.json`. Earlier attempts also timed out. Pencil was not repeatedly restarted and no system security process was touched. Node/component/variable reads require a connected app; none is reported as successful.
 
-No actual pixel comparison or exact fidelity acceptance is claimed. The following is only a structural comparison against the parent's human description of the node:
+The parent later successfully materialized and viewed the original in its own environment, compared it with the initial body-only Auth screenshot, and requested concrete visual fixes. This Mac task still has not viewed the original. The resulting separate visual follow-up and actual Shell screenshot are recorded in [generic-plugin-detail-visual-followup](2026-10-02-generic-plugin-detail-visual-followup.md); the parent owns the new pixel review. No exact fidelity acceptance is claimed. The following was the pre-follow-up structural comparison against the parent's human description of the node:
 
 | Reported design role | Current slice | Boundary |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ Browser results still emit `close timed out after 10000ms` after passing. A firs
 
 Updated Overview screenshots at actual browser viewports 1440×900 and 390×844, both themes, were opened and inspected after the phase-labelled header change. Long identities and capability IDs wrap; narrow header actions remain below the identity; the two cards stack. They are the current route fixture screenshots under `apps/shell/src/features/plugins/__screenshots__/`, not full Shell captures or TcZvX pixel comparison. Vitest's saved image resolution differs from the measured browser viewport; the browser assertions explicitly check `window.innerWidth`.
 
-Current reviewed source SHA-256:
+Reviewed source SHA-256 at `1cf8008`, before the separate visual follow-up:
 
 | File | SHA-256 |
 | --- | --- |

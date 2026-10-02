@@ -11,24 +11,22 @@ import type { PluginWorkbenchItem } from "./plugin-workbench-model";
 export type PluginDetailTab = "overview" | "configuration" | "dependencies";
 
 const styles = stylex.create({
-  root: { display: "grid", gap: tokens.space6, paddingBlock: tokens.space6 },
+  root: { display: "grid", gap: tokens.space4, paddingBlock: tokens.space6 },
   cards: {
     display: "grid",
     gap: tokens.space4,
+    alignItems: "start",
     gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))",
   },
   card: {
-    borderColor: tokens.colorBorderTertiary,
-    borderRadius: tokens.radiusControl,
-    borderStyle: "solid",
-    borderWidth: 1,
+    borderRadius: "var(--radius-3xl)",
+    boxShadow: "var(--surface-shadow)",
     display: "grid",
     alignContent: "start",
-    gap: tokens.space4,
+    gap: tokens.space3,
     minWidth: 0,
     padding: tokens.space6,
   },
-  section: { display: "grid", gap: tokens.space3, minWidth: 0 },
   title: {
     color: tokens.colorContentPrimary,
     fontSize: 14,
@@ -57,9 +55,20 @@ const styles = stylex.create({
     lineHeight: "18px",
     overflowWrap: "anywhere",
   },
-  facts: { display: "grid", gap: tokens.space3, margin: 0 },
-  fact: { display: "grid", gap: 2, minWidth: 0 },
-  label: { color: tokens.colorContentTertiary, fontSize: 11 },
+  facts: { display: "grid", gap: tokens.space2, margin: 0 },
+  fact: {
+    display: "grid",
+    alignItems: "baseline",
+    gap: tokens.space3,
+    gridTemplateColumns: "minmax(0, 2fr) minmax(0, 3fr)",
+    minWidth: 0,
+  },
+  label: {
+    color: tokens.colorContentTertiary,
+    fontSize: 12,
+    lineHeight: "18px",
+    overflowWrap: "anywhere",
+  },
   value: {
     color: tokens.colorContentPrimary,
     fontSize: 12,
@@ -84,13 +93,17 @@ export function PluginOverview({
     <div {...stylex.props(styles.root)}>
       <div {...stylex.props(styles.cards)}>
         <OverviewCard title={t("Capabilities & contributions")}>
-          <p {...stylex.props(styles.copy)}>
-            {t("{phase} capabilities", { phase: t(phase) })}
-          </p>
-          <CapabilityList
-            capabilities={selection?.providedCapabilities}
-            emptyLabel={t("This selection provides no capabilities.")}
-          />
+          <dl {...stylex.props(styles.facts)}>
+            <OverviewFact
+              label={t("{phase} capabilities", { phase: t(phase) })}
+              value={
+                <CapabilityList
+                  capabilities={selection?.providedCapabilities}
+                  emptyLabel={t("This selection provides no capabilities.")}
+                />
+              }
+            />
+          </dl>
           <p {...stylex.props(styles.copy)}>
             {t("Contribution details are not reported by this App.")}
           </p>
@@ -122,16 +135,14 @@ export function PluginOverview({
           </p>
         </OverviewCard>
       </div>
-      <section {...stylex.props(styles.section)}>
-        <h2 {...stylex.props(styles.title)}>{t("Resource access")}</h2>
+      <OverviewCard title={t("Resource access")}>
         <p {...stylex.props(styles.copy)}>
           {t(
             "Physical resource mappings and access purposes are not reported by this App."
           )}
         </p>
-      </section>
-      <section {...stylex.props(styles.section)}>
-        <h2 {...stylex.props(styles.title)}>{t("Change impact")}</h2>
+      </OverviewCard>
+      <OverviewCard title={t("Change impact")}>
         <p {...stylex.props(styles.copy)}>
           {t(
             "Preview configuration changes before publishing. The preview reports whether the App Generation changes."
@@ -151,7 +162,7 @@ export function PluginOverview({
             {t("View dependencies")}
           </Button>
         </div>
-      </section>
+      </OverviewCard>
     </div>
   );
 }
@@ -215,14 +226,14 @@ function OverviewCard({
   title: string;
 }) {
   return (
-    <Surface variant="secondary" xstyle={styles.card}>
+    <Surface variant="default" xstyle={styles.card}>
       <h2 {...stylex.props(styles.title)}>{title}</h2>
       {children}
     </Surface>
   );
 }
 
-function OverviewFact({ label, value }: { label: string; value: string }) {
+function OverviewFact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div {...stylex.props(styles.fact)}>
       <dt {...stylex.props(styles.label)}>{label}</dt>

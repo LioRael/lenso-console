@@ -1,4 +1,7 @@
 import "@lenso/tokens/styles.css";
+import "@fontsource-variable/inter";
+import "@fontsource/roboto-mono/400.css";
+import "../../styles.css";
 import { ThemeScope } from "@lenso/ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -15,6 +18,12 @@ import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
+import { ConsoleAppearanceProvider } from "../../app/console-appearance";
+import { HostConsoleLocaleProvider } from "../../app/console-locale";
+import { ConsoleSession } from "../../app/console-session";
+import { Providers } from "../../app/providers";
+import { ConsoleShell } from "../../components/runtime/console-shell";
+import { queryClient as shellQueryClient } from "../../lib/query-client";
 import { AppManagementProvider } from "../apps/app-management-context";
 import { PluginAgentWorkbenchProvider } from "./plugin-agent-workbench-context";
 import type {
@@ -126,20 +135,40 @@ async function fixture({
   state = contractState(),
   denied = false,
   respond,
+  withShell = false,
 }: {
   packageId?: string;
   state?: ReturnType<typeof contractState>;
   denied?: boolean;
   respond?: (request: Request) => Response | Promise<Response> | undefined;
+  withShell?: boolean;
 } = {}) {
   const requests: { path: string; method: string }[] = [];
+  const nativeFetch = globalThis.fetch.bind(globalThis);
   vi.stubGlobal(
     "fetch",
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const request =
         input instanceof Request ? input : new Request(input, init);
       const path = new URL(request.url).pathname;
+      if (!path.startsWith("/api/")) {
+        return nativeFetch(input, init);
+      }
       requests.push({ path, method: request.method });
+      if (withShell) {
+        if (path.endsWith("/session")) {
+          return Response.json({ mode: "local" });
+        }
+        if (path.endsWith("/agents")) {
+          return Response.json({ agents: [] });
+        }
+        if (path.endsWith("/pages") || path.endsWith("/surfaces")) {
+          return Response.json({
+            schema: "console.page-catalog/1",
+            mounts: [],
+          });
+        }
+      }
       if (path.endsWith("/apps")) {
         return Response.json({
           apps: [
@@ -173,7 +202,15 @@ async function fixture({
       throw new Error(`Unexpected fixture request: ${request.method} ${path}`);
     }
   );
-  const rootRoute = createRootRoute({ component: Outlet });
+  const rootRoute = createRootRoute({
+    component: withShell
+      ? () => (
+          <ConsoleShell>
+            <Outlet />
+          </ConsoleShell>
+        )
+      : Outlet,
+  });
   const router = createRouter({
     history: createMemoryHistory({
       initialEntries: [`/plugins/console/${packageId}/default`],
@@ -192,24 +229,38 @@ async function fixture({
     ]),
   });
   await router.load();
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client = withShell
+    ? shellQueryClient
+    : new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
   const container = document.createElement("div");
   container.style.height = "100vh";
   document.body.append(container);
   const root = createRoot(container);
   flushSync(() =>
     root.render(
-      <ThemeScope style={{ height: "100%" }}>
-        <QueryClientProvider client={client}>
-          <AppManagementProvider>
-            <PluginAgentWorkbenchProvider>
-              <RouterProvider router={router} />
-            </PluginAgentWorkbenchProvider>
-          </AppManagementProvider>
-        </QueryClientProvider>
-      </ThemeScope>
+      withShell ? (
+        <HostConsoleLocaleProvider>
+          <ConsoleAppearanceProvider>
+            <ConsoleSession>
+              <Providers>
+                <RouterProvider router={router} />
+              </Providers>
+            </ConsoleSession>
+          </ConsoleAppearanceProvider>
+        </HostConsoleLocaleProvider>
+      ) : (
+        <ThemeScope style={{ height: "100%" }}>
+          <QueryClientProvider client={client}>
+            <AppManagementProvider>
+              <PluginAgentWorkbenchProvider>
+                <RouterProvider router={router} />
+              </PluginAgentWorkbenchProvider>
+            </AppManagementProvider>
+          </QueryClientProvider>
+        </ThemeScope>
+      )
     )
   );
   return {
@@ -304,6 +355,64 @@ test("reads generic Plugin identity and declared requirements without inventing 
     );
   } finally {
     view.dispose();
+  }
+});
+
+test("renders the generic Auth detail inside the existing Console Shell", async () => {
+  const previousTheme = localStorage.getItem("lenso-console:theme-preference");
+  localStorage.setItem(
+    "lenso-console:theme-preference",
+    JSON.stringify("light")
+  );
+  await page.viewport(1470, 994);
+  const view = await fixture({ withShell: true });
+  try {
+    await expect
+      .element(page.getByRole("heading", { name: "Lenso auth web session" }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("navigation", { name: "Console areas" }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("banner", { name: "Console toolbar" }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "View dependencies" }))
+      .toBeVisible();
+    expect(window.innerWidth).toBe(1470);
+    const tabs = page
+      .getByRole("tablist", { name: "Plugin details" })
+      .element();
+    expect(tabs.getBoundingClientRect().width).toBeLessThan(500);
+    expect(
+      getComputedStyle(
+        page.getByRole("tab", { name: "Overview", exact: true }).element()
+      ).borderBottomWidth
+    ).toBe("0px");
+    const cards = document.querySelectorAll<HTMLElement>(
+      '[data-page="plugin-detail"] [data-slot="surface"]'
+    );
+    expect(cards.length).toBe(4);
+    for (const card of cards) {
+      expect(getComputedStyle(card).boxShadow).not.toBe("none");
+      expect(
+        Number(getComputedStyle(card).borderRadius.replace("px", ""))
+      ).toBeGreaterThanOrEqual(20);
+    }
+    if (import.meta.env.VITE_CONSOLE_DX_SCREENSHOTS === "1") {
+      await page.screenshot({
+        path: "__screenshots__/plugin-detail-auth-shell-overview.png",
+      });
+    }
+    expect(view.requests.every(({ method }) => method === "GET")).toBe(true);
+  } finally {
+    view.dispose();
+    if (previousTheme === null) {
+      localStorage.removeItem("lenso-console:theme-preference");
+    } else {
+      localStorage.setItem("lenso-console:theme-preference", previousTheme);
+    }
+    await page.viewport(1280, 800);
   }
 });
 

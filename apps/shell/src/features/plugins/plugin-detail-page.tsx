@@ -301,6 +301,7 @@ function PluginDetailShell({
 
   return tab ? (
     <Tabs.Root
+      align="start"
       data-page="plugin-detail"
       onValueChange={(value) => onTabChange?.(value as PluginDetailTab)}
       value={tab}
