@@ -6,7 +6,7 @@ do not substitute it for that Engine executable. For the current Lenso native
 Plugin workflow, use [the embedding example](../examples/plugin-host/README.md).
 
 The consumer workflow is documented in
-[the package README](../packages/console-dev/README.md). Consumers use prebuilt
+[the package README](../packages/console-authoring/development-host.md). Consumers use prebuilt
 binaries; only producers need the Rust and frontend build toolchains.
 
 ## Produce a package locally

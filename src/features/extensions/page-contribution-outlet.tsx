@@ -95,6 +95,8 @@ const styles = stylex.create({
     color: "var(--muted)",
     lineHeight: 1.5,
     margin: 0,
+    maxWidth: "100%",
+    overflowWrap: "anywhere",
   },
 });
 
@@ -180,9 +182,7 @@ export function PageContributionOutlet({
   if (unavailableRequirements.length > 0) {
     return (
       <ContributionError
-        message={t(
-          "A required service is unavailable. Refresh the selected App Plan or contact the operator; Console has not loaded this extension."
-        )}
+        message={`${t("A required service is unavailable. Refresh the selected App Plan or contact the operator; Console has not loaded this extension.")} ${unavailableRequirements.map((requirement) => `${requirement.service_id} (${requirement.capability_id}, ${requirement.descriptor_version}, ${requirement.source})`).join("; ")}`}
         title={t("Extension requirement unavailable")}
       />
     );

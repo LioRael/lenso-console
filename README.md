@@ -28,6 +28,8 @@ implementation.
 
 ## Run
 
+For business Plugin pages and services, use the single [Console authoring entry](packages/console-authoring/README.md). Page authors do not maintain a separate runtime, service adapter, contract descriptor or registry.
+
 For an App that embeds Console as an optional Plugin, start with:
 
 ```sh
@@ -242,7 +244,9 @@ Repository operations notes live in
 
 Install the official coding Profiles into a fresh Agent Home before starting
 its Host. Named Profile Plugin management requires `local_plugin_root`;
-SQLite and remote managed configuration do not support live Profile import.
+SQLite-managed Agents support online coding Profile import through browser setup;
+this offline installer example is for a fresh local Plugin Root. Remote managed
+configuration does not support that offline installer.
 The default launcher remains SQLite-managed.
 
 ```sh

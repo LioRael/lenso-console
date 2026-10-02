@@ -57,7 +57,7 @@ test("compiled pages use Shell React and match dynamic routes after static route
         stdin: Buffer.from(JSON.stringify(request)),
       });
     const result = compile();
-    expect(result.exitCode).toBe(0);
+    expect(result.exitCode, result.stderr.toString()).toBe(0);
     expect(JSON.parse(result.stdout.toString()).schema).toBe(
       "lenso.convention-compiled.v1"
     );

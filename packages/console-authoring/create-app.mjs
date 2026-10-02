@@ -21,7 +21,7 @@ fs.writeFileSync(
   `development_host = ${JSON.stringify(path.join(kit, "host.json"))}\nplugin_sources = [${JSON.stringify(path.join(kit, "packages/console-support"))}]\n`
 );
 fs.cpSync(
-  path.join(kit, "packages/console-dev/template"),
+  path.join(kit, "packages/console-authoring/template"),
   path.join(root, "app/orders/console"),
   { recursive: true }
 );

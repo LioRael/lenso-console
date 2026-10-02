@@ -11,7 +11,7 @@ root-slot = "console"
 id = "lenso.console.pages"
 entries = ["console"]
 compiler = { program = "bun", args = [
-  "../console-convention/compiler.mjs",
+  "../console-authoring/compiler/compiler.mjs",
 ], timeout_seconds = 300 }
 [package.metadata.lenso-cli]
 runtime = "native-linked"

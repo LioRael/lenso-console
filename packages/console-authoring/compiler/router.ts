@@ -1,10 +1,6 @@
 import * as React from "react";
 
-import type {
-  ErrorProps,
-  LayoutProps,
-  PageProps,
-} from "../console-sdk/src/index";
+import type { ErrorProps, LayoutProps, PageProps } from "../src/index";
 
 type Layer = {
   Layout?: React.ComponentType<LayoutProps>;

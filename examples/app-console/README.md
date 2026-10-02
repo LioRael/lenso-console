@@ -22,4 +22,7 @@ Host. Running the resulting distribution needs no source, Cargo, or Node. The
 Bun runtime is included by the App packager for portable contribution providers.
 
 For application development without Cargo or this source checkout, use the
-[precompiled Console development package](../../packages/console-dev/README.md).
+[precompiled Console development package](../../packages/console-authoring/development-host.md).
+
+For page-only development and generated service clients, use the single
+[Console authoring entry](../../packages/console-authoring/README.md).

@@ -20,9 +20,9 @@ Regenerate and verify the checked-in Rust and TypeScript contract projections:
 
 ```sh
 LENSO_UPDATE_CONTRACT_SNAPSHOT=1 \
-  /Users/leosouthey/Projects/framework/.lenso-tools/bin/lenso-cargo \
-  check --manifest-path service/Cargo.toml \
+  cargo check --locked \
   -p lenso-capability-ui-contribution
+pnpm sdk:generate
 ```
 
 ## 1. Design summary

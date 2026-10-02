@@ -46,6 +46,6 @@ or downloadable multi-platform release implied by its existence.
 
 The package also includes strict page-source type checking, nested
 `layout.tsx` / `loading.tsx` / `error.tsx`, catch-all routes and optional
-`console/services.ts`. See `packages/console-sdk/README.md` in this package for
+`console/services.ts`. See `packages/console-authoring/README.md` in this package for
 exact APIs and authorization boundaries. The generated example includes an
 owner service: `orders/read` permits order 42 and rejects other IDs.

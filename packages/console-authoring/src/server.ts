@@ -12,7 +12,9 @@ export interface Operation<Input = unknown, Output = unknown> {
   ): boolean | Promise<boolean>;
   handle(input: Input, context: InvocationContext): Output | Promise<Output>;
 }
-interface ErasedOperation {
+export interface DeclaredOperation<Input = unknown, Output = unknown> {
+  /** Type-only projection: never executes or exports server source in a page. */
+  readonly __types?: { input: Input; output: Output };
   invoke(context: InvocationContext, value: unknown): Promise<InvokeResult>;
 }
 const failure = (
@@ -27,7 +29,7 @@ const failure = (
 /** Validation and final authorization are mandatory and owned by the Plugin. */
 export function operation<Input, Output>(
   declaration: Operation<Input, Output>
-): ErasedOperation {
+): DeclaredOperation<Input, Awaited<Output>> {
   return {
     async invoke(context, value) {
       let input: Input;
@@ -62,24 +64,34 @@ export function operation<Input, Output>(
 export interface Service {
   capabilityId: string;
   version: string;
-  operations: Readonly<Record<string, ErasedOperation>>;
+  operations: Readonly<Record<string, DeclaredOperation>>;
 }
-export function defineServices(services: Readonly<Record<string, Service>>) {
+export type ServiceDefinitions = Readonly<Record<string, Service>>;
+export function defineServices<const Definitions extends ServiceDefinitions>(
+  services: Definitions
+): Definitions {
   if (Object.keys(services).length > 32) {
     throw new Error("Too many workspace services");
   }
   for (const [id, service] of Object.entries(services)) {
     if (
       !/^[a-z][a-z0-9._-]{0,63}$/.test(id) ||
-      !service.capabilityId ||
-      !service.version ||
-      Object.keys(service.operations).length === 0
+      !service.capabilityId.trim() ||
+      service.capabilityId.length > 128 ||
+      !service.version.trim() ||
+      service.version.length > 32 ||
+      Object.keys(service.operations).length === 0 ||
+      Object.keys(service.operations).length > 32
     ) {
-      throw new Error("Invalid workspace service declaration");
+      throw new Error(
+        `Workspace service "${id}" requires a valid alias, contract/version and 1..32 operations`
+      );
     }
     for (const name of Object.keys(service.operations)) {
       if (!/^[a-z][a-z0-9._-]{0,63}$/.test(name)) {
-        throw new Error("Invalid service operation");
+        throw new Error(
+          `Workspace service "${id}" has an invalid operation "${name}"`
+        );
       }
     }
   }

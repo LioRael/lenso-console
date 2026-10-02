@@ -4,8 +4,8 @@ import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
-import { createPageRouter } from "../../../packages/console-convention/router";
-import type { PageProps } from "../../../packages/console-sdk/src/index";
+import { createPageRouter } from "../../../packages/console-authoring/compiler/router";
+import type { PageProps } from "../../../packages/console-authoring/src/index";
 
 test("directory boundaries compose layouts, suspend, recover errors and reset on navigation", async () => {
   const container = document.createElement("div");

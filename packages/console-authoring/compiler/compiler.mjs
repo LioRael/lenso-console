@@ -162,12 +162,12 @@ fs.writeFileSync(
   entry,
   `${imports.join("\n")}\nimport {createPageRouter} from ${JSON.stringify(path.join(import.meta.dir, "router.ts"))};\nexport function createWorkspace(runtime) { const Page=createPageRouter([${routes.join(",")}],${notFound}); return {Page(props) { return runtime.createElement(Page,{...props,services:runtime.services}); }}; }`
 );
-const sdk = path.resolve(import.meta.dir, "../console-sdk/src/index.ts");
+const sdk = path.resolve(import.meta.dir, "../src/index.ts");
 try {
   const env = installEnvironment();
   if (fs.existsSync(path.join(root, "package.json"))) {
     const installed = Bun.spawnSync(
-      ["bun", "install", "--ignore-scripts", "--no-save"],
+      [process.execPath, "install", "--ignore-scripts", "--no-save"],
       { cwd: root, env, stdout: "pipe", stderr: "inherit" }
     );
     process.stderr.write(installed.stdout);
@@ -200,6 +200,12 @@ const result = await Bun.build({
             throw new Error("services.ts is server-only");
           }
         });
+        build.onResolve({ filter: /^@lenso\/console-sdk\/client$/ }, () => ({
+          path: path.join(path.dirname(sdk), "client.ts"),
+        }));
+        build.onResolve({ filter: /^@lenso\/console-sdk\/services$/ }, () => ({
+          path: path.join(out, "client.ts"),
+        }));
         build.onResolve({ filter: /^@lenso\/console-sdk$/ }, () => ({
           path: sdk,
         }));
@@ -255,20 +261,14 @@ const descriptor = {
 };
 // Generated provider uses the existing public contract; the Shell never imports source.
 fs.copyFileSync(
-  path.resolve(
-    import.meta.dir,
-    "../../contracts/crates/lenso-capability-ui-contribution/generated/bindings.ts"
-  ),
+  path.resolve(import.meta.dir, "../src/generated/contribution.ts"),
   path.join(out, "contribution.ts")
 );
 fs.writeFileSync(path.join(out, "descriptor.json"), JSON.stringify(descriptor));
 const hasServices = fs.existsSync(path.join(root, "services.ts"));
 if (hasServices) {
   fs.copyFileSync(
-    path.join(
-      import.meta.dir,
-      "../console-sdk/src/generated/workspace-service.ts"
-    ),
+    path.join(import.meta.dir, "../src/generated/workspace-service.ts"),
     path.join(out, "workspace-service.ts")
   );
   const backend = await Bun.build({
@@ -280,7 +280,7 @@ if (hasServices) {
         name: "console-server-sdk",
         setup(build) {
           build.onResolve({ filter: /^@lenso\/console-sdk\/server$/ }, () => ({
-            path: path.join(import.meta.dir, "../console-sdk/src/server.ts"),
+            path: path.join(import.meta.dir, "../src/server.ts"),
           }));
         },
       },
@@ -300,7 +300,7 @@ if (hasServices) {
   );
   fs.writeFileSync(path.join(out, "services.js"), backendSource);
   fs.copyFileSync(
-    path.join(import.meta.dir, "../console-sdk/src/server.ts"),
+    path.join(import.meta.dir, "../src/server.ts"),
     path.join(out, "server.ts")
   );
   const server = fs

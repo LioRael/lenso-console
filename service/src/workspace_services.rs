@@ -680,8 +680,33 @@ fn describe_failure(
 
 fn invoke_failure(error: WorkspaceServiceInvokeInvocationError) -> TransportFailure {
     match error {
-        WorkspaceServiceInvokeInvocationError::Domain(_) => TransportFailure {
-            code: "workspace_service_rejected",
+        WorkspaceServiceInvokeInvocationError::Domain(error) => TransportFailure {
+            code: match error {
+                lenso_capability_workspace_service::InvokeError::CodecMismatch => {
+                    "workspace_service_codec_mismatch"
+                }
+                lenso_capability_workspace_service::InvokeError::Denied => {
+                    "workspace_service_denied"
+                }
+                lenso_capability_workspace_service::InvokeError::RequestTooLarge => {
+                    "workspace_service_request_too_large"
+                }
+                lenso_capability_workspace_service::InvokeError::ResponseTooLarge => {
+                    "workspace_service_response_too_large"
+                }
+                lenso_capability_workspace_service::InvokeError::ResourceExhausted => {
+                    "workspace_service_resource_exhausted"
+                }
+                lenso_capability_workspace_service::InvokeError::UnknownOperation => {
+                    "workspace_service_unknown_operation"
+                }
+                lenso_capability_workspace_service::InvokeError::UnknownService => {
+                    "workspace_service_unknown_service"
+                }
+                lenso_capability_workspace_service::InvokeError::Unknown(_) => {
+                    "workspace_service_rejected"
+                }
+            },
             status: StatusCode::UNPROCESSABLE_ENTITY,
         },
         WorkspaceServiceInvokeInvocationError::Runtime(error) => runtime_failure(&error),
@@ -690,8 +715,33 @@ fn invoke_failure(error: WorkspaceServiceInvokeInvocationError) -> TransportFail
 
 fn subscribe_failure(error: WorkspaceServiceSubscribeInvocationError) -> TransportFailure {
     match error {
-        WorkspaceServiceSubscribeInvocationError::Domain(_) => TransportFailure {
-            code: "workspace_service_rejected",
+        WorkspaceServiceSubscribeInvocationError::Domain(error) => TransportFailure {
+            code: match error {
+                lenso_capability_workspace_service::SubscribeError::CodecMismatch => {
+                    "workspace_service_codec_mismatch"
+                }
+                lenso_capability_workspace_service::SubscribeError::Denied => {
+                    "workspace_service_denied"
+                }
+                lenso_capability_workspace_service::SubscribeError::RequestTooLarge => {
+                    "workspace_service_request_too_large"
+                }
+                lenso_capability_workspace_service::SubscribeError::ResponseTooLarge => {
+                    "workspace_service_response_too_large"
+                }
+                lenso_capability_workspace_service::SubscribeError::ResourceExhausted => {
+                    "workspace_service_resource_exhausted"
+                }
+                lenso_capability_workspace_service::SubscribeError::UnknownOperation => {
+                    "workspace_service_unknown_operation"
+                }
+                lenso_capability_workspace_service::SubscribeError::UnknownService => {
+                    "workspace_service_unknown_service"
+                }
+                lenso_capability_workspace_service::SubscribeError::Unknown(_) => {
+                    "workspace_service_rejected"
+                }
+            },
             status: StatusCode::UNPROCESSABLE_ENTITY,
         },
         WorkspaceServiceSubscribeInvocationError::Runtime(error) => runtime_failure(&error),
@@ -807,6 +857,55 @@ mod tests {
                 let (response, ()) = tokio::join!(dispatch.handle(&request), receive);
                 assert_eq!(response.unwrap().status(), StatusCode::SERVICE_UNAVAILABLE);
             }
+        }
+    }
+
+    // Prevent the HTTP bridge from collapsing validation and authorization into
+    // one generic rejection, while keeping private exception details off the wire.
+    #[tokio::test(flavor = "current_thread")]
+    async fn rejected_requests_keep_public_diagnostic_codes_through_dispatch() {
+        for (error, expected) in [
+            (
+                lenso_capability_workspace_service::InvokeError::Denied,
+                "workspace_service_denied",
+            ),
+            (
+                lenso_capability_workspace_service::InvokeError::CodecMismatch,
+                "workspace_service_codec_mismatch",
+            ),
+        ] {
+            let mut builder = builder();
+            builder
+                .bind_mount("alpha", "workspace/default", &[requirement(true)])
+                .unwrap();
+            let dispatch = WorkspaceServiceDispatch {
+                routes: Arc::new(builder.routes),
+                sender: builder.sender,
+            };
+            let request = Request::new(
+                Method::POST,
+                "/api/console/v1/pages/alpha/services/example/invoke/read",
+            )
+            .with_header(header::CONTENT_TYPE, "application/json")
+            .with_body("{}");
+            let provider = async {
+                let DispatchCommand::Invoke { response, .. } =
+                    builder.receiver.recv().await.unwrap()
+                else {
+                    panic!("expected unary request")
+                };
+                response
+                    .send(Err(invoke_failure(
+                        WorkspaceServiceInvokeInvocationError::Domain(error),
+                    )))
+                    .ok();
+            };
+            let (response, ()) = tokio::join!(dispatch.handle(&request), provider);
+            let response = response.unwrap();
+            assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+            let body = response.into_body().collect(4096).await.unwrap();
+            let problem: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(problem["code"], expected);
         }
     }
 

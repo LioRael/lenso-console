@@ -1,3 +1,5 @@
+import "@lenso/tokens/styles.css";
+import "../../styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -106,7 +108,7 @@ test("does not load an extension whose required service is unavailable", async (
         requirements: [
           {
             available: false,
-            capability_id: "example.agent.task@1",
+            capability_id: `example.${"a".repeat(116)}@1`,
             descriptor_version: "1.0.0",
             operations: ["observe"],
             required: true,
@@ -142,11 +144,35 @@ test("does not load an extension whose required service is unavailable", async (
       .toBeVisible();
     await expect
       .element(
-        page.getByText(
-          "A required service is unavailable. Refresh the selected App Plan or contact the operator; Console has not loaded this extension."
-        )
+        page.getByText(/A required service is unavailable.*task \(example\./)
       )
       .toBeVisible();
+    // Public contract names may be long; diagnostics must remain readable at
+    // supported widths without adding a second horizontal document scrollbar.
+    const previousTheme = document.documentElement.dataset.theme;
+    try {
+      for (const theme of ["light", "dark"]) {
+        document.documentElement.dataset.theme = theme;
+        for (const width of [1280, 390]) {
+          await page.viewport(width, width === 390 ? 844 : 800);
+          expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+            window.innerWidth
+          );
+          if (import.meta.env.VITE_CONSOLE_DX_SCREENSHOTS === "1") {
+            await page.screenshot({
+              path: `__screenshots__/diagnostic-${theme}-${width}.png`,
+            });
+          }
+        }
+      }
+    } finally {
+      if (previousTheme === undefined) {
+        delete document.documentElement.dataset.theme;
+      } else {
+        document.documentElement.dataset.theme = previousTheme;
+      }
+      await page.viewport(1280, 800);
+    }
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     expect(
       Reflect.get(window, "__lensoBlockedContributionLoaded")

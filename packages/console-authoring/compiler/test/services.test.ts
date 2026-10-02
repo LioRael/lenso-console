@@ -1,11 +1,11 @@
 import { test, expect } from "bun:test";
 
-import type { InvocationContext } from "../../console-sdk/src/generated/workspace-service";
+import type { InvocationContext } from "../../src/generated/workspace-service";
 import {
   createWorkspaceServices,
   defineServices,
   operation,
-} from "../../console-sdk/src/server";
+} from "../../src/server";
 
 test("service adapters enforce validation and authorization before domain code", async () => {
   let calls = 0;
@@ -49,4 +49,27 @@ test("service adapters enforce validation and authorization before domain code",
   expect(response.ok).toBe(true);
   expect(calls).toBe(1);
   expect(adapter.requirements[0]?.source).toBe("owner");
+});
+
+// Prevent metadata accepted by the SDK from failing only during Host admission.
+test("declarations reject oversized operations with the owning alias", () => {
+  const operations = Object.fromEntries(
+    Array.from({ length: 33 }, (_, index) => [
+      `read${index}`,
+      operation({
+        parse: (value: unknown) => value,
+        authorize: () => true,
+        handle: (value: unknown) => value,
+      }),
+    ])
+  );
+  expect(() =>
+    defineServices({
+      orders: {
+        capabilityId: "example.orders.query@1",
+        version: "1.0.0",
+        operations,
+      },
+    })
+  ).toThrow('Workspace service "orders"');
 });

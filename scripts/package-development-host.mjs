@@ -137,12 +137,7 @@ for (const [source, target] of [
   fs.copyFileSync(source, path.join(out, target));
   fs.chmodSync(path.join(out, target), 0o755);
 }
-for (const name of [
-  "console-support",
-  "console-convention",
-  "console-sdk",
-  "console-dev",
-]) {
+for (const name of ["console-support", "console-authoring"]) {
   fs.cpSync(
     path.join(repo, "packages", name),
     path.join(out, "packages", name),
@@ -152,10 +147,6 @@ for (const name of [
     }
   );
 }
-const contract =
-  "contracts/crates/lenso-capability-ui-contribution/generated/bindings.ts";
-fs.mkdirSync(path.dirname(path.join(out, contract)), { recursive: true });
-fs.copyFileSync(path.join(repo, contract), path.join(out, contract));
 fs.writeFileSync(
   path.join(out, "host.json"),
   JSON.stringify(
@@ -183,14 +174,14 @@ set -eu
 kit=$(CDPATH= cd -- "\${0%/*}/.." && pwd)
 export PATH="$kit/bin\${PATH:+:$PATH}"
 if [ "\${1:-}" = app ] && [ "\${2:-}" = create ] && [ "\${4:-}" = --console ]; then
-  exec "$kit/bin/bun" "$kit/packages/console-dev/create-app.mjs" "$3"
+  exec "$kit/bin/bun" "$kit/packages/console-authoring/create-app.mjs" "$3"
 fi
 exec "$kit/bin/lenso-engine-host" "$@"
 `,
   { mode: 0o755 }
 );
 fs.copyFileSync(
-  path.join(repo, "packages/console-dev/README.md"),
+  path.join(repo, "packages/console-authoring/development-host.md"),
   path.join(out, "README.md")
 );
 console.log(`Packaged Console development Host for ${info.target}: ${out}`);

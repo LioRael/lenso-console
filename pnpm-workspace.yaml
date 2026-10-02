@@ -1,6 +1,6 @@
 packages:
   - .
-  - packages/console-sdk
+  - packages/console-authoring
 
 allowBuilds:
   esbuild: true

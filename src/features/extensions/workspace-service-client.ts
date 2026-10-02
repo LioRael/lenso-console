@@ -1,4 +1,4 @@
-import type { WorkspaceServices } from "../../../packages/console-sdk/src/index";
+import type { WorkspaceServices } from "../../../packages/console-authoring/src/index";
 import { sessionFetch } from "../../lib/session-fetch";
 import type { PageMount } from "./page-contribution-catalog";
 
@@ -6,7 +6,7 @@ const MAX_REQUEST_BYTES = 1024 * 1024;
 
 export type WorkspaceServiceOptions = { signal?: AbortSignal };
 
-export type { WorkspaceServices } from "../../../packages/console-sdk/src/index";
+export type { WorkspaceServices } from "../../../packages/console-authoring/src/index";
 
 export class WorkspaceServiceError extends Error {
   readonly code: string;
@@ -23,9 +23,9 @@ export class WorkspaceServiceError extends Error {
 export class WorkspaceServiceDomainError extends WorkspaceServiceError {
   readonly payload: unknown;
 
-  constructor(payload: unknown) {
+  constructor(payload: unknown, service: string, operation: string) {
     super(
-      "Workspace service returned a Domain Error",
+      `Workspace service ${service}/${operation} returned a domain error`,
       "workspace_service_domain_error",
       422
     );
@@ -66,10 +66,12 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
           response.headers.get("x-lenso-workspace-outcome") === "domain_error"
         ) {
           throw new WorkspaceServiceDomainError(
-            await response.json().catch(() => null)
+            await response.json().catch(() => null),
+            service,
+            operation
           );
         }
-        throw await responseError(response);
+        throw await responseError(response, service, operation);
       }
       try {
         return (await response.json()) as Response;
@@ -97,7 +99,7 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
         }
       );
       if (!response.ok) {
-        throw await responseError(response);
+        throw await responseError(response, service, operation);
       }
       if (!response.body) {
         throw new WorkspaceServiceError(
@@ -117,7 +119,7 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
           }
           const value = decodeJson<Item>(frame.bodyBase64Url);
           if (frame.outcome === "domain_error") {
-            throw new WorkspaceServiceDomainError(value);
+            throw new WorkspaceServiceDomainError(value, service, operation);
           }
           if (frame.outcome !== "item") {
             throw protocolError();
@@ -157,7 +159,7 @@ function requireOperation(
   );
   if (!requirement?.available || !requirement.operations.includes(operation)) {
     throw new WorkspaceServiceError(
-      "Workspace service is not available for this mount",
+      `Workspace service ${service}/${operation} is not admitted for mount ${mount.id}`,
       "workspace_service_unavailable",
       503
     );
@@ -176,15 +178,17 @@ function encodeRequest(value: unknown) {
   return body;
 }
 
-async function responseError(response: Response) {
+async function responseError(
+  response: Response,
+  service: string,
+  operation: string
+) {
   const value = (await response.json().catch(() => null)) as {
     code?: unknown;
     title?: unknown;
   } | null;
   return new WorkspaceServiceError(
-    typeof value?.title === "string"
-      ? value.title
-      : "Workspace service request failed",
+    `Workspace service ${service}/${operation}: ${typeof value?.code === "string" ? value.code : "request failed"}`,
     typeof value?.code === "string"
       ? value.code
       : "workspace_service_request_failed",

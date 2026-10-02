@@ -7,9 +7,15 @@ for (const [contract, projection] of [
   ["lenso-capability-ui-contribution", "contribution"],
   ["lenso-capability-workspace-service", "workspace-service"],
 ]) {
+  if (process.argv.includes("--write")) {
+    fs.copyFileSync(
+      `contracts/crates/${contract}/generated/bindings.ts`,
+      `packages/console-authoring/src/generated/${projection}.ts`
+    );
+  }
   assert.equal(
     fs.readFileSync(
-      `packages/console-sdk/src/generated/${projection}.ts`,
+      `packages/console-authoring/src/generated/${projection}.ts`,
       "utf-8"
     ),
     fs.readFileSync(
