@@ -145,38 +145,36 @@ test("Console stages and starts with no Agent installation", async () => {
   }
 });
 
-test("native Agent stages only one verified executable and launches without Console files", async () => {
+test("native Agent stages the verified native command closure without Console files", async () => {
   const temp = await mkdtemp(join(tmpdir(), "agent-native-package-"));
   try {
     const scriptDir = join(temp, "scripts/distribution");
     await mkdir(scriptDir, { recursive: true });
     await mkdir(join(temp, "payload"));
-    const executable = join(temp, "payload/lenso-agent");
-    await writeFile(executable, `#!${process.execPath}\nprocess.exit(17);\n`);
-    await chmod(executable, 0o755);
-    const archive = join(temp, "agent.tar.gz");
-    assert.equal(
-      spawnSync("tar", [
-        "-czf",
-        archive,
-        "-C",
-        join(temp, "payload"),
-        "lenso-agent",
-      ]).status,
-      0
-    );
-    const bytes = await readFile(archive);
     const target = `${process.platform}-${process.arch}`;
     const releaseTarget =
       process.platform === "darwin" ? "darwin-aarch64" : "linux-x86_64";
-    const asset = `lenso-agent-v0.0.1-${releaseTarget}.tar.gz`;
+    const assets = {};
+    const archives = {};
+    for (const name of ["lenso-agent", "lenso-agent-cli", "lenso-agent-acp"]) {
+      const executable = join(temp, "payload", name);
+      await writeFile(executable, `#!${process.execPath}\nprocess.exit(17);\n`);
+      await chmod(executable, 0o755);
+      const asset = `${name}-v0.0.1-${releaseTarget}.tar.gz`;
+      const archive = join(temp, asset);
+      assert.equal(
+        spawnSync("tar", ["-czf", archive, "-C", join(temp, "payload"), name])
+          .status,
+        0
+      );
+      assets[asset] = createHash("sha256")
+        .update(await readFile(archive))
+        .digest("hex");
+      archives[asset] = archive;
+    }
     await writeFile(
       join(scriptDir, "agent-release.json"),
-      JSON.stringify({
-        assets: { [asset]: createHash("sha256").update(bytes).digest("hex") },
-        repository: "fixture/agent",
-        version: "0.0.1",
-      })
+      JSON.stringify({ assets, repository: "fixture/agent", version: "0.0.1" })
     );
     await cp(
       "scripts/distribution/package-agent.mjs",
@@ -190,7 +188,7 @@ test("native Agent stages only one verified executable and launches without Cons
       JSON.stringify({ version: "1.20.0" })
     );
     await writeFile(join(temp, "LICENSE"), "Fixture license");
-    const script = `import {readFileSync} from 'node:fs';globalThis.fetch=async(url)=>{if(!String(url).endsWith(${JSON.stringify(asset)}))throw Error('Unexpected download: '+url);return new Response(readFileSync(${JSON.stringify(archive)}));};process.argv=['node',${JSON.stringify(join(scriptDir, "package-agent.mjs"))},${JSON.stringify(target)},'unused-console-binary',${JSON.stringify(join(temp, "out"))},'--native-only'];await import(${JSON.stringify(join(scriptDir, "package-agent.mjs"))});`;
+    const script = `import {readFileSync} from 'node:fs';const archives=${JSON.stringify(archives)};globalThis.fetch=async(url)=>{const file=archives[String(url).split('/').at(-1)];if(!file)throw Error('Unexpected download: '+url);return new Response(readFileSync(file));};process.argv=['node',${JSON.stringify(join(scriptDir, "package-agent.mjs"))},${JSON.stringify(target)},'unused-console-binary',${JSON.stringify(join(temp, "out"))},'--native-only'];await import(${JSON.stringify(join(scriptDir, "package-agent.mjs"))});`;
     const result = spawnSync(
       process.execPath,
       ["--input-type=module", "-e", script],
@@ -198,7 +196,12 @@ test("native Agent stages only one verified executable and launches without Cons
     );
     assert.equal(result.status, 0, result.stderr);
     const runtime = join(temp, "out", `agent-native-${target}`);
-    assert.deepEqual(await readdir(join(runtime, "bin")), ["lenso-agent"]);
+    const nativeFiles = await readdir(join(runtime, "bin"));
+    assert.deepEqual(nativeFiles.toSorted(), [
+      "lenso-agent",
+      "lenso-agent-acp",
+      "lenso-agent-cli",
+    ]);
     const runtimeFiles = await readdir(runtime);
     assert.ok(!runtimeFiles.includes("web"));
     const launcher = join(temp, "out/agent-native");

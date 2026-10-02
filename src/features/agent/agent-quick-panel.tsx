@@ -313,7 +313,7 @@ export function AgentQuickPanel({
           onClick={openAssistant}
           size="sm"
           variant="secondary"
-          xstyle={styles.trigger}
+          xstyle={[styles.trigger, open && styles.hiddenTrigger]}
         >
           <Sparkles
             aria-hidden="true"
@@ -336,7 +336,7 @@ export function AgentQuickPanel({
             tabIndex={open ? -1 : 0}
             size="sm"
             variant="secondary"
-            xstyle={styles.historyTrigger}
+            xstyle={[styles.historyTrigger, open && styles.hiddenTrigger]}
           >
             <History aria-hidden="true" size={16} />
           </Button>

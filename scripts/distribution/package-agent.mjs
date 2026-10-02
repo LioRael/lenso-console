@@ -54,7 +54,7 @@ if (!nativeOnly) {
 const temporary = await mkdtemp(join(tmpdir(), "lenso-agent-package-"));
 try {
   const executables = nativeOnly
-    ? ["lenso-agent"]
+    ? ["lenso-agent", "lenso-agent-cli", "lenso-agent-acp"]
     : [
         "lenso-agent",
         "lenso-agent-cli",
