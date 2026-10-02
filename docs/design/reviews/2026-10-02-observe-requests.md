@@ -3,7 +3,7 @@
 ## Scope and reference
 
 - Base: `7e2ed879c67c4267c595d7e06a0de3c465a37228`, isolated branch `feat/pencil-console-pages`.
-- Owner: existing Observe workspace, `plugins/observe/workspace.mjs` and its scoped CSS. Shell and shared Lenso UI are unchanged.
+- Owner: existing Observe workspace, `plugins/observe/workspace.mjs` and its scoped CSS. Shell presentation and shared Lenso UI are unchanged. A follow-up repairs the shared contribution mount's StrictMode cancellation lifecycle without changing its presentation; see [remaining acceptance](2026-10-02-console-slice-remaining-acceptance.md).
 - This slice was explicitly approved while the Pencil reference was unavailable. It preserves the existing Observe design and is not a new Pencil page implementation.
 - Navigation: latest requests, opaque cursor pages, trace detail, and return to the originating request page. The mount contract owns route updates.
 - Data: existing admitted `observe` workspace service, `lenso.observability.query@1`, descriptor version 1.1.0. Browser proof uses the real workspace service client with isolated HTTP/SSE response fixtures; no Native Host or OTLP ingestion claim.

@@ -5,7 +5,6 @@ import {
   createElement,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -240,12 +239,17 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
-  const controllerRef = useRef<AbortController | null>(null);
-  if (!controllerRef.current) {
-    controllerRef.current = new AbortController();
+  const [controller, setController] = useState<AbortController | null>(null);
+  useEffect(() => {
+    // Each effect setup owns a fresh signal. StrictMode replays cleanup/setup;
+    // a signal allocated once during render would stay permanently aborted.
+    const activeController = new AbortController();
+    setController(activeController);
+    return () => activeController.abort();
+  }, []);
+  if (!controller || controller.signal.aborted) {
+    return <RoutePending />;
   }
-  const controller = controllerRef.current;
-  useEffect(() => () => controller.abort(), [controller]);
   return (
     <loaded.Provider>
       <loaded.Page

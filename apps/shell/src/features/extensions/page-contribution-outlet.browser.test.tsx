@@ -1,12 +1,87 @@
 import "@lenso/tokens/styles.css";
 import "../../styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { StrictMode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
 import { PageContributionOutlet } from "./page-contribution-outlet";
+
+test("gives a StrictMode contribution a live signal and cancels it on unmount", async () => {
+  const signals: AbortSignal[] = [];
+  vi.stubGlobal("__lensoStrictContributionSignals", signals);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(
+    ["console-page-catalog"],
+    [
+      {
+        apiMajor: 1,
+        id: "strict-signal",
+        module: `data:text/javascript,${encodeURIComponent(`
+      export const apiMajor = 1;
+      export function createWorkspace({ react, createElement }) {
+        return { Page: ({ signal }) => {
+          const [status, setStatus] = react.useState("waiting");
+          react.useEffect(() => {
+            globalThis.__lensoStrictContributionSignals.push(signal);
+            if (signal.aborted) return;
+            setStatus("Live contribution signal");
+          }, [signal]);
+          return createElement("h1", null, status);
+        } };
+      }
+    `)}`,
+        navigation: { items: [], label: "Strict signal" },
+        owner: {
+          instance: "strict/default",
+          source: "resolved-plan",
+          trusted: true,
+        },
+        requirements: [],
+        revision: "fixture-1",
+        styles: [],
+        subject: { kind: "console" },
+        title: "Strict signal",
+      },
+    ]
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    flushSync(() =>
+      root.render(
+        <StrictMode>
+          <QueryClientProvider client={client}>
+            <PageContributionOutlet
+              mountId="strict-signal"
+              segments={[]}
+              subject={{ kind: "console" }}
+            />
+          </QueryClientProvider>
+        </StrictMode>
+      )
+    );
+    await expect
+      .element(page.getByRole("heading", { name: "Live contribution signal" }))
+      .toBeVisible();
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.every((signal) => !signal.aborted)).toBe(true);
+    flushSync(() => root.unmount());
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  } finally {
+    if (container.hasChildNodes()) {
+      root.unmount();
+    }
+    client.clear();
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});
 
 test("loads a discovered native contribution without a static component import", async () => {
   const container = document.createElement("div");

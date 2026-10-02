@@ -159,13 +159,17 @@ function AppPluginDetail({
   const [detailTab, setDetailTab] = useState<PluginDetailTab>("overview");
 
   useEffect(() => {
+    if (workbench.accessDenied) {
+      configurationDraftStore.retainKeys(new Set());
+      return;
+    }
     if (!workbench.data) {
       return;
     }
     configurationDraftStore.retainKeys(
       new Set(workbench.data.items.map(pluginKey))
     );
-  }, [configurationDraftStore, workbench.data]);
+  }, [configurationDraftStore, workbench.accessDenied, workbench.data]);
 
   useEffect(() => {
     if (

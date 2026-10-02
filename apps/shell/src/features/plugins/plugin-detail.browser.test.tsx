@@ -23,6 +23,7 @@ import type {
   PluginSelectionItem,
 } from "./plugin-control-contract";
 import { PluginDetailPage } from "./plugin-detail-page";
+import { pluginWorkbenchQueryKey } from "./use-plugin-workbench";
 
 // Descriptor-derived identities and roles, returned as isolated public HTTP
 // contract fixtures. No native Host, health probe, resource or binding fixture.
@@ -124,10 +125,12 @@ async function fixture({
   packageId = auth.packageId,
   state = contractState(),
   denied = false,
+  respond,
 }: {
   packageId?: string;
   state?: ReturnType<typeof contractState>;
   denied?: boolean;
+  respond?: (request: Request) => Response | Promise<Response> | undefined;
 } = {}) {
   const requests: { path: string; method: string }[] = [];
   vi.stubGlobal(
@@ -156,6 +159,10 @@ async function fixture({
           { detail: "Plugin access denied." },
           { status: 403 }
         );
+      }
+      const response = respond?.(request);
+      if (response) {
+        return response;
       }
       if (path.endsWith("/control/plugins")) {
         return Response.json(state.management);
@@ -206,6 +213,7 @@ async function fixture({
     )
   );
   return {
+    client,
     requests,
     router,
     dispose() {
@@ -343,6 +351,134 @@ test("distinguishes missing selection from an empty declaration and preserves re
       .not.toBeInTheDocument();
   } finally {
     denied.dispose();
+  }
+});
+
+test("keeps the title revision and capability selection in the same phase", async () => {
+  const state = contractState();
+  state.inventory.active.plugins = [];
+  state.inventory.preparing = {
+    ...state.inventory.desired,
+    generationSpecDigest: "fixture-candidate-generation",
+    plugins: [{ ...auth, packageRevision: "fixture-candidate-A" }],
+  };
+  state.inventory.desired.plugins = [
+    { ...auth, packageRevision: "fixture-desired-B" },
+  ];
+  state.inventory.configurationStatus = "pending";
+  const view = await fixture({ state });
+  try {
+    await expect
+      .element(
+        page.getByText("Candidate Revision: fixture-candidate-A", {
+          exact: false,
+        })
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        page.getByText("Desired revision: fixture-desired-B", { exact: true })
+      )
+      .toBeVisible();
+    await expect
+      .element(page.getByText("Serving Revision", { exact: false }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByText("lenso.http.endpoint@1", { exact: true }))
+      .toBeVisible();
+  } finally {
+    view.dispose();
+  }
+});
+
+test("revokes cached Plugin content and requires two fresh reads before recovery", async () => {
+  for (const deniedEndpoint of ["/plugins", "/control/plugins"]) {
+    const state = contractState();
+    let mode: "allowed" | "denied" | "recovering" = "allowed";
+    let releaseManagement!: (response: Response) => void;
+    const managementGate = new Promise<Response>((resolve) => {
+      releaseManagement = resolve;
+    });
+    const conditionalHeaders: (string | null)[] = [];
+    state.management.plugins[0]!.instances[0]!.rootConfigurationToml =
+      'private_value = "old"';
+    const view = await fixture({
+      state,
+      respond(request) {
+        const path = new URL(request.url).pathname;
+        const management = path.endsWith("/control/plugins");
+        if (
+          mode === "denied" &&
+          (deniedEndpoint === "/plugins" ? !management : management)
+        ) {
+          return Response.json(
+            { detail: "Plugin access revoked." },
+            { status: 403 }
+          );
+        }
+        if (mode === "recovering") {
+          if (management) {
+            conditionalHeaders.push(request.headers.get("If-None-Match"));
+            return managementGate;
+          }
+          return Response.json(state.inventory);
+        }
+        return management
+          ? Response.json(state.management, {
+              headers: { ETag: '"fixture-old"' },
+            })
+          : undefined;
+      },
+    });
+    try {
+      await expect
+        .element(page.getByRole("heading", { name: "Lenso auth web session" }))
+        .toBeVisible();
+      await page.getByRole("button", { name: "Edit configuration" }).click();
+      const editor = page.getByRole("textbox", {
+        name: `TOML configuration for ${auth.packageId}/default`,
+      });
+      await editor.fill('private_value = "draft"');
+      mode = "denied";
+      await view.client.invalidateQueries({
+        queryKey: pluginWorkbenchQueryKey("console"),
+      });
+      await expect
+        .element(page.getByRole("heading", { name: "Plugin unavailable" }))
+        .toBeVisible();
+      await expect.element(editor).not.toBeInTheDocument();
+      await expect
+        .element(page.getByRole("heading", { name: "Lenso auth web session" }))
+        .not.toBeInTheDocument();
+      await expect
+        .poll(() =>
+          view.client
+            .getQueriesData({ queryKey: pluginWorkbenchQueryKey("console") })
+            .some(([, data]) => data !== undefined)
+        )
+        .toBe(false);
+      mode = "recovering";
+      state.management.plugins[0]!.instances[0]!.rootConfigurationToml =
+        'private_value = "new"';
+      await page.getByRole("button", { name: "Try again" }).click();
+      await expect.poll(() => conditionalHeaders.length).toBeGreaterThan(0);
+      await expect
+        .element(page.getByRole("heading", { name: "Plugin unavailable" }))
+        .toBeVisible();
+      await expect.element(editor).not.toBeInTheDocument();
+      expect(conditionalHeaders.every((header) => header === null)).toBe(true);
+      releaseManagement(Response.json(state.management));
+      await expect
+        .element(page.getByRole("heading", { name: "Lenso auth web session" }))
+        .toBeVisible();
+      await expect.element(editor).toHaveValue('private_value = "new"');
+      expect(view.requests.every((request) => request.method === "GET")).toBe(
+        true
+      );
+    } finally {
+      releaseManagement(Response.json(state.management));
+      view.dispose();
+    }
   }
 });
 

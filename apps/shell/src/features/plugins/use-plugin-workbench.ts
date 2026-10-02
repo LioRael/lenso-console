@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isHTTPError } from "ky";
 import {
   useCallback,
   useEffect,
@@ -146,18 +147,44 @@ export type PluginWorkbenchData = {
   management: PluginManagement;
 };
 
+function isPluginAccessDenied(error: unknown) {
+  return (
+    isHTTPError(error) &&
+    (error.response.status === 401 || error.response.status === 403)
+  );
+}
+
 export function usePluginWorkbench(
   agentId: string,
   configurationAvailable = true
 ) {
   const queryClient = useQueryClient();
+  const configuredRetry = queryClient.getDefaultOptions().queries?.retry ?? 3;
+  const retryRead = (count: number, error: Error) => {
+    if (isPluginAccessDenied(error)) {
+      return false;
+    }
+    return typeof configuredRetry === "function"
+      ? configuredRetry(count, error)
+      : typeof configuredRetry === "number"
+        ? count < configuredRetry
+        : configuredRetry;
+  };
+  const [denial, setDenial] = useState<{
+    agentId: string;
+    error: unknown;
+  } | null>(null);
+  const denied = denial?.agentId === agentId;
+  const recoveryController = useRef<AbortController | null>(null);
+  const purgeTask = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => () => recoveryController.current?.abort(), [agentId]);
   const managementValidator = useRef<{
     agentId: string;
     etag: string;
     streamId: string;
   } | null>(null);
   const inventory = useQuery({
-    enabled: configurationAvailable,
+    enabled: configurationAvailable && !denied,
     queryFn: ({ signal }) => {
       if (!isApiMode()) {
         return Promise.resolve(demoPluginState(agentId).inventory);
@@ -168,6 +195,7 @@ export function usePluginWorkbench(
       return readNextPluginInventory(previous, signal, undefined, agentId);
     },
     queryKey: pluginInventoryQueryKey(agentId),
+    retry: retryRead,
     refetchInterval: (query) =>
       isApiMode() ? (query.state.status === "error" ? 5000 : 2000) : false,
   });
@@ -180,7 +208,9 @@ export function usePluginWorkbench(
   const managementKey = pluginManagementQueryKey(agentId, inventoryStreamId);
   const management = useQuery<PluginManagement>({
     enabled:
-      configurationAvailable && (!isApiMode() || inventory.data !== undefined),
+      configurationAvailable &&
+      !denied &&
+      (!isApiMode() || inventory.data !== undefined),
     placeholderData: (previous) => previous,
     queryFn: async ({ signal }) => {
       if (!isApiMode()) {
@@ -222,6 +252,7 @@ export function usePluginWorkbench(
       return previous;
     },
     queryKey: managementKey,
+    retry: retryRead,
     refetchInterval: (query) => {
       const managementRevision = query.state.data?.revision;
       return pluginManagementRefreshInterval({
@@ -238,10 +269,31 @@ export function usePluginWorkbench(
       });
     },
   });
+  const accessError = [inventory.error, management.error].find(
+    isPluginAccessDenied
+  );
+  const accessDenied = denied || Boolean(accessError);
+  useEffect(() => {
+    if (!accessError) {
+      return;
+    }
+    setDenial({ agentId, error: accessError });
+    recoveryController.current?.abort();
+    managementValidator.current = null;
+    // Query keeps successful data after a refetch fails. Revoke both halves,
+    // including scoped history, before allowing any explicit recovery.
+    purgeTask.current = (async () => {
+      await queryClient.cancelQueries({
+        queryKey: pluginWorkbenchQueryKey(agentId),
+      });
+      queryClient.removeQueries({ queryKey: pluginWorkbenchQueryKey(agentId) });
+    })();
+  }, [accessError, agentId, queryClient]);
   useEffect(() => {
     const managementRevision = management.data?.revision;
     if (
       !isApiMode() ||
+      accessDenied ||
       inventoryDesiredRevision === undefined ||
       managementRevision === undefined
     ) {
@@ -257,6 +309,7 @@ export function usePluginWorkbench(
     }
   }, [
     agentId,
+    accessDenied,
     inventoryDesiredRevision,
     inventoryStreamId,
     management.data?.revision,
@@ -264,12 +317,14 @@ export function usePluginWorkbench(
   ]);
   const data = useMemo(
     () =>
-      inventory.data && management.data
+      !accessDenied && inventory.data && management.data
         ? workbenchData(inventory.data, management.data)
         : undefined,
-    [inventory.data, management.data]
+    [accessDenied, inventory.data, management.data]
   );
-  const error = inventory.error ?? management.error;
+  const error =
+    accessError ??
+    (denied ? denial.error : (inventory.error ?? management.error));
   const authoringEnabled = Boolean(
     data &&
     pluginAuthoringIsReady(
@@ -279,6 +334,7 @@ export function usePluginWorkbench(
     )
   );
   return {
+    accessDenied,
     authoringEnabled,
     configurationAvailable,
     data,
@@ -287,12 +343,63 @@ export function usePluginWorkbench(
     isError:
       configurationAvailable &&
       !data &&
-      (inventory.isError || management.isError),
+      (accessDenied || inventory.isError || management.isError),
     isPending:
       configurationAvailable &&
+      !accessDenied &&
       !data &&
       (inventory.isPending || management.isPending),
-    refetch: () => Promise.all([inventory.refetch(), management.refetch()]),
+    refetch: async () => {
+      if (!accessDenied) {
+        return Promise.all([inventory.refetch(), management.refetch()]);
+      }
+      recoveryController.current?.abort();
+      const controller = new AbortController();
+      recoveryController.current = controller;
+      try {
+        await purgeTask.current;
+        if (controller.signal.aborted) {
+          return;
+        }
+        const [freshInventory, freshManagement] = await Promise.all([
+          readNextPluginInventory(
+            undefined,
+            controller.signal,
+            undefined,
+            agentId
+          ),
+          readPluginManagementConditional(
+            undefined,
+            controller.signal,
+            agentId
+          ),
+        ]);
+        if (controller.signal.aborted || !freshManagement.management) {
+          return;
+        }
+        queryClient.setQueryData(
+          pluginInventoryQueryKey(agentId),
+          freshInventory
+        );
+        queryClient.setQueryData(
+          pluginManagementQueryKey(agentId, freshInventory.streamId),
+          freshManagement.management
+        );
+        managementValidator.current = freshManagement.etag
+          ? {
+              agentId,
+              etag: freshManagement.etag,
+              streamId: freshInventory.streamId,
+            }
+          : null;
+        setDenial(null);
+      } catch (recoveryError) {
+        if (!controller.signal.aborted) {
+          controller.abort();
+          setDenial({ agentId, error: recoveryError });
+        }
+      }
+    },
   };
 }
 

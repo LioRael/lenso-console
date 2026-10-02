@@ -435,6 +435,7 @@ export function PluginDetail({
       : null;
   const latestChangePresentation = candidateFailure ?? uncertainOperation;
   const purpose = pluginPurpose(plugin);
+  const technical = pluginTechnicalSelection(plugin);
 
   return (
     <div {...stylex.props(styles.detailRoot)}>
@@ -449,8 +450,16 @@ export function PluginDetail({
           <p {...stylex.props(styles.feedback, styles.mono)}>
             {plugin.packageId}/{plugin.instanceKey}
             {" · "}
-            {t("Revision")}: {plugin.packageRevision || t("Unavailable")}
+            {t(technical.phase)} {t("Revision")}:{" "}
+            {technical.selection?.packageRevision || t("Unavailable")}
           </p>
+          {plugin.desired &&
+          plugin.desired.packageRevision !==
+            technical.selection?.packageRevision ? (
+            <p {...stylex.props(styles.feedback, styles.mono)}>
+              {t("Desired revision")}: {plugin.desired.packageRevision}
+            </p>
+          ) : null}
         </div>
         <div {...stylex.props(styles.detailActions)}>
           {management ? (

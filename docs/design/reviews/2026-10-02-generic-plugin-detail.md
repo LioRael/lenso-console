@@ -22,7 +22,7 @@ The active selection is preferred for runtime/capability facts; preparing or des
 
 The current inventory reports declared capability IDs and execution metadata. It does not report provider bindings, dependent Plugins, physical resource mappings, access purposes, contribution details or Plugin health. These are explicitly unavailable; health is Unknown. No sample D1/KV resources, invented degraded health, synthetic production version or guessed provider edge is rendered. Existing activation status is separate from health.
 
-Configuration remains the existing permission/authority/revision-aware preview-and-publication flow. Edit/View configuration and View dependencies navigate between real panels; no new write endpoint, Validate or Preview disable operation is invented. Agent-imported configuration drafts open Configuration. A denied initial read now shows the existing unavailable/retry state instead of being masked indefinitely by the disabled dependent query's pending state.
+Configuration remains the existing permission/authority/revision-aware preview-and-publication flow. Edit/View configuration and View dependencies navigate between real panels; no new write endpoint, Validate or Preview disable operation is invented. Agent-imported configuration drafts open Configuration. A denied initial read now shows the existing unavailable/retry state instead of being masked indefinitely by the disabled dependent query's pending state. The independent-review follow-up also handles later revocation: 401/403 immediately hides data, cancels and removes both App-scoped cache halves and history, resets ETag and clears this detail route's drafts. Explicit recovery keeps content hidden until both fresh reads succeed. Header revision uses the same labelled selection phase as the capability cards; a different Desired revision is shown separately.
 
 ## Geometry and rendered review
 
@@ -36,7 +36,7 @@ Configuration remains the existing permission/authority/revision-aware preview-a
 
 ## Validation and delivery boundary
 
-- API browser proof: `VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ VITE_CONSOLE_DX_SCREENSHOTS=1 pnpm --dir apps/shell exec vitest run --config vitest.browser.config.ts src/features/plugins/plugin-detail.browser.test.tsx`: 3 passed on final source, 2026-10-02 18:55 UTC.
+- Original API browser proof: `VITE_CONSOLE_MODE=api VITE_API_BASE_URL=/ VITE_CONSOLE_DX_SCREENSHOTS=1 pnpm --dir apps/shell exec vitest run --config vitest.browser.config.ts src/features/plugins/plugin-detail.browser.test.tsx`: 3 passed on source frozen in `61284e9`. The earlier label “18:55 UTC” was incorrect and is withdrawn. Its full test log was not retained, so no exact ending time is asserted. Original screenshot mtimes include `2026-10-02T10:55:40.632168Z` and `10:55:40.798671Z`; these are file timestamps, not a test completion receipt. The process timezone has now been measured as `Asia/Shanghai`, UTC+08:00.
 - Existing scope/locale browser proof: `pnpm --dir apps/shell exec vitest run --config vitest.browser.config.ts src/features/plugins/plugin-scope.browser.test.tsx`: 1 passed.
 - `plugin-agent-workbench-request.test.ts` and `console-i18n.test.ts`: 7 passed.
 - `pnpm typecheck:local`, changed-file `oxlint --deny-warnings`, `oxfmt --check`, and `git diff --check`: passed.
@@ -47,7 +47,7 @@ Configuration remains the existing permission/authority/revision-aware preview-a
 
 New coverage prevents concrete failures absent from the old single demo journey: capabilities from one Plugin/phase shown under another, missing selection presented as an empty declaration, denied reads stuck loading, lost drafts when Configuration unmounts, and header/editor/action geometry or focus failure at real narrow widths. The existing scope journey was updated instead of duplicated.
 
-Source SHA-256 at final validation:
+Original source SHA-256 at the `61284e9` validation (retained as historical evidence; see the follow-up for current fingerprints):
 
 | File | SHA-256 |
 | --- | --- |
@@ -57,3 +57,5 @@ Source SHA-256 at final validation:
 | API browser proof | `db5ead88f5267e33fd864c924daeaa911ea9eca8f765ee5c7e4931ceddc554b8` |
 | Scope browser proof | `39744847356a07017bed0f87ece12ae817675a63a193a0e10e2d1085657ab77b` |
 | Chinese messages | `46807465388223f9bd5a047c114a13bad5dc9342c03e6c7016cae73ec4aba5bc` |
+
+The independent-review fixes and current validation are recorded in [remaining acceptance](2026-10-02-console-slice-remaining-acceptance.md). The latest API browser log has 5 passing tests and explicitly records the measured local start time; original passing receipts are not reused as validation of changed source.
