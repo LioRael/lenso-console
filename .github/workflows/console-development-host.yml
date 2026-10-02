@@ -62,6 +62,11 @@ jobs:
         run: |
           npm install --global bun@1.4.2
           test "$(bun --version)" = 1.4.2
+      - name: Check native facility source before compiling
+        working-directory: console
+        run: |
+          python3 .github/scripts/test-development-host-source.py
+          python3 .github/scripts/check-development-host-source.py facility --core ../core --record .artifacts/declared-framework-source.json
       - name: Build Core producer
         working-directory: core
         env:
@@ -78,6 +83,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm service:web-build
+          cargo check --locked --manifest-path packages/console-support/Cargo.toml
           "$CORE_PRODUCER" app build --root examples/app-console --out .artifacts/seed
       - name: Package and verify with no Rust tools on PATH
         working-directory: console
@@ -85,6 +91,7 @@ jobs:
           CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
         run: |
           node tooling/package-development-host.mjs --engine-host "$CORE_PRODUCER" --host-distribution .artifacts/seed --out .artifacts/development-host
+          python3 .github/scripts/check-development-host-source.py runtime --core ../core --seed .artifacts/seed --kit .artifacts/development-host --record .artifacts/native-runtime-sources.json
           git diff --exit-code
           node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
@@ -107,6 +114,8 @@ jobs:
             root_lock_sha256: hash("Cargo.lock"),
             support_lock_sha256: hash("packages/console-support/Cargo.lock"),
             seed_lock_sha256: hash(".artifacts/seed/.lenso/distribution.lock.json"),
+            generated_host_lock_sha256: hash(".artifacts/development-host/build-inputs/generated-host/Cargo.lock"),
+            runtime_sources_sha256: hash(".artifacts/development-host/build-inputs/native-runtime-sources.json"),
             target: manifest.target,
             node: process.version,
             bun: command("bun", ["--version"]),
@@ -141,6 +150,16 @@ jobs:
                 node --import "$consumer_trace" --test "$consumer_test"
             done
           )
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() }}
+        with:
+          name: console-native-build-inputs-${{ matrix.os }}
+          path: |
+            console/.artifacts/declared-framework-source.json
+            console/.artifacts/native-runtime-sources.json
+            console/.artifacts/seed/.lenso/generated-host/
+            console/.artifacts/seed/.lenso/distribution.lock.json
+          include-hidden-files: true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         # Preserve the exact built kit when a consumer fails; publish still
         # requires both verify jobs to succeed.
