@@ -141,6 +141,9 @@ jobs:
             done
           )
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        # Preserve the exact built kit when a consumer fails; publish still
+        # requires both verify jobs to succeed.
+        if: ${{ !cancelled() }}
         with:
           name: console-development-host-${{ matrix.os }}
           path: console/.artifacts/downloads/*
