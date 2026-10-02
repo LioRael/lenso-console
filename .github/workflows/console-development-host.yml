@@ -28,7 +28,6 @@ jobs:
       CORE_REPOSITORY: ${{ inputs.engine_repository || 'LioRael/lenso' }}
       # Inject the final owner-qualified SHA before any candidate push.
       CORE_REVISION: ${{ inputs.engine_revision || 'QUALIFIED_CORE_SHA_PENDING' }}
-      CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +66,7 @@ jobs:
         working-directory: core
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/console-core-producer
+          CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
         run: |
           cargo build --locked --release -p lenso-engine-host
           "$CORE_PRODUCER" --engine-host-info
@@ -74,12 +74,15 @@ jobs:
         working-directory: console
         env:
           CARGO_TARGET_DIR: ${{ runner.temp }}/console-native-seed
+          CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
         run: |
           pnpm install --frozen-lockfile
           pnpm service:web-build
           "$CORE_PRODUCER" app build --root examples/app-console --out .artifacts/seed
       - name: Package and verify with no Rust tools on PATH
         working-directory: console
+        env:
+          CORE_PRODUCER: ${{ runner.temp }}/console-core-producer/release/lenso-engine-host
         run: |
           node tooling/package-development-host.mjs --engine-host "$CORE_PRODUCER" --host-distribution .artifacts/seed --out .artifacts/development-host
           LENSO_CONSOLE_DEV_KIT="$PWD/.artifacts/development-host" node --test tooling/distribution/development-host.test.mjs
