@@ -317,15 +317,16 @@ export const agentQuickPanelStyles = stylex.create({
     lineHeight: "normal",
     margin: 0,
   },
+  hiddenTrigger: { opacity: 0, pointerEvents: "none" },
   historyTrigger: {
-    opacity: { default: 1, "[data-open]": 0 },
+    opacity: 1,
     position: "fixed",
     right: { default: "128px", "@media (max-width: 720px)": "56px" },
     bottom: "16px",
     zIndex: 80,
   },
   trigger: {
-    opacity: { default: 1, "[data-open]": 0 },
+    opacity: 1,
     bottom: "16px",
     right: "16px",
     position: "fixed",

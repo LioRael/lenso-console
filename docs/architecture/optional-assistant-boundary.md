@@ -15,7 +15,7 @@ This is local implementation for review, without remote CI, landing or publicati
 - `@lenso/console` staging contains only the Console Host and core Web files.
   Console has no default Agent connection and does not resolve/download/start Agent.
 - `package-agent.mjs --native-only` stages the checksum-pinned independent
-  `@lenso/agent-native` executable without Console/Web files. Existing combined
+  `@lenso/agent-native` dispatcher plus matching CLI/ACP executables without Console/Web files. Existing combined
   distribution remains available.
 - **Assistant is now an optional native Plugin and independently built UI package.**
   `plugins/assistant` provides `lenso.ui.global-contribution@1`. Console Shell
@@ -301,3 +301,33 @@ native App/adapter strict Clippy, Agent Host/Web strict Clippy and the CI-pinned
 ignored); its filesystem watcher timed out in the macOS sandbox and then passed
 when rerun outside it. SQLite Session library tests passed all 14. These local
 results do not substitute for the final SHA remote candidate gate.
+
+## Final independent review follow-up
+
+Independent Codex AI review of Console `28e522c` / Agent `c51c716` identified
+missing CLI/ACP companion binaries in the native-only distribution. Native staging
+now verifies and installs all three matching release assets in the same bin
+directory. `node scripts/distribution/smoke-agent-native.mjs <prepared-output>
+[evidence.json]` packs and installs actual npm archives offline into an empty
+workspace and verifies all three real release versions plus dispatcher `doctor
+--json`, `run --help` and `acp --version`, with only Node on PATH and an isolated
+Home. Source fixture tests verify the package shape; they are not real-binary
+consumption evidence. No Web or Console assets enter the native-only package.
+
+The first exact candidate CI exposed unsupported data-open StyleX opacity typing;
+launcher visibility now uses an explicit typed hidden state, preserving keyboard
+exclusion while open. Agent's CI nightly also deprecated `fetch_update`; checked
+CAS allocation preserves bounded request identities on both supported stable and
+nightly. Workspace testing exposed the new linked run-boundary Slot missing from
+Dialogue's Catalog; Dialogue and Foundation now admit this optional inventory
+Slot without adding a default Plugin instance. Their existing composition tests
+continue to assert the selected inventory.
+
+The user explicitly authorized revised candidate pushes and independent Codex AI
+review in place of Delta. No main promotion, publication or deployment is authorized.
+
+Real v0.1.13 native npm consumption passed with all six commands exiting zero:
+three executable version checks and dispatcher doctor/run-help/ACP. Evidence:
+`/tmp/lenso-native-gate2-consumption.json`. Full distribution source tests passed
+14 with one pre-existing skip. Full Console typecheck, lint and 23 floating-panel
+browser cases passed; Vitest reported a teardown timeout but exited zero.
