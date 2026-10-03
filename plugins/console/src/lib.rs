@@ -368,11 +368,17 @@ impl Lifecycle for ConsolePlugin {
         config.validate().map_err(plugin_failure)?;
         if let Some(agent) = &config.console_agent {
             agent
-                .require_ready_at(if self.config.assistant_access.is_some() {
-                    "health/ready"
-                } else {
-                    "bootstrap"
-                })
+                .require_ready_at(
+                    if self.config.assistant_access.is_some() {
+                        "health/ready"
+                    } else {
+                        "bootstrap"
+                    },
+                    self.config
+                        .assistant_access
+                        .as_ref()
+                        .is_some_and(|policy| policy.enabled),
+                )
                 .await
                 .map_err(plugin_failure)?;
         }
@@ -1355,10 +1361,14 @@ impl AppAgentAdapter {
     }
 
     async fn require_ready(&self) -> anyhow::Result<()> {
-        self.require_ready_at("bootstrap").await
+        self.require_ready_at("bootstrap", false).await
     }
 
-    async fn require_ready_at(&self, path: &str) -> anyhow::Result<()> {
+    async fn require_ready_at(
+        &self,
+        path: &str,
+        authenticated_assistant: bool,
+    ) -> anyhow::Result<()> {
         let mut url = self.origin.clone();
         url.set_path(&format!("/api/console/v1/agent/{path}"));
         let mut request = self
@@ -1377,6 +1387,15 @@ impl AppAgentAdapter {
             "Console Agent readiness failed with HTTP {}",
             response.status()
         );
+        if authenticated_assistant {
+            let bytes = response.bytes().await?;
+            let ready: serde_json::Value = serde_json::from_slice(&bytes)
+                .map_err(|_| anyhow::anyhow!("Agent assistant readiness response is invalid"))?;
+            anyhow::ensure!(
+                ready["authenticated_assistant"] == true,
+                "Console member assistants require Agent assertion ingress; configure --assistant-authority"
+            );
+        }
         Ok(())
     }
 }

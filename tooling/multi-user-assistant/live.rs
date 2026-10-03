@@ -209,22 +209,25 @@ fn launch_agent(
     binary: &Path,
     home: &Path,
     address: std::net::SocketAddr,
-    authority: &Path,
+    authority: Option<&Path>,
     scheduling: &Path,
     providers: &Path,
     log: &Path,
 ) -> AgentProcess {
     let output = std::fs::File::create(log).unwrap();
-    AgentProcess(
-        std::process::Command::new(binary)
-            .arg("--listen")
-            .arg(address.to_string())
+    let mut command = std::process::Command::new(binary);
+    command.arg("--listen").arg(address.to_string());
+    if let Some(authority) = authority {
+        command
             .arg("--assistant-authority")
             .arg(authority)
+            .arg("--assistant-providers")
+            .arg(providers);
+    }
+    AgentProcess(
+        command
             .arg("--assistant-scheduling")
             .arg(scheduling)
-            .arg("--assistant-providers")
-            .arg(providers)
             .arg("--allow-tool")
             .arg("ask_user")
             .env("LENSO_AGENT_HOME", home)
@@ -279,6 +282,19 @@ async fn start_console(
     public_key: &str,
     policy: Value,
 ) -> NativeApp {
+    try_start_console(config, address, accounts, passwords, public_key, policy)
+        .await
+        .unwrap()
+}
+
+async fn try_start_console(
+    config: &ConsolePluginConfig,
+    address: std::net::SocketAddr,
+    accounts: &str,
+    passwords: &str,
+    public_key: &str,
+    policy: Value,
+) -> anyhow::Result<NativeApp> {
     let mut host_config = ConsoleAppConfig::from_plugin(config).unwrap();
     host_config.address = address;
     let host = console_host_catalog(&host_config).unwrap();
@@ -300,7 +316,7 @@ async fn start_console(
         console_registry(),
     )
     .await
-    .unwrap()
+    .map_err(|error| anyhow::anyhow!("{error:?}"))
 }
 fn audiences() -> Vec<String> {
     let mut result = vec![
@@ -424,6 +440,116 @@ async fn verify_authentication_burst(client: &reqwest::Client, user: &Login, ori
     }
     println!("eight concurrent authenticated Console session requests succeeded");
 }
+#[allow(clippy::too_many_arguments)] // Real misconfiguration proof shares the existing fixture's immutable Auth and model inputs.
+async fn verify_legacy_misconfiguration(
+    binary: &Path,
+    root: &Path,
+    upstream: &str,
+    key: &str,
+    scheduling: &Path,
+    providers: &Path,
+    client: &reqwest::Client,
+    config: &ConsolePluginConfig,
+    accounts: &str,
+    passwords: &str,
+) {
+    let home = root.join("legacy-agent");
+    model_home(
+        &home,
+        &format!("{upstream}/a/v1"),
+        &root.join("legacy-sessions.sqlite"),
+        key,
+        "SYNTHETIC_PROVIDER_A_KEY",
+    );
+    for (plugin, file) in [
+        ("lenso.agent.session.sqlite", "sessions.toml"),
+        ("lenso.agent.artifact.file", "artifacts.toml"),
+        (
+            "lenso.agent.user-interaction.local",
+            "local-interaction.toml",
+        ),
+    ] {
+        let file = home.join("plugins").join(plugin).join(file);
+        let configuration = std::fs::read_to_string(&file).unwrap();
+        std::fs::write(
+            file,
+            configuration.split("\n[authentication]\n").next().unwrap(),
+        )
+        .unwrap();
+    }
+    let address = unused_address();
+    let origin = format!("http://{address}");
+    let log = root.join("legacy-agent.log");
+    let mut agent = launch_agent(binary, &home, address, None, scheduling, providers, &log);
+    wait_agent(client, &origin, &mut agent, &log).await;
+    let unsigned = client
+        .get(format!("{origin}/api/console/v1/agent/bootstrap"))
+        .bearer_auth(TOKEN)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        unsigned.status(),
+        200,
+        "unsigned local legacy bootstrap remains compatible"
+    );
+    let ready = client
+        .get(format!("{origin}/api/console/v1/agent/health/ready"))
+        .bearer_auth(TOKEN)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(ready.status(), 200);
+    assert_eq!(
+        ready.json::<Value>().await.unwrap()["authenticated_assistant"],
+        false
+    );
+    for path in ["bootstrap", "sessions"] {
+        let status = client
+            .get(format!("{origin}/api/console/v1/agent/{path}"))
+            .bearer_auth(TOKEN)
+            .header("x-lenso-actor-assertion", "e30")
+            .send()
+            .await
+            .unwrap()
+            .status();
+        assert!(
+            status == 401 || status == 403,
+            "legacy ingress ignored signed identity on {path}: {status}"
+        );
+    }
+    let mut legacy_config = config.clone();
+    legacy_config.console_agent_url = origin;
+    let disabled = start_console(
+        &legacy_config,
+        unused_address(),
+        accounts,
+        passwords,
+        key,
+        json!({"enabled":false}),
+    )
+    .await;
+    assert_eq!(
+        disabled.shutdown(Duration::from_secs(3)).await,
+        ShutdownOutcome::Clean
+    );
+    let result = try_start_console(&legacy_config, unused_address(), accounts, passwords, key, json!({"enabled":true,"subjects":["synthetic-allowed-member"],"allow_administrators":false})).await;
+    let error = match result {
+        Err(error) => error.to_string(),
+        Ok(app) => {
+            app.shutdown(Duration::from_secs(3)).await;
+            panic!("explicitly enabled multi-user Console must reject unauthenticated Agent");
+        }
+    };
+    assert!(
+        error.contains("--assistant-authority"),
+        "unexpected startup error: {error}"
+    );
+    drop(agent);
+    println!(
+        "legacy unsigned bootstrap works; signed identity fails closed and enabled multi-user Console rejects legacy Agent"
+    );
+}
 fn session(text: &str) -> String {
     text.lines()
         .filter_map(|line| line.strip_prefix("data:"))
@@ -543,9 +669,10 @@ async fn real_two_login_users_parallel_owned_providers_and_byok() {
         std::fs::write(&providers,provider_config.to_string()).unwrap();
         let agent_address=unused_address(); let agent_origin=format!("http://{agent_address}"); let client=reqwest::Client::new();
         let binary=std::path::PathBuf::from(std::env::var("LENSO_ASSISTANT_AGENT_BINARY").unwrap());
-        let mut agent=launch_agent(&binary,&home_base,agent_address,&authority,&scheduling,&providers,&log); wait_agent(&client,&agent_origin,&mut agent,&log).await;
+        let mut agent=launch_agent(&binary,&home_base,agent_address,Some(&authority),&scheduling,&providers,&log); wait_agent(&client,&agent_origin,&mut agent,&log).await;
         let token_file=root.join("agent-token"); crate::store_agent_control_token(&token_file,TOKEN).unwrap();
         let mut config=ConsolePluginConfig::defaults(); config.web_root=std::env::var("LENSO_ASSISTANT_WEB_ROOT").unwrap_or_else(|_|root.to_str().unwrap().into()); config.agent_home=root.join("console-agent").to_str().unwrap().into(); config.console_agent_url=agent_origin.clone(); config.agent_control_token_file=Some(token_file.to_str().unwrap().into());
+        verify_legacy_misconfiguration(&binary,root,&upstream,&key,&scheduling,&providers,&client,&config,&accounts,&passwords).await;
         let console_address=unused_address(); let origin=format!("http://{console_address}");
         let app=start_console(&config,console_address,&accounts,&passwords,&key,json!({"enabled":false})).await;
         let alice=login(&app,"alice").await; let bob=login(&app,"bob").await; let denied=login(&app,"denied").await;
@@ -554,7 +681,7 @@ async fn real_two_login_users_parallel_owned_providers_and_byok() {
         assert_eq!(app.shutdown(Duration::from_secs(3)).await,ShutdownOutcome::Clean); drop(agent);
         provider_config["users"][json!([ISSUER,alice.subject]).to_string()]=json!(["a"]); provider_config["users"][json!([ISSUER,bob.subject]).to_string()]=json!(["b"]);
         std::fs::write(&providers,provider_config.to_string()).unwrap();
-        let mut agent=launch_agent(&binary,&home_base,agent_address,&authority,&scheduling,&providers,&log); wait_agent(&client,&agent_origin,&mut agent,&log).await;
+        let mut agent=launch_agent(&binary,&home_base,agent_address,Some(&authority),&scheduling,&providers,&log); wait_agent(&client,&agent_origin,&mut agent,&log).await;
         let app=start_console(&config,console_address,&accounts,&passwords,&key,json!({"enabled":true,"subjects":[alice.subject,bob.subject],"allow_administrators":false})).await;
         let denied_session=denied.request(&client,reqwest::Method::GET,format!("{origin}/api/console/v1/session")).send().await.unwrap(); assert_eq!(denied_session.status(),200); let denied_session=denied_session.json::<Value>().await.unwrap(); assert_eq!(denied_session["authenticated"],true); assert_eq!(denied_session["administrator"],false); assert_eq!(denied_session["assistant_enabled"],false);
         for forged in [None,Some("e30")] {let request=client.get(format!("{agent_origin}/api/console/v1/agent/sessions")).bearer_auth(TOKEN);let request=if let Some(actor)=forged{request.header("x-lenso-actor-assertion",actor)}else{request};let status=request.send().await.unwrap().status();assert!(status==401||status==403,"unsigned/forged actor: {status}");}
