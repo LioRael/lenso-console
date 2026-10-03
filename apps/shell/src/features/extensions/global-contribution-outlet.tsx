@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
 import { httpClient, isApiMode } from "../../lib/http-client";
 import { globalUiModules } from "./global-ui-runtime";
@@ -53,8 +53,6 @@ function GlobalSurface({
     signal: AbortSignal;
     location: { segments: never[]; search: string; hash: string };
   }>(ready ? mount : undefined, attempt, globalUiModules);
-  const controller = useMemo(() => new AbortController(), []);
-  useEffect(() => () => controller.abort(), [controller]);
   if (ready && loaded.status === "error") {
     return (
       <ContributionError
@@ -80,7 +78,7 @@ function GlobalSurface({
           {...{
             mount,
             suspended,
-            signal: controller.signal,
+            signal: loaded.signal,
             location: {
               segments: [],
               search: window.location.search,

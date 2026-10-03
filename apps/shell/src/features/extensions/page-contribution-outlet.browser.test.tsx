@@ -7,7 +7,156 @@ import { createRoot } from "react-dom/client";
 import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import type { PageMount } from "./page-contribution-catalog";
 import { PageContributionOutlet } from "./page-contribution-outlet";
+
+// Existing browser coverage loads one owner. This protects factory/state identity,
+// old request completion and retained action/navigation callbacks during a switch.
+test("reuses a page implementation while isolating instance state and retired actions", async () => {
+  const signals: AbortSignal[] = [];
+  const callbacks: (() => void)[] = [];
+  vi.stubGlobal("__lensoInstanceSignals", signals);
+  vi.stubGlobal("__lensoInstanceNavigation", callbacks);
+  const retired = vi.fn();
+  const expired = vi.fn();
+  vi.stubGlobal("__lensoRetiredInstanceCall", retired);
+  window.addEventListener("lenso-session-expired", expired);
+  let finish!: (response: Response) => void;
+  const fetch = vi.fn((url: RequestInfo | URL) => {
+    const path = String(url);
+    if (path.includes("/alpha/") && path.endsWith("/slow")) {
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    }
+    return Promise.resolve(
+      Response.json({
+        message: path.includes("/alpha/")
+          ? "Alpha config and log"
+          : "Beta config and log",
+      })
+    );
+  });
+  const originalFetch = globalThis.fetch;
+  vi.stubGlobal("fetch", (url: RequestInfo | URL, init?: RequestInit) =>
+    String(url).includes("/services/") ? fetch(url) : originalFetch(url, init)
+  );
+  const module = `data:text/javascript,${encodeURIComponent(`
+    export const apiMajor = 1;
+    export function createWorkspace({ react, createElement, services }) {
+      const cache = new Map();
+      return { Page: ({ mount, navigation, signal }) => {
+        const [message, setMessage] = react.useState("Ready " + mount.owner.instance);
+        react.useEffect(() => {
+          globalThis.__lensoInstanceSignals.push(signal);
+          globalThis.__lensoInstanceNavigation.push(() => navigation.go(["details"]));
+        }, [signal]);
+        const invoke = async (operation) => {
+          try {
+            const result = cache.get(operation) || await services.invoke("example", operation, {});
+            cache.set(operation, result);
+            setMessage(result.message);
+          } catch (error) {
+            if (signal.aborted) globalThis.__lensoRetiredInstanceCall();
+            if (!signal.aborted) setMessage(error.message);
+          }
+        };
+        return createElement("section", null,
+          createElement("h1", null, mount.title),
+          createElement("p", null, message),
+          createElement("a", { href: navigation.href(["details"]) }, "Details"),
+          createElement("button", { type: "button", onClick: () => invoke("read") }, "Read config and log"),
+          createElement("button", { type: "button", onClick: () => invoke("slow") }, "Delayed action")
+        );
+      } };
+    }
+  `)}`;
+  const mounts: PageMount[] = ["alpha", "beta"].map((id) => ({
+    apiMajor: 1,
+    id,
+    pageId: "example",
+    module,
+    owner: {
+      instance: `example/${id}`,
+      source: "resolved-plan",
+      trusted: true,
+    },
+    navigation: { items: [], label: id },
+    requirements: [
+      {
+        available: true,
+        capability_id: "example.query@1",
+        descriptor_version: "1.0.0",
+        operations: ["read", "slow"],
+        required: true,
+        service_id: "example",
+        source: "owner",
+      },
+    ],
+    revision: "1",
+    styles: [],
+    subject: { kind: "console" },
+    title: id === "alpha" ? "Alpha instance" : "Beta instance",
+  }));
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(["console-page-catalog"], mounts);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const render = (id: string) =>
+    flushSync(() =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <PageContributionOutlet
+            mountId={id}
+            segments={[]}
+            subject={{ kind: "console" }}
+          />
+        </QueryClientProvider>
+      )
+    );
+  try {
+    window.history.replaceState({}, "", "/workspaces/alpha");
+    render("alpha");
+    await expect
+      .element(page.getByRole("heading", { name: "Alpha instance" }))
+      .toBeVisible();
+    await page.getByRole("button", { name: "Read config and log" }).click();
+    await expect.element(page.getByText("Alpha config and log")).toBeVisible();
+    await page.getByRole("button", { name: "Delayed action" }).click();
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    window.history.replaceState({}, "", "/workspaces/beta");
+    render("beta");
+    expect(container.textContent).not.toContain("Alpha config and log");
+    await expect.element(page.getByText("Ready example/beta")).toBeVisible();
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals.at(-1)?.aborted).toBe(false);
+    callbacks[0]?.();
+    expect(window.location.pathname).toBe("/workspaces/beta");
+    await page.getByRole("button", { name: "Read config and log" }).click();
+    await expect.element(page.getByText("Beta config and log")).toBeVisible();
+    finish(Response.json({ message: "Late Alpha result" }, { status: 401 }));
+    await vi.waitFor(() => expect(retired).toHaveBeenCalledOnce());
+    expect(expired).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    await expect
+      .element(page.getByText("Late Alpha result"))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByText("Beta config and log")).toBeVisible();
+    expect(
+      page.getByRole("link", { name: "Details" }).element().getAttribute("href")
+    ).toBe("/workspaces/beta/details");
+  } finally {
+    root.unmount();
+    client.clear();
+    container.remove();
+    vi.unstubAllGlobals();
+    window.removeEventListener("lenso-session-expired", expired);
+    window.history.replaceState({}, "", "/");
+  }
+});
 
 test("gives a StrictMode contribution a live signal and cancels it on unmount", async () => {
   const signals: AbortSignal[] = [];

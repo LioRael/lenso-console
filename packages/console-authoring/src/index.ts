@@ -27,6 +27,12 @@ export interface PageProps {
   };
   mount: {
     id: string;
+    /** Plugin-declared page identity; several instance mounts may share it. */
+    pageId?: string;
+    /** Content identity of the executable page, independent of its mount. */
+    implementationId?: string;
+    /** Include this in any page-owned cache key. Never cache by pageId alone. */
+    scopeKey?: string;
     title: string;
     subject: Subject;
     owner: { instance: string };

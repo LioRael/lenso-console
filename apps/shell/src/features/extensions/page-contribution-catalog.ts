@@ -5,6 +5,8 @@ import { httpClient, isApiMode } from "../../lib/http-client";
 export type PageMount = {
   apiMajor: 1;
   id: string;
+  pageId?: string;
+  implementationId?: string;
   module: string;
   navigation: {
     items: readonly { label: string; path: readonly string[] }[];
@@ -185,6 +187,15 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       !("revision" in candidate) ||
       typeof candidate.revision !== "string" ||
       !candidate.revision.trim() ||
+      ("pageId" in candidate &&
+        (typeof candidate.pageId !== "string" ||
+          !/^[a-z][a-z0-9._-]{0,63}$/u.test(candidate.pageId))) ||
+      ("implementationId" in candidate &&
+        (typeof candidate.implementationId !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(candidate.implementationId) ||
+          !candidate.module.startsWith(
+            `/api/console/v1/pages/${candidate.id}/assets/${candidate.implementationId}/`
+          ))) ||
       !("requirements" in candidate) ||
       !Array.isArray(candidate.requirements) ||
       !candidate.requirements.every(validRequirement)
@@ -195,6 +206,10 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
     const mount: PageMount = {
       apiMajor: candidate.apiMajor,
       id: candidate.id,
+      ...("pageId" in candidate ? { pageId: candidate.pageId as string } : {}),
+      ...("implementationId" in candidate
+        ? { implementationId: candidate.implementationId as string }
+        : {}),
       module: candidate.module,
       navigation: {
         items: candidate.navigation.items,

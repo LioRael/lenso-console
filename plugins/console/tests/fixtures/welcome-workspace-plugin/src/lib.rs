@@ -2,6 +2,9 @@
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use futures::future::ready;
+use lenso_auth_sdk::{
+    ActorAssertion, ActorProjectionError, FixedClock, TypedActor, realm::RealmAssertionVerifier,
+};
 use lenso_capability_ui_contribution::{
     self as ui, DescribeRequest, DescribeResponse, DescribeResponseAssetsItem,
     DescribeResponseAssetsItemMediaType, DescribeResponseNavigation,
@@ -17,6 +20,15 @@ use lenso_capability_workspace_service::{
     WorkspaceServiceSubscribeInvocationError,
 };
 use lenso_kernel::{InvocationContext, RuntimeFailure};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{cell::RefCell, rc::Rc};
+
+static SLOW_REQUESTS: AtomicUsize = AtomicUsize::new(0);
+
+/// Fixture-only synchronization: the service has entered its pending operation.
+pub fn started_slow_requests() -> usize {
+    SLOW_REQUESTS.load(Ordering::SeqCst)
+}
 
 const SERVICE_ID: &str = "welcome";
 const DOMAIN_CAPABILITY_ID: &str = "lenso.console.welcome@1";
@@ -26,10 +38,20 @@ const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
 
 const MODULE: &str = r#"
 export const apiMajor = 1;
-export const createWorkspace = ({ createElement, react, services }) => {
+export const createWorkspace = ({ createElement, react, services, modules }) => {
   const { useState } = react;
+  const { Button } = modules["@lenso/ui/button"];
   const Page = ({ environment, location, mount, navigation, signal }) => {
     const [message, setMessage] = useState("Service has not been called yet.");
+    const [instanceState, setInstanceState] = useState("Instance state has not been read yet.");
+    const readState = async (operation) => {
+      try {
+        const result = await services.invoke("welcome", operation, { message: "Log from " + mount.owner.instance });
+        setInstanceState(result.label + ": " + result.log.join(", "));
+      } catch (error) {
+        if (!signal.aborted) setInstanceState(error.message);
+      }
+    };
     const invoke = async () => {
       const result = await services.invoke("welcome", "greet", { name: "Console" }, { signal });
       setMessage(result.message);
@@ -42,10 +64,14 @@ export const createWorkspace = ({ createElement, react, services }) => {
       createElement("p", null, "This page is contributed by " + mount.owner.instance + "."),
       createElement("p", null, "Locale: " + environment.locale + " · Theme: " + environment.theme),
       createElement("p", { "data-testid": "welcome-service-result" }, message),
-      createElement("button", {
+      createElement("p", null, instanceState),
+      createElement("div", { className: "welcome-actions" },
+      createElement(Button, { variant: "secondary", onClick: () => readState("read_state") }, "Read instance state"),
+      createElement(Button, { variant: "secondary", onClick: () => readState("append_log") }, "Append instance log"),
+      createElement(Button, { variant: "secondary",
         onClick: location.segments.length ? () => navigation.go([]) : invoke,
         type: "button"
-      }, location.segments.length ? "Back to workspace home" : "Call Workspace service")
+      }, location.segments.length ? "Back to workspace home" : "Call Workspace service"))
     );
   };
   return { Page };
@@ -57,12 +83,65 @@ const STYLES: &str = r"
 .welcome-workspace h1 { font-size: 36px; letter-spacing: -0.04em; margin: 8px 0 16px; }
 .welcome-workspace p { color: var(--lenso-color-text-secondary); line-height: 1.6; }
 .welcome-workspace .welcome-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; }
-.welcome-workspace button { margin-top: 16px; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 ";
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-struct WelcomeWorkspaceConfig {}
+struct WelcomeWorkspaceConfig {
+    #[serde(default = "default_label")]
+    label: String,
+    #[serde(default)]
+    authorization: Option<WelcomeAuthorization>,
+}
+
+fn default_label() -> String {
+    "Welcome".to_owned()
+}
+
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WelcomeAuthorization {
+    issuer: String,
+    public_key: String,
+    subject: String,
+}
+
+struct WelcomeUser(String);
+impl TypedActor for WelcomeUser {
+    fn from_assertion(assertion: &ActorAssertion) -> Result<Self, ActorProjectionError> {
+        if assertion.actor_kind() != "user" {
+            return Err(ActorProjectionError::UnexpectedActorKind {
+                expected: "user".to_owned(),
+                actual: assertion.actor_kind().to_owned(),
+            });
+        }
+        Ok(Self(assertion.subject().to_owned()))
+    }
+}
+
+fn authorized(
+    policy: Option<&WelcomeAuthorization>,
+    context: &InvocationContext,
+    operation: &str,
+) -> bool {
+    let Some(policy) = policy else {
+        return true;
+    };
+    RealmAssertionVerifier::new("workspace", &policy.issuer, &policy.public_key, 300, None)
+        .ok()
+        .and_then(|verifier| {
+            verifier
+                .project_context::<WelcomeUser>(
+                    context,
+                    service::CAPABILITY_ID,
+                    operation,
+                    &FixedClock::new(time::OffsetDateTime::now_utc()),
+                )
+                .ok()
+        })
+        .is_some_and(|actor| actor.0 == policy.subject)
+}
 
 #[lenso::plugin(
     lifecycle,
@@ -73,6 +152,7 @@ struct WelcomeWorkspaceConfig {}
 struct WelcomeWorkspace {
     #[config]
     config: WelcomeWorkspaceConfig,
+    log: Rc<RefCell<Vec<String>>>,
     #[tasks]
     tasks: lenso::ManagedTasks,
 }
@@ -112,12 +192,18 @@ impl WelcomeWorkspace {
                         path: vec!["runtime".to_owned()],
                     },
                 ],
-                label: "Welcome".to_owned(),
+                label: self.config.label.clone(),
             },
             requirements: vec![DescribeResponseRequirementsItem {
                 capability_id: DOMAIN_CAPABILITY_ID.to_owned(),
                 descriptor_version: DOMAIN_DESCRIPTOR_VERSION.to_owned(),
-                operations: vec!["greet".to_owned(), "ticks".to_owned()],
+                operations: vec![
+                    "greet".to_owned(),
+                    "ticks".to_owned(),
+                    "read_state".to_owned(),
+                    "append_log".to_owned(),
+                    "slow".to_owned(),
+                ],
                 required: true,
                 service_id: SERVICE_ID.to_owned(),
                 source: DescribeResponseRequirementsItemSource::Owner,
@@ -128,7 +214,7 @@ impl WelcomeWorkspace {
                 app_id: None,
                 kind: DescribeResponseSubjectKind::Console,
             }),
-            title: "Welcome".to_owned(),
+            title: self.config.label.clone(),
             workspace_id: "welcome".to_owned(),
         }))))
     }
@@ -147,6 +233,21 @@ impl WelcomeWorkspace {
                     DescribeExportsResponseServicesItemOperationsItem {
                         interaction:
                             DescribeExportsResponseServicesItemOperationsItemInteraction::Request,
+                        name: "read_state".to_owned(),
+                    },
+                    DescribeExportsResponseServicesItemOperationsItem {
+                        interaction:
+                            DescribeExportsResponseServicesItemOperationsItemInteraction::Request,
+                        name: "append_log".to_owned(),
+                    },
+                    DescribeExportsResponseServicesItemOperationsItem {
+                        interaction:
+                            DescribeExportsResponseServicesItemOperationsItemInteraction::Request,
+                        name: "slow".to_owned(),
+                    },
+                    DescribeExportsResponseServicesItemOperationsItem {
+                        interaction:
+                            DescribeExportsResponseServicesItemOperationsItemInteraction::Request,
                         name: "greet".to_owned(),
                     },
                     DescribeExportsResponseServicesItemOperationsItem {
@@ -162,10 +263,53 @@ impl WelcomeWorkspace {
 
     fn invoke(
         &self,
-        _context: InvocationContext,
+        context: InvocationContext,
         request: InvokeRequest,
     ) -> lenso_kernel::NativeRequestFuture<WorkspaceServiceInvoke> {
-        let _ = &self.config;
+        if !authorized(
+            self.config.authorization.as_ref(),
+            &context,
+            service::INVOKE_OPERATION,
+        ) {
+            return Box::pin(ready(Ok(Err(InvokeError::Denied))));
+        }
+        if request.operation == "slow" {
+            return Box::pin(async move {
+                SLOW_REQUESTS.fetch_add(1, Ordering::SeqCst);
+                context.cancellation().cancelled().await;
+                Err(RuntimeFailure::Unavailable {
+                    capability: service::CAPABILITY_ID,
+                })
+            });
+        }
+        if matches!(request.operation.as_str(), "read_state" | "append_log")
+            && request.service_id == SERVICE_ID
+        {
+            if request.operation == "append_log" {
+                let value = STANDARD
+                    .decode(&request.body_base64)
+                    .ok()
+                    .and_then(|body| serde_json::from_slice::<serde_json::Value>(&body).ok());
+                let Some(message) = value
+                    .and_then(|value| value["message"].as_str().map(str::to_owned))
+                    .filter(|value| value.len() <= 128)
+                else {
+                    return Box::pin(ready(Ok(Err(InvokeError::CodecMismatch))));
+                };
+                if self.log.borrow().len() >= 32 {
+                    return Box::pin(ready(Ok(Err(InvokeError::ResourceExhausted))));
+                }
+                self.log.borrow_mut().push(message);
+            }
+            let body = serde_json::to_vec(
+                &serde_json::json!({ "label": self.config.label, "log": *self.log.borrow() }),
+            )
+            .expect("fixture state serializes");
+            return Box::pin(ready(Ok(Ok(InvokeResponse {
+                body_base64: STANDARD.encode(body),
+                outcome: InvokeResponseOutcome::Success,
+            }))));
+        }
         Box::pin(ready(Ok(invoke_welcome(request))))
     }
 
@@ -180,6 +324,15 @@ impl WelcomeWorkspace {
             WorkspaceServiceSubscribeInvocationError,
         >,
     > {
+        if !authorized(
+            self.config.authorization.as_ref(),
+            &context,
+            service::SUBSCRIBE_OPERATION,
+        ) {
+            return Box::pin(ready(Err(
+                WorkspaceServiceSubscribeInvocationError::Domain(service::SubscribeError::Denied),
+            )));
+        }
         let count = match decode_subscribe_count(request) {
             Ok(count) => count,
             Err(error) => return Box::pin(ready(Err(error))),
@@ -314,7 +467,11 @@ mod tests {
     #[test]
     fn contribution_is_a_self_contained_workspace_snapshot() {
         let plugin = WelcomeWorkspace {
-            config: WelcomeWorkspaceConfig {},
+            config: WelcomeWorkspaceConfig {
+                label: default_label(),
+                authorization: None,
+            },
+            log: Rc::default(),
             tasks: lenso::ManagedTasks::default(),
         };
         let response = futures::executor::block_on(plugin.describe_contribution(
