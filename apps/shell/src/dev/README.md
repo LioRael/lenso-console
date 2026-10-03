@@ -14,6 +14,8 @@ returns 503. The file must contain a bounded HTTP loopback URL.
 For a standalone Shell, `LENSO_CONSOLE_DEV_HOST` retains its existing behavior.
 Browser API requests still require the existing same-origin authorization;
 the local controller's read-only readiness probe does not grant API access.
+The proxy retains page owner, revision and implementation guards so the selected
+backend can reject a retired mount before dispatch; these headers grant no authority.
 Console page conventions in the development kit retain their current build
 semantics. This integration covers the selected Shell frontend dev process,
 not hot replacement of generated Workspace service Plugins.

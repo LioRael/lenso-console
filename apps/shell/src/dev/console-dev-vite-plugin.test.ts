@@ -188,6 +188,78 @@ describe("Console development middleware", () => {
       true
     );
   });
+  // Instance clients added concurrency guards that the old proxy whitelist lost.
+  // Neither direct Host tests nor backend URL-switch tests catch their removal.
+  test("preserves mount guards when App dev activates a replacement backend", async () => {
+    let writes = 0;
+    const owner = "example/alpha";
+    const createHost = (revision: string, implementation: string) =>
+      createServer((req, res) => {
+        const expected = {
+          "x-lenso-page-owner": owner,
+          "x-lenso-page-revision": revision,
+          "x-lenso-page-implementation": implementation,
+        };
+        // Existing direct clients may omit guards. Losing them at the proxy
+        // would therefore allow a retired request to dispatch as a new one.
+        const changed = Object.entries(expected).some(
+          ([name, value]) => req.headers[name] && req.headers[name] !== value
+        );
+        if (changed) {
+          res.statusCode = 409;
+          res.end("page_mount_changed");
+          return;
+        }
+        writes += 1;
+        res.end("accepted");
+      });
+    const first = await listen(createHost("1", "a".repeat(64)));
+    const second = await listen(createHost("2", "b".repeat(64)));
+    const directory = await mkdtemp(join(tmpdir(), "console-mount-backend-"));
+    temporaryDirectories.add(directory);
+    const backendUrlFile = join(directory, "backend-url");
+    await writeFile(backendUrlFile, `${first}/\n`);
+    const server = await startConsoleDevServer({ backendUrlFile });
+    const submit = (guards: Record<string, string>) =>
+      fetch(
+        `${server.origin}/api/console/v1/pages/alpha/services/orders/invoke/update`,
+        {
+          method: "POST",
+          headers: {
+            origin: server.origin,
+            "content-type": "application/json",
+            ...guards,
+          },
+          body: "{}",
+        }
+      );
+    const current = {
+      "x-lenso-page-owner": owner,
+      "x-lenso-page-revision": "2",
+      "x-lenso-page-implementation": "b".repeat(64),
+    };
+    const initial = await submit({
+      ...current,
+      "x-lenso-page-revision": "1",
+      "x-lenso-page-implementation": "a".repeat(64),
+    });
+    expect(initial.status).toBe(200);
+    await writeFile(backendUrlFile, `${second}/\n`);
+    for (const [name, value] of [
+      ["x-lenso-page-owner", "example/retired"],
+      ["x-lenso-page-revision", "1"],
+      ["x-lenso-page-implementation", "a".repeat(64)],
+    ] as const) {
+      const stale = await submit({ ...current, [name]: value });
+      expect(stale.status).toBe(409);
+      expect(await stale.text()).toBe("page_mount_changed");
+    }
+    expect(writes).toBe(1);
+    const active = await submit(current);
+    expect(active.status).toBe(200);
+    expect(writes).toBe(2);
+  });
+
   test("rejects a privileged request from a non-loopback peer", async () => {
     const server = await startConsoleDevServer({
       hostUrl: "http://127.0.0.1:9",
