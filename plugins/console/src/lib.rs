@@ -1829,14 +1829,14 @@ mod tests {
             match field {
                 "web_root" => config.web_root = "/disk-shell".into(),
                 "agent_control_token_file" => {
-                    config.agent_control_token_file = Some("/token".into())
+                    config.agent_control_token_file = Some("/token".into());
                 }
                 "local_projects" => {
                     config.local_projects = Some(LocalProjectsConfig {
                         binary: "/agent".into(),
                         root: "/projects".into(),
                         template: "/template".into(),
-                    })
+                    });
                 }
                 "trusted_plugin_bundles" => {
                     config
