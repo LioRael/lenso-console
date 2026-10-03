@@ -80,6 +80,8 @@ struct ContributionNavigationItem {
 struct PageMount {
     global: bool,
     id: String,
+    page_id: String,
+    implementation_id: String,
     title: String,
     subject: ContributionSubject,
     api_major: u32,
@@ -152,7 +154,10 @@ impl PageCatalog {
                 .map_err(|error| lenso_kernel::RuntimeFailure::PluginFailure {
                     detail: format!("Global UI contribution describe failed: {error:?}"),
                 })?;
-            global_ids.insert(response.workspace_id.clone());
+            global_ids.insert((
+                provider.provider_instance().to_owned(),
+                response.workspace_id.clone(),
+            ));
             let response =
                 serde_json::from_value(serde_json::to_value(response).map_err(|error| {
                     lenso_kernel::RuntimeFailure::Internal {
@@ -175,7 +180,8 @@ impl PageCatalog {
         })?;
         let mut mounts = catalog.mounts.as_ref().clone();
         for mount in &mut mounts {
-            mount.global = global_ids.contains(&mount.id);
+            mount.global =
+                global_ids.contains(&(mount.owner.instance.clone(), mount.page_id.clone()));
             if mount.global && !matches!(mount.subject, ContributionSubject::Console) {
                 return Err(lenso_kernel::RuntimeFailure::InvalidResolvedPlan {
                     detail: "Global UI contributions require Console subject".to_owned(),
@@ -209,17 +215,17 @@ impl PageCatalog {
         let mut assets = BTreeMap::new();
         let mut ids = BTreeSet::new();
         for (owner, contribution) in contributions {
-            anyhow::ensure!(
-                ids.insert(contribution.workspace_id.clone()),
-                "duplicate Console Workspace id: {}",
-                contribution.workspace_id
-            );
             let (mount, contribution_assets) = snapshot_contribution(
                 owner,
                 contribution,
                 allowed_app_subjects,
                 services.as_deref_mut(),
             )?;
+            anyhow::ensure!(
+                ids.insert(mount.id.clone()),
+                "duplicate Console mount id: {}",
+                mount.id
+            );
             for (key, asset) in contribution_assets {
                 anyhow::ensure!(
                     assets.insert(key, asset).is_none(),
@@ -368,6 +374,39 @@ impl PageCatalog {
                 );
             }
         }
+        if let Some(tail) = request.path.strip_prefix("/api/console/v1/pages/") {
+            let mut parts = tail.split('/');
+            if let (Some(id), Some("services")) = (parts.next(), parts.next()) {
+                let id = crate::http::decode_path(id)?;
+                if let Some(mount) = self.mounts.iter().find(|mount| mount.id == id) {
+                    let changed = [
+                        ("x-lenso-page-owner", mount.owner.instance.as_str()),
+                        ("x-lenso-page-revision", mount.revision.as_str()),
+                        (
+                            "x-lenso-page-implementation",
+                            mount.implementation_id.as_str(),
+                        ),
+                    ]
+                    .iter()
+                    .any(|(name, expected)| {
+                        request
+                            .headers
+                            .get(*name)
+                            .is_some_and(|value| value.to_str().ok() != Some(*expected))
+                    });
+                    if changed {
+                        return Some(
+                            (
+                                StatusCode::CONFLICT,
+                                [(header::CACHE_CONTROL, "no-store")],
+                                Json(serde_json::json!({"code":"page_mount_changed"})),
+                            )
+                                .into_response(),
+                        );
+                    }
+                }
+            }
+        }
         self.services.handle(request).await
     }
 }
@@ -380,12 +419,9 @@ fn snapshot_contribution(
 ) -> anyhow::Result<(PageMount, AssetMap)> {
     let subject = contribution_subject(contribution.subject.as_ref(), allowed_app_subjects)?;
     validate_response(&contribution)?;
+    let mount_id = instance_mount_id(&owner, &contribution.workspace_id, &subject);
     let requirements = if let Some(services) = services {
-        services.bind_mount(
-            &contribution.workspace_id,
-            &owner,
-            &contribution.requirements,
-        )?
+        services.bind_mount(&mount_id, &owner, &contribution.requirements)?
     } else {
         contribution
             .requirements
@@ -403,22 +439,16 @@ fn snapshot_contribution(
         hash_part(&mut hasher, &asset.bytes);
     }
     let digest = hex::encode(hasher.finalize());
-    let asset_base = format!(
-        "/api/console/v1/pages/{}/assets/{digest}",
-        contribution.workspace_id
-    );
+    let asset_base = format!("/api/console/v1/pages/{mount_id}/assets/{digest}");
     let assets = decoded_assets
         .into_iter()
-        .map(|(path, asset)| {
-            (
-                (contribution.workspace_id.clone(), digest.clone(), path),
-                asset,
-            )
-        })
+        .map(|(path, asset)| ((mount_id.clone(), digest.clone(), path), asset))
         .collect();
     let mount = PageMount {
         global: false,
-        id: contribution.workspace_id,
+        id: mount_id,
+        page_id: contribution.workspace_id,
+        implementation_id: digest,
         title: contribution.title,
         subject,
         api_major: 1,
@@ -449,6 +479,28 @@ fn snapshot_contribution(
         requirements,
     };
     Ok((mount, assets))
+}
+
+fn instance_mount_id(owner: &str, page_id: &str, subject: &ContributionSubject) -> String {
+    // Preserve the existing default Console route and its configured permission
+    // scope. Named instances and App subjects always receive an owner-bound ID.
+    if (owner.ends_with("/default") || owner.starts_with("dev.filesystem."))
+        && matches!(subject, ContributionSubject::Console)
+    {
+        return page_id.to_owned();
+    }
+    let mut hasher = Sha256::new();
+    hash_part(&mut hasher, owner.as_bytes());
+    hash_part(&mut hasher, page_id.as_bytes());
+    match subject {
+        ContributionSubject::Console => hash_part(&mut hasher, b"console"),
+        ContributionSubject::App { app_id } => {
+            hash_part(&mut hasher, b"app");
+            hash_part(&mut hasher, app_id.as_bytes());
+        }
+    }
+    let digest = hex::encode(hasher.finalize());
+    format!("{}-{}", &page_id[..page_id.len().min(39)], &digest[..24])
 }
 
 fn decode_assets(contribution: &DescribeResponse) -> anyhow::Result<Vec<(String, Asset)>> {
@@ -837,6 +889,81 @@ mod tests {
             .to_string(),
         )
         .unwrap();
+    }
+
+    // Existing discovery tests have one owner. Prevent repeated page declarations
+    // from colliding, and ensure changing executable content cannot rename a mount.
+    #[test]
+    fn one_implementation_has_independent_stable_instance_mounts() {
+        let root = tempfile::tempdir().unwrap();
+        write_contribution(root.path(), "example", "page.mjs");
+        let response = DescribeResponse {
+            assets: vec![
+                lenso_capability_ui_contribution::DescribeResponseAssetsItem {
+                    content_base64: STANDARD.encode("export const apiMajor = 1;"),
+                    media_type: DescribeResponseAssetsItemMediaType::TextJavascriptCharsetUtf,
+                    path: "page.mjs".to_owned(),
+                },
+            ],
+            module: "page.mjs".to_owned(),
+            navigation: lenso_capability_ui_contribution::DescribeResponseNavigation {
+                label: "Example".to_owned(),
+                items: vec![],
+            },
+            requirements: vec![],
+            revision: "1".to_owned(),
+            styles: vec![],
+            subject: None,
+            title: "Example".to_owned(),
+            workspace_id: "example".to_owned(),
+        };
+        let catalog = PageCatalog::from_contributions(
+            vec![
+                ("plugin/alpha".to_owned(), response.clone()),
+                ("plugin/beta".to_owned(), response.clone()),
+            ],
+            &BTreeSet::new(),
+        )
+        .unwrap();
+        let [alpha, beta] = catalog.mounts.as_slice() else {
+            panic!("expected two mounts")
+        };
+        assert_ne!(alpha.id, beta.id);
+        assert_eq!(alpha.page_id, beta.page_id);
+        assert_eq!(alpha.implementation_id, beta.implementation_id);
+        assert_ne!(alpha.module, beta.module);
+        let mut upgraded = response.clone();
+        upgraded.revision = "2".to_owned();
+        let upgraded = PageCatalog::from_contributions(
+            vec![("plugin/alpha".to_owned(), upgraded)],
+            &BTreeSet::new(),
+        )
+        .unwrap();
+        assert_eq!(upgraded.mounts[0].id, alpha.id);
+        assert_ne!(
+            upgraded.mounts[0].implementation_id,
+            alpha.implementation_id
+        );
+        assert!(
+            PageCatalog::from_contributions(
+                vec![
+                    ("plugin/alpha".to_owned(), response.clone()),
+                    ("plugin/alpha".to_owned(), response)
+                ],
+                &BTreeSet::new()
+            )
+            .is_err()
+        );
+        assert_ne!(
+            instance_mount_id("plugin/alpha", "example", &ContributionSubject::Console),
+            instance_mount_id(
+                "plugin/alpha",
+                "example",
+                &ContributionSubject::App {
+                    app_id: "support".to_owned()
+                }
+            )
+        );
     }
 
     #[test]

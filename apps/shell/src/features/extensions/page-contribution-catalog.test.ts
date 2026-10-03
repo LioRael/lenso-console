@@ -11,6 +11,30 @@ const digest = "a".repeat(64);
 const observeAssets = `/api/console/v1/pages/observe/assets/${digest}`;
 
 describe("parsePageCatalog", () => {
+  it("keeps one implementation identity across two distinct instance mounts", () => {
+    const mounts = ["alpha", "beta"].map((id) => ({
+      ...ownership,
+      apiMajor: 1,
+      id,
+      pageId: "observe",
+      implementationId: digest,
+      owner: { ...ownership.owner, instance: `observe/${id}` },
+      module: `/api/console/v1/pages/${id}/assets/${digest}/page.mjs`,
+      navigation: { items: [], label: id },
+      styles: [],
+      subject: { kind: "console" },
+      title: id,
+    }));
+    expect(
+      parsePageCatalog({ schema: "console.page-catalog/1", mounts })
+    ).toMatchObject(mounts);
+    expect(() =>
+      parsePageCatalog({
+        schema: "console.page-catalog/1",
+        mounts: [{ ...mounts[0], implementationId: "b".repeat(64) }],
+      })
+    ).toThrow("malformed");
+  });
   it("accepts an admitted Console mount", () => {
     expect(
       parsePageCatalog({

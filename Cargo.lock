@@ -2863,6 +2863,7 @@ dependencies = [
  "lenso-auth-oauth-flow-plugin",
  "lenso-auth-oidc-client-plugin",
  "lenso-auth-password-plugin",
+ "lenso-auth-sdk 0.2.4",
  "lenso-auth-web-session-plugin",
  "lenso-capability-access-control",
  "lenso-capability-auth",
@@ -2996,11 +2997,13 @@ dependencies = [
  "base64 0.22.1",
  "futures",
  "lenso",
+ "lenso-auth-sdk 0.2.4",
  "lenso-capability-ui-contribution",
  "lenso-capability-workspace-service",
  "lenso-kernel",
  "serde",
  "serde_json",
+ "time",
 ]
 
 [[package]]
