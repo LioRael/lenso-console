@@ -32,6 +32,7 @@ type State =
 const SessionActions = createContext<{
   subject: string;
   administrator: boolean;
+  assistantEnabled: boolean;
   managementEnabled: boolean;
   humanManagementEnabled: boolean;
   workspaceIds: string[];
@@ -39,6 +40,7 @@ const SessionActions = createContext<{
 }>({
   subject: "local",
   administrator: true,
+  assistantEnabled: true,
   managementEnabled: false,
   humanManagementEnabled: false,
   workspaceIds: [],
@@ -57,6 +59,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [access, setAccess] = useState({
     administrator: true,
+    assistantEnabled: true,
     managementEnabled: false,
     humanManagementEnabled: false,
     workspaceIds: [] as string[],
@@ -161,6 +164,8 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
             setIdentity(nextSubject);
           }
           setAccess({
+            assistantEnabled:
+              "assistant_enabled" in value && value.assistant_enabled === true,
             humanManagementEnabled:
               "human_management_enabled" in value &&
               value.human_management_enabled === true,
@@ -229,6 +234,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
               }
             : {
                 subject: "local",
+                assistantEnabled: access.assistantEnabled,
                 administrator: true,
                 managementEnabled: false,
                 humanManagementEnabled: false,

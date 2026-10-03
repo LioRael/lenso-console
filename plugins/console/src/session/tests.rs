@@ -86,10 +86,11 @@ impl access::AccessControlProvider for Factory {
         _: InvocationContext,
         request: access::CheckPermissionRequest,
     ) -> NativeRequestFuture<access::AccessControl> {
-        assert_eq!(request.permission, "console.operator");
+        assert!(["console.operator", "assistant.use"].contains(&request.permission.as_str()));
         assert_eq!(request.scope.kind, "deployment");
         assert_eq!(request.scope.id, "alpha");
-        let allowed = self.permission.get();
+        let allowed = self.permission.get()
+            && (request.permission != "assistant.use" || request.subject == "alice");
         Box::pin(async move {
             Ok(Ok(access::CheckPermissionResponse {
                 allowed,
@@ -119,7 +120,7 @@ fn context() -> InvocationContext {
 #[allow(clippy::too_many_lines)]
 async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
     tokio::task::LocalSet::new()
-        .run_until(async {
+        .run_until(Box::pin(async {
             let factory = Factory {
                 revoked: Rc::new(Cell::new(false)),
                 unavailable: Rc::new(Cell::new(false)),
@@ -152,7 +153,8 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             .await
             .unwrap();
             let boundary = SessionBoundary {
-                operators_profile: None, access_control: None,
+                assistant_access: None,
+        operators_profile: None, access_control: None,
                 required: true,
                 administrator_subjects: vec!["alice".into(), "bob".into()],
                 member_workspace_ids: vec![],
@@ -203,6 +205,35 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                     StatusCode::FORBIDDEN
                 );
             }
+            // Regression: an assistant grant must admit a member without granting administration;
+            // the old coverage proved only that all members were rejected.
+            let assistant_member = SessionBoundary {
+                assistant_access: Some(AssistantAccessPolicy { enabled: true, subjects: vec!["alice".into()], ..Default::default() }),
+                ..member.clone()
+            };
+            for path in ["/api/console/v1/agent/bootstrap", "/api/console/v1/assistant/settings", "/api/console/v1/agents"] {
+                assert!(assistant_member.prepare(context(), "GET", path, Some(("session", "alice"))).await.is_ok());
+                assert_eq!(assistant_member.prepare(context(), "GET", path, Some(("session", "bob"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
+            }
+            let response = assistant_member.prepare(context(), "GET", "/api/console/v1/session", Some(("session", "alice"))).await.err().unwrap();
+            let session_status: serde_json::Value = serde_json::from_slice(&response.into_body().collect(4096).await.unwrap()).unwrap();
+            assert_eq!(session_status["assistant_enabled"], true);
+            assert_eq!(session_status["administrator"], false);
+            assert_eq!(assistant_member.prepare(context(), "POST", "/api/console/v1/configuration", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
+            let permission_member = SessionBoundary { assistant_access: Some(AssistantAccessPolicy { enabled: true, permission: Some(AssistantPermission { scope_kind: "deployment".into(), scope_id: "alpha".into() }), ..Default::default() }), access_control: Some(access::AccessControlClient::new(app.handle::<access::AccessControl>("caller").unwrap())), ..member.clone() };
+            assert!(permission_member.prepare(context(), "GET", "/api/console/v1/agent/bootstrap", Some(("session", "alice"))).await.is_ok());
+            assert_eq!(permission_member.prepare(context(), "GET", "/api/console/v1/agent/bootstrap", Some(("session", "bob"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
+            let default_deny = SessionBoundary { assistant_access: Some(AssistantAccessPolicy::default()), ..boundary.clone() };
+            assert_eq!(default_deny.prepare(context(), "GET", "/api/console/v1/agent/bootstrap", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
+            let admitted = boundary.prepare(context(), "GET", "/api/console/v1/agent/bootstrap", Some(("session", "alice"))).await.ok().unwrap();
+            assert_eq!(admitted.extension(LEGACY_AGENT_CONTROL), Some(b"1".as_slice()));
+            // A legacy administrator must retain App Agent proxy scope as well.
+            let legacy_app = boundary.prepare(context(), "GET", "/api/console/v1/agents/app/bootstrap", Some(("session", "alice"))).await.ok().unwrap();
+            let mut legacy_request = crate::http::Request::new(::http::Method::GET, "/api/console/v1/agents/app/bootstrap");
+            legacy_request.context = legacy_app;
+            let (_, restricted) = crate::authenticated_agent_headers(&legacy_request).ok().unwrap();
+            assert!(!restricted);
+
             let workspace_member = SessionBoundary { member_workspace_ids: vec!["projects".into()], ..member.clone() };
             let member_context = workspace_member.prepare(context(), "GET", "/api/console/v1/pages", Some(("session", "alice"))).await.ok().unwrap();
             let catalog = (StatusCode::OK, Json(serde_json::json!({"schema":"console.page-catalog/1","mounts":[{"id":"projects"},{"id":"observe"}]}))).into_response();
@@ -212,7 +243,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             assert_eq!(filtered["mounts"], serde_json::json!([{"id":"projects"}]));
             assert!(workspace_member.prepare(context(), "POST", "/api/console/v1/pages/projects/services/projects/invoke/list_projects", Some(("session", "alice"))).await.is_ok());
             assert_eq!(workspace_member.prepare(context(), "GET", "/api/console/v1/pages/observe/services/telemetry/invoke/query", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
-            let operators_boundary=SessionBoundary {operators_profile:Some(OperatorsProfile {deployment:"alpha".into(),issuer:"operators".into(),public_key:ActorAssertionIssuer::from_signing_key("operators",[8;32]).public_key_base64(),max_assertion_ttl_seconds:300,human_interface:false}),access_control:Some(access::AccessControlClient::new(app.handle::<access::AccessControl>("caller").unwrap())),required:true,administrator_subjects:vec![],member_workspace_ids:vec!["projects".into()],auth:boundary.auth.clone()};
+            let operators_boundary=SessionBoundary {assistant_access:None,operators_profile:Some(OperatorsProfile {deployment:"alpha".into(),issuer:"operators".into(),public_key:ActorAssertionIssuer::from_signing_key("operators",[8;32]).public_key_base64(),max_assertion_ttl_seconds:300,human_interface:false}),access_control:Some(access::AccessControlClient::new(app.handle::<access::AccessControl>("caller").unwrap())),required:true,administrator_subjects:vec![],member_workspace_ids:vec!["projects".into()],auth:boundary.auth.clone()};
             assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
             factory.operators.set(true);
             assert!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.is_ok());
@@ -255,13 +286,14 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                 app.shutdown(Duration::from_secs(1)).await,
                 lenso_kernel::ShutdownOutcome::Clean
             );
-        })
+        }))
         .await;
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
     let required = SessionBoundary {
+        assistant_access: None,
         operators_profile: None,
         access_control: None,
         required: true,
@@ -279,6 +311,7 @@ async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
         StatusCode::SERVICE_UNAVAILABLE
     );
     let local = SessionBoundary {
+        assistant_access: None,
         operators_profile: None,
         access_control: None,
         required: false,

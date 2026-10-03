@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { useConsoleSession } from "../../app/console-session";
 import {
   filterAgentSessions,
   getAgentHistoryEmptyLabel,
@@ -124,13 +125,15 @@ export function AgentHistoryItems({
   projectId?: string | undefined;
 }) {
   const navigate = useNavigate();
+  const { subject } = useConsoleSession();
   const { data: sessions = [], isPending: loading } = useQuery({
     queryFn: ({ signal }) =>
-      listAgentSessions(
-        signal,
-        projectId ? { agentId: targetId, projectId } : targetId
-      ),
-    queryKey: ["agent-history", targetId, projectId, refreshKey],
+      listAgentSessions(signal, {
+        agentId: targetId,
+        expectedSubject: subject,
+        ...(projectId ? { projectId } : {}),
+      }),
+    queryKey: ["agent-history", subject, targetId, projectId, refreshKey],
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useConsoleSession } from "../../app/console-session";
 import { useAttachmentDraft, type AgentAttachment } from "./agent-attachments";
@@ -125,7 +125,7 @@ export function useAgentConversation({
   enableTerminal = false,
   initialSessionId,
   onSessionResolved,
-  targetId = "console",
+  targetId: requestedTargetId = "console",
 }: {
   enableTerminal?: boolean;
   initialSessionId?: string | undefined;
@@ -133,6 +133,15 @@ export function useAgentConversation({
   targetId?: AgentTarget;
 } = {}) {
   const { subject } = useConsoleSession();
+  const targetId = useMemo<AgentTarget>(
+    () => ({
+      ...(typeof requestedTargetId === "string"
+        ? { agentId: requestedTargetId }
+        : requestedTargetId),
+      expectedSubject: subject,
+    }),
+    [requestedTargetId, subject]
+  );
   const [sessionId, setSessionId] = useState(initialSessionId);
   const [draft, setDraft] = useAgentDraft(targetId, sessionId);
   const [runtime, setRuntime] = useState<AgentBootstrap>();
@@ -416,14 +425,14 @@ export function useAgentConversation({
       setSessionId(resolvedSessionId);
       try {
         sessionStorage.setItem(
-          `agent-approval:${targetId}:${resolvedSessionId}`,
+          `agent-approval:${agentDraftKey(subject, targetId, resolvedSessionId)}`,
           approvalModeRef.current ?? ""
         );
       } catch {
         /* Storage is optional. */
       }
     },
-    [targetId]
+    [subject, targetId]
   );
 
   const startTurn = useCallback(
@@ -818,7 +827,12 @@ export function useAgentConversation({
     setQueuedPrompts(queuedPromptsRef.current);
   }, []);
 
+  const activityEnabled =
+    runtime !== undefined && runtime.capabilities.activity !== false;
   useEffect(() => {
+    if (!activityEnabled) {
+      return;
+    }
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let wasRunning = false;
@@ -977,7 +991,7 @@ export function useAgentConversation({
       clearTimeout(timer);
       backgroundTurn.current = undefined;
     };
-  }, [targetId, initialSessionId, resolveSession]);
+  }, [targetId, initialSessionId, resolveSession, activityEnabled]);
 
   const answerInteraction = useCallback(
     (answers: AgentInteractionAnswer[]) => {

@@ -71,7 +71,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "label", "origin"],
+        "required": [
+          "id",
+          "label",
+          "origin"
+        ],
         "properties": {
           "id": {
             "type": "string"
@@ -97,7 +101,11 @@
       "description": "Optional local project launcher paths owned by the reference Console Host.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["binary", "root", "template"],
+      "required": [
+        "binary",
+        "root",
+        "template"
+      ],
       "properties": {
         "binary": {
           "type": "string"
@@ -137,7 +145,11 @@
     "operators_profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["deployment", "issuer", "public_key"],
+      "required": [
+        "deployment",
+        "issuer",
+        "public_key"
+      ],
       "properties": {
         "deployment": {
           "type": "string",
@@ -165,6 +177,55 @@
         }
       },
       "description": "Explicit operators realm trust and deployment scope. Requires Auth and Access Control; legacy shared Agent/App proxies remain unavailable."
+    },
+    "assistant_access": {
+      "description": "Independent assistant access. Omitted preserves local/single administrator compatibility. Explicit policy defaults to deny; does not grant Console administration.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "subjects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "allow_administrators": {
+          "type": "boolean",
+          "default": false
+        },
+        "permission": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope_kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scope_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "scope_kind",
+            "scope_id"
+          ]
+        }
+      }
     }
   },
   "required": [

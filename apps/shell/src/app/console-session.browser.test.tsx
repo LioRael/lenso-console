@@ -267,41 +267,61 @@ test("authenticated Console sign-out revokes through Auth and unmounts content",
     .not.toBeInTheDocument();
 });
 
-test("member sessions expose only their configured workspace access", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () =>
-      Response.json({
-        mode: "required",
-        authenticated: true,
-        subject: "member-alice",
-        administrator: false,
-        workspace_ids: ["projects"],
-      })
-    )
-  );
+// Prevents Console administrator status or a missing field from implicitly
+// granting assistant access. Existing workspace tests did not inspect this gate.
+test.each([undefined, false, true])(
+  "member sessions keep assistant access explicit (%s)",
+  async (assistantEnabled) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          mode: "required",
+          authenticated: true,
+          subject: "member-alice",
+          administrator: false,
+          ...(assistantEnabled === undefined
+            ? {}
+            : { assistant_enabled: assistantEnabled }),
+          workspace_ids: ["projects"],
+        })
+      )
+    );
 
-  flushSync(() =>
-    root.render(
-      <ConsoleSession>
-        <Access />
-      </ConsoleSession>
-    )
-  );
-  await expect.element(page.getByText("Member access: projects")).toBeVisible();
-  await expect
-    .element(page.getByText("Administrator access"))
-    .not.toBeInTheDocument();
-});
+    flushSync(() =>
+      root.render(
+        <ConsoleSession>
+          <Access />
+        </ConsoleSession>
+      )
+    );
+    await expect
+      .element(page.getByText("Member access: projects"))
+      .toBeVisible();
+    await expect
+      .element(page.getByText("Administrator access"))
+      .not.toBeInTheDocument();
+    await expect
+      .element(
+        page.getByText(
+          assistantEnabled === true ? "Assistant enabled" : "Assistant denied"
+        )
+      )
+      .toBeVisible();
+  }
+);
 
 function Access() {
-  const { administrator, workspaceIds } = useConsoleSession();
+  const { administrator, assistantEnabled, workspaceIds } = useConsoleSession();
   return (
-    <p>
-      {administrator
-        ? "Administrator access"
-        : `Member access: ${workspaceIds.join(", ")}`}
-    </p>
+    <>
+      <p>
+        {administrator
+          ? "Administrator access"
+          : `Member access: ${workspaceIds.join(", ")}`}
+      </p>
+      <p>{assistantEnabled ? "Assistant enabled" : "Assistant denied"}</p>
+    </>
   );
 }
 

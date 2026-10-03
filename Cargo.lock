@@ -2939,7 +2939,10 @@ version = "0.1.0"
 dependencies = [
  "lenso",
  "lenso-capability-credential-issuer",
+ "lenso-capability-http-endpoint",
  "lenso-capability-password-auth",
+ "lenso-kernel",
+ "serde_json",
 ]
 
 [[package]]

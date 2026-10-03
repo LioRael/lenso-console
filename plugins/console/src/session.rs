@@ -12,10 +12,62 @@ use lenso_kernel::InvocationContext;
 pub(super) struct SessionBoundary {
     pub required: bool,
     pub administrator_subjects: Vec<String>,
+    pub assistant_access: Option<AssistantAccessPolicy>,
     pub member_workspace_ids: Vec<String>,
     pub auth: Option<AuthClient>,
     pub operators_profile: Option<crate::OperatorsProfile>,
     pub access_control: Option<lenso_capability_access_control::AccessControlClient>,
+}
+
+/// Host-owned grants. An explicit policy starts disabled and grants nobody.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssistantAccessPolicy {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub subjects: Vec<String>,
+    /// Role names are read only from authenticated, signed Auth claims.
+    #[serde(default)]
+    pub roles: Vec<String>,
+    #[serde(default)]
+    pub allow_administrators: bool,
+    #[serde(default)]
+    pub permission: Option<AssistantPermission>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AssistantPermission {
+    pub scope_kind: String,
+    pub scope_id: String,
+}
+
+impl AssistantAccessPolicy {
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        if self.subjects.iter().chain(&self.roles).any(|value| {
+            value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+        }) || self
+            .permission
+            .as_ref()
+            .is_some_and(|p| p.scope_kind.is_empty() || p.scope_id.is_empty())
+        {
+            return Err(
+                "Assistant grants require nonempty canonical identities and permission scope"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+}
+
+pub(super) const LEGACY_AGENT_CONTROL: &str = "lenso.console.legacy-agent-control";
+
+pub(super) fn assistant_path(path: &str) -> bool {
+    path == "/api/console/v1/agents"
+        || path.starts_with("/api/console/v1/agents/")
+        || path == "/api/console/v1/assistant/settings"
+        || path.starts_with("/api/console/v1/agent/")
 }
 
 struct OperatorSubject(String);
@@ -65,8 +117,19 @@ impl SessionBoundary {
             ));
         }
         if !self.required {
+            if self.assistant_access.is_some() && assistant_path(path) {
+                return Err(problem(StatusCode::FORBIDDEN, "assistant_access_required"));
+            }
             return if session_request {
-                Err(session_response("local", None, true, &[], false, false))
+                Err(session_response(
+                    "local",
+                    None,
+                    true,
+                    &[],
+                    false,
+                    false,
+                    self.assistant_access.is_none(),
+                ))
             } else {
                 Ok(context)
             };
@@ -109,6 +172,7 @@ impl SessionBoundary {
                 .await
         } else {
             self.prepare_legacy(context, &assertion, method, path, session_request)
+                .await
         }
     }
 
@@ -174,6 +238,7 @@ impl SessionBoundary {
                 &self.member_workspace_ids,
                 true,
                 profile.human_interface,
+                false,
             ));
         }
         self.require_operator_path(method, path, profile.human_interface)?;
@@ -224,7 +289,7 @@ impl SessionBoundary {
         Ok(())
     }
 
-    fn prepare_legacy(
+    async fn prepare_legacy(
         &self,
         context: InvocationContext,
         assertion: &ActorAssertion,
@@ -236,8 +301,31 @@ impl SessionBoundary {
             .administrator_subjects
             .iter()
             .any(|subject| subject == assertion.subject());
+        let assistant_enabled = if session_request || assistant_path(path) {
+            self.assistant_allowed(&context, assertion, administrator)
+                .await?
+        } else {
+            false
+        };
+        if assistant_path(path) {
+            if !assistant_enabled {
+                return Err(problem(StatusCode::FORBIDDEN, "assistant_access_required"));
+            }
+            let context = if self.assistant_access.is_none() && administrator {
+                context
+                    .with_extension(LEGACY_AGENT_CONTROL, b"1".to_vec())
+                    .map_err(|_| {
+                        problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context")
+                    })?
+            } else {
+                context
+            };
+            return assertion
+                .attach(context)
+                .map_err(|_| problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context"));
+        }
         if session_request {
-            return if administrator || !self.member_workspace_ids.is_empty() {
+            return if administrator || assistant_enabled || !self.member_workspace_ids.is_empty() {
                 Err(session_response(
                     "required",
                     Some(assertion.subject()),
@@ -245,6 +333,7 @@ impl SessionBoundary {
                     &self.member_workspace_ids,
                     false,
                     false,
+                    assistant_enabled,
                 ))
             } else {
                 Err(problem(StatusCode::FORBIDDEN, "console_access_required"))
@@ -269,6 +358,68 @@ impl SessionBoundary {
             .attach(context)
             .map_err(|_| problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context"))
     }
+    async fn assistant_allowed(
+        &self,
+        context: &InvocationContext,
+        assertion: &ActorAssertion,
+        administrator: bool,
+    ) -> Result<bool, Box<Response>> {
+        let Some(policy) = &self.assistant_access else {
+            return Ok(administrator);
+        };
+        if !policy.enabled {
+            return Ok(false);
+        }
+        if policy
+            .subjects
+            .iter()
+            .any(|subject| subject == assertion.subject())
+            || (policy.allow_administrators && administrator)
+        {
+            return Ok(true);
+        }
+        let wire = assertion.to_wire();
+        if wire
+            .claims
+            .as_ref()
+            .and_then(|claims| claims.get("roles"))
+            .and_then(serde_json::Value::as_array)
+            .is_some_and(|roles| {
+                roles
+                    .iter()
+                    .filter_map(serde_json::Value::as_str)
+                    .any(|role| policy.roles.iter().any(|allowed| allowed == role))
+            })
+        {
+            return Ok(true);
+        }
+        let Some(permission) = &policy.permission else {
+            return Ok(false);
+        };
+        let access = self
+            .access_control
+            .as_ref()
+            .ok_or_else(|| problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable"))?;
+        let context = assertion
+            .attach(context.clone())
+            .map_err(|_| problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context"))?;
+        let result = access
+            .check_permission_with_context(
+                context,
+                lenso_capability_access_control::CheckPermissionRequest {
+                    subject: assertion.subject().to_owned(),
+                    scope: lenso_capability_access_control::CheckPermissionRequestScope {
+                        kind: permission.scope_kind.clone(),
+                        id: permission.scope_id.clone(),
+                    },
+                    permission: "assistant.use".into(),
+                },
+            )
+            .await
+            .map_err(|_| problem(StatusCode::SERVICE_UNAVAILABLE, "authorization_unavailable"))?;
+        Ok(result.allowed)
+    }
+
     pub async fn filter_catalog(
         &self,
         context: &InvocationContext,
@@ -317,6 +468,8 @@ impl SessionBoundary {
     }
 }
 
+// These independent capabilities retain the existing session wire contract.
+#[allow(clippy::fn_params_excessive_bools)]
 fn session_response(
     mode: &str,
     subject: Option<&str>,
@@ -324,23 +477,30 @@ fn session_response(
     workspace_ids: &[String],
     management_enabled: bool,
     human_management_enabled: bool,
+    assistant_enabled: bool,
 ) -> Box<Response> {
     Box::new((
         StatusCode::OK,
         [(http::header::CACHE_CONTROL, "no-store")],
-        Json(serde_json::json!({"mode":mode,"authenticated":subject.is_some(),"subject":subject,"administrator":administrator,"workspace_ids":workspace_ids,"management_enabled":management_enabled,"human_management_enabled":human_management_enabled})),
+        Json(serde_json::json!({"mode":mode,"authenticated":subject.is_some(),"subject":subject,"administrator":administrator,"workspace_ids":workspace_ids,"management_enabled":management_enabled,"human_management_enabled":human_management_enabled,"assistant_enabled":assistant_enabled})),
     )
         .into_response())
 }
 
 pub(super) fn problem(status: StatusCode, code: &str) -> Box<Response> {
     let detail = match code {
+        "assistant_access_required" => {
+            "Your account does not have permission to use the assistant."
+        }
         "authentication_required" => "Sign in to continue.",
         "user_session_required" => "A user session is required.",
         "console_access_required" => "Your account does not have access to this Console.",
         "method_not_allowed" => "This endpoint requires GET.",
         "session_changed" => {
             "The signed-in account changed. Refresh the session before continuing."
+        }
+        "assistant_route_unavailable" => {
+            "This assistant operation is not available for user sessions."
         }
         _ => "The Console could not complete the request. Try again later.",
     };

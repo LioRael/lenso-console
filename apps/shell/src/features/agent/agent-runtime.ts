@@ -3,7 +3,9 @@ import { sessionFetch } from "../../lib/session-fetch";
 import type { AgentAttachment } from "./agent-attachments";
 
 export type AgentId = string;
-export type AgentTarget = AgentId | { agentId: AgentId; projectId: string };
+export type AgentTarget =
+  | AgentId
+  | { agentId: AgentId; projectId?: string; expectedSubject?: string };
 export const AGENT_PLUGIN_CONFIGURATION_CAPABILITY =
   "lenso.agent.plugin-configuration@1";
 
@@ -82,6 +84,7 @@ export class AgentTerminalFailedError extends Error {
 export type AgentBootstrap = {
   workspace?: { path: string };
   capabilities: {
+    activity?: boolean;
     cancel: boolean;
     contextSources: boolean;
     edit: boolean;
@@ -139,6 +142,7 @@ export async function listAvailableSkills(
   target: AgentTarget
 ) {
   const response = await sessionFetch(agentApiUrl(target, "skills"), {
+    headers: agentHeaders("application/json", false, target),
     signal,
   });
   if (!response.ok) {
@@ -510,7 +514,7 @@ export async function streamAgentTurn({
         ...(sessionId ? { session_id: sessionId } : {}),
         ...(serviceTier ? { service_tier: serviceTier } : {}),
       }),
-      headers: agentHeaders("text/event-stream", true),
+      headers: agentHeaders("text/event-stream", true, targetId),
       method: "POST",
       signal,
     });
@@ -577,7 +581,7 @@ export async function cancelAgentTurn(
   const response = await sessionFetch(
     agentApiUrl(targetId, `turns/${encodeURIComponent(requestId)}/cancel`),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       method: "POST",
     }
   );
@@ -597,7 +601,7 @@ export async function readPendingAgentInteractions(
       `turns/${encodeURIComponent(requestId)}/interactions`
     ),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );
@@ -635,7 +639,7 @@ export async function answerAgentInteraction({
     ),
     {
       body: JSON.stringify({ answers }),
-      headers: agentHeaders("application/json", true),
+      headers: agentHeaders("application/json", true, targetId),
       method: "POST",
     }
   );
@@ -649,7 +653,7 @@ export async function readAgentBootstrap(
   targetId: AgentTarget = "console"
 ): Promise<AgentBootstrap> {
   const response = await sessionFetch(agentApiUrl(targetId, "bootstrap"), {
-    headers: agentHeaders("application/json", false),
+    headers: agentHeaders("application/json", false, targetId),
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
@@ -663,7 +667,7 @@ export async function readAgentModels(
   targetId: AgentTarget = "console"
 ): Promise<AgentModelCatalog> {
   const response = await sessionFetch(agentApiUrl(targetId, "models"), {
-    headers: agentHeaders("application/json", false),
+    headers: agentHeaders("application/json", false, targetId),
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
@@ -679,7 +683,7 @@ export async function readAgentContextSources(
   const response = await sessionFetch(
     agentApiUrl(targetId, "context-sources"),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );
@@ -703,7 +707,7 @@ export async function readAgentTerminalCatalog(
   const response = await sessionFetch(
     agentApiUrl(targetId, "terminal/commands"),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );
@@ -739,7 +743,7 @@ export async function streamAgentTerminal({
       agentApiUrl(targetId, "terminal/executions"),
       {
         body: JSON.stringify({ commandLine, requestId }),
-        headers: agentHeaders("text/event-stream", true),
+        headers: agentHeaders("text/event-stream", true, targetId),
         method: "POST",
         signal,
       }
@@ -810,7 +814,10 @@ export async function cancelAgentTerminal(
       targetId,
       `terminal/executions/${encodeURIComponent(requestId)}/cancel`
     ),
-    { headers: agentHeaders("application/json", false), method: "POST" }
+    {
+      headers: agentHeaders("application/json", false, targetId),
+      method: "POST",
+    }
   );
   if (!response.ok) {
     throw new Error(await responseError(response));
@@ -822,7 +829,7 @@ export async function readAgentTasks(
   targetId: AgentTarget = "console"
 ): Promise<AgentTask[]> {
   const response = await sessionFetch(agentApiUrl(targetId, "tasks"), {
-    headers: agentHeaders("application/json", false),
+    headers: agentHeaders("application/json", false, targetId),
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
@@ -841,7 +848,10 @@ export async function compactAgentSession(
 ): Promise<void> {
   const response = await sessionFetch(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/compact`),
-    { headers: agentHeaders("application/json", false), method: "POST" }
+    {
+      headers: agentHeaders("application/json", false, targetId),
+      method: "POST",
+    }
   );
   if (!response.ok) {
     throw new Error(await responseError(response));
@@ -863,7 +873,7 @@ export async function renameAgentSession({
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}`),
     {
       body: JSON.stringify({ expectedTitleRevision, title }),
-      headers: agentHeaders("application/json", true),
+      headers: agentHeaders("application/json", true, targetId),
       method: "PATCH",
     }
   );
@@ -888,7 +898,7 @@ export async function selectAgentProfile(
     agentApiUrl(targetId, "control/profile"),
     {
       body: JSON.stringify({ profile: profile ?? null }),
-      headers: agentHeaders("application/json", true),
+      headers: agentHeaders("application/json", true, targetId),
       method: "POST",
     }
   );
@@ -911,7 +921,7 @@ export async function importAgentCodingProfiles(
   const [configurationResponse, inventoryResponse] = await Promise.all(
     ["control/plugins", "plugins"].map((path) =>
       sessionFetch(agentApiUrl(targetId, path), {
-        headers: agentHeaders("application/json", false),
+        headers: agentHeaders("application/json", false, targetId),
       })
     )
   );
@@ -944,7 +954,7 @@ export async function importAgentCodingProfiles(
         expectedRevision: configuration.revision,
         expectedStreamId: inventory.streamId,
       }),
-      headers: agentHeaders("application/json", true),
+      headers: agentHeaders("application/json", true, targetId),
       method: "POST",
     }
   );
@@ -969,7 +979,7 @@ export async function readAgentToolPolicy(
   const response = await sessionFetch(
     agentApiUrl(targetId, "control/tool-policy"),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );
@@ -992,7 +1002,7 @@ export async function updateAgentToolPolicy({
     agentApiUrl(targetId, "control/tool-policy"),
     {
       body: JSON.stringify({ allowed, expectedRevision }),
-      headers: agentHeaders("application/json", true),
+      headers: agentHeaders("application/json", true, targetId),
       method: "PUT",
     }
   );
@@ -1007,7 +1017,7 @@ export async function listAgentSessions(
   targetId: AgentTarget = "console"
 ): Promise<AgentSessionSummary[]> {
   const response = await sessionFetch(agentApiUrl(targetId, "sessions"), {
-    headers: agentHeaders("application/json", false),
+    headers: agentHeaders("application/json", false, targetId),
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
@@ -1028,7 +1038,7 @@ export async function readAgentSession(
   const response = await sessionFetch(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}`),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );
@@ -1049,7 +1059,7 @@ export async function readAgentTrajectory(
       `sessions/${encodeURIComponent(sessionId)}/trajectory`
     ),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );
@@ -1362,10 +1372,15 @@ export function decodeAgentStreamEvent(data: string): AgentStreamEvent {
 }
 
 export async function listAgents(
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  expectedSubject?: string
 ): Promise<AgentIdentity[]> {
   const response = await sessionFetch(consoleApiUrl("api/console/v1/agents"), {
-    headers: agentHeaders("application/json", false),
+    headers: agentHeaders(
+      "application/json",
+      false,
+      expectedSubject ? { agentId: "console", expectedSubject } : "console"
+    ),
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
@@ -1381,7 +1396,7 @@ export async function listAgents(
 export function agentApiUrl(target: AgentTarget, path: string) {
   const agentId = typeof target === "string" ? target : target.agentId;
   const projectPath =
-    typeof target === "string"
+    typeof target === "string" || !target.projectId
       ? ""
       : `/projects/${encodeURIComponent(target.projectId)}`;
   const targetPath =
@@ -1421,8 +1436,17 @@ function agentIdentity(value: unknown): AgentIdentity {
   return { capabilities, id, label, role };
 }
 
-export function agentHeaders(accept: string, json: boolean) {
+export function agentHeaders(
+  accept: string,
+  json: boolean,
+  target?: AgentTarget
+) {
   const headers = new Headers({ Accept: accept });
+  // A stale UI may assert which login it expected; only the server authenticates
+  // the actual actor. This header never becomes an ownership claim.
+  if (target && typeof target !== "string" && target.expectedSubject) {
+    headers.set("x-lenso-expected-subject", target.expectedSubject);
+  }
   if (json) {
     headers.set("Content-Type", "application/json");
   }
@@ -1478,6 +1502,8 @@ function agentBootstrap(value: unknown): AgentBootstrap {
     "Agent bootstrap capabilities"
   );
   if (
+    (capabilities.activity !== undefined &&
+      typeof capabilities.activity !== "boolean") ||
     typeof capabilities.cancel !== "boolean" ||
     typeof capabilities.edit !== "boolean" ||
     typeof capabilities.sessionList !== "boolean" ||
@@ -1499,6 +1525,7 @@ function agentBootstrap(value: unknown): AgentBootstrap {
   }
   return {
     capabilities: {
+      activity: capabilities.activity !== false,
       cancel: capabilities.cancel,
       contextSources: capabilities.contextSources === true,
       edit: capabilities.edit,
@@ -2159,6 +2186,7 @@ export async function readAgentActivity(
   signal: AbortSignal
 ): Promise<AgentActivity | undefined> {
   const response = await sessionFetch(agentApiUrl(target, "activity"), {
+    headers: agentHeaders("application/json", false, target),
     signal,
   });
   if (response.status === 404) {
@@ -2214,7 +2242,7 @@ export async function forkAgentSession(
     agentApiUrl(targetId, `sessions/${encodeURIComponent(sessionId)}/fork`),
     {
       method: "POST",
-      headers: agentHeaders("application/json", true),
+      headers: agentHeaders("application/json", true, targetId),
       body: JSON.stringify({ turnId, operationId }),
     }
   );

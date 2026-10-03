@@ -26,6 +26,9 @@ use std::{
 };
 const MAX_AGENT_REQUEST_BYTES: usize = 12 * 1024 * 1024;
 const CONSOLE_REQUEST_ADMISSION: RequestAdmissionPlan = RequestAdmissionPlan::new(64, 16);
+// Concurrent browser reads must wait for authentication instead of losing their
+// session at the default zero-length mailbox. Keep Auth's single writer permit.
+const CONSOLE_AUTH_ADMISSION: RequestAdmissionPlan = RequestAdmissionPlan::new(64, 1);
 /// Stores one launcher-owned Agent control token outside the Resolved App Plan.
 pub fn store_agent_control_token(path: &Path, token: &str) -> anyhow::Result<()> {
     use std::io::Write as _;
@@ -238,7 +241,8 @@ fn console_host_catalog(config: &ConsoleAppConfig) -> anyhow::Result<HostCatalog
             PluginInstanceId::new("lenso.console.web", "default"),
             lenso_capability_auth::CAPABILITY_ID,
             "identity",
-        ),
+        )
+        .with_admission(CONSOLE_AUTH_ADMISSION),
         HostBinding::new(ingress, stream_endpoint::CAPABILITY_ID, "console")
             .with_admission(CONSOLE_REQUEST_ADMISSION),
     ];
@@ -444,3 +448,7 @@ pub async fn serve_host(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../../tooling/multi-user-assistant/live.rs"]
+mod assistant_multi_user_live;
