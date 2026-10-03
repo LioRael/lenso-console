@@ -46,5 +46,8 @@ jobs:
       - name: Run quality gates
         run: pnpm check
       - name: Check production Console for Workers Wasm
-        run: >-
-          cargo check --locked --manifest-path tooling/fixtures/console-wasm/Cargo.toml --lib --target wasm32-unknown-unknown
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/console-wasm-activation
+        run: |
+          cargo build --locked --manifest-path tooling/fixtures/console-wasm/Cargo.toml --lib --target wasm32-unknown-unknown
+          node tooling/fixtures/console-wasm/activation.mjs "$CARGO_TARGET_DIR/wasm32-unknown-unknown/debug/lenso_console_wasm_check.wasm"

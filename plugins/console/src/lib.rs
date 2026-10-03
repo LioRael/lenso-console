@@ -1817,6 +1817,29 @@ mod tests {
     use super::*;
     use axum::{Json as AxumJson, Router, routing::get};
 
+    #[test]
+    fn native_runtime_paths_keep_absolute_validation() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        let mut config = ConsolePluginConfig::defaults();
+        config.web_root = root.path().to_str().unwrap().into();
+        let projected = ConsoleConfig::from_plugin(&config).unwrap();
+        projected.validate().unwrap();
+        for field in [
+            "agent_home",
+            "managed_app_root",
+            "agent_configuration_store",
+        ] {
+            let mut invalid = projected.clone();
+            match field {
+                "agent_home" => invalid.agent_home = "relative".into(),
+                "managed_app_root" => invalid.managed_app_root = "relative".into(),
+                _ => invalid.agent_configuration_store = "relative".into(),
+            }
+            assert!(invalid.validate().is_err(), "accepted relative {field}");
+        }
+    }
+
     // Prevent Wasm activation from silently accepting paths/tokens that require
     // an OS. Native-only validation never exercised the portable boundary.
     #[test]
