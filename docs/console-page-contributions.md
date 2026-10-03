@@ -158,7 +158,8 @@ scope; two default owners declaring the same short ID still fail admission.
 The browser caches executable imports by content identity and entry path only.
 It calls `createWorkspace` separately for each mount and recreates its Provider,
 service client and cancellation scope when owner, subject, revision, assets or
-requirements change. Keep mutable state and caches inside that factory/Provider,
+requirements change, or the authenticated Console session subject changes.
+Keep mutable state and caches inside that factory/Provider,
 or include `mount.scopeKey` in a page-owned cache key. Module globals are shared
 code and must not hold instance data. Native pages share a browser realm; this
 does not sandbox untrusted JavaScript.
@@ -169,6 +170,8 @@ cancels idle stream readers and disables retained navigation callbacks. Services
 send exact owner, revision and implementation headers; the catalog rejects
 mismatches before dispatch. Existing direct clients may omit these guards; they
 still use the mount's service binding and authorization.
+The page client also captures the session's expected subject, using the existing
+session precondition to reject calls after another login replaces the cookie.
 The server still authenticates each request and leaves domain authorization with
 the owning Plugin's existing Auth realm/audience boundary. These headers and
 handoff payloads never grant permissions.

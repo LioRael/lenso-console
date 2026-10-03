@@ -36,7 +36,10 @@ export function loadPageImplementation(mount: PageMount): Promise<unknown> {
   return pending;
 }
 
-export function pageMountScopeKey(mount: PageMount): string {
+export function pageMountScopeKey(
+  mount: PageMount,
+  expectedSubject?: string
+): string {
   return JSON.stringify([
     mount.id,
     mount.owner.instance,
@@ -44,5 +47,6 @@ export function pageMountScopeKey(mount: PageMount): string {
     mount.revision,
     mount.implementationId ?? mount.module,
     mount.requirements,
+    expectedSubject,
   ]);
 }

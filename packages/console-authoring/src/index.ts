@@ -31,7 +31,7 @@ export interface PageProps {
     pageId?: string;
     /** Content identity of the executable page, independent of its mount. */
     implementationId?: string;
-    /** Include this in any page-owned cache key. Never cache by pageId alone. */
+    /** Mount/session cache namespace. Never cache by pageId alone. */
     scopeKey?: string;
     title: string;
     subject: Subject;

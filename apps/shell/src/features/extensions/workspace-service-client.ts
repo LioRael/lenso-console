@@ -36,7 +36,8 @@ export class WorkspaceServiceDomainError extends WorkspaceServiceError {
 
 export function createWorkspaceServices(
   mount: PageMount,
-  lifetime?: AbortSignal
+  lifetime?: AbortSignal,
+  expectedSubject?: string
 ): WorkspaceServices {
   const requestSignal = (signal?: AbortSignal) => {
     const signals = [lifetime, signal].filter(
@@ -50,6 +51,7 @@ export function createWorkspaceServices(
     "content-type": "application/json",
     "x-lenso-page-owner": mount.owner.instance,
     "x-lenso-page-revision": mount.revision,
+    ...(expectedSubject ? { "x-lenso-expected-subject": expectedSubject } : {}),
     ...(mount.implementationId
       ? { "x-lenso-page-implementation": mount.implementationId }
       : {}),

@@ -10,9 +10,22 @@ import { page } from "vitest/browser";
 import type { PageMount } from "./page-contribution-catalog";
 import { PageContributionOutlet } from "./page-contribution-outlet";
 
+const sessionScope = vi.hoisted(() => ({ subject: "local" }));
+vi.mock(import("../../app/console-session"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useConsoleSession: () => ({
+      ...actual.useConsoleSession(),
+      subject: sessionScope.subject,
+    }),
+  };
+});
+
 // Existing browser coverage loads one owner. This protects factory/state identity,
 // old request completion and retained action/navigation callbacks during a switch.
 test("reuses a page implementation while isolating instance state and retired actions", async () => {
+  sessionScope.subject = "alice";
   const signals: AbortSignal[] = [];
   const callbacks: (() => void)[] = [];
   vi.stubGlobal("__lensoInstanceSignals", signals);
@@ -22,9 +35,9 @@ test("reuses a page implementation while isolating instance state and retired ac
   vi.stubGlobal("__lensoRetiredInstanceCall", retired);
   window.addEventListener("lenso-session-expired", expired);
   let finish!: (response: Response) => void;
-  const fetch = vi.fn((url: RequestInfo | URL) => {
+  const fetch = vi.fn((url: RequestInfo | URL, init?: RequestInit) => {
     const path = String(url);
-    if (path.includes("/alpha/") && path.endsWith("/slow")) {
+    if (path.endsWith("/slow")) {
       return new Promise<Response>((resolve) => {
         finish = resolve;
       });
@@ -33,13 +46,17 @@ test("reuses a page implementation while isolating instance state and retired ac
       Response.json({
         message: path.includes("/alpha/")
           ? "Alpha config and log"
-          : "Beta config and log",
+          : new Headers(init?.headers).get("x-lenso-expected-subject") === "bob"
+            ? "Bob config and log"
+            : "Beta config and log",
       })
     );
   });
   const originalFetch = globalThis.fetch;
   vi.stubGlobal("fetch", (url: RequestInfo | URL, init?: RequestInit) =>
-    String(url).includes("/services/") ? fetch(url) : originalFetch(url, init)
+    String(url).includes("/services/")
+      ? fetch(url, init)
+      : originalFetch(url, init)
   );
   const module = `data:text/javascript,${encodeURIComponent(`
     export const apiMajor = 1;
@@ -148,7 +165,36 @@ test("reuses a page implementation while isolating instance state and retired ac
     expect(
       page.getByRole("link", { name: "Details" }).element().getAttribute("href")
     ).toBe("/workspaces/beta/details");
+    // The mount/catalog are unchanged: only the authenticated session changes.
+    // Existing mount-switch coverage cannot catch an Alice factory reused for Bob.
+    await page.getByRole("button", { name: "Delayed action" }).click();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(4));
+    const aliceSignal = signals.at(-1);
+    sessionScope.subject = "bob";
+    render("beta");
+    expect(container.textContent).not.toContain("Beta config and log");
+    await expect.element(page.getByText("Ready example/beta")).toBeVisible();
+    expect(aliceSignal?.aborted).toBe(true);
+    await page.getByRole("button", { name: "Read config and log" }).click();
+    await expect.element(page.getByText("Bob config and log")).toBeVisible();
+    finish(Response.json({ message: "Late Alice result" }, { status: 401 }));
+    await vi.waitFor(() => expect(retired).toHaveBeenCalledTimes(2));
+    expect(expired).not.toHaveBeenCalled();
+    expect(
+      new Headers(fetch.mock.calls[2]?.[1]?.headers).get(
+        "x-lenso-expected-subject"
+      )
+    ).toBe("alice");
+    expect(
+      new Headers(fetch.mock.calls[4]?.[1]?.headers).get(
+        "x-lenso-expected-subject"
+      )
+    ).toBe("bob");
+    await expect
+      .element(page.getByText("Late Alice result"))
+      .not.toBeInTheDocument();
   } finally {
+    sessionScope.subject = "local";
     root.unmount();
     client.clear();
     container.remove();

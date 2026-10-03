@@ -14,6 +14,7 @@ import * as React from "react";
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
+import { useConsoleSession } from "../../app/console-session";
 import { RoutePending } from "../../app/route-states";
 import { useAgentIdentityOptional } from "../agent/agent-identity-context";
 import {
@@ -320,11 +321,13 @@ export function useContributionModule<Props = ContributionProps>(
   attempt: number,
   modules?: Readonly<Record<string, unknown>>
 ) {
+  const { subject: expectedSubject } = useConsoleSession();
   const [state, setState] = useState<
     | {
         mount: PageMount;
         attempt: number;
         modules: typeof modules;
+        expectedSubject: string;
         result: LoadedContribution<Props> | { status: "error"; error: Error };
       }
     | undefined
@@ -337,8 +340,8 @@ export function useContributionModule<Props = ContributionProps>(
     // Allocate per effect setup, including StrictMode cleanup/setup replay.
     const controller = new AbortController();
     const { signal } = controller;
-    const services = createWorkspaceServices(mount, signal);
-    const scopeKey = pageMountScopeKey(mount);
+    const services = createWorkspaceServices(mount, signal, expectedSubject);
+    const scopeKey = pageMountScopeKey(mount, expectedSubject);
     const stylesReady = mount.styles.map((href) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -384,6 +387,7 @@ export function useContributionModule<Props = ContributionProps>(
           mount,
           attempt,
           modules,
+          expectedSubject,
           result: {
             Page: page.Page as ComponentType<Props>,
             Provider: page.Provider ?? PassThroughProvider,
@@ -399,6 +403,7 @@ export function useContributionModule<Props = ContributionProps>(
             mount,
             attempt,
             modules,
+            expectedSubject,
             result: {
               error: error instanceof Error ? error : new Error(String(error)),
               status: "error",
@@ -414,11 +419,12 @@ export function useContributionModule<Props = ContributionProps>(
         link.remove();
       }
     };
-  }, [attempt, mount, modules]);
+  }, [attempt, mount, modules, expectedSubject]);
   return state &&
     state.mount === mount &&
     state.attempt === attempt &&
-    state.modules === modules
+    state.modules === modules &&
+    state.expectedSubject === expectedSubject
     ? state.result
     : { status: mount ? ("loading" as const) : ("idle" as const) };
 }
