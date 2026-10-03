@@ -29,7 +29,7 @@ lenso-capability-auth = { git = "https://github.com/LioRael/lenso-auth-plugin", 
 lenso-capability-access-control = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
 lenso-capability-management-human = { path = "../../contracts/crates/lenso-capability-management-human", version = "0.1.0" }
 lenso-capability-management = { path = "../../contracts/crates/lenso-capability-management", version = "0.1.0" }
-lenso-capability-http-endpoint = "=0.3.7"
+lenso-capability-http-endpoint = "0.3.7"
 lenso-capability-http-stream-endpoint = "0.1.4"
 lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution", version = "0.1.0" }
 lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service", version = "0.1.0" }

@@ -7,6 +7,158 @@ use bytes::Bytes;
 use http::{StatusCode, header};
 use lenso_console_plugin::{ConsolePluginConfig, ManagedAppConnection};
 
+#[derive(Clone, Debug)]
+struct AppHealth;
+
+impl lenso_native_adapter::NativePluginFactory for AppHealth {
+    fn package_id(&self) -> &'static str {
+        "test.app.health"
+    }
+
+    fn instantiate(
+        &self,
+        _: lenso_native_adapter::NativePluginFactoryContext<'_>,
+    ) -> Result<lenso_native_adapter::NativePluginInstance, lenso_kernel::RuntimeFailure> {
+        Ok(lenso_native_adapter::NativePluginInstance::new(vec![
+            std::rc::Rc::new(http_endpoint::EndpointEndpoint::new(self.clone())),
+        ]))
+    }
+}
+
+impl http_endpoint::EndpointProvider for AppHealth {
+    fn describe(
+        &self,
+        _: lenso_kernel::InvocationContext,
+        _: http_endpoint::DescribeRequest,
+    ) -> lenso_kernel::NativeRequestFuture<http_endpoint::EndpointDescribe> {
+        Box::pin(async {
+            Ok(Ok(http_endpoint::DescribeResponse {
+                routes: ["live", "ready"]
+                    .into_iter()
+                    .map(|name| http_endpoint::DescribeResponseRoutesItem {
+                        method: "GET".into(),
+                        path: format!("/health/{name}"),
+                        route_id: format!("app.health.{name}"),
+                        openapi: None,
+                    })
+                    .collect(),
+            }))
+        })
+    }
+
+    fn handle(
+        &self,
+        _: lenso_kernel::InvocationContext,
+        request: http_endpoint::HandleRequest,
+    ) -> lenso_kernel::NativeRequestFuture<http_endpoint::EndpointHandle> {
+        Box::pin(async move {
+            Ok(Ok(http_endpoint::HandleResponse {
+                status: if request.route_id == "app.health.ready" {
+                    503
+                } else {
+                    200
+                },
+                headers: vec![],
+                body: b"app-health".to_vec().into(),
+            }))
+        })
+    }
+}
+
+// Prevent the real ingress from rejecting App-owned health routes, or dispatching
+// readiness to Console's generic 200. Existing Host tests have one health owner.
+#[tokio::test(flavor = "current_thread")]
+async fn console_health_override_leaves_ingress_readiness_to_the_app() {
+    use lenso_app_plan::{
+        AppComposition, CapabilityBinding, CapabilityEndpointPlan, PluginInstancePlan,
+    };
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            link();
+            let root = tempfile::tempdir().unwrap();
+            std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+            let mut plugin = ConsolePluginConfig::defaults();
+            plugin.web_root = root.path().to_str().unwrap().into();
+            for enabled in [true, false] {
+                plugin.liveness_readiness_routes = enabled;
+                let mut config = ConsoleAppConfig::from_plugin(&plugin).unwrap();
+                config.address = "127.0.0.1:0".parse().unwrap();
+                let base = console_host_plan(&config).unwrap();
+                let mut instances = base.plugin_instances().to_vec();
+                instances.push(
+                    PluginInstancePlan::new("app-health", "test.app.health").with_capability(
+                        CapabilityEndpointPlan::new(
+                            http_endpoint::CAPABILITY_ID,
+                            http_endpoint::DESCRIPTOR_VERSION,
+                            [
+                                http_endpoint::DESCRIBE_OPERATION,
+                                http_endpoint::HANDLE_OPERATION,
+                            ],
+                        ),
+                    ),
+                );
+                let mut bindings = base.capability_bindings().to_vec();
+                bindings.push(CapabilityBinding::new(
+                    "lenso.web-ingress/default",
+                    http_endpoint::CAPABILITY_ID,
+                    http_endpoint::DESCRIPTOR_VERSION,
+                    "app-health",
+                ));
+                let plan = AppComposition::new(instances, bindings).resolve().unwrap();
+                let ingress = WebIngressFactory::new();
+                let registry = NativePluginRegistry::new()
+                    .with_linked_factories()
+                    .with_factory(ingress.clone())
+                    .with_factory(AppHealth);
+                let result = Kernel::start_native(plan, TokioDriver::new(), registry).await;
+                if enabled {
+                    let error = match result {
+                        Ok(app) => {
+                            app.shutdown(std::time::Duration::from_secs(2)).await;
+                            panic!("duplicate health ownership unexpectedly activated");
+                        }
+                        Err(error) => error,
+                    };
+                    let detail = format!("{error:?}");
+                    assert!(
+                        detail.contains("/health/"),
+                        "unexpected startup failure: {detail}"
+                    );
+                    continue;
+                }
+                let app = result.unwrap();
+                let origin = format!("http://{}", ingress.local_address().unwrap());
+                let client = reqwest::Client::new();
+                for (path, status) in [
+                    ("live", StatusCode::OK),
+                    ("ready", StatusCode::SERVICE_UNAVAILABLE),
+                ] {
+                    let response = client
+                        .get(format!("{origin}/health/{path}"))
+                        .send()
+                        .await
+                        .unwrap();
+                    assert_eq!(response.status(), status);
+                    assert_eq!(response.text().await.unwrap(), "app-health");
+                }
+                assert_eq!(
+                    client
+                        .get(format!("{origin}/health/startup"))
+                        .send()
+                        .await
+                        .unwrap()
+                        .status(),
+                    StatusCode::OK
+                );
+                assert_eq!(
+                    app.shutdown(std::time::Duration::from_secs(2)).await,
+                    ShutdownOutcome::Clean
+                );
+            }
+        })
+        .await;
+}
+
 // Prevent a removable extension from leaving executable UI assets/capabilities
 // behind after disable. Existing workspace tests do not cover global mounts.
 #[cfg(feature = "assistant")]

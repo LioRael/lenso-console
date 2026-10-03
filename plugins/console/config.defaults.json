@@ -1,4 +1,5 @@
 {
+  "liveness_readiness_routes": true,
   "agent_home": ".lenso/console/agent",
   "agent_configuration_store": ".lenso/console/agent-configuration.sqlite3",
   "allowed_tools": [

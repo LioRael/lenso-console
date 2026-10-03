@@ -1,14 +1,30 @@
-use std::{env, fmt::Write as _, fs, path::Path};
+use std::{
+    env,
+    fmt::Write as _,
+    fs,
+    path::{Path, PathBuf},
+};
 fn main() {
-    let root = Path::new("../../apps/shell/dist/client");
-    println!("cargo:rerun-if-changed={}", root.display());
+    println!("cargo:rerun-if-env-changed=LENSO_CONSOLE_SHELL_ROOT");
     let mut files = Vec::new();
     if env::var_os("CARGO_FEATURE_EMBEDDED_SHELL").is_some() {
+        let root = env::var_os("LENSO_CONSOLE_SHELL_ROOT").map_or_else(
+            || PathBuf::from("../../apps/shell/dist/client"),
+            |value| {
+                let root = PathBuf::from(value);
+                assert!(
+                    root.is_absolute(),
+                    "LENSO_CONSOLE_SHELL_ROOT must be an absolute path"
+                );
+                root
+            },
+        );
+        println!("cargo:rerun-if-changed={}", root.display());
         assert!(
             root.join("index.html").is_file(),
-            "build Console Shell before building embedded-shell"
+            "build Console Shell before building embedded-shell; set LENSO_CONSOLE_SHELL_ROOT to its absolute dist/client directory when consuming the Git package"
         );
-        collect(root, root, &mut files);
+        collect(&root, &root, &mut files);
     }
     files.sort();
     let mut entries = String::new();

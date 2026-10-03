@@ -1,10 +1,6 @@
 # Lenso Console Service
 
-For a minimal App using the current high-level Lenso Host API, use
-[the optional Plugin example](../../examples/plugin-host/README.md) and
-`pnpm plugin:dev`. It needs no Agent and proves removal independently of this
-repository's reference App assembly. Rust dependencies and their immutable
-source patches now have one authority in the root `Cargo.toml` and `Cargo.lock`.
+For a minimal App using the current high-level Lenso Host API, use [the optional Plugin example](../../examples/plugin-host/README.md) and `pnpm plugin:dev`. It needs no Agent and proves removal independently of this repository's reference App assembly. Rust dependencies and their immutable source patches now have one authority in the root `Cargo.toml` and `Cargo.lock`.
 
 ## Account connections
 
@@ -113,6 +109,22 @@ connected_agent_plugin_configuration = false
 
 Relative paths resolve from the App Host working directory. Activation binds the listener and verifies the separately owned Console Agent before the Plugin reaches Ready; generation cancellation shuts down the Console server and any local project processes. Removing or disabling this Plugin removes only the Console surface.
 
+Console publishes `GET /health/live` and `GET /health/ready` by default, including for existing configurations that omit `liveness_readiness_routes`. When the App owns those routes (for example, readiness checks its database), set `liveness_readiness_routes = false` in the ordinary Console Plugin configuration. Console then omits both routes and rejects their dedicated route IDs; its Shell wildcard returns 404 for those paths. `GET /health/startup` remains available.
+
+For a Git dependency with the `embedded-shell` feature, build the Shell in a separate checkout of the same full Console source revision, using Node 24.18.0 and pnpm 11.5.0:
+
+```sh
+git clone https://github.com/LioRael/lenso-console console-source
+git -C console-source checkout --detach "$CONSOLE_SOURCE_SHA"
+cd console-source
+pnpm install --frozen-lockfile
+pnpm service:web-build
+```
+
+Set `CONSOLE_SOURCE_SHA` to the same immutable 40-character revision used by the Rust dependency. When building the consuming Host, set `LENSO_CONSOLE_SHELL_ROOT` to that checkout's absolute `apps/shell/dist/client` path. The build script embeds those assets without writing to Cargo's Git cache; it requires `index.html` and regular files, rejects symlink entries, and tracks the asset directory and environment variable for rebuilds. Without an override, repository builds still use `apps/shell/dist/client`.
+
+Alternatively, leave `embedded-shell` disabled and configure `web_root` with the built Shell directory; the Host then serves those files at runtime.
+
 `connected_agent_url` is a compatibility configuration key for the optional App Agent Adapter. Use an empty string to omit it. The value must be a clean loopback HTTP origin and identifies an Agent Web surface already owned by the embedding Host. Console does not start another Agent process. It forwards bounded Agent data-plane routes and streams SSE responses. The embedding Host may set `connected_agent_plugin_configuration = true` only when that Agent Host provides Host-authorized durable Plugin configuration. Console then advertises `lenso.agent.plugin-configuration@1` and forwards only configuration management, proposal, publication, history, rollback, reset, and operation receipt routes. Install, selection, removal, and Tool-policy control remain blocked.
 
 The current generic `lenso run` binary does not yet link this native package. This slice defines the real Plugin and reference launcher; making it available in every stock Host is a separate distribution step, not a compatibility Module.
@@ -145,11 +157,6 @@ The standalone Console Agent admits nine Plugin management Tools by default: `in
 
 The process binds only to loopback until Console identity and authorization are implemented as vNext Plugins. Agent sessions, Tool policy, and Host runtime state remain under the Console Agent Home; PostgreSQL and the retired Console Service composition are not required.
 
-
 ## Independent package workspaces
 
-Shared UI contracts live in `contracts/` and Observe owns `plugins/observe/`,
-including its query contract and lock. Neither workspace needs Projects or the
-Console App to build. `pnpm service:check` includes their dedicated checks and
-contract package verification. Only test code depends on
-`plugins/console/tests/fixtures/welcome-workspace-plugin`.
+Shared UI contracts live in `contracts/` and Observe owns `plugins/observe/`, including its query contract and lock. Neither workspace needs Projects or the Console App to build. `pnpm service:check` includes their dedicated checks and contract package verification. Only test code depends on `plugins/console/tests/fixtures/welcome-workspace-plugin`.

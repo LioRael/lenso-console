@@ -2,6 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "liveness_readiness_routes": {
+      "description": "Publish Console's GET /health/live and /health/ready routes. Disable when the App owns liveness and readiness; /health/startup remains available.",
+      "type": "boolean",
+      "default": true
+    },
     "agent_home": {
       "description": "Private state root for the restricted Console Agent.",
       "type": "string"

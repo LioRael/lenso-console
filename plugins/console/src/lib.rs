@@ -91,6 +91,9 @@ fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
 // These switches configure independent Plugin capabilities, not one state machine.
 #[allow(clippy::struct_excessive_bools)]
 pub struct ConsolePluginConfig {
+    /// Own GET /health/live and /health/ready; startup remains Console-owned.
+    #[serde(default = "default_liveness_readiness_routes")]
+    pub liveness_readiness_routes: bool,
     #[serde(default)]
     pub require_user_session: bool,
     #[serde(default)]
@@ -131,6 +134,14 @@ impl ConsolePluginConfig {
         serde_json::from_str(include_str!("../config.defaults.json"))
             .expect("checked Console Plugin defaults must match its configuration")
     }
+}
+
+fn default_liveness_readiness_routes() -> bool {
+    true
+}
+
+fn is_liveness_readiness_path(path: &str) -> bool {
+    matches!(path, "/health/live" | "/health/ready")
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -367,7 +378,6 @@ impl ConsolePlugin {
         _context: InvocationContext,
         _request: HttpDescribeRequest,
     ) -> lenso_kernel::NativeRequestFuture<EndpointDescribe> {
-        let _ = self;
         let routes = [
             ("GET", "/health/live", "console.health.live"),
             ("GET", "/health/ready", "console.health.ready"),
@@ -378,6 +388,9 @@ impl ConsolePlugin {
             ("HEAD", "/{*path}", "console.shell.head"),
         ]
         .into_iter()
+        .filter(|(_, path, _)| {
+            self.config.liveness_readiness_routes || !is_liveness_readiness_path(path)
+        })
         .map(|(method, path, route_id)| HttpRoute {
             method: method.to_owned(),
             openapi: None,
@@ -395,6 +408,14 @@ impl ConsolePlugin {
         context: InvocationContext,
         request: HttpHandleRequest,
     ) -> lenso_kernel::NativeRequestFuture<EndpointHandle> {
+        if !self.config.liveness_readiness_routes
+            && matches!(
+                request.route_id.as_str(),
+                "console.health.live" | "console.health.ready"
+            )
+        {
+            return Box::pin(futures::future::ready(Ok(Err(HttpHandleError::Rejected))));
+        }
         let application = self.application.borrow().clone();
         let session = session::SessionBoundary {
             required: self.config.require_user_session,
@@ -510,6 +531,7 @@ fn console_application(
         },
         agents: agent_catalog,
         pages: page_catalog,
+        liveness_readiness_routes: config.liveness_readiness_routes,
         web_root: config.web_root,
         management: None,
         human_management: None,
@@ -526,6 +548,7 @@ struct ConsoleApplication {
     apps: app_management::AppCatalog,
     pages: page_contributions::PageCatalog,
     web_root: PathBuf,
+    liveness_readiness_routes: bool,
 }
 
 impl std::fmt::Debug for ConsoleApplication {
@@ -538,6 +561,9 @@ impl std::fmt::Debug for ConsoleApplication {
 
 impl ConsoleApplication {
     async fn handle(&self, request: Request) -> Response {
+        if !self.liveness_readiness_routes && is_liveness_readiness_path(&request.path) {
+            return StatusCode::NOT_FOUND.into_response();
+        }
         if request.method == Method::GET
             && matches!(
                 request.path.as_str(),
@@ -636,6 +662,7 @@ pub fn link() {}
 
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
+    pub liveness_readiness_routes: bool,
     local_projects: Option<std::sync::Arc<LocalProjects>>,
     local_projects_config: Option<LocalProjectsConfig>,
     agent_control_token_file: Option<PathBuf>,
@@ -876,6 +903,7 @@ impl ConsoleConfig {
             })
             .transpose()?;
         Ok(Self {
+            liveness_readiness_routes: config.liveness_readiness_routes,
             local_projects,
             local_projects_config: config.local_projects.clone(),
             agent_control_token_file: config
@@ -965,6 +993,7 @@ impl ConsoleConfig {
             Err(error) => return Err(error.into()),
         };
         Ok(Self {
+            liveness_readiness_routes: default_liveness_readiness_routes(),
             local_projects: None,
             local_projects_config: None,
             agent_control_token_file: None,
@@ -1043,6 +1072,7 @@ impl ConsoleConfig {
             "generated Agent control tokens require a Host-private token file"
         );
         Ok(ConsolePluginConfig {
+            liveness_readiness_routes: self.liveness_readiness_routes,
             require_user_session: false,
             administrator_subjects: Vec::new(),
             member_workspace_ids: Vec::new(),
@@ -1691,6 +1721,134 @@ fn plugin_failure(detail: impl std::fmt::Display) -> RuntimeFailure {
 mod tests {
     use super::*;
     use axum::{Json as AxumJson, Router, routing::get};
+
+    fn inactive_console(config: ConsolePluginConfig) -> ConsolePlugin {
+        ConsolePlugin {
+            config,
+            auth: ManyPort::default(),
+            operator_access: ManyPort::default(),
+            management: ManyPort::default(),
+            human_management: ManyPort::default(),
+            human_tokens: ManyPort::default(),
+            global_contributions: ManyPort::default(),
+            workspace_contributions: ManyPort::default(),
+            workspace_services: ManyPort::default(),
+            application: std::rc::Rc::default(),
+            tasks: ManagedTasks::default(),
+        }
+    }
+
+    fn invocation_context() -> InvocationContext {
+        InvocationContext::new(1, None, lenso_kernel::CancellationToken::new())
+    }
+
+    // Prevent an App health override from breaking old configurations, reappearing
+    // after Host projection, or remaining advertised/callable before activation.
+    // Existing descriptor coverage checks capability IDs, not HTTP ownership.
+    #[tokio::test]
+    async fn liveness_readiness_routes_preserve_defaults_and_reject_disabled_ids() {
+        let defaults = ConsolePluginConfig::defaults();
+        let mut legacy = serde_json::to_value(&defaults).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("liveness_readiness_routes");
+        let legacy: ConsolePluginConfig = serde_json::from_value(legacy).unwrap();
+        assert!(legacy.liveness_readiness_routes);
+        let enabled = inactive_console(legacy);
+        let routes = enabled
+            .describe(invocation_context(), HttpDescribeRequest {})
+            .await
+            .unwrap()
+            .unwrap()
+            .routes;
+        for path in ["/health/live", "/health/ready", "/health/startup"] {
+            assert!(routes.iter().any(|route| route.path == path));
+        }
+
+        let mut disabled = defaults;
+        disabled.liveness_readiness_routes = false;
+        let projected = ConsoleConfig::from_plugin(&disabled)
+            .unwrap()
+            .to_plugin_config()
+            .unwrap();
+        assert!(!projected.liveness_readiness_routes);
+        let console = inactive_console(projected);
+        let routes = console
+            .describe(invocation_context(), HttpDescribeRequest {})
+            .await
+            .unwrap()
+            .unwrap()
+            .routes;
+        assert!(
+            !routes
+                .iter()
+                .any(|route| is_liveness_readiness_path(&route.path))
+        );
+        assert!(routes.iter().any(|route| route.path == "/health/startup"));
+        for route_id in ["console.health.live", "console.health.ready"] {
+            let request = HttpHandleRequest {
+                route_id: route_id.into(),
+                request_id: "health-ownership".into(),
+                method: "GET".into(),
+                path: "/".into(),
+                path_parameters: vec![],
+                query: None,
+                headers: vec![],
+                credential: None,
+                body: Vec::new().into(),
+            };
+            assert!(matches!(
+                console.handle(invocation_context(), request).await,
+                Ok(Err(HttpHandleError::Rejected))
+            ));
+        }
+    }
+
+    // Prevent disabled health paths from returning generic health or Shell HTML
+    // through the wildcard route. Existing Shell tests never disable ownership.
+    #[tokio::test]
+    async fn disabled_liveness_readiness_paths_do_not_fall_back_to_the_shell() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        let mut config = ConsolePluginConfig::defaults();
+        config.web_root = root.path().to_str().unwrap().into();
+        config.liveness_readiness_routes = false;
+        let (pages, _) = page_contributions::PageCatalog::from_ports(
+            &ManyPort::default(),
+            &ManyPort::default(),
+            &ManyPort::default(),
+            &BTreeSet::new(),
+        )
+        .await
+        .unwrap();
+        let application = console_application(ConsoleConfig::from_plugin(&config).unwrap(), pages);
+        for path in ["/health/live", "/health/ready"] {
+            for method in [Method::GET, Method::HEAD] {
+                assert_eq!(
+                    application
+                        .handle(Request::new(method, path))
+                        .await
+                        .status(),
+                    StatusCode::NOT_FOUND
+                );
+            }
+        }
+        assert_eq!(
+            application
+                .handle(Request::new(Method::GET, "/health/startup"))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+        assert_eq!(
+            application
+                .handle(Request::new(Method::GET, "/"))
+                .await
+                .status(),
+            StatusCode::OK
+        );
+    }
 
     fn console_agent() -> AppAgentAdapter {
         AppAgentAdapter::parse_console("http://127.0.0.1:8788", Some("host-secret".to_owned()))
