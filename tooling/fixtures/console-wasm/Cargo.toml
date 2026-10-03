@@ -12,7 +12,9 @@ publish = false
 path = "lib.rs"
 
 [dependencies]
-lenso-console-plugin = { path = "../../../plugins/console", features = ["embedded-shell"] }
+lenso-console-plugin = { path = "../../../plugins/console", features = [
+  "embedded-shell",
+] }
 
 [patch.crates-io]
 lenso = { git = "https://github.com/LioRael/lenso", rev = "20a2f5fe184c8e1f174d38348f837bc3ea008565" }
