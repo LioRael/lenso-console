@@ -69,6 +69,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 directories = "6.0"
 
 [dev-dependencies]
+lenso-auth-sdk = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 lenso-console-password-session-consumer = { path = "../../plugins/console/tests/fixtures/password-session-consumer" }
 lenso-capability-credential-issuer = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 lenso-console-welcome-workspace-plugin = { path = "../../plugins/console/tests/fixtures/welcome-workspace-plugin" }

@@ -1,6 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "properties": {},
+  "properties": {
+    "label": { "type": "string", "maxLength": 40, "default": "Welcome" },
+    "authorization": {
+      "type": "object",
+      "properties": {
+        "issuer": { "type": "string" }, "public_key": { "type": "string" },
+        "subject": { "type": "string" }
+      },
+      "required": ["issuer", "public_key", "subject"],
+      "additionalProperties": false
+    }
+  },
   "additionalProperties": false
 }
