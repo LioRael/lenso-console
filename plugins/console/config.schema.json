@@ -71,11 +71,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "label",
-          "origin"
-        ],
+        "required": ["id", "label", "origin"],
         "properties": {
           "id": {
             "type": "string"
@@ -101,11 +97,7 @@
       "description": "Optional local project launcher paths owned by the reference Console Host.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "binary",
-        "root",
-        "template"
-      ],
+      "required": ["binary", "root", "template"],
       "properties": {
         "binary": {
           "type": "string"
@@ -145,11 +137,7 @@
     "operators_profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "deployment",
-        "issuer",
-        "public_key"
-      ],
+      "required": ["deployment", "issuer", "public_key"],
       "properties": {
         "deployment": {
           "type": "string",
@@ -220,10 +208,7 @@
               "minLength": 1
             }
           },
-          "required": [
-            "scope_kind",
-            "scope_id"
-          ]
+          "required": ["scope_kind", "scope_id"]
         }
       }
     }
