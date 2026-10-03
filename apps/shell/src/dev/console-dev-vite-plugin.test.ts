@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import {
   createServer,
   request,
@@ -41,6 +41,73 @@ afterEach(async () => {
 });
 
 describe("Console development middleware", () => {
+  test("follows App backend activation without restarting the frontend and fails closed on a missing URL file", async () => {
+    const first = createServer((_req, res) => res.end("first"));
+    const second = createServer((_req, res) => res.end("second"));
+    const firstOrigin = await listen(first);
+    const secondOrigin = await listen(second);
+    const directory = await mkdtemp(join(tmpdir(), "console-backend-"));
+    temporaryDirectories.add(directory);
+    const backendUrlFile = join(directory, "backend-url");
+    await writeFile(backendUrlFile, `${firstOrigin}/\n`);
+    const server = await startConsoleDevServer({
+      backendUrlFile,
+      hostUrl: firstOrigin,
+    });
+    const probe = await fetch(`${server.origin}/__lenso/backend`);
+    expect(probe.status).toBe(200);
+    expect(await probe.text()).toBe(`${firstOrigin}/\n`);
+    expect(probe.headers.get("cache-control")).toBe("no-store");
+    const read = () =>
+      fetch(`${server.origin}/api/console/v1/pages`, {
+        headers: { origin: server.origin },
+      });
+    const firstResponse = await read();
+    expect(await firstResponse.text()).toBe("first");
+    await writeFile(backendUrlFile, `${secondOrigin}/\n`);
+    const secondResponse = await read();
+    expect(await secondResponse.text()).toBe("second");
+    const nextProbe = await fetch(`${server.origin}/__lenso/backend`);
+    expect(await nextProbe.text()).toBe(`${secondOrigin}/\n`);
+    await rm(backendUrlFile);
+    const unavailable = await read();
+    expect(unavailable.status).toBe(503);
+  });
+
+  test("backend readiness does not loosen browser authorization or admit unsafe URL files", async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), "console-backend-boundary-")
+    );
+    temporaryDirectories.add(directory);
+    const backendUrlFile = join(directory, "backend-url");
+    await writeFile(backendUrlFile, "http://127.0.0.1:3000/\n");
+    const server = await startConsoleDevServer({ backendUrlFile });
+    const denied = await fetch(`${server.origin}/__lenso/backend`, {
+      headers: { origin: "https://untrusted.example" },
+    });
+    expect(denied.status).toBe(403);
+    const protectedRequest = await fetch(
+      `${server.origin}/api/console/v1/pages`
+    );
+    expect(protectedRequest.status).toBe(403);
+    for (const value of [
+      "http://remote.example:3000/",
+      "http://user:password@127.0.0.1:3000/",
+      "http://127.0.0.1:3000/path",
+      " ".repeat(1025),
+    ]) {
+      await writeFile(backendUrlFile, value);
+      const unsafe = await fetch(`${server.origin}/__lenso/backend`);
+      expect(unsafe.status).toBe(503);
+    }
+    const target = join(directory, "target");
+    await writeFile(target, "http://127.0.0.1:3000/\n");
+    await rm(backendUrlFile);
+    await symlink(target, backendUrlFile);
+    const linked = await fetch(`${server.origin}/__lenso/backend`);
+    expect(linked.status).toBe(503);
+  });
+
   test("forwards real browser login cookies and CSRF to the selected Host", async () => {
     let forwardedHeaders: IncomingMessage["headers"] = {};
     const upstream = createServer((req, res) => {
@@ -366,12 +433,14 @@ describe("Console development middleware", () => {
 
 async function startConsoleDevServer({
   agentControlToken,
+  backendUrlFile,
   diagnosticsFile,
   hostUrl,
   peerAddress,
   trustedOrigin,
 }: {
   agentControlToken?: string;
+  backendUrlFile?: string;
   diagnosticsFile?: string;
   hostUrl?: string;
   peerAddress?: string | undefined;
@@ -380,6 +449,7 @@ async function startConsoleDevServer({
   let middleware: Middleware | undefined;
   const plugin = consoleDevPlugin({
     agentControlToken,
+    backendUrlFile,
     diagnosticsFile,
     hostUrl,
     trustedOrigin,

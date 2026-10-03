@@ -1,4 +1,12 @@
-import { createReadStream, existsSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  createReadStream,
+  existsSync,
+  fstatSync,
+  openSync,
+  readFileSync,
+} from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isIP } from "node:net";
 
@@ -9,6 +17,7 @@ const REQUEST_TARGET_ORIGIN = "http://lenso.local";
 
 interface ConsoleDevPluginOptions {
   agentControlToken?: string | undefined;
+  backendUrlFile?: string | undefined;
   diagnosticsFile?: string | undefined;
   hostUrl?: string | undefined;
   trustedOrigin?: string | undefined;
@@ -18,6 +27,7 @@ type NextFunction = (error?: unknown) => void;
 
 export function consoleDevPlugin({
   agentControlToken,
+  backendUrlFile,
   diagnosticsFile,
   hostUrl,
   trustedOrigin,
@@ -30,6 +40,7 @@ export function consoleDevPlugin({
           next,
           options: {
             agentControlToken,
+            backendUrlFile,
             diagnosticsFile,
             hostUrl,
             trustedOrigin,
@@ -86,6 +97,29 @@ async function handleConsoleDevRequest({
     return;
   }
   const { pathname } = requestTarget;
+  if (pathname === "/__lenso/backend") {
+    const host = requestHost(req);
+    const coreReadinessProbe =
+      (req.method === "GET" || req.method === "HEAD") &&
+      !firstHeader(req.headers.origin) &&
+      isLoopbackPeer(req) &&
+      host &&
+      isLoopbackHostname(host.hostname);
+    if (
+      !(coreReadinessProbe || isTrustedDevRequest(req, options.trustedOrigin))
+    ) {
+      sendText(res, 403, "forbidden development request");
+      return;
+    }
+    const hostUrl = currentHostUrl(options);
+    res.setHeader("cache-control", "no-store");
+    sendText(
+      res,
+      hostUrl ? 200 : 503,
+      hostUrl ? `${hostUrl}\n` : "development Host unavailable"
+    );
+    return;
+  }
   if (
     isPrivilegedDevPath(pathname) &&
     !isTrustedDevRequest(req, options.trustedOrigin)
@@ -98,10 +132,18 @@ async function handleConsoleDevRequest({
     return;
   }
 
-  if (options.hostUrl && shouldProxyToHost(pathname)) {
+  if (
+    (options.hostUrl || options.backendUrlFile) &&
+    shouldProxyToHost(pathname)
+  ) {
+    const hostUrl = currentHostUrl(options);
+    if (!hostUrl) {
+      sendText(res, 503, "development Host unavailable");
+      return;
+    }
     await proxyToHost({
       agentControlToken: options.agentControlToken,
-      hostUrl: options.hostUrl,
+      hostUrl,
       req,
       requestTarget,
       res,
@@ -110,6 +152,46 @@ async function handleConsoleDevRequest({
   }
 
   next();
+}
+
+function currentHostUrl(options: ConsoleDevPluginOptions): string | undefined {
+  if (!options.backendUrlFile) {
+    return options.hostUrl;
+  }
+  // The App controller atomically updates this file on backend activation.
+  // A removed/rejected file never falls back to a retired static Host URL.
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(
+      options.backendUrlFile,
+      // oxlint-disable-next-line no-bitwise -- POSIX open flags require a bit mask.
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK
+    );
+    const metadata = fstatSync(descriptor);
+    if (!metadata.isFile() || metadata.size > 1024) {
+      return undefined;
+    }
+    const url = new URL(readFileSync(descriptor, "utf-8").trim());
+    if (
+      url.protocol !== "http:" ||
+      !isLoopbackHostname(url.hostname) ||
+      !url.port ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    ) {
+      return undefined;
+    }
+    return url.href;
+  } catch {
+    return undefined;
+  } finally {
+    if (descriptor !== undefined) {
+      closeSync(descriptor);
+    }
+  }
 }
 
 type OriginFormRequestTarget = {

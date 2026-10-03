@@ -9,6 +9,7 @@ import { consoleDevPlugin } from "./src/dev/console-dev-vite-plugin.ts";
 const consoleDevServer = consoleDevServerConfigFromEnv(process.env);
 const consoleDevMiddleware = consoleDevPlugin({
   agentControlToken: process.env.LENSO_AGENT_CONTROL_TOKEN,
+  backendUrlFile: process.env.LENSO_API_URL_FILE,
   diagnosticsFile: process.env.LENSO_CONSOLE_DEV_DIAGNOSTICS_FILE,
   hostUrl: process.env.LENSO_CONSOLE_DEV_HOST,
   trustedOrigin: consoleDevServer.trustedOrigin,
