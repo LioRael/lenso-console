@@ -20,6 +20,7 @@ export function consoleNavigationModel({
   agents,
   sessionId,
   administrator,
+  assistantEnabled,
   managementEnabled,
   navigate,
   beforeNavigate,
@@ -33,6 +34,7 @@ export function consoleNavigationModel({
   agents: readonly Agent[];
   sessionId: string | undefined;
   administrator: boolean;
+  assistantEnabled: boolean;
   managementEnabled: boolean;
   navigate: ReturnType<typeof useNavigate>;
   beforeNavigate: () => void;
@@ -73,7 +75,7 @@ export function consoleNavigationModel({
     },
   });
   const destinations = [
-    ...(administrator
+    ...(assistantEnabled
       ? agents.map((candidate) =>
           destination(
             `agent:${candidate.id}`,
@@ -105,6 +107,17 @@ export function consoleNavigationModel({
             t("Settings"),
             area === "settings",
             { to: "/settings" }
+          ),
+        ]
+      : []),
+    ...(assistantEnabled && !administrator
+      ? [
+          destination(
+            "settings",
+            t("Settings"),
+            t("Assistant"),
+            area === "settings",
+            { to: "/settings/ai" }
           ),
         ]
       : []),

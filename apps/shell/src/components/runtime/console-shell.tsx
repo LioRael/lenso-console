@@ -16,6 +16,7 @@ import { useConsoleSession } from "../../app/console-session";
 import { sessionStyles } from "../../app/console-session.stylex";
 import { AgentContextNavigation } from "../../features/agent/agent-context-navigation";
 import { useAgentIdentity } from "../../features/agent/agent-identity-context";
+import { AGENT_PLUGIN_CONFIGURATION_CAPABILITY } from "../../features/agent/agent-runtime";
 import {
   useAppManagement,
   type ManagedApp,
@@ -59,7 +60,8 @@ export function ConsoleShell({ children }: PropsWithChildren) {
 }
 
 function ConsoleShellContent({ children }: PropsWithChildren) {
-  const { administrator, managementEnabled, signOut } = useConsoleSession();
+  const { administrator, assistantEnabled, managementEnabled, signOut } =
+    useConsoleSession();
   const t = useConsoleTranslation();
 
   const appearance = useConsoleAppearance();
@@ -91,9 +93,15 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     action();
   };
 
+  const assistantArea =
+    (currentArea === "agent" &&
+      (assistantEnabled || currentPath.startsWith("/agent/"))) ||
+    (currentArea === "settings" && currentPath === "/settings/ai");
+
   useEffect(() => {
     if (
       !administrator &&
+      !assistantArea &&
       currentArea !== "workspace" &&
       currentArea !== "management" &&
       managementEnabled
@@ -101,6 +109,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
       void navigate({ to: "/management" });
     } else if (
       !administrator &&
+      !assistantArea &&
       currentArea !== "workspace" &&
       currentArea !== "management" &&
       visibleWorkspaces[0]
@@ -109,6 +118,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     }
   }, [
     administrator,
+    assistantArea,
     managementEnabled,
     currentArea,
     navigate,
@@ -116,6 +126,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
   ]);
   if (
     !administrator &&
+    !assistantArea &&
     currentArea !== "workspace" &&
     !(managementEnabled && currentArea === "management")
   ) {
@@ -164,6 +175,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     agents,
     sessionId: currentAgentLocation.sessionId,
     administrator,
+    assistantEnabled,
     managementEnabled,
     navigate,
     beforeNavigate: () => {
@@ -273,7 +285,17 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
           </>
         }
       >
-        {children}
+        {assistantArea && !assistantEnabled ? (
+          <output {...stylex.props(sessionStyles.root)}>
+            <p {...stylex.props(sessionStyles.muted)}>
+              {t(
+                "Assistant access is not enabled for this account. Contact your administrator."
+              )}
+            </p>
+          </output>
+        ) : (
+          children
+        )}
       </ConsoleFrame>
       {administrator ? (
         <GlobalContributionOutlet suspended={mobileNavigationOpen} />
@@ -477,6 +499,15 @@ function SettingsSidebar({
   ) => void;
 }) {
   const t = useConsoleTranslation();
+  const { administrator, assistantEnabled } = useConsoleSession();
+  const { agents, selectedAgent } = useAgentIdentity();
+  const configurationEnabled =
+    administrator &&
+    agents.some(
+      (agent) =>
+        agent.id === selectedAgent.id &&
+        agent.capabilities.includes(AGENT_PLUGIN_CONFIGURATION_CAPABILITY)
+    );
 
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -488,9 +519,14 @@ function SettingsSidebar({
       .join(" ")}`
       .toLocaleLowerCase()
       .includes(normalizedQuery);
-  const showPreferences = matches("Preferences");
-  const showConnections = matches("Connections accounts models MCP");
-  const showProfiles = matches("Profiles instructions tools skills guidance");
+  const showPreferences = administrator && matches("Preferences");
+  const showAssistant =
+    assistantEnabled && matches("Assistant provider API key");
+  const showConnections =
+    configurationEnabled && matches("Connections accounts models MCP");
+  const showProfiles =
+    configurationEnabled &&
+    matches("Profiles instructions tools skills guidance");
 
   return (
     <>
@@ -501,9 +537,20 @@ function SettingsSidebar({
           placeholder={t("Search…")}
           value={query}
         />
-        {showPreferences ? (
+        {showPreferences || showAssistant ? (
           <ContextNavigationSection label={t("Personal")}>
             <Sidebar.Menu>
+              {showAssistant ? (
+                <Sidebar.MenuItem>
+                  <ContextNavigationItem
+                    icon={<Sparkles size={14} strokeWidth={1.7} />}
+                    onClick={() => navigate("/settings/ai")}
+                    selected={currentPath === "/settings/ai"}
+                  >
+                    {t("Assistant")}
+                  </ContextNavigationItem>
+                </Sidebar.MenuItem>
+              ) : null}
               {showPreferences ? (
                 <Sidebar.MenuItem>
                   <ContextNavigationItem
@@ -540,10 +587,7 @@ function SettingsSidebar({
                   <ContextNavigationItem
                     icon={<Sparkles size={14} strokeWidth={1.7} />}
                     onClick={() => navigate("/settings/connections")}
-                    selected={
-                      currentPath.startsWith("/settings/connections") ||
-                      currentPath.startsWith("/settings/ai")
-                    }
+                    selected={currentPath.startsWith("/settings/connections")}
                   >
                     {t("Connections")}
                   </ContextNavigationItem>
@@ -552,7 +596,10 @@ function SettingsSidebar({
             </Sidebar.Menu>
           </ContextNavigationSection>
         ) : null}
-        {!showPreferences && !showConnections && !showProfiles ? (
+        {!showPreferences &&
+        !showAssistant &&
+        !showConnections &&
+        !showProfiles ? (
           <p {...stylex.props(shellStyles.settingsSearchEmpty)}>
             {t("No settings found")}
           </p>

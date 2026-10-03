@@ -16,6 +16,7 @@ mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
 #[cfg(not(target_arch = "wasm32"))]
 pub use projects::LocalProjects;
+pub use session::{AssistantAccessPolicy, AssistantPermission};
 
 use std::{
     cell::RefCell,
@@ -28,6 +29,7 @@ use crate::http::{
     Body, IntoResponse as _, Json, OriginalUri, Path as HttpPath, Request, Response, State,
 };
 use ::http::{HeaderMap, Method, StatusCode, header};
+use base64::Engine as _;
 use bytes::Bytes;
 #[cfg(not(target_arch = "wasm32"))]
 use directories::BaseDirs;
@@ -105,6 +107,9 @@ pub struct ConsolePluginConfig {
     pub require_user_session: bool,
     #[serde(default)]
     pub administrator_subjects: Vec<String>,
+    /// Absent preserves the original local/single-administrator mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assistant_access: Option<AssistantAccessPolicy>,
     #[serde(default)]
     pub member_workspace_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -178,6 +183,14 @@ pub struct LocalProjectsConfig {
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
     #[cfg(target_arch = "wasm32")]
     validate_portable_config(config)?;
+    if let Some(policy) = &config.assistant_access {
+        policy.validate().map_err(invalid_plan)?;
+        if policy.enabled && !config.require_user_session {
+            return Err(invalid_plan(
+                "Assistant member access requires authenticated user sessions",
+            ));
+        }
+    }
     if let Some(profile) = &config.operators_profile {
         if !config.require_user_session
             || !config.administrator_subjects.is_empty()
@@ -295,10 +308,17 @@ impl ConsolePlugin {
             ));
         }
         if self.operator_access.iter().count()
-            != usize::from(self.config.operators_profile.is_some())
+            != usize::from(
+                self.config.operators_profile.is_some()
+                    || self
+                        .config
+                        .assistant_access
+                        .as_ref()
+                        .is_some_and(|policy| policy.permission.is_some()),
+            )
         {
             return Err(invalid_plan(
-                "Operators profile requires exactly one Access Control binding; legacy local mode requires none",
+                "Operator or assistant permission policy requires exactly one Access Control binding; other modes require none",
             ));
         }
         if self.management.iter().count() != usize::from(self.config.operators_profile.is_some()) {
@@ -347,7 +367,14 @@ impl Lifecycle for ConsolePlugin {
         .await?;
         config.validate().map_err(plugin_failure)?;
         if let Some(agent) = &config.console_agent {
-            agent.require_ready().await.map_err(plugin_failure)?;
+            agent
+                .require_ready_at(if self.config.assistant_access.is_some() {
+                    "health/ready"
+                } else {
+                    "bootstrap"
+                })
+                .await
+                .map_err(plugin_failure)?;
         }
         #[cfg(not(target_arch = "wasm32"))]
         let local_projects = config.local_projects.clone();
@@ -449,6 +476,7 @@ impl ConsolePlugin {
         let session = session::SessionBoundary {
             required: self.config.require_user_session,
             administrator_subjects: self.config.administrator_subjects.clone(),
+            assistant_access: self.config.assistant_access.clone(),
             member_workspace_ids: self.config.member_workspace_ids.clone(),
             auth: self.auth.iter().next().map(|bound| bound.client().clone()),
             operators_profile: self.config.operators_profile.clone(),
@@ -506,6 +534,7 @@ impl ConsolePlugin {
         let session = session::SessionBoundary {
             required: self.config.require_user_session,
             administrator_subjects: self.config.administrator_subjects.clone(),
+            assistant_access: self.config.assistant_access.clone(),
             member_workspace_ids: self.config.member_workspace_ids.clone(),
             auth: self.auth.iter().next().map(|bound| bound.client().clone()),
             operators_profile: self.config.operators_profile.clone(),
@@ -1131,6 +1160,7 @@ impl ConsoleConfig {
             liveness_readiness_routes: self.liveness_readiness_routes,
             require_user_session: false,
             administrator_subjects: Vec::new(),
+            assistant_access: None,
             member_workspace_ids: Vec::new(),
             operators_profile: None,
             agent_home: utf8_path(&self.agent_home)?,
@@ -1325,8 +1355,12 @@ impl AppAgentAdapter {
     }
 
     async fn require_ready(&self) -> anyhow::Result<()> {
+        self.require_ready_at("bootstrap").await
+    }
+
+    async fn require_ready_at(&self, path: &str) -> anyhow::Result<()> {
         let mut url = self.origin.clone();
-        url.set_path("/api/console/v1/agent/bootstrap");
+        url.set_path(&format!("/api/console/v1/agent/{path}"));
         let mut request = self
             .client
             .get(url)
@@ -1383,8 +1417,47 @@ struct AgentIdentityList {
     agents: Vec<AgentIdentity>,
 }
 
+fn authenticated_agent_headers(request: &Request) -> Result<(HeaderMap, bool), Box<Response>> {
+    // Only this authenticated context may populate the remote identity header.
+    // Incoming headers never become assertions, including for administrators.
+    let assertion =
+        if request.context.extension(session::LEGACY_AGENT_CONTROL) == Some(b"1".as_slice()) {
+            None
+        } else {
+            request
+                .context
+                .sealed_extension(lenso_auth_sdk::ACTOR_ASSERTION_EXTENSION)
+        };
+    let mut headers = request.headers.clone();
+    headers.remove("x-lenso-actor-assertion");
+    if let Some(assertion) = assertion {
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(assertion.value());
+        let Ok(value) = ::http::HeaderValue::from_str(&encoded) else {
+            return Err(Box::new(problem(
+                StatusCode::BAD_GATEWAY,
+                "Invalid authenticated Agent context",
+            )));
+        };
+        headers.insert("x-lenso-actor-assertion", value);
+    }
+    Ok((headers, assertion.is_some()))
+}
+
 async fn handle_agent_request(catalog: &AgentCatalog, request: &Request) -> Option<Response> {
+    let (headers, authenticated) = match authenticated_agent_headers(request) {
+        Ok(value) => value,
+        Err(response) => return Some(*response),
+    };
     if request.path == "/api/console/v1/agents" && request.method == Method::GET {
+        if authenticated {
+            let mut member_catalog = catalog.clone();
+            member_catalog.app_agents.clear();
+            let Json(mut identities) = list_agents(State(member_catalog));
+            for identity in &mut identities.agents {
+                identity.capabilities.clear();
+            }
+            return Some(Json(identities).into_response());
+        }
         return Some(list_agents(State(catalog.clone())).into_response());
     }
     if request.body.len() > MAX_AGENT_REQUEST_BYTES {
@@ -1393,21 +1466,52 @@ async fn handle_agent_request(catalog: &AgentCatalog, request: &Request) -> Opti
             "Agent request body is too large",
         ));
     }
+    if request.path == "/api/console/v1/assistant/settings" {
+        if !matches!(request.method, Method::GET | Method::PUT) {
+            return Some(problem(
+                StatusCode::METHOD_NOT_ALLOWED,
+                "Assistant settings require GET or PUT",
+            ));
+        }
+        return Some(
+            route_console_agent(
+                State(catalog.clone()),
+                HttpPath("assistant/settings".into()),
+                OriginalUri(request.uri()),
+                request.method.clone(),
+                headers,
+                request.body.clone(),
+            )
+            .await,
+        );
+    }
     if let Some(path) = request.path.strip_prefix("/api/console/v1/agent/") {
         let path = http::decode_path(path)?;
+        if authenticated && !member_agent_route(&request.method, &path) {
+            return Some(*session::problem(
+                StatusCode::FORBIDDEN,
+                "assistant_route_unavailable",
+            ));
+        }
         return Some(
             route_console_agent(
                 State(catalog.clone()),
                 HttpPath(path),
                 OriginalUri(request.uri()),
                 request.method.clone(),
-                request.headers.clone(),
+                headers.clone(),
                 request.body.clone(),
             )
             .await,
         );
     }
     let tail = request.path.strip_prefix("/api/console/v1/agents/")?;
+    if authenticated {
+        return Some(*session::problem(
+            StatusCode::FORBIDDEN,
+            "assistant_route_unavailable",
+        ));
+    }
     let (agent_id, path) = tail.split_once('/')?;
     let agent_id = http::decode_path(agent_id)?;
     let path = http::decode_path(path)?;
@@ -1417,7 +1521,7 @@ async fn handle_agent_request(catalog: &AgentCatalog, request: &Request) -> Opti
             HttpPath((agent_id, path)),
             OriginalUri(request.uri()),
             request.method.clone(),
-            request.headers.clone(),
+            headers.clone(),
             request.body.clone(),
         )
         .await,
@@ -1559,6 +1663,9 @@ async fn proxy_request_at(
     if let Some(value) = headers.get("last-event-id") {
         request = request.header("last-event-id", value);
     }
+    if let Some(value) = headers.get("x-lenso-actor-assertion") {
+        request = request.header("x-lenso-actor-assertion", value);
+    }
     if let Some(value) = app_agent.authorization {
         request = request.header(header::AUTHORIZATION, value);
     }
@@ -1587,6 +1694,22 @@ async fn proxy_request_at(
     proxied
         .body(Body::from_stream(response.bytes_stream()))
         .unwrap_or_else(|_| problem(StatusCode::BAD_GATEWAY, "App Agent response failed"))
+}
+
+fn member_agent_route(method: &Method, path: &str) -> bool {
+    if path.starts_with("terminal/")
+        || path.starts_with("control/")
+        || path.starts_with("auth/")
+        || path.starts_with("plugin-ai/")
+        || path == "tasks"
+    {
+        return false;
+    }
+    allowed_agent_route_with_capabilities(method, path, false, false)
+        || matches!(
+            (method, path),
+            (&Method::GET | &Method::PUT, "assistant/settings")
+        )
 }
 
 fn allowed_agent_route_with_capabilities(
@@ -2167,7 +2290,8 @@ mod tests {
                         AxumJson(serde_json::json!({
                             "authorization": headers
                                 .get(header::AUTHORIZATION)
-                                .and_then(|value| value.to_str().ok())
+                                .and_then(|value| value.to_str().ok()),
+                            "actor": headers.get("x-lenso-actor-assertion").and_then(|value| value.to_str().ok())
                         }))
                     }),
                 ),
@@ -2183,7 +2307,10 @@ mod tests {
         .unwrap();
         let body = handle_agent_request(
             &AgentCatalog::new(console, Vec::new()),
-            &Request::new(Method::GET, "/api/console/v1/agent/bootstrap"),
+            &Request::new(Method::GET, "/api/console/v1/agent/bootstrap").with_header(
+                ::http::HeaderName::from_static("x-lenso-actor-assertion"),
+                "forged",
+            ),
         )
         .await
         .unwrap()
@@ -2193,6 +2320,55 @@ mod tests {
         .unwrap();
         let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(body["authorization"], "Bearer host-secret");
+        assert_eq!(body["actor"], serde_json::Value::Null);
+
+        // Regression: a verified context must win over a browser-supplied actor.
+        let issuer = lenso_auth_sdk::ActorAssertionIssuer::from_signing_key("test.proxy", [9; 32]);
+        let now = time::OffsetDateTime::now_utc();
+        let assertion = issuer.issue(
+            "alice",
+            "user",
+            "password",
+            ["example:read".into()],
+            lenso_auth_sdk::Validity::new(now, now + time::Duration::minutes(1)).unwrap(),
+            BTreeMap::new(),
+        );
+        let mut request = Request::new(Method::GET, "/api/console/v1/agent/bootstrap").with_header(
+            ::http::HeaderName::from_static("x-lenso-actor-assertion"),
+            "forged",
+        );
+        request.context = assertion.attach(request.context).unwrap();
+        let response = handle_agent_request(
+            &AgentCatalog::new(
+                AppAgentAdapter::parse_console(
+                    &format!("http://{address}"),
+                    Some("host-secret".into()),
+                )
+                .unwrap(),
+                vec![],
+            ),
+            &request,
+        )
+        .await
+        .unwrap();
+        let body: serde_json::Value =
+            serde_json::from_slice(&response.into_body().collect(4096).await.unwrap()).unwrap();
+        let wire: serde_json::Value = serde_json::from_slice(
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .decode(body["actor"].as_str().unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(wire["subject"], "alice");
+        request.path = "/api/console/v1/agent/control/profile".into();
+        request.method = Method::POST;
+        assert_eq!(
+            handle_agent_request(&AgentCatalog::new(console_agent(), vec![]), &request)
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::FORBIDDEN
+        );
 
         target.abort();
     }

@@ -79,6 +79,8 @@ export const chineseMessages: Readonly<Record<string, string>> = {
     "提出问题或描述任务，在这个会话里继续。",
   "Ask a question or describe a task.": "提出问题或描述任务。",
   Assistant: "助手",
+  "Assistant access is not enabled for this account. Contact your administrator.":
+    "此账号尚未获得助手访问权限。请联系管理员。",
   Authority: "管理权限来源",
   "Back to Plugins": "返回插件",
   "Blocked by global tool restrictions.": "已被全局工具限制禁用。",

@@ -128,7 +128,7 @@ export async function loadAttachment(
       `sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(item.digest.replace(/^sha256:/u, ""))}`
     ),
     {
-      headers: agentHeaders("application/json", false),
+      headers: agentHeaders("application/json", false, targetId),
       ...(signal ? { signal } : {}),
     }
   );

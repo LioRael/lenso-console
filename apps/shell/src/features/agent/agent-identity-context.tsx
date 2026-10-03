@@ -40,14 +40,17 @@ export function AgentIdentityProvider({ children }: PropsWithChildren) {
   const [preferredAgentId, setPreferredAgentId] = useState<AgentId | null>(
     storedAgentId
   );
-  const { administrator } = useConsoleSession();
+  const { assistantEnabled, subject } = useConsoleSession();
   const { data, isPending } = useQuery({
-    enabled: administrator,
-    queryFn: ({ signal }) => listAgents(signal),
-    queryKey: ["agent-catalog"],
+    enabled: assistantEnabled,
+    queryFn: ({ signal }) => listAgents(signal, subject),
+    queryKey: ["agent-catalog", subject],
     retry: false,
   });
-  const agents = useMemo(() => data ?? [], [data]);
+  const agents = useMemo(
+    () => (assistantEnabled ? (data ?? []) : []),
+    [assistantEnabled, data]
+  );
   const selectedAgent =
     agents.find((agent) => agent.id === preferredAgentId) ??
     agents.find((agent) => agent.role === "app") ??
@@ -60,8 +63,13 @@ export function AgentIdentityProvider({ children }: PropsWithChildren) {
     window.localStorage.removeItem(legacyStorageKey);
   }, []);
   const value = useMemo<AgentIdentityState>(
-    () => ({ agents, loading: isPending, selectAgent, selectedAgent }),
-    [agents, isPending, selectAgent, selectedAgent]
+    () => ({
+      agents,
+      loading: assistantEnabled && isPending,
+      selectAgent,
+      selectedAgent,
+    }),
+    [agents, assistantEnabled, isPending, selectAgent, selectedAgent]
   );
   return (
     <AgentIdentityContext.Provider value={value}>

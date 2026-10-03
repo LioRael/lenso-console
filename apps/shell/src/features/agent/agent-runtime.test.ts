@@ -389,50 +389,55 @@ describe("Agent runtime projection", () => {
     });
   });
 
-  it("decodes the effective immutable Tool policy from bootstrap", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          capabilities: {
-            cancel: true,
-            edit: true,
-            sessionList: true,
-            sessionRead: true,
-            userInteraction: true,
-          },
-          workspace: { path: "/projects/support" },
-          mode: "console",
-          profile: "default",
-          tools: {
-            allowed: ["read"],
-            available: [
-              {
-                description: "Read one workspace file.",
-                name: "read",
-              },
-            ],
-          },
-          trajectory: "lenso.agent.trajectory@1",
-        })
-      )
-    );
+  it.each([undefined, false, true])(
+    "decodes immutable Tool policy and activity capability %s from bootstrap",
+    async (activity) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json({
+            capabilities: {
+              ...(activity === undefined ? {} : { activity }),
+              cancel: true,
+              edit: true,
+              sessionList: true,
+              sessionRead: true,
+              userInteraction: true,
+            },
+            workspace: { path: "/projects/support" },
+            mode: "console",
+            profile: "default",
+            tools: {
+              allowed: ["read"],
+              available: [
+                {
+                  description: "Read one workspace file.",
+                  name: "read",
+                },
+              ],
+            },
+            trajectory: "lenso.agent.trajectory@1",
+          })
+        )
+      );
 
-    await expect(readAgentBootstrap()).resolves.toMatchObject({
-      workspace: { path: "/projects/support" },
-      mode: "console",
-      profile: "default",
-      tools: {
-        allowed: ["read"],
-        available: [
-          {
-            description: "Read one workspace file.",
-            name: "read",
-          },
-        ],
-      },
-    });
-  });
+      await expect(readAgentBootstrap()).resolves.toMatchObject({
+        capabilities: { activity: activity !== false },
+        workspace: { path: "/projects/support" },
+        mode: "console",
+        profile: "default",
+        tools: {
+          allowed: ["read"],
+          available: [
+            {
+              description: "Read one workspace file.",
+              name: "read",
+            },
+          ],
+        },
+      });
+    }
+  );
 
   it.each([{}, { path: "" }, { path: 42 }, { path: "a\0b" }])(
     "rejects malformed workspace metadata %j",

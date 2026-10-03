@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { useConsoleSession } from "../../app/console-session";
 import { Sidebar } from "../../components/lenso/recipes/console-navigation";
 import {
   ContextNavigationContent,
@@ -48,18 +49,23 @@ export function AgentContextNavigation({
   workspaces: readonly PageMount[];
 }) {
   const navigate = useNavigate();
+  const { subject } = useConsoleSession();
   const search = useSearch({ strict: false });
   const projectId = agentId === "app" ? search.project : undefined;
   const [query, setQuery] = useState("");
   const { data: sessions = [], isPending: loading } = useQuery({
     queryFn: ({ signal }) =>
-      listAgentSessions(signal, projectId ? { agentId, projectId } : agentId),
-    queryKey: ["agent-history", agentId, projectId],
+      listAgentSessions(signal, {
+        agentId,
+        expectedSubject: subject,
+        ...(projectId ? { projectId } : {}),
+      }),
+    queryKey: ["agent-history", subject, agentId, projectId],
     retry: false,
   });
   const visibleSessions = filterAgentSessions(sessions, query);
   const { data: openedProjects } = useQuery({
-    queryKey: ["local-projects", "app"],
+    queryKey: ["local-projects", subject, "app"],
     queryFn: listOpenedProjects,
     enabled: agentId === "app",
     retry: false,
