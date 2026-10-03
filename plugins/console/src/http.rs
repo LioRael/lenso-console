@@ -4,11 +4,17 @@
 //! are not a second network server: `lenso.web-ingress` owns sockets, framing,
 //! limits, and protocol lifecycle.
 
-use std::{fmt, path::PathBuf};
+use std::fmt;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 
 use ::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode, Uri, header};
 use bytes::Bytes;
-use futures::{Stream, StreamExt as _, stream::BoxStream};
+#[cfg(not(target_arch = "wasm32"))]
+use futures::stream::BoxStream as ResponseStream;
+#[cfg(target_arch = "wasm32")]
+use futures::stream::LocalBoxStream as ResponseStream;
+use futures::{Stream, StreamExt as _};
 use lenso_kernel::{InvocationContext, RuntimeFailure};
 use serde::Serialize;
 
@@ -63,7 +69,7 @@ impl Request {
 pub(super) enum Body {
     Empty,
     Full(Option<Bytes>),
-    Stream(BoxStream<'static, Result<Bytes, RuntimeFailure>>),
+    Stream(ResponseStream<'static, Result<Bytes, RuntimeFailure>>),
 }
 
 impl Body {
@@ -71,6 +77,7 @@ impl Body {
         Self::Empty
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_stream<S, E>(stream: S) -> Self
     where
         S: Stream<Item = Result<Bytes, E>> + Send + 'static,
@@ -84,6 +91,23 @@ impl Body {
                     })
                 })
                 .boxed(),
+        )
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn from_stream<S, E>(stream: S) -> Self
+    where
+        S: Stream<Item = Result<Bytes, E>> + 'static,
+        E: fmt::Display + 'static,
+    {
+        Self::Stream(
+            stream
+                .map(|item| {
+                    item.map_err(|error| RuntimeFailure::Internal {
+                        detail: format!("Console response stream failed: {error}"),
+                    })
+                })
+                .boxed_local(),
         )
     }
 
@@ -229,6 +253,7 @@ pub(super) fn decode_path(value: &str) -> Option<String> {
         .map(std::borrow::Cow::into_owned)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) fn static_path(root: &std::path::Path, request_path: &str) -> Option<PathBuf> {
     let decoded = decode_path(request_path.trim_start_matches('/'))?;
     let mut path = root.to_path_buf();

@@ -4,7 +4,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use bytes::Bytes;
 use futures::{StreamExt as _, future::Either};
 use http::{HeaderMap, Method, StatusCode, header};
-use lenso::ManyPort;
+use lenso::{ManagedTasks, ManyPort};
 use lenso_capability_ui_contribution::{
     DescribeResponseRequirementsItem, DescribeResponseRequirementsItemSource,
 };
@@ -315,7 +315,7 @@ pub(super) struct WorkspaceServiceRuntime {
 }
 
 impl WorkspaceServiceRuntime {
-    pub(super) async fn run(mut self, cancellation: CancellationToken) {
+    pub(super) async fn run(mut self, cancellation: CancellationToken, tasks: ManagedTasks) {
         loop {
             let command = tokio::select! {
                 () = cancellation.cancelled() => return,
@@ -356,10 +356,13 @@ impl WorkspaceServiceRuntime {
                     match result {
                         Ok(stream) => {
                             let (sender, receiver) = mpsc::channel(16);
-                            if response.send(Ok(receiver)).is_ok() {
-                                tokio::task::spawn_local(pump_stream(stream, sender));
+                            if tasks
+                                .spawn_local(pump_stream(stream, sender, cancellation.clone()))
+                                .is_ok()
+                            {
+                                let _ = response.send(Ok(receiver));
                             } else {
-                                stream.cancel();
+                                let _ = response.send(Err(TransportFailure::unavailable()));
                             }
                         }
                         Err(error) => {
@@ -406,12 +409,20 @@ async fn pump_stream(
         lenso_capability_workspace_service::WorkspaceServiceSubscribe,
     >,
     sender: mpsc::Sender<StreamFrame>,
+    cancellation: CancellationToken,
 ) {
     loop {
         let receive = stream.receive();
         let closed = sender.closed();
         futures::pin_mut!(receive, closed);
-        match futures::future::select(receive, closed).await {
+        let event = tokio::select! {
+            () = cancellation.cancelled() => {
+                stream.cancel();
+                return;
+            }
+            event = futures::future::select(receive, closed) => event,
+        };
+        match event {
             Either::Right(_) => {
                 stream.cancel();
                 return;

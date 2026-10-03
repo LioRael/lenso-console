@@ -45,3 +45,6 @@ jobs:
           cargo install --locked --version 0.10.2 lenso-contract-codegen
       - name: Run quality gates
         run: pnpm check
+      - name: Check production Console for Workers Wasm
+        run: >-
+          cargo check --locked --manifest-path tooling/fixtures/console-wasm/Cargo.toml --lib --target wasm32-unknown-unknown

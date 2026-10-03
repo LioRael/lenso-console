@@ -125,6 +125,12 @@ Set `CONSOLE_SOURCE_SHA` to the same immutable 40-character revision used by the
 
 Alternatively, leave `embedded-shell` disabled and configure `web_root` with the built Shell directory; the Host then serves those files at runtime.
 
+### Wasm Hosts
+
+`wasm32` Hosts use the same Console Plugin and HTTP, Auth, management, and workspace service contracts. Build with `embedded-shell` and the asset input above. Target-specific dependencies keep native filesystem, process supervision, and Tokio listener features out of this build; native Hosts retain their existing features and APIs by default. The Wasm response adapter accepts local Fetch streams, and workspace subscriptions use the generation's managed task scope.
+
+Wasm configuration requires `web_root = "embedded:"`. Local project launching, filesystem control-token files, trusted Bundle paths, and managed-App environment tokens are native-only and fail configuration validation when supplied on Wasm. `ConsoleConfig::load`, local project launch methods, and the filesystem token method remain native APIs. Typed Auth and management bindings remain available. The Host supplies the runtime and capability providers; a successful target check proves compilation, not a deployed Worker or an exercised service flow.
+
 `connected_agent_url` is a compatibility configuration key for the optional App Agent Adapter. Use an empty string to omit it. The value must be a clean loopback HTTP origin and identifies an Agent Web surface already owned by the embedding Host. Console does not start another Agent process. It forwards bounded Agent data-plane routes and streams SSE responses. The embedding Host may set `connected_agent_plugin_configuration = true` only when that Agent Host provides Host-authorized durable Plugin configuration. Console then advertises `lenso.agent.plugin-configuration@1` and forwards only configuration management, proposal, publication, history, rollback, reset, and operation receipt routes. Install, selection, removal, and Tool-policy control remain blocked.
 
 The current generic `lenso run` binary does not yet link this native package. This slice defines the real Plugin and reference launcher; making it available in every stock Host is a separate distribution step, not a compatibility Module.

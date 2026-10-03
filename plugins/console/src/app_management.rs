@@ -32,17 +32,25 @@ impl ManagedAppAdapter {
             .map_err(anyhow::Error::msg)?
             .ok_or_else(|| anyhow::anyhow!("App management origin is required"))?;
         transport.plugin_configuration = true;
-        transport.authorization = config
-            .control_token_env
-            .as_ref()
-            .map(|name| {
-                std::env::var(name)
-                    .map(|token| format!("Bearer {token}"))
-                    .map_err(|_| {
-                        anyhow::anyhow!("App control token environment variable is unavailable")
-                    })
-            })
-            .transpose()?;
+        #[cfg(target_arch = "wasm32")]
+        anyhow::ensure!(
+            config.control_token_env.is_none(),
+            "Wasm App management requires capability-bound authorization, not environment control tokens"
+        );
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            transport.authorization = config
+                .control_token_env
+                .as_ref()
+                .map(|name| {
+                    std::env::var(name)
+                        .map(|token| format!("Bearer {token}"))
+                        .map_err(|_| {
+                            anyhow::anyhow!("App control token environment variable is unavailable")
+                        })
+                })
+                .transpose()?;
+        }
         Ok(Self {
             transport,
             console_extensions: config.console_extensions,

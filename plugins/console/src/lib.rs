@@ -4,13 +4,17 @@ mod http;
 mod human_management;
 mod human_tokens;
 mod lenso_http;
+#[cfg(not(target_arch = "wasm32"))]
 mod local_agent_client;
 mod page_contributions;
+#[cfg(not(target_arch = "wasm32"))]
 mod project_activity;
+#[cfg(not(target_arch = "wasm32"))]
 mod projects;
 mod session;
 mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
+#[cfg(not(target_arch = "wasm32"))]
 pub use projects::LocalProjects;
 
 use std::{
@@ -25,6 +29,7 @@ use crate::http::{
 };
 use ::http::{HeaderMap, Method, StatusCode, header};
 use bytes::Bytes;
+#[cfg(not(target_arch = "wasm32"))]
 use directories::BaseDirs;
 use lenso::prelude::*;
 use lenso_capability_http_endpoint as http_endpoint;
@@ -48,6 +53,7 @@ pub const AGENT_PLUGIN_LIFECYCLE_CAPABILITY: &str = "lenso.agent.plugin-package-
 
 include!(concat!(env!("OUT_DIR"), "/shell.rs"));
 
+#[cfg(not(target_arch = "wasm32"))]
 fn default_console_agent_tools() -> Vec<String> {
     ConsolePluginConfig::defaults().allowed_tools
 }
@@ -75,6 +81,7 @@ impl TrustedPluginBundle {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn configured_console_agent_tools(value: Option<&str>) -> Vec<String> {
     value.map_or_else(default_console_agent_tools, |value| {
         value
@@ -169,6 +176,8 @@ pub struct LocalProjectsConfig {
 }
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
+    #[cfg(target_arch = "wasm32")]
+    validate_portable_config(config)?;
     if let Some(profile) = &config.operators_profile {
         if !config.require_user_session
             || !config.administrator_subjects.is_empty()
@@ -217,6 +226,24 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
         .any(str::is_empty)
     {
         return Err(invalid_plan("local project paths must not be empty"));
+    }
+    Ok(())
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn validate_portable_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
+    if config.web_root != "embedded:"
+        || config.local_projects.is_some()
+        || config.agent_control_token_file.is_some()
+        || !config.trusted_plugin_bundles.is_empty()
+        || config
+            .managed_apps
+            .iter()
+            .any(|app| app.control_token_env.is_some())
+    {
+        return Err(invalid_plan(
+            "Wasm Console requires embedded Shell assets and does not support local projects, filesystem tokens, trusted Bundle paths, or environment control tokens",
+        ));
     }
     Ok(())
 }
@@ -322,6 +349,7 @@ impl Lifecycle for ConsolePlugin {
         if let Some(agent) = &config.console_agent {
             agent.require_ready().await.map_err(plugin_failure)?;
         }
+        #[cfg(not(target_arch = "wasm32"))]
         let local_projects = config.local_projects.clone();
         self.application.borrow_mut().replace({
             let mut application = console_application(config, page_catalog);
@@ -346,12 +374,13 @@ impl Lifecycle for ConsolePlugin {
             plugin_failure(format!("Console task scope is unavailable: {error:?}"))
         })?;
         self.tasks
-            .spawn_local(workspace_services.run(cancellation.clone()))
+            .spawn_local(workspace_services.run(cancellation.clone(), self.tasks.clone()))
             .map_err(|error| {
                 plugin_failure(format!(
                     "Workspace service dispatcher failed to start: {error:?}"
                 ))
             })?;
+        #[cfg(not(target_arch = "wasm32"))]
         self.tasks
             .spawn_local(async move {
                 cancellation.cancelled().await;
@@ -515,15 +544,20 @@ fn console_application(
     config: ConsoleConfig,
     page_catalog: page_contributions::PageCatalog,
 ) -> ConsoleApplication {
-    let mut agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
-    agent_catalog.projects = config.local_projects;
-    if agent_catalog.projects.is_some() {
-        for adapter in &mut agent_catalog.app_agents {
-            if adapter.id == "app" {
-                adapter.activity = Some(lenso_agent_turn_relay::TurnRelay::default());
+    let agent_catalog = AgentCatalog::new(config.console_agent, config.app_agents);
+    #[cfg(not(target_arch = "wasm32"))]
+    let agent_catalog = {
+        let mut agent_catalog = agent_catalog;
+        agent_catalog.projects = config.local_projects;
+        if agent_catalog.projects.is_some() {
+            for adapter in &mut agent_catalog.app_agents {
+                if adapter.id == "app" {
+                    adapter.activity = Some(lenso_agent_turn_relay::TurnRelay::default());
+                }
             }
         }
-    }
+        agent_catalog
+    };
     ConsoleApplication {
         apps: app_management::AppCatalog {
             agents: agent_catalog.clone(),
@@ -593,6 +627,7 @@ impl ConsoleApplication {
         if let Some(response) = app_management::handle(&self.apps, &request).await {
             return response;
         }
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(response) = projects::handle(&self.agents, &request).await {
             return response;
         }
@@ -637,23 +672,28 @@ impl ConsoleApplication {
                 })
                 .expect("embedded Shell response");
         }
-        let candidate = http::static_path(&self.web_root, &request.path)
-            .filter(|path| path.is_file())
-            .unwrap_or_else(|| self.web_root.join("index.html"));
-        let Ok(bytes) = tokio::fs::read(&candidate).await else {
-            return StatusCode::NOT_FOUND.into_response();
-        };
-        let body = if request.method == Method::HEAD {
-            Body::empty()
-        } else {
-            Body::from(bytes)
-        };
-        ::http::Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, http::content_type(&candidate))
-            .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
-            .body(body)
-            .expect("static Shell response is valid")
+        #[cfg(target_arch = "wasm32")]
+        return StatusCode::NOT_FOUND.into_response();
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let candidate = http::static_path(&self.web_root, &request.path)
+                .filter(|path| path.is_file())
+                .unwrap_or_else(|| self.web_root.join("index.html"));
+            let Ok(bytes) = tokio::fs::read(&candidate).await else {
+                return StatusCode::NOT_FOUND.into_response();
+            };
+            let body = if request.method == Method::HEAD {
+                Body::empty()
+            } else {
+                Body::from(bytes)
+            };
+            ::http::Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, http::content_type(&candidate))
+                .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+                .body(body)
+                .expect("static Shell response is valid")
+        }
     }
 }
 
@@ -663,6 +703,7 @@ pub fn link() {}
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
     pub liveness_readiness_routes: bool,
+    #[cfg(not(target_arch = "wasm32"))]
     local_projects: Option<std::sync::Arc<LocalProjects>>,
     local_projects_config: Option<LocalProjectsConfig>,
     agent_control_token_file: Option<PathBuf>,
@@ -694,11 +735,13 @@ impl ConsoleConfig {
     }
 
     #[must_use]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn with_local_projects(mut self, projects: std::sync::Arc<LocalProjects>) -> Self {
         self.local_projects = Some(projects);
         self
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn with_local_project_paths(
         mut self,
         root: &Path,
@@ -715,6 +758,7 @@ impl ConsoleConfig {
     }
 
     #[must_use]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn with_agent_control_token_file(mut self, path: PathBuf) -> Self {
         self.agent_control_token_file = Some(path);
         self
@@ -858,7 +902,12 @@ impl ConsoleConfig {
     }
 
     pub fn from_plugin(config: &ConsolePluginConfig) -> anyhow::Result<Self> {
+        #[cfg(target_arch = "wasm32")]
+        validate_portable_config(config).map_err(|error| anyhow::anyhow!("{error:?}"))?;
+        #[cfg(not(target_arch = "wasm32"))]
         let current = std::env::current_dir()?;
+        #[cfg(target_arch = "wasm32")]
+        let current = PathBuf::from("/");
         let agent_home = resolve_path(&current, &config.agent_home);
         let mut app_agents: Vec<_> =
             AppAgentAdapter::parse(&config.connected_agent_url, &config.connected_agent_label)
@@ -880,17 +929,21 @@ impl ConsoleConfig {
                 agent.auth_connections = true;
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         let configured_control_token = config
             .agent_control_token_file
             .as_ref()
             .map(|path| read_control_token(&resolve_path(&current, path)))
             .transpose()?
             .or_else(console_agent_control_token);
+        #[cfg(target_arch = "wasm32")]
+        let configured_control_token: Option<String> = None;
         if let Some(token) = &configured_control_token {
             for agent in &mut app_agents {
                 agent.authorization = Some(format!("Bearer {token}"));
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         let local_projects = config
             .local_projects
             .as_ref()
@@ -904,6 +957,7 @@ impl ConsoleConfig {
             .transpose()?;
         Ok(Self {
             liveness_readiness_routes: config.liveness_readiness_routes,
+            #[cfg(not(target_arch = "wasm32"))]
             local_projects,
             local_projects_config: config.local_projects.clone(),
             agent_control_token_file: config
@@ -944,6 +998,7 @@ impl ConsoleConfig {
         })
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load() -> anyhow::Result<Self> {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let _ = dotenvy::from_path(manifest.join(".env"));
@@ -1030,6 +1085,7 @@ impl ConsoleConfig {
     }
 
     pub fn to_plugin_config(&self) -> anyhow::Result<ConsolePluginConfig> {
+        #[cfg(not(target_arch = "wasm32"))]
         anyhow::ensure!(
             self.local_projects.is_none() || self.local_projects_config.is_some(),
             "Plan-bound local projects require their Host-owned path configuration"
@@ -1067,7 +1123,7 @@ impl ConsoleConfig {
         anyhow::ensure!(
             !has_runtime_control_token
                 || self.agent_control_token_file.is_some()
-                || console_agent_control_token()
+                || configured_environment_control_token()
                     == resolved_console_control_token.map(str::to_owned),
             "generated Agent control tokens require a Host-private token file"
         );
@@ -1124,8 +1180,7 @@ impl ConsoleConfig {
             "Console Agent configuration store must be absolute"
         );
         anyhow::ensure!(
-            self.web_root.join("index.html").is_file()
-                || (self.web_root == Path::new("embedded:") && !EMBEDDED_SHELL.is_empty()),
+            shell_available(&self.web_root),
             "Console Shell build is missing at {}; run `pnpm service:web-build`",
             self.web_root.display()
         );
@@ -1133,6 +1188,24 @@ impl ConsoleConfig {
     }
 }
 
+fn shell_available(web_root: &Path) -> bool {
+    if web_root == Path::new("embedded:") && !EMBEDDED_SHELL.is_empty() {
+        return true;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    return web_root.join("index.html").is_file();
+    #[cfg(target_arch = "wasm32")]
+    false
+}
+
+fn configured_environment_control_token() -> Option<String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return console_agent_control_token();
+    #[cfg(target_arch = "wasm32")]
+    None
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn console_agent_control_token() -> Option<String> {
     std::env::var("LENSO_CONSOLE_AGENT_CONTROL_TOKEN")
         .ok()
@@ -1154,6 +1227,7 @@ fn utf8_path(path: &Path) -> anyhow::Result<String> {
         .ok_or_else(|| anyhow::anyhow!("Console path is not UTF-8: {}", path.display()))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn read_control_token(path: &Path) -> anyhow::Result<String> {
     let token = std::fs::read_to_string(path)?;
     let token = token.trim();
@@ -1168,6 +1242,7 @@ struct Health {
 
 #[derive(Clone, Debug)]
 pub struct AppAgentAdapter {
+    #[cfg(not(target_arch = "wasm32"))]
     activity: Option<lenso_agent_turn_relay::TurnRelay>,
     auth_connections: bool,
     client: reqwest::Client,
@@ -1215,12 +1290,16 @@ impl AppAgentAdapter {
         if label.is_empty() {
             return Err("App Agent label must not be empty".to_owned());
         }
-        let client = reqwest::Client::builder()
+        let client = reqwest::Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        let client = client
             .connect_timeout(std::time::Duration::from_secs(3))
-            .redirect(reqwest::redirect::Policy::none())
+            .redirect(reqwest::redirect::Policy::none());
+        let client = client
             .build()
             .map_err(|error| format!("App Agent Adapter client is invalid: {error}"))?;
         Ok(Some(Self {
+            #[cfg(not(target_arch = "wasm32"))]
             activity: None,
             auth_connections: false,
             client,
@@ -1270,6 +1349,7 @@ impl AppAgentAdapter {
 
 #[derive(Clone, Debug)]
 struct AgentCatalog {
+    #[cfg(not(target_arch = "wasm32"))]
     projects: Option<std::sync::Arc<LocalProjects>>,
     console_agent: Option<AppAgentAdapter>,
     app_agents: Vec<AppAgentAdapter>,
@@ -1281,6 +1361,7 @@ impl AgentCatalog {
         app_agents: Vec<AppAgentAdapter>,
     ) -> Self {
         Self {
+            #[cfg(not(target_arch = "wasm32"))]
             projects: None,
             console_agent: console_agent.into(),
             app_agents,
@@ -1410,6 +1491,7 @@ async fn route_app_agent(
     else {
         return problem(StatusCode::NOT_FOUND, "Agent identity was not found");
     };
+    #[cfg(not(target_arch = "wasm32"))]
     if method == Method::GET
         && path == "activity"
         && let Some(activity) = &app_agent.activity
@@ -1440,6 +1522,7 @@ async fn proxy_agent_request(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    #[cfg(not(target_arch = "wasm32"))]
     if method == Method::POST && path == "turns" && app_agent.activity.is_some() {
         return project_activity::relay(app_agent, headers, body).await;
     }
@@ -1670,6 +1753,7 @@ fn health() -> Json<Health> {
     Json(Health { status: "ok" })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_boolean_environment(name: &str) -> anyhow::Result<bool> {
     match std::env::var(name) {
         Ok(value) if value.eq_ignore_ascii_case("true") || value == "1" => Ok(true),
@@ -1680,12 +1764,14 @@ fn parse_boolean_environment(name: &str) -> anyhow::Result<bool> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn default_console_home() -> anyhow::Result<PathBuf> {
     BaseDirs::new()
         .map(|directories| directories.home_dir().join(".lenso/console"))
         .ok_or_else(|| anyhow::anyhow!("the user home directory is unavailable"))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn resolve_app_root(configured: Option<std::ffi::OsString>) -> anyhow::Result<PathBuf> {
     let current = std::env::current_dir()?;
     let root = configured.map_or(current.clone(), PathBuf::from);
@@ -1721,6 +1807,64 @@ fn plugin_failure(detail: impl std::fmt::Display) -> RuntimeFailure {
 mod tests {
     use super::*;
     use axum::{Json as AxumJson, Router, routing::get};
+
+    // Prevent Wasm activation from silently accepting paths/tokens that require
+    // an OS. Native-only validation never exercised the portable boundary.
+    #[test]
+    fn portable_configuration_rejects_native_resources_and_keeps_auth_management() {
+        let mut portable = ConsolePluginConfig::defaults();
+        portable.require_user_session = true;
+        portable.administrator_subjects = vec!["administrator".into()];
+        portable.member_workspace_ids = vec!["workspace".into()];
+        assert!(validate_portable_config(&portable).is_ok());
+        assert!(validate_plugin_config(&portable).is_ok());
+        for field in [
+            "web_root",
+            "agent_control_token_file",
+            "local_projects",
+            "trusted_plugin_bundles",
+            "managed_apps",
+        ] {
+            let mut config = portable.clone();
+            match field {
+                "web_root" => config.web_root = "/disk-shell".into(),
+                "agent_control_token_file" => {
+                    config.agent_control_token_file = Some("/token".into())
+                }
+                "local_projects" => {
+                    config.local_projects = Some(LocalProjectsConfig {
+                        binary: "/agent".into(),
+                        root: "/projects".into(),
+                        template: "/template".into(),
+                    })
+                }
+                "trusted_plugin_bundles" => {
+                    config
+                        .trusted_plugin_bundles
+                        .insert("bundle".into(), "/bundle".into());
+                }
+                "managed_apps" => config.managed_apps.push(ManagedAppConnection {
+                    id: "app".into(),
+                    label: "App".into(),
+                    origin: "http://127.0.0.1:8787".into(),
+                    console_extensions: false,
+                    control_token_env: Some("APP_TOKEN".into()),
+                }),
+                _ => unreachable!(),
+            }
+            assert!(
+                matches!(
+                    validate_portable_config(&config),
+                    Err(RuntimeFailure::InvalidResolvedPlan { .. })
+                ),
+                "accepted native resource {field}"
+            );
+            assert!(
+                validate_plugin_config(&config).is_ok(),
+                "native configuration rejected {field}"
+            );
+        }
+    }
 
     fn inactive_console(config: ConsolePluginConfig) -> ConsolePlugin {
         ConsolePlugin {

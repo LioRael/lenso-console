@@ -18,8 +18,6 @@ lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-aut
 anyhow = "1.0"
 base64 = "0.22"
 bytes = "1"
-directories = "6.0"
-dotenvy = "0.15"
 futures = "0.3"
 hex = "0.4"
 http = "1"
@@ -33,32 +31,31 @@ lenso-capability-http-endpoint = "0.3.7"
 lenso-capability-http-stream-endpoint = "0.1.4"
 lenso-capability-ui-contribution = { path = "../../contracts/crates/lenso-capability-ui-contribution", version = "0.1.0" }
 lenso-capability-workspace-service = { path = "../../contracts/crates/lenso-capability-workspace-service", version = "0.1.0" }
-lenso-agent-turn-relay = { path = "../../packages/console-runtime/agent-turn-relay", version = "0.1.0" }
-lenso-local-agent-launcher = { path = "../../packages/console-runtime/local-agent-launcher", version = "0.1.0" }
 lenso-kernel = "0.3.12"
 lenso-native-adapter-macros = "=0.2.9"
 percent-encoding = "2.3"
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
-  "rustls-tls",
   "stream",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_urlencoded = "0.7"
 sha2 = "0.10"
-tokio = { version = "1.52", features = [
-  "macros",
-  "fs",
-  "net",
-  "rt",
-  "signal",
-  "sync",
-  "time",
-] }
+tokio = { version = "1.52", features = ["macros", "rt", "sync", "time"] }
 tokio-stream = "0.1"
 time = "0.3"
 toml = "0.9"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+directories = "6.0"
+dotenvy = "0.15"
+lenso-agent-turn-relay = { path = "../../packages/console-runtime/agent-turn-relay", version = "0.1.0" }
+lenso-local-agent-launcher = { path = "../../packages/console-runtime/local-agent-launcher", version = "0.1.0" }
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+] }
+tokio = { version = "1.52", features = ["fs", "net", "signal"] }
 uuid = { version = "1.26", features = ["v4"] }
 
 [dev-dependencies]
