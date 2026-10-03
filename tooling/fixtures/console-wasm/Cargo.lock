@@ -964,7 +964,14 @@ dependencies = [
 name = "lenso-console-wasm-check"
 version = "0.0.0"
 dependencies = [
+ "lenso",
+ "lenso-app-plan",
+ "lenso-capability-http-endpoint",
+ "lenso-capability-http-stream-endpoint",
  "lenso-console-plugin",
+ "lenso-kernel",
+ "lenso-native-adapter",
+ "serde_json",
 ]
 
 [[package]]
