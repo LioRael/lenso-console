@@ -52,6 +52,12 @@ and provider operation audiences listed in Agent's authenticated Web ADR and in
 the real acceptance fixture. Providers require the same immutable verification
 key. No signing secret belongs in Console configuration.
 
+Enabled member access requires an Agent that reports authenticated assistant
+ingress at readiness. Console rejects a legacy or misconfigured Agent at boot;
+Agent also rejects the Console actor header in unsigned operator modes instead
+of silently treating that request as an ownerless operator. Existing unsigned
+single-operator requests remain compatible.
+
 Audience grants must cover every invoked hop. For the admitted `ask_user` tool,
 this includes `lenso.agent.tools@2:execute_stream` and
 `lenso.agent.tool-provider@2:execute`, then User Interaction `ask`, `pending`
@@ -74,9 +80,10 @@ Agent's separate provider policy configures platform sharing, exact user or
 group assignments, and optional BYOK. The identity key is the JSON pair
 `[issuer, subject]` produced by verified ingress. Provider definitions prepare
 separate immutable Homes; their Session database, Artifact directory and Auth
-verification configuration must agree with the default history Host. Profile
-selection occurs while preparing a provider Host, never by switching a shared
-Host during a request. A provider's model is chosen by that policy, not a model
+verification configuration must agree with the default history Host. Member
+providers use configured model instances in separate Homes; named Host Profiles
+are rejected because they can replace durable storage bindings. A provider's
+model is chosen by that policy, not a model
 or provider supplied by another user.
 
 `GET /api/console/v1/assistant/settings` returns the user's provider choices,
@@ -85,8 +92,9 @@ or `{ "byok": { "provider_id": "id", "api_key": "..." } }`. Sending
 `{ "byok": null }` removes the selected personal credential. These requests
 cannot choose an owner, endpoint, global instance or secret reference. BYOK is
 restricted to trusted platform templates and stored by the encrypted-file
-Secrets provider. Settings responses never return keys. Named Profile templates
-with BYOK are rejected at startup; platform providers may use named Profiles.
+Secrets provider. Settings responses never return keys. Both platform and BYOK
+member providers reject named Host Profiles at startup. Existing local operator
+Profile controls remain available in the legacy mode.
 `max_byok_revisions_per_user`, `max_byok_revisions_total` and
 `max_cached_provider_hosts` configure retained credential and resident Host
 capacity (defaults 8, 128 and 32); changing a credential retains an active turn's lease. Deleting BYOK does not

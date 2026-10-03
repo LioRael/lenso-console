@@ -13,6 +13,12 @@ cancellation access, a non-administrator gaining host control, provider
 assignment bypass and BYOK credential disclosure. Narrow unit tests cannot
 prove identity survives the Console-to-Agent transport.
 
+An additional real legacy Agent process verifies unsigned local bootstrap still
+works, while a reserved signed actor header is rejected when assertion ingress
+is disabled. Console startup with an enabled member assistant policy must fail
+against that process's real readiness response; an explicitly disabled policy
+can still start safely.
+
 The proof also sends eight concurrent authenticated session requests to cover
 browser polling bursts. It creates an actual pending `ask_user` interaction:
 another owner cannot read or answer its known identifier, while its owner can
