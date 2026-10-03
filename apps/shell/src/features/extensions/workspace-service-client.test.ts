@@ -125,6 +125,110 @@ describe("Workspace service client", () => {
     await expect(invocation).rejects.toMatchObject({ name: "AbortError" });
   });
 
+  it("rejects a late response from a retired mount even if fetch ignores cancellation", async () => {
+    let finish!: (response: Response) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+      )
+      .mockResolvedValueOnce(Response.json({ instance: "beta" }));
+    vi.stubGlobal("fetch", fetch);
+    const alpha = new AbortController();
+    const caller = new AbortController();
+    const old = createWorkspaceServices(mount, alpha.signal);
+    const pending = old.invoke(
+      "welcome",
+      "greet",
+      {},
+      { signal: caller.signal }
+    );
+    alpha.abort();
+    await expect(
+      createWorkspaceServices({
+        ...mount,
+        id: "beta",
+        owner: { ...mount.owner, instance: "welcome/beta" },
+      }).invoke("welcome", "greet", {})
+    ).resolves.toEqual({ instance: "beta" });
+    finish(Response.json({ instance: "alpha" }));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await expect(old.invoke("welcome", "greet", {})).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[1]).toEqual([
+      "/api/console/v1/pages/beta/services/welcome/invoke/greet",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-lenso-page-owner": "welcome/beta",
+        }),
+        cache: "no-store",
+      }),
+    ]);
+  });
+
+  it("cancels an idle stream reader when the mount retires", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream({ cancel });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+    const controller = new AbortController();
+    const source = createWorkspaceServices(mount, controller.signal).subscribe(
+      "welcome",
+      "ticks",
+      {}
+    );
+    const stream = source[Symbol.asyncIterator]();
+    const pending = stream.next();
+    await vi.waitFor(() => expect(body.locked).toBe(true));
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  // Fetch may finish before cancellation while body decoding is still pending.
+  // The transport-level late-response test cannot exercise this second boundary.
+  it.each([
+    ["invoke", 422, true],
+    ["invoke", 409, false],
+    ["subscribe", 409, false],
+  ] as const)(
+    "cancels a retired %s failure while decoding status %i (domain=%s)",
+    async (kind, status, domain) => {
+      let finish!: (body: unknown) => void;
+      const response = new Response(null, {
+        status,
+        headers: domain ? { "x-lenso-workspace-outcome": "domain_error" } : {},
+      });
+      const decode = vi.spyOn(response, "json").mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          })
+      );
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+      const controller = new AbortController();
+      const services = createWorkspaceServices(mount, controller.signal);
+      const pending =
+        kind === "invoke"
+          ? services.invoke("welcome", "greet", {})
+          : services
+              .subscribe("welcome", "ticks", {})
+              [Symbol.asyncIterator]()
+              .next();
+      const rejected = expect(pending).rejects.toMatchObject({
+        name: "AbortError",
+      });
+      await vi.waitFor(() => expect(decode).toHaveBeenCalledOnce());
+      controller.abort();
+      finish({ code: "old_instance_failure" });
+      await rejected;
+    }
+  );
+
   it("rejects malformed service responses", async () => {
     vi.stubGlobal(
       "fetch",

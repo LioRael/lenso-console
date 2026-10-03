@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, convert::Infallible, sync::Arc};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use bytes::Bytes;
-use futures::{StreamExt as _, future::Either};
+use futures::{StreamExt as _, future::Either, stream::FuturesUnordered};
 use http::{HeaderMap, Method, StatusCode, header};
 use lenso::{ManagedTasks, ManyPort};
 use lenso_capability_ui_contribution::{
@@ -316,61 +316,27 @@ pub(super) struct WorkspaceServiceRuntime {
 
 impl WorkspaceServiceRuntime {
     pub(super) async fn run(mut self, cancellation: CancellationToken, tasks: ManagedTasks) {
+        let mut active = FuturesUnordered::<futures::future::LocalBoxFuture<'static, ()>>::new();
         loop {
             let command = tokio::select! {
                 () = cancellation.cancelled() => return,
-                command = self.receiver.recv() => {
+                _ = active.next(), if !active.is_empty() => continue,
+                command = self.receiver.recv(), if active.len() < 64 => {
                     let Some(command) = command else { return; };
                     command
                 }
             };
-            match command {
-                DispatchCommand::Invoke {
-                    owner,
-                    context,
-                    request,
-                    response,
-                } => {
-                    let result = match self.client(&owner) {
-                        Some(client) => client
-                            .invoke_with_context(context, request)
-                            .await
-                            .map_err(invoke_failure),
-                        None => Err(TransportFailure::unavailable()),
-                    };
-                    let _ = response.send(result);
-                }
-                DispatchCommand::Subscribe {
-                    owner,
-                    context,
-                    request,
-                    response,
-                } => {
-                    let result = match self.client(&owner) {
-                        Some(client) => client
-                            .subscribe_with_context(context, request)
-                            .await
-                            .map_err(subscribe_failure),
-                        None => Err(TransportFailure::unavailable()),
-                    };
-                    match result {
-                        Ok(stream) => {
-                            let (sender, receiver) = mpsc::channel(16);
-                            if tasks
-                                .spawn_local(pump_stream(stream, sender, cancellation.clone()))
-                                .is_ok()
-                            {
-                                let _ = response.send(Ok(receiver));
-                            } else {
-                                let _ = response.send(Err(TransportFailure::unavailable()));
-                            }
-                        }
-                        Err(error) => {
-                            let _ = response.send(Err(error));
-                        }
-                    }
-                }
-            }
+            let owner = match &command {
+                DispatchCommand::Invoke { owner, .. }
+                | DispatchCommand::Subscribe { owner, .. } => owner,
+            };
+            let client = self.client(owner).cloned();
+            active.push(Box::pin(dispatch_command(
+                command,
+                client,
+                tasks.clone(),
+                cancellation.clone(),
+            )));
         }
     }
 
@@ -379,6 +345,61 @@ impl WorkspaceServiceRuntime {
             .iter()
             .find(|client| client.provider_instance() == owner)
             .map(lenso::BoundCapabilityClient::client)
+    }
+}
+
+async fn dispatch_command(
+    command: DispatchCommand,
+    client: Option<WorkspaceServiceClient>,
+    tasks: ManagedTasks,
+    cancellation: CancellationToken,
+) {
+    match command {
+        DispatchCommand::Invoke {
+            context,
+            request,
+            response,
+            ..
+        } => {
+            let result = match client {
+                Some(client) => client
+                    .invoke_with_context(context, request)
+                    .await
+                    .map_err(invoke_failure),
+                None => Err(TransportFailure::unavailable()),
+            };
+            let _ = response.send(result);
+        }
+        DispatchCommand::Subscribe {
+            context,
+            request,
+            response,
+            ..
+        } => {
+            let result = match client {
+                Some(client) => client
+                    .subscribe_with_context(context, request)
+                    .await
+                    .map_err(subscribe_failure),
+                None => Err(TransportFailure::unavailable()),
+            };
+            match result {
+                Ok(stream) => {
+                    let (sender, receiver) = mpsc::channel(16);
+                    if tasks
+                        .spawn_local(pump_stream(stream, sender, cancellation.clone()))
+                        .is_ok()
+                    {
+                        let _ = response.send(Ok(receiver));
+                    } else {
+                        let _ = response.send(Err(TransportFailure::unavailable()));
+                    }
+                }
+                Err(error) => {
+                    let _ = response.send(Err(error));
+                }
+            }
+        }
     }
 }
 

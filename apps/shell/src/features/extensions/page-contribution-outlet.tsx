@@ -22,6 +22,10 @@ import {
 } from "../agent/agent-quick-panel-context";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
 import {
+  loadPageImplementation,
+  pageMountScopeKey,
+} from "./page-mount-runtime";
+import {
   createWorkspaceServices,
   type WorkspaceServices,
 } from "./workspace-service-client";
@@ -43,7 +47,7 @@ type ContributionProps = {
     search: string;
     segments: readonly string[];
   };
-  mount: PageMount;
+  mount: PageMount & { scopeKey?: string };
   navigation: {
     go: (segments: readonly string[]) => void;
     href: (segments: readonly string[]) => string;
@@ -55,6 +59,7 @@ type ContributionProps = {
     }) => void;
   };
   signal: AbortSignal;
+  services: WorkspaceServices;
 };
 
 type ContributionModule = {
@@ -74,7 +79,12 @@ type LoadedContribution<Props = ContributionProps> = {
   status: "ready";
   Page: ComponentType<Props>;
   Provider: ComponentType<{ children: ReactNode }>;
+  signal: AbortSignal;
+  services: WorkspaceServices;
+  scopeKey: string;
 };
+
+const pageUiModules = { "@lenso/ui/button": { Button } } as const;
 
 const styles = stylex.create({
   error: {
@@ -125,7 +135,8 @@ export function PageContributionOutlet({
   const [attempt, setAttempt] = useState(0);
   const loaded = useContributionModule(
     unavailableRequirements.length === 0 ? mount : undefined,
-    attempt
+    attempt,
+    pageUiModules
   );
   const handoff = useMemo(() => readWorkspaceHandoff(mount), [mount]);
   useEffect(() => consumeWorkspaceHandoff(mount, handoff), [handoff, mount]);
@@ -200,7 +211,7 @@ export function PageContributionOutlet({
   }
   return (
     <ContributionRenderBoundary
-      key={`${mount.id}:${mount.revision}:${attempt}`}
+      key={`${loaded.scopeKey}:${attempt}`}
       onRetry={() => setAttempt((value) => value + 1)}
       title={t("Extension failed to render")}
     >
@@ -239,15 +250,7 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
-  const [controller, setController] = useState<AbortController | null>(null);
-  useEffect(() => {
-    // Each effect setup owns a fresh signal. StrictMode replays cleanup/setup;
-    // a signal allocated once during render would stay permanently aborted.
-    const activeController = new AbortController();
-    setController(activeController);
-    return () => activeController.abort();
-  }, []);
-  if (!controller || controller.signal.aborted) {
+  if (loaded.signal.aborted) {
     return <RoutePending />;
   }
   return (
@@ -257,9 +260,22 @@ function MountedContribution({
         agent={agent}
         environment={environment}
         location={location}
-        mount={mount}
-        navigation={navigation}
-        signal={controller.signal}
+        mount={{ ...mount, scopeKey: loaded.scopeKey }}
+        navigation={{
+          ...navigation,
+          go: (segments) => {
+            if (!loaded.signal.aborted) {
+              navigation.go(segments);
+            }
+          },
+          openWorkspace: (request) => {
+            if (!loaded.signal.aborted) {
+              navigation.openWorkspace(request);
+            }
+          },
+        }}
+        signal={loaded.signal}
+        services={loaded.services}
       />
     </loaded.Provider>
   );
@@ -305,23 +321,33 @@ export function useContributionModule<Props = ContributionProps>(
   modules?: Readonly<Record<string, unknown>>
 ) {
   const [state, setState] = useState<
-    | { status: "idle" | "loading" }
-    | LoadedContribution<Props>
-    | { status: "error"; error: Error }
-  >({ status: "idle" });
+    | {
+        mount: PageMount;
+        attempt: number;
+        modules: typeof modules;
+        result: LoadedContribution<Props> | { status: "error"; error: Error };
+      }
+    | undefined
+  >();
 
   useEffect(() => {
     if (!mount) {
-      setState({ status: "idle" });
       return;
     }
-    let current = true;
+    // Allocate per effect setup, including StrictMode cleanup/setup replay.
+    const controller = new AbortController();
+    const { signal } = controller;
+    const services = createWorkspaceServices(mount, signal);
+    const scopeKey = pageMountScopeKey(mount);
     const stylesReady = mount.styles.map((href) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href = href;
       link.dataset.consoleContribution = mount.id;
       const ready = new Promise<void>((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
         link.addEventListener("load", () => resolve(), { once: true });
         link.addEventListener(
           "error",
@@ -332,13 +358,14 @@ export function useContributionModule<Props = ContributionProps>(
       document.head.append(link);
       return { link, ready };
     });
-    setState({ status: "loading" });
+    setState(undefined);
     const load = async () => {
       try {
-        await Promise.all(stylesReady.map(({ ready }) => ready));
-        // eslint-disable-next-line no-inline-comments -- Vite requires this import annotation.
-        const value: unknown = await import(/* @vite-ignore */ mount.module);
-        if (!current) {
+        const [value] = await Promise.all([
+          loadPageImplementation(mount),
+          Promise.all(stylesReady.map(({ ready }) => ready)),
+        ]);
+        if (signal.aborted) {
           return;
         }
         if (!isContributionModule(value)) {
@@ -347,35 +374,53 @@ export function useContributionModule<Props = ContributionProps>(
         const page = value.createWorkspace({
           createElement,
           react: React,
-          services: createWorkspaceServices(mount),
+          services,
           modules,
         });
         if (!page || typeof page.Page !== "function") {
           throw new TypeError("The extension page export is invalid");
         }
         setState({
-          Page: page.Page as ComponentType<Props>,
-          Provider: page.Provider ?? PassThroughProvider,
-          status: "ready",
+          mount,
+          attempt,
+          modules,
+          result: {
+            Page: page.Page as ComponentType<Props>,
+            Provider: page.Provider ?? PassThroughProvider,
+            signal,
+            services,
+            scopeKey,
+            status: "ready",
+          },
         });
       } catch (error) {
-        if (current) {
+        if (!signal.aborted) {
           setState({
-            error: error instanceof Error ? error : new Error(String(error)),
-            status: "error",
+            mount,
+            attempt,
+            modules,
+            result: {
+              error: error instanceof Error ? error : new Error(String(error)),
+              status: "error",
+            },
           });
         }
       }
     };
     void load();
     return () => {
-      current = false;
+      controller.abort();
       for (const { link } of stylesReady) {
         link.remove();
       }
     };
   }, [attempt, mount, modules]);
-  return state;
+  return state &&
+    state.mount === mount &&
+    state.attempt === attempt &&
+    state.modules === modules
+    ? state.result
+    : { status: mount ? ("loading" as const) : ("idle" as const) };
 }
 
 function isContributionModule(value: unknown): value is ContributionModule {

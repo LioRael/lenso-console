@@ -61,6 +61,7 @@ export async function sessionFetch(
     }
   }
   const response = await fetch(input, options);
+  init?.signal?.throwIfAborted();
   if (
     local &&
     (response.status === 401 || response.status === 412) &&

@@ -443,4 +443,6 @@ pub async fn serve_host(
 }
 
 #[cfg(test)]
+mod instance_mount_tests;
+#[cfg(test)]
 mod tests;
