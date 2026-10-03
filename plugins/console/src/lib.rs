@@ -1204,15 +1204,15 @@ impl ConsoleConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
         app_management::validate_connections(&self.app_agents, &self.managed_apps)?;
         anyhow::ensure!(
-            self.agent_home.is_absolute(),
+            runtime_path_is_absolute(&self.agent_home),
             "Console Agent Home must be absolute"
         );
         anyhow::ensure!(
-            self.managed_app_root.is_absolute(),
+            runtime_path_is_absolute(&self.managed_app_root),
             "managed App root must be absolute"
         );
         anyhow::ensure!(
-            self.agent_configuration_store.is_absolute(),
+            runtime_path_is_absolute(&self.agent_configuration_store),
             "Console Agent configuration store must be absolute"
         );
         anyhow::ensure!(
@@ -1924,9 +1924,18 @@ fn resolve_app_root(configured: Option<std::ffi::OsString>) -> anyhow::Result<Pa
     }
 }
 
+// Wasm paths identify portable configuration locations, not host filesystem access.
+// unknown-unknown's std::path does not recognize even '/' as an absolute root.
+fn runtime_path_is_absolute(path: &Path) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    return path.is_absolute();
+    #[cfg(target_arch = "wasm32")]
+    path.to_str().is_some_and(|value| value.starts_with('/'))
+}
+
 fn resolve_path(current: &Path, configured: &str) -> PathBuf {
     let path = Path::new(configured);
-    if path.is_absolute() {
+    if runtime_path_is_absolute(path) {
         path.to_path_buf()
     } else {
         current.join(path)
