@@ -1814,14 +1814,8 @@ mod tests {
         let mut config = ConsolePluginConfig::defaults();
         config.web_root = root.path().to_str().unwrap().into();
         config.liveness_readiness_routes = false;
-        let (pages, _) = page_contributions::PageCatalog::from_ports(
-            &ManyPort::default(),
-            &ManyPort::default(),
-            &ManyPort::default(),
-            &BTreeSet::new(),
-        )
-        .await
-        .unwrap();
+        let pages =
+            page_contributions::PageCatalog::discover(root.path(), &BTreeSet::new()).unwrap();
         let application = console_application(ConsoleConfig::from_plugin(&config).unwrap(), pages);
         for path in ["/health/live", "/health/ready"] {
             for method in [Method::GET, Method::HEAD] {
