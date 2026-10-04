@@ -5,6 +5,7 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 import { consoleStylex } from "./config/console-stylex.ts";
+import { contributionRecoveryFixture } from "./config/contribution-recovery-fixture.ts";
 
 const browserExecutablePath =
   process.env.LENSO_BROWSER_EXECUTABLE_PATH?.trim() || undefined;
@@ -38,7 +39,7 @@ export default defineConfig({
       "streamdown",
     ],
   },
-  plugins: [react(), consoleStylex()],
+  plugins: [react(), consoleStylex(), contributionRecoveryFixture()],
   test: {
     // StyleX development styles are shared by the Vite server. Keep browser
     // files serial so concurrent transforms cannot invalidate another page.

@@ -21,8 +21,13 @@ import {
   useOptionalAgentQuickPanel,
   type WorkspaceAgentContext,
 } from "../agent/agent-quick-panel-context";
+import {
+  acceptContributionRecovery,
+  contributionAssetUrl,
+} from "./contribution-asset-url";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
 import {
+  acceptPageImplementationRecovery,
   loadPageImplementation,
   pageMountScopeKey,
 } from "./page-mount-runtime";
@@ -345,7 +350,7 @@ export function useContributionModule<Props = ContributionProps>(
     const stylesReady = mount.styles.map((href) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = href;
+      link.href = contributionAssetUrl(href, attempt > 0);
       link.dataset.consoleContribution = mount.id;
       const ready = new Promise<void>((resolve, reject) => {
         signal.addEventListener("abort", () => reject(signal.reason), {
@@ -365,7 +370,7 @@ export function useContributionModule<Props = ContributionProps>(
     const load = async () => {
       try {
         const [value] = await Promise.all([
-          loadPageImplementation(mount),
+          loadPageImplementation(mount, attempt > 0),
           Promise.all(stylesReady.map(({ ready }) => ready)),
         ]);
         if (signal.aborted) {
@@ -382,6 +387,10 @@ export function useContributionModule<Props = ContributionProps>(
         });
         if (!page || typeof page.Page !== "function") {
           throw new TypeError("The extension page export is invalid");
+        }
+        if (attempt > 0) {
+          acceptContributionRecovery([mount.module, ...mount.styles]);
+          acceptPageImplementationRecovery(mount);
         }
         setState({
           mount,

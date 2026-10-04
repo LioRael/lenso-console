@@ -1,14 +1,32 @@
+import { contributionAssetUrl } from "./contribution-asset-url";
 import type { PageMount } from "./page-contribution-catalog";
 
 const implementations = new Map<string, Promise<unknown>>();
 
-/** Cache executable code only. Factories, providers and services belong to a mount. */
-export function loadPageImplementation(mount: PageMount): Promise<unknown> {
+function implementationKey(mount: PageMount) {
   const [, assetPath] = mount.module.split("/assets/");
-  const key =
-    mount.implementationId && assetPath
-      ? `${mount.implementationId}:${assetPath}`
-      : mount.module;
+  return mount.implementationId && assetPath
+    ? `${mount.implementationId}:${assetPath}`
+    : mount.module;
+}
+
+/** Promote validated recovery code for other instance factories of this implementation. */
+export function acceptPageImplementationRecovery(mount: PageMount) {
+  const key = implementationKey(mount);
+  const recovered = implementations.get(`${key}:recovery`);
+  if (recovered) {
+    implementations.set(key, recovered);
+  }
+}
+
+/** Cache executable code only. Factories, providers and services belong to a mount. */
+export function loadPageImplementation(
+  mount: PageMount,
+  recover = false
+): Promise<unknown> {
+  const baseKey = implementationKey(mount);
+  const moduleUrl = contributionAssetUrl(mount.module, recover);
+  const key = moduleUrl === mount.module ? baseKey : `${baseKey}:recovery`;
   const cached = implementations.get(key);
   if (cached) {
     return cached;
@@ -17,7 +35,7 @@ export function loadPageImplementation(mount: PageMount): Promise<unknown> {
   const pending: Promise<unknown> = (async () => {
     try {
       // eslint-disable-next-line no-inline-comments -- Vite requires this import annotation.
-      return await import(/* @vite-ignore */ mount.module);
+      return await import(/* @vite-ignore */ moduleUrl);
     } catch (error) {
       if (implementations.get(key) === entry.pending) {
         implementations.delete(key);
