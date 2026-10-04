@@ -70,7 +70,9 @@ fn collect(root: &Path, directory: &Path, files: &mut Vec<(String, String)>) {
 fn shell_routes() -> String {
     let source = Path::new("../../apps/shell/src/routeTree.gen.ts");
     println!("cargo:rerun-if-changed={}", source.display());
-    let tree = fs::read_to_string(source).expect("generated Console route table");
+    // Compile the tracked frontend manifest with this build script. Cargo
+    // consumers may execute it from another directory with external assets.
+    let tree = include_str!("../../apps/shell/src/routeTree.gen.ts");
     let routes = tree
         .split_once("export interface FileRoutesByFullPath {")
         .and_then(|(_, routes)| routes.split_once('}'))
