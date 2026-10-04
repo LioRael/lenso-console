@@ -500,7 +500,7 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
             // Exercise the real ingress and immutable Host Plan, without retries.
             let responses = futures::future::join_all((0..32).map(|_| {
                 shell_client
-                    .get(format!("http://{address}/workspaces/projects"))
+                    .get(format!("http://{address}/projects/"))
                     .send()
             }))
             .await;
@@ -510,7 +510,7 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
                 assert!(response.text().await.unwrap().contains("<!doctype html>"));
             }
 
-            for path in ["/", "/workspaces/projects"] {
+            for path in ["/", "/projects/"] {
                 let url = format!("http://{address}{path}");
                 let shell = shell_client.get(&url).send().await.unwrap();
                 assert_eq!(shell.status(), StatusCode::OK);
