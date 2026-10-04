@@ -11,11 +11,13 @@ import {
 } from "react";
 import * as React from "react";
 
+import type { ReadRefreshPolicy } from "../../../../../packages/console-authoring/src/read-refresh";
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { useConsoleSession } from "../../app/console-session";
 import { RoutePending } from "../../app/route-states";
+import { consoleReadRefreshPolicy } from "../../lib/read-refresh-policy";
 import { useAgentIdentityOptional } from "../agent/agent-identity-context";
 import {
   useOptionalAgentQuickPanel,
@@ -65,6 +67,7 @@ type ContributionProps = {
       workspaceId: string;
     }) => void;
   };
+  readRefreshPolicy?: ReadRefreshPolicy;
   signal: AbortSignal;
   services: WorkspaceServices;
 };
@@ -147,16 +150,27 @@ export function PageContributionOutlet({
   );
   const handoff = useMemo(() => readWorkspaceHandoff(mount), [mount]);
   useEffect(() => consumeWorkspaceHandoff(mount, handoff), [handoff, mount]);
+  const segmentsKey = JSON.stringify(segments);
+  const stableSegments = useMemo(
+    () => JSON.parse(segmentsKey) as readonly string[],
+    [segmentsKey]
+  );
+  const { hash, search } = window.location;
+  const environment = useMemo(() => ({ locale, theme }), [locale, theme]);
   const location = useMemo(
     () => ({
       handoff,
-      hash: window.location.hash,
-      search: window.location.search,
-      segments,
+      hash,
+      search,
+      segments: stableSegments,
     }),
-    [handoff, segments]
+    [handoff, hash, search, stableSegments]
   );
-  const navigation = workspaceNavigation(mountId, subject, catalog.data ?? []);
+  const routingSubject = mount?.subject ?? subject;
+  const navigation = useMemo(
+    () => workspaceNavigation(mountId, routingSubject, catalog.data ?? []),
+    [mountId, routingSubject, catalog.data]
+  );
   const appAgent = agentIdentity?.agents.find((agent) => agent.role === "app");
   const agent = agentPanel
     ? {
@@ -224,7 +238,7 @@ export function PageContributionOutlet({
     >
       <MountedContribution
         agent={agent}
-        environment={{ locale, theme }}
+        environment={environment}
         loaded={loaded}
         location={location}
         mount={mount}
@@ -257,6 +271,31 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
+  const readRefreshPolicy = useMemo(
+    () => consoleReadRefreshPolicy(mount.id),
+    [mount.id]
+  );
+  const { signal, scopeKey } = loaded;
+  const scopedMount = useMemo(
+    () => ({ ...mount, scopeKey }),
+    [mount, scopeKey]
+  );
+  const guardedNavigation = useMemo<ContributionProps["navigation"]>(
+    () => ({
+      ...navigation,
+      go: (segments) => {
+        if (!signal.aborted) {
+          navigation.go(segments);
+        }
+      },
+      openWorkspace: (request) => {
+        if (!signal.aborted) {
+          navigation.openWorkspace(request);
+        }
+      },
+    }),
+    [navigation, signal]
+  );
   if (loaded.signal.aborted) {
     return <RoutePending />;
   }
@@ -267,20 +306,9 @@ function MountedContribution({
         agent={agent}
         environment={environment}
         location={location}
-        mount={{ ...mount, scopeKey: loaded.scopeKey }}
-        navigation={{
-          ...navigation,
-          go: (segments) => {
-            if (!loaded.signal.aborted) {
-              navigation.go(segments);
-            }
-          },
-          openWorkspace: (request) => {
-            if (!loaded.signal.aborted) {
-              navigation.openWorkspace(request);
-            }
-          },
-        }}
+        mount={scopedMount}
+        navigation={guardedNavigation}
+        readRefreshPolicy={readRefreshPolicy}
         signal={loaded.signal}
         services={loaded.services}
       />

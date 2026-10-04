@@ -1,7 +1,17 @@
 import type * as React from "react";
 
+import type { ReadRefreshPolicy } from "./read-refresh";
+
 export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
 export { Link, useWorkspace, WorkspaceScope } from "./navigation";
+export {
+  deriveReadRefreshState,
+  resolveReadRefreshPolicy,
+} from "./read-refresh";
+export type {
+  ReadRefreshPolicy,
+  ReadRefreshQueryOptions,
+} from "./read-refresh";
 
 /** A browser-local service alias, admitted by the owning Plugin and Host. */
 export interface WorkspaceServices {
@@ -53,6 +63,8 @@ export interface PageProps {
       handoff?: { kind: string; payload: unknown };
     }): void;
   };
+  /** Host and mount read defaults; individual pages may override freshness only. */
+  readRefreshPolicy?: ReadRefreshPolicy;
   signal: AbortSignal;
   services: WorkspaceServices;
 }
