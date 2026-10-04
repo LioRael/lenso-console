@@ -70,6 +70,12 @@ weakened to accommodate an insecure deployment.
   unavailable Auth returns 503, and unauthorized routes return 403.
 - The frontend waits before mounting data providers. Login expiry and identity
   changes clear query caches; logout revokes the session through Auth.
+- Focus checks use a 60-second freshness window, configurable at Shell build time
+  with `VITE_CONSOLE_SESSION_FRESHNESS_MS`. Concurrent checks share one request.
+  An admitted page stays mounted during revalidation and transient network/5xx
+  failures, with up to three automatic retries (1, 2, 4 seconds). Confirmed
+  rejection, logout, subject or permission changes retire private state. Every
+  API request still authenticates at the server.
 - Unsafe same-origin requests carry the ingress CSRF token. External requests
   never receive this cookie-derived header.
 - Authenticated assertions are propagated through the workspace dispatcher,
