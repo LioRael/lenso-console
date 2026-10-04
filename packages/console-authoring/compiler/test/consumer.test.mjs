@@ -90,6 +90,37 @@ test("packed authoring package compiles a clean consumer and preserves authoriza
     const good = run(["build", "--entry", entry]);
     expect(good.exitCode, good.stderr.toString()).toBe(0);
     const output = path.join(entry, ".lenso/console");
+    // Authoring checks inspect source pages. The Host also checks the emitted
+    // provider; without this, a null-only alias table fails only in app/build.
+    const checkProvider = () => {
+      const dependencies = Bun.spawnSync(
+        [process.execPath, "install", "--ignore-scripts"],
+        { cwd: output, env, stdout: "pipe", stderr: "pipe" }
+      );
+      expect(dependencies.exitCode, dependencies.stderr.toString()).toBe(0);
+      const checked = Bun.spawnSync([process.execPath, "run", "check"], {
+        cwd: output,
+        env,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(
+        checked.exitCode,
+        checked.stdout.toString() + checked.stderr.toString()
+      ).toBe(0);
+    };
+    checkProvider();
+    // Explicit aliases and legacy inheritance use the same generated provider.
+    fs.writeFileSync(
+      path.join(entry, "workspace.ts"),
+      'import {defineWorkspace} from "@lenso/console-sdk"; export default defineWorkspace({id:"orders",title:"Orders",path:"/orders/",access:"member",services:["orders"]});'
+    );
+    const selected = run(["build", "--entry", entry]);
+    expect(selected.exitCode, selected.stderr.toString()).toBe(0);
+    checkProvider();
+    fs.unlinkSync(path.join(entry, "workspace.ts"));
+    const inherited = run(["build", "--entry", entry]);
+    expect(inherited.exitCode, inherited.stderr.toString()).toBe(0);
     const editorCheck = () =>
       Bun.spawnSync(
         [
@@ -173,6 +204,7 @@ export default function Page(props:PageProps){const client=bindServices(props.se
     for (const file of ["services.js", "server.ts", "workspace-service.ts"]) {
       expect(fs.existsSync(path.join(output, file))).toBe(false);
     }
+    checkProvider();
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

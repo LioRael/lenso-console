@@ -400,8 +400,8 @@ export default definePlugin({provides:[Contribution${hasServices ? ",WorkspaceSe
 ${
   hasServices
     ? `const adapter=createWorkspaceServices(services,descriptor.revision);
-const aliases=${JSON.stringify(Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.services ?? null])))};
-const workspaces=descriptor.workspaces.map(workspace=>{const selected=aliases[workspace.id]; if(selected?.some(alias=>!adapter.requirements.some(requirement=>requirement.service_id===alias))) throw new Error("Workspace declares an unknown service alias"); return {...workspace,requirements:selected===null?adapter.requirements:adapter.requirements.filter(requirement=>selected.includes(requirement.service_id))};});`
+const aliases:Record<string,readonly string[]|null>=${JSON.stringify(Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.services ?? null])))};
+const workspaces=descriptor.workspaces.map(workspace=>{const selected=aliases[workspace.id]; if(selected===undefined) throw new Error("Workspace service selection is missing"); if(selected?.some(alias=>!adapter.requirements.some(requirement=>requirement.service_id===alias))) throw new Error("Workspace declares an unknown service alias"); return {...workspace,requirements:selected===null?adapter.requirements:adapter.requirements.filter(requirement=>selected.includes(requirement.service_id))};});`
     : ""
 }
 return {${hasServices ? "...adapter.provider," : ""}async describe_contribution(){return {ok:true,value:{...descriptor,${hasServices ? "workspaces," : ""}requirements:${hasServices ? "adapter.requirements" : "descriptor.requirements"}} as DescribeContributionResponse};}};}});
