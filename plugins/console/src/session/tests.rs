@@ -119,7 +119,7 @@ fn context() -> InvocationContext {
 #[allow(clippy::too_many_lines)]
 async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
     tokio::task::LocalSet::new()
-        .run_until(async {
+        .run_until(Box::pin(async {
             let factory = Factory {
                 revoked: Rc::new(Cell::new(false)),
                 unavailable: Rc::new(Cell::new(false)),
@@ -291,7 +291,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                 app.shutdown(Duration::from_secs(1)).await,
                 lenso_kernel::ShutdownOutcome::Clean
             );
-        })
+        }))
         .await;
 }
 

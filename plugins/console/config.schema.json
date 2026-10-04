@@ -13,7 +13,8 @@
           "instance": { "type": "string", "minLength": 1, "maxLength": 256 },
           "workspace": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+            "minLength": 1,
+            "maxLength": 64
           },
           "path": { "type": "string", "minLength": 1, "maxLength": 256 }
         },

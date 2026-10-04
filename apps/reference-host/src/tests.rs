@@ -500,7 +500,7 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
             // Exercise the real ingress and immutable Host Plan, without retries.
             let responses = futures::future::join_all((0..32).map(|_| {
                 shell_client
-                    .get(format!("http://{address}/workspaces/projects"))
+                    .get(format!("http://{address}/projects/"))
                     .send()
             }))
             .await;
@@ -510,7 +510,7 @@ async fn reference_host_serves_the_plan_bound_workspace_catalog() {
                 assert!(response.text().await.unwrap().contains("<!doctype html>"));
             }
 
-            for path in ["/", "/workspaces/projects"] {
+            for path in ["/", "/projects/"] {
                 let url = format!("http://{address}{path}");
                 let shell = shell_client.get(&url).send().await.unwrap();
                 assert_eq!(shell.status(), StatusCode::OK);
@@ -730,7 +730,9 @@ async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
             );
             // Replace a live HTTP watch before dropping its predecessor, as
             // Refresh does. More than 16 replacements expose retained permits.
-            let watch_url = format!("http://{console_address}/api/console/v1/pages/observe-sample-app/services/observe/subscribe/watch_requests");
+            let pages: serde_json::Value = client.get(format!("http://{console_address}/api/console/v1/pages")).send().await.unwrap().json().await.unwrap();
+            let observe_mount = pages["mounts"].as_array().unwrap().iter().find(|mount| mount["pageId"] == "observe-sample-app").unwrap()["id"].as_str().unwrap().to_owned();
+            let watch_url = format!("http://{console_address}/api/console/v1/pages/{observe_mount}/services/observe/subscribe/watch_requests");
             let mut previous = None;
             for _ in 0..32 {
                 let response = tokio::time::timeout(
@@ -781,7 +783,7 @@ async fn reference_host_routes_otlp_through_a_plan_bound_web_ingress() {
             assert_eq!(catalog.status(), StatusCode::OK);
             let catalog: serde_json::Value = catalog.json().await.unwrap();
             assert_eq!(catalog["mounts"], serde_json::json!([]));
-            let removed = client.post(format!("http://{console_address}/api/console/v1/pages/observe-sample-app/services/observe/invoke/list_requests"))
+            let removed = client.post(format!("http://{console_address}/api/console/v1/pages/{observe_mount}/services/observe/invoke/list_requests"))
                 .json(&serde_json::json!({})).send().await.unwrap();
             assert_eq!(removed.status(), StatusCode::NOT_FOUND);
             assert_eq!(without_observe.shutdown(std::time::Duration::from_secs(2)).await, ShutdownOutcome::Clean);
