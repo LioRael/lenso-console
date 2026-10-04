@@ -1,5 +1,8 @@
 import type * as React from "react";
 
+export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
+export { Link, useWorkspace, WorkspaceScope } from "./navigation";
+
 /** A browser-local service alias, admitted by the owning Plugin and Host. */
 export interface WorkspaceServices {
   invoke<Request = unknown, Response = unknown>(
@@ -27,10 +30,18 @@ export interface PageProps {
   };
   mount: {
     id: string;
+    /** Plugin-declared page identity; several instance mounts may share it. */
+    pageId?: string;
+    /** Content identity of the executable page, independent of its mount. */
+    implementationId?: string;
+    /** Mount/session cache namespace. Never cache by pageId alone. */
+    scopeKey?: string;
     title: string;
     subject: Subject;
     owner: { instance: string };
     revision: string;
+    /** Resolved browser path; never a permission or cache identity. */
+    basePath?: string;
   };
   navigation: {
     go(segments: readonly string[]): void;

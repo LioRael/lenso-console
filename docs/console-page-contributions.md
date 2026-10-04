@@ -4,7 +4,7 @@ Status: Console- and App-scoped Workspace routing plus owner services implemente
 
 This document now separates the shipped Workspace path from the remaining
 cross-App design. The implementation includes a typed
-`lenso.ui.contribution@1` request Capability (descriptor 1.3.0), a `many` Port on
+`lenso.ui.contribution@1` request Capability (descriptor 1.4.0), a `many` Port on
 `lenso.console.web`, an immutable activation-time catalog, a reference provider
 Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
 crate and reference Plugin are repository-local and are not published releases.
@@ -66,7 +66,7 @@ Implemented now:
 - `lenso.console.web` requires `lenso.ui.contribution@1` with `many`
   cardinality and calls every bound provider exactly once during activation.
 - Provider instance identity, revision, declared requirements, and trust source
-  are preserved in the catalog. Duplicate Workspace IDs, navigation paths,
+  are preserved in the catalog. Duplicate instance mount IDs, navigation paths,
   unsafe paths, missing entry assets, oversized assets, and invalid base64 fail
   admission before the server starts.
 - Assets live in an owned in-memory snapshot and are served same-origin with
@@ -144,6 +144,50 @@ versions do not define identity. Two instances of the same Plugin produce
 distinct mounts. Upgrading an instance retains the mount ID but changes its
 revision. A missing target produces an unavailable page, never a fallback to the
 first App. Catalog metadata is not evidence of target readiness.
+
+### Reusing one page for several instances
+
+`pageId` preserves the Plugin's local `workspaces[].id` (or legacy `workspace_id`). `implementationId` is
+the digest of its revision and executable assets. Neither selects an instance.
+`id` selects a mount; services and permissions use that exact ID. Declared
+`workspaces` always receive a stable slug derived from owner, local page ID and
+subject, including default instances. Legacy single-workspace responses retain
+their default Console short ID and configured permission scope. Executable
+revision, configuration, labels and URL mount paths do not alter these identities.
+See the [authoring guide](../packages/console-authoring/README.md#multiple-workspaces-and-instances)
+for natural directories, relative links and exact App mount overrides.
+
+The browser caches executable imports by content identity and entry path only.
+It calls `createWorkspace` separately for each mount and recreates its Provider,
+service client and cancellation scope when owner, subject, revision, assets or
+requirements change, or the authenticated Console session subject changes.
+Keep mutable state and caches inside that factory/Provider,
+or include `mount.scopeKey` in a page-owned cache key. Module globals are shared
+code and must not hold instance data. Native pages share a browser realm; this
+does not sandbox untrusted JavaScript.
+
+The factory's services and `PageProps.services` bind the same lifetime signal.
+Per-call signals combine with that lifetime. Unmount rejects late unary results,
+cancels idle stream readers and disables retained navigation callbacks. Services
+send exact owner, revision and implementation headers; the catalog rejects
+mismatches before dispatch. Existing direct clients may omit these guards; they
+still use the mount's service binding and authorization.
+The page client also captures the session's expected subject, using the existing
+session precondition to reject calls after another login replaces the cookie.
+The server still authenticates each request and leaves domain authorization with
+the owning Plugin's existing Auth realm/audience boundary. These headers and
+handoff payloads never grant permissions.
+
+The Welcome development fixture can be selected twice, for example with
+`plugins/lenso.console.workspace.welcome/alpha.toml` containing `label = "Alpha"`
+and `beta.toml` containing `label = "Beta"`. Both use the same page source; each
+owns its configuration and bounded in-memory log. Select the resulting catalog
+mount ID for routes and `member_workspace_ids`, rather than the shared `pageId`.
+The fixture is not linked into production binaries and does not model durable
+storage. `instance_mount_tests` proves real ingress requests, separate config/logs,
+signed realm/audience admission, exact member scopes and an idle Alpha request
+that cannot block Beta. The browser outlet regression proves switch cancellation
+even when the old transport ignores abort.
 
 ## 4. What an author supplies
 

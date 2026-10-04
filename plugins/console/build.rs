@@ -37,7 +37,10 @@ fn main() {
     }
     fs::write(
         Path::new(&env::var("OUT_DIR").unwrap()).join("shell.rs"),
-        format!("const EMBEDDED_SHELL: &[(&str, &[u8])] = &[{entries}];"),
+        format!(
+            "const EMBEDDED_SHELL: &[(&str, &[u8])] = &[{entries}];\n{}",
+            shell_routes()
+        ),
     )
     .unwrap();
 }
@@ -60,4 +63,47 @@ fn collect(root: &Path, directory: &Path, files: &mut Vec<(String, String)>) {
             ));
         }
     }
+}
+
+// The frontend's generated route table remains the only owner of built-in URLs.
+// Its splat belongs to the admitted workspace catalog, not a blanket HTML fallback.
+fn shell_routes() -> String {
+    let source = Path::new("../../apps/shell/src/routeTree.gen.ts");
+    println!("cargo:rerun-if-changed={}", source.display());
+    // Compile the tracked frontend manifest with this build script. Cargo
+    // consumers may execute it from another directory with external assets.
+    let tree = include_str!("../../apps/shell/src/routeTree.gen.ts");
+    let routes = tree
+        .split_once("export interface FileRoutesByFullPath {")
+        .and_then(|(_, routes)| routes.split_once('}'))
+        .expect("Console route table must expose FileRoutesByFullPath")
+        .0;
+    let mut entries = String::new();
+    for line in routes.lines() {
+        let Some((route, _)) = line
+            .trim()
+            .strip_prefix('\'')
+            .and_then(|line| line.split_once('\''))
+        else {
+            continue;
+        };
+        if route == "/$" {
+            continue;
+        }
+        assert!(route.starts_with('/'), "Console route must be absolute");
+        let segments = route
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .map(|part| {
+                part.strip_prefix('$')
+                    .map_or_else(|| part.to_owned(), |name| format!("[{name}]"))
+            })
+            .collect::<Vec<_>>();
+        write!(&mut entries, "&{segments:?},").unwrap();
+    }
+    assert!(
+        !entries.is_empty(),
+        "Console must register its built-in routes"
+    );
+    format!("const SHELL_PAGE_ROUTES: &[&[&str]] = &[{entries}];")
 }

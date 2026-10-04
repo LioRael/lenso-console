@@ -34,7 +34,28 @@ export class WorkspaceServiceDomainError extends WorkspaceServiceError {
   }
 }
 
-export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
+export function createWorkspaceServices(
+  mount: PageMount,
+  lifetime?: AbortSignal,
+  expectedSubject?: string
+): WorkspaceServices {
+  const requestSignal = (signal?: AbortSignal) => {
+    const signals = [lifetime, signal].filter(
+      (value): value is AbortSignal => !!value
+    );
+    const combined = signals.length ? AbortSignal.any(signals) : undefined;
+    combined?.throwIfAborted();
+    return combined;
+  };
+  const headers = {
+    "content-type": "application/json",
+    "x-lenso-page-owner": mount.owner.instance,
+    "x-lenso-page-revision": mount.revision,
+    ...(expectedSubject ? { "x-lenso-expected-subject": expectedSubject } : {}),
+    ...(mount.implementationId
+      ? { "x-lenso-page-implementation": mount.implementationId }
+      : {}),
+  };
   const endpoint = (
     service: string,
     kind: "invoke" | "subscribe",
@@ -51,31 +72,37 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
       options?: WorkspaceServiceOptions
     ) {
       const body = encodeRequest(request);
+      const signal = requestSignal(options?.signal);
       const response = await sessionFetch(
         endpoint(service, "invoke", operation),
         {
           body,
-          headers: { "content-type": "application/json" },
+          headers,
           method: "POST",
-          signal: options?.signal ?? null,
+          signal: signal ?? null,
+          cache: "no-store",
         }
       );
+      signal?.throwIfAborted();
       if (!response.ok) {
         if (
           response.status === 422 &&
           response.headers.get("x-lenso-workspace-outcome") === "domain_error"
         ) {
-          throw new WorkspaceServiceDomainError(
-            await response.json().catch(() => null),
-            service,
-            operation
-          );
+          const payload: unknown = await response.json().catch(() => null);
+          signal?.throwIfAborted();
+          throw new WorkspaceServiceDomainError(payload, service, operation);
         }
-        throw await responseError(response, service, operation);
+        const error = await responseError(response, service, operation);
+        signal?.throwIfAborted();
+        throw error;
       }
       try {
-        return (await response.json()) as Response;
+        const value = (await response.json()) as Response;
+        signal?.throwIfAborted();
+        return value;
       } catch {
+        signal?.throwIfAborted();
         throw protocolError();
       }
     },
@@ -86,20 +113,25 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
       options?: WorkspaceServiceOptions
     ) {
       const body = encodeRequest(request);
+      const signal = requestSignal(options?.signal);
       const response = await sessionFetch(
         endpoint(service, "subscribe", operation),
         {
           body,
           headers: {
+            ...headers,
             accept: "text/event-stream",
-            "content-type": "application/json",
           },
           method: "POST",
-          signal: options?.signal ?? null,
+          signal: signal ?? null,
+          cache: "no-store",
         }
       );
+      signal?.throwIfAborted();
       if (!response.ok) {
-        throw await responseError(response, service, operation);
+        const error = await responseError(response, service, operation);
+        signal?.throwIfAborted();
+        throw error;
       }
       if (!response.body) {
         throw new WorkspaceServiceError(
@@ -108,7 +140,8 @@ export function createWorkspaceServices(mount: PageMount): WorkspaceServices {
           502
         );
       }
-      for await (const event of readServerEvents(response.body)) {
+      for await (const event of readServerEvents(response.body, signal)) {
+        signal?.throwIfAborted();
         if (event.event === "item") {
           const frame = JSON.parse(event.data) as {
             bodyBase64Url?: unknown;
@@ -221,13 +254,22 @@ function protocolError() {
   );
 }
 
-async function* readServerEvents(stream: ReadableStream<Uint8Array>) {
+async function* readServerEvents(
+  stream: ReadableStream<Uint8Array>,
+  signal?: AbortSignal
+) {
   const reader = stream.getReader();
+  const cancel = () => {
+    void cancelReader(reader);
+  };
+  signal?.addEventListener("abort", cancel, { once: true });
   const decoder = new TextDecoder();
   let buffer = "";
   try {
     while (true) {
+      signal?.throwIfAborted();
       const { done, value } = await reader.read();
+      signal?.throwIfAborted();
       buffer += decoder.decode(value, { stream: !done });
       let boundary = buffer.indexOf("\n\n");
       while (boundary >= 0) {
@@ -244,7 +286,17 @@ async function* readServerEvents(stream: ReadableStream<Uint8Array>) {
       }
     }
   } finally {
+    signal?.removeEventListener("abort", cancel);
+    await cancelReader(reader);
     reader.releaseLock();
+  }
+}
+
+async function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  try {
+    await reader.cancel();
+  } catch {
+    // An already errored transport still needs its reader lock released.
   }
 }
 

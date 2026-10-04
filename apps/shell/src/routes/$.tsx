@@ -1,15 +1,29 @@
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
+import { createFileRoute, useLocation } from "@tanstack/react-router";
 
-import { legacyConsoleTargetForPath } from "../app/console-router-config";
+import { RouteNotFound, RoutePending } from "../app/route-states";
+import { usePageCatalog } from "../features/extensions/page-contribution-catalog";
+import { PageContributionOutlet } from "../features/extensions/page-contribution-outlet";
+import { resolveWorkspaceLocation } from "../features/extensions/workspace-paths";
 
 export const Route = createFileRoute("/$")({
-  beforeLoad: ({ location }) => {
-    const target = legacyConsoleTargetForPath(location.pathname);
-    if (target) {
-      throw redirect({ to: target });
-    }
-  },
-  loader: () => {
-    throw notFound();
-  },
+  component: WorkspaceRoute,
 });
+
+function WorkspaceRoute() {
+  const catalog = usePageCatalog();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  if (catalog.isPending) {
+    return <RoutePending />;
+  }
+  const location = resolveWorkspaceLocation(pathname, catalog.data ?? []);
+  if (!location) {
+    return <RouteNotFound />;
+  }
+  return (
+    <PageContributionOutlet
+      mountId={location.workspaceId}
+      subject={location.subject}
+      segments={location.segments}
+    />
+  );
+}

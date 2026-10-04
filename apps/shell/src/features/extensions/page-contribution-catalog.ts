@@ -1,10 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { httpClient, isApiMode } from "../../lib/http-client";
+import { validWorkspaceBasePath } from "./workspace-paths";
 
 export type PageMount = {
   apiMajor: 1;
   id: string;
+  basePath?: string;
+  access?: "member" | "administrator";
+  index?: readonly string[];
+  routes?: readonly (readonly string[])[];
+  pageId?: string;
+  implementationId?: string;
   module: string;
   navigation: {
     items: readonly { label: string; path: readonly string[] }[];
@@ -185,16 +192,70 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       !("revision" in candidate) ||
       typeof candidate.revision !== "string" ||
       !candidate.revision.trim() ||
+      ("pageId" in candidate &&
+        (typeof candidate.pageId !== "string" ||
+          !/^[a-z][a-z0-9._-]{0,63}$/u.test(candidate.pageId))) ||
+      ("implementationId" in candidate &&
+        (typeof candidate.implementationId !== "string" ||
+          !/^[a-f0-9]{64}$/u.test(candidate.implementationId) ||
+          !candidate.module.startsWith(
+            `/api/console/v1/pages/${candidate.id}/assets/${candidate.implementationId}/`
+          ))) ||
       !("requirements" in candidate) ||
       !Array.isArray(candidate.requirements) ||
       !candidate.requirements.every(validRequirement)
     ) {
       throw new TypeError("Console page mount is malformed");
     }
+    if (
+      ("basePath" in candidate && typeof candidate.basePath !== "string") ||
+      ("access" in candidate &&
+        candidate.access !== "member" &&
+        candidate.access !== "administrator") ||
+      ("index" in candidate &&
+        (!Array.isArray(candidate.index) ||
+          !candidate.index.every(
+            (segment: unknown) =>
+              typeof segment === "string" &&
+              /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
+          ))) ||
+      ("routes" in candidate &&
+        (!Array.isArray(candidate.routes) ||
+          !candidate.routes.length ||
+          candidate.routes.length > 32 ||
+          candidate.routes.some(
+            (route: unknown) =>
+              !Array.isArray(route) ||
+              route.length > 8 ||
+              route.some(
+                (segment: unknown) =>
+                  typeof segment !== "string" ||
+                  !/^([A-Za-z0-9][A-Za-z0-9._-]{0,63}|\[(?:\.\.\.)?[A-Za-z][A-Za-z0-9_]*\]|\[\[\.\.\.[A-Za-z][A-Za-z0-9_]*\]\])$/u.test(
+                    segment
+                  )
+              )
+          )))
+    ) {
+      throw new TypeError("Console workspace path metadata is malformed");
+    }
     ids.add(candidate.id);
     const mount: PageMount = {
       apiMajor: candidate.apiMajor,
       id: candidate.id,
+      ...("basePath" in candidate
+        ? { basePath: candidate.basePath as string }
+        : {}),
+      ...("access" in candidate
+        ? { access: candidate.access as "member" | "administrator" }
+        : {}),
+      ...("index" in candidate ? { index: candidate.index as string[] } : {}),
+      ...("routes" in candidate
+        ? { routes: candidate.routes as string[][] }
+        : {}),
+      ...("pageId" in candidate ? { pageId: candidate.pageId as string } : {}),
+      ...("implementationId" in candidate
+        ? { implementationId: candidate.implementationId as string }
+        : {}),
       module: candidate.module,
       navigation: {
         items: candidate.navigation.items,
@@ -207,6 +268,9 @@ export function parsePageCatalog(value: unknown): readonly PageMount[] {
       subject: candidate.subject,
       title: candidate.title,
     };
+    if (mount.basePath && !validWorkspaceBasePath(mount, mount.basePath)) {
+      throw new TypeError("Console workspace path is invalid or reserved");
+    }
     return mount;
   });
 }

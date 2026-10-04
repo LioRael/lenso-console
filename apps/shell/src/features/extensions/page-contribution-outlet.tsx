@@ -14,6 +14,7 @@ import * as React from "react";
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
+import { useConsoleSession } from "../../app/console-session";
 import { RoutePending } from "../../app/route-states";
 import { useAgentIdentityOptional } from "../agent/agent-identity-context";
 import {
@@ -25,6 +26,12 @@ import {
   contributionAssetUrl,
 } from "./contribution-asset-url";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
+import {
+  acceptPageImplementationRecovery,
+  loadPageImplementation,
+  pageMountScopeKey,
+} from "./page-mount-runtime";
+import { workspacePageHref } from "./workspace-paths";
 import {
   createWorkspaceServices,
   type WorkspaceServices,
@@ -47,7 +54,7 @@ type ContributionProps = {
     search: string;
     segments: readonly string[];
   };
-  mount: PageMount;
+  mount: PageMount & { scopeKey?: string };
   navigation: {
     go: (segments: readonly string[]) => void;
     href: (segments: readonly string[]) => string;
@@ -59,6 +66,7 @@ type ContributionProps = {
     }) => void;
   };
   signal: AbortSignal;
+  services: WorkspaceServices;
 };
 
 type ContributionModule = {
@@ -78,7 +86,12 @@ type LoadedContribution<Props = ContributionProps> = {
   status: "ready";
   Page: ComponentType<Props>;
   Provider: ComponentType<{ children: ReactNode }>;
+  signal: AbortSignal;
+  services: WorkspaceServices;
+  scopeKey: string;
 };
+
+const pageUiModules = { "@lenso/ui/button": { Button } } as const;
 
 const styles = stylex.create({
   error: {
@@ -129,7 +142,8 @@ export function PageContributionOutlet({
   const [attempt, setAttempt] = useState(0);
   const loaded = useContributionModule(
     unavailableRequirements.length === 0 ? mount : undefined,
-    attempt
+    attempt,
+    pageUiModules
   );
   const handoff = useMemo(() => readWorkspaceHandoff(mount), [mount]);
   useEffect(() => consumeWorkspaceHandoff(mount, handoff), [handoff, mount]);
@@ -204,7 +218,7 @@ export function PageContributionOutlet({
   }
   return (
     <ContributionRenderBoundary
-      key={`${mount.id}:${mount.revision}:${attempt}`}
+      key={`${loaded.scopeKey}:${attempt}`}
       onRetry={() => setAttempt((value) => value + 1)}
       title={t("Extension failed to render")}
     >
@@ -243,15 +257,7 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
-  const [controller, setController] = useState<AbortController | null>(null);
-  useEffect(() => {
-    // Each effect setup owns a fresh signal. StrictMode replays cleanup/setup;
-    // a signal allocated once during render would stay permanently aborted.
-    const activeController = new AbortController();
-    setController(activeController);
-    return () => activeController.abort();
-  }, []);
-  if (!controller || controller.signal.aborted) {
+  if (loaded.signal.aborted) {
     return <RoutePending />;
   }
   return (
@@ -261,9 +267,22 @@ function MountedContribution({
         agent={agent}
         environment={environment}
         location={location}
-        mount={mount}
-        navigation={navigation}
-        signal={controller.signal}
+        mount={{ ...mount, scopeKey: loaded.scopeKey }}
+        navigation={{
+          ...navigation,
+          go: (segments) => {
+            if (!loaded.signal.aborted) {
+              navigation.go(segments);
+            }
+          },
+          openWorkspace: (request) => {
+            if (!loaded.signal.aborted) {
+              navigation.openWorkspace(request);
+            }
+          },
+        }}
+        signal={loaded.signal}
+        services={loaded.services}
       />
     </loaded.Provider>
   );
@@ -308,24 +327,36 @@ export function useContributionModule<Props = ContributionProps>(
   attempt: number,
   modules?: Readonly<Record<string, unknown>>
 ) {
+  const { subject: expectedSubject } = useConsoleSession();
   const [state, setState] = useState<
-    | { status: "idle" | "loading" }
-    | LoadedContribution<Props>
-    | { status: "error"; error: Error }
-  >({ status: "idle" });
+    | {
+        mount: PageMount;
+        attempt: number;
+        modules: typeof modules;
+        expectedSubject: string;
+        result: LoadedContribution<Props> | { status: "error"; error: Error };
+      }
+    | undefined
+  >();
 
   useEffect(() => {
     if (!mount) {
-      setState({ status: "idle" });
       return;
     }
-    let current = true;
+    // Allocate per effect setup, including StrictMode cleanup/setup replay.
+    const controller = new AbortController();
+    const { signal } = controller;
+    const services = createWorkspaceServices(mount, signal, expectedSubject);
+    const scopeKey = pageMountScopeKey(mount, expectedSubject);
     const stylesReady = mount.styles.map((href) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
       link.href = contributionAssetUrl(href, attempt > 0);
       link.dataset.consoleContribution = mount.id;
       const ready = new Promise<void>((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
         link.addEventListener("load", () => resolve(), { once: true });
         link.addEventListener(
           "error",
@@ -336,14 +367,14 @@ export function useContributionModule<Props = ContributionProps>(
       document.head.append(link);
       return { link, ready };
     });
-    setState({ status: "loading" });
+    setState(undefined);
     const load = async () => {
       try {
-        await Promise.all(stylesReady.map(({ ready }) => ready));
-        const moduleUrl = contributionAssetUrl(mount.module, attempt > 0);
-        // eslint-disable-next-line no-inline-comments -- Vite requires this import annotation.
-        const value: unknown = await import(/* @vite-ignore */ moduleUrl);
-        if (!current) {
+        const [value] = await Promise.all([
+          loadPageImplementation(mount, attempt > 0),
+          Promise.all(stylesReady.map(({ ready }) => ready)),
+        ]);
+        if (signal.aborted) {
           return;
         }
         if (!isContributionModule(value)) {
@@ -352,7 +383,7 @@ export function useContributionModule<Props = ContributionProps>(
         const page = value.createWorkspace({
           createElement,
           react: React,
-          services: createWorkspaceServices(mount),
+          services,
           modules,
         });
         if (!page || typeof page.Page !== "function") {
@@ -360,30 +391,52 @@ export function useContributionModule<Props = ContributionProps>(
         }
         if (attempt > 0) {
           acceptContributionRecovery([mount.module, ...mount.styles]);
+          acceptPageImplementationRecovery(mount);
         }
         setState({
-          Page: page.Page as ComponentType<Props>,
-          Provider: page.Provider ?? PassThroughProvider,
-          status: "ready",
+          mount,
+          attempt,
+          modules,
+          expectedSubject,
+          result: {
+            Page: page.Page as ComponentType<Props>,
+            Provider: page.Provider ?? PassThroughProvider,
+            signal,
+            services,
+            scopeKey,
+            status: "ready",
+          },
         });
       } catch (error) {
-        if (current) {
+        if (!signal.aborted) {
           setState({
-            error: error instanceof Error ? error : new Error(String(error)),
-            status: "error",
+            mount,
+            attempt,
+            modules,
+            expectedSubject,
+            result: {
+              error: error instanceof Error ? error : new Error(String(error)),
+              status: "error",
+            },
           });
         }
       }
     };
     void load();
     return () => {
-      current = false;
+      controller.abort();
       for (const { link } of stylesReady) {
         link.remove();
       }
     };
-  }, [attempt, mount, modules]);
-  return state;
+  }, [attempt, mount, modules, expectedSubject]);
+  return state &&
+    state.mount === mount &&
+    state.attempt === attempt &&
+    state.modules === modules &&
+    state.expectedSubject === expectedSubject
+    ? state.result
+    : { status: mount ? ("loading" as const) : ("idle" as const) };
 }
 
 function isContributionModule(value: unknown): value is ContributionModule {
@@ -409,7 +462,12 @@ function workspaceNavigation(
   mounts: readonly PageMount[]
 ) {
   const href = (segments: readonly string[]) =>
-    workspaceHref(mountId, subject, segments);
+    workspaceHref(
+      mounts.find(
+        (mount) => mount.id === mountId && sameSubject(mount.subject, subject)
+      ),
+      segments
+    );
   return {
     href,
     go: (segments: readonly string[]) => {
@@ -441,7 +499,7 @@ function workspaceNavigation(
       window.history.pushState(
         nextState,
         "",
-        workspaceHref(target.id, target.subject, request.segments ?? [])
+        workspaceHref(target, request.segments ?? [])
       );
       window.dispatchEvent(new PopStateEvent("popstate"));
     },
@@ -449,21 +507,13 @@ function workspaceNavigation(
 }
 
 function workspaceHref(
-  mountId: string,
-  subject: PageMount["subject"],
+  mount: PageMount | undefined,
   segments: readonly string[]
 ) {
-  if (
-    !segments.every((segment) =>
-      /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
-    )
-  ) {
-    throw new TypeError("Workspace navigation path is invalid");
+  if (!mount) {
+    throw new TypeError("Workspace is not available");
   }
-  const suffix = segments.length ? `/${segments.join("/")}` : "";
-  return subject.kind === "console"
-    ? `/workspaces/${encodeURIComponent(mountId)}${suffix}`
-    : `/apps/${encodeURIComponent(subject.appId)}/pages/${encodeURIComponent(mountId)}${suffix}`;
+  return workspacePageHref(mount, segments);
 }
 
 function checkedHandoff(

@@ -302,6 +302,9 @@ impl SessionBoundary {
             return *problem(StatusCode::BAD_GATEWAY, "invalid_page_catalog");
         };
         mounts.retain(|mount| {
+            if mount["access"] == "administrator" {
+                return false;
+            }
             mount["id"].as_str().is_some_and(|id| {
                 self.member_workspace_ids
                     .iter()
@@ -314,6 +317,17 @@ impl SessionBoundary {
             Json(value),
         )
             .into_response()
+    }
+
+    pub(super) fn admits_administrator(&self, context: &InvocationContext) -> bool {
+        !self.required
+            || context
+                .sealed_extension(lenso_auth_sdk::ACTOR_ASSERTION_EXTENSION)
+                .and_then(|extension| {
+                    serde_json::from_slice::<serde_json::Value>(extension.value()).ok()
+                })
+                .and_then(|value| value["subject"].as_str().map(str::to_owned))
+                .is_some_and(|subject| self.administrator_subjects.contains(&subject))
     }
 }
 

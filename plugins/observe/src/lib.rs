@@ -146,6 +146,7 @@ impl ObserveWorkspace {
                 kind: DescribeResponseSubjectKind::App,
             }),
             title: format!("Observe · {source_label}"),
+            workspaces: None,
             workspace_id: format!("observe-{}", self.config.source_id),
         }))))
     }
