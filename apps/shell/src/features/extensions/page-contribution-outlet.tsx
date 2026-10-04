@@ -11,10 +11,12 @@ import {
 } from "react";
 import * as React from "react";
 
+import type { ReadRefreshPolicy } from "../../../../../packages/console-authoring/src/read-refresh";
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { RoutePending } from "../../app/route-states";
+import { consoleReadRefreshPolicy } from "../../lib/read-refresh-policy";
 import { useAgentIdentityOptional } from "../agent/agent-identity-context";
 import {
   useOptionalAgentQuickPanel,
@@ -58,6 +60,7 @@ type ContributionProps = {
       workspaceId: string;
     }) => void;
   };
+  readRefreshPolicy?: ReadRefreshPolicy;
   signal: AbortSignal;
 };
 
@@ -133,16 +136,27 @@ export function PageContributionOutlet({
   );
   const handoff = useMemo(() => readWorkspaceHandoff(mount), [mount]);
   useEffect(() => consumeWorkspaceHandoff(mount, handoff), [handoff, mount]);
+  const segmentsKey = JSON.stringify(segments);
+  const stableSegments = useMemo(
+    () => JSON.parse(segmentsKey) as readonly string[],
+    [segmentsKey]
+  );
+  const { hash, search } = window.location;
+  const environment = useMemo(() => ({ locale, theme }), [locale, theme]);
   const location = useMemo(
     () => ({
       handoff,
-      hash: window.location.hash,
-      search: window.location.search,
-      segments,
+      hash,
+      search,
+      segments: stableSegments,
     }),
-    [handoff, segments]
+    [handoff, hash, search, stableSegments]
   );
-  const navigation = workspaceNavigation(mountId, subject, catalog.data ?? []);
+  const routingSubject = mount?.subject ?? subject;
+  const navigation = useMemo(
+    () => workspaceNavigation(mountId, routingSubject, catalog.data ?? []),
+    [mountId, routingSubject, catalog.data]
+  );
   const appAgent = agentIdentity?.agents.find((agent) => agent.role === "app");
   const agent = agentPanel
     ? {
@@ -210,7 +224,7 @@ export function PageContributionOutlet({
     >
       <MountedContribution
         agent={agent}
-        environment={{ locale, theme }}
+        environment={environment}
         loaded={loaded}
         location={location}
         mount={mount}
@@ -243,6 +257,10 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
+  const readRefreshPolicy = useMemo(
+    () => consoleReadRefreshPolicy(mount.id),
+    [mount.id]
+  );
   const [controller, setController] = useState<AbortController | null>(null);
   useEffect(() => {
     // Each effect setup owns a fresh signal. StrictMode replays cleanup/setup;
@@ -263,6 +281,7 @@ function MountedContribution({
         location={location}
         mount={mount}
         navigation={navigation}
+        readRefreshPolicy={readRefreshPolicy}
         signal={controller.signal}
       />
     </loaded.Provider>

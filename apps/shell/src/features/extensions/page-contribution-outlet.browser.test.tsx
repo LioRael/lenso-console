@@ -9,6 +9,89 @@ import { page } from "vitest/browser";
 
 import { PageContributionOutlet } from "./page-contribution-outlet";
 
+// A business read effect may depend on navigation/location/environment. Existing
+// lifetime tests cover unmount cancellation, not redundant reads after a same-scope
+// Host render with semantically identical route props.
+test("same-scope Host renders keep read dependencies stable while route changes still reach the page", async () => {
+  const reads = vi.fn();
+  const factories = vi.fn();
+  vi.stubGlobal("__lensoRefreshDependencyRead", reads);
+  vi.stubGlobal("__lensoRefreshDependencyFactory", factories);
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  client.setQueryData(
+    ["console-page-catalog"],
+    [
+      {
+        apiMajor: 1,
+        id: "refresh-dependencies",
+        module: `data:text/javascript,${encodeURIComponent(`
+      export const apiMajor = 1;
+      export function createWorkspace({ react, createElement }) {
+        globalThis.__lensoRefreshDependencyFactory();
+        return { Page: ({ navigation, location, environment, readRefreshPolicy }) => {
+          react.useEffect(() => {
+            globalThis.__lensoRefreshDependencyRead(location.segments.join("/"));
+          }, [navigation, location, environment, readRefreshPolicy]);
+          return createElement("h1", null, "Route " + location.segments.join("/"));
+        } };
+      }
+    `)}`,
+        navigation: { items: [], label: "Read dependencies" },
+        owner: {
+          instance: "reads/alpha",
+          source: "resolved-plan",
+          trusted: true,
+        },
+        requirements: [],
+        revision: "fixture-1",
+        styles: [],
+        subject: { kind: "console" },
+        title: "Read dependencies",
+      },
+    ]
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const render = (segment: string) =>
+    flushSync(() =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <PageContributionOutlet
+            mountId="refresh-dependencies"
+            segments={[segment]}
+            subject={{ kind: "console" }}
+          />
+        </QueryClientProvider>
+      )
+    );
+  try {
+    render("keys");
+    await expect
+      .element(page.getByRole("heading", { name: "Route keys" }))
+      .toBeVisible();
+    await vi.waitFor(() => expect(reads).toHaveBeenCalledTimes(1));
+    render("keys");
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    expect(reads).toHaveBeenCalledTimes(1);
+    expect(factories).toHaveBeenCalledTimes(1);
+    render("other");
+    await expect
+      .element(page.getByRole("heading", { name: "Route other" }))
+      .toBeVisible();
+    await vi.waitFor(() => expect(reads).toHaveBeenCalledTimes(2));
+    expect(reads).toHaveBeenLastCalledWith("other");
+    expect(factories).toHaveBeenCalledTimes(1);
+  } finally {
+    root.unmount();
+    client.clear();
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
 test("gives a StrictMode contribution a live signal and cancels it on unmount", async () => {
   const signals: AbortSignal[] = [];
   vi.stubGlobal("__lensoStrictContributionSignals", signals);
