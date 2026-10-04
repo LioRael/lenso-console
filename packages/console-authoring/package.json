@@ -2,6 +2,12 @@
   "name": "@lenso/console-sdk",
   "version": "0.1.0",
   "description": "Console page authoring: SDK, service client generation, compiler and scaffold",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LioRael/lenso-console.git",
+    "directory": "packages/console-authoring"
+  },
   "bin": {
     "lenso-console-author": "./author.mjs"
   },
@@ -22,7 +28,11 @@
     "./contribution": "./src/generated/contribution.ts",
     "./workspace-service": "./src/generated/workspace-service.ts",
     "./server": "./src/server.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./compiler": "./compiler/compiler.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "check": "tsc --ignoreConfig --noEmit --strict --target ES2022 --module preserve --moduleResolution bundler --skipLibCheck src/*.ts src/generated/*.ts"

@@ -13,22 +13,37 @@ test("packed authoring package compiles a clean consumer and preserves authoriza
   try {
     const pkg = path.resolve(import.meta.dir, "../..");
     const npm = process.env.LENSO_AUTHOR_NPM || "npm";
-    const packed = JSON.parse(
-      execFileSync(
-        npm,
-        [
-          "pack",
-          "--ignore-scripts",
-          "--json",
-          "--pack-destination",
-          temp,
-          "--cache",
-          path.join(temp, "npm-cache"),
-        ],
-        { cwd: pkg, encoding: "utf-8" }
-      )
-    );
-    const archive = path.join(temp, Object.values(packed)[0].filename);
+    const userConfig = path.join(temp, "npm-user-config");
+    const globalConfig = path.join(temp, "npm-global-config");
+    fs.writeFileSync(userConfig, "");
+    fs.writeFileSync(globalConfig, "");
+    const env = {
+      ...process.env,
+      BUN_INSTALL_CACHE_DIR: path.join(temp, "cache"),
+      NPM_CONFIG_USERCONFIG: userConfig,
+      NPM_CONFIG_GLOBALCONFIG: globalConfig,
+      NPM_CONFIG_REGISTRY: "https://registry.npmjs.org",
+    };
+    const packed = process.env.LENSO_AUTHOR_ARCHIVE
+      ? undefined
+      : JSON.parse(
+          execFileSync(
+            npm,
+            [
+              "pack",
+              "--ignore-scripts",
+              "--json",
+              "--pack-destination",
+              temp,
+              "--cache",
+              path.join(temp, "npm-cache"),
+            ],
+            { cwd: pkg, env, encoding: "utf-8" }
+          )
+        );
+    const archive = process.env.LENSO_AUTHOR_ARCHIVE
+      ? fs.realpathSync(process.env.LENSO_AUTHOR_ARCHIVE)
+      : path.join(temp, Object.values(packed)[0].filename);
     const project = path.join(temp, "consumer");
     fs.mkdirSync(project);
     fs.writeFileSync(
@@ -41,17 +56,29 @@ test("packed authoring package compiles a clean consumer and preserves authoriza
         },
       })
     );
-    const env = {
-      ...process.env,
-      BUN_INSTALL_CACHE_DIR: path.join(temp, "cache"),
-    };
     const install = Bun.spawnSync(
-      [process.execPath, "install", "--ignore-scripts"],
+      [
+        npm,
+        "install",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--cache",
+        path.join(temp, "npm-cache"),
+      ],
       { cwd: project, env, stdout: "pipe", stderr: "pipe" }
     );
     expect(install.exitCode, install.stderr.toString()).toBe(0);
     const installed = path.join(project, "node_modules/@lenso/console-sdk");
     expect(fs.realpathSync(installed).startsWith(temp)).toBe(true);
+    const compiler = execFileSync(
+      "node",
+      ["-p", 'require.resolve("@lenso/console-sdk/compiler")'],
+      { cwd: project, env, encoding: "utf-8" }
+    ).trim();
+    expect(fs.realpathSync(compiler)).toBe(
+      path.join(installed, "compiler/compiler.mjs")
+    );
     const cli = path.join(installed, "author.mjs");
     const entry = path.join(project, "console");
     const run = (args) =>
@@ -65,6 +92,32 @@ test("packed authoring package compiles a clean consumer and preserves authoriza
     const pageOnly = run(["build", "--entry", entry]);
     expect(pageOnly.exitCode, pageOnly.stderr.toString()).toBe(0);
     expect(fs.existsSync(path.join(entry, "services.ts"))).toBe(false);
+    const contribution = path.join(temp, "resolved-compiler");
+    fs.mkdirSync(contribution);
+    const compiled = Bun.spawnSync([process.execPath, compiler], {
+      cwd: project,
+      env,
+      stdin: Buffer.from(
+        JSON.stringify({
+          schema: "lenso.convention-compile.v1",
+          entry,
+          output: contribution,
+          plugin_id: "example.console",
+          release_version: "0.1.0",
+        })
+      ),
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(compiled.exitCode, compiled.stderr.toString()).toBe(0);
+    expect(JSON.parse(compiled.stdout.toString()).schema).toBe(
+      "lenso.convention-compiled.v1"
+    );
+    expect(
+      JSON.parse(
+        fs.readFileSync(path.join(contribution, "descriptor.json"), "utf-8")
+      ).workspaces[0].id
+    ).toBe("example.console");
     fs.cpSync(path.join(installed, "service-example"), entry, {
       recursive: true,
     });

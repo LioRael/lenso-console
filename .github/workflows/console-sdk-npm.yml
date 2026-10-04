@@ -1,0 +1,103 @@
+name: Console SDK npm distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact reviewed Console source commit (40 hexadecimal characters)
+        type: string
+        required: true
+      publish:
+        description: Publish the verified SDK archive through npm Trusted Publishing
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Verify the exact source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+      - run: npm install --global npm@11.5.1 bun@1.4.2 --ignore-scripts
+      - name: Pack the owner SDK and record integrity
+        run: |
+          mkdir -p .artifacts/console-sdk
+          npm pack ./packages/console-authoring --ignore-scripts --json --pack-destination .artifacts/console-sdk > .artifacts/console-sdk/pack.json
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import { createHash } from "node:crypto";
+          import { execFileSync } from "node:child_process";
+          const [pack] = JSON.parse(fs.readFileSync(".artifacts/console-sdk/pack.json", "utf8"));
+          const pkg = JSON.parse(fs.readFileSync("packages/console-authoring/package.json", "utf8"));
+          assert.equal(pack.name, "@lenso/console-sdk");
+          assert.equal(pack.version, pkg.version);
+          assert.equal(pkg.exports["./compiler"], "./compiler/compiler.mjs");
+          const archive = fs.readFileSync(`.artifacts/console-sdk/${pack.filename}`);
+          assert.equal(pack.integrity, `sha512-${createHash("sha512").update(archive).digest("base64")}`);
+          fs.writeFileSync(".artifacts/console-sdk/source.json", JSON.stringify({
+            source_sha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+            name: pack.name, version: pack.version, filename: pack.filename,
+            integrity: pack.integrity, sha256: createHash("sha256").update(archive).digest("hex")
+          }, null, 2));
+          NODE
+      - name: Verify the exact archive with an isolated npm consumer
+        run: |
+          archive=$(node -p 'JSON.parse(require("fs").readFileSync(".artifacts/console-sdk/source.json", "utf8")).filename')
+          LENSO_AUTHOR_ARCHIVE="$PWD/.artifacts/console-sdk/$archive" bun test packages/console-authoring/compiler/test/consumer.test.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: console-sdk-npm
+          path: .artifacts/console-sdk/*
+          if-no-files-found: error
+
+  publish:
+    if: inputs.publish && github.ref == 'refs/heads/main' && inputs.source_sha == github.sha
+    needs: package
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: console-sdk-npm
+          path: .artifacts/console-sdk
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.5.1 --ignore-scripts
+      - name: Verify and publish only the tested archive
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import { createHash } from "node:crypto";
+          const source = JSON.parse(fs.readFileSync(".artifacts/console-sdk/source.json", "utf8"));
+          assert.equal(source.source_sha, process.env.GITHUB_SHA);
+          assert.equal(source.name, "@lenso/console-sdk");
+          const archive = fs.readFileSync(`.artifacts/console-sdk/${source.filename}`);
+          assert.equal(source.integrity, `sha512-${createHash("sha512").update(archive).digest("base64")}`);
+          NODE
+          npm publish .artifacts/console-sdk/*.tgz --access public --provenance --ignore-scripts
+          node tooling/distribution/wait-for-npm-package.mjs .artifacts/console-sdk/*.tgz

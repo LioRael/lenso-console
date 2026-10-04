@@ -30,6 +30,40 @@ Use the precompiled [development Host](development-host.md) for an executable
 App, or the [native embedding example](https://github.com/LioRael/lenso-console/tree/main/examples/plugin-host).
 Page compilation alone does not prove compatibility with a released Engine Host.
 
+## Compiler package entry
+
+After the owner publishes this candidate, ordinary Apps can pin
+`@lenso/console-sdk` at `0.1.0` in their normal dependency manifest and lockfile.
+The public `@lenso/console-sdk/compiler` entry resolves to the existing Bun
+compiler; it is an executable stdin/stdout protocol, not an importable function:
+
+```js
+import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
+
+const require = createRequire(import.meta.url); // in the package owning the SDK dependency
+const compiler = require.resolve("@lenso/console-sdk/compiler");
+const result = spawnSync("bun", [compiler], {
+  input: JSON.stringify({
+    schema: "lenso.convention-compile.v1",
+    entry: "/absolute/path/to/console",
+    output: "/absolute/path/to/output",
+    plugin_id: "example.console",
+    release_version: "0.1.0",
+  }),
+  encoding: "utf8",
+});
+if (result.error) throw result.error;
+if (result.status !== 0) throw new Error(result.stderr);
+```
+
+Success returns `{"schema":"lenso.convention-compiled.v1"}` and writes the same
+descriptor and provider assets as `lenso-console-author`. Existing workspace
+options, authorization, scoped reads and generated dependencies are unchanged.
+Node resolves the entry; Bun runs it. A repository's private workspace root is
+not this npm package. See the owner's [npm distribution process](https://github.com/LioRael/lenso-console/blob/main/docs/console-sdk-npm-distribution.md)
+for the candidate archive and separate publication requirements.
+
 The default scaffold has pages and navigation only. `init console --services`
 adds the typed service example for source compilation and a qualified Host.
 Services require a Host that qualifies the complete WorkspaceService role,
