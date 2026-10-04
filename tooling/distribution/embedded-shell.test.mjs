@@ -70,7 +70,7 @@ fn main() { ${body} }`
       return result;
     };
     const result = await compileAndRunProbe(
-      'assert_eq!(EMBEDDED_SHELL.len(), 1); assert_eq!(EMBEDDED_SHELL[0].0, "index.html"); print!("{}", std::str::from_utf8(EMBEDDED_SHELL[0].1).unwrap());'
+      'assert!(SHELL_PAGE_ROUTES.iter().any(|route| *route == ["settings", "ai", "agent"])); assert_eq!(EMBEDDED_SHELL.len(), 1); assert_eq!(EMBEDDED_SHELL[0].0, "index.html"); print!("{}", std::str::from_utf8(EMBEDDED_SHELL[0].1).unwrap());'
     );
     assert.equal(result.stdout, "<main>external Shell</main>");
 

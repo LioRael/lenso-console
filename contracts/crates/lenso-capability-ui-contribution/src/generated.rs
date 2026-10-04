@@ -5,8 +5,8 @@ use lenso_kernel::{InvocationContext, NativeRequestEndpoint, NativeRequestFuture
 
 use lenso_plugin_authoring::{BoundCapabilityClient, CapabilityClient, CapabilityClientMany, CapabilityReference};
 pub const CAPABILITY_ID: &str = "lenso.ui.contribution@1";
-pub const DESCRIPTOR_VERSION: &str = "1.3.0";
-pub const DESCRIPTOR_DIGEST: &str = "sha256:819917f08497881aa5db5d86c9e358a45d3f0f88f3b8087142fe5999e50c7c9a";
+pub const DESCRIPTOR_VERSION: &str = "1.4.0";
+pub const DESCRIPTOR_DIGEST: &str = "sha256:56755b29939e63ac24e453063f9f7e0c361d375b200d40a274b932962301cff2";
 pub const PORTABLE: bool = true;
 pub const CROSS_LANE_TRANSFER: bool = false;
 pub const CONTRIBUTION_CAPABILITY_ID: &str = CAPABILITY_ID;
@@ -16,26 +16,26 @@ pub const CONTRIBUTION_CONTRACT: CapabilityReference<ContributionClient> = Capab
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __lenso_provided_contribution { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"operations\":[\"describe_contribution\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
+macro_rules! __lenso_provided_contribution { () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.4.0\",\"operations\":[\"describe_contribution\"],\"operation_kinds\":{},\"default_admission\":{\"queue_capacity\":0,\"max_concurrency\":1},\"operation_admissions\":{},\"event_admission\":null,\"cross_lane_transfer\":false}" }; }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __lenso_required_contribution_client {
-    () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"one\"}" };
-    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"one\"}") };
+    () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.4.0\",\"cardinality\":\"one\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.4.0\",\"cardinality\":\"one\"}") };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __lenso_required_optional_contribution_client {
-    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"optional\"}") };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.4.0\",\"cardinality\":\"optional\"}") };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __lenso_required_many_contribution_client {
-    () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"many\"}" };
-    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.3.0\",\"cardinality\":\"many\"}") };
+    () => { "{\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.4.0\",\"cardinality\":\"many\"}" };
+    ($requirement_id:literal) => { concat!("{\"requirement_id\":", stringify!($requirement_id), ",\"capability_id\":\"lenso.ui.contribution@1\",\"descriptor_version\":\"1.4.0\",\"cardinality\":\"many\"}") };
 }
 
 pub const DESCRIBE_CONTRIBUTION_OPERATION: &str = "describe_contribution";
@@ -77,6 +77,9 @@ pub struct DescribeContributionResponse {
     #[serde(rename = "workspace_id")]
     #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
     pub workspace_id: String,
+    #[serde(rename = "workspaces")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspaces: Option<Vec<DescribeContributionResponseWorkspacesItem>>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -168,6 +171,92 @@ pub enum DescribeContributionResponseSubjectKind {
     Console,
     #[serde(rename = "app")]
     App,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DescribeContributionResponseWorkspacesItem {
+    #[serde(rename = "access")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub access: DescribeContributionResponseWorkspacesItemAccess,
+    #[serde(rename = "id")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub id: String,
+    #[serde(rename = "index")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub index: Vec<String>,
+    #[serde(rename = "navigation")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub navigation: DescribeContributionResponseWorkspacesItemNavigation,
+    #[serde(rename = "path")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub path: String,
+    #[serde(rename = "requirements")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requirements: Option<Vec<DescribeContributionResponseWorkspacesItemRequirementsItem>>,
+    #[serde(rename = "routes")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub routes: Vec<Vec<String>>,
+    #[serde(rename = "title")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub title: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum DescribeContributionResponseWorkspacesItemAccess {
+    #[serde(rename = "member")]
+    Member,
+    #[serde(rename = "administrator")]
+    Administrator,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DescribeContributionResponseWorkspacesItemNavigation {
+    #[serde(rename = "items")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub items: Vec<DescribeContributionResponseWorkspacesItemNavigationItemsItem>,
+    #[serde(rename = "label")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub label: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DescribeContributionResponseWorkspacesItemNavigationItemsItem {
+    #[serde(rename = "label")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub label: String,
+    #[serde(rename = "path")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub path: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DescribeContributionResponseWorkspacesItemRequirementsItem {
+    #[serde(rename = "capability_id")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub capability_id: String,
+    #[serde(rename = "descriptor_version")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub descriptor_version: String,
+    #[serde(rename = "operations")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub operations: Vec<String>,
+    #[serde(rename = "required")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub required: bool,
+    #[serde(rename = "service_id")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub service_id: String,
+    #[serde(rename = "source")]
+    #[serde(deserialize_with = "lenso_contract_runtime::serde::deserialize_required")]
+    pub source: DescribeContributionResponseWorkspacesItemRequirementsItemSource,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum DescribeContributionResponseWorkspacesItemRequirementsItemSource {
+    #[serde(rename = "owner")]
+    Owner,
+    #[serde(rename = "subject")]
+    Subject,
 }
 
 #[derive(Clone, Debug, PartialEq)]

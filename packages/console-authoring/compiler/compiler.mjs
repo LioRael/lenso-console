@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { typecheck } from "./typecheck.mjs";
+import { discoverWorkspaces } from "./workspace-discovery.mjs";
 
 const request = JSON.parse(await Bun.stdin.text());
 if (request.schema !== "lenso.convention-compile.v1") {
@@ -35,8 +36,10 @@ const cleanInstallCache = () => {
 };
 const pages = [];
 const authored = [];
+const workspaceId = request.plugin_id.replace(/\.surface-[a-f0-9]+$/, "");
+const workspaces = await discoverWorkspaces(root, workspaceId, request.options);
 let count = 0;
-function scan(directory, segments = []) {
+function scan(directory, workspace, segments = []) {
   if (segments.length > 8) {
     throw new Error("Console routes exceed eight segments");
   }
@@ -57,7 +60,19 @@ function scan(directory, segments = []) {
       throw new Error("Console source cannot contain symbolic links");
     }
     if (item.isDirectory()) {
-      scan(path.join(directory, item.name), [...segments, item.name]);
+      if (
+        workspaces.some(
+          (candidate) =>
+            candidate.directory === path.join(directory, item.name) &&
+            candidate !== workspace
+        )
+      ) {
+        continue;
+      }
+      scan(path.join(directory, item.name), workspace, [
+        ...segments,
+        item.name,
+      ]);
     } else {
       if (/\.tsx?$/.test(item.name)) {
         authored.push(path.join(directory, item.name));
@@ -84,26 +99,33 @@ function scan(directory, segments = []) {
       if (new Set(names).size !== names.length) {
         throw new Error("Duplicate Console route parameter");
       }
-      pages.push({ segments, source: path.join(directory, item.name) });
+      pages.push({
+        segments,
+        source: path.join(directory, item.name),
+        workspace,
+      });
     }
   }
 }
-scan(root);
+for (const workspace of workspaces) {
+  scan(workspace.directory, workspace);
+}
 if (!pages.length || pages.length > 32) {
   throw new Error("Console requires 1..32 pages");
 }
-const shapes = pages.map((p) =>
-  p.segments
-    .map((s) =>
-      s.startsWith("[[...")
-        ? "[[...]]"
-        : s.startsWith("[...")
-          ? "[...]"
-          : s.startsWith("[")
-            ? "[]"
-            : s
-    )
-    .join("/")
+const shapes = pages.map(
+  (p) =>
+    `${p.workspace.id}:${p.segments
+      .map((s) =>
+        s.startsWith("[[...")
+          ? "[[...]]"
+          : s.startsWith("[...")
+            ? "[...]"
+            : s.startsWith("[")
+              ? "[]"
+              : s
+      )
+      .join("/")}`
 );
 if (new Set(shapes).size !== shapes.length) {
   throw new Error("Ambiguous Console routes");
@@ -138,7 +160,10 @@ const routes = pages.map((page) => {
   const Page = addImport(page.source, "PageProps");
   const layers = [];
   for (let depth = 0; depth <= page.segments.length; depth += 1) {
-    const directory = path.join(root, ...page.segments.slice(0, depth));
+    const directory = path.join(
+      page.workspace.directory,
+      ...page.segments.slice(0, depth)
+    );
     const layer = [];
     for (const [file, name, type] of [
       ["layout", "Layout", "LayoutProps"],
@@ -152,15 +177,32 @@ const routes = pages.map((page) => {
     }
     layers.push(`{${layer.join(",")}}`);
   }
-  return `{segments:${JSON.stringify(page.segments)},Page:${Page},layers:[${layers.join(",")}]}`;
+  return {
+    workspace: page.workspace.id,
+    source: `{segments:${JSON.stringify(page.segments)},Page:${Page},layers:[${layers.join(",")}]}`,
+  };
 });
-const notFoundSource = path.join(root, "not-found.tsx");
-const notFound = fs.existsSync(notFoundSource)
-  ? addImport(notFoundSource, "PageProps")
-  : "undefined";
+const workspaceRouters = workspaces.map((workspace) => {
+  const selected = pages.filter((page) => page.workspace === workspace);
+  if (
+    !selected.some(
+      (page) => page.segments.join("/") === workspace.index.join("/")
+    )
+  ) {
+    throw new Error(`Workspace ${workspace.id} homepage is not a static page`);
+  }
+  const notFoundSource = path.join(workspace.directory, "not-found.tsx");
+  const notFound = fs.existsSync(notFoundSource)
+    ? addImport(notFoundSource, "PageProps")
+    : "undefined";
+  return `${JSON.stringify(workspace.id)}:createPageRouter([${routes
+    .filter((route) => route.workspace === workspace.id)
+    .map((route) => route.source)
+    .join(",")}],${notFound},${JSON.stringify(workspace.index)})`;
+});
 fs.writeFileSync(
   entry,
-  `${imports.join("\n")}\nimport {createPageRouter} from ${JSON.stringify(path.join(import.meta.dir, "router.ts"))};\nexport function createWorkspace(runtime) { const Page=createPageRouter([${routes.join(",")}],${notFound}); return {Page(props) { return runtime.createElement(Page,{...props,services:runtime.services}); }}; }`
+  `${imports.join("\n")}\nimport {createPageRouter} from ${JSON.stringify(path.join(import.meta.dir, "router.ts"))};\nexport function createWorkspace(runtime) { const pages={${workspaceRouters.join(",")}}; return {Page(props) { const Page=pages[props.mount?.pageId ?? ${JSON.stringify(workspaces[0].id)}]; if(!Page) throw new Error("Workspace implementation is not available"); return runtime.createElement(Page,{...props,services:runtime.services}); }}; }`
 );
 const sdk = path.resolve(import.meta.dir, "../src/index.ts");
 try {
@@ -224,7 +266,7 @@ for (const output of result.outputs) {
   }
   const bytes =
     extension === ".js"
-      ? Buffer.from(`export const apiMajor=1; export function createWorkspace(runtime) { const jsx=(type,props,key)=>runtime.createElement(type,key===undefined?props:{...props,key}); const jsxRuntime={Fragment:runtime.react.Fragment,jsx,jsxs:jsx,jsxDEV:jsx}; const require=(name)=>{if(name==="react") return runtime.react; if(name==="react/jsx-runtime" || name==="react/jsx-dev-runtime") return jsxRuntime; throw new Error("Unsupported workspace external: "+name);}; const module={exports:{}}; const exports=module.exports; ${await output.text()}
+      ? Buffer.from(`export const apiMajor=1; export function createWorkspace(runtime) { const jsx=(type,props,key)=>runtime.createElement(type,key===undefined?props:{...props,key}); const jsxs=(type,props,key)=>{const {children,...rest}=props; return runtime.createElement(type,key===undefined?rest:{...rest,key},...children);}; const jsxDEV=(type,props,key,staticChildren)=>staticChildren?jsxs(type,props,key):jsx(type,props,key); const jsxRuntime={Fragment:runtime.react.Fragment,jsx,jsxs,jsxDEV}; const require=(name)=>{if(name==="react") return runtime.react; if(name==="react/jsx-runtime" || name==="react/jsx-dev-runtime") return jsxRuntime; throw new Error("Unsupported workspace external: "+name);}; const module={exports:{}}; const exports=module.exports; ${await output.text()}
 return module.exports.createWorkspace(runtime); }`)
       : Buffer.from(await output.arrayBuffer());
   if (bytes.length > 1024 * 1024) {
@@ -239,13 +281,36 @@ return module.exports.createWorkspace(runtime); }`)
     content_base64: bytes.toString("base64"),
   });
 }
-const workspace = request.plugin_id.replace(/\.surface-[a-f0-9]+$/, "");
-if (!/^[a-z][a-z0-9._-]{0,63}$/.test(workspace)) {
+const defaultWorkspace = workspaces[0].id;
+if (!/^[a-z][a-z0-9._-]{0,63}$/.test(defaultWorkspace)) {
   throw new Error("Console workspace identity exceeds the public contract");
 }
 const title = path.basename(path.dirname(root));
 const descriptor = {
-  workspace_id: workspace,
+  workspace_id: defaultWorkspace,
+  workspaces: workspaces.map((workspace) => ({
+    id: workspace.id,
+    title: workspace.title,
+    path: workspace.path,
+    index: workspace.index,
+    access: workspace.access,
+    routes: pages
+      .filter((page) => page.workspace === workspace)
+      .map((page) => page.segments),
+    navigation: {
+      label: workspace.title.slice(0, 40),
+      items: pages
+        .filter(
+          (page) =>
+            page.workspace === workspace &&
+            !page.segments.some((segment) => segment.startsWith("["))
+        )
+        .map((page) => ({
+          label: page.segments.at(-1) || "Home",
+          path: page.segments,
+        })),
+    },
+  })),
   title,
   revision: createHash("sha256").update(JSON.stringify(assets)).digest("hex"),
   module: "workspace.mjs",
@@ -253,7 +318,11 @@ const descriptor = {
   navigation: {
     label: title.slice(0, 40),
     items: pages
-      .filter((p) => !p.segments.some((s) => s.startsWith("[")))
+      .filter(
+        (p) =>
+          p.workspace === workspaces[0] &&
+          !p.segments.some((s) => s.startsWith("["))
+      )
       .map((p) => ({ label: p.segments.at(-1) || "Home", path: p.segments })),
   },
   assets,
@@ -266,6 +335,15 @@ fs.copyFileSync(
 );
 fs.writeFileSync(path.join(out, "descriptor.json"), JSON.stringify(descriptor));
 const hasServices = fs.existsSync(path.join(root, "services.ts"));
+if (
+  hasServices &&
+  workspaces.length > 1 &&
+  workspaces.some((workspace) => workspace.services === undefined)
+) {
+  throw new Error(
+    "Multi-workspace services require explicit service aliases in each workspace declaration"
+  );
+}
 if (hasServices) {
   fs.copyFileSync(
     path.join(import.meta.dir, "../src/generated/workspace-service.ts"),
@@ -319,8 +397,14 @@ import {Contribution, type ContributionProvider, type DescribeContributionRespon
 import descriptor from "./descriptor.json";
 ${hasServices ? 'import {WorkspaceService, type WorkspaceServiceProvider} from "./workspace-service.ts"; import services from "./services.js"; import {createWorkspaceServices} from "./server.ts";' : ""}
 export default definePlugin({provides:[Contribution${hasServices ? ",WorkspaceService" : ""}],create(): ContributionProvider${hasServices ? " & WorkspaceServiceProvider" : ""} {
-${hasServices ? "const adapter=createWorkspaceServices(services,descriptor.revision);" : ""}
-return {${hasServices ? "...adapter.provider," : ""}async describe_contribution(){return {ok:true,value:{...descriptor,requirements:${hasServices ? "adapter.requirements" : "descriptor.requirements"}} as DescribeContributionResponse};}};}});
+${
+  hasServices
+    ? `const adapter=createWorkspaceServices(services,descriptor.revision);
+const aliases:Record<string,readonly string[]|null>=${JSON.stringify(Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.services ?? null])))};
+const workspaces=descriptor.workspaces.map(workspace=>{const selected=aliases[workspace.id]; if(selected===undefined) throw new Error("Workspace service selection is missing"); if(selected?.some(alias=>!adapter.requirements.some(requirement=>requirement.service_id===alias))) throw new Error("Workspace declares an unknown service alias"); return {...workspace,requirements:selected===null?adapter.requirements:adapter.requirements.filter(requirement=>selected.includes(requirement.service_id))};});`
+    : ""
+}
+return {${hasServices ? "...adapter.provider," : ""}async describe_contribution(){return {ok:true,value:{...descriptor,${hasServices ? "workspaces," : ""}requirements:${hasServices ? "adapter.requirements" : "descriptor.requirements"}} as DescribeContributionResponse};}};}});
 `
 );
 fs.writeFileSync(
