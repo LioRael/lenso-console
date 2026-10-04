@@ -332,7 +332,7 @@ impl NativeStreamSession for ConsoleResponseStream {
             };
             if let Some(bytes) = buffered {
                 terminal.set(false);
-                return Ok(response_chunk(bytes));
+                return Ok(response_chunk(&bytes));
             }
             let Some(mut response_body) = body.borrow_mut().take() else {
                 return Ok(NativeStreamItem::Terminal(Ok(())));
@@ -354,7 +354,7 @@ impl NativeStreamSession for ConsoleResponseStream {
                     *pending.borrow_mut() = bytes;
                     body.borrow_mut().replace(response_body);
                     terminal.set(false);
-                    Ok(response_chunk(chunk))
+                    Ok(response_chunk(&chunk))
                 }
                 Some(Err(error)) => Err(error),
                 None => Ok(NativeStreamItem::Terminal(Ok(()))),
@@ -377,7 +377,7 @@ impl NativeStreamSession for ConsoleResponseStream {
     }
 }
 
-fn response_chunk(bytes: Bytes) -> NativeStreamItem {
+fn response_chunk(bytes: &Bytes) -> NativeStreamItem {
     NativeStreamItem::Message(Box::new(stream_endpoint::HandleResponse {
         body: Some(bytes.to_vec().into()),
         headers: None,
@@ -395,7 +395,250 @@ fn internal(detail: impl Into<String>) -> RuntimeFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::Stream;
     use lenso_kernel::{CancellationToken, SealedInvocationExtension};
+    use std::{
+        pin::Pin,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        task::{Context, Poll},
+    };
+
+    fn response_stream(body: Body) -> ConsoleResponseStream {
+        ConsoleResponseStream::new(
+            stream_endpoint::HandleResponse {
+                body: None,
+                headers: Some(vec![]),
+                kind: stream_endpoint::HandleResponseKind::Head,
+                status: Some(200),
+            },
+            body,
+        )
+    }
+
+    async fn message(stream: &ConsoleResponseStream) -> stream_endpoint::HandleResponse {
+        let NativeStreamItem::Message(value) = stream.receive().await.unwrap() else {
+            panic!("expected an HTTP stream message");
+        };
+        *value.downcast().unwrap()
+    }
+
+    async fn terminal(stream: &ConsoleResponseStream) {
+        assert!(matches!(
+            stream.receive().await.unwrap(),
+            NativeStreamItem::Terminal(Ok(()))
+        ));
+    }
+
+    struct OwnedBytes {
+        bytes: Vec<u8>,
+        dropped: Arc<AtomicBool>,
+    }
+    impl AsRef<[u8]> for OwnedBytes {
+        fn as_ref(&self) -> &[u8] {
+            &self.bytes
+        }
+    }
+    impl Drop for OwnedBytes {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    struct TrackedStream {
+        values: std::collections::VecDeque<Result<Bytes, std::io::Error>>,
+        pending: bool,
+        dropped: Arc<AtomicBool>,
+    }
+    impl Stream for TrackedStream {
+        type Item = Result<Bytes, std::io::Error>;
+        fn poll_next(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            if self.pending {
+                Poll::Pending
+            } else {
+                Poll::Ready(self.values.pop_front())
+            }
+        }
+    }
+    impl Drop for TrackedStream {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    // The deployed assets arrive as a single Full body. Compilation and small
+    // health responses never exercised Core's 65536-byte per-chunk bound.
+    #[tokio::test]
+    async fn large_javascript_and_css_assets_stream_without_truncation() {
+        let root = tempfile::tempdir().unwrap();
+        let directory = root.path().join("contributions/relay.console");
+        std::fs::create_dir_all(&directory).unwrap();
+        let mut javascript = b"export const apiMajor=1; export function createWorkspace(){return {Page(){return null;}}}".to_vec();
+        javascript.resize(347_108, b' ');
+        let mut css = b".relay{color:blue}".to_vec();
+        css.resize(242_598, b' ');
+        std::fs::write(directory.join("page.mjs"), &javascript).unwrap();
+        std::fs::write(directory.join("page.css"), &css).unwrap();
+        std::fs::write(
+            directory.join("contribution.json"),
+            serde_json::json!({
+                "schema":"console.page-contribution/1", "id":"relay.console", "title":"Relay",
+                "subject":{"kind":"console"}, "runtime":{"apiMajor":1},
+                "module":"page.mjs", "styles":["page.css"],
+                "navigation":{"label":"Relay","items":[{"label":"Home","path":[]}]}
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let pages = crate::page_contributions::PageCatalog::discover(
+            root.path(),
+            &std::collections::BTreeSet::new(),
+        )
+        .unwrap();
+        let mut config = crate::ConsolePluginConfig::defaults();
+        config.web_root = root.path().to_str().unwrap().into();
+        let app =
+            crate::console_application(crate::ConsoleConfig::from_plugin(&config).unwrap(), pages);
+        let response = app
+            .handle(Request::new(Method::GET, "/api/console/v1/pages"))
+            .await;
+        let catalog: serde_json::Value =
+            serde_json::from_slice(&response.into_parts().1.collect(65536).await.unwrap()).unwrap();
+        for (path, expected) in [
+            (&catalog["mounts"][0]["module"], javascript),
+            (&catalog["mounts"][0]["styles"][0], css),
+        ] {
+            let response = app
+                .handle(Request::new(Method::GET, path.as_str().unwrap()))
+                .await;
+            assert_eq!(response.status(), http::StatusCode::OK);
+            let (parts, body) = response.into_parts();
+            let stream = ConsoleResponseStream::new(
+                stream_endpoint::HandleResponse {
+                    body: None,
+                    headers: Some(stream_headers(&parts.headers).unwrap()),
+                    kind: stream_endpoint::HandleResponseKind::Head,
+                    status: Some(200),
+                },
+                body,
+            );
+            let head = message(&stream).await;
+            assert!(matches!(
+                head.kind,
+                stream_endpoint::HandleResponseKind::Head
+            ));
+            assert_eq!(head.status, Some(200));
+            let mut assembled = Vec::new();
+            let mut chunks = 0;
+            while let NativeStreamItem::Message(value) = stream.receive().await.unwrap() {
+                let value = value.downcast::<stream_endpoint::HandleResponse>().unwrap();
+                assert!(matches!(
+                    value.kind,
+                    stream_endpoint::HandleResponseKind::Chunk
+                ));
+                assert!(value.headers.is_none() && value.status.is_none());
+                let bytes = value.body.unwrap().into_shared();
+                assert!(bytes.len() <= 65536);
+                assembled.extend_from_slice(&bytes);
+                chunks += 1;
+            }
+            assert!(chunks > 1);
+            assert_eq!(assembled, expected);
+            terminal(&stream).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelling_releases_buffered_remainder_and_unsent_head() {
+        for after_chunk in [false, true] {
+            let dropped = Arc::new(AtomicBool::new(false));
+            let bytes = Bytes::from_owner(OwnedBytes {
+                bytes: vec![42; 347_108],
+                dropped: dropped.clone(),
+            });
+            let stream = response_stream(Body::from(bytes));
+            if after_chunk {
+                message(&stream).await;
+                assert_eq!(message(&stream).await.body.unwrap().len(), 65536);
+            }
+            assert!(!dropped.load(Ordering::SeqCst));
+            stream.cancel();
+            assert!(dropped.load(Ordering::SeqCst));
+            terminal(&stream).await;
+            terminal(&stream).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn cancelling_wakes_pending_receive_and_drops_upstream_body() {
+        let dropped = Arc::new(AtomicBool::new(false));
+        let stream = response_stream(Body::from_stream(TrackedStream {
+            values: std::collections::VecDeque::new(),
+            pending: true,
+            dropped: dropped.clone(),
+        }));
+        message(&stream).await;
+        let mut receive = stream.receive();
+        assert!(matches!(
+            receive
+                .as_mut()
+                .poll(&mut Context::from_waker(std::task::Waker::noop())),
+            Poll::Pending
+        ));
+        stream.cancel();
+        assert!(matches!(
+            tokio::time::timeout(std::time::Duration::from_millis(100), receive)
+                .await
+                .unwrap()
+                .unwrap(),
+            NativeStreamItem::Terminal(Ok(()))
+        ));
+        assert!(dropped.load(Ordering::SeqCst));
+        terminal(&stream).await;
+    }
+
+    #[tokio::test]
+    async fn source_boundaries_errors_and_eof_preserve_order_and_release_body() {
+        for fail in [false, true] {
+            let dropped = Arc::new(AtomicBool::new(false));
+            let mut values = std::collections::VecDeque::from([
+                Ok(Bytes::new()),
+                Ok(Bytes::from(vec![17; 65_539])),
+                Ok(Bytes::from_static(b"tail")),
+            ]);
+            if fail {
+                values.push_back(Err(std::io::Error::other("upstream")));
+            }
+            let stream = response_stream(Body::from_stream(TrackedStream {
+                values,
+                pending: false,
+                dropped: dropped.clone(),
+            }));
+            message(&stream).await;
+            assert!(message(&stream).await.body.unwrap().is_empty());
+            assert_eq!(message(&stream).await.body.unwrap().len(), 65536);
+            assert_eq!(
+                message(&stream).await.body.unwrap().into_shared().as_ref(),
+                &[17; 3]
+            );
+            assert_eq!(
+                message(&stream).await.body.unwrap().into_shared().as_ref(),
+                b"tail"
+            );
+            if fail {
+                assert!(matches!(
+                    stream.receive().await,
+                    Err(RuntimeFailure::Internal { .. })
+                ));
+            } else {
+                terminal(&stream).await;
+            }
+            assert!(dropped.load(Ordering::SeqCst));
+            terminal(&stream).await;
+        }
+    }
 
     #[test]
     fn http_adapter_preserves_sealed_context_without_promoting_headers_to_identity() {
