@@ -28,20 +28,32 @@ pub(super) async fn buffered(
     request: endpoint::HandleRequest,
 ) -> Result<endpoint::HandleResponse, RuntimeFailure> {
     let prepared = match expected_subject(&request.headers) {
-        Ok(subject) => {
-            session
-                .prepare_for_subject(
-                    context,
-                    &request.method,
-                    &request.path,
-                    request
-                        .credential
-                        .as_ref()
-                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
-                    subject,
-                )
-                .await
-        }
+        Ok(subject) => session
+            .prepare_for_subject(
+                context,
+                &request.method,
+                &request.path,
+                request
+                    .credential
+                    .as_ref()
+                    .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                subject,
+            )
+            .await
+            .and_then(|context| {
+                if application
+                    .pages
+                    .request_requires_administrator(&request.path)
+                    && !session.admits_administrator(&context)
+                {
+                    Err(crate::session::problem(
+                        http::StatusCode::FORBIDDEN,
+                        "console_administrator_required",
+                    ))
+                } else {
+                    Ok(context)
+                }
+            }),
         Err(response) => Err(response),
     };
     let response = match prepared {
@@ -82,20 +94,32 @@ pub(super) async fn streaming(
     request: stream_endpoint::HandleRequest,
 ) -> Result<ConsoleResponseStream, RuntimeFailure> {
     let prepared = match expected_subject(&request.headers) {
-        Ok(subject) => {
-            session
-                .prepare_for_subject(
-                    context,
-                    &request.method,
-                    &request.path,
-                    request
-                        .credential
-                        .as_ref()
-                        .map(|value| (value.scheme.as_str(), value.value.as_str())),
-                    subject,
-                )
-                .await
-        }
+        Ok(subject) => session
+            .prepare_for_subject(
+                context,
+                &request.method,
+                &request.path,
+                request
+                    .credential
+                    .as_ref()
+                    .map(|value| (value.scheme.as_str(), value.value.as_str())),
+                subject,
+            )
+            .await
+            .and_then(|context| {
+                if application
+                    .pages
+                    .request_requires_administrator(&request.path)
+                    && !session.admits_administrator(&context)
+                {
+                    Err(crate::session::problem(
+                        http::StatusCode::FORBIDDEN,
+                        "console_administrator_required",
+                    ))
+                } else {
+                    Ok(context)
+                }
+            }),
         Err(response) => Err(response),
     };
     let response = match prepared {

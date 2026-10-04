@@ -26,6 +26,7 @@ import {
   usePageCatalog,
   type PageMount,
 } from "../../features/extensions/page-contribution-catalog";
+import { resolveWorkspaceLocation } from "../../features/extensions/workspace-paths";
 import {
   WorkspaceSidebarProvider,
   WorkspaceSidebarSlot,
@@ -332,12 +333,6 @@ function consoleAreaFromPath(path: string): ConsoleArea {
   if (path.startsWith("/plugins")) {
     return "system";
   }
-  if (path.startsWith("/workspaces/")) {
-    return "workspace";
-  }
-  if (/^\/apps\/[^/]+\/pages\//u.test(path)) {
-    return "workspace";
-  }
   return "agent";
 }
 
@@ -346,8 +341,10 @@ function workspaceShellState(
   mounts: readonly PageMount[],
   selectedApp: ManagedApp | undefined
 ) {
-  const currentArea = consoleAreaFromPath(path);
-  const currentWorkspaceLocation = workspaceLocationFromPath(path);
+  const currentWorkspaceLocation = resolveWorkspaceLocation(path, mounts);
+  const currentArea = currentWorkspaceLocation
+    ? "workspace"
+    : consoleAreaFromPath(path);
   const currentWorkspaceId = currentWorkspaceLocation?.workspaceId;
   const currentWorkspace = mounts.find(
     (mount) =>
@@ -372,35 +369,6 @@ function workspaceShellState(
     currentWorkspaceId,
     currentWorkspaceLocation,
     visibleWorkspaces,
-  };
-}
-
-function workspaceLocationFromPath(path: string) {
-  const workspace = /^\/workspaces\/([^/]+)(?:\/(.*))?$/u.exec(path);
-  if (workspace?.[1]) {
-    return {
-      segments: workspace[2]
-        ? workspace[2].split("/").map((segment) => decodeURIComponent(segment))
-        : [],
-      subject: { kind: "console" } as const,
-      workspaceId: decodeURIComponent(workspace[1]),
-    };
-  }
-  const appWorkspace = /^\/apps\/([^/]+)\/pages\/([^/]+)(?:\/(.*))?$/u.exec(
-    path
-  );
-  if (!(appWorkspace?.[1] && appWorkspace[2])) {
-    return undefined;
-  }
-  return {
-    segments: appWorkspace[3]
-      ? appWorkspace[3].split("/").map((segment) => decodeURIComponent(segment))
-      : [],
-    subject: {
-      appId: decodeURIComponent(appWorkspace[1]),
-      kind: "app",
-    } as const,
-    workspaceId: decodeURIComponent(appWorkspace[2]),
   };
 }
 

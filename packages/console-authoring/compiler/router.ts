@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import type { ErrorProps, LayoutProps, PageProps } from "../src/index";
+import { WorkspaceScope } from "../src/navigation";
 
 type Layer = {
   Layout?: React.ComponentType<LayoutProps>;
@@ -68,11 +69,15 @@ export function match(segments: string[], actual: readonly string[]) {
 }
 export function createPageRouter(
   routes: Route[],
-  NotFound?: React.ComponentType<PageProps>
+  NotFound?: React.ComponentType<PageProps>,
+  index: readonly string[] = []
 ) {
   return function Page(props: PageProps) {
+    const actual = props.location.segments.length
+      ? props.location.segments
+      : index;
     for (const route of routes) {
-      const params = match(route.segments, props.location.segments);
+      const params = match(route.segments, actual);
       if (params === null) {
         continue;
       }
@@ -97,10 +102,11 @@ export function createPageRouter(
           child = React.createElement(layer.Layout, scoped, child);
         }
       }
-      return child;
+      return React.createElement(WorkspaceScope, { value: scoped }, child);
     }
-    return NotFound
+    const fallback = NotFound
       ? React.createElement(NotFound, props)
       : React.createElement("p", { role: "status" }, "Page not found");
+    return React.createElement(WorkspaceScope, { value: props }, fallback);
   };
 }

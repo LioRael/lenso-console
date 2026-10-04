@@ -96,6 +96,80 @@ public contract projections. Native providers retain request/stream support.
 The Shell injects scoped navigation, theme/locale, subject identity and an unmount
 cancellation signal; handoffs remain context, never authorization.
 
+## Multiple workspaces and instances
+
+A single Plugin can declare ordinary workspace directories:
+
+```text
+console/
+  user/workspace.ts
+  user/page.tsx
+  user/details/page.tsx
+  admin/workspace.ts
+  admin/page.tsx
+  services.ts                 # optional: still once per Plugin implementation
+```
+
+```ts
+// console/user/workspace.ts
+import { defineWorkspace } from "@lenso/console-sdk";
+export default defineWorkspace({
+  id: "user", title: "Users", path: "/console", access: "member",
+});
+```
+
+Declare administrator pages with `access: "administrator"` and a path such as
+`/admin`. This requests the existing Console administrator boundary; it grants
+no permission. `index` optionally selects relative segments for the mount root;
+omission selects `page.tsx`. A workspace using owner services lists their aliases
+in `services: ["users"]`; its emitted requirements are a checked subset of the
+Plugin's root declaration. Existing single-root `console/page.tsx` remains valid.
+Compiler options `workspaces: [{ entry: "user", path: "/members" }]` select the
+same pipeline with explicit metadata overrides, rather than another compiler.
+
+Use `Link` and `useWorkspace` from `@lenso/console-sdk` for relative links:
+
+```tsx
+import { Link, useWorkspace } from "@lenso/console-sdk";
+export default function Page() {
+  const { mount } = useWorkspace();
+  return <section><h1>{mount.owner.instance}</h1><Link to={["details"]}>Details</Link></section>;
+}
+```
+
+Layouts and `not-found.tsx` receive the same instance scope. Links retain native
+keyboard, modified-click and download behavior. Cross-workspace navigation uses
+`navigation.openWorkspace` with an admitted catalog mount ID.
+
+Install the implementation twice in the App Composition and configure Console's
+`workspace_mounts` by exact Plugin Instance and local workspace ID:
+
+```json
+{
+  "workspace_mounts": [
+    { "instance": "example.users/one", "workspace": "user", "path": "/team-one" },
+    { "instance": "example.users/two", "workspace": "user", "path": "/team-two" }
+  ]
+}
+```
+
+Both instances render the same compiled page. Changing a mount path changes only
+URL metadata; mount IDs, executable identity and service bindings remain stable.
+Declared workspace IDs are local to the Plugin. Catalog mount IDs include the
+owner and subject; use those actual IDs in existing `member_workspace_ids`
+permission selectors. Legacy single-workspace responses keep their existing
+default-instance selector. Reserved paths, duplicate paths, overlapping prefixes
+and ambiguous root/child routes fail activation before publication. Dotted page
+segments are valid; unknown files and unregistered deep paths return 404.
+
+Each mount receives its own factory, React state, owner service transport,
+subject scope and cancellation signal. A switch retires old callbacks and requests;
+late responses cannot update the new instance or expire its session. The immutable
+implementation import can be shared, but mutable instance state cannot.
+The runtime catalog changes on App activation. This slice does not add a live
+workspace-metadata HMR protocol; source development uses the selected development
+Host's existing rebuild behavior.
+
 ## Ownership and repository map
 
 | Category | Owner / location | Author responsibility |

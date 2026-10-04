@@ -33,6 +33,7 @@ import {
   loadPageImplementation,
   pageMountScopeKey,
 } from "./page-mount-runtime";
+import { workspacePageHref } from "./workspace-paths";
 import {
   createWorkspaceServices,
   type WorkspaceServices,
@@ -489,7 +490,12 @@ function workspaceNavigation(
   mounts: readonly PageMount[]
 ) {
   const href = (segments: readonly string[]) =>
-    workspaceHref(mountId, subject, segments);
+    workspaceHref(
+      mounts.find(
+        (mount) => mount.id === mountId && sameSubject(mount.subject, subject)
+      ),
+      segments
+    );
   return {
     href,
     go: (segments: readonly string[]) => {
@@ -521,7 +527,7 @@ function workspaceNavigation(
       window.history.pushState(
         nextState,
         "",
-        workspaceHref(target.id, target.subject, request.segments ?? [])
+        workspaceHref(target, request.segments ?? [])
       );
       window.dispatchEvent(new PopStateEvent("popstate"));
     },
@@ -529,21 +535,13 @@ function workspaceNavigation(
 }
 
 function workspaceHref(
-  mountId: string,
-  subject: PageMount["subject"],
+  mount: PageMount | undefined,
   segments: readonly string[]
 ) {
-  if (
-    !segments.every((segment) =>
-      /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(segment)
-    )
-  ) {
-    throw new TypeError("Workspace navigation path is invalid");
+  if (!mount) {
+    throw new TypeError("Workspace is not available");
   }
-  const suffix = segments.length ? `/${segments.join("/")}` : "";
-  return subject.kind === "console"
-    ? `/workspaces/${encodeURIComponent(mountId)}${suffix}`
-    : `/apps/${encodeURIComponent(subject.appId)}/pages/${encodeURIComponent(mountId)}${suffix}`;
+  return workspacePageHref(mount, segments);
 }
 
 function checkedHandoff(

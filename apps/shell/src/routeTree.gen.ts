@@ -22,11 +22,9 @@ import { Route as SettingsConnectionsRouteImport } from './routes/settings_.conn
 import { Route as SettingsProfilesRouteImport } from './routes/settings_.profiles'
 import { Route as AgentAgentIdChatIdRouteImport } from './routes/agent.$agentId.$chatId'
 import { Route as SettingsAiAgentRouteImport } from './routes/settings_.ai_.agent'
-import { Route as WorkspacesWorkspaceIdSplatRouteImport } from './routes/workspaces.$workspaceId.$'
 import { Route as PluginsAgentIdPackageIdInstanceKeyRouteImport } from './routes/plugins_.$agentId.$packageId.$instanceKey'
 import { Route as SettingsAgentSkillsNewRouteImport } from './routes/settings_.agent_.skills.new'
 import { Route as SettingsProfilesAgentIdProfileNameRouteImport } from './routes/settings_.profiles_.$agentId.$profileName'
-import { Route as AppsAppIdPagesWorkspaceIdSplatRouteImport } from './routes/apps.$appId.pages.$workspaceId.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -93,12 +91,6 @@ const SettingsAiAgentRoute = SettingsAiAgentRouteImport.update({
   path: '/settings/ai/agent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspacesWorkspaceIdSplatRoute =
-  WorkspacesWorkspaceIdSplatRouteImport.update({
-    id: '/workspaces/$workspaceId/$',
-    path: '/workspaces/$workspaceId/$',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const PluginsAgentIdPackageIdInstanceKeyRoute =
   PluginsAgentIdPackageIdInstanceKeyRouteImport.update({
     id: '/plugins_/$agentId/$packageId/$instanceKey',
@@ -116,12 +108,6 @@ const SettingsProfilesAgentIdProfileNameRoute =
     path: '/settings/profiles/$agentId/$profileName',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AppsAppIdPagesWorkspaceIdSplatRoute =
-  AppsAppIdPagesWorkspaceIdSplatRouteImport.update({
-    id: '/apps/$appId/pages/$workspaceId/$',
-    path: '/apps/$appId/pages/$workspaceId/$',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -137,11 +123,9 @@ export interface FileRoutesByFullPath {
   '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
-  '/workspaces/$workspaceId/$': typeof WorkspacesWorkspaceIdSplatRoute
   '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
   '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
-  '/apps/$appId/pages/$workspaceId/$': typeof AppsAppIdPagesWorkspaceIdSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,11 +141,9 @@ export interface FileRoutesByTo {
   '/settings/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings/ai/agent': typeof SettingsAiAgentRoute
-  '/workspaces/$workspaceId/$': typeof WorkspacesWorkspaceIdSplatRoute
   '/plugins/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings/agent/skills/new': typeof SettingsAgentSkillsNewRoute
   '/settings/profiles/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
-  '/apps/$appId/pages/$workspaceId/$': typeof AppsAppIdPagesWorkspaceIdSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,11 +160,9 @@ export interface FileRoutesById {
   '/settings_/profiles': typeof SettingsProfilesRoute
   '/agent/$agentId/$chatId': typeof AgentAgentIdChatIdRoute
   '/settings_/ai_/agent': typeof SettingsAiAgentRoute
-  '/workspaces/$workspaceId/$': typeof WorkspacesWorkspaceIdSplatRoute
   '/plugins_/$agentId/$packageId/$instanceKey': typeof PluginsAgentIdPackageIdInstanceKeyRoute
   '/settings_/agent_/skills/new': typeof SettingsAgentSkillsNewRoute
   '/settings_/profiles_/$agentId/$profileName': typeof SettingsProfilesAgentIdProfileNameRoute
-  '/apps/$appId/pages/$workspaceId/$': typeof AppsAppIdPagesWorkspaceIdSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,11 +180,9 @@ export interface FileRouteTypes {
     | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
-    | '/workspaces/$workspaceId/$'
     | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
     | '/settings/profiles/$agentId/$profileName'
-    | '/apps/$appId/pages/$workspaceId/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -220,11 +198,9 @@ export interface FileRouteTypes {
     | '/settings/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings/ai/agent'
-    | '/workspaces/$workspaceId/$'
     | '/plugins/$agentId/$packageId/$instanceKey'
     | '/settings/agent/skills/new'
     | '/settings/profiles/$agentId/$profileName'
-    | '/apps/$appId/pages/$workspaceId/$'
   id:
     | '__root__'
     | '/'
@@ -240,11 +216,9 @@ export interface FileRouteTypes {
     | '/settings_/profiles'
     | '/agent/$agentId/$chatId'
     | '/settings_/ai_/agent'
-    | '/workspaces/$workspaceId/$'
     | '/plugins_/$agentId/$packageId/$instanceKey'
     | '/settings_/agent_/skills/new'
     | '/settings_/profiles_/$agentId/$profileName'
-    | '/apps/$appId/pages/$workspaceId/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,11 +235,9 @@ export interface RootRouteChildren {
   SettingsProfilesRoute: typeof SettingsProfilesRoute
   AgentAgentIdChatIdRoute: typeof AgentAgentIdChatIdRoute
   SettingsAiAgentRoute: typeof SettingsAiAgentRoute
-  WorkspacesWorkspaceIdSplatRoute: typeof WorkspacesWorkspaceIdSplatRoute
   PluginsAgentIdPackageIdInstanceKeyRoute: typeof PluginsAgentIdPackageIdInstanceKeyRoute
   SettingsAgentSkillsNewRoute: typeof SettingsAgentSkillsNewRoute
   SettingsProfilesAgentIdProfileNameRoute: typeof SettingsProfilesAgentIdProfileNameRoute
-  AppsAppIdPagesWorkspaceIdSplatRoute: typeof AppsAppIdPagesWorkspaceIdSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -361,13 +333,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/workspaces/$workspaceId/$': {
-      id: '/workspaces/$workspaceId/$'
-      path: '/workspaces/$workspaceId/$'
-      fullPath: '/workspaces/$workspaceId/$'
-      preLoaderRoute: typeof WorkspacesWorkspaceIdSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/plugins_/$agentId/$packageId/$instanceKey': {
       id: '/plugins_/$agentId/$packageId/$instanceKey'
       path: '/plugins/$agentId/$packageId/$instanceKey'
@@ -389,13 +354,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsProfilesAgentIdProfileNameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/apps/$appId/pages/$workspaceId/$': {
-      id: '/apps/$appId/pages/$workspaceId/$'
-      path: '/apps/$appId/pages/$workspaceId/$'
-      fullPath: '/apps/$appId/pages/$workspaceId/$'
-      preLoaderRoute: typeof AppsAppIdPagesWorkspaceIdSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -413,13 +371,11 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsProfilesRoute: SettingsProfilesRoute,
   AgentAgentIdChatIdRoute: AgentAgentIdChatIdRoute,
   SettingsAiAgentRoute: SettingsAiAgentRoute,
-  WorkspacesWorkspaceIdSplatRoute: WorkspacesWorkspaceIdSplatRoute,
   PluginsAgentIdPackageIdInstanceKeyRoute:
     PluginsAgentIdPackageIdInstanceKeyRoute,
   SettingsAgentSkillsNewRoute: SettingsAgentSkillsNewRoute,
   SettingsProfilesAgentIdProfileNameRoute:
     SettingsProfilesAgentIdProfileNameRoute,
-  AppsAppIdPagesWorkspaceIdSplatRoute: AppsAppIdPagesWorkspaceIdSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

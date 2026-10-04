@@ -2,6 +2,8 @@ import type * as React from "react";
 
 import type { ReadRefreshPolicy } from "./read-refresh";
 
+export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
+export { Link, useWorkspace, WorkspaceScope } from "./navigation";
 export {
   deriveReadRefreshState,
   resolveReadRefreshPolicy,
@@ -48,6 +50,8 @@ export interface PageProps {
     subject: Subject;
     owner: { instance: string };
     revision: string;
+    /** Resolved browser path; never a permission or cache identity. */
+    basePath?: string;
   };
   navigation: {
     go(segments: readonly string[]): void;

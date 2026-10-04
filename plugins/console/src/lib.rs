@@ -12,11 +12,13 @@ mod project_activity;
 #[cfg(not(target_arch = "wasm32"))]
 mod projects;
 mod session;
+mod workspace_paths;
 mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
 #[cfg(not(target_arch = "wasm32"))]
 pub use projects::LocalProjects;
 pub use session::{AssistantAccessPolicy, AssistantPermission};
+pub use workspace_paths::WorkspaceMountOverride;
 
 use std::{
     cell::RefCell,
@@ -112,6 +114,8 @@ pub struct ConsolePluginConfig {
     pub assistant_access: Option<AssistantAccessPolicy>,
     #[serde(default)]
     pub member_workspace_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub workspace_mounts: Vec<WorkspaceMountOverride>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operators_profile: Option<OperatorsProfile>,
     pub agent_home: String,
@@ -358,13 +362,16 @@ impl Lifecycle for ConsolePlugin {
     async fn activate(&self, _context: ActivateContext) -> Result<(), RuntimeFailure> {
         self.validate_bindings()?;
         let config = ConsoleConfig::from_plugin(&self.config).map_err(plugin_failure)?;
-        let (page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
+        let (mut page_catalog, workspace_services) = page_contributions::PageCatalog::from_ports(
             &self.workspace_contributions,
             &self.global_contributions,
             &self.workspace_services,
             &config.application_subject_ids(),
         )
         .await?;
+        page_catalog
+            .apply_mount_overrides(&self.config.workspace_mounts)
+            .map_err(plugin_failure)?;
         config.validate().map_err(plugin_failure)?;
         if let Some(agent) = &config.console_agent {
             agent
@@ -679,13 +686,42 @@ impl ConsoleApplication {
         if request.method != Method::GET && request.method != Method::HEAD {
             return StatusCode::METHOD_NOT_ALLOWED.into_response();
         }
+        let page = self.pages.canonical_page_path(&request.path);
+        if let Some(canonical) = &page
+            && canonical != &request.path
+        {
+            let location = request
+                .query
+                .as_ref()
+                .map_or_else(|| canonical.clone(), |query| format!("{canonical}?{query}"));
+            let Ok(location) = ::http::HeaderValue::from_str(&location) else {
+                return StatusCode::BAD_REQUEST.into_response();
+            };
+            return ::http::Response::builder()
+                .status(StatusCode::PERMANENT_REDIRECT)
+                .header(header::LOCATION, location)
+                .body(Body::empty())
+                .expect("checked workspace redirect");
+        }
+        let segments = request
+            .path
+            .trim_matches('/')
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>();
+        let shell_page = page.is_some()
+            || (!request.path.contains(['%', '\\'])
+                && !request.path.contains("//")
+                && SHELL_PAGE_ROUTES
+                    .iter()
+                    .any(|route| workspace_paths::matches_route(route, &segments)));
         if self.web_root == Path::new("embedded:") {
             let name = request.path.trim_start_matches('/');
             let selected = EMBEDDED_SHELL
                 .iter()
                 .find(|(path, _)| *path == name)
                 .or_else(|| {
-                    (!name.rsplit('/').next().unwrap_or("").contains('.'))
+                    shell_page
                         .then(|| {
                             EMBEDDED_SHELL
                                 .iter()
@@ -713,7 +749,10 @@ impl ConsoleApplication {
         {
             let candidate = http::static_path(&self.web_root, &request.path)
                 .filter(|path| path.is_file())
-                .unwrap_or_else(|| self.web_root.join("index.html"));
+                .or_else(|| shell_page.then(|| self.web_root.join("index.html")));
+            let Some(candidate) = candidate else {
+                return StatusCode::NOT_FOUND.into_response();
+            };
             let Ok(bytes) = tokio::fs::read(&candidate).await else {
                 return StatusCode::NOT_FOUND.into_response();
             };
@@ -1168,6 +1207,7 @@ impl ConsoleConfig {
             administrator_subjects: Vec::new(),
             assistant_access: None,
             member_workspace_ids: Vec::new(),
+            workspace_mounts: Vec::new(),
             operators_profile: None,
             agent_home: utf8_path(&self.agent_home)?,
             allowed_tools: self.allowed_tools.clone(),
@@ -2162,6 +2202,60 @@ mod tests {
         );
     }
 
+    // Prevent the admitted-route fallback from breaking built-in/deep links or
+    // serving Shell HTML for missing assets. The health test only exercises /.
+    #[tokio::test]
+    async fn shell_fallback_uses_registered_routes_and_preserves_asset_misses() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("index.html"), "<!doctype html>").unwrap();
+        std::fs::write(root.path().join("favicon.svg"), "<svg/>").unwrap();
+        let mut config = ConsolePluginConfig::defaults();
+        config.web_root = root.path().to_str().unwrap().into();
+        let pages =
+            page_contributions::PageCatalog::discover(root.path(), &BTreeSet::new()).unwrap();
+        let application = console_application(ConsoleConfig::from_plugin(&config).unwrap(), pages);
+        for path in [
+            "/",
+            "/settings",
+            "/settings/ai/agent/",
+            "/plugins/plugin.id/package.id/instance",
+        ] {
+            for method in [Method::GET, Method::HEAD] {
+                let response = application.handle(Request::new(method.clone(), path)).await;
+                assert_eq!(response.status(), StatusCode::OK, "{path}");
+                assert_eq!(
+                    response.headers()[header::CONTENT_TYPE],
+                    "text/html; charset=utf-8"
+                );
+                let body = response.into_body().collect(4096).await.unwrap();
+                assert_eq!(body.is_empty(), method == Method::HEAD);
+            }
+        }
+        for path in [
+            "/not-registered",
+            "/missing.js",
+            "/assets/missing.js",
+            "/settings/unknown",
+        ] {
+            assert_eq!(
+                application
+                    .handle(Request::new(Method::GET, path))
+                    .await
+                    .status(),
+                StatusCode::NOT_FOUND,
+                "{path}"
+            );
+        }
+        let asset = application
+            .handle(Request::new(Method::GET, "/favicon.svg"))
+            .await;
+        assert_eq!(asset.status(), StatusCode::OK);
+        assert_eq!(
+            asset.into_body().collect(4096).await.unwrap().as_ref(),
+            b"<svg/>"
+        );
+    }
+
     fn console_agent() -> AppAgentAdapter {
         AppAgentAdapter::parse_console("http://127.0.0.1:8788", Some("host-secret".to_owned()))
             .unwrap()
@@ -2192,7 +2286,7 @@ mod tests {
                 },
                 {
                     "capability_id": "lenso.ui.contribution@1",
-                    "descriptor_version": "1.3.0",
+                    "descriptor_version": "1.4.0",
                     "cardinality": "many"
                 },
                 {

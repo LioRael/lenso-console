@@ -3472,7 +3472,7 @@ dependencies = [
 [[package]]
 name = "lenso-projects-web-plugin"
 version = "0.1.2"
-source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=15fb8d492fb9cb86437cc9dd20101aa07492e5cd#15fb8d492fb9cb86437cc9dd20101aa07492e5cd"
+source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=098ad121e359250115e9f7c79cee1342161a5b37#098ad121e359250115e9f7c79cee1342161a5b37"
 dependencies = [
  "futures",
  "lenso",
@@ -3493,7 +3493,7 @@ dependencies = [
 [[package]]
 name = "lenso-projects-workspace-plugin"
 version = "0.1.0"
-source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=15fb8d492fb9cb86437cc9dd20101aa07492e5cd#15fb8d492fb9cb86437cc9dd20101aa07492e5cd"
+source = "git+https://github.com/LioRael/lenso-projects-web-plugin?rev=098ad121e359250115e9f7c79cee1342161a5b37#098ad121e359250115e9f7c79cee1342161a5b37"
 dependencies = [
  "base64 0.22.1",
  "futures",
@@ -5461,7 +5461,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",

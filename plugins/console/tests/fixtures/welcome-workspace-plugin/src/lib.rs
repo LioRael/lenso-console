@@ -215,6 +215,7 @@ impl WelcomeWorkspace {
                 kind: DescribeResponseSubjectKind::Console,
             }),
             title: self.config.label.clone(),
+            workspaces: None,
             workspace_id: "welcome".to_owned(),
         }))))
     }

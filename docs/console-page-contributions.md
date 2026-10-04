@@ -4,7 +4,7 @@ Status: Console- and App-scoped Workspace routing plus owner services implemente
 
 This document now separates the shipped Workspace path from the remaining
 cross-App design. The implementation includes a typed
-`lenso.ui.contribution@1` request Capability (descriptor 1.3.0), a `many` Port on
+`lenso.ui.contribution@1` request Capability (descriptor 1.4.0), a `many` Port on
 `lenso.console.web`, an immutable activation-time catalog, a reference provider
 Plugin, direct primary-rail Workspaces, and a browser runtime API. The contract
 crate and reference Plugin are repository-local and are not published releases.
@@ -147,13 +147,15 @@ first App. Catalog metadata is not evidence of target readiness.
 
 ### Reusing one page for several instances
 
-`pageId` preserves the Plugin's declared `workspace_id`. `implementationId` is
+`pageId` preserves the Plugin's local `workspaces[].id` (or legacy `workspace_id`). `implementationId` is
 the digest of its revision and executable assets. Neither selects an instance.
-`id` selects a mount; services and permissions use that exact ID. Named instances
-and App subjects receive a stable slug derived from owner, page ID and subject,
-independent of configuration, labels and executable revision. The existing
-default Console instance retains its declared short ID and configured permission
-scope; two default owners declaring the same short ID still fail admission.
+`id` selects a mount; services and permissions use that exact ID. Declared
+`workspaces` always receive a stable slug derived from owner, local page ID and
+subject, including default instances. Legacy single-workspace responses retain
+their default Console short ID and configured permission scope. Executable
+revision, configuration, labels and URL mount paths do not alter these identities.
+See the [authoring guide](../packages/console-authoring/README.md#multiple-workspaces-and-instances)
+for natural directories, relative links and exact App mount overrides.
 
 The browser caches executable imports by content identity and entry path only.
 It calls `createWorkspace` separately for each mount and recreates its Provider,
