@@ -1,6 +1,17 @@
 import type * as React from "react";
 
+import type { WorkspaceReads } from "./read";
 import type { ReadRefreshPolicy } from "./read-refresh";
+
+export { useWorkspaceRead, useWorkspaceReadClient } from "./read";
+export type {
+  ReadValue,
+  ReadSnapshot,
+  WorkspaceReadOptions,
+  WorkspaceReadResult,
+  WorkspaceReadClient,
+  WorkspaceReads,
+} from "./read";
 
 export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
 export { Link, useWorkspace, WorkspaceScope } from "./navigation";
@@ -65,6 +76,8 @@ export interface PageProps {
   };
   /** Host and mount read defaults; individual pages may override freshness only. */
   readRefreshPolicy?: ReadRefreshPolicy;
+  /** Optional on older Hosts; the SDK hook fails explicitly if unavailable. */
+  reads?: WorkspaceReads;
   signal: AbortSignal;
   services: WorkspaceServices;
 }

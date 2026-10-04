@@ -355,3 +355,54 @@ async fn session_errors_are_problem_details() {
     assert_eq!(value["detail"], "Sign in to continue.");
     assert_eq!(value["code"], "authentication_required");
 }
+
+// Session snapshots must partition equal subject names by admitted realm/audience,
+// while proof renewal alone must not turn every cached return into a first read.
+#[test]
+fn read_scope_partitions_admission_without_caching_proofs_or_renewal_times() {
+    let issuer = ActorAssertionIssuer::from_signing_key("test.issuer", [7; 32]);
+    let now = time::OffsetDateTime::now_utc();
+    let assertion = |subject: &str, audience: &str, offset: i64| {
+        issuer.issue(
+            subject,
+            "user",
+            "password",
+            [audience.to_owned()],
+            Validity::new(
+                now + time::Duration::seconds(offset),
+                now + time::Duration::minutes(1) + time::Duration::seconds(offset),
+            )
+            .unwrap(),
+            BTreeMap::new(),
+        )
+    };
+    let digest = |actor: &ActorAssertion, realm: &str| {
+        with_read_scope(
+            session_response("required", Some(actor.subject()), false, &[], false, false),
+            actor,
+            realm,
+            "fixture-authority",
+        )
+        .headers()["x-lenso-read-scope"]
+            .to_str()
+            .unwrap()
+            .to_owned()
+    };
+    let original = assertion("same-name", "endpoint:read", 0);
+    let scope = digest(&original, "realm-a");
+    assert_eq!(scope.len(), 64);
+    assert!(!scope.contains(original.proof()));
+    assert_eq!(
+        scope,
+        digest(&assertion("same-name", "endpoint:read", 1), "realm-a")
+    );
+    assert_ne!(scope, digest(&original, "realm-b"));
+    assert_ne!(
+        scope,
+        digest(&assertion("another-user", "endpoint:read", 0), "realm-a")
+    );
+    assert_ne!(
+        scope,
+        digest(&assertion("same-name", "another:endpoint", 0), "realm-a")
+    );
+}

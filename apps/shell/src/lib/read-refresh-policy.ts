@@ -8,10 +8,10 @@ export interface ConsoleReadRefreshConfiguration {
   mounts?: Readonly<Record<string, ReadRefreshPolicy>>;
 }
 
-const inheritedDefaults: Required<ReadRefreshPolicy> = {
+const inheritedDefaults = {
   focus: "never",
   staleTimeMs: 10_000,
-};
+} satisfies ReadRefreshPolicy;
 
 function policy(value: unknown): ReadRefreshPolicy {
   if (
@@ -19,7 +19,7 @@ function policy(value: unknown): ReadRefreshPolicy {
     typeof value !== "object" ||
     Array.isArray(value) ||
     Object.keys(value).some(
-      (key) => key !== "focus" && key !== "staleTimeMs"
+      (key) => !["focus", "staleTimeMs", "gcTimeMs", "remount"].includes(key)
     ) ||
     ("focus" in value &&
       value.focus !== "never" &&
@@ -27,7 +27,14 @@ function policy(value: unknown): ReadRefreshPolicy {
       value.focus !== "always") ||
     ("staleTimeMs" in value &&
       (typeof value.staleTimeMs !== "number" ||
-        !Number.isFinite(value.staleTimeMs)))
+        !Number.isFinite(value.staleTimeMs))) ||
+    ("gcTimeMs" in value &&
+      (typeof value.gcTimeMs !== "number" ||
+        !Number.isFinite(value.gcTimeMs))) ||
+    ("remount" in value &&
+      value.remount !== "never" &&
+      value.remount !== "stale" &&
+      value.remount !== "always")
   ) {
     throw new TypeError("Console read refresh policy is invalid");
   }
@@ -81,12 +88,15 @@ const configuration = parseConsoleReadRefreshConfiguration(
 export function consoleReadRefreshPolicy(
   mountId?: string,
   settings: ConsoleReadRefreshConfiguration = configuration
-): Required<ReadRefreshPolicy> {
+): ReadRefreshPolicy &
+  Required<Pick<ReadRefreshPolicy, "focus" | "staleTimeMs">> {
   const mount =
     mountId && settings.mounts && Object.hasOwn(settings.mounts, mountId)
       ? settings.mounts[mountId]
       : undefined;
   return {
+    ...settings.defaults,
+    ...mount,
     focus: mount?.focus ?? settings.defaults?.focus ?? inheritedDefaults.focus,
     staleTimeMs:
       mount?.staleTimeMs ??

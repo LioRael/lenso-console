@@ -431,6 +431,51 @@ function methods() {
   });
 }
 
+// Equal account names and permissions cannot identify separate Auth admission
+// domains. Existing account/permission tests do not change only this metadata.
+test("admitted realm metadata changes clear reads and remount private consumers while renewal preserves them", async () => {
+  let scope = "a".repeat(64);
+  let checks = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (String(url) === "/auth/methods") {
+        return methods();
+      }
+      checks += 1;
+      return Response.json(admitted, {
+        headers: { "x-lenso-read-scope": scope },
+      });
+    })
+  );
+  const mounts = statefulMount(0);
+  const draft = page.getByRole("textbox", { name: "Workspace draft" });
+  await draft.fill("private draft");
+  queryClient.setQueryData(["realm-private-read"], "A metadata");
+  const beforeRenewal = checks;
+  await expect
+    .poll(() => {
+      window.dispatchEvent(new Event("focus"));
+      return checks;
+    })
+    .toBeGreaterThan(beforeRenewal);
+  await expect.element(draft).toHaveValue("private draft");
+  expect(mounts()).toBe(1);
+  expect(queryClient.getQueryData(["realm-private-read"])).toBe("A metadata");
+  // Finish the coalesced renewal before requesting a second admission check.
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+  scope = "b".repeat(64);
+  await expect
+    .poll(() => {
+      window.dispatchEvent(new Event("focus"));
+      return queryClient.authenticationScope;
+    })
+    .toBe(scope);
+  await expect.element(draft).toHaveValue("");
+  expect(mounts()).toBe(2);
+  expect(queryClient.getQueryData(["realm-private-read"])).toBeUndefined();
+});
+
 test("fresh focus is skipped and stale checks coalesce without remounting, clearing caches or losing draft/scroll", async () => {
   let clock = 100_000;
   vi.spyOn(Date, "now").mockImplementation(() => clock);
