@@ -47,13 +47,40 @@ export function useConsoleSession() {
   return useContext(SessionActions);
 }
 
-export function ConsoleSession({ children }: { children: ReactNode }) {
+// A public build-time setting; API requests still authenticate on every call.
+const configuredFreshness = Number(
+  import.meta.env.VITE_CONSOLE_SESSION_FRESHNESS_MS
+);
+const defaultFreshnessMs =
+  Number.isFinite(configuredFreshness) && configuredFreshness >= 0
+    ? configuredFreshness
+    : 60_000;
+
+export function ConsoleSession({
+  children,
+  freshnessMs = defaultFreshnessMs,
+}: {
+  children: ReactNode;
+  freshnessMs?: number;
+}) {
   const { locale } = useConsoleLocale();
   const zh = locale === "zh-CN";
   const [state, setState] = useState<State>({ kind: "loading" });
   const generation = useRef(0);
-  const subject = useRef<string | undefined>(undefined);
+  const scope = useRef<string | undefined>(undefined);
+  const ready = useRef(false);
+  const signingOut = useRef(false);
+  const lastSuccess = useRef<number | undefined>(undefined);
+  const retryAfter = useRef(0);
+  const failures = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
+  const inFlight = useRef<
+    { controller: AbortController; promise: Promise<void> } | undefined
+  >(undefined);
   const [identity, setIdentity] = useState("local");
+  const [sessionSubject, setSessionSubject] = useState("local");
   const [authenticated, setAuthenticated] = useState(false);
   const [access, setAccess] = useState({
     administrator: true,
@@ -61,147 +88,281 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
     humanManagementEnabled: false,
     workspaceIds: [] as string[],
   });
-  const refresh = useCallback(async (signal?: AbortSignal) => {
+  const invalidate = useCallback(() => {
     generation.current += 1;
-    const { current } = generation;
-    const active = () => current === generation.current && !signal?.aborted;
-    setState((previous) =>
-      previous.kind === "ready" ? { kind: "loading" } : previous
-    );
+    inFlight.current?.controller.abort();
+    inFlight.current = undefined;
+    clearTimeout(retryTimer.current);
+    ready.current = false;
+    scope.current = undefined;
+    lastSuccess.current = undefined;
+    failures.current = 0;
+    retryAfter.current = 0;
     queryClient.clear();
-    if (consoleDevConfig.mode === "mock") {
-      setState({ kind: "ready" });
-      return;
-    }
-    try {
-      const response = await sessionFetch("/api/console/v1/session", {
-        credentials: "same-origin",
-        cache: "no-store",
-        signal: signal ?? null,
-      });
-      if (response.status === 403) {
-        const methods = await sessionFetch("/auth/methods", {
-          cache: "no-store",
-          signal: signal ?? null,
-        });
-        if (!methods.ok) {
-          throw new Error("Session configuration unavailable");
-        }
-        const configuration: unknown = await methods.json();
-        if (!active()) {
+    setState({ kind: "loading" });
+  }, []);
+  const refresh = useCallback(
+    (force = true): Promise<void> => {
+      if (signingOut.current) {
+        return Promise.resolve();
+      }
+      if (inFlight.current) {
+        return inFlight.current.promise;
+      }
+      const now = Date.now();
+      if (
+        !force &&
+        (now < retryAfter.current ||
+          (failures.current === 0 &&
+            lastSuccess.current !== undefined &&
+            now - lastSuccess.current < freshnessMs))
+      ) {
+        return Promise.resolve();
+      }
+      clearTimeout(retryTimer.current);
+      const controller = new AbortController();
+      const { signal } = controller;
+      generation.current += 1;
+      const { current } = generation;
+      const active = () => current === generation.current && !signal.aborted;
+      const promise = (async () => {
+        if (consoleDevConfig.mode === "mock") {
+          ready.current = true;
+          setState({ kind: "ready" });
           return;
         }
-        configureSessionCsrf(configuration);
-        queryClient.clear();
-        setState({ kind: "denied" });
-      } else if (response.status === 401) {
-        const methodsResponse = await sessionFetch("/auth/methods", {
-          credentials: "same-origin",
-          cache: "no-store",
-          signal: signal ?? null,
-        });
-        if (!methodsResponse.ok) {
-          throw new Error("Methods unavailable");
-        }
-        const value: unknown = await methodsResponse.json();
-        if (!active()) {
-          return;
-        }
-        configureSessionCsrf(value);
-        const methods = parseLoginMethods(value);
-        if (methods.length === 0) {
-          throw new Error("No login methods");
-        }
-        queryClient.clear();
-        setState({ kind: "login", methods });
-      } else {
-        if (!response.ok) {
-          throw new Error("Session unavailable");
-        }
-        const value: unknown = await response.json();
-        if (
-          !value ||
-          typeof value !== "object" ||
-          !("mode" in value) ||
-          !(
-            value.mode === "local" ||
-            (value.mode === "required" &&
-              "authenticated" in value &&
-              value.authenticated === true &&
-              "subject" in value &&
-              typeof value.subject === "string" &&
-              value.subject.length > 0)
-          )
-        ) {
-          throw new Error("Invalid session");
-        }
-        if (value.mode === "required") {
-          const methods = await sessionFetch("/auth/methods", {
+        try {
+          const response = await sessionFetch("/api/console/v1/session", {
             credentials: "same-origin",
             cache: "no-store",
-            signal: signal ?? null,
+            signal,
           });
-          if (!methods.ok) {
-            throw new Error("Session configuration unavailable");
-          }
-          const configuration: unknown = await methods.json();
           if (!active()) {
             return;
           }
-          configureSessionCsrf(configuration);
-        }
-        if (active()) {
-          const nextSubject =
-            value.mode === "required" && "subject" in value
-              ? String(value.subject)
-              : "local";
-          if (subject.current !== nextSubject) {
+          if (response.status === 401 || response.status === 403) {
+            // Confirmed invalid/denied access retires admitted content before fetching
+            // login options. An already-open login form keeps its entered values.
+            if (ready.current) {
+              setState({ kind: "loading" });
+            }
+            ready.current = false;
+            scope.current = undefined;
+            lastSuccess.current = undefined;
             queryClient.clear();
-            subject.current = nextSubject;
-            setIdentity(nextSubject);
           }
-          setAccess({
-            humanManagementEnabled:
-              "human_management_enabled" in value &&
-              value.human_management_enabled === true,
-            managementEnabled:
-              "management_enabled" in value &&
-              value.management_enabled === true,
-            administrator:
-              value.mode === "local" ||
-              ("administrator" in value && value.administrator === true),
-            workspaceIds:
-              "workspace_ids" in value && Array.isArray(value.workspace_ids)
-                ? value.workspace_ids.filter(
-                    (id): id is string => typeof id === "string"
-                  )
-                : [],
-          });
-          setAuthenticated(value.mode === "required");
-          setState({ kind: "ready" });
+          if (response.status === 403) {
+            const methods = await sessionFetch("/auth/methods", {
+              cache: "no-store",
+              signal,
+            });
+            if (!methods.ok) {
+              throw new Error("Session configuration unavailable");
+            }
+            const configuration: unknown = await methods.json();
+            if (!active()) {
+              return;
+            }
+            configureSessionCsrf(configuration);
+            queryClient.clear();
+            setState({ kind: "denied" });
+          } else if (response.status === 401) {
+            const methodsResponse = await sessionFetch("/auth/methods", {
+              credentials: "same-origin",
+              cache: "no-store",
+              signal,
+            });
+            if (!methodsResponse.ok) {
+              throw new Error("Methods unavailable");
+            }
+            const value: unknown = await methodsResponse.json();
+            if (!active()) {
+              return;
+            }
+            configureSessionCsrf(value);
+            const methods = parseLoginMethods(value);
+            if (methods.length === 0) {
+              throw new Error("No login methods");
+            }
+            queryClient.clear();
+            setState({ kind: "login", methods });
+          } else {
+            if (!response.ok) {
+              throw new Error("Session unavailable");
+            }
+            const value: unknown = await response.json();
+            if (
+              !value ||
+              typeof value !== "object" ||
+              !("mode" in value) ||
+              !(
+                value.mode === "local" ||
+                (value.mode === "required" &&
+                  "authenticated" in value &&
+                  value.authenticated === true &&
+                  "subject" in value &&
+                  typeof value.subject === "string" &&
+                  value.subject.length > 0)
+              )
+            ) {
+              throw new Error("Invalid session");
+            }
+            const nextSubject =
+              value.mode === "required" && "subject" in value
+                ? String(value.subject)
+                : "local";
+            const nextAccess = {
+              humanManagementEnabled:
+                "human_management_enabled" in value &&
+                value.human_management_enabled === true,
+              managementEnabled:
+                "management_enabled" in value &&
+                value.management_enabled === true,
+              administrator:
+                value.mode === "local" ||
+                ("administrator" in value && value.administrator === true),
+              workspaceIds:
+                "workspace_ids" in value && Array.isArray(value.workspace_ids)
+                  ? [
+                      ...new Set(
+                        value.workspace_ids.filter(
+                          (id): id is string => typeof id === "string"
+                        )
+                      ),
+                    ].sort()
+                  : [],
+            };
+            const nextScope = JSON.stringify([
+              value.mode,
+              nextSubject,
+              nextAccess,
+            ]);
+            if (ready.current && scope.current !== nextScope) {
+              ready.current = false;
+              scope.current = undefined;
+              lastSuccess.current = undefined;
+              queryClient.clear();
+              setState({ kind: "loading" });
+            }
+            if (value.mode === "required") {
+              const methods = await sessionFetch("/auth/methods", {
+                credentials: "same-origin",
+                cache: "no-store",
+                signal,
+              });
+              if (!methods.ok) {
+                throw new Error("Session configuration unavailable");
+              }
+              const configuration: unknown = await methods.json();
+              if (!active()) {
+                return;
+              }
+              configureSessionCsrf(configuration);
+            }
+            if (active()) {
+              if (scope.current !== nextScope) {
+                queryClient.clear();
+                scope.current = nextScope;
+                // Remount private consumers on permission changes as well as subject changes.
+                setIdentity(nextScope);
+                setSessionSubject(nextSubject);
+              }
+              setAccess(nextAccess);
+              ready.current = true;
+              lastSuccess.current = Date.now();
+              failures.current = 0;
+              retryAfter.current = 0;
+              setAuthenticated(value.mode === "required");
+              setState({ kind: "ready" });
+            }
+          }
+        } catch {
+          if (active()) {
+            if (ready.current) {
+              failures.current += 1;
+              const delay = Math.min(
+                30_000,
+                1000 * 2 ** (failures.current - 1)
+              );
+              retryAfter.current = Date.now() + delay;
+              // Keep an admitted page usable through temporary failures. Stop automatic
+              // retries after three; a later focus may try again after the backoff.
+              if (failures.current <= 3) {
+                retryTimer.current = setTimeout(() => {
+                  if (active()) {
+                    void refresh(false);
+                  }
+                }, delay);
+              }
+            } else {
+              setState({ kind: "error" });
+            }
+          }
         }
-      }
-    } catch {
-      if (active()) {
-        setState({ kind: "error" });
-      }
-    }
-  }, []);
+      })();
+      const pending = { controller, promise };
+      inFlight.current = pending;
+      void (async () => {
+        try {
+          await promise;
+        } finally {
+          if (inFlight.current === pending) {
+            inFlight.current = undefined;
+          }
+        }
+      })();
+      return promise;
+    },
+    [freshnessMs]
+  );
   useEffect(() => {
-    const controller = new AbortController();
-    void refresh(controller.signal);
+    void refresh();
     const focus = () => {
-      void refresh(controller.signal);
+      void refresh(false);
+    };
+    const expired = () => {
+      if (ready.current) {
+        invalidate();
+      }
+      void refresh();
     };
     window.addEventListener("focus", focus);
-    window.addEventListener("lenso-session-expired", focus);
+    window.addEventListener("lenso-session-expired", expired);
     return () => {
       generation.current += 1;
-      controller.abort();
+      inFlight.current?.controller.abort();
+      inFlight.current = undefined;
+      clearTimeout(retryTimer.current);
       window.removeEventListener("focus", focus);
-      window.removeEventListener("lenso-session-expired", focus);
+      window.removeEventListener("lenso-session-expired", expired);
     };
-  }, [refresh]);
+  }, [invalidate, refresh]);
+  const signOut = useCallback(async () => {
+    invalidate();
+    signingOut.current = true;
+    const { current } = generation;
+    try {
+      const response = await sessionFetch("/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (current !== generation.current) {
+        return;
+      }
+      signingOut.current = false;
+      if (response.ok) {
+        await refresh();
+      } else {
+        setState({ kind: "error" });
+      }
+    } catch {
+      if (current === generation.current) {
+        setState({ kind: "error" });
+      }
+    } finally {
+      signingOut.current = false;
+    }
+  }, [invalidate, refresh]);
   if (state.kind === "ready") {
     return (
       <SessionActions
@@ -210,22 +371,8 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
           authenticated
             ? {
                 ...access,
-                subject: identity,
-                signOut: async () => {
-                  setState({ kind: "loading" });
-                  queryClient.clear();
-                  const response = await sessionFetch("/auth/logout", {
-                    method: "POST",
-                    credentials: "same-origin",
-                  });
-                  if (response.ok) {
-                    queryClient.clear();
-                    setState({ kind: "loading" });
-                    await refresh();
-                  } else {
-                    setState({ kind: "error" });
-                  }
-                },
+                subject: sessionSubject,
+                signOut,
               }
             : {
                 subject: "local",
@@ -269,21 +416,7 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
                 ? "当前账号没有此 Console 的访问权限，请联系管理员。"
                 : "Your account does not have access to this Console. Contact your administrator."}
             </p>
-            <Button
-              onClick={async () => {
-                const response = await sessionFetch("/auth/logout", {
-                  method: "POST",
-                  credentials: "same-origin",
-                });
-                if (response.ok) {
-                  await refresh();
-                } else {
-                  setState({ kind: "error" });
-                }
-              }}
-            >
-              {zh ? "退出登录" : "Sign out"}
-            </Button>
+            <Button onClick={signOut}>{zh ? "退出登录" : "Sign out"}</Button>
           </>
         )}
         {state.kind === "error" && (
@@ -305,7 +438,10 @@ export function ConsoleSession({ children }: { children: ReactNode }) {
         {state.kind === "login" && (
           <LoginMethods
             methods={state.methods}
-            onSignedIn={() => refresh()}
+            onSignedIn={() => {
+              invalidate();
+              return refresh();
+            }}
             zh={zh}
           />
         )}

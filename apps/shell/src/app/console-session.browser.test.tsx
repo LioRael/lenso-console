@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
 import {
   ConsoleSession,
@@ -27,6 +29,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   configureSessionCsrf(null);
+  queryClient.clear();
 });
 
 function mount() {
@@ -222,15 +225,25 @@ function AuthenticatedContent() {
 
 test("authenticated Console sign-out revokes through Auth and unmounts content", async () => {
   let signedIn = true;
+  vi.spyOn(document, "cookie", "get").mockReturnValue(
+    "__Host-lenso-csrf=logout-proof"
+  );
   const fetcher = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input) === "/auth/logout") {
         expect(init?.method).toBe("POST");
+        expect(new Headers(init?.headers).get("x-csrf-token")).toBe(
+          "logout-proof"
+        );
         signedIn = false;
         return new Response(null, { status: 204 });
       }
       if (String(input) === "/auth/methods") {
         return Response.json({
+          csrf: {
+            cookie_name: "__Host-lenso-csrf",
+            header_name: "x-csrf-token",
+          },
           methods: [
             {
               id: "sso",
@@ -363,37 +376,364 @@ test.each([false, true])(
   }
 );
 
-test("unmounts private content while a focused tab revalidates its shared session", async () => {
-  let hold = false;
+const admitted = {
+  mode: "required",
+  authenticated: true,
+  subject: "alice",
+  administrator: false,
+  management_enabled: false,
+  human_management_enabled: false,
+  workspace_ids: ["one", "two"],
+};
+
+function statefulMount(freshnessMs?: number) {
+  let mounts = 0;
+  function Content() {
+    const session = useConsoleSession();
+    useEffect(() => {
+      mounts += 1;
+    }, []);
+    return (
+      <>
+        <input aria-label="Workspace draft" defaultValue="" />
+        <div
+          aria-label="Workspace scroll"
+          style={{ height: 100, overflow: "auto" }}
+        >
+          <p style={{ height: 500 }}>Private workspace</p>
+        </div>
+        <output>
+          {session.subject}:{session.workspaceIds.join(",")}
+        </output>
+      </>
+    );
+  }
+  flushSync(() =>
+    root.render(
+      <ConsoleSession {...(freshnessMs === undefined ? {} : { freshnessMs })}>
+        <Content />
+      </ConsoleSession>
+    )
+  );
+  return () => mounts;
+}
+
+function methods() {
+  return Response.json({
+    methods: [
+      {
+        id: "sso",
+        kind: "redirect",
+        label: "Work account",
+        action: "/auth/oidc/start",
+      },
+    ],
+  });
+}
+
+test("fresh focus is skipped and stale checks coalesce without remounting, clearing caches or losing draft/scroll", async () => {
+  let clock = 100_000;
+  vi.spyOn(Date, "now").mockImplementation(() => clock);
   let complete: ((response: Response) => void) | undefined;
+  let checks = 0;
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       if (String(input) === "/auth/methods") {
-        return Response.json({ methods: [] });
+        return methods();
       }
-      if (hold) {
+      checks += 1;
+      return checks === 1
+        ? Response.json(admitted)
+        : new Promise<Response>((resolve) => {
+            complete = resolve;
+          });
+    })
+  );
+  const mounts = statefulMount();
+  const input = page.getByRole("textbox", { name: "Workspace draft" });
+  await input.fill("unsaved draft");
+  const original = container.querySelector("input");
+  const scroll = container.querySelector<HTMLDivElement>(
+    '[aria-label="Workspace scroll"]'
+  )!;
+  scroll.scrollTop = 220;
+  queryClient.setQueryData(["private-proof"], "keep");
+  window.dispatchEvent(new Event("focus"));
+  expect(checks).toBe(1);
+  clock += 60_001;
+  window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new Event("focus"));
+  await expect.poll(() => checks).toBe(2);
+  expect(mounts()).toBe(1);
+  expect(container.querySelector("input")).toBe(original);
+  expect(scroll.scrollTop).toBe(220);
+  expect(queryClient.getQueryData(["private-proof"])).toBe("keep");
+  await expect
+    .element(page.getByText("Checking your session…"))
+    .not.toBeInTheDocument();
+  complete?.(
+    Response.json({ ...admitted, workspace_ids: ["two", "one", "one"] })
+  );
+  await expect
+    .poll(
+      () =>
+        vi
+          .mocked(fetch)
+          .mock.calls.filter(([url]) => String(url) === "/auth/methods").length
+    )
+    .toBe(2);
+  await expect.element(input).toHaveValue("unsaved draft");
+  expect(mounts()).toBe(1);
+  expect(queryClient.getQueryData(["private-proof"])).toBe("keep");
+});
+
+test.each(["network", "503"])(
+  "temporary %s failure retains admitted content and backs off repeated focus",
+  async (failure) => {
+    let checks = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/auth/methods") {
+          return methods();
+        }
+        checks += 1;
+        if (checks === 1) {
+          return Response.json(admitted);
+        }
+        if (failure === "network") {
+          throw new TypeError("Network unavailable");
+        }
+        return new Response(null, { status: 503 });
+      })
+    );
+    const mounts = statefulMount(0);
+    const input = page.getByRole("textbox", { name: "Workspace draft" });
+    await input.fill("keep after failure");
+    queryClient.setQueryData(["private-proof"], "keep");
+    window.dispatchEvent(new Event("focus"));
+    await expect.poll(() => checks).toBe(2);
+    // Flush the rejected fetch and the catch that records retry backoff.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    for (let i = 0; i < 5; i += 1) {
+      window.dispatchEvent(new Event("focus"));
+    }
+    expect(checks).toBe(2);
+    expect(mounts()).toBe(1);
+    await expect.element(input).toHaveValue("keep after failure");
+    await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
+    expect(queryClient.getQueryData(["private-proof"])).toBe("keep");
+    // The scheduled retry recovers without recreating the page.
+    vi.mocked(fetch).mockImplementation(async (url) =>
+      String(url) === "/auth/methods" ? methods() : Response.json(admitted)
+    );
+    await expect
+      .poll(
+        () =>
+          vi
+            .mocked(fetch)
+            .mock.calls.filter(([url]) => String(url) === "/auth/methods")
+            .length
+      )
+      .toBe(2);
+    expect(mounts()).toBe(1);
+  }
+);
+
+test.each([
+  "subject",
+  "workspace_ids",
+  "administrator",
+  "management_enabled",
+  "human_management_enabled",
+] as const)(
+  "changed %s retires private component state and caches",
+  async (field) => {
+    let value: Record<string, unknown> = admitted;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url) =>
+        String(url) === "/auth/methods" ? methods() : Response.json(value)
+      )
+    );
+    const mounts = statefulMount(0);
+    const input = page.getByRole("textbox", { name: "Workspace draft" });
+    await input.fill("old scope draft");
+    queryClient.setQueryData(["private-proof"], "old scope");
+    value = {
+      ...admitted,
+      [field]:
+        field === "subject"
+          ? "bob"
+          : field === "workspace_ids"
+            ? ["two"]
+            : true,
+    };
+    window.dispatchEvent(new Event("focus"));
+    await expect.poll(mounts).toBe(2);
+    await expect.element(input).toHaveValue("");
+    expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
+  }
+);
+
+test("confirmed invalid session clears immediately even if Auth methods are unavailable", async () => {
+  let valid = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) =>
+      String(url) === "/auth/methods"
+        ? valid
+          ? methods()
+          : new Response(null, { status: 503 })
+        : valid
+          ? Response.json(admitted)
+          : new Response(null, { status: 401 })
+    )
+  );
+  statefulMount(0);
+  await page.getByRole("textbox", { name: "Workspace draft" }).fill("private");
+  queryClient.setQueryData(["private-proof"], "secret");
+  valid = false;
+  window.dispatchEvent(new Event("focus"));
+  await expect.element(page.getByRole("alert")).toBeVisible();
+  await expect
+    .element(page.getByRole("textbox", { name: "Workspace draft" }))
+    .not.toBeInTheDocument();
+  expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
+});
+
+test.each(["options", "request"])(
+  "retired %s requests cannot broadcast expiration into a new session",
+  async (kind) => {
+    const expired = vi.fn();
+    window.addEventListener("lenso-session-expired", expired);
+    try {
+      let complete: ((response: Response) => void) | undefined;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          () =>
+            new Promise<Response>((resolve) => {
+              complete = resolve;
+            })
+        )
+      );
+      const controller = new AbortController();
+      const request =
+        kind === "options"
+          ? sessionFetch("/api/private", { signal: controller.signal })
+          : sessionFetch(
+              new Request(new URL("/api/private", window.location.origin), {
+                signal: controller.signal,
+              })
+            );
+      controller.abort();
+      complete?.(new Response(null, { status: 401 }));
+      await expect(request).rejects.toMatchObject({ name: "AbortError" });
+      expect(expired).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener("lenso-session-expired", expired);
+    }
+  }
+);
+
+test("an expired event retires a pending check and its late response cannot replace the new subject", async () => {
+  let checks = 0;
+  let completeOld: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (String(url) === "/auth/methods") {
+        return methods();
+      }
+      checks += 1;
+      if (checks === 2) {
         return new Promise<Response>((resolve) => {
-          complete = resolve;
+          completeOld = resolve;
         });
       }
-      return Response.json({
-        mode: "required",
-        authenticated: true,
-        subject: "alice",
-      });
+      return Response.json(
+        checks === 1 ? admitted : { ...admitted, subject: "bob" }
+      );
+    })
+  );
+  statefulMount(0);
+  await page
+    .getByRole("textbox", { name: "Workspace draft" })
+    .fill("alice draft");
+  window.dispatchEvent(new Event("focus"));
+  await expect.poll(() => checks).toBe(2);
+  window.dispatchEvent(new Event("lenso-session-expired"));
+  await expect.element(page.getByText("bob:one,two")).toBeVisible();
+  completeOld?.(Response.json(admitted));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await expect.element(page.getByText("bob:one,two")).toBeVisible();
+  await expect
+    .element(page.getByRole("textbox", { name: "Workspace draft" }))
+    .toHaveValue("");
+});
+
+test("a confirmed permission change retires old content even if the subsequent configuration read fails", async () => {
+  let changed = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) =>
+      String(url) === "/auth/methods"
+        ? changed
+          ? new Response(null, { status: 503 })
+          : methods()
+        : Response.json(
+            changed ? { ...admitted, workspace_ids: ["two"] } : admitted
+          )
+    )
+  );
+  statefulMount(0);
+  await page.getByRole("textbox", { name: "Workspace draft" }).fill("private");
+  queryClient.setQueryData(["private-proof"], "secret");
+  changed = true;
+  window.dispatchEvent(new Event("focus"));
+  await expect.element(page.getByRole("alert")).toBeVisible();
+  await expect
+    .element(page.getByRole("textbox", { name: "Workspace draft" }))
+    .not.toBeInTheDocument();
+  expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
+});
+
+test("denied sign-out retires a pending check so its late admission cannot reopen private content", async () => {
+  let phase = "denied";
+  let completeOld: ((response: Response) => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      if (String(url) === "/auth/methods") {
+        return methods();
+      }
+      if (String(url) === "/auth/logout") {
+        phase = "signed-out";
+        return new Response(null, { status: 204 });
+      }
+      if (phase === "holding") {
+        return new Promise<Response>((resolve) => {
+          completeOld = resolve;
+        });
+      }
+      return new Response(null, { status: phase === "denied" ? 403 : 401 });
     })
   );
   mount();
-  await expect.element(page.getByText("Private workspace")).toBeVisible();
-  hold = true;
+  const signOut = page.getByRole("button", { name: "Sign out" });
+  await expect.element(signOut).toBeVisible();
+  phase = "holding";
   window.dispatchEvent(new Event("focus"));
-  await expect.element(page.getByText("Checking your session…")).toBeVisible();
+  await expect.poll(() => Boolean(completeOld)).toBe(true);
+  await signOut.click();
+  await expect
+    .element(page.getByRole("button", { name: "Work account" }))
+    .toBeVisible();
+  completeOld?.(Response.json(admitted));
+  await new Promise((resolve) => setTimeout(resolve, 20));
   await expect
     .element(page.getByText("Private workspace"))
     .not.toBeInTheDocument();
-  complete?.(
-    Response.json({ mode: "required", authenticated: true, subject: "bob" })
-  );
-  await expect.element(page.getByText("Private workspace")).toBeVisible();
 });

@@ -61,6 +61,13 @@ export async function sessionFetch(
     }
   }
   const response = await fetch(input, options);
+  // Some transports resolve after cancellation. A retired request cannot expire
+  // the current session or return data to its former consumer.
+  const signal =
+    init?.signal === undefined && input instanceof Request
+      ? input.signal
+      : init?.signal;
+  signal?.throwIfAborted();
   if (
     local &&
     (response.status === 401 || response.status === 412) &&
