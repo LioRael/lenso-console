@@ -33,7 +33,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .node-version
-      - run: npm install --global npm@11.5.1 bun@1.4.2 --ignore-scripts
+      - name: Install the pinned publisher and compiler runtime
+        run: |
+          npm install --global npm@11.5.1 --ignore-scripts
+          npm install --global bun@1.4.2
+          test "$(bun --version)" = 1.4.2
       - name: Pack the owner SDK and record integrity
         run: |
           mkdir -p .artifacts/console-sdk
