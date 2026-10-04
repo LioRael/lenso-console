@@ -13,6 +13,12 @@ import {
 } from "react";
 
 import { consoleDevConfig } from "../dev/console-dev-config";
+import {
+  consoleApiPath,
+  consoleAuthPath,
+  consoleHttpPaths,
+  consoleShellPath,
+} from "../lib/console-http-paths";
 import { problemMessage } from "../lib/http-problem";
 import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
@@ -152,7 +158,7 @@ export function ConsoleSession({
             queryClient.clear();
           }
           if (response.status === 403) {
-            const methods = await sessionFetch("/auth/methods", {
+            const methods = await sessionFetch(consoleAuthPath("methods"), {
               cache: "no-store",
               signal,
             });
@@ -167,11 +173,14 @@ export function ConsoleSession({
             queryClient.clear();
             setState({ kind: "denied" });
           } else if (response.status === 401) {
-            const methodsResponse = await sessionFetch("/auth/methods", {
-              credentials: "same-origin",
-              cache: "no-store",
-              signal,
-            });
+            const methodsResponse = await sessionFetch(
+              consoleAuthPath("methods"),
+              {
+                credentials: "same-origin",
+                cache: "no-store",
+                signal,
+              }
+            );
             if (!methodsResponse.ok) {
               throw new Error("Methods unavailable");
             }
@@ -246,7 +255,7 @@ export function ConsoleSession({
               setState({ kind: "loading" });
             }
             if (value.mode === "required") {
-              const methods = await sessionFetch("/auth/methods", {
+              const methods = await sessionFetch(consoleAuthPath("methods"), {
                 credentials: "same-origin",
                 cache: "no-store",
                 signal,
@@ -346,7 +355,7 @@ export function ConsoleSession({
     signingOut.current = true;
     const { current } = generation;
     try {
-      const response = await sessionFetch("/auth/logout", {
+      const response = await sessionFetch(consoleAuthPath("logout"), {
         method: "POST",
         credentials: "same-origin",
       });
@@ -397,7 +406,7 @@ export function ConsoleSession({
         <header {...stylex.props(styles.header)}>
           <div {...stylex.props(styles.brand)}>
             <img
-              src="/favicon.svg"
+              src={consoleShellPath("/favicon.svg")}
               alt=""
               width={36}
               height={36}
@@ -527,10 +536,13 @@ function LoginMethods({
                     );
                     return;
                   }
-                  const session = await fetch("/api/console/v1/session", {
-                    credentials: "same-origin",
-                    cache: "no-store",
-                  });
+                  const session = await fetch(
+                    consoleApiPath("/api/console/v1/session"),
+                    {
+                      credentials: "same-origin",
+                      cache: "no-store",
+                    }
+                  );
                   if (session.status === 401) {
                     setError(
                       zh
@@ -630,7 +642,10 @@ function LoginMethods({
   );
 }
 
-export function parseLoginMethods(value: unknown): LoginMethod[] {
+export function parseLoginMethods(
+  value: unknown,
+  authBasePath = consoleHttpPaths.auth_base_path
+): LoginMethod[] {
   if (
     !value ||
     typeof value !== "object" ||
@@ -652,8 +667,11 @@ export function parseLoginMethods(value: unknown): LoginMethod[] {
     ) {
       return false;
     }
+    const [actionPath = ""] = method.action.split("?");
     if (
-      !method.action.startsWith("/auth/") ||
+      !(
+        actionPath === authBasePath || actionPath.startsWith(`${authBasePath}/`)
+      ) ||
       method.action.includes("\\") ||
       /[\s#]/u.test(method.action)
     ) {
@@ -662,7 +680,12 @@ export function parseLoginMethods(value: unknown): LoginMethod[] {
     const url = new URL(method.action, "https://console.invalid");
     if (
       url.origin !== "https://console.invalid" ||
-      !url.pathname.startsWith("/auth/")
+      url.pathname.includes("%") ||
+      url.pathname.includes("//") ||
+      !(
+        url.pathname === authBasePath ||
+        url.pathname.startsWith(`${authBasePath}/`)
+      )
     ) {
       return false;
     }

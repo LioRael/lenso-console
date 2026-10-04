@@ -10,13 +10,21 @@
         "type": "object",
         "required": ["instance", "workspace", "path"],
         "properties": {
-          "instance": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "instance": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
           "workspace": {
             "type": "string",
             "minLength": 1,
             "maxLength": 64
           },
-          "path": { "type": "string", "minLength": 1, "maxLength": 256 }
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
         },
         "additionalProperties": false
       }
@@ -181,9 +189,46 @@
           "type": "boolean",
           "default": false,
           "description": "Explicitly enables the separately bound human review capability. Never exposed as Agent or MCP tools."
+        },
+        "management_enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Requires the separately bound Management capability when enabled. Set false for an operator workspace-only Console."
+        },
+        "administrator_workspace_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Only these administrator workspaces are admitted after operators realm and deployment console.operator checks; never grants legacy Console administration."
         }
       },
       "description": "Explicit operators realm trust and deployment scope. Requires Auth and Access Control; legacy shared Agent/App proxies remain unavailable."
+    },
+    "http_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shell_base_path": {
+          "type": "string",
+          "default": "/",
+          "maxLength": 128
+        },
+        "api_base_path": {
+          "type": "string",
+          "default": "/api",
+          "maxLength": 128
+        },
+        "auth_base_path": {
+          "type": "string",
+          "default": "/auth",
+          "maxLength": 128
+        }
+      },
+      "description": "Fixed instance-owned same-origin Shell/API/Auth path prefixes. Defaults preserve root Shell, /api and /auth."
     }
   },
   "required": [

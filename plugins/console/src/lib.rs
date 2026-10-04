@@ -1,6 +1,7 @@
 mod app_management;
 mod controlled_management;
 mod http;
+mod http_paths;
 mod human_management;
 mod human_tokens;
 mod lenso_http;
@@ -15,6 +16,7 @@ mod session;
 mod workspace_paths;
 mod workspace_services;
 pub use app_management::{ManagedAppAdapter, ManagedAppConnection};
+pub use http_paths::ConsoleHttpPaths;
 #[cfg(not(target_arch = "wasm32"))]
 pub use projects::LocalProjects;
 pub use workspace_paths::WorkspaceMountOverride;
@@ -106,6 +108,8 @@ pub struct ConsolePluginConfig {
     #[serde(default)]
     pub require_user_session: bool,
     #[serde(default)]
+    pub http_paths: ConsoleHttpPaths,
+    #[serde(default)]
     pub administrator_subjects: Vec<String>,
     #[serde(default)]
     pub member_workspace_ids: Vec<String>,
@@ -165,10 +169,28 @@ pub struct OperatorsProfile {
     pub max_assertion_ttl_seconds: u32,
     #[serde(default)]
     pub human_interface: bool,
+    #[serde(default = "default_management_enabled")]
+    pub management_enabled: bool,
+    /// Explicit workspace grants after operators realm and console.operator admission.
+    #[serde(default)]
+    pub administrator_workspace_ids: Vec<String>,
+}
+
+fn valid_workspace_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id.as_bytes()[0].is_ascii_lowercase()
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._-".contains(&b))
 }
 
 fn default_operator_assertion_ttl() -> u32 {
     300
+}
+
+fn default_management_enabled() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -180,6 +202,7 @@ pub struct LocalProjectsConfig {
 }
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
+    config.http_paths.validate().map_err(invalid_plan)?;
     #[cfg(target_arch = "wasm32")]
     validate_portable_config(config)?;
     if let Some(profile) = &config.operators_profile {
@@ -195,6 +218,15 @@ pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), Runtim
         {
             return Err(invalid_plan(
                 "Operators profile requires independent Auth, scoped authorization, and no legacy shared control connections",
+            ));
+        }
+        if profile
+            .administrator_workspace_ids
+            .iter()
+            .any(|id| !valid_workspace_id(id))
+        {
+            return Err(invalid_plan(
+                "Operator administrator workspace IDs must be canonical workspace slugs",
             ));
         }
         lenso_auth_sdk::realm::RealmAssertionVerifier::new(
@@ -305,9 +337,16 @@ impl ConsolePlugin {
                 "Operators profile requires exactly one Access Control binding; legacy local mode requires none",
             ));
         }
-        if self.management.iter().count() != usize::from(self.config.operators_profile.is_some()) {
+        if self.management.iter().count()
+            != usize::from(
+                self.config
+                    .operators_profile
+                    .as_ref()
+                    .is_some_and(|profile| profile.management_enabled),
+            )
+        {
             return Err(invalid_plan(
-                "Operators profile requires exactly one Management binding; legacy local mode requires none",
+                "Enabled operators management requires exactly one Management binding; other modes require none",
             ));
         }
         if self.human_management.iter().count()
@@ -430,7 +469,7 @@ impl ConsolePlugin {
         .map(|(method, path, route_id)| HttpRoute {
             method: method.to_owned(),
             openapi: None,
-            path: path.to_owned(),
+            path: self.config.http_paths.shell_path(path),
             route_id: route_id.to_owned(),
         })
         .collect();
@@ -489,7 +528,7 @@ impl ConsolePlugin {
             .into_iter()
             .map(|method| StreamRoute {
                 method: method.to_owned(),
-                path: "/api/{*path}".to_owned(),
+                path: format!("{}/{{*path}}", self.config.http_paths.api_base_path),
                 route_id: format!("console.api.{}", method.to_ascii_lowercase()),
             })
             .collect();
@@ -573,6 +612,7 @@ fn console_application(
         agents: agent_catalog,
         pages: page_catalog,
         liveness_readiness_routes: config.liveness_readiness_routes,
+        http_paths: config.http_paths,
         web_root: config.web_root,
         management: None,
         human_management: None,
@@ -590,6 +630,7 @@ struct ConsoleApplication {
     pages: page_contributions::PageCatalog,
     web_root: PathBuf,
     liveness_readiness_routes: bool,
+    http_paths: ConsoleHttpPaths,
 }
 
 impl std::fmt::Debug for ConsoleApplication {
@@ -655,10 +696,10 @@ impl ConsoleApplication {
         if let Some(canonical) = &page
             && canonical != &request.path
         {
-            let location = request
-                .query
-                .as_ref()
-                .map_or_else(|| canonical.clone(), |query| format!("{canonical}?{query}"));
+            let location = request.query.as_ref().map_or_else(
+                || self.http_paths.shell_path(canonical),
+                |query| format!("{}?{query}", self.http_paths.shell_path(canonical)),
+            );
             let Ok(location) = ::http::HeaderValue::from_str(&location) else {
                 return StatusCode::BAD_REQUEST.into_response();
             };
@@ -704,7 +745,11 @@ impl ConsoleApplication {
                 .body(if request.method == Method::HEAD {
                     Body::empty()
                 } else {
-                    Body::from(bytes.to_vec())
+                    Body::from(if *name == "index.html" {
+                        self.http_paths.shell_html(bytes.to_vec())
+                    } else {
+                        bytes.to_vec()
+                    })
                 })
                 .expect("embedded Shell response");
         }
@@ -724,7 +769,16 @@ impl ConsoleApplication {
             let body = if request.method == Method::HEAD {
                 Body::empty()
             } else {
-                Body::from(bytes)
+                Body::from(
+                    if candidate
+                        .file_name()
+                        .is_some_and(|name| name == "index.html")
+                    {
+                        self.http_paths.shell_html(bytes)
+                    } else {
+                        bytes
+                    },
+                )
             };
             ::http::Response::builder()
                 .status(StatusCode::OK)
@@ -742,6 +796,7 @@ pub fn link() {}
 #[derive(Clone, Debug)]
 pub struct ConsoleConfig {
     pub liveness_readiness_routes: bool,
+    pub http_paths: ConsoleHttpPaths,
     #[cfg(not(target_arch = "wasm32"))]
     local_projects: Option<std::sync::Arc<LocalProjects>>,
     local_projects_config: Option<LocalProjectsConfig>,
@@ -996,6 +1051,7 @@ impl ConsoleConfig {
             .transpose()?;
         Ok(Self {
             liveness_readiness_routes: config.liveness_readiness_routes,
+            http_paths: config.http_paths.clone(),
             #[cfg(not(target_arch = "wasm32"))]
             local_projects,
             local_projects_config: config.local_projects.clone(),
@@ -1088,6 +1144,7 @@ impl ConsoleConfig {
         };
         Ok(Self {
             liveness_readiness_routes: default_liveness_readiness_routes(),
+            http_paths: ConsoleHttpPaths::default(),
             local_projects: None,
             local_projects_config: None,
             agent_control_token_file: None,
@@ -1169,6 +1226,7 @@ impl ConsoleConfig {
         Ok(ConsolePluginConfig {
             liveness_readiness_routes: self.liveness_readiness_routes,
             require_user_session: false,
+            http_paths: self.http_paths.clone(),
             administrator_subjects: Vec::new(),
             member_workspace_ids: Vec::new(),
             workspace_mounts: Vec::new(),
@@ -1206,6 +1264,7 @@ impl ConsoleConfig {
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
+        self.http_paths.validate().map_err(anyhow::Error::msg)?;
         app_management::validate_connections(&self.app_agents, &self.managed_apps)?;
         anyhow::ensure!(
             runtime_path_is_absolute(&self.agent_home),
@@ -1956,6 +2015,72 @@ mod tests {
 
     fn invocation_context() -> InvocationContext {
         InvocationContext::new(1, None, lenso_kernel::CancellationToken::new())
+    }
+
+    // Prevent two Console instances from claiming each other's routes. Old tests
+    // inspect only root/default ownership, not fixed namespaced describe output.
+    #[tokio::test]
+    async fn fixed_instances_describe_disjoint_routes_and_bootstrap_matching_shells() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(
+            root.path().join("index.html"),
+            "<html><head><script src=\"/assets/app.js\"></script></head></html>",
+        )
+        .unwrap();
+        for (shell, api, auth) in [
+            ("/console", "/console/api", "/auth"),
+            ("/admin", "/admin/api", "/auth/operator"),
+        ] {
+            let mut config = ConsolePluginConfig::defaults();
+            config.web_root = root.path().to_str().unwrap().into();
+            config.http_paths = ConsoleHttpPaths {
+                shell_base_path: shell.into(),
+                api_base_path: api.into(),
+                auth_base_path: auth.into(),
+            };
+            let console = inactive_console(config.clone());
+            let routes = console
+                .describe(invocation_context(), HttpDescribeRequest {})
+                .await
+                .unwrap()
+                .unwrap()
+                .routes;
+            assert!(
+                routes
+                    .iter()
+                    .all(|route| route.path.starts_with(&format!("{shell}/")))
+            );
+            let routes = console
+                .describe_stream(invocation_context(), StreamDescribeRequest {})
+                .await
+                .unwrap()
+                .unwrap()
+                .routes;
+            assert!(
+                routes
+                    .iter()
+                    .all(|route| route.path == format!("{api}/{{*path}}"))
+            );
+            let page_catalog =
+                page_contributions::PageCatalog::discover(root.path(), &BTreeSet::new()).unwrap();
+            let application =
+                console_application(ConsoleConfig::from_plugin(&config).unwrap(), page_catalog);
+            let response = application.handle(Request::new(Method::GET, "/")).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let html =
+                String::from_utf8(response.into_body().collect(8192).await.unwrap().to_vec())
+                    .unwrap();
+            assert!(html.contains(&format!("src=\"{shell}/assets/app.js\"")));
+            assert!(html.contains(&format!("\"auth_base_path\":\"{auth}\"")));
+            assert_eq!(
+                ConsoleConfig::from_plugin(&config)
+                    .unwrap()
+                    .to_plugin_config()
+                    .unwrap()
+                    .http_paths,
+                config.http_paths
+            );
+        }
     }
 
     // Prevent an App health override from breaking old configurations, reappearing
