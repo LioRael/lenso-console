@@ -20,6 +20,10 @@ import {
   useOptionalAgentQuickPanel,
   type WorkspaceAgentContext,
 } from "../agent/agent-quick-panel-context";
+import {
+  acceptContributionRecovery,
+  contributionAssetUrl,
+} from "./contribution-asset-url";
 import { usePageCatalog, type PageMount } from "./page-contribution-catalog";
 import {
   createWorkspaceServices,
@@ -319,7 +323,7 @@ export function useContributionModule<Props = ContributionProps>(
     const stylesReady = mount.styles.map((href) => {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = href;
+      link.href = contributionAssetUrl(href, attempt > 0);
       link.dataset.consoleContribution = mount.id;
       const ready = new Promise<void>((resolve, reject) => {
         link.addEventListener("load", () => resolve(), { once: true });
@@ -336,8 +340,9 @@ export function useContributionModule<Props = ContributionProps>(
     const load = async () => {
       try {
         await Promise.all(stylesReady.map(({ ready }) => ready));
+        const moduleUrl = contributionAssetUrl(mount.module, attempt > 0);
         // eslint-disable-next-line no-inline-comments -- Vite requires this import annotation.
-        const value: unknown = await import(/* @vite-ignore */ mount.module);
+        const value: unknown = await import(/* @vite-ignore */ moduleUrl);
         if (!current) {
           return;
         }
@@ -352,6 +357,9 @@ export function useContributionModule<Props = ContributionProps>(
         });
         if (!page || typeof page.Page !== "function") {
           throw new TypeError("The extension page export is invalid");
+        }
+        if (attempt > 0) {
+          acceptContributionRecovery([mount.module, ...mount.styles]);
         }
         setState({
           Page: page.Page as ComponentType<Props>,
