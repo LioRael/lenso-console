@@ -1,5 +1,6 @@
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Component,
   createElement,
@@ -11,12 +12,14 @@ import {
 } from "react";
 import * as React from "react";
 
+import type { WorkspaceReads } from "../../../../../packages/console-authoring/src/read";
 import type { ReadRefreshPolicy } from "../../../../../packages/console-authoring/src/read-refresh";
 import { useConsoleAppearance } from "../../app/console-appearance";
 import { useConsoleTranslation } from "../../app/console-i18n";
 import { useConsoleLocale } from "../../app/console-locale";
 import { useConsoleSession } from "../../app/console-session";
 import { RoutePending } from "../../app/route-states";
+import { consoleDevConfig } from "../../dev/console-dev-config";
 import { consoleReadRefreshPolicy } from "../../lib/read-refresh-policy";
 import { useAgentIdentityOptional } from "../agent/agent-identity-context";
 import {
@@ -34,6 +37,7 @@ import {
   pageMountScopeKey,
 } from "./page-mount-runtime";
 import { workspacePageHref } from "./workspace-paths";
+import { createWorkspaceReads } from "./workspace-read-client";
 import {
   createWorkspaceServices,
   type WorkspaceServices,
@@ -68,6 +72,7 @@ type ContributionProps = {
     }) => void;
   };
   readRefreshPolicy?: ReadRefreshPolicy;
+  reads?: WorkspaceReads;
   signal: AbortSignal;
   services: WorkspaceServices;
 };
@@ -271,11 +276,22 @@ function MountedContribution({
   mount: PageMount;
   navigation: ContributionProps["navigation"];
 }) {
+  const client = useQueryClient();
   const readRefreshPolicy = useMemo(
     () => consoleReadRefreshPolicy(mount.id),
     [mount.id]
   );
   const { signal, scopeKey } = loaded;
+  const reads = useMemo(
+    () =>
+      createWorkspaceReads(client, {
+        scopeKey,
+        localDevelopment: consoleDevConfig.mode === "mock",
+        signal,
+        policy: readRefreshPolicy,
+      }),
+    [client, scopeKey, signal, readRefreshPolicy]
+  );
   const scopedMount = useMemo(
     () => ({ ...mount, scopeKey }),
     [mount, scopeKey]
@@ -309,6 +325,7 @@ function MountedContribution({
         mount={scopedMount}
         navigation={guardedNavigation}
         readRefreshPolicy={readRefreshPolicy}
+        reads={reads}
         signal={loaded.signal}
         services={loaded.services}
       />

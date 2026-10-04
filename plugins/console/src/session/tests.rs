@@ -216,6 +216,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                 assert_eq!(assistant_member.prepare(context(), "GET", path, Some(("session", "bob"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
             }
             let response = assistant_member.prepare(context(), "GET", "/api/console/v1/session", Some(("session", "alice"))).await.err().unwrap();
+            assert_eq!(response.headers()["x-lenso-read-scope"].as_bytes().len(), 64);
             let session_status: serde_json::Value = serde_json::from_slice(&response.into_body().collect(4096).await.unwrap()).unwrap();
             assert_eq!(session_status["assistant_enabled"], true);
             assert_eq!(session_status["administrator"], false);
@@ -366,10 +367,70 @@ async fn missing_required_provider_fails_closed_and_local_mode_is_explicit() {
         .await
         .err()
         .unwrap();
+    assert_eq!(response.headers()["x-lenso-read-scope"], "local");
     let body = response.into_body().collect(4096).await.unwrap();
     let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(value["mode"], "local");
     assert_eq!(value["authenticated"], false);
+}
+
+// Session snapshots must partition equal subject names by admitted realm/audience,
+// while proof renewal alone must not turn every cached return into a first read.
+#[test]
+fn read_scope_partitions_admission_without_caching_proofs_or_renewal_times() {
+    let issuer = ActorAssertionIssuer::from_signing_key("test.issuer", [7; 32]);
+    let now = time::OffsetDateTime::now_utc();
+    let assertion = |subject: &str, audience: &str, offset: i64| {
+        issuer.issue(
+            subject,
+            "user",
+            "password",
+            [audience.to_owned()],
+            Validity::new(
+                now + time::Duration::seconds(offset),
+                now + time::Duration::minutes(1) + time::Duration::seconds(offset),
+            )
+            .unwrap(),
+            BTreeMap::new(),
+        )
+    };
+    let digest = |actor: &ActorAssertion, realm: &str| {
+        with_read_scope(
+            session_response(
+                "required",
+                Some(actor.subject()),
+                false,
+                &[],
+                false,
+                false,
+                false,
+            ),
+            actor,
+            realm,
+            "fixture-authority",
+        )
+        .headers()["x-lenso-read-scope"]
+            .to_str()
+            .unwrap()
+            .to_owned()
+    };
+    let original = assertion("same-name", "endpoint:read", 0);
+    let scope = digest(&original, "realm-a");
+    assert_eq!(scope.len(), 64);
+    assert!(!scope.contains(original.proof()));
+    assert_eq!(
+        scope,
+        digest(&assertion("same-name", "endpoint:read", 1), "realm-a")
+    );
+    assert_ne!(scope, digest(&original, "realm-b"));
+    assert_ne!(
+        scope,
+        digest(&assertion("another-user", "endpoint:read", 0), "realm-a")
+    );
+    assert_ne!(
+        scope,
+        digest(&assertion("same-name", "another:endpoint", 0), "realm-a")
+    );
 }
 
 #[tokio::test]

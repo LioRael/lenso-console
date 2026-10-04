@@ -231,14 +231,22 @@ impl SessionBoundary {
             return Err(problem(StatusCode::FORBIDDEN, "console_access_required"));
         }
         if session_request {
-            return Err(session_response(
-                "required",
-                Some(&subject.0),
-                false,
-                &self.member_workspace_ids,
-                true,
-                profile.human_interface,
-                false,
+            return Err(with_read_scope(
+                session_response(
+                    "required",
+                    Some(&subject.0),
+                    false,
+                    &self.member_workspace_ids,
+                    true,
+                    profile.human_interface,
+                    false,
+                ),
+                &assertion,
+                "operators",
+                &format!(
+                    "{}:{}:{}",
+                    profile.deployment, profile.issuer, profile.public_key
+                ),
             ));
         }
         self.require_operator_path(method, path, profile.human_interface)?;
@@ -326,14 +334,19 @@ impl SessionBoundary {
         }
         if session_request {
             return if administrator || assistant_enabled || !self.member_workspace_ids.is_empty() {
-                Err(session_response(
-                    "required",
-                    Some(assertion.subject()),
-                    administrator,
-                    &self.member_workspace_ids,
-                    false,
-                    false,
-                    assistant_enabled,
+                Err(with_read_scope(
+                    session_response(
+                        "required",
+                        Some(assertion.subject()),
+                        administrator,
+                        &self.member_workspace_ids,
+                        false,
+                        false,
+                        assistant_enabled,
+                    ),
+                    assertion,
+                    "console-auth",
+                    assertion.issuer(),
                 ))
             } else {
                 Err(problem(StatusCode::FORBIDDEN, "console_access_required"))
@@ -493,12 +506,49 @@ fn session_response(
     human_management_enabled: bool,
     assistant_enabled: bool,
 ) -> Box<Response> {
-    Box::new((
+    let mut response = Box::new((
         StatusCode::OK,
         [(http::header::CACHE_CONTROL, "no-store")],
         Json(serde_json::json!({"mode":mode,"authenticated":subject.is_some(),"subject":subject,"administrator":administrator,"workspace_ids":workspace_ids,"management_enabled":management_enabled,"human_management_enabled":human_management_enabled,"assistant_enabled":assistant_enabled})),
     )
-        .into_response())
+        .into_response());
+    if mode == "local" {
+        response.headers_mut().insert(
+            "x-lenso-read-scope",
+            http::HeaderValue::from_static("local"),
+        );
+    }
+    response
+}
+
+// Public admission metadata only: no proof, cookie, credential or assertion times.
+// Realm labels come from the selected boundary, never a claims.realm override.
+fn with_read_scope(
+    mut response: Box<Response>,
+    assertion: &ActorAssertion,
+    realm: &str,
+    authority: &str,
+) -> Box<Response> {
+    use sha2::{Digest, Sha256};
+    let mut audiences = assertion.audience().to_vec();
+    audiences.sort();
+    audiences.dedup();
+    let claims = assertion.to_wire().claims;
+    let namespace = serde_json::to_vec(&(
+        realm,
+        authority,
+        assertion.issuer(),
+        assertion.subject(),
+        audiences,
+        claims,
+    ))
+    .expect("Auth admission metadata must serialize");
+    let digest = format!("{:x}", Sha256::digest(namespace));
+    response.headers_mut().insert(
+        "x-lenso-read-scope",
+        http::HeaderValue::from_str(&digest).expect("SHA256 hex is a header value"),
+    );
+    response
 }
 
 pub(super) fn problem(status: StatusCode, code: &str) -> Box<Response> {

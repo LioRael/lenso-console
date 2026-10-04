@@ -1,9 +1,8 @@
-import { QueryClient } from "@tanstack/react-query";
-
 import { resolveReadRefreshPolicy } from "../../../../packages/console-authoring/src/read-refresh";
+import { ConsoleQueryClient } from "./console-query-client";
 import { consoleReadRefreshPolicy } from "./read-refresh-policy";
 
-export const queryClient = new QueryClient({
+export const queryClient = new ConsoleQueryClient({
   defaultOptions: {
     queries: {
       retry: 1,

@@ -242,6 +242,7 @@ export function ConsoleSession({
               value.mode,
               nextSubject,
               nextAccess,
+              response.headers.get("x-lenso-read-scope"),
             ]);
             if (ready.current && scope.current !== nextScope) {
               ready.current = false;
@@ -266,6 +267,9 @@ export function ConsoleSession({
               configureSessionCsrf(configuration);
             }
             if (active()) {
+              queryClient.admitReadScope(
+                response.headers.get("x-lenso-read-scope")
+              );
               if (scope.current !== nextScope) {
                 queryClient.clear();
                 scope.current = nextScope;

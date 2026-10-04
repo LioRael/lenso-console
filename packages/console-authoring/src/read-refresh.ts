@@ -2,12 +2,16 @@
 export interface ReadRefreshPolicy {
   focus?: "never" | "stale" | "always";
   staleTimeMs?: number;
+  gcTimeMs?: number;
+  remount?: "never" | "stale" | "always";
 }
 
 /** Structurally compatible with existing TanStack Query read options. */
 export interface ReadRefreshQueryOptions {
   refetchOnWindowFocus?: boolean | "always";
   staleTime?: number;
+  gcTime?: number;
+  refetchOnMount?: boolean | "always";
 }
 
 /** Page fields override mount fields, then global fields. Missing fields inherit. */
@@ -20,6 +24,21 @@ export function resolveReadRefreshPolicy(
   const staleTime =
     page?.staleTimeMs ?? mount?.staleTimeMs ?? global.staleTimeMs;
   const options: ReadRefreshQueryOptions = {};
+  const remount = page?.remount ?? mount?.remount ?? global.remount;
+  const gcTime = page?.gcTimeMs ?? mount?.gcTimeMs ?? global.gcTimeMs;
+  if (remount !== undefined) {
+    if (!["never", "stale", "always"].includes(remount)) {
+      throw new TypeError("Read remount policy is invalid");
+    }
+    options.refetchOnMount =
+      remount === "always" ? "always" : remount === "stale";
+  }
+  if (gcTime !== undefined) {
+    if (Number.isNaN(gcTime) || gcTime < 0) {
+      throw new TypeError("Read cache lifetime must be non-negative");
+    }
+    options.gcTime = gcTime;
+  }
   if (focus !== undefined) {
     switch (focus) {
       case "never": {
