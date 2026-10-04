@@ -3,13 +3,18 @@
 use lenso::ConfiguredPluginFactory;
 use lenso_app_plan::{AppComposition, CapabilityEndpointPlan, PluginInstancePlan};
 use lenso_capability_http_endpoint::{self as http, EndpointProvider};
-use lenso_capability_http_stream_endpoint as stream;
+use lenso_capability_http_stream_endpoint::{self as stream, StreamEndpointProvider};
 use lenso_console_plugin::{ConsoleConfig, ConsolePlugin, ConsolePluginConfig};
-use lenso_kernel::{CancellationToken, DeterministicDriver, InvocationContext, Kernel};
+use lenso_kernel::{
+    CancellationToken, DeterministicDriver, InvocationContext, Kernel, NativeStreamItem,
+};
 use lenso_native_adapter::NativePluginRegistry;
 
 std::thread_local! {
     static FAILURE: RefCell<String> = const { RefCell::new(String::new()) };
+    static PLUGIN: RefCell<Option<ConsolePlugin>> = const { RefCell::new(None) };
+    static ASSET_PATH: RefCell<String> = const { RefCell::new(String::new()) };
+    static ASSET_BYTES: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
 }
 
 #[unsafe(no_mangle)]
@@ -127,7 +132,85 @@ pub extern "C" fn console_wasm_activate(case: u32) -> u32 {
         },
     ));
     match response {
-        Some(Ok(Ok(response))) if response.status == 200 => 0,
+        Some(Ok(Ok(response))) if response.status == 200 => {
+            PLUGIN.with(|value| value.replace(Some(plugin)));
+            0
+        }
         _ => 8,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn console_wasm_asset_path_byte(byte: u32) {
+    ASSET_PATH.with(|path| {
+        if byte == 0 {
+            path.borrow_mut().clear();
+        } else {
+            path.borrow_mut().push(char::from_u32(byte).unwrap());
+        }
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn console_wasm_asset_byte(index: u32) -> u32 {
+    ASSET_BYTES.with(|bytes| u32::from(bytes.borrow()[index as usize]))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn console_wasm_asset_len() -> u32 {
+    ASSET_BYTES.with(|bytes| bytes.borrow().len() as u32)
+}
+
+// Drive the actual provider/body in Wasm. No alternate HTTP/body implementation
+// is supplied: the Node consumer compares every returned byte to the built asset.
+#[unsafe(no_mangle)]
+pub extern "C" fn console_wasm_stream_asset() -> u32 {
+    ASSET_BYTES.with(|bytes| bytes.borrow_mut().clear());
+    let plugin = PLUGIN.with(|value| value.borrow().clone().unwrap());
+    let request = stream::HandleStreamRequest {
+        route_id: "console.api.get".into(),
+        request_id: "wasm-stream".into(),
+        method: "GET".into(),
+        path: ASSET_PATH.with(|path| path.borrow().clone()),
+        path_parameters: vec![],
+        query: None,
+        headers: vec![],
+        credential: None,
+        body: vec![].into(),
+    };
+    let Some(Ok(session)) = complete(StreamEndpointProvider::handle_stream(
+        &plugin,
+        InvocationContext::new(2, None, CancellationToken::new()),
+        request,
+    )) else {
+        return 0;
+    };
+    let mut chunks = 0;
+    let mut head = false;
+    loop {
+        match complete(session.receive()) {
+            Some(Ok(NativeStreamItem::Message(message))) => {
+                let message = message.downcast::<stream::HandleResponse>().unwrap();
+                match message.kind {
+                    stream::HandleResponseKind::Head if !head && message.status == Some(200) => {
+                        head = true;
+                    }
+                    stream::HandleResponseKind::Chunk if head => {
+                        let body = message.body.unwrap().into_shared();
+                        if body.len() > 65_536
+                            || message.status.is_some()
+                            || message.headers.is_some()
+                        {
+                            return 0;
+                        }
+                        ASSET_BYTES.with(|bytes| bytes.borrow_mut().extend_from_slice(&body));
+                        chunks += 1;
+                    }
+                    _ => return 0,
+                }
+            }
+            Some(Ok(NativeStreamItem::Terminal(Ok(())))) if head => return chunks,
+            _ => return 0,
+        }
     }
 }
