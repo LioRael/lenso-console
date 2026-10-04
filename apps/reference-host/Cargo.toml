@@ -24,7 +24,7 @@ lenso-console-agent-ai-adapter = { path = "../../plugins/agent-ai-adapter", opti
 lenso-console-assistant-plugin = { path = "../../plugins/assistant", optional = true }
 lenso-management-mcp = { path = "../../plugins/management-mcp", optional = true }
 lenso-console-plugin = { path = "../../plugins/console" }
-lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "15fb8d492fb9cb86437cc9dd20101aa07492e5cd" }
+lenso-projects-web-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "098ad121e359250115e9f7c79cee1342161a5b37" }
 lenso-projects-postgres-plugin = { git = "https://github.com/LioRael/lenso-projects-plugin", rev = "49dfff0a79faefc8e8aa8d784dbe8aa4fe3ed7b0" }
 lenso-organization-postgres-plugin = { git = "https://github.com/LioRael/lenso-organization-plugin", rev = "139fb47828b9ced5c8621438b166d4d2b52c7bad" }
 lenso-access-control-postgres-plugin = { git = "https://github.com/LioRael/lenso-access-control-plugin", rev = "94b6d06cff1e6f17a06e771df232f662cae28ad5" }
@@ -37,7 +37,7 @@ lenso-auth-oauth-flow-plugin = { git = "https://github.com/LioRael/lenso-auth-pl
 lenso-secrets-env-plugin = "0.1.7"
 lenso-http-egress-plugin = "0.3.6"
 lenso-observe-plugin = { path = "../../plugins/observe" }
-lenso-projects-workspace-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "15fb8d492fb9cb86437cc9dd20101aa07492e5cd" }
+lenso-projects-workspace-plugin = { git = "https://github.com/LioRael/lenso-projects-web-plugin", rev = "098ad121e359250115e9f7c79cee1342161a5b37" }
 lenso-native-adapter = "0.3.20"
 lenso-runner = "0.2.20"
 lenso-web-ingress-plugin = "0.4.11"

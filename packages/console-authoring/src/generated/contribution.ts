@@ -2,8 +2,8 @@
 import * as lensoContractRuntime from "@lenso/contract-runtime";
 
 export const CAPABILITY_ID = "lenso.ui.contribution@1";
-export const DESCRIPTOR_VERSION = "1.3.0";
-export const DESCRIPTOR_DIGEST = "sha256:819917f08497881aa5db5d86c9e358a45d3f0f88f3b8087142fe5999e50c7c9a";
+export const DESCRIPTOR_VERSION = "1.4.0";
+export const DESCRIPTOR_DIGEST = "sha256:56755b29939e63ac24e453063f9f7e0c361d375b200d40a274b932962301cff2";
 export const PORTABLE = true;
 export const CROSS_LANE_TRANSFER = false;
 
@@ -48,6 +48,7 @@ export interface DescribeContributionResponse {
   subject?: DescribeContributionResponseSubject;
   title: string;
   workspace_id: string;
+  workspaces?: Array<DescribeContributionResponseWorkspacesItem>;
 }
 
 export interface DescribeContributionResponseAssetsItem {
@@ -78,6 +79,36 @@ export interface DescribeContributionResponseRequirementsItem {
 export interface DescribeContributionResponseSubject {
   app_id?: string | null;
   kind: "console" | "app";
+}
+
+export interface DescribeContributionResponseWorkspacesItem {
+  access: "member" | "administrator";
+  id: string;
+  index: Array<string>;
+  navigation: DescribeContributionResponseWorkspacesItemNavigation;
+  path: string;
+  requirements?: Array<DescribeContributionResponseWorkspacesItemRequirementsItem>;
+  routes: Array<Array<string>>;
+  title: string;
+}
+
+export interface DescribeContributionResponseWorkspacesItemNavigation {
+  items: Array<DescribeContributionResponseWorkspacesItemNavigationItemsItem>;
+  label: string;
+}
+
+export interface DescribeContributionResponseWorkspacesItemNavigationItemsItem {
+  label: string;
+  path: Array<string>;
+}
+
+export interface DescribeContributionResponseWorkspacesItemRequirementsItem {
+  capability_id: string;
+  descriptor_version: string;
+  operations: Array<string>;
+  required: boolean;
+  service_id: string;
+  source: "owner" | "subject";
 }
 
 export type DescribeContributionError = "contribution_unavailable" | UnknownDomainError;

@@ -1,5 +1,8 @@
 import type * as React from "react";
 
+export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
+export { Link, useWorkspace, WorkspaceScope } from "./navigation";
+
 /** A browser-local service alias, admitted by the owning Plugin and Host. */
 export interface WorkspaceServices {
   invoke<Request = unknown, Response = unknown>(
@@ -37,6 +40,8 @@ export interface PageProps {
     subject: Subject;
     owner: { instance: string };
     revision: string;
+    /** Resolved browser path; never a permission or cache identity. */
+    basePath?: string;
   };
   navigation: {
     go(segments: readonly string[]): void;

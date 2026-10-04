@@ -107,3 +107,114 @@ test("compiled pages use Shell React and match dynamic routes after static route
     fs.rmSync(root, { recursive: true, force: true });
   }
 }, 30000);
+
+// A single workspace fixture cannot detect duplicated page IDs across workspace
+// directories or accidental use of another instance's navigation scope.
+test("directory and explicit workspaces share one implementation with independent instance navigation", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "console-workspaces-"));
+  try {
+    const entry = path.join(root, "console"),
+      output = path.join(root, "out");
+    fs.mkdirSync(output);
+    for (const workspace of ["user", "admin"]) {
+      fs.mkdirSync(path.join(entry, workspace, "details"), { recursive: true });
+      fs.writeFileSync(
+        path.join(entry, workspace, "page.tsx"),
+        'import {Link,useWorkspace} from "@lenso/console-sdk"; export default function Page(){const {mount}=useWorkspace();return <section><h1>{mount.owner.instance}</h1><Link to={["details"]}>Details</Link></section>; }'
+      );
+      fs.writeFileSync(
+        path.join(entry, workspace, "not-found.tsx"),
+        'import {Link,useWorkspace} from "@lenso/console-sdk"; export default function NotFound(){const {mount}=useWorkspace(); return <Link to={[]}>{mount.owner.instance} home</Link>;}'
+      );
+      fs.writeFileSync(
+        path.join(entry, workspace, "details/page.tsx"),
+        "export default function Details(){return <h1>Details</h1>;}"
+      );
+      fs.writeFileSync(
+        path.join(entry, workspace, "workspace.ts"),
+        `import {defineWorkspace} from "@lenso/console-sdk"; export default defineWorkspace({id:"${workspace}",title:"${workspace}",path:"/${workspace === "user" ? "console" : "admin"}/",access:"${workspace === "user" ? "member" : "administrator"}"});`
+      );
+    }
+    const request = {
+      schema: "lenso.convention-compile.v1",
+      entry,
+      output,
+      owner_project: root,
+      plugin_id: "example.workspace.surface-0123456789ab",
+      release_version: "1.0.0",
+    };
+    const env = { ...process.env };
+    delete env.BUN_INSTALL_CACHE_DIR;
+    const compile = (options) => {
+      const result = Bun.spawnSync(["bun", compiler], {
+        env,
+        stdin: Buffer.from(JSON.stringify({ ...request, options })),
+      });
+      expect(result.exitCode, result.stderr.toString()).toBe(0);
+      return JSON.parse(
+        fs.readFileSync(path.join(output, "descriptor.json"), "utf-8")
+      );
+    };
+    const directory = compile();
+    expect(
+      directory.workspaces.map((item) => [item.id, item.path, item.access])
+    ).toEqual([
+      ["admin", "/admin/", "administrator"],
+      ["user", "/console/", "member"],
+    ]);
+    const explicit = compile({
+      workspaces: [{ entry: "admin" }, { entry: "user" }],
+    });
+    expect(explicit.workspaces).toEqual(directory.workspaces);
+    expect(explicit.assets).toEqual(directory.assets);
+    const module = await import(
+      `data:text/javascript;base64,${directory.assets[0].content_base64}`
+    );
+    const { Page } = module.createWorkspace({
+      react: React,
+      createElement: React.createElement,
+      services: {},
+    });
+    const render = (pageId, instance, basePath, segments = []) =>
+      renderToStaticMarkup(
+        React.createElement(Page, {
+          mount: { pageId, owner: { instance } },
+          location: { segments },
+          navigation: {
+            href: (parts) => `${basePath}${parts.join("/")}/`,
+            go: () => {
+              throw new Error("Static rendering must not navigate");
+            },
+          },
+        })
+      );
+    expect(render("user", "plugin/one", "/team-one/")).toContain(
+      'href="/team-one/details/"'
+    );
+    expect(render("user", "plugin/two", "/team-two/")).toContain(
+      'href="/team-two/details/"'
+    );
+    expect(render("admin", "plugin/one", "/admin/one/")).toContain(
+      "plugin/one"
+    );
+    expect(render("user", "plugin/two", "/team-two/", ["details"])).toContain(
+      "Details"
+    );
+    expect(render("user", "plugin/two", "/team-two/", ["unknown"])).toContain(
+      'href="/team-two//"'
+    );
+    // Mount metadata does not change the executable page or its content revision.
+    fs.writeFileSync(
+      path.join(entry, "user/workspace.ts"),
+      'export default {id:"user",title:"user",path:"/members/",access:"member"};'
+    );
+    const moved = compile();
+    expect(moved.assets).toEqual(directory.assets);
+    expect(moved.revision).toBe(directory.revision);
+    expect(moved.workspaces.find((item) => item.id === "user").path).toBe(
+      "/members/"
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}, 30000);

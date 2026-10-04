@@ -2,6 +2,7 @@ import type { LinkProps, useNavigate } from "@tanstack/react-router";
 
 import type { useAgentIdentity } from "../../features/agent/agent-identity-context";
 import type { PageMount } from "../../features/extensions/page-contribution-catalog";
+import { workspacePagePath } from "../../features/extensions/workspace-paths";
 import type { ConsoleSearchItem } from "./console-search";
 
 export type ConsoleDestination = ConsoleSearchItem & {
@@ -169,18 +170,11 @@ export function workspaceRoute(
   workspace: PageMount,
   segments: readonly string[]
 ) {
-  const _splat = segments.join("/");
-  return workspace.subject.kind === "console"
-    ? {
-        to: "/workspaces/$workspaceId/$" as const,
-        params: { _splat, workspaceId: workspace.id },
-      }
+  const path = workspacePagePath(workspace, segments);
+  return path === "/"
+    ? { to: "/" as const }
     : {
-        to: "/apps/$appId/pages/$workspaceId/$" as const,
-        params: {
-          _splat,
-          appId: workspace.subject.appId,
-          workspaceId: workspace.id,
-        },
+        to: "/$" as const,
+        params: { _splat: path.slice(1) },
       };
 }

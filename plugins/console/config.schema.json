@@ -2,6 +2,24 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "workspace_mounts": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Override a Plugin Instance workspace's browser path without changing its runtime or authorization identity.",
+      "items": {
+        "type": "object",
+        "required": ["instance", "workspace", "path"],
+        "properties": {
+          "instance": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "workspace": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+          },
+          "path": { "type": "string", "minLength": 1, "maxLength": 256 }
+        },
+        "additionalProperties": false
+      }
+    },
     "liveness_readiness_routes": {
       "description": "Publish Console's GET /health/live and /health/ready routes. Disable when the App owns liveness and readiness; /health/startup remains available.",
       "type": "boolean",

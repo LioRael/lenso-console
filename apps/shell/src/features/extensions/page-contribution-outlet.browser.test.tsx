@@ -90,6 +90,7 @@ test("reuses a page implementation while isolating instance state and retired ac
   `)}`;
   const mounts: PageMount[] = ["alpha", "beta"].map((id) => ({
     apiMajor: 1,
+    basePath: id === "alpha" ? "/workspace-one/" : "/workspace-two/",
     id,
     pageId: "example",
     module,
@@ -135,7 +136,7 @@ test("reuses a page implementation while isolating instance state and retired ac
       )
     );
   try {
-    window.history.replaceState({}, "", "/workspaces/alpha");
+    window.history.replaceState({}, "", "/workspace-one/");
     render("alpha");
     await expect
       .element(page.getByRole("heading", { name: "Alpha instance" }))
@@ -144,14 +145,14 @@ test("reuses a page implementation while isolating instance state and retired ac
     await expect.element(page.getByText("Alpha config and log")).toBeVisible();
     await page.getByRole("button", { name: "Delayed action" }).click();
     await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
-    window.history.replaceState({}, "", "/workspaces/beta");
+    window.history.replaceState({}, "", "/workspace-two/");
     render("beta");
     expect(container.textContent).not.toContain("Alpha config and log");
     await expect.element(page.getByText("Ready example/beta")).toBeVisible();
     expect(signals[0]?.aborted).toBe(true);
     expect(signals.at(-1)?.aborted).toBe(false);
     callbacks[0]?.();
-    expect(window.location.pathname).toBe("/workspaces/beta");
+    expect(window.location.pathname).toBe("/workspace-two/");
     await page.getByRole("button", { name: "Read config and log" }).click();
     await expect.element(page.getByText("Beta config and log")).toBeVisible();
     finish(Response.json({ message: "Late Alpha result" }, { status: 401 }));
@@ -164,7 +165,7 @@ test("reuses a page implementation while isolating instance state and retired ac
     await expect.element(page.getByText("Beta config and log")).toBeVisible();
     expect(
       page.getByRole("link", { name: "Details" }).element().getAttribute("href")
-    ).toBe("/workspaces/beta/details");
+    ).toBe("/workspace-two/details/");
     // The mount/catalog are unchanged: only the authenticated session changes.
     // Existing mount-switch coverage cannot catch an Alice factory reused for Bob.
     await page.getByRole("button", { name: "Delayed action" }).click();
@@ -527,7 +528,7 @@ test("hands bounded JSON context to an installed workspace without reloading", a
       },
     ]
   );
-  window.history.replaceState({}, "", "/apps/app/pages/observe-app");
+  window.history.replaceState({}, "", "/apps/app/observe-app/");
   try {
     flushSync(() =>
       root.render(
@@ -541,7 +542,7 @@ test("hands bounded JSON context to an installed workspace without reloading", a
       )
     );
     await page.getByRole("button", { name: "Create issue" }).click();
-    expect(window.location.pathname).toBe("/workspaces/projects");
+    expect(window.location.pathname).toBe("/projects/");
     expect(window.history.state.__lensoWorkspaceHandoff).toMatchObject({
       handoff: {
         kind: "lenso.observe.trace@1",

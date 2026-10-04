@@ -243,6 +243,42 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             assert_eq!(filtered["mounts"], serde_json::json!([{"id":"projects"}]));
             assert!(workspace_member.prepare(context(), "POST", "/api/console/v1/pages/projects/services/projects/invoke/list_projects", Some(("session", "alice"))).await.is_ok());
             assert_eq!(workspace_member.prepare(context(), "GET", "/api/console/v1/pages/observe/services/telemetry/invoke/query", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
+            // The old member fixture has no access metadata. A misconfigured
+            // member allowlist must not expose an administrator mount's assets
+            // or invoke its services in either real HTTP adapter.
+            let response = serde_json::from_value(serde_json::json!({
+                "assets":[{"content_base64":"ZXhwb3J0IGNvbnN0IGFwaU1ham9yID0gMTs=","media_type":"text/javascript; charset=utf-8","path":"page.mjs"}],
+                "module":"page.mjs","navigation":{"label":"Admin","items":[]},"requirements":[],"revision":"1","styles":[],"title":"Admin","workspace_id":"admin",
+                "workspaces":[{"id":"admin","title":"Admin","path":"/admin","access":"administrator","index":[],"routes":[[]],"navigation":{"label":"Admin","items":[]}}]
+            })).unwrap();
+            let mut pages = crate::page_contributions::PageCatalog::from_contributions(
+                vec![("example/default".into(), response)], &std::collections::BTreeSet::default()
+            ).unwrap();
+            pages.apply_mount_overrides(&[]).unwrap();
+            let catalog_response = pages.handle(&crate::http::Request::new(::http::Method::GET,"/api/console/v1/pages")).await.unwrap();
+            let catalog_value: serde_json::Value = serde_json::from_slice(&catalog_response.into_body().collect(4096).await.unwrap()).unwrap();
+            let admin_id = catalog_value["mounts"][0]["id"].as_str().unwrap();
+            let module = catalog_value["mounts"][0]["module"].as_str().unwrap();
+            let misconfigured_member = SessionBoundary {member_workspace_ids:vec![admin_id.into()], ..member.clone()};
+            let member_context = misconfigured_member.prepare(context(), "GET", "/api/console/v1/pages", Some(("session","alice"))).await.ok().unwrap();
+            assert!(!misconfigured_member.admits_administrator(&member_context));
+            let filtered = misconfigured_member.filter_catalog(&member_context, "/api/console/v1/pages", Json(catalog_value.clone()).into_response()).await;
+            let value: serde_json::Value = serde_json::from_slice(&filtered.into_body().collect(4096).await.unwrap()).unwrap();
+            assert_eq!(value["mounts"], serde_json::json!([]));
+            let application = crate::console_application(crate::ConsoleConfig::from_plugin(&crate::ConsolePluginConfig::defaults()).unwrap(), pages);
+            for (method,path) in [("GET",module.to_owned()), ("POST",format!("/api/console/v1/pages/{admin_id}/services/example/invoke/read"))] {
+                let request = serde_json::json!({"body":"","headers":[],"method":method,"path":path,"path_parameters":[],"request_id":"admin-boundary","route_id":"console.shell","credential":{"scheme":"session","value":"alice"}});
+                let denied = crate::lenso_http::buffered(application.clone(),misconfigured_member.clone(),context(),serde_json::from_value(request.clone()).unwrap()).await.unwrap();
+                assert_eq!(denied.status,403);
+                assert_eq!(serde_json::from_slice::<serde_json::Value>(denied.body.as_ref()).unwrap()["code"],"console_administrator_required");
+                let stream = crate::lenso_http::streaming(application.clone(),misconfigured_member.clone(),context(),serde_json::from_value(request).unwrap()).await.unwrap();
+                let lenso_kernel::NativeStreamItem::Message(head) = lenso_kernel::NativeStreamSession::receive(&stream).await.unwrap() else {panic!("expected head")};
+                let head = head.downcast::<lenso_capability_http_stream_endpoint::HandleResponse>().unwrap();
+                assert_eq!(head.status,Some(403));
+            }
+            let permitted = crate::lenso_http::buffered(application,boundary.clone(),context(),serde_json::from_value(serde_json::json!({"body":"","headers":[],"method":"GET","path":module,"path_parameters":[],"request_id":"admin-boundary","route_id":"console.shell","credential":{"scheme":"session","value":"alice"}})).unwrap()).await.unwrap();
+            assert_eq!(permitted.status,200);
+
             let operators_boundary=SessionBoundary {assistant_access:None,operators_profile:Some(OperatorsProfile {deployment:"alpha".into(),issuer:"operators".into(),public_key:ActorAssertionIssuer::from_signing_key("operators",[8;32]).public_key_base64(),max_assertion_ttl_seconds:300,human_interface:false}),access_control:Some(access::AccessControlClient::new(app.handle::<access::AccessControl>("caller").unwrap())),required:true,administrator_subjects:vec![],member_workspace_ids:vec!["projects".into()],auth:boundary.auth.clone()};
             assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
             factory.operators.set(true);
