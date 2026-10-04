@@ -1,5 +1,7 @@
 import type * as React from "react";
 
+export { defineWorkspace, type WorkspaceDeclaration } from "./workspace";
+
 /** A browser-local service alias, admitted by the owning Plugin and Host. */
 export interface WorkspaceServices {
   invoke<Request = unknown, Response = unknown>(
@@ -27,6 +29,8 @@ export interface PageProps {
   };
   mount: {
     id: string;
+    /** Resolved instance mount path; independent of implementation identity. */
+    basePath?: string;
     /** Plugin-declared page identity; several instance mounts may share it. */
     pageId?: string;
     /** Content identity of the executable page, independent of its mount. */

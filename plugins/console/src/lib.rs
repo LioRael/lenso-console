@@ -2192,7 +2192,7 @@ mod tests {
                 },
                 {
                     "capability_id": "lenso.ui.contribution@1",
-                    "descriptor_version": "1.3.0",
+                    "descriptor_version": "1.4.0",
                     "cardinality": "many"
                 },
                 {

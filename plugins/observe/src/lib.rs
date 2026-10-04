@@ -147,6 +147,7 @@ impl ObserveWorkspace {
             }),
             title: format!("Observe · {source_label}"),
             workspace_id: format!("observe-{}", self.config.source_id),
+            workspaces: None,
         }))))
     }
 

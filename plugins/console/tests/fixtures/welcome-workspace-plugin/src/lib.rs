@@ -216,6 +216,7 @@ impl WelcomeWorkspace {
             }),
             title: self.config.label.clone(),
             workspace_id: "welcome".to_owned(),
+            workspaces: None,
         }))))
     }
     fn describe_exports(

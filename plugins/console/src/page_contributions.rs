@@ -317,6 +317,7 @@ impl PageCatalog {
                     subject: Some(contract_subject(descriptor.subject)),
                     title: descriptor.title,
                     workspace_id: descriptor.id,
+                    workspaces: None,
                 },
             ));
         }
@@ -743,6 +744,7 @@ fn validate_descriptor(
         subject: Some(contract_subject(descriptor.subject.clone())),
         title: descriptor.title.clone(),
         workspace_id: descriptor.id.clone(),
+        workspaces: None,
     };
     validate_response(&response)?;
     let contribution_root = std::fs::canonicalize(directory)?;
@@ -916,6 +918,7 @@ mod tests {
             subject: None,
             title: "Example".to_owned(),
             workspace_id: "example".to_owned(),
+            workspaces: None,
         };
         let catalog = PageCatalog::from_contributions(
             vec![
