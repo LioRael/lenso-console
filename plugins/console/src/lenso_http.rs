@@ -7,7 +7,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures::future::LocalBoxFuture;
+use futures::future::{AbortHandle, Abortable, LocalBoxFuture};
 use http::{HeaderMap, HeaderName, HeaderValue, Method, header};
 use lenso_capability_http_endpoint as endpoint;
 use lenso_capability_http_stream_endpoint as stream_endpoint;
@@ -19,6 +19,7 @@ use crate::{
 };
 
 const MAX_BUFFERED_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
+const MAX_RESPONSE_CHUNK_BYTES: usize = 65_536;
 
 pub(super) async fn buffered(
     application: ConsoleApplication,
@@ -269,6 +270,8 @@ fn ingress_owned(name: &HeaderName) -> bool {
 
 pub(super) struct ConsoleResponseStream {
     body: Rc<RefCell<Option<Body>>>,
+    pending: Rc<RefCell<Bytes>>,
+    reading: Rc<RefCell<Option<AbortHandle>>>,
     cancelled: Rc<Cell<bool>>,
     head: Rc<RefCell<Option<stream_endpoint::HandleResponse>>>,
     terminal: Rc<Cell<bool>>,
@@ -278,6 +281,8 @@ impl ConsoleResponseStream {
     fn new(head: stream_endpoint::HandleResponse, body: Body) -> Self {
         Self {
             body: Rc::new(RefCell::new(Some(body))),
+            pending: Rc::new(RefCell::new(Bytes::new())),
+            reading: Rc::new(RefCell::new(None)),
             cancelled: Rc::new(Cell::new(false)),
             head: Rc::new(RefCell::new(Some(head))),
             terminal: Rc::new(Cell::new(false)),
@@ -312,24 +317,44 @@ impl NativeStreamSession for ConsoleResponseStream {
             )))));
         }
         let body = self.body.clone();
+        let pending = self.pending.clone();
+        let reading = self.reading.clone();
+        let cancelled = self.cancelled.clone();
         let terminal = self.terminal.clone();
         Box::pin(async move {
+            if cancelled.get() {
+                return Ok(NativeStreamItem::Terminal(Ok(())));
+            }
+            let buffered = {
+                let mut pending = pending.borrow_mut();
+                let length = pending.len().min(MAX_RESPONSE_CHUNK_BYTES);
+                (length > 0).then(|| pending.split_to(length))
+            };
+            if let Some(bytes) = buffered {
+                terminal.set(false);
+                return Ok(response_chunk(bytes));
+            }
             let Some(mut response_body) = body.borrow_mut().take() else {
                 return Ok(NativeStreamItem::Terminal(Ok(())));
             };
-            let next = response_body.next().await;
-            body.borrow_mut().replace(response_body);
+            let (abort, registration) = AbortHandle::new_pair();
+            reading.borrow_mut().replace(abort);
+            let next = Abortable::new(response_body.next(), registration).await;
+            reading.borrow_mut().take();
+            if cancelled.get() {
+                return Ok(NativeStreamItem::Terminal(Ok(())));
+            }
+            let Ok(next) = next else {
+                return Ok(NativeStreamItem::Terminal(Ok(())));
+            };
             match next {
-                Some(Ok(bytes)) => {
+                Some(Ok(mut bytes)) => {
+                    let length = bytes.len().min(MAX_RESPONSE_CHUNK_BYTES);
+                    let chunk = bytes.split_to(length);
+                    *pending.borrow_mut() = bytes;
+                    body.borrow_mut().replace(response_body);
                     terminal.set(false);
-                    Ok(NativeStreamItem::Message(Box::new(
-                        stream_endpoint::HandleResponse {
-                            body: Some(bytes.to_vec().into()),
-                            headers: None,
-                            kind: stream_endpoint::HandleResponseKind::Chunk,
-                            status: None,
-                        },
-                    )))
+                    Ok(response_chunk(chunk))
                 }
                 Some(Err(error)) => Err(error),
                 None => Ok(NativeStreamItem::Terminal(Ok(()))),
@@ -343,8 +368,22 @@ impl NativeStreamSession for ConsoleResponseStream {
 
     fn cancel(&self) {
         self.cancelled.set(true);
+        if let Some(reading) = self.reading.borrow_mut().take() {
+            reading.abort();
+        }
+        self.head.borrow_mut().take();
         self.body.borrow_mut().take();
+        *self.pending.borrow_mut() = Bytes::new();
     }
+}
+
+fn response_chunk(bytes: Bytes) -> NativeStreamItem {
+    NativeStreamItem::Message(Box::new(stream_endpoint::HandleResponse {
+        body: Some(bytes.to_vec().into()),
+        headers: None,
+        kind: stream_endpoint::HandleResponseKind::Chunk,
+        status: None,
+    }))
 }
 
 fn internal(detail: impl Into<String>) -> RuntimeFailure {
