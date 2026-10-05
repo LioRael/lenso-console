@@ -138,8 +138,10 @@ export function ConsoleSession({
       generation.current += 1;
       const { current } = generation;
       const active = () => current === generation.current && !signal.aborted;
-      const promise = withIdentityRead(async () => {
-        if (!active()) return;
+      const read = withIdentityRead(async () => {
+        if (!active()) {
+          return;
+        }
         if (consoleDevConfig.mode === "mock") {
           ready.current = true;
           setState({ kind: "ready" });
@@ -320,9 +322,16 @@ export function ConsoleSession({
             }
           }
         }
-      }, signal).catch(() => {
-        if (active()) setState({ kind: "error" });
-      });
+      }, signal);
+      const promise = (async () => {
+        try {
+          await read;
+        } catch {
+          if (active()) {
+            setState({ kind: "error" });
+          }
+        }
+      })();
       const pending = { controller, promise };
       inFlight.current = pending;
       void (async () => {
@@ -351,7 +360,9 @@ export function ConsoleSession({
     };
     const unsubscribe = subscribeIdentityTransitions((phase) => {
       invalidate(true);
-      if (phase === "complete") void refresh();
+      if (phase === "complete") {
+        void refresh();
+      }
     });
     window.addEventListener("focus", focus);
     window.addEventListener("lenso-session-expired", expired);
@@ -366,7 +377,9 @@ export function ConsoleSession({
     };
   }, [invalidate, refresh]);
   const signOut = useCallback(async () => {
-    if (signingOut.current) return;
+    if (signingOut.current) {
+      return;
+    }
     signingOut.current = true;
     invalidate();
     let completed = false;
@@ -384,8 +397,11 @@ export function ConsoleSession({
     } finally {
       signingOut.current = false;
     }
-    if (completed) await refresh();
-    else setState({ kind: "error" });
+    if (completed) {
+      await refresh();
+    } else {
+      setState({ kind: "error" });
+    }
   }, [invalidate, refresh]);
   if (state.kind === "ready") {
     return (
@@ -578,7 +594,9 @@ function LoginMethods({
                     await session.arrayBuffer();
                     return true;
                   });
-                  if (signedIn) await onSignedIn();
+                  if (signedIn) {
+                    await onSignedIn();
+                  }
                 } catch {
                   setError(
                     zh ? "连接失败，请重试。" : "Connection failed. Try again."

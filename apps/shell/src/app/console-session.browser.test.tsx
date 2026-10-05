@@ -803,14 +803,15 @@ test("another identity surface retires cache until its transition completes", as
     .fill("private draft");
   queryClient.setQueryData(["private-proof"], "private value");
   const peer = new BroadcastChannel("lenso-identity-transition");
+  const broadcast = peer.postMessage.bind(peer);
   try {
-    peer.postMessage("begin");
+    broadcast("begin");
     await expect
       .element(page.getByRole("textbox", { name: "Workspace draft" }))
       .not.toBeInTheDocument();
     expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
     subject = "bob";
-    peer.postMessage("complete");
+    broadcast("complete");
     await expect.element(page.getByText("bob:one,two")).toBeVisible();
     await expect
       .element(page.getByRole("textbox", { name: "Workspace draft" }))

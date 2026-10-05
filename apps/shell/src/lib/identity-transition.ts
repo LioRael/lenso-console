@@ -7,9 +7,11 @@ const channel =
     ? new BroadcastChannel(eventName)
     : undefined;
 
+const broadcast = channel?.postMessage.bind(channel);
+
 function notify(phase: Phase) {
   window.dispatchEvent(new CustomEvent(eventName, { detail: phase }));
-  channel?.postMessage(phase);
+  broadcast?.(phase);
 }
 
 export async function withIdentityTransition<T>(
@@ -44,11 +46,15 @@ export function withIdentityRead<T>(
 export function subscribeIdentityTransitions(onChange: (phase: Phase) => void) {
   const local = (event: Event) => {
     const phase = (event as CustomEvent<unknown>).detail;
-    if (phase === "begin" || phase === "complete") onChange(phase);
+    if (phase === "begin" || phase === "complete") {
+      onChange(phase);
+    }
   };
   window.addEventListener(eventName, local);
   const remote = ({ data }: MessageEvent<unknown>) => {
-    if (data === "begin" || data === "complete") onChange(data);
+    if (data === "begin" || data === "complete") {
+      onChange(data);
+    }
   };
   channel?.addEventListener("message", remote);
   return () => {
