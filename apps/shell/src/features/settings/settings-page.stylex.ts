@@ -115,7 +115,6 @@ export const settingsPageStyles = stylex.create({
     borderRadius: "8px",
     borderStyle: "solid",
     borderWidth: "0.5px",
-    boxShadow: "none",
     fontSize: "13px",
     height: "32px",
     justifyContent: "space-between",

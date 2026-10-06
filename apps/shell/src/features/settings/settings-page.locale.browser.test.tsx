@@ -1,4 +1,5 @@
 import "@lenso/tokens/styles.css";
+import "../../styles.css";
 import { ThemeScope } from "@lenso/ui";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
@@ -16,15 +17,16 @@ vi.mock("../../dev/console-dev-config", () => ({
 
 let root: Root | undefined;
 let container: HTMLDivElement | undefined;
-afterEach(() => {
+afterEach(async () => {
   flushSync(() => root?.unmount());
   container?.remove();
   vi.unstubAllGlobals();
   root = undefined;
   container = undefined;
+  await page.viewport(1280, 800);
 });
 
-function mountSettings() {
+function mountSettings(theme: "light" | "dark" = "light") {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -33,7 +35,7 @@ function mountSettings() {
       <HostConsoleLocaleProvider>
         <ConsoleSession>
           <ConsoleAppearanceProvider>
-            <ThemeScope>
+            <ThemeScope theme={theme}>
               <SettingsPage />
               <input aria-label="Unsaved plugin draft" defaultValue="" />
             </ThemeScope>
@@ -43,6 +45,46 @@ function mountSettings() {
     )
   );
 }
+
+test.each(["light", "dark"] as const)(
+  "ordinary settings retain native select keyboard focus and popup geometry (%s)",
+  async (theme) => {
+    serviceFixture(false);
+    mountSettings(theme);
+    const trigger = page.getByRole("combobox", {
+      name: "Time zone",
+      exact: true,
+    });
+    await expect.element(trigger).toBeVisible();
+    for (const width of [1280, 390]) {
+      await page.viewport(width, 800);
+      await userEvent.hover(trigger);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+      const before = trigger.element().getBoundingClientRect();
+      trigger.element().focus();
+      await userEvent.keyboard("{ArrowDown}");
+      await expect.element(page.getByRole("listbox")).toBeVisible();
+      const popup = page.getByRole("listbox").element().getBoundingClientRect();
+      expect(popup.left).toBeGreaterThanOrEqual(0);
+      expect(popup.right).toBeLessThanOrEqual(width);
+      await userEvent.keyboard("{Escape}");
+      await expect.element(trigger).toHaveFocus();
+      const after = trigger.element().getBoundingClientRect();
+      expect(after.x).toBe(before.x);
+      expect(after.width).toBe(before.width);
+      expect(trigger.element().matches(":focus-visible")).toBe(true);
+      const focusStyle = getComputedStyle(trigger.element());
+      expect(
+        focusStyle.outlineStyle !== "none" || focusStyle.boxShadow !== "none"
+      ).toBe(true);
+      if (import.meta.env.VITE_CONSOLE_DX_SCREENSHOTS === "1") {
+        await page.screenshot({
+          path: `__screenshots__/settings-native-focus-${theme}-${width}.png`,
+        });
+      }
+    }
+  }
+);
 function reloadSettings() {
   flushSync(() => root?.unmount());
   container?.remove();
