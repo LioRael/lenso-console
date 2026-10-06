@@ -1,0 +1,18 @@
+.github/workflows/console-development-host.yml
+  h_9d56aba080c170 29-30,74,76,82,91
+packages/console-support/Cargo.lock
+  h_9d56aba080c170 710,713-715,738,756,1093,1096,1130,1134-1138,1159,1178,1199,1203-1204
+packages/console-support/Cargo.toml
+  h_9d56aba080c170 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f17ac11a43ae0f6410bec40b0f517ae10e7aebbf",
+  "prompts": {},
+  "humans": {
+    "h_9d56aba080c170": {
+      "author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
