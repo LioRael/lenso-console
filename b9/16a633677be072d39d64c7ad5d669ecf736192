@@ -1,0 +1,23 @@
+plugins/management-mcp/src/lib.rs
+  s_f4202e28c6b5b1::t_935a1845a69b68 594,600,608-617,632-638
+plugins/management-mcp/src/tests.rs
+  s_f4202e28c6b5b1::t_3d1e12d55e6313 35-37,134-154
+plugins/management/README.md
+  s_f4202e28c6b5b1::t_526923733902dd 100-105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b916a633677be072d39d64c7ad5d669ecf736192",
+  "prompts": {},
+  "sessions": {
+    "s_f4202e28c6b5b1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ee9e-623b-7d12-a648-d8b462390eec",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
