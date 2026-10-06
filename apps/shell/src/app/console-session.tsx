@@ -203,7 +203,9 @@ export function ConsoleSession({
             }
             configureSessionCsrf(value);
             await prepareSessionLocale("anonymous", signal);
-            if (!active()) return;
+            if (!active()) {
+              return;
+            }
             const methods = parseLoginMethods(value);
             if (methods.length === 0) {
               throw new Error("No login methods");

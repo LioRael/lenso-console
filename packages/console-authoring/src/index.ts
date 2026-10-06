@@ -99,5 +99,16 @@ export interface ErrorProps {
 }
 
 export type { ConsoleLocaleValue } from "./locale";
-export { createTranslations, resolveConsoleLocale, formatConsoleDate, formatConsoleNumber } from "./i18n";
-export type { ConsoleLocale, ConsoleLanguagePreference, MessageCatalog, MessageValues, LocaleSnapshot } from "./i18n";
+export {
+  createTranslations,
+  resolveConsoleLocale,
+  formatConsoleDate,
+  formatConsoleNumber,
+} from "./i18n";
+export type {
+  ConsoleLocale,
+  ConsoleLanguagePreference,
+  MessageCatalog,
+  MessageValues,
+  LocaleSnapshot,
+} from "./i18n";

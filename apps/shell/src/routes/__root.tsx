@@ -16,7 +16,7 @@ import "../styles.css";
 import { HostConsoleLocaleProvider } from "../app/console-locale";
 import { ConsoleSession } from "../app/console-session";
 import { Providers } from "../app/providers";
-import { RouteError, RouteNotFound, RoutePending } from "../app/route-states";
+import { RouteError, RouteNotFound } from "../app/route-states";
 import { ConsoleShell } from "../components/runtime/console-shell";
 import { consoleDevConfig } from "../dev/console-dev-config";
 import { ConsoleDevOverlay } from "../dev/console-dev-overlay";

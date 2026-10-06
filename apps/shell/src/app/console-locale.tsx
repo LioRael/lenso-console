@@ -24,6 +24,7 @@ import {
 } from "../lib/identity-transition";
 import { sessionFetch } from "../lib/session-fetch";
 import { loadConsoleMessages } from "./console-i18n";
+
 export { useConsoleLocale };
 export type { ConsoleLocale, ConsoleLanguagePreference };
 
@@ -36,16 +37,19 @@ const initial: LocaleSnapshot = {
   available: false,
 };
 function initialSnapshot(): LocaleSnapshot {
-  if (typeof document === "undefined") return initial;
+  if (typeof document === "undefined") {
+    return initial;
+  }
   try {
     const value: unknown = JSON.parse(
       document.getElementById("lenso-console-locale")?.textContent ?? "null"
     );
-    if (value && typeof value === "object" && "global_default" in value)
+    if (value && typeof value === "object" && "global_default" in value) {
       return {
         ...initial,
         global_default: supportedLocale(value.global_default) ?? null,
       };
+    }
   } catch {
     /* Unavailable bootstrap falls back to the supported browser language. */
   }
@@ -62,18 +66,20 @@ export async function prepareSessionLocale(
   await adoptSessionLocale?.(subject, signal);
 }
 export function parseLocaleSnapshot(value: unknown): LocaleSnapshot {
-  if (!value || typeof value !== "object")
+  if (!value || typeof value !== "object") {
     throw new Error("Invalid locale response");
+  }
   const record = value as Record<string, unknown>;
-  const preference = record.preference;
+  const { preference } = record;
   const globalDefault = record.global_default;
   if (
     !(preference === "global" || supportedLocale(preference)) ||
     !(globalDefault === null || supportedLocale(globalDefault)) ||
     typeof record.can_manage_default !== "boolean" ||
     typeof record.available !== "boolean"
-  )
+  ) {
     throw new Error("Invalid locale response");
+  }
   return {
     preference: preference as ConsoleLanguagePreference,
     global_default: globalDefault as ConsoleLocale | null,
@@ -93,7 +99,7 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
     )
   );
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const generation = useRef(0);
   const subject = useRef<string | undefined>(undefined);
   const busy = useRef(false);
@@ -110,17 +116,22 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
       languageError =
         "Could not load translations. English text is shown until you retry.";
     }
-    if (current !== generation.current) return;
+    if (current !== generation.current) {
+      return;
+    }
     setSnapshot(next);
     setLocale(resolved);
-    setError(languageError);
+    setErrorMessage(languageError);
   }, []);
   useLayoutEffect(() => {
     const adopt = async (nextSubject: string, signal?: AbortSignal) => {
       const changed = subject.current !== nextSubject;
-      if (!changed && busy.current) return;
+      if (!changed && busy.current) {
+        return;
+      }
       subject.current = nextSubject;
-      const current = ++generation.current;
+      generation.current += 1;
+      const { current } = generation;
       try {
         const response = await sessionFetch("/api/console/v1/locale", {
           cache: "no-store",
@@ -130,42 +141,63 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
           await apply(initial, current);
           return;
         }
-        if (!response.ok)
+        if (!response.ok) {
           throw new Error("Language preferences are unavailable");
+        }
         await apply(parseLocaleSnapshot(await response.json()), current);
-      } catch (failure) {
-        if (signal?.aborted || current !== generation.current) return;
+      } catch (error) {
+        if (signal?.aborted || current !== generation.current) {
+          return;
+        }
         // Retain a same-account refresh. A new account never inherits the former preference.
-        if (changed) await apply(initial, current);
-        if (current === generation.current)
-          setError(
-            failure instanceof Error
-              ? failure.message
+        if (changed) {
+          await apply(initial, current);
+        }
+        if (current === generation.current) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
               : "Language preferences are unavailable"
           );
+        }
       }
     };
     adoptSessionLocale = adopt;
-    void adopt("anonymous").finally(() => setReady(true));
+    const prepareInitialLocale = async () => {
+      try {
+        await adopt("anonymous");
+      } finally {
+        setReady(true);
+      }
+    };
+    void prepareInitialLocale();
     const unsubscribe = subscribeIdentityTransitions((phase) => {
-      if (phase !== "begin") return;
+      if (phase !== "begin") {
+        return;
+      }
       subject.current = undefined;
-      const current = ++generation.current;
+      generation.current += 1;
+      const { current } = generation;
       setSaving(false);
       void apply(initial, current);
     });
     return () => {
       unsubscribe();
-      if (adoptSessionLocale === adopt) adoptSessionLocale = undefined;
+      if (adoptSessionLocale === adopt) {
+        adoptSessionLocale = undefined;
+      }
       generation.current += 1;
     };
   }, [apply]);
   const write = useCallback(
     async (path: string, body: object) => {
-      if (busy.current) return;
+      if (busy.current) {
+        return;
+      }
       busy.current = true;
       setSaving(true);
-      const current = ++generation.current;
+      generation.current += 1;
+      const { current } = generation;
       try {
         const controller = new AbortController();
         const response = await withIdentityRead(
@@ -178,23 +210,27 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
             }),
           controller.signal
         );
-        if (!response.ok)
+        if (!response.ok) {
           throw new Error(
             response.status === 403
               ? "You do not have permission to change this language setting"
               : "Could not save language preferences"
           );
+        }
         await apply(parseLocaleSnapshot(await response.json()), current);
-      } catch (failure) {
-        if (current === generation.current)
-          setError(
-            failure instanceof Error
-              ? failure.message
+      } catch (error) {
+        if (current === generation.current) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
               : "Could not save language preferences"
           );
+        }
       } finally {
         busy.current = false;
-        if (current === generation.current) setSaving(false);
+        if (current === generation.current) {
+          setSaving(false);
+        }
       }
     },
     [apply]
@@ -221,11 +257,11 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
       available: snapshot.available,
       canManageDefault: snapshot.can_manage_default,
       saving,
-      error,
+      error: errorMessage,
       setPreference,
       setGlobalDefault,
     }),
-    [locale, snapshot, saving, error, setPreference, setGlobalDefault]
+    [locale, snapshot, saving, errorMessage, setPreference, setGlobalDefault]
   );
   return (
     <ConsoleLocaleProvider value={value}>

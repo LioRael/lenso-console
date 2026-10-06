@@ -9,6 +9,7 @@ import {
   useConsoleLocale,
 } from "./console-locale";
 import { ConsoleSession } from "./console-session";
+
 vi.mock("../dev/console-dev-config", () => ({
   consoleDevConfig: { mode: "production" },
 }));
@@ -63,9 +64,12 @@ test("account language updates retain the admitted session and follow the global
           workspace_ids: [],
         });
       }
-      if (path.includes("/auth/methods")) return Response.json({ methods: [] });
-      if (init?.method === "PUT")
-        preference = JSON.parse(String(init.body)).preference;
+      if (path.includes("/auth/methods")) {
+        return Response.json({ methods: [] });
+      }
+      if (init?.method === "PUT") {
+        ({ preference } = JSON.parse(String(init.body)));
+      }
       return Response.json({
         global_default: "en",
         preference,

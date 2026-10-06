@@ -105,7 +105,11 @@ export function consoleNavigationModel({
         ]
       : []),
     destination(
-      "settings", t("Settings"), t("Preferences"), area === "settings", { to: "/settings" }
+      "settings",
+      t("Settings"),
+      t("Preferences"),
+      area === "settings",
+      { to: "/settings" }
     ),
     ...(managementEnabled
       ? [

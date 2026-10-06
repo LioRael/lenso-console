@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import type { ConsoleLocale, ConsoleLanguagePreference } from "./i18n";
+
 export type { ConsoleLocale, ConsoleLanguagePreference } from "./i18n";
 
 export interface ConsoleLocaleValue {

@@ -8,11 +8,7 @@
       "description": "Override a Plugin Instance workspace's browser path without changing its runtime or authorization identity.",
       "items": {
         "type": "object",
-        "required": [
-          "instance",
-          "workspace",
-          "path"
-        ],
+        "required": ["instance", "workspace", "path"],
         "properties": {
           "instance": {
             "type": "string",
@@ -102,11 +98,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "label",
-          "origin"
-        ],
+        "required": ["id", "label", "origin"],
         "properties": {
           "id": {
             "type": "string"
@@ -132,11 +124,7 @@
       "description": "Optional local project launcher paths owned by the reference Console Host.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "binary",
-        "root",
-        "template"
-      ],
+      "required": ["binary", "root", "template"],
       "properties": {
         "binary": {
           "type": "string"
@@ -176,11 +164,7 @@
     "operators_profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "deployment",
-        "issuer",
-        "public_key"
-      ],
+      "required": ["deployment", "issuer", "public_key"],
       "properties": {
         "deployment": {
           "type": "string",
@@ -289,20 +273,14 @@
               "minLength": 1
             }
           },
-          "required": [
-            "scope_kind",
-            "scope_id"
-          ]
+          "required": ["scope_kind", "scope_id"]
         }
       }
     },
     "locale_permission_scope": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "scope_kind",
-        "scope_id"
-      ],
+      "required": ["scope_kind", "scope_id"],
       "properties": {
         "scope_kind": {
           "type": "string",

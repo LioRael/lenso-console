@@ -1,4 +1,3 @@
-import * as sdkLocale from "../../../../../packages/console-authoring/src/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,6 +12,7 @@ import {
 } from "react";
 import * as React from "react";
 
+import * as sdkLocale from "../../../../../packages/console-authoring/src/locale";
 import type { WorkspaceReads } from "../../../../../packages/console-authoring/src/read";
 import type { ReadRefreshPolicy } from "../../../../../packages/console-authoring/src/read-refresh";
 import { useConsoleAppearance } from "../../app/console-appearance";
@@ -368,7 +368,7 @@ export class ContributionRenderBoundary extends Component<
   }
 }
 
-const workspaceLocaleModules = {"@lenso/console-sdk/locale": sdkLocale};
+const workspaceLocaleModules = { "@lenso/console-sdk/locale": sdkLocale };
 
 export function useContributionModule<Props = ContributionProps>(
   mount: PageMount | undefined,

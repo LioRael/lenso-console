@@ -1,10 +1,10 @@
-import * as consoleLocale from "../../../../../packages/console-authoring/src/locale";
-import * as consoleI18n from "../../../../../packages/console-authoring/src/i18n";
 import * as reactQuery from "@tanstack/react-query";
 import * as reactRouter from "@tanstack/react-router";
 import * as reactDom from "react-dom";
 import * as reactDomClient from "react-dom/client";
 
+import * as consoleI18n from "../../../../../packages/console-authoring/src/i18n";
+import * as consoleLocale from "../../../../../packages/console-authoring/src/locale";
 import { useConsoleSession } from "../../app/console-session";
 import * as http from "../../lib/http-client";
 import * as sessionHttp from "../../lib/session-fetch";

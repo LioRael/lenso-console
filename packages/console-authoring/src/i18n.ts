@@ -19,11 +19,19 @@ export function resolveConsoleLocale(
   globalDefault: ConsoleLocale | null,
   languages: readonly string[] = []
 ): ConsoleLocale {
-  if (preference !== "global") return preference;
-  if (globalDefault) return globalDefault;
+  if (preference !== "global") {
+    return preference;
+  }
+  if (globalDefault) {
+    return globalDefault;
+  }
   for (const language of languages) {
-    if (/^zh(?:-|$)/iu.test(language)) return "zh-CN";
-    if (/^en(?:-|$)/iu.test(language)) return "en";
+    if (/^zh(?:-|$)/iu.test(language)) {
+      return "zh-CN";
+    }
+    if (/^en(?:-|$)/iu.test(language)) {
+      return "en";
+    }
   }
   return "en";
 }
@@ -44,29 +52,41 @@ export function createTranslations(
   loaders: Partial<Record<ConsoleLocale, () => Promise<MessageCatalog>>>,
   initialCatalogs: Partial<Record<ConsoleLocale, MessageCatalog>> = {}
 ) {
-  if (!/^[a-z][a-z0-9._-]{0,127}$/u.test(namespace))
+  if (!/^[a-z][a-z0-9._-]{0,127}$/u.test(namespace)) {
     throw new Error("Invalid translation namespace");
+  }
   const catalogs = new Map<ConsoleLocale, MessageCatalog>([["en", english]]);
   for (const locale of ["en", "zh-CN"] as const) {
     const catalog = initialCatalogs[locale];
-    if (catalog) catalogs.set(locale, catalog);
+    if (catalog) {
+      catalogs.set(locale, catalog);
+    }
   }
   const pending = new Map<ConsoleLocale, Promise<void>>();
   return {
     namespace,
     load(locale: ConsoleLocale): Promise<void> {
-      if (catalogs.has(locale)) return Promise.resolve();
+      if (catalogs.has(locale)) {
+        return Promise.resolve();
+      }
       const existing = pending.get(locale);
-      if (existing) return existing;
+      if (existing) {
+        return existing;
+      }
       const loader = loaders[locale];
-      if (!loader) return Promise.resolve();
-      const promise = loader()
-        .then((catalog) => {
+      if (!loader) {
+        return Promise.resolve();
+      }
+      const promise = (async () => {
+        // Register this promise before calling a loader that might throw synchronously.
+        await Promise.resolve();
+        try {
+          const catalog = await loader();
           catalogs.set(locale, catalog);
-        })
-        .finally(() => {
+        } finally {
           pending.delete(locale);
-        });
+        }
+      })();
       pending.set(locale, promise);
       return promise;
     },

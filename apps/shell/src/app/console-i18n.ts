@@ -10,7 +10,10 @@ const messages = createTranslations(
   "console",
   {},
   {
-    "zh-CN": async () => (await import("./locales/zh-cn")).chineseMessages,
+    "zh-CN": async () => {
+      const { chineseMessages } = await import("./locales/zh-cn");
+      return chineseMessages;
+    },
   }
 );
 export function loadConsoleMessages(locale: ConsoleLocale): Promise<void> {

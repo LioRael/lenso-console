@@ -225,7 +225,12 @@ const result = await Bun.build({
   entrypoints: [entry],
   target: "browser",
   format: "cjs",
-  external: ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "@lenso/console-sdk/locale"],
+  external: [
+    "react",
+    "react/jsx-runtime",
+    "react/jsx-dev-runtime",
+    "@lenso/console-sdk/locale",
+  ],
   splitting: false,
   minify: true,
   plugins: [
@@ -242,7 +247,9 @@ const result = await Bun.build({
             throw new Error("services.ts is server-only");
           }
         });
-        build.onResolve({ filter: /^@lenso\/console-sdk\/i18n$/ }, () => ({path: path.join(path.dirname(sdk), "i18n.ts")}));
+        build.onResolve({ filter: /^@lenso\/console-sdk\/i18n$/ }, () => ({
+          path: path.join(path.dirname(sdk), "i18n.ts"),
+        }));
         build.onResolve({ filter: /^@lenso\/console-sdk\/client$/ }, () => ({
           path: path.join(path.dirname(sdk), "client.ts"),
         }));
