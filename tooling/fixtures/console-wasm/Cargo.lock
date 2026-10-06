@@ -779,6 +779,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-capability-console-locale-store"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "lenso-contract-codegen 0.10.2",
+ "lenso-contract-runtime",
+ "lenso-guest-sdk",
+ "lenso-kernel",
+ "lenso-plugin-authoring",
+ "lenso-runtime-codec",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lenso-capability-http-endpoint"
 version = "0.3.8"
 source = "git+https://github.com/LioRael/lenso?rev=20a2f5fe184c8e1f174d38348f837bc3ea008565#20a2f5fe184c8e1f174d38348f837bc3ea008565"
@@ -936,6 +951,7 @@ dependencies = [
  "lenso-auth-sdk",
  "lenso-capability-access-control",
  "lenso-capability-auth",
+ "lenso-capability-console-locale-store",
  "lenso-capability-http-endpoint",
  "lenso-capability-http-stream-endpoint",
  "lenso-capability-human-api-token",
