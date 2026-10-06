@@ -27,7 +27,7 @@ import {
 } from "../lib/identity-transition";
 import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
-import { useConsoleLocale } from "./console-locale";
+import { useConsoleLocale, prepareSessionLocale } from "./console-locale";
 import { sessionStyles as styles } from "./console-session.stylex";
 
 type LoginMethod = {
@@ -202,6 +202,8 @@ export function ConsoleSession({
               return;
             }
             configureSessionCsrf(value);
+            await prepareSessionLocale("anonymous", signal);
+            if (!active()) return;
             const methods = parseLoginMethods(value);
             if (methods.length === 0) {
               throw new Error("No login methods");
@@ -285,6 +287,7 @@ export function ConsoleSession({
               }
               configureSessionCsrf(configuration);
             }
+            await prepareSessionLocale(nextScope, signal);
             if (active()) {
               queryClient.admitReadScope(
                 response.headers.get("x-lenso-read-scope")

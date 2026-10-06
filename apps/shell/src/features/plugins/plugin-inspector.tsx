@@ -14,7 +14,12 @@ import {
   type CSSProperties,
 } from "react";
 
+import {
+  formatConsoleDate,
+  type ConsoleLocale,
+} from "../../../../../packages/console-authoring/src/i18n";
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { useConsoleLocale } from "../../app/console-locale";
 import { lensoUiTokens as tokens } from "../../lenso-ui-token-refs.stylex";
 import { PluginAgentAction } from "./plugin-agent-handoff";
 import type { PluginConfigurationDraftStore } from "./plugin-configuration-draft";
@@ -61,11 +66,6 @@ import {
   usePluginConfigurationRollbackProposal,
   type usePluginMutation,
 } from "./use-plugin-workbench";
-
-const publicationTimeFormatter = new Intl.DateTimeFormat("en", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
 
 // Scope the installed primary Button's public accent tokens to this neutral
 // primary action; its pill, hover, focus and disabled behavior stay UI-owned.
@@ -1090,6 +1090,7 @@ function PluginConfigurationHistorySection({
   rollbackSupported: boolean;
 }) {
   const t = useConsoleTranslation();
+  const { locale } = useConsoleLocale();
 
   const publications = history.data?.publications;
   const [expanded, setExpanded] = useState(false);
@@ -1149,7 +1150,10 @@ function PluginConfigurationHistorySection({
                     >
                       <div {...stylex.props(styles.historyIdentity)}>
                         <span {...stylex.props(styles.historyTitle)}>
-                          {formatPublicationTime(publication.publishedAtUnixMs)}
+                          {formatPublicationTime(
+                            locale,
+                            publication.publishedAtUnixMs
+                          )}
                           {isCurrent ? " · Current content" : ""}
                           {publication.rollbackOfProposalDigest
                             ? " · Rollback"
@@ -1372,8 +1376,14 @@ function Detail({
   );
 }
 
-function formatPublicationTime(unixTimeMs: number): string {
-  return publicationTimeFormatter.format(new Date(unixTimeMs));
+function formatPublicationTime(
+  locale: ConsoleLocale,
+  unixTimeMs: number
+): string {
+  return formatConsoleDate(locale, unixTimeMs, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function shortRevision(revision: string | null): string {

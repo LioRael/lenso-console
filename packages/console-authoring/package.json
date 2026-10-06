@@ -29,7 +29,9 @@
     "./workspace-service": "./src/generated/workspace-service.ts",
     "./server": "./src/server.ts",
     "./client": "./src/client.ts",
-    "./compiler": "./compiler/compiler.mjs"
+    "./compiler": "./compiler/compiler.mjs",
+    "./locale": "./src/locale.ts",
+    "./i18n": "./src/i18n.ts"
   },
   "publishConfig": {
     "access": "public"

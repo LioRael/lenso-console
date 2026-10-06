@@ -13,6 +13,7 @@ root-slot = "console"
 embedded-shell = []
 
 [dependencies]
+lenso-capability-console-locale-store = { path = "../../contracts/crates/lenso-capability-console-locale-store", version = "0.1.0" }
 lenso-capability-ui-global-contribution = { path = "../../contracts/crates/lenso-capability-ui-global-contribution", version = "0.1.0" }
 lenso-capability-human-api-token = { git = "https://github.com/LioRael/lenso-auth-plugin", rev = "699bd9621bc2e7f8581f6c0ff0bcbfcb6e3c2167" }
 anyhow = "1.0"

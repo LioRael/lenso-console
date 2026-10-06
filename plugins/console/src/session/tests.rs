@@ -92,7 +92,14 @@ impl access::AccessControlProvider for Factory {
         _: InvocationContext,
         request: access::CheckPermissionRequest,
     ) -> NativeRequestFuture<access::AccessControl> {
-        assert!(["console.operator", "assistant.use"].contains(&request.permission.as_str()));
+        assert!(
+            [
+                "console.operator",
+                "assistant.use",
+                "console.locale.default.manage"
+            ]
+            .contains(&request.permission.as_str())
+        );
         assert_eq!(request.scope.kind, "deployment");
         assert_eq!(request.scope.id, "alpha");
         let allowed = self.permission.get()
@@ -167,6 +174,11 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                 member_workspace_ids: vec![],
                 auth: Some(AuthClient::new(app.handle::<auth::Auth>("caller").unwrap())),
             };
+            // Locale settings require authentication, but never an administrator grant.
+            let ordinary_locale = SessionBoundary { administrator_subjects: vec![], ..boundary.clone() };
+            assert!(ordinary_locale.prepare(context(), "PUT", "/api/console/v1/locale/preference", Some(("session", "alice"))).await.is_ok());
+            assert!(boundary.prepare(context(), "GET", "/api/console/v1/locale", None).await.is_ok());
+            assert_eq!(boundary.prepare(context(), "PUT", "/api/console/v1/locale/preference", None).await.err().unwrap().status(), StatusCode::UNAUTHORIZED);
             let unauthorized = boundary
                 .prepare(context(), "GET", "/api/private", None)
                 .await
@@ -197,6 +209,12 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
                 administrator_subjects: vec![],
                 ..boundary.clone()
             };
+            let personal_session = member.prepare(context(), "GET", "/api/console/v1/session", Some(("session", "alice"))).await.err().unwrap();
+            assert_eq!(personal_session.status(), StatusCode::OK);
+            let personal_session: serde_json::Value = serde_json::from_slice(&personal_session.into_body().collect(8192).await.unwrap()).unwrap();
+            assert_eq!(personal_session["administrator"], false);
+            assert_eq!(personal_session["workspace_ids"], serde_json::json!([]));
+
             for path in [
                 "/api/console/v1/agent/bootstrap",
                 "/api/console/v1/pages",
@@ -289,6 +307,7 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
 
             let operators_boundary=SessionBoundary {assistant_access:None,operators_profile:Some(OperatorsProfile {deployment:"alpha".into(),issuer:"operators".into(),public_key:ActorAssertionIssuer::from_signing_key("operators",[8;32]).public_key_base64(),max_assertion_ttl_seconds:300,human_interface:false,management_enabled:true,administrator_workspace_ids:vec![]}),access_control:Some(access::AccessControlClient::new(app.handle::<access::AccessControl>("caller").unwrap())),required:true,administrator_subjects:vec![],member_workspace_ids:vec!["projects".into()],auth:boundary.auth.clone()};
             assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
+            assert_eq!(operators_boundary.prepare(context(), "PUT", "/api/console/v1/locale/preference", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
             factory.operators.set(true);
             assert!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.is_ok());
             let stale = operators_boundary.prepare_for_subject(context(),"POST","/api/console/v1/management/invoke",Some(("session","bob")),Some("alice")).await.err().unwrap();
@@ -298,12 +317,15 @@ async fn bound_auth_rechecks_each_user_and_revocation_without_fallback() {
             assert_eq!(problem["code"], "session_changed");
             factory.delegated.set(true);
             assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
+            assert_eq!(operators_boundary.prepare(context(), "PUT", "/api/console/v1/locale/preference", Some(("session", "alice"))).await.err().unwrap().status(), StatusCode::FORBIDDEN);
             factory.delegated.set(false);
 
             for bypass in ["/api/console/v1/apps/alpha/invoke","/api/console/v1/agent/turns","/api/console/v1/configuration"] {
                 assert_eq!(operators_boundary.prepare(context(),"POST",bypass,Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
             }
             factory.permission.set(false);
+            assert!(operators_boundary.prepare(context(), "PUT", "/api/console/v1/locale/preference", Some(("session", "alice"))).await.is_ok());
+
             assert_eq!(operators_boundary.prepare(context(),"GET","/api/console/v1/pages",Some(("session","alice"))).await.err().unwrap().status(),StatusCode::FORBIDDEN);
             factory.operators.set(false);
             factory.revoked.set(true);

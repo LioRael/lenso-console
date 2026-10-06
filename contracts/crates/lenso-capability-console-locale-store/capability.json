@@ -1,0 +1,36 @@
+{
+  "id": "lenso.console.locale-store@1",
+  "version": "1.0.0",
+  "portable": true,
+  "cross_lane_transfer": true,
+  "operations": [
+    {
+      "name": "read_default",
+      "interaction": "request",
+      "request_schema": "schemas/read_default-request.json",
+      "response_schema": "schemas/read_default-response.json",
+      "domain_error_schema": "schemas/error.json"
+    },
+    {
+      "name": "write_default",
+      "interaction": "request",
+      "request_schema": "schemas/write_default-request.json",
+      "response_schema": "schemas/write_default-response.json",
+      "domain_error_schema": "schemas/error.json"
+    },
+    {
+      "name": "read_preference",
+      "interaction": "request",
+      "request_schema": "schemas/read_preference-request.json",
+      "response_schema": "schemas/read_preference-response.json",
+      "domain_error_schema": "schemas/error.json"
+    },
+    {
+      "name": "write_preference",
+      "interaction": "request",
+      "request_schema": "schemas/write_preference-request.json",
+      "response_schema": "schemas/write_preference-response.json",
+      "domain_error_schema": "schemas/error.json"
+    }
+  ]
+}

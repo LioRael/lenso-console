@@ -88,14 +88,15 @@ export function SettingsPage() {
               title={zh ? "Console 语言" : "Console language"}
             >
               <PreferenceSelect
+                disabled={!locale.available || locale.saving}
                 aria-label={zh ? "Console 语言" : "Console language"}
                 onValueChange={(value) =>
-                  locale.setPreference(value as ConsoleLanguagePreference)
+                  void locale.setPreference(value as ConsoleLanguagePreference)
                 }
                 options={[
                   {
-                    label: zh ? "跟随系统" : "System default",
-                    value: "system",
+                    label: zh ? "跟随全局默认" : "Follow global default",
+                    value: "global",
                   },
                   { label: "English (US)", value: "en" },
                   { label: "简体中文", value: "zh-CN" },
@@ -106,6 +107,55 @@ export function SettingsPage() {
           </SettingsSection.Group>
         </SettingsSection.Root>
 
+        {locale.error ? (
+          <p role="alert">
+            {zh ? "语言偏好暂不可用，请稍后重试。" : locale.error}
+          </p>
+        ) : null}
+        {locale.canManageDefault ? (
+          <SettingsSection.Root
+            aria-labelledby="global-language-title"
+            xstyle={[styles.section, styles.sectionFollowing]}
+          >
+            <SettingsSection.Header>
+              <SettingsSection.Title
+                id="global-language-title"
+                xstyle={styles.sectionTitle}
+              >
+                {zh ? "Console 全局管理" : "Console administration"}
+              </SettingsSection.Title>
+            </SettingsSection.Header>
+            <SettingsSection.Group xstyle={styles.group}>
+              <SettingsRow
+                title={zh ? "全局默认语言" : "Global default language"}
+                description={
+                  zh
+                    ? "适用于选择跟随默认的用户和未登录页面。个人语言选择优先。"
+                    : "Used by signed-out pages and accounts following the default. Personal choices take priority."
+                }
+              >
+                <PreferenceSelect
+                  aria-label={zh ? "全局默认语言" : "Global default language"}
+                  disabled={!locale.available || locale.saving}
+                  value={locale.globalDefault ?? "browser"}
+                  options={[
+                    {
+                      label: zh ? "跟随浏览器" : "Browser language",
+                      value: "browser",
+                    },
+                    { label: "English", value: "en" },
+                    { label: "简体中文", value: "zh-CN" },
+                  ]}
+                  onValueChange={(value) => {
+                    void locale.setGlobalDefault(
+                      value === "browser" ? null : (value as "en" | "zh-CN")
+                    );
+                  }}
+                />
+              </SettingsRow>
+            </SettingsSection.Group>
+          </SettingsSection.Root>
+        ) : null}
         <AppearanceSettings appearance={appearance} zh={zh} />
       </div>
     </main>

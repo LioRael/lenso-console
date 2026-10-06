@@ -1,9 +1,10 @@
+import * as consoleLocale from "../../../../../packages/console-authoring/src/locale";
+import * as consoleI18n from "../../../../../packages/console-authoring/src/i18n";
 import * as reactQuery from "@tanstack/react-query";
 import * as reactRouter from "@tanstack/react-router";
 import * as reactDom from "react-dom";
 import * as reactDomClient from "react-dom/client";
 
-import { useConsoleLocale } from "../../app/console-locale";
 import { useConsoleSession } from "../../app/console-session";
 import * as http from "../../lib/http-client";
 import * as sessionHttp from "../../lib/session-fetch";
@@ -19,7 +20,8 @@ export const globalUiModules = {
   "@tanstack/react-query": reactQuery,
   "@tanstack/react-router": reactRouter,
   "@lenso/console-sdk/session": { useConsoleSession },
-  "@lenso/console-sdk/locale": { useConsoleLocale },
+  "@lenso/console-sdk/locale": consoleLocale,
+  "@lenso/console-sdk/i18n": consoleI18n,
   "@lenso/console-sdk/agent-target": { useAgentIdentity },
   "@lenso/console-sdk/assistant": { useAgentQuickPanel },
   "@lenso/console-sdk/drafts": drafts,

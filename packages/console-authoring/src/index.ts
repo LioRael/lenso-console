@@ -41,6 +41,8 @@ export interface WorkspaceServices {
 }
 export type Subject = { kind: "console" } | { kind: "app"; appId: string };
 export interface PageProps {
+  /** Optional Host-owned placement for a Plugin's workspace navigation. */
+  chrome?: { Sidebar: React.ComponentType<{ children: React.ReactNode }> };
   params: Readonly<Record<string, string | readonly string[]>>;
   environment: { locale: "en" | "zh-CN"; theme: "dark" | "light" };
   location: {
@@ -95,3 +97,7 @@ export interface ErrorProps {
   error: Error;
   reset(): void;
 }
+
+export type { ConsoleLocaleValue } from "./locale";
+export { createTranslations, resolveConsoleLocale, formatConsoleDate, formatConsoleNumber } from "./i18n";
+export type { ConsoleLocale, ConsoleLanguagePreference, MessageCatalog, MessageValues, LocaleSnapshot } from "./i18n";

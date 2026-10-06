@@ -1,3 +1,4 @@
+import * as sdkLocale from "../../../../../packages/console-authoring/src/locale";
 import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { useQueryClient } from "@tanstack/react-query";
@@ -83,7 +84,7 @@ type ContributionModule = {
     createElement: typeof createElement;
     react: typeof React;
     services: WorkspaceServices;
-    modules?: Readonly<Record<string, unknown>> | undefined;
+    modules: Readonly<Record<string, unknown>> | undefined;
   }): {
     Page: ComponentType<ContributionProps>;
     Provider?: ComponentType<{ children: ReactNode }>;
@@ -367,10 +368,12 @@ export class ContributionRenderBoundary extends Component<
   }
 }
 
+const workspaceLocaleModules = {"@lenso/console-sdk/locale": sdkLocale};
+
 export function useContributionModule<Props = ContributionProps>(
   mount: PageMount | undefined,
   attempt: number,
-  modules?: Readonly<Record<string, unknown>>
+  modules: Readonly<Record<string, unknown>> = workspaceLocaleModules
 ) {
   const { subject: expectedSubject } = useConsoleSession();
   const [state, setState] = useState<

@@ -30,7 +30,7 @@ const RootComponent = () => {
   useEffect(() => setHydrated(true), []);
 
   if (!hydrated) {
-    return <RoutePending />;
+    return <output aria-busy="true" />;
   }
 
   return (

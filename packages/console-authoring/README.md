@@ -265,3 +265,26 @@ scaffold/compiler, proves typed mistakes fail, checks server-code exclusion and
 runs allowed/denied requests through the emitted server provider. It grants no
 model or production authority. The separate development-kit gate proves actual
 HTTP Host startup/removal for an exact compatible Engine/Console cohort.
+
+## Shared language and Plugin catalogs
+
+Import `useConsoleLocale` from `@lenso/console-sdk/locale`; the Console compiler
+keeps this module external and the Shell supplies its single runtime context.
+Do not store language in a workspace cache key or create another React context.
+The context exposes the effective `locale`, account `preference`, public
+`globalDefault`, persistence availability, and independently checked
+`canManageDefault`. Personal Settings uses `setPreference("global" | "en" | "zh-CN")`.
+
+Use `createTranslations` from `@lenso/console-sdk/i18n` with one stable Plugin
+namespace, an English fallback catalog, and optional lazy catalog loaders. For
+compiled single-file pages, bounded catalogs can be supplied in the fourth
+`initialCatalogs` argument. Await `load(locale)` before rendering a lazy catalog;
+missing keys retain English or their source text. Loading is deduplicated per
+locale and retryable after failure. `formatConsoleDate` and
+`formatConsoleNumber` use the effective locale and accept normal Intl options;
+number formatting preserves bigint inputs.
+
+The server, account preference, permission checks, initial HTML locale and
+migration responsibilities are described in `docs/console-locale.md` in the
+Console repository. A compatible SDK release and Shell are required together;
+this changeset does not publish either one.

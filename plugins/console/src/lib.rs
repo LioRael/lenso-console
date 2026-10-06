@@ -7,6 +7,7 @@ mod human_tokens;
 mod lenso_http;
 #[cfg(not(target_arch = "wasm32"))]
 mod local_agent_client;
+mod locale;
 mod page_contributions;
 #[cfg(not(target_arch = "wasm32"))]
 mod project_activity;
@@ -116,6 +117,8 @@ pub struct ConsolePluginConfig {
     /// Absent preserves the original local/single-administrator mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assistant_access: Option<AssistantAccessPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locale_permission_scope: Option<session::AssistantPermission>,
     #[serde(default)]
     pub member_workspace_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -208,6 +211,13 @@ pub struct LocalProjectsConfig {
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
     config.http_paths.validate().map_err(invalid_plan)?;
+    if let Some(scope) = &config.locale_permission_scope {
+        if [&scope.scope_kind, &scope.scope_id].iter().any(|value| {
+            value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
+        }) {
+            return Err(invalid_plan("Locale permission requires a canonical scope"));
+        }
+    }
     #[cfg(target_arch = "wasm32")]
     validate_portable_config(config)?;
     if let Some(policy) = &config.assistant_access {
@@ -309,6 +319,7 @@ pub struct ConsolePlugin {
     config: ConsolePluginConfig,
     auth: ManyPort<lenso_capability_auth::AuthClient>,
     operator_access: ManyPort<lenso_capability_access_control::AccessControlClient>,
+    locale_store: ManyPort<lenso_capability_console_locale_store::LocaleStoreClient>,
     management: ManyPort<lenso_capability_management::ManagementClient>,
     human_management: ManyPort<lenso_capability_management_human::ManagementHumanClient>,
     human_tokens: ManyPort<lenso_capability_human_api_token::HumanApiTokenClient>,
@@ -323,6 +334,11 @@ pub struct ConsolePlugin {
 
 impl ConsolePlugin {
     fn validate_bindings(&self) -> Result<(), RuntimeFailure> {
+        if self.locale_store.iter().count() > 1 {
+            return Err(invalid_plan(
+                "Console locale requires at most one Store binding",
+            ));
+        }
         if self.config.member_workspace_ids.iter().any(|id| {
             id.is_empty()
                 || id.len() > 64
@@ -346,6 +362,7 @@ impl ConsolePlugin {
         if self.operator_access.iter().count()
             != usize::from(
                 self.config.operators_profile.is_some()
+                    || self.config.locale_permission_scope.is_some()
                     || self
                         .config
                         .assistant_access
@@ -354,7 +371,7 @@ impl ConsolePlugin {
             )
         {
             return Err(invalid_plan(
-                "Operator or assistant permission policy requires exactly one Access Control binding; other modes require none",
+                "Operator, assistant, or locale permission policy requires exactly one Access Control binding; other modes require none",
             ));
         }
         if self.management.iter().count()
@@ -432,6 +449,26 @@ impl Lifecycle for ConsolePlugin {
         let local_projects = config.local_projects.clone();
         self.application.borrow_mut().replace({
             let mut application = console_application(config, page_catalog);
+            application.locale = locale::LocaleService {
+                store: self
+                    .locale_store
+                    .iter()
+                    .next()
+                    .map(|bound| bound.client().clone()),
+                access: self
+                    .operator_access
+                    .iter()
+                    .next()
+                    .map(|bound| bound.client().clone()),
+                scope: self.config.locale_permission_scope.clone().or_else(|| {
+                    self.config.operators_profile.as_ref().map(|profile| {
+                        session::AssistantPermission {
+                            scope_kind: "deployment".into(),
+                            scope_id: profile.deployment.clone(),
+                        }
+                    })
+                }),
+            };
             application.management = self
                 .management
                 .iter()
@@ -652,11 +689,13 @@ fn console_application(
         management: None,
         human_management: None,
         human_tokens: None,
+        locale: locale::LocaleService::default(),
     }
 }
 
 #[derive(Clone)]
 struct ConsoleApplication {
+    locale: locale::LocaleService,
     management: Option<lenso_capability_management::ManagementClient>,
     human_management: Option<lenso_capability_management_human::ManagementHumanClient>,
     human_tokens: Option<lenso_capability_human_api_token::HumanApiTokenClient>,
@@ -678,6 +717,9 @@ impl std::fmt::Debug for ConsoleApplication {
 
 impl ConsoleApplication {
     async fn handle(&self, request: Request) -> Response {
+        if let Some(response) = self.locale.handle(&request).await {
+            return response;
+        }
         if !self.liveness_readiness_routes && is_liveness_readiness_path(&request.path) {
             return StatusCode::NOT_FOUND.into_response();
         }
@@ -773,15 +815,22 @@ impl ConsoleApplication {
             let Some((name, bytes)) = selected else {
                 return StatusCode::NOT_FOUND.into_response();
             };
-            return ::http::Response::builder()
-                .status(StatusCode::OK)
+            let mut builder = ::http::Response::builder().status(StatusCode::OK);
+            if *name == "index.html" {
+                builder = builder
+                    .header(header::CACHE_CONTROL, "no-store")
+                    .header(header::VARY, "Accept-Language");
+            }
+            return builder
                 .header(header::CONTENT_TYPE, http::content_type(Path::new(name)))
                 .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
                 .body(if request.method == Method::HEAD {
                     Body::empty()
                 } else {
                     Body::from(if *name == "index.html" {
-                        self.http_paths.shell_html(bytes.to_vec())
+                        self.locale
+                            .shell_html(request, self.http_paths.shell_html(bytes.to_vec()))
+                            .await
                     } else {
                         bytes.to_vec()
                     })
@@ -809,14 +858,24 @@ impl ConsoleApplication {
                         .file_name()
                         .is_some_and(|name| name == "index.html")
                     {
-                        self.http_paths.shell_html(bytes)
+                        self.locale
+                            .shell_html(request, self.http_paths.shell_html(bytes))
+                            .await
                     } else {
                         bytes
                     },
                 )
             };
-            ::http::Response::builder()
-                .status(StatusCode::OK)
+            let mut builder = ::http::Response::builder().status(StatusCode::OK);
+            if candidate
+                .file_name()
+                .is_some_and(|name| name == "index.html")
+            {
+                builder = builder
+                    .header(header::CACHE_CONTROL, "no-store")
+                    .header(header::VARY, "Accept-Language");
+            }
+            builder
                 .header(header::CONTENT_TYPE, http::content_type(&candidate))
                 .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
                 .body(body)
@@ -1264,6 +1323,7 @@ impl ConsoleConfig {
             http_paths: self.http_paths.clone(),
             administrator_subjects: Vec::new(),
             assistant_access: None,
+            locale_permission_scope: None,
             member_workspace_ids: Vec::new(),
             workspace_mounts: Vec::new(),
             operators_profile: None,
@@ -2144,6 +2204,7 @@ mod tests {
             config,
             auth: ManyPort::default(),
             operator_access: ManyPort::default(),
+            locale_store: ManyPort::default(),
             management: ManyPort::default(),
             human_management: ManyPort::default(),
             human_tokens: ManyPort::default(),
@@ -2401,6 +2462,7 @@ mod tests {
             serde_json::json!([
                 {"capability_id":"lenso.auth@1","descriptor_version":"1.0.0","cardinality":"many"},
                 {"capability_id":"lenso.access-control@1","descriptor_version":"1.0.0","cardinality":"many"},
+                {"capability_id":"lenso.console.locale-store@1","descriptor_version":"1.0.0","cardinality":"many"},
                 {"capability_id":"lenso.management@1","descriptor_version":"1.0.0","cardinality":"many"},
                 {"capability_id":"lenso.management-human@1","descriptor_version":"1.1.0","cardinality":"many"},
                 {"capability_id":"lenso.auth.human-api-token@1","descriptor_version":"1.1.0","cardinality":"many"},

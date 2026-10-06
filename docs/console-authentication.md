@@ -36,7 +36,11 @@ Configure the `lenso.console.web/default` instance with
 `require_user_session: true` and `administrator_subjects` containing the actual
 Auth subject IDs allowed to operate this Console. Never use display names,
 email addresses guessed to be subject IDs, or a shared Agent control token.
-The default administrator list is empty and denies access.
+The default administrator list is empty and denies administrative access.
+Verified users can enter personal settings without a workspace or administrator
+grant; workspace and management APIs retain their separate admission checks.
+See [Console language preferences](console-locale.md) for the independent global
+default-language permission and account preference boundary.
 
 Configure `lenso.web-ingress/default.session_cookie` with:
 

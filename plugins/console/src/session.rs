@@ -111,6 +111,9 @@ impl SessionBoundary {
         expected_subject: Option<&str>,
     ) -> Result<InvocationContext, Box<Response>> {
         let session_request = path == "/api/console/v1/session";
+        if path == "/api/console/v1/locale" && method == "GET" && credential.is_none() {
+            return Ok(context);
+        }
         if session_request && method != "GET" {
             return Err(problem(
                 StatusCode::METHOD_NOT_ALLOWED,
@@ -210,6 +213,9 @@ impl SessionBoundary {
                 &FixedClock::new(time::OffsetDateTime::now_utc()),
             )
             .map_err(|_| problem(StatusCode::FORBIDDEN, "operators_session_required"))?;
+        if crate::locale::is_locale_path(path) {
+            return Ok(context);
+        }
         let access = self
             .access_control
             .as_ref()
@@ -311,6 +317,11 @@ impl SessionBoundary {
         path: &str,
         session_request: bool,
     ) -> Result<InvocationContext, Box<Response>> {
+        if crate::locale::is_locale_path(path) {
+            return assertion
+                .attach(context)
+                .map_err(|_| problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context"));
+        }
         let administrator = self
             .administrator_subjects
             .iter()
@@ -339,25 +350,24 @@ impl SessionBoundary {
                 .map_err(|_| problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context"));
         }
         if session_request {
-            return if administrator || assistant_enabled || !self.member_workspace_ids.is_empty() {
-                Err(with_read_scope(
-                    session_response(
-                        "required",
-                        Some(assertion.subject()),
-                        administrator,
-                        &self.member_workspace_ids,
-                        false,
-                        false,
-                        assistant_enabled,
-                    ),
-                    assertion,
-                    "console-auth",
-                    assertion.issuer(),
-                ))
-            } else {
-                Err(problem(StatusCode::FORBIDDEN, "console_access_required"))
-            };
+            // A verified user can always enter personal settings. Workspace and
+            // administration admission remain independent checks below.
+            return Err(with_read_scope(
+                session_response(
+                    "required",
+                    Some(assertion.subject()),
+                    administrator,
+                    &self.member_workspace_ids,
+                    false,
+                    false,
+                    assistant_enabled,
+                ),
+                assertion,
+                "console-auth",
+                assertion.issuer(),
+            ));
         }
+
         let member_path = path == "/api/console/v1/pages" && method == "GET"
             || path
                 .strip_prefix("/api/console/v1/pages/")
@@ -602,7 +612,12 @@ pub(super) fn problem(status: StatusCode, code: &str) -> Box<Response> {
         "authentication_required" => "Sign in to continue.",
         "user_session_required" => "A user session is required.",
         "console_access_required" => "Your account does not have access to this Console.",
-        "method_not_allowed" => "This endpoint requires GET.",
+        "method_not_allowed" => "This endpoint does not accept this method.",
+        "locale_default_permission_required" => {
+            "Your account cannot change the global default language."
+        }
+        "locale_store_unavailable" => "Language preferences are unavailable on this host.",
+        "invalid_locale" | "invalid_locale_preference" => "Choose a supported language preference.",
         "session_changed" => {
             "The signed-in account changed. Refresh the session before continuing."
         }

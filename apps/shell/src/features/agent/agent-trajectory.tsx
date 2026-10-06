@@ -14,6 +14,11 @@ import {
 } from "lucide-react";
 import { useMemo, useState, type ComponentType } from "react";
 
+import {
+  formatConsoleNumber,
+  type ConsoleLocale,
+} from "../../../../../packages/console-authoring/src/i18n";
+import { useConsoleLocale } from "../../app/console-locale";
 import type {
   AgentTrajectory as AgentTrajectoryData,
   AgentTrajectoryKind,
@@ -36,10 +41,6 @@ const kindMeta: Record<
   user: { icon: UserRound, label: "USER" },
 };
 
-const compactNumberFormatter = new Intl.NumberFormat("en", {
-  notation: "compact",
-});
-
 export function AgentTrajectory({
   owner,
   trajectory,
@@ -47,6 +48,7 @@ export function AgentTrajectory({
   owner: { id: string; label: string };
   trajectory: AgentTrajectoryData | undefined;
 }) {
+  const { locale } = useConsoleLocale();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [collapsedTurns, setCollapsedTurns] = useState<ReadonlySet<number>>(
@@ -118,8 +120,8 @@ export function AgentTrajectory({
             {trajectory?.summary.inputTokens ||
             trajectory?.summary.outputTokens ? (
               <span>
-                {formatTokens(trajectory.summary.inputTokens)} in ·{" "}
-                {formatTokens(trajectory.summary.outputTokens)} out
+                {formatTokens(locale, trajectory.summary.inputTokens)} in ·{" "}
+                {formatTokens(locale, trajectory.summary.outputTokens)} out
               </span>
             ) : null}
             {trajectory?.summary.failedOperations ? (
@@ -248,6 +250,7 @@ function TrajectoryRow({
   record: AgentTrajectoryRecord;
   selected: boolean;
 }) {
+  const { locale } = useConsoleLocale();
   const meta = kindMeta[record.kind];
   const Icon = meta.icon;
   return (
@@ -286,7 +289,7 @@ function TrajectoryRow({
           ? record.status === "running"
             ? "Running"
             : "—"
-          : formatDuration(record.durationMs)}
+          : formatDuration(locale, record.durationMs)}
       </span>
     </button>
   );
@@ -327,6 +330,7 @@ function TrajectoryInspector({
   record: AgentTrajectoryRecord;
   trajectory: AgentTrajectoryData | undefined;
 }) {
+  const { locale } = useConsoleLocale();
   const meta = kindMeta[record.kind];
   return (
     <aside
@@ -367,25 +371,25 @@ function TrajectoryInspector({
             value={
               record.durationMs === undefined
                 ? "Not recorded"
-                : formatDuration(record.durationMs)
+                : formatDuration(locale, record.durationMs)
             }
           />
           {record.timeToFirstTokenMs === undefined ? null : (
             <Fact
               label="First token"
-              value={formatDuration(record.timeToFirstTokenMs)}
+              value={formatDuration(locale, record.timeToFirstTokenMs)}
             />
           )}
           {record.inputTokens === undefined ? null : (
             <Fact
               label="Input tokens"
-              value={formatTokens(record.inputTokens)}
+              value={formatTokens(locale, record.inputTokens)}
             />
           )}
           {record.outputTokens === undefined ? null : (
             <Fact
               label="Output tokens"
-              value={formatTokens(record.outputTokens)}
+              value={formatTokens(locale, record.outputTokens)}
             />
           )}
           {record.detail.model ? (
@@ -445,14 +449,22 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDuration(durationMs: number) {
+function formatDuration(locale: ConsoleLocale, durationMs: number) {
+  const fractionDigits = durationMs < 10_000 ? 1 : 0;
   return durationMs < 1000
-    ? `${durationMs} ms`
-    : `${(durationMs / 1000).toFixed(durationMs < 10_000 ? 1 : 0)} s`;
+    ? `${formatConsoleNumber(locale, durationMs, {
+        useGrouping: false,
+        maximumFractionDigits: 20,
+      })} ms`
+    : `${formatConsoleNumber(locale, durationMs / 1000, {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+        useGrouping: false,
+      })} s`;
 }
 
-function formatTokens(tokens: number) {
-  return compactNumberFormatter.format(tokens);
+function formatTokens(locale: ConsoleLocale, tokens: number) {
+  return formatConsoleNumber(locale, tokens, { notation: "compact" });
 }
 
 function formatStatus(

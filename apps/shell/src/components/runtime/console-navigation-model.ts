@@ -102,26 +102,11 @@ export function consoleNavigationModel({
           destination("system", t("System"), t("Plugins"), area === "system", {
             to: "/plugins",
           }),
-          destination(
-            "settings",
-            t("Settings"),
-            t("Settings"),
-            area === "settings",
-            { to: "/settings" }
-          ),
         ]
       : []),
-    ...(assistantEnabled && !administrator
-      ? [
-          destination(
-            "settings",
-            t("Settings"),
-            t("Assistant"),
-            area === "settings",
-            { to: "/settings/ai" }
-          ),
-        ]
-      : []),
+    destination(
+      "settings", t("Settings"), t("Preferences"), area === "settings", { to: "/settings" }
+    ),
     ...(managementEnabled
       ? [
           destination(

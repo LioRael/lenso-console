@@ -103,6 +103,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     if (
       !administrator &&
       !assistantArea &&
+      currentArea !== "settings" &&
       currentArea !== "workspace" &&
       currentArea !== "management" &&
       managementEnabled
@@ -111,6 +112,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
     } else if (
       !administrator &&
       !assistantArea &&
+      currentArea !== "settings" &&
       currentArea !== "workspace" &&
       currentArea !== "management" &&
       visibleWorkspaces[0]
@@ -128,6 +130,7 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
   if (
     !administrator &&
     !assistantArea &&
+    currentArea !== "settings" &&
     currentArea !== "workspace" &&
     !(managementEnabled && currentArea === "management")
   ) {
@@ -153,6 +156,14 @@ function ConsoleShellContent({ children }: PropsWithChildren) {
               {t("Retry")}
             </Button>
           )}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              void navigate({ to: "/settings" });
+            }}
+          >
+            {t("Preferences")}
+          </Button>
           {signOut && (
             <Button
               variant="ghost"
@@ -487,7 +498,7 @@ function SettingsSidebar({
       .join(" ")}`
       .toLocaleLowerCase()
       .includes(normalizedQuery);
-  const showPreferences = administrator && matches("Preferences");
+  const showPreferences = matches("Preferences");
   const showAssistant =
     assistantEnabled && matches("Assistant provider API key");
   const showConnections =

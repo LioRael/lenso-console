@@ -225,7 +225,7 @@ const result = await Bun.build({
   entrypoints: [entry],
   target: "browser",
   format: "cjs",
-  external: ["react", "react/jsx-runtime", "react/jsx-dev-runtime"],
+  external: ["react", "react/jsx-runtime", "react/jsx-dev-runtime", "@lenso/console-sdk/locale"],
   splitting: false,
   minify: true,
   plugins: [
@@ -242,6 +242,7 @@ const result = await Bun.build({
             throw new Error("services.ts is server-only");
           }
         });
+        build.onResolve({ filter: /^@lenso\/console-sdk\/i18n$/ }, () => ({path: path.join(path.dirname(sdk), "i18n.ts")}));
         build.onResolve({ filter: /^@lenso\/console-sdk\/client$/ }, () => ({
           path: path.join(path.dirname(sdk), "client.ts"),
         }));
@@ -266,7 +267,7 @@ for (const output of result.outputs) {
   }
   const bytes =
     extension === ".js"
-      ? Buffer.from(`export const apiMajor=1; export function createWorkspace(runtime) { const jsx=(type,props,key)=>runtime.createElement(type,key===undefined?props:{...props,key}); const jsxs=(type,props,key)=>{const {children,...rest}=props; return runtime.createElement(type,key===undefined?rest:{...rest,key},...children);}; const jsxDEV=(type,props,key,staticChildren)=>staticChildren?jsxs(type,props,key):jsx(type,props,key); const jsxRuntime={Fragment:runtime.react.Fragment,jsx,jsxs,jsxDEV}; const require=(name)=>{if(name==="react") return runtime.react; if(name==="react/jsx-runtime" || name==="react/jsx-dev-runtime") return jsxRuntime; throw new Error("Unsupported workspace external: "+name);}; const module={exports:{}}; const exports=module.exports; ${await output.text()}
+      ? Buffer.from(`export const apiMajor=1; export function createWorkspace(runtime) { const jsx=(type,props,key)=>runtime.createElement(type,key===undefined?props:{...props,key}); const jsxs=(type,props,key)=>{const {children,...rest}=props; return runtime.createElement(type,key===undefined?rest:{...rest,key},...children);}; const jsxDEV=(type,props,key,staticChildren)=>staticChildren?jsxs(type,props,key):jsx(type,props,key); const jsxRuntime={Fragment:runtime.react.Fragment,jsx,jsxs,jsxDEV}; const require=(name)=>{if(name==="react") return runtime.react; if(name==="react/jsx-runtime" || name==="react/jsx-dev-runtime") return jsxRuntime; if(name==="@lenso/console-sdk/locale" && runtime.modules?.[name]) return runtime.modules[name]; throw new Error("Unsupported workspace external: "+name);}; const module={exports:{}}; const exports=module.exports; ${await output.text()}
 return module.exports.createWorkspace(runtime); }`)
       : Buffer.from(await output.arrayBuffer());
   if (bytes.length > 1024 * 1024) {

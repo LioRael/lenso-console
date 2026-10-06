@@ -1,16 +1,13 @@
 import { Tooltip } from "@lenso/ui/tooltip";
 import * as stylex from "@stylexjs/stylex";
 
+import { formatConsoleNumber } from "../../../../../packages/console-authoring/src/i18n";
 import { useConsoleTranslation } from "../../app/console-i18n";
+import { useConsoleLocale } from "../../app/console-locale";
 import { composerOverlayStyles as overlay } from "./agent-composer-overlay.stylex";
 import { contextUsage } from "./agent-context-usage-model";
 import type { AgentModel, AgentTrajectory } from "./agent-runtime";
 
-const number = (v: number) =>
-  Intl.NumberFormat("en", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(v);
 export function AgentContextUsage({
   model,
   trajectory,
@@ -23,6 +20,12 @@ export function AgentContextUsage({
   align?: "start" | "end";
 }) {
   const t = useConsoleTranslation();
+  const { locale } = useConsoleLocale();
+  const number = (value: number) =>
+    formatConsoleNumber(locale, value, {
+      notation: "compact",
+      maximumFractionDigits: 1,
+    });
 
   const value = contextUsage(model, trajectory, draft);
   return (
@@ -67,7 +70,7 @@ export function AgentContextUsage({
               <span>
                 {value.percent === undefined
                   ? "Usage not reported yet"
-                  : `${value.percent}% used · ${100 - value.percent}% remaining`}
+                  : `${formatConsoleNumber(locale, value.percent)}% used · ${formatConsoleNumber(locale, 100 - value.percent)}% remaining`}
               </span>
               <span>
                 {value.used === undefined ? "—" : number(value.used)} /{" "}

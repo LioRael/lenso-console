@@ -2,6 +2,8 @@ import { Button } from "@lenso/ui/button";
 import * as stylex from "@stylexjs/stylex";
 import { Copy, Pencil, X } from "lucide-react";
 
+import { formatConsoleDate } from "../../../../../packages/console-authoring/src/i18n";
+import { useConsoleLocale } from "../../app/console-locale";
 import { AgentForkButton, type AgentForkTarget } from "./agent-fork-button";
 import { agentMessageControlStyles as styles } from "./agent-message-controls.stylex";
 
@@ -18,6 +20,7 @@ export function AgentMessageActions({
   timePosition?: "start" | "end";
   onEdit?: () => void;
 }) {
+  const { locale } = useConsoleLocale();
   const date = timestamp ? new Date(timestamp) : undefined;
   const validDate = date && !Number.isNaN(date.getTime()) ? date : undefined;
   const copyMessage = () => {
@@ -29,13 +32,16 @@ export function AgentMessageActions({
       {validDate ? (
         <time
           dateTime={validDate.toISOString()}
-          title={validDate.toLocaleString()}
+          title={formatConsoleDate(locale, validDate, {
+            dateStyle: "short",
+            timeStyle: "medium",
+          })}
           {...stylex.props(
             styles.time,
             timePosition === "end" && styles.timeEnd
           )}
         >
-          {validDate.toLocaleTimeString([], {
+          {formatConsoleDate(locale, validDate, {
             hour: "2-digit",
             minute: "2-digit",
             hour12: false,

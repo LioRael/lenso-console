@@ -9,6 +9,7 @@ members = [
   "contracts/crates/lenso-capability-ui-contribution",
   "contracts/crates/lenso-capability-ui-global-contribution",
   "contracts/crates/lenso-capability-workspace-service",
+  "contracts/crates/lenso-capability-console-locale-store",
   "contracts/crates/lenso-capability-management",
   "contracts/crates/lenso-capability-management-human",
   "plugins/observe",

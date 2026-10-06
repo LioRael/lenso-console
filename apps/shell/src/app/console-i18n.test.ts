@@ -1,8 +1,9 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 
-import { translateConsoleMessage } from "./console-i18n";
+import { loadConsoleMessages, translateConsoleMessage } from "./console-i18n";
 
 describe("Console translations", () => {
+  beforeAll(() => loadConsoleMessages("zh-CN"));
   test("falls back to English and preserves unknown identifiers", () => {
     expect(translateConsoleMessage("en", "Plugins")).toBe("Plugins");
     expect(translateConsoleMessage("zh-CN", "lenso.agent.loop/agent")).toBe(

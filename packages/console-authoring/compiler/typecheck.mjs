@@ -79,6 +79,8 @@ export async function typecheck({
           react: [path.join(modules, "@types/react/index.d.ts")],
           "react/*": [path.join(modules, "@types/react/*")],
           "@lenso/console-sdk": [sdk],
+          "@lenso/console-sdk/locale": [path.join(path.dirname(sdk), "locale.ts")],
+          "@lenso/console-sdk/i18n": [path.join(path.dirname(sdk), "i18n.ts")],
           "@lenso/console-sdk/client": [
             path.join(path.dirname(sdk), "client.ts"),
           ],

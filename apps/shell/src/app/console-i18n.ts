@@ -1,22 +1,28 @@
 import { useCallback } from "react";
 
+import {
+  createTranslations,
+  type MessageValues,
+} from "../../../../packages/console-authoring/src/i18n";
 import { useConsoleLocale, type ConsoleLocale } from "./console-locale";
-import { chineseMessages } from "./locales/zh-cn";
 
-type MessageValues = Readonly<Record<string, string | number>>;
-
+const messages = createTranslations(
+  "console",
+  {},
+  {
+    "zh-CN": async () => (await import("./locales/zh-cn")).chineseMessages,
+  }
+);
+export function loadConsoleMessages(locale: ConsoleLocale): Promise<void> {
+  return messages.load(locale);
+}
 export function translateConsoleMessage(
   locale: ConsoleLocale,
   message: string,
   values?: MessageValues
 ): string {
-  const template =
-    locale === "zh-CN" ? (chineseMessages[message] ?? message) : message;
-  return template.replaceAll(/\{(\w+)\}/gu, (placeholder, key: string) =>
-    values && Object.hasOwn(values, key) ? String(values[key]) : placeholder
-  );
+  return messages.translate(locale, message, values);
 }
-
 export function useConsoleTranslation() {
   const { locale } = useConsoleLocale();
   return useCallback(
