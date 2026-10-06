@@ -78,17 +78,17 @@ importers:
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.2.8)
       '@lenso/tokens':
-        specifier: 0.8.0
-        version: 0.8.0
+        specifier: 0.9.0
+        version: 0.9.0
       '@lenso/ui':
-        specifier: 0.8.0
-        version: 0.8.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 0.9.0
+        version: 0.9.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@streamdown/cjk':
         specifier: ^1.0.3
         version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.2.8)(unified@11.0.5)
       '@stylexjs/stylex':
-        specifier: 0.19.0
-        version: 0.19.0
+        specifier: 0.19.1
+        version: 0.19.1
       '@tanstack/react-query':
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.8)
@@ -201,7 +201,6 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
-
     devDependencies:
       react-dom:
         specifier: ^19.2.8
@@ -323,8 +322,35 @@ packages:
       date-fns:
         optional: true
 
+  '@base-ui/react@1.8.0':
+    resolution: {integrity: sha512-P0/1sxo6SBVZOklKMIedvTWqw2s2IQzi9x5bIVsXu980cuSOD4NeuRSs+/L7LZQfDkZP/uRZyGPyfFl/B1oH+Q==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      '@date-fns/tz': ^1.2.0
+      '@types/react': ^17 || ^18 || ^19
+      date-fns: ^4.0.0
+      react: ^17 || ^18 || ^19
+      react-dom: ^17 || ^18 || ^19
+    peerDependenciesMeta:
+      '@date-fns/tz':
+        optional: true
+      '@types/react':
+        optional: true
+      date-fns:
+        optional: true
+
   '@base-ui/utils@0.3.2':
     resolution: {integrity: sha512-oWy1aq/I2GmYjpl4PhEAhzflF8VPGKgZeq0xAWTbfD5KBWyxcN0ZP2+WHSUm/5Z6lVMBDLReLcoXwSYoRc/zNQ==}
+    peerDependencies:
+      '@types/react': ^17 || ^18 || ^19
+      react: ^17 || ^18 || ^19
+      react-dom: ^17 || ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@base-ui/utils@0.4.0':
+    resolution: {integrity: sha512-bO9fz25kKtPf+aZVyfQrC0PDmJdmVni31W2hCS5/Owb+inwdIL3XU26pCPRPlt4LSxZrBgLwubXQXQlKaFEZzw==}
     peerDependencies:
       '@types/react': ^17 || ^18 || ^19
       react: ^17 || ^18 || ^19
@@ -626,11 +652,11 @@ packages:
     resolution: {integrity: sha512-U7/wbd1nx9gZOI0Xxw0+sjMRD+SnYvpkFCXd/QXMTY99SlcMrvcyN8JPBlO2QSvGw1MgeniwEg6AT0igfj0XNA==}
     engines: {node: '>=18'}
 
-  '@lenso/tokens@0.8.0':
-    resolution: {integrity: sha512-7qTWwMYsaf6xWLCeLEIllaV+Ja57iKzj82O9HP8qyvxKCKBrUlNU+5kZC/DUF8qJE/L/e16wd2micRMQCVofVA==}
+  '@lenso/tokens@0.9.0':
+    resolution: {integrity: sha512-Tr1Llru6CcZ6i5SSxX0WuYapd0XyYbHkBP0+3Q8Gxk+XbBHpWBhLxMUsKcDPLpuTk85UqUnuPYToTz9yzSmszA==}
 
-  '@lenso/ui@0.8.0':
-    resolution: {integrity: sha512-XnMWBCAs6ucvkS/jU26KeIY/H0x8QmuD/ucfMEq2Mu67L1srh8995w9oSrfQbNaeQ5qZDmh4VsPxW0LtChJgfQ==}
+  '@lenso/ui@0.9.0':
+    resolution: {integrity: sha512-WcqdW9+zrV+bnqAcnD06rclDNPtfFPCaxokidK6PD3r6R6NNnzxXS7T7nCRV0pf0ntFAouMSwrNg90+FmxoMdQ==}
     peerDependencies:
       react: '>=19.2.0 <20.0.0'
       react-dom: '>=19.2.0 <20.0.0'
@@ -1135,6 +1161,9 @@ packages:
 
   '@stylexjs/stylex@0.19.0':
     resolution: {integrity: sha512-CnUFp7YMaDLDeemsWOfJgoC/gKM5P/yBNMcpJaE6ChJmXr7s0DJwSeGTTlHJcqqwN9OW1qGtmARWLFhGZN1pTA==}
+
+  '@stylexjs/stylex@0.19.1':
+    resolution: {integrity: sha512-JwNFm0MOYPqi+M4Ax5Un4ZxfZp4HEAX2sAWetZ88KALFcv1eEiHNJs75oO3V3U7RVWnzfkiM8i9eBowC3hqgUw==}
 
   '@stylexjs/unplugin@0.19.0':
     resolution: {integrity: sha512-2QwNYovSwarC/M8DLD78857F6MEi4eQ3UYzgdmyg/K7562M/rV1KWptiATxcKgujlUT6ToNy778SOXf4bGK+Bw==}
@@ -3522,7 +3551,30 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
+  '@base-ui/react@1.8.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@base-ui/utils': 0.4.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@floating-ui/react-dom': 2.1.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@floating-ui/utils': 0.2.12
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      use-sync-external-store: 1.6.0(react@19.2.8)
+    optionalDependencies:
+      '@types/react': 19.2.18
+
   '@base-ui/utils@0.3.2(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@floating-ui/utils': 0.2.12
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      reselect: 5.2.0
+      use-sync-external-store: 1.6.0(react@19.2.8)
+    optionalDependencies:
+      '@types/react': 19.2.18
+
+  '@base-ui/utils@0.4.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@floating-ui/utils': 0.2.12
@@ -3838,16 +3890,16 @@ snapshots:
 
   '@lenso/contract-runtime@0.3.1': {}
 
-  '@lenso/tokens@0.8.0':
+  '@lenso/tokens@0.9.0':
     dependencies:
-      '@stylexjs/stylex': 0.19.0
+      '@stylexjs/stylex': 0.19.1
 
-  '@lenso/ui@0.8.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@lenso/ui@0.9.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@base-ui/react': 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@base-ui/react': 1.8.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@internationalized/date': 3.12.4
-      '@lenso/tokens': 0.8.0
-      '@stylexjs/stylex': 0.19.0
+      '@lenso/tokens': 0.9.0
+      '@stylexjs/stylex': 0.19.1
       react: 19.2.8
       react-aria: 3.52.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-aria-components: 1.21.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -4151,6 +4203,12 @@ snapshots:
   '@stylexjs/shared@0.19.0': {}
 
   '@stylexjs/stylex@0.19.0':
+    dependencies:
+      css-mediaquery: 0.1.2
+      invariant: 2.2.4
+      styleq: 0.2.1
+
+  '@stylexjs/stylex@0.19.1':
     dependencies:
       css-mediaquery: 0.1.2
       invariant: 2.2.4
