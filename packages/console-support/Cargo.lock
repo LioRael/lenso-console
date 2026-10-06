@@ -805,6 +805,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "lenso-capability-console-locale-store"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "lenso-contract-codegen 0.10.2",
+ "lenso-contract-runtime",
+ "lenso-guest-sdk",
+ "lenso-kernel 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-plugin-authoring 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lenso-runtime-codec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lenso-capability-http-endpoint"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -965,6 +980,7 @@ dependencies = [
  "lenso-auth-sdk",
  "lenso-capability-access-control",
  "lenso-capability-auth",
+ "lenso-capability-console-locale-store",
  "lenso-capability-http-endpoint",
  "lenso-capability-http-stream-endpoint",
  "lenso-capability-human-api-token",
