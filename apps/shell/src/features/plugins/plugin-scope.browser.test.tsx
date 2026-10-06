@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
 import {
@@ -32,12 +32,30 @@ function LocaleSwitch() {
 }
 
 test("manages non-Agent Apps without an Agent identity provider and keeps all scopes isolated", async () => {
-  const previousLanguage = localStorage.getItem(
-    "lenso-console:language-preference"
-  );
-  localStorage.setItem(
-    "lenso-console:language-preference",
-    JSON.stringify("en")
+  // Locale is now supplied by the owner API, not the retired browser-local preference.
+  // Keep the real provider and asynchronous catalog load; only supply this fixture's account snapshot.
+  let preference = "en";
+  const originalFetch = window.fetch.bind(window);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(
+        input instanceof Request ? input.url : String(input),
+        window.location.href
+      );
+      if (/\/api\/console\/v1\/locale(?:\/preference)?$/.test(url.pathname)) {
+        if (init?.method === "PUT") {
+          ({ preference } = JSON.parse(String(init.body)));
+        }
+        return Response.json({
+          global_default: "en",
+          preference,
+          available: true,
+          can_manage_default: false,
+        });
+      }
+      return originalFetch(input, init);
+    })
   );
   const rootRoute = createRootRoute({ component: Outlet });
   const router = createRouter({
@@ -178,14 +196,7 @@ test("manages non-Agent Apps without an Agent identity provider and keeps all sc
     flushSync(() => root.unmount());
     client.clear();
     container.remove();
-    if (previousLanguage === null) {
-      localStorage.removeItem("lenso-console:language-preference");
-    } else {
-      localStorage.setItem(
-        "lenso-console:language-preference",
-        previousLanguage
-      );
-    }
+    vi.unstubAllGlobals();
     document.documentElement.lang = "en";
   }
 });
