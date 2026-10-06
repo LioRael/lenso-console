@@ -211,12 +211,12 @@ pub struct LocalProjectsConfig {
 
 pub fn validate_plugin_config(config: &ConsolePluginConfig) -> Result<(), RuntimeFailure> {
     config.http_paths.validate().map_err(invalid_plan)?;
-    if let Some(scope) = &config.locale_permission_scope {
-        if [&scope.scope_kind, &scope.scope_id].iter().any(|value| {
+    if let Some(scope) = &config.locale_permission_scope
+        && [&scope.scope_kind, &scope.scope_id].iter().any(|value| {
             value.is_empty() || value.len() > 256 || value.chars().any(char::is_control)
-        }) {
-            return Err(invalid_plan("Locale permission requires a canonical scope"));
-        }
+        })
+    {
+        return Err(invalid_plan("Locale permission requires a canonical scope"));
     }
     #[cfg(target_arch = "wasm32")]
     validate_portable_config(config)?;
@@ -815,27 +815,14 @@ impl ConsoleApplication {
             let Some((name, bytes)) = selected else {
                 return StatusCode::NOT_FOUND.into_response();
             };
-            let mut builder = ::http::Response::builder().status(StatusCode::OK);
-            if *name == "index.html" {
-                builder = builder
-                    .header(header::CACHE_CONTROL, "no-store")
-                    .header(header::VARY, "Accept-Language");
-            }
-            return builder
-                .header(header::CONTENT_TYPE, http::content_type(Path::new(name)))
-                .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
-                .body(if request.method == Method::HEAD {
-                    Body::empty()
-                } else {
-                    Body::from(if *name == "index.html" {
-                        self.locale
-                            .shell_html(request, self.http_paths.shell_html(bytes.to_vec()))
-                            .await
-                    } else {
-                        bytes.to_vec()
-                    })
-                })
-                .expect("embedded Shell response");
+            return self
+                .shell_asset_response(
+                    request,
+                    Path::new(name),
+                    bytes.to_vec(),
+                    *name == "index.html",
+                )
+                .await;
         }
         #[cfg(target_arch = "wasm32")]
         return StatusCode::NOT_FOUND.into_response();
@@ -850,37 +837,43 @@ impl ConsoleApplication {
             let Ok(bytes) = tokio::fs::read(&candidate).await else {
                 return StatusCode::NOT_FOUND.into_response();
             };
-            let body = if request.method == Method::HEAD {
-                Body::empty()
-            } else {
-                Body::from(
-                    if candidate
-                        .file_name()
-                        .is_some_and(|name| name == "index.html")
-                    {
-                        self.locale
-                            .shell_html(request, self.http_paths.shell_html(bytes))
-                            .await
-                    } else {
-                        bytes
-                    },
-                )
-            };
-            let mut builder = ::http::Response::builder().status(StatusCode::OK);
-            if candidate
+            let index = candidate
                 .file_name()
-                .is_some_and(|name| name == "index.html")
-            {
-                builder = builder
-                    .header(header::CACHE_CONTROL, "no-store")
-                    .header(header::VARY, "Accept-Language");
-            }
-            builder
-                .header(header::CONTENT_TYPE, http::content_type(&candidate))
-                .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
-                .body(body)
-                .expect("static Shell response is valid")
+                .is_some_and(|name| name == "index.html");
+            self.shell_asset_response(request, &candidate, bytes, index)
+                .await
         }
+    }
+
+    async fn shell_asset_response(
+        &self,
+        request: &Request,
+        path: &Path,
+        bytes: Vec<u8>,
+        index: bool,
+    ) -> Response {
+        let body = if request.method == Method::HEAD {
+            Body::empty()
+        } else if index {
+            Body::from(
+                self.locale
+                    .shell_html(request, self.http_paths.shell_html(bytes))
+                    .await,
+            )
+        } else {
+            Body::from(bytes)
+        };
+        let mut builder = ::http::Response::builder().status(StatusCode::OK);
+        if index {
+            builder = builder
+                .header(header::CACHE_CONTROL, "no-store")
+                .header(header::VARY, "Accept-Language");
+        }
+        builder
+            .header(header::CONTENT_TYPE, http::content_type(path))
+            .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
+            .body(body)
+            .expect("checked Shell asset response")
     }
 }
 
