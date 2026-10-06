@@ -1,3 +1,4 @@
+import { consoleApiPath } from "../../lib/console-http-paths";
 import { contributionAssetUrl } from "./contribution-asset-url";
 import type { PageMount } from "./page-contribution-catalog";
 
@@ -26,7 +27,10 @@ export function loadPageImplementation(
 ): Promise<unknown> {
   const baseKey = implementationKey(mount);
   const moduleUrl = contributionAssetUrl(mount.module, recover);
-  const key = moduleUrl === mount.module ? baseKey : `${baseKey}:recovery`;
+  const key =
+    moduleUrl === consoleApiPath(mount.module)
+      ? baseKey
+      : `${baseKey}:recovery`;
   const cached = implementations.get(key);
   if (cached) {
     return cached;

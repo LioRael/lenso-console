@@ -1,7 +1,12 @@
+import { consoleHttpPaths } from "../lib/console-http-paths";
+
 export const rootRedirectPath = "/";
 
 export const consoleBasePath = consoleBasePathFromBaseUrl(
-  import.meta.env.BASE_URL
+  typeof document !== "undefined" &&
+    document.getElementById("lenso-console-http-paths")
+    ? consoleHttpPaths.shell_base_path
+    : import.meta.env.BASE_URL
 );
 
 export const legacyConsoleRedirects = {

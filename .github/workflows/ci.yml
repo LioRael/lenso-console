@@ -51,3 +51,75 @@ jobs:
         run: |
           cargo build --locked --manifest-path tooling/fixtures/console-wasm/Cargo.toml --lib --target wasm32-unknown-unknown
           node tooling/fixtures/console-wasm/activation.mjs "$CARGO_TARGET_DIR/wasm32-unknown-unknown/debug/lenso_console_wasm_check.wasm"
+
+  security-workspaces:
+    name: Native security workspaces
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: lenso_security_test_console
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lenso_security_test_console" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: lenso-console
+    env:
+      CARGO_BUILD_JOBS: 1
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      CARGO_INCREMENTAL: 0
+      LENSO_SECURITY_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/lenso_security_test_console
+    steps:
+      - name: Checkout Console candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: lenso-console
+          persist-credentials: false
+      - name: Checkout exact Auth owner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: LioRael/lenso-auth-plugin
+          ref: d4f3dbf9cc835a4ce98829c80f65fb87d332c474
+          path: lenso-auth-plugin
+          persist-credentials: false
+      - name: Checkout exact Access owner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: LioRael/lenso-access-control-plugin
+          ref: 282fbc3969eaa53e3763bce2a91d521ece9dac6f
+          path: lenso-access-control-plugin
+          persist-credentials: false
+      - name: Checkout exact Audit owner
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: LioRael/lenso-audit-log-plugin
+          ref: ad079fea8869f00f345d6042b935391ed9de395b
+          path: lenso-audit-log-plugin
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: lenso-console/.node-version
+      - name: Install exact browser compiler
+        run: npm install --global bun@1.4.2
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88
+        with:
+          toolchain: 1.94.0
+      - name: Build optional owner assets
+        run: |
+          for owner in ../lenso-access-control-plugin/console ../lenso-audit-log-plugin/console ../lenso-auth-plugin/console; do
+            (cd "$owner" && bun install --frozen-lockfile --ignore-scripts && bun run build)
+          done
+          (cd ../lenso-auth-plugin/adapters/password-web-session && bun run build)
+          (cd ../lenso-auth-plugin/session-console && bun run build)
+      - name: Test optional owner authorization and transport
+        run: >-
+          cargo test --locked --manifest-path examples/security-workspaces/Cargo.toml --lib -p lenso-access-control-console-plugin -p lenso-audit-log-console-plugin -p lenso-auth-account-console-plugin -p lenso-auth-password-web-session-plugin -p lenso-auth-session-console-plugin
+      - name: Test ordinary App and durable security owner behavior
+        run: |
+          export LENSO_SECURITY_TEST_SIGNING_KEY="$(openssl rand -hex 32)"
+          export LENSO_SECURITY_TEST_TOKEN_PEPPER="$(openssl rand -hex 32)"
+          cargo test --locked --manifest-path examples/security-workspaces/Cargo.toml --lib -- --include-ignored --test-threads=1

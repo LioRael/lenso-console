@@ -767,7 +767,7 @@ test("a confirmed permission change retires old content even if the subsequent c
   expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
 });
 
-test("denied sign-out retires a pending check so its late admission cannot reopen private content", async () => {
+test("sign-out waits for a retired check to settle and its late admission cannot reopen private content", async () => {
   let phase = "denied";
   let completeOld: ((response: Response) => void) | undefined;
   vi.stubGlobal(
@@ -795,12 +795,50 @@ test("denied sign-out retires a pending check so its late admission cannot reope
   window.dispatchEvent(new Event("focus"));
   await expect.poll(() => Boolean(completeOld)).toBe(true);
   await signOut.click();
+  // The origin-wide identity writer waits for the retired transport to settle.
+  expect(phase).toBe("holding");
+  completeOld?.(Response.json(admitted));
   await expect
     .element(page.getByRole("button", { name: "Work account" }))
     .toBeVisible();
-  completeOld?.(Response.json(admitted));
   await new Promise((resolve) => setTimeout(resolve, 20));
   await expect
     .element(page.getByText("Private workspace"))
     .not.toBeInTheDocument();
+});
+
+// Existing expired-event tests only cover one document; a remote Cookie transition
+// must retire admitted content/cache before another tab finishes changing identity.
+test("another identity surface retires cache until its transition completes", async () => {
+  let subject = "alice";
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) =>
+      String(url) === "/auth/methods"
+        ? methods()
+        : Response.json({ ...admitted, subject })
+    )
+  );
+  statefulMount(60_000);
+  await page
+    .getByRole("textbox", { name: "Workspace draft" })
+    .fill("private draft");
+  queryClient.setQueryData(["private-proof"], "private value");
+  const peer = new BroadcastChannel("lenso-identity-transition");
+  const broadcast = peer.postMessage.bind(peer);
+  try {
+    broadcast("begin");
+    await expect
+      .element(page.getByRole("textbox", { name: "Workspace draft" }))
+      .not.toBeInTheDocument();
+    expect(queryClient.getQueryData(["private-proof"])).toBeUndefined();
+    subject = "bob";
+    broadcast("complete");
+    await expect.element(page.getByText("bob:one,two")).toBeVisible();
+    await expect
+      .element(page.getByRole("textbox", { name: "Workspace draft" }))
+      .toHaveValue("");
+  } finally {
+    peer.close();
+  }
 });

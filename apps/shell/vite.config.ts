@@ -39,6 +39,15 @@ const devPlugin = isVitest ? [] : [consoleDevMiddleware];
 
 export default defineConfig({
   base: "/",
+  experimental: {
+    renderBuiltUrl(filename, { hostType }) {
+      return hostType === "js"
+        ? {
+            runtime: `new URL(${JSON.stringify(filename)}, document.baseURI).href`,
+          }
+        : { relative: true };
+    },
+  },
   build: {
     rolldownOptions: {
       output: {
@@ -71,7 +80,28 @@ export default defineConfig({
       },
     },
   },
-  plugins: [...startPlugin, react(), consoleStylex(), ...devPlugin],
+  plugins: [
+    ...startPlugin,
+    {
+      name: "console-fixed-client-base",
+      enforce: "post",
+      configEnvironment(name) {
+        if (name === "client") {
+          // Start hydration replaces getRouter's basepath with this define.
+          // Read only the fixed public bootstrap, never a URL-selected realm.
+          return {
+            define: {
+              "process.env.TSS_ROUTER_BASEPATH":
+                'JSON.parse(document.getElementById("lenso-console-http-paths")?.textContent || \'{"shell_base_path":"/"}\').shell_base_path',
+            },
+          };
+        }
+      },
+    },
+    react(),
+    consoleStylex(),
+    ...devPlugin,
+  ],
   preview: {
     // TanStack Start prerenders through a build-time Vite preview server.
     // Bind it explicitly so CI/Docker resolve the same loopback address.

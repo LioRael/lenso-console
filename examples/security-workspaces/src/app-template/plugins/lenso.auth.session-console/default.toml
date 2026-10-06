@@ -1,0 +1,2 @@
+session_cookie_name = "__Host-lenso-session"
+csrf_cookie_name = "__Host-lenso-csrf"

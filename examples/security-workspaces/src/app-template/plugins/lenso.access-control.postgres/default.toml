@@ -1,0 +1,9 @@
+schema = "security_access"
+database_url_secret = "security.database"
+auth_issuer = "ordinary-app"
+auth_assertion_public_key = "REPLACE_WITH_AUTH_PUBLIC_KEY"
+bootstrap_callers = ["security.provisioning/default"]
+directory_callers = [
+  "lenso.access-control.console/alpha",
+  "lenso.access-control.console/beta",
+]

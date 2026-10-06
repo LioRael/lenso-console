@@ -1,3 +1,9 @@
+import {
+  consoleApiPath,
+  isConsoleApiPath,
+  mapConsoleApiRequest,
+} from "./console-http-paths";
+
 type CsrfPolicy = { cookie_name: string; header_name: string };
 let csrfPolicy: CsrfPolicy | undefined;
 
@@ -33,17 +39,19 @@ export async function sessionFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
+  const mappedInput = mapConsoleApiRequest(input);
   let options = init;
   const browser = typeof window !== "undefined";
   const url = browser
     ? new URL(
-        input instanceof Request ? input.url : String(input),
+        mappedInput instanceof Request ? mappedInput.url : String(mappedInput),
         window.location.origin
       )
     : undefined;
   const local = browser && url?.origin === window.location.origin;
   const method = (
-    init?.method ?? (input instanceof Request ? input.method : "GET")
+    init?.method ??
+    (mappedInput instanceof Request ? mappedInput.method : "GET")
   ).toUpperCase();
   if (local && csrfPolicy && !["GET", "HEAD", "OPTIONS"].includes(method)) {
     const prefix = `${csrfPolicy.cookie_name}=`;
@@ -54,25 +62,27 @@ export async function sessionFetch(
     const token = cookie?.slice(prefix.length);
     if (token) {
       const headers = new Headers(
-        init?.headers ?? (input instanceof Request ? input.headers : undefined)
+        init?.headers ??
+          (mappedInput instanceof Request ? mappedInput.headers : undefined)
       );
       headers.set(csrfPolicy.header_name, token);
       options = { ...init, headers };
     }
   }
-  const response = await fetch(input, options);
+  const response = await fetch(mappedInput, options);
   // Some transports resolve after cancellation. A retired request cannot expire
   // the current session or return data to its former consumer.
   const signal =
-    init?.signal === undefined && input instanceof Request
-      ? input.signal
+    init?.signal === undefined && mappedInput instanceof Request
+      ? mappedInput.signal
       : init?.signal;
   signal?.throwIfAborted();
   if (
     local &&
     (response.status === 401 || response.status === 412) &&
-    url?.pathname.startsWith("/api/") &&
-    url.pathname !== "/api/console/v1/session"
+    url &&
+    isConsoleApiPath(url.pathname) &&
+    url.pathname !== consoleApiPath("/api/console/v1/session")
   ) {
     window.dispatchEvent(new Event("lenso-session-expired"));
   }

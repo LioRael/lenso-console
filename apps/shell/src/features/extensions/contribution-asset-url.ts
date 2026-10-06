@@ -1,3 +1,5 @@
+import { consoleApiPath } from "../../lib/console-http-paths";
+
 // A document may have successfully imported an empty response before the server
 // recovered. Retry needs one fresh ESM identity, not another same-URL import.
 let recoveryIdentity: string | undefined;
@@ -6,12 +8,12 @@ const recoveredAssets = new Set<string>();
 export function contributionAssetUrl(href: string, recover: boolean): string {
   if (
     !(recover || recoveredAssets.has(href)) ||
-    !href.startsWith("/api/console/v1/pages/")
+    !consoleApiPath(href).startsWith(consoleApiPath("/api/console/v1/pages/"))
   ) {
-    return href;
+    return consoleApiPath(href);
   }
   recoveryIdentity ??= crypto.randomUUID();
-  const url = new URL(href, window.location.origin);
+  const url = new URL(consoleApiPath(href), window.location.origin);
   url.searchParams.set("__lenso_console_recovery", recoveryIdentity);
   // Reuse this identity across retries and instance factories. This leaves the
   // descriptor digest, same-origin CSP and backend authorization path intact.

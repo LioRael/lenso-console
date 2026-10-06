@@ -5,13 +5,14 @@ import {
   createRootRoute,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+
+import { ConsoleAppearanceProvider } from "../app/console-appearance";
 import "@fontsource-variable/inter";
 
 import "@fontsource/roboto-mono/400.css";
 import "@lenso/tokens/styles.css";
 import "../styles.css";
 
-import { ConsoleAppearanceProvider } from "../app/console-appearance";
 import { HostConsoleLocaleProvider } from "../app/console-locale";
 import { ConsoleSession } from "../app/console-session";
 import { Providers } from "../app/providers";
@@ -19,6 +20,7 @@ import { RouteError, RouteNotFound, RoutePending } from "../app/route-states";
 import { ConsoleShell } from "../components/runtime/console-shell";
 import { consoleDevConfig } from "../dev/console-dev-config";
 import { ConsoleDevOverlay } from "../dev/console-dev-overlay";
+import { consoleShellPath } from "../lib/console-http-paths";
 
 const consoleLayerStyle = `@layer console-reset, console-base, priority1, priority2, priority3, priority4, priority5, priority6, priority7, priority8, priority9;`;
 
@@ -87,7 +89,13 @@ export const Route = createRootRoute({
       },
       { title: "Lenso Console" },
     ],
-    links: [{ rel: "icon", href: "/favicon.svg", type: "image/svg+xml" }],
+    links: [
+      {
+        rel: "icon",
+        href: consoleShellPath("/favicon.svg"),
+        type: "image/svg+xml",
+      },
+    ],
   }),
   component: RootComponent,
   notFoundComponent: RouteNotFound,

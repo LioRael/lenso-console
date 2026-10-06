@@ -1,0 +1,15 @@
+schema = "security_passwords"
+database_url_secret = "security.database"
+audience = [
+  "lenso.console@1:access",
+  "lenso.http.endpoint@1:handle",
+  "lenso.ui.workspace-service@1:invoke",
+  "lenso.access-control@1:check_permission",
+  "lenso.access-control-directory@1:list_roles",
+  "lenso.access-control-directory@1:list_subject_roles",
+  "lenso.audit-log@1:list_events",
+]
+session_ttl_seconds = 3600
+managed_sessions = true
+max_failures = 5
+failure_window_seconds = 60

@@ -19,6 +19,7 @@ pub(super) struct SessionBoundary {
     pub access_control: Option<lenso_capability_access_control::AccessControlClient>,
 }
 
+const OPERATOR_ADMITTED: &str = "lenso.console.operator-admitted";
 /// Host-owned grants. An explicit policy starts disabled and grants nobody.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -230,14 +231,18 @@ impl SessionBoundary {
         if !permission.allowed {
             return Err(problem(StatusCode::FORBIDDEN, "console_access_required"));
         }
+        let context = context
+            .with_extension(OPERATOR_ADMITTED, b"1".to_vec())
+            .map_err(|_| problem(StatusCode::BAD_GATEWAY, "invalid_authentication_context"))?;
+        let workspace_ids = self.operator_workspace_ids();
         if session_request {
             return Err(with_read_scope(
                 session_response(
                     "required",
                     Some(&subject.0),
                     false,
-                    &self.member_workspace_ids,
-                    true,
+                    &workspace_ids,
+                    profile.management_enabled,
                     profile.human_interface,
                     false,
                 ),
@@ -249,7 +254,7 @@ impl SessionBoundary {
                 ),
             ));
         }
-        self.require_operator_path(method, path, profile.human_interface)?;
+        self.require_operator_path(method, path, profile)?;
         Ok(context)
     }
 
@@ -257,24 +262,25 @@ impl SessionBoundary {
         &self,
         method: &str,
         path: &str,
-        human_interface: bool,
+        profile: &crate::OperatorsProfile,
     ) -> Result<(), Box<Response>> {
         let workspace_path = method == "GET" && path == "/api/console/v1/pages"
             || path
                 .strip_prefix("/api/console/v1/pages/")
                 .and_then(|tail| tail.split('/').next())
                 .is_some_and(|id| {
-                    self.member_workspace_ids
+                    self.operator_workspace_ids()
                         .iter()
                         .any(|allowed| allowed == id)
                 });
-        let management_path = method == "GET" && path == "/api/console/v1/management/catalog"
-            || method == "POST" && path == "/api/console/v1/management/invoke"
-            || method == "GET"
-                && path
-                    .strip_prefix("/api/console/v1/management/operations/")
-                    .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/'));
-        let human_path = human_interface
+        let management_path = profile.management_enabled
+            && (method == "GET" && path == "/api/console/v1/management/catalog"
+                || method == "POST" && path == "/api/console/v1/management/invoke"
+                || method == "GET"
+                    && path
+                        .strip_prefix("/api/console/v1/management/operations/")
+                        .is_some_and(|id| !id.is_empty() && id.len() <= 128 && !id.contains('/')));
+        let human_path = profile.human_interface
             && (method == "POST"
                 && (path == "/api/console/v1/human-management/decide"
                     || matches!(
@@ -467,12 +473,15 @@ impl SessionBoundary {
         };
         mounts.retain(|mount| {
             if mount["access"] == "administrator" {
-                return false;
+                return mount["id"]
+                    .as_str()
+                    .is_some_and(|id| self.operator_workspace_admitted(context, id));
             }
             mount["id"].as_str().is_some_and(|id| {
                 self.member_workspace_ids
                     .iter()
                     .any(|allowed| allowed == id)
+                    || self.operator_workspace_admitted(context, id)
             })
         });
         (
@@ -481,6 +490,40 @@ impl SessionBoundary {
             Json(value),
         )
             .into_response()
+    }
+
+    fn operator_workspace_ids(&self) -> Vec<String> {
+        let mut ids = self.member_workspace_ids.clone();
+        if let Some(profile) = &self.operators_profile {
+            ids.extend(profile.administrator_workspace_ids.iter().cloned());
+        }
+        ids.sort();
+        ids.dedup();
+        ids
+    }
+
+    fn operator_workspace_admitted(&self, context: &InvocationContext, id: &str) -> bool {
+        context
+            .extension(OPERATOR_ADMITTED)
+            .is_some_and(|value| value == b"1")
+            && self.operators_profile.as_ref().is_some_and(|profile| {
+                profile
+                    .administrator_workspace_ids
+                    .iter()
+                    .any(|allowed| allowed == id)
+            })
+    }
+
+    pub(super) fn admits_workspace_administrator(
+        &self,
+        context: &InvocationContext,
+        path: &str,
+    ) -> bool {
+        self.admits_administrator(context)
+            || path
+                .strip_prefix("/api/console/v1/pages/")
+                .and_then(|tail| tail.split('/').next())
+                .is_some_and(|id| self.operator_workspace_admitted(context, id))
     }
 
     pub(super) fn admits_administrator(&self, context: &InvocationContext) -> bool {

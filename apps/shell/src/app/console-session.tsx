@@ -13,7 +13,18 @@ import {
 } from "react";
 
 import { consoleDevConfig } from "../dev/console-dev-config";
+import {
+  consoleApiPath,
+  consoleAuthPath,
+  consoleHttpPaths,
+  consoleShellPath,
+} from "../lib/console-http-paths";
 import { problemMessage } from "../lib/http-problem";
+import {
+  withIdentityTransition,
+  withIdentityRead,
+  subscribeIdentityTransitions,
+} from "../lib/identity-transition";
 import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
 import { useConsoleLocale } from "./console-locale";
@@ -91,7 +102,7 @@ export function ConsoleSession({
     humanManagementEnabled: false,
     workspaceIds: [] as string[],
   });
-  const invalidate = useCallback(() => {
+  const invalidate = useCallback((preserveLogin = false) => {
     generation.current += 1;
     inFlight.current?.controller.abort();
     inFlight.current = undefined;
@@ -102,7 +113,9 @@ export function ConsoleSession({
     failures.current = 0;
     retryAfter.current = 0;
     queryClient.clear();
-    setState({ kind: "loading" });
+    setState((current) =>
+      preserveLogin && current.kind === "login" ? current : { kind: "loading" }
+    );
   }, []);
   const refresh = useCallback(
     (force = true): Promise<void> => {
@@ -128,7 +141,10 @@ export function ConsoleSession({
       generation.current += 1;
       const { current } = generation;
       const active = () => current === generation.current && !signal.aborted;
-      const promise = (async () => {
+      const read = withIdentityRead(async () => {
+        if (!active()) {
+          return;
+        }
         if (consoleDevConfig.mode === "mock") {
           ready.current = true;
           setState({ kind: "ready" });
@@ -155,7 +171,7 @@ export function ConsoleSession({
             queryClient.clear();
           }
           if (response.status === 403) {
-            const methods = await sessionFetch("/auth/methods", {
+            const methods = await sessionFetch(consoleAuthPath("methods"), {
               cache: "no-store",
               signal,
             });
@@ -170,11 +186,14 @@ export function ConsoleSession({
             queryClient.clear();
             setState({ kind: "denied" });
           } else if (response.status === 401) {
-            const methodsResponse = await sessionFetch("/auth/methods", {
-              credentials: "same-origin",
-              cache: "no-store",
-              signal,
-            });
+            const methodsResponse = await sessionFetch(
+              consoleAuthPath("methods"),
+              {
+                credentials: "same-origin",
+                cache: "no-store",
+                signal,
+              }
+            );
             if (!methodsResponse.ok) {
               throw new Error("Methods unavailable");
             }
@@ -252,7 +271,7 @@ export function ConsoleSession({
               setState({ kind: "loading" });
             }
             if (value.mode === "required") {
-              const methods = await sessionFetch("/auth/methods", {
+              const methods = await sessionFetch(consoleAuthPath("methods"), {
                 credentials: "same-origin",
                 cache: "no-store",
                 signal,
@@ -309,6 +328,15 @@ export function ConsoleSession({
             }
           }
         }
+      }, signal);
+      const promise = (async () => {
+        try {
+          await read;
+        } catch {
+          if (active()) {
+            setState({ kind: "error" });
+          }
+        }
       })();
       const pending = { controller, promise };
       inFlight.current = pending;
@@ -336,6 +364,12 @@ export function ConsoleSession({
       }
       void refresh();
     };
+    const unsubscribe = subscribeIdentityTransitions((phase) => {
+      invalidate(true);
+      if (phase === "complete") {
+        void refresh();
+      }
+    });
     window.addEventListener("focus", focus);
     window.addEventListener("lenso-session-expired", expired);
     return () => {
@@ -343,34 +377,36 @@ export function ConsoleSession({
       inFlight.current?.controller.abort();
       inFlight.current = undefined;
       clearTimeout(retryTimer.current);
+      unsubscribe();
       window.removeEventListener("focus", focus);
       window.removeEventListener("lenso-session-expired", expired);
     };
   }, [invalidate, refresh]);
   const signOut = useCallback(async () => {
-    invalidate();
+    if (signingOut.current) {
+      return;
+    }
     signingOut.current = true;
-    const { current } = generation;
+    invalidate();
+    let completed = false;
     try {
-      const response = await sessionFetch("/auth/logout", {
-        method: "POST",
-        credentials: "same-origin",
+      completed = await withIdentityTransition(async () => {
+        const response = await sessionFetch(consoleAuthPath("logout"), {
+          method: "POST",
+          credentials: "same-origin",
+        });
+        await response.arrayBuffer();
+        return response.ok;
       });
-      if (current !== generation.current) {
-        return;
-      }
-      signingOut.current = false;
-      if (response.ok) {
-        await refresh();
-      } else {
-        setState({ kind: "error" });
-      }
     } catch {
-      if (current === generation.current) {
-        setState({ kind: "error" });
-      }
+      completed = false;
     } finally {
       signingOut.current = false;
+    }
+    if (completed) {
+      await refresh();
+    } else {
+      setState({ kind: "error" });
     }
   }, [invalidate, refresh]);
   if (state.kind === "ready") {
@@ -404,7 +440,7 @@ export function ConsoleSession({
         <header {...stylex.props(styles.header)}>
           <div {...stylex.props(styles.brand)}>
             <img
-              src="/favicon.svg"
+              src={consoleShellPath("/favicon.svg")}
               alt=""
               width={36}
               height={36}
@@ -509,55 +545,65 @@ function LoginMethods({
               setError("");
               void (async () => {
                 try {
-                  const response = await sessionFetch(method.action, {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      identifier: values.get("identifier"),
-                      password: values.get("password"),
-                    }),
-                  });
-                  form.reset();
-                  if (!response.ok) {
-                    setError(
-                      await problemMessage(
-                        response,
-                        response.status === 429
-                          ? zh
-                            ? "尝试次数过多，请稍后重试。"
-                            : "Too many attempts. Try again later."
-                          : zh
-                            ? "无法登录，请检查账户信息。"
-                            : "Unable to sign in. Check your credentials."
-                      )
+                  const signedIn = await withIdentityTransition(async () => {
+                    const response = await sessionFetch(method.action, {
+                      method: "POST",
+                      credentials: "same-origin",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        identifier: values.get("identifier"),
+                        password: values.get("password"),
+                      }),
+                    });
+                    form.reset();
+                    if (!response.ok) {
+                      setError(
+                        await problemMessage(
+                          response,
+                          response.status === 429
+                            ? zh
+                              ? "尝试次数过多，请稍后重试。"
+                              : "Too many attempts. Try again later."
+                            : zh
+                              ? "无法登录，请检查账户信息。"
+                              : "Unable to sign in. Check your credentials."
+                        )
+                      );
+                      return;
+                    }
+                    await response.arrayBuffer();
+                    const session = await fetch(
+                      consoleApiPath("/api/console/v1/session"),
+                      {
+                        credentials: "same-origin",
+                        cache: "no-store",
+                      }
                     );
-                    return;
-                  }
-                  const session = await fetch("/api/console/v1/session", {
-                    credentials: "same-origin",
-                    cache: "no-store",
-                  });
-                  if (session.status === 401) {
-                    setError(
-                      zh
-                        ? "登录成功，但浏览器未建立会话。请确认允许 Cookie；本地 HTTP 预览请改用 HTTPS。"
-                        : "Sign-in succeeded, but the browser did not establish a session. Check that cookies are allowed; use HTTPS for local previews."
-                    );
-                    return;
-                  }
-                  if (!session.ok && session.status !== 403) {
-                    setError(
-                      await problemMessage(
-                        session,
+                    if (session.status === 401) {
+                      setError(
                         zh
-                          ? "暂时无法确认登录状态，请重试。"
-                          : "Unable to verify your session. Try again."
-                      )
-                    );
-                    return;
+                          ? "登录成功，但浏览器未建立会话。请确认允许 Cookie；本地 HTTP 预览请改用 HTTPS。"
+                          : "Sign-in succeeded, but the browser did not establish a session. Check that cookies are allowed; use HTTPS for local previews."
+                      );
+                      return;
+                    }
+                    if (!session.ok && session.status !== 403) {
+                      setError(
+                        await problemMessage(
+                          session,
+                          zh
+                            ? "暂时无法确认登录状态，请重试。"
+                            : "Unable to verify your session. Try again."
+                        )
+                      );
+                      return;
+                    }
+                    await session.arrayBuffer();
+                    return true;
+                  });
+                  if (signedIn) {
+                    await onSignedIn();
                   }
-                  await onSignedIn();
                 } catch {
                   setError(
                     zh ? "连接失败，请重试。" : "Connection failed. Try again."
@@ -637,7 +683,10 @@ function LoginMethods({
   );
 }
 
-export function parseLoginMethods(value: unknown): LoginMethod[] {
+export function parseLoginMethods(
+  value: unknown,
+  authBasePath = consoleHttpPaths.auth_base_path
+): LoginMethod[] {
   if (
     !value ||
     typeof value !== "object" ||
@@ -659,8 +708,11 @@ export function parseLoginMethods(value: unknown): LoginMethod[] {
     ) {
       return false;
     }
+    const [actionPath = ""] = method.action.split("?");
     if (
-      !method.action.startsWith("/auth/") ||
+      !(
+        actionPath === authBasePath || actionPath.startsWith(`${authBasePath}/`)
+      ) ||
       method.action.includes("\\") ||
       /[\s#]/u.test(method.action)
     ) {
@@ -669,7 +721,12 @@ export function parseLoginMethods(value: unknown): LoginMethod[] {
     const url = new URL(method.action, "https://console.invalid");
     if (
       url.origin !== "https://console.invalid" ||
-      !url.pathname.startsWith("/auth/")
+      url.pathname.includes("%") ||
+      url.pathname.includes("//") ||
+      !(
+        url.pathname === authBasePath ||
+        url.pathname.startsWith(`${authBasePath}/`)
+      )
     ) {
       return false;
     }

@@ -27,5 +27,10 @@
   "managed_app_root": ".",
   "trusted_plugin_bundles": {},
   "web_root": "embedded:",
-  "managed_apps": []
+  "managed_apps": [],
+  "http_paths": {
+    "shell_base_path": "/",
+    "api_base_path": "/api",
+    "auth_base_path": "/auth"
+  }
 }

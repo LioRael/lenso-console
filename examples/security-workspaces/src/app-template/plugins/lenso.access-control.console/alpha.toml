@@ -1,0 +1,8 @@
+issuer = "ordinary-app"
+public_key = "REPLACE_WITH_AUTH_PUBLIC_KEY"
+assertion_max_ttl_seconds = 60
+caller_instances = ["lenso.console.web/console"]
+
+[scope]
+kind = "app"
+id = "alpha"
