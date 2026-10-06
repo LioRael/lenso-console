@@ -11,6 +11,7 @@ import {
 import { flushSync } from "react-dom";
 
 import "@lenso/tokens/styles.css";
+import "../../styles.css";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -164,12 +165,17 @@ describe("Context navigation", () => {
       await expect
         .element(page.getByRole("menu", { name: "Workspace: Console Agent" }))
         .toBeVisible();
+      await userEvent.keyboard("{ArrowDown}");
+      await expect
+        .poll(() => document.activeElement?.getAttribute("role"))
+        .toBe("menuitem");
       await userEvent.keyboard("{Escape}");
       await expect
-        .poll(() =>
-          document.querySelector('[role="menu"][aria-label="Workspaces"]')
-        )
-        .toBeNull();
+        .element(page.getByRole("menu", { name: "Workspace: Console Agent" }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(page.getByRole("button", { name: "Workspace: Console Agent" }))
+        .toHaveFocus();
       expect(main.inert).toBe(true);
 
       await page.viewport(1280, 800);
