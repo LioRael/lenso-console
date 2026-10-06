@@ -58,7 +58,9 @@ test.each(["light", "dark"] as const)(
     await expect.element(trigger).toBeVisible();
     for (const width of [1280, 390]) {
       await page.viewport(width, 800);
+      trigger.element().blur();
       await userEvent.hover(trigger);
+      const restingShadow = getComputedStyle(trigger.element()).boxShadow;
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
       const before = trigger.element().getBoundingClientRect();
       trigger.element().focus();
@@ -74,6 +76,7 @@ test.each(["light", "dark"] as const)(
       expect(after.width).toBe(before.width);
       expect(trigger.element().matches(":focus-visible")).toBe(true);
       const focusStyle = getComputedStyle(trigger.element());
+      expect(focusStyle.boxShadow).not.toBe(restingShadow);
       expect(
         focusStyle.outlineStyle !== "none" || focusStyle.boxShadow !== "none"
       ).toBe(true);
