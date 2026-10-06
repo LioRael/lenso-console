@@ -1,9 +1,14 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import {
+  AgentIdentityProvider,
+  useAgentIdentity,
+} from "../features/agent/agent-identity-context";
 import { queryClient } from "../lib/query-client";
 import { configureSessionCsrf, sessionFetch } from "../lib/session-fetch";
 import {
@@ -41,6 +46,57 @@ function mount() {
     )
   );
 }
+
+function AccountWorkspaceProbe() {
+  const { loading } = useAgentIdentity();
+  return <p>{loading ? "Loading Agent catalog" : "Account workspace ready"}</p>;
+}
+
+test("workspace does not wait for an explicitly disabled Agent catalog", async () => {
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input) === "/api/console/v1/session") {
+      return Response.json({
+        mode: "required",
+        authenticated: true,
+        subject: "account-workspace-member",
+        administrator: false,
+        assistant_enabled: false,
+        management_enabled: false,
+        human_management_enabled: false,
+        workspace_ids: ["account-workspace"],
+      });
+    }
+    if (String(input) === "/auth/methods") {
+      return Response.json({
+        methods: [
+          {
+            id: "password",
+            kind: "password",
+            label: "Sign in",
+            action: "/auth/password/login",
+          },
+        ],
+      });
+    }
+    throw new Error("A member must not request an Agent catalog");
+  });
+  vi.stubGlobal("fetch", fetcher);
+  flushSync(() =>
+    root.render(
+      <ConsoleSession>
+        <QueryClientProvider client={queryClient}>
+          <AgentIdentityProvider>
+            <AccountWorkspaceProbe />
+          </AgentIdentityProvider>
+        </QueryClientProvider>
+      </ConsoleSession>
+    )
+  );
+  await expect.element(page.getByText("Account workspace ready")).toBeVisible();
+  expect(
+    fetcher.mock.calls.every(([input]) => !String(input).includes("/agents"))
+  ).toBe(true);
+});
 
 test("only configured SSO appears and private content waits for authentication", async () => {
   vi.stubGlobal(
