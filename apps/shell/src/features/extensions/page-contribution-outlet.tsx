@@ -100,7 +100,11 @@ type LoadedContribution<Props = ContributionProps> = {
   scopeKey: string;
 };
 
-const pageUiModules = { "@lenso/ui/button": { Button } } as const;
+const workspaceLocaleModules = { "@lenso/console-sdk/locale": sdkLocale };
+const pageUiModules = {
+  ...workspaceLocaleModules,
+  "@lenso/ui/button": { Button },
+} as const;
 
 const styles = stylex.create({
   error: {
@@ -367,8 +371,6 @@ export class ContributionRenderBoundary extends Component<
     );
   }
 }
-
-const workspaceLocaleModules = { "@lenso/console-sdk/locale": sdkLocale };
 
 export function useContributionModule<Props = ContributionProps>(
   mount: PageMount | undefined,

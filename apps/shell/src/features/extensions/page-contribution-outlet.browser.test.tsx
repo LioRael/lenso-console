@@ -42,7 +42,10 @@ test("same-scope Host renders keep read dependencies stable while route changes 
         id: "refresh-dependencies",
         module: `data:text/javascript,${encodeURIComponent(`
       export const apiMajor = 1;
-      export function createWorkspace({ react, createElement }) {
+      export function createWorkspace({ react, createElement, modules }) {
+        if (typeof modules?.["@lenso/console-sdk/locale"]?.useConsoleLocale !== "function") {
+          throw new Error("Workspace locale external is unavailable");
+        }
         globalThis.__lensoRefreshDependencyFactory();
         return { Page: ({ mount, navigation, location, environment, readRefreshPolicy }) => {
           react.useEffect(() => {
