@@ -1,0 +1,37 @@
+examples/app-console/README.md
+  s_973ebcd4426bd6::t_103e5e7a9a9501 29-34
+packages/console-authoring/README.md
+  s_973ebcd4426bd6::t_000c38782cb00b 33-40,66-67,112-135
+packages/console-authoring/author.mjs
+  s_973ebcd4426bd6::t_644f6dc39bc184 10-15,21-25,77
+packages/console-authoring/development-host.md
+  s_973ebcd4426bd6::t_4087ff1932e07f 50-59
+packages/console-authoring/package.json
+  s_973ebcd4426bd6::t_7340dfb05c5ffe 13
+packages/console-authoring/service-example/orders/[id]/page.tsx
+  s_973ebcd4426bd6::t_770552efa1d3b7 1-53
+packages/console-authoring/src/server.ts
+  s_973ebcd4426bd6::t_f31a6a8adbd914 77-81
+packages/console-support/Cargo.lock
+  s_973ebcd4426bd6::t_2850cabd742794 695,697,730,732,741-742,755,758-771,775,786,788,793-794,796,799-800,808,810,820,822-868,871-872,874,877-878,888-903,918,943,947-949,951,955,962,971,973,982,984,1004-1016,1031,1033,1041,1043,1063,1065,1079,1081,1099,1101
+scripts/distribution/development-host.test.mjs
+  s_973ebcd4426bd6::t_3aa8e88b1ae1fb 10,29-38,56-61,76,85,103-109,115
+service/Cargo.toml
+  s_973ebcd4426bd6::t_96fbefb1fd817e 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "37d74728f16f320fd5cf03c00986d3263f741612",
+  "prompts": {},
+  "sessions": {
+    "s_973ebcd4426bd6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0fa09-26d3-7e61-985f-e1545172753d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "LioRael <leo@lenso.dev>"
+    }
+  }
+}
