@@ -60,8 +60,13 @@ export function AgentIdentityProvider({ children }: PropsWithChildren) {
     window.localStorage.removeItem(legacyStorageKey);
   }, []);
   const value = useMemo<AgentIdentityState>(
-    () => ({ agents, loading: isPending, selectAgent, selectedAgent }),
-    [agents, isPending, selectAgent, selectedAgent]
+    () => ({
+      agents,
+      loading: administrator && isPending,
+      selectAgent,
+      selectedAgent,
+    }),
+    [administrator, agents, isPending, selectAgent, selectedAgent]
   );
   return (
     <AgentIdentityContext.Provider value={value}>
