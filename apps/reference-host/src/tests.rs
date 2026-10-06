@@ -164,7 +164,7 @@ async fn console_health_override_leaves_ingress_readiness_to_the_app() {
 #[cfg(feature = "assistant")]
 #[tokio::test(flavor = "current_thread")]
 async fn optional_assistant_disable_removes_global_mount_and_assets() {
-    tokio::task::LocalSet::new().run_until(async {
+    tokio::task::LocalSet::new().run_until(Box::pin(async {
         let root = tempfile::tempdir().unwrap();
         let assets = root.path().join("assistant-ui");
         std::fs::create_dir(&assets).unwrap();
@@ -216,7 +216,7 @@ async fn optional_assistant_disable_removes_global_mount_and_assets() {
         assert_eq!(catalog["mounts"][0]["id"], "assistant");
         assert_eq!(host.shutdown(std::time::Duration::from_secs(2)).await, ShutdownOutcome::Clean);
         agent.abort();
-    }).await;
+    })).await;
 }
 #[test]
 fn reference_host_does_not_activate_available_workspaces_by_default() {

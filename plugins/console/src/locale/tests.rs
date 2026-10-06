@@ -141,7 +141,7 @@ fn account_request(
     path: &str,
     authority: &str,
     subject: &str,
-    body: Value,
+    body: &Value,
 ) -> Request {
     let now = time::OffsetDateTime::now_utc();
     let assertion = ActorAssertionIssuer::from_signing_key(authority, [7; 32]).issue(
@@ -168,7 +168,7 @@ async fn read(service: &LocaleService, authority: &str, subject: &str) -> Value 
             "/api/console/v1/locale",
             authority,
             subject,
-            Value::Null,
+            &Value::Null,
         ))
         .await
         .unwrap();
@@ -182,7 +182,7 @@ async fn read(service: &LocaleService, authority: &str, subject: &str) -> Value 
 #[allow(clippy::too_many_lines)]
 async fn generated_store_enforces_personal_identity_and_independent_default_permission() {
     tokio::task::LocalSet::new()
-        .run_until(async {
+        .run_until(Box::pin(async {
             let fixture = Fixture::default();
             let plan = AppComposition::new(
                 vec![
@@ -259,7 +259,7 @@ async fn generated_store_enforces_personal_identity_and_independent_default_perm
                     "/api/console/v1/locale/preference",
                     "accounts",
                     "alice",
-                    json!({"preference":"zh-CN"}),
+                    &json!({"preference":"zh-CN"}),
                 ))
                 .await
                 .unwrap();
@@ -281,7 +281,7 @@ async fn generated_store_enforces_personal_identity_and_independent_default_perm
                 "/api/console/v1/locale/preference",
                 "accounts",
                 "alice",
-                json!({"preference":"en","subject":"bob"}),
+                &json!({"preference":"en","subject":"bob"}),
             );
             assert_eq!(
                 service.handle(&override_request).await.unwrap().status(),
@@ -292,7 +292,7 @@ async fn generated_store_enforces_personal_identity_and_independent_default_perm
                 "/api/console/v1/locale/default",
                 "accounts",
                 "alice",
-                json!({"locale":"en"}),
+                &json!({"locale":"en"}),
             );
             assert_eq!(
                 service.handle(&default_request).await.unwrap().status(),
@@ -329,7 +329,7 @@ async fn generated_store_enforces_personal_identity_and_independent_default_perm
                 "/api/console/v1/locale/preference",
                 "accounts",
                 "alice",
-                json!({"preference":"global"}),
+                &json!({"preference":"global"}),
             );
             assert_eq!(
                 service.handle(&follow).await.unwrap().status(),
@@ -340,6 +340,6 @@ async fn generated_store_enforces_personal_identity_and_independent_default_perm
                 app.shutdown(std::time::Duration::from_secs(1)).await,
                 lenso_kernel::ShutdownOutcome::Clean
             );
-        })
+        }))
         .await;
 }
