@@ -58,13 +58,17 @@ jobs:
             test "$GITHUB_REF" = refs/heads/main
             test "$CONFIRMATION" = publish
             test "$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/main --jq .object.sha)" = "$SOURCE_SHA"
-            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SOURCE_SHA&event=push&per_page=100" \
-              | jq -e --arg sha "$SOURCE_SHA" 'any(.workflow_runs[]; .head_sha == $sha and .path == ".github/workflows/ci.yml" and (.head_branch | startswith("codex/verify/")) and .status == "completed" and .conclusion == "success")'
+            ci_run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SOURCE_SHA&event=push&per_page=100" \
+              | jq -ec --arg sha "$SOURCE_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .path == ".github/workflows/ci.yml" and (.head_branch | startswith("codex/verify/")) and .status == "completed" and .conclusion == "success")] | sort_by([.run_number, .run_attempt]) | last // empty')
+            run_id=$(jq -r .id <<<"$ci_run")
+            attempt=$(jq -r .run_attempt <<<"$ci_run")
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/attempts/$attempt/jobs?per_page=100" \
+              | jq -e --arg sha "$SOURCE_SHA" --argjson attempt "$attempt" '[.jobs[] | select(.name == "quality" or .name == "Native security workspaces")] as $jobs | ($jobs | length == 2) and all($jobs[]; .head_sha == $sha and .run_attempt == $attempt and .status == "completed" and .conclusion == "success")'
           fi
           cargo metadata --locked --no-deps --format-version 1 > /tmp/roles-metadata.json
           while IFS=$'\t' read -r package version; do
             jq -e --arg name "$package" --arg version "$version" 'any(.packages[]; .name == $name and .version == $version and .publish != [])' /tmp/roles-metadata.json
-            status=$(curl --silent --show-error --location --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/$package/$version")
+            status=$(curl --user-agent 'LensoConsoleRoleRelease/1.0 (https://github.com/LioRael/lenso-console)' --silent --show-error --location --output /dev/null --write-out '%{http_code}' "https://crates.io/api/v1/crates/$package/$version")
             test "$status" = 404
           done < <(jq -r '.[] | [.package_name, .version] | @tsv' <<<"$RELEASE_SET")
       - name: Ordinary Cargo dry-run and verified archives
@@ -107,7 +111,8 @@ jobs:
         run: |
           while IFS=$'\t' read -r package version; do
             cargo publish --locked -p "$package"
-            curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 10 \
+            checksum=$(sha256sum "target/package/$package-$version.crate" | cut -d ' ' -f 1)
+            curl --user-agent 'LensoConsoleRoleRelease/1.0 (https://github.com/LioRael/lenso-console)' --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 10 \
               "https://crates.io/api/v1/crates/$package/$version" \
-              | jq -e --arg version "$version" '.version.num == $version and .version.yanked == false'
+              | jq -e --arg version "$version" --arg checksum "$checksum" '.version.num == $version and .version.yanked == false and .version.checksum == $checksum'
           done < <(jq -r '.[] | [.package_name, .version] | @tsv' <<<"$RELEASE_SET")
