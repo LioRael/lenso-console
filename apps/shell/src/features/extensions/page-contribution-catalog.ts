@@ -438,9 +438,16 @@ function waitForDiscovery<T>(
     if (signal.aborted) {
       abort();
     }
-    void work.then(resolve, reject).finally(() => {
-      signal.removeEventListener("abort", abort);
-    });
+    const settle = async () => {
+      try {
+        resolve(await work);
+      } catch (error) {
+        reject(error);
+      } finally {
+        signal.removeEventListener("abort", abort);
+      }
+    };
+    void settle();
   });
 }
 
@@ -536,11 +543,8 @@ async function readPageCatalog(
           );
           const allowed = new Set<string>();
           const probes = new Map<string, Promise<Record<string, unknown>>>();
-          const probeKey = (
-            check: (typeof configured.navigation_checks)[number]
-          ) => JSON.stringify([check.service_id, check.operation]);
           for (const check of configured.navigation_checks) {
-            const key = probeKey(check);
+            const key = JSON.stringify([check.service_id, check.operation]);
             if (!probes.has(key)) {
               probes.set(
                 key,
@@ -556,7 +560,9 @@ async function readPageCatalog(
           await Promise.all(
             configured.navigation_checks.map(async (check) => {
               try {
-                const result = await probes.get(probeKey(check))!;
+                const result = await probes.get(
+                  JSON.stringify([check.service_id, check.operation])
+                )!;
                 if (
                   result &&
                   check.fields.some((field) => result[field] === true)

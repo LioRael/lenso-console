@@ -202,7 +202,9 @@ test("partial workspace admission keeps ordinary projects and retires denied ope
   const deadlines: AbortController[] = [];
   const nativeTimeout = AbortSignal.timeout.bind(AbortSignal);
   const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
-    if (ms !== 30_000) return nativeTimeout(ms);
+    if (ms !== 30_000) {
+      return nativeTimeout(ms);
+    }
     const controller = new AbortController();
     deadlines.push(controller);
     return controller.signal;
