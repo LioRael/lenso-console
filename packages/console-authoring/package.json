@@ -20,7 +20,8 @@
     "author.mjs",
     "README.md",
     "development-host.md",
-    "LICENSE"
+    "LICENSE",
+    "shell"
   ],
   "type": "module",
   "exports": {
@@ -31,7 +32,8 @@
     "./client": "./src/client.ts",
     "./compiler": "./compiler/compiler.mjs",
     "./locale": "./src/locale.ts",
-    "./i18n": "./src/i18n.ts"
+    "./i18n": "./src/i18n.ts",
+    "./shell": "./shell/index.html"
   },
   "publishConfig": {
     "access": "public"

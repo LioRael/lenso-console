@@ -288,3 +288,17 @@ The server, account preference, permission checks, initial HTML locale and
 migration responsibilities are described in `docs/console-locale.md` in the
 Console repository. A compatible SDK release and Shell are required together;
 this changeset does not publish either one.
+
+### Shell assets
+
+The next SDK release includes the owner-built Shell in the compiler archive.
+Public `0.2.0` has no Shell export. After installing the new release, resolve:
+
+```js
+const shellRoot = path.dirname(require.resolve("@lenso/console-sdk/shell"));
+```
+
+Pass this absolute directory as `LENSO_CONSOLE_SHELL_ROOT` for embedded Rust
+Console builds. Source maintainers stage the assets with `pnpm sdk:prepare`
+before packing; App consumers only install the SDK. An explicit custom Shell
+root remains supported.

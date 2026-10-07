@@ -26,3 +26,6 @@ target/
 
 # Local App example authoring caches
 examples/**/.lenso/
+
+# Owner-built Shell staged only for SDK distribution
+packages/console-authoring/shell/

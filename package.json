@@ -48,7 +48,8 @@
     "plugin:without-console": "pnpm service:web-build && cargo run --locked -p lenso-console-host-example --no-default-features",
     "plugin:check": "pnpm service:web-build && pnpm service:boundary && cargo test --locked -p lenso-console-host-example && cargo test --locked -p lenso-console-host-example --no-default-features",
     "sdk:check": "pnpm --filter @lenso/console-sdk check",
-    "sdk:generate": "node tooling/check-console-sdk.mjs --write"
+    "sdk:generate": "node tooling/check-console-sdk.mjs --write",
+    "sdk:prepare": "pnpm service:web-build && node tooling/distribution/prepare-sdk-shell.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.31.1",

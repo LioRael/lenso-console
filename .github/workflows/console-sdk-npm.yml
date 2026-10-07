@@ -38,6 +38,14 @@ jobs:
           npm install --global npm@11.5.1 --ignore-scripts
           npm install --global bun@1.4.2
           test "$(bun --version)" = 1.4.2
+      - uses: pnpm/action-setup@f2b2b233b538f500472c7274c7012f57857d8ce0
+        with:
+          run_install: false
+      - name: Build the owner Shell into the SDK archive
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm sdk:prepare
+          node --test tooling/distribution/sdk-shell.test.mjs
       - name: Pack the owner SDK and record integrity
         run: |
           mkdir -p .artifacts/console-sdk
@@ -52,6 +60,9 @@ jobs:
           assert.equal(pack.name, "@lenso/console-sdk");
           assert.equal(pack.version, pkg.version);
           assert.equal(pkg.exports["./compiler"], "./compiler/compiler.mjs");
+          assert.equal(pkg.exports["./shell"], "./shell/index.html");
+          assert.ok(pack.files.some(file => file.path === "shell/index.html"));
+          assert.ok(pack.files.some(file => file.path === "compiler/compiler.mjs"));
           const archive = fs.readFileSync(`.artifacts/console-sdk/${pack.filename}`);
           assert.equal(pack.integrity, `sha512-${createHash("sha512").update(archive).digest("base64")}`);
           fs.writeFileSync(".artifacts/console-sdk/source.json", JSON.stringify({
