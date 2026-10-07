@@ -46,6 +46,80 @@ function Probe() {
     </>
   );
 }
+// The former provider gate serialized an extra locale read before session and
+// methods. A held session now proves methods start without admitting content.
+test("anonymous startup reads session and methods together and language once", async () => {
+  let completeSession: ((value: Response) => void) | undefined;
+  let completeMethods: ((value: Response) => void) | undefined;
+  const session = new Promise<Response>((resolve) => {
+    completeSession = resolve;
+  });
+  const methods = new Promise<Response>((resolve) => {
+    completeMethods = resolve;
+  });
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      requests.push(path);
+      if (path.endsWith("/session")) {
+        return session;
+      }
+      if (path.endsWith("/methods")) {
+        return methods;
+      }
+      return Response.json({
+        global_default: "en",
+        preference: "global",
+        available: true,
+        can_manage_default: false,
+      });
+    })
+  );
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  flushSync(() =>
+    root?.render(
+      <HostConsoleLocaleProvider>
+        <ConsoleSession>
+          <p>Private workspace</p>
+        </ConsoleSession>
+      </HostConsoleLocaleProvider>
+    )
+  );
+  await expect.element(page.getByText("Checking your session…")).toBeVisible();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests.toSorted()).toEqual([
+    "/api/console/v1/session",
+    "/auth/methods",
+  ]);
+  await expect
+    .element(page.getByText("Private workspace"))
+    .not.toBeInTheDocument();
+  completeSession?.(new Response(null, { status: 401 }));
+  completeMethods?.(
+    Response.json({
+      methods: [
+        {
+          id: "password",
+          kind: "password",
+          label: "Password",
+          action: "/auth/password/login",
+        },
+      ],
+    })
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Sign in", exact: true }))
+    .toBeVisible();
+  expect(requests.filter((path) => path.endsWith("/locale"))).toHaveLength(1);
+  await expect
+    .element(page.getByText("Private workspace"))
+    .not.toBeInTheDocument();
+});
+
 // Prevent locale changes from remounting admitted session content or overwriting a draft.
 test("account language updates retain the admitted session and follow the global default", async () => {
   let preference = "global";

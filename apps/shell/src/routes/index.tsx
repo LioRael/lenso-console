@@ -1,12 +1,17 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
 import { RoutePending } from "../app/route-states";
 import { workspaceRoute } from "../components/runtime/console-navigation-model";
 import { useAgentIdentity } from "../features/agent/agent-identity-context";
-import { AgentPage } from "../features/agent/agent-page";
 import { usePageCatalog } from "../features/extensions/page-contribution-catalog";
 import { PageContributionOutlet } from "../features/extensions/page-contribution-outlet";
 import { workspaceBasePath } from "../features/extensions/workspace-paths";
+
+const AgentPage = lazy(async () => {
+  const module = await import("../features/agent/agent-page");
+  return { default: module.AgentPage };
+});
 
 export const Route = createFileRoute("/")({ component: AppHome });
 function AppHome() {
@@ -28,7 +33,11 @@ function AppHome() {
     );
   }
   if (agents.length) {
-    return <AgentPage />;
+    return (
+      <Suspense fallback={<RoutePending />}>
+        <AgentPage />
+      </Suspense>
+    );
   }
   const workspace = catalog.data?.find(
     (page) => page.subject.kind === "console"

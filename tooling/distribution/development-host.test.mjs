@@ -39,6 +39,22 @@ const verifyApp = async (cli, app, env, services) => {
       stage = "page Shell";
       const shell = await fetch(`${base}/`);
       assert.equal(shell.status, 200);
+      assert.equal(shell.headers.get("cache-control"), "no-store");
+      const html = await shell.text();
+      const asset = html.match(
+        /(?:src|href)="([^"]*\/assets\/[^"/]+-[A-Za-z0-9_]{8,}\.(?:js|css))"/u
+      )?.[1];
+      assert.ok(asset, "Shell must reference a content-named public asset");
+      const publicAsset = await fetch(new URL(asset, base));
+      assert.equal(publicAsset.status, 200);
+      assert.equal(
+        publicAsset.headers.get("cache-control"),
+        "public, max-age=31536000, immutable"
+      );
+      await publicAsset.arrayBuffer();
+      const favicon = await fetch(`${base}/favicon.svg`);
+      assert.equal(favicon.headers.get("cache-control"), "no-cache");
+      await favicon.arrayBuffer();
       stage = "page module";
       const module = await fetch(`${base}${mount.module}`);
       assert.equal(module.status, 200);

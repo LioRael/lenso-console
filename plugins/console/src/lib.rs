@@ -870,6 +870,26 @@ impl ConsoleApplication {
             builder = builder
                 .header(header::CACHE_CONTROL, "no-store")
                 .header(header::VARY, "Accept-Language");
+        } else if path
+            .parent()
+            .is_some_and(|parent| parent.ends_with("assets"))
+            && path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .is_some_and(|stem| {
+                    let bytes = stem.as_bytes();
+                    bytes.len() > 9
+                        && bytes[bytes.len() - 9] == b'-'
+                        && bytes[bytes.len() - 8..]
+                            .iter()
+                            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                })
+        {
+            // Only public, content-named Shell assets use immutable caching.
+            // Workspace contributions retain their separate session admission.
+            builder = builder.header(header::CACHE_CONTROL, "public, max-age=31536000, immutable");
+        } else {
+            builder = builder.header(header::CACHE_CONTROL, "no-cache");
         }
         builder
             .header(header::CONTENT_TYPE, http::content_type(path))

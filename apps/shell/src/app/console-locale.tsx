@@ -89,7 +89,6 @@ export function parseLocaleSnapshot(value: unknown): LocaleSnapshot {
 }
 
 export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
-  const [ready, setReady] = useState(false);
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [locale, setLocale] = useState<ConsoleLocale>(() =>
     resolveConsoleLocale(
@@ -163,14 +162,9 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
       }
     };
     adoptSessionLocale = adopt;
-    const prepareInitialLocale = async () => {
-      try {
-        await adopt("anonymous");
-      } finally {
-        setReady(true);
-      }
-    };
-    void prepareInitialLocale();
+    // The session boundary owns the initial read, after it knows the identity.
+    // Public HTML/browser defaults render immediately; private content still
+    // waits for prepareSessionLocale in ConsoleSession.
     const unsubscribe = subscribeIdentityTransitions((phase) => {
       if (phase !== "begin") {
         return;
@@ -264,8 +258,6 @@ export function HostConsoleLocaleProvider({ children }: PropsWithChildren) {
     [locale, snapshot, saving, errorMessage, setPreference, setGlobalDefault]
   );
   return (
-    <ConsoleLocaleProvider value={value}>
-      {ready ? children : <output aria-busy="true" />}
-    </ConsoleLocaleProvider>
+    <ConsoleLocaleProvider value={value}>{children}</ConsoleLocaleProvider>
   );
 }

@@ -157,6 +157,30 @@ export function ConsoleSession({
           return;
         }
         try {
+          // Both are read-only under the same identity lock. Start together,
+          // but retire an invalid session before waiting for method discovery.
+          const methodsRead = (async () => {
+            try {
+              const methods = await sessionFetch(consoleAuthPath("methods"), {
+                credentials: "same-origin",
+                cache: "no-store",
+                signal,
+              });
+              return methods.ok ? await methods.json() : undefined;
+            } catch {
+              return undefined;
+            }
+          })();
+          const prepareMethods = async () => {
+            const configuration: unknown = await methodsRead;
+            if (configuration === undefined) {
+              throw new Error("Session configuration unavailable");
+            }
+            if (active()) {
+              configureSessionCsrf(configuration);
+            }
+            return configuration;
+          };
           const response = await sessionFetch("/api/console/v1/session", {
             credentials: "same-origin",
             cache: "no-store",
@@ -178,37 +202,17 @@ export function ConsoleSession({
             queryClient.clear();
           }
           if (response.status === 403) {
-            const methods = await sessionFetch(consoleAuthPath("methods"), {
-              cache: "no-store",
-              signal,
-            });
-            if (!methods.ok) {
-              throw new Error("Session configuration unavailable");
-            }
-            const configuration: unknown = await methods.json();
+            await prepareMethods();
             if (!active()) {
               return;
             }
-            configureSessionCsrf(configuration);
             queryClient.clear();
             setState({ kind: "denied" });
           } else if (response.status === 401) {
-            const methodsResponse = await sessionFetch(
-              consoleAuthPath("methods"),
-              {
-                credentials: "same-origin",
-                cache: "no-store",
-                signal,
-              }
-            );
-            if (!methodsResponse.ok) {
-              throw new Error("Methods unavailable");
-            }
-            const value: unknown = await methodsResponse.json();
+            const value = await prepareMethods();
             if (!active()) {
               return;
             }
-            configureSessionCsrf(value);
             await prepareSessionLocale("anonymous", signal);
             if (!active()) {
               return;
@@ -283,19 +287,10 @@ export function ConsoleSession({
               setState({ kind: "loading" });
             }
             if (value.mode === "required") {
-              const methods = await sessionFetch(consoleAuthPath("methods"), {
-                credentials: "same-origin",
-                cache: "no-store",
-                signal,
-              });
-              if (!methods.ok) {
-                throw new Error("Session configuration unavailable");
-              }
-              const configuration: unknown = await methods.json();
+              await prepareMethods();
               if (!active()) {
                 return;
               }
-              configureSessionCsrf(configuration);
             }
             await prepareSessionLocale(nextScope, signal);
             if (active()) {
